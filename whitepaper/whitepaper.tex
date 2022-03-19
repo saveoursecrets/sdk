@@ -59,6 +59,32 @@ colorlinks,
 \tableofcontents
 
 \section{Abstract}
-\paragraph{}
+\paragraph{People need to store secrets safely. An average person needs to store login passwords for online services and possibly other secrets such as SSH keys, GPG keys or other secret data. Now with the advent of cryptocurrencies people require the ability to store private keys that may hold considerable value. Storing these secrets using a trusted third-party service is a common practice for non-technical people however this poses risks such as the service provider geting hacked or a malicious employee attacking your data. Modern service providers will design a protocol that ensures that data is only decrypted on the client device and the master password never leaves the client device which provides confidence that the service provider cannot access secrets even if they are compromised.}
+
+\paragraph{This protection against the service provider poses a problem for secrets recovery in the case of death. If the service provider cannot decrypt the secrets then they cannot release those secrets to family members in the case of the owner's death.}
+
+\paragraph{The ability to pass on our secrets to loved ones upon death is important not only for social media accounts that may need to be closed but also access to bank accounts, cryptocurrency assets and other secrets that may be required for inheritance.}
+
+\paragraph{We aim to show that it is possible to protect secrets using modern cryptography that allows for a high-level of confidence that your secrets are safe while alive and allowing family members to recover those secrets in the event of death.}
+
+\section{Design Goals}
+
+\begin{itemize}
+  \item Secure design
+  \item Recovery mechanism in the event of death
+  \item Self-hosted vaults
+  \item Allow for untrusted hosting provider
+  \item Cross-platform client implementations
+  \item Allow applications to manage secrets in a vault using public / private key cryptography
+  \item Support multi-user access with ACLs configurable by the owner
+\end{itemize}
+
+\subsection{Secure Design}
+
+\paragraph{The cryptography to protect the secrets will use the industry standard AES256-GCM\footnote{\href{https://doc.libsodium.org/secret-key_cryptography/aead/aes-256-gcm}{AES256-GCM}} block cipher to protect the data at rest and ensure it's integrity using \href{https://en.wikipedia.org/wiki/Authenticated_encryption}{Authenticated Encryption}.}
+
+\section{Trusted Vault}
+
+\paragraph{Most people have somebody they trust completely.}
 
 \end{document}
