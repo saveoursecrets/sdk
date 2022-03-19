@@ -72,6 +72,7 @@ colorlinks,
 \begin{itemize}
   \item Secure design
   \item Recovery mechanism in the event of death
+  \item Zero metadata leakage
   \item Self-hosted vaults
   \item Allow for untrusted hosting provider
   \item Cross-platform client implementations
@@ -81,10 +82,51 @@ colorlinks,
 
 \subsection{Secure Design}
 
-\paragraph{The cryptography to protect the secrets will use the industry standard AES256-GCM\footnote{\href{https://doc.libsodium.org/secret-key_cryptography/aead/aes-256-gcm}{AES256-GCM}} block cipher to protect the data at rest and ensure it's integrity using \href{https://en.wikipedia.org/wiki/Authenticated_encryption}{Authenticated Encryption}.}
+\paragraph{The cryptography to protect the secrets will use the industry standard AES256-GCM\footnote{\href{https://doc.libsodium.org/secret-key_cryptography/aead/aes-256-gcm}{AES256-GCM}} block cipher to protect the data at rest and ensure it's integrity using AEAD\footnote{\href{https://en.wikipedia.org/wiki/Authenticated_encryption}{Authenticated Encryption}}.}
 
-\section{Trusted Vault}
+\subsection{Recovery Mechanism}
 
-\paragraph{Most people have somebody they trust completely.}
+\paragraph{Using cryptographic signatures for authentication to a vault access to the encrypted secrets can be restricted to single-parties or a quorum of trusted family members using threshold signatures.}
+
+\paragraph{A quorum that exceeds the threshold would be able to access the bytes for the encrypted secrets but would still need the master password to decrypt the secrets.}
+
+\paragraph{By using threshold signatures as a recovery mechanism we can \emph{distribute the trust} across multiple family members and provide redundancy in the case of deaths in the recovery circle.}
+
+\paragraph{We will look at the problem of providing access to the master password to a recovery circle later.}
+
+\subsection{Meta Data}
+
+\paragraph{An attacker that acquires the encrypted vault should not be able to determine any information about the contents via meta data. The implication is that any indexing for search purposes would need to be performed client-side.}
+
+\subsection{Self-hosted}
+
+\paragraph{Our philosophy is sovereign ownership of assets and data so the program should be designed for self-hosting first but allow for an untrusted service provider to host the vaults for non-technical people that don't want the burden of managing a hosted service.}
+
+\subsection{Cross-platform}
+
+\paragraph{People should be free to change their computing platforms without worrying about losing access to their self-hosted secrets so the client software should run on all the major platforms. Linux, MacOS, Windows, iOS, Android and the Web.}
+
+\subsection{Integrations}
+
+\paragraph{Owners of vaults should be able to allow third-party applications to manage secrets to provide interoperability with third-party programs. The secrets stored by third-party applications must be isolated by namespace.}
+
+\section{Components}
+
+Use a standard server/client architecture to separate responsibilities:
+
+\begin{itemize}
+  \item Server manages authentication and authorization to encrypted vaults
+  \item Client implementations authenticate to the server to retrieve encrypted vaults; decryption is always performed client-side
+\end{itemize}
+
+\section{Authentication}
+
+\paragraph{Each vault has a corresponding encrypted authentication map that contains the public keys of clients that may access the vault. The authentication map must be loaded by the server so it can determine who is allowed access but it may only be modified by the vault owner.}
+
+\paragraph{The authentication map must be encrypted to prevent an attacker from modifying the map to assign a public key allowed to authenticate.}
+
+\paragraph{When the server starts each vault will be in a locked state and the vault owner must \emph{unlock} the authentication map using BLS Threshold Decryption\footnote{\href{https://en.wikipedia.org/wiki/BLS_digital_signature}{BLS Digital Signatures}} enabled by key shares distributed between the server and the owner. The server will then store the decrypted authentication map in memory and in collaboration with the owner can provide a secure mechanism to modify the in-memory authentication map as well as the encrypted authentication map.}
+
+\paragraph{Once a server has \emph{unlocked} the authentication map for a vault clients can authenticate by signing a challenge which when verified corresponds to a public key in the authentication map. Upon successful authentication the server will issue a JWT\footnote{\href{https://en.wikipedia.org/wiki/JSON_Web_Token}{JSON Web Token}} that will allow a client to retrieve the encrypted contents of the vault.}
 
 \end{document}
