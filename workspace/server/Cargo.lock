@@ -1548,11 +1548,13 @@ name = "sos3-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "clap",
  "hyper",
  "serde",
  "sos-core",
+ "thiserror",
  "tokio",
  "tower",
  "tracing",

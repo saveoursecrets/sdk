@@ -13,7 +13,6 @@ use log::info;
 const KEY_EXT: &str = "key.json";
 const PUB_EXT: &str = "pub.json";
 const PEM_EXT: &str = "pem";
-const SOS_EXT: &str = "sos3";
 
 use crate::LOG_TARGET;
 
