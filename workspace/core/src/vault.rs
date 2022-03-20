@@ -4,7 +4,9 @@ use binary_rw::{
     filestream::{Filestream, OpenType},
     BinaryReader, BinaryWriter, Stream,
 };
+use std::collections::HashMap;
 use std::path::Path;
+use uuid::Uuid;
 
 use crate::{
     crypto::{authorize::PublicKey, AeadPack},
@@ -86,13 +88,14 @@ impl Decode for Index {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    data: Vec<AeadPack>,
+    data: HashMap<Uuid, AeadPack>,
 }
 
 impl Encode for Contents {
     fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
         writer.write_usize(self.data.len())?;
-        for item in &self.data {
+        for (key, item) in &self.data {
+            writer.write_string(key.to_string())?;
             item.encode(writer)?;
         }
         Ok(())
@@ -103,9 +106,10 @@ impl Decode for Contents {
     fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
         let length = reader.read_usize()?;
         for _ in 0..length {
-            let mut pack: AeadPack = Default::default();
-            pack.decode(reader)?;
-            self.data.push(pack);
+            let key = reader.read_string()?;
+            let mut value: AeadPack = Default::default();
+            value.decode(reader)?;
+            self.data.insert(Uuid::parse_str(&key)?, value);
         }
         Ok(())
     }
@@ -158,10 +162,7 @@ impl Decode for Vault {
 
 impl Vault {
     /// Encode a vault to binary.
-    pub fn encode<'a>(
-        stream: &'a mut impl Stream,
-        vault: &Vault,
-    ) -> Result<()> {
+    pub fn encode<'a>(stream: &'a mut impl Stream, vault: &Vault) -> Result<()> {
         let mut writer = BinaryWriter::new(stream);
         vault.encode(&mut writer)?;
         Ok(())
@@ -193,23 +194,12 @@ impl Vault {
     }
 
     /// Check if a public key already exists.
-    pub fn get_public_key(
-        &mut self,
-        public_key: &PublicKey,
-    ) -> Option<(usize, &PublicKey)> {
+    pub fn get_public_key(&mut self, public_key: &PublicKey) -> Option<(usize, &PublicKey)> {
         self.header
             .public_keys
             .iter()
             .enumerate()
-            .find_map(
-                |(i, k)| {
-                    if k == public_key {
-                        Some((i, k))
-                    } else {
-                        None
-                    }
-                },
-            )
+            .find_map(|(i, k)| if k == public_key { Some((i, k)) } else { None })
     }
 
     /// Add a public key to this vault.

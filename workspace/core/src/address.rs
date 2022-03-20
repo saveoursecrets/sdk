@@ -54,13 +54,11 @@ mod tests {
 
     const COMPRESSED_PUBLIC_KEY: &str =
         "025f37d20e5b18909361e0ead7ed17c69b417bee70746c9e9c2bcb1394d921d4ae";
-    const COMPRESSED_ADDRESS: &str =
-        "0xd09d3103ccabfb769edc3e9b01500ca7241d470a";
+    const COMPRESSED_ADDRESS: &str = "0xd09d3103ccabfb769edc3e9b01500ca7241d470a";
 
     const PUBLIC_KEY: [u8; 33] = [
-        3, 191, 74, 169, 115, 14, 12, 199, 99, 221, 125, 5, 13, 247, 115, 157,
-        30, 185, 140, 2, 20, 153, 10, 245, 177, 145, 111, 188, 103, 92, 61,
-        227, 121,
+        3, 191, 74, 169, 115, 14, 12, 199, 99, 221, 125, 5, 13, 247, 115, 157, 30, 185, 140, 2, 20,
+        153, 10, 245, 177, 145, 111, 188, 103, 92, 61, 227, 121,
     ];
 
     #[test]

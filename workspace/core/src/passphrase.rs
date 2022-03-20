@@ -7,10 +7,7 @@ use bip39::{Language, Mnemonic};
 use std::str::FromStr;
 
 /// Generate a bip39 mnemonic in the given language.
-pub fn mnemonic_in(
-    language: Language,
-    word_count: WordCount,
-) -> Result<Mnemonic> {
+pub fn mnemonic_in(language: Language, word_count: WordCount) -> Result<Mnemonic> {
     let word_count: u16 = word_count.into();
     Ok(Mnemonic::generate_in(language, word_count as usize)?)
 }
