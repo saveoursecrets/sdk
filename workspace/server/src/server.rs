@@ -8,7 +8,7 @@ use axum::{
 };
 //use serde::{Deserialize, Serialize};
 use crate::Backend;
-use sos_core::into_encoded_buffer;
+use sos_core::{from_encoded_buffer, into_encoded_buffer, vault::Index};
 use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
@@ -41,7 +41,7 @@ impl Server {
             .route("/vault", get(VaultHandler::list))
             .route(
                 "/vault/:id",
-                get(VaultHandler::get).post(VaultHandler::post),
+                get(VaultHandler::retrieve_index).post(VaultHandler::update_index),
             )
             .layer(Extension(shared_state));
 
@@ -73,8 +73,8 @@ impl VaultHandler {
         (StatusCode::OK, Json(list))
     }
 
-    /// GET the encrypted index data for a vault.
-    async fn get(
+    /// Retrieve the encrypted index data for a vault.
+    async fn retrieve_index(
         Extension(state): Extension<Arc<RwLock<State>>>,
         Path(vault_id): Path<Uuid>,
     ) -> Result<Bytes, StatusCode> {
@@ -89,23 +89,27 @@ impl VaultHandler {
         }
     }
 
-    /// POST the encrypted index data for a vault.
-    async fn post(
+    /// Update the encrypted index data for a vault.
+    async fn update_index(
         Extension(state): Extension<Arc<RwLock<State>>>,
         Path(vault_id): Path<Uuid>,
         body: Bytes,
     ) -> Result<(), StatusCode> {
         let mut writer = state.write().unwrap();
-        if let Some(vault) = writer.backend.get_mut(&vault_id) {
+        let id = if let Some(vault) = writer.backend.get_mut(&vault_id) {
             let buffer = body.to_vec();
+            let index: Index =
+                from_encoded_buffer(buffer)
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            vault.set_index(index);
+            Some(vault.id().clone())
+        } else {
+            None
+        };
 
-            // TODO: decode buffer to Index
-            // TODO: assign index to vault
-            // TODO: flush vault to backing storage
-
-            println!("Got vault bytes {:#?}", buffer.len());
-            println!("Got vault bytes {:#?}", buffer);
-
+        if let Some(id) = id {
+            //writer.backend.flush(&id).await
+                //.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             Ok(())
         } else {
             Err(StatusCode::NOT_FOUND)

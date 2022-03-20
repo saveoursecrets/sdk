@@ -203,6 +203,11 @@ impl Vault {
         &self.index
     }
 
+    /// Set the vault meta data index.
+    pub fn set_index(&mut self, index: Index) {
+        self.index = index;
+    }
+
     /// Encode a vault to binary.
     pub fn encode<'a>(stream: &'a mut impl Stream, vault: &Vault) -> Result<()> {
         let mut writer = BinaryWriter::new(stream);
@@ -267,6 +272,16 @@ pub fn into_encoded_buffer(encodable: &impl Encode) -> Result<Vec<u8>> {
     let mut writer = BinaryWriter::new(&mut stream);
     encodable.encode(&mut writer)?;
     Ok(stream.into())
+}
+
+/// Decode into a binary buffer.
+pub fn from_encoded_buffer<T: Decode + Default>(buffer: Vec<u8>) -> Result<T> {
+    use binary_rw::memorystream::Memorystream;
+    let mut stream: Memorystream = buffer.into();
+    let mut reader = BinaryReader::new(&mut stream);
+    let mut decoded: T = T::default();
+    decoded.decode(&mut reader)?;
+    Ok(decoded)
 }
 
 #[cfg(test)]
