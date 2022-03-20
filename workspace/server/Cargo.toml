@@ -6,6 +6,7 @@ default-run = "sos3"
 
 [dependencies]
 anyhow = "1"
+thiserror = "1"
 sos-core = { path = "../core" }
 clap = { version = "3", features = ["derive"] }
 axum = "0.4"
@@ -16,6 +17,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = { version = "1", features = ["derive"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
+async-trait = "0.1"
 
 [[bin]]
 name = "sos3"
