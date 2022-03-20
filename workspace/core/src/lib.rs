@@ -8,3 +8,5 @@ pub mod passphrase;
 pub mod service;
 pub mod traits;
 pub mod vault;
+
+pub use vault::into_encoded_buffer;

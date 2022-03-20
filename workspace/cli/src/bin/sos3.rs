@@ -28,9 +28,6 @@ enum Command {
 enum New {
     /// Create a new secret storage vault
     Vault {
-        /// Name for the vault file
-        name: String,
-
         /// Directory to write the vault file
         #[clap(parse(from_os_str))]
         destination: PathBuf,
@@ -121,8 +118,8 @@ fn main() -> Result<()> {
     let args = Cli::parse();
     match args.command {
         Command::New(cmd) => match cmd {
-            New::Vault { name, destination } => {
-                sos3_cli::new::vault(name, destination)?;
+            New::Vault { destination } => {
+                sos3_cli::new::vault(destination)?;
             }
             New::Keypair { name, destination } => {
                 sos3_cli::new::keypair(name, destination)?;
