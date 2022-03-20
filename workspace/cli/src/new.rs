@@ -6,6 +6,7 @@ use sos_core::{
     passphrase::{words, WordCount},
     vault::Vault,
 };
+use uuid::Uuid;
 
 use log::info;
 
@@ -17,19 +18,22 @@ const SOS_EXT: &str = "sos3";
 use crate::LOG_TARGET;
 
 /// Create a new empty vault
-pub fn vault(name: String, destination: PathBuf) -> Result<()> {
+pub fn vault(destination: PathBuf) -> Result<()> {
     if !destination.is_dir() {
         bail!("destination is not a directory: {}", destination.display());
     }
 
-    let mut vault_path = destination.join(&name);
-    vault_path.set_extension(SOS_EXT);
+    let uuid = Uuid::new_v4();
+    let file_name = uuid.to_string();
+
+    let mut vault_path = destination.join(&file_name);
+    vault_path.set_extension(Vault::extension());
 
     if vault_path.exists() {
         bail!("file {} already exists", vault_path.display());
     }
 
-    let vault: Vault = Default::default();
+    let vault = Vault::new(uuid);
     vault.write_file(&vault_path)?;
 
     info!(

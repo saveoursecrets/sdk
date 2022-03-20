@@ -72,17 +72,17 @@ impl TryFrom<u16> for WordCount {
 
 #[cfg(test)]
 mod tests {
-    use super::mnemonic_in;
+    use super::{mnemonic_in, WordCount};
     use anyhow::Result;
     use bip39::Language;
 
     #[test]
     fn generate_passphrase() -> Result<()> {
         let word_count = 12;
-        let passphrase = mnemonic_in(Language::English, word_count)?;
+        let passphrase = mnemonic_in(Language::English, WordCount::Short(word_count))?;
         let words = format!("{}", passphrase);
         let items: Vec<&str> = words.split(" ").collect();
-        assert_eq!(word_count, items.len());
+        assert_eq!(word_count as usize, items.len());
         Ok(())
     }
 }

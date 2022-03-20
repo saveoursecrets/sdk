@@ -21,7 +21,20 @@ const VERSION: u16 = 0;
 pub struct Header {
     identity: Box<[u8; 4]>,
     version: u16,
+    id: Uuid,
     public_keys: Vec<PublicKey>,
+}
+
+impl Header {
+    /// Create a new header.
+    pub fn new(id: Uuid) -> Self {
+        Self {
+            identity: Box::new(IDENTITY),
+            version: VERSION,
+            id,
+            public_keys: Default::default(),
+        }
+    }
 }
 
 impl Default for Header {
@@ -29,6 +42,7 @@ impl Default for Header {
         Self {
             identity: Box::new(IDENTITY),
             version: VERSION,
+            id: Uuid::new_v4(),
             public_keys: Default::default(),
         }
     }
@@ -38,6 +52,7 @@ impl Encode for Header {
     fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
         writer.write_bytes(self.identity.to_vec())?;
         writer.write_u16(self.version)?;
+        writer.write_string(self.id.to_string())?;
         writer.write_usize(self.public_keys.len())?;
         for public_key in &self.public_keys {
             public_key.encode(writer)?;
@@ -55,6 +70,7 @@ impl Decode for Header {
             }
         }
         self.version = reader.read_u16()?;
+        self.id = Uuid::parse_str(&reader.read_string()?)?;
         let length = reader.read_usize()?;
         for _ in 0..length {
             let mut public_key: PublicKey = Default::default();
@@ -161,6 +177,32 @@ impl Decode for Vault {
 }
 
 impl Vault {
+
+    /// Create a new vault.
+    pub fn new(id: Uuid) -> Self {
+        Self {
+            header: Header::new(id),
+            index: Default::default(),
+            contents: Default::default(),
+            trailer: Default::default(),
+        }
+    }
+
+    /// The file extensions for vaults.
+    pub fn extension() -> &'static str {
+        "vault"
+    }
+
+    /// Get the unique identifier for this vault.
+    pub fn id(&self) -> &Uuid {
+        &self.header.id
+    }
+
+    /// Get the vault meta data index.
+    pub fn index(&self) -> &Index {
+        &self.index
+    }
+
     /// Encode a vault to binary.
     pub fn encode<'a>(stream: &'a mut impl Stream, vault: &Vault) -> Result<()> {
         let mut writer = BinaryWriter::new(stream);
@@ -218,15 +260,26 @@ impl Vault {
     }
 }
 
+/// Encode into a binary buffer.
+pub fn into_encoded_buffer(encodable: &impl Encode) -> Result<Vec<u8>> {
+    use binary_rw::memorystream::Memorystream;
+    let mut stream = Memorystream::new()?;
+    let mut writer = BinaryWriter::new(&mut stream);
+    encodable.encode(&mut writer)?;
+    Ok(stream.into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::Vault;
     use anyhow::Result;
     use binary_rw::{memorystream::Memorystream, Stream};
+    use uuid::Uuid;
 
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
-        let vault: Vault = Default::default();
+        let uuid = Uuid::new_v4();
+        let vault = Vault::new(uuid);
         let mut stream = Memorystream::new()?;
         Vault::encode(&mut stream, &vault)?;
 

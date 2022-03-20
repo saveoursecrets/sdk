@@ -52,3 +52,5 @@ target
 *.sos3
 *.bak
 *.pem
+
+/vaults
