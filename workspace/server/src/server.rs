@@ -6,13 +6,16 @@ use axum::{
     routing::get,
     Json, Router,
 };
+//use axum_macros::debug_handler;
+
 //use serde::{Deserialize, Serialize};
 use crate::Backend;
 use sos_core::{from_encoded_buffer, into_encoded_buffer, vault::Index};
 use std::{
     net::SocketAddr,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
+use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
@@ -63,7 +66,7 @@ struct VaultHandler;
 impl VaultHandler {
     /// List vault identifiers.
     async fn list(Extension(state): Extension<Arc<RwLock<State>>>) -> impl IntoResponse {
-        let reader = state.read().unwrap();
+        let reader = state.read().await;
         let list: Vec<String> = reader
             .backend
             .list()
@@ -78,7 +81,7 @@ impl VaultHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         Path(vault_id): Path<Uuid>,
     ) -> Result<Bytes, StatusCode> {
-        let reader = state.read().unwrap();
+        let reader = state.read().await;
         if let Some(vault) = reader.backend.get(&vault_id) {
             let index = vault.index();
             let buffer =
@@ -95,7 +98,7 @@ impl VaultHandler {
         Path(vault_id): Path<Uuid>,
         body: Bytes,
     ) -> Result<(), StatusCode> {
-        let mut writer = state.write().unwrap();
+        let mut writer = state.write().await;
         let id = if let Some(vault) = writer.backend.get_mut(&vault_id) {
             let buffer = body.to_vec();
             let index: Index =
@@ -108,8 +111,8 @@ impl VaultHandler {
         };
 
         if let Some(id) = id {
-            //writer.backend.flush(&id).await
-                //.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            writer.backend.flush(&id).await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             Ok(())
         } else {
             Err(StatusCode::NOT_FOUND)
