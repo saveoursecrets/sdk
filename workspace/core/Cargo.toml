@@ -1,5 +1,5 @@
 [package]
-name = "sos_core"
+name = "sos-core"
 version = "0.1.0"
 edition = "2021"
 
