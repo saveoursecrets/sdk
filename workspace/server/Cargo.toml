@@ -10,6 +10,7 @@ thiserror = "1"
 sos-core = { path = "../core" }
 clap = { version = "3", features = ["derive"] }
 axum = "0.4"
+axum-macros = "0.1"
 hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 tower = "0.4"
