@@ -16,5 +16,7 @@ pub use vault::{from_encoded_buffer, into_encoded_buffer};
 
 pub use error::Error;
 
+pub use uuid;
+
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;

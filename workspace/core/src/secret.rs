@@ -4,6 +4,7 @@ use binary_rw::{BinaryReader, BinaryWriter};
 use std::collections::HashMap;
 use url::Url;
 use uuid::Uuid;
+use serde::{Serialize, Deserialize};
 
 use crate::{
     traits::{Decode, Encode},
@@ -36,7 +37,7 @@ impl MetaData {
     }
 
     /// Get meta data for a secret.
-    pub fn get_secret_meta(&mut self, uuid: &Uuid) -> Option<&SecretMeta> {
+    pub fn get_secret_meta(&self, uuid: &Uuid) -> Option<&SecretMeta> {
         self.secrets.get(uuid)
     }
 }
@@ -68,7 +69,7 @@ impl Decode for MetaData {
 }
 
 /// Encapsulates the meta data for a secret.
-#[derive(Debug, Default, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SecretMeta {
     /// Human-friendly label for the secret.
     label: String,
@@ -96,7 +97,7 @@ impl Decode for SecretMeta {
 }
 
 /// Encapsulates a secret.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Secret {
     /// A UTF-8 encoded note.
     Text(String),
