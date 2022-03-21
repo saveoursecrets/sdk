@@ -12,7 +12,7 @@ use std::sync::{Arc, RwLock};
 use super::{keypair::KeyPart, types::*};
 use crate::{
     address::{address_compressed, address_decompressed},
-    traits::{Decode, Encode},
+    traits::{Decode, Encode, EncoderResult},
 };
 
 /// Size of a compressed public key.
@@ -144,7 +144,7 @@ impl TryFrom<&PublicKey> for VerifyingKey {
 }
 
 impl Encode for PublicKey {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> EncoderResult<()> {
         writer.write_bool(self.compressed)?;
         writer.write_bytes(self.key_data.to_vec())?;
         Ok(())
@@ -152,7 +152,7 @@ impl Encode for PublicKey {
 }
 
 impl Decode for PublicKey {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> EncoderResult<()> {
         self.compressed = reader.read_bool()?;
         self.key_data = if self.compressed {
             let bytes: [u8; COMPRESSED as usize] = reader

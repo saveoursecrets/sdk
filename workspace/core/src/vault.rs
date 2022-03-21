@@ -1,5 +1,5 @@
 //! Vault secret storage file format.
-use anyhow::{bail, Result};
+use anyhow::Result;
 use thiserror::Error;
 use binary_rw::{
     filestream::{Filestream, OpenType},
@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     crypto::{authorize::PublicKey, AeadPack},
-    traits::{Decode, Encode},
+    traits::{Decode, Encode, EncoderResult, EncoderError},
 };
 
 const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x03];
@@ -20,7 +20,6 @@ const VERSION: u16 = 0;
 /// Errors thrown by the vault implementation.
 #[derive(Debug, Error)]
 pub enum VaultError {
-
     /// Anyhow error type.
     #[error(transparent)]
     Anyhow(#[from] anyhow::Error),
@@ -62,7 +61,7 @@ impl Default for Header {
 }
 
 impl Encode for Header {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> EncoderResult<()> {
         writer.write_bytes(self.identity.to_vec())?;
         writer.write_u16(self.version)?;
         writer.write_string(self.id.to_string())?;
@@ -75,11 +74,11 @@ impl Encode for Header {
 }
 
 impl Decode for Header {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> EncoderResult<()> {
         for ident in &IDENTITY {
             let byte = reader.read_u8()?;
             if byte != *ident {
-                bail!("bad identity byte {:x}", byte);
+                return Err(EncoderError::BadIdentity(byte));
             }
         }
         self.version = reader.read_u16()?;
@@ -113,7 +112,7 @@ impl Index {
 }
 
 impl Encode for Index {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> EncoderResult<()> {
         writer.write_bool(self.meta.is_some())?;
         if let Some(meta) = &self.meta {
             meta.encode(writer)?;
@@ -123,7 +122,7 @@ impl Encode for Index {
 }
 
 impl Decode for Index {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> EncoderResult<()> {
         let has_meta = reader.read_bool()?;
         if has_meta {
             self.meta = Some(Default::default());
@@ -142,7 +141,7 @@ pub struct Contents {
 }
 
 impl Encode for Contents {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> EncoderResult<()> {
         writer.write_usize(self.data.len())?;
         for (key, item) in &self.data {
             writer.write_string(key.to_string())?;
@@ -153,7 +152,7 @@ impl Encode for Contents {
 }
 
 impl Decode for Contents {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> EncoderResult<()> {
         let length = reader.read_usize()?;
         for _ in 0..length {
             let key = reader.read_string()?;
@@ -170,13 +169,13 @@ impl Decode for Contents {
 pub struct Trailer {}
 
 impl Encode for Trailer {
-    fn encode(&self, _writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, _writer: &mut BinaryWriter) -> EncoderResult<()> {
         Ok(())
     }
 }
 
 impl Decode for Trailer {
-    fn decode(&mut self, _reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, _reader: &mut BinaryReader) -> EncoderResult<()> {
         Ok(())
     }
 }
@@ -191,7 +190,7 @@ pub struct Vault {
 }
 
 impl Encode for Vault {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> EncoderResult<()> {
         self.header.encode(writer)?;
         self.index.encode(writer)?;
         self.contents.encode(writer)?;
@@ -201,7 +200,7 @@ impl Encode for Vault {
 }
 
 impl Decode for Vault {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> EncoderResult<()> {
         self.header.decode(reader)?;
         self.index.decode(reader)?;
         self.contents.decode(reader)?;
