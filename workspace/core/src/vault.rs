@@ -1,5 +1,6 @@
 //! Vault secret storage file format.
 use anyhow::{bail, Result};
+use thiserror::Error;
 use binary_rw::{
     filestream::{Filestream, OpenType},
     BinaryReader, BinaryWriter, Stream,
@@ -15,6 +16,18 @@ use crate::{
 
 const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x03];
 const VERSION: u16 = 0;
+
+/// Errors thrown by the vault implementation.
+#[derive(Debug, Error)]
+pub enum VaultError {
+
+    /// Anyhow error type.
+    #[error(transparent)]
+    Anyhow(#[from] anyhow::Error),
+}
+
+/// Result type for vaults.
+pub type VaultResult<T> = std::result::Result<T, VaultError>;
 
 /// File header, identifier and version information
 #[derive(Debug, Eq, PartialEq)]
@@ -255,6 +268,12 @@ impl Vault {
         let mut vault: Vault = Default::default();
         let mut reader = BinaryReader::new(stream);
         vault.decode(&mut reader)?;
+        Ok(vault)
+    }
+
+    /// Read a vault from a buffer.
+    pub fn read_buffer<B: AsRef<[u8]>>(buffer: B) -> VaultResult<Vault> {
+        let vault: Vault = from_encoded_buffer(buffer.as_ref().to_vec())?;
         Ok(vault)
     }
 

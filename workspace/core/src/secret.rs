@@ -66,6 +66,7 @@ impl Decode for MetaData {
     }
 }
 
+/// Encapsulates the meta data for a secret.
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct SecretMeta {
     /// Human-friendly label for the secret.

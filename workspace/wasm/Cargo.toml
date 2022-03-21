@@ -1,0 +1,9 @@
+[package]
+name = "sos-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "Bindings for Webassembly"
+
+[dependencies]
+sos-core = { path = "../core" }
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
