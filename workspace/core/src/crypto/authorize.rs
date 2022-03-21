@@ -11,8 +11,9 @@ use std::sync::{Arc, RwLock};
 
 use super::{keypair::KeyPart, types::*};
 use crate::{
+    Result,
     address::{address_compressed, address_decompressed},
-    traits::{Decode, Encode, EncoderResult},
+    traits::{Decode, Encode},
 };
 
 /// Size of a compressed public key.
@@ -37,7 +38,7 @@ impl From<KeyPart> for PrivateKey {
 
 impl TryFrom<&PrivateKey> for SigningKey {
     type Error = anyhow::Error;
-    fn try_from(value: &PrivateKey) -> Result<Self, Self::Error> {
+    fn try_from(value: &PrivateKey) -> std::result::Result<Self, Self::Error> {
         match value.type_id {
             K256 => Ok(SigningKey::from_bytes(&value.key)?),
             _ => {
@@ -95,7 +96,7 @@ impl PublicKey {
 
 impl TryFrom<KeyPart> for PublicKey {
     type Error = anyhow::Error;
-    fn try_from(value: KeyPart) -> Result<Self, Self::Error> {
+    fn try_from(value: KeyPart) -> std::result::Result<Self, Self::Error> {
         match value.type_id {
             K256 => {
                 if value.key.len() != COMPRESSED as usize {
@@ -135,7 +136,7 @@ impl From<VerifyingKey> for PublicKey {
 
 impl TryFrom<&PublicKey> for VerifyingKey {
     type Error = anyhow::Error;
-    fn try_from(value: &PublicKey) -> Result<Self, Self::Error> {
+    fn try_from(value: &PublicKey) -> std::result::Result<Self, Self::Error> {
         match value.key_data {
             KeyData::Compressed(ref bytes) => Ok(VerifyingKey::from_sec1_bytes(bytes)?),
             _ => bail!("not a compressed public key"),
@@ -144,7 +145,7 @@ impl TryFrom<&PublicKey> for VerifyingKey {
 }
 
 impl Encode for PublicKey {
-    fn encode(&self, writer: &mut BinaryWriter) -> EncoderResult<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
         writer.write_bool(self.compressed)?;
         writer.write_bytes(self.key_data.to_vec())?;
         Ok(())
@@ -152,7 +153,7 @@ impl Encode for PublicKey {
 }
 
 impl Decode for PublicKey {
-    fn decode(&mut self, reader: &mut BinaryReader) -> EncoderResult<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
         self.compressed = reader.read_bool()?;
         self.key_data = if self.compressed {
             let bytes: [u8; COMPRESSED as usize] = reader
@@ -312,7 +313,7 @@ impl Authorization {
 /// High-level functions for creating and verifying JSON web tokens
 /// using the Ed25519 algorithm.
 pub mod jwt {
-    use anyhow::Result;
+    use crate::Result;
     use jwt_simple::{
         algorithms::{Ed25519KeyPair, Ed25519PublicKey, EdDSAKeyPairLike, EdDSAPublicKeyLike},
         claims::{Claims, JWTClaims},

@@ -3,10 +3,10 @@ use aes_gcm::{
     aead::{Aead, NewAead},
     Aes256Gcm, Nonce,
 };
-use anyhow::Result;
 use rand::Rng;
 
 use super::AeadPack;
+use crate::Result;
 
 /// Encrypt plaintext using the key as 256 bit AES-GCM.
 pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<AeadPack> {

@@ -1,11 +1,11 @@
 //! Utilities for computing the address for a public key.
-use anyhow::Result;
 use k256::{
     elliptic_curve::{sec1::ToEncodedPoint, DecompressPoint, ScalarCore},
     AffinePoint, EncodedPoint, FieldBytes, Scalar, Secp256k1,
 };
 use sha3::{Digest, Keccak256};
 use subtle::Choice;
+use crate::Result;
 
 // FIXME: handle panics / unwrap here!
 
