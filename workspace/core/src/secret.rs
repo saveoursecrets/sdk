@@ -1,13 +1,11 @@
 //! Types used to represent vault meta data and secrets.
-
-use anyhow::{bail, Result};
 use binary_rw::{BinaryReader, BinaryWriter};
 
 use std::collections::HashMap;
 use url::Url;
 use uuid::Uuid;
 
-use crate::traits::{Decode, Encode};
+use crate::traits::{Decode, Encode, EncoderResult, EncoderError};
 
 /// Unencrypted vault meta data.
 #[derive(Default)]
@@ -41,7 +39,7 @@ impl MetaData {
 }
 
 impl Encode for MetaData {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> EncoderResult<()> {
         writer.write_string(&self.label)?;
         writer.write_usize(self.secrets.len())?;
         for (key, value) in self.secrets.iter() {
@@ -53,7 +51,7 @@ impl Encode for MetaData {
 }
 
 impl Decode for MetaData {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> EncoderResult<()> {
         self.label = reader.read_string()?;
         let secrets_len = reader.read_usize()?;
         for _ in 0..secrets_len {
@@ -83,14 +81,14 @@ impl SecretMeta {
 }
 
 impl Encode for SecretMeta {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> EncoderResult<()> {
         writer.write_string(&self.label)?;
         Ok(())
     }
 }
 
 impl Decode for SecretMeta {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> EncoderResult<()> {
         self.label = reader.read_string()?;
         Ok(())
     }
@@ -135,7 +133,7 @@ mod secret_kind {
 }
 
 impl Encode for Secret {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> EncoderResult<()> {
         let kind = match self {
             Self::Text(_) => secret_kind::TEXT,
             Self::Blob { .. } => secret_kind::BLOB,
@@ -182,7 +180,7 @@ impl Encode for Secret {
 }
 
 impl Decode for Secret {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> EncoderResult<()> {
         let kind = reader.read_u8()?;
         match kind {
             secret_kind::TEXT => {
@@ -224,7 +222,7 @@ impl Decode for Secret {
                 *self = Self::Credentials(list);
             }
             _ => {
-                bail!("unknown secret kind {}", kind);
+                return Err(EncoderError::UnknownSecretKind(kind))
             }
         }
         Ok(())

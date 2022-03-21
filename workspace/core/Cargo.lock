@@ -1042,6 +1042,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "subtle",
+ "thiserror",
  "url",
  "uuid",
  "zeroize",

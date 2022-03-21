@@ -1,8 +1,7 @@
 //! Cryptographic routines and types.
-use anyhow::Result;
 use binary_rw::{BinaryReader, BinaryWriter};
 
-use crate::traits::{Decode, Encode};
+use crate::traits::{Decode, Encode, EncoderResult};
 
 pub mod aes_gcm_256;
 pub mod authorize;
@@ -33,16 +32,16 @@ impl Default for AeadPack {
 }
 
 impl Encode for AeadPack {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        writer.write_bytes(self.nonce.clone())?;
+    fn encode(&self, writer: &mut BinaryWriter) -> EncoderResult<()> {
+        writer.write_bytes(&self.nonce)?;
         writer.write_usize(self.ciphertext.len())?;
-        writer.write_bytes(self.ciphertext.clone())?;
+        writer.write_bytes(&self.ciphertext)?;
         Ok(())
     }
 }
 
 impl Decode for AeadPack {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> EncoderResult<()> {
         self.nonce = reader.read_bytes(12)?;
         let length = reader.read_usize()?;
         self.ciphertext = reader.read_bytes(length)?;
