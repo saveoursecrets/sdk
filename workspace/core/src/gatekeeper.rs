@@ -92,7 +92,7 @@ mod tests {
 
         let mut init_meta_data: MetaData = Default::default();
         init_meta_data.set_label(label.clone());
-        keeper.set_meta(init_meta_data);
+        keeper.set_meta(init_meta_data)?;
 
         // Decrypt the initialized meta data.
         let meta = keeper.meta()?;
