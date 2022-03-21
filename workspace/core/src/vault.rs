@@ -84,19 +84,40 @@ impl Decode for Header {
 /// Index of meta data describing the contents.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Index {
-    meta: AeadPack,
+    meta: Option<AeadPack>,
+}
+
+impl Index {
+    /// Get the encrypted meta data for the index.
+    pub fn meta(&self) -> Option<&AeadPack> {
+        self.meta.as_ref()
+    }
+
+    /// Set the encrypted meta data for the index.
+    pub fn set_meta(&mut self, meta: Option<AeadPack>) {
+        self.meta = meta;
+    }
 }
 
 impl Encode for Index {
     fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        self.meta.encode(writer)?;
+        writer.write_bool(self.meta.is_some())?;
+        if let Some(meta) = &self.meta {
+            meta.encode(writer)?;
+        }
         Ok(())
     }
 }
 
 impl Decode for Index {
     fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        self.meta.decode(reader)?;
+        let has_meta = reader.read_bool()?;
+        if has_meta {
+            self.meta = Some(Default::default());
+            if let Some(meta) = self.meta.as_mut() {
+                meta.decode(reader)?;
+            }
+        }
         Ok(())
     }
 }
@@ -177,7 +198,6 @@ impl Decode for Vault {
 }
 
 impl Vault {
-
     /// Create a new vault.
     pub fn new(id: Uuid) -> Self {
         Self {
@@ -198,9 +218,14 @@ impl Vault {
         &self.header.id
     }
 
-    /// Get the vault meta data index.
+    /// Get the meta data index.
     pub fn index(&self) -> &Index {
         &self.index
+    }
+
+    /// Get the mutable meta data index.
+    pub fn index_mut(&mut self) -> &mut Index {
+        &mut self.index
     }
 
     /// Set the vault meta data index.

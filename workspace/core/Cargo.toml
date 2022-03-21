@@ -13,6 +13,7 @@ serde_json = "1"
 k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
 subtle = "2.4"
 jwt-simple = "0.10.8"
+zeroize = "1.4"
 # matches the version in k256
 sha3 = "0.9"
 # Note using an old version of `rand` (0.6) due to bip39 dependency

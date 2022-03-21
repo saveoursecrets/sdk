@@ -998,6 +998,7 @@ dependencies = [
  "sha3",
  "subtle",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
