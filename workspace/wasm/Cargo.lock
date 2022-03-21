@@ -1030,7 +1030,6 @@ name = "sos-core"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
- "anyhow",
  "binary_rw",
  "bip39",
  "getrandom",

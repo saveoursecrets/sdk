@@ -144,7 +144,8 @@ fn main() -> Result<()> {
         },
         Command::Vault(cmd) => match cmd {
             Vault::List { vault, jwt, auth } => {
-                sos3_cli::vault::list(vault, jwt, auth)?;
+                todo!("list vaults!")
+                //sos3_cli::vault::list(vault, jwt, auth)?;
             }
         },
     }
