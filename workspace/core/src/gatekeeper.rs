@@ -58,7 +58,7 @@ impl Gatekeeper {
         }
     }
 
-    /// Set the secret meta for a secret.
+    /// Set the meta data for a secret.
     pub fn set_secret_meta(&mut self, uuid: Uuid, meta_data: SecretMeta) -> Result<()> {
         let mut meta = self.meta()?;
         meta.add_secret_meta(uuid, meta_data);
@@ -66,9 +66,9 @@ impl Gatekeeper {
         Ok(())
     }
 
-    /// Get the secret meta for a secret.
-    pub fn get_secret_meta(&mut self, uuid: &Uuid) -> Result<SecretMeta> {
-        let mut meta = self.meta()?;
+    /// Get the meta data for a secret.
+    pub fn get_secret_meta(&self, uuid: &Uuid) -> Result<SecretMeta> {
+        let meta = self.meta()?;
         if let Some(meta_data) = meta.get_secret_meta(uuid) {
             Ok(meta_data.clone())
         } else {
@@ -90,7 +90,7 @@ impl Gatekeeper {
     }
 
     /// Get a secret from the vault.
-    pub fn get_secret(&mut self, uuid: &Uuid) -> Result<Secret> {
+    pub fn get_secret(&self, uuid: &Uuid) -> Result<Secret> {
         if let Some(passphrase) = &self.passphrase {
             if let Some(secret_aead) = self.vault.get_secret(uuid) {
                 let secret_blob = aes_gcm_256::decrypt(passphrase, secret_aead)?;
