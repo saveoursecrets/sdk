@@ -28,6 +28,11 @@ impl MetaData {
     pub fn set_label(&mut self, label: String) {
         self.label = label;
     }
+
+    /// Add a secret reference.
+    pub fn add_reference(&mut self, uuid: Uuid, label: String) {
+        self.secrets.insert(uuid, label);
+    }
 }
 
 impl Encode for MetaData {
@@ -56,6 +61,7 @@ impl Decode for MetaData {
 }
 
 /// Encapsulates a secret.
+#[derive(Debug, Eq, PartialEq)]
 pub enum Secret {
     /// A UTF-8 encoded note.
     Text(String),
@@ -77,6 +83,12 @@ pub enum Secret {
     },
     /// Collection of credentials as key/value pairs.
     Credentials(HashMap<String, String>),
+}
+
+impl Default for Secret {
+    fn default() -> Self {
+        Self::Text(String::new())
+    }
 }
 
 mod secret_kind {

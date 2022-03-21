@@ -233,6 +233,16 @@ impl Vault {
         self.index = index;
     }
 
+    /// Add an encrypted secret to the vault.
+    pub fn add_secret(&mut self, uuid: Uuid, secret: AeadPack) {
+        self.contents.data.insert(uuid, secret);
+    }
+
+    /// Get an encrypted secret from the vault.
+    pub fn get_secret(&self, uuid: &Uuid) -> Option<&AeadPack> {
+        self.contents.data.get(uuid)
+    }
+
     /// Encode a vault to binary.
     pub fn encode<'a>(stream: &'a mut impl Stream, vault: &Vault) -> Result<()> {
         let mut writer = BinaryWriter::new(stream);
