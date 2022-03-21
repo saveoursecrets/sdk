@@ -3,17 +3,11 @@
 //! It stores the passphrase in memory so should only be used on client
 //! implementations.
 use crate::{
+    Result, Error,
     crypto::aes_gcm_256, from_encoded_buffer, into_encoded_buffer, secret::{MetaData, Secret, SecretMeta}, vault::Vault,
 };
-use anyhow::{bail, Result};
 use uuid::Uuid;
 use zeroize::Zeroize;
-
-//#[cfg(target_arch = "wasm32")]
-//use wasm_bindgen::prelude::*;
-
-//#[cfg(target_arch = "wasm32")]
-//#[wasm_bindgen]
 
 /// Manage access to a vault's secrets.
 #[derive(Default)]
@@ -42,10 +36,10 @@ impl Gatekeeper {
                 let meta_data: MetaData = from_encoded_buffer(meta_blob)?;
                 Ok(meta_data)
             } else {
-                bail!("vault meta data uninitialized")
+                Err(Error::VaultNotInit)
             }
         } else {
-            bail!("vault is not unlocked")
+            Err(Error::VaultLocked)
         }
     }
 
@@ -57,7 +51,7 @@ impl Gatekeeper {
             self.vault.index_mut().set_meta(Some(meta_aead));
             Ok(())
         } else {
-            bail!("vault is not unlocked")
+            Err(Error::VaultLocked)
         }
     }
 
@@ -76,7 +70,7 @@ impl Gatekeeper {
         if let Some(meta_data) = meta.get_secret_meta(uuid) {
             Ok(meta_data.clone())
         } else {
-            bail!("secret meta data for {} does not exist", uuid);
+            Err(Error::SecretMetaDoesNotExist(uuid.clone()))
         }
     }
 
@@ -84,16 +78,12 @@ impl Gatekeeper {
     pub fn set_secret(&mut self, secret: &Secret, uuid: Option<Uuid>) -> Result<Uuid> {
         if let Some(passphrase) = &self.passphrase {
             let uuid = uuid.unwrap_or(Uuid::new_v4());
-            //let mut meta = self.meta()?;
-            //meta.add_reference(uuid.clone(), label);
-
             let secret_blob = into_encoded_buffer(secret)?;
             let secret_aead = aes_gcm_256::encrypt(passphrase, &secret_blob)?;
             self.vault.add_secret(uuid, secret_aead);
-            //self.set_meta(meta)?;
             Ok(uuid)
         } else {
-            bail!("vault is not unlocked")
+            Err(Error::VaultLocked)
         }
     }
 
@@ -105,10 +95,10 @@ impl Gatekeeper {
                 let secret: Secret = from_encoded_buffer(secret_blob)?;
                 Ok(secret)
             } else {
-                bail!("secret does not exist")
+                Err(Error::SecretDoesNotExist(uuid.clone()))
             }
         } else {
-            bail!("vault is not unlocked")
+            Err(Error::VaultLocked)
         }
     }
 
