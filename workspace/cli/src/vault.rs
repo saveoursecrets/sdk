@@ -1,11 +1,9 @@
 use anyhow::{anyhow, bail, Result};
 use sos_core::{
-    client::{MemoryClient, VaultClient},
     crypto::{
         authorize::{jwt::KeyPair, PrivateKey},
         keypair::KeyPart,
     },
-    service::{MemoryService, VaultService},
     vault::Vault,
 };
 use std::collections::HashMap;
@@ -25,6 +23,7 @@ fn passphrase_prompt(prompt: &str) -> Result<String> {
     //Ok(passphrase)
 }
 
+/*
 fn get_service(vault: PathBuf, jwt_keypair: PathBuf) -> Result<MemoryService> {
     if !vault.is_file() {
         bail!("vault is not a file: {}", vault.display());
@@ -54,6 +53,7 @@ fn get_service(vault: PathBuf, jwt_keypair: PathBuf) -> Result<MemoryService> {
 
     Ok(MemoryService::new(jwt_keypair, vaults))
 }
+*/
 
 fn get_private_key<'a>(auth_private_key: PathBuf) -> Result<PrivateKey> {
     if !auth_private_key.is_file() {
@@ -69,13 +69,16 @@ fn get_private_key<'a>(auth_private_key: PathBuf) -> Result<PrivateKey> {
     Ok(private_key)
 }
 
+/*
 fn get_client<'a>(
     service: &'a mut impl VaultService,
     private_key: &PrivateKey,
 ) -> Result<MemoryClient<'a>> {
     Ok(MemoryClient::new(service, private_key)?)
 }
+*/
 
+/*
 /// List the contents of a vault.
 pub fn list(
     vault: PathBuf,
@@ -97,3 +100,4 @@ pub fn list(
 
     Ok(())
 }
+*/

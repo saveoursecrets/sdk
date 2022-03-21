@@ -2,7 +2,7 @@
 //!
 //! Word count must be 12, 18 or 24.
 //!
-use crate::Result;
+use crate::{Error, Result};
 use bip39::{Language, Mnemonic};
 use std::str::FromStr;
 
@@ -51,7 +51,7 @@ impl Into<u16> for WordCount {
 }
 
 impl FromStr for WordCount {
-    type Err = anyhow::Error;
+    type Err = Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let value: u16 = s.parse()?;
         WordCount::try_from(value)
@@ -59,13 +59,13 @@ impl FromStr for WordCount {
 }
 
 impl TryFrom<u16> for WordCount {
-    type Error = anyhow::Error;
+    type Error = Error;
     fn try_from(value: u16) -> std::result::Result<Self, Self::Error> {
         match value {
             12 => Ok(WordCount::Short(value)),
             18 => Ok(WordCount::Medium(value)),
             24 => Ok(WordCount::Long(value)),
-            _ => bail!("word count must be 12, 18 or 24"),
+            _ => Err(Error::InvalidWordCount),
         }
     }
 }

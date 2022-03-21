@@ -3,8 +3,11 @@
 //! It stores the passphrase in memory so should only be used on client
 //! implementations.
 use crate::{
-    Result, Error,
-    crypto::aes_gcm_256, from_encoded_buffer, into_encoded_buffer, secret::{MetaData, Secret, SecretMeta}, vault::Vault,
+    crypto::aes_gcm_256,
+    from_encoded_buffer, into_encoded_buffer,
+    secret::{MetaData, Secret, SecretMeta},
+    vault::Vault,
+    Error, Result,
 };
 use uuid::Uuid;
 use zeroize::Zeroize;
@@ -57,7 +60,6 @@ impl Gatekeeper {
 
     /// Set the secret meta for a secret.
     pub fn set_secret_meta(&mut self, uuid: Uuid, meta_data: SecretMeta) -> Result<()> {
-
         let mut meta = self.meta()?;
         meta.add_secret_meta(uuid, meta_data);
         self.set_meta(meta)?;
@@ -121,7 +123,10 @@ impl Gatekeeper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{secret::{MetaData, Secret}, vault::Vault};
+    use crate::{
+        secret::{MetaData, Secret},
+        vault::Vault,
+    };
     use anyhow::Result;
     use rand::Rng;
 

@@ -1,5 +1,4 @@
 //! Authorization routines using ECDSA.
-use anyhow::{bail, Result};
 use binary_rw::{BinaryReader, BinaryWriter};
 use k256::ecdsa::{
     signature::Signature as EcdsaSignature, signature::Verifier, Signature, SigningKey,
@@ -11,9 +10,9 @@ use std::sync::{Arc, RwLock};
 
 use super::{keypair::KeyPart, types::*};
 use crate::{
-    Result,
     address::{address_compressed, address_decompressed},
     traits::{Decode, Encode},
+    Error, Result,
 };
 
 /// Size of a compressed public key.
@@ -37,13 +36,11 @@ impl From<KeyPart> for PrivateKey {
 }
 
 impl TryFrom<&PrivateKey> for SigningKey {
-    type Error = anyhow::Error;
+    type Error = Error;
     fn try_from(value: &PrivateKey) -> std::result::Result<Self, Self::Error> {
         match value.type_id {
             K256 => Ok(SigningKey::from_bytes(&value.key)?),
-            _ => {
-                bail!("unknown key type identifier")
-            }
+            _ => Err(Error::UnknownKeyTypeId),
         }
     }
 }
@@ -95,20 +92,16 @@ impl PublicKey {
 }
 
 impl TryFrom<KeyPart> for PublicKey {
-    type Error = anyhow::Error;
+    type Error = Error;
     fn try_from(value: KeyPart) -> std::result::Result<Self, Self::Error> {
         match value.type_id {
             K256 => {
                 if value.key.len() != COMPRESSED as usize {
-                    bail!(
-                        "public key is wrong length, expecting {} bytes but got {} bytes",
-                        COMPRESSED,
-                        value.key.len()
-                    );
+                    return Err(Error::InvalidPublicKeyLength(COMPRESSED, value.key.len()));
                 }
 
                 if value.key[0] != 0x02 && value.key[0] != 0x03 {
-                    bail!("compressed public key has wrong first byte, must be 0x02 0r 0x03")
+                    return Err(Error::BadPublicKeyByte);
                 }
 
                 let bytes: [u8; COMPRESSED as usize] = value.key.as_slice().try_into()?;
@@ -117,9 +110,7 @@ impl TryFrom<KeyPart> for PublicKey {
                     key_data: KeyData::Compressed(bytes),
                 })
             }
-            _ => {
-                bail!("unknown key type identifier")
-            }
+            _ => Err(Error::UnknownKeyTypeId),
         }
     }
 }
@@ -135,11 +126,11 @@ impl From<VerifyingKey> for PublicKey {
 }
 
 impl TryFrom<&PublicKey> for VerifyingKey {
-    type Error = anyhow::Error;
+    type Error = Error;
     fn try_from(value: &PublicKey) -> std::result::Result<Self, Self::Error> {
         match value.key_data {
             KeyData::Compressed(ref bytes) => Ok(VerifyingKey::from_sec1_bytes(bytes)?),
-            _ => bail!("not a compressed public key"),
+            _ => Err(Error::NotCompressedPublicKey),
         }
     }
 }
@@ -304,9 +295,9 @@ impl Authorization {
                     todo!("support uncompressed public keys")
                 }
             }
-            bail!("invalid challenge response")
+            return Err(Error::InvalidChallengeResponse);
         }
-        bail!("challenge not found")
+        Err(Error::ChallengeNotFound)
     }
 }
 

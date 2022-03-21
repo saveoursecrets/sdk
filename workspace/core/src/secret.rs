@@ -6,8 +6,9 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    Result, Error,
-    traits::{Decode, Encode}};
+    traits::{Decode, Encode},
+    Error, Result,
+};
 
 /// Unencrypted vault meta data.
 #[derive(Default)]
@@ -76,9 +77,7 @@ pub struct SecretMeta {
 impl SecretMeta {
     /// Create new meta data for a secret.
     pub fn new(label: String) -> Self {
-        Self {
-            label,
-        }
+        Self { label }
     }
 }
 
@@ -198,7 +197,7 @@ impl Decode for Secret {
                     None
                 };
 
-                *self = Self::Blob {buffer, mime};
+                *self = Self::Blob { buffer, mime };
             }
             secret_kind::ACCOUNT => {
                 let account = reader.read_string()?;
@@ -210,7 +209,11 @@ impl Decode for Secret {
                     None
                 };
 
-                *self = Self::Account {account, password, url};
+                *self = Self::Account {
+                    account,
+                    password,
+                    url,
+                };
             }
             secret_kind::CREDENTIALS => {
                 let list_len = reader.read_usize()?;
@@ -223,9 +226,7 @@ impl Decode for Secret {
 
                 *self = Self::Credentials(list);
             }
-            _ => {
-                return Err(Error::UnknownSecretKind(kind))
-            }
+            _ => return Err(Error::UnknownSecretKind(kind)),
         }
         Ok(())
     }

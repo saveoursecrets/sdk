@@ -8,9 +8,9 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::{
-    Result, Error,
     crypto::{authorize::PublicKey, AeadPack},
     traits::{Decode, Encode},
+    Error, Result,
 };
 
 const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x03];

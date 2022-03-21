@@ -1,7 +1,10 @@
 //! Cryptographic routines and types.
 use binary_rw::{BinaryReader, BinaryWriter};
 
-use crate::{traits::{Decode, Encode}, Result};
+use crate::{
+    traits::{Decode, Encode},
+    Result,
+};
 
 pub mod aes_gcm_256;
 pub mod authorize;
