@@ -3,9 +3,10 @@
 //! It stores the passphrase in memory so should only be used on client
 //! implementations.
 use crate::{
-    crypto::aes_gcm_256, from_encoded_buffer, into_encoded_buffer, secret::MetaData, vault::Vault,
+    crypto::aes_gcm_256, from_encoded_buffer, into_encoded_buffer, secret::{MetaData, Secret}, vault::Vault,
 };
 use anyhow::{bail, Result};
+use uuid::Uuid;
 use zeroize::Zeroize;
 
 /// Manage access to a vault's secrets.
@@ -31,7 +32,7 @@ impl Gatekeeper {
     pub fn meta(&self) -> Result<MetaData> {
         if let Some(passphrase) = &self.passphrase {
             if let Some(meta_aead) = self.vault.index().meta() {
-                let meta_blob = aes_gcm_256::decrypt(&*passphrase, meta_aead)?;
+                let meta_blob = aes_gcm_256::decrypt(passphrase, meta_aead)?;
                 let meta_data: MetaData = from_encoded_buffer(meta_blob)?;
                 Ok(meta_data)
             } else {
@@ -46,9 +47,41 @@ impl Gatekeeper {
     pub fn set_meta(&mut self, meta_data: MetaData) -> Result<()> {
         if let Some(passphrase) = &self.passphrase {
             let meta_blob = into_encoded_buffer(&meta_data)?;
-            let meta_aead = aes_gcm_256::encrypt(&*passphrase, &meta_blob)?;
+            let meta_aead = aes_gcm_256::encrypt(passphrase, &meta_blob)?;
             self.vault.index_mut().set_meta(Some(meta_aead));
             Ok(())
+        } else {
+            bail!("vault is not unlocked")
+        }
+    }
+
+    /// Add a secret to the vault.
+    pub fn add_secret(&mut self, label: String, secret: &Secret) -> Result<Uuid> {
+        if let Some(passphrase) = &self.passphrase {
+            let uuid = Uuid::new_v4();
+            let mut meta = self.meta()?;
+            meta.add_reference(uuid.clone(), label);
+
+            let secret_blob = into_encoded_buffer(secret)?;
+            let secret_aead = aes_gcm_256::encrypt(passphrase, &secret_blob)?;
+            self.vault.add_secret(uuid, secret_aead);
+            self.set_meta(meta)?;
+            Ok(uuid)
+        } else {
+            bail!("vault is not unlocked")
+        }
+    }
+
+    /// Get a secret from the vault.
+    pub fn get_secret(&mut self, uuid: &Uuid) -> Result<Secret> {
+        if let Some(passphrase) = &self.passphrase {
+            if let Some(secret_aead) = self.vault.get_secret(uuid) {
+                let secret_blob = aes_gcm_256::decrypt(passphrase, secret_aead)?;
+                let secret: Secret = from_encoded_buffer(secret_blob)?;
+                Ok(secret)
+            } else {
+                bail!("secret does not exist")
+            }
         } else {
             bail!("vault is not unlocked")
         }
@@ -73,12 +106,12 @@ impl Gatekeeper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{secret::MetaData, vault::Vault};
+    use crate::{secret::{MetaData, Secret}, vault::Vault};
     use anyhow::Result;
     use rand::Rng;
 
     #[test]
-    fn gatekeeper_secrets() -> Result<()> {
+    fn gatekeeper_secret_note() -> Result<()> {
         let passphrase: [u8; 32] = rand::thread_rng().gen();
         let vault: Vault = Default::default();
         let mut keeper = Gatekeeper::new(vault);
@@ -98,6 +131,15 @@ mod tests {
         let meta = keeper.meta()?;
 
         assert_eq!(&label, meta.label());
+
+        let secret_label = String::from("Mock Secret");
+        let secret_value = String::from("Super Secret Note");
+        let secret = Secret::Text(secret_value.clone());
+
+        let secret_uuid = keeper.add_secret(secret_label, &secret)?;
+
+        let saved_secret = keeper.get_secret(&secret_uuid)?;
+        assert_eq!(secret, saved_secret);
 
         keeper.lock();
 
