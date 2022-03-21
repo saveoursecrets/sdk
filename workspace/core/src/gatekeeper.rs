@@ -9,6 +9,12 @@ use anyhow::{bail, Result};
 use uuid::Uuid;
 use zeroize::Zeroize;
 
+//#[cfg(target_arch = "wasm32")]
+//use wasm_bindgen::prelude::*;
+
+//#[cfg(target_arch = "wasm32")]
+//#[wasm_bindgen]
+
 /// Manage access to a vault's secrets.
 #[derive(Default)]
 pub struct Gatekeeper {
