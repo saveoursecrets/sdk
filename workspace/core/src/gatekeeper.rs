@@ -3,7 +3,7 @@
 //! It stores the passphrase in memory so should only be used on client
 //! implementations.
 use crate::{
-    crypto::aes_gcm_256, from_encoded_buffer, into_encoded_buffer, secret::{MetaData, Secret}, vault::Vault,
+    crypto::aes_gcm_256, from_encoded_buffer, into_encoded_buffer, secret::{MetaData, Secret, SecretMeta}, vault::Vault,
 };
 use anyhow::{bail, Result};
 use uuid::Uuid;
@@ -55,17 +55,36 @@ impl Gatekeeper {
         }
     }
 
-    /// Add a secret to the vault.
-    pub fn add_secret(&mut self, label: String, secret: &Secret) -> Result<Uuid> {
+    /// Set the secret meta for a secret.
+    pub fn set_secret_meta(&mut self, uuid: Uuid, meta_data: SecretMeta) -> Result<()> {
+
+        let mut meta = self.meta()?;
+        meta.add_secret_meta(uuid, meta_data);
+        self.set_meta(meta)?;
+        Ok(())
+    }
+
+    /// Get the secret meta for a secret.
+    pub fn get_secret_meta(&mut self, uuid: &Uuid) -> Result<SecretMeta> {
+        let mut meta = self.meta()?;
+        if let Some(meta_data) = meta.get_secret_meta(uuid) {
+            Ok(meta_data.clone())
+        } else {
+            bail!("secret meta data for {} does not exist", uuid);
+        }
+    }
+
+    /// Create or update a secret.
+    pub fn set_secret(&mut self, secret: &Secret, uuid: Option<Uuid>) -> Result<Uuid> {
         if let Some(passphrase) = &self.passphrase {
-            let uuid = Uuid::new_v4();
-            let mut meta = self.meta()?;
-            meta.add_reference(uuid.clone(), label);
+            let uuid = uuid.unwrap_or(Uuid::new_v4());
+            //let mut meta = self.meta()?;
+            //meta.add_reference(uuid.clone(), label);
 
             let secret_blob = into_encoded_buffer(secret)?;
             let secret_aead = aes_gcm_256::encrypt(passphrase, &secret_blob)?;
             self.vault.add_secret(uuid, secret_aead);
-            self.set_meta(meta)?;
+            //self.set_meta(meta)?;
             Ok(uuid)
         } else {
             bail!("vault is not unlocked")
@@ -136,10 +155,16 @@ mod tests {
         let secret_value = String::from("Super Secret Note");
         let secret = Secret::Text(secret_value.clone());
 
-        let secret_uuid = keeper.add_secret(secret_label, &secret)?;
+        let secret_uuid = keeper.set_secret(&secret, None)?;
+
+        let secret_meta = SecretMeta::new(secret_label);
+        keeper.set_secret_meta(secret_uuid.clone(), secret_meta.clone())?;
 
         let saved_secret = keeper.get_secret(&secret_uuid)?;
         assert_eq!(secret, saved_secret);
+
+        let saved_secret_meta = keeper.get_secret_meta(&secret_uuid)?;
+        assert_eq!(secret_meta, saved_secret_meta);
 
         keeper.lock();
 

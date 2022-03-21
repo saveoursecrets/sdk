@@ -14,8 +14,8 @@ use crate::traits::{Decode, Encode};
 pub struct MetaData {
     /// The human-friendly label for the vault.
     label: String,
-    /// Map of secret identifiers to human-friendly labels.
-    secrets: HashMap<Uuid, String>,
+    /// Map of secret identifiers to meta data about the secret.
+    secrets: HashMap<Uuid, SecretMeta>,
 }
 
 impl MetaData {
@@ -29,9 +29,14 @@ impl MetaData {
         self.label = label;
     }
 
-    /// Add a secret reference.
-    pub fn add_reference(&mut self, uuid: Uuid, label: String) {
-        self.secrets.insert(uuid, label);
+    /// Add meta data for a secret.
+    pub fn add_secret_meta(&mut self, uuid: Uuid, meta: SecretMeta) {
+        self.secrets.insert(uuid, meta);
+    }
+
+    /// Get meta data for a secret.
+    pub fn get_secret_meta(&mut self, uuid: &Uuid) -> Option<&SecretMeta> {
+        self.secrets.get(uuid)
     }
 }
 
@@ -41,7 +46,7 @@ impl Encode for MetaData {
         writer.write_usize(self.secrets.len())?;
         for (key, value) in self.secrets.iter() {
             writer.write_string(key.to_string())?;
-            writer.write_string(value)?;
+            value.encode(writer)?;
         }
         Ok(())
     }
@@ -53,9 +58,39 @@ impl Decode for MetaData {
         let secrets_len = reader.read_usize()?;
         for _ in 0..secrets_len {
             let key = Uuid::parse_str(&reader.read_string()?)?;
-            let value = reader.read_string()?;
+            let mut value: SecretMeta = Default::default();
+            value.decode(reader)?;
             self.secrets.insert(key, value);
         }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct SecretMeta {
+    /// Human-friendly label for the secret.
+    label: String,
+}
+
+impl SecretMeta {
+    /// Create new meta data for a secret.
+    pub fn new(label: String) -> Self {
+        Self {
+            label,
+        }
+    }
+}
+
+impl Encode for SecretMeta {
+    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+        writer.write_string(&self.label)?;
+        Ok(())
+    }
+}
+
+impl Decode for SecretMeta {
+    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+        self.label = reader.read_string()?;
         Ok(())
     }
 }
