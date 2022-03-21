@@ -52,7 +52,7 @@ impl Decode for AeadPack {
 
 #[cfg(test)]
 mod tests {
-    use super::{aes_gcm_256::*, types::*};
+    use super::aes_gcm_256::*;
     use anyhow::Result;
 
     #[test]
@@ -82,12 +82,9 @@ mod tests {
 
     #[test]
     fn ecdsa_sign() {
-        use k256::{
-            ecdsa::{
-                signature::{Signer, Verifier},
-                Signature, SigningKey, VerifyingKey,
-            },
-            EncodedPoint, SecretKey,
+        use k256::ecdsa::{
+            signature::{Signer, Verifier},
+            Signature, SigningKey, VerifyingKey,
         };
 
         // Signing
@@ -102,10 +99,7 @@ mod tests {
 
     #[test]
     fn recover_ecdsa_sign() {
-        use k256::{
-            ecdsa::{recoverable, signature::Signer, SigningKey},
-            EncodedPoint,
-        };
+        use k256::ecdsa::{recoverable, signature::Signer, SigningKey};
 
         // Signing
         let signing_key = SigningKey::random(&mut rand::thread_rng());

@@ -20,8 +20,13 @@ sha3 = "0.9"
 # SEE: https://github.com/rust-bitcoin/rust-bip39/issues/14
 bip39 = { version =  "1", features = ["std", "rand"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
+url = "2.2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = {version = "0.2", features = ["js"]}
+uuid = { version = "0.8", features = ["serde", "v4", "wasm-bindgen"] }
 
 [dependencies.binary_rw]
 version = "1.3.2"
 git = "https://github.com/tmpfs/binary-rs.git"
-branch = "from-vec"
+branch = "write-bytes"
