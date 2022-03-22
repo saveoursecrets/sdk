@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "lib": ["dom"],
+    "outDir": "./dist/",
+    "noImplicitAny": true,
+    "module": "es2022",
+    "target": "es5",
+    "jsx": "react",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "downlevelIteration": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node"
+  }
+}
