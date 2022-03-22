@@ -30,6 +30,11 @@ impl WebVault {
         Ok(JsValue::from_serde(self.keeper.id())?)
     }
 
+    /// Get the label for the vault.
+    pub fn label(&self) -> Result<JsValue, JsError> {
+        Ok(JsValue::from_serde(&self.keeper.label()?)?)
+    }
+
     /// Set a secret for this vault.
     pub fn set_secret(&mut self, secret: JsValue, uuid: JsValue) -> Result<JsValue, JsError> {
         let secret: Secret = secret.into_serde()?;

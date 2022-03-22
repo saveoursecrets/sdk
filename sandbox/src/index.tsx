@@ -16,9 +16,11 @@ import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import Link from '@mui/material/Link';
 
 import store from "./store";
-import Home from './routes/home';
+import Home from './home';
+import Vault from './vault';
 import WorkerProvider from "./worker-provider";
 import VaultList from './vault-list';
 
@@ -40,6 +42,9 @@ declare module '@mui/material/styles' {
 }
 
 const theme = createTheme({
+  palette: {
+    mode: 'dark',
+  },
   status: {
     //danger: orange[500],
   },
@@ -118,7 +123,7 @@ function App() {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div">
-            SOS3
+            <Link href="/" color="inherit">SOS3</Link>
           </Typography>
         </Toolbar>
       </AppBar>
@@ -149,6 +154,7 @@ function App() {
         <WorkerProvider>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/vault/:id" element={<Vault />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </WorkerProvider>
