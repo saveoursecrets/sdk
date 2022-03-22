@@ -9,6 +9,8 @@ use sos_core::{
     uuid::Uuid,
 };
 
+use sha3::{Keccak256, Digest};
+
 /// Binding to the gatekeeper for a vault.
 #[wasm_bindgen]
 pub struct WebVault {
@@ -95,4 +97,11 @@ impl WebVault {
         let buffer = into_encoded_buffer(self.keeper.vault())?;
         Ok(buffer)
     }
+}
+
+/// Compute the keccak256 digest of a string.
+#[wasm_bindgen]
+pub fn keccak256(value: JsValue) -> Result<Vec<u8>, JsError> {
+    let value: String = value.into_serde()?;
+    Ok(Keccak256::digest(value).to_vec())
 }

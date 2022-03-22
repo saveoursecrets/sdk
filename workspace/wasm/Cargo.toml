@@ -10,3 +10,4 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 sos-core = { path = "../core" }
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
+sha3 = "0.10"
