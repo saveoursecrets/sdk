@@ -20,10 +20,14 @@ impl WebVault {
     /// Create an empty vault.
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        let vault: Vault = Default::default();
         Self {
-            keeper: Gatekeeper::new(vault),
+            keeper: Gatekeeper::new(Default::default()),
         }
+    }
+
+    /// Get the identifier for the vault.
+    pub fn id(&self) -> Result<JsValue, JsError> {
+        Ok(JsValue::from_serde(self.keeper.id())?)
     }
 
     /// Set a secret for this vault.
@@ -67,15 +71,27 @@ impl WebVault {
     pub fn lock(&mut self) {
         self.keeper.lock();
     }
+
+    /// Initialize the vault with the given label and passphrase.
+    pub fn initialize(&mut self, label: JsValue, passphrase: JsValue) -> Result<(), JsError> {
+        let label: String = label.into_serde()?;
+        let passphrase: [u8; 32] = passphrase.into_serde()?;
+        self.keeper.unlock(passphrase);
+
+        let mut init_meta_data: MetaData = Default::default();
+        init_meta_data.set_label(label);
+        self.keeper.set_meta(init_meta_data)?;
+
+        Ok(())
+    }
 }
 
+/*
 /// Load a vault from a buffer.
 #[wasm_bindgen(js_name = "loadVault")]
 pub fn load_vault(buffer: Vec<u8>) -> Result<WebVault, JsError> {
     let vault = Vault::read_buffer(buffer)?;
-    Ok(WebVault {
-        keeper: Gatekeeper::new(vault),
-    })
+    Ok(WebVault::new(vault))
 }
 
 /// Create a new vault with the given label and passphrase.
@@ -93,5 +109,6 @@ pub fn new_vault(label: JsValue, passphrase: JsValue) -> Result<WebVault, JsErro
     init_meta_data.set_label(label);
     keeper.set_meta(init_meta_data)?;
 
-    Ok(WebVault { keeper })
+    Ok(WebVault::new(vault)?)
 }
+*/
