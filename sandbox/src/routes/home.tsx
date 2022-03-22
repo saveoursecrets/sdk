@@ -6,6 +6,8 @@ import { VaultWorker } from '../worker';
 import { WorkerContext } from "../worker-provider";
 import { vaultsSelector, addVault } from '../store/vaults';
 
+import Typography from '@mui/material/Typography';
+
 interface VaultListProps {
   worker: VaultWorker;
 }
@@ -39,7 +41,6 @@ function CreateVault(props: CreateVaultProps) {
     const uuid = await vault.id();
     const storage = {uuid, vault};
     console.log("create a new vault", storage);
-
     dispatch(addVault(storage))
   }
 
@@ -48,12 +49,10 @@ function CreateVault(props: CreateVaultProps) {
 
 export default function Home() {
   //const navigate = useNavigate();
-  //const { group } = useSelector(groupSelector);
-  //const dispatch = useDispatch();
-  //const websocket = useContext(WebSocketContext);
-
   return <>
-    <h2>Vaults</h2>
+    <Typography variant="h2" component="div" gutterBottom>
+      Vaults
+    </Typography>
     <WorkerContext.Consumer>
       {(worker) => {
         return (

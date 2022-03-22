@@ -14,15 +14,20 @@
     "test": "FORCE_COLOR=0 playwright test"
   },
   "dependencies": {
+    "@emotion/react": "^11.8.2",
+    "@emotion/styled": "^11.8.1",
+    "@fontsource/roboto": "^4.5.3",
+    "@mui/icons-material": "^5.5.1",
+    "@mui/material": "^5.5.2",
     "@reduxjs/toolkit": "^1.7.1",
     "@types/uuid": "^8.3.4",
     "comlink": "^4.3.1",
-    "sos-wasm": "file:../workspace/wasm/pkg",
     "history": "^5.2.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-redux": "^7.2.6",
     "react-router-dom": "^6.2.1",
+    "sos-wasm": "file:../workspace/wasm/pkg",
     "uuid": "8.3.2"
   },
   "devDependencies": {
