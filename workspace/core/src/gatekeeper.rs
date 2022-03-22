@@ -30,6 +30,11 @@ impl Gatekeeper {
         }
     }
 
+    /// Get the identifier for the vault.
+    pub fn id(&self) -> &Uuid {
+        self.vault.id()
+    }
+
     /// Attempt to decrypt the index meta data for the vault
     /// using the passphrase assigned to this gatekeeper.
     pub fn meta(&self) -> Result<MetaData> {

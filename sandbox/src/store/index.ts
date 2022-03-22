@@ -1,14 +1,21 @@
 import { configureStore } from "@reduxjs/toolkit";
-//import groupReducer from "./group";
-//import keygenReducer from "./keygen";
-//import proposalsReducer from "./proposals";
+import vaultsReducer from "./vaults";
 
 const store = configureStore({
   reducer: {
-    //group: groupReducer,
-    //keygen: keygenReducer,
-    //proposals: proposalsReducer,
+    vaults: vaultsReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        // Ignore these action types
+        ignoredActions: ["vaults/addVault"],
+        // Ignore these field paths in all actions
+        ignoredActionPaths: [],
+        // Ignore these paths in the state
+        ignoredPaths: ["vaults"],
+      },
+    }),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

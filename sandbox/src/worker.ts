@@ -1,12 +1,8 @@
-import init, { loadVault, newVault, WebVault } from "sos-wasm";
+import init, { WebVault } from "sos-wasm";
 import * as Comlink from "comlink";
 
 export interface VaultWorker {
-  // NOTE: For types we use `Array` so deserialization
-  // NOTE: works on the webassembly side but really these
-  // NOTE: should be Uint8Array
-  newVault(label: string, value: number[]): Promise<WebVault>;
-  loadVault(value: number[]): Promise<WebVault>;
+  WebVault(): Promise<WebVault>;
 }
 
 // For top-level await typescript wants `target` to be es2017
@@ -17,7 +13,4 @@ void (async function () {
   await init();
 })();
 
-Comlink.expose({
-  loadVault,
-  newVault,
-});
+Comlink.expose({WebVault});
