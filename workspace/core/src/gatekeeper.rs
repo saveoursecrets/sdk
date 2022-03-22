@@ -35,6 +35,21 @@ impl Gatekeeper {
         self.vault.id()
     }
 
+    /// Attempt to decrypt the index meta data and extract the label.
+    pub fn label(&self) -> Result<String> {
+        if let Some(passphrase) = &self.passphrase {
+            if let Some(meta_aead) = self.vault.index().meta() {
+                let meta_blob = aes_gcm_256::decrypt(passphrase, meta_aead)?;
+                let meta_data: MetaData = from_encoded_buffer(meta_blob)?;
+                Ok(meta_data.label().to_string())
+            } else {
+                Err(Error::VaultNotInit)
+            }
+        } else {
+            Err(Error::VaultLocked)
+        }
+    }
+
     /// Attempt to decrypt the index meta data for the vault
     /// using the passphrase assigned to this gatekeeper.
     pub fn meta(&self) -> Result<MetaData> {

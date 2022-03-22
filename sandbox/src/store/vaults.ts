@@ -4,6 +4,8 @@ import { WebVault } from 'sos-wasm';
 export interface VaultStorage {
   uuid: string;
   vault: WebVault;
+  label: string;
+  locked: boolean;
 }
 
 export interface VaultState {
