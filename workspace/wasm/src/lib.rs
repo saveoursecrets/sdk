@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use sos_core::{
     gatekeeper::Gatekeeper,
-    secret::{Secret, SecretMeta},
+    secret::{Secret, SecretMeta, MetaData},
     uuid::Uuid,
     vault::Vault,
 };
@@ -70,10 +70,26 @@ impl WebVault {
 }
 
 /// Load a vault from a buffer.
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = "loadVault")]
 pub fn load_vault(buffer: Vec<u8>) -> Result<WebVault, JsError> {
     let vault = Vault::read_buffer(buffer)?;
     Ok(WebVault {
         keeper: Gatekeeper::new(vault),
     })
+}
+
+/// Create a new vault with the given passphrase.
+#[wasm_bindgen(js_name = "newVault")]
+pub fn new_vault(label: JsValue, passphrase: JsValue) -> Result<WebVault, JsError> {
+    let label: String = label.into_serde()?;
+    let passphrase: [u8; 32] = passphrase.into_serde()?;
+    let vault: Vault = Default::default();
+    let mut keeper = Gatekeeper::new(vault);
+    keeper.unlock(passphrase);
+
+    let mut init_meta_data: MetaData = Default::default();
+    init_meta_data.set_label(label);
+    keeper.set_meta(init_meta_data)?;
+
+    Ok(WebVault { keeper })
 }

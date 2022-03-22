@@ -5,6 +5,8 @@ import { Provider } from "react-redux";
 
 import store from "./store";
 
+import Home from './routes/home';
+
 import WorkerProvider from "./worker-provider";
 
 const NotFound = () => <h3>Page not found</h3>;
@@ -24,6 +26,7 @@ const App = () => {
         <hr />
         <WorkerProvider>
           <Routes>
+            <Route path="/" element={<Home />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </WorkerProvider>
