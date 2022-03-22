@@ -3,10 +3,10 @@
 use wasm_bindgen::prelude::*;
 
 use sos_core::{
+    into_encoded_buffer,
     gatekeeper::Gatekeeper,
     secret::{MetaData, Secret, SecretMeta},
     uuid::Uuid,
-    vault::Vault,
 };
 
 /// Binding to the gatekeeper for a vault.
@@ -23,6 +23,19 @@ impl WebVault {
         Self {
             keeper: Gatekeeper::new(Default::default()),
         }
+    }
+
+    /// Initialize the vault with the given label and passphrase.
+    pub fn initialize(&mut self, label: JsValue, passphrase: JsValue) -> Result<(), JsError> {
+        let label: String = label.into_serde()?;
+        let passphrase: [u8; 32] = passphrase.into_serde()?;
+        self.keeper.unlock(passphrase);
+
+        let mut init_meta_data: MetaData = Default::default();
+        init_meta_data.set_label(label);
+        self.keeper.set_meta(init_meta_data)?;
+
+        Ok(())
     }
 
     /// Get the identifier for the vault.
@@ -77,43 +90,9 @@ impl WebVault {
         self.keeper.lock();
     }
 
-    /// Initialize the vault with the given label and passphrase.
-    pub fn initialize(&mut self, label: JsValue, passphrase: JsValue) -> Result<(), JsError> {
-        let label: String = label.into_serde()?;
-        let passphrase: [u8; 32] = passphrase.into_serde()?;
-        self.keeper.unlock(passphrase);
-
-        let mut init_meta_data: MetaData = Default::default();
-        init_meta_data.set_label(label);
-        self.keeper.set_meta(init_meta_data)?;
-
-        Ok(())
+    /// Get a buffer of the encoded vault.
+    pub fn buffer(&self) -> Result<Vec<u8>, JsError> {
+        let buffer = into_encoded_buffer(self.keeper.vault())?;
+        Ok(buffer)
     }
 }
-
-/*
-/// Load a vault from a buffer.
-#[wasm_bindgen(js_name = "loadVault")]
-pub fn load_vault(buffer: Vec<u8>) -> Result<WebVault, JsError> {
-    let vault = Vault::read_buffer(buffer)?;
-    Ok(WebVault::new(vault))
-}
-
-/// Create a new vault with the given label and passphrase.
-///
-/// The returned vault is in the unlocked state.
-#[wasm_bindgen(js_name = "newVault")]
-pub fn new_vault(label: JsValue, passphrase: JsValue) -> Result<WebVault, JsError> {
-    let label: String = label.into_serde()?;
-    let passphrase: [u8; 32] = passphrase.into_serde()?;
-    let vault: Vault = Default::default();
-    let mut keeper = Gatekeeper::new(vault);
-    keeper.unlock(passphrase);
-
-    let mut init_meta_data: MetaData = Default::default();
-    init_meta_data.set_label(label);
-    keeper.set_meta(init_meta_data)?;
-
-    Ok(WebVault::new(vault)?)
-}
-*/
