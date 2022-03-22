@@ -30,6 +30,11 @@ impl Gatekeeper {
         }
     }
 
+    /// Get the vault.
+    pub fn vault(&self) -> &Vault {
+        &self.vault
+    }
+
     /// Get the identifier for the vault.
     pub fn id(&self) -> &Uuid {
         self.vault.id()
