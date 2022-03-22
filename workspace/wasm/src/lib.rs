@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use sos_core::{
     gatekeeper::Gatekeeper,
-    secret::{Secret, SecretMeta, MetaData},
+    secret::{MetaData, Secret, SecretMeta},
     uuid::Uuid,
     vault::Vault,
 };
@@ -78,7 +78,9 @@ pub fn load_vault(buffer: Vec<u8>) -> Result<WebVault, JsError> {
     })
 }
 
-/// Create a new vault with the given passphrase.
+/// Create a new vault with the given label and passphrase.
+///
+/// The returned vault is in the unlocked state.
 #[wasm_bindgen(js_name = "newVault")]
 pub fn new_vault(label: JsValue, passphrase: JsValue) -> Result<WebVault, JsError> {
     let label: String = label.into_serde()?;
