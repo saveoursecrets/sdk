@@ -9,6 +9,7 @@ use crate::{
 pub mod aes_gcm_256;
 pub mod authorize;
 pub mod keypair;
+pub mod passphrase;
 
 /// Type identifiers for ECDSA keys.
 pub mod types {
