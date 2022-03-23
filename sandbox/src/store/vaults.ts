@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { WebVault } from 'sos-wasm';
+import { WebVault } from "sos-wasm";
 
 export interface VaultStorage {
   uuid: string;
@@ -36,6 +36,5 @@ const vaultsSlice = createSlice({
 });
 
 export const { addVault, updateVault } = vaultsSlice.actions;
-export const vaultsSelector = (state: { vaults: VaultState }) =>
-  state.vaults;
+export const vaultsSelector = (state: { vaults: VaultState }) => state.vaults;
 export default vaultsSlice.reducer;

@@ -14,4 +14,4 @@ void (async function () {
   await init();
 })();
 
-Comlink.expose({WebVault, keccak256});
+Comlink.expose({ WebVault, keccak256 });
