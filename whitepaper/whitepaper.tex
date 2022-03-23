@@ -1,17 +1,17 @@
 \documentclass[a4paper,titlepage,oneside]{article}
 
 % tt
-\normalfont 
-\usepackage[T1]{fontenc} 
+\normalfont
+\usepackage[T1]{fontenc}
 \usepackage{setspace}
-\usepackage{geometry} 
-\usepackage[parfill]{parskip} 
-\usepackage{graphicx} 
-\usepackage{amssymb} 
-\usepackage{epstopdf} 
+\usepackage{geometry}
+\usepackage[parfill]{parskip}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{epstopdf}
 \usepackage{makeidx}
 \usepackage{showidx}
-\usepackage{url} 
+\usepackage{url}
 \usepackage{verbatim}
 \usepackage{txfonts}
 \usepackage{moreverb}
@@ -40,8 +40,8 @@ colorlinks,
 
 \makeindex
 
-\begin{document} 
-	
+\begin{document}
+
 \fancyhead{}
 \fancyfoot{}
 
@@ -128,5 +128,11 @@ Use a standard server/client architecture to separate responsibilities:
 \paragraph{When the server starts each vault will be in a locked state and the vault owner must \emph{unlock} the authentication map using BLS Threshold Decryption\footnote{\href{https://en.wikipedia.org/wiki/BLS_digital_signature}{BLS Digital Signatures}} enabled by key shares distributed between the server and the owner. The server will then store the decrypted authentication map in memory and in collaboration with the owner can provide a secure mechanism to modify the in-memory authentication map as well as the encrypted authentication map.}
 
 \paragraph{Once a server has \emph{unlocked} the authentication map for a vault clients can authenticate by signing a challenge which when verified corresponds to a public key in the authentication map. Upon successful authentication the server will issue a JWT\footnote{\href{https://en.wikipedia.org/wiki/JSON_Web_Token}{JSON Web Token}} that will allow a client to retrieve the encrypted contents of the vault.}
+
+\section{Password Based Key Derivation Function}
+
+\paragraph{People are not very good at generating entropy and in particular choosing strong passwords. Whilst we intend to provide excellent user interface tools to assist in generating strong passwords we also need to ensure that the encryption private key is computationally expensive to brute force attack.}
+
+\paragraph{The user-supplied password is converted to a private key using the state of the art Argon2\footnote{\href{https://en.wikipedia.org/wiki/Argon2}{Argon2}} key derivation function and the generated salt is stored along with the vault so the same private key can be derived later. The result of the key derivation function is then hashed using Keccak256\footnote{\href{https://en.wikipedia.org/wiki/SHA-3}{SHA-3}} to get the 32 bytes we need for the AES symmetric key.}
 
 \end{document}
