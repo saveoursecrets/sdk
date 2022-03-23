@@ -9,12 +9,14 @@ use sos_core::{
     uuid::Uuid,
 };
 
+use std::collections::HashMap;
 use sha3::{Keccak256, Digest};
 
 /// Binding to the gatekeeper for a vault.
 #[wasm_bindgen]
 pub struct WebVault {
     keeper: Gatekeeper,
+    index: HashMap<Uuid, SecretMeta>,
 }
 
 #[wasm_bindgen]
@@ -24,6 +26,7 @@ impl WebVault {
     pub fn new() -> Self {
         Self {
             keeper: Gatekeeper::new(Default::default()),
+            index: Default::default(),
         }
     }
 
@@ -38,6 +41,12 @@ impl WebVault {
         self.keeper.set_meta(init_meta_data)?;
 
         Ok(())
+    }
+
+    /// Get the index of the meta data for the collection of secrets.
+    #[wasm_bindgen(js_name = "getSecretIndex")]
+    pub fn get_secret_index(&self) -> Result<JsValue, JsError> {
+        Ok(JsValue::from_serde(&self.index)?)
     }
 
     /// Get the identifier for the vault.
