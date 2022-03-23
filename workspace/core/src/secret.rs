@@ -1,10 +1,10 @@
 //! Types used to represent vault meta data and secrets.
 use binary_rw::{BinaryReader, BinaryWriter};
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 
 use crate::{
     traits::{Decode, Encode},

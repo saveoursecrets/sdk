@@ -1,0 +1,12 @@
+[package]
+name = "sos3"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = [
+  "workspace/cli",
+  "workspace/core",
+  "workspace/server",
+  "workspace/wasm",
+]

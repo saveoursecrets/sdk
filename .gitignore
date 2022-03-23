@@ -55,3 +55,8 @@ node_modules
 *.pem
 
 /vaults
+
+
+# Added by cargo
+
+/target

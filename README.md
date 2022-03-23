@@ -3,12 +3,12 @@
 Stores our secrets such as passwords, GPG keys and SSH keys using 256 bit AES-GCM encryption with support for recovery using multi-party ECDSA signatures.
 
 * `android`: Sources for the Android build.
+* `browser`: React web application for the browser.
 * `ios`: Sources for the iOS build.
 * `lib`: Dart source files.
 * `linux`: Sources for the Linux build.
 * `macos`: Sources for the MacOS build.
 * `native`: Sources and generated files for the Rust/Flutter bindings.
-* `sandbox`: Playground for the webassembly bindings.
 * `test`: Dart test files.
 * `web`: Sources for the Web build.
 * `whitepaper`: LaTeX sources for the protocol whitepaper.
@@ -23,11 +23,11 @@ To compile the webassembly bindings:
 make wasm
 ```
 
-## Sandbox
+## Browser
 
-To develop with the webassembly bindings in the sandbox link the webassembly module:
+To develop with the webassembly bindings in the browser application link the webassembly module:
 
 ```
 (cd workspace/wasm/pkg && yarn link)
-(cd sandbox && yarn link sos-wasm)
+(cd browser && yarn link sos-wasm)
 ```

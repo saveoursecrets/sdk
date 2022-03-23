@@ -1,13 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
 use sos3_server::{FileSystemBackend, Server, State};
+use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
-use std::{
-    net::SocketAddr,
-    path::PathBuf,
-    str::FromStr,
-    sync::Arc,
-};
 
 /// Secret storage server.
 #[derive(Parser, Debug)]
