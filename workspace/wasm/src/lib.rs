@@ -3,14 +3,14 @@
 use wasm_bindgen::prelude::*;
 
 use sos_core::{
-    into_encoded_buffer,
     gatekeeper::Gatekeeper,
+    into_encoded_buffer,
     secret::{MetaData, Secret, SecretMeta},
     uuid::Uuid,
 };
 
+use sha3::{Digest, Keccak256};
 use std::collections::HashMap;
-use sha3::{Keccak256, Digest};
 
 /// Binding to the gatekeeper for a vault.
 #[wasm_bindgen]

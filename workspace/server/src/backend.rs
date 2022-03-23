@@ -16,6 +16,9 @@ pub enum BackendError {
     NotExist(Uuid),
 
     #[error(transparent)]
+    Core(#[from] sos_core::Error),
+
+    #[error(transparent)]
     Io(#[from] std::io::Error),
 
     #[error(transparent)]

@@ -11,10 +11,7 @@ use axum::{
 //use serde::{Deserialize, Serialize};
 use crate::Backend;
 use sos_core::{from_encoded_buffer, into_encoded_buffer, vault::Index};
-use std::{
-    net::SocketAddr,
-    sync::Arc,
-};
+use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
@@ -102,8 +99,7 @@ impl VaultHandler {
         let id = if let Some(vault) = writer.backend.get_mut(&vault_id) {
             let buffer = body.to_vec();
             let index: Index =
-                from_encoded_buffer(buffer)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                from_encoded_buffer(buffer).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             vault.set_index(index);
             Some(vault.id().clone())
         } else {
@@ -111,7 +107,10 @@ impl VaultHandler {
         };
 
         if let Some(id) = id {
-            writer.backend.flush(&id).await
+            writer
+                .backend
+                .flush(&id)
+                .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             Ok(())
         } else {
