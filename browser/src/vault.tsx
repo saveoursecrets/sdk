@@ -6,11 +6,20 @@ import { useNavigate, useParams } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Link from "@mui/material/Link";
 import Divider from "@mui/material/Divider";
+import Button from "@mui/material/Button";
+import ToggleButton from "@mui/material/ToggleButton";
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
+
+import LockIcon from "@mui/icons-material/Lock";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
 
 import { VaultWorker } from "./worker";
 import { WorkerContext } from "./worker-provider";
-import { vaultsSelector, VaultStorage } from "./store/vaults";
+import { vaultsSelector, VaultStorage, updateVault } from "./store/vaults";
 import SecretList from "./secret-list";
+import UnlockVaultForm from './unlock-vault-form';
+import { UnlockVaultResult } from "./types";
 
 function downloadVault(fileName: string, buffer: Uint8Array) {
   const blob = new Blob([buffer], { type: "application/octet-stream" });
@@ -25,16 +34,104 @@ interface VaultViewProps {
   storage: VaultStorage;
 }
 
-function VaultView(props: VaultViewProps) {
+function VaultLocked(props: VaultViewProps) {
   const { worker, storage } = props;
   const { vault, uuid, label } = storage;
-  const [secrets, setSecrets] = useState(null);
+  const [invalid, setInvalid] = useState(false);
+  const dispatch = useDispatch();
+
+  const onFormSubmit = async (result: UnlockVaultResult) => {
+    const {password} = result;
+    try {
+      // FIXME: put the metaData in storage
+      const metaData = await vault.unlock(password);
+
+      const newStorage = {...storage, locked: false};
+      dispatch(updateVault(newStorage));
+    } catch (e) {
+      setInvalid(true);
+    }
+  }
+
+  const hideInvalid = () => setInvalid(false);
+
+  return (
+    <>
+      <VaultHeader worker={worker} storage={storage} />
+      <UnlockVaultForm worker={worker} onFormSubmit={onFormSubmit} />
+      <Snackbar open={invalid} autoHideDuration={6000} onClose={hideInvalid}>
+        <Alert onClose={hideInvalid} severity="error">
+          Invalid password
+        </Alert>
+      </Snackbar>
+    </>
+  );
+}
+
+function VaultHeader(props: VaultViewProps) {
+  const { worker, storage } = props;
+  const { vault, label, uuid } = storage;
+  return (
+    <>
+      <Typography variant="h3" gutterBottom component="div">
+        {label}
+      </Typography>
+      <Typography variant="h6" gutterBottom component="div">
+        {uuid}
+      </Typography>
+      <VaultActions worker={worker} storage={storage} />
+    </>
+  );
+}
+
+function VaultActions(props: VaultViewProps) {
+  const { storage } = props;
+  const { vault, uuid, locked } = storage;
+  const [vaultLocked, setVaultLocked] = useState(locked);
+  const dispatch = useDispatch();
 
   const download = async (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault();
     const buffer = await vault.buffer();
     downloadVault(`${uuid}.vault`, buffer);
   };
+
+  const setLockState = async () => {
+    if (!vaultLocked) {
+      await vault.lock();
+      setVaultLocked(true);
+      const newStorage = {...storage, locked: true};
+      dispatch(updateVault(newStorage));
+    }
+  }
+
+  const ToggleLock = () => (
+    <ToggleButton
+      value="lock"
+      selected={vaultLocked}
+      disabled={vaultLocked}
+      onChange={setLockState}>
+      { vaultLocked ? <LockIcon /> : <LockOpenIcon /> }
+    </ToggleButton>
+  );
+
+  return locked
+    ? <>
+      <ToggleLock />
+    </>
+    : <>
+      <Button variant="contained" onClick={(e) => download(e)}>
+        Download
+      </Button>
+      <ToggleLock />
+      <Divider />
+    </>;
+}
+
+function VaultUnlocked(props: VaultViewProps) {
+  const { worker, storage } = props;
+  const { vault } = storage;
+  const [secrets, setSecrets] = useState(null);
 
   useEffect(() => {
     const getSecretsMeta = async () => {
@@ -48,16 +145,7 @@ function VaultView(props: VaultViewProps) {
 
   return (
     <>
-      <Typography variant="h3" gutterBottom component="div">
-        {label}
-      </Typography>
-      <Typography variant="h6" gutterBottom component="div">
-        {uuid}
-      </Typography>
-      <Link href="#" onClick={(e) => download(e)}>
-        Download
-      </Link>
-      <Divider />
+      <VaultHeader worker={worker} storage={storage} />
       <SecretList worker={worker} secrets={secrets} />
     </>
   );
@@ -78,7 +166,9 @@ export default function Vault() {
     <>
       <WorkerContext.Consumer>
         {(worker) => {
-          return <VaultView worker={worker} storage={storage} />;
+          return storage.locked
+            ? <VaultLocked worker={worker} storage={storage} />
+            : <VaultUnlocked worker={worker} storage={storage} />;
         }}
       </WorkerContext.Consumer>
     </>

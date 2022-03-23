@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
 import { WebVault } from "sos-wasm";
-import { useNavigate } from "react-router-dom";
 
 import { VaultWorker } from "./worker";
 import { WorkerContext } from "./worker-provider";
@@ -12,17 +10,15 @@ import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import FormHelperText from "@mui/material/FormHelperText";
 
-import { NewVaultForm } from "./types";
+import { NewVaultResult } from "./types";
 
 interface CreateVaultProps {
   worker: VaultWorker;
-  onFormSubmit: (result: NewVaultForm) => void;
+  onFormSubmit: (result: NewVaultResult) => void;
 }
 
 export default function CreateVaultForm(props: CreateVaultProps) {
   const { worker, onFormSubmit } = props;
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   const [label, setLabel] = useState("");
   const [labelError, setLabelError] = useState(false);

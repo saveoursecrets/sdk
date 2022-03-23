@@ -10,17 +10,17 @@ import CreateVaultForm from "./create-vault-form";
 import { VaultWorker } from "./worker";
 import { WorkerContext } from "./worker-provider";
 
-import { NewVaultForm } from "./types";
+import { NewVaultResult } from "./types";
 
 interface NewVaultProps {
   open: boolean;
   handleCancel: () => void;
-  handleOk: (result: NewVaultForm) => void;
+  handleOk: (result: NewVaultResult) => void;
 }
 
 export default function NewVaultDialog(props: NewVaultProps) {
   const { open, handleCancel, handleOk } = props;
-  const onFormSubmit = (result: NewVaultForm) => handleOk(result);
+  const onFormSubmit = (result: NewVaultResult) => handleOk(result);
 
   return (
     <Dialog open={open} onClose={handleCancel}>

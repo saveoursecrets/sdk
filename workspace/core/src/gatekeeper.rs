@@ -1,9 +1,21 @@
 //! Gatekeeper manages access to a vault.
 //!
-//! It stores the passphrase in memory so should only be used on client
+//! It stores the private key in memory so should only be used on client
 //! implementations.
+//!
+//! Calling `lock()` will zeroize the private key in memory and prevent
+//! any access to the vault until `unlock()` is called successfully.
+//!
+//! To allow for meta data to be displayed before secret decryption
+//! certain parts of a vault are encrypted separately which means that
+//! technically it would be possible to use different private keys for
+//! different secrets and for the meta data however this would be
+//! a very poor user experience and would lead to confusion so the
+//! gatekeeper is also responsible for ensuring the same private key
+//! is used to encrypt the different chunks.
+//!
 use crate::{
-    crypto::aes_gcm_256,
+    crypto::{aes_gcm_256, passphrase::{generate_secret_key, parse_salt}},
     from_encoded_buffer, into_encoded_buffer,
     secret::{MetaData, Secret, SecretMeta},
     vault::Vault,
@@ -44,7 +56,7 @@ impl Gatekeeper {
     pub fn initialize<S: AsRef<str>>(&mut self, label: String, password: S) -> Result<()> {
         // Initialize the private key and store the salt
         let private_key = self.vault.initialize(password.as_ref())?;
-        self.unlock(private_key);
+        self.private_key = Some(Box::new(private_key));
 
         // Assign the label to the meta data
         let mut init_meta_data: MetaData = Default::default();
@@ -142,9 +154,16 @@ impl Gatekeeper {
         }
     }
 
-    /// Unlock the vault by setting the decryption passphrase.
-    pub fn unlock(&mut self, private_key: [u8; 32]) {
-        self.private_key = Some(Box::new(private_key));
+    /// Unlock the vault by setting the private key from a passphrase.
+    pub fn unlock<S: AsRef<str>>(&mut self, passphrase: S) -> Result<MetaData> {
+        if let Some(salt) = self.vault.salt() {
+            let salt = parse_salt(salt)?;
+            let private_key = generate_secret_key(passphrase, &salt)?;
+            self.private_key = Some(Box::new(private_key));
+            self.meta()
+        } else {
+            Err(Error::VaultNotInit)
+        }
     }
 
     /// Lock the vault by deleting the stored passphrase

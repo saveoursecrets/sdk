@@ -9,7 +9,7 @@ const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these action types
-        ignoredActions: ["vaults/addVault"],
+        ignoredActions: ["vaults/addVault", "vaults/updateVault"],
         // Ignore these field paths in all actions
         ignoredActionPaths: [],
         // Ignore these paths in the state
