@@ -5,11 +5,10 @@ use wasm_bindgen::prelude::*;
 use sos_core::{
     gatekeeper::Gatekeeper,
     into_encoded_buffer,
-    secret::{MetaData, Secret, SecretMeta},
+    secret::{Secret, SecretMeta},
     uuid::Uuid,
 };
 
-use sha3::{Digest, Keccak256};
 use std::collections::HashMap;
 
 /// Binding to the gatekeeper for a vault.
@@ -30,16 +29,11 @@ impl WebVault {
         }
     }
 
-    /// Initialize the vault with the given label and passphrase.
-    pub fn initialize(&mut self, label: JsValue, passphrase: JsValue) -> Result<(), JsError> {
+    /// Initialize the vault with the given label and password.
+    pub fn initialize(&mut self, label: JsValue, password: JsValue) -> Result<(), JsError> {
         let label: String = label.into_serde()?;
-        let passphrase: [u8; 32] = passphrase.into_serde()?;
-        self.keeper.unlock(passphrase);
-
-        let mut init_meta_data: MetaData = Default::default();
-        init_meta_data.set_label(label);
-        self.keeper.set_meta(init_meta_data)?;
-
+        let password: String = password.into_serde()?;
+        self.keeper.initialize(label, password)?;
         Ok(())
     }
 
@@ -103,14 +97,6 @@ impl WebVault {
 
     /// Get a buffer of the encoded vault.
     pub fn buffer(&self) -> Result<Vec<u8>, JsError> {
-        let buffer = into_encoded_buffer(self.keeper.vault())?;
-        Ok(buffer)
+        Ok(into_encoded_buffer(self.keeper.vault())?)
     }
-}
-
-/// Compute the keccak256 digest of a string.
-#[wasm_bindgen]
-pub fn keccak256(value: JsValue) -> Result<Vec<u8>, JsError> {
-    let value: String = value.into_serde()?;
-    Ok(Keccak256::digest(value).to_vec())
 }

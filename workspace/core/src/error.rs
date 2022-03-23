@@ -28,6 +28,10 @@ pub enum Error {
     #[error("vault is not initialized")]
     VaultNotInit,
 
+    /// Error generated attempting to a initialize a vault when it has already been initialized.
+    #[error("vault is already initialized")]
+    VaultAlreadyInit,
+
     /// Error generated when a bip39 word count is invalid.
     #[error("word count must be 12, 18 or 24")]
     InvalidWordCount,

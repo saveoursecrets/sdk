@@ -15,8 +15,8 @@ use zeroize::Zeroize;
 /// Manage access to a vault's secrets.
 #[derive(Default)]
 pub struct Gatekeeper {
-    /// The master passphrase.
-    passphrase: Option<Box<[u8; 32]>>,
+    /// The private key.
+    private_key: Option<Box<[u8; 32]>>,
     /// The underlying vault.
     vault: Vault,
 }
@@ -26,7 +26,7 @@ impl Gatekeeper {
     pub fn new(vault: Vault) -> Self {
         Self {
             vault,
-            passphrase: None,
+            private_key: None,
         }
     }
 
@@ -40,11 +40,24 @@ impl Gatekeeper {
         self.vault.id()
     }
 
+    /// Initialize the vault with the given label and password.
+    pub fn initialize<S: AsRef<str>>(&mut self, label: String, password: S) -> Result<()> {
+        // Initialize the private key and store the salt
+        let private_key = self.vault.initialize(password.as_ref())?;
+        self.unlock(private_key);
+
+        // Assign the label to the meta data
+        let mut init_meta_data: MetaData = Default::default();
+        init_meta_data.set_label(label);
+        self.set_meta(init_meta_data)?;
+        Ok(())
+    }
+
     /// Attempt to decrypt the index meta data and extract the label.
     pub fn label(&self) -> Result<String> {
-        if let Some(passphrase) = &self.passphrase {
+        if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.index().meta() {
-                let meta_blob = aes_gcm_256::decrypt(passphrase, meta_aead)?;
+                let meta_blob = aes_gcm_256::decrypt(private_key, meta_aead)?;
                 let meta_data: MetaData = from_encoded_buffer(meta_blob)?;
                 Ok(meta_data.label().to_string())
             } else {
@@ -58,9 +71,9 @@ impl Gatekeeper {
     /// Attempt to decrypt the index meta data for the vault
     /// using the passphrase assigned to this gatekeeper.
     pub fn meta(&self) -> Result<MetaData> {
-        if let Some(passphrase) = &self.passphrase {
+        if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.index().meta() {
-                let meta_blob = aes_gcm_256::decrypt(passphrase, meta_aead)?;
+                let meta_blob = aes_gcm_256::decrypt(private_key, meta_aead)?;
                 let meta_data: MetaData = from_encoded_buffer(meta_blob)?;
                 Ok(meta_data)
             } else {
@@ -73,9 +86,9 @@ impl Gatekeeper {
 
     /// Set the meta data for the vault.
     pub fn set_meta(&mut self, meta_data: MetaData) -> Result<()> {
-        if let Some(passphrase) = &self.passphrase {
+        if let Some(private_key) = &self.private_key {
             let meta_blob = into_encoded_buffer(&meta_data)?;
-            let meta_aead = aes_gcm_256::encrypt(passphrase, &meta_blob)?;
+            let meta_aead = aes_gcm_256::encrypt(private_key, &meta_blob)?;
             self.vault.index_mut().set_meta(Some(meta_aead));
             Ok(())
         } else {
@@ -103,10 +116,10 @@ impl Gatekeeper {
 
     /// Create or update a secret.
     pub fn set_secret(&mut self, secret: &Secret, uuid: Option<Uuid>) -> Result<Uuid> {
-        if let Some(passphrase) = &self.passphrase {
+        if let Some(private_key) = &self.private_key {
             let uuid = uuid.unwrap_or(Uuid::new_v4());
             let secret_blob = into_encoded_buffer(secret)?;
-            let secret_aead = aes_gcm_256::encrypt(passphrase, &secret_blob)?;
+            let secret_aead = aes_gcm_256::encrypt(private_key, &secret_blob)?;
             self.vault.add_secret(uuid, secret_aead);
             Ok(uuid)
         } else {
@@ -116,9 +129,9 @@ impl Gatekeeper {
 
     /// Get a secret from the vault.
     pub fn get_secret(&self, uuid: &Uuid) -> Result<Secret> {
-        if let Some(passphrase) = &self.passphrase {
+        if let Some(private_key) = &self.private_key {
             if let Some(secret_aead) = self.vault.get_secret(uuid) {
-                let secret_blob = aes_gcm_256::decrypt(passphrase, secret_aead)?;
+                let secret_blob = aes_gcm_256::decrypt(private_key, secret_aead)?;
                 let secret: Secret = from_encoded_buffer(secret_blob)?;
                 Ok(secret)
             } else {
@@ -130,18 +143,18 @@ impl Gatekeeper {
     }
 
     /// Unlock the vault by setting the decryption passphrase.
-    pub fn unlock(&mut self, passphrase: [u8; 32]) {
-        self.passphrase = Some(Box::new(passphrase));
+    pub fn unlock(&mut self, private_key: [u8; 32]) {
+        self.private_key = Some(Box::new(private_key));
     }
 
     /// Lock the vault by deleting the stored passphrase
     /// associated with the vault, securely zeroing the
     /// underlying memory.
     pub fn lock(&mut self) {
-        if let Some(passphrase) = self.passphrase.as_mut() {
-            passphrase.zeroize();
+        if let Some(private_key) = self.private_key.as_mut() {
+            private_key.zeroize();
         }
-        self.passphrase = None;
+        self.private_key = None;
     }
 }
 

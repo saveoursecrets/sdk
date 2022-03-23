@@ -129,11 +129,8 @@ function App(props: AppProps) {
     setNewVaultDialogOpen(false);
 
     const { label, password } = result;
-    const passphrase = await worker.keccak256(password);
-    //const encoder = new TextEncoder();
-    //const passwordBuffer = encoder.encode(passphrase);
     const vault: WebVault = await new (worker.WebVault as any)();
-    await vault.initialize(label, Array.from(passphrase));
+    await vault.initialize(label, password);
     const uuid = await vault.id();
     const storage = { uuid, vault, label, locked: false };
     dispatch(addVault(storage));
