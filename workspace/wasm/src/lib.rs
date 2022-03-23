@@ -11,6 +11,12 @@ use sos_core::{
 
 use std::collections::HashMap;
 
+#[doc(hidden)]
+#[wasm_bindgen(start)]
+pub fn start() {
+    console_error_panic_hook::set_once();
+}
+
 /// Binding to the gatekeeper for a vault.
 #[wasm_bindgen]
 pub struct WebVault {
@@ -85,8 +91,8 @@ impl WebVault {
 
     /// Unlock the vault.
     pub fn unlock(&mut self, passphrase: JsValue) -> Result<(), JsError> {
-        let passphrase: [u8; 32] = passphrase.into_serde()?;
-        self.keeper.unlock(passphrase);
+        let passphrase: String = passphrase.into_serde()?;
+        self.keeper.unlock(passphrase)?;
         Ok(())
     }
 

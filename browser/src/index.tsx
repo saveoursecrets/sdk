@@ -31,7 +31,7 @@ import WorkerProvider, { WorkerContext } from "./worker-provider";
 import VaultList from "./vault-list";
 import { VaultWorker } from "./worker";
 import { addVault } from "./store/vaults";
-import { NewVaultForm } from "./types";
+import { NewVaultResult } from "./types";
 
 const NotFound = () => <h3>Page not found</h3>;
 
@@ -125,7 +125,7 @@ function App(props: AppProps) {
   const handleDrawerClose = () => setDrawerOpen(false);
   const openNewVaultDialog = () => setNewVaultDialogOpen(true);
 
-  const createNewVault = async (result: NewVaultForm) => {
+  const createNewVault = async (result: NewVaultResult) => {
     setNewVaultDialogOpen(false);
 
     const { label, password } = result;

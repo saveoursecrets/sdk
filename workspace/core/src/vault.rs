@@ -245,6 +245,11 @@ impl Vault {
         }
     }
 
+    /// Get the salt used for passphrase authentication.
+    pub fn salt(&self) -> Option<&String> {
+        self.header.auth.salt.as_ref()
+    }
+
     /// The file extensions for vaults.
     pub fn extension() -> &'static str {
         "vault"
