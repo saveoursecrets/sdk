@@ -8,7 +8,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::{
-    crypto::{authorize::PublicKey, AeadPack},
+    crypto::{authorize::PublicKey, AeadPack, passphrase::{generate_salt, generate_secret_key}},
     traits::{Decode, Encode},
     Error, Result,
 };
@@ -16,13 +16,42 @@ use crate::{
 const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x03];
 const VERSION: u16 = 0;
 
+/// Authentication information.
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct Auth {
+    salt: Option<String>,
+    public_keys: Vec<PublicKey>,
+}
+
+impl Encode for Auth {
+    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+        writer.write_usize(self.public_keys.len())?;
+        for public_key in &self.public_keys {
+            public_key.encode(writer)?;
+        }
+        Ok(())
+    }
+}
+
+impl Decode for Auth {
+    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+        let length = reader.read_usize()?;
+        for _ in 0..length {
+            let mut public_key: PublicKey = Default::default();
+            public_key.decode(reader)?;
+            self.public_keys.push(public_key);
+        }
+        Ok(())
+    }
+}
+
 /// File header, identifier and version information
 #[derive(Debug, Eq, PartialEq)]
 pub struct Header {
     identity: Box<[u8; 4]>,
     version: u16,
     id: Uuid,
-    public_keys: Vec<PublicKey>,
+    auth: Auth,
 }
 
 impl Header {
@@ -32,7 +61,7 @@ impl Header {
             identity: Box::new(IDENTITY),
             version: VERSION,
             id,
-            public_keys: Default::default(),
+            auth: Default::default(),
         }
     }
 }
@@ -43,7 +72,7 @@ impl Default for Header {
             identity: Box::new(IDENTITY),
             version: VERSION,
             id: Uuid::new_v4(),
-            public_keys: Default::default(),
+            auth: Default::default(),
         }
     }
 }
@@ -53,10 +82,7 @@ impl Encode for Header {
         writer.write_bytes(self.identity.to_vec())?;
         writer.write_u16(self.version)?;
         writer.write_string(self.id.to_string())?;
-        writer.write_usize(self.public_keys.len())?;
-        for public_key in &self.public_keys {
-            public_key.encode(writer)?;
-        }
+        self.auth.encode(writer)?;
         Ok(())
     }
 }
@@ -71,12 +97,7 @@ impl Decode for Header {
         }
         self.version = reader.read_u16()?;
         self.id = Uuid::parse_str(&reader.read_string()?)?;
-        let length = reader.read_usize()?;
-        for _ in 0..length {
-            let mut public_key: PublicKey = Default::default();
-            public_key.decode(reader)?;
-            self.public_keys.push(public_key);
-        }
+        self.auth.decode(reader)?;
         Ok(())
     }
 }
@@ -208,6 +229,22 @@ impl Vault {
         }
     }
 
+    /// Initialize the vault with the given label and password.
+    pub fn initialize<S: AsRef<str>>(&mut self, password: S) -> Result<[u8; 32]> {
+        if self.header.auth.salt.is_none() {
+            let salt = generate_salt();
+            let private_key = generate_secret_key(password, &salt)?;
+
+            // Store the salt so we can generate the same
+            // private key later
+            self.header.auth.salt = Some(salt.to_string());
+
+            Ok(private_key)
+        } else {
+            Err(Error::VaultAlreadyInit)
+        }
+    }
+
     /// The file extensions for vaults.
     pub fn extension() -> &'static str {
         "vault"
@@ -278,12 +315,13 @@ impl Vault {
 
     /// Get the list of public keys.
     pub fn public_keys(&self) -> &Vec<PublicKey> {
-        &self.header.public_keys
+        &self.header.auth.public_keys
     }
 
     /// Check if a public key already exists.
     pub fn get_public_key(&mut self, public_key: &PublicKey) -> Option<(usize, &PublicKey)> {
         self.header
+            .auth
             .public_keys
             .iter()
             .enumerate()
@@ -292,13 +330,13 @@ impl Vault {
 
     /// Add a public key to this vault.
     pub fn add_public_key(&mut self, public_key: PublicKey) {
-        self.header.public_keys.push(public_key)
+        self.header.auth.public_keys.push(public_key)
     }
 
     /// Remove a public key from this vault.
     pub fn remove_public_key(&mut self, public_key: &PublicKey) -> bool {
         if let Some((index, _)) = self.get_public_key(public_key) {
-            self.header.public_keys.remove(index);
+            self.header.auth.public_keys.remove(index);
             true
         } else {
             false
