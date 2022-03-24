@@ -1,12 +1,7 @@
 import React from "react";
-import { useSelector, useDispatch } from "react-redux";
-//import { useNavigate } from 'react-router-dom';
 
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
-import ListItemButton from "@mui/material/ListItemButton";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
 import ListSubheader from "@mui/material/ListSubheader";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
@@ -15,11 +10,11 @@ import Button from "@mui/material/Button";
 
 import AddIcon from "@mui/icons-material/Add";
 
-import { WebVault } from "sos-wasm";
 import { VaultWorker } from "./worker";
-import { VaultStorage, vaultsSelector, addVault } from "./store/vaults";
 
-export interface SecretMeta {}
+export interface SecretMeta {
+  label: string;
+}
 
 interface SecretListProps {
   worker: VaultWorker;

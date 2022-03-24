@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from "react";
 
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
-import CardActions from "@mui/material/CardActions";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import Slider from "@mui/material/Slider";
@@ -16,14 +14,9 @@ import Typography from "@mui/material/Typography";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import NumbersIcon from "@mui/icons-material/Numbers";
 
-import { VaultWorker } from "./worker";
 import { generatePassphrase } from "sos-wasm";
 
 const DEFAULT_WORDS = 6;
-
-interface DicewareProps {
-  worker: VaultWorker;
-}
 
 interface WordCountProps {
   onChange: (words: number) => void;
@@ -79,11 +72,10 @@ function WordCount(props: WordCountProps) {
   );
 }
 
-export default function Diceware(props: DicewareProps) {
-  const { worker } = props;
+export default function Diceware() {
   const [passphrase, setPassphrase] = useState(null);
   const [bits, setBits] = useState(null);
-  const [words, setWords] = useState(6);
+  const [words, setWords] = useState(DEFAULT_WORDS);
   const [wordsVisible, setWordsVisible] = useState(false);
 
   const generate = () => {

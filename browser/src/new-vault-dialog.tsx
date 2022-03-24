@@ -7,8 +7,6 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 
 import CreateVaultForm from "./create-vault-form";
-import { VaultWorker } from "./worker";
-import { WorkerContext } from "./worker-provider";
 
 import { NewVaultResult } from "./types";
 
@@ -27,14 +25,7 @@ export default function NewVaultDialog(props: NewVaultProps) {
       <DialogTitle>New Vault</DialogTitle>
       <DialogContent>
         <DialogContentText gutterBottom>Create a new vault.</DialogContentText>
-
-        <WorkerContext.Consumer>
-          {(worker) => {
-            return (
-              <CreateVaultForm onFormSubmit={onFormSubmit} worker={worker} />
-            );
-          }}
-        </WorkerContext.Consumer>
+        <CreateVaultForm onFormSubmit={onFormSubmit} />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

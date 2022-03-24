@@ -1,5 +1,5 @@
 import React from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 import List from "@mui/material/List";
@@ -13,13 +13,9 @@ import Divider from "@mui/material/Divider";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 
-import { WebVault } from "sos-wasm";
-import { VaultWorker } from "./worker";
-import { VaultStorage, vaultsSelector, addVault } from "./store/vaults";
+import { VaultStorage, vaultsSelector } from "./store/vaults";
 
-interface VaultListProps {}
-
-export default function VaultList(props: VaultListProps) {
+export default function VaultList() {
   const { vaults } = useSelector(vaultsSelector);
   const navigate = useNavigate();
   const openVault = (uuid: string) => {
