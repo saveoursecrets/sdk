@@ -11,10 +11,23 @@ use sos_core::{
 
 use std::collections::HashMap;
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! console_log {
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
+
 #[doc(hidden)]
 #[wasm_bindgen(start)]
 pub fn start() {
     console_error_panic_hook::set_once();
+    console_log!("WASM: module started {:?}", std::thread::current().id());
 }
 
 /// Binding to the gatekeeper for a vault.

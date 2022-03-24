@@ -19,7 +19,7 @@ import { VaultWorker } from "./worker";
 import { WorkerContext } from "./worker-provider";
 import { vaultsSelector, VaultStorage, updateVault } from "./store/vaults";
 import SecretList from "./secret-list";
-import UnlockVaultForm from './unlock-vault-form';
+import UnlockVaultForm from "./unlock-vault-form";
 import { UnlockVaultResult } from "./types";
 
 function downloadVault(fileName: string, buffer: Uint8Array) {
@@ -42,17 +42,17 @@ function VaultLocked(props: VaultViewProps) {
   const dispatch = useDispatch();
 
   const onFormSubmit = async (result: UnlockVaultResult) => {
-    const {password} = result;
+    const { password } = result;
     try {
       // FIXME: put the metaData in storage
       const metaData = await vault.unlock(password);
 
-      const newStorage = {...storage, locked: false};
+      const newStorage = { ...storage, locked: false };
       dispatch(updateVault(newStorage));
     } catch (e) {
       setInvalid(true);
     }
-  }
+  };
 
   const hideInvalid = () => setInvalid(false);
 
@@ -63,13 +63,12 @@ function VaultLocked(props: VaultViewProps) {
         container
         direction="column"
         justifyContent="center"
-        alignItems="center">
-
+        alignItems="center"
+      >
         <UnlockVaultForm worker={worker} onFormSubmit={onFormSubmit} />
         <Button type="submit" form="unlock-vault-form" variant="contained">
           Unlock
         </Button>
-
       </Grid>
       <Snackbar open={invalid} autoHideDuration={6000} onClose={hideInvalid}>
         <Alert onClose={hideInvalid} severity="error">
@@ -112,32 +111,35 @@ function VaultActions(props: VaultViewProps) {
     if (!vaultLocked) {
       await vault.lock();
       setVaultLocked(true);
-      const newStorage = {...storage, locked: true};
+      const newStorage = { ...storage, locked: true };
       dispatch(updateVault(newStorage));
     }
-  }
+  };
 
   const ToggleLock = () => (
     <ToggleButton
       value="lock"
       selected={vaultLocked}
       disabled={vaultLocked}
-      onChange={setLockState}>
-      { vaultLocked ? <LockIcon /> : <LockOpenIcon /> }
+      onChange={setLockState}
+    >
+      {vaultLocked ? <LockIcon /> : <LockOpenIcon />}
     </ToggleButton>
   );
 
-  return locked
-    ? <>
+  return locked ? (
+    <>
       <ToggleLock />
     </>
-    : <>
+  ) : (
+    <>
       <Button variant="contained" onClick={(e) => download(e)}>
         Download
       </Button>
       <ToggleLock />
       <Divider />
-    </>;
+    </>
+  );
 }
 
 function VaultUnlocked(props: VaultViewProps) {
@@ -178,9 +180,11 @@ export default function Vault() {
     <>
       <WorkerContext.Consumer>
         {(worker) => {
-          return storage.locked
-            ? <VaultLocked worker={worker} storage={storage} />
-            : <VaultUnlocked worker={worker} storage={storage} />;
+          return storage.locked ? (
+            <VaultLocked worker={worker} storage={storage} />
+          ) : (
+            <VaultUnlocked worker={worker} storage={storage} />
+          );
         }}
       </WorkerContext.Consumer>
     </>
