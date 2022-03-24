@@ -106,3 +106,11 @@ impl WebVault {
         Ok(into_encoded_buffer(self.keeper.vault())?)
     }
 }
+
+/// Generate a passphrase using the diceware module.
+#[wasm_bindgen(js_name = "generatePassphrase")]
+pub fn generate_passphrase(words: u8) -> Result<JsValue, JsError> {
+    use sos_core::diceware::generate_passphrase_words;
+    let (passphrase, bits) = generate_passphrase_words(words)?;
+    Ok(JsValue::from_serde(&(passphrase, bits))?)
+}

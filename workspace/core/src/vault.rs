@@ -8,7 +8,11 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::{
-    crypto::{authorize::PublicKey, AeadPack, passphrase::{generate_salt, generate_secret_key}},
+    crypto::{
+        authorize::PublicKey,
+        passphrase::{generate_salt, generate_secret_key},
+        AeadPack,
+    },
     traits::{Decode, Encode},
     Error, Result,
 };

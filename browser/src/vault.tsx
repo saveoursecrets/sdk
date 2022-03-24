@@ -10,6 +10,7 @@ import Button from "@mui/material/Button";
 import ToggleButton from "@mui/material/ToggleButton";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
+import Grid from "@mui/material/Grid";
 
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
@@ -58,7 +59,18 @@ function VaultLocked(props: VaultViewProps) {
   return (
     <>
       <VaultHeader worker={worker} storage={storage} />
-      <UnlockVaultForm worker={worker} onFormSubmit={onFormSubmit} />
+      <Grid
+        container
+        direction="column"
+        justifyContent="center"
+        alignItems="center">
+
+        <UnlockVaultForm worker={worker} onFormSubmit={onFormSubmit} />
+        <Button type="submit" form="unlock-vault-form" variant="contained">
+          Unlock
+        </Button>
+
+      </Grid>
       <Snackbar open={invalid} autoHideDuration={6000} onClose={hideInvalid}>
         <Alert onClose={hideInvalid} severity="error">
           Invalid password
