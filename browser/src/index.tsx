@@ -32,6 +32,7 @@ import Home from "./home";
 import VaultList from "./vault-list";
 import NewVaultDialog from "./new-vault-dialog";
 import Vault from "./vault";
+
 const NotFound = () => <h3>Page not found</h3>;
 
 declare module "@mui/material/styles" {
@@ -201,6 +202,7 @@ function App(props: AppProps) {
           <Route path="/vault/:id" element={<Vault />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+
       </Main>
 
       <NewVaultDialog
