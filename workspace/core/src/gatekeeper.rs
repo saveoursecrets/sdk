@@ -15,7 +15,10 @@
 //! is used to encrypt the different chunks.
 //!
 use crate::{
-    crypto::{aes_gcm_256, passphrase::{generate_secret_key, parse_salt}},
+    crypto::{
+        aes_gcm_256,
+        passphrase::{generate_secret_key, parse_salt},
+    },
     from_encoded_buffer, into_encoded_buffer,
     secret::{MetaData, Secret, SecretMeta},
     vault::Vault,

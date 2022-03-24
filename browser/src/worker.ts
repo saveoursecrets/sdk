@@ -1,4 +1,4 @@
-import init, { WebVault } from "sos-wasm";
+import init, { WebVault, generatePassphrase } from "sos-wasm";
 import * as Comlink from "comlink";
 
 export interface VaultWorker {
@@ -13,4 +13,4 @@ void (async function () {
   await init();
 })();
 
-Comlink.expose({ WebVault });
+Comlink.expose({ WebVault, generatePassphrase });

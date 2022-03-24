@@ -32,10 +32,9 @@ export default function UnlockVaultForm(props: UnlockVaultProps) {
     setPasswordHelperText("");
     setPasswordError(false);
 
-    if (password.trim() === "") {
+    if (password === "") {
       setPasswordHelperText("Password may not be empty");
       setPasswordError(true);
-      setPassword("");
     } else {
       onFormSubmit({ password });
     }

@@ -4,6 +4,7 @@
 pub mod address;
 //pub mod client;
 pub mod crypto;
+pub mod diceware;
 pub mod error;
 pub mod gatekeeper;
 pub mod passphrase;
