@@ -12,12 +12,14 @@ import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import FormHelperText from "@mui/material/FormHelperText";
 
+import Diceware from "./diceware";
+
 export default function Home() {
   return (
     <>
       <WorkerContext.Consumer>
         {(worker) => {
-          return <p>Welcome!</p>;
+          return <Diceware worker={worker} />;
         }}
       </WorkerContext.Consumer>
     </>

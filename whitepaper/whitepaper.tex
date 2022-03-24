@@ -135,4 +135,12 @@ Use a standard server/client architecture to separate responsibilities:
 
 \paragraph{The user-supplied password is converted to a private key using the state of the art Argon2\footnote{\href{https://en.wikipedia.org/wiki/Argon2}{Argon2}} key derivation function and the generated salt is stored along with the vault so the same private key can be derived later. The result of the key derivation function is then hashed using Keccak256\footnote{\href{https://en.wikipedia.org/wiki/SHA-3}{SHA-3}} to get the 32 bytes we need for the AES symmetric key.}
 
+\section{Diceware}
+
+\paragraph{Diceware\footnote{\href{https://en.wikipedia.org/wiki/Diceware}{Diceware}} is a method for generating passphrases with strong entropy. The user interface should enforce using a passphrase with strong entropy, the suggested minimum is 6 words which corresponds to approximately 77 bits of entropy. The user should be able to refresh to generate a new random passphrase to see if they may find words that could be more memorable or to avoid words they dislike. Controls may be provided to allow generating stronger passphrases.}
+
+\section{Spaced Repetition}
+
+\paragraph{Initially a passphrase will be unfamiliar and the more time that goes by without using the passphrase the more likely it is that a person may forget the passphrase. The user interface can use spaced repetition\footnote{\href{https://en.wikipedia.org/wiki/Spaced_repetition}{Spaced Repetition}} to aid the user in remembering the passphrase.}
+
 \end{document}

@@ -24,16 +24,26 @@ import AddIcon from "@mui/icons-material/Add";
 
 import { WebVault } from "sos-wasm";
 import store from "./store";
-import Home from "./home";
-import Vault from "./vault";
-import NewVaultDialog from "./new-vault-dialog";
 import WorkerProvider, { WorkerContext } from "./worker-provider";
-import VaultList from "./vault-list";
 import { VaultWorker } from "./worker";
 import { addVault } from "./store/vaults";
 import { NewVaultResult } from "./types";
 
+import Home from "./home";
+import VaultList from "./vault-list";
+import NewVaultDialog from "./new-vault-dialog";
+import Vault from "./vault";
 const NotFound = () => <h3>Page not found</h3>;
+
+import init from "sos-wasm";
+
+// For top-level await typescript wants `target` to be es2017
+// but this generates a "too much recursion" runtime error so
+// we avoid top-level await for now
+void (async function () {
+  console.log("Worker is initializing...");
+  await init();
+})();
 
 declare module "@mui/material/styles" {
   interface Theme {
