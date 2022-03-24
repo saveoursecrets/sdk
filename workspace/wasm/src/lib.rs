@@ -42,6 +42,7 @@ impl WebVault {
     /// Create an empty vault.
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
+        console_log!("Creating web vault...");
         Self {
             keeper: Gatekeeper::new(Default::default()),
             index: Default::default(),

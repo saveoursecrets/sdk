@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { WebVault } from "sos-wasm";
+import { WebVault } from "../worker";
 
 export interface VaultStorage {
   uuid: string;
