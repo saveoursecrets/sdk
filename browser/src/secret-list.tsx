@@ -7,8 +7,6 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
-import AddIcon from "@mui/icons-material/Add";
-
 import { VaultWorker } from "./worker";
 
 export interface SecretMeta {

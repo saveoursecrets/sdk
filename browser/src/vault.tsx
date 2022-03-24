@@ -149,7 +149,7 @@ function VaultUnlocked(props: VaultViewProps) {
 
   const createNewSecret = (kind: SecretKind) => {
     console.log("create new secret", kind);
-  }
+  };
 
   useEffect(() => {
     const getSecretsMeta = async () => {

@@ -202,7 +202,6 @@ function App(props: AppProps) {
           <Route path="/vault/:id" element={<Vault />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-
       </Main>
 
       <NewVaultDialog
