@@ -14,7 +14,7 @@ import Typography from "@mui/material/Typography";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import NumbersIcon from "@mui/icons-material/Numbers";
 
-import { generatePassphrase } from "sos-wasm";
+import { generatePassphrase } from "./worker";
 
 const DEFAULT_WORDS = 6;
 
@@ -78,8 +78,8 @@ export default function Diceware() {
   const [words, setWords] = useState(DEFAULT_WORDS);
   const [wordsVisible, setWordsVisible] = useState(false);
 
-  const generate = () => {
-    const [passphrase, bits] = generatePassphrase(words);
+  const generate = async () => {
+    const [passphrase, bits] = await generatePassphrase(words);
     setPassphrase(passphrase);
     setBits(Math.round(bits));
   };
