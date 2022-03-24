@@ -12,10 +12,9 @@ export interface VaultWorker {
 // but this generates a "too much recursion" runtime error so
 // we avoid top-level await for now
 //void (async function () {
-  //console.log("Worker is initializing...");
-  //await init();
+//console.log("Worker is initializing...");
+//await init();
 //})();
-
 
 await init();
 

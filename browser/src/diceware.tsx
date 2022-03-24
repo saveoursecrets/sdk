@@ -16,15 +16,14 @@ import NumbersIcon from "@mui/icons-material/Numbers";
 
 import { generatePassphrase } from "./worker";
 
-const DEFAULT_WORDS = 6;
-
 interface WordCountProps {
+  words: number;
   onChange: (words: number) => void;
   onChangeCommitted: () => void;
 }
 
 function WordCount(props: WordCountProps) {
-  const { onChange, onChangeCommitted } = props;
+  const { words, onChange, onChangeCommitted } = props;
 
   function valueText(value: number) {
     return `${value} words`;
@@ -51,6 +50,7 @@ function WordCount(props: WordCountProps) {
               onChange={(e, value) => onChange(value as number)}
               onChangeCommitted={() => onChangeCommitted()}
               step={1}
+              value={words}
               marks
               min={6}
               max={16}
@@ -72,10 +72,14 @@ function WordCount(props: WordCountProps) {
   );
 }
 
-export default function Diceware() {
+interface DicewareProps {
+  words: number;
+}
+
+export default function Diceware(props: DicewareProps) {
   const [passphrase, setPassphrase] = useState(null);
   const [bits, setBits] = useState(null);
-  const [words, setWords] = useState(DEFAULT_WORDS);
+  const [words, setWords] = useState(props.words);
   const [wordsVisible, setWordsVisible] = useState(false);
 
   const generate = async () => {
@@ -88,7 +92,7 @@ export default function Diceware() {
   const onChangeCommitted = () => generate();
 
   useEffect(() => {
-    generate()
+    generate();
   }, []);
 
   if (!passphrase) {
@@ -101,7 +105,7 @@ export default function Diceware() {
         <Box sx={{ marginBottom: 1 }}>
           <Stack
             direction="row"
-            sx={{ width: "100%" }}
+            sx={{ width: "100%", alignItems: "flex-end" }}
             justifyContent="space-between"
           >
             <Stack direction="row" spacing={2}>
@@ -123,21 +127,19 @@ export default function Diceware() {
                   color="text.secondary"
                   gutterBottom
                 >
-                  {bits} bit entropy
+                  {words} words, {bits} bit entropy
                 </Typography>
               </Stack>
             </Stack>
-            <Stack direction="row" spacing={2}>
-              <Tooltip title="Generate a new passphrase">
-                <IconButton
-                  onClick={generate}
-                  aria-label="refresh"
-                  sx={{flexGrow: 0}}
-                >
-                  <RefreshIcon />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+            <Tooltip title="Generate a new passphrase">
+              <IconButton
+                onClick={generate}
+                aria-label="refresh"
+                sx={{ width: 36, height: 36 }}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
           </Stack>
         </Box>
 
@@ -145,6 +147,7 @@ export default function Diceware() {
 
         {wordsVisible && (
           <WordCount
+            words={words}
             onChange={onChange}
             onChangeCommitted={onChangeCommitted}
           />
