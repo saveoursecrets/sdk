@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { WebVault } from "sos-wasm";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import Typography from "@mui/material/Typography";
-import Link from "@mui/material/Link";
 import Divider from "@mui/material/Divider";
 import Button from "@mui/material/Button";
 import ToggleButton from "@mui/material/ToggleButton";
@@ -37,7 +35,7 @@ interface VaultViewProps {
 
 function VaultLocked(props: VaultViewProps) {
   const { worker, storage } = props;
-  const { vault, uuid, label } = storage;
+  const { vault } = storage;
   const [invalid, setInvalid] = useState(false);
   const dispatch = useDispatch();
 
@@ -65,7 +63,7 @@ function VaultLocked(props: VaultViewProps) {
         justifyContent="center"
         alignItems="center"
       >
-        <UnlockVaultForm worker={worker} onFormSubmit={onFormSubmit} />
+        <UnlockVaultForm onFormSubmit={onFormSubmit} />
         <Button type="submit" form="unlock-vault-form" variant="contained">
           Unlock
         </Button>
@@ -81,7 +79,7 @@ function VaultLocked(props: VaultViewProps) {
 
 function VaultHeader(props: VaultViewProps) {
   const { worker, storage } = props;
-  const { vault, label, uuid } = storage;
+  const { label, uuid } = storage;
   return (
     <>
       <Typography variant="h3" gutterBottom component="div">

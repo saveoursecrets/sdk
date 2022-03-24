@@ -139,6 +139,7 @@ function App(props: AppProps) {
     setNewVaultDialogOpen(false);
 
     const { label, password } = result;
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     const vault: WebVault = await new (worker.WebVault as any)();
     await vault.initialize(label, password);
     const uuid = await vault.id();

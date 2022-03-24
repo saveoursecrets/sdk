@@ -1,24 +1,17 @@
 import React, { useState } from "react";
-import { WebVault } from "sos-wasm";
-
-import { VaultWorker } from "./worker";
-import { WorkerContext } from "./worker-provider";
-import { vaultsSelector, addVault } from "./store/vaults";
 
 import Stack from "@mui/material/Stack";
-import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import FormHelperText from "@mui/material/FormHelperText";
 
 import { NewVaultResult } from "./types";
 
 interface CreateVaultProps {
-  worker: VaultWorker;
   onFormSubmit: (result: NewVaultResult) => void;
 }
 
 export default function CreateVaultForm(props: CreateVaultProps) {
-  const { worker, onFormSubmit } = props;
+  const { onFormSubmit } = props;
 
   const [label, setLabel] = useState("");
   const [labelError, setLabelError] = useState(false);
@@ -28,10 +21,12 @@ export default function CreateVaultForm(props: CreateVaultProps) {
   const [passwordError, setPasswordError] = useState(false);
   const [passwordHelperText, setPasswordHelperText] = useState("");
 
-  const onLabelChange = (e: any) => setLabel(e.target.value);
-  const onPasswordChange = (e: any) => setPassword(e.target.value);
+  const onLabelChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setLabel(e.target.value);
+  const onPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setPassword(e.target.value);
 
-  const onSubmit = (e: any) => {
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     setLabelHelperText("");
