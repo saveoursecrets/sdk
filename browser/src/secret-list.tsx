@@ -6,7 +6,6 @@ import ListSubheader from "@mui/material/ListSubheader";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 
 import AddIcon from "@mui/icons-material/Add";
 
@@ -52,9 +51,6 @@ export default function SecretList(props: SecretListProps) {
           justifyContent="center"
         >
           <Typography paragraph>No secrets yet</Typography>
-          <Button variant="contained" component="span" startIcon={<AddIcon />}>
-            New Secret
-          </Button>
         </Stack>
       </div>
     );

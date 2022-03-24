@@ -6,6 +6,7 @@ export { WorkerContext };
 
 type WorkerProviderProps = PropsWithChildren<Record<string, unknown>>;
 
+console.log("Creating new worker....");
 const worker = Comlink.wrap(
   new Worker(new URL("./worker.ts", import.meta.url))
 );

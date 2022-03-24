@@ -88,8 +88,7 @@ export default function Diceware() {
   const onChangeCommitted = () => generate();
 
   useEffect(() => {
-    // FIXME: remove this hack!
-    setTimeout(() => generate(), 2000);
+    generate()
   }, []);
 
   if (!passphrase) {
@@ -133,7 +132,7 @@ export default function Diceware() {
                 <IconButton
                   onClick={generate}
                   aria-label="refresh"
-                  component="span"
+                  sx={{flexGrow: 0}}
                 >
                   <RefreshIcon />
                 </IconButton>

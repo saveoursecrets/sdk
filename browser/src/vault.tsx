@@ -18,7 +18,9 @@ import { WorkerContext } from "./worker-provider";
 import { vaultsSelector, VaultStorage, updateVault } from "./store/vaults";
 import SecretList from "./secret-list";
 import UnlockVaultForm from "./unlock-vault-form";
-import { UnlockVaultResult } from "./types";
+import { SecretKind, UnlockVaultResult } from "./types";
+
+import NewSecretDial from "./new-secret-dial";
 
 function downloadVault(fileName: string, buffer: Uint8Array) {
   const blob = new Blob([buffer], { type: "application/octet-stream" });
@@ -145,6 +147,10 @@ function VaultUnlocked(props: VaultViewProps) {
   const { vault } = storage;
   const [secrets, setSecrets] = useState(null);
 
+  const createNewSecret = (kind: SecretKind) => {
+    console.log("create new secret", kind);
+  }
+
   useEffect(() => {
     const getSecretsMeta = async () => {
       const secrets = await vault.getSecretIndex();
@@ -159,6 +165,7 @@ function VaultUnlocked(props: VaultViewProps) {
     <>
       <VaultHeader worker={worker} storage={storage} />
       <SecretList worker={worker} secrets={secrets} />
+      <NewSecretDial onSelect={createNewSecret} />
     </>
   );
 }
