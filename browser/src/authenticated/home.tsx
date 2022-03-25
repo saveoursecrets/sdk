@@ -6,6 +6,8 @@ import AddIcon from "@mui/icons-material/Add";
 
 import { setDialogVisible, NEW_VAULT } from "../store/dialogs";
 
+import {NoteForm} from './secrets';
+
 export default function Home() {
   const dispatch = useDispatch();
 
@@ -16,6 +18,8 @@ export default function Home() {
   return (
     <>
       <p>Welcome!</p>
+
+      <NoteForm label="" note="" onFormSubmit={() => {}} />
 
       <Fab
         onClick={showNewVault}

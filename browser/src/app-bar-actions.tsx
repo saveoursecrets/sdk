@@ -1,5 +1,5 @@
 import React from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import ButtonGroup from "@mui/material/ButtonGroup";
 import Button from "@mui/material/Button";

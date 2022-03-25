@@ -5,6 +5,11 @@ export enum SecretKind {
   File = 4,
 }
 
+export interface SecureNoteResult {
+  label: string;
+  note: string;
+}
+
 export interface NewVaultResult {
   label: string;
   password: string;
