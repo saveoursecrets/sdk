@@ -1,9 +1,11 @@
 import * as React from "react";
+import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 
 import CreateVaultForm from "./create-vault-form";
@@ -21,11 +23,12 @@ export default function NewVaultDialog(props: NewVaultProps) {
   const onFormSubmit = (result: NewVaultResult) => handleOk(result);
 
   return (
-    <Dialog open={open} onClose={handleCancel}>
+    <Dialog open={open} onClose={handleCancel} fullScreen>
       <DialogTitle>New Vault</DialogTitle>
       <DialogContent>
-        <DialogContentText gutterBottom>Create a new vault.</DialogContentText>
         <CreateVaultForm onFormSubmit={onFormSubmit} />
+        <Alert sx={{marginTop: 2}} severity="warning">You must memorize or write down the passphrase for your new vault</Alert>
+        <FormControlLabel control={<Checkbox />} label="I have memorized or written down the passphrase" />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

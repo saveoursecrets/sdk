@@ -9,6 +9,8 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import ListSubheader from "@mui/material/ListSubheader";
 import Divider from "@mui/material/Divider";
+import Stack from "@mui/material/Stack";
+import Link from "@mui/material/Link";
 
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
@@ -22,8 +24,17 @@ export default function VaultList() {
     navigate(`/vault/${uuid}`);
   };
 
+  const SubHeader = () => {
+    return <ListSubheader>
+      <Stack direction="row" justifyContent="space-between">
+      Vaults
+      <Link>Add</Link>
+      </Stack>
+    </ListSubheader>
+  };
+
   return (
-    <List component="nav" subheader={<ListSubheader>Vaults</ListSubheader>}>
+    <List component="nav" subheader={<SubHeader />}>
       {vaults.map((vault: VaultStorage) => {
         return (
           <div key={vault.uuid}>
