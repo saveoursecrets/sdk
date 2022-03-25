@@ -4,7 +4,7 @@ import { useDispatch } from "react-redux";
 import Fab from "@mui/material/Fab";
 import AddIcon from "@mui/icons-material/Add";
 
-import { setDialogVisible, NEW_VAULT } from "./store/dialogs";
+import { setDialogVisible, NEW_VAULT } from "../store/dialogs";
 
 export default function Home() {
   const dispatch = useDispatch();

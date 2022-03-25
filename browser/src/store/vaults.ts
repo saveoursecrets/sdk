@@ -12,10 +12,10 @@ export interface NewVaultRequest {
 export const lockAll = createAsyncThunk(
   "vaults/lockAll",
   async (storage: VaultStorage[]) => {
-    const stores = []
+    const stores = [];
     for (const store of storage) {
-      const newStore = {...store, locked: true};
-      const {vault} = newStore;
+      const newStore = { ...store, locked: true };
+      const { vault } = newStore;
       await vault.lock();
       stores.push(newStore);
     }

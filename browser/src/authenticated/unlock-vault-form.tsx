@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 
-import { UnlockVaultResult } from "./types";
+import { UnlockVaultResult } from "../types";
 
 interface UnlockVaultProps {
   onFormSubmit: (result: UnlockVaultResult) => void;
