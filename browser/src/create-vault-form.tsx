@@ -39,7 +39,7 @@ export default function CreateVaultForm(props: CreateVaultProps) {
 
   const onGenerate = (passphrase: string) => {
     setPassword(passphrase);
-  }
+  };
 
   return (
     <form id="new-vault-form" onSubmit={onSubmit}>

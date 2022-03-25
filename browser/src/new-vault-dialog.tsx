@@ -27,8 +27,13 @@ export default function NewVaultDialog(props: NewVaultProps) {
       <DialogTitle>New Vault</DialogTitle>
       <DialogContent>
         <CreateVaultForm onFormSubmit={onFormSubmit} />
-        <Alert sx={{marginTop: 2}} severity="warning">You must memorize or write down the passphrase for your new vault</Alert>
-        <FormControlLabel control={<Checkbox />} label="I have memorized or written down the passphrase" />
+        <Alert sx={{ marginTop: 2 }} severity="warning">
+          You must memorize or write down the passphrase for your new vault
+        </Alert>
+        <FormControlLabel
+          control={<Checkbox />}
+          label="I have memorized or written down the passphrase"
+        />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

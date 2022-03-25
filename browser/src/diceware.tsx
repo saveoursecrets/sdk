@@ -77,7 +77,7 @@ interface DicewareProps {
 }
 
 export default function Diceware(props: DicewareProps) {
-  const {onGenerate} = props;
+  const { onGenerate } = props;
   const [passphrase, setPassphrase] = useState(null);
   const [bits, setBits] = useState(null);
   const [words, setWords] = useState(6);
@@ -102,7 +102,7 @@ export default function Diceware(props: DicewareProps) {
   }
 
   return (
-    <Card variant="outlined" sx={{backgroundColor: 'transparent'}}>
+    <Card variant="outlined" sx={{ backgroundColor: "transparent" }}>
       <CardContent>
         <Box sx={{ marginBottom: 1 }}>
           <Stack

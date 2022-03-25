@@ -27,7 +27,8 @@ import { VaultWorker } from "./worker";
 import Home from "./home";
 import VaultList from "./vault-list";
 import Vault from "./vault";
-import Dialogs from './dialogs';
+import Dialogs from "./dialogs";
+import AppBarActions from "./app-bar-actions";
 
 const NotFound = () => <h3>Page not found</h3>;
 
@@ -142,6 +143,8 @@ function App(props: AppProps) {
             component="div"
             sx={{ flexGrow: 1 }}
           ></Typography>
+
+          <AppBarActions />
         </Toolbar>
       </AppBar>
       <Drawer
@@ -180,7 +183,6 @@ function App(props: AppProps) {
 
         <Dialogs worker={worker} />
       </Main>
-
     </Box>
   );
 }
