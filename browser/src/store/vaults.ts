@@ -1,5 +1,27 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { WebVault } from "../worker";
+import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import { NavigateFunction } from 'react-router-dom';
+import { VaultWorker, WebVault } from "../worker";
+import {NewVaultResult} from '../types';
+
+export interface NewVaultRequest {
+  worker: VaultWorker;
+  result: NewVaultResult;
+  navigate: NavigateFunction;
+}
+
+export const createVault = createAsyncThunk(
+  "vaults/create",
+  async (request: NewVaultRequest) => {
+    const {worker, navigate, result} = request;
+    const { label, password } = result;
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const vault: WebVault = await new (worker.WebVault as any)();
+    await vault.initialize(label, password);
+    const uuid = await vault.id();
+    navigate(`/vault/${uuid}`);
+    return { uuid, vault, label, locked: false };
+  }
+);
 
 export interface VaultStorage {
   uuid: string;
@@ -20,9 +42,6 @@ const vaultsSlice = createSlice({
   name: "vaults",
   initialState,
   reducers: {
-    addVault: (state, { payload }: PayloadAction<VaultStorage>) => {
-      state.vaults = [payload, ...state.vaults];
-    },
     updateVault: (state, { payload }: PayloadAction<VaultStorage>) => {
       state.vaults = state.vaults.map((prop) => {
         if (payload.uuid === prop.uuid) {
@@ -33,8 +52,13 @@ const vaultsSlice = createSlice({
       });
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase(createVault.fulfilled, (state, action) => {
+      state.vaults = [action.payload, ...state.vaults];
+    })
+  },
 });
 
-export const { addVault, updateVault } = vaultsSlice.actions;
+export const { updateVault } = vaultsSlice.actions;
 export const vaultsSelector = (state: { vaults: VaultState }) => state.vaults;
 export default vaultsSlice.reducer;

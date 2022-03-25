@@ -73,19 +73,21 @@ function WordCount(props: WordCountProps) {
 }
 
 interface DicewareProps {
-  words: number;
+  onGenerate: (passphrase: string) => void;
 }
 
 export default function Diceware(props: DicewareProps) {
+  const {onGenerate} = props;
   const [passphrase, setPassphrase] = useState(null);
   const [bits, setBits] = useState(null);
-  const [words, setWords] = useState(props.words);
+  const [words, setWords] = useState(6);
   const [wordsVisible, setWordsVisible] = useState(false);
 
   const generate = async () => {
     const [passphrase, bits] = await generatePassphrase(words);
     setPassphrase(passphrase);
     setBits(Math.round(bits));
+    onGenerate(passphrase);
   };
 
   const onChange = (words: number) => setWords(words);
@@ -100,7 +102,7 @@ export default function Diceware(props: DicewareProps) {
   }
 
   return (
-    <Card variant="outlined">
+    <Card variant="outlined" sx={{backgroundColor: 'transparent'}}>
       <CardContent>
         <Box sx={{ marginBottom: 1 }}>
           <Stack

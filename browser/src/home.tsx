@@ -1,7 +1,27 @@
 import React from "react";
+import {useDispatch} from 'react-redux';
 
-import Diceware from "./diceware";
+import Fab from "@mui/material/Fab";
+import AddIcon from "@mui/icons-material/Add";
+
+import {setDialogVisible, NEW_VAULT} from './store/dialogs';
 
 export default function Home() {
-  return <Diceware words={6} />;
+  const dispatch = useDispatch();
+
+  const showNewVault = () => {
+    dispatch(setDialogVisible([NEW_VAULT, true]));
+  }
+
+  return <>
+    <p>Welcome!</p>
+
+    <Fab
+      onClick={showNewVault}
+      color="primary"
+      aria-label="add new vault"
+      sx={{position: 'absolute', bottom: 16, right: 16}}>
+      <AddIcon />
+    </Fab>
+  </>;
 }

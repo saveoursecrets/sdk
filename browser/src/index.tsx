@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import ReactDOM from "react-dom";
-import { HashRouter, Routes, Route, useNavigate } from "react-router-dom";
-import { Provider, useDispatch } from "react-redux";
+import { HashRouter, Routes, Route } from "react-router-dom";
+import { Provider } from "react-redux";
 
 import { styled, useTheme, ThemeProvider } from "@mui/material/styles";
 import Box from "@mui/material/Box";
@@ -14,24 +14,20 @@ import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
-import Button from "@mui/material/Button";
 import { createTheme } from "@mui/material/styles";
 
 import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import AddIcon from "@mui/icons-material/Add";
 
 import store from "./store";
 import WorkerProvider, { WorkerContext } from "./worker-provider";
-import { VaultWorker, WebVault } from "./worker";
-import { addVault } from "./store/vaults";
-import { NewVaultResult } from "./types";
+import { VaultWorker } from "./worker";
 
 import Home from "./home";
 import VaultList from "./vault-list";
-import NewVaultDialog from "./new-vault-dialog";
 import Vault from "./vault";
+import Dialogs from './dialogs';
 
 const NotFound = () => <h3>Page not found</h3>;
 
@@ -115,28 +111,11 @@ interface AppProps {
 function App(props: AppProps) {
   const { worker } = props;
   const theme = useTheme();
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [newVaultDialogOpen, setNewVaultDialogOpen] = useState(false);
 
   const handleDrawerOpen = () => setDrawerOpen(true);
   const handleDrawerClose = () => setDrawerOpen(false);
-  const openNewVaultDialog = () => setNewVaultDialogOpen(true);
-
-  const createNewVault = async (result: NewVaultResult) => {
-    setNewVaultDialogOpen(false);
-
-    const { label, password } = result;
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    const vault: WebVault = await new (worker.WebVault as any)();
-    await vault.initialize(label, password);
-    const uuid = await vault.id();
-    const storage = { uuid, vault, label, locked: false };
-    dispatch(addVault(storage));
-    navigate(`/vault/${uuid}`);
-  };
 
   return (
     <Box sx={{ display: "flex" }}>
@@ -163,10 +142,6 @@ function App(props: AppProps) {
             component="div"
             sx={{ flexGrow: 1 }}
           ></Typography>
-
-          <Button onClick={openNewVaultDialog} startIcon={<AddIcon />}>
-            New Vault
-          </Button>
         </Toolbar>
       </AppBar>
       <Drawer
@@ -202,13 +177,10 @@ function App(props: AppProps) {
           <Route path="/vault/:id" element={<Vault />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+
+        <Dialogs worker={worker} />
       </Main>
 
-      <NewVaultDialog
-        open={newVaultDialogOpen}
-        handleCancel={() => setNewVaultDialogOpen(false)}
-        handleOk={createNewVault}
-      />
     </Box>
   );
 }

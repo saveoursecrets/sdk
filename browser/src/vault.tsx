@@ -81,14 +81,11 @@ function VaultLocked(props: VaultViewProps) {
 
 function VaultHeader(props: VaultViewProps) {
   const { worker, storage } = props;
-  const { label, uuid } = storage;
+  const { label } = storage;
   return (
     <>
       <Typography variant="h3" gutterBottom component="div">
         {label}
-      </Typography>
-      <Typography variant="h6" gutterBottom component="div">
-        {uuid}
       </Typography>
       <VaultActions worker={worker} storage={storage} />
     </>
