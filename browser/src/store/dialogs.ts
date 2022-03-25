@@ -18,7 +18,10 @@ const dialogsSlice = createSlice({
   name: "dialogs",
   initialState,
   reducers: {
-    setDialogVisible: (state, { payload }: PayloadAction<[string, boolean]>) => {
+    setDialogVisible: (
+      state,
+      { payload }: PayloadAction<[string, boolean]>
+    ) => {
       const [key, value] = payload;
       const dialogs = Object.assign(state.dialogs);
       dialogs[key] = value;
@@ -28,5 +31,6 @@ const dialogsSlice = createSlice({
 });
 
 export const { setDialogVisible } = dialogsSlice.actions;
-export const dialogsSelector = (state: { dialogs: DialogState }) => state.dialogs;
+export const dialogsSelector = (state: { dialogs: DialogState }) =>
+  state.dialogs;
 export default dialogsSlice.reducer;
