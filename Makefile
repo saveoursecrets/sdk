@@ -3,6 +3,12 @@ all: wasm lint fmt check
 wasm:
 	@cd workspace/wasm && wasm-pack build --target=web
 
+browser-gui:
+	@cd browser && yarn build
+
+server-release: browser-gui
+	@cd workspace/server && cargo build --release
+
 prettier:
 	@cd browser && yarn prettier
 
@@ -15,4 +21,4 @@ fmt: prettier
 check:
 	@cargo check --all
 
-.PHONY: all wasm prettier lint fmt check
+.PHONY: all wasm browser-gui server-release prettier lint fmt check
