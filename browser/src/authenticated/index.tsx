@@ -6,6 +6,7 @@ import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import MuiAppBar, { AppBarProps as MuiAppBarProps } from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
+import Stack from "@mui/material/Stack";
 
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
@@ -20,6 +21,7 @@ import { VaultWorker } from "../worker";
 import Home from "./home";
 import VaultList from "./vault-list";
 import Vault from "./vault";
+import Dialogs from "./dialogs";
 import AppBarActions from "./app-bar-actions";
 import LogoType from "../logotype";
 
@@ -81,7 +83,7 @@ interface AppProps {
 }
 
 export default function AuthenticatedApp(props: AppProps) {
-  //const { worker } = props;
+  const { worker } = props;
   const theme = useTheme();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -93,24 +95,23 @@ export default function AuthenticatedApp(props: AppProps) {
     <Box sx={{ display: "flex" }}>
       <AppBar position="fixed" open={drawerOpen}>
         <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={handleDrawerOpen}
-            edge="start"
-            sx={{ mr: 2, ...(drawerOpen && { display: "none" }) }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <LogoType />
 
-          <Typography
-            variant="h6"
-            component="div"
-            sx={{ flexGrow: 1 }}
-          ></Typography>
+          <Stack sx={{width: '100%'}} direction="row" justifyContent="space-between">
+            <Stack direction="row" alignItems="center">
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                onClick={handleDrawerOpen}
+                edge="start"
+                sx={{ mr: 2, ...(drawerOpen && { display: "none" }) }}
+              >
+                <MenuIcon />
+              </IconButton>
+              <LogoType />
+            </Stack>
 
-          <AppBarActions />
+            <AppBarActions />
+          </Stack>
         </Toolbar>
       </AppBar>
       <Drawer
@@ -146,6 +147,7 @@ export default function AuthenticatedApp(props: AppProps) {
           <Route path="/vault/:id" element={<Vault />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <Dialogs worker={worker} />
       </Main>
     </Box>
   );

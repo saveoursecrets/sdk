@@ -10,7 +10,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import CreateVaultForm from "./create-vault-form";
 
-import { NewVaultResult } from "./types";
+import { NewVaultResult } from "../types";
 
 interface NewVaultProps {
   open: boolean;
@@ -23,7 +23,7 @@ export default function NewVaultDialog(props: NewVaultProps) {
   const onFormSubmit = (result: NewVaultResult) => handleOk(result);
 
   return (
-    <Dialog open={open} onClose={handleCancel} fullScreen>
+    <Dialog open={open} onClose={handleCancel}>
       <DialogTitle>New Vault</DialogTitle>
       <DialogContent>
         <CreateVaultForm onFormSubmit={onFormSubmit} />

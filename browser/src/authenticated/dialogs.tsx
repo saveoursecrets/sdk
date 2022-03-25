@@ -2,11 +2,11 @@ import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-import { VaultWorker, WebVault } from "./worker";
-import { dialogsSelector, setDialogVisible, NEW_VAULT } from "./store/dialogs";
-import { createVault } from "./store/vaults";
+import { VaultWorker, WebVault } from "../worker";
+import { dialogsSelector, setDialogVisible, NEW_VAULT } from "../store/dialogs";
+import { createVault } from "../store/vaults";
 import NewVaultDialog from "./new-vault-dialog";
-import { NewVaultResult } from "./types";
+import { NewVaultResult } from "../types";
 
 interface DialogProps {
   worker: VaultWorker;
