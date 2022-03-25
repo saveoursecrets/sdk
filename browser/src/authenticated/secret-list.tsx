@@ -7,7 +7,7 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
-import { VaultWorker } from "./worker";
+import { VaultWorker } from "../worker";
 
 export interface SecretMeta {
   label: string;

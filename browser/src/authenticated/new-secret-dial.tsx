@@ -8,7 +8,7 @@ import AccountIcon from "@mui/icons-material/AccountBox";
 import NoteIcon from "@mui/icons-material/Article";
 import CredentialsIcon from "@mui/icons-material/List";
 
-import { SecretKind } from "./types";
+import { SecretKind } from "../types";
 
 const actions = [
   { icon: <AccountIcon />, name: "Account Password", kind: SecretKind.Account },

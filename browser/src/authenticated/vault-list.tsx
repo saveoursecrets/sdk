@@ -16,8 +16,8 @@ import AddIcon from "@mui/icons-material/Add";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 
-import { VaultStorage, vaultsSelector } from "./store/vaults";
-import { setDialogVisible, NEW_VAULT } from "./store/dialogs";
+import { VaultStorage, vaultsSelector } from "../store/vaults";
+import { setDialogVisible, NEW_VAULT } from "../store/dialogs";
 
 export default function VaultList() {
   const { vaults } = useSelector(vaultsSelector);
