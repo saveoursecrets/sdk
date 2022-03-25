@@ -95,8 +95,11 @@ export default function AuthenticatedApp(props: AppProps) {
     <Box sx={{ display: "flex" }}>
       <AppBar position="fixed" open={drawerOpen}>
         <Toolbar>
-
-          <Stack sx={{width: '100%'}} direction="row" justifyContent="space-between">
+          <Stack
+            sx={{ width: "100%" }}
+            direction="row"
+            justifyContent="space-between"
+          >
             <Stack direction="row" alignItems="center">
               <IconButton
                 color="inherit"

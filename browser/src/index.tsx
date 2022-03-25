@@ -1,9 +1,9 @@
-import React, {useMemo} from "react";
+import React, { useMemo } from "react";
 import ReactDOM from "react-dom";
 import { HashRouter } from "react-router-dom";
 import { Provider, useSelector } from "react-redux";
 
-import useMediaQuery from '@mui/material/useMediaQuery';
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 
@@ -38,15 +38,15 @@ function MainApp(props: AppProps) {
   const { worker } = props;
   const { token } = useSelector(userSelector);
 
-  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+  const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const theme = useMemo(
     () =>
       createTheme({
         palette: {
-          mode: prefersDarkMode ? 'dark' : 'light',
+          mode: prefersDarkMode ? "dark" : "light",
         },
       }),
-    [prefersDarkMode],
+    [prefersDarkMode]
   );
 
   return (

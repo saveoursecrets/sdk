@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
-import {SecureNoteResult} from '../../types';
+import { SecureNoteResult } from "../../types";
 
 interface NoteFormProps {
   label: string;
@@ -13,7 +13,7 @@ interface NoteFormProps {
 }
 
 export function NoteForm(props: NoteFormProps) {
-  const {onFormSubmit} = props;
+  const { onFormSubmit } = props;
   const [label, setLabel] = useState(props.label);
   const [labelError, setLabelError] = useState(false);
 

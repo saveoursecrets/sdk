@@ -33,8 +33,11 @@ export default function App(props: AppProps) {
     <Box sx={{ display: "flex", flexDirection: "column" }}>
       <AppBar position="relative">
         <Toolbar>
-
-          <Stack sx={{width: '100%'}} direction="row" justifyContent="space-between">
+          <Stack
+            sx={{ width: "100%" }}
+            direction="row"
+            justifyContent="space-between"
+          >
             <LogoType />
             <AppBarActions />
           </Stack>

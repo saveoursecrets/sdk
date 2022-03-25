@@ -17,8 +17,15 @@ tower = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 async-trait = "0.1"
+rust-embed = "6"
+mime_guess = "2"
+
+[features]
+default = ["gui"]
+gui = []
 
 [[bin]]
 name = "sos3"
