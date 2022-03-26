@@ -81,6 +81,14 @@ pub struct Credentials {
     credentials: HashMap<String, String>,
 }
 
+/// Request used to create a new file upload.
+#[derive(Serialize, Deserialize)]
+pub struct FileUpload {
+    label: String,
+    buffer: Vec<u8>,
+    name: String,
+}
+
 #[wasm_bindgen]
 impl WebVault {
     /// Create an empty vault.
@@ -186,6 +194,27 @@ impl WebVault {
         self.index.insert(
             uuid.clone(),
             SearchMeta::new(meta_data.clone(), CREDENTIALS),
+        );
+        self.keeper.set_secret_meta(uuid, meta_data)?;
+        Ok(JsValue::from_serde(&uuid)?)
+    }
+
+    /// Create a new file upload.
+    #[wasm_bindgen(js_name = "createFileUpload")]
+    pub fn create_file_upload(
+        &mut self,
+        request: JsValue,
+    ) -> Result<JsValue, JsError> {
+        let FileUpload { label, buffer, name } = request.into_serde()?;
+
+        let mime = mime_guess::from_path(name).first().map(|m| m.to_string());
+        let secret = Secret::Blob {buffer, mime};
+        let meta_data = SecretMeta::new(label);
+        let uuid = self.keeper.set_secret(&secret, None)?;
+
+        self.index.insert(
+            uuid.clone(),
+            SearchMeta::new(meta_data.clone(), BLOB),
         );
         self.keeper.set_secret_meta(uuid, meta_data)?;
         Ok(JsValue::from_serde(&uuid)?)

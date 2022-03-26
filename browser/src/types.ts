@@ -18,9 +18,9 @@ export interface SearchMeta {
   kind: SecretKind;
 }
 
-export interface SecureNoteResult {
+export interface NewVaultResult {
   label: string;
-  note: string;
+  password: string;
 }
 
 export interface AccountPasswordResult {
@@ -28,6 +28,11 @@ export interface AccountPasswordResult {
   account: string;
   url: string;
   password: string;
+}
+
+export interface SecureNoteResult {
+  label: string;
+  note: string;
 }
 
 export interface KeyValueError {
@@ -44,9 +49,10 @@ export interface CredentialsResult {
   credentials: Credentials;
 }
 
-export interface NewVaultResult {
+export interface FileUploadResult {
   label: string;
-  password: string;
+  name?: string;
+  buffer?: number[];
 }
 
 export interface UnlockVaultResult {

@@ -27,6 +27,7 @@ import {
   NEW_SECURE_NOTE,
   NEW_ACCOUNT_PASSWORD,
   NEW_CREDENTIALS,
+  NEW_FILE_UPLOAD,
 } from "../store/dialogs";
 
 function downloadVault(fileName: string, buffer: Uint8Array) {
@@ -162,6 +163,9 @@ function VaultUnlocked(props: VaultViewProps) {
         break;
       case SecretKind.Credentials:
         dispatch(setDialogVisible([NEW_CREDENTIALS, true]));
+        break;
+      case SecretKind.File:
+        dispatch(setDialogVisible([NEW_FILE_UPLOAD, true]));
         break;
     }
   };
