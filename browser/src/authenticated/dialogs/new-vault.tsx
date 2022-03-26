@@ -20,13 +20,13 @@ interface NewVaultProps {
 
 export default function NewVaultDialog(props: NewVaultProps) {
   const { open, handleCancel, handleOk } = props;
-  const onFormSubmit = (result: NewVaultResult) => handleOk(result);
 
   return (
     <Dialog open={open} onClose={handleCancel}>
       <DialogTitle>New Vault</DialogTitle>
       <DialogContent>
-        <CreateVaultForm onFormSubmit={onFormSubmit} />
+        <CreateVaultForm
+          onFormSubmit={handleOk} />
         <Alert sx={{ marginTop: 2 }} severity="warning">
           You must memorize or write down the passphrase for your new vault
         </Alert>

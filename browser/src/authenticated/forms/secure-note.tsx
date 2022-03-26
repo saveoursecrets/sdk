@@ -6,9 +6,7 @@ import Typography from "@mui/material/Typography";
 
 import { SecureNoteResult } from "../../types";
 
-interface SecureNoteFormProps {
-  label: string;
-  note: string;
+interface SecureNoteFormProps extends SecureNoteResult {
   onFormSubmit: (result: SecureNoteResult) => void;
 }
 

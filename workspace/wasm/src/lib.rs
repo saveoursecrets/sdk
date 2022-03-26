@@ -5,11 +5,12 @@ use wasm_bindgen::prelude::*;
 use sos_core::{
     gatekeeper::Gatekeeper,
     into_encoded_buffer,
-    secret::{Secret, SecretMeta, kind::*},
+    secret::{kind::*, Secret, SecretMeta},
     uuid::Uuid,
 };
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use url::Url;
 
 use std::collections::HashMap;
 
@@ -57,6 +58,22 @@ impl SearchMeta {
     }
 }
 
+/// Request used to create a new secure note.
+#[derive(Serialize, Deserialize)]
+pub struct SecureNote {
+    label: String,
+    note: String,
+}
+
+/// Request used to create a new account password.
+#[derive(Serialize, Deserialize)]
+pub struct AccountPassword {
+    label: String,
+    account: String,
+    url: String,
+    password: String,
+}
+
 #[wasm_bindgen]
 impl WebVault {
     /// Create an empty vault.
@@ -69,7 +86,11 @@ impl WebVault {
     }
 
     /// Initialize the vault with the given label and password.
-    pub fn initialize(&mut self, label: JsValue, password: JsValue) -> Result<(), JsError> {
+    pub fn initialize(
+        &mut self,
+        label: JsValue,
+        password: JsValue,
+    ) -> Result<(), JsError> {
         let label: String = label.into_serde()?;
         let password: String = password.into_serde()?;
         self.keeper.initialize(label, password)?;
@@ -94,24 +115,68 @@ impl WebVault {
 
     /// Create a new secure note.
     #[wasm_bindgen(js_name = "createNote")]
-    pub fn create_note(&mut self, label: JsValue, note: JsValue) -> Result<JsValue, JsError> {
-        let label: String = label.into_serde()?;
-        let note: String = note.into_serde()?;
+    pub fn create_note(
+        &mut self,
+        request: JsValue,
+    ) -> Result<JsValue, JsError> {
+        let SecureNote {
+            label,
+            note,
+        } = request.into_serde()?;
 
         let secret = Secret::Text(note);
-        let meta_data =
-            SecretMeta::new(label);
+        let meta_data = SecretMeta::new(label);
 
         let uuid = self.keeper.set_secret(&secret, None)?;
 
-        self.index.insert(uuid.clone(), SearchMeta::new(meta_data.clone(), TEXT));
+        self.index
+            .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), TEXT));
+        self.keeper.set_secret_meta(uuid, meta_data)?;
+
+        Ok(JsValue::from_serde(&uuid)?)
+    }
+
+    /// Create a new account password.
+    #[wasm_bindgen(js_name = "createAccountPassword")]
+    pub fn create_account_password(
+        &mut self,
+        request: JsValue,
+    ) -> Result<JsValue, JsError> {
+        let AccountPassword {
+            label,
+            account,
+            url,
+            password,
+        } = request.into_serde()?;
+
+        let url = if url.is_empty() {
+            None
+        } else {
+            let url: Url = url.parse()?;
+            Some(url)
+        };
+
+        let secret = Secret::Account {
+            account,
+            url,
+            password,
+        };
+        let meta_data = SecretMeta::new(label);
+
+        let uuid = self.keeper.set_secret(&secret, None)?;
+        self.index
+            .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), ACCOUNT));
         self.keeper.set_secret_meta(uuid, meta_data)?;
 
         Ok(JsValue::from_serde(&uuid)?)
     }
 
     /// Set a secret for this vault.
-    pub fn set_secret(&mut self, secret: JsValue, uuid: JsValue) -> Result<JsValue, JsError> {
+    pub fn set_secret(
+        &mut self,
+        secret: JsValue,
+        uuid: JsValue,
+    ) -> Result<JsValue, JsError> {
         let secret: Secret = secret.into_serde()?;
         let uuid: Option<Uuid> = uuid.into_serde()?;
         let uuid = self.keeper.set_secret(&secret, uuid)?;
@@ -126,7 +191,11 @@ impl WebVault {
     }
 
     /// Set the meta data for a secret.
-    pub fn set_secret_meta(&mut self, uuid: JsValue, meta_data: JsValue) -> Result<(), JsError> {
+    pub fn set_secret_meta(
+        &mut self,
+        uuid: JsValue,
+        meta_data: JsValue,
+    ) -> Result<(), JsError> {
         let uuid: Uuid = uuid.into_serde()?;
         let meta_data: SecretMeta = meta_data.into_serde()?;
         self.keeper.set_secret_meta(uuid, meta_data)?;

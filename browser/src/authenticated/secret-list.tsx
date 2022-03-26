@@ -5,13 +5,12 @@ import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
-import ListSubheader from "@mui/material/ListSubheader";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 import { VaultWorker } from "../worker";
-import {SearchMeta, SecretKind} from '../types';
+import {SearchMeta} from '../types';
 import {VaultStorage} from '../store/vaults';
 
 import SecretIcon from './secret-icon';

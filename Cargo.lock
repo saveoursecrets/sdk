@@ -1946,6 +1946,7 @@ dependencies = [
  "console_error_panic_hook",
  "serde",
  "sos-core",
+ "url",
  "wasm-bindgen",
 ]
 

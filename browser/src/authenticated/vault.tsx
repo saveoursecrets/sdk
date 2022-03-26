@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useParams } from "react-router-dom";
 
@@ -15,14 +15,14 @@ import LockOpenIcon from "@mui/icons-material/LockOpen";
 
 import { VaultWorker } from "../worker";
 import { WorkerContext } from "../worker-provider";
-import { vaultsSelector, VaultStorage, updateVault, setCurrent } from "../store/vaults";
+import { vaultsSelector, VaultStorage, updateVault } from "../store/vaults";
 
 import { SecretKind, UnlockVaultResult } from "../types";
 import SecretList from "./secret-list";
 import UnlockVaultForm from "./unlock-vault-form";
 import NewSecretDial from "./new-secret-dial";
 
-import {setDialogVisible, NEW_SECURE_NOTE} from '../store/dialogs';
+import {setDialogVisible, NEW_SECURE_NOTE, NEW_ACCOUNT_PASSWORD} from '../store/dialogs';
 
 function downloadVault(fileName: string, buffer: Uint8Array) {
   const blob = new Blob([buffer], { type: "application/octet-stream" });
@@ -144,14 +144,15 @@ function VaultActions(props: VaultViewProps) {
 function VaultUnlocked(props: VaultViewProps) {
   const { worker, storage } = props;
   const { vault } = storage;
-  const [secrets, setSecrets] = useState(null);
   const dispatch = useDispatch();
 
   const createNewSecret = (kind: SecretKind) => {
     console.log("create new secret", kind);
     switch(kind) {
+      case SecretKind.Account:
+        dispatch(setDialogVisible([NEW_ACCOUNT_PASSWORD, true]))
+        break;
       case SecretKind.Note:
-        console.log("show secure note");
         dispatch(setDialogVisible([NEW_SECURE_NOTE, true]))
         break;
     }
@@ -170,7 +171,6 @@ export default function Vault() {
   const params = useParams();
   const { id } = params;
   const { vaults } = useSelector(vaultsSelector);
-  const dispatch = useDispatch();
 
   const storage = vaults.find((v) => v.uuid === id);
 
