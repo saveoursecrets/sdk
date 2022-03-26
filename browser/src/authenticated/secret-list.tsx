@@ -10,10 +10,10 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 import { VaultWorker } from "../worker";
-import {SearchMeta} from '../types';
-import {VaultStorage} from '../store/vaults';
+import { SearchMeta } from "../types";
+import { VaultStorage } from "../store/vaults";
 
-import SecretIcon from './secret-icon';
+import SecretIcon from "./secret-icon";
 
 interface SecretListProps {
   worker: VaultWorker;
@@ -27,7 +27,7 @@ export default function SecretList(props: SecretListProps) {
     return null;
   }
 
-  const {index} = storage;
+  const { index } = storage;
   const secrets = new Map(Object.entries(index));
 
   if (secrets.size === 0) {
@@ -54,11 +54,8 @@ export default function SecretList(props: SecretListProps) {
                 <ListItemIcon>
                   <SecretIcon kind={index.kind} />
                 </ListItemIcon>
-                <ListItemText
-                  primary={index.meta.label}
-                  secondary={uuid} />
+                <ListItemText primary={index.meta.label} secondary={uuid} />
               </ListItemButton>
-
             </ListItem>
             <Divider light />
           </div>

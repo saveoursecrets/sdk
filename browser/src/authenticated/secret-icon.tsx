@@ -5,14 +5,14 @@ import NoteIcon from "@mui/icons-material/Article";
 import CredentialsIcon from "@mui/icons-material/List";
 import FileIcon from "@mui/icons-material/FileOpen";
 
-import {SecretKind} from '../types';
+import { SecretKind } from "../types";
 
 interface SecretIconProps {
   kind: number;
 }
 
 export default function SecretIcon(props: SecretIconProps) {
-  switch(props.kind) {
+  switch (props.kind) {
     case SecretKind.Account:
       return <AccountIcon />;
     case SecretKind.Note:

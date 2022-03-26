@@ -43,18 +43,18 @@ export default function CreateVaultForm(props: CreateVaultProps) {
 
   return (
     <form id="new-vault-form" onSubmit={onSubmit}>
-      <Stack spacing={2}>
+      <Stack spacing={2} sx={{paddingTop: 1}}>
         <TextField
           id="vault-label"
+          label="Label"
+          autoFocus
           onChange={onLabelChange}
           value={label}
           error={labelError}
           helperText={labelHelperText}
           variant="outlined"
-          hiddenLabel
           placeholder="Label for the new vault"
         />
-
         <Diceware onGenerate={onGenerate} />
       </Stack>
     </form>

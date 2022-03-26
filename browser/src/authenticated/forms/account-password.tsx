@@ -2,9 +2,8 @@ import React, { useState } from "react";
 
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
 
-import ViewablePassword from './viewable-password';
+import ViewablePassword from "./viewable-password";
 
 import { AccountPasswordResult } from "../../types";
 
@@ -47,12 +46,12 @@ export default function AccountPasswordForm(props: AccountPasswordFormProps) {
     setPasswordError(false);
 
     // Validation of optional URL field
-    let urlIsValid: boolean = url === '' ? true : false;
+    let urlIsValid: boolean = url === "" ? true : false;
     if (!urlIsValid) {
       try {
         new URL(url);
         urlIsValid = true;
-      } catch(e) {
+      } catch (e) {
         urlIsValid = false;
       }
     }
@@ -75,10 +74,7 @@ export default function AccountPasswordForm(props: AccountPasswordFormProps) {
 
   return (
     <form id="account-password-form" onSubmit={onSubmit} noValidate>
-      <Stack spacing={2}>
-        <Typography variant="h4" color="text.secondary">
-          Account Password
-        </Typography>
+      <Stack spacing={2} sx={{paddingTop: 1}}>
         <TextField
           id="secret-label"
           label="Name"
@@ -110,11 +106,12 @@ export default function AccountPasswordForm(props: AccountPasswordFormProps) {
 
         <ViewablePassword
           id="account-password"
+          label="Password"
+          placeholder="Enter a password"
           value={password}
           onChange={onPasswordChange}
           error={passwordError}
         />
-
       </Stack>
     </form>
   );

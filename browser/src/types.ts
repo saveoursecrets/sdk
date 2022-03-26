@@ -30,6 +30,20 @@ export interface AccountPasswordResult {
   password: string;
 }
 
+export interface KeyValueError {
+  key: boolean;
+  value: boolean;
+}
+
+export interface Credentials {
+  [index: string]: string;
+}
+
+export interface CredentialsResult {
+  label: string;
+  credentials: Credentials;
+}
+
 export interface NewVaultResult {
   label: string;
   password: string;

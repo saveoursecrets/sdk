@@ -3,6 +3,7 @@ import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 
 import AccountPasswordForm from "../forms/account-password";
 
@@ -19,20 +20,21 @@ export default function AccountPasswordDialog(props: AccountPasswordProps) {
 
   return (
     <Dialog open={open} onClose={handleCancel}>
+      <DialogTitle color="text.secondary">
+        Account Password
+      </DialogTitle>
       <DialogContent>
         <AccountPasswordForm
           label=""
           account=""
           url=""
           password=""
-          onFormSubmit={handleOk} />
+          onFormSubmit={handleOk}
+        />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>
-        <Button
-          type="submit"
-          form="account-password-form"
-          variant="contained">
+        <Button type="submit" form="account-password-form" variant="contained">
           OK
         </Button>
       </DialogActions>

@@ -5,30 +5,34 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 
-import SecureNoteForm from "../forms/secure-note";
+import CredentialsForm from "../forms/credentials";
 
-import { SecureNoteResult } from "../../types";
+import { CredentialsResult } from "../../types";
 
-interface SecureNoteProps {
+interface CredentialsProps {
   open: boolean;
   handleCancel: () => void;
-  handleOk: (result: SecureNoteResult) => void;
+  handleOk: (result: CredentialsResult) => void;
 }
 
-export default function SecureNoteDialog(props: SecureNoteProps) {
+export default function CredentialsDialog(props: CredentialsProps) {
   const { open, handleCancel, handleOk } = props;
 
   return (
     <Dialog open={open} onClose={handleCancel}>
       <DialogTitle color="text.secondary">
-        Secure Note
+        Credentials
       </DialogTitle>
       <DialogContent>
-        <SecureNoteForm label="" note="" onFormSubmit={handleOk} />
+        <CredentialsForm
+          label=""
+          credentials={{ "": "" }}
+          onFormSubmit={handleOk}
+        />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>
-        <Button type="submit" form="secure-note-form" variant="contained">
+        <Button type="submit" form="credentials-form" variant="contained">
           OK
         </Button>
       </DialogActions>
