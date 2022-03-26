@@ -13,3 +13,4 @@ wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 console_error_panic_hook = "0.1.7"
 serde = {version = "1", features = ["derive"]}
 url = { version = "2.2", features = ["serde"] }
+mime_guess = "2"

@@ -1944,6 +1944,7 @@ name = "sos-wasm"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "mime_guess",
  "serde",
  "sos-core",
  "url",

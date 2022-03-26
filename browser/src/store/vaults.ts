@@ -6,6 +6,7 @@ import {
   SecureNoteResult,
   AccountPasswordResult,
   CredentialsResult,
+  FileUploadResult,
   SearchMeta,
 } from "../types";
 
@@ -44,6 +45,11 @@ export interface SecureNoteRequest {
 
 export interface CredentialsRequest {
   result: CredentialsResult;
+  owner: VaultStorage;
+}
+
+export interface FileUploadRequest {
+  result: FileUploadResult;
   owner: VaultStorage;
 }
 
@@ -109,6 +115,21 @@ export const createNewCredentials = createAsyncThunk(
   }
 );
 
+export const createNewFileUpload = createAsyncThunk(
+  "vaults/createNewFileUpload",
+  async (request: FileUploadRequest) => {
+    const { result, owner } = request;
+    const { vault } = owner;
+    try {
+      await vault.createFileUpload(result);
+    } catch(e) {
+      console.error(e);
+    }
+    const index = await vault.getSecretIndex();
+    return { ...owner, index };
+  }
+);
+
 const initialState: VaultState = {
   vaults: [],
   current: null,
@@ -157,6 +178,7 @@ const vaultsSlice = createSlice({
     builder.addCase(createNewAccountPassword.fulfilled, updateVaultFromThunk);
     builder.addCase(createNewSecureNote.fulfilled, updateVaultFromThunk);
     builder.addCase(createNewCredentials.fulfilled, updateVaultFromThunk);
+    builder.addCase(createNewFileUpload.fulfilled, updateVaultFromThunk);
   },
 });
 

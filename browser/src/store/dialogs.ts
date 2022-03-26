@@ -4,6 +4,7 @@ export const NEW_VAULT = "new-vault";
 export const NEW_SECURE_NOTE = "new-secure-note";
 export const NEW_ACCOUNT_PASSWORD = "new-account-password";
 export const NEW_CREDENTIALS = "new-credentials";
+export const NEW_FILE_UPLOAD = "new-file-upload";
 
 export interface DialogDict {
   [index: string]: boolean;

@@ -10,6 +10,7 @@ import {
   NEW_SECURE_NOTE,
   NEW_ACCOUNT_PASSWORD,
   NEW_CREDENTIALS,
+  NEW_FILE_UPLOAD,
 } from "../../store/dialogs";
 import {
   vaultsSelector,
@@ -17,18 +18,21 @@ import {
   createNewSecureNote as dispatchNewSecureNote,
   createNewAccountPassword as dispatchNewAccountPassword,
   createNewCredentials as dispatchNewCredentials,
+  createNewFileUpload as dispatchNewFileUpload,
 } from "../../store/vaults";
 import {
   NewVaultResult,
   SecureNoteResult,
   AccountPasswordResult,
   CredentialsResult,
+  FileUploadResult,
 } from "../../types";
 
 import NewVaultDialog from "./new-vault";
 import SecureNoteDialog from "./secure-note";
 import AccountPasswordDialog from "./account-password";
 import CredentialsDialog from "./credentials";
+import FileUploadDialog from "./file-upload";
 
 interface DialogProps {
   worker: VaultWorker;
@@ -62,6 +66,12 @@ export default function Dialogs(props: DialogProps) {
     dispatch(dispatchNewCredentials({ result, owner: current }));
   };
 
+  const createNewFileUpload = async (result: FileUploadResult) => {
+    console.log(result);
+    cancelDialog(NEW_FILE_UPLOAD);
+    dispatch(dispatchNewFileUpload({ result, owner: current }));
+  };
+
   const cancelDialog = (key: string) => {
     dispatch(setDialogVisible([key, false]));
   };
@@ -90,6 +100,12 @@ export default function Dialogs(props: DialogProps) {
         open={dialogs[NEW_CREDENTIALS] || false}
         handleCancel={() => cancelDialog(NEW_CREDENTIALS)}
         handleOk={createNewCredentials}
+      />
+
+      <FileUploadDialog
+        open={dialogs[NEW_FILE_UPLOAD] || false}
+        handleCancel={() => cancelDialog(NEW_FILE_UPLOAD)}
+        handleOk={createNewFileUpload}
       />
     </>
   );
