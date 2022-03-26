@@ -16,7 +16,7 @@ import AddIcon from "@mui/icons-material/Add";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 
-import { VaultStorage, vaultsSelector } from "../store/vaults";
+import { VaultStorage, vaultsSelector, setCurrent } from "../store/vaults";
 import { setDialogVisible, NEW_VAULT } from "../store/dialogs";
 
 export default function VaultList() {
@@ -28,8 +28,9 @@ export default function VaultList() {
     dispatch(setDialogVisible([NEW_VAULT, true]));
   };
 
-  const openVault = (uuid: string) => {
-    navigate(`/vault/${uuid}`);
+  const openVault = (vault: VaultStorage) => {
+    dispatch(setCurrent(vault))
+    navigate(`/vault/${vault.uuid}`);
   };
 
   const SubHeader = () => {
@@ -58,7 +59,7 @@ export default function VaultList() {
         return (
           <div key={vault.uuid}>
             <ListItem component="div" disablePadding>
-              <ListItemButton onClick={() => openVault(vault.uuid)}>
+              <ListItemButton onClick={() => openVault(vault)}>
                 <ListItemIcon>
                   {vault.locked ? <LockIcon /> : <LockOpenIcon />}
                 </ListItemIcon>
