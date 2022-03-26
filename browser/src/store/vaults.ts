@@ -1,7 +1,13 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { NavigateFunction } from "react-router-dom";
 import { VaultWorker, WebVault } from "../worker";
-import { NewVaultResult, SecureNoteResult, AccountPasswordResult, SearchMeta } from "../types";
+import {
+  NewVaultResult,
+  SecureNoteResult,
+  AccountPasswordResult,
+  CredentialsResult,
+  SearchMeta,
+} from "../types";
 
 export interface VaultSearchIndex {
   [index: string]: SearchMeta;
@@ -26,13 +32,18 @@ export interface NewVaultRequest {
   navigate: NavigateFunction;
 }
 
+export interface AccountPasswordRequest {
+  result: AccountPasswordResult;
+  owner: VaultStorage;
+}
+
 export interface SecureNoteRequest {
   result: SecureNoteResult;
   owner: VaultStorage;
 }
 
-export interface AccountPasswordRequest {
-  result: AccountPasswordResult;
+export interface CredentialsRequest {
+  result: CredentialsResult;
   owner: VaultStorage;
 }
 
@@ -65,25 +76,36 @@ export const createNewVault = createAsyncThunk(
   }
 );
 
-export const createNewSecureNote = createAsyncThunk(
-  "vaults/createNewSecureNote",
-  async (request: SecureNoteRequest) => {
-    const { result, owner } = request;
-    const {vault} = owner;
-    await vault.createNote(result);
-    const index = await vault.getSecretIndex();
-    return {...owner, index};
-  }
-);
-
 export const createNewAccountPassword = createAsyncThunk(
   "vaults/createNewAccountPassword",
   async (request: AccountPasswordRequest) => {
     const { result, owner } = request;
-    const {vault} = owner;
+    const { vault } = owner;
     await vault.createAccountPassword(result);
     const index = await vault.getSecretIndex();
-    return {...owner, index};
+    return { ...owner, index };
+  }
+);
+
+export const createNewSecureNote = createAsyncThunk(
+  "vaults/createNewSecureNote",
+  async (request: SecureNoteRequest) => {
+    const { result, owner } = request;
+    const { vault } = owner;
+    await vault.createNote(result);
+    const index = await vault.getSecretIndex();
+    return { ...owner, index };
+  }
+);
+
+export const createNewCredentials = createAsyncThunk(
+  "vaults/createNewCredentials",
+  async (request: CredentialsRequest) => {
+    const { result, owner } = request;
+    const { vault } = owner;
+    await vault.createCredentials(result);
+    const index = await vault.getSecretIndex();
+    return { ...owner, index };
   }
 );
 
@@ -92,8 +114,11 @@ const initialState: VaultState = {
   current: null,
 };
 
-const updateVaultFromThunk = (state: VaultState, action: PayloadAction<VaultStorage>) => {
-  const {payload} = action;
+const updateVaultFromThunk = (
+  state: VaultState,
+  action: PayloadAction<VaultStorage>
+) => {
+  const { payload } = action;
   state.current = payload;
   state.vaults = state.vaults.map((prop: VaultStorage) => {
     if (payload.uuid === prop.uuid) {
@@ -129,8 +154,9 @@ const vaultsSlice = createSlice({
     builder.addCase(lockAll.fulfilled, (state, action) => {
       state.vaults = action.payload;
     });
-    builder.addCase(createNewSecureNote.fulfilled, updateVaultFromThunk);
     builder.addCase(createNewAccountPassword.fulfilled, updateVaultFromThunk);
+    builder.addCase(createNewSecureNote.fulfilled, updateVaultFromThunk);
+    builder.addCase(createNewCredentials.fulfilled, updateVaultFromThunk);
   },
 });
 

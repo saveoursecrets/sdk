@@ -2,7 +2,6 @@ import React, { useState } from "react";
 
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
 
 import { SecureNoteResult } from "../../types";
 
@@ -43,10 +42,7 @@ export default function SecureNoteForm(props: SecureNoteFormProps) {
 
   return (
     <form id="secure-note-form" onSubmit={onSubmit} noValidate>
-      <Stack spacing={2}>
-        <Typography variant="h4" color="text.secondary">
-          Secure Note
-        </Typography>
+      <Stack spacing={2} sx={{paddingTop: 1}}>
         <TextField
           id="secret-label"
           label="Name"

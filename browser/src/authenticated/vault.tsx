@@ -22,7 +22,12 @@ import SecretList from "./secret-list";
 import UnlockVaultForm from "./unlock-vault-form";
 import NewSecretDial from "./new-secret-dial";
 
-import {setDialogVisible, NEW_SECURE_NOTE, NEW_ACCOUNT_PASSWORD} from '../store/dialogs';
+import {
+  setDialogVisible,
+  NEW_SECURE_NOTE,
+  NEW_ACCOUNT_PASSWORD,
+  NEW_CREDENTIALS,
+} from "../store/dialogs";
 
 function downloadVault(fileName: string, buffer: Uint8Array) {
   const blob = new Blob([buffer], { type: "application/octet-stream" });
@@ -148,12 +153,15 @@ function VaultUnlocked(props: VaultViewProps) {
 
   const createNewSecret = (kind: SecretKind) => {
     console.log("create new secret", kind);
-    switch(kind) {
+    switch (kind) {
       case SecretKind.Account:
-        dispatch(setDialogVisible([NEW_ACCOUNT_PASSWORD, true]))
+        dispatch(setDialogVisible([NEW_ACCOUNT_PASSWORD, true]));
         break;
       case SecretKind.Note:
-        dispatch(setDialogVisible([NEW_SECURE_NOTE, true]))
+        dispatch(setDialogVisible([NEW_SECURE_NOTE, true]));
+        break;
+      case SecretKind.Credentials:
+        dispatch(setDialogVisible([NEW_CREDENTIALS, true]));
         break;
     }
   };

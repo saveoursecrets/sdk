@@ -14,11 +14,13 @@ const actions = [
   {
     icon: <AccountIcon />,
     name: "Account Password",
-    kind: SecretKind.Account },
+    kind: SecretKind.Account,
+  },
   {
     icon: <NoteIcon />,
     name: "Secure Note",
-    kind: SecretKind.Note },
+    kind: SecretKind.Note,
+  },
   {
     icon: <CredentialsIcon />,
     name: "Credentials List",
@@ -27,7 +29,8 @@ const actions = [
   {
     icon: <FileIcon />,
     name: "File Upload",
-    kind: SecretKind.File },
+    kind: SecretKind.File,
+  },
 ];
 
 interface NewSecretProps {

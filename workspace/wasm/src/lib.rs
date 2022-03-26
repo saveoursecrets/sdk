@@ -58,13 +58,6 @@ impl SearchMeta {
     }
 }
 
-/// Request used to create a new secure note.
-#[derive(Serialize, Deserialize)]
-pub struct SecureNote {
-    label: String,
-    note: String,
-}
-
 /// Request used to create a new account password.
 #[derive(Serialize, Deserialize)]
 pub struct AccountPassword {
@@ -72,6 +65,20 @@ pub struct AccountPassword {
     account: String,
     url: String,
     password: String,
+}
+
+/// Request used to create a new secure note.
+#[derive(Serialize, Deserialize)]
+pub struct SecureNote {
+    label: String,
+    note: String,
+}
+
+/// Request used to create a new credentials list.
+#[derive(Serialize, Deserialize)]
+pub struct Credentials {
+    label: String,
+    credentials: HashMap<String, String>,
 }
 
 #[wasm_bindgen]
@@ -113,29 +120,6 @@ impl WebVault {
         Ok(JsValue::from_serde(&self.keeper.label()?)?)
     }
 
-    /// Create a new secure note.
-    #[wasm_bindgen(js_name = "createNote")]
-    pub fn create_note(
-        &mut self,
-        request: JsValue,
-    ) -> Result<JsValue, JsError> {
-        let SecureNote {
-            label,
-            note,
-        } = request.into_serde()?;
-
-        let secret = Secret::Text(note);
-        let meta_data = SecretMeta::new(label);
-
-        let uuid = self.keeper.set_secret(&secret, None)?;
-
-        self.index
-            .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), TEXT));
-        self.keeper.set_secret_meta(uuid, meta_data)?;
-
-        Ok(JsValue::from_serde(&uuid)?)
-    }
-
     /// Create a new account password.
     #[wasm_bindgen(js_name = "createAccountPassword")]
     pub fn create_account_password(
@@ -162,15 +146,52 @@ impl WebVault {
             password,
         };
         let meta_data = SecretMeta::new(label);
-
         let uuid = self.keeper.set_secret(&secret, None)?;
         self.index
             .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), ACCOUNT));
         self.keeper.set_secret_meta(uuid, meta_data)?;
-
         Ok(JsValue::from_serde(&uuid)?)
     }
 
+    /// Create a new secure note.
+    #[wasm_bindgen(js_name = "createNote")]
+    pub fn create_note(
+        &mut self,
+        request: JsValue,
+    ) -> Result<JsValue, JsError> {
+        let SecureNote { label, note } = request.into_serde()?;
+
+        let secret = Secret::Text(note);
+        let meta_data = SecretMeta::new(label);
+        let uuid = self.keeper.set_secret(&secret, None)?;
+
+        self.index
+            .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), TEXT));
+        self.keeper.set_secret_meta(uuid, meta_data)?;
+        Ok(JsValue::from_serde(&uuid)?)
+    }
+
+    /// Create a new credentials list.
+    #[wasm_bindgen(js_name = "createCredentials")]
+    pub fn create_credentials(
+        &mut self,
+        request: JsValue,
+    ) -> Result<JsValue, JsError> {
+        let Credentials { label, credentials } = request.into_serde()?;
+
+        let secret = Secret::Credentials(credentials);
+        let meta_data = SecretMeta::new(label);
+        let uuid = self.keeper.set_secret(&secret, None)?;
+
+        self.index.insert(
+            uuid.clone(),
+            SearchMeta::new(meta_data.clone(), CREDENTIALS),
+        );
+        self.keeper.set_secret_meta(uuid, meta_data)?;
+        Ok(JsValue::from_serde(&uuid)?)
+    }
+
+    /*
     /// Set a secret for this vault.
     pub fn set_secret(
         &mut self,
@@ -208,6 +229,7 @@ impl WebVault {
         let meta_data = self.keeper.get_secret_meta(&uuid)?;
         Ok(JsValue::from_serde(&meta_data)?)
     }
+    */
 
     /// Unlock the vault.
     pub fn unlock(&mut self, passphrase: JsValue) -> Result<(), JsError> {

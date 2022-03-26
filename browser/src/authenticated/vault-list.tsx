@@ -29,7 +29,7 @@ export default function VaultList() {
   };
 
   const openVault = (vault: VaultStorage) => {
-    dispatch(setCurrent(vault))
+    dispatch(setCurrent(vault));
     navigate(`/vault/${vault.uuid}`);
   };
 
