@@ -5,9 +5,11 @@ use wasm_bindgen::prelude::*;
 use sos_core::{
     gatekeeper::Gatekeeper,
     into_encoded_buffer,
-    secret::{Secret, SecretMeta},
+    secret::{Secret, SecretMeta, kind::*},
     uuid::Uuid,
 };
+
+use serde::{Serialize, Deserialize};
 
 use std::collections::HashMap;
 
@@ -34,7 +36,25 @@ pub fn start() {
 #[wasm_bindgen]
 pub struct WebVault {
     keeper: Gatekeeper,
-    index: HashMap<Uuid, SecretMeta>,
+    /// Mirror of the secret meta data stored in memory
+    /// so authenticated clients can render the meta data
+    /// without constantly decrypting.
+    index: HashMap<Uuid, SearchMeta>,
+}
+
+/// Encapsulates the secret meta data with additional
+/// information about the kind of secret.
+#[derive(Serialize, Deserialize)]
+pub struct SearchMeta {
+    meta: SecretMeta,
+    kind: u8,
+}
+
+impl SearchMeta {
+    /// Create new extended meta information.
+    pub fn new(meta: SecretMeta, kind: u8) -> Self {
+        Self { meta, kind }
+    }
 }
 
 #[wasm_bindgen]
@@ -42,7 +62,6 @@ impl WebVault {
     /// Create an empty vault.
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        console_log!("Creating web vault...");
         Self {
             keeper: Gatekeeper::new(Default::default()),
             index: Default::default(),
@@ -80,9 +99,12 @@ impl WebVault {
         let note: String = note.into_serde()?;
 
         let secret = Secret::Text(note);
-        let meta_data = SecretMeta::new(label);
+        let meta_data =
+            SecretMeta::new(label);
 
         let uuid = self.keeper.set_secret(&secret, None)?;
+
+        self.index.insert(uuid.clone(), SearchMeta::new(meta_data.clone(), TEXT));
         self.keeper.set_secret_meta(uuid, meta_data)?;
 
         Ok(JsValue::from_serde(&uuid)?)

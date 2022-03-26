@@ -14,6 +14,7 @@ const store = configureStore({
       serializableCheck: {
         // Ignore these action types
         ignoredActions: [
+          "vaults/setCurrent",
           "vaults/create/pending",
           "vaults/create/fulfilled",
           "vaults/lockAll/pending",

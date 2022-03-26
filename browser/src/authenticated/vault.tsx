@@ -157,20 +157,10 @@ function VaultUnlocked(props: VaultViewProps) {
     }
   };
 
-  useEffect(() => {
-    const getSecretsMeta = async () => {
-      const secrets = await vault.getSecretIndex();
-      const secretsMap = new Map(Object.entries(secrets));
-      console.log("loaded secrets", secretsMap);
-      setSecrets(() => secretsMap);
-    };
-    getSecretsMeta();
-  }, [storage]);
-
   return (
     <>
       <VaultHeader worker={worker} storage={storage} />
-      <SecretList worker={worker} secrets={secrets} />
+      <SecretList worker={worker} storage={storage} />
       <NewSecretDial onSelect={createNewSecret} />
     </>
   );

@@ -127,20 +127,29 @@ impl Default for Secret {
     }
 }
 
-mod secret_kind {
-    pub(super) const TEXT: u8 = 0x01;
-    pub(super) const BLOB: u8 = 0x02;
-    pub(super) const ACCOUNT: u8 = 0x03;
-    pub(super) const CREDENTIALS: u8 = 0x04;
+/// Type identifiers for the secret enum variants.
+///
+/// Used internally for encoding / decoding and client 
+/// implementations may use these to determine the type 
+/// of a secret.
+pub mod kind {
+    /// Account password type.
+    pub const ACCOUNT: u8 = 0x01;
+    /// Note UTF-8 text type.
+    pub const TEXT: u8 = 0x02;
+    /// List of credentials key / value pairs.
+    pub const CREDENTIALS: u8 = 0x03;
+    /// Binary blob, may be file content.
+    pub const BLOB: u8 = 0x04;
 }
 
 impl Encode for Secret {
     fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
         let kind = match self {
-            Self::Text(_) => secret_kind::TEXT,
-            Self::Blob { .. } => secret_kind::BLOB,
-            Self::Account { .. } => secret_kind::ACCOUNT,
-            Self::Credentials { .. } => secret_kind::CREDENTIALS,
+            Self::Text(_) => kind::TEXT,
+            Self::Blob { .. } => kind::BLOB,
+            Self::Account { .. } => kind::ACCOUNT,
+            Self::Credentials { .. } => kind::CREDENTIALS,
         };
         writer.write_u8(kind)?;
 
@@ -185,10 +194,10 @@ impl Decode for Secret {
     fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
         let kind = reader.read_u8()?;
         match kind {
-            secret_kind::TEXT => {
+            kind::TEXT => {
                 *self = Self::Text(reader.read_string()?);
             }
-            secret_kind::BLOB => {
+            kind::BLOB => {
                 let buffer_len = reader.read_usize()?;
                 let buffer = reader.read_bytes(buffer_len)?;
                 let has_mime = reader.read_bool()?;
@@ -200,7 +209,7 @@ impl Decode for Secret {
 
                 *self = Self::Blob { buffer, mime };
             }
-            secret_kind::ACCOUNT => {
+            kind::ACCOUNT => {
                 let account = reader.read_string()?;
                 let password = reader.read_string()?;
                 let has_url = reader.read_bool()?;
@@ -216,7 +225,7 @@ impl Decode for Secret {
                     url,
                 };
             }
-            secret_kind::CREDENTIALS => {
+            kind::CREDENTIALS => {
                 let list_len = reader.read_usize()?;
                 let mut list: HashMap<String, String> = HashMap::with_capacity(list_len);
                 for _ in 0..list_len {
