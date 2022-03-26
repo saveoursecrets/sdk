@@ -44,29 +44,31 @@ export default function SecureNoteForm(props: SecureNoteFormProps) {
   };
 
   return (
-    <form id="secure-note-form" onSubmit={onSubmit}>
+    <form id="secure-note-form" onSubmit={onSubmit} noValidate>
       <Stack spacing={2}>
         <Typography variant="h4" color="text.secondary">
           Secure Note
         </Typography>
         <TextField
           id="secret-label"
-          autoFocus
           label="Name"
+          placeholder="Enter a secret name"
+          required
+          autoFocus
           onChange={onLabelChange}
           value={label}
           error={labelError}
-          placeholder="Enter a secret name"
         />
         <TextField
           id="secure-note"
           label="Note"
+          placeholder="Enter a note"
+          required
           multiline
           rows={6}
           onChange={onNoteChange}
           value={note}
           error={noteError}
-          placeholder="Enter a note"
         />
       </Stack>
     </form>
