@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { NavigateFunction } from "react-router-dom";
 import { VaultWorker, WebVault } from "../worker";
-import { NewVaultResult, SecureNoteResult, SearchMeta } from "../types";
+import { NewVaultResult, SecureNoteResult, AccountPasswordResult, SearchMeta } from "../types";
 
 export interface VaultSearchIndex {
   [index: string]: SearchMeta;
@@ -27,8 +27,12 @@ export interface NewVaultRequest {
 }
 
 export interface SecureNoteRequest {
-  worker: VaultWorker;
   result: SecureNoteResult;
+  owner: VaultStorage;
+}
+
+export interface AccountPasswordRequest {
+  result: AccountPasswordResult;
   owner: VaultStorage;
 }
 
@@ -64,10 +68,20 @@ export const createNewVault = createAsyncThunk(
 export const createNewSecureNote = createAsyncThunk(
   "vaults/createNewSecureNote",
   async (request: SecureNoteRequest) => {
-    const { worker, result, owner } = request;
-    const { label, note } = result;
+    const { result, owner } = request;
     const {vault} = owner;
-    await vault.createNote(label, note);
+    await vault.createNote(result);
+    const index = await vault.getSecretIndex();
+    return {...owner, index};
+  }
+);
+
+export const createNewAccountPassword = createAsyncThunk(
+  "vaults/createNewAccountPassword",
+  async (request: AccountPasswordRequest) => {
+    const { result, owner } = request;
+    const {vault} = owner;
+    await vault.createAccountPassword(result);
     const index = await vault.getSecretIndex();
     return {...owner, index};
   }
@@ -76,6 +90,18 @@ export const createNewSecureNote = createAsyncThunk(
 const initialState: VaultState = {
   vaults: [],
   current: null,
+};
+
+const updateVaultFromThunk = (state: VaultState, action: PayloadAction<VaultStorage>) => {
+  const {payload} = action;
+  state.current = payload;
+  state.vaults = state.vaults.map((prop: VaultStorage) => {
+    if (payload.uuid === prop.uuid) {
+      return payload;
+    } else {
+      return prop;
+    }
+  });
 };
 
 const vaultsSlice = createSlice({
@@ -103,17 +129,8 @@ const vaultsSlice = createSlice({
     builder.addCase(lockAll.fulfilled, (state, action) => {
       state.vaults = action.payload;
     });
-    builder.addCase(createNewSecureNote.fulfilled, (state, action) => {
-      const {payload} = action;
-      state.current = payload;
-      state.vaults = state.vaults.map((prop) => {
-        if (payload.uuid === prop.uuid) {
-          return payload;
-        } else {
-          return prop;
-        }
-      });
-    });
+    builder.addCase(createNewSecureNote.fulfilled, updateVaultFromThunk);
+    builder.addCase(createNewAccountPassword.fulfilled, updateVaultFromThunk);
   },
 });
 

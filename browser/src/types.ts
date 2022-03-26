@@ -23,6 +23,13 @@ export interface SecureNoteResult {
   note: string;
 }
 
+export interface AccountPasswordResult {
+  label: string;
+  account: string;
+  url: string;
+  password: string;
+}
+
 export interface NewVaultResult {
   label: string;
   password: string;

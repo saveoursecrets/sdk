@@ -11,14 +11,23 @@ import CredentialsIcon from "@mui/icons-material/List";
 import { SecretKind } from "../types";
 
 const actions = [
-  { icon: <AccountIcon />, name: "Account Password", kind: SecretKind.Account },
-  { icon: <NoteIcon />, name: "Secure Note", kind: SecretKind.Note },
+  {
+    icon: <AccountIcon />,
+    name: "Account Password",
+    kind: SecretKind.Account },
+  {
+    icon: <NoteIcon />,
+    name: "Secure Note",
+    kind: SecretKind.Note },
   {
     icon: <CredentialsIcon />,
     name: "Credentials List",
     kind: SecretKind.Credentials,
   },
-  { icon: <FileIcon />, name: "File Upload", kind: SecretKind.File },
+  {
+    icon: <FileIcon />,
+    name: "File Upload",
+    kind: SecretKind.File },
 ];
 
 interface NewSecretProps {
