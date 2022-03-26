@@ -18,6 +18,8 @@ const store = configureStore({
           "vaults/create/fulfilled",
           "vaults/lockAll/pending",
           "vaults/lockAll/fulfilled",
+          "vaults/createNewSecureNote/pending",
+          "vaults/createNewSecureNote/fulfilled",
         ],
         // Ignore these field paths in all actions
         ignoredActionPaths: [],

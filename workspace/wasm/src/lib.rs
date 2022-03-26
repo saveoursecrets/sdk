@@ -73,6 +73,21 @@ impl WebVault {
         Ok(JsValue::from_serde(&self.keeper.label()?)?)
     }
 
+    /// Create a new secure note.
+    #[wasm_bindgen(js_name = "createNote")]
+    pub fn create_note(&mut self, label: JsValue, note: JsValue) -> Result<JsValue, JsError> {
+        let label: String = label.into_serde()?;
+        let note: String = note.into_serde()?;
+
+        let secret = Secret::Text(note);
+        let meta_data = SecretMeta::new(label);
+
+        let uuid = self.keeper.set_secret(&secret, None)?;
+        self.keeper.set_secret_meta(uuid, meta_data)?;
+
+        Ok(JsValue::from_serde(&uuid)?)
+    }
+
     /// Set a secret for this vault.
     pub fn set_secret(&mut self, secret: JsValue, uuid: JsValue) -> Result<JsValue, JsError> {
         let secret: Secret = secret.into_serde()?;

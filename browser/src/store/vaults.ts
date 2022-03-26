@@ -1,12 +1,18 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { NavigateFunction } from "react-router-dom";
 import { VaultWorker, WebVault } from "../worker";
-import { NewVaultResult } from "../types";
+import { NewVaultResult, SecureNoteResult } from "../types";
 
 export interface NewVaultRequest {
   worker: VaultWorker;
   result: NewVaultResult;
   navigate: NavigateFunction;
+}
+
+export interface SecureNoteRequest {
+  worker: VaultWorker;
+  result: SecureNoteResult;
+  owner: VaultStorage;
 }
 
 export const lockAll = createAsyncThunk(
@@ -23,7 +29,7 @@ export const lockAll = createAsyncThunk(
   }
 );
 
-export const createVault = createAsyncThunk(
+export const createNewVault = createAsyncThunk(
   "vaults/create",
   async (request: NewVaultRequest) => {
     const { worker, navigate, result } = request;
@@ -37,6 +43,20 @@ export const createVault = createAsyncThunk(
   }
 );
 
+export const createNewSecureNote = createAsyncThunk(
+  "vaults/createNewSecureNote",
+  async (request: SecureNoteRequest) => {
+    const { worker, result, owner } = request;
+    const { label, note } = result;
+    const {vault} = owner;
+
+    console.log("createNewSecureNote", label, note);
+    console.log("owner", owner);
+
+    await vault.createNote(label, note);
+  }
+);
+
 export interface VaultStorage {
   uuid: string;
   vault: WebVault;
@@ -46,16 +66,21 @@ export interface VaultStorage {
 
 export interface VaultState {
   vaults: VaultStorage[];
+  current?: VaultStorage;
 }
 
 const initialState: VaultState = {
   vaults: [],
+  current: null,
 };
 
 const vaultsSlice = createSlice({
   name: "vaults",
   initialState,
   reducers: {
+    setCurrent: (state, { payload }: PayloadAction<VaultStorage>) => {
+      state.current = payload;
+    },
     updateVault: (state, { payload }: PayloadAction<VaultStorage>) => {
       state.vaults = state.vaults.map((prop) => {
         if (payload.uuid === prop.uuid) {
@@ -67,8 +92,9 @@ const vaultsSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder.addCase(createVault.fulfilled, (state, action) => {
+    builder.addCase(createNewVault.fulfilled, (state, action) => {
       state.vaults = [action.payload, ...state.vaults];
+      state.current = action.payload;
     });
     builder.addCase(lockAll.fulfilled, (state, action) => {
       state.vaults = action.payload;
@@ -76,6 +102,6 @@ const vaultsSlice = createSlice({
   },
 });
 
-export const { updateVault } = vaultsSlice.actions;
+export const { updateVault, setCurrent } = vaultsSlice.actions;
 export const vaultsSelector = (state: { vaults: VaultState }) => state.vaults;
 export default vaultsSlice.reducer;

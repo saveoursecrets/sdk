@@ -8,9 +8,9 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 
-import CreateVaultForm from "./create-vault-form";
+import CreateVaultForm from "../forms/create-vault";
 
-import { NewVaultResult } from "../types";
+import { NewVaultResult } from "../../types";
 
 interface NewVaultProps {
   open: boolean;
