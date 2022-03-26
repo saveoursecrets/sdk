@@ -8,14 +8,7 @@ export interface VaultWorker {
   generatePassphrase(words: number): Promise<[string, number]>;
 }
 
-// For top-level await typescript wants `target` to be es2017
-// but this generates a "too much recursion" runtime error so
-// we avoid top-level await for now
-//void (async function () {
-//console.log("Worker is initializing...");
-//await init();
-//})();
-
+// Requires top-level await experiment
 await init();
 
 Comlink.expose({ WebVault, generatePassphrase });

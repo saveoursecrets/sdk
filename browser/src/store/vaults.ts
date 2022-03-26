@@ -1,7 +1,24 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { NavigateFunction } from "react-router-dom";
 import { VaultWorker, WebVault } from "../worker";
-import { NewVaultResult, SecureNoteResult } from "../types";
+import { NewVaultResult, SecureNoteResult, SearchMeta } from "../types";
+
+export interface VaultSearchIndex {
+  [index: string]: SearchMeta;
+}
+
+export interface VaultStorage {
+  uuid: string;
+  vault: WebVault;
+  label: string;
+  locked: boolean;
+  index?: VaultSearchIndex;
+}
+
+export interface VaultState {
+  vaults: VaultStorage[];
+  current?: VaultStorage;
+}
 
 export interface NewVaultRequest {
   worker: VaultWorker;
@@ -38,8 +55,9 @@ export const createNewVault = createAsyncThunk(
     const vault: WebVault = await new (worker.WebVault as any)();
     await vault.initialize(label, password);
     const uuid = await vault.id();
+    const index = await vault.getSecretIndex();
     navigate(`/vault/${uuid}`);
-    return { uuid, vault, label, locked: false };
+    return { uuid, vault, label, locked: false, index };
   }
 );
 
@@ -49,25 +67,11 @@ export const createNewSecureNote = createAsyncThunk(
     const { worker, result, owner } = request;
     const { label, note } = result;
     const {vault} = owner;
-
-    console.log("createNewSecureNote", label, note);
-    console.log("owner", owner);
-
     await vault.createNote(label, note);
+    const index = await vault.getSecretIndex();
+    return {...owner, index};
   }
 );
-
-export interface VaultStorage {
-  uuid: string;
-  vault: WebVault;
-  label: string;
-  locked: boolean;
-}
-
-export interface VaultState {
-  vaults: VaultStorage[];
-  current?: VaultStorage;
-}
 
 const initialState: VaultState = {
   vaults: [],
@@ -98,6 +102,17 @@ const vaultsSlice = createSlice({
     });
     builder.addCase(lockAll.fulfilled, (state, action) => {
       state.vaults = action.payload;
+    });
+    builder.addCase(createNewSecureNote.fulfilled, (state, action) => {
+      const {payload} = action;
+      state.current = payload;
+      state.vaults = state.vaults.map((prop) => {
+        if (payload.uuid === prop.uuid) {
+          return payload;
+        } else {
+          return prop;
+        }
+      });
     });
   },
 });

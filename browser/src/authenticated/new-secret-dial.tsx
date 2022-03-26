@@ -30,7 +30,7 @@ export default function NewSecretDial(props: NewSecretProps) {
   return (
     <SpeedDial
       ariaLabel="New secret"
-      sx={{ position: "absolute", bottom: 16, right: 16 }}
+      sx={{ position: "fixed", bottom: 16, right: 16 }}
       icon={<SpeedDialIcon />}
     >
       {actions.map((action) => (
