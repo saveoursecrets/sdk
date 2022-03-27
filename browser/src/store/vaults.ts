@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { NavigateFunction } from "react-router-dom";
-import { VaultWorker, WebVault } from "../worker";
+import { WebVault } from "sos-wasm";
+
 import api from './api';
 import {
   NewVaultResult,
@@ -10,6 +11,7 @@ import {
   FileUploadResult,
   SearchMeta,
   User,
+  VaultWorker,
 } from "../types";
 
 export interface VaultSearchIndex {
@@ -55,22 +57,59 @@ export interface FileUploadRequest {
   owner: VaultStorage;
 }
 
+interface LoadVaultsRequest {
+  user: User,
+  worker: VaultWorker,
+}
+
 export const loadVaults = createAsyncThunk(
   "vaults/loadVaults",
-  async (user: User) => {
-    console.log("load all vaults for user", user);
-    const result = await api.loadVaults(user);
-    console.log("loaded all vaults", result);
-    return result;
+  async (request: LoadVaultsRequest) => {
+    const {user, worker} = request;
+    const ids = await api.loadVaults(user);
 
-    //const stores = [];
-    //for (const store of storage) {
-      //const newStore = { ...store, locked: true };
-      //const { vault } = newStore;
-      //await vault.lock();
-      //stores.push(newStore);
-    //}
-    //return stores;
+    console.log(ids);
+
+    const buffers = ids.map(async (id) => {
+      return await api.getVault(user, id);
+    });
+
+    const vaults = await Promise.all(buffers);
+    const dict: any = {};
+    for (const [index, id] of ids.entries()) {
+      dict[id] = vaults[index];
+    }
+
+    console.log(dict);
+
+    const storage = Object.entries(dict).map(async (item: [string, ArrayBuffer]) => {
+      const [id, buffer] = item;
+
+      console.log("worker", worker);
+
+      const vault: WebVault = await new (worker.WebVault as any)();
+
+      console.log("vault", vault);
+
+      try {
+        console.log("Calling import buffer...");
+        await vault.importBuffer(new Uint8Array(buffer));
+
+        console.log("AFTER IMPORT BUFFER");
+
+      } catch(e) {
+        console.error(e);
+      }
+
+      return {
+        uuid: id,
+        label: id,
+        vault,
+        locked: true,
+      }
+    });
+
+    return await Promise.all(storage);
   }
 );
 
@@ -192,6 +231,9 @@ const vaultsSlice = createSlice({
     builder.addCase(createNewVault.fulfilled, (state, action) => {
       state.vaults = [action.payload, ...state.vaults];
       state.current = action.payload;
+    });
+    builder.addCase(loadVaults.fulfilled, (state, action) => {
+      state.vaults = action.payload;
     });
     builder.addCase(lockAll.fulfilled, (state, action) => {
       state.vaults = action.payload;

@@ -1,3 +1,5 @@
+import { WebVault } from 'sos-wasm';
+
 export enum SecretKind {
   // secret::kind::ACCOUNT
   Account = 1,
@@ -7,6 +9,11 @@ export enum SecretKind {
   Credentials = 3,
   // secret::kind::BLOB
   File = 4,
+}
+
+export interface VaultWorker {
+  WebVault(): Promise<WebVault>;
+  generatePassphrase(words: number): Promise<[string, number]>;
 }
 
 export interface SecretMeta {

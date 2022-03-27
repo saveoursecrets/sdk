@@ -3,12 +3,13 @@ import * as Comlink from "comlink";
 
 export { WebVault, generatePassphrase } from "sos-wasm";
 
-export interface VaultWorker {
-  WebVault(): Promise<WebVault>;
-  generatePassphrase(words: number): Promise<[string, number]>;
-}
+console.log("WORKER IS INITIALIZING...");
 
-// Requires top-level await experiment
-await init();
+void async function() {
+  // Requires top-level await experiment
+  const wasm = await init();
+  console.log("Worker finished initializing", wasm);
+  self.postMessage({ready: true});
+}();
 
 Comlink.expose({ WebVault, generatePassphrase });

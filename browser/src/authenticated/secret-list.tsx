@@ -9,8 +9,7 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
-import { VaultWorker } from "../worker";
-import { SearchMeta } from "../types";
+import { SearchMeta, VaultWorker } from "../types";
 import { VaultStorage } from "../store/vaults";
 
 import SecretIcon from "./secret-icon";

@@ -4,13 +4,15 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 
 import Diceware from "../../diceware";
-import { NewVaultResult } from "../../types";
+import { NewVaultResult, VaultWorker } from "../../types";
 
 interface CreateVaultProps {
+  worker: VaultWorker;
   onFormSubmit: (result: NewVaultResult) => void;
 }
 
 export default function CreateVaultForm(props: CreateVaultProps) {
+  const {worker} = props;
   const { onFormSubmit } = props;
 
   const [label, setLabel] = useState("");
@@ -55,7 +57,7 @@ export default function CreateVaultForm(props: CreateVaultProps) {
           variant="outlined"
           placeholder="Label for the new vault"
         />
-        <Diceware onGenerate={onGenerate} />
+        <Diceware onGenerate={onGenerate} worker={worker} />
       </Stack>
     </form>
   );

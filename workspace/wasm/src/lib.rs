@@ -5,7 +5,9 @@ use wasm_bindgen::prelude::*;
 use sos_core::{
     gatekeeper::Gatekeeper,
     into_encoded_buffer,
+    from_encoded_buffer,
     secret::{kind::*, Secret, SecretMeta},
+    vault::Vault,
     uuid::Uuid,
 };
 
@@ -109,6 +111,17 @@ impl WebVault {
         let label: String = label.into_serde()?;
         let password: String = password.into_serde()?;
         self.keeper.initialize(label, password)?;
+        Ok(())
+    }
+
+    /// Import a buffer as the vault.
+    #[wasm_bindgen(js_name = "importBuffer")]
+    pub fn import_buffer(&mut self, buffer: Vec<u8>) -> Result<(), JsError> {
+        //let buffer: Vec<u8> = buffer.into_serde()?;
+        println!("Importing from buffer...{}", buffer.len());
+        let vault: Vault = from_encoded_buffer(buffer)?;
+        console_log!("After buffer import...");
+        self.keeper.set_vault(vault);
         Ok(())
     }
 
