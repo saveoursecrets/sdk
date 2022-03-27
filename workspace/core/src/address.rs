@@ -1,11 +1,38 @@
 //! Utilities for computing the address for a public key.
-use crate::Result;
+use crate::{Result, Error};
 use k256::{
     elliptic_curve::{sec1::ToEncodedPoint, DecompressPoint, ScalarCore},
     AffinePoint, EncodedPoint, FieldBytes, Scalar, Secp256k1,
 };
 use sha3::{Digest, Keccak256};
 use subtle::Choice;
+use std::str::FromStr;
+
+/// Represents a public address that may be converted to and from
+/// a string.
+///
+/// It must begin with 0x and be followed with 20 bytes hex-encoded.
+pub struct AddressStr([u8; 20]);
+
+impl AddressStr {
+    /// Convert to a string.
+    pub fn to_string(&self) {
+        format!("0x{}", hex::encode(self.0));
+    }
+}
+
+impl FromStr for AddressStr {
+    type Err = Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        if !s.starts_with("0x") {
+            return Err(Error::BadAddressPrefix)
+        }
+        let bytes = hex::decode(&s[2..])?;
+        let buffer: [u8; 20] = bytes.as_slice().try_into()?;
+        Ok(AddressStr(buffer))
+    }
+}
 
 // FIXME: handle panics / unwrap here!
 
