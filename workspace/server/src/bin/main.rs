@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 struct Cli {
     /// Serve the built in GUI.
     #[structopt(short, long)]
-    gui: bool,
+    gui: Option<bool>,
 
     /// Bind to host:port.
     #[structopt(short, long, default_value = "127.0.0.1:5053")]
@@ -31,7 +31,12 @@ async fn main() -> Result<()> {
     let name = env!("CARGO_PKG_NAME").to_string();
     let version = env!("CARGO_PKG_VERSION").to_string();
 
-    let config = ServerConfig::load(&args.config)?;
+    let mut config = ServerConfig::load(&args.config)?;
+    if let Some(gui) = args.gui {
+        config.gui = gui;
+    }
+
+    println!("Config {:#?}", config);
 
     let mut backend = FileSystemBackend::new(args.dir.clone());
     backend.read_dir()?;
@@ -39,7 +44,6 @@ async fn main() -> Result<()> {
     let state = Arc::new(RwLock::new(State {
         name,
         version,
-        gui: args.gui,
         config,
         backend: Box::new(backend),
     }));

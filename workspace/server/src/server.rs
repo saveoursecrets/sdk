@@ -25,8 +25,6 @@ pub struct State {
     pub name: String,
     /// Version of the crate.
     pub version: String,
-    /// Determine if we serve the built in GUI.
-    pub gui: bool,
     /// Vault storage backend.
     pub backend: Box<dyn Backend + Send + Sync>,
 }
@@ -67,7 +65,7 @@ impl Server {
 // Serve the home page.
 async fn home(Extension(state): Extension<Arc<RwLock<State>>>) -> impl IntoResponse {
     let reader = state.read().await;
-    if reader.gui {
+    if reader.config.gui {
         Redirect::temporary("/gui".parse().unwrap())
     } else {
         Redirect::temporary("/api".parse().unwrap())
@@ -80,7 +78,7 @@ async fn asset(
     request: Request<Body>,
 ) -> Response<Body> {
     let reader = state.read().await;
-    if reader.gui {
+    if reader.config.gui {
         let mut path = request.uri().path().to_string();
         if path.ends_with("/") {
             path.push_str("index.html");

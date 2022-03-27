@@ -7,17 +7,20 @@ use k256::{
 use sha3::{Digest, Keccak256};
 use subtle::Choice;
 use std::str::FromStr;
+use serde::{Serialize, Deserialize};
 
 /// Represents a public address that may be converted to and from
 /// a string.
 ///
 /// It must begin with 0x and be followed with 20 bytes hex-encoded.
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, Eq, PartialEq)]
+#[serde(try_from = "String", into = "String")]
 pub struct AddressStr([u8; 20]);
 
 impl AddressStr {
     /// Convert to a string.
-    pub fn to_string(&self) {
-        format!("0x{}", hex::encode(self.0));
+    pub fn to_string(&self) -> String {
+        format!("0x{}", hex::encode(self.0))
     }
 }
 
@@ -31,6 +34,19 @@ impl FromStr for AddressStr {
         let bytes = hex::decode(&s[2..])?;
         let buffer: [u8; 20] = bytes.as_slice().try_into()?;
         Ok(AddressStr(buffer))
+    }
+}
+
+impl Into<String> for AddressStr {
+    fn into(self) -> String {
+        self.to_string()
+    }
+}
+
+impl TryFrom<String> for AddressStr {
+    type Error = Error;
+    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+        <AddressStr as FromStr>::from_str(&value)
     }
 }
 
