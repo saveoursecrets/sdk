@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use thiserror::Error;
+use url::Url;
 use uuid::Uuid;
 
 #[derive(Debug, Error)]
@@ -13,11 +14,17 @@ pub enum Error {
     #[error("vault {0} does not exist")]
     NotExist(Uuid),
 
+    #[error("url scheme {0} is not supported")]
+    InvalidUrlScheme(String),
+
+    #[error("url {0} is not a valid file path")]
+    UrlFilePath(Url),
+
     #[error(transparent)]
     Core(#[from] sos_core::Error),
 
-    //#[error(transparent)]
-    //Backend(#[from] crate::backend::BackendError),
+    #[error(transparent)]
+    Url(#[from] url::ParseError),
 
     #[error(transparent)]
     Io(#[from] std::io::Error),

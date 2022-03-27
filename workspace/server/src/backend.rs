@@ -1,8 +1,8 @@
+use crate::{Error, Result};
 use async_trait::async_trait;
 use sos_core::vault::Vault;
 use std::{collections::HashMap, fs::read_dir, path::PathBuf};
 use uuid::Uuid;
-use crate::{Result, Error};
 
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]
@@ -53,9 +53,11 @@ impl FileSystemBackend {
             }
         }
 
+        /*
         if vaults.is_empty() {
             return Err(Error::NoVaults);
         }
+        */
 
         self.vaults = vaults
             .into_iter()

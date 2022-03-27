@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use sos_core::{
     crypto::{authorize::jwt, keypair::generate},
+    address::address_compressed,
     passphrase::{words, WordCount},
     vault::Vault,
 };
@@ -51,6 +52,10 @@ pub fn keypair(name: String, destination: PathBuf) -> Result<()> {
 
     let keypair = generate();
     let (private, public) = keypair.split();
+
+    let public_key_bytes: [u8; 33] = public.key.as_slice().try_into()?;
+    let address = address_compressed(&public_key_bytes)?;
+
     let private = serde_json::to_string_pretty(&private)?;
     let public = serde_json::to_string_pretty(&public)?;
 
@@ -83,6 +88,8 @@ pub fn keypair(name: String, destination: PathBuf) -> Result<()> {
         "wrote public key to {}",
         public_path.display()
     );
+
+    info!("{}", address);
     Ok(())
 }
 
