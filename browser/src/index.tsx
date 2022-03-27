@@ -36,7 +36,7 @@ interface AppProps {
 
 function MainApp(props: AppProps) {
   const { worker } = props;
-  const { token } = useSelector(userSelector);
+  const { user } = useSelector(userSelector);
 
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const theme = useMemo(
@@ -52,7 +52,7 @@ function MainApp(props: AppProps) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {token === null ? (
+      {user === null ? (
         <App worker={worker} />
       ) : (
         <AuthenticatedApp worker={worker} />

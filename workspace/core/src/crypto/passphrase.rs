@@ -46,7 +46,7 @@ mod tests {
         let hash = hash_password(password, &salt);
         assert!(hash.is_ok());
 
-        let key = private_key(password, &salt);
+        let key = generate_secret_key(password, &salt);
         assert!(key.is_ok());
 
         let salt = parse_salt(&salt);

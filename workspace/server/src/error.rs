@@ -27,6 +27,9 @@ pub enum Error {
     Url(#[from] url::ParseError),
 
     #[error(transparent)]
+    HeaderValue(#[from] axum::http::header::InvalidHeaderValue),
+
+    #[error(transparent)]
     Io(#[from] std::io::Error),
 
     #[error(transparent)]

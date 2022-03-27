@@ -5,20 +5,24 @@ import ButtonGroup from "@mui/material/ButtonGroup";
 import Button from "@mui/material/Button";
 import LoginIcon from "@mui/icons-material/Login";
 
-import { setAuthToken } from "./store/user";
+import { login } from "./store/user";
 
 export default function AppBarActions() {
   const dispatch = useDispatch();
 
-  const login = () => {
-    dispatch(setAuthToken("mock-auth-token"));
+  const onLogin = () => {
+    const mock = {
+      token: "mock-logged-in-token",
+      address: "0x8a67d6f4aae8165512774d63992623e10494c69f",
+    };
+    dispatch(login(mock));
   };
 
   return (
     <>
       <ButtonGroup variant="contained" aria-label="signup or login">
         <Button>Signup</Button>
-        <Button onClick={login} endIcon={<LoginIcon />}>
+        <Button onClick={onLogin} endIcon={<LoginIcon />}>
           Login
         </Button>
       </ButtonGroup>

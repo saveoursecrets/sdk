@@ -5,22 +5,22 @@ import Tooltip from "@mui/material/Tooltip";
 import Button from "@mui/material/Button";
 import LogoutIcon from "@mui/icons-material/Logout";
 
-import { setAuthToken } from "../store/user";
+import { logout } from "../store/user";
 import { vaultsSelector, lockAll } from "../store/vaults";
 
 export default function AppBarActions() {
   const { vaults } = useSelector(vaultsSelector);
   const dispatch = useDispatch();
 
-  const logout = () => {
+  const onLogout = () => {
     dispatch(lockAll(vaults));
-    dispatch(setAuthToken(null));
+    dispatch(logout());
   };
 
   return (
     <>
       <Tooltip title="Logout">
-        <Button variant="contained" onClick={logout} endIcon={<LogoutIcon />}>
+        <Button variant="contained" onClick={onLogout} endIcon={<LogoutIcon />}>
           Logout
         </Button>
       </Tooltip>

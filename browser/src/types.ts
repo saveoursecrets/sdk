@@ -58,3 +58,8 @@ export interface FileUploadResult {
 export interface UnlockVaultResult {
   password: string;
 }
+
+export interface User {
+  token?: string;
+  address?: string;
+}

@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { NavigateFunction } from "react-router-dom";
 import { VaultWorker, WebVault } from "../worker";
+import api from './api';
 import {
   NewVaultResult,
   SecureNoteResult,
@@ -8,6 +9,7 @@ import {
   CredentialsResult,
   FileUploadResult,
   SearchMeta,
+  User,
 } from "../types";
 
 export interface VaultSearchIndex {
@@ -52,6 +54,25 @@ export interface FileUploadRequest {
   result: FileUploadResult;
   owner: VaultStorage;
 }
+
+export const loadVaults = createAsyncThunk(
+  "vaults/loadVaults",
+  async (user: User) => {
+    console.log("load all vaults for user", user);
+    const result = await api.loadVaults(user);
+    console.log("loaded all vaults", result);
+    return result;
+
+    //const stores = [];
+    //for (const store of storage) {
+      //const newStore = { ...store, locked: true };
+      //const { vault } = newStore;
+      //await vault.lock();
+      //stores.push(newStore);
+    //}
+    //return stores;
+  }
+);
 
 export const lockAll = createAsyncThunk(
   "vaults/lockAll",

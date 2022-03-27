@@ -15,7 +15,8 @@ import LockOpenIcon from "@mui/icons-material/LockOpen";
 
 import { VaultWorker } from "../worker";
 import { WorkerContext } from "../worker-provider";
-import { vaultsSelector, VaultStorage, updateVault } from "../store/vaults";
+import { vaultsSelector, VaultStorage, updateVault, loadVaults } from "../store/vaults";
+import { userSelector } from "../store/user";
 
 import { SecretKind, UnlockVaultResult } from "../types";
 import SecretList from "./secret-list";

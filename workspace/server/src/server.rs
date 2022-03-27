@@ -1,18 +1,21 @@
 use axum::{
     body::{Body, Bytes},
     extract::{Extension, Path},
-    http::{Request, Response, StatusCode},
+    http::{HeaderValue, Method, Request, Response, StatusCode},
     response::{IntoResponse, Redirect},
     routing::get,
     Json, Router,
 };
+use tower_http::cors::{CorsLayer, Origin};
+
 //use axum_macros::debug_handler;
 
-//use serde::{Deserialize, Serialize};
 use crate::{assets::Assets, Backend, ServerConfig};
 use serde_json::json;
-use sos_core::{from_encoded_buffer, into_encoded_buffer, vault::Index};
-use std::{net::SocketAddr, sync::Arc};
+use sos_core::{
+    address::AddressStr, from_encoded_buffer, into_encoded_buffer, vault::Vault,
+};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
@@ -25,15 +28,18 @@ pub struct State {
     pub name: String,
     /// Version of the crate.
     pub version: String,
-    /// Vault storage backend.
-    pub backend: Box<dyn Backend + Send + Sync>,
+    /// Map of backends for each user.
+    pub backends: HashMap<AddressStr, Box<dyn Backend + Send + Sync>>,
 }
 
 // Server implementation.
 pub struct Server;
 
 impl Server {
-    pub async fn start(addr: SocketAddr, state: Arc<RwLock<State>>) {
+    pub async fn start(
+        addr: SocketAddr,
+        state: Arc<RwLock<State>>,
+    ) -> crate::Result<()> {
         tracing_subscriber::registry()
             .with(tracing_subscriber::EnvFilter::new(
                 std::env::var("RUST_LOG")
@@ -44,16 +50,33 @@ impl Server {
 
         let shared_state = Arc::clone(&state);
 
+        let reader = shared_state.read().await;
+        let mut origins = Vec::new();
+        for url in reader.config.api.origins.iter() {
+            origins.push(HeaderValue::from_str(
+                url.as_str().trim_end_matches("/"),
+            )?);
+        }
+
+        drop(reader);
+
+        let cors = CorsLayer::new()
+            // allow `GET` and `POST` when accessing the resource
+            .allow_methods(vec![Method::GET, Method::POST])
+            // allow requests from any origin
+            .allow_origin(Origin::list(origins));
+
         let app = Router::new()
             .route("/", get(home))
             .route("/gui/*path", get(asset))
             .route("/api", get(api))
-            .route("/api/vault", get(VaultHandler::list))
+            .route("/api/users/:user", get(VaultHandler::list))
             .route(
-                "/api/vault/:id",
-                get(VaultHandler::retrieve_index)
-                    .post(VaultHandler::update_index),
+                "/api/users/:user/vaults/:id",
+                get(VaultHandler::retrieve_vault)
+                    .post(VaultHandler::update_vault),
             )
+            .layer(cors)
             .layer(Extension(shared_state));
 
         tracing::debug!("listening on {}", addr);
@@ -61,6 +84,7 @@ impl Server {
             .serve(app.into_make_service())
             .await
             .unwrap();
+        Ok(())
     }
 }
 
@@ -89,13 +113,12 @@ async fn asset(
         }
 
         let key = path.trim_start_matches("/gui/");
-        tracing::debug!(key, "static asset path");
+        tracing::debug!(key, "static asset");
 
         if let Some(asset) = Assets::get(key) {
             let content_type = mime_guess::from_path(key)
                 .first()
                 .unwrap_or("application/octet-stream".parse().unwrap());
-
             let bytes = Bytes::from(asset.data.as_ref().to_vec());
             Response::builder()
                 .header("content-type", content_type.as_ref())
@@ -127,60 +150,66 @@ async fn api(
 // Handlers for vault operations.
 struct VaultHandler;
 impl VaultHandler {
-    /// List vault identifiers.
+    /// List vault identifiers for a user account.
     async fn list(
         Extension(state): Extension<Arc<RwLock<State>>>,
+        Path(user_id): Path<AddressStr>,
     ) -> impl IntoResponse {
         let reader = state.read().await;
-        let list: Vec<String> = reader
-            .backend
-            .list()
-            .iter()
-            .map(|k| k.to_string())
-            .collect();
-        (StatusCode::OK, Json(list))
+        let (status, value) =
+            if let Some(backend) = reader.backends.get(&user_id) {
+                let list: Vec<String> =
+                    backend.list().iter().map(|k| k.to_string()).collect();
+                (StatusCode::OK, json!(list))
+            } else {
+                (StatusCode::NOT_FOUND, json!(()))
+            };
+        (status, Json(value))
     }
 
-    /// Retrieve the encrypted index data for a vault.
-    async fn retrieve_index(
+    /// Retrieve an encrypted vault.
+    async fn retrieve_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
-        Path(vault_id): Path<Uuid>,
+        Path((user_id, vault_id)): Path<(AddressStr, Uuid)>,
     ) -> Result<Bytes, StatusCode> {
         let reader = state.read().await;
-        if let Some(vault) = reader.backend.get(&vault_id) {
-            let index = vault.index();
-            let buffer = into_encoded_buffer(index)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            Ok(Bytes::from(buffer))
+        if let Some(backend) = reader.backends.get(&user_id) {
+            if let Some(vault) = backend.get(&vault_id) {
+                let buffer = into_encoded_buffer(vault)
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                Ok(Bytes::from(buffer))
+            } else {
+                Err(StatusCode::NOT_FOUND)
+            }
         } else {
             Err(StatusCode::NOT_FOUND)
         }
     }
 
-    /// Update the encrypted index data for a vault.
-    async fn update_index(
+    /// Update an encrypted vault.
+    async fn update_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
-        Path(vault_id): Path<Uuid>,
+        Path((user_id, vault_id)): Path<(AddressStr, Uuid)>,
         body: Bytes,
     ) -> Result<(), StatusCode> {
         let mut writer = state.write().await;
-        let id = if let Some(vault) = writer.backend.get_mut(&vault_id) {
-            let buffer = body.to_vec();
-            let index: Index = from_encoded_buffer(buffer)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            vault.set_index(index);
-            Some(vault.id().clone())
-        } else {
-            None
-        };
+        if let Some(backend) = writer.backends.get_mut(&user_id) {
+            if let Some(vault) = backend.get_mut(&vault_id) {
+                let buffer = body.to_vec();
+                let new_vault: Vault = from_encoded_buffer(buffer)
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        if let Some(id) = id {
-            writer
-                .backend
-                .flush(&id)
-                .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            Ok(())
+                *vault = new_vault;
+
+                backend
+                    .flush(&vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                Ok(())
+            } else {
+                Err(StatusCode::NOT_FOUND)
+            }
         } else {
             Err(StatusCode::NOT_FOUND)
         }
