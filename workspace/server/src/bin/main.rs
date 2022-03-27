@@ -1,5 +1,5 @@
 use clap::Parser;
-use sos3_server::{FileSystemBackend, Server, State, ServerConfig, Result};
+use sos3_server::{FileSystemBackend, Result, Server, ServerConfig, State};
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -24,8 +24,7 @@ struct Cli {
     dir: PathBuf,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+async fn run() -> Result<()> {
     let args = Cli::parse();
 
     let name = env!("CARGO_PKG_NAME").to_string();
@@ -37,6 +36,8 @@ async fn main() -> Result<()> {
     }
 
     println!("Config {:#?}", config);
+
+    let backends = config.backends()?;
 
     let mut backend = FileSystemBackend::new(args.dir.clone());
     backend.read_dir()?;
@@ -50,5 +51,16 @@ async fn main() -> Result<()> {
 
     let addr = SocketAddr::from_str(&args.bind)?;
     Server::start(addr, state).await;
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    match run().await {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("{}", e);
+        }
+    }
     Ok(())
 }

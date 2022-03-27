@@ -36,7 +36,8 @@ impl Server {
     pub async fn start(addr: SocketAddr, state: Arc<RwLock<State>>) {
         tracing_subscriber::registry()
             .with(tracing_subscriber::EnvFilter::new(
-                std::env::var("RUST_LOG").unwrap_or_else(|_| "sos3_server=debug".into()),
+                std::env::var("RUST_LOG")
+                    .unwrap_or_else(|_| "sos3_server=debug".into()),
             ))
             .with(tracing_subscriber::fmt::layer())
             .init();
@@ -50,7 +51,8 @@ impl Server {
             .route("/api/vault", get(VaultHandler::list))
             .route(
                 "/api/vault/:id",
-                get(VaultHandler::retrieve_index).post(VaultHandler::update_index),
+                get(VaultHandler::retrieve_index)
+                    .post(VaultHandler::update_index),
             )
             .layer(Extension(shared_state));
 
@@ -63,7 +65,9 @@ impl Server {
 }
 
 // Serve the home page.
-async fn home(Extension(state): Extension<Arc<RwLock<State>>>) -> impl IntoResponse {
+async fn home(
+    Extension(state): Extension<Arc<RwLock<State>>>,
+) -> impl IntoResponse {
     let reader = state.read().await;
     if reader.config.gui {
         Redirect::temporary("/gui".parse().unwrap())
@@ -113,7 +117,9 @@ async fn asset(
 }
 
 // Serve the API identity page.
-async fn api(Extension(state): Extension<Arc<RwLock<State>>>) -> impl IntoResponse {
+async fn api(
+    Extension(state): Extension<Arc<RwLock<State>>>,
+) -> impl IntoResponse {
     let reader = state.read().await;
     Json(json!({ "name": reader.name, "version": reader.version }))
 }
@@ -122,7 +128,9 @@ async fn api(Extension(state): Extension<Arc<RwLock<State>>>) -> impl IntoRespon
 struct VaultHandler;
 impl VaultHandler {
     /// List vault identifiers.
-    async fn list(Extension(state): Extension<Arc<RwLock<State>>>) -> impl IntoResponse {
+    async fn list(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+    ) -> impl IntoResponse {
         let reader = state.read().await;
         let list: Vec<String> = reader
             .backend
@@ -141,8 +149,8 @@ impl VaultHandler {
         let reader = state.read().await;
         if let Some(vault) = reader.backend.get(&vault_id) {
             let index = vault.index();
-            let buffer =
-                into_encoded_buffer(index).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let buffer = into_encoded_buffer(index)
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             Ok(Bytes::from(buffer))
         } else {
             Err(StatusCode::NOT_FOUND)
@@ -158,8 +166,8 @@ impl VaultHandler {
         let mut writer = state.write().await;
         let id = if let Some(vault) = writer.backend.get_mut(&vault_id) {
             let buffer = body.to_vec();
-            let index: Index =
-                from_encoded_buffer(buffer).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let index: Index = from_encoded_buffer(buffer)
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             vault.set_index(index);
             Some(vault.id().clone())
         } else {
