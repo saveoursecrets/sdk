@@ -2,11 +2,19 @@ use std::path::Path;
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
+use sos_core::address::AddressStr;
+
 use crate::Result;
 
-#[derive(Serialize, Deserialize)]
+fn default_false() -> bool {
+    false
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ServerConfig {
-    users: HashMap<String, UserConfig>,
+    #[serde(default = "default_false")]
+    pub gui: bool,
+    pub users: HashMap<AddressStr, UserConfig>,
 }
 
 impl ServerConfig {
@@ -18,7 +26,7 @@ impl ServerConfig {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UserConfig {
 
 }
