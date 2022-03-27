@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import ReactDOM from "react-dom";
 import { HashRouter } from "react-router-dom";
 import { Provider, useSelector } from "react-redux";
@@ -10,8 +10,8 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { createTheme } from "@mui/material/styles";
 
 import store from "./store";
-import WorkerProvider, { WorkerContext } from "./worker-provider";
-import { VaultWorker } from "./worker";
+import WorkerProvider, { WorkerContext, webWorker } from "./worker-provider";
+import { VaultWorker } from "./types";
 
 import App from "./app";
 import AuthenticatedApp from "./authenticated";
@@ -37,6 +37,7 @@ interface AppProps {
 function MainApp(props: AppProps) {
   const { worker } = props;
   const { user } = useSelector(userSelector);
+  const [workerReady, setWorkerReady] = useState(false);
 
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const theme = useMemo(
@@ -49,6 +50,18 @@ function MainApp(props: AppProps) {
     [prefersDarkMode]
   );
 
+  useEffect(() => {
+    webWorker.addEventListener('message', (msg: any) => {
+      if (msg.data.ready) {
+        setWorkerReady(true);
+      }
+    });
+  }, []);
+
+  if (!workerReady) {
+    return null;
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -60,6 +73,7 @@ function MainApp(props: AppProps) {
     </ThemeProvider>
   );
 }
+
 
 ReactDOM.render(
   <React.StrictMode>

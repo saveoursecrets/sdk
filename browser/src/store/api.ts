@@ -14,6 +14,13 @@ export class VaultApi {
     const response = await fetch(url);
     return response.json();
   }
+
+  // Load the encrypted vault buffer for a user.
+  async getVault(user: User, id: string): Promise<ArrayBuffer> {
+    const url = `${this.url}/users/${user.address}/vaults/${id}`;
+    const response = await fetch(url);
+    return response.arrayBuffer();
+  }
 }
 
 const api = new VaultApi("http://localhost:5053/api");

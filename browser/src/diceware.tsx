@@ -14,7 +14,7 @@ import Typography from "@mui/material/Typography";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import NumbersIcon from "@mui/icons-material/Numbers";
 
-import { generatePassphrase } from "./worker";
+import {VaultWorker} from './types';
 
 interface WordCountProps {
   words: number;
@@ -74,9 +74,11 @@ function WordCount(props: WordCountProps) {
 
 interface DicewareProps {
   onGenerate: (passphrase: string) => void;
+  worker: VaultWorker;
 }
 
 export default function Diceware(props: DicewareProps) {
+  const {worker} = props;
   const { onGenerate } = props;
   const [passphrase, setPassphrase] = useState(null);
   const [bits, setBits] = useState(null);
@@ -84,7 +86,7 @@ export default function Diceware(props: DicewareProps) {
   const [wordsVisible, setWordsVisible] = useState(false);
 
   const generate = async () => {
-    const [passphrase, bits] = await generatePassphrase(words);
+    const [passphrase, bits] = await worker.generatePassphrase(words);
     setPassphrase(passphrase);
     setBits(Math.round(bits));
     onGenerate(passphrase);

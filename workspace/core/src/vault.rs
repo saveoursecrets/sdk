@@ -374,7 +374,7 @@ pub fn from_encoded_buffer<T: Decode + Default>(buffer: Vec<u8>) -> Result<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::Vault;
+    use super::*;
     use anyhow::Result;
     use binary_rw::{memorystream::Memorystream, Stream};
     use uuid::Uuid;
@@ -389,6 +389,26 @@ mod tests {
         stream.seek(0)?;
         let decoded = Vault::decode(&mut stream)?;
         assert_eq!(vault, decoded);
+        Ok(())
+    }
+
+    // FIXME: move test files to fixtures directory
+
+    #[test]
+    fn decode_file() -> Result<()> {
+        let vault = Vault::read_file("../../vaults/0x8a67d6f4aae8165512774d63992623e10494c69f/b9c748d1-223a-4b2c-8bdb-6dbd03be5629.vault")?;
+        println!("Vault {:#?}", vault);
+        Ok(())
+    }
+
+    #[test]
+    fn decode_buffer() -> Result<()> {
+        let buffer = std::fs::read("../../vaults/0x8a67d6f4aae8165512774d63992623e10494c69f/b9c748d1-223a-4b2c-8bdb-6dbd03be5629.vault")?;
+
+        println!("{}", hex::encode(&buffer));
+
+        let vault: Vault = from_encoded_buffer(buffer)?;
+        println!("Vault {:#?}", vault);
         Ok(())
     }
 }

@@ -2,7 +2,6 @@ import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-import { VaultWorker, WebVault } from "../../worker";
 import {
   dialogsSelector,
   setDialogVisible,
@@ -26,6 +25,7 @@ import {
   AccountPasswordResult,
   CredentialsResult,
   FileUploadResult,
+  VaultWorker,
 } from "../../types";
 
 import NewVaultDialog from "./new-vault";
@@ -76,9 +76,11 @@ export default function Dialogs(props: DialogProps) {
     dispatch(setDialogVisible([key, false]));
   };
 
+
   return (
     <>
       <NewVaultDialog
+        worker={worker}
         open={dialogs[NEW_VAULT] || false}
         handleCancel={() => cancelDialog(NEW_VAULT)}
         handleOk={createNewVault}

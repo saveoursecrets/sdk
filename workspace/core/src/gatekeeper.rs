@@ -50,6 +50,11 @@ impl Gatekeeper {
         &self.vault
     }
 
+    /// Set the vault.
+    pub fn set_vault(&mut self, vault: Vault) {
+        self.vault = vault;
+    }
+
     /// Get the identifier for the vault.
     pub fn id(&self) -> &Uuid {
         self.vault.id()

@@ -10,16 +10,17 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import CreateVaultForm from "../forms/create-vault";
 
-import { NewVaultResult } from "../../types";
+import { NewVaultResult, VaultWorker } from "../../types";
 
 interface NewVaultProps {
+  worker: VaultWorker;
   open: boolean;
   handleCancel: () => void;
   handleOk: (result: NewVaultResult) => void;
 }
 
 export default function NewVaultDialog(props: NewVaultProps) {
-  const { open, handleCancel, handleOk } = props;
+  const { worker, open, handleCancel, handleOk } = props;
 
   return (
     <Dialog open={open} onClose={handleCancel}>
@@ -27,7 +28,7 @@ export default function NewVaultDialog(props: NewVaultProps) {
         New Vault
       </DialogTitle>
       <DialogContent>
-        <CreateVaultForm onFormSubmit={handleOk} />
+        <CreateVaultForm onFormSubmit={handleOk} worker={worker} />
         <Alert sx={{ marginTop: 2 }} severity="warning">
           You must memorize or write down the passphrase for your new vault
         </Alert>

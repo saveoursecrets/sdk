@@ -16,7 +16,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
-import { VaultWorker } from "../worker";
+import { VaultWorker } from "../types";
 
 import { userSelector } from "../store/user";
 import { loadVaults } from "../store/vaults";
@@ -81,6 +81,7 @@ const DrawerHeader = styled("div")(({ theme }) => ({
   justifyContent: "flex-end",
 }));
 
+
 interface AppProps {
   worker: VaultWorker;
 }
@@ -94,8 +95,8 @@ export default function AuthenticatedApp(props: AppProps) {
 
   useEffect(() => {
     const useLoadVaults = async () => {
-      const vaultIds = await dispatch(loadVaults(user));
-      console.log("vault ids", vaultIds);
+      console.log("Loading user vaults...");
+      dispatch(loadVaults({user, worker}));
     }
     useLoadVaults();
   }, [user]);
@@ -164,6 +165,7 @@ export default function AuthenticatedApp(props: AppProps) {
           <Route path="/vault/:id" element={<Vault />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+
         <Dialogs worker={worker} />
       </Main>
     </Box>

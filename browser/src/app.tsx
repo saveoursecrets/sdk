@@ -8,7 +8,7 @@ import Toolbar from "@mui/material/Toolbar";
 
 import Stack from "@mui/material/Stack";
 
-import { VaultWorker } from "./worker";
+import { VaultWorker } from "./types";
 import LogoType from "./logotype";
 
 import AppBarActions from "./app-bar-actions";

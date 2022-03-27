@@ -13,12 +13,11 @@ import Grid from "@mui/material/Grid";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 
-import { VaultWorker } from "../worker";
 import { WorkerContext } from "../worker-provider";
 import { vaultsSelector, VaultStorage, updateVault, loadVaults } from "../store/vaults";
 import { userSelector } from "../store/user";
 
-import { SecretKind, UnlockVaultResult } from "../types";
+import { SecretKind, UnlockVaultResult, VaultWorker } from "../types";
 import SecretList from "./secret-list";
 import UnlockVaultForm from "./unlock-vault-form";
 import NewSecretDial from "./new-secret-dial";
