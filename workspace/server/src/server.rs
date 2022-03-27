@@ -9,7 +9,7 @@ use axum::{
 //use axum_macros::debug_handler;
 
 //use serde::{Deserialize, Serialize};
-use crate::{assets::Assets, Backend};
+use crate::{assets::Assets, Backend, ServerConfig};
 use serde_json::json;
 use sos_core::{from_encoded_buffer, into_encoded_buffer, vault::Index};
 use std::{net::SocketAddr, sync::Arc};
@@ -19,6 +19,8 @@ use uuid::Uuid;
 
 /// Server state.
 pub struct State {
+    /// The server configuration.
+    pub config: ServerConfig,
     /// Name of the crate.
     pub name: String,
     /// Version of the crate.
@@ -42,9 +44,6 @@ impl Server {
             .init();
 
         let shared_state = Arc::clone(&state);
-
-        //let index = Assets::get("index.html").unwrap();
-        //println!("Index {:#?}", index.data);
 
         let app = Router::new()
             .route("/", get(home))

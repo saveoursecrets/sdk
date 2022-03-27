@@ -1,31 +1,8 @@
 use async_trait::async_trait;
 use sos_core::vault::Vault;
 use std::{collections::HashMap, fs::read_dir, path::PathBuf};
-use thiserror::Error;
 use uuid::Uuid;
-
-#[derive(Debug, Error)]
-pub enum BackendError {
-    #[error("not a directory {0}")]
-    NotDirectory(PathBuf),
-
-    #[error("no vaults found")]
-    NoVaults,
-
-    #[error("vault {0} does not exist")]
-    NotExist(Uuid),
-
-    #[error(transparent)]
-    Core(#[from] sos_core::Error),
-
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-
-    #[error(transparent)]
-    Anyhow(#[from] anyhow::Error),
-}
-
-pub type Result<T> = std::result::Result<T, BackendError>;
+use crate::{Result, Error};
 
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]
@@ -61,7 +38,7 @@ impl FileSystemBackend {
     /// Read vaults into memory.
     pub fn read_dir(&mut self) -> Result<()> {
         if !self.directory.is_dir() {
-            return Err(BackendError::NotDirectory(self.directory.clone()));
+            return Err(Error::NotDirectory(self.directory.clone()));
         }
 
         let mut vaults = Vec::new();
@@ -77,7 +54,7 @@ impl FileSystemBackend {
         }
 
         if vaults.is_empty() {
-            return Err(BackendError::NoVaults);
+            return Err(Error::NoVaults);
         }
 
         self.vaults = vaults
@@ -109,6 +86,6 @@ impl Backend for FileSystemBackend {
             vault.write_file(path)?;
             return Ok(());
         }
-        Err(BackendError::NotExist(id.clone()))
+        Err(Error::NotExist(id.clone()))
     }
 }

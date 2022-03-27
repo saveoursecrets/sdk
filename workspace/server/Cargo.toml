@@ -5,7 +5,6 @@ edition = "2021"
 default-run = "sos3"
 
 [dependencies]
-anyhow = "1"
 thiserror = "1"
 sos-core = { path = "../core" }
 clap = { version = "3", features = ["derive"] }
@@ -22,6 +21,7 @@ uuid = { version = "0.8", features = ["serde", "v4"] }
 async-trait = "0.1"
 rust-embed = "6"
 mime_guess = "2"
+toml = "0.5"
 
 [features]
 default = ["gui"]
