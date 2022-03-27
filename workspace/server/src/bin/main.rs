@@ -1,5 +1,5 @@
 use clap::Parser;
-use sos3_server::{FileSystemBackend, Result, Server, ServerConfig, State};
+use sos3_server::{Result, Server, ServerConfig, State};
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -18,10 +18,6 @@ struct Cli {
     /// Config file to load.
     #[structopt(short, long, parse(from_os_str))]
     config: PathBuf,
-
-    /// Directory to load vaults from.
-    #[structopt(parse(from_os_str))]
-    dir: PathBuf,
 }
 
 async fn run() -> Result<()> {
@@ -35,22 +31,19 @@ async fn run() -> Result<()> {
         config.gui = gui;
     }
 
-    println!("Config {:#?}", config);
+    //println!("Config {:#?}", config);
 
     let backends = config.backends()?;
-
-    let mut backend = FileSystemBackend::new(args.dir.clone());
-    backend.read_dir()?;
 
     let state = Arc::new(RwLock::new(State {
         name,
         version,
         config,
-        backend: Box::new(backend),
+        backends,
     }));
 
     let addr = SocketAddr::from_str(&args.bind)?;
-    Server::start(addr, state).await;
+    Server::start(addr, state).await?;
     Ok(())
 }
 

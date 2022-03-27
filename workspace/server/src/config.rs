@@ -5,7 +5,7 @@ use url::{Host, Url};
 
 use sos_core::address::AddressStr;
 
-use crate::{Error, Result, Backend, FileSystemBackend};
+use crate::{Backend, Error, FileSystemBackend, Result};
 
 fn default_false() -> bool {
     false
@@ -13,11 +13,22 @@ fn default_false() -> bool {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ServerConfig {
+    /// Whether to sever the web GUI.
     #[serde(default = "default_false")]
     pub gui: bool,
+    /// Map of user configurations to load.
     pub users: HashMap<AddressStr, UserConfig>,
+    /// Configuration for the API.
+    pub api: ApiConfig,
+
     #[serde(skip)]
     file: Option<PathBuf>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ApiConfig {
+    /// List of additional CORS origins for the server.
+    pub origins: Vec<Url>,
 }
 
 impl ServerConfig {
@@ -32,8 +43,10 @@ impl ServerConfig {
 
 impl ServerConfig {
     /// Map each user config to a backend implementation.
-    pub fn backends(&self) -> Result<HashMap<AddressStr, Box<dyn Backend>>> {
-        // Config file directory for relative paths.
+    pub fn backends(
+        &self,
+    ) -> Result<HashMap<AddressStr, Box<dyn Backend + Send + Sync>>> {
+        // Config file directory for relative file paths.
         let dir = self
             .file
             .as_ref()
@@ -55,8 +68,11 @@ pub struct UserConfig {
 }
 
 impl UserConfig {
-    /// Get the back implementation for a user configuration.
-    fn backend<P: AsRef<Path>>(&self, dir: P) -> Result<Box<dyn Backend>> {
+    /// Get the backend implementation for a user configuration.
+    fn backend<P: AsRef<Path>>(
+        &self,
+        dir: P,
+    ) -> Result<Box<dyn Backend + Send + Sync>> {
         match self.url.scheme() {
             "file" => {
                 let url = self.url.clone();

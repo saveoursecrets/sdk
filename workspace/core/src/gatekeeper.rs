@@ -188,26 +188,17 @@ mod tests {
         vault::Vault,
     };
     use anyhow::Result;
-    use rand::Rng;
 
     #[test]
     fn gatekeeper_secret_note() -> Result<()> {
-        let passphrase: [u8; 32] = rand::thread_rng().gen();
+        let passphrase = "mock-passphrase";
         let vault: Vault = Default::default();
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(passphrase);
-
-        // No meta data has been initialized so we
-        // have no way to decrypt the index.
-        assert!(keeper.meta().is_err());
 
         let label = String::from("Mock Vault Label");
+        keeper.initialize(label.clone(), passphrase)?;
 
-        let mut init_meta_data: MetaData = Default::default();
-        init_meta_data.set_label(label.clone());
-        keeper.set_meta(init_meta_data)?;
-
-        // Decrypt the initialized meta data.
+        //// Decrypt the initialized meta data.
         let meta = keeper.meta()?;
 
         assert_eq!(&label, meta.label());
