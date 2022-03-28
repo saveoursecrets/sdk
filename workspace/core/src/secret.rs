@@ -45,7 +45,7 @@ impl MetaData {
 impl Encode for MetaData {
     fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
         writer.write_string(&self.label)?;
-        writer.write_usize(self.secrets.len())?;
+        writer.write_u32(self.secrets.len() as u32)?;
         for (key, value) in self.secrets.iter() {
             writer.write_string(key.to_string())?;
             value.encode(writer)?;
@@ -57,7 +57,7 @@ impl Encode for MetaData {
 impl Decode for MetaData {
     fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
         self.label = reader.read_string()?;
-        let secrets_len = reader.read_usize()?;
+        let secrets_len = reader.read_u32()?;
         for _ in 0..secrets_len {
             let key = Uuid::parse_str(&reader.read_string()?)?;
             let mut value: SecretMeta = Default::default();
@@ -129,8 +129,8 @@ impl Default for Secret {
 
 /// Type identifiers for the secret enum variants.
 ///
-/// Used internally for encoding / decoding and client 
-/// implementations may use these to determine the type 
+/// Used internally for encoding / decoding and client
+/// implementations may use these to determine the type
 /// of a secret.
 pub mod kind {
     /// Account password type.
@@ -158,7 +158,7 @@ impl Encode for Secret {
                 writer.write_string(text)?;
             }
             Self::Blob { buffer, mime } => {
-                writer.write_usize(buffer.len())?;
+                writer.write_u32(buffer.len() as u32)?;
                 writer.write_bytes(buffer)?;
                 writer.write_bool(mime.is_some())?;
                 if let Some(mime) = mime {
@@ -178,7 +178,7 @@ impl Encode for Secret {
                 }
             }
             Self::Credentials(list) => {
-                writer.write_usize(list.len())?;
+                writer.write_u32(list.len() as u32)?;
                 for (k, v) in list {
                     writer.write_string(k)?;
                     writer.write_string(v)?;
@@ -198,8 +198,8 @@ impl Decode for Secret {
                 *self = Self::Text(reader.read_string()?);
             }
             kind::BLOB => {
-                let buffer_len = reader.read_usize()?;
-                let buffer = reader.read_bytes(buffer_len)?;
+                let buffer_len = reader.read_u32()?;
+                let buffer = reader.read_bytes(buffer_len as usize)?;
                 let has_mime = reader.read_bool()?;
                 let mime = if has_mime {
                     Some(reader.read_string()?)
@@ -226,8 +226,8 @@ impl Decode for Secret {
                 };
             }
             kind::CREDENTIALS => {
-                let list_len = reader.read_usize()?;
-                let mut list: HashMap<String, String> = HashMap::with_capacity(list_len);
+                let list_len = reader.read_u32()?;
+                let mut list: HashMap<String, String> = HashMap::with_capacity(list_len as usize);
                 for _ in 0..list_len {
                     let key = reader.read_string()?;
                     let value = reader.read_string()?;

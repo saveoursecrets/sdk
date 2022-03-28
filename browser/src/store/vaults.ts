@@ -93,7 +93,7 @@ export const loadVaults = createAsyncThunk(
 
       try {
         console.log("Calling import buffer...");
-        await vault.importBuffer(new Uint8Array(buffer));
+        await vault.importBuffer(Array.from(new Uint8Array(buffer)));
 
         console.log("AFTER IMPORT BUFFER");
 
