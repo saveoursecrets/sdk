@@ -104,10 +104,6 @@ pub enum Error {
     #[error(transparent)]
     Binary(#[from] binary_rw::BinaryError),
 
-    /// Error generated whilst reading or writing to a binary stream.
-    #[error(transparent)]
-    BinaryStream(#[from] binary_rw::StreamError),
-
     /// Error generated during AES encryption and decryption.
     #[error(transparent)]
     Aes(#[from] aes_gcm::Error),

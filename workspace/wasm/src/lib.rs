@@ -116,11 +116,9 @@ impl WebVault {
 
     /// Import a buffer as the vault.
     #[wasm_bindgen(js_name = "importBuffer")]
-    pub fn import_buffer(&mut self, buffer: Vec<u8>) -> Result<(), JsError> {
-        //let buffer: Vec<u8> = buffer.into_serde()?;
-        println!("Importing from buffer...{}", buffer.len());
+    pub fn import_buffer(&mut self, buffer: JsValue) -> Result<(), JsError> {
+        let buffer: Vec<u8> = buffer.into_serde()?;
         let vault: Vault = from_encoded_buffer(buffer)?;
-        console_log!("After buffer import...");
         self.keeper.set_vault(vault);
         Ok(())
     }

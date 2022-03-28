@@ -33,7 +33,7 @@ module.exports = {
   },
   devtool: false,
   mode: process.env.NODE_ENV || "development",
-  plugins: [new CopyWebpackPlugin(["index.html", "favicon.png"])],
+  plugins: [new CopyWebpackPlugin(["index.html"])],
   devServer: {
     headers: {
       "Access-Control-Allow-Origin": "*",

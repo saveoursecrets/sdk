@@ -38,7 +38,7 @@ impl Default for AeadPack {
 impl Encode for AeadPack {
     fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
         writer.write_bytes(&self.nonce)?;
-        writer.write_usize(self.ciphertext.len())?;
+        writer.write_u32(self.ciphertext.len() as u32)?;
         writer.write_bytes(&self.ciphertext)?;
         Ok(())
     }
@@ -47,8 +47,8 @@ impl Encode for AeadPack {
 impl Decode for AeadPack {
     fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
         self.nonce = reader.read_bytes(12)?;
-        let length = reader.read_usize()?;
-        self.ciphertext = reader.read_bytes(length)?;
+        let length = reader.read_u32()?;
+        self.ciphertext = reader.read_bytes(length as usize)?;
         Ok(())
     }
 }

@@ -245,9 +245,7 @@ checksum = "e6b4d9b1225d28d360ec6a231d65af1fd99a2a095154c8040689617290569c5c"
 
 [[package]]
 name = "binary_rw"
-version = "1.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6028b70ee7cdc9f2c3db42a441d9983f24f3765191f232202da55186613d3485"
+version = "2.0.1"
 dependencies = [
  "thiserror",
 ]
