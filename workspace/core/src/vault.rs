@@ -217,9 +217,9 @@ impl Encode for Vault {
 impl Decode for Vault {
     fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
         self.header.decode(reader)?;
-        //self.index.decode(reader)?;
-        //self.contents.decode(reader)?;
-        //self.trailer.decode(reader)?;
+        self.index.decode(reader)?;
+        self.contents.decode(reader)?;
+        self.trailer.decode(reader)?;
         Ok(())
     }
 }
@@ -392,19 +392,16 @@ mod tests {
         Ok(())
     }
 
-    // FIXME: move test files to fixtures directory
-
-    /*
     #[test]
     fn decode_file() -> Result<()> {
-        let vault = Vault::read_file("../../vaults/0x8a67d6f4aae8165512774d63992623e10494c69f/b9c748d1-223a-4b2c-8bdb-6dbd03be5629.vault")?;
+        let vault = Vault::read_file("./fixtures/10b426d9-62ce-4bea-aa5f-6349aeef65c5.vault")?;
         println!("Vault {:#?}", vault);
         Ok(())
     }
 
     #[test]
     fn decode_buffer() -> Result<()> {
-        let buffer = std::fs::read("../../vaults/0x8a67d6f4aae8165512774d63992623e10494c69f/b9c748d1-223a-4b2c-8bdb-6dbd03be5629.vault")?;
+        let buffer = std::fs::read("./fixtures/10b426d9-62ce-4bea-aa5f-6349aeef65c5.vault")?;
 
         println!("{}", hex::encode(&buffer));
 
@@ -412,5 +409,4 @@ mod tests {
         println!("Vault {:#?}", vault);
         Ok(())
     }
-    */
 }
