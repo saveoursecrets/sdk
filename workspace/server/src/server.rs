@@ -13,7 +13,7 @@ use tower_http::cors::{CorsLayer, Origin};
 use crate::{assets::Assets, Backend, ServerConfig};
 use serde_json::json;
 use sos_core::{
-    address::AddressStr, from_encoded_buffer, into_encoded_buffer, vault::Vault,
+    address::AddressStr, decode, encode, vault::Vault,
 };
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
@@ -175,7 +175,7 @@ impl VaultHandler {
         let reader = state.read().await;
         if let Some(backend) = reader.backends.get(&user_id) {
             if let Some(vault) = backend.get(&vault_id) {
-                let buffer = into_encoded_buffer(vault)
+                let buffer = encode(vault)
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                 Ok(Bytes::from(buffer))
             } else {
@@ -196,7 +196,7 @@ impl VaultHandler {
         if let Some(backend) = writer.backends.get_mut(&user_id) {
             if let Some(vault) = backend.get_mut(&vault_id) {
                 let buffer = body.to_vec();
-                let new_vault: Vault = from_encoded_buffer(buffer)
+                let new_vault: Vault = decode(buffer)
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                 *vault = new_vault;

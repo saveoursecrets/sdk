@@ -17,15 +17,6 @@ use subtle::Choice;
 #[serde(try_from = "String", into = "String")]
 pub struct AddressStr([u8; 20]);
 
-/*
-impl AddressStr {
-    /// Convert to a string.
-    pub fn to_string(&self) -> String {
-        format!("0x{}", hex::encode(self.0))
-    }
-}
-*/
-
 impl fmt::Display for AddressStr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x{}", hex::encode(self.0))
