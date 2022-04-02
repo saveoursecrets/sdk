@@ -94,9 +94,9 @@ async fn home(
 ) -> impl IntoResponse {
     let reader = state.read().await;
     if reader.config.gui {
-        Redirect::temporary("/gui".parse().unwrap())
+        Redirect::temporary("/gui")
     } else {
-        Redirect::temporary("/api".parse().unwrap())
+        Redirect::temporary("/api")
     }
 }
 

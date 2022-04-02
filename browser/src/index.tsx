@@ -50,12 +50,15 @@ function MainApp(props: AppProps) {
     [prefersDarkMode]
   );
 
+  const onWorkerReady =  (msg: any) => {
+    if (msg.data.ready) {
+      setWorkerReady(true);
+      webWorker.removeEventListener('message', onWorkerReady);
+    }
+  };
+
   useEffect(() => {
-    webWorker.addEventListener('message', (msg: any) => {
-      if (msg.data.ready) {
-        setWorkerReady(true);
-      }
-    });
+    webWorker.addEventListener('message', onWorkerReady);
   }, []);
 
   if (!workerReady) {

@@ -7,8 +7,8 @@ console.log("WORKER IS INITIALIZING...");
 
 void async function() {
   // Requires top-level await experiment
-  const wasm = await init();
-  console.log("Worker finished initializing", wasm);
+  await init();
+  console.log("Worker finished initializing");
   self.postMessage({ready: true});
 }();
 
