@@ -17,7 +17,7 @@ pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<AeadPack> {
     let ciphertext = cipher.encrypt(cipher_nonce, plaintext)?;
     Ok(AeadPack {
         ciphertext,
-        nonce: nonce.to_vec(),
+        nonce,
     })
 }
 

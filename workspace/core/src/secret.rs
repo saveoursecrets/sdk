@@ -44,33 +44,22 @@ impl MetaData {
 
 impl Encode for MetaData {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_string(&self.label)?;
-        ser.writer.write_u32(self.secrets.len() as u32)?;
-        for (key, value) in self.secrets.iter() {
-            ser.writer.write_string(key.to_string())?;
-            value.encode(ser)?;
-        }
+        self.label.serialize(&mut *ser)?;
+        self.secrets.serialize(&mut *ser)?;
         Ok(())
     }
 }
 
 impl Decode for MetaData {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.label = de.reader.read_string()?;
-        let secrets_len = de.reader.read_u32()?;
-        for _ in 0..secrets_len {
-            let key = Uuid::parse_str(&de.reader.read_string()?)
-                .map_err(Box::from)?;
-            let mut value: SecretMeta = Default::default();
-            value.decode(de)?;
-            self.secrets.insert(key, value);
-        }
+        self.label = Deserialize::deserialize(&mut *de)?;
+        self.secrets = Deserialize::deserialize(&mut *de)?;
         Ok(())
     }
 }
 
 /// Encapsulates the meta data for a secret.
-#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
 pub struct SecretMeta {
     /// Human-friendly label for the secret.
     label: String,
@@ -80,20 +69,6 @@ impl SecretMeta {
     /// Create new meta data for a secret.
     pub fn new(label: String) -> Self {
         Self { label }
-    }
-}
-
-impl Encode for SecretMeta {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_string(&self.label)?;
-        Ok(())
-    }
-}
-
-impl Decode for SecretMeta {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.label = de.reader.read_string()?;
-        Ok(())
     }
 }
 
