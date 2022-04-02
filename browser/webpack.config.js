@@ -1,4 +1,4 @@
-const CopyWebpackPlugin = require("copy-webpack-plugin");
+const CopyPlugin = require("copy-webpack-plugin");
 const path = require("path");
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -33,7 +33,13 @@ module.exports = {
   },
   devtool: false,
   mode: process.env.NODE_ENV || "development",
-  plugins: [new CopyWebpackPlugin(["index.html"])],
+  plugins: [
+    new CopyPlugin({
+      patterns: [
+        { from: "index.html", to: "index.html" },
+      ],
+    }),
+  ],
   devServer: {
     headers: {
       "Access-Control-Allow-Origin": "*",
