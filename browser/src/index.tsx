@@ -39,9 +39,6 @@ function MainApp(props: AppProps) {
   const { user } = useSelector(userSelector);
   const [workerReady, setWorkerReady] = useState(false);
 
-  //console.log("Main app rendering", worker);
-  //console.log("Main app rendering", user);
-
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const theme = useMemo(
     () =>
@@ -68,10 +65,6 @@ function MainApp(props: AppProps) {
     return null;
   }
 
-  console.log("Rendering app", workerReady);
-
-  //return <AuthenticatedApp worker={worker} />;
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -86,11 +79,15 @@ function MainApp(props: AppProps) {
 
 const root = ReactDOMClient.createRoot(document.querySelector("main"));
 root.render(
-  <React.StrictMode>
-    <Provider store={store}>
-      <HashRouter>
-        <MainApp worker={worker} />
-      </HashRouter>
-    </Provider>
-  </React.StrictMode>
+  <Provider store={store}>
+    <HashRouter>
+      <WorkerProvider>
+        <WorkerContext.Consumer>
+          {(worker) => {
+            return <MainApp worker={worker} />;
+          }}
+        </WorkerContext.Consumer>
+      </WorkerProvider>
+    </HashRouter>
+  </Provider>
 );
