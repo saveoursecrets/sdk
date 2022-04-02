@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use sos_core::{
     address::address_compressed,
     crypto::{authorize::jwt, keypair::generate},
+    diceware,
     passphrase::{words, WordCount},
     vault::Vault,
 };
@@ -33,13 +34,21 @@ pub fn vault(destination: PathBuf) -> Result<()> {
         bail!("file {} already exists", vault_path.display());
     }
 
-    let vault = Vault::new(uuid);
+    let (passphrase, _) = diceware::generate()?;
+    let mut vault = Vault::new(uuid);
+    vault.initialize(&passphrase)?;
     vault.write_file(&vault_path)?;
 
     info!(
         target: LOG_TARGET,
         "wrote vault to {}",
         vault_path.display()
+    );
+
+    info!(
+        target: LOG_TARGET,
+        "passphrase is {}",
+        passphrase
     );
     Ok(())
 }

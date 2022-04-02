@@ -397,7 +397,7 @@ mod tests {
     #[test]
     fn decode_file() -> Result<()> {
         let vault = Vault::read_file(
-            "./fixtures/3daf9f89-9afe-4b6e-88e7-18da48f83dee.vault",
+            "./fixtures/7f8f7bff-5136-4721-9913-4749c42081c4.vault",
         )?;
         println!("Vault {:#?}", vault);
         Ok(())
@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn decode_buffer() -> Result<()> {
         let buffer = std::fs::read(
-            "./fixtures/3daf9f89-9afe-4b6e-88e7-18da48f83dee.vault",
+            "./fixtures/7f8f7bff-5136-4721-9913-4749c42081c4.vault",
         )?;
 
         println!("{}", hex::encode(&buffer));
