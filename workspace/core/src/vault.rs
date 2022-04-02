@@ -1,9 +1,14 @@
 //! Vault secret storage file format.
-use binary_rw::{
-    FileStream, OpenType,
-    MemoryStream,
-    Endian,
-    BinaryReader, BinaryWriter, Stream,
+use serde::{Serialize, Deserialize};
+use serde_binary::{
+    Encode, Decode, Serializer, Deserializer,
+    Result as BinaryResult,
+    binary_rw::{
+        FileStream, OpenType,
+        MemoryStream,
+        Endian,
+        Stream,
+    }
 };
 use std::collections::HashMap;
 use std::path::Path;
@@ -15,7 +20,6 @@ use crate::{
         passphrase::{generate_salt, generate_secret_key},
         AeadPack,
     },
-    traits::{Decode, Encode},
     Error, Result,
 };
 
@@ -30,23 +34,27 @@ pub struct Auth {
 }
 
 impl Encode for Auth {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        writer.write_u32(self.public_keys.len() as u32)?;
-        for public_key in &self.public_keys {
-            public_key.encode(writer)?;
-        }
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+
+        self.public_keys.serialize(ser)?;
+        //ser.writer.write_u32(self.public_keys.len() as u32)?;
+        //for public_key in &self.public_keys {
+            //public_key.encode(writer)?;
+        //}
         Ok(())
     }
 }
 
 impl Decode for Auth {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        let length = reader.read_u32()?;
-        for _ in 0..length {
-            let mut public_key: PublicKey = Default::default();
-            public_key.decode(reader)?;
-            self.public_keys.push(public_key);
-        }
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        self.public_keys = Deserialize::deserialize(de)?;
+
+        //let length = de.reader.read_u32()?;
+        //for _ in 0..length {
+            //let mut public_key: PublicKey = Default::default();
+            //public_key.decode(reader)?;
+            //self.public_keys.push(public_key);
+        //}
         Ok(())
     }
 }
@@ -84,26 +92,26 @@ impl Default for Header {
 }
 
 impl Encode for Header {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        writer.write_bytes(self.identity.to_vec())?;
-        writer.write_u16(self.version)?;
-        writer.write_string(self.id.to_string())?;
-        self.auth.encode(writer)?;
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_bytes(self.identity.to_vec())?;
+        ser.writer.write_u16(self.version)?;
+        ser.writer.write_string(self.id.to_string())?;
+        self.auth.encode(ser)?;
         Ok(())
     }
 }
 
 impl Decode for Header {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         for ident in &IDENTITY {
-            let byte = reader.read_u8()?;
+            let byte = de.reader.read_u8()?;
             if byte != *ident {
                 return Err(Error::BadIdentity(byte));
             }
         }
-        self.version = reader.read_u16()?;
-        self.id = Uuid::parse_str(&reader.read_string()?)?;
-        self.auth.decode(reader)?;
+        self.version = de.reader.read_u16()?;
+        self.id = Uuid::parse_str(&de.reader.read_string()?)?;
+        self.auth.decode(de)?;
         Ok(())
     }
 }
@@ -127,22 +135,22 @@ impl Index {
 }
 
 impl Encode for Index {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        writer.write_bool(self.meta.is_some())?;
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_bool(self.meta.is_some())?;
         if let Some(meta) = &self.meta {
-            meta.encode(writer)?;
+            meta.encode(ser)?;
         }
         Ok(())
     }
 }
 
 impl Decode for Index {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        let has_meta = reader.read_bool()?;
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let has_meta = de.reader.read_bool()?;
         if has_meta {
             self.meta = Some(Default::default());
             if let Some(meta) = self.meta.as_mut() {
-                meta.decode(reader)?;
+                meta.decode(de)?;
             }
         }
         Ok(())
@@ -156,23 +164,23 @@ pub struct Contents {
 }
 
 impl Encode for Contents {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        writer.write_u32(self.data.len() as u32)?;
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_u32(self.data.len() as u32)?;
         for (key, item) in &self.data {
-            writer.write_string(key.to_string())?;
-            item.encode(writer)?;
+            ser.writer.write_string(key.to_string())?;
+            item.encode(ser)?;
         }
         Ok(())
     }
 }
 
 impl Decode for Contents {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        let length = reader.read_u32()?;
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let length = de.reader.read_u32()?;
         for _ in 0..length {
-            let key = reader.read_string()?;
+            let key = de.reader.read_string()?;
             let mut value: AeadPack = Default::default();
-            value.decode(reader)?;
+            value.decode(de)?;
             self.data.insert(Uuid::parse_str(&key)?, value);
         }
         Ok(())
@@ -184,13 +192,13 @@ impl Decode for Contents {
 pub struct Trailer {}
 
 impl Encode for Trailer {
-    fn encode(&self, _writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, _ser: &mut Serializer) -> BinaryResult<()> {
         Ok(())
     }
 }
 
 impl Decode for Trailer {
-    fn decode(&mut self, _reader: &mut BinaryReader) -> Result<()> {
+    fn decode(&mut self, _de: &mut Deserializer) -> BinaryResult<()> {
         Ok(())
     }
 }
@@ -205,21 +213,21 @@ pub struct Vault {
 }
 
 impl Encode for Vault {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        self.header.encode(writer)?;
-        self.index.encode(writer)?;
-        self.contents.encode(writer)?;
-        self.trailer.encode(writer)?;
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        self.header.encode(ser)?;
+        self.index.encode(ser)?;
+        self.contents.encode(ser)?;
+        self.trailer.encode(ser)?;
         Ok(())
     }
 }
 
 impl Decode for Vault {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        self.header.decode(reader)?;
-        self.index.decode(reader)?;
-        self.contents.decode(reader)?;
-        self.trailer.decode(reader)?;
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        self.header.decode(de)?;
+        self.index.decode(de)?;
+        self.contents.decode(de)?;
+        self.trailer.decode(de)?;
         Ok(())
     }
 }
@@ -357,26 +365,31 @@ impl Vault {
 
 /// Encode into a binary buffer.
 pub fn into_encoded_buffer(encodable: &impl Encode) -> Result<Vec<u8>> {
-    let mut stream = MemoryStream::new();
-    let mut writer = BinaryWriter::new(&mut stream, Endian::Big);
-    encodable.encode(&mut writer)?;
-    Ok(stream.into())
+    let buffer = serde_binary::encode(encodable, Endian::Big)?;
+    Ok(buffer)
+    //let mut stream = MemoryStream::new();
+    //let mut writer = BinaryWriter::new(&mut stream, Endian::Big);
+    //encodable.encode(&mut writer)?;
+    //Ok(stream.into())
 }
 
 /// Decode into a binary buffer.
 pub fn from_encoded_buffer<T: Decode + Default>(buffer: Vec<u8>) -> Result<T> {
-    let mut stream: MemoryStream = buffer.into();
-    let mut reader = BinaryReader::new(&mut stream, Endian::Big);
-    let mut decoded: T = T::default();
-    decoded.decode(&mut reader)?;
-    Ok(decoded)
+    let result: T = serde_binary::decode(buffer, Endian::Big)?;
+    Ok(result)
+
+    //let mut stream: MemoryStream = buffer.into();
+    //let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+    //let mut decoded: T = T::default();
+    //decoded.decode(&mut reader)?;
+    //Ok(decoded)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use anyhow::Result;
-    use binary_rw::{MemoryStream, Stream};
+    use serde_binary::binary_rw::{MemoryStream, Stream};
     use uuid::Uuid;
 
     #[test]

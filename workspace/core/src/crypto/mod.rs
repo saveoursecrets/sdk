@@ -1,8 +1,9 @@
 //! Cryptographic routines and types.
-use binary_rw::{BinaryReader, BinaryWriter};
+use serde_binary::{
+    Encode, Decode, Serializer, Deserializer, Result as BinaryResult,
+};
 
 use crate::{
-    traits::{Decode, Encode},
     Result,
 };
 
@@ -36,19 +37,19 @@ impl Default for AeadPack {
 }
 
 impl Encode for AeadPack {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        writer.write_bytes(&self.nonce)?;
-        writer.write_u32(self.ciphertext.len() as u32)?;
-        writer.write_bytes(&self.ciphertext)?;
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_bytes(&self.nonce)?;
+        ser.writer.write_u32(self.ciphertext.len() as u32)?;
+        ser.writer.write_bytes(&self.ciphertext)?;
         Ok(())
     }
 }
 
 impl Decode for AeadPack {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        self.nonce = reader.read_bytes(12)?;
-        let length = reader.read_u32()?;
-        self.ciphertext = reader.read_bytes(length as usize)?;
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        self.nonce = de.reader.read_bytes(12)?;
+        let length = de.reader.read_u32()?;
+        self.ciphertext = de.reader.read_bytes(length as usize)?;
         Ok(())
     }
 }

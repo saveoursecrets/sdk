@@ -1,5 +1,8 @@
 //! Authorization routines using ECDSA.
-use binary_rw::{BinaryReader, BinaryWriter};
+use serde_binary::{
+    Encode, Decode, Serializer, Deserializer,
+    binary_rw::{BinaryReader, BinaryWriter}
+};
 use k256::ecdsa::{
     signature::Signature as EcdsaSignature, signature::Verifier, Signature, SigningKey,
     VerifyingKey,
@@ -11,7 +14,6 @@ use std::sync::{Arc, RwLock};
 use super::{keypair::KeyPart, types::*};
 use crate::{
     address::{address_compressed, address_decompressed},
-    traits::{Decode, Encode},
     Error, Result,
 };
 
@@ -48,7 +50,7 @@ impl TryFrom<&PrivateKey> for SigningKey {
 /// An ECDSA public key abstraction designed to allow either
 /// single party or multi-party access using different ECDSA
 /// implementations.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, Eq, PartialEq)]
 pub struct PublicKey {
     /// Whether the key data is compressed, so that we know
     /// how many bytes to decode.
@@ -58,7 +60,7 @@ pub struct PublicKey {
 }
 
 /// Represents the public key data bytes.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub enum KeyData {
     /// Compressed public key of 0x02 or 0x03 followed by 32 bytes for the x coordinate
     Compressed([u8; COMPRESSED as usize]),
@@ -135,6 +137,7 @@ impl TryFrom<&PublicKey> for VerifyingKey {
     }
 }
 
+/*
 impl Encode for PublicKey {
     fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
         writer.write_bool(self.compressed)?;
@@ -162,6 +165,7 @@ impl Decode for PublicKey {
         Ok(())
     }
 }
+*/
 
 /// Challenge sent to clients that wish to authorize.
 ///

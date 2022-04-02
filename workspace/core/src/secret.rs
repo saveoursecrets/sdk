@@ -1,5 +1,9 @@
 //! Types used to represent vault meta data and secrets.
-use binary_rw::{BinaryReader, BinaryWriter};
+use serde_binary::{
+    Encode, Decode,
+    Serializer, Deserializer,
+    Result as BinaryResult,
+};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -7,7 +11,6 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    traits::{Decode, Encode},
     Error, Result,
 };
 
@@ -43,25 +46,25 @@ impl MetaData {
 }
 
 impl Encode for MetaData {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        writer.write_string(&self.label)?;
-        writer.write_u32(self.secrets.len() as u32)?;
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_string(&self.label)?;
+        ser.writer.write_u32(self.secrets.len() as u32)?;
         for (key, value) in self.secrets.iter() {
-            writer.write_string(key.to_string())?;
-            value.encode(writer)?;
+            ser.writer.write_string(key.to_string())?;
+            value.encode(ser)?;
         }
         Ok(())
     }
 }
 
 impl Decode for MetaData {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        self.label = reader.read_string()?;
-        let secrets_len = reader.read_u32()?;
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        self.label = de.reader.read_string()?;
+        let secrets_len = de.reader.read_u32()?;
         for _ in 0..secrets_len {
-            let key = Uuid::parse_str(&reader.read_string()?)?;
+            let key = Uuid::parse_str(&de.reader.read_string()?)?;
             let mut value: SecretMeta = Default::default();
-            value.decode(reader)?;
+            value.decode(de)?;
             self.secrets.insert(key, value);
         }
         Ok(())
@@ -83,15 +86,15 @@ impl SecretMeta {
 }
 
 impl Encode for SecretMeta {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        writer.write_string(&self.label)?;
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_string(&self.label)?;
         Ok(())
     }
 }
 
 impl Decode for SecretMeta {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        self.label = reader.read_string()?;
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        self.label = de.reader.read_string()?;
         Ok(())
     }
 }
@@ -144,25 +147,25 @@ pub mod kind {
 }
 
 impl Encode for Secret {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         let kind = match self {
             Self::Text(_) => kind::TEXT,
             Self::Blob { .. } => kind::BLOB,
             Self::Account { .. } => kind::ACCOUNT,
             Self::Credentials { .. } => kind::CREDENTIALS,
         };
-        writer.write_u8(kind)?;
+        ser.writer.write_u8(kind)?;
 
         match self {
             Self::Text(text) => {
-                writer.write_string(text)?;
+                ser.writer.write_string(text)?;
             }
             Self::Blob { buffer, mime } => {
-                writer.write_u32(buffer.len() as u32)?;
-                writer.write_bytes(buffer)?;
-                writer.write_bool(mime.is_some())?;
+                ser.writer.write_u32(buffer.len() as u32)?;
+                ser.writer.write_bytes(buffer)?;
+                ser.writer.write_bool(mime.is_some())?;
                 if let Some(mime) = mime {
-                    writer.write_string(mime)?;
+                    ser.writer.write_string(mime)?;
                 }
             }
             Self::Account {
@@ -170,18 +173,18 @@ impl Encode for Secret {
                 password,
                 url,
             } => {
-                writer.write_string(account)?;
-                writer.write_string(password)?;
-                writer.write_bool(url.is_some())?;
+                ser.writer.write_string(account)?;
+                ser.writer.write_string(password)?;
+                ser.writer.write_bool(url.is_some())?;
                 if let Some(url) = url {
-                    writer.write_string(url.to_string())?;
+                    ser.writer.write_string(url.to_string())?;
                 }
             }
             Self::Credentials(list) => {
-                writer.write_u32(list.len() as u32)?;
+                ser.writer.write_u32(list.len() as u32)?;
                 for (k, v) in list {
-                    writer.write_string(k)?;
-                    writer.write_string(v)?;
+                    ser.writer.write_string(k)?;
+                    ser.writer.write_string(v)?;
                 }
             }
         }
@@ -191,18 +194,18 @@ impl Encode for Secret {
 }
 
 impl Decode for Secret {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        let kind = reader.read_u8()?;
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let kind = de.reader.read_u8()?;
         match kind {
             kind::TEXT => {
-                *self = Self::Text(reader.read_string()?);
+                *self = Self::Text(de.reader.read_string()?);
             }
             kind::BLOB => {
-                let buffer_len = reader.read_u32()?;
-                let buffer = reader.read_bytes(buffer_len as usize)?;
-                let has_mime = reader.read_bool()?;
+                let buffer_len = de.reader.read_u32()?;
+                let buffer = de.reader.read_bytes(buffer_len as usize)?;
+                let has_mime = de.reader.read_bool()?;
                 let mime = if has_mime {
-                    Some(reader.read_string()?)
+                    Some(de.reader.read_string()?)
                 } else {
                     None
                 };
@@ -210,11 +213,11 @@ impl Decode for Secret {
                 *self = Self::Blob { buffer, mime };
             }
             kind::ACCOUNT => {
-                let account = reader.read_string()?;
-                let password = reader.read_string()?;
-                let has_url = reader.read_bool()?;
+                let account = de.reader.read_string()?;
+                let password = de.reader.read_string()?;
+                let has_url = de.reader.read_bool()?;
                 let url = if has_url {
-                    Some(Url::parse(&reader.read_string()?)?)
+                    Some(Url::parse(&de.reader.read_string()?)?)
                 } else {
                     None
                 };
@@ -226,11 +229,11 @@ impl Decode for Secret {
                 };
             }
             kind::CREDENTIALS => {
-                let list_len = reader.read_u32()?;
+                let list_len = de.reader.read_u32()?;
                 let mut list: HashMap<String, String> = HashMap::with_capacity(list_len as usize);
                 for _ in 0..list_len {
-                    let key = reader.read_string()?;
-                    let value = reader.read_string()?;
+                    let key = de.reader.read_string()?;
+                    let value = de.reader.read_string()?;
                     list.insert(key, value);
                 }
 
