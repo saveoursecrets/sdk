@@ -19,6 +19,6 @@ const WorkerProvider = (props: WorkerProviderProps) => {
   );
 };
 
-export { WorkerContext, webWorker };
+export { WorkerContext, webWorker, worker };
 
 export default WorkerProvider;

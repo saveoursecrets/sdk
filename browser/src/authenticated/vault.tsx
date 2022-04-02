@@ -13,7 +13,7 @@ import Grid from "@mui/material/Grid";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 
-import { WorkerContext } from "../worker-provider";
+//import { WorkerContext } from "../worker-provider";
 import {
   vaultsSelector,
   VaultStorage,
