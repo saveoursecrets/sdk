@@ -6,10 +6,10 @@
   "license": "MIT",
   "private": true,
   "scripts": {
+    "types": "tsc --noEmit --project tsconfig.json",
     "public": "rm -rf ../workspace/server/public && cp -r dist ../workspace/server/public",
-    "build": "webpack --config webpack.config.js --node-env production && yarn public",
-    "build:dev": "webpack --config webpack.config.js --node-env development",
-    "start": "webpack-dev-server --no-client-overlay",
+    "build": "parcel build index.html && yarn public",
+    "start": "parcel index.html --port 8080",
     "prettier": "prettier --write . --no-color",
     "lint": "eslint src",
     "test:headed": "FORCE_COLOR=0 playwright test --headed",
@@ -38,15 +38,11 @@
     "@types/react-redux": "^7.1.20",
     "@typescript-eslint/eslint-plugin": "^5.17.0",
     "@typescript-eslint/parser": "^5.17.0",
-    "copy-webpack-plugin": "^10.2.4",
     "eslint": "^8.12.0",
     "eslint-plugin-react": "^7.29.3",
+    "parcel": "^2.4.1",
     "prettier": "^2.6.1",
-    "string-replace-loader": "^3.1.0",
     "ts-loader": "^9.2.6",
-    "typescript": "^4.6.3",
-    "webpack": "^5.71.0",
-    "webpack-cli": "^4.9.1",
-    "webpack-dev-server": "^4.7.1"
+    "typescript": "^4.6.3"
   }
 }

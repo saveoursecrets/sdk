@@ -15,10 +15,7 @@ pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<AeadPack> {
     let cipher_nonce = Nonce::from_slice(&nonce);
     let cipher = Aes256Gcm::new(aes_gcm::Key::from_slice(key));
     let ciphertext = cipher.encrypt(cipher_nonce, plaintext)?;
-    Ok(AeadPack {
-        ciphertext,
-        nonce: nonce.to_vec(),
-    })
+    Ok(AeadPack { ciphertext, nonce })
 }
 
 /// Decrypt ciphertext/nonce using the key as 256 bit AES-GCM.

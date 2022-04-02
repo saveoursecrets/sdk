@@ -33,10 +33,6 @@ pub struct Auth {
 impl Encode for Auth {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         self.public_keys.serialize(ser)?;
-        //ser.writer.write_u32(self.public_keys.len() as u32)?;
-        //for public_key in &self.public_keys {
-        //public_key.encode(writer)?;
-        //}
         Ok(())
     }
 }
@@ -44,13 +40,6 @@ impl Encode for Auth {
 impl Decode for Auth {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.public_keys = Deserialize::deserialize(de)?;
-
-        //let length = de.reader.read_u32()?;
-        //for _ in 0..length {
-        //let mut public_key: PublicKey = Default::default();
-        //public_key.decode(reader)?;
-        //self.public_keys.push(public_key);
-        //}
         Ok(())
     }
 }

@@ -4,7 +4,6 @@ import Stack from "@mui/material/Stack";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
 
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/RemoveCircleOutline";
@@ -23,7 +22,7 @@ function mapErrors(
   let hasCredError = false;
   const errors = credentials.map((item: [string, string]) => {
     const [key, value] = item;
-    let error = { key: false, value: false };
+    const error = { key: false, value: false };
     if (key.trim() === "") {
       error.key = true;
       hasCredError = true;
