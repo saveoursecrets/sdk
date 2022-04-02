@@ -32,14 +32,16 @@ pub struct Auth {
 
 impl Encode for Auth {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        self.public_keys.serialize(ser)?;
+        self.salt.serialize(&mut *ser)?;
+        self.public_keys.serialize(&mut *ser)?;
         Ok(())
     }
 }
 
 impl Decode for Auth {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.public_keys = Deserialize::deserialize(de)?;
+        self.salt = Deserialize::deserialize(&mut *de)?;
+        self.public_keys = Deserialize::deserialize(&mut *de)?;
         Ok(())
     }
 }
@@ -155,8 +157,8 @@ impl Encode for Contents {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u32(self.data.len() as u32)?;
         for (key, item) in &self.data {
-            ser.writer.write_string(key.to_string())?;
-            item.encode(ser)?;
+            key.serialize(&mut *ser)?;
+            item.encode(&mut *ser)?;
         }
         Ok(())
     }
@@ -166,11 +168,11 @@ impl Decode for Contents {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let length = de.reader.read_u32()?;
         for _ in 0..length {
-            let key = de.reader.read_string()?;
+            let key: Uuid = Deserialize::deserialize(&mut *de)?;
             let mut value: AeadPack = Default::default();
-            value.decode(de)?;
+            value.decode(&mut *de)?;
             self.data
-                .insert(Uuid::parse_str(&key).map_err(Box::from)?, value);
+                .insert(key, value);
         }
         Ok(())
     }
@@ -395,7 +397,7 @@ mod tests {
     #[test]
     fn decode_file() -> Result<()> {
         let vault = Vault::read_file(
-            "./fixtures/10b426d9-62ce-4bea-aa5f-6349aeef65c5.vault",
+            "./fixtures/3daf9f89-9afe-4b6e-88e7-18da48f83dee.vault",
         )?;
         println!("Vault {:#?}", vault);
         Ok(())
@@ -404,7 +406,7 @@ mod tests {
     #[test]
     fn decode_buffer() -> Result<()> {
         let buffer = std::fs::read(
-            "./fixtures/10b426d9-62ce-4bea-aa5f-6349aeef65c5.vault",
+            "./fixtures/3daf9f89-9afe-4b6e-88e7-18da48f83dee.vault",
         )?;
 
         println!("{}", hex::encode(&buffer));
