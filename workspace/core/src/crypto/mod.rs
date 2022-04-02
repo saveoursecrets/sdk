@@ -1,5 +1,5 @@
 //! Cryptographic routines and types.
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_binary::{
     Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
