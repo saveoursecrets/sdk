@@ -45,7 +45,9 @@ pub enum Error {
     UnknownKeyTypeId,
 
     /// Error generated when the leading byte for a compressed public key is invalid.
-    #[error("compressed public key has wrong first byte, must be 0x02 0r 0x03")]
+    #[error(
+        "compressed public key has wrong first byte, must be 0x02 0r 0x03"
+    )]
     BadPublicKeyByte,
 
     /// Error generated when a public key is not compressed.
@@ -61,7 +63,9 @@ pub enum Error {
     ChallengeNotFound,
 
     /// Error generated when a public key has the wrong length.
-    #[error("public key is wrong length, expecting {0} bytes but got {1} bytes")]
+    #[error(
+        "public key is wrong length, expecting {0} bytes but got {1} bytes"
+    )]
     InvalidPublicKeyLength(u8, usize),
 
     /// Error generated when an address has the wrong prefix.
@@ -100,9 +104,13 @@ pub enum Error {
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
 
+    /// Error generated from the binary serializer / deserializer.
+    #[error(transparent)]
+    Binary(#[from] serde_binary::Error),
+
     /// Error generated from the binary reader / writer.
     #[error(transparent)]
-    Binary(#[from] binary_rw::BinaryError),
+    BinaryRw(#[from] serde_binary::binary_rw::BinaryError),
 
     /// Error generated during AES encryption and decryption.
     #[error(transparent)]

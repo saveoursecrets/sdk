@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { NavigateFunction } from "react-router-dom";
 import { WebVault } from "sos-wasm";
 
-import api from './api';
+import api from "./api";
 import {
   NewVaultResult,
   SecureNoteResult,
@@ -58,14 +58,14 @@ export interface FileUploadRequest {
 }
 
 interface LoadVaultsRequest {
-  user: User,
-  worker: VaultWorker,
+  user: User;
+  worker: VaultWorker;
 }
 
 export const loadVaults = createAsyncThunk(
   "vaults/loadVaults",
   async (request: LoadVaultsRequest) => {
-    const {user, worker} = request;
+    const { user, worker } = request;
     const ids = await api.loadVaults(user);
 
     console.log(ids);
@@ -82,32 +82,33 @@ export const loadVaults = createAsyncThunk(
 
     console.log(dict);
 
-    const storage = Object.entries(dict).map(async (item: [string, ArrayBuffer]) => {
-      const [id, buffer] = item;
+    const storage = Object.entries(dict).map(
+      async (item: [string, ArrayBuffer]) => {
+        const [id, buffer] = item;
 
-      console.log("worker", worker);
+        console.log("worker", worker);
 
-      const vault: WebVault = await new (worker.WebVault as any)();
+        const vault: WebVault = await new (worker.WebVault as any)();
 
-      console.log("vault", vault);
+        console.log("vault", vault);
 
-      try {
-        console.log("Calling import buffer...");
-        await vault.importBuffer(Array.from(new Uint8Array(buffer)));
+        try {
+          console.log("Calling import buffer...");
+          await vault.importBuffer(Array.from(new Uint8Array(buffer)));
 
-        console.log("AFTER IMPORT BUFFER");
+          console.log("AFTER IMPORT BUFFER");
+        } catch (e) {
+          console.error(e);
+        }
 
-      } catch(e) {
-        console.error(e);
+        return {
+          uuid: id,
+          label: id,
+          vault,
+          locked: true,
+        };
       }
-
-      return {
-        uuid: id,
-        label: id,
-        vault,
-        locked: true,
-      }
-    });
+    );
 
     return await Promise.all(storage);
   }
@@ -182,7 +183,7 @@ export const createNewFileUpload = createAsyncThunk(
     const { vault } = owner;
     try {
       await vault.createFileUpload(result);
-    } catch(e) {
+    } catch (e) {
       console.error(e);
     }
     const index = await vault.getSecretIndex();

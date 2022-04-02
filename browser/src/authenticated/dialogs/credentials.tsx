@@ -20,9 +20,7 @@ export default function CredentialsDialog(props: CredentialsProps) {
 
   return (
     <Dialog open={open} onClose={handleCancel}>
-      <DialogTitle color="text.secondary">
-        Credentials
-      </DialogTitle>
+      <DialogTitle color="text.secondary">Credentials</DialogTitle>
       <DialogContent>
         <CredentialsForm
           label=""

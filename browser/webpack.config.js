@@ -35,9 +35,7 @@ module.exports = {
   mode: process.env.NODE_ENV || "development",
   plugins: [
     new CopyPlugin({
-      patterns: [
-        { from: "index.html", to: "index.html" },
-      ],
+      patterns: [{ from: "index.html", to: "index.html" }],
     }),
   ],
   devServer: {

@@ -20,15 +20,22 @@ pub fn parse_salt<S: AsRef<str>>(salt: S) -> Result<SaltString> {
 }
 
 /// Hash a password using the given salt.
-fn hash_password<S: AsRef<str>>(password: S, salt: &SaltString) -> Result<PasswordHash> {
+fn hash_password<S: AsRef<str>>(
+    password: S,
+    salt: &SaltString,
+) -> Result<PasswordHash> {
     let argon2 = Argon2::default();
-    let password_hash = argon2.hash_password(password.as_ref().as_bytes(), salt)?;
+    let password_hash =
+        argon2.hash_password(password.as_ref().as_bytes(), salt)?;
     Ok(password_hash)
 }
 
 /// Hash a password using the given salt and convert to a 32 byte
 /// private key using the keccak256 hashing algorithm.
-pub fn generate_secret_key<S: AsRef<str>>(password: S, salt: &SaltString) -> Result<[u8; 32]> {
+pub fn generate_secret_key<S: AsRef<str>>(
+    password: S,
+    salt: &SaltString,
+) -> Result<[u8; 32]> {
     let password_hash = hash_password(password, salt)?;
     let hash = Keccak256::digest(password_hash.to_string().as_bytes());
     let hash: [u8; 32] = hash.as_slice().try_into()?;

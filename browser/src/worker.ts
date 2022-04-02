@@ -5,11 +5,11 @@ export { WebVault, generatePassphrase } from "sos-wasm";
 
 console.log("WORKER IS INITIALIZING...");
 
-void async function() {
+void (async function () {
   // Requires top-level await experiment
   await init();
   console.log("Worker finished initializing");
-  self.postMessage({ready: true});
-}();
+  self.postMessage({ ready: true });
+})();
 
 Comlink.expose({ WebVault, generatePassphrase });

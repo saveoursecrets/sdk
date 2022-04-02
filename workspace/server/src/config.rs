@@ -77,11 +77,9 @@ impl UserConfig {
             "file" => {
                 let url = self.url.clone();
                 let mut is_relative = false;
-                if let Some(host) = url.host() {
-                    if let Host::Domain(name) = host {
-                        if name == "." {
-                            is_relative = true;
-                        }
+                if let Some(Host::Domain(name)) = url.host() {
+                    if name == "." {
+                        is_relative = true;
                     }
                 }
                 let url = if is_relative {
@@ -92,7 +90,7 @@ impl UserConfig {
                     let mut base: Url = base_file.parse()?;
                     // Must end with a slash to join the relative path
                     // correctly
-                    if !base.path().ends_with("/") {
+                    if !base.path().ends_with('/') {
                         let path = format!("{}/", base.path());
                         base.set_path(&path);
                     }

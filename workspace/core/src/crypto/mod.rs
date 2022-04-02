@@ -1,9 +1,6 @@
 //! Cryptographic routines and types.
-use binary_rw::{BinaryReader, BinaryWriter};
-
-use crate::{
-    traits::{Decode, Encode},
-    Result,
+use serde_binary::{
+    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
 
 pub mod aes_gcm_256;
@@ -36,19 +33,19 @@ impl Default for AeadPack {
 }
 
 impl Encode for AeadPack {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        writer.write_bytes(&self.nonce)?;
-        writer.write_u32(self.ciphertext.len() as u32)?;
-        writer.write_bytes(&self.ciphertext)?;
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_bytes(&self.nonce)?;
+        ser.writer.write_u32(self.ciphertext.len() as u32)?;
+        ser.writer.write_bytes(&self.ciphertext)?;
         Ok(())
     }
 }
 
 impl Decode for AeadPack {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        self.nonce = reader.read_bytes(12)?;
-        let length = reader.read_u32()?;
-        self.ciphertext = reader.read_bytes(length as usize)?;
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        self.nonce = de.reader.read_bytes(12)?;
+        let length = de.reader.read_u32()?;
+        self.ciphertext = de.reader.read_bytes(length as usize)?;
         Ok(())
     }
 }
@@ -145,16 +142,20 @@ mod tests {
 
         // Client receives the challenge
         let client_challenge: Challenge = serde_json::from_str(&server_packet)?;
-        let client_signature: Signature = signing_key.sign(client_challenge.message());
+        let client_signature: Signature =
+            signing_key.sign(client_challenge.message());
         let signature_bytes = client_signature.as_bytes().to_vec();
-        let client_response =
-            ChallengeResponse::new(client_challenge.id().clone(), signature_bytes);
+        let client_response = ChallengeResponse::new(
+            client_challenge.id().clone(),
+            signature_bytes,
+        );
         let client_packet = serde_json::to_string(&client_response)?;
 
         // ... client sends the response to the server
 
         // Server receives the response
-        let challenge_response: ChallengeResponse = serde_json::from_str(&client_packet)?;
+        let challenge_response: ChallengeResponse =
+            serde_json::from_str(&client_packet)?;
 
         assert!(authorization
             .authorize(&public_keys, &challenge_response)
