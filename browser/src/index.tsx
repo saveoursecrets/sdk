@@ -10,7 +10,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { createTheme } from "@mui/material/styles";
 
 import store from "./store";
-import WorkerProvider, { WorkerContext, webWorker } from "./worker-provider";
+import WorkerProvider, { WorkerContext, webWorker, worker } from "./worker-provider";
 import { VaultWorker } from "./types";
 
 import App from "./app";
@@ -30,7 +30,7 @@ declare module "@mui/material/styles" {
   }
 }
 
-interface AppProps {
+type AppProps = {
   worker: VaultWorker;
 }
 
@@ -38,6 +38,9 @@ function MainApp(props: AppProps) {
   const { worker } = props;
   const { user } = useSelector(userSelector);
   const [workerReady, setWorkerReady] = useState(false);
+
+  //console.log("Main app rendering", worker);
+  //console.log("Main app rendering", user);
 
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const theme = useMemo(
@@ -65,6 +68,10 @@ function MainApp(props: AppProps) {
     return null;
   }
 
+  console.log("Rendering app", workerReady);
+
+  //return <AuthenticatedApp worker={worker} />;
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -82,13 +89,7 @@ root.render(
   <React.StrictMode>
     <Provider store={store}>
       <HashRouter>
-        <WorkerProvider>
-          <WorkerContext.Consumer>
-            {(worker) => {
-              return <MainApp worker={worker} />;
-            }}
-          </WorkerContext.Consumer>
-        </WorkerProvider>
+        <MainApp worker={worker} />
       </HashRouter>
     </Provider>
   </React.StrictMode>

@@ -81,7 +81,7 @@ const DrawerHeader = styled("div")(({ theme }) => ({
   justifyContent: "flex-end",
 }));
 
-interface AppProps {
+type AppProps = {
   worker: VaultWorker;
 }
 
@@ -94,11 +94,10 @@ export default function AuthenticatedApp(props: AppProps) {
 
   useEffect(() => {
     const useLoadVaults = async () => {
-      console.log("Loading user vaults...");
       dispatch(loadVaults({ user, worker }));
     };
     useLoadVaults();
-  }, [user]);
+  }, []);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
