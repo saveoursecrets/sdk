@@ -1,4 +1,5 @@
 //! Cryptographic routines and types.
+use serde::{Deserialize, Serialize};
 use serde_binary::{
     Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
@@ -18,7 +19,7 @@ pub mod types {
 #[derive(Debug, Eq, PartialEq)]
 pub struct AeadPack {
     /// Number once value.
-    pub nonce: Vec<u8>,
+    pub nonce: [u8; 12],
     /// Encrypted cipher text.
     pub ciphertext: Vec<u8>,
 }
@@ -26,7 +27,7 @@ pub struct AeadPack {
 impl Default for AeadPack {
     fn default() -> Self {
         Self {
-            nonce: vec![0; 12],
+            nonce: [0; 12],
             ciphertext: Default::default(),
         }
     }
@@ -35,17 +36,15 @@ impl Default for AeadPack {
 impl Encode for AeadPack {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_bytes(&self.nonce)?;
-        ser.writer.write_u32(self.ciphertext.len() as u32)?;
-        ser.writer.write_bytes(&self.ciphertext)?;
+        self.ciphertext.serialize(ser)?;
         Ok(())
     }
 }
 
 impl Decode for AeadPack {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.nonce = de.reader.read_bytes(12)?;
-        let length = de.reader.read_u32()?;
-        self.ciphertext = de.reader.read_bytes(length as usize)?;
+        self.nonce = de.reader.read_bytes(12)?.as_slice().try_into()?;
+        self.ciphertext = Deserialize::deserialize(de)?;
         Ok(())
     }
 }

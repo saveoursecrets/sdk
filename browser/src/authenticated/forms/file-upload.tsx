@@ -10,11 +10,13 @@ import { FileUploadResult } from "../../types";
 // 8MB for file uploads
 const MAX_FILE_SIZE = 8388608;
 
+/*
 interface FileInfo {
   name?: string;
   size?: number;
   buffer: ArrayBuffer;
 }
+*/
 
 interface FileUploadFormProps extends FileUploadResult {
   onFormSubmit: (result: FileUploadResult) => void;
