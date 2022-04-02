@@ -10,7 +10,7 @@ pub mod passphrase;
 pub mod secret;
 pub mod vault;
 
-pub use vault::{decode as from_encoded_buffer, encode as into_encoded_buffer};
+pub use vault::{decode, encode};
 
 pub use error::Error;
 

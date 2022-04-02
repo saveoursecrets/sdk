@@ -19,7 +19,7 @@ use crate::{
         aes_gcm_256,
         passphrase::{generate_secret_key, parse_salt},
     },
-    from_encoded_buffer, into_encoded_buffer,
+    decode, encode,
     secret::{MetaData, Secret, SecretMeta},
     vault::Vault,
     Error, Result,
@@ -82,7 +82,7 @@ impl Gatekeeper {
         if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.index().meta() {
                 let meta_blob = aes_gcm_256::decrypt(private_key, meta_aead)?;
-                let meta_data: MetaData = from_encoded_buffer(meta_blob)?;
+                let meta_data: MetaData = decode(meta_blob)?;
                 Ok(meta_data.label().to_string())
             } else {
                 Err(Error::VaultNotInit)
@@ -98,7 +98,7 @@ impl Gatekeeper {
         if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.index().meta() {
                 let meta_blob = aes_gcm_256::decrypt(private_key, meta_aead)?;
-                let meta_data: MetaData = from_encoded_buffer(meta_blob)?;
+                let meta_data: MetaData = decode(meta_blob)?;
                 Ok(meta_data)
             } else {
                 Err(Error::VaultNotInit)
@@ -111,7 +111,7 @@ impl Gatekeeper {
     /// Set the meta data for the vault.
     pub fn set_meta(&mut self, meta_data: MetaData) -> Result<()> {
         if let Some(private_key) = &self.private_key {
-            let meta_blob = into_encoded_buffer(&meta_data)?;
+            let meta_blob = encode(&meta_data)?;
             let meta_aead = aes_gcm_256::encrypt(private_key, &meta_blob)?;
             self.vault.index_mut().set_meta(Some(meta_aead));
             Ok(())
@@ -150,7 +150,7 @@ impl Gatekeeper {
     ) -> Result<Uuid> {
         if let Some(private_key) = &self.private_key {
             let uuid = uuid.unwrap_or_else(Uuid::new_v4);
-            let secret_blob = into_encoded_buffer(secret)?;
+            let secret_blob = encode(secret)?;
             let secret_aead = aes_gcm_256::encrypt(private_key, &secret_blob)?;
             self.vault.add_secret(uuid, secret_aead);
             Ok(uuid)
@@ -165,7 +165,7 @@ impl Gatekeeper {
             if let Some(secret_aead) = self.vault.get_secret(uuid) {
                 let secret_blob =
                     aes_gcm_256::decrypt(private_key, secret_aead)?;
-                let secret: Secret = from_encoded_buffer(secret_blob)?;
+                let secret: Secret = decode(secret_blob)?;
                 Ok(secret)
             } else {
                 Err(Error::SecretDoesNotExist(*uuid))
