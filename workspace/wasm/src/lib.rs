@@ -1,14 +1,15 @@
 #![deny(missing_docs)]
+#![allow(clippy::new_without_default)]
 //! Webassembly bindings to the vault and gatekeeper.
 use wasm_bindgen::prelude::*;
 
 use sos_core::{
+    from_encoded_buffer,
     gatekeeper::Gatekeeper,
     into_encoded_buffer,
-    from_encoded_buffer,
     secret::{kind::*, Secret, SecretMeta},
-    vault::Vault,
     uuid::Uuid,
+    vault::Vault,
 };
 
 use serde::{Deserialize, Serialize};
@@ -167,7 +168,7 @@ impl WebVault {
         let meta_data = SecretMeta::new(label);
         let uuid = self.keeper.set_secret(&secret, None)?;
         self.index
-            .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), ACCOUNT));
+            .insert(uuid, SearchMeta::new(meta_data.clone(), ACCOUNT));
         self.keeper.set_secret_meta(uuid, meta_data)?;
         Ok(JsValue::from_serde(&uuid)?)
     }
@@ -185,7 +186,7 @@ impl WebVault {
         let uuid = self.keeper.set_secret(&secret, None)?;
 
         self.index
-            .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), TEXT));
+            .insert(uuid, SearchMeta::new(meta_data.clone(), TEXT));
         self.keeper.set_secret_meta(uuid, meta_data)?;
         Ok(JsValue::from_serde(&uuid)?)
     }
@@ -202,10 +203,8 @@ impl WebVault {
         let meta_data = SecretMeta::new(label);
         let uuid = self.keeper.set_secret(&secret, None)?;
 
-        self.index.insert(
-            uuid.clone(),
-            SearchMeta::new(meta_data.clone(), CREDENTIALS),
-        );
+        self.index
+            .insert(uuid, SearchMeta::new(meta_data.clone(), CREDENTIALS));
         self.keeper.set_secret_meta(uuid, meta_data)?;
         Ok(JsValue::from_serde(&uuid)?)
     }
@@ -216,17 +215,19 @@ impl WebVault {
         &mut self,
         request: JsValue,
     ) -> Result<JsValue, JsError> {
-        let FileUpload { label, buffer, name } = request.into_serde()?;
+        let FileUpload {
+            label,
+            buffer,
+            name,
+        } = request.into_serde()?;
 
         let mime = mime_guess::from_path(name).first().map(|m| m.to_string());
-        let secret = Secret::Blob {buffer, mime};
+        let secret = Secret::Blob { buffer, mime };
         let meta_data = SecretMeta::new(label);
         let uuid = self.keeper.set_secret(&secret, None)?;
 
-        self.index.insert(
-            uuid.clone(),
-            SearchMeta::new(meta_data.clone(), BLOB),
-        );
+        self.index
+            .insert(uuid, SearchMeta::new(meta_data.clone(), BLOB));
         self.keeper.set_secret_meta(uuid, meta_data)?;
         Ok(JsValue::from_serde(&uuid)?)
     }

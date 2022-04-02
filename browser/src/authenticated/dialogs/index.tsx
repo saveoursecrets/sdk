@@ -76,7 +76,6 @@ export default function Dialogs(props: DialogProps) {
     dispatch(setDialogVisible([key, false]));
   };
 
-
   return (
     <>
       <NewVaultDialog

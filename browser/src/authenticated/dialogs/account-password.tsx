@@ -20,9 +20,7 @@ export default function AccountPasswordDialog(props: AccountPasswordProps) {
 
   return (
     <Dialog open={open} onClose={handleCancel}>
-      <DialogTitle color="text.secondary">
-        Account Password
-      </DialogTitle>
+      <DialogTitle color="text.secondary">Account Password</DialogTitle>
       <DialogContent>
         <AccountPasswordForm
           label=""

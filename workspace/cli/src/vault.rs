@@ -1,27 +1,24 @@
-use anyhow::{anyhow, bail, Result};
-use sos_core::{
-    crypto::{
-        authorize::{jwt::KeyPair, PrivateKey},
-        keypair::KeyPart,
-    },
-    vault::Vault,
-};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+//use anyhow::{bail, Result};
+//use sos_core::{
+//crypto::{
+//authorize::{PrivateKey},
+//keypair::KeyPart,
+//},
+//};
+//use std::path::PathBuf;
 
-use log::info;
+//use log::info;
 
-const PASSPHRASE_PROMPT: &str = "Passphrase: ";
+//const PASSPHRASE_PROMPT: &str = "Passphrase: ";
 
-fn passphrase_prompt(prompt: &str) -> Result<String> {
-    todo!()
-    //let passphrase = prompt_password(prompt)?;
-    //if passphrase.trim().is_empty() {
-    //return passphrase_prompt(prompt);
-    //}
-    //Ok(passphrase)
-}
+//fn passphrase_prompt(prompt: &str) -> Result<String> {
+//todo!()
+//let passphrase = prompt_password(prompt)?;
+//if passphrase.trim().is_empty() {
+//return passphrase_prompt(prompt);
+//}
+//Ok(passphrase)
+//}
 
 /*
 fn get_service(vault: PathBuf, jwt_keypair: PathBuf) -> Result<MemoryService> {
@@ -55,7 +52,8 @@ fn get_service(vault: PathBuf, jwt_keypair: PathBuf) -> Result<MemoryService> {
 }
 */
 
-fn get_private_key<'a>(auth_private_key: PathBuf) -> Result<PrivateKey> {
+/*
+fn get_private_key(auth_private_key: PathBuf) -> Result<PrivateKey> {
     if !auth_private_key.is_file() {
         bail!(
             "auth private key is not a file: {}",
@@ -68,6 +66,7 @@ fn get_private_key<'a>(auth_private_key: PathBuf) -> Result<PrivateKey> {
     let private_key: PrivateKey = key_part.into();
     Ok(private_key)
 }
+*/
 
 /*
 fn get_client<'a>(

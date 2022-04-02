@@ -6,7 +6,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "webpack --config webpack.config.js --node-env production",
+    "public": "rm -rf ../workspace/server/public && cp -r dist ../workspace/server/public",
+    "build": "webpack --config webpack.config.js --node-env production && yarn public",
     "build:dev": "webpack --config webpack.config.js --node-env development",
     "start": "webpack-dev-server --no-client-overlay",
     "prettier": "prettier --write . --no-color",

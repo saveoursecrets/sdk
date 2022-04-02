@@ -18,11 +18,11 @@ impl KeyPair {
     pub fn split(self) -> (KeyPart, KeyPart) {
         (
             KeyPart {
-                type_id: self.type_id.clone(),
+                type_id: self.type_id,
                 key: self.private,
             },
             KeyPart {
-                type_id: self.type_id.clone(),
+                type_id: self.type_id,
                 key: self.public,
             },
         )

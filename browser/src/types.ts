@@ -1,4 +1,4 @@
-import { WebVault } from 'sos-wasm';
+import { WebVault } from "sos-wasm";
 
 export enum SecretKind {
   // secret::kind::ACCOUNT

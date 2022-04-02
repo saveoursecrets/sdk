@@ -74,7 +74,7 @@ export default function AccountPasswordForm(props: AccountPasswordFormProps) {
 
   return (
     <form id="account-password-form" onSubmit={onSubmit} noValidate>
-      <Stack spacing={2} sx={{paddingTop: 1}}>
+      <Stack spacing={2} sx={{ paddingTop: 1 }}>
         <TextField
           id="secret-label"
           label="Name"

@@ -7,7 +7,10 @@ use bip39::{Language, Mnemonic};
 use std::str::FromStr;
 
 /// Generate a bip39 mnemonic in the given language.
-pub fn mnemonic_in(language: Language, word_count: WordCount) -> Result<Mnemonic> {
+pub fn mnemonic_in(
+    language: Language,
+    word_count: WordCount,
+) -> Result<Mnemonic> {
     let word_count: u16 = word_count.into();
     Ok(Mnemonic::generate_in(language, word_count as usize)?)
 }
@@ -40,12 +43,12 @@ impl Default for WordCount {
     }
 }
 
-impl Into<u16> for WordCount {
-    fn into(self) -> u16 {
-        match self {
-            Self::Short(value) => value,
-            Self::Medium(value) => value,
-            Self::Long(value) => value,
+impl From<WordCount> for u16 {
+    fn from(value: WordCount) -> u16 {
+        match value {
+            WordCount::Short(value) => value,
+            WordCount::Medium(value) => value,
+            WordCount::Long(value) => value,
         }
     }
 }
@@ -79,7 +82,8 @@ mod tests {
     #[test]
     fn generate_passphrase() -> Result<()> {
         let word_count = 12;
-        let passphrase = mnemonic_in(Language::English, WordCount::Short(word_count))?;
+        let passphrase =
+            mnemonic_in(Language::English, WordCount::Short(word_count))?;
         let words = format!("{}", passphrase);
         let items: Vec<&str> = words.split(" ").collect();
         assert_eq!(word_count as usize, items.len());

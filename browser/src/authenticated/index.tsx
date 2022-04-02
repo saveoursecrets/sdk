@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
-import {useSelector, useDispatch} from 'react-redux';
+import { useSelector, useDispatch } from "react-redux";
 
 import { styled, useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
@@ -81,7 +81,6 @@ const DrawerHeader = styled("div")(({ theme }) => ({
   justifyContent: "flex-end",
 }));
 
-
 interface AppProps {
   worker: VaultWorker;
 }
@@ -96,8 +95,8 @@ export default function AuthenticatedApp(props: AppProps) {
   useEffect(() => {
     const useLoadVaults = async () => {
       console.log("Loading user vaults...");
-      dispatch(loadVaults({user, worker}));
-    }
+      dispatch(loadVaults({ user, worker }));
+    };
     useLoadVaults();
   }, [user]);
 

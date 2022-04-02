@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from "react";
-import * as ReactDOMClient from 'react-dom/client';
+import * as ReactDOMClient from "react-dom/client";
 import { HashRouter } from "react-router-dom";
 import { Provider, useSelector } from "react-redux";
 
@@ -50,15 +50,15 @@ function MainApp(props: AppProps) {
     [prefersDarkMode]
   );
 
-  const onWorkerReady =  (msg: any) => {
+  const onWorkerReady = (msg: any) => {
     if (msg.data.ready) {
       setWorkerReady(true);
-      webWorker.removeEventListener('message', onWorkerReady);
+      webWorker.removeEventListener("message", onWorkerReady);
     }
   };
 
   useEffect(() => {
-    webWorker.addEventListener('message', onWorkerReady);
+    webWorker.addEventListener("message", onWorkerReady);
   }, []);
 
   if (!workerReady) {

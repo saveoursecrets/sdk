@@ -1,9 +1,16 @@
 //! Diceware helper functions for generating passphrases.
 use crate::{Error, Result};
-use chbs::{config::BasicConfig, prelude::*, probability::Probability, word::WordSampler};
+use chbs::{
+    config::{BasicConfig, BasicConfigBuilder},
+    prelude::*,
+    probability::Probability,
+    word::WordSampler,
+};
 
 /// Generate a passphrase and the entropy in bits.
-pub fn generate_passphrase(config: Option<BasicConfig<WordSampler>>) -> Result<(String, f64)> {
+pub fn generate_passphrase(
+    config: Option<BasicConfig<WordSampler>>,
+) -> Result<(String, f64)> {
     let config = if let Some(config) = config {
         config
     } else {
@@ -29,10 +36,19 @@ pub fn generate_passphrase_words(words: u8) -> Result<(String, f64)> {
 
 /// Get the default config for diceware passphrase generation.
 fn default_config(words: usize) -> BasicConfig<WordSampler> {
-    let mut config = BasicConfig::default();
-    config.words = words;
-    config.separator = " ".into();
-    config.capitalize_first = Probability::Never;
-    config.capitalize_words = Probability::Never;
+    let config = BasicConfigBuilder::default()
+        .words(words)
+        .separator(' ')
+        .capitalize_first(Probability::Never)
+        .capitalize_words(Probability::Never)
+        .build()
+        .unwrap();
     config
+
+    //let mut config = BasicConfig::default();
+    //config.words = words;
+    //config.separator = " ".into();
+    //config.capitalize_first = Probability::Never;
+    //config.capitalize_words = Probability::Never;
+    //config
 }

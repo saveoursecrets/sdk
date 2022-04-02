@@ -42,7 +42,7 @@ export default function SecureNoteForm(props: SecureNoteFormProps) {
 
   return (
     <form id="secure-note-form" onSubmit={onSubmit} noValidate>
-      <Stack spacing={2} sx={{paddingTop: 1}}>
+      <Stack spacing={2} sx={{ paddingTop: 1 }}>
         <TextField
           id="secret-label"
           label="Name"

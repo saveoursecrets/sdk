@@ -12,7 +12,7 @@ interface CreateVaultProps {
 }
 
 export default function CreateVaultForm(props: CreateVaultProps) {
-  const {worker} = props;
+  const { worker } = props;
   const { onFormSubmit } = props;
 
   const [label, setLabel] = useState("");
@@ -45,7 +45,7 @@ export default function CreateVaultForm(props: CreateVaultProps) {
 
   return (
     <form id="new-vault-form" onSubmit={onSubmit}>
-      <Stack spacing={2} sx={{paddingTop: 1}}>
+      <Stack spacing={2} sx={{ paddingTop: 1 }}>
         <TextField
           id="vault-label"
           label="Label"
