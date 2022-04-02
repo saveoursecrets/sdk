@@ -4,7 +4,7 @@ use chbs::{
     config::{BasicConfig, BasicConfigBuilder},
     prelude::*,
     probability::Probability,
-    word::WordSampler,
+    word::{WordSampler, WordList},
 };
 
 /// Generate a passphrase and the entropy in bits.
@@ -34,9 +34,16 @@ pub fn generate_passphrase_words(words: u8) -> Result<(String, f64)> {
     generate_passphrase(Some(config))
 }
 
+/// Generate a passphrase with six words.
+pub fn generate() -> Result<(String, f64)> {
+    generate_passphrase_words(6)
+}
+
 /// Get the default config for diceware passphrase generation.
 fn default_config(words: usize) -> BasicConfig<WordSampler> {
+    let list = WordList::builtin_eff_large();
     let config = BasicConfigBuilder::default()
+        .word_provider(list.sampler())
         .words(words)
         .separator(' ')
         .capitalize_first(Probability::Never)
@@ -44,11 +51,4 @@ fn default_config(words: usize) -> BasicConfig<WordSampler> {
         .build()
         .unwrap();
     config
-
-    //let mut config = BasicConfig::default();
-    //config.words = words;
-    //config.separator = " ".into();
-    //config.capitalize_first = Probability::Never;
-    //config.capitalize_words = Probability::Never;
-    //config
 }
