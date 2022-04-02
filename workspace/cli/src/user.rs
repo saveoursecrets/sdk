@@ -33,7 +33,8 @@ pub fn add(vault: PathBuf, public_key: PathBuf) -> Result<()> {
         bail!("vault is not a file: {}", vault.display());
     }
 
-    let key_part: KeyPart = serde_json::from_str(&std::fs::read_to_string(&public_key)?)?;
+    let key_part: KeyPart =
+        serde_json::from_str(&std::fs::read_to_string(&public_key)?)?;
     let public_key: PublicKey = key_part.try_into()?;
     let mut keystore = Vault::read_file(&vault)?;
     let address = public_key.address()?;
@@ -55,7 +56,8 @@ pub fn remove(vault: PathBuf, public_key: PathBuf) -> Result<()> {
         bail!("vault is not a file: {}", vault.display());
     }
 
-    let key_part: KeyPart = serde_json::from_str(&std::fs::read_to_string(&public_key)?)?;
+    let key_part: KeyPart =
+        serde_json::from_str(&std::fs::read_to_string(&public_key)?)?;
     let public_key: PublicKey = key_part.try_into()?;
     let mut keystore = Vault::read_file(&vault)?;
     let address = public_key.address()?;

@@ -1,15 +1,11 @@
 //! Vault secret storage file format.
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_binary::{
-    Encode, Decode, Serializer, Deserializer,
-    Result as BinaryResult,
-    Error as BinaryError,
     binary_rw::{
-        BinaryWriter, BinaryReader,
-        FileStream, OpenType,
-        Endian,
-        Stream,
-    }
+        BinaryReader, BinaryWriter, Endian, FileStream, OpenType, Stream,
+    },
+    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
+    Serializer,
 };
 use std::collections::HashMap;
 use std::path::Path;
@@ -36,11 +32,10 @@ pub struct Auth {
 
 impl Encode for Auth {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-
         self.public_keys.serialize(ser)?;
         //ser.writer.write_u32(self.public_keys.len() as u32)?;
         //for public_key in &self.public_keys {
-            //public_key.encode(writer)?;
+        //public_key.encode(writer)?;
         //}
         Ok(())
     }
@@ -52,9 +47,9 @@ impl Decode for Auth {
 
         //let length = de.reader.read_u32()?;
         //for _ in 0..length {
-            //let mut public_key: PublicKey = Default::default();
-            //public_key.decode(reader)?;
-            //self.public_keys.push(public_key);
+        //let mut public_key: PublicKey = Default::default();
+        //public_key.decode(reader)?;
+        //self.public_keys.push(public_key);
         //}
         Ok(())
     }
@@ -107,11 +102,14 @@ impl Decode for Header {
         for ident in &IDENTITY {
             let byte = de.reader.read_u8()?;
             if byte != *ident {
-                return Err(BinaryError::Boxed(Box::from(Error::BadIdentity(byte))));
+                return Err(BinaryError::Boxed(Box::from(Error::BadIdentity(
+                    byte,
+                ))));
             }
         }
         self.version = de.reader.read_u16()?;
-        self.id = Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
+        self.id =
+            Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
         self.auth.decode(de)?;
         Ok(())
     }
@@ -182,7 +180,8 @@ impl Decode for Contents {
             let key = de.reader.read_string()?;
             let mut value: AeadPack = Default::default();
             value.decode(de)?;
-            self.data.insert(Uuid::parse_str(&key).map_err(Box::from)?, value);
+            self.data
+                .insert(Uuid::parse_str(&key).map_err(Box::from)?, value);
         }
         Ok(())
     }
@@ -245,7 +244,10 @@ impl Vault {
     }
 
     /// Initialize the vault with the given label and password.
-    pub fn initialize<S: AsRef<str>>(&mut self, password: S) -> Result<[u8; 32]> {
+    pub fn initialize<S: AsRef<str>>(
+        &mut self,
+        password: S,
+    ) -> Result<[u8; 32]> {
         if self.header.auth.salt.is_none() {
             let salt = generate_salt();
             let private_key = generate_secret_key(password, &salt)?;
@@ -301,7 +303,10 @@ impl Vault {
     }
 
     /// Encode a vault to binary.
-    pub fn encode<'a>(stream: &'a mut impl Stream, vault: &Vault) -> Result<()> {
+    pub fn encode<'a>(
+        stream: &'a mut impl Stream,
+        vault: &Vault,
+    ) -> Result<()> {
         let writer = BinaryWriter::new(stream, Endian::Big);
         let mut serializer = Serializer { writer };
         vault.encode(&mut serializer)?;
@@ -341,13 +346,18 @@ impl Vault {
     }
 
     /// Check if a public key already exists.
-    pub fn get_public_key(&mut self, public_key: &PublicKey) -> Option<(usize, &PublicKey)> {
+    pub fn get_public_key(
+        &mut self,
+        public_key: &PublicKey,
+    ) -> Option<(usize, &PublicKey)> {
         self.header
             .auth
             .public_keys
             .iter()
             .enumerate()
-            .find_map(|(i, k)| if k == public_key { Some((i, k)) } else { None })
+            .find_map(
+                |(i, k)| if k == public_key { Some((i, k)) } else { None },
+            )
     }
 
     /// Add a public key to this vault.
@@ -398,14 +408,18 @@ mod tests {
 
     #[test]
     fn decode_file() -> Result<()> {
-        let vault = Vault::read_file("./fixtures/10b426d9-62ce-4bea-aa5f-6349aeef65c5.vault")?;
+        let vault = Vault::read_file(
+            "./fixtures/10b426d9-62ce-4bea-aa5f-6349aeef65c5.vault",
+        )?;
         println!("Vault {:#?}", vault);
         Ok(())
     }
 
     #[test]
     fn decode_buffer() -> Result<()> {
-        let buffer = std::fs::read("./fixtures/10b426d9-62ce-4bea-aa5f-6349aeef65c5.vault")?;
+        let buffer = std::fs::read(
+            "./fixtures/10b426d9-62ce-4bea-aa5f-6349aeef65c5.vault",
+        )?;
 
         println!("{}", hex::encode(&buffer));
 

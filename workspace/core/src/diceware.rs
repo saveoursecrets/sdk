@@ -1,9 +1,14 @@
 //! Diceware helper functions for generating passphrases.
 use crate::{Error, Result};
-use chbs::{config::BasicConfig, prelude::*, probability::Probability, word::WordSampler};
+use chbs::{
+    config::BasicConfig, prelude::*, probability::Probability,
+    word::WordSampler,
+};
 
 /// Generate a passphrase and the entropy in bits.
-pub fn generate_passphrase(config: Option<BasicConfig<WordSampler>>) -> Result<(String, f64)> {
+pub fn generate_passphrase(
+    config: Option<BasicConfig<WordSampler>>,
+) -> Result<(String, f64)> {
     let config = if let Some(config) = config {
         config
     } else {

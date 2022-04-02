@@ -17,7 +17,9 @@ interface CredentialsFormProps extends CredentialsResult {
   onFormSubmit: (result: CredentialsResult) => void;
 }
 
-function mapErrors(credentials: [string, string][]): [boolean, KeyValueError[]] {
+function mapErrors(
+  credentials: [string, string][]
+): [boolean, KeyValueError[]] {
   let hasCredError = false;
   const errors = credentials.map((item: [string, string]) => {
     const [key, value] = item;
@@ -59,9 +61,9 @@ export default function CredentialsForm(props: CredentialsFormProps) {
     setCredentials(creds);
 
     const credsErrors = [...credentialsErrors];
-    credsErrors.unshift({key: false, value: false});
+    credsErrors.unshift({ key: false, value: false });
     setCredentialsErrors(credsErrors);
-  }
+  };
 
   const removeCredential = (index: number) => {
     const creds = [...credentials];
@@ -71,7 +73,7 @@ export default function CredentialsForm(props: CredentialsFormProps) {
     const credsErrors = [...credentialsErrors];
     credsErrors.splice(index, 1);
     setCredentialsErrors(credsErrors);
-  }
+  };
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -102,7 +104,7 @@ export default function CredentialsForm(props: CredentialsFormProps) {
 
   return (
     <form id="credentials-form" onSubmit={onSubmit} noValidate>
-      <Stack spacing={2} sx={{paddingTop: 1}}>
+      <Stack spacing={2} sx={{ paddingTop: 1 }}>
         <TextField
           id="secret-label"
           label="Name"
@@ -113,10 +115,15 @@ export default function CredentialsForm(props: CredentialsFormProps) {
           value={label}
           error={labelError}
         />
-        <Button onClick={addCredential} startIcon={<AddIcon />}>Add Credential</Button>
+        <Button onClick={addCredential} startIcon={<AddIcon />}>
+          Add Credential
+        </Button>
         {credentials.map((item: [string, string], index) => {
           const [name, value] = item;
-          const error = credentialsErrors[index] || {key: false, value: false};
+          const error = credentialsErrors[index] || {
+            key: false,
+            value: false,
+          };
 
           console.log("render cred", name, value);
 
@@ -137,8 +144,9 @@ export default function CredentialsForm(props: CredentialsFormProps) {
               />
               <IconButton
                 disabled={credentials.length === 1}
-                sx={{width: 40, height: 40}}
-                onClick={() => removeCredential(index)}>
+                sx={{ width: 40, height: 40 }}
+                onClick={() => removeCredential(index)}
+              >
                 <RemoveIcon />
               </IconButton>
             </Stack>

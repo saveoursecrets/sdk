@@ -20,9 +20,7 @@ export default function FileUploadDialog(props: FileUploadProps) {
 
   return (
     <Dialog open={open} onClose={handleCancel}>
-      <DialogTitle color="text.secondary">
-        Secure Note
-      </DialogTitle>
+      <DialogTitle color="text.secondary">Secure Note</DialogTitle>
       <DialogContent>
         <FileUploadForm label="" onFormSubmit={handleOk} />
       </DialogContent>

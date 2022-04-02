@@ -1,13 +1,13 @@
 //! Utilities for computing the address for a public key.
-use crate::{Result, Error};
+use crate::{Error, Result};
 use k256::{
     elliptic_curve::{sec1::ToEncodedPoint, DecompressPoint, ScalarCore},
     AffinePoint, EncodedPoint, FieldBytes, Scalar, Secp256k1,
 };
+use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
-use subtle::Choice;
 use std::str::FromStr;
-use serde::{Serialize, Deserialize};
+use subtle::Choice;
 
 /// Represents a public address that may be converted to and from
 /// a string.
@@ -29,7 +29,7 @@ impl FromStr for AddressStr {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if !s.starts_with("0x") {
-            return Err(Error::BadAddressPrefix)
+            return Err(Error::BadAddressPrefix);
         }
         let bytes = hex::decode(&s[2..])?;
         let buffer: [u8; 20] = bytes.as_slice().try_into()?;
@@ -97,11 +97,13 @@ mod tests {
 
     const COMPRESSED_PUBLIC_KEY: &str =
         "025f37d20e5b18909361e0ead7ed17c69b417bee70746c9e9c2bcb1394d921d4ae";
-    const COMPRESSED_ADDRESS: &str = "0xd09d3103ccabfb769edc3e9b01500ca7241d470a";
+    const COMPRESSED_ADDRESS: &str =
+        "0xd09d3103ccabfb769edc3e9b01500ca7241d470a";
 
     const PUBLIC_KEY: [u8; 33] = [
-        3, 191, 74, 169, 115, 14, 12, 199, 99, 221, 125, 5, 13, 247, 115, 157, 30, 185, 140, 2, 20,
-        153, 10, 245, 177, 145, 111, 188, 103, 92, 61, 227, 121,
+        3, 191, 74, 169, 115, 14, 12, 199, 99, 221, 125, 5, 13, 247, 115, 157,
+        30, 185, 140, 2, 20, 153, 10, 245, 177, 145, 111, 188, 103, 92, 61,
+        227, 121,
     ];
 
     #[test]

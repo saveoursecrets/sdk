@@ -61,7 +61,11 @@ impl Gatekeeper {
     }
 
     /// Initialize the vault with the given label and password.
-    pub fn initialize<S: AsRef<str>>(&mut self, label: String, password: S) -> Result<()> {
+    pub fn initialize<S: AsRef<str>>(
+        &mut self,
+        label: String,
+        password: S,
+    ) -> Result<()> {
         // Initialize the private key and store the salt
         let private_key = self.vault.initialize(password.as_ref())?;
         self.private_key = Some(Box::new(private_key));
@@ -117,7 +121,11 @@ impl Gatekeeper {
     }
 
     /// Set the meta data for a secret.
-    pub fn set_secret_meta(&mut self, uuid: Uuid, meta_data: SecretMeta) -> Result<()> {
+    pub fn set_secret_meta(
+        &mut self,
+        uuid: Uuid,
+        meta_data: SecretMeta,
+    ) -> Result<()> {
         let mut meta = self.meta()?;
         meta.add_secret_meta(uuid, meta_data);
         self.set_meta(meta)?;
@@ -135,7 +143,11 @@ impl Gatekeeper {
     }
 
     /// Create or update a secret.
-    pub fn set_secret(&mut self, secret: &Secret, uuid: Option<Uuid>) -> Result<Uuid> {
+    pub fn set_secret(
+        &mut self,
+        secret: &Secret,
+        uuid: Option<Uuid>,
+    ) -> Result<Uuid> {
         if let Some(private_key) = &self.private_key {
             let uuid = uuid.unwrap_or(Uuid::new_v4());
             let secret_blob = into_encoded_buffer(secret)?;
@@ -151,7 +163,8 @@ impl Gatekeeper {
     pub fn get_secret(&self, uuid: &Uuid) -> Result<Secret> {
         if let Some(private_key) = &self.private_key {
             if let Some(secret_aead) = self.vault.get_secret(uuid) {
-                let secret_blob = aes_gcm_256::decrypt(private_key, secret_aead)?;
+                let secret_blob =
+                    aes_gcm_256::decrypt(private_key, secret_aead)?;
                 let secret: Secret = from_encoded_buffer(secret_blob)?;
                 Ok(secret)
             } else {
@@ -188,10 +201,7 @@ impl Gatekeeper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        secret::Secret,
-        vault::Vault,
-    };
+    use crate::{secret::Secret, vault::Vault};
     use anyhow::Result;
 
     #[test]

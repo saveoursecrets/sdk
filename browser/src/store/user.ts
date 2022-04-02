@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import {User} from '../types';
+import { User } from "../types";
 
 export interface UserState {
   user?: User;
@@ -9,7 +9,7 @@ const initialState: UserState = {
   user: {
     token: "mock-logged-in-token",
     address: "0x8a67d6f4aae8165512774d63992623e10494c69f",
-  }
+  },
 };
 
 const userSlice = createSlice({
@@ -23,7 +23,7 @@ const userSlice = createSlice({
       state.user = null;
     },
     setAuthToken: (state, { payload }: PayloadAction<string>) => {
-      let user = {...state.user, token: payload}
+      let user = { ...state.user, token: payload };
       state.user = user;
     },
   },

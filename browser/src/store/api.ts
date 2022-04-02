@@ -1,4 +1,4 @@
-import {User} from '../types';
+import { User } from "../types";
 
 // Client consumer of the server API.
 export class VaultApi {

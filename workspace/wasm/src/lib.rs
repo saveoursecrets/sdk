@@ -3,12 +3,12 @@
 use wasm_bindgen::prelude::*;
 
 use sos_core::{
+    from_encoded_buffer,
     gatekeeper::Gatekeeper,
     into_encoded_buffer,
-    from_encoded_buffer,
     secret::{kind::*, Secret, SecretMeta},
-    vault::Vault,
     uuid::Uuid,
+    vault::Vault,
 };
 
 use serde::{Deserialize, Serialize};
@@ -216,17 +216,19 @@ impl WebVault {
         &mut self,
         request: JsValue,
     ) -> Result<JsValue, JsError> {
-        let FileUpload { label, buffer, name } = request.into_serde()?;
+        let FileUpload {
+            label,
+            buffer,
+            name,
+        } = request.into_serde()?;
 
         let mime = mime_guess::from_path(name).first().map(|m| m.to_string());
-        let secret = Secret::Blob {buffer, mime};
+        let secret = Secret::Blob { buffer, mime };
         let meta_data = SecretMeta::new(label);
         let uuid = self.keeper.set_secret(&secret, None)?;
 
-        self.index.insert(
-            uuid.clone(),
-            SearchMeta::new(meta_data.clone(), BLOB),
-        );
+        self.index
+            .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), BLOB));
         self.keeper.set_secret_meta(uuid, meta_data)?;
         Ok(JsValue::from_serde(&uuid)?)
     }

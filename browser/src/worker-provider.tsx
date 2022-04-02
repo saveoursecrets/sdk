@@ -6,8 +6,9 @@ const WorkerContext = createContext(null);
 type WorkerProviderProps = PropsWithChildren<Record<string, unknown>>;
 
 console.log("Creating new worker....");
-const webWorker =  new Worker(
-  new URL("./worker.ts", import.meta.url), {type: 'module'});
+const webWorker = new Worker(new URL("./worker.ts", import.meta.url), {
+  type: "module",
+});
 const worker = Comlink.wrap(webWorker);
 
 const WorkerProvider = (props: WorkerProviderProps) => {

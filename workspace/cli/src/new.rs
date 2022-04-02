@@ -2,8 +2,8 @@ use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
 
 use sos_core::{
-    crypto::{authorize::jwt, keypair::generate},
     address::address_compressed,
+    crypto::{authorize::jwt, keypair::generate},
     passphrase::{words, WordCount},
     vault::Vault,
 };
@@ -73,16 +73,18 @@ pub fn keypair(name: String, destination: PathBuf) -> Result<()> {
         bail!("file {} already exists", public_path.display());
     }
 
-    std::fs::write(&private_path, private)
-        .with_context(|| format!("failed to write to {}", private_path.display()))?;
+    std::fs::write(&private_path, private).with_context(|| {
+        format!("failed to write to {}", private_path.display())
+    })?;
     info!(
         target: LOG_TARGET,
         "wrote private key to {}",
         private_path.display()
     );
 
-    std::fs::write(&public_path, public)
-        .with_context(|| format!("failed to write to {}", private_path.display()))?;
+    std::fs::write(&public_path, public).with_context(|| {
+        format!("failed to write to {}", private_path.display())
+    })?;
     info!(
         target: LOG_TARGET,
         "wrote public key to {}",
@@ -109,8 +111,9 @@ pub fn jwt(name: String, destination: PathBuf) -> Result<()> {
         bail!("file {} already exists", keypair_path.display());
     }
 
-    std::fs::write(&keypair_path, &key)
-        .with_context(|| format!("failed to write to {}", keypair_path.display()))?;
+    std::fs::write(&keypair_path, &key).with_context(|| {
+        format!("failed to write to {}", keypair_path.display())
+    })?;
     info!(
         target: LOG_TARGET,
         "wrote key to {}",

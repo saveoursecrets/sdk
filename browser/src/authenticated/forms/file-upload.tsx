@@ -25,7 +25,11 @@ export default function FileUploadForm(props: FileUploadFormProps) {
   const [label, setLabel] = useState(props.label);
   const [labelError, setLabelError] = useState(false);
 
-  const [file, setFile] = useState({buffer: props.buffer, name: null, size: null});
+  const [file, setFile] = useState({
+    buffer: props.buffer,
+    name: null,
+    size: null,
+  });
   const [fileError, setFileError] = useState(false);
 
   const onLabelChange = (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -33,15 +37,15 @@ export default function FileUploadForm(props: FileUploadFormProps) {
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files[0];
-    const {name, size} = file;
+    const { name, size } = file;
     if (size <= MAX_FILE_SIZE) {
       const buffer = await file.arrayBuffer();
-      setFile({name, size, buffer: Array.from(new Uint8Array(buffer))});
+      setFile({ name, size, buffer: Array.from(new Uint8Array(buffer)) });
     } else {
       // TODO: handle too large file error gracefully
       setFileError(true);
     }
-  }
+  };
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -57,14 +61,14 @@ export default function FileUploadForm(props: FileUploadFormProps) {
     } else if (!file.buffer) {
       setFileError(true);
     } else {
-      const {buffer, name} = file;
+      const { buffer, name } = file;
       onFormSubmit({ label, buffer, name });
     }
   };
 
   return (
     <form id="file-upload-form" onSubmit={onSubmit} noValidate>
-      <Stack spacing={2} sx={{paddingTop: 1}}>
+      <Stack spacing={2} sx={{ paddingTop: 1 }}>
         <TextField
           id="secret-label"
           label="Name"
@@ -81,15 +85,16 @@ export default function FileUploadForm(props: FileUploadFormProps) {
           placeholder="Select a file to upload"
           disabled
           onChange={onLabelChange}
-          value={file.name || ''}
+          value={file.name || ""}
           error={fileError}
         />
         <label htmlFor="file-upload">
           <Input
             id="file-upload"
-            sx={{display: 'none'}}
+            sx={{ display: "none" }}
             onChange={onFileChange}
-            type="file" />
+            type="file"
+          />
           <Button variant="contained" component="span">
             Upload
           </Button>

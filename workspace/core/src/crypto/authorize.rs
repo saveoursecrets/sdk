@@ -1,7 +1,7 @@
 //! Authorization routines using ECDSA.
 use k256::ecdsa::{
-    signature::Signature as EcdsaSignature, signature::Verifier, Signature, SigningKey,
-    VerifyingKey,
+    signature::Signature as EcdsaSignature, signature::Verifier, Signature,
+    SigningKey, VerifyingKey,
 };
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -64,7 +64,7 @@ pub enum KeyData {
             serialize_with = "hex::serde::serialize",
             deserialize_with = "hex::serde::deserialize"
         )]
-        [u8; COMPRESSED as usize]
+        [u8; COMPRESSED as usize],
     ),
     /// Decompressed public key of 0x04 followed by 64 bytes for both x and y coordinates
     Decompressed(
@@ -72,7 +72,7 @@ pub enum KeyData {
             serialize_with = "hex::serde::serialize",
             deserialize_with = "hex::serde::deserialize"
         )]
-        [u8; DECOMPRESSED as usize]
+        [u8; DECOMPRESSED as usize],
     ),
 }
 
@@ -109,14 +109,18 @@ impl TryFrom<KeyPart> for PublicKey {
         match value.type_id {
             K256 => {
                 if value.key.len() != COMPRESSED as usize {
-                    return Err(Error::InvalidPublicKeyLength(COMPRESSED, value.key.len()));
+                    return Err(Error::InvalidPublicKeyLength(
+                        COMPRESSED,
+                        value.key.len(),
+                    ));
                 }
 
                 if value.key[0] != 0x02 && value.key[0] != 0x03 {
                     return Err(Error::BadPublicKeyByte);
                 }
 
-                let bytes: [u8; COMPRESSED as usize] = value.key.as_slice().try_into()?;
+                let bytes: [u8; COMPRESSED as usize] =
+                    value.key.as_slice().try_into()?;
                 Ok(PublicKey {
                     compressed: true,
                     key_data: KeyData::Compressed(bytes),
@@ -129,7 +133,8 @@ impl TryFrom<KeyPart> for PublicKey {
 
 impl From<VerifyingKey> for PublicKey {
     fn from(key: VerifyingKey) -> Self {
-        let key_data: [u8; COMPRESSED as usize] = key.to_bytes().as_slice().try_into().unwrap();
+        let key_data: [u8; COMPRESSED as usize] =
+            key.to_bytes().as_slice().try_into().unwrap();
         Self {
             compressed: true,
             key_data: KeyData::Compressed(key_data),
@@ -141,7 +146,9 @@ impl TryFrom<&PublicKey> for VerifyingKey {
     type Error = Error;
     fn try_from(value: &PublicKey) -> std::result::Result<Self, Self::Error> {
         match value.key_data {
-            KeyData::Compressed(ref bytes) => Ok(VerifyingKey::from_sec1_bytes(bytes)?),
+            KeyData::Compressed(ref bytes) => {
+                Ok(VerifyingKey::from_sec1_bytes(bytes)?)
+            }
             _ => Err(Error::NotCompressedPublicKey),
         }
     }
@@ -279,7 +286,8 @@ impl Authorization {
     /// the source challenge.
     pub fn vault_name(&self, response: &ChallengeResponse) -> Option<String> {
         let reader = self.challenges.read().unwrap();
-        if let Some(challenge) = reader.iter().find(|c| c.id() == response.id()) {
+        if let Some(challenge) = reader.iter().find(|c| c.id() == response.id())
+        {
             Some(challenge.vault_name.clone())
         } else {
             None
@@ -296,13 +304,18 @@ impl Authorization {
     ) -> Result<()> {
         let mut writer = self.challenges.write().unwrap();
 
-        if let Some(index) = writer.iter().position(|c| c.id() == response.id()) {
+        if let Some(index) = writer.iter().position(|c| c.id() == response.id())
+        {
             let challenge = writer.remove(index);
             for public_key in public_keys {
                 if public_key.compressed {
-                    let signature = Signature::from_bytes(response.signature().as_ref())?;
+                    let signature =
+                        Signature::from_bytes(response.signature().as_ref())?;
                     let verify_key: VerifyingKey = public_key.try_into()?;
-                    if verify_key.verify(challenge.message(), &signature).is_ok() {
+                    if verify_key
+                        .verify(challenge.message(), &signature)
+                        .is_ok()
+                    {
                         return Ok(());
                     }
                 } else {
@@ -320,7 +333,10 @@ impl Authorization {
 pub mod jwt {
     use crate::Result;
     use jwt_simple::{
-        algorithms::{Ed25519KeyPair, Ed25519PublicKey, EdDSAKeyPairLike, EdDSAPublicKeyLike},
+        algorithms::{
+            Ed25519KeyPair, Ed25519PublicKey, EdDSAKeyPairLike,
+            EdDSAPublicKeyLike,
+        },
         claims::{Claims, JWTClaims},
         prelude::coarsetime::Duration,
     };
@@ -367,7 +383,8 @@ pub mod jwt {
         let jwt_claims = StandardClaims {
             vault: vault.as_ref().to_string(),
         };
-        let mut claims = Claims::with_custom_claims(jwt_claims, Duration::from_mins(15));
+        let mut claims =
+            Claims::with_custom_claims(jwt_claims, Duration::from_mins(15));
         claims.issuer = Some(ISSUER.to_string());
         claims
     }

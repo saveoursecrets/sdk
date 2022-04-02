@@ -1,9 +1,7 @@
 //! Types used to represent vault meta data and secrets.
 use serde_binary::{
-    Encode, Decode,
-    Serializer, Deserializer,
-    Result as BinaryResult,
-    Error as BinaryError,
+    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
+    Serializer,
 };
 
 use serde::{Deserialize, Serialize};
@@ -61,7 +59,8 @@ impl Decode for MetaData {
         self.label = de.reader.read_string()?;
         let secrets_len = de.reader.read_u32()?;
         for _ in 0..secrets_len {
-            let key = Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
+            let key = Uuid::parse_str(&de.reader.read_string()?)
+                .map_err(Box::from)?;
             let mut value: SecretMeta = Default::default();
             value.decode(de)?;
             self.secrets.insert(key, value);
@@ -216,7 +215,10 @@ impl Decode for Secret {
                 let password = de.reader.read_string()?;
                 let has_url = de.reader.read_bool()?;
                 let url = if has_url {
-                    Some(Url::parse(&de.reader.read_string()?).map_err(Box::from)?)
+                    Some(
+                        Url::parse(&de.reader.read_string()?)
+                            .map_err(Box::from)?,
+                    )
                 } else {
                     None
                 };
@@ -229,7 +231,8 @@ impl Decode for Secret {
             }
             kind::CREDENTIALS => {
                 let list_len = de.reader.read_u32()?;
-                let mut list: HashMap<String, String> = HashMap::with_capacity(list_len as usize);
+                let mut list: HashMap<String, String> =
+                    HashMap::with_capacity(list_len as usize);
                 for _ in 0..list_len {
                     let key = de.reader.read_string()?;
                     let value = de.reader.read_string()?;
@@ -238,7 +241,11 @@ impl Decode for Secret {
 
                 *self = Self::Credentials(list);
             }
-            _ => return Err(BinaryError::Boxed(Box::from(Error::UnknownSecretKind(kind)))),
+            _ => {
+                return Err(BinaryError::Boxed(Box::from(
+                    Error::UnknownSecretKind(kind),
+                )))
+            }
         }
         Ok(())
     }

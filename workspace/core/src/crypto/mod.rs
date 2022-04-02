@@ -1,6 +1,6 @@
 //! Cryptographic routines and types.
 use serde_binary::{
-    Encode, Decode, Serializer, Deserializer, Result as BinaryResult,
+    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
 
 pub mod aes_gcm_256;
@@ -142,16 +142,20 @@ mod tests {
 
         // Client receives the challenge
         let client_challenge: Challenge = serde_json::from_str(&server_packet)?;
-        let client_signature: Signature = signing_key.sign(client_challenge.message());
+        let client_signature: Signature =
+            signing_key.sign(client_challenge.message());
         let signature_bytes = client_signature.as_bytes().to_vec();
-        let client_response =
-            ChallengeResponse::new(client_challenge.id().clone(), signature_bytes);
+        let client_response = ChallengeResponse::new(
+            client_challenge.id().clone(),
+            signature_bytes,
+        );
         let client_packet = serde_json::to_string(&client_response)?;
 
         // ... client sends the response to the server
 
         // Server receives the response
-        let challenge_response: ChallengeResponse = serde_json::from_str(&client_packet)?;
+        let challenge_response: ChallengeResponse =
+            serde_json::from_str(&client_packet)?;
 
         assert!(authorization
             .authorize(&public_keys, &challenge_response)
