@@ -6,7 +6,7 @@ use k256::{
 };
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 use subtle::Choice;
 
 /// Represents a public address that may be converted to and from
@@ -17,10 +17,18 @@ use subtle::Choice;
 #[serde(try_from = "String", into = "String")]
 pub struct AddressStr([u8; 20]);
 
+/*
 impl AddressStr {
     /// Convert to a string.
     pub fn to_string(&self) -> String {
         format!("0x{}", hex::encode(self.0))
+    }
+}
+*/
+
+impl fmt::Display for AddressStr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "0x{}", hex::encode(self.0))
     }
 }
 
@@ -37,9 +45,9 @@ impl FromStr for AddressStr {
     }
 }
 
-impl Into<String> for AddressStr {
-    fn into(self) -> String {
-        self.to_string()
+impl From<AddressStr> for String {
+    fn from(value: AddressStr) -> String {
+        value.to_string()
     }
 }
 

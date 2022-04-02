@@ -138,7 +138,7 @@ impl Gatekeeper {
         if let Some(meta_data) = meta.get_secret_meta(uuid) {
             Ok(meta_data.clone())
         } else {
-            Err(Error::SecretMetaDoesNotExist(uuid.clone()))
+            Err(Error::SecretMetaDoesNotExist(*uuid))
         }
     }
 
@@ -149,7 +149,7 @@ impl Gatekeeper {
         uuid: Option<Uuid>,
     ) -> Result<Uuid> {
         if let Some(private_key) = &self.private_key {
-            let uuid = uuid.unwrap_or(Uuid::new_v4());
+            let uuid = uuid.unwrap_or_else(Uuid::new_v4);
             let secret_blob = into_encoded_buffer(secret)?;
             let secret_aead = aes_gcm_256::encrypt(private_key, &secret_blob)?;
             self.vault.add_secret(uuid, secret_aead);
@@ -168,7 +168,7 @@ impl Gatekeeper {
                 let secret: Secret = from_encoded_buffer(secret_blob)?;
                 Ok(secret)
             } else {
-                Err(Error::SecretDoesNotExist(uuid.clone()))
+                Err(Error::SecretDoesNotExist(*uuid))
             }
         } else {
             Err(Error::VaultLocked)

@@ -175,7 +175,7 @@ impl Encode for Secret {
                 ser.writer.write_string(password)?;
                 ser.writer.write_bool(url.is_some())?;
                 if let Some(url) = url {
-                    ser.writer.write_string(url.to_string())?;
+                    ser.writer.write_string(url)?;
                 }
             }
             Self::Credentials(list) => {

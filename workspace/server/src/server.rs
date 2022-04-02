@@ -54,7 +54,7 @@ impl Server {
         let mut origins = Vec::new();
         for url in reader.config.api.origins.iter() {
             origins.push(HeaderValue::from_str(
-                url.as_str().trim_end_matches("/"),
+                url.as_str().trim_end_matches('/'),
             )?);
         }
 
@@ -108,7 +108,7 @@ async fn asset(
     let reader = state.read().await;
     if reader.config.gui {
         let mut path = request.uri().path().to_string();
-        if path.ends_with("/") {
+        if path.ends_with('/') {
             path.push_str("index.html");
         }
 
@@ -118,7 +118,7 @@ async fn asset(
         if let Some(asset) = Assets::get(key) {
             let content_type = mime_guess::from_path(key)
                 .first()
-                .unwrap_or("application/octet-stream".parse().unwrap());
+                .unwrap_or_else(|| "application/octet-stream".parse().unwrap());
             let bytes = Bytes::from(asset.data.as_ref().to_vec());
             Response::builder()
                 .header("content-type", content_type.as_ref())

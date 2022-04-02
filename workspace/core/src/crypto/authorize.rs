@@ -286,12 +286,10 @@ impl Authorization {
     /// the source challenge.
     pub fn vault_name(&self, response: &ChallengeResponse) -> Option<String> {
         let reader = self.challenges.read().unwrap();
-        if let Some(challenge) = reader.iter().find(|c| c.id() == response.id())
-        {
-            Some(challenge.vault_name.clone())
-        } else {
-            None
-        }
+        reader
+            .iter()
+            .find(|c| c.id() == response.id())
+            .map(|c| c.vault_name.clone())
     }
 
     /// Determine if a challenge response is valid.
@@ -299,7 +297,7 @@ impl Authorization {
     /// Returns `Result::Ok` if the authorization was successful.
     pub fn authorize(
         &self,
-        public_keys: &Vec<PublicKey>,
+        public_keys: &[PublicKey],
         response: &ChallengeResponse,
     ) -> Result<()> {
         let mut writer = self.challenges.write().unwrap();

@@ -1,4 +1,5 @@
 #![deny(missing_docs)]
+#![allow(clippy::new_without_default)]
 //! Webassembly bindings to the vault and gatekeeper.
 use wasm_bindgen::prelude::*;
 
@@ -167,7 +168,7 @@ impl WebVault {
         let meta_data = SecretMeta::new(label);
         let uuid = self.keeper.set_secret(&secret, None)?;
         self.index
-            .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), ACCOUNT));
+            .insert(uuid, SearchMeta::new(meta_data.clone(), ACCOUNT));
         self.keeper.set_secret_meta(uuid, meta_data)?;
         Ok(JsValue::from_serde(&uuid)?)
     }
@@ -185,7 +186,7 @@ impl WebVault {
         let uuid = self.keeper.set_secret(&secret, None)?;
 
         self.index
-            .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), TEXT));
+            .insert(uuid, SearchMeta::new(meta_data.clone(), TEXT));
         self.keeper.set_secret_meta(uuid, meta_data)?;
         Ok(JsValue::from_serde(&uuid)?)
     }
@@ -202,10 +203,8 @@ impl WebVault {
         let meta_data = SecretMeta::new(label);
         let uuid = self.keeper.set_secret(&secret, None)?;
 
-        self.index.insert(
-            uuid.clone(),
-            SearchMeta::new(meta_data.clone(), CREDENTIALS),
-        );
+        self.index
+            .insert(uuid, SearchMeta::new(meta_data.clone(), CREDENTIALS));
         self.keeper.set_secret_meta(uuid, meta_data)?;
         Ok(JsValue::from_serde(&uuid)?)
     }
@@ -228,7 +227,7 @@ impl WebVault {
         let uuid = self.keeper.set_secret(&secret, None)?;
 
         self.index
-            .insert(uuid.clone(), SearchMeta::new(meta_data.clone(), BLOB));
+            .insert(uuid, SearchMeta::new(meta_data.clone(), BLOB));
         self.keeper.set_secret_meta(uuid, meta_data)?;
         Ok(JsValue::from_serde(&uuid)?)
     }

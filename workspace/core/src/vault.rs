@@ -303,10 +303,7 @@ impl Vault {
     }
 
     /// Encode a vault to binary.
-    pub fn encode<'a>(
-        stream: &'a mut impl Stream,
-        vault: &Vault,
-    ) -> Result<()> {
+    pub fn encode(stream: &mut impl Stream, vault: &Vault) -> Result<()> {
         let writer = BinaryWriter::new(stream, Endian::Big);
         let mut serializer = Serializer { writer };
         vault.encode(&mut serializer)?;

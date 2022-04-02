@@ -61,7 +61,7 @@ impl FileSystemBackend {
 
         self.vaults = vaults
             .into_iter()
-            .map(|(p, v)| (v.id().clone(), (p, v)))
+            .map(|(p, v)| (*v.id(), (p, v)))
             .collect::<_>();
 
         Ok(())
@@ -88,6 +88,6 @@ impl Backend for FileSystemBackend {
             vault.write_file(path)?;
             return Ok(());
         }
-        Err(Error::NotExist(id.clone()))
+        Err(Error::NotExist(*id))
     }
 }
