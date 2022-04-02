@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from "react";
-import ReactDOM from "react-dom";
+import * as ReactDOMClient from 'react-dom/client';
 import { HashRouter } from "react-router-dom";
 import { Provider, useSelector } from "react-redux";
 
@@ -77,8 +77,8 @@ function MainApp(props: AppProps) {
   );
 }
 
-
-ReactDOM.render(
+const root = ReactDOMClient.createRoot(document.querySelector("main"));
+root.render(
   <React.StrictMode>
     <Provider store={store}>
       <HashRouter>
@@ -91,6 +91,5 @@ ReactDOM.render(
         </WorkerProvider>
       </HashRouter>
     </Provider>
-  </React.StrictMode>,
-  document.querySelector("main")
+  </React.StrictMode>
 );
