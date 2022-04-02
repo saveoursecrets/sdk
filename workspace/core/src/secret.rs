@@ -3,6 +3,7 @@ use serde_binary::{
     Encode, Decode,
     Serializer, Deserializer,
     Result as BinaryResult,
+    Error as BinaryError,
 };
 
 use serde::{Deserialize, Serialize};
@@ -10,9 +11,7 @@ use std::collections::HashMap;
 use url::Url;
 use uuid::Uuid;
 
-use crate::{
-    Error, Result,
-};
+use crate::Error;
 
 /// Unencrypted vault meta data.
 #[derive(Default)]
@@ -62,7 +61,7 @@ impl Decode for MetaData {
         self.label = de.reader.read_string()?;
         let secrets_len = de.reader.read_u32()?;
         for _ in 0..secrets_len {
-            let key = Uuid::parse_str(&de.reader.read_string()?)?;
+            let key = Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
             let mut value: SecretMeta = Default::default();
             value.decode(de)?;
             self.secrets.insert(key, value);
@@ -217,7 +216,7 @@ impl Decode for Secret {
                 let password = de.reader.read_string()?;
                 let has_url = de.reader.read_bool()?;
                 let url = if has_url {
-                    Some(Url::parse(&de.reader.read_string()?)?)
+                    Some(Url::parse(&de.reader.read_string()?).map_err(Box::from)?)
                 } else {
                     None
                 };
@@ -239,7 +238,7 @@ impl Decode for Secret {
 
                 *self = Self::Credentials(list);
             }
-            _ => return Err(Error::UnknownSecretKind(kind)),
+            _ => return Err(BinaryError::Boxed(Box::from(Error::UnknownSecretKind(kind)))),
         }
         Ok(())
     }

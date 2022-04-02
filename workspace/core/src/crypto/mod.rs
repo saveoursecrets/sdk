@@ -3,10 +3,6 @@ use serde_binary::{
     Encode, Decode, Serializer, Deserializer, Result as BinaryResult,
 };
 
-use crate::{
-    Result,
-};
-
 pub mod aes_gcm_256;
 pub mod authorize;
 pub mod keypair;

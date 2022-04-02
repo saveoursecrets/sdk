@@ -1,8 +1,4 @@
 //! Authorization routines using ECDSA.
-use serde_binary::{
-    Encode, Decode, Serializer, Deserializer,
-    binary_rw::{BinaryReader, BinaryWriter}
-};
 use k256::ecdsa::{
     signature::Signature as EcdsaSignature, signature::Verifier, Signature, SigningKey,
     VerifyingKey,
@@ -63,9 +59,21 @@ pub struct PublicKey {
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub enum KeyData {
     /// Compressed public key of 0x02 or 0x03 followed by 32 bytes for the x coordinate
-    Compressed([u8; COMPRESSED as usize]),
+    Compressed(
+        #[serde(
+            serialize_with = "hex::serde::serialize",
+            deserialize_with = "hex::serde::deserialize"
+        )]
+        [u8; COMPRESSED as usize]
+    ),
     /// Decompressed public key of 0x04 followed by 64 bytes for both x and y coordinates
-    Decompressed([u8; DECOMPRESSED as usize]),
+    Decompressed(
+        #[serde(
+            serialize_with = "hex::serde::serialize",
+            deserialize_with = "hex::serde::deserialize"
+        )]
+        [u8; DECOMPRESSED as usize]
+    ),
 }
 
 impl Default for KeyData {
@@ -74,6 +82,7 @@ impl Default for KeyData {
     }
 }
 
+/*
 impl KeyData {
     fn to_vec(&self) -> Vec<u8> {
         match self {
@@ -82,6 +91,7 @@ impl KeyData {
         }
     }
 }
+*/
 
 impl PublicKey {
     /// Compute the address for this public key.
@@ -139,24 +149,24 @@ impl TryFrom<&PublicKey> for VerifyingKey {
 
 /*
 impl Encode for PublicKey {
-    fn encode(&self, writer: &mut BinaryWriter) -> Result<()> {
-        writer.write_bool(self.compressed)?;
-        writer.write_bytes(self.key_data.to_vec())?;
+    fn encode(&self, ser: &mut Serializer) -> Result<()> {
+        ser.writer.write_bool(self.compressed)?;
+        ser.writer.write_bytes(self.key_data.to_vec())?;
         Ok(())
     }
 }
 
 impl Decode for PublicKey {
-    fn decode(&mut self, reader: &mut BinaryReader) -> Result<()> {
-        self.compressed = reader.read_bool()?;
+    fn decode(&mut self, de: &mut Deserializer) -> Result<()> {
+        self.compressed = de.reader.read_bool()?;
         self.key_data = if self.compressed {
-            let bytes: [u8; COMPRESSED as usize] = reader
+            let bytes: [u8; COMPRESSED as usize] = de.reader
                 .read_bytes(COMPRESSED as usize)?
                 .as_slice()
                 .try_into()?;
             KeyData::Compressed(bytes)
         } else {
-            let bytes: [u8; DECOMPRESSED as usize] = reader
+            let bytes: [u8; DECOMPRESSED as usize] = de.reader
                 .read_bytes(DECOMPRESSED as usize)?
                 .as_slice()
                 .try_into()?;

@@ -1902,9 +1902,9 @@ dependencies = [
 
 [[package]]
 name = "serde-binary"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0b60b299bf28eeaf7d1caad21c2a4768fd96a3b2e5f56f1c60ff0e8bd1389bc"
+checksum = "c01c95acd363a3c77f903215476f57a10b0579911892fca4ebf6b72c2f641c11"
 dependencies = [
  "binary_rw",
  "serde",

@@ -189,7 +189,7 @@ impl Gatekeeper {
 mod tests {
     use super::*;
     use crate::{
-        secret::{MetaData, Secret},
+        secret::Secret,
         vault::Vault,
     };
     use anyhow::Result;
