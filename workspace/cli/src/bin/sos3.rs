@@ -118,6 +118,9 @@ enum Vault {
     /// Create a secret note
     #[clap(alias = "ls")]
     Note {
+        #[clap(short, long)]
+        label: String,
+
         /// Vault file
         #[clap(parse(from_os_str))]
         vault: PathBuf,
@@ -158,8 +161,8 @@ fn run() -> Result<()> {
             Vault::List { vault } => {
                 sos3_cli::vault::list(vault)?;
             }
-            Vault::Note { vault } => {
-                sos3_cli::vault::note(vault)?;
+            Vault::Note { vault, label } => {
+                sos3_cli::vault::note(vault, label)?;
             }
         },
     }

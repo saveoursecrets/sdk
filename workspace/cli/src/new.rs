@@ -11,7 +11,7 @@ use sos_core::{
 };
 use uuid::Uuid;
 
-use crate::password::read_stdin;
+use crate::input::read_stdin;
 
 const KEY_EXT: &str = "key.json";
 const PUB_EXT: &str = "pub.json";

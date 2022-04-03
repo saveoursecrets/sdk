@@ -64,57 +64,25 @@ pub fn read_stdin() -> Result<Option<String>> {
     }
 }
 
-struct FilteringEventHandler;
-impl ConditionalEventHandler for FilteringEventHandler {
-    fn handle(
-        &self,
-        evt: &Event,
-        _: RepeatCount,
-        _: bool,
-        _: &EventContext,
-    ) -> Option<Cmd> {
-        if let Some(KeyEvent(KeyCode::Char(c), m)) = evt.get(0) {
-            if m.contains(Modifiers::CTRL)
-                && *c == 'D'
-            {
-                println!("Got EOF Ctrl+d");
-                Some(Cmd::Abort)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-}
-
 /// Read a multi-line string.
 pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
     let mut rl = rustyline::Editor::<()>::new();
-    rl.bind_sequence(
-        Event::Any,
-        EventHandler::Conditional(Box::new(FilteringEventHandler)),
-    );
 
-    let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
     let mut value = String::new();
     loop {
+        let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
         match readline {
             Ok(ref line) => {
                 value.push_str(line);
                 value.push('\n');
             }
-            Err(e) => {
-                println!("Got error {:#?}", e);
-                match e {
-                    ReadlineError::Eof => {
-                        println!("Got EOF!");
-                        return Ok(Some(value));
-                    }
-                    ReadlineError::Interrupted => return Ok(None),
-                    _ => return Err(anyhow!(e)),
+            Err(e) => match e {
+                ReadlineError::Eof => {
+                    return Ok(Some(value));
                 }
-            }
+                ReadlineError::Interrupted => return Ok(None),
+                _ => return Err(anyhow!(e)),
+            },
         }
     }
 }
