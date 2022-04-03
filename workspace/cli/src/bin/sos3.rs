@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use sos_core::passphrase::WordCount;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 /// Safe secret storage for the web3 era.
 #[derive(Parser, Debug)]
@@ -35,6 +36,9 @@ enum New {
     ///
     /// The filename will be the UUID for the new vault.
     Vault {
+        #[clap(short, long)]
+        uuid: Option<Uuid>,
+
         /// Directory to write the vault file
         #[clap(parse(from_os_str))]
         destination: PathBuf,
@@ -125,8 +129,8 @@ fn main() -> Result<()> {
     let args = Cli::parse();
     match args.command {
         Command::New(cmd) => match cmd {
-            New::Vault { destination } => {
-                sos3_cli::new::vault(destination)?;
+            New::Vault { destination, uuid } => {
+                sos3_cli::new::vault(destination, uuid)?;
             }
             New::Keypair { name, destination } => {
                 sos3_cli::new::keypair(name, destination)?;
