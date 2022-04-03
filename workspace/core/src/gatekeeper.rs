@@ -16,8 +16,8 @@
 //!
 use crate::{
     crypto::{
-        aes_gcm_256,
         passphrase::{generate_secret_key, parse_salt},
+        xchacha20poly1305,
     },
     decode, encode,
     secret::{MetaData, Secret, SecretMeta},
@@ -81,7 +81,8 @@ impl Gatekeeper {
     pub fn label(&self) -> Result<String> {
         if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.index().meta() {
-                let meta_blob = aes_gcm_256::decrypt(private_key, meta_aead)?;
+                let meta_blob =
+                    xchacha20poly1305::decrypt(private_key, meta_aead)?;
                 let meta_data: MetaData = decode(meta_blob)?;
                 Ok(meta_data.label().to_string())
             } else {
@@ -97,7 +98,8 @@ impl Gatekeeper {
     pub fn meta(&self) -> Result<MetaData> {
         if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.index().meta() {
-                let meta_blob = aes_gcm_256::decrypt(private_key, meta_aead)?;
+                let meta_blob =
+                    xchacha20poly1305::decrypt(private_key, meta_aead)?;
                 let meta_data: MetaData = decode(meta_blob)?;
                 Ok(meta_data)
             } else {
@@ -112,7 +114,8 @@ impl Gatekeeper {
     pub fn set_meta(&mut self, meta_data: MetaData) -> Result<()> {
         if let Some(private_key) = &self.private_key {
             let meta_blob = encode(&meta_data)?;
-            let meta_aead = aes_gcm_256::encrypt(private_key, &meta_blob)?;
+            let meta_aead =
+                xchacha20poly1305::encrypt(private_key, &meta_blob)?;
             self.vault.index_mut().set_meta(Some(meta_aead));
             Ok(())
         } else {
@@ -151,7 +154,8 @@ impl Gatekeeper {
         if let Some(private_key) = &self.private_key {
             let uuid = uuid.unwrap_or_else(Uuid::new_v4);
             let secret_blob = encode(secret)?;
-            let secret_aead = aes_gcm_256::encrypt(private_key, &secret_blob)?;
+            let secret_aead =
+                xchacha20poly1305::encrypt(private_key, &secret_blob)?;
             self.vault.add_secret(uuid, secret_aead);
             Ok(uuid)
         } else {
@@ -164,7 +168,7 @@ impl Gatekeeper {
         if let Some(private_key) = &self.private_key {
             if let Some(secret_aead) = self.vault.get_secret(uuid) {
                 let secret_blob =
-                    aes_gcm_256::decrypt(private_key, secret_aead)?;
+                    xchacha20poly1305::decrypt(private_key, secret_aead)?;
                 let secret: Secret = decode(secret_blob)?;
                 Ok(secret)
             } else {

@@ -21,6 +21,7 @@ import {
 } from "../store/vaults";
 import { userSelector } from "../store/user";
 
+import {WorkerContext} from '../worker-provider';
 import { SecretKind, UnlockVaultResult, VaultWorker } from "../types";
 import SecretList from "./secret-list";
 import UnlockVaultForm from "./unlock-vault-form";

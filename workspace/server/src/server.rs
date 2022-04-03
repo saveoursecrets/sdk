@@ -12,9 +12,7 @@ use tower_http::cors::{CorsLayer, Origin};
 
 use crate::{assets::Assets, Backend, ServerConfig};
 use serde_json::json;
-use sos_core::{
-    address::AddressStr, decode, encode, vault::Vault,
-};
+use sos_core::{address::AddressStr, decode, encode, vault::Vault};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

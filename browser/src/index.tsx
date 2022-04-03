@@ -10,7 +10,11 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { createTheme } from "@mui/material/styles";
 
 import store from "./store";
-import WorkerProvider, { WorkerContext, webWorker, worker } from "./worker-provider";
+import WorkerProvider, {
+  WorkerContext,
+  webWorker,
+  worker,
+} from "./worker-provider";
 import { VaultWorker } from "./types";
 
 import App from "./app";
@@ -32,7 +36,7 @@ declare module "@mui/material/styles" {
 
 type AppProps = {
   worker: VaultWorker;
-}
+};
 
 function MainApp(props: AppProps) {
   const { worker } = props;

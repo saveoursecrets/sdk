@@ -82,7 +82,7 @@ colorlinks,
 
 \subsection{Secure Design}
 
-\paragraph{The cryptography to protect the secrets will use the industry standard AES256-GCM\footnote{\href{https://doc.libsodium.org/secret-key_cryptography/aead/aes-256-gcm}{AES256-GCM}} block cipher to protect the data at rest and ensure it's integrity using AEAD\footnote{\href{https://en.wikipedia.org/wiki/Authenticated_encryption}{Authenticated Encryption}}.}
+\paragraph{The cryptography to protect the secrets will use the XChaCha20Poly1305\footnote{\href{https://en.wikipedia.org/wiki/ChaCha20-Poly1305}{XChaCha20Poly1305}} symmetric cipher to protect the data at rest and ensure it's integrity using AEAD\footnote{\href{https://en.wikipedia.org/wiki/Authenticated_encryption}{Authenticated Encryption and Associated Data}}.}
 
 \subsection{Recovery Mechanism}
 
@@ -133,7 +133,7 @@ Use a standard server/client architecture to separate responsibilities:
 
 \paragraph{People are not very good at generating entropy and in particular choosing strong passwords. Whilst we intend to provide excellent user interface tools to assist in generating strong passwords we also need to ensure that the encryption private key is computationally expensive to brute force attack.}
 
-\paragraph{The user-supplied password is converted to a private key using the state of the art Argon2\footnote{\href{https://en.wikipedia.org/wiki/Argon2}{Argon2}} key derivation function and the generated salt is stored along with the vault so the same private key can be derived later. The result of the key derivation function is then hashed using Keccak256\footnote{\href{https://en.wikipedia.org/wiki/SHA-3}{SHA-3}} to get the 32 bytes we need for the AES symmetric key.}
+\paragraph{The user-supplied password is converted to a private key using the state of the art Argon2\footnote{\href{https://en.wikipedia.org/wiki/Argon2}{Argon2}} key derivation function and the generated salt is stored along with the vault so the same private key can be derived later. The result of the key derivation function is then hashed using Keccak256\footnote{\href{https://en.wikipedia.org/wiki/SHA-3}{SHA-3}} to get the 32 bytes we need for the symmetric key.}
 
 \section{Diceware}
 
