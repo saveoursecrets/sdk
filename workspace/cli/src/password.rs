@@ -36,7 +36,12 @@ pub fn read_password(prompt: &str) -> Result<String> {
     rl.set_helper(Some(h));
     rl.set_color_mode(ColorMode::Forced);
     rl.set_auto_add_history(false);
-    let passwd = rl.readline(prompt)?;
+
+    // NOTE: trim any trailing newline is a quick hack
+    // NOTE: for pasting
+    let passwd = rl.readline(prompt)?
+        .trim_end_matches('\n').to_string();
+
     Ok(passwd)
 }
 
