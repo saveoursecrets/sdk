@@ -1,102 +1,33 @@
-//use anyhow::{bail, Result};
-//use sos_core::{
-//crypto::{
-//authorize::{PrivateKey},
-//keypair::KeyPart,
-//},
-//};
-//use std::path::PathBuf;
+use anyhow::{bail, Result};
+use sos_core::{vault::Vault, gatekeeper::Gatekeeper};
+use std::path::PathBuf;
 
-//use log::info;
+use crate::{password::{read_password, read_stdin}, LOG_TARGET};
+use log::info;
 
-//const PASSPHRASE_PROMPT: &str = "Passphrase: ";
-
-//fn passphrase_prompt(prompt: &str) -> Result<String> {
-//todo!()
-//let passphrase = prompt_password(prompt)?;
-//if passphrase.trim().is_empty() {
-//return passphrase_prompt(prompt);
-//}
-//Ok(passphrase)
-//}
-
-/*
-fn get_service(vault: PathBuf, jwt_keypair: PathBuf) -> Result<MemoryService> {
+/// List the secrets in a vault.
+pub fn list(vault: PathBuf) -> Result<()> {
     if !vault.is_file() {
-        bail!("vault is not a file: {}", vault.display());
+        bail!("vault file {} does not exist", vault.display());
     }
 
-    let label = vault
-        .file_stem()
-        .ok_or_else(|| {
-            anyhow!(
-                "unable to extract file stem for vault file, {}",
-                vault.display()
-            )
-        })?
-        .to_string_lossy()
-        .to_string();
+    let vault = Vault::read_file(vault)?;
+    let mut keeper = Gatekeeper::new(vault);
 
-    if !jwt_keypair.is_file() {
-        bail!("keypair for JWT is not a file: {}", jwt_keypair.display());
+    let passphrase = if let Some(passphrase) = read_stdin()? {
+        passphrase
+    } else {
+        read_password("Passphrase: ")?
+    };
+
+    let meta_data = keeper.unlock(passphrase)?;
+    let secrets = meta_data.secrets();
+    if secrets.is_empty() {
+        info!(target: LOG_TARGET, "Empty vault");
+    } else {
+        for (id, meta) in secrets {
+            info!(target: LOG_TARGET, "{} -> {}", meta.label(), id);
+        }
     }
-
-    let vault = Vault::read_file(&vault)?;
-    let jwt_pem = std::fs::read_to_string(jwt_keypair)?;
-    let jwt_keypair = KeyPair::from_pem(&jwt_pem)?;
-
-    let mut vaults = HashMap::new();
-    vaults.insert(label, Arc::new(RwLock::new(vault)));
-
-    Ok(MemoryService::new(jwt_keypair, vaults))
-}
-*/
-
-/*
-fn get_private_key(auth_private_key: PathBuf) -> Result<PrivateKey> {
-    if !auth_private_key.is_file() {
-        bail!(
-            "auth private key is not a file: {}",
-            auth_private_key.display()
-        );
-    }
-
-    let private_key_bytes = std::fs::read(&auth_private_key)?;
-    let key_part: KeyPart = serde_json::from_slice(&private_key_bytes)?;
-    let private_key: PrivateKey = key_part.into();
-    Ok(private_key)
-}
-*/
-
-/*
-fn get_client<'a>(
-    service: &'a mut impl VaultService,
-    private_key: &PrivateKey,
-) -> Result<MemoryClient<'a>> {
-    Ok(MemoryClient::new(service, private_key)?)
-}
-*/
-
-/*
-/// List the contents of a vault.
-pub fn list(
-    vault: PathBuf,
-    jwt_keypair: PathBuf,
-    auth_private_key: PathBuf,
-) -> Result<()> {
-    let mut service = get_service(vault, jwt_keypair)?;
-    let private_key = get_private_key(auth_private_key)?;
-    let mut client = get_client(&mut service, &private_key)?;
-
-    info!("Enter your passphrase to unlock the vault");
-    info!("");
-
-    let passphrase = passphrase_prompt(PASSPHRASE_PROMPT)?;
-    let passphrase_bytes = passphrase.as_bytes().to_vec();
-    client.set_encryption_key(Some(passphrase_bytes));
-
-    info!("Run listing vault content {}", passphrase);
-
     Ok(())
 }
-*/

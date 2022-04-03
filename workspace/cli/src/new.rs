@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
-use std::io::{self, Read};
 
 use sos_core::{
     address::address_compressed,
@@ -10,8 +9,9 @@ use sos_core::{
     vault::Vault,
 };
 use uuid::Uuid;
-
 use log::info;
+
+use crate::password::read_stdin;
 
 const KEY_EXT: &str = "key.json";
 const PUB_EXT: &str = "pub.json";
@@ -35,10 +35,8 @@ pub fn vault(destination: PathBuf, uuid: Option<Uuid>) -> Result<()> {
         bail!("file {} already exists", vault_path.display());
     }
 
-    let (passphrase, generated) = if atty::isnt(atty::Stream::Stdin) {
-        let mut buffer = Vec::new();
-        io::stdin().lock().read_to_end(&mut buffer)?;
-        (std::str::from_utf8(&buffer)?.trim().to_string(), false)
+    let (passphrase, generated) = if let Some(passphrase) = read_stdin()? {
+        (passphrase, false)
     } else {
         let (passphrase, _) = diceware::generate()?;
         (passphrase, true)

@@ -13,7 +13,7 @@ log = "0.4"
 pretty_env_logger = "0.4"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 atty = "0.2"
+rustyline = "9"
+rustyline-derive = "0.6"
+unicode-width = "0.1"
 
-[dependencies.rpassword]
-version = "5"
-#path = "../rpassword"
