@@ -20,12 +20,12 @@ const PEM_EXT: &str = "pem";
 use crate::LOG_TARGET;
 
 /// Create a new empty vault
-pub fn vault(destination: PathBuf) -> Result<()> {
+pub fn vault(destination: PathBuf, uuid: Option<Uuid>) -> Result<()> {
     if !destination.is_dir() {
         bail!("destination is not a directory: {}", destination.display());
     }
 
-    let uuid = Uuid::new_v4();
+    let uuid = uuid.unwrap_or_else(Uuid::new_v4);
     let file_name = uuid.to_string();
 
     let mut vault_path = destination.join(&file_name);

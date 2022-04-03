@@ -6,6 +6,10 @@ wasm:
 browser-gui:
 	@cd browser && yarn build
 
+fixtures:
+	@cd workspace/core && rm ./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault
+	@cd workspace/cli && cat ../core/fixtures/passphrase.txt | cargo run -- new vault --uuid fba77e3b-edd0-4849-a05f-dded6df31d22 ../core/fixtures
+
 server-release: browser-gui
 	@cd workspace/server && cargo build --release
 
@@ -21,4 +25,7 @@ fmt: prettier
 check:
 	@cargo check --all
 
-.PHONY: all wasm browser-gui server-release prettier lint fmt check
+test:
+	@cargo test --all
+
+.PHONY: all wasm browser-gui fixtures server-release prettier lint fmt check test
