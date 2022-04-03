@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
+use std::io::{self, Read};
 
 use sos_core::{
     address::address_compressed,
@@ -34,7 +35,15 @@ pub fn vault(destination: PathBuf) -> Result<()> {
         bail!("file {} already exists", vault_path.display());
     }
 
-    let (passphrase, _) = diceware::generate()?;
+    let (passphrase, generated) = if atty::isnt(atty::Stream::Stdin) {
+        let mut buffer = Vec::new();
+        io::stdin().lock().read_to_end(&mut buffer)?;
+        (std::str::from_utf8(&buffer)?.trim().to_string(), false)
+    } else {
+        let (passphrase, _) = diceware::generate()?;
+        (passphrase, true)
+    };
+
     let mut vault = Vault::new(uuid);
     vault.initialize(&passphrase)?;
     vault.write_file(&vault_path)?;
@@ -45,7 +54,13 @@ pub fn vault(destination: PathBuf) -> Result<()> {
         vault_path.display()
     );
 
-    info!(target: LOG_TARGET, "passphrase is {}", passphrase);
+    if generated {
+        let delimiter = "-".repeat(60);
+        info!(target: LOG_TARGET, "generated diceware passphrase");
+        info!(target: LOG_TARGET, "{}", delimiter);
+        info!(target: LOG_TARGET, "{}", passphrase);
+        info!(target: LOG_TARGET, "{}", delimiter);
+    }
     Ok(())
 }
 
