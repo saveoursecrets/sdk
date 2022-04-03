@@ -4,7 +4,7 @@ use chbs::{
     config::{BasicConfig, BasicConfigBuilder},
     prelude::*,
     probability::Probability,
-    word::{WordSampler, WordList},
+    word::{WordList, WordSampler},
 };
 
 /// Generate a passphrase and the entropy in bits.

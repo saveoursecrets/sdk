@@ -45,11 +45,7 @@ pub fn vault(destination: PathBuf) -> Result<()> {
         vault_path.display()
     );
 
-    info!(
-        target: LOG_TARGET,
-        "passphrase is {}",
-        passphrase
-    );
+    info!(target: LOG_TARGET, "passphrase is {}", passphrase);
     Ok(())
 }
 

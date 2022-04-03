@@ -83,7 +83,7 @@ const DrawerHeader = styled("div")(({ theme }) => ({
 
 type AppProps = {
   worker: VaultWorker;
-}
+};
 
 export default function AuthenticatedApp(props: AppProps) {
   const { worker } = props;

@@ -6,6 +6,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
+    "clean": "rm -rf ./dist ./.parcel-cache",
     "types": "tsc --noEmit --project tsconfig.json",
     "public": "rm -rf ../workspace/server/public && cp -r dist ../workspace/server/public",
     "build": "parcel build index.html && yarn public",
