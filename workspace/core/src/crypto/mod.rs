@@ -5,9 +5,9 @@ use serde_binary::{
 };
 
 pub mod authorize;
-pub mod xchacha20poly1305;
 pub mod keypair;
 pub mod passphrase;
+pub mod xchacha20poly1305;
 
 /// Type identifiers for ECDSA keys.
 pub mod types {
