@@ -109,17 +109,17 @@ impl Decode for Header {
 /// Index of meta data describing the contents.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Index {
-    meta: Option<AeadPack<12>>,
+    meta: Option<AeadPack<24>>,
 }
 
 impl Index {
     /// Get the encrypted meta data for the index.
-    pub fn meta(&self) -> Option<&AeadPack<12>> {
+    pub fn meta(&self) -> Option<&AeadPack<24>> {
         self.meta.as_ref()
     }
 
     /// Set the encrypted meta data for the index.
-    pub fn set_meta(&mut self, meta: Option<AeadPack<12>>) {
+    pub fn set_meta(&mut self, meta: Option<AeadPack<24>>) {
         self.meta = meta;
     }
 }
@@ -150,7 +150,7 @@ impl Decode for Index {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    data: HashMap<Uuid, AeadPack<12>>,
+    data: HashMap<Uuid, AeadPack<24>>,
 }
 
 impl Encode for Contents {
@@ -169,7 +169,7 @@ impl Decode for Contents {
         let length = de.reader.read_u32()?;
         for _ in 0..length {
             let key: Uuid = Deserialize::deserialize(&mut *de)?;
-            let mut value: AeadPack<12> = Default::default();
+            let mut value: AeadPack<24> = Default::default();
             value.decode(&mut *de)?;
             self.data.insert(key, value);
         }
@@ -283,12 +283,12 @@ impl Vault {
     }
 
     /// Add an encrypted secret to the vault.
-    pub fn add_secret(&mut self, uuid: Uuid, secret: AeadPack<12>) {
+    pub fn add_secret(&mut self, uuid: Uuid, secret: AeadPack<24>) {
         self.contents.data.insert(uuid, secret);
     }
 
     /// Get an encrypted secret from the vault.
-    pub fn get_secret(&self, uuid: &Uuid) -> Option<&AeadPack<12>> {
+    pub fn get_secret(&self, uuid: &Uuid) -> Option<&AeadPack<24>> {
         self.contents.data.get(uuid)
     }
 

@@ -4,7 +4,6 @@ use serde_binary::{
     Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
 
-pub mod aes_gcm_256;
 pub mod authorize;
 pub mod xchacha20poly1305;
 pub mod keypair;
@@ -25,15 +24,6 @@ pub struct AeadPack<const SIZE: usize> {
     pub ciphertext: Vec<u8>,
 }
 
-impl Default for AeadPack<12> {
-    fn default() -> Self {
-        Self {
-            nonce: [0; 12],
-            ciphertext: Default::default(),
-        }
-    }
-}
-
 impl Default for AeadPack<24> {
     fn default() -> Self {
         Self {
@@ -43,7 +33,7 @@ impl Default for AeadPack<24> {
     }
 }
 
-impl Encode for AeadPack<12> {
+impl Encode for AeadPack<24> {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_bytes(&self.nonce)?;
         self.ciphertext.serialize(ser)?;
@@ -51,7 +41,7 @@ impl Encode for AeadPack<12> {
     }
 }
 
-impl Decode for AeadPack<12> {
+impl Decode for AeadPack<24> {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.nonce = de.reader.read_bytes(12)?.as_slice().try_into()?;
         self.ciphertext = Deserialize::deserialize(de)?;
@@ -61,11 +51,11 @@ impl Decode for AeadPack<12> {
 
 #[cfg(test)]
 mod tests {
-    use super::aes_gcm_256::*;
+    use super::xchacha20poly1305::*;
     use anyhow::Result;
 
     #[test]
-    fn aes_gcm_encrypt_decrypt() -> Result<()> {
+    fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
         // Key must be 32 bytes
         let key = b"an example very very secret key.";
         let value = b"plaintext message";
@@ -76,7 +66,7 @@ mod tests {
     }
 
     #[test]
-    fn aes_gcm_encrypt_decrypt_tamper() -> () {
+    fn xchacha20poly1305_encrypt_decrypt_tamper() -> () {
         // Key must be 32 bytes
         let key = b"an example very very secret key.";
         let value = b"plaintext message";
