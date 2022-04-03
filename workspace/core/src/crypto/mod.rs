@@ -6,6 +6,7 @@ use serde_binary::{
 
 pub mod aes_gcm_256;
 pub mod authorize;
+pub mod xchacha20poly1305;
 pub mod keypair;
 pub mod passphrase;
 
@@ -17,14 +18,14 @@ pub mod types {
 
 /// Encrypted data with the nonce.
 #[derive(Debug, Eq, PartialEq)]
-pub struct AeadPack {
+pub struct AeadPack<const SIZE: usize> {
     /// Number once value.
-    pub nonce: [u8; 12],
+    pub nonce: [u8; SIZE],
     /// Encrypted cipher text.
     pub ciphertext: Vec<u8>,
 }
 
-impl Default for AeadPack {
+impl Default for AeadPack<12> {
     fn default() -> Self {
         Self {
             nonce: [0; 12],
@@ -33,7 +34,16 @@ impl Default for AeadPack {
     }
 }
 
-impl Encode for AeadPack {
+impl Default for AeadPack<24> {
+    fn default() -> Self {
+        Self {
+            nonce: [0; 24],
+            ciphertext: Default::default(),
+        }
+    }
+}
+
+impl Encode for AeadPack<12> {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_bytes(&self.nonce)?;
         self.ciphertext.serialize(ser)?;
@@ -41,7 +51,7 @@ impl Encode for AeadPack {
     }
 }
 
-impl Decode for AeadPack {
+impl Decode for AeadPack<12> {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.nonce = de.reader.read_bytes(12)?.as_slice().try_into()?;
         self.ciphertext = Deserialize::deserialize(de)?;
