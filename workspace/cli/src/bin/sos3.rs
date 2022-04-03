@@ -4,6 +4,8 @@ use sos_core::passphrase::WordCount;
 use std::path::PathBuf;
 use uuid::Uuid;
 
+use sos3_cli::LOG_TARGET;
+
 /// Safe secret storage for the web3 era.
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -17,9 +19,9 @@ enum Command {
     /// Create vaults, keypairs and passphrases.
     #[clap(subcommand)]
     New(New),
-    /// Manage the authorized public keys for a vault.
-    #[clap(subcommand)]
-    User(User),
+    // Manage the authorized public keys for a vault.
+    //#[clap(subcommand)]
+    //User(User),
     /// Access a vault.
     #[clap(subcommand)]
     Vault(Vault),
@@ -69,6 +71,7 @@ enum New {
     },
 }
 
+/*
 #[derive(Subcommand, Debug)]
 enum User {
     /// List the public keys for a vault
@@ -100,32 +103,20 @@ enum User {
         public_key: PathBuf,
     },
 }
+*/
 
 #[derive(Subcommand, Debug)]
 enum Vault {
     /// List the contents of a vault
     #[clap(alias = "ls")]
     List {
-        // Private key for authorization
-        //#[clap(short, long)]
-        //auth: PathBuf,
-
-        // Keypair for JWT
-        //#[clap(short, long)]
-        //jwt: PathBuf,
-
         /// Vault file
         #[clap(parse(from_os_str))]
         vault: PathBuf,
     },
 }
 
-fn main() -> Result<()> {
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
-    }
-    pretty_env_logger::init();
-
+fn run() -> Result<()> {
     let args = Cli::parse();
     match args.command {
         Command::New(cmd) => match cmd {
@@ -142,6 +133,7 @@ fn main() -> Result<()> {
                 sos3_cli::new::passphrase(count)?;
             }
         },
+        /*
         Command::User(cmd) => match cmd {
             User::List { vault } => {
                 sos3_cli::user::list(vault)?;
@@ -153,12 +145,28 @@ fn main() -> Result<()> {
                 sos3_cli::user::remove(vault, public_key)?;
             }
         },
+        */
         Command::Vault(cmd) => match cmd {
-            Vault::List { .. } => {
-                todo!("list vaults!")
-                //sos3_cli::vault::list(vault, jwt, auth)?;
+            Vault::List { vault } => {
+                sos3_cli::vault::list(vault)?;
             }
         },
     }
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
+    pretty_env_logger::init();
+
+    match run() {
+        Err(e) => {
+            log::error!(target: LOG_TARGET, "{}", e);
+        }
+        _ => {}
+    }
+
     Ok(())
 }

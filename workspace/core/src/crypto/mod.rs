@@ -43,7 +43,7 @@ impl Encode for AeadPack<24> {
 
 impl Decode for AeadPack<24> {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.nonce = de.reader.read_bytes(12)?.as_slice().try_into()?;
+        self.nonce = de.reader.read_bytes(24)?.as_slice().try_into()?;
         self.ciphertext = Deserialize::deserialize(de)?;
         Ok(())
     }

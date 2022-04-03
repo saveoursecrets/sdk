@@ -26,6 +26,11 @@ impl MetaData {
         &self.label
     }
 
+    /// Get the meta data secrets map.
+    pub fn secrets(&self) -> &HashMap<Uuid, SecretMeta> {
+        &self.secrets
+    }
+
     /// Get the vault label.
     pub fn set_label(&mut self, label: String) {
         self.label = label;
@@ -69,6 +74,11 @@ impl SecretMeta {
     /// Create new meta data for a secret.
     pub fn new(label: String) -> Self {
         Self { label }
+    }
+
+    /// The label for the secret.
+    pub fn label(&self) -> &str {
+        &self.label
     }
 }
 

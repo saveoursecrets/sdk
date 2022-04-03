@@ -13,10 +13,12 @@ use uuid::Uuid;
 
 use crate::{
     crypto::{
+        xchacha20poly1305::encrypt,
         authorize::PublicKey,
         passphrase::{generate_salt, generate_secret_key},
         AeadPack,
     },
+    secret::MetaData,
     Error, Result,
 };
 
@@ -246,6 +248,10 @@ impl Vault {
             // private key later
             self.header.auth.salt = Some(salt.to_string());
 
+            self.index = Default::default();
+            let default_meta: MetaData = Default::default();
+            let meta_aead = encrypt(&private_key, &encode(&default_meta)?)?;
+            self.index.set_meta(Some(meta_aead));
             Ok(private_key)
         } else {
             Err(Error::VaultAlreadyInit)
@@ -398,7 +404,6 @@ mod tests {
         let vault = Vault::read_file(
             "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
         )?;
-        println!("Vault {:#?}", vault);
         Ok(())
     }
 
@@ -407,11 +412,7 @@ mod tests {
         let buffer = std::fs::read(
             "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
         )?;
-
-        println!("{}", hex::encode(&buffer));
-
         let vault: Vault = decode(buffer)?;
-        println!("Vault {:#?}", vault);
         Ok(())
     }
 }
