@@ -107,9 +107,17 @@ enum User {
 
 #[derive(Subcommand, Debug)]
 enum Vault {
-    /// List the contents of a vault
+    /// List the secrets in a vault
     #[clap(alias = "ls")]
     List {
+        /// Vault file
+        #[clap(parse(from_os_str))]
+        vault: PathBuf,
+    },
+
+    /// Create a secret note
+    #[clap(alias = "ls")]
+    Note {
         /// Vault file
         #[clap(parse(from_os_str))]
         vault: PathBuf,
@@ -149,6 +157,9 @@ fn run() -> Result<()> {
         Command::Vault(cmd) => match cmd {
             Vault::List { vault } => {
                 sos3_cli::vault::list(vault)?;
+            }
+            Vault::Note { vault } => {
+                sos3_cli::vault::note(vault)?;
             }
         },
     }
