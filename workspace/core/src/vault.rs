@@ -20,7 +20,7 @@ use crate::{
     Error, Result,
 };
 
-const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x03];
+const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x33];
 const VERSION: u16 = 0;
 
 /// Authentication information.
@@ -396,7 +396,7 @@ mod tests {
     #[test]
     fn decode_file() -> Result<()> {
         let vault = Vault::read_file(
-            "./fixtures/7f8f7bff-5136-4721-9913-4749c42081c4.vault",
+            "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
         )?;
         println!("Vault {:#?}", vault);
         Ok(())
@@ -405,7 +405,7 @@ mod tests {
     #[test]
     fn decode_buffer() -> Result<()> {
         let buffer = std::fs::read(
-            "./fixtures/7f8f7bff-5136-4721-9913-4749c42081c4.vault",
+            "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
         )?;
 
         println!("{}", hex::encode(&buffer));
