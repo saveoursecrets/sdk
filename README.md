@@ -31,3 +31,17 @@ To develop with the webassembly bindings in the browser application link the web
 (cd workspace/wasm/pkg && yarn link)
 (cd browser && yarn link sos-wasm)
 ```
+
+## Command Line
+
+To create a new vault with a randomly generated diceware passphrase:
+
+```
+sos3 new vault /path/to/folder
+```
+
+To create a new vault from an existing passphrase write it to stdin:
+
+```
+cat secret.txt | sos3 new vault /path/to/folder
+```

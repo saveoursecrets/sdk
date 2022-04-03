@@ -26,7 +26,14 @@ enum Command {
 
 #[derive(Subcommand, Debug)]
 enum New {
-    /// Create a new secret storage vault
+    /// Create a new secret storage vault.
+    ///
+    /// A passphrase for the new vault will be read from
+    /// stdin if data is detected on stdin otherwise a
+    /// random diceware passphrase is generated and printed
+    /// to the terminal.
+    ///
+    /// The filename will be the UUID for the new vault.
     Vault {
         /// Directory to write the vault file
         #[clap(parse(from_os_str))]
@@ -95,13 +102,13 @@ enum Vault {
     /// List the contents of a vault
     #[clap(alias = "ls")]
     List {
-        /// Private key for authorization
-        #[clap(short, long)]
-        auth: PathBuf,
+        // Private key for authorization
+        //#[clap(short, long)]
+        //auth: PathBuf,
 
-        /// Keypair for JWT
-        #[clap(short, long)]
-        jwt: PathBuf,
+        // Keypair for JWT
+        //#[clap(short, long)]
+        //jwt: PathBuf,
 
         /// Vault file
         #[clap(parse(from_os_str))]
