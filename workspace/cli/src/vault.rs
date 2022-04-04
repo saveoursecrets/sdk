@@ -122,3 +122,44 @@ pub fn add_note(vault: PathBuf, label: String) -> Result<()> {
     }
     Ok(())
 }
+
+/// Add a secret file to the vault.
+pub fn add_file(
+    vault: PathBuf,
+    label: Option<String>,
+    file: PathBuf,
+) -> Result<()> {
+    if !file.is_file() {
+        bail!("file {} does not exist", file.display());
+    }
+
+    let mut keeper = load_vault(&vault)?;
+    let _ = unlock_vault(&mut keeper, false)?;
+
+    let mime = if let Some(name) = file.file_name() {
+        if let Some(name) = name.to_str() {
+            mime_guess::from_path(name).first().map(|m| m.to_string())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let label = if let Some(label) = label {
+        label
+    } else {
+        file.file_name()
+            .ok_or(anyhow!("not a valid filename"))
+            .map(|name| name.to_string_lossy().into_owned())?
+    };
+
+    let buffer = std::fs::read(file)?;
+    let secret_meta = SecretMeta::new(label);
+    let secret = Secret::Blob { buffer, mime };
+    let uuid = keeper.set_secret(&secret, None)?;
+    keeper.set_secret_meta(uuid, secret_meta)?;
+    keeper.vault().write_file(vault)?;
+    info!(target: LOG_TARGET, "secret {}", uuid);
+    Ok(())
+}

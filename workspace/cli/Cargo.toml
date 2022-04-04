@@ -16,4 +16,5 @@ atty = "0.2"
 rustyline = "9"
 rustyline-derive = "0.6"
 unicode-width = "0.1"
+mime_guess = "2"
 
