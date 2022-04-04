@@ -13,9 +13,9 @@ use uuid::Uuid;
 
 use crate::{
     crypto::{
-        xchacha20poly1305::encrypt,
         authorize::PublicKey,
         passphrase::{generate_salt, generate_secret_key},
+        xchacha20poly1305::encrypt,
         AeadPack,
     },
     secret::MetaData,

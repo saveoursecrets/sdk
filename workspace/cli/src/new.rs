@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
 
+use log::info;
 use sos_core::{
     address::address_compressed,
     crypto::{authorize::jwt, keypair::generate},
@@ -9,9 +10,8 @@ use sos_core::{
     vault::Vault,
 };
 use uuid::Uuid;
-use log::info;
 
-use crate::password::read_stdin;
+use crate::input::read_stdin;
 
 const KEY_EXT: &str = "key.json";
 const PUB_EXT: &str = "pub.json";
