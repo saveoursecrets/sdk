@@ -26,10 +26,17 @@ impl MetaData {
         &self.label
     }
 
-    /// Get the meta data secrets map.
+    /// Get the secrets map.
     pub fn secrets(&self) -> &HashMap<Uuid, SecretMeta> {
         &self.secrets
     }
+
+    /*
+    /// Get a mutable reference to the secrets map.
+    pub fn secrets_mut(&mut self) -> &mut HashMap<Uuid, SecretMeta> {
+        &mut self.secrets
+    }
+    */
 
     /// Get the vault label.
     pub fn set_label(&mut self, label: String) {
