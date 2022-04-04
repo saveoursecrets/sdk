@@ -131,7 +131,6 @@ enum Vault {
 #[derive(Subcommand, Debug)]
 enum VaultAdd {
     /// Create a secret note
-    #[clap(alias = "ls")]
     Note {
         #[clap(short, long)]
         label: String,
@@ -139,6 +138,19 @@ enum VaultAdd {
         /// Vault file
         #[clap(parse(from_os_str))]
         vault: PathBuf,
+    },
+    /// Create a secret file
+    File {
+        #[clap(short, long)]
+        label: Option<String>,
+
+        /// Vault file
+        #[clap(parse(from_os_str))]
+        vault: PathBuf,
+
+        /// Secret file
+        #[clap(parse(from_os_str))]
+        file: PathBuf,
     },
 }
 
@@ -182,6 +194,9 @@ fn run() -> Result<()> {
             Vault::Add(cmd) => match cmd {
                 VaultAdd::Note { vault, label } => {
                     sos3_cli::vault::add_note(vault, label)?;
+                }
+                VaultAdd::File { vault, label, file } => {
+                    sos3_cli::vault::add_file(vault, label, file)?;
                 }
             },
         },

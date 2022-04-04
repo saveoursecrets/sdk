@@ -2298,6 +2298,7 @@ dependencies = [
  "atty",
  "clap",
  "log",
+ "mime_guess",
  "pretty_env_logger",
  "rustyline",
  "rustyline-derive",
