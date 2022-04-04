@@ -115,6 +115,12 @@ enum Vault {
         vault: PathBuf,
     },
 
+    #[clap(subcommand)]
+    Add(VaultAdd),
+}
+
+#[derive(Subcommand, Debug)]
+enum VaultAdd {
     /// Create a secret note
     #[clap(alias = "ls")]
     Note {
@@ -161,8 +167,10 @@ fn run() -> Result<()> {
             Vault::List { vault } => {
                 sos3_cli::vault::list(vault)?;
             }
-            Vault::Note { vault, label } => {
-                sos3_cli::vault::note(vault, label)?;
+            Vault::Add(cmd) => match cmd {
+                VaultAdd::Note { vault, label } => {
+                    sos3_cli::vault::add_note(vault, label)?;
+                }
             }
         },
     }

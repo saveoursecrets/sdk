@@ -9,11 +9,6 @@ use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
 use rustyline::{ColorMode, Editor};
 
-use rustyline::{
-    Cmd, ConditionalEventHandler, Event, EventContext, EventHandler, KeyCode,
-    KeyEvent, Modifiers, RepeatCount,
-};
-
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
 
 const DEFAULT_PROMPT: &str = ">> ";

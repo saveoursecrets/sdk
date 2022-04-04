@@ -49,9 +49,9 @@ pub fn list(vault: PathBuf) -> Result<()> {
 }
 
 /// Add a secret note to the vault.
-pub fn note(vault: PathBuf, label: String) -> Result<()> {
+pub fn add_note(vault: PathBuf, label: String) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let meta_data = unlock_vault(&mut keeper, false)?;
+    let _ = unlock_vault(&mut keeper, false)?;
     let delimiter = "-".repeat(60);
 
     info!(target: LOG_TARGET, "{}", delimiter);
