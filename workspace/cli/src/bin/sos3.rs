@@ -171,7 +171,7 @@ fn run() -> Result<()> {
                 VaultAdd::Note { vault, label } => {
                     sos3_cli::vault::add_note(vault, label)?;
                 }
-            }
+            },
         },
     }
     Ok(())
