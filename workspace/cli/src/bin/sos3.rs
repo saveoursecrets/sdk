@@ -4,7 +4,7 @@ use sos_core::passphrase::WordCount;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use sos3_cli::LOG_TARGET;
+use sos3_cli::{UuidOrName, LOG_TARGET};
 
 /// Safe secret storage for the web3 era.
 #[derive(Parser, Debug)]
@@ -117,6 +117,15 @@ enum Vault {
 
     #[clap(subcommand)]
     Add(VaultAdd),
+
+    /// Get a secret in a vault
+    Get {
+        /// Vault file
+        #[clap(parse(from_os_str))]
+        vault: PathBuf,
+        /// Secret name or uuid
+        secret: UuidOrName,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -166,6 +175,9 @@ fn run() -> Result<()> {
         Command::Vault(cmd) => match cmd {
             Vault::List { vault } => {
                 sos3_cli::vault::list(vault)?;
+            }
+            Vault::Get { vault, secret } => {
+                sos3_cli::vault::get(vault, secret)?;
             }
             Vault::Add(cmd) => match cmd {
                 VaultAdd::Note { vault, label } => {

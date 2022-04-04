@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use sos_core::{
     gatekeeper::Gatekeeper,
     secret::{MetaData, Secret, SecretMeta},
@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use crate::{
     input::{read_multiline, read_password, read_stdin},
-    LOG_TARGET,
+    UuidOrName, LOG_TARGET,
 };
 use log::info;
 
@@ -44,6 +44,56 @@ pub fn list(vault: PathBuf) -> Result<()> {
         for (id, meta) in secrets {
             info!(target: LOG_TARGET, "{} -> {}", meta.label(), id);
         }
+    }
+    Ok(())
+}
+
+fn print_secret_header(secret: &Secret, secret_meta: &SecretMeta) {
+    let delimiter = "-".repeat(60);
+    let kind = match secret {
+        Secret::Text(_) => "Note",
+        _ => todo!(),
+    };
+
+    println!("{}", delimiter);
+    println!("{}: {}", kind, secret_meta.label());
+    println!("{}", delimiter);
+}
+
+/// Print a secret in the vault.
+pub fn get(vault: PathBuf, target: UuidOrName) -> Result<()> {
+    let mut keeper = load_vault(&vault)?;
+    let meta_data = unlock_vault(&mut keeper, true)?;
+
+    let result = match &target {
+        UuidOrName::Uuid(uuid) => {
+            meta_data.secrets().get(uuid).map(|v| (uuid, v))
+        }
+        UuidOrName::Name(name) => {
+            meta_data.secrets().iter().find_map(|(k, v)| {
+                if v.label() == name {
+                    return Some((k, v));
+                } else {
+                    None
+                }
+            })
+        }
+    };
+
+    if let Some((uuid, secret_meta)) = result {
+        match keeper.get_secret(uuid) {
+            Ok(secret) => match secret {
+                Secret::Text(ref note) => {
+                    print_secret_header(&secret, secret_meta);
+                    println!("{}", note);
+                }
+                _ => todo!("print other secret types"),
+            },
+            Err(e) => return Err(anyhow!(e)),
+        }
+    } else {
+        // Secret meta data not found
+        log::info!("secret not found");
     }
     Ok(())
 }
