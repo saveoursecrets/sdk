@@ -1,7 +1,9 @@
 //! Cryptographic routines and types.
+use crate::Error;
 use serde::{Deserialize, Serialize};
 use serde_binary::{
-    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
+    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
+    Serializer,
 };
 
 pub mod authorize;
@@ -11,17 +13,15 @@ pub mod xchacha20poly1305;
 
 /// Constants for supported symmetric ciphers.
 pub mod algorithms {
-    use std::convert::AsRef;
     use serde_binary::{
         Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
     };
+    use std::convert::AsRef;
 
     /// Default algorithm.
     pub const X_CHACHA20_POLY1305: u8 = 0x01;
     /// All supported algorithms.
-    pub const ALGORITHMS: [u8; 1] = [
-        X_CHACHA20_POLY1305
-    ];
+    pub const ALGORITHMS: [u8; 1] = [X_CHACHA20_POLY1305];
 
     /// Wrapper type for cipher algorithm.
     #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -66,35 +66,73 @@ pub mod types {
     pub const K256: u8 = 0x01;
 }
 
+/// Enumeration of the sizes for nonces.
+#[derive(Debug, Eq, PartialEq)]
+pub enum Nonce {
+    /// Standard 12 byte nonce used by AES-GCM and ChaCha20Poly1305.
+    Nonce12([u8; 12]),
+    /// Extended 24 byte nonce used by XChaCha20Poly1305.
+    Nonce24([u8; 24]),
+}
+
+impl Default for Nonce {
+    fn default() -> Self {
+        Nonce::Nonce24([0; 24])
+    }
+}
+
 /// Encrypted data with the nonce.
 #[derive(Debug, Eq, PartialEq)]
-pub struct AeadPack<const SIZE: usize> {
+pub struct AeadPack {
     /// Number once value.
-    pub nonce: [u8; SIZE],
+    pub nonce: Nonce,
     /// Encrypted cipher text.
     pub ciphertext: Vec<u8>,
 }
 
-impl Default for AeadPack<24> {
+impl Default for AeadPack {
     fn default() -> Self {
         Self {
-            nonce: [0; 24],
+            nonce: Default::default(),
             ciphertext: Default::default(),
         }
     }
 }
 
-impl Encode for AeadPack<24> {
+impl Encode for AeadPack {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_bytes(&self.nonce)?;
+        match &self.nonce {
+            Nonce::Nonce12(ref bytes) => {
+                ser.writer.write_u8(12)?;
+                ser.writer.write_bytes(bytes)?;
+            }
+            Nonce::Nonce24(ref bytes) => {
+                ser.writer.write_u8(24)?;
+                ser.writer.write_bytes(bytes)?;
+            }
+        }
         self.ciphertext.serialize(ser)?;
         Ok(())
     }
 }
 
-impl Decode for AeadPack<24> {
+impl Decode for AeadPack {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.nonce = de.reader.read_bytes(24)?.as_slice().try_into()?;
+        let nonce_size = de.reader.read_u8()?;
+        let nonce_buffer = de.reader.read_bytes(nonce_size as usize)?;
+        match nonce_size {
+            12 => {
+                self.nonce = Nonce::Nonce12(nonce_buffer.as_slice().try_into()?)
+            }
+            24 => {
+                self.nonce = Nonce::Nonce24(nonce_buffer.as_slice().try_into()?)
+            }
+            _ => {
+                return Err(BinaryError::Boxed(Box::from(
+                    Error::UnknownNonceSize(nonce_size),
+                )));
+            }
+        }
         self.ciphertext = Deserialize::deserialize(de)?;
         Ok(())
     }

@@ -12,9 +12,18 @@ pub enum Error {
     #[error("unknown algorithm {0}")]
     UnknownAlgorithm(u8),
 
+    /// Error generated when a nonce size is unknown.
+    #[error("unknown nonce size {0}")]
+    UnknownNonceSize(u8),
+
     /// Error generated when the kind of a secret is unknown.
     #[error("unknown secret kind {0}")]
     UnknownSecretKind(u8),
+
+    /// Error generated when an AeadPack contains a nonce that
+    /// is invalid for the decryption algorithm.
+    #[error("invalid nonce")]
+    InvalidNonce,
 
     /// Error generated when a vault is locked.
     #[error("vault must be unlocked")]

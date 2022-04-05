@@ -108,10 +108,14 @@ impl Decode for Header {
         self.version = de.reader.read_u16()?;
         self.algorithm.decode(&mut *de)?;
 
-        if ALGORITHMS.iter().find(|a| *a == self.algorithm.as_ref()).is_none() {
-            return Err(BinaryError::Boxed(Box::from(Error::UnknownAlgorithm(
-                self.algorithm.into(),
-            ))));
+        if ALGORITHMS
+            .iter()
+            .find(|a| *a == self.algorithm.as_ref())
+            .is_none()
+        {
+            return Err(BinaryError::Boxed(Box::from(
+                Error::UnknownAlgorithm(self.algorithm.into()),
+            )));
         }
 
         self.id =
@@ -124,17 +128,17 @@ impl Decode for Header {
 /// Index of meta data describing the contents.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Index {
-    meta: Option<AeadPack<24>>,
+    meta: Option<AeadPack>,
 }
 
 impl Index {
     /// Get the encrypted meta data for the index.
-    pub fn meta(&self) -> Option<&AeadPack<24>> {
+    pub fn meta(&self) -> Option<&AeadPack> {
         self.meta.as_ref()
     }
 
     /// Set the encrypted meta data for the index.
-    pub fn set_meta(&mut self, meta: Option<AeadPack<24>>) {
+    pub fn set_meta(&mut self, meta: Option<AeadPack>) {
         self.meta = meta;
     }
 }
@@ -165,7 +169,7 @@ impl Decode for Index {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    data: HashMap<Uuid, AeadPack<24>>,
+    data: HashMap<Uuid, AeadPack>,
 }
 
 impl Encode for Contents {
@@ -184,7 +188,7 @@ impl Decode for Contents {
         let length = de.reader.read_u32()?;
         for _ in 0..length {
             let key: Uuid = Deserialize::deserialize(&mut *de)?;
-            let mut value: AeadPack<24> = Default::default();
+            let mut value: AeadPack = Default::default();
             value.decode(&mut *de)?;
             self.data.insert(key, value);
         }
@@ -302,12 +306,12 @@ impl Vault {
     }
 
     /// Add an encrypted secret to the vault.
-    pub fn add_secret(&mut self, uuid: Uuid, secret: AeadPack<24>) {
+    pub fn add_secret(&mut self, uuid: Uuid, secret: AeadPack) {
         self.contents.data.insert(uuid, secret);
     }
 
     /// Get an encrypted secret from the vault.
-    pub fn get_secret(&self, uuid: &Uuid) -> Option<&AeadPack<24>> {
+    pub fn get_secret(&self, uuid: &Uuid) -> Option<&AeadPack> {
         self.contents.data.get(uuid)
     }
 
