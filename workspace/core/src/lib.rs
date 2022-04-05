@@ -10,6 +10,7 @@ pub mod passphrase;
 pub mod secret;
 pub mod vault;
 
+pub use crypto::algorithms::Algorithm;
 pub use vault::{decode, encode};
 
 pub use error::Error;

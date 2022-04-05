@@ -61,11 +61,11 @@ pub struct Header {
 
 impl Header {
     /// Create a new header.
-    pub fn new(id: Uuid) -> Self {
+    pub fn new(id: Uuid, algorithm: Algorithm) -> Self {
         Self {
             identity: Box::new(IDENTITY),
             version: VERSION,
-            algorithm: Default::default(),
+            algorithm,
             id,
             auth: Default::default(),
         }
@@ -243,9 +243,9 @@ impl Decode for Vault {
 
 impl Vault {
     /// Create a new vault.
-    pub fn new(id: Uuid) -> Self {
+    pub fn new(id: Uuid, algorithm: Algorithm) -> Self {
         Self {
-            header: Header::new(id),
+            header: Header::new(id, algorithm),
             index: Default::default(),
             contents: Default::default(),
             trailer: Default::default(),

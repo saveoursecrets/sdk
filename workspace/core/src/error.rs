@@ -12,6 +12,10 @@ pub enum Error {
     #[error("unknown algorithm {0}")]
     UnknownAlgorithm(u8),
 
+    /// Error generated when a vault algorithm string identifier is wrong.
+    #[error("invalid algorithm {0}")]
+    InvalidAlgorithm(String),
+
     /// Error generated when a nonce size is unknown.
     #[error("unknown nonce size {0}")]
     UnknownNonceSize(u8),

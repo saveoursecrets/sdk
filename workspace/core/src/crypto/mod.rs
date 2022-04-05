@@ -20,6 +20,7 @@ pub mod algorithms {
         Result as BinaryResult, Serializer,
     };
     use std::convert::AsRef;
+    use std::str::FromStr;
 
     /// Default algorithm.
     pub const X_CHACHA20_POLY1305: u8 = 0x01;
@@ -37,6 +38,25 @@ pub mod algorithms {
         XChaCha20Poly1305(u8),
         /// Algorithm for AES-GCM 256 bit encryption.
         AesGcm256(u8),
+    }
+
+    impl Algorithm {
+        /// The AES-GCM 256 bit algorithm.
+        pub fn aes() -> Self {
+            Self::AesGcm256(AES_GCM_256)
+        }
+    }
+
+    impl FromStr for Algorithm {
+        type Err = Error;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s {
+                "x_chacha20_poly1305" => Ok(Self::default()),
+                "aes_gcm_256" => Ok(Self::aes()),
+                _ => Err(Error::InvalidAlgorithm(s.to_string())),
+            }
+        }
     }
 
     impl From<Algorithm> for u8 {
