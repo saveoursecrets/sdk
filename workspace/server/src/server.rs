@@ -41,7 +41,7 @@ impl Server {
         tracing_subscriber::registry()
             .with(tracing_subscriber::EnvFilter::new(
                 std::env::var("RUST_LOG")
-                    .unwrap_or_else(|_| "sos3_server=debug".into()),
+                    .unwrap_or_else(|_| "sos_server=debug".into()),
             ))
             .with(tracing_subscriber::fmt::layer())
             .init();

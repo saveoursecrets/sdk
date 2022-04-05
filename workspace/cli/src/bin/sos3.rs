@@ -4,7 +4,7 @@ use sos_core::passphrase::WordCount;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use sos3_cli::{UuidOrName, LOG_TARGET};
+use sos_cli::{UuidOrName, LOG_TARGET};
 use sos_core::Algorithm;
 
 /// Safe secret storage for the web3 era.
@@ -169,44 +169,44 @@ fn run() -> Result<()> {
                 uuid,
                 algorithm,
             } => {
-                sos3_cli::new::vault(destination, uuid, algorithm)?;
+                sos_cli::new::vault(destination, uuid, algorithm)?;
             }
             New::Keypair { name, destination } => {
-                sos3_cli::new::keypair(name, destination)?;
+                sos_cli::new::keypair(name, destination)?;
             }
             New::Jwt { name, destination } => {
-                sos3_cli::new::jwt(name, destination)?;
+                sos_cli::new::jwt(name, destination)?;
             }
             New::Passphrase { count } => {
-                sos3_cli::new::passphrase(count)?;
+                sos_cli::new::passphrase(count)?;
             }
         },
         /*
         Command::User(cmd) => match cmd {
             User::List { vault } => {
-                sos3_cli::user::list(vault)?;
+                sos_cli::user::list(vault)?;
             }
             User::Add { vault, public_key } => {
-                sos3_cli::user::add(vault, public_key)?;
+                sos_cli::user::add(vault, public_key)?;
             }
             User::Remove { vault, public_key } => {
-                sos3_cli::user::remove(vault, public_key)?;
+                sos_cli::user::remove(vault, public_key)?;
             }
         },
         */
         Command::Vault(cmd) => match cmd {
             Vault::List { vault } => {
-                sos3_cli::vault::list(vault)?;
+                sos_cli::vault::list(vault)?;
             }
             Vault::Get { vault, secret } => {
-                sos3_cli::vault::get(vault, secret)?;
+                sos_cli::vault::get(vault, secret)?;
             }
             Vault::Add(cmd) => match cmd {
                 VaultAdd::Note { vault, label } => {
-                    sos3_cli::vault::add_note(vault, label)?;
+                    sos_cli::vault::add_note(vault, label)?;
                 }
                 VaultAdd::File { vault, label, file } => {
-                    sos3_cli::vault::add_file(vault, label, file)?;
+                    sos_cli::vault::add_file(vault, label, file)?;
                 }
             },
         },
