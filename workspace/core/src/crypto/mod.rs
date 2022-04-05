@@ -6,6 +6,7 @@ use serde_binary::{
     Serializer,
 };
 
+pub mod aes_gcm_256;
 pub mod authorize;
 pub mod keypair;
 pub mod passphrase;
@@ -13,48 +14,73 @@ pub mod xchacha20poly1305;
 
 /// Constants for supported symmetric ciphers.
 pub mod algorithms {
+    use crate::Error;
     use serde_binary::{
-        Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
+        Decode, Deserializer, Encode, Error as BinaryError,
+        Result as BinaryResult, Serializer,
     };
     use std::convert::AsRef;
 
     /// Default algorithm.
     pub const X_CHACHA20_POLY1305: u8 = 0x01;
+
+    /// AES-GCM 256 bit.
+    pub const AES_GCM_256: u8 = 0x02;
+
     /// All supported algorithms.
-    pub const ALGORITHMS: [u8; 1] = [X_CHACHA20_POLY1305];
+    pub const ALGORITHMS: [u8; 2] = [X_CHACHA20_POLY1305, AES_GCM_256];
 
     /// Wrapper type for cipher algorithm.
     #[derive(Debug, Eq, PartialEq, Copy, Clone)]
-    pub struct Algorithm(u8);
+    pub enum Algorithm {
+        /// Algorithm for XChaCha20Poly1305 encryption.
+        XChaCha20Poly1305(u8),
+        /// Algorithm for AES-GCM 256 bit encryption.
+        AesGcm256(u8),
+    }
 
     impl From<Algorithm> for u8 {
         fn from(value: Algorithm) -> Self {
-            value.0
+            match value {
+                Algorithm::XChaCha20Poly1305(id) => id,
+                Algorithm::AesGcm256(id) => id,
+            }
         }
     }
 
     impl AsRef<u8> for Algorithm {
         fn as_ref(&self) -> &u8 {
-            &self.0
+            match self {
+                Algorithm::XChaCha20Poly1305(ref id) => id,
+                Algorithm::AesGcm256(ref id) => id,
+            }
         }
     }
 
     impl Default for Algorithm {
         fn default() -> Self {
-            Self(X_CHACHA20_POLY1305)
+            Self::XChaCha20Poly1305(X_CHACHA20_POLY1305)
         }
     }
 
     impl Encode for Algorithm {
         fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-            ser.writer.write_u8(self.0)?;
+            ser.writer.write_u8(*self.as_ref())?;
             Ok(())
         }
     }
 
     impl Decode for Algorithm {
         fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-            self.0 = de.reader.read_u8()?;
+            let id = de.reader.read_u8()?;
+            *self = match id {
+                X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305(id),
+                _ => {
+                    return Err(BinaryError::Boxed(Box::from(
+                        Error::UnknownAlgorithm(id),
+                    )));
+                }
+            };
             Ok(())
         }
     }

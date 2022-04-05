@@ -13,11 +13,11 @@ use uuid::Uuid;
 
 use crate::{
     crypto::{
+        aes_gcm_256,
         algorithms::*,
         authorize::PublicKey,
         passphrase::{generate_salt, generate_secret_key},
-        xchacha20poly1305::encrypt,
-        AeadPack,
+        xchacha20poly1305, AeadPack,
     },
     secret::MetaData,
     Error, Result,
@@ -252,6 +252,11 @@ impl Vault {
         }
     }
 
+    /// Get the encryption algorithm for the vault.
+    pub fn algorithm(&self) -> &Algorithm {
+        &self.header.algorithm
+    }
+
     /// Initialize the vault with the given label and password.
     pub fn initialize<S: AsRef<str>>(
         &mut self,
@@ -267,11 +272,36 @@ impl Vault {
 
             self.index = Default::default();
             let default_meta: MetaData = Default::default();
-            let meta_aead = encrypt(&private_key, &encode(&default_meta)?)?;
+            let meta_aead =
+                self.encrypt(&private_key, &encode(&default_meta)?)?;
             self.index.set_meta(Some(meta_aead));
             Ok(private_key)
         } else {
             Err(Error::VaultAlreadyInit)
+        }
+    }
+
+    /// Encrypt a plaintext value using the algorithm assigned to this vault.
+    pub fn encrypt(
+        &self,
+        key: &[u8; 32],
+        plaintext: &[u8],
+    ) -> Result<AeadPack> {
+        match self.algorithm() {
+            Algorithm::XChaCha20Poly1305(_) => {
+                xchacha20poly1305::encrypt(key, plaintext)
+            }
+            Algorithm::AesGcm256(_) => aes_gcm_256::encrypt(key, plaintext),
+        }
+    }
+
+    /// Decrypt a ciphertext value using the algorithm assigned to this vault.
+    pub fn decrypt(&self, key: &[u8; 32], aead: &AeadPack) -> Result<Vec<u8>> {
+        match self.algorithm() {
+            Algorithm::XChaCha20Poly1305(_) => {
+                xchacha20poly1305::decrypt(key, aead)
+            }
+            Algorithm::AesGcm256(_) => aes_gcm_256::decrypt(key, aead),
         }
     }
 
