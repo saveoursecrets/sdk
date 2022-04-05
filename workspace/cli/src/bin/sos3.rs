@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 use sos3_cli::{UuidOrName, LOG_TARGET};
+use sos_core::Algorithm;
 
 /// Safe secret storage for the web3 era.
 #[derive(Parser, Debug)]
@@ -38,8 +39,13 @@ enum New {
     ///
     /// The filename will be the UUID for the new vault.
     Vault {
+        /// Unique identifier for the vault.
         #[clap(short, long)]
         uuid: Option<Uuid>,
+
+        /// Encryption algorithm
+        #[clap(short, long)]
+        algorithm: Option<Algorithm>,
 
         /// Directory to write the vault file
         #[clap(parse(from_os_str))]
@@ -158,8 +164,12 @@ fn run() -> Result<()> {
     let args = Cli::parse();
     match args.command {
         Command::New(cmd) => match cmd {
-            New::Vault { destination, uuid } => {
-                sos3_cli::new::vault(destination, uuid)?;
+            New::Vault {
+                destination,
+                uuid,
+                algorithm,
+            } => {
+                sos3_cli::new::vault(destination, uuid, algorithm)?;
             }
             New::Keypair { name, destination } => {
                 sos3_cli::new::keypair(name, destination)?;

@@ -13,10 +13,8 @@ use uuid::Uuid;
 
 use crate::{
     crypto::{
-        authorize::PublicKey,
-        passphrase::{generate_salt, generate_secret_key},
-        xchacha20poly1305::encrypt,
-        AeadPack,
+        aesgcm256, algorithms::*, authorize::PublicKey, secret_key::SecretKey,
+        xchacha20poly1305, AeadPack,
     },
     secret::MetaData,
     Error, Result,
@@ -53,16 +51,18 @@ impl Decode for Auth {
 pub struct Header {
     identity: Box<[u8; 4]>,
     version: u16,
+    algorithm: Algorithm,
     id: Uuid,
     auth: Auth,
 }
 
 impl Header {
     /// Create a new header.
-    pub fn new(id: Uuid) -> Self {
+    pub fn new(id: Uuid, algorithm: Algorithm) -> Self {
         Self {
             identity: Box::new(IDENTITY),
             version: VERSION,
+            algorithm,
             id,
             auth: Default::default(),
         }
@@ -74,6 +74,7 @@ impl Default for Header {
         Self {
             identity: Box::new(IDENTITY),
             version: VERSION,
+            algorithm: Default::default(),
             id: Uuid::new_v4(),
             auth: Default::default(),
         }
@@ -84,8 +85,9 @@ impl Encode for Header {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_bytes(self.identity.to_vec())?;
         ser.writer.write_u16(self.version)?;
+        self.algorithm.encode(&mut *ser)?;
         ser.writer.write_string(self.id.to_string())?;
-        self.auth.encode(ser)?;
+        self.auth.encode(&mut *ser)?;
         Ok(())
     }
 }
@@ -101,9 +103,21 @@ impl Decode for Header {
             }
         }
         self.version = de.reader.read_u16()?;
+        self.algorithm.decode(&mut *de)?;
+
+        if ALGORITHMS
+            .iter()
+            .find(|a| *a == self.algorithm.as_ref())
+            .is_none()
+        {
+            return Err(BinaryError::Boxed(Box::from(
+                Error::UnknownAlgorithm(self.algorithm.into()),
+            )));
+        }
+
         self.id =
             Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
-        self.auth.decode(de)?;
+        self.auth.decode(&mut *de)?;
         Ok(())
     }
 }
@@ -111,17 +125,17 @@ impl Decode for Header {
 /// Index of meta data describing the contents.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Index {
-    meta: Option<AeadPack<24>>,
+    meta: Option<AeadPack>,
 }
 
 impl Index {
     /// Get the encrypted meta data for the index.
-    pub fn meta(&self) -> Option<&AeadPack<24>> {
+    pub fn meta(&self) -> Option<&AeadPack> {
         self.meta.as_ref()
     }
 
     /// Set the encrypted meta data for the index.
-    pub fn set_meta(&mut self, meta: Option<AeadPack<24>>) {
+    pub fn set_meta(&mut self, meta: Option<AeadPack>) {
         self.meta = meta;
     }
 }
@@ -152,7 +166,7 @@ impl Decode for Index {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    data: HashMap<Uuid, AeadPack<24>>,
+    data: HashMap<Uuid, AeadPack>,
 }
 
 impl Encode for Contents {
@@ -171,7 +185,7 @@ impl Decode for Contents {
         let length = de.reader.read_u32()?;
         for _ in 0..length {
             let key: Uuid = Deserialize::deserialize(&mut *de)?;
-            let mut value: AeadPack<24> = Default::default();
+            let mut value: AeadPack = Default::default();
             value.decode(&mut *de)?;
             self.data.insert(key, value);
         }
@@ -226,23 +240,28 @@ impl Decode for Vault {
 
 impl Vault {
     /// Create a new vault.
-    pub fn new(id: Uuid) -> Self {
+    pub fn new(id: Uuid, algorithm: Algorithm) -> Self {
         Self {
-            header: Header::new(id),
+            header: Header::new(id, algorithm),
             index: Default::default(),
             contents: Default::default(),
             trailer: Default::default(),
         }
     }
 
+    /// Get the encryption algorithm for the vault.
+    pub fn algorithm(&self) -> &Algorithm {
+        &self.header.algorithm
+    }
+
     /// Initialize the vault with the given label and password.
     pub fn initialize<S: AsRef<str>>(
         &mut self,
         password: S,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<SecretKey> {
         if self.header.auth.salt.is_none() {
-            let salt = generate_salt();
-            let private_key = generate_secret_key(password, &salt)?;
+            let salt = SecretKey::generate_salt();
+            let private_key = SecretKey::derive_32(password, &salt)?;
 
             // Store the salt so we can generate the same
             // private key later
@@ -250,11 +269,36 @@ impl Vault {
 
             self.index = Default::default();
             let default_meta: MetaData = Default::default();
-            let meta_aead = encrypt(&private_key, &encode(&default_meta)?)?;
+            let meta_aead =
+                self.encrypt(&private_key, &encode(&default_meta)?)?;
             self.index.set_meta(Some(meta_aead));
             Ok(private_key)
         } else {
             Err(Error::VaultAlreadyInit)
+        }
+    }
+
+    /// Encrypt a plaintext value using the algorithm assigned to this vault.
+    pub fn encrypt(
+        &self,
+        key: &SecretKey,
+        plaintext: &[u8],
+    ) -> Result<AeadPack> {
+        match self.algorithm() {
+            Algorithm::XChaCha20Poly1305(_) => {
+                xchacha20poly1305::encrypt(key, plaintext)
+            }
+            Algorithm::AesGcm256(_) => aesgcm256::encrypt(key, plaintext),
+        }
+    }
+
+    /// Decrypt a ciphertext value using the algorithm assigned to this vault.
+    pub fn decrypt(&self, key: &SecretKey, aead: &AeadPack) -> Result<Vec<u8>> {
+        match self.algorithm() {
+            Algorithm::XChaCha20Poly1305(_) => {
+                xchacha20poly1305::decrypt(key, aead)
+            }
+            Algorithm::AesGcm256(_) => aesgcm256::decrypt(key, aead),
         }
     }
 
@@ -289,12 +333,12 @@ impl Vault {
     }
 
     /// Add an encrypted secret to the vault.
-    pub fn add_secret(&mut self, uuid: Uuid, secret: AeadPack<24>) {
+    pub fn add_secret(&mut self, uuid: Uuid, secret: AeadPack) {
         self.contents.data.insert(uuid, secret);
     }
 
     /// Get an encrypted secret from the vault.
-    pub fn get_secret(&self, uuid: &Uuid) -> Option<&AeadPack<24>> {
+    pub fn get_secret(&self, uuid: &Uuid) -> Option<&AeadPack> {
         self.contents.data.get(uuid)
     }
 
@@ -389,7 +433,7 @@ mod tests {
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
         let uuid = Uuid::new_v4();
-        let vault = Vault::new(uuid);
+        let vault = Vault::new(uuid, Default::default());
         let mut stream = MemoryStream::new();
         Vault::encode(&mut stream, &vault)?;
 

@@ -8,6 +8,7 @@ use sos_core::{
     diceware,
     passphrase::{words, WordCount},
     vault::Vault,
+    Algorithm,
 };
 use uuid::Uuid;
 
@@ -20,7 +21,11 @@ const PEM_EXT: &str = "pem";
 use crate::LOG_TARGET;
 
 /// Create a new empty vault
-pub fn vault(destination: PathBuf, uuid: Option<Uuid>) -> Result<()> {
+pub fn vault(
+    destination: PathBuf,
+    uuid: Option<Uuid>,
+    algorithm: Option<Algorithm>,
+) -> Result<()> {
     if !destination.is_dir() {
         bail!("destination is not a directory: {}", destination.display());
     }
@@ -42,7 +47,13 @@ pub fn vault(destination: PathBuf, uuid: Option<Uuid>) -> Result<()> {
         (passphrase, true)
     };
 
-    let mut vault = Vault::new(uuid);
+    let algorithm = if let Some(algo) = algorithm {
+        algo
+    } else {
+        Default::default()
+    };
+
+    let mut vault = Vault::new(uuid, algorithm);
     vault.initialize(&passphrase)?;
     vault.write_file(&vault_path)?;
 
