@@ -9,6 +9,44 @@ pub mod keypair;
 pub mod passphrase;
 pub mod xchacha20poly1305;
 
+/// Constants for supported symmetric ciphers.
+pub mod algorithms {
+    use serde_binary::{
+        Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
+    };
+
+    /// Default algorithm.
+    pub const X_CHACHA20_POLY1305: u8 = 0x01;
+    /// All supported algorithms.
+    pub const ALGORITHMS: [u8; 1] = [
+        X_CHACHA20_POLY1305
+    ];
+
+    /// Wrapper type for cipher algorithm.
+    #[derive(Debug, Eq, PartialEq)]
+    pub struct Algorithm(u8);
+
+    impl Default for Algorithm {
+        fn default() -> Self {
+            Self(X_CHACHA20_POLY1305)
+        }
+    }
+
+    impl Encode for Algorithm {
+        fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+            ser.writer.write_u8(self.0)?;
+            Ok(())
+        }
+    }
+
+    impl Decode for Algorithm {
+        fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+            self.0 = de.reader.read_u8()?;
+            Ok(())
+        }
+    }
+}
+
 /// Type identifiers for ECDSA keys.
 pub mod types {
     /// Represents the k256 (secp256k1) single party key.

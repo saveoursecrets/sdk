@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     crypto::{
+        algorithms::*,
         authorize::PublicKey,
         passphrase::{generate_salt, generate_secret_key},
         xchacha20poly1305::encrypt,
@@ -53,6 +54,7 @@ impl Decode for Auth {
 pub struct Header {
     identity: Box<[u8; 4]>,
     version: u16,
+    algorithm: Algorithm,
     id: Uuid,
     auth: Auth,
 }
@@ -63,6 +65,7 @@ impl Header {
         Self {
             identity: Box::new(IDENTITY),
             version: VERSION,
+            algorithm: Default::default(),
             id,
             auth: Default::default(),
         }
@@ -74,6 +77,7 @@ impl Default for Header {
         Self {
             identity: Box::new(IDENTITY),
             version: VERSION,
+            algorithm: Default::default(),
             id: Uuid::new_v4(),
             auth: Default::default(),
         }
@@ -84,8 +88,9 @@ impl Encode for Header {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_bytes(self.identity.to_vec())?;
         ser.writer.write_u16(self.version)?;
+        self.algorithm.encode(&mut *ser)?;
         ser.writer.write_string(self.id.to_string())?;
-        self.auth.encode(ser)?;
+        self.auth.encode(&mut *ser)?;
         Ok(())
     }
 }
@@ -101,9 +106,10 @@ impl Decode for Header {
             }
         }
         self.version = de.reader.read_u16()?;
+        self.algorithm.decode(&mut *de)?;
         self.id =
             Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
-        self.auth.decode(de)?;
+        self.auth.decode(&mut *de)?;
         Ok(())
     }
 }
