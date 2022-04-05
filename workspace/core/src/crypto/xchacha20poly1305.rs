@@ -19,7 +19,7 @@ pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<AeadPack> {
     })
 }
 
-/// Decrypt an AeadPack using XChaCha20Poly1305.
+/// Decrypt ciphertext using XChaCha20Poly1305.
 pub fn decrypt(key: &[u8; 32], aead_pack: &AeadPack) -> Result<Vec<u8>> {
     if let Nonce::Nonce24(ref nonce) = aead_pack.nonce {
         let cipher_nonce = XNonce::from_slice(nonce);

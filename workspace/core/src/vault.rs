@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     crypto::{
-        aes_gcm_256,
+        aesgcm256,
         algorithms::*,
         authorize::PublicKey,
         passphrase::{generate_salt, generate_secret_key},
@@ -291,7 +291,7 @@ impl Vault {
             Algorithm::XChaCha20Poly1305(_) => {
                 xchacha20poly1305::encrypt(key, plaintext)
             }
-            Algorithm::AesGcm256(_) => aes_gcm_256::encrypt(key, plaintext),
+            Algorithm::AesGcm256(_) => aesgcm256::encrypt(key, plaintext),
         }
     }
 
@@ -301,7 +301,7 @@ impl Vault {
             Algorithm::XChaCha20Poly1305(_) => {
                 xchacha20poly1305::decrypt(key, aead)
             }
-            Algorithm::AesGcm256(_) => aes_gcm_256::decrypt(key, aead),
+            Algorithm::AesGcm256(_) => aesgcm256::decrypt(key, aead),
         }
     }
 

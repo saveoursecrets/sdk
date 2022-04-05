@@ -6,7 +6,7 @@ use serde_binary::{
     Serializer,
 };
 
-pub mod aes_gcm_256;
+pub mod aesgcm256;
 pub mod authorize;
 pub mod keypair;
 pub mod passphrase;

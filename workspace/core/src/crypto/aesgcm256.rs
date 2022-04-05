@@ -8,7 +8,7 @@ use rand::Rng;
 use super::{AeadPack, Nonce};
 use crate::{Error, Result};
 
-/// Encrypt plaintext using the key as 256 bit AES-GCM.
+/// Encrypt plaintext using the given key as 256 bit AES-GCM.
 pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<AeadPack> {
     // 96 bit (12 byte) unique nonce per message
     let nonce: [u8; 12] = rand::thread_rng().gen();
@@ -21,7 +21,7 @@ pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<AeadPack> {
     })
 }
 
-/// Decrypt ciphertext/nonce using the key as 256 bit AES-GCM.
+/// Decrypt ciphertext using the given key as 256 bit AES-GCM.
 pub fn decrypt(key: &[u8; 32], aead_pack: &AeadPack) -> Result<Vec<u8>> {
     if let Nonce::Nonce12(ref nonce) = aead_pack.nonce {
         let cipher_nonce = AesNonce::from_slice(nonce);
@@ -29,5 +29,22 @@ pub fn decrypt(key: &[u8; 32], aead_pack: &AeadPack) -> Result<Vec<u8>> {
         Ok(cipher.decrypt(cipher_nonce, aead_pack.ciphertext.as_ref())?)
     } else {
         Err(Error::InvalidNonce)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+    use rand::Rng;
+
+    #[test]
+    fn aesgcm256_encrypt_decrypt() -> Result<()> {
+        let key: [u8; 32] = rand::thread_rng().gen();
+        let plaintext = b"super secret value";
+        let aead_pack = encrypt(&key, plaintext)?;
+        let decrypted = decrypt(&key, &aead_pack)?;
+        assert_eq!(plaintext.to_vec(), decrypted);
+        Ok(())
     }
 }
