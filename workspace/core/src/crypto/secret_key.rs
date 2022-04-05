@@ -1,6 +1,4 @@
-//! Utilities for converting a password to a private key
-//! and for generating a salt string and verifying a password
-//! and salt.
+//! Secret key type for deriving a private key from a passphrase.
 use crate::Result;
 use rand::Rng;
 use sha3::{Digest, Keccak256};
@@ -40,8 +38,9 @@ impl SecretKey {
 
     /// Derive a secret key from a passphrase and salt.
     ///
-    /// Hash a password using the given salt and convert to a 32 byte
-    /// private key using the keccak256 hashing algorithm.
+    /// Hash a password using the given salt and Argon2 algorithm then
+    /// convert to a 32 byte private key using the keccak256 hashing
+    /// algorithm.
     pub fn derive_32<S: AsRef<str>>(
         password: S,
         salt: &SaltString,
@@ -50,14 +49,6 @@ impl SecretKey {
         let hash = Keccak256::digest(password_hash.to_string().as_bytes());
         let hash: [u8; 32] = hash.as_slice().try_into()?;
         Ok(SecretKey::Key32(hash))
-    }
-}
-
-impl From<SecretKey> for [u8; 32] {
-    fn from(key: SecretKey) -> [u8; 32] {
-        match key {
-            SecretKey::Key32(bytes) => bytes,
-        }
     }
 }
 
