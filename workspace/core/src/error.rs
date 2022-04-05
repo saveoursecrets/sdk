@@ -8,6 +8,10 @@ pub enum Error {
     #[error("bad identity byte {0}")]
     BadIdentity(u8),
 
+    /// Error generated when a vault algorithm identifier byte is wrong.
+    #[error("unknown algorithm {0}")]
+    UnknownAlgorithm(u8),
+
     /// Error generated when the kind of a secret is unknown.
     #[error("unknown secret kind {0}")]
     UnknownSecretKind(u8),

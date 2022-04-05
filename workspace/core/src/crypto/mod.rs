@@ -11,6 +11,7 @@ pub mod xchacha20poly1305;
 
 /// Constants for supported symmetric ciphers.
 pub mod algorithms {
+    use std::convert::AsRef;
     use serde_binary::{
         Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
     };
@@ -23,8 +24,20 @@ pub mod algorithms {
     ];
 
     /// Wrapper type for cipher algorithm.
-    #[derive(Debug, Eq, PartialEq)]
+    #[derive(Debug, Eq, PartialEq, Copy, Clone)]
     pub struct Algorithm(u8);
+
+    impl From<Algorithm> for u8 {
+        fn from(value: Algorithm) -> Self {
+            value.0
+        }
+    }
+
+    impl AsRef<u8> for Algorithm {
+        fn as_ref(&self) -> &u8 {
+            &self.0
+        }
+    }
 
     impl Default for Algorithm {
         fn default() -> Self {

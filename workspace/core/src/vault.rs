@@ -107,6 +107,13 @@ impl Decode for Header {
         }
         self.version = de.reader.read_u16()?;
         self.algorithm.decode(&mut *de)?;
+
+        if ALGORITHMS.iter().find(|a| *a == self.algorithm.as_ref()).is_none() {
+            return Err(BinaryError::Boxed(Box::from(Error::UnknownAlgorithm(
+                self.algorithm.into(),
+            ))));
+        }
+
         self.id =
             Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
         self.auth.decode(&mut *de)?;
