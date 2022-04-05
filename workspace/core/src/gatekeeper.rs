@@ -15,7 +15,7 @@
 //! is used to encrypt the different chunks.
 //!
 use crate::{
-    crypto::passphrase::{generate_secret_key, parse_salt},
+    crypto::secret_key::SecretKey,
     decode, encode,
     secret::{MetaData, Secret, SecretMeta},
     vault::Vault,
@@ -28,7 +28,7 @@ use zeroize::Zeroize;
 #[derive(Default)]
 pub struct Gatekeeper {
     /// The private key.
-    private_key: Option<Box<[u8; 32]>>,
+    private_key: Option<Box<SecretKey>>,
     /// The underlying vault.
     vault: Vault,
 }
@@ -175,8 +175,8 @@ impl Gatekeeper {
     /// Unlock the vault by setting the private key from a passphrase.
     pub fn unlock<S: AsRef<str>>(&mut self, passphrase: S) -> Result<MetaData> {
         if let Some(salt) = self.vault.salt() {
-            let salt = parse_salt(salt)?;
-            let private_key = generate_secret_key(passphrase, &salt)?;
+            let salt = SecretKey::parse_salt(salt)?;
+            let private_key = SecretKey::derive_32(passphrase, &salt)?;
             self.private_key = Some(Box::new(private_key));
             self.meta()
         } else {

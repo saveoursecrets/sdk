@@ -13,10 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     crypto::{
-        aesgcm256,
-        algorithms::*,
-        authorize::PublicKey,
-        passphrase::{generate_salt, generate_secret_key},
+        aesgcm256, algorithms::*, authorize::PublicKey, secret_key::SecretKey,
         xchacha20poly1305, AeadPack,
     },
     secret::MetaData,
@@ -261,10 +258,10 @@ impl Vault {
     pub fn initialize<S: AsRef<str>>(
         &mut self,
         password: S,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<SecretKey> {
         if self.header.auth.salt.is_none() {
-            let salt = generate_salt();
-            let private_key = generate_secret_key(password, &salt)?;
+            let salt = SecretKey::generate_salt();
+            let private_key = SecretKey::derive_32(password, &salt)?;
 
             // Store the salt so we can generate the same
             // private key later
@@ -284,7 +281,7 @@ impl Vault {
     /// Encrypt a plaintext value using the algorithm assigned to this vault.
     pub fn encrypt(
         &self,
-        key: &[u8; 32],
+        key: &SecretKey,
         plaintext: &[u8],
     ) -> Result<AeadPack> {
         match self.algorithm() {
@@ -296,7 +293,7 @@ impl Vault {
     }
 
     /// Decrypt a ciphertext value using the algorithm assigned to this vault.
-    pub fn decrypt(&self, key: &[u8; 32], aead: &AeadPack) -> Result<Vec<u8>> {
+    pub fn decrypt(&self, key: &SecretKey, aead: &AeadPack) -> Result<Vec<u8>> {
         match self.algorithm() {
             Algorithm::XChaCha20Poly1305(_) => {
                 xchacha20poly1305::decrypt(key, aead)
@@ -436,7 +433,7 @@ mod tests {
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
         let uuid = Uuid::new_v4();
-        let vault = Vault::new(uuid);
+        let vault = Vault::new(uuid, Default::default());
         let mut stream = MemoryStream::new();
         Vault::encode(&mut stream, &vault)?;
 

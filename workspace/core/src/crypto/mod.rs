@@ -9,7 +9,7 @@ use serde_binary::{
 pub mod aesgcm256;
 pub mod authorize;
 pub mod keypair;
-pub mod passphrase;
+pub mod secret_key;
 pub mod xchacha20poly1305;
 
 /// Constants for supported symmetric ciphers.
@@ -187,31 +187,30 @@ impl Decode for AeadPack {
 #[cfg(test)]
 mod tests {
     use super::xchacha20poly1305::*;
+    use crate::crypto::secret_key::SecretKey;
     use anyhow::Result;
 
     #[test]
     fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
-        // Key must be 32 bytes
-        let key = b"an example very very secret key.";
+        let key = SecretKey::new_random_32();
         let value = b"plaintext message";
-        let aead = encrypt(key, value)?;
-        let plaintext = decrypt(key, &aead)?;
+        let aead = encrypt(&key, value)?;
+        let plaintext = decrypt(&key, &aead)?;
         assert_eq!(&plaintext, value);
         Ok(())
     }
 
     #[test]
     fn xchacha20poly1305_encrypt_decrypt_tamper() -> () {
-        // Key must be 32 bytes
-        let key = b"an example very very secret key.";
+        let key = SecretKey::new_random_32();
         let value = b"plaintext message";
-        let mut aead = encrypt(key, value).unwrap();
+        let mut aead = encrypt(&key, value).unwrap();
 
         // Flip all the bits
         aead.ciphertext = aead.ciphertext.iter().map(|b| !*b).collect();
 
         // Fails due to tampering
-        assert!(decrypt(key, &aead).is_err());
+        assert!(decrypt(&key, &aead).is_err());
     }
 
     #[test]
