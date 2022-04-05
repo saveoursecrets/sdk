@@ -2249,6 +2249,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atty",
+ "clap",
+ "log",
+ "mime_guess",
+ "pretty_env_logger",
+ "rustyline",
+ "rustyline-derive",
+ "serde_json",
+ "sos-core",
+ "unicode-width",
+ "uuid",
+]
+
+[[package]]
 name = "sos-core"
 version = "0.1.0"
 dependencies = [
@@ -2275,41 +2293,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-wasm"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "mime_guess",
- "serde",
- "sos-core",
- "url",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "sos3"
-version = "0.1.0"
-
-[[package]]
-name = "sos3-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "atty",
- "clap",
- "log",
- "mime_guess",
- "pretty_env_logger",
- "rustyline",
- "rustyline-derive",
- "serde_json",
- "sos-core",
- "unicode-width",
- "uuid",
-]
-
-[[package]]
-name = "sos3-server"
+name = "sos-server"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -2332,6 +2316,22 @@ dependencies = [
  "url",
  "uuid",
 ]
+
+[[package]]
+name = "sos-wasm"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "mime_guess",
+ "serde",
+ "sos-core",
+ "url",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "sos3"
+version = "0.1.0"
 
 [[package]]
 name = "spin"

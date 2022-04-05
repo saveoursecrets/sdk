@@ -1,5 +1,5 @@
 [package]
-name = "sos3-cli"
+name = "sos-cli"
 version = "0.1.0"
 edition = "2021"
 default-run = "sos3"

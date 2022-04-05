@@ -1,5 +1,5 @@
 [package]
-name = "sos3-server"
+name = "sos-server"
 version = "0.1.0"
 edition = "2021"
 default-run = "sos3-server"
