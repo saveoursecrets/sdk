@@ -81,6 +81,49 @@ pub fn get(vault: PathBuf, target: UuidOrName) -> Result<()> {
     };
 
     if let Some((uuid, secret_meta)) = result {
+        match keeper.get(uuid) {
+            Ok(Some((_, secret))) => match secret {
+                Secret::Text(ref note) => {
+                    print_secret_header(&secret, secret_meta);
+                    println!("{}", note);
+                }
+                _ => todo!("print other secret types"),
+            },
+            Ok(None) => info!("secret not found"),
+            Err(e) => return Err(anyhow!(e)),
+        }
+    } else {
+        // Secret meta data not found
+        log::info!("secret not found");
+    }
+    Ok(())
+}
+
+/// Remove a secret from the vault.
+pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
+    let mut keeper = load_vault(&vault)?;
+    let meta_data = unlock_vault(&mut keeper, true)?;
+
+    let result = match &target {
+        UuidOrName::Uuid(uuid) => {
+            meta_data.secrets().get(uuid).map(|v| (uuid, v))
+        }
+        UuidOrName::Name(name) => {
+            meta_data.secrets().iter().find_map(|(k, v)| {
+                if v.label() == name {
+                    return Some((k, v));
+                } else {
+                    None
+                }
+            })
+        }
+    };
+
+    if let Some((uuid, secret_meta)) = result {
+
+        println!("remove from vault {}", uuid);
+
+        /*
         match keeper.get_secret(uuid) {
             Ok(secret) => match secret {
                 Secret::Text(ref note) => {
@@ -91,6 +134,7 @@ pub fn get(vault: PathBuf, target: UuidOrName) -> Result<()> {
             },
             Err(e) => return Err(anyhow!(e)),
         }
+        */
     } else {
         // Secret meta data not found
         log::info!("secret not found");
@@ -115,8 +159,7 @@ pub fn add_note(vault: PathBuf, label: String) -> Result<()> {
         let note = note.trim_end_matches('\n').to_string();
         let secret_meta = SecretMeta::new(label);
         let secret = Secret::Text(note);
-        let uuid = keeper.set_secret(&secret, None)?;
-        keeper.set_secret_meta(uuid, secret_meta)?;
+        let uuid = keeper.add(secret_meta, secret)?;
         keeper.vault().write_file(vault)?;
         info!(target: LOG_TARGET, "secret {}", uuid);
     }
@@ -157,8 +200,7 @@ pub fn add_file(
     let buffer = std::fs::read(file)?;
     let secret_meta = SecretMeta::new(label);
     let secret = Secret::Blob { buffer, mime };
-    let uuid = keeper.set_secret(&secret, None)?;
-    keeper.set_secret_meta(uuid, secret_meta)?;
+    let uuid = keeper.add(secret_meta, secret)?;
     keeper.vault().write_file(vault)?;
     info!(target: LOG_TARGET, "secret {}", uuid);
     Ok(())

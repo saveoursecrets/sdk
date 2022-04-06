@@ -91,7 +91,7 @@ impl Gatekeeper {
 
     /// Attempt to decrypt the index meta data for the vault
     /// using the passphrase assigned to this gatekeeper.
-    pub fn meta(&self) -> Result<MetaData> {
+    fn meta(&self) -> Result<MetaData> {
         if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.index().meta() {
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
@@ -106,7 +106,7 @@ impl Gatekeeper {
     }
 
     /// Set the meta data for the vault.
-    pub fn set_meta(&mut self, meta_data: MetaData) -> Result<()> {
+    fn set_meta(&mut self, meta_data: MetaData) -> Result<()> {
         if let Some(private_key) = &self.private_key {
             let meta_blob = encode(&meta_data)?;
             let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
@@ -118,7 +118,7 @@ impl Gatekeeper {
     }
 
     /// Set the meta data for a secret.
-    pub fn set_secret_meta(
+    fn set_secret_meta(
         &mut self,
         uuid: Uuid,
         meta_data: SecretMeta,
@@ -130,17 +130,34 @@ impl Gatekeeper {
     }
 
     /// Get the meta data for a secret.
-    pub fn get_secret_meta(&self, uuid: &Uuid) -> Result<SecretMeta> {
+    fn get_secret_meta(&self, uuid: &Uuid) -> Result<Option<SecretMeta>> {
         let meta = self.meta()?;
         if let Some(meta_data) = meta.get_secret_meta(uuid) {
-            Ok(meta_data.clone())
+            Ok(Some(meta_data.clone()))
         } else {
-            Err(Error::SecretMetaDoesNotExist(*uuid))
+            Ok(None)
         }
     }
 
+    /// Get a secret from the vault.
+    fn get_secret(&self, uuid: &Uuid) -> Result<Option<Secret>> {
+        if let Some(private_key) = &self.private_key {
+            if let Some(secret_aead) = self.vault.get_secret(uuid) {
+                let secret_blob =
+                    self.vault.decrypt(private_key, secret_aead)?;
+                let secret: Secret = decode(secret_blob)?;
+                Ok(Some(secret))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Err(Error::VaultLocked)
+        }
+    }
+
+    /*
     /// Create or update a secret.
-    pub fn set_secret(
+    fn set_secret(
         &mut self,
         secret: &Secret,
         uuid: Option<Uuid>,
@@ -155,24 +172,42 @@ impl Gatekeeper {
             Err(Error::VaultLocked)
         }
     }
+    */
 
-    /// Get a secret from the vault.
-    pub fn get_secret(&self, uuid: &Uuid) -> Result<Secret> {
+    /// Add a secret to the vault.
+    pub fn add(
+        &mut self,
+        secret_meta: SecretMeta,
+        secret: Secret,
+    ) -> Result<Uuid> {
+        let uuid = Uuid::new_v4();
+        self.set_secret_meta(uuid, secret_meta)?;
         if let Some(private_key) = &self.private_key {
-            if let Some(secret_aead) = self.vault.get_secret(uuid) {
-                let secret_blob =
-                    self.vault.decrypt(private_key, secret_aead)?;
-                let secret: Secret = decode(secret_blob)?;
-                Ok(secret)
-            } else {
-                Err(Error::SecretDoesNotExist(*uuid))
-            }
+            let secret_blob = encode(&secret)?;
+            let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
+            self.vault.add_secret(uuid, secret_aead);
+            Ok(uuid)
         } else {
             Err(Error::VaultLocked)
         }
     }
 
+    /// Get a secret and it's meta data from the vault.
+    pub fn get(&self, uuid: &Uuid) -> Result<Option<(SecretMeta, Secret)>> {
+        if let Some(secret_meta) = self.get_secret_meta(uuid)? {
+            if let Some(secret) = self.get_secret(uuid)? {
+                Ok(Some((secret_meta, secret)))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Unlock the vault by setting the private key from a passphrase.
+    ///
+    /// The private key is stored in memory by this gatekeeper.
     pub fn unlock<S: AsRef<str>>(&mut self, passphrase: S) -> Result<MetaData> {
         if let Some(salt) = self.vault.salt() {
             let salt = SecretKey::parse_salt(salt)?;
