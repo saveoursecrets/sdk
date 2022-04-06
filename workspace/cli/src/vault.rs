@@ -7,10 +7,10 @@ use sos_core::{
 use std::path::PathBuf;
 
 use crate::{
-    input::{read_multiline, read_password, read_stdin},
+    input::{read_flag, read_multiline, read_password, read_stdin},
     UuidOrName, LOG_TARGET,
 };
-use log::info;
+use log::{info, warn};
 
 fn load_vault(vault: &PathBuf) -> Result<Gatekeeper> {
     if !vault.is_file() {
@@ -89,12 +89,12 @@ pub fn get(vault: PathBuf, target: UuidOrName) -> Result<()> {
                 }
                 _ => todo!("print other secret types"),
             },
-            Ok(None) => info!("secret not found"),
+            Ok(None) => info!(target: LOG_TARGET, "secret not found"),
             Err(e) => return Err(anyhow!(e)),
         }
     } else {
         // Secret meta data not found
-        log::info!("secret not found");
+        log::info!(target: LOG_TARGET, "secret not found");
     }
     Ok(())
 }
@@ -120,11 +120,21 @@ pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
     };
 
     if let Some((uuid, _)) = result {
-        println!("remove from vault {}", uuid);
-        keeper.remove(uuid)?;
+        let delimiter = "-".repeat(60);
+        warn!(target: LOG_TARGET, "{}", delimiter);
+        warn!(target: LOG_TARGET, "DELETING A SECRET IS IRREVERSIBLE!");
+        warn!(target: LOG_TARGET, "{}", delimiter);
+
+        let prompt =
+            Some("Are you sure you want to delete this secret (y/n)? ");
+        if read_flag(prompt)? {
+            keeper.remove(uuid)?;
+            keeper.vault().write_file(vault)?;
+            log::info!(target: LOG_TARGET, "removed secret {}", uuid);
+        }
     } else {
         // Secret meta data not found
-        log::info!("secret not found");
+        log::info!(target: LOG_TARGET, "secret not found");
     }
     Ok(())
 }
@@ -148,7 +158,7 @@ pub fn add_note(vault: PathBuf, label: String) -> Result<()> {
         let secret = Secret::Text(note);
         let uuid = keeper.add(secret_meta, secret)?;
         keeper.vault().write_file(vault)?;
-        info!(target: LOG_TARGET, "secret {}", uuid);
+        info!(target: LOG_TARGET, "saved secret {}", uuid);
     }
     Ok(())
 }
@@ -189,6 +199,6 @@ pub fn add_file(
     let secret = Secret::Blob { buffer, mime };
     let uuid = keeper.add(secret_meta, secret)?;
     keeper.vault().write_file(vault)?;
-    info!(target: LOG_TARGET, "secret {}", uuid);
+    info!(target: LOG_TARGET, "saved secret {}", uuid);
     Ok(())
 }
