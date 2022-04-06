@@ -117,6 +117,7 @@ impl Gatekeeper {
         }
     }
 
+    /*
     /// Set the meta data for a secret.
     fn set_secret_meta(
         &mut self,
@@ -128,6 +129,7 @@ impl Gatekeeper {
         self.set_meta(meta)?;
         Ok(())
     }
+    */
 
     /// Get the meta data for a secret.
     fn get_secret_meta(&self, uuid: &Uuid) -> Result<Option<SecretMeta>> {
@@ -162,7 +164,22 @@ impl Gatekeeper {
         secret: Secret,
     ) -> Result<Uuid> {
         let uuid = Uuid::new_v4();
-        self.set_secret_meta(uuid, secret_meta)?;
+
+        let mut meta = self.meta()?;
+        let exists = meta
+            .secrets()
+            .values()
+            .find(|m| m.label() == secret_meta.label());
+
+        if exists.is_some() {
+            return Err(Error::SecretAlreadyExists(
+                secret_meta.label().to_string(),
+            ));
+        }
+
+        meta.add_secret_meta(uuid, secret_meta);
+        self.set_meta(meta)?;
+
         if let Some(private_key) = &self.private_key {
             let secret_blob = encode(&secret)?;
             let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
@@ -189,7 +206,7 @@ impl Gatekeeper {
     /// Remove a secret and it's meta data from the vault.
     pub fn remove(&mut self, uuid: &Uuid) -> Result<()> {
         let mut meta = self.meta()?;
-        meta.secrets_mut().remove(uuid);
+        meta.remove_secret_meta(uuid);
         self.set_meta(meta)?;
         self.vault.remove_secret(uuid);
         Ok(())
