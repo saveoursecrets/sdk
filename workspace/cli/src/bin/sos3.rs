@@ -4,8 +4,8 @@ use sos_core::passphrase::WordCount;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use sos_cli::{UuidOrName, LOG_TARGET};
-use sos_core::Algorithm;
+use sos_cli::{LOG_TARGET, vault::*};
+use sos_core::{Algorithm, secret::UuidOrName};
 
 /// Safe secret storage for the web3 era.
 #[derive(Parser, Debug)]
@@ -224,26 +224,26 @@ fn run() -> Result<()> {
         */
         Command::Vault(cmd) => match cmd {
             Vault::List { vault } => {
-                sos_cli::vault::list(vault)?;
+                list(vault)?;
             }
             Vault::Show { vault, secret } => {
-                sos_cli::vault::show(vault, secret)?;
+                show(vault, secret)?;
             }
             Vault::Remove { vault, secret } => {
-                sos_cli::vault::remove(vault, secret)?;
+                remove(vault, secret)?;
             }
             Vault::Add(cmd) => match cmd {
                 VaultAdd::Account { vault, label } => {
-                    sos_cli::vault::add_account(vault, label)?;
+                    add_account(vault, label)?;
                 }
                 VaultAdd::Note { vault, label } => {
-                    sos_cli::vault::add_note(vault, label)?;
+                    add_note(vault, label)?;
                 }
                 VaultAdd::File { vault, label, file } => {
-                    sos_cli::vault::add_file(vault, label, file)?;
+                    add_file(vault, label, file)?;
                 }
                 VaultAdd::Credentials { vault, label } => {
-                    sos_cli::vault::add_credentials(vault, label)?;
+                    add_credentials(vault, label)?;
                 }
             },
         },
