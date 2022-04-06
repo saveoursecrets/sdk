@@ -1,10 +1,10 @@
 use anyhow::{anyhow, bail, Result};
 use sos_core::{
     gatekeeper::Gatekeeper,
-    secret::{MetaData, Secret, SecretMeta},
+    secret::{MetaData, Secret, SecretMeta, UuidOrName},
     vault::Vault,
 };
-use std::{path::PathBuf, collections::HashMap};
+use std::{path::PathBuf, collections::HashMap, io::{self, Write}};
 use url::Url;
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
         read_flag, read_line, read_multiline, read_option, read_password,
         read_stdin,
     },
-    UuidOrName, LOG_TARGET,
+    LOG_TARGET,
 };
 use log::{error, info, warn};
 
@@ -62,39 +62,52 @@ fn print_secret_header(secret: &Secret, secret_meta: &SecretMeta) {
     let delimiter = "-".repeat(60);
     println!("{}", delimiter);
     println!(
-        "{}: {}",
+        "[{}] {}",
         Secret::type_name(secret.kind()),
         secret_meta.label()
     );
     println!("{}", delimiter);
 }
 
+fn write_stdout(buffer: &[u8]) -> Result<()> {
+    let stdout = io::stdout();
+    let mut handle = stdout.lock();
+    handle.write_all(buffer)?;
+    handle.flush()?;
+    Ok(())
+}
+
 /// Show a secret from the vault.
 pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let meta_data = unlock_vault(&mut keeper, true)?;
+    let meta = unlock_vault(&mut keeper, true)?;
 
-    let result = match &target {
-        UuidOrName::Uuid(uuid) => {
-            meta_data.secrets().get(uuid).map(|v| (uuid, v))
-        }
-        UuidOrName::Name(name) => {
-            meta_data.secrets().iter().find_map(|(k, v)| {
-                if v.label() == name {
-                    return Some((k, v));
-                } else {
-                    None
-                }
-            })
-        }
-    };
-
-    if let Some((uuid, secret_meta)) = result {
-        match keeper.get(uuid) {
+    if let Some((uuid, secret_meta)) = meta.find_by_uuid_or_label(&target) {
+        match keeper.get(&uuid) {
             Ok(Some((_, secret))) => match secret {
                 Secret::Text(ref note) => {
                     print_secret_header(&secret, secret_meta);
                     println!("{}", note);
+                }
+                Secret::Account{ ref account, ref url, ref password } => {
+                    print_secret_header(&secret, secret_meta);
+                    println!("Account: {}", account);
+                    if let Some(url) = url {
+                        println!("Website URL: {}", url);
+                    }
+                    println!("Password: {}", password);
+                }
+                Secret::Blob{ ref buffer, .. } => {
+                    if atty::is(atty::Stream::Stdout) {
+                        print_secret_header(&secret, secret_meta);
+                        let prompt = Some(
+                            "Binary data may mess up your terminal, are you sure (y/n)? ");
+                        if read_flag(prompt)? {
+                            write_stdout(buffer)?;
+                        }
+                    } else {
+                        write_stdout(buffer)?;
+                    }
                 }
                 _ => todo!("print other secret types"),
             },
@@ -111,24 +124,9 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
 /// Remove a secret from the vault.
 pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let meta_data = unlock_vault(&mut keeper, true)?;
+    let meta = unlock_vault(&mut keeper, true)?;
 
-    let result = match &target {
-        UuidOrName::Uuid(uuid) => {
-            meta_data.secrets().get(uuid).map(|v| (uuid, v))
-        }
-        UuidOrName::Name(name) => {
-            meta_data.secrets().iter().find_map(|(k, v)| {
-                if v.label() == name {
-                    return Some((k, v));
-                } else {
-                    None
-                }
-            })
-        }
-    };
-
-    if let Some((uuid, _)) = result {
+    if let Some((uuid, _)) = meta.find_by_uuid_or_label(&target) {
         let delimiter = "-".repeat(60);
         warn!(target: LOG_TARGET, "{}", delimiter);
         warn!(target: LOG_TARGET, "DELETING A SECRET IS IRREVERSIBLE!");
@@ -137,7 +135,7 @@ pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
         let prompt =
             Some("Are you sure you want to delete this secret (y/n)? ");
         if read_flag(prompt)? {
-            keeper.remove(uuid)?;
+            keeper.remove(&uuid)?;
             keeper.vault().write_file(vault)?;
             log::info!(target: LOG_TARGET, "removed secret {}", uuid);
         }

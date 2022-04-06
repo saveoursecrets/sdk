@@ -5,11 +5,31 @@ use serde_binary::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 use url::Url;
 use uuid::Uuid;
 
 use crate::Error;
+
+/// Represents either a uuid or a named label.
+#[derive(Debug)]
+pub enum UuidOrName {
+    /// A unique identifier.
+    Uuid(Uuid),
+    /// The name of a label.
+    Name(String),
+}
+
+impl FromStr for UuidOrName {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(uuid) = Uuid::parse_str(s) {
+            Ok(Self::Uuid(uuid))
+        } else {
+            Ok(Self::Name(s.to_string()))
+        }
+    }
+}
 
 /// Unencrypted vault meta data.
 #[derive(Default)]
@@ -54,6 +74,24 @@ impl MetaData {
     /// Find secret meta by label.
     pub fn find_by_label(&self, label: &str) -> Option<&SecretMeta> {
         self.secrets.values().find(|m| m.label() == label)
+    }
+
+    /// Find secret meta by uuid or label.
+    pub fn find_by_uuid_or_label(&self, target: &UuidOrName) -> Option<(Uuid, &SecretMeta)> {
+        match target {
+            UuidOrName::Uuid(uuid) => {
+                self.secrets.get(uuid).map(|v| (*uuid, v))
+            }
+            UuidOrName::Name(name) => {
+                self.secrets.iter().find_map(|(k, v)| {
+                    if v.label() == name {
+                        return Some((*k, v));
+                    } else {
+                        None
+                    }
+                })
+            }
+        }
     }
 }
 
