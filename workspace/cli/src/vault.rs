@@ -4,7 +4,7 @@ use sos_core::{
     secret::{MetaData, Secret, SecretMeta},
     vault::Vault,
 };
-use std::path::PathBuf;
+use std::{path::PathBuf, collections::HashMap};
 use url::Url;
 
 use crate::{
@@ -69,8 +69,8 @@ fn print_secret_header(secret: &Secret, secret_meta: &SecretMeta) {
     println!("{}", delimiter);
 }
 
-/// Print a secret in the vault.
-pub fn get(vault: PathBuf, target: UuidOrName) -> Result<()> {
+/// Show a secret from the vault.
+pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
     let meta_data = unlock_vault(&mut keeper, true)?;
 
@@ -259,6 +259,45 @@ pub fn add_file(
 
     let buffer = std::fs::read(file)?;
     let secret = Secret::Blob { buffer, mime };
+    let secret_meta = SecretMeta::new(label, secret.kind());
+    let uuid = keeper.add(secret_meta, secret)?;
+    keeper.vault().write_file(vault)?;
+    info!(target: LOG_TARGET, "saved secret {}", uuid);
+    Ok(())
+}
+
+/// Add a credentials list to the vault.
+pub fn add_credentials(vault: PathBuf, label: Option<String>) -> Result<()> {
+    let mut keeper = load_vault(&vault)?;
+    let meta = unlock_vault(&mut keeper, false)?;
+
+    let mut label = if let Some(label) = label {
+        label
+    } else {
+        read_line(Some("Label: "))?
+    };
+
+    while meta.find_by_label(&label).is_some() {
+        error!(target: LOG_TARGET, "secret already exists for '{}'", &label);
+        label = read_line(Some("Label: "))?;
+    }
+
+    let mut credentials: HashMap<String, String> = HashMap::new();
+    loop {
+        let mut name = read_line(Some("Name: "))?;
+        while credentials.get(&name).is_some() {
+            error!(target: LOG_TARGET, "name '{}' already exists", &name);
+            name = read_line(Some("Name: "))?;
+        }
+        let value = read_password(Some("Value: "))?;
+        credentials.insert(name, value);
+        let prompt = Some("Add more credentials (y/n)? ");
+        if !read_flag(prompt)? {
+            break;
+        }
+    }
+
+    let secret = Secret::Credentials(credentials);
     let secret_meta = SecretMeta::new(label, secret.kind());
     let uuid = keeper.add(secret_meta, secret)?;
     keeper.vault().write_file(vault)?;
