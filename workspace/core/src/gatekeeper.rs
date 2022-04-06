@@ -155,25 +155,6 @@ impl Gatekeeper {
         }
     }
 
-    /*
-    /// Create or update a secret.
-    fn set_secret(
-        &mut self,
-        secret: &Secret,
-        uuid: Option<Uuid>,
-    ) -> Result<Uuid> {
-        if let Some(private_key) = &self.private_key {
-            let uuid = uuid.unwrap_or_else(Uuid::new_v4);
-            let secret_blob = encode(secret)?;
-            let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
-            self.vault.add_secret(uuid, secret_aead);
-            Ok(uuid)
-        } else {
-            Err(Error::VaultLocked)
-        }
-    }
-    */
-
     /// Add a secret to the vault.
     pub fn add(
         &mut self,
@@ -203,6 +184,15 @@ impl Gatekeeper {
         } else {
             Ok(None)
         }
+    }
+
+    /// Remove a secret and it's meta data from the vault.
+    pub fn remove(&mut self, uuid: &Uuid) -> Result<()> {
+        let mut meta = self.meta()?;
+        meta.secrets_mut().remove(uuid);
+        self.set_meta(meta)?;
+        self.vault.remove_secret(uuid);
+        Ok(())
     }
 
     /// Unlock the vault by setting the private key from a passphrase.

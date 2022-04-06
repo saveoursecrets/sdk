@@ -119,22 +119,9 @@ pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
         }
     };
 
-    if let Some((uuid, secret_meta)) = result {
-
+    if let Some((uuid, _)) = result {
         println!("remove from vault {}", uuid);
-
-        /*
-        match keeper.get_secret(uuid) {
-            Ok(secret) => match secret {
-                Secret::Text(ref note) => {
-                    print_secret_header(&secret, secret_meta);
-                    println!("{}", note);
-                }
-                _ => todo!("print other secret types"),
-            },
-            Err(e) => return Err(anyhow!(e)),
-        }
-        */
+        keeper.remove(uuid)?;
     } else {
         // Secret meta data not found
         log::info!("secret not found");

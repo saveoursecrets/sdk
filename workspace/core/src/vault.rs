@@ -337,6 +337,11 @@ impl Vault {
         self.contents.data.insert(uuid, secret);
     }
 
+    /// Remove an encrypted secret from the vault.
+    pub fn remove_secret(&mut self, uuid: &Uuid) {
+        self.contents.data.remove(uuid);
+    }
+
     /// Get an encrypted secret from the vault.
     pub fn get_secret(&self, uuid: &Uuid) -> Option<&AeadPack> {
         self.contents.data.get(uuid)
