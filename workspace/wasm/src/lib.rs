@@ -165,10 +165,9 @@ impl WebVault {
             password,
         };
         let meta_data = SecretMeta::new(label);
-        let uuid = self.keeper.set_secret(&secret, None)?;
-        self.index
-            .insert(uuid, SearchMeta::new(meta_data.clone(), ACCOUNT));
-        self.keeper.set_secret_meta(uuid, meta_data)?;
+        let search_meta = SearchMeta::new(meta_data.clone(), ACCOUNT);
+        let uuid = self.keeper.add(meta_data, secret)?;
+        self.index.insert(uuid, search_meta);
         Ok(JsValue::from_serde(&uuid)?)
     }
 
@@ -182,11 +181,9 @@ impl WebVault {
 
         let secret = Secret::Text(note);
         let meta_data = SecretMeta::new(label);
-        let uuid = self.keeper.set_secret(&secret, None)?;
-
-        self.index
-            .insert(uuid, SearchMeta::new(meta_data.clone(), TEXT));
-        self.keeper.set_secret_meta(uuid, meta_data)?;
+        let search_meta = SearchMeta::new(meta_data.clone(), TEXT);
+        let uuid = self.keeper.add(meta_data, secret)?;
+        self.index.insert(uuid, search_meta);
         Ok(JsValue::from_serde(&uuid)?)
     }
 
@@ -200,11 +197,9 @@ impl WebVault {
 
         let secret = Secret::Credentials(credentials);
         let meta_data = SecretMeta::new(label);
-        let uuid = self.keeper.set_secret(&secret, None)?;
-
-        self.index
-            .insert(uuid, SearchMeta::new(meta_data.clone(), CREDENTIALS));
-        self.keeper.set_secret_meta(uuid, meta_data)?;
+        let search_meta = SearchMeta::new(meta_data.clone(), CREDENTIALS);
+        let uuid = self.keeper.add(meta_data, secret)?;
+        self.index.insert(uuid, search_meta);
         Ok(JsValue::from_serde(&uuid)?)
     }
 
@@ -223,11 +218,9 @@ impl WebVault {
         let mime = mime_guess::from_path(name).first().map(|m| m.to_string());
         let secret = Secret::Blob { buffer, mime };
         let meta_data = SecretMeta::new(label);
-        let uuid = self.keeper.set_secret(&secret, None)?;
-
-        self.index
-            .insert(uuid, SearchMeta::new(meta_data.clone(), BLOB));
-        self.keeper.set_secret_meta(uuid, meta_data)?;
+        let search_meta = SearchMeta::new(meta_data.clone(), BLOB);
+        let uuid = self.keeper.add(meta_data, secret)?;
+        self.index.insert(uuid, search_meta);
         Ok(JsValue::from_serde(&uuid)?)
     }
 

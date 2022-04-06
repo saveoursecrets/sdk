@@ -121,6 +121,17 @@ enum Vault {
         vault: PathBuf,
     },
 
+    /// Remove a secret from a vault
+    #[clap(alias = "rm")]
+    Remove {
+        /// Vault file
+        #[clap(parse(from_os_str))]
+        vault: PathBuf,
+
+        /// Secret name or uuid
+        secret: UuidOrName,
+    },
+
     #[clap(subcommand)]
     Add(VaultAdd),
 
@@ -200,6 +211,9 @@ fn run() -> Result<()> {
             }
             Vault::Get { vault, secret } => {
                 sos_cli::vault::get(vault, secret)?;
+            }
+            Vault::Remove { vault, secret } => {
+                sos_cli::vault::remove(vault, secret)?;
             }
             Vault::Add(cmd) => match cmd {
                 VaultAdd::Note { vault, label } => {
