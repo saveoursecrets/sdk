@@ -40,7 +40,6 @@ pub enum Error {
     // Error generated when secret meta data does not exist.
     //#[error("secret meta data for {0} does not exist")]
     //SecretMetaDoesNotExist(uuid::Uuid),
-
     /// Error generated when secret meta data does not exist.
     #[error("too few words for diceware passphrase generation, got {0} but minimum is {1}")]
     DicewareWordsTooFew(usize, u8),

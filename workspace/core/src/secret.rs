@@ -31,12 +31,10 @@ impl MetaData {
         &self.secrets
     }
 
-    /*
     /// Get a mutable reference to the secrets map.
     pub fn secrets_mut(&mut self) -> &mut HashMap<Uuid, SecretMeta> {
         &mut self.secrets
     }
-    */
 
     /// Get the vault label.
     pub fn set_label(&mut self, label: String) {
