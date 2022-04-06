@@ -77,20 +77,21 @@ impl MetaData {
     }
 
     /// Find secret meta by uuid or label.
-    pub fn find_by_uuid_or_label(&self, target: &UuidOrName) -> Option<(Uuid, &SecretMeta)> {
+    pub fn find_by_uuid_or_label(
+        &self,
+        target: &UuidOrName,
+    ) -> Option<(Uuid, &SecretMeta)> {
         match target {
             UuidOrName::Uuid(uuid) => {
                 self.secrets.get(uuid).map(|v| (*uuid, v))
             }
-            UuidOrName::Name(name) => {
-                self.secrets.iter().find_map(|(k, v)| {
-                    if v.label() == name {
-                        return Some((*k, v));
-                    } else {
-                        None
-                    }
-                })
-            }
+            UuidOrName::Name(name) => self.secrets.iter().find_map(|(k, v)| {
+                if v.label() == name {
+                    return Some((*k, v));
+                } else {
+                    None
+                }
+            }),
         }
     }
 }

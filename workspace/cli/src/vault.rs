@@ -4,7 +4,11 @@ use sos_core::{
     secret::{MetaData, Secret, SecretMeta, UuidOrName},
     vault::Vault,
 };
-use std::{path::PathBuf, collections::HashMap, io::{self, Write}};
+use std::{
+    collections::HashMap,
+    io::{self, Write},
+    path::PathBuf,
+};
 use url::Url;
 
 use crate::{
@@ -89,7 +93,11 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
                     print_secret_header(&secret, secret_meta);
                     println!("{}", note);
                 }
-                Secret::Account{ ref account, ref url, ref password } => {
+                Secret::Account {
+                    ref account,
+                    ref url,
+                    ref password,
+                } => {
                     print_secret_header(&secret, secret_meta);
                     println!("Account: {}", account);
                     if let Some(url) = url {
@@ -97,7 +105,7 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
                     }
                     println!("Password: {}", password);
                 }
-                Secret::Blob{ ref buffer, .. } => {
+                Secret::Blob { ref buffer, .. } => {
                     if atty::is(atty::Stream::Stdout) {
                         print_secret_header(&secret, secret_meta);
                         let prompt = Some(
@@ -109,7 +117,12 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
                         write_stdout(buffer)?;
                     }
                 }
-                _ => todo!("print other secret types"),
+                Secret::Credentials(ref map) => {
+                    print_secret_header(&secret, secret_meta);
+                    for (k, v) in map {
+                        println!("{} = {}", k, v);
+                    }
+                }
             },
             Ok(None) => info!(target: LOG_TARGET, "secret not found"),
             Err(e) => return Err(anyhow!(e)),

@@ -4,8 +4,8 @@ use sos_core::passphrase::WordCount;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use sos_cli::{LOG_TARGET, vault::*};
-use sos_core::{Algorithm, secret::UuidOrName};
+use sos_cli::{vault::*, LOG_TARGET};
+use sos_core::{secret::UuidOrName, Algorithm};
 
 /// Safe secret storage for the web3 era.
 #[derive(Parser, Debug)]
@@ -177,7 +177,7 @@ enum VaultAdd {
         #[clap(parse(from_os_str))]
         file: PathBuf,
     },
-    /// Create a credentials list 
+    /// Create a credentials list
     Credentials {
         /// Label for the secret
         #[clap(short, long)]
