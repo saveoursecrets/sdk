@@ -1,4 +1,5 @@
 use anyhow::{anyhow, bail, Result};
+use human_bytes::human_bytes;
 use sos_core::{
     gatekeeper::Gatekeeper,
     secret::{MetaData, Secret, SecretMeta, UuidOrName},
@@ -62,7 +63,11 @@ pub fn list(vault: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn print_secret_header(secret: &Secret, secret_meta: &SecretMeta) {
+fn print_secret_header(
+    secret: &Secret,
+    secret_meta: &SecretMeta,
+    meta: HashMap<String, String>,
+) {
     let delimiter = "-".repeat(60);
     println!("{}", delimiter);
     println!(
@@ -70,6 +75,11 @@ fn print_secret_header(secret: &Secret, secret_meta: &SecretMeta) {
         Secret::type_name(secret.kind()),
         secret_meta.label()
     );
+
+    for (k, v) in meta {
+        println!("{}: {}", k, v);
+    }
+
     println!("{}", delimiter);
 }
 
@@ -90,7 +100,7 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
         match keeper.get(&uuid) {
             Ok(Some((_, secret))) => match secret {
                 Secret::Text(ref note) => {
-                    print_secret_header(&secret, secret_meta);
+                    print_secret_header(&secret, secret_meta, HashMap::new());
                     println!("{}", note);
                 }
                 Secret::Account {
@@ -98,16 +108,28 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
                     ref url,
                     ref password,
                 } => {
-                    print_secret_header(&secret, secret_meta);
+                    print_secret_header(&secret, secret_meta, HashMap::new());
                     println!("Account: {}", account);
                     if let Some(url) = url {
                         println!("Website URL: {}", url);
                     }
                     println!("Password: {}", password);
                 }
-                Secret::Blob { ref buffer, .. } => {
+                Secret::Blob {
+                    ref buffer,
+                    ref mime,
+                } => {
                     if atty::is(atty::Stream::Stdout) {
-                        print_secret_header(&secret, secret_meta);
+                        let mut details = HashMap::new();
+                        if let Some(mime) = mime {
+                            details
+                                .insert("Mime".to_string(), mime.to_string());
+                        }
+                        details.insert(
+                            "Size".to_string(),
+                            human_bytes(buffer.len() as f64),
+                        );
+                        print_secret_header(&secret, secret_meta, details);
                         let prompt = Some(
                             "Binary data may mess up your terminal, are you sure (y/n)? ");
                         if read_flag(prompt)? {
@@ -118,7 +140,7 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
                     }
                 }
                 Secret::Credentials(ref map) => {
-                    print_secret_header(&secret, secret_meta);
+                    print_secret_header(&secret, secret_meta, HashMap::new());
                     for (k, v) in map {
                         println!("{} = {}", k, v);
                     }

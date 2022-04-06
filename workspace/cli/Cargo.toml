@@ -18,4 +18,5 @@ rustyline-derive = "0.6"
 unicode-width = "0.1"
 mime_guess = "2"
 url = "2"
+human_bytes = "0.3"
 
