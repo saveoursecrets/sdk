@@ -33,13 +33,10 @@ pub enum Error {
     #[error("vault must be unlocked")]
     VaultLocked,
 
-    // Error generated when a secret does not exist.
-    //#[error("secret {0} does not exist")]
-    //SecretDoesNotExist(uuid::Uuid),
+    /// Error generated when a secret already exists with the given label.
+    #[error("secret with the label {0} already exists, labels must be unique")]
+    SecretAlreadyExists(String),
 
-    // Error generated when secret meta data does not exist.
-    //#[error("secret meta data for {0} does not exist")]
-    //SecretMetaDoesNotExist(uuid::Uuid),
     /// Error generated when secret meta data does not exist.
     #[error("too few words for diceware passphrase generation, got {0} but minimum is {1}")]
     DicewareWordsTooFew(usize, u8),
