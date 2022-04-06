@@ -14,7 +14,7 @@ use crate::{
     },
     UuidOrName, LOG_TARGET,
 };
-use log::{info, warn};
+use log::{error, info, warn};
 
 fn load_vault(vault: &PathBuf) -> Result<Gatekeeper> {
     if !vault.is_file() {
@@ -151,22 +151,22 @@ pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
 /// Add a secret account to the vault.
 pub fn add_account(vault: PathBuf, label: Option<String>) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let _ = unlock_vault(&mut keeper, false)?;
+    let meta = unlock_vault(&mut keeper, false)?;
 
-    let label = if let Some(label) = label {
+    let mut label = if let Some(label) = label {
         label
     } else {
         read_line(Some("Label: "))?
     };
 
+    while meta.find_by_label(&label).is_some() {
+        error!(target: LOG_TARGET, "secret already exists for '{}'", &label);
+        label = read_line(Some("Label: "))?
+    }
+
     let account = read_line(Some("Account name: "))?;
     let url = read_option(Some("Website URL: "))?;
     let password = read_password(Some("Password: "))?;
-
-    println!("Add an account {}", label);
-    println!("Add an account {}", account);
-    println!("Add an account {:#?}", url);
-    println!("Add an account {}", password);
 
     let url: Option<Url> = if let Some(url) = url {
         Some(url.parse()?)
@@ -189,14 +189,19 @@ pub fn add_account(vault: PathBuf, label: Option<String>) -> Result<()> {
 /// Add a secret note to the vault.
 pub fn add_note(vault: PathBuf, label: Option<String>) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let _ = unlock_vault(&mut keeper, false)?;
+    let meta = unlock_vault(&mut keeper, false)?;
     let delimiter = "-".repeat(60);
 
-    let label = if let Some(label) = label {
+    let mut label = if let Some(label) = label {
         label
     } else {
         read_line(Some("Label: "))?
     };
+
+    while meta.find_by_label(&label).is_some() {
+        error!(target: LOG_TARGET, "secret already exists for '{}'", &label);
+        label = read_line(Some("Label: "))?
+    }
 
     info!(target: LOG_TARGET, "{}", delimiter);
     info!(target: LOG_TARGET, "To cancel and exit enter Ctrl+C");
@@ -227,7 +232,7 @@ pub fn add_file(
     }
 
     let mut keeper = load_vault(&vault)?;
-    let _ = unlock_vault(&mut keeper, false)?;
+    let meta = unlock_vault(&mut keeper, false)?;
 
     let mime = if let Some(name) = file.file_name() {
         if let Some(name) = name.to_str() {
@@ -239,13 +244,18 @@ pub fn add_file(
         None
     };
 
-    let label = if let Some(label) = label {
+    let mut label = if let Some(label) = label {
         label
     } else {
         file.file_name()
             .ok_or(anyhow!("not a valid filename"))
             .map(|name| name.to_string_lossy().into_owned())?
     };
+
+    while meta.find_by_label(&label).is_some() {
+        error!(target: LOG_TARGET, "secret already exists for '{}'", &label);
+        label = read_line(Some("Label: "))?
+    }
 
     let buffer = std::fs::read(file)?;
     let secret = Secret::Blob { buffer, mime };
