@@ -135,8 +135,8 @@ enum Vault {
     #[clap(subcommand)]
     Add(VaultAdd),
 
-    /// Get a secret in a vault
-    Get {
+    /// Display a secret in a vault
+    Show {
         /// Vault file
         #[clap(parse(from_os_str))]
         vault: PathBuf,
@@ -152,7 +152,6 @@ enum VaultAdd {
         /// Label for the secret
         #[clap(short, long)]
         label: Option<String>,
-
         /// Vault file
         #[clap(parse(from_os_str))]
         vault: PathBuf,
@@ -162,7 +161,6 @@ enum VaultAdd {
         /// Label for the secret
         #[clap(short, long)]
         label: Option<String>,
-
         /// Vault file
         #[clap(parse(from_os_str))]
         vault: PathBuf,
@@ -172,14 +170,21 @@ enum VaultAdd {
         /// Label for the secret
         #[clap(short, long)]
         label: Option<String>,
-
         /// Vault file
         #[clap(parse(from_os_str))]
         vault: PathBuf,
-
         /// Secret file
         #[clap(parse(from_os_str))]
         file: PathBuf,
+    },
+    /// Create a credentials list 
+    Credentials {
+        /// Label for the secret
+        #[clap(short, long)]
+        label: Option<String>,
+        /// Vault file
+        #[clap(parse(from_os_str))]
+        vault: PathBuf,
     },
 }
 
@@ -221,8 +226,8 @@ fn run() -> Result<()> {
             Vault::List { vault } => {
                 sos_cli::vault::list(vault)?;
             }
-            Vault::Get { vault, secret } => {
-                sos_cli::vault::get(vault, secret)?;
+            Vault::Show { vault, secret } => {
+                sos_cli::vault::show(vault, secret)?;
             }
             Vault::Remove { vault, secret } => {
                 sos_cli::vault::remove(vault, secret)?;
@@ -236,6 +241,9 @@ fn run() -> Result<()> {
                 }
                 VaultAdd::File { vault, label, file } => {
                     sos_cli::vault::add_file(vault, label, file)?;
+                }
+                VaultAdd::Credentials { vault, label } => {
+                    sos_cli::vault::add_credentials(vault, label)?;
                 }
             },
         },
