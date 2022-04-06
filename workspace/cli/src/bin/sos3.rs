@@ -150,7 +150,7 @@ enum VaultAdd {
     /// Create a secret note
     Note {
         #[clap(short, long)]
-        label: String,
+        label: Option<String>,
 
         /// Vault file
         #[clap(parse(from_os_str))]

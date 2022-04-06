@@ -164,7 +164,7 @@ impl WebVault {
             url,
             password,
         };
-        let meta_data = SecretMeta::new(label);
+        let meta_data = SecretMeta::new(label, secret.kind());
         let search_meta = SearchMeta::new(meta_data.clone(), ACCOUNT);
         let uuid = self.keeper.add(meta_data, secret)?;
         self.index.insert(uuid, search_meta);
@@ -180,7 +180,7 @@ impl WebVault {
         let SecureNote { label, note } = request.into_serde()?;
 
         let secret = Secret::Text(note);
-        let meta_data = SecretMeta::new(label);
+        let meta_data = SecretMeta::new(label, secret.kind());
         let search_meta = SearchMeta::new(meta_data.clone(), TEXT);
         let uuid = self.keeper.add(meta_data, secret)?;
         self.index.insert(uuid, search_meta);
@@ -196,7 +196,7 @@ impl WebVault {
         let Credentials { label, credentials } = request.into_serde()?;
 
         let secret = Secret::Credentials(credentials);
-        let meta_data = SecretMeta::new(label);
+        let meta_data = SecretMeta::new(label, secret.kind());
         let search_meta = SearchMeta::new(meta_data.clone(), CREDENTIALS);
         let uuid = self.keeper.add(meta_data, secret)?;
         self.index.insert(uuid, search_meta);
@@ -217,7 +217,7 @@ impl WebVault {
 
         let mime = mime_guess::from_path(name).first().map(|m| m.to_string());
         let secret = Secret::Blob { buffer, mime };
-        let meta_data = SecretMeta::new(label);
+        let meta_data = SecretMeta::new(label, secret.kind());
         let search_meta = SearchMeta::new(meta_data.clone(), BLOB);
         let uuid = self.keeper.add(meta_data, secret)?;
         self.index.insert(uuid, search_meta);

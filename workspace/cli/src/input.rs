@@ -83,14 +83,14 @@ pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
 }
 
 /// Read a non-empty string.
-pub fn read_line(prompt: Option<&str>) -> Result<Option<String>> {
+pub fn read_line(prompt: Option<&str>) -> Result<String> {
     let mut rl = rustyline::Editor::<()>::new();
     loop {
         let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
         match readline {
             Ok(line) => {
                 if !line.trim().is_empty() {
-                    return Ok(Some(line));
+                    return Ok(line);
                 }
             }
             Err(e) => return Err(anyhow!(e)),

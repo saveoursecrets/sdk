@@ -31,13 +31,6 @@ impl MetaData {
         &self.secrets
     }
 
-    /*
-    /// Get a mutable reference to the secrets map.
-    pub fn secrets_mut(&mut self) -> &mut HashMap<Uuid, SecretMeta> {
-        &mut self.secrets
-    }
-    */
-
     /// Get the vault label.
     pub fn set_label(&mut self, label: String) {
         self.label = label;
@@ -80,17 +73,24 @@ impl Decode for MetaData {
 pub struct SecretMeta {
     /// Human-friendly label for the secret.
     label: String,
+    /// Kind of the secret.
+    kind: u8,
 }
 
 impl SecretMeta {
     /// Create new meta data for a secret.
-    pub fn new(label: String) -> Self {
-        Self { label }
+    pub fn new(label: String, kind: u8) -> Self {
+        Self { label, kind }
     }
 
     /// The label for the secret.
     pub fn label(&self) -> &str {
         &self.label
+    }
+
+    /// The kind of the secret.
+    pub fn kind(&self) -> &u8 {
+        &self.kind
     }
 }
 
@@ -117,6 +117,29 @@ pub enum Secret {
     },
     /// Collection of credentials as key/value pairs.
     Credentials(HashMap<String, String>),
+}
+
+impl Secret {
+    /// Get a human readable name for the type of secret.
+    pub fn type_name(kind: u8) -> &'static str {
+        match kind {
+            kind::TEXT => "Note",
+            kind::BLOB => "File",
+            kind::ACCOUNT => "Account",
+            kind::CREDENTIALS => "Credentials",
+            _ => unreachable!(),
+        }
+    }
+
+    /// Get the kind identifier for this secret.
+    pub fn kind(&self) -> u8 {
+        match self {
+            Secret::Text(_) => kind::TEXT,
+            Secret::Blob { .. } => kind::BLOB,
+            Secret::Account { .. } => kind::ACCOUNT,
+            Secret::Credentials(_) => kind::CREDENTIALS,
+        }
+    }
 }
 
 impl Default for Secret {

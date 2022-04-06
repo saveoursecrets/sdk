@@ -7,7 +7,7 @@ use sos_core::{
 use std::path::PathBuf;
 
 use crate::{
-    input::{read_flag, read_multiline, read_password, read_stdin},
+    input::{read_flag, read_line, read_multiline, read_password, read_stdin},
     UuidOrName, LOG_TARGET,
 };
 use log::{info, warn};
@@ -42,7 +42,13 @@ pub fn list(vault: PathBuf) -> Result<()> {
         info!(target: LOG_TARGET, "Empty vault");
     } else {
         for (id, meta) in secrets {
-            info!(target: LOG_TARGET, "{} -> {}", meta.label(), id);
+            info!(
+                target: LOG_TARGET,
+                "[{}] \"{}\" {}",
+                Secret::type_name(*meta.kind()),
+                meta.label(),
+                id
+            );
         }
     }
     Ok(())
@@ -50,13 +56,12 @@ pub fn list(vault: PathBuf) -> Result<()> {
 
 fn print_secret_header(secret: &Secret, secret_meta: &SecretMeta) {
     let delimiter = "-".repeat(60);
-    let kind = match secret {
-        Secret::Text(_) => "Note",
-        _ => todo!(),
-    };
-
     println!("{}", delimiter);
-    println!("{}: {}", kind, secret_meta.label());
+    println!(
+        "{}: {}",
+        Secret::type_name(secret.kind()),
+        secret_meta.label()
+    );
     println!("{}", delimiter);
 }
 
@@ -140,10 +145,16 @@ pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
 }
 
 /// Add a secret note to the vault.
-pub fn add_note(vault: PathBuf, label: String) -> Result<()> {
+pub fn add_note(vault: PathBuf, label: Option<String>) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
     let _ = unlock_vault(&mut keeper, false)?;
     let delimiter = "-".repeat(60);
+
+    let label = if let Some(label) = label {
+        label
+    } else {
+        read_line(Some("Label: "))?
+    };
 
     info!(target: LOG_TARGET, "{}", delimiter);
     info!(target: LOG_TARGET, "To cancel and exit enter Ctrl+C");
@@ -154,8 +165,8 @@ pub fn add_note(vault: PathBuf, label: String) -> Result<()> {
     info!(target: LOG_TARGET, "{}", delimiter);
     if let Some(note) = read_multiline(None)? {
         let note = note.trim_end_matches('\n').to_string();
-        let secret_meta = SecretMeta::new(label);
         let secret = Secret::Text(note);
+        let secret_meta = SecretMeta::new(label, secret.kind());
         let uuid = keeper.add(secret_meta, secret)?;
         keeper.vault().write_file(vault)?;
         info!(target: LOG_TARGET, "saved secret {}", uuid);
@@ -195,8 +206,8 @@ pub fn add_file(
     };
 
     let buffer = std::fs::read(file)?;
-    let secret_meta = SecretMeta::new(label);
     let secret = Secret::Blob { buffer, mime };
+    let secret_meta = SecretMeta::new(label, secret.kind());
     let uuid = keeper.add(secret_meta, secret)?;
     keeper.vault().write_file(vault)?;
     info!(target: LOG_TARGET, "saved secret {}", uuid);
