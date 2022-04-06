@@ -166,12 +166,8 @@ impl Gatekeeper {
         let uuid = Uuid::new_v4();
 
         let mut meta = self.meta()?;
-        let exists = meta
-            .secrets()
-            .values()
-            .find(|m| m.label() == secret_meta.label());
 
-        if exists.is_some() {
+        if meta.find_by_label(secret_meta.label()).is_some() {
             return Err(Error::SecretAlreadyExists(
                 secret_meta.label().to_string(),
             ));

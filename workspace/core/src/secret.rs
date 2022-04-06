@@ -50,6 +50,11 @@ impl MetaData {
     pub fn remove_secret_meta(&mut self, uuid: &Uuid) {
         self.secrets.remove(uuid);
     }
+
+    /// Find secret meta by label.
+    pub fn find_by_label(&self, label: &str) -> Option<&SecretMeta> {
+        self.secrets.values().find(|m| m.label() == label)
+    }
 }
 
 impl Encode for MetaData {
