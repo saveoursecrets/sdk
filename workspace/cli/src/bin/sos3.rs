@@ -147,8 +147,19 @@ enum Vault {
 
 #[derive(Subcommand, Debug)]
 enum VaultAdd {
+    /// Create a new account
+    Account {
+        /// Label for the secret
+        #[clap(short, long)]
+        label: Option<String>,
+
+        /// Vault file
+        #[clap(parse(from_os_str))]
+        vault: PathBuf,
+    },
     /// Create a secret note
     Note {
+        /// Label for the secret
         #[clap(short, long)]
         label: Option<String>,
 
@@ -158,6 +169,7 @@ enum VaultAdd {
     },
     /// Create a secret file
     File {
+        /// Label for the secret
         #[clap(short, long)]
         label: Option<String>,
 
@@ -216,6 +228,9 @@ fn run() -> Result<()> {
                 sos_cli::vault::remove(vault, secret)?;
             }
             Vault::Add(cmd) => match cmd {
+                VaultAdd::Account { vault, label } => {
+                    sos_cli::vault::add_account(vault, label)?;
+                }
                 VaultAdd::Note { vault, label } => {
                     sos_cli::vault::add_note(vault, label)?;
                 }

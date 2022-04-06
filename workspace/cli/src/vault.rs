@@ -5,9 +5,13 @@ use sos_core::{
     vault::Vault,
 };
 use std::path::PathBuf;
+use url::Url;
 
 use crate::{
-    input::{read_flag, read_line, read_multiline, read_password, read_stdin},
+    input::{
+        read_flag, read_line, read_multiline, read_option, read_password,
+        read_stdin,
+    },
     UuidOrName, LOG_TARGET,
 };
 use log::{info, warn};
@@ -25,10 +29,10 @@ fn unlock_vault(keeper: &mut Gatekeeper, stdin: bool) -> Result<MetaData> {
         if let Some(passphrase) = read_stdin()? {
             passphrase
         } else {
-            read_password("Passphrase: ")?
+            read_password(Some("Passphrase: "))?
         }
     } else {
-        read_password("Passphrase: ")?
+        read_password(Some("Passphrase: "))?
     };
     Ok(keeper.unlock(passphrase)?)
 }
@@ -141,6 +145,44 @@ pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
         // Secret meta data not found
         log::info!(target: LOG_TARGET, "secret not found");
     }
+    Ok(())
+}
+
+/// Add a secret account to the vault.
+pub fn add_account(vault: PathBuf, label: Option<String>) -> Result<()> {
+    let mut keeper = load_vault(&vault)?;
+    let _ = unlock_vault(&mut keeper, false)?;
+
+    let label = if let Some(label) = label {
+        label
+    } else {
+        read_line(Some("Label: "))?
+    };
+
+    let account = read_line(Some("Account name: "))?;
+    let url = read_option(Some("Website URL: "))?;
+    let password = read_password(Some("Password: "))?;
+
+    println!("Add an account {}", label);
+    println!("Add an account {}", account);
+    println!("Add an account {:#?}", url);
+    println!("Add an account {}", password);
+
+    let url: Option<Url> = if let Some(url) = url {
+        Some(url.parse()?)
+    } else {
+        None
+    };
+
+    let secret = Secret::Account {
+        account,
+        url,
+        password,
+    };
+    let secret_meta = SecretMeta::new(label, secret.kind());
+    let uuid = keeper.add(secret_meta, secret)?;
+    keeper.vault().write_file(vault)?;
+    info!(target: LOG_TARGET, "saved secret {}", uuid);
     Ok(())
 }
 
