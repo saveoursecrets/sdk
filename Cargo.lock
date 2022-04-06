@@ -2263,6 +2263,7 @@ dependencies = [
  "serde_json",
  "sos-core",
  "unicode-width",
+ "url",
  "uuid",
 ]
 
