@@ -7,6 +7,8 @@ import { SecretMeta } from "../types";
 import { WorkerContext } from "../worker-provider";
 
 import SecretList from "./secret-list";
+import VaultHeader from "./vault-header";
+import NewSecretDial from "./new-secret-dial";
 
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
@@ -62,12 +64,16 @@ export default function Secret() {
       <WorkerContext.Consumer>
         {(worker) => {
           return (
-            <Stack direction="row">
-              <SecretList worker={worker} storage={storage} uuid={secretId} />
-              <Box padding={2}>
-                <SecretHeader label={label} meta={metaData} />
-              </Box>
-            </Stack>
+            <>
+              <VaultHeader storage={storage} worker={worker} />
+              <Stack direction="row">
+                <SecretList worker={worker} storage={storage} uuid={secretId} />
+                <Box padding={2}>
+                  <SecretHeader label={label} meta={metaData} />
+                </Box>
+              </Stack>
+              <NewSecretDial />
+            </>
           );
         }}
       </WorkerContext.Consumer>

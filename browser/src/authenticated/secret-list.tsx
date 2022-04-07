@@ -29,10 +29,6 @@ export default function SecretList(props: SecretListProps) {
     return null;
   }
 
-  //navigate(`/vault/${vault.uuid}`);
-
-  console.log(storage);
-
   const { meta } = storage;
   const secrets = new Map(Object.entries(meta));
 
@@ -50,10 +46,11 @@ export default function SecretList(props: SecretListProps) {
   }
 
   const showSecret = (uuid: string) => {
-    console.log("showSecret", uuid);
     const path = `/vault/${storage.uuid}/${uuid}`;
     navigate(path);
   };
+
+  //<ListItemText primary={label} secondary={uuid} />
 
   return (
     <List component="nav" sx={{ padding: 0 }}>
@@ -71,7 +68,7 @@ export default function SecretList(props: SecretListProps) {
                 <ListItemIcon>
                   <SecretIcon kind={meta.kind} />
                 </ListItemIcon>
-                <ListItemText primary={label} secondary={uuid} />
+                <ListItemText primary={label} />
               </ListItemButton>
             </ListItem>
             <Divider light />

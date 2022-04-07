@@ -27,22 +27,7 @@ import { SecretKind, UnlockVaultResult, VaultWorker } from "../types";
 import SecretList from "./secret-list";
 import UnlockVaultForm from "./unlock-vault-form";
 import NewSecretDial from "./new-secret-dial";
-
-import {
-  setDialogVisible,
-  NEW_SECURE_NOTE,
-  NEW_ACCOUNT_PASSWORD,
-  NEW_CREDENTIALS,
-  NEW_FILE_UPLOAD,
-} from "../store/dialogs";
-
-function downloadVault(fileName: string, buffer: Uint8Array) {
-  const blob = new Blob([buffer], { type: "application/octet-stream" });
-  const link = document.createElement("a");
-  link.href = window.URL.createObjectURL(blob);
-  link.download = fileName;
-  link.click();
-}
+import VaultHeader from "./vault-header";
 
 interface VaultViewProps {
   worker: VaultWorker;
@@ -91,95 +76,13 @@ function VaultLocked(props: VaultViewProps) {
   );
 }
 
-function VaultHeader(props: VaultViewProps) {
-  const { worker, storage } = props;
-  const { label } = storage;
-  return (
-    <>
-      <Box padding={2}>
-        <Typography variant="h3" gutterBottom component="div">
-          {label}
-        </Typography>
-        <VaultActions worker={worker} storage={storage} />
-      </Box>
-      <Divider />
-    </>
-  );
-}
-
-function VaultActions(props: VaultViewProps) {
-  const { storage } = props;
-  const { vault, uuid, locked } = storage;
-  const [vaultLocked, setVaultLocked] = useState(locked);
-  const dispatch = useDispatch();
-
-  const download = async (e: React.MouseEvent<HTMLElement>) => {
-    e.preventDefault();
-    const buffer = await vault.buffer();
-    downloadVault(`${uuid}.vault`, buffer);
-  };
-
-  /*
-  const setLockState = async () => {
-    if (!vaultLocked) {
-      await vault.lock();
-      setVaultLocked(true);
-      const newStorage = { ...storage, locked: true };
-      dispatch(updateVault(newStorage));
-    }
-  };
-
-  const ToggleLock = () => (
-    <ToggleButton
-      value="lock"
-      selected={vaultLocked}
-      disabled={vaultLocked}
-      onChange={setLockState}
-    >
-      {vaultLocked ? <LockIcon /> : <LockOpenIcon />}
-    </ToggleButton>
-  );
-  */
-
-  return locked ? (
-    <></>
-  ) : (
-    <>
-      <Button variant="contained" onClick={(e) => download(e)}>
-        Download
-      </Button>
-    </>
-  );
-}
-
 function VaultUnlocked(props: VaultViewProps) {
   const { worker, storage } = props;
-  const { vault } = storage;
-  const dispatch = useDispatch();
-
-  const createNewSecret = (kind: SecretKind) => {
-    console.log("create new secret", kind);
-    switch (kind) {
-      case SecretKind.Account:
-        dispatch(setDialogVisible([NEW_ACCOUNT_PASSWORD, true]));
-        break;
-      case SecretKind.Note:
-        dispatch(setDialogVisible([NEW_SECURE_NOTE, true]));
-        break;
-      case SecretKind.Credentials:
-        dispatch(setDialogVisible([NEW_CREDENTIALS, true]));
-        break;
-      case SecretKind.File:
-        dispatch(setDialogVisible([NEW_FILE_UPLOAD, true]));
-        break;
-    }
-  };
-
   return (
     <>
       <VaultHeader worker={worker} storage={storage} />
       <SecretList worker={worker} storage={storage} />
-      <NewSecretDial onSelect={createNewSecret} />
+      <NewSecretDial />
     </>
   );
 }
