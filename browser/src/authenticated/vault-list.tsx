@@ -54,8 +54,6 @@ export default function VaultList() {
     );
   };
 
-  console.log(vaultId);
-
   return (
     <List component="nav" subheader={<SubHeader />}>
       {vaults.map((vault: VaultStorage) => {
