@@ -16,7 +16,7 @@ import {
 
 export type VaultMetaData = {
   [index: string]: [string, SecretMeta];
-}
+};
 
 export type VaultStorage = {
   uuid: string;
@@ -24,43 +24,43 @@ export type VaultStorage = {
   label: string;
   locked: boolean;
   meta?: VaultMetaData;
-}
+};
 
 export type VaultState = {
   vaults: VaultStorage[];
   current?: VaultStorage;
-}
+};
 
 export type NewVaultRequest = {
   worker: VaultWorker;
   result: NewVaultResult;
   navigate: NavigateFunction;
-}
+};
 
 export type AccountPasswordRequest = {
   result: AccountPasswordResult;
   owner: VaultStorage;
-}
+};
 
 export type SecureNoteRequest = {
   result: SecureNoteResult;
   owner: VaultStorage;
-}
+};
 
 export type CredentialsRequest = {
   result: CredentialsResult;
   owner: VaultStorage;
-}
+};
 
 export type FileUploadRequest = {
   result: FileUploadResult;
   owner: VaultStorage;
-}
+};
 
 type LoadVaultsRequest = {
   user: User;
   worker: VaultWorker;
-}
+};
 
 export const loadVaults = createAsyncThunk(
   "vaults/loadVaults",

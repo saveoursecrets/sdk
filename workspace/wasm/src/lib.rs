@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 use sos_core::{
     decode, encode,
     gatekeeper::Gatekeeper,
-    secret::{Secret, SecretMeta, MetaData},
+    secret::{MetaData, Secret, SecretMeta},
     uuid::Uuid,
     vault::Vault,
 };
@@ -14,7 +14,7 @@ use sos_core::{
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 
 #[wasm_bindgen]
 extern "C" {
@@ -111,12 +111,13 @@ impl WebVault {
         Ok(JsValue::from_serde(&sorted_meta)?)
     }
 
-    fn sort_meta_data<'a>(&self, meta: &'a MetaData) -> BTreeMap<String, (&'a Uuid, &'a SecretMeta)> {
+    fn sort_meta_data<'a>(
+        &self,
+        meta: &'a MetaData,
+    ) -> BTreeMap<String, (&'a Uuid, &'a SecretMeta)> {
         meta.secrets()
             .iter()
-            .map(|(k, v)| {
-                (v.label().to_string(), (k, v))
-            })
+            .map(|(k, v)| (v.label().to_string(), (k, v)))
             .collect()
     }
 
