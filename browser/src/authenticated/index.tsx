@@ -24,6 +24,7 @@ import { loadVaults } from "../store/vaults";
 import Home from "./home";
 import VaultList from "./vault-list";
 import Vault from "./vault";
+import Secret from "./secret";
 import Dialogs from "./dialogs";
 import AppBarActions from "./app-bar-actions";
 import LogoType from "../logotype";
@@ -36,7 +37,7 @@ const Main = styled("div", { shouldForwardProp: (prop) => prop !== "open" })<{
   open?: boolean;
 }>(({ theme, open }) => ({
   flexGrow: 1,
-  padding: theme.spacing(3),
+  padding: 0,
   transition: theme.transitions.create("margin", {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
@@ -160,7 +161,8 @@ export default function AuthenticatedApp(props: AppProps) {
 
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/vault/:id" element={<Vault />} />
+          <Route path="/vault/:vaultId/:secretId" element={<Secret />} />
+          <Route path="/vault/:vaultId" element={<Vault />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
 

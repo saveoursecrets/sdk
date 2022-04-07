@@ -20,9 +20,10 @@ import { VaultStorage, vaultsSelector, setCurrent } from "../store/vaults";
 import { setDialogVisible, NEW_VAULT } from "../store/dialogs";
 
 export default function VaultList() {
-  const { vaults } = useSelector(vaultsSelector);
+  const { current, vaults } = useSelector(vaultsSelector);
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const vaultId = current && current.uuid;
 
   const showNewVault = () => {
     dispatch(setDialogVisible([NEW_VAULT, true]));
@@ -53,12 +54,18 @@ export default function VaultList() {
     );
   };
 
+  console.log(vaultId);
+
   return (
     <List component="nav" subheader={<SubHeader />}>
       {vaults.map((vault: VaultStorage) => {
         return (
           <div key={vault.uuid}>
-            <ListItem component="div" disablePadding>
+            <ListItem
+              selected={vaultId === vault.uuid}
+              component="div"
+              disablePadding
+            >
               <ListItemButton onClick={() => openVault(vault)}>
                 <ListItemIcon>
                   {vault.locked ? <LockIcon /> : <LockOpenIcon />}

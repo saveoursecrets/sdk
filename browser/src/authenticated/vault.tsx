@@ -9,6 +9,7 @@ import ToggleButton from "@mui/material/ToggleButton";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import Grid from "@mui/material/Grid";
+import Box from "@mui/material/Box";
 
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
@@ -95,10 +96,13 @@ function VaultHeader(props: VaultViewProps) {
   const { label } = storage;
   return (
     <>
-      <Typography variant="h3" gutterBottom component="div">
-        {label}
-      </Typography>
-      <VaultActions worker={worker} storage={storage} />
+      <Box padding={2}>
+        <Typography variant="h3" gutterBottom component="div">
+          {label}
+        </Typography>
+        <VaultActions worker={worker} storage={storage} />
+      </Box>
+      <Divider />
     </>
   );
 }
@@ -138,14 +142,12 @@ function VaultActions(props: VaultViewProps) {
   */
 
   return locked ? (
-    <>
-    </>
+    <></>
   ) : (
     <>
       <Button variant="contained" onClick={(e) => download(e)}>
         Download
       </Button>
-      <Divider />
     </>
   );
 }
@@ -184,10 +186,10 @@ function VaultUnlocked(props: VaultViewProps) {
 
 export default function Vault() {
   const params = useParams();
-  const { id } = params;
+  const { vaultId } = params;
   const { vaults } = useSelector(vaultsSelector);
 
-  const storage = vaults.find((v) => v.uuid === id);
+  const storage = vaults.find((v) => v.uuid === vaultId);
 
   if (!storage) {
     return <p>Vault not found</p>;

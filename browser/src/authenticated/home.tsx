@@ -1,6 +1,7 @@
 import React from "react";
 import { useDispatch } from "react-redux";
 
+import Box from "@mui/material/Box";
 import Fab from "@mui/material/Fab";
 import AddIcon from "@mui/icons-material/Add";
 
@@ -14,7 +15,7 @@ export default function Home() {
   };
 
   return (
-    <>
+    <Box padding={2}>
       <p>Welcome!</p>
 
       <Fab
@@ -25,6 +26,6 @@ export default function Home() {
       >
         <AddIcon />
       </Fab>
-    </>
+    </Box>
   );
 }

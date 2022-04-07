@@ -45,7 +45,7 @@ export default function Dialogs(props: DialogProps) {
   const { dialogs } = useSelector(dialogsSelector);
   const { current } = useSelector(vaultsSelector);
 
-  console.log("Render dialog with current", current);
+  //console.log("Render dialog with current", current);
 
   const createNewVault = async (result: NewVaultResult) => {
     cancelDialog(NEW_VAULT);

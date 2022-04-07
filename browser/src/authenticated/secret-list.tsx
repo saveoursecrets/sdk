@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -17,14 +18,18 @@ import SecretIcon from "./secret-icon";
 interface SecretListProps {
   worker: VaultWorker;
   storage: VaultStorage;
+  uuid?: string;
 }
 
 export default function SecretList(props: SecretListProps) {
+  const navigate = useNavigate();
   const { storage } = props;
 
   if (!storage) {
     return null;
   }
+
+  //navigate(`/vault/${vault.uuid}`);
 
   console.log(storage);
 
@@ -44,13 +49,24 @@ export default function SecretList(props: SecretListProps) {
     );
   }
 
+  const showSecret = (uuid: string) => {
+    console.log("showSecret", uuid);
+    const path = `/vault/${storage.uuid}/${uuid}`;
+    navigate(path);
+  };
+
   return (
-    <List component="nav">
+    <List component="nav" sx={{ padding: 0 }}>
       {[...secrets.entries()].map((value: [string, [string, SecretMeta]]) => {
         const [label, [uuid, meta]] = value;
         return (
           <div key={uuid}>
-            <ListItem component="div" disablePadding>
+            <ListItem
+              component="div"
+              selected={props.uuid === uuid}
+              disablePadding
+              onClick={() => showSecret(uuid)}
+            >
               <ListItemButton>
                 <ListItemIcon>
                   <SecretIcon kind={meta.kind} />
