@@ -26,8 +26,10 @@ export default function SecretList(props: SecretListProps) {
     return null;
   }
 
-  const { index } = storage;
-  const secrets = new Map(Object.entries(index));
+  console.log(storage);
+
+  const { meta } = storage;
+  const secrets = new Map(Object.entries(meta.secrets));
 
   if (secrets.size === 0) {
     return (

@@ -6,8 +6,7 @@ use wasm_bindgen::prelude::*;
 use sos_core::{
     decode, encode,
     gatekeeper::Gatekeeper,
-    secret::{kind::*, Secret, SecretMeta},
-    uuid::Uuid,
+    secret::{Secret, SecretMeta},
     vault::Vault,
 };
 
@@ -39,25 +38,6 @@ pub fn start() {
 #[wasm_bindgen]
 pub struct WebVault {
     keeper: Gatekeeper,
-    /// Mirror of the secret meta data stored in memory
-    /// so authenticated clients can render the meta data
-    /// without constantly decrypting.
-    index: HashMap<Uuid, SearchMeta>,
-}
-
-/// Encapsulates the secret meta data with additional
-/// information about the kind of secret.
-#[derive(Serialize, Deserialize)]
-pub struct SearchMeta {
-    meta: SecretMeta,
-    kind: u8,
-}
-
-impl SearchMeta {
-    /// Create new extended meta information.
-    pub fn new(meta: SecretMeta, kind: u8) -> Self {
-        Self { meta, kind }
-    }
 }
 
 /// Request used to create a new account password.
@@ -98,7 +78,6 @@ impl WebVault {
     pub fn new() -> Self {
         Self {
             keeper: Gatekeeper::new(Default::default()),
-            index: Default::default(),
         }
     }
 
@@ -123,10 +102,11 @@ impl WebVault {
         Ok(())
     }
 
-    /// Get the index of the meta data for the collection of secrets.
-    #[wasm_bindgen(js_name = "getSecretIndex")]
-    pub fn get_secret_index(&self) -> Result<JsValue, JsError> {
-        Ok(JsValue::from_serde(&self.index)?)
+    /// Get the meta data for the vault.
+    #[wasm_bindgen(js_name = "getMetaData")]
+    pub fn get_meta_data(&self) -> Result<JsValue, JsError> {
+        let meta = self.keeper.meta()?;
+        Ok(JsValue::from_serde(&meta)?)
     }
 
     /// Get the identifier for the vault.
@@ -165,9 +145,7 @@ impl WebVault {
             password,
         };
         let meta_data = SecretMeta::new(label, secret.kind());
-        let search_meta = SearchMeta::new(meta_data.clone(), ACCOUNT);
         let uuid = self.keeper.add(meta_data, secret)?;
-        self.index.insert(uuid, search_meta);
         Ok(JsValue::from_serde(&uuid)?)
     }
 
@@ -181,9 +159,7 @@ impl WebVault {
 
         let secret = Secret::Text(note);
         let meta_data = SecretMeta::new(label, secret.kind());
-        let search_meta = SearchMeta::new(meta_data.clone(), TEXT);
         let uuid = self.keeper.add(meta_data, secret)?;
-        self.index.insert(uuid, search_meta);
         Ok(JsValue::from_serde(&uuid)?)
     }
 
@@ -197,9 +173,7 @@ impl WebVault {
 
         let secret = Secret::Credentials(credentials);
         let meta_data = SecretMeta::new(label, secret.kind());
-        let search_meta = SearchMeta::new(meta_data.clone(), CREDENTIALS);
         let uuid = self.keeper.add(meta_data, secret)?;
-        self.index.insert(uuid, search_meta);
         Ok(JsValue::from_serde(&uuid)?)
     }
 
@@ -218,9 +192,7 @@ impl WebVault {
         let mime = mime_guess::from_path(name).first().map(|m| m.to_string());
         let secret = Secret::Blob { buffer, mime };
         let meta_data = SecretMeta::new(label, secret.kind());
-        let search_meta = SearchMeta::new(meta_data.clone(), BLOB);
         let uuid = self.keeper.add(meta_data, secret)?;
-        self.index.insert(uuid, search_meta);
         Ok(JsValue::from_serde(&uuid)?)
     }
 

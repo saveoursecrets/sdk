@@ -57,8 +57,8 @@ function VaultLocked(props: VaultViewProps) {
   const onFormSubmit = async (result: UnlockVaultResult) => {
     const { password } = result;
     try {
-      const metaData = await vault.unlock(password);
-      const newStorage = { ...storage, index: metaData.secrets, locked: false };
+      const meta = await vault.unlock(password);
+      const newStorage = { ...storage, meta, locked: false };
       dispatch(updateVault(newStorage));
     } catch (e) {
       setInvalid(true);
