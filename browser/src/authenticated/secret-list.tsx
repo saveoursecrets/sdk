@@ -9,7 +9,7 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
-import { SearchMeta, VaultWorker } from "../types";
+import { SecretMeta, VaultWorker } from "../types";
 import { VaultStorage } from "../store/vaults";
 
 import SecretIcon from "./secret-icon";
@@ -44,7 +44,7 @@ export default function SecretList(props: SecretListProps) {
 
   return (
     <List component="nav">
-      {[...secrets.entries()].map((value: [string, SearchMeta]) => {
+      {[...secrets.entries()].map((value: [string, SecretMeta]) => {
         const [uuid, index] = value;
         return (
           <div key={uuid}>
@@ -53,7 +53,7 @@ export default function SecretList(props: SecretListProps) {
                 <ListItemIcon>
                   <SecretIcon kind={index.kind} />
                 </ListItemIcon>
-                <ListItemText primary={index.meta.label} secondary={uuid} />
+                <ListItemText primary={index.label} secondary={uuid} />
               </ListItemButton>
             </ListItem>
             <Divider light />

@@ -18,12 +18,13 @@ export interface VaultWorker {
 
 export interface SecretMeta {
   label: string;
-}
-
-export interface SearchMeta {
-  meta: SecretMeta;
   kind: SecretKind;
 }
+
+//export interface SearchMeta {
+  //meta: SecretMeta;
+  //kind: SecretKind;
+//}
 
 export interface NewVaultResult {
   label: string;

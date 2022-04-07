@@ -32,7 +32,7 @@ impl FromStr for UuidOrName {
 }
 
 /// Unencrypted vault meta data.
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct MetaData {
     /// The human-friendly label for the vault.
     label: String,

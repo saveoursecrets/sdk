@@ -57,10 +57,8 @@ function VaultLocked(props: VaultViewProps) {
   const onFormSubmit = async (result: UnlockVaultResult) => {
     const { password } = result;
     try {
-      // FIXME: put the metaData in storage
       const metaData = await vault.unlock(password);
-
-      const newStorage = { ...storage, locked: false };
+      const newStorage = { ...storage, index: metaData.secrets, locked: false };
       dispatch(updateVault(newStorage));
     } catch (e) {
       setInvalid(true);
@@ -117,6 +115,7 @@ function VaultActions(props: VaultViewProps) {
     downloadVault(`${uuid}.vault`, buffer);
   };
 
+  /*
   const setLockState = async () => {
     if (!vaultLocked) {
       await vault.lock();
@@ -136,17 +135,16 @@ function VaultActions(props: VaultViewProps) {
       {vaultLocked ? <LockIcon /> : <LockOpenIcon />}
     </ToggleButton>
   );
+  */
 
   return locked ? (
     <>
-      <ToggleLock />
     </>
   ) : (
     <>
       <Button variant="contained" onClick={(e) => download(e)}>
         Download
       </Button>
-      <ToggleLock />
       <Divider />
     </>
   );

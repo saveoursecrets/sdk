@@ -15,6 +15,7 @@ const store = configureStore({
         // Ignore these action types
         ignoredActions: [
           "vaults/setCurrent",
+          "vaults/updateVault",
 
           "vaults/loadVaults/pending",
           "vaults/loadVaults/fulfilled",

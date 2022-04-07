@@ -265,10 +265,10 @@ impl WebVault {
     */
 
     /// Unlock the vault.
-    pub fn unlock(&mut self, passphrase: JsValue) -> Result<(), JsError> {
+    pub fn unlock(&mut self, passphrase: JsValue) -> Result<JsValue, JsError> {
         let passphrase: String = passphrase.into_serde()?;
-        self.keeper.unlock(passphrase)?;
-        Ok(())
+        let meta = self.keeper.unlock(passphrase)?;
+        Ok(JsValue::from_serde(&meta)?)
     }
 
     /// Lock the vault.
