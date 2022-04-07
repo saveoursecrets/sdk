@@ -9,13 +9,13 @@ import {
   AccountPasswordResult,
   CredentialsResult,
   FileUploadResult,
-  SearchMeta,
+  SecretMeta,
   User,
   VaultWorker,
 } from "../types";
 
 export interface VaultSearchIndex {
-  [index: string]: SearchMeta;
+  [index: string]: SecretMeta;
 }
 
 export interface VaultStorage {
