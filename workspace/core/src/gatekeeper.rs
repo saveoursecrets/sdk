@@ -91,7 +91,7 @@ impl Gatekeeper {
 
     /// Attempt to decrypt the index meta data for the vault
     /// using the passphrase assigned to this gatekeeper.
-    fn meta(&self) -> Result<MetaData> {
+    pub fn meta(&self) -> Result<MetaData> {
         if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.index().meta() {
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;

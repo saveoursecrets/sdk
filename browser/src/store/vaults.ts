@@ -14,50 +14,55 @@ import {
   VaultWorker,
 } from "../types";
 
-export interface VaultSearchIndex {
+export type MetaDataMap = {
   [index: string]: SecretMeta;
 }
 
-export interface VaultStorage {
+export type VaultMetaData = {
+  label: string;
+  secrets: MetaDataMap;
+}
+
+export type VaultStorage = {
   uuid: string;
   vault: WebVault;
   label: string;
   locked: boolean;
-  index?: VaultSearchIndex;
+  meta?: VaultMetaData;
 }
 
-export interface VaultState {
+export type VaultState = {
   vaults: VaultStorage[];
   current?: VaultStorage;
 }
 
-export interface NewVaultRequest {
+export type NewVaultRequest = {
   worker: VaultWorker;
   result: NewVaultResult;
   navigate: NavigateFunction;
 }
 
-export interface AccountPasswordRequest {
+export type AccountPasswordRequest = {
   result: AccountPasswordResult;
   owner: VaultStorage;
 }
 
-export interface SecureNoteRequest {
+export type SecureNoteRequest = {
   result: SecureNoteResult;
   owner: VaultStorage;
 }
 
-export interface CredentialsRequest {
+export type CredentialsRequest = {
   result: CredentialsResult;
   owner: VaultStorage;
 }
 
-export interface FileUploadRequest {
+export type FileUploadRequest = {
   result: FileUploadResult;
   owner: VaultStorage;
 }
 
-interface LoadVaultsRequest {
+type LoadVaultsRequest = {
   user: User;
   worker: VaultWorker;
 }
@@ -137,9 +142,9 @@ export const createNewVault = createAsyncThunk(
     const vault: WebVault = await new (worker.WebVault as any)();
     await vault.initialize(label, password);
     const uuid = await vault.id();
-    const index = await vault.getSecretIndex();
+    const meta = await vault.getMetaData();
     navigate(`/vault/${uuid}`);
-    return { uuid, vault, label, locked: false, index };
+    return { uuid, vault, label, locked: false, meta };
   }
 );
 
@@ -149,8 +154,8 @@ export const createNewAccountPassword = createAsyncThunk(
     const { result, owner } = request;
     const { vault } = owner;
     await vault.createAccountPassword(result);
-    const index = await vault.getSecretIndex();
-    return { ...owner, index };
+    const meta = await vault.getMetaData();
+    return { ...owner, meta };
   }
 );
 
@@ -158,10 +163,12 @@ export const createNewSecureNote = createAsyncThunk(
   "vaults/createNewSecureNote",
   async (request: SecureNoteRequest) => {
     const { result, owner } = request;
+    console.log("Got owner", owner);
     const { vault } = owner;
     await vault.createNote(result);
-    const index = await vault.getSecretIndex();
-    return { ...owner, index };
+    const meta = await vault.getMetaData();
+    console.log("Got new index", meta);
+    return { ...owner, meta };
   }
 );
 
@@ -171,8 +178,8 @@ export const createNewCredentials = createAsyncThunk(
     const { result, owner } = request;
     const { vault } = owner;
     await vault.createCredentials(result);
-    const index = await vault.getSecretIndex();
-    return { ...owner, index };
+    const meta = await vault.getMetaData();
+    return { ...owner, meta };
   }
 );
 
@@ -186,8 +193,8 @@ export const createNewFileUpload = createAsyncThunk(
     } catch (e) {
       console.error(e);
     }
-    const index = await vault.getSecretIndex();
-    return { ...owner, index };
+    const meta = await vault.getMetaData();
+    return { ...owner, meta };
   }
 );
 
@@ -226,6 +233,7 @@ const vaultsSlice = createSlice({
           return prop;
         }
       });
+      state.current = payload;
     },
   },
   extraReducers: (builder) => {
