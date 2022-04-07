@@ -29,7 +29,7 @@ export default function SecretList(props: SecretListProps) {
   console.log(storage);
 
   const { meta } = storage;
-  const secrets = new Map(Object.entries(meta.secrets));
+  const secrets = new Map(Object.entries(meta));
 
   if (secrets.size === 0) {
     return (
@@ -46,16 +46,16 @@ export default function SecretList(props: SecretListProps) {
 
   return (
     <List component="nav">
-      {[...secrets.entries()].map((value: [string, SecretMeta]) => {
-        const [uuid, index] = value;
+      {[...secrets.entries()].map((value: [string, [string, SecretMeta]]) => {
+        const [label, [uuid, meta]] = value;
         return (
           <div key={uuid}>
             <ListItem component="div" disablePadding>
               <ListItemButton>
                 <ListItemIcon>
-                  <SecretIcon kind={index.kind} />
+                  <SecretIcon kind={meta.kind} />
                 </ListItemIcon>
-                <ListItemText primary={index.label} secondary={uuid} />
+                <ListItemText primary={label} secondary={uuid} />
               </ListItemButton>
             </ListItem>
             <Divider light />

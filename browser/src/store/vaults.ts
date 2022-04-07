@@ -14,13 +14,8 @@ import {
   VaultWorker,
 } from "../types";
 
-export type MetaDataMap = {
-  [index: string]: SecretMeta;
-}
-
 export type VaultMetaData = {
-  label: string;
-  secrets: MetaDataMap;
+  [index: string]: [string, SecretMeta];
 }
 
 export type VaultStorage = {
