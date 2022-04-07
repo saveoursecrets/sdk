@@ -6,14 +6,15 @@ use wasm_bindgen::prelude::*;
 use sos_core::{
     decode, encode,
     gatekeeper::Gatekeeper,
-    secret::{Secret, SecretMeta},
+    secret::{Secret, SecretMeta, MetaData},
+    uuid::Uuid,
     vault::Vault,
 };
 
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
 #[wasm_bindgen]
 extern "C" {
@@ -106,7 +107,17 @@ impl WebVault {
     #[wasm_bindgen(js_name = "getMetaData")]
     pub fn get_meta_data(&self) -> Result<JsValue, JsError> {
         let meta = self.keeper.meta()?;
-        Ok(JsValue::from_serde(&meta)?)
+        let sorted_meta = self.sort_meta_data(&meta);
+        Ok(JsValue::from_serde(&sorted_meta)?)
+    }
+
+    fn sort_meta_data<'a>(&self, meta: &'a MetaData) -> BTreeMap<String, (&'a Uuid, &'a SecretMeta)> {
+        meta.secrets()
+            .iter()
+            .map(|(k, v)| {
+                (v.label().to_string(), (k, v))
+            })
+            .collect()
     }
 
     /// Get the identifier for the vault.
@@ -240,7 +251,8 @@ impl WebVault {
     pub fn unlock(&mut self, passphrase: JsValue) -> Result<JsValue, JsError> {
         let passphrase: String = passphrase.into_serde()?;
         let meta = self.keeper.unlock(passphrase)?;
-        Ok(JsValue::from_serde(&meta)?)
+        let sorted_meta = self.sort_meta_data(&meta);
+        Ok(JsValue::from_serde(&sorted_meta)?)
     }
 
     /// Lock the vault.
