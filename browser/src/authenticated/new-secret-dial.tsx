@@ -43,7 +43,7 @@ const actions = [
 ];
 
 interface NewSecretProps {
-  onSelect: (kind: SecretKind) => void;
+  //onSelect: (kind: SecretKind) => void;
 }
 
 export default function NewSecretDial(props: NewSecretProps) {
