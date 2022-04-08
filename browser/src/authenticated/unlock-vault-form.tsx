@@ -38,6 +38,7 @@ export default function UnlockVaultForm(props: UnlockVaultProps) {
         <TextField
           id="vault-password"
           type="password"
+          autoFocus
           autoComplete="off"
           label="Password"
           onChange={onPasswordChange}

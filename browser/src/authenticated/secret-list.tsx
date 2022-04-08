@@ -55,7 +55,7 @@ export default function SecretList(props: SecretListProps) {
   return (
     <List component="nav" sx={{ padding: 0 }}>
       {[...secrets.entries()].map((value: [string, [string, SecretMeta]]) => {
-        const [key, [uuid, meta]] = value;
+        const [, [uuid, meta]] = value;
         return (
           <div key={uuid}>
             <ListItem

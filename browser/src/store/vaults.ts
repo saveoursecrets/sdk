@@ -68,8 +68,6 @@ export const loadVaults = createAsyncThunk(
     const { user, worker } = request;
     const ids = await api.loadVaults(user);
 
-    console.log(ids);
-
     const buffers = ids.map(async (id) => {
       return await api.getVault(user, id);
     });
@@ -80,23 +78,12 @@ export const loadVaults = createAsyncThunk(
       dict[id] = vaults[index];
     }
 
-    console.log(dict);
-
     const storage = Object.entries(dict).map(
       async (item: [string, ArrayBuffer]) => {
         const [id, buffer] = item;
-
-        console.log("worker", worker);
-
         const vault: WebVault = await new (worker.WebVault as any)();
-
-        console.log("vault", vault);
-
         try {
-          console.log("Calling import buffer...");
           await vault.importBuffer(Array.from(new Uint8Array(buffer)));
-
-          console.log("AFTER IMPORT BUFFER");
         } catch (e) {
           console.error(e);
         }

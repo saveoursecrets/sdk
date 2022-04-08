@@ -42,11 +42,7 @@ const actions = [
   },
 ];
 
-interface NewSecretProps {
-  //onSelect: (kind: SecretKind) => void;
-}
-
-export default function NewSecretDial(props: NewSecretProps) {
+export default function NewSecretDial() {
   const dispatch = useDispatch();
 
   const createNewSecret = (kind: SecretKind) => {
