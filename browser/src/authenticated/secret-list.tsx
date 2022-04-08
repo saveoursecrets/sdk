@@ -55,7 +55,7 @@ export default function SecretList(props: SecretListProps) {
   return (
     <List component="nav" sx={{ padding: 0 }}>
       {[...secrets.entries()].map((value: [string, [string, SecretMeta]]) => {
-        const [label, [uuid, meta]] = value;
+        const [key, [uuid, meta]] = value;
         return (
           <div key={uuid}>
             <ListItem
@@ -68,7 +68,7 @@ export default function SecretList(props: SecretListProps) {
                 <ListItemIcon>
                   <SecretIcon kind={meta.kind} />
                 </ListItemIcon>
-                <ListItemText primary={label} />
+                <ListItemText primary={meta.label} />
               </ListItemButton>
             </ListItem>
             <Divider light />

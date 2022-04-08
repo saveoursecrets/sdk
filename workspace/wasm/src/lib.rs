@@ -117,7 +117,10 @@ impl WebVault {
     ) -> BTreeMap<String, (&'a Uuid, &'a SecretMeta)> {
         meta.secrets()
             .iter()
-            .map(|(k, v)| (v.label().to_string(), (k, v)))
+            .map(|(k, v)| {
+                let key = format!("{} {}", v.label().to_lowercase().to_string(), k);
+                (key, (k, v))
+            })
             .collect()
     }
 
