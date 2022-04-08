@@ -118,7 +118,8 @@ impl WebVault {
         meta.secrets()
             .iter()
             .map(|(k, v)| {
-                let key = format!("{} {}", v.label().to_lowercase().to_string(), k);
+                let key =
+                    format!("{} {}", v.label().to_lowercase().to_string(), k);
                 (key, (k, v))
             })
             .collect()

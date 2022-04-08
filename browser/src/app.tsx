@@ -22,9 +22,9 @@ const Main = styled("div", { shouldForwardProp: (prop) => prop !== "open" })<{
   padding: theme.spacing(3),
 }));
 
-interface AppProps {
+type AppProps = {
   worker: VaultWorker;
-}
+};
 
 export default function App(props: AppProps) {
   //const { worker } = props;

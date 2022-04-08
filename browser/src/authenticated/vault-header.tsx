@@ -1,40 +1,16 @@
-import React, { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { useParams } from "react-router-dom";
+import React from "react";
 
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 import Button from "@mui/material/Button";
-import ToggleButton from "@mui/material/ToggleButton";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
-import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 
-import LockIcon from "@mui/icons-material/Lock";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
+//import LockIcon from "@mui/icons-material/Lock";
+//import LockOpenIcon from "@mui/icons-material/LockOpen";
 
-import {
-  vaultsSelector,
-  VaultStorage,
-  updateVault,
-  loadVaults,
-} from "../store/vaults";
-import { userSelector } from "../store/user";
+import { VaultStorage } from "../store/vaults";
 
-import { WorkerContext } from "../worker-provider";
-import { SecretKind, UnlockVaultResult, VaultWorker } from "../types";
-import SecretList from "./secret-list";
-import UnlockVaultForm from "./unlock-vault-form";
-import NewSecretDial from "./new-secret-dial";
-
-import {
-  setDialogVisible,
-  NEW_SECURE_NOTE,
-  NEW_ACCOUNT_PASSWORD,
-  NEW_CREDENTIALS,
-  NEW_FILE_UPLOAD,
-} from "../store/dialogs";
+import { VaultWorker } from "../types";
 
 function downloadVault(fileName: string, buffer: Uint8Array) {
   const blob = new Blob([buffer], { type: "application/octet-stream" });
@@ -52,8 +28,6 @@ type VaultViewProps = {
 function VaultActions(props: VaultViewProps) {
   const { storage } = props;
   const { vault, uuid, locked } = storage;
-  const [vaultLocked, setVaultLocked] = useState(locked);
-  const dispatch = useDispatch();
 
   const download = async (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault();
