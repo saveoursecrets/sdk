@@ -258,7 +258,7 @@ mod tests {
         let secret = Secret::Text(secret_value.clone());
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        let secret_uuid = keeper.add(secret_meta.clone(), secret)?;
+        let secret_uuid = keeper.add(secret_meta.clone(), secret.clone())?;
 
         let saved_secret = keeper.get_secret(&secret_uuid)?.unwrap();
         assert_eq!(secret, saved_secret);

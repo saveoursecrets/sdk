@@ -140,7 +140,7 @@ impl SecretMeta {
 
 /// Encapsulates a secret.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Clone)]
-#[serde(rename_all="camelCase")]
+#[serde(untagged)]
 pub enum Secret {
     /// A UTF-8 encoded note.
     Text(String),

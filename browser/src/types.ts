@@ -1,20 +1,21 @@
 import { WebVault } from "sos-wasm";
 
 export type AccountSecret = {
-  account: { account: string; url?: string; password: string };
-};
+  account: string;
+  url?: string;
+  password: string;
+}
 
-export type NoteSecret = {
-  text: string;
-};
+export type NoteSecret = string;
 
 export type FileSecret = {
-  blob: { buffer: number[]; mime?: string };
-};
+  buffer: number[];
+  mime?: string;
+}
 
 export type CredentialsSecret = {
-  credentials: { [index: string]: string };
-};
+  [index: string]: string;
+}
 
 export type Secret =
   | AccountSecret
