@@ -111,6 +111,7 @@ export default function AccountPasswordForm(props: AccountPasswordFormProps) {
           value={password}
           onChange={onPasswordChange}
           error={passwordError}
+          showLabel={true}
         />
       </Stack>
     </form>

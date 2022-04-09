@@ -28,6 +28,7 @@ import SecretIcon from "./secret-icon";
 import VaultHeader from "./vault-header";
 import UnlockVault from "./unlock-vault";
 import NewSecretDial from "./new-secret-dial";
+import ViewablePassword from "./forms/viewable-password";
 
 type SecretProps = {
   secretId: string;
@@ -63,6 +64,27 @@ type SecretViewProps = {
 function AccountSecretView(props: SecretViewProps) {
   const secret = props.secret as AccountSecret;
   console.log(secret);
+  const { account, url, password } = secret.Account;
+
+  return (
+    <Stack padding={2} spacing={2}>
+      <Typography variant="paragraph" component="div">
+        {account}
+      </Typography>
+      {url ? (
+        <Typography variant="paragraph" component="div">
+          {url}
+        </Typography>
+      ) : null}
+      <ViewablePassword
+        id="password"
+        label="Password"
+        value={password}
+        disabled={true}
+        showLabel={false}
+      />
+    </Stack>
+  );
 }
 
 function NoteSecretView(props: SecretViewProps) {
