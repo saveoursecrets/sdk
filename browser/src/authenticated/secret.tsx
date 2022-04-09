@@ -3,11 +3,18 @@ import { useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
 
 import Typography from "@mui/material/Typography";
+import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Link from "@mui/material/Link";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
+
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 import { vaultsSelector } from "../store/vaults";
 import {
@@ -25,35 +32,100 @@ import { download, humanFileSize } from "../utils";
 import { WorkerContext } from "../worker-provider";
 
 import SecretList from "./secret-list";
-import SecretIcon from "./secret-icon";
 import VaultHeader from "./vault-header";
 import UnlockVault from "./unlock-vault";
 import NewSecretDial from "./new-secret-dial";
 import ReadOnlyPassword from "./forms/readonly-password";
 
-type SecretProps = {
-  secretId: string;
+type SecretMetaProps = {
   meta: SecretMeta;
 };
 
+function SecretIconLabel(props: SecretMetaProps) {
+  const { meta } = props;
+  const label = SecretKindLabel.toString(meta.kind);
+
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const ITEM_HEIGHT = 48;
+
+  return (
+    <Stack direction="row" spacing={2} marginBottom={1}>
+      <Stack flex={1}>
+        <Typography variant="body2" component="div">
+          {meta.label}
+        </Typography>
+        <Typography
+          variant="caption"
+          gutterBottom
+          component="div"
+          color="text.secondary"
+        >
+          {label}
+        </Typography>
+      </Stack>
+
+      <IconButton
+        sx={{ width: 40, height: 40 }}
+        aria-label="more"
+        id="long-button"
+        aria-controls={open ? "long-menu" : undefined}
+        aria-expanded={open ? "true" : undefined}
+        aria-haspopup="true"
+        onClick={handleClick}
+      >
+        <MoreVertIcon />
+      </IconButton>
+
+      <Menu
+        id="long-menu"
+        MenuListProps={{
+          "aria-labelledby": "long-button",
+        }}
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        PaperProps={{
+          style: {
+            maxHeight: ITEM_HEIGHT * 4.5,
+            width: "20ch",
+          },
+        }}
+      >
+        <MenuItem onClick={handleClose}>Edit</MenuItem>
+        <MenuItem onClick={handleClose}>Delete</MenuItem>
+      </Menu>
+    </Stack>
+  );
+}
+
+/*
+type SecretProps = {
+  secretId: string;
+} & SecretMetaProps;
+
 function SecretHeader(props: SecretProps) {
   const { meta, secretId } = props;
-  const label = SecretKindLabel.toString(meta.kind);
 
   const editSecret = (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault();
     console.log("Edit secret", secretId);
   };
 
+  return null;
+
   return (
     <>
       <Box padding={2}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <SecretIcon kind={meta.kind} />
-          <Typography variant="subtitle1" gutterBottom component="div">
-            {label}
-          </Typography>
-        </Stack>
         <Typography variant="h4" component="div">
           {meta.label}
         </Typography>
@@ -61,10 +133,10 @@ function SecretHeader(props: SecretProps) {
           Edit
         </Link>
       </Box>
-      <Divider variant="middle" />
     </>
   );
 }
+*/
 
 type SecretItemProps = {
   meta: SecretMeta;
@@ -76,7 +148,7 @@ function AccountSecretView(props: SecretItemProps) {
   const { account, url, password } = secret;
 
   return (
-    <Stack padding={2} spacing={2}>
+    <Stack spacing={2}>
       <Typography variant="subtitle1" component="div">
         {account}
       </Typography>
@@ -93,7 +165,7 @@ function AccountSecretView(props: SecretItemProps) {
 function NoteSecretView(props: SecretItemProps) {
   const secret = props.secret as NoteSecret;
   return (
-    <Box padding={2}>
+    <Box paddingTop={1}>
       <Typography variant="body1" component="div">
         {secret}
       </Typography>
@@ -113,7 +185,7 @@ function FileSecretView(props: SecretItemProps) {
   };
 
   return (
-    <Box padding={2}>
+    <>
       <Stack marginBottom={2}>
         <Typography variant="body1" component="div">
           Type: {mime}
@@ -125,7 +197,7 @@ function FileSecretView(props: SecretItemProps) {
       <Stack alignItems="center">
         <Button onClick={onOpenFile}>Open this file in the browser</Button>
       </Stack>
-    </Box>
+    </>
   );
 }
 
@@ -149,7 +221,7 @@ function CredentialsSecretView(props: SecretItemProps) {
   );
 
   return (
-    <Box padding={2}>
+    <>
       {list.map((item: [string, string], index: number) => {
         const [name, value] = item;
         return (
@@ -166,11 +238,26 @@ function CredentialsSecretView(props: SecretItemProps) {
           </Stack>
         );
       })}
-    </Box>
+    </>
   );
 }
 
 type SecretViewProps = WorkerStorageProps & SecretProps;
+
+function SecretLayout(props: SecretMetaProps) {
+  const { meta } = props;
+  return (
+    <Box padding={2}>
+      <Paper variant="outlined">
+        <Box padding={2}>
+          <SecretIconLabel meta={meta} />
+          <Divider />
+          <Box marginTop={1}>{props.children}</Box>
+        </Box>
+      </Paper>
+    </Box>
+  );
+}
 
 function SecretView(props: SecretViewProps) {
   const { storage, secretId } = props;
@@ -194,13 +281,29 @@ function SecretView(props: SecretViewProps) {
 
   switch (meta.kind) {
     case SecretKind.Account:
-      return <AccountSecretView meta={meta} secret={secret} />;
+      return (
+        <SecretLayout meta={meta}>
+          <AccountSecretView meta={meta} secret={secret} />
+        </SecretLayout>
+      );
     case SecretKind.Note:
-      return <NoteSecretView meta={meta} secret={secret} />;
+      return (
+        <SecretLayout meta={meta}>
+          <NoteSecretView meta={meta} secret={secret} />
+        </SecretLayout>
+      );
     case SecretKind.Credentials:
-      return <CredentialsSecretView meta={meta} secret={secret} />;
+      return (
+        <SecretLayout meta={meta}>
+          <CredentialsSecretView meta={meta} secret={secret} />
+        </SecretLayout>
+      );
     case SecretKind.File:
-      return <FileSecretView meta={meta} secret={secret} />;
+      return (
+        <SecretLayout meta={meta}>
+          <FileSecretView meta={meta} secret={secret} />
+        </SecretLayout>
+      );
   }
 }
 
@@ -232,7 +335,6 @@ function SecretUnlocked(props: SecretUnlockedProps) {
           uuid={secretId}
         />
         <Box flex={1}>
-          <SecretHeader secretId={secretId} meta={meta} />
           <SecretView
             storage={storage}
             worker={worker}
@@ -255,13 +357,6 @@ export default function Secret() {
   if (!storage) {
     return <p>Vault not found</p>;
   }
-
-  /*
-  if (storage.locked) {
-    // TODO: show unlock form!
-    return <p>Vault is locked</p>
-  }
-  */
 
   const { meta } = storage;
 
