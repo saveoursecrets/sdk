@@ -49,7 +49,6 @@ export default function KeyValueSecret(props: KeyValueSecretProps) {
         value={value}
         onChange={onValueChange}
         error={error.value}
-        showLabel={true}
       />
     </Stack>
   );

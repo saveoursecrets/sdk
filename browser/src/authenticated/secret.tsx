@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
+import Link from "@mui/material/Link";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
@@ -28,7 +29,7 @@ import SecretIcon from "./secret-icon";
 import VaultHeader from "./vault-header";
 import UnlockVault from "./unlock-vault";
 import NewSecretDial from "./new-secret-dial";
-import ViewablePassword from "./forms/viewable-password";
+import ReadOnlyPassword from "./forms/readonly-password";
 
 type SecretProps = {
   secretId: string;
@@ -36,21 +37,32 @@ type SecretProps = {
 };
 
 function SecretHeader(props: SecretProps) {
-  const { meta } = props;
+  const { meta, secretId } = props;
   const label = SecretKindLabel.toString(meta.kind);
+
+  const editSecret = (e: React.MouseEvent<HTMLElement>) => {
+    e.preventDefault();
+    console.log("Edit secret", secretId);
+  };
+
   return (
-    <Box padding={2} paddingBottom={0}>
-      <Typography variant="h4" component="div">
-        {meta.label}
-      </Typography>
-      <Stack direction="row" spacing={1} alignItems="center" marginBottom={2}>
-        <SecretIcon kind={meta.kind} />
-        <Typography variant="subtitle1" gutterBottom component="div">
-          {label}
+    <>
+      <Box padding={2}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <SecretIcon kind={meta.kind} />
+          <Typography variant="subtitle1" gutterBottom component="div">
+            {label}
+          </Typography>
+        </Stack>
+        <Typography variant="h4" component="div">
+          {meta.label}
         </Typography>
-      </Stack>
-      <Divider />
-    </Box>
+        <Link href="#" onClick={editSecret}>
+          Edit
+        </Link>
+      </Box>
+      <Divider variant="middle" />
+    </>
   );
 }
 
@@ -68,21 +80,15 @@ function AccountSecretView(props: SecretViewProps) {
 
   return (
     <Stack padding={2} spacing={2}>
-      <Typography variant="paragraph" component="div">
+      <Typography variant="subtitle1" component="div">
         {account}
       </Typography>
       {url ? (
-        <Typography variant="paragraph" component="div">
+        <Link href={url} underline="hover">
           {url}
-        </Typography>
+        </Link>
       ) : null}
-      <ViewablePassword
-        id="password"
-        label="Password"
-        value={password}
-        disabled={true}
-        showLabel={false}
-      />
+      <ReadOnlyPassword value={password} />
     </Stack>
   );
 }
@@ -130,6 +136,43 @@ function FileSecretView(props: SecretViewProps) {
 function CredentialsSecretView(props: SecretViewProps) {
   const secret = props.secret as CredentialsSecret;
   console.log(secret);
+
+  const credentials = new Map(Object.entries(secret.Credentials));
+  // Sort for deterministic ordering
+  const list = [...credentials.entries()].sort(
+    (a: [string, string], b: [string, string]) => {
+      const [ka] = a;
+      const [kb] = b;
+      if (ka < kb) {
+        return -1;
+      }
+      if (ka > kb) {
+        return 1;
+      }
+      return 0;
+    }
+  );
+
+  return (
+    <Box padding={2}>
+      {list.map((item: [string, string], index: number) => {
+        const [name, value] = item;
+        return (
+          <Stack
+            key={index}
+            direction="row"
+            paddingBottom={1}
+            alignItems="center"
+          >
+            <Typography variant="paragraph" component="div" flex={1}>
+              {name}
+            </Typography>
+            <ReadOnlyPassword value={value} compact={true} />
+          </Stack>
+        );
+      })}
+    </Box>
+  );
 }
 
 function SecretView(props: SecretViewProps) {
@@ -185,7 +228,12 @@ function SecretUnlocked(props: SecretUnlockedProps) {
     <>
       <VaultHeader storage={storage} worker={worker} />
       <Stack direction="row">
-        <SecretList worker={worker} storage={storage} uuid={secretId} />
+        <SecretList
+          maxWidth={320}
+          worker={worker}
+          storage={storage}
+          uuid={secretId}
+        />
         <Box flex={1}>
           <SecretHeader secretId={secretId} meta={meta} />
           <SecretView
