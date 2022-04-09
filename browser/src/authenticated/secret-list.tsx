@@ -19,11 +19,12 @@ interface SecretListProps {
   worker: VaultWorker;
   storage: VaultStorage;
   uuid?: string;
+  maxWidth?: string | number;
 }
 
 export default function SecretList(props: SecretListProps) {
   const navigate = useNavigate();
-  const { storage } = props;
+  const { storage, maxWidth } = props;
 
   if (!storage) {
     return null;
@@ -53,7 +54,7 @@ export default function SecretList(props: SecretListProps) {
   //<ListItemText primary={label} secondary={uuid} />
 
   return (
-    <List component="nav" sx={{ padding: 0 }}>
+    <List component="nav" sx={{ padding: 0, maxWidth: maxWidth }}>
       {[...secrets.entries()].map((value: [string, [string, SecretMeta]]) => {
         const [, [uuid, meta]] = value;
         return (
@@ -63,12 +64,16 @@ export default function SecretList(props: SecretListProps) {
               selected={props.uuid === uuid}
               disablePadding
               onClick={() => showSecret(uuid)}
+              sx={{ overflow: "hidden" }}
             >
               <ListItemButton>
                 <ListItemIcon>
                   <SecretIcon kind={meta.kind} />
                 </ListItemIcon>
-                <ListItemText primary={meta.label} />
+                <ListItemText
+                  primary={meta.label}
+                  primaryTypographyProps={{ noWrap: true }}
+                />
               </ListItemButton>
             </ListItem>
             <Divider light />

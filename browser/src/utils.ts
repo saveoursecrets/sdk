@@ -1,9 +1,19 @@
+import React from "react";
+
 export function download(fileName: string, buffer: Uint8Array, type?: string) {
   const blob = new Blob([buffer], { type: type || "application/octet-stream" });
   const link = document.createElement("a");
   link.href = window.URL.createObjectURL(blob);
   link.download = fileName;
   link.click();
+}
+
+export async function copyToClipboard(
+  e: React.MouseEvent<HTMLElement>,
+  text: string
+) {
+  e.preventDefault();
+  await window.navigator.clipboard.writeText(text);
 }
 
 /**
