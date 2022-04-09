@@ -1,5 +1,27 @@
 import { WebVault } from "sos-wasm";
 
+export type AccountSecret = {
+  Account: { account: string; url?: string; password: string };
+};
+
+export type NoteSecret = {
+  Text: string;
+};
+
+export type FileSecret = {
+  Blob: { buffer: number[]; mime?: string };
+};
+
+export type CredentialsSecret = {
+  Credentials: { [index: string]: string };
+};
+
+export type Secret =
+  | AccountSecret
+  | NoteSecret
+  | FileSecret
+  | CredentialsSecret;
+
 export enum SecretKind {
   // secret::kind::ACCOUNT
   Account = 1,
@@ -9,6 +31,21 @@ export enum SecretKind {
   Credentials = 3,
   // secret::kind::BLOB
   File = 4,
+}
+
+export class SecretKindLabel {
+  public static toString(kind: SecretKind) {
+    switch (kind) {
+      case SecretKind.Account:
+        return "Account";
+      case SecretKind.Note:
+        return "Note";
+      case SecretKind.Credentials:
+        return "Credentials";
+      case SecretKind.File:
+        return "File";
+    }
+  }
 }
 
 export interface VaultWorker {

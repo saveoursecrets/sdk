@@ -11,14 +11,7 @@ import Box from "@mui/material/Box";
 import { VaultStorage } from "../store/vaults";
 
 import { VaultWorker } from "../types";
-
-function downloadVault(fileName: string, buffer: Uint8Array) {
-  const blob = new Blob([buffer], { type: "application/octet-stream" });
-  const link = document.createElement("a");
-  link.href = window.URL.createObjectURL(blob);
-  link.download = fileName;
-  link.click();
-}
+import { download } from "../utils";
 
 type VaultViewProps = {
   worker: VaultWorker;
@@ -29,10 +22,10 @@ function VaultActions(props: VaultViewProps) {
   const { storage } = props;
   const { vault, uuid, locked } = storage;
 
-  const download = async (e: React.MouseEvent<HTMLElement>) => {
+  const onDownload = async (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault();
     const buffer = await vault.buffer();
-    downloadVault(`${uuid}.vault`, buffer);
+    download(`${uuid}.vault`, buffer);
   };
 
   /*
@@ -61,7 +54,7 @@ function VaultActions(props: VaultViewProps) {
     <></>
   ) : (
     <>
-      <Button variant="contained" onClick={(e) => download(e)}>
+      <Button variant="contained" onClick={onDownload}>
         Download
       </Button>
     </>
