@@ -12,22 +12,20 @@ interface ViewablePasswordProps {
   placeholder?: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   error: boolean;
-  disabled: boolean;
 }
 
 export default function ViewablePassword(props: ViewablePasswordProps) {
-  const { id, label, value, disabled, placeholder, onChange, error } = props;
+  const { id, label, value, placeholder, onChange, error } = props;
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <FormControl error={error} variant="outlined">
-      <InputLabel error={error} htmlFor={id} disabled={disabled}>
+      <InputLabel error={error} htmlFor={id}>
         {label} *
       </InputLabel>
       <OutlinedInput
         id={id}
         label={label}
-        disabled={disabled}
         type={showPassword ? "text" : "password"}
         value={value}
         onChange={onChange}

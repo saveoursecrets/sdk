@@ -7,12 +7,12 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import FileUploadForm from "../forms/file-upload";
 
-import { FileUploadResult } from "../../types";
+import { SecretInfo } from "../../types";
 
 interface FileUploadProps {
   open: boolean;
   handleCancel: () => void;
-  handleOk: (result: FileUploadResult) => void;
+  handleOk: (result: SecretInfo) => void;
 }
 
 export default function FileUploadDialog(props: FileUploadProps) {
@@ -20,9 +20,9 @@ export default function FileUploadDialog(props: FileUploadProps) {
 
   return (
     <Dialog open={open} onClose={handleCancel}>
-      <DialogTitle color="text.secondary">Secure Note</DialogTitle>
+      <DialogTitle color="text.secondary">File Upload</DialogTitle>
       <DialogContent>
-        <FileUploadForm label="" onFormSubmit={handleOk} />
+        <FileUploadForm onFormSubmit={handleOk} />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

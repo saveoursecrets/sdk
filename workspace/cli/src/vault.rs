@@ -118,6 +118,7 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
                 Secret::Blob {
                     ref buffer,
                     ref mime,
+                    ..
                 } => {
                     if atty::is(atty::Stream::Stdout) {
                         let mut details = HashMap::new();
@@ -291,7 +292,11 @@ pub fn add_file(
     }
 
     let buffer = std::fs::read(file)?;
-    let secret = Secret::Blob { buffer, mime };
+    let secret = Secret::Blob {
+        buffer,
+        mime,
+        name: None,
+    };
     let secret_meta = SecretMeta::new(label, secret.kind());
     let uuid = keeper.add(secret_meta, secret)?;
     keeper.vault().write_file(vault)?;

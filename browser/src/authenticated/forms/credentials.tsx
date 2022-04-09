@@ -8,12 +8,17 @@ import TextField from "@mui/material/TextField";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/RemoveCircleOutline";
 
-import { Credentials, KeyValueError, CredentialsResult } from "../../types";
+import {
+  Credentials,
+  KeyValueError,
+  SecretInfo,
+  SecretKind,
+} from "../../types";
 
 import KeyValueSecret from "./key-value-secret";
 
-interface CredentialsFormProps extends CredentialsResult {
-  onFormSubmit: (result: CredentialsResult) => void;
+interface CredentialsFormProps {
+  onFormSubmit: (result: SecretInfo) => void;
 }
 
 function mapErrors(
@@ -39,12 +44,10 @@ function mapErrors(
 
 export default function CredentialsForm(props: CredentialsFormProps) {
   const { onFormSubmit } = props;
-  const [label, setLabel] = useState(props.label);
+  const [label, setLabel] = useState("");
   const [labelError, setLabelError] = useState(false);
 
-  const [credentials, setCredentials] = useState(
-    Object.entries(props.credentials)
-  );
+  const [credentials, setCredentials] = useState(Object.entries(new Object()));
 
   const [credentialsErrors, setCredentialsErrors] = useState(
     credentials.map(() => ({ key: false, value: false }))
@@ -97,7 +100,15 @@ export default function CredentialsForm(props: CredentialsFormProps) {
         {}
       );
 
-      onFormSubmit({ label, credentials: map });
+      const info: SecretInfo = [
+        {
+          label,
+          kind: SecretKind.Credentials,
+        },
+        map,
+      ];
+
+      onFormSubmit(info);
     }
   };
 

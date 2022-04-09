@@ -7,12 +7,12 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import CredentialsForm from "../forms/credentials";
 
-import { CredentialsResult } from "../../types";
+import { SecretInfo } from "../../types";
 
 interface CredentialsProps {
   open: boolean;
   handleCancel: () => void;
-  handleOk: (result: CredentialsResult) => void;
+  handleOk: (result: SecretInfo) => void;
 }
 
 export default function CredentialsDialog(props: CredentialsProps) {
@@ -20,13 +20,9 @@ export default function CredentialsDialog(props: CredentialsProps) {
 
   return (
     <Dialog open={open} onClose={handleCancel}>
-      <DialogTitle color="text.secondary">Credentials</DialogTitle>
+      <DialogTitle color="text.secondary">Credentials List</DialogTitle>
       <DialogContent>
-        <CredentialsForm
-          label=""
-          credentials={{ "": "" }}
-          onFormSubmit={handleOk}
-        />
+        <CredentialsForm onFormSubmit={handleOk} />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

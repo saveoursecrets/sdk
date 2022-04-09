@@ -5,11 +5,8 @@ import { WebVault } from "sos-wasm";
 import api from "./api";
 import {
   NewVaultResult,
-  SecureNoteResult,
-  AccountPasswordResult,
-  CredentialsResult,
-  FileUploadResult,
   SecretMeta,
+  SecretInfo,
   User,
   VaultWorker,
 } from "../types";
@@ -37,23 +34,8 @@ export type NewVaultRequest = {
   navigate: NavigateFunction;
 };
 
-export type AccountPasswordRequest = {
-  result: AccountPasswordResult;
-  owner: VaultStorage;
-};
-
-export type SecureNoteRequest = {
-  result: SecureNoteResult;
-  owner: VaultStorage;
-};
-
-export type CredentialsRequest = {
-  result: CredentialsResult;
-  owner: VaultStorage;
-};
-
-export type FileUploadRequest = {
-  result: FileUploadResult;
+export type SecretRequest = {
+  result: SecretInfo;
   owner: VaultStorage;
 };
 
@@ -130,51 +112,12 @@ export const createNewVault = createAsyncThunk(
   }
 );
 
-export const createNewAccountPassword = createAsyncThunk(
-  "vaults/createNewAccountPassword",
-  async (request: AccountPasswordRequest) => {
+export const createNewSecret = createAsyncThunk(
+  "vaults/createNewSecret",
+  async (request: SecretRequest) => {
     const { result, owner } = request;
     const { vault } = owner;
-    await vault.createAccountPassword(result);
-    const meta = await vault.getMetaData();
-    return { ...owner, meta };
-  }
-);
-
-export const createNewSecureNote = createAsyncThunk(
-  "vaults/createNewSecureNote",
-  async (request: SecureNoteRequest) => {
-    const { result, owner } = request;
-    console.log("Got owner", owner);
-    const { vault } = owner;
-    await vault.createNote(result);
-    const meta = await vault.getMetaData();
-    console.log("Got new index", meta);
-    return { ...owner, meta };
-  }
-);
-
-export const createNewCredentials = createAsyncThunk(
-  "vaults/createNewCredentials",
-  async (request: CredentialsRequest) => {
-    const { result, owner } = request;
-    const { vault } = owner;
-    await vault.createCredentials(result);
-    const meta = await vault.getMetaData();
-    return { ...owner, meta };
-  }
-);
-
-export const createNewFileUpload = createAsyncThunk(
-  "vaults/createNewFileUpload",
-  async (request: FileUploadRequest) => {
-    const { result, owner } = request;
-    const { vault } = owner;
-    try {
-      await vault.createFileUpload(result);
-    } catch (e) {
-      console.error(e);
-    }
+    await vault.create(result);
     const meta = await vault.getMetaData();
     return { ...owner, meta };
   }
@@ -229,10 +172,7 @@ const vaultsSlice = createSlice({
     builder.addCase(lockAll.fulfilled, (state, action) => {
       state.vaults = action.payload;
     });
-    builder.addCase(createNewAccountPassword.fulfilled, updateVaultFromThunk);
-    builder.addCase(createNewSecureNote.fulfilled, updateVaultFromThunk);
-    builder.addCase(createNewCredentials.fulfilled, updateVaultFromThunk);
-    builder.addCase(createNewFileUpload.fulfilled, updateVaultFromThunk);
+    builder.addCase(createNewSecret.fulfilled, updateVaultFromThunk);
   },
 });
 

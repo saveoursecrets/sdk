@@ -1,21 +1,23 @@
 import { WebVault } from "sos-wasm";
 
+export type SecretInfo = [SecretMeta, Secret];
+
 export type AccountSecret = {
   account: string;
   url?: string;
   password: string;
-}
+};
 
 export type NoteSecret = string;
 
 export type FileSecret = {
   buffer: number[];
   mime?: string;
-}
+};
 
 export type CredentialsSecret = {
   [index: string]: string;
-}
+};
 
 export type Secret =
   | AccountSecret
@@ -64,18 +66,6 @@ export interface NewVaultResult {
   password: string;
 }
 
-export interface AccountPasswordResult {
-  label: string;
-  account: string;
-  url: string;
-  password: string;
-}
-
-export interface SecureNoteResult {
-  label: string;
-  note: string;
-}
-
 export interface KeyValueError {
   key: boolean;
   value: boolean;
@@ -83,17 +73,6 @@ export interface KeyValueError {
 
 export interface Credentials {
   [index: string]: string;
-}
-
-export interface CredentialsResult {
-  label: string;
-  credentials: Credentials;
-}
-
-export interface FileUploadResult {
-  label: string;
-  name?: string;
-  buffer?: number[];
 }
 
 export interface UnlockVaultResult {

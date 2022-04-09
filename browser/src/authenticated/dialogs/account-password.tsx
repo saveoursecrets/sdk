@@ -7,12 +7,12 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import AccountPasswordForm from "../forms/account-password";
 
-import { AccountPasswordResult } from "../../types";
+import { SecretInfo } from "../../types";
 
 interface AccountPasswordProps {
   open: boolean;
   handleCancel: () => void;
-  handleOk: (result: AccountPasswordResult) => void;
+  handleOk: (result: SecretInfo) => void;
 }
 
 export default function AccountPasswordDialog(props: AccountPasswordProps) {
@@ -22,13 +22,7 @@ export default function AccountPasswordDialog(props: AccountPasswordProps) {
     <Dialog open={open} onClose={handleCancel}>
       <DialogTitle color="text.secondary">Account Password</DialogTitle>
       <DialogContent>
-        <AccountPasswordForm
-          label=""
-          account=""
-          url=""
-          password=""
-          onFormSubmit={handleOk}
-        />
+        <AccountPasswordForm onFormSubmit={handleOk} />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

@@ -20,7 +20,7 @@ import {
   FileSecret,
   CredentialsSecret,
 } from "../types";
-import { WorkerStorageProps } from "../props";
+import { WorkerStorageProps, StorageProps } from "../props";
 import { download, humanFileSize } from "../utils";
 import { WorkerContext } from "../worker-provider";
 
@@ -66,16 +66,13 @@ function SecretHeader(props: SecretProps) {
   );
 }
 
-type SecretViewProps = WorkerStorageProps & SecretProps;
-
-type SecretViewProps = {
+type SecretItemProps = {
   meta: SecretMeta;
   secret: Secret;
 };
 
-function AccountSecretView(props: SecretViewProps) {
+function AccountSecretView(props: SecretItemProps) {
   const secret = props.secret as AccountSecret;
-  console.log(secret);
   const { account, url, password } = secret;
 
   return (
@@ -88,26 +85,25 @@ function AccountSecretView(props: SecretViewProps) {
           {url}
         </Link>
       ) : null}
-      <ReadOnlyPassword value={password} />
+      <ReadOnlyPassword value={password} compact={false} />
     </Stack>
   );
 }
 
-function NoteSecretView(props: SecretViewProps) {
+function NoteSecretView(props: SecretItemProps) {
   const secret = props.secret as NoteSecret;
   return (
     <Box padding={2}>
-      <Typography variant="paragraph" component="div">
+      <Typography variant="body1" component="div">
         {secret}
       </Typography>
     </Box>
   );
 }
 
-function FileSecretView(props: SecretViewProps) {
+function FileSecretView(props: SecretItemProps) {
   const { meta } = props;
   const secret = props.secret as FileSecret;
-  console.log(secret);
 
   const mime = secret.mime || "application/octet-stream";
   const { buffer } = secret;
@@ -119,10 +115,10 @@ function FileSecretView(props: SecretViewProps) {
   return (
     <Box padding={2}>
       <Stack marginBottom={2}>
-        <Typography variant="paragraph" component="div">
+        <Typography variant="body1" component="div">
           Type: {mime}
         </Typography>
-        <Typography variant="paragraph" component="div">
+        <Typography variant="body1" component="div">
           Size: {humanFileSize(buffer.length)}
         </Typography>
       </Stack>
@@ -133,9 +129,8 @@ function FileSecretView(props: SecretViewProps) {
   );
 }
 
-function CredentialsSecretView(props: SecretViewProps) {
+function CredentialsSecretView(props: SecretItemProps) {
   const secret = props.secret as CredentialsSecret;
-  console.log(secret);
 
   const credentials = new Map(Object.entries(secret));
   // Sort for deterministic ordering
@@ -164,7 +159,7 @@ function CredentialsSecretView(props: SecretViewProps) {
             paddingBottom={1}
             alignItems="center"
           >
-            <Typography variant="paragraph" component="div" flex={1}>
+            <Typography variant="body1" component="div" flex={1}>
               {name}
             </Typography>
             <ReadOnlyPassword value={value} compact={true} />
@@ -174,6 +169,8 @@ function CredentialsSecretView(props: SecretViewProps) {
     </Box>
   );
 }
+
+type SecretViewProps = WorkerStorageProps & SecretProps;
 
 function SecretView(props: SecretViewProps) {
   const { storage, secretId } = props;

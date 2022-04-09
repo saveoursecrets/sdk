@@ -37,7 +37,6 @@ mod tests {
     use super::*;
     use crate::crypto::secret_key::SecretKey;
     use anyhow::Result;
-    use rand::Rng;
 
     #[test]
     fn aesgcm256_encrypt_decrypt() -> Result<()> {

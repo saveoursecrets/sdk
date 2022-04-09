@@ -14,19 +14,9 @@ import {
 import {
   vaultsSelector,
   createNewVault as dispatchNewVault,
-  createNewSecureNote as dispatchNewSecureNote,
-  createNewAccountPassword as dispatchNewAccountPassword,
-  createNewCredentials as dispatchNewCredentials,
-  createNewFileUpload as dispatchNewFileUpload,
+  createNewSecret as dispatchNewSecret,
 } from "../../store/vaults";
-import {
-  NewVaultResult,
-  SecureNoteResult,
-  AccountPasswordResult,
-  CredentialsResult,
-  FileUploadResult,
-  VaultWorker,
-} from "../../types";
+import { NewVaultResult, VaultWorker, SecretInfo } from "../../types";
 
 import NewVaultDialog from "./new-vault";
 import SecureNoteDialog from "./secure-note";
@@ -52,26 +42,24 @@ export default function Dialogs(props: DialogProps) {
     dispatch(dispatchNewVault({ worker, navigate, result }));
   };
 
-  const createNewSecureNote = async (result: SecureNoteResult) => {
+  const createNewSecureNote = async (result: SecretInfo) => {
     cancelDialog(NEW_SECURE_NOTE);
-    dispatch(dispatchNewSecureNote({ result, owner: current }));
+    dispatch(dispatchNewSecret({ result, owner: current }));
   };
 
-  const createNewAccountPassword = async (result: AccountPasswordResult) => {
+  const createNewAccountPassword = async (result: SecretInfo) => {
     cancelDialog(NEW_ACCOUNT_PASSWORD);
-    dispatch(dispatchNewAccountPassword({ result, owner: current }));
+    dispatch(dispatchNewSecret({ result, owner: current }));
   };
 
-  const createNewCredentials = async (result: CredentialsResult) => {
-    console.log(result);
+  const createNewCredentials = async (result: SecretInfo) => {
     cancelDialog(NEW_CREDENTIALS);
-    dispatch(dispatchNewCredentials({ result, owner: current }));
+    dispatch(dispatchNewSecret({ result, owner: current }));
   };
 
-  const createNewFileUpload = async (result: FileUploadResult) => {
-    console.log(result);
+  const createNewFileUpload = async (result: SecretInfo) => {
     cancelDialog(NEW_FILE_UPLOAD);
-    dispatch(dispatchNewFileUpload({ result, owner: current }));
+    dispatch(dispatchNewSecret({ result, owner: current }));
   };
 
   const cancelDialog = (key: string) => {

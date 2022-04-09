@@ -12,7 +12,6 @@ use sos_core::{
 };
 
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -135,6 +134,30 @@ impl WebVault {
         Ok(JsValue::from_serde(&self.keeper.label()?)?)
     }
 
+    /// Create a new secret.
+    pub fn create(&mut self, request: JsValue) -> Result<JsValue, JsError> {
+        let (meta_data, mut secret): (SecretMeta, Secret) =
+            request.into_serde()?;
+
+        if let Secret::Blob {
+            ref mut mime,
+            ref name,
+            ..
+        } = secret
+        {
+            if let Some(name) = name {
+                if let Some(mime_type) =
+                    mime_guess::from_path(name).first().map(|m| m.to_string())
+                {
+                    *mime = Some(mime_type);
+                }
+            }
+        }
+
+        let uuid = self.keeper.add(meta_data, secret)?;
+        Ok(JsValue::from_serde(&uuid)?)
+    }
+
     /// Get a secret from the vault.
     #[wasm_bindgen(js_name = "getSecret")]
     pub fn get_secret(&self, uuid: JsValue) -> Result<JsValue, JsError> {
@@ -143,66 +166,10 @@ impl WebVault {
         Ok(JsValue::from_serde(&result)?)
     }
 
-    /// Create a new account password.
-    #[wasm_bindgen(js_name = "createAccountPassword")]
-    pub fn create_account_password(
-        &mut self,
-        request: JsValue,
-    ) -> Result<JsValue, JsError> {
-        let AccountPassword {
-            label,
-            account,
-            url,
-            password,
-        } = request.into_serde()?;
-
-        let url = if url.is_empty() {
-            None
-        } else {
-            let url: Url = url.parse()?;
-            Some(url)
-        };
-
-        let secret = Secret::Account {
-            account,
-            url,
-            password,
-        };
-        let meta_data = SecretMeta::new(label, secret.kind());
-        let uuid = self.keeper.add(meta_data, secret)?;
-        Ok(JsValue::from_serde(&uuid)?)
-    }
-
-    /// Create a new secure note.
-    #[wasm_bindgen(js_name = "createNote")]
-    pub fn create_note(
-        &mut self,
-        request: JsValue,
-    ) -> Result<JsValue, JsError> {
-        let SecureNote { label, note } = request.into_serde()?;
-
-        let secret = Secret::Text(note);
-        let meta_data = SecretMeta::new(label, secret.kind());
-        let uuid = self.keeper.add(meta_data, secret)?;
-        Ok(JsValue::from_serde(&uuid)?)
-    }
-
-    /// Create a new credentials list.
-    #[wasm_bindgen(js_name = "createCredentials")]
-    pub fn create_credentials(
-        &mut self,
-        request: JsValue,
-    ) -> Result<JsValue, JsError> {
-        let Credentials { label, credentials } = request.into_serde()?;
-
-        let secret = Secret::Credentials(credentials);
-        let meta_data = SecretMeta::new(label, secret.kind());
-        let uuid = self.keeper.add(meta_data, secret)?;
-        Ok(JsValue::from_serde(&uuid)?)
-    }
-
+    /*
     /// Create a new file upload.
     #[wasm_bindgen(js_name = "createFileUpload")]
+    #[deprecated]
     pub fn create_file_upload(
         &mut self,
         request: JsValue,
@@ -214,11 +181,12 @@ impl WebVault {
         } = request.into_serde()?;
 
         let mime = mime_guess::from_path(name).first().map(|m| m.to_string());
-        let secret = Secret::Blob { buffer, mime };
+        let secret = Secret::Blob { buffer, mime, name: None };
         let meta_data = SecretMeta::new(label, secret.kind());
         let uuid = self.keeper.add(meta_data, secret)?;
         Ok(JsValue::from_serde(&uuid)?)
     }
+    */
 
     /*
     /// Set a secret for this vault.
