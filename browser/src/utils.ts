@@ -26,7 +26,7 @@ export async function copyToClipboard(
  *
  * @return Formatted string.
  */
-export function humanFileSize(bytes, si = false, dp = 1) {
+export function humanFileSize(bytes: number, si = false, dp = 1) {
   const thresh = si ? 1000 : 1024;
 
   if (Math.abs(bytes) < thresh) {

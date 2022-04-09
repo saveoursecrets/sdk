@@ -150,6 +150,9 @@ pub enum Secret {
         buffer: Vec<u8>,
         /// Optional mime type for the data.
         mime: Option<String>,
+        /// Optional name used to guess the mime type.
+        #[serde(skip)]
+        name: Option<String>,
     },
     /// Account with login password.
     Account {
@@ -223,7 +226,7 @@ impl Encode for Secret {
             Self::Text(text) => {
                 ser.writer.write_string(text)?;
             }
-            Self::Blob { buffer, mime } => {
+            Self::Blob { buffer, mime, .. } => {
                 ser.writer.write_u32(buffer.len() as u32)?;
                 ser.writer.write_bytes(buffer)?;
                 ser.writer.write_bool(mime.is_some())?;
@@ -273,7 +276,11 @@ impl Decode for Secret {
                     None
                 };
 
-                *self = Self::Blob { buffer, mime };
+                *self = Self::Blob {
+                    buffer,
+                    mime,
+                    name: None,
+                };
             }
             kind::ACCOUNT => {
                 let account = de.reader.read_string()?;

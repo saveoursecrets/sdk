@@ -5,7 +5,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Input from "@mui/material/Input";
 
-import { FileUploadResult } from "../../types";
+import { SecretInfo, SecretKind } from "../../types";
 
 // 8MB for file uploads
 const MAX_FILE_SIZE = 8388608;
@@ -18,17 +18,17 @@ interface FileInfo {
 }
 */
 
-interface FileUploadFormProps extends FileUploadResult {
-  onFormSubmit: (result: FileUploadResult) => void;
+interface FileUploadFormProps {
+  onFormSubmit: (result: SecretInfo) => void;
 }
 
 export default function FileUploadForm(props: FileUploadFormProps) {
   const { onFormSubmit } = props;
-  const [label, setLabel] = useState(props.label);
+  const [label, setLabel] = useState("");
   const [labelError, setLabelError] = useState(false);
 
   const [file, setFile] = useState({
-    buffer: props.buffer,
+    buffer: null,
     name: null,
     size: null,
   });
@@ -43,6 +43,10 @@ export default function FileUploadForm(props: FileUploadFormProps) {
     if (size <= MAX_FILE_SIZE) {
       const buffer = await file.arrayBuffer();
       setFile({ name, size, buffer: Array.from(new Uint8Array(buffer)) });
+
+      if (label === "") {
+        setLabel(name);
+      }
     } else {
       // TODO: handle too large file error gracefully
       setFileError(true);
@@ -64,7 +68,14 @@ export default function FileUploadForm(props: FileUploadFormProps) {
       setFileError(true);
     } else {
       const { buffer, name } = file;
-      onFormSubmit({ label, buffer, name });
+      const info: SecretInfo = [
+        {
+          label,
+          kind: SecretKind.File,
+        },
+        { buffer, name },
+      ];
+      onFormSubmit(info);
     }
   };
 

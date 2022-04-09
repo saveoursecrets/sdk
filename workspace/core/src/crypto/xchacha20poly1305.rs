@@ -35,7 +35,6 @@ mod tests {
     use super::*;
     use crate::crypto::secret_key::SecretKey;
     use anyhow::Result;
-    use rand::Rng;
 
     #[test]
     fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
