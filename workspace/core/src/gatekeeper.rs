@@ -256,16 +256,14 @@ mod tests {
         let secret_label = String::from("Mock Secret");
         let secret_value = String::from("Super Secret Note");
         let secret = Secret::Text(secret_value.clone());
+        let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        let secret_uuid = keeper.set_secret(&secret, None)?;
+        let secret_uuid = keeper.add(secret_meta.clone(), secret)?;
 
-        let secret_meta = SecretMeta::new(secret_label);
-        keeper.set_secret_meta(secret_uuid.clone(), secret_meta.clone())?;
-
-        let saved_secret = keeper.get_secret(&secret_uuid)?;
+        let saved_secret = keeper.get_secret(&secret_uuid)?.unwrap();
         assert_eq!(secret, saved_secret);
 
-        let saved_secret_meta = keeper.get_secret_meta(&secret_uuid)?;
+        let saved_secret_meta = keeper.get_secret_meta(&secret_uuid)?.unwrap();
         assert_eq!(secret_meta, saved_secret_meta);
 
         keeper.lock();

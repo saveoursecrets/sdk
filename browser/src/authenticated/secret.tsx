@@ -76,7 +76,7 @@ type SecretViewProps = {
 function AccountSecretView(props: SecretViewProps) {
   const secret = props.secret as AccountSecret;
   console.log(secret);
-  const { account, url, password } = secret.Account;
+  const { account, url, password } = secret.account;
 
   return (
     <Stack padding={2} spacing={2}>
@@ -109,8 +109,8 @@ function FileSecretView(props: SecretViewProps) {
   const secret = props.secret as FileSecret;
   console.log(secret);
 
-  const mime = secret.Blob.mime || "application/octet-stream";
-  const { buffer } = secret.Blob;
+  const mime = secret.blob.mime || "application/octet-stream";
+  const { buffer } = secret.blob;
   const onOpenFile = (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault();
     download(meta.label, new Uint8Array(buffer), mime);
@@ -137,7 +137,7 @@ function CredentialsSecretView(props: SecretViewProps) {
   const secret = props.secret as CredentialsSecret;
   console.log(secret);
 
-  const credentials = new Map(Object.entries(secret.Credentials));
+  const credentials = new Map(Object.entries(secret.credentials));
   // Sort for deterministic ordering
   const list = [...credentials.entries()].sort(
     (a: [string, string], b: [string, string]) => {
