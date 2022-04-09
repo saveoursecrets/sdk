@@ -135,6 +135,14 @@ impl WebVault {
         Ok(JsValue::from_serde(&self.keeper.label()?)?)
     }
 
+    /// Get a secret from the vault.
+    #[wasm_bindgen(js_name = "getSecret")]
+    pub fn get_secret(&self, uuid: JsValue) -> Result<JsValue, JsError> {
+        let uuid: Uuid = uuid.into_serde()?;
+        let result = self.keeper.get(&uuid)?;
+        Ok(JsValue::from_serde(&result)?)
+    }
+
     /// Create a new account password.
     #[wasm_bindgen(js_name = "createAccountPassword")]
     pub fn create_account_password(
