@@ -26,7 +26,7 @@ export default function VaultList() {
   const vaultId = current && current.uuid;
 
   const showNewVault = () => {
-    dispatch(setDialogVisible([NEW_VAULT, true]));
+    dispatch(setDialogVisible([NEW_VAULT, true, null]));
   };
 
   const openVault = (vault: VaultStorage) => {

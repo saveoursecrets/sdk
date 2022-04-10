@@ -31,6 +31,10 @@ const store = configureStore({
           "vaults/createNewSecret/pending",
           "vaults/createNewSecret/fulfilled",
           "vaults/createNewSecret/rejected",
+
+          "vaults/deleteSecret/pending",
+          "vaults/deleteSecret/fulfilled",
+          "vaults/deleteSecret/rejected",
         ],
         // Ignore these field paths in all actions
         ignoredActionPaths: [],

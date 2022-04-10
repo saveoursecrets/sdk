@@ -199,8 +199,8 @@ impl Gatekeeper {
         }
     }
 
-    /// Remove a secret and it's meta data from the vault.
-    pub fn remove(&mut self, uuid: &Uuid) -> Result<()> {
+    /// Delete a secret and it's meta data from the vault.
+    pub fn delete(&mut self, uuid: &Uuid) -> Result<()> {
         let mut meta = self.meta()?;
         meta.remove_secret_meta(uuid);
         self.set_meta(meta)?;

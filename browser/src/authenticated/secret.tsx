@@ -66,7 +66,6 @@ function SecretHeader(props: SecretHeaderProps) {
   };
 
   const onDelete = (event: React.MouseEvent<HTMLElement>) => {
-    console.log("Delete item", secretId);
     const { label } = meta;
     dispatch(
       setDialogVisible([CONFIRM_DELETE_SECRET, true, { label, secretId }])
@@ -264,9 +263,9 @@ function CredentialsSecretView(props: SecretItemProps) {
   );
 }
 
-type SecretViewProps = WorkerStorageProps & SecretProps;
+type SecretLayoutProps = SecretHeaderProps & { children?: React.ReactNode };
 
-function SecretLayout(props: SecretHeaderProps) {
+function SecretLayout(props: SecretLayoutProps) {
   const { secretId, meta } = props;
   return (
     <Box padding={2}>
@@ -280,6 +279,8 @@ function SecretLayout(props: SecretHeaderProps) {
     </Box>
   );
 }
+
+type SecretViewProps = WorkerStorageProps & SecretHeaderProps;
 
 function SecretView(props: SecretViewProps) {
   const { storage, secretId } = props;
@@ -390,6 +391,8 @@ export default function Secret() {
   if (!secret) {
     return <p>Secret not found</p>;
   }
+
+  console.log("Render secret", secret);
 
   const [, [, metaData]] = secret;
 

@@ -9,19 +9,18 @@ import { SecretKind } from "../types";
 
 interface SecretIconProps {
   kind: number;
-  fontSize?: string;
 }
 
 export default function SecretIcon(props: SecretIconProps) {
-  const { kind, fontSize } = props;
+  const { kind } = props;
   switch (kind) {
     case SecretKind.Account:
-      return <AccountIcon fontSize={fontSize} />;
+      return <AccountIcon />;
     case SecretKind.Note:
-      return <NoteIcon fontSize={fontSize} />;
+      return <NoteIcon />;
     case SecretKind.Credentials:
-      return <CredentialsIcon fontSize={fontSize} />;
+      return <CredentialsIcon />;
     case SecretKind.File:
-      return <FileIcon fontSize={fontSize} />;
+      return <FileIcon />;
   }
 }

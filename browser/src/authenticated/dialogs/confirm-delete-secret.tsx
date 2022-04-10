@@ -17,7 +17,7 @@ interface ConfirmDeleteSecretProps {
   open: boolean;
   secret?: SecretReference;
   handleCancel: () => void;
-  handleOk: () => void;
+  handleOk: (result: string) => void;
 }
 
 export default function ConfirmDeleteSecretDialog(
@@ -48,7 +48,7 @@ export default function ConfirmDeleteSecretDialog(
 
           <ConfirmValueForm
             value={secret.label}
-            onFormSubmit={() => console.log("got correct value")}
+            onFormSubmit={() => handleOk(secret.secretId)}
           />
 
           <Alert severity="warning">
@@ -58,7 +58,7 @@ export default function ConfirmDeleteSecretDialog(
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>
-        <Button type="submit" form="delete-secret-form" variant="contained">
+        <Button type="submit" form="confirm-value-form" variant="contained">
           OK
         </Button>
       </DialogActions>
