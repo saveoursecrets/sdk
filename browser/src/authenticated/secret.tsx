@@ -169,7 +169,7 @@ function AccountSecretView(props: SecretItemProps) {
         {account}
       </Typography>
       {url ? (
-        <Link href={url} underline="hover">
+        <Link href={url} target="_blank" underline="hover">
           {url}
         </Link>
       ) : null}
