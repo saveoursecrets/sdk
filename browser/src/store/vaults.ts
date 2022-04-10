@@ -70,6 +70,7 @@ export const loadVaults = createAsyncThunk(
       async (item: [string, ArrayBuffer]) => {
         const [id, buffer] = item;
         const vault: WebVault = await new (worker.WebVault as any)();
+        const name: string = await vault.name();
         try {
           await vault.importBuffer(Array.from(new Uint8Array(buffer)));
         } catch (e) {
@@ -78,7 +79,7 @@ export const loadVaults = createAsyncThunk(
 
         return {
           uuid: id,
-          label: id,
+          label: name,
           vault,
           locked: true,
         };

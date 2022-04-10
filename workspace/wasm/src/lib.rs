@@ -129,7 +129,12 @@ impl WebVault {
         Ok(JsValue::from_serde(self.keeper.id())?)
     }
 
-    /// Get the label for the vault.
+    /// Get the public name for the vault.
+    pub fn name(&self) -> Result<JsValue, JsError> {
+        Ok(JsValue::from_serde(self.keeper.name())?)
+    }
+
+    /// Get the private label for the vault.
     pub fn label(&self) -> Result<JsValue, JsError> {
         Ok(JsValue::from_serde(&self.keeper.label()?)?)
     }
