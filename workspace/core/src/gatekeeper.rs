@@ -69,7 +69,6 @@ impl Gatekeeper {
         label: String,
         password: S,
     ) -> Result<()> {
-
         // Initialize the private key and store the salt
         let private_key = self.vault.initialize(password.as_ref())?;
         self.private_key = Some(Box::new(private_key));
@@ -167,7 +166,7 @@ impl Gatekeeper {
     }
 
     /// Add a secret to the vault.
-    pub fn add(
+    pub fn create(
         &mut self,
         secret_meta: SecretMeta,
         secret: Secret,
@@ -196,7 +195,7 @@ impl Gatekeeper {
     }
 
     /// Get a secret and it's meta data from the vault.
-    pub fn get(&self, uuid: &Uuid) -> Result<Option<(SecretMeta, Secret)>> {
+    pub fn read(&self, uuid: &Uuid) -> Result<Option<(SecretMeta, Secret)>> {
         if let Some(secret_meta) = self.get_secret_meta(uuid)? {
             if let Some(secret) = self.get_secret(uuid)? {
                 Ok(Some((secret_meta, secret)))
@@ -205,6 +204,38 @@ impl Gatekeeper {
             }
         } else {
             Ok(None)
+        }
+    }
+
+    /// Update a secret in the vault.
+    pub fn update(
+        &mut self,
+        uuid: Uuid,
+        secret_meta: SecretMeta,
+        secret: Secret,
+    ) -> Result<()> {
+        let mut meta = self.meta()?;
+
+        if meta.get_secret_meta(&uuid).is_none() {
+            return Err(Error::SecretDoesNotExist(uuid));
+        }
+
+        if meta.find_by_label(secret_meta.label()).is_some() {
+            return Err(Error::SecretAlreadyExists(
+                secret_meta.label().to_string(),
+            ));
+        }
+
+        meta.add_secret_meta(uuid, secret_meta);
+        self.set_meta(meta)?;
+
+        if let Some(private_key) = &self.private_key {
+            let secret_blob = encode(&secret)?;
+            let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
+            self.vault.add_secret(uuid, secret_aead);
+            Ok(())
+        } else {
+            Err(Error::VaultLocked)
         }
     }
 
@@ -245,7 +276,10 @@ impl Gatekeeper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{secret::Secret, vault::{Vault, DEFAULT_VAULT_NAME}};
+    use crate::{
+        secret::Secret,
+        vault::{Vault, DEFAULT_VAULT_NAME},
+    };
     use anyhow::Result;
 
     #[test]
@@ -268,7 +302,7 @@ mod tests {
         let secret = Secret::Text(secret_value.clone());
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        let secret_uuid = keeper.add(secret_meta.clone(), secret.clone())?;
+        let secret_uuid = keeper.create(secret_meta.clone(), secret.clone())?;
 
         let saved_secret = keeper.get_secret(&secret_uuid)?.unwrap();
         assert_eq!(secret, saved_secret);

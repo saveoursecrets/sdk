@@ -17,11 +17,12 @@ import {
   createNewVault as dispatchNewVault,
   createNewSecret as dispatchNewSecret,
   deleteSecret as dispatchDeleteSecret,
+  updateSecret,
 } from "../../store/vaults";
 import {
   NewVaultResult,
   VaultWorker,
-  SecretInfo,
+  SecretData,
   SecretReference,
 } from "../../types";
 
@@ -50,22 +51,26 @@ export default function Dialogs(props: DialogProps) {
     dispatch(dispatchNewVault({ worker, navigate, result }));
   };
 
-  const createNewSecureNote = async (result: SecretInfo) => {
+  const createNewSecureNote = async (result: SecretData) => {
     cancelDialog(NEW_SECURE_NOTE);
-    dispatch(dispatchNewSecret({ result, owner: current }));
+    if (result.secretId) {
+      dispatch(updateSecret({ result, navigate, owner: current }));
+    } else {
+      dispatch(dispatchNewSecret({ result, owner: current }));
+    }
   };
 
-  const createNewAccountPassword = async (result: SecretInfo) => {
+  const createNewAccountPassword = async (result: SecretData) => {
     cancelDialog(NEW_ACCOUNT_PASSWORD);
     dispatch(dispatchNewSecret({ result, owner: current }));
   };
 
-  const createNewCredentials = async (result: SecretInfo) => {
+  const createNewCredentials = async (result: SecretData) => {
     cancelDialog(NEW_CREDENTIALS);
     dispatch(dispatchNewSecret({ result, owner: current }));
   };
 
-  const createNewFileUpload = async (result: SecretInfo) => {
+  const createNewFileUpload = async (result: SecretData) => {
     cancelDialog(NEW_FILE_UPLOAD);
     dispatch(dispatchNewSecret({ result, owner: current }));
   };
@@ -92,6 +97,7 @@ export default function Dialogs(props: DialogProps) {
         open={dialogs[NEW_SECURE_NOTE][0] || false}
         handleCancel={() => cancelDialog(NEW_SECURE_NOTE)}
         handleOk={createNewSecureNote}
+        secret={dialogs[NEW_SECURE_NOTE][1] as SecretData}
       />
 
       <AccountPasswordDialog

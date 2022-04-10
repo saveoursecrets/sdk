@@ -7,22 +7,23 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import SecureNoteForm from "../forms/secure-note";
 
-import { SecretInfo } from "../../types";
+import { SecretData } from "../../types";
 
 interface SecureNoteProps {
   open: boolean;
   handleCancel: () => void;
-  handleOk: (result: SecretInfo) => void;
+  handleOk: (result: SecretData) => void;
+  secret?: SecretData;
 }
 
 export default function SecureNoteDialog(props: SecureNoteProps) {
-  const { open, handleCancel, handleOk } = props;
+  const { open, handleCancel, handleOk, secret } = props;
 
   return (
     <Dialog open={open} onClose={handleCancel}>
       <DialogTitle color="text.secondary">Secure Note</DialogTitle>
       <DialogContent>
-        <SecureNoteForm onFormSubmit={handleOk} />
+        <SecureNoteForm secret={secret} onFormSubmit={handleOk} />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

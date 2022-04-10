@@ -13,7 +13,7 @@ use sos_core::{
 
 use serde::{Deserialize, Serialize};
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 #[wasm_bindgen]
 extern "C" {
@@ -40,35 +40,13 @@ pub struct WebVault {
     keeper: Gatekeeper,
 }
 
-/// Request used to create a new account password.
+/// Request used to create or update a secret.
 #[derive(Serialize, Deserialize)]
-pub struct AccountPassword {
-    label: String,
-    account: String,
-    url: String,
-    password: String,
-}
-
-/// Request used to create a new secure note.
-#[derive(Serialize, Deserialize)]
-pub struct SecureNote {
-    label: String,
-    note: String,
-}
-
-/// Request used to create a new credentials list.
-#[derive(Serialize, Deserialize)]
-pub struct Credentials {
-    label: String,
-    credentials: HashMap<String, String>,
-}
-
-/// Request used to create a new file upload.
-#[derive(Serialize, Deserialize)]
-pub struct FileUpload {
-    label: String,
-    buffer: Vec<u8>,
-    name: String,
+pub struct SecretData {
+    #[serde(rename = "secretId")]
+    secret_id: Option<Uuid>,
+    meta: SecretMeta,
+    secret: Secret,
 }
 
 #[wasm_bindgen]
@@ -143,14 +121,13 @@ impl WebVault {
 
     /// Create a new secret.
     pub fn create(&mut self, request: JsValue) -> Result<JsValue, JsError> {
-        let (meta_data, mut secret): (SecretMeta, Secret) =
-            request.into_serde()?;
+        let mut data: SecretData = request.into_serde()?;
 
         if let Secret::Blob {
             ref mut mime,
             ref name,
             ..
-        } = secret
+        } = data.secret
         {
             if let Some(name) = name {
                 if let Some(mime_type) =
@@ -161,22 +138,48 @@ impl WebVault {
             }
         }
 
-        let uuid = self.keeper.add(meta_data, secret)?;
+        let uuid = self.keeper.create(data.meta, data.secret)?;
         Ok(JsValue::from_serde(&uuid)?)
+    }
+
+    /// Get a secret from the vault.
+    pub fn read(&self, uuid: JsValue) -> Result<JsValue, JsError> {
+        let uuid: Uuid = uuid.into_serde()?;
+        let result = self.keeper.read(&uuid)?;
+        Ok(JsValue::from_serde(&result)?)
+    }
+
+    /// Update a new secret.
+    pub fn update(&mut self, request: JsValue) -> Result<(), JsError> {
+        let mut data: SecretData = request.into_serde()?;
+
+        let uuid = data.secret_id.as_ref().ok_or_else(|| {
+            JsError::new("update requires a valid identifier")
+        })?;
+
+        if let Secret::Blob {
+            ref mut mime,
+            ref name,
+            ..
+        } = data.secret
+        {
+            if let Some(name) = name {
+                if let Some(mime_type) =
+                    mime_guess::from_path(name).first().map(|m| m.to_string())
+                {
+                    *mime = Some(mime_type);
+                }
+            }
+        }
+
+        self.keeper.update(*uuid, data.meta, data.secret)?;
+        Ok(())
     }
 
     /// Delete a secret from the vault.
     pub fn delete(&mut self, uuid: JsValue) -> Result<JsValue, JsError> {
         let uuid: Uuid = uuid.into_serde()?;
         let result = self.keeper.delete(&uuid)?;
-        Ok(JsValue::from_serde(&result)?)
-    }
-
-    /// Get a secret from the vault.
-    #[wasm_bindgen(js_name = "getSecret")]
-    pub fn get_secret(&self, uuid: JsValue) -> Result<JsValue, JsError> {
-        let uuid: Uuid = uuid.into_serde()?;
-        let result = self.keeper.get(&uuid)?;
         Ok(JsValue::from_serde(&result)?)
     }
 

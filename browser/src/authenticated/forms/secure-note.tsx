@@ -3,18 +3,23 @@ import React, { useState } from "react";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 
-import { SecretInfo, SecretKind } from "../../types";
+import { SecretData, SecretKind, NoteSecret } from "../../types";
 
 interface SecureNoteFormProps {
-  onFormSubmit: (result: SecretInfo) => void;
+  onFormSubmit: (result: SecretData) => void;
+  secret?: SecretData;
 }
 
 export default function SecureNoteForm(props: SecureNoteFormProps) {
-  const { onFormSubmit } = props;
-  const [label, setLabel] = useState("");
+  const { onFormSubmit, secret } = props;
+
+  const initialLabel = secret && secret.meta.label;
+  const initialNote = secret && (secret.secret as string);
+
+  const [label, setLabel] = useState(initialLabel || "");
   const [labelError, setLabelError] = useState(false);
 
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(initialNote || "");
   const [noteError, setNoteError] = useState(false);
 
   const onLabelChange = (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -36,13 +41,14 @@ export default function SecureNoteForm(props: SecureNoteFormProps) {
       setNoteError(true);
       setNote("");
     } else {
-      const info: SecretInfo = [
-        {
+      const info: SecretData = {
+        secretId: secret && secret.secretId,
+        meta: {
           label,
           kind: SecretKind.Note,
         },
-        note,
-      ];
+        secret: note,
+      };
       onFormSubmit(info);
     }
   };

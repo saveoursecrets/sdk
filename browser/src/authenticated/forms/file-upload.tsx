@@ -5,7 +5,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Input from "@mui/material/Input";
 
-import { SecretInfo, SecretKind } from "../../types";
+import { SecretData, SecretKind } from "../../types";
 
 // 8MB for file uploads
 const MAX_FILE_SIZE = 8388608;
@@ -19,7 +19,7 @@ interface FileInfo {
 */
 
 interface FileUploadFormProps {
-  onFormSubmit: (result: SecretInfo) => void;
+  onFormSubmit: (result: SecretData) => void;
 }
 
 export default function FileUploadForm(props: FileUploadFormProps) {
@@ -68,13 +68,13 @@ export default function FileUploadForm(props: FileUploadFormProps) {
       setFileError(true);
     } else {
       const { buffer, name } = file;
-      const info: SecretInfo = [
-        {
+      const info: SecretData = {
+        meta: {
           label,
           kind: SecretKind.File,
         },
-        { buffer, name },
-      ];
+        secret: { buffer, name },
+      };
       onFormSubmit(info);
     }
   };

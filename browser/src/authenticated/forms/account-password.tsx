@@ -5,10 +5,10 @@ import TextField from "@mui/material/TextField";
 
 import ViewablePassword from "./viewable-password";
 
-import { SecretInfo, SecretKind } from "../../types";
+import { SecretData, SecretKind } from "../../types";
 
 interface AccountPasswordFormProps {
-  onFormSubmit: (result: SecretInfo) => void;
+  onFormSubmit: (result: SecretData) => void;
 }
 
 export default function AccountPasswordForm(props: AccountPasswordFormProps) {
@@ -68,13 +68,13 @@ export default function AccountPasswordForm(props: AccountPasswordFormProps) {
       setPasswordError(true);
       setPassword("");
     } else {
-      const info: SecretInfo = [
-        {
+      const info: SecretData = {
+        meta: {
           label,
           kind: SecretKind.Account,
         },
-        { account, url, password },
-      ];
+        secret: { account, url, password },
+      };
       onFormSubmit(info);
     }
   };
