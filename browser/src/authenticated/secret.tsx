@@ -22,6 +22,7 @@ import {
   NEW_ACCOUNT_PASSWORD,
   NEW_SECURE_NOTE,
   NEW_CREDENTIALS,
+  NEW_FILE_UPLOAD,
   CONFIRM_DELETE_SECRET,
   setDialogVisible,
 } from "../store/dialogs";
@@ -68,29 +69,23 @@ function SecretHeader(props: SecretHeaderProps) {
   };
 
   const onEdit = (event: React.MouseEvent<HTMLElement>) => {
+    let dialogType = null;
     switch (meta.kind) {
       case SecretKind.Account:
-        dispatch(
-          setDialogVisible([
-            NEW_ACCOUNT_PASSWORD,
-            true,
-            { secretId, meta, secret },
-          ])
-        );
+        dialogType = NEW_ACCOUNT_PASSWORD;
         break;
       case SecretKind.Note:
-        dispatch(
-          setDialogVisible([NEW_SECURE_NOTE, true, { secretId, meta, secret }])
-        );
+        dialogType = NEW_SECURE_NOTE;
         break;
       case SecretKind.Credentials:
-        dispatch(
-          setDialogVisible([NEW_CREDENTIALS, true, { secretId, meta, secret }])
-        );
+        dialogType = NEW_CREDENTIALS;
         break;
-      default:
-        console.error("TODO: edit other note types");
+      case SecretKind.File:
+        dialogType = NEW_FILE_UPLOAD;
+        break;
     }
+
+    dispatch(setDialogVisible([dialogType, true, { secretId, meta, secret }]));
 
     closeMenu();
   };
