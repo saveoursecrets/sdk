@@ -163,16 +163,24 @@ impl WebVault {
             ..
         } = data.secret
         {
-            if let Some(name) = name {
-                if let Some(mime_type) =
-                    mime_guess::from_path(name).first().map(|m| m.to_string())
-                {
-                    *mime = Some(mime_type);
+            if mime.is_none() {
+                if let Some(name) = name {
+                    if let Some(mime_type) = mime_guess::from_path(name)
+                        .first()
+                        .map(|m| m.to_string())
+                    {
+                        *mime = Some(mime_type);
+                    }
                 }
             }
         }
 
+        console_log!("Updating secret");
+
         self.keeper.update(*uuid, data.meta, data.secret)?;
+
+        console_log!("Secret update completed!");
+
         Ok(())
     }
 

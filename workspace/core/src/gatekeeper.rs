@@ -216,14 +216,21 @@ impl Gatekeeper {
     ) -> Result<()> {
         let mut meta = self.meta()?;
 
-        if meta.get_secret_meta(&uuid).is_none() {
+        let existing_meta = meta.get_secret_meta(&uuid);
+
+        if existing_meta.is_none() {
             return Err(Error::SecretDoesNotExist(uuid));
         }
 
-        if meta.find_by_label(secret_meta.label()).is_some() {
-            return Err(Error::SecretAlreadyExists(
-                secret_meta.label().to_string(),
-            ));
+        let existing_meta = existing_meta.unwrap();
+
+        // Label has changed, so ensure uniqueness
+        if existing_meta.label() != secret_meta.label() {
+            if meta.find_by_label(secret_meta.label()).is_some() {
+                return Err(Error::SecretAlreadyExists(
+                    secret_meta.label().to_string(),
+                ));
+            }
         }
 
         meta.add_secret_meta(uuid, secret_meta);
