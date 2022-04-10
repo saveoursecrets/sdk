@@ -28,6 +28,9 @@ export default function FileUploadForm(props: FileUploadFormProps) {
 
   const initialLabel = secret && secret.meta.label;
   const initialBuffer = secret && (secret.secret as FileSecret).buffer;
+  const initialMime = secret && (secret.secret as FileSecret).mime;
+
+  const [mime, setMime] = useState(initialMime);
 
   const [label, setLabel] = useState(initialLabel || "");
   const [labelError, setLabelError] = useState(false);
@@ -48,6 +51,10 @@ export default function FileUploadForm(props: FileUploadFormProps) {
     if (size <= MAX_FILE_SIZE) {
       const buffer = await file.arrayBuffer();
       setFile({ name, size, buffer: Array.from(new Uint8Array(buffer)) });
+
+      // Clear any previously set mime type
+      // so the webassembly can try to guess the mime
+      setMime(null);
 
       if (label === "") {
         setLabel(name);
@@ -73,13 +80,16 @@ export default function FileUploadForm(props: FileUploadFormProps) {
       setFileError(true);
     } else {
       const { buffer, name } = file;
+
+      console.log("submit file", buffer.length);
+
       const info: SecretData = {
         secretId: secret && secret.secretId,
         meta: {
           label,
           kind: SecretKind.File,
         },
-        secret: { buffer, name },
+        secret: { buffer, name, mime },
       };
       onFormSubmit(info);
     }

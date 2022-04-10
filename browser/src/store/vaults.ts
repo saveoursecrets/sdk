@@ -1,4 +1,9 @@
-import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import {
+  createSlice,
+  createAsyncThunk,
+  PayloadAction,
+  isRejected,
+} from "@reduxjs/toolkit";
 import { NavigateFunction } from "react-router-dom";
 import { WebVault } from "sos-wasm";
 
@@ -195,6 +200,11 @@ const updateVaultFromThunk = (
   });
 };
 
+const logError = (state: VaultState, action: PayloadAction<Error>) => {
+  //const { payload } = action;
+  console.error(action.error);
+};
+
 const vaultsSlice = createSlice({
   name: "vaults",
   initialState,
@@ -227,6 +237,8 @@ const vaultsSlice = createSlice({
     builder.addCase(createSecret.fulfilled, updateVaultFromThunk);
     builder.addCase(updateSecret.fulfilled, updateVaultFromThunk);
     builder.addCase(deleteSecret.fulfilled, updateVaultFromThunk);
+
+    builder.addMatcher(isRejected, logError);
   },
 });
 

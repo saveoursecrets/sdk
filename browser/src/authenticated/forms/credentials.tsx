@@ -118,6 +118,8 @@ export default function CredentialsForm(props: CredentialsFormProps) {
         secret: map,
       };
 
+      console.log("submit credentials", map);
+
       onFormSubmit(info);
     }
   };
