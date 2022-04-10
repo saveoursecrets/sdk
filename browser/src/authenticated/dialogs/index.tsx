@@ -25,7 +25,7 @@ import {
   SecretReference,
 } from "../../types";
 
-import NewVaultDialog from "./new-vault";
+import CreateVaultDialog from "./create-vault";
 import SecureNoteDialog from "./secure-note";
 import AccountPasswordDialog from "./account-password";
 import CredentialsDialog from "./credentials";
@@ -81,7 +81,7 @@ export default function Dialogs(props: DialogProps) {
 
   return (
     <>
-      <NewVaultDialog
+      <CreateVaultDialog
         worker={worker}
         open={dialogs[NEW_VAULT][0] || false}
         handleCancel={() => cancelDialog(NEW_VAULT)}

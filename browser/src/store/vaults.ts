@@ -108,10 +108,10 @@ export const createNewVault = createAsyncThunk(
   "vaults/create",
   async (request: NewVaultRequest) => {
     const { worker, navigate, result } = request;
-    const { label, password } = result;
+    const { name, label, password } = result;
     /* eslint-disable @typescript-eslint/no-explicit-any */
     const vault: WebVault = await new (worker.WebVault as any)();
-    await vault.initialize(label, password);
+    await vault.initialize(name, label, password);
     const uuid = await vault.id();
     const meta = await vault.getMetaData();
     navigate(`/vault/${uuid}`);

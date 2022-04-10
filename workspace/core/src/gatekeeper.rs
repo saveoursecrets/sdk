@@ -65,9 +65,11 @@ impl Gatekeeper {
     /// Initialize the vault with the given label and password.
     pub fn initialize<S: AsRef<str>>(
         &mut self,
+        name: String,
         label: String,
         password: S,
     ) -> Result<()> {
+
         // Initialize the private key and store the salt
         let private_key = self.vault.initialize(password.as_ref())?;
         self.private_key = Some(Box::new(private_key));
@@ -76,6 +78,8 @@ impl Gatekeeper {
         let mut init_meta_data: MetaData = Default::default();
         init_meta_data.set_label(label);
         self.set_meta(init_meta_data)?;
+
+        self.vault.set_name(name);
         Ok(())
     }
 
@@ -241,7 +245,7 @@ impl Gatekeeper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{secret::Secret, vault::Vault};
+    use crate::{secret::Secret, vault::{Vault, DEFAULT_VAULT_NAME}};
     use anyhow::Result;
 
     #[test]
@@ -250,8 +254,9 @@ mod tests {
         let vault: Vault = Default::default();
         let mut keeper = Gatekeeper::new(vault);
 
+        let name = String::from(DEFAULT_VAULT_NAME);
         let label = String::from("Mock Vault Label");
-        keeper.initialize(label.clone(), passphrase)?;
+        keeper.initialize(name, label.clone(), passphrase)?;
 
         //// Decrypt the initialized meta data.
         let meta = keeper.meta()?;
