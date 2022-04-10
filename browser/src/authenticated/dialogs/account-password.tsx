@@ -13,16 +13,17 @@ interface AccountPasswordProps {
   open: boolean;
   handleCancel: () => void;
   handleOk: (result: SecretData) => void;
+  secret?: SecretData;
 }
 
 export default function AccountPasswordDialog(props: AccountPasswordProps) {
-  const { open, handleCancel, handleOk } = props;
+  const { open, handleCancel, handleOk, secret } = props;
 
   return (
     <Dialog open={open} onClose={handleCancel}>
       <DialogTitle color="text.secondary">Account Password</DialogTitle>
       <DialogContent>
-        <AccountPasswordForm onFormSubmit={handleOk} />
+        <AccountPasswordForm onFormSubmit={handleOk} secret={secret} />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

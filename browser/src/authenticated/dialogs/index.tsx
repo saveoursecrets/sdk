@@ -15,8 +15,8 @@ import {
 import {
   vaultsSelector,
   createNewVault as dispatchNewVault,
-  createNewSecret as dispatchNewSecret,
-  deleteSecret as dispatchDeleteSecret,
+  createSecret,
+  deleteSecret,
   updateSecret,
 } from "../../store/vaults";
 import {
@@ -56,28 +56,40 @@ export default function Dialogs(props: DialogProps) {
     if (result.secretId) {
       dispatch(updateSecret({ result, navigate, owner: current }));
     } else {
-      dispatch(dispatchNewSecret({ result, owner: current }));
+      dispatch(createSecret({ result, owner: current }));
     }
   };
 
   const createNewAccountPassword = async (result: SecretData) => {
     cancelDialog(NEW_ACCOUNT_PASSWORD);
-    dispatch(dispatchNewSecret({ result, owner: current }));
+    if (result.secretId) {
+      dispatch(updateSecret({ result, navigate, owner: current }));
+    } else {
+      dispatch(createSecret({ result, owner: current }));
+    }
   };
 
   const createNewCredentials = async (result: SecretData) => {
     cancelDialog(NEW_CREDENTIALS);
-    dispatch(dispatchNewSecret({ result, owner: current }));
+    if (result.secretId) {
+      dispatch(updateSecret({ result, navigate, owner: current }));
+    } else {
+      dispatch(createSecret({ result, owner: current }));
+    }
   };
 
   const createNewFileUpload = async (result: SecretData) => {
     cancelDialog(NEW_FILE_UPLOAD);
-    dispatch(dispatchNewSecret({ result, owner: current }));
+    if (result.secretId) {
+      dispatch(updateSecret({ result, navigate, owner: current }));
+    } else {
+      dispatch(createSecret({ result, owner: current }));
+    }
   };
 
-  const deleteSecret = async (result: string) => {
+  const onDeleteSecret = async (result: string) => {
     cancelDialog(CONFIRM_DELETE_SECRET);
-    await dispatch(dispatchDeleteSecret({ result, navigate, owner: current }));
+    await dispatch(deleteSecret({ result, navigate, owner: current }));
   };
 
   const cancelDialog = (key: string) => {
@@ -104,6 +116,7 @@ export default function Dialogs(props: DialogProps) {
         open={dialogs[NEW_ACCOUNT_PASSWORD][0] || false}
         handleCancel={() => cancelDialog(NEW_ACCOUNT_PASSWORD)}
         handleOk={createNewAccountPassword}
+        secret={dialogs[NEW_ACCOUNT_PASSWORD][1] as SecretData}
       />
 
       <CredentialsDialog
@@ -121,7 +134,7 @@ export default function Dialogs(props: DialogProps) {
       <ConfirmDeleteSecretDialog
         open={dialogs[CONFIRM_DELETE_SECRET][0] || false}
         handleCancel={() => cancelDialog(CONFIRM_DELETE_SECRET)}
-        handleOk={deleteSecret}
+        handleOk={onDeleteSecret}
         secret={dialogs[CONFIRM_DELETE_SECRET][1] as SecretReference}
       />
     </>
