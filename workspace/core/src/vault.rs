@@ -325,6 +325,11 @@ impl Vault {
         &self.header.name
     }
 
+    /// Set the public name for this vault.
+    pub fn set_name(&mut self, name: String) {
+        self.header.name = name;
+    }
+
     /// Get the encryption algorithm for the vault.
     pub fn algorithm(&self) -> &Algorithm {
         &self.header.algorithm

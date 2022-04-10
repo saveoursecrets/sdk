@@ -68,6 +68,7 @@ export type SecretMeta = {
 
 export type NewVaultResult = {
   label: string;
+  name: string;
   password: string;
 };
 

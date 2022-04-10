@@ -81,15 +81,17 @@ impl WebVault {
         }
     }
 
-    /// Initialize the vault with the given label and password.
+    /// Initialize the vault with the given name, label and password.
     pub fn initialize(
         &mut self,
+        name: JsValue,
         label: JsValue,
         password: JsValue,
     ) -> Result<(), JsError> {
+        let name: String = name.into_serde()?;
         let label: String = label.into_serde()?;
         let password: String = password.into_serde()?;
-        self.keeper.initialize(label, password)?;
+        self.keeper.initialize(name, label, password)?;
         Ok(())
     }
 
