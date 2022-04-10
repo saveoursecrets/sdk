@@ -39,6 +39,11 @@ export type CreateSecretRequest = {
   owner: VaultStorage;
 };
 
+export type ReadSecretRequest = {
+  secretId: string;
+  owner: VaultStorage;
+};
+
 export type UpdateSecretRequest = {
   result: SecretData;
   owner: VaultStorage;
@@ -133,6 +138,15 @@ export const createSecret = createAsyncThunk(
     await vault.create(result);
     const meta = await vault.getMetaData();
     return { ...owner, meta };
+  }
+);
+
+export const readSecret = createAsyncThunk(
+  "vaults/readSecret",
+  async (request: ReadSecretRequest) => {
+    const { secretId, owner } = request;
+    const { vault } = owner;
+    return await vault.read(secretId);
   }
 );
 

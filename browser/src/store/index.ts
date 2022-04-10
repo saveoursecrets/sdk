@@ -24,6 +24,7 @@ const store = configureStore({
           "vaults/create/pending",
           "vaults/create/fulfilled",
           "vaults/create/rejected",
+
           "vaults/lockAll/pending",
           "vaults/lockAll/fulfilled",
           "vaults/lockAll/rejected",
@@ -31,6 +32,10 @@ const store = configureStore({
           "vaults/createSecret/pending",
           "vaults/createSecret/fulfilled",
           "vaults/createSecret/rejected",
+
+          "vaults/readSecret/pending",
+          "vaults/readSecret/fulfilled",
+          "vaults/readSecret/rejected",
 
           "vaults/updateSecret/pending",
           "vaults/updateSecret/fulfilled",
