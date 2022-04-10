@@ -49,16 +49,16 @@ export default function NewSecretDial() {
     console.log("create new secret", kind);
     switch (kind) {
       case SecretKind.Account:
-        dispatch(setDialogVisible([NEW_ACCOUNT_PASSWORD, true]));
+        dispatch(setDialogVisible([NEW_ACCOUNT_PASSWORD, true, null]));
         break;
       case SecretKind.Note:
-        dispatch(setDialogVisible([NEW_SECURE_NOTE, true]));
+        dispatch(setDialogVisible([NEW_SECURE_NOTE, true, null]));
         break;
       case SecretKind.Credentials:
-        dispatch(setDialogVisible([NEW_CREDENTIALS, true]));
+        dispatch(setDialogVisible([NEW_CREDENTIALS, true, null]));
         break;
       case SecretKind.File:
-        dispatch(setDialogVisible([NEW_FILE_UPLOAD, true]));
+        dispatch(setDialogVisible([NEW_FILE_UPLOAD, true, null]));
         break;
     }
   };

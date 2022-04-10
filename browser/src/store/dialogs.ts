@@ -7,16 +7,16 @@ export const NEW_CREDENTIALS = "new-credentials";
 export const NEW_FILE_UPLOAD = "new-file-upload";
 export const CONFIRM_DELETE_SECRET = "confirm-delete-secret";
 
-const dialogs = {};
-dialogs[NEW_VAULT] = [false];
-dialogs[NEW_SECURE_NOTE] = [false];
-dialogs[NEW_ACCOUNT_PASSWORD] = [false];
-dialogs[NEW_CREDENTIALS] = [false];
-dialogs[NEW_FILE_UPLOAD] = [false];
-dialogs[CONFIRM_DELETE_SECRET] = [false];
+const dialogs: DialogDict = {};
+dialogs[NEW_VAULT] = [false, null];
+dialogs[NEW_SECURE_NOTE] = [false, null];
+dialogs[NEW_ACCOUNT_PASSWORD] = [false, null];
+dialogs[NEW_CREDENTIALS] = [false, null];
+dialogs[NEW_FILE_UPLOAD] = [false, null];
+dialogs[CONFIRM_DELETE_SECRET] = [false, null];
 
 export interface DialogDict {
-  [index: string]: [boolean, unknown];
+  [index: string]: [boolean, unknown?];
 }
 
 export interface DialogState {

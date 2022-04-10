@@ -11,7 +11,7 @@ export default function Home() {
   const dispatch = useDispatch();
 
   const showNewVault = () => {
-    dispatch(setDialogVisible([NEW_VAULT, true]));
+    dispatch(setDialogVisible([NEW_VAULT, true, null]));
   };
 
   return (

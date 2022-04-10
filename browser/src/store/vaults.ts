@@ -39,6 +39,12 @@ export type SecretRequest = {
   owner: VaultStorage;
 };
 
+export type DeleteSecretRequest = {
+  result: string;
+  owner: VaultStorage;
+  navigate: NavigateFunction;
+};
+
 type LoadVaultsRequest = {
   user: User;
   worker: VaultWorker;
@@ -123,6 +129,18 @@ export const createNewSecret = createAsyncThunk(
   }
 );
 
+export const deleteSecret = createAsyncThunk(
+  "vaults/deleteSecret",
+  async (request: DeleteSecretRequest) => {
+    const { result, navigate, owner } = request;
+    const { uuid, vault } = owner;
+    await vault.delete(result);
+    const meta = await vault.getMetaData();
+    navigate(`/vault/${uuid}`);
+    return { ...owner, meta };
+  }
+);
+
 const initialState: VaultState = {
   vaults: [],
   current: null,
@@ -173,6 +191,7 @@ const vaultsSlice = createSlice({
       state.vaults = action.payload;
     });
     builder.addCase(createNewSecret.fulfilled, updateVaultFromThunk);
+    builder.addCase(deleteSecret.fulfilled, updateVaultFromThunk);
   },
 });
 

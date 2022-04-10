@@ -158,6 +158,13 @@ impl WebVault {
         Ok(JsValue::from_serde(&uuid)?)
     }
 
+    /// Delete a secret from the vault.
+    pub fn delete(&mut self, uuid: JsValue) -> Result<JsValue, JsError> {
+        let uuid: Uuid = uuid.into_serde()?;
+        let result = self.keeper.delete(&uuid)?;
+        Ok(JsValue::from_serde(&result)?)
+    }
+
     /// Get a secret from the vault.
     #[wasm_bindgen(js_name = "getSecret")]
     pub fn get_secret(&self, uuid: JsValue) -> Result<JsValue, JsError> {

@@ -171,7 +171,7 @@ pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
         let prompt =
             Some("Are you sure you want to delete this secret (y/n)? ");
         if read_flag(prompt)? {
-            keeper.remove(&uuid)?;
+            keeper.delete(&uuid)?;
             keeper.vault().write_file(vault)?;
             log::info!(target: LOG_TARGET, "removed secret {}", uuid);
         }

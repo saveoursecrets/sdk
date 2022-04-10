@@ -16,6 +16,7 @@ import {
   vaultsSelector,
   createNewVault as dispatchNewVault,
   createNewSecret as dispatchNewSecret,
+  deleteSecret as dispatchDeleteSecret,
 } from "../../store/vaults";
 import {
   NewVaultResult,
@@ -69,14 +70,13 @@ export default function Dialogs(props: DialogProps) {
     dispatch(dispatchNewSecret({ result, owner: current }));
   };
 
-  const deleteSecret = async () => {
+  const deleteSecret = async (result: string) => {
     cancelDialog(CONFIRM_DELETE_SECRET);
-    console.log("Delete the secret...");
-    //dispatch(dispatchNewSecret({ result, owner: current }));
+    await dispatch(dispatchDeleteSecret({ result, navigate, owner: current }));
   };
 
   const cancelDialog = (key: string) => {
-    dispatch(setDialogVisible([key, false]));
+    dispatch(setDialogVisible([key, false, null]));
   };
 
   return (
