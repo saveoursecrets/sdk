@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useParams } from "react-router-dom";
 
 import Typography from "@mui/material/Typography";
@@ -17,6 +17,9 @@ import MenuItem from "@mui/material/MenuItem";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 import { vaultsSelector } from "../store/vaults";
+
+import { CONFIRM_DELETE_SECRET, setDialogVisible } from "../store/dialogs";
+
 import {
   SecretMeta,
   SecretKind,
@@ -41,19 +44,38 @@ type SecretMetaProps = {
   meta: SecretMeta;
 };
 
-function SecretIconLabel(props: SecretMetaProps) {
-  const { meta } = props;
+type SecretHeaderProps = {
+  secretId: string;
+} & SecretMetaProps;
+
+function SecretHeader(props: SecretHeaderProps) {
+  const { secretId, meta } = props;
+  const dispatch = useDispatch();
   const label = SecretKindLabel.toString(meta.kind);
 
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const open = Boolean(menuAnchor);
 
-  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
+  const showMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchor(event.currentTarget);
   };
 
-  const handleClose = () => {
-    setAnchorEl(null);
+  const onEdit = (event: React.MouseEvent<HTMLElement>) => {
+    console.log("Edit item", secretId);
+    closeMenu();
+  };
+
+  const onDelete = (event: React.MouseEvent<HTMLElement>) => {
+    console.log("Delete item", secretId);
+    const { label } = meta;
+    dispatch(
+      setDialogVisible([CONFIRM_DELETE_SECRET, true, { label, secretId }])
+    );
+    closeMenu();
+  };
+
+  const closeMenu = () => {
+    setMenuAnchor(null);
   };
 
   const ITEM_HEIGHT = 48;
@@ -76,24 +98,24 @@ function SecretIconLabel(props: SecretMetaProps) {
 
       <IconButton
         sx={{ width: 40, height: 40 }}
-        aria-label="more"
-        id="long-button"
-        aria-controls={open ? "long-menu" : undefined}
+        aria-label="more actions"
+        id="actions-button"
+        aria-controls={open ? "actions-menu" : undefined}
         aria-expanded={open ? "true" : undefined}
         aria-haspopup="true"
-        onClick={handleClick}
+        onClick={showMenu}
       >
         <MoreVertIcon />
       </IconButton>
 
       <Menu
-        id="long-menu"
+        id="actions-menu"
         MenuListProps={{
-          "aria-labelledby": "long-button",
+          "aria-labelledby": "actions-button",
         }}
-        anchorEl={anchorEl}
+        anchorEl={menuAnchor}
         open={open}
-        onClose={handleClose}
+        onClose={closeMenu}
         PaperProps={{
           style: {
             maxHeight: ITEM_HEIGHT * 4.5,
@@ -101,8 +123,8 @@ function SecretIconLabel(props: SecretMetaProps) {
           },
         }}
       >
-        <MenuItem onClick={handleClose}>Edit</MenuItem>
-        <MenuItem onClick={handleClose}>Delete</MenuItem>
+        <MenuItem onClick={onEdit}>Edit</MenuItem>
+        <MenuItem onClick={onDelete}>Delete</MenuItem>
       </Menu>
     </Stack>
   );
@@ -244,13 +266,13 @@ function CredentialsSecretView(props: SecretItemProps) {
 
 type SecretViewProps = WorkerStorageProps & SecretProps;
 
-function SecretLayout(props: SecretMetaProps) {
-  const { meta } = props;
+function SecretLayout(props: SecretHeaderProps) {
+  const { secretId, meta } = props;
   return (
     <Box padding={2}>
       <Paper variant="outlined">
         <Box padding={2}>
-          <SecretIconLabel meta={meta} />
+          <SecretHeader secretId={secretId} meta={meta} />
           <Divider />
           <Box marginTop={1}>{props.children}</Box>
         </Box>
@@ -282,25 +304,25 @@ function SecretView(props: SecretViewProps) {
   switch (meta.kind) {
     case SecretKind.Account:
       return (
-        <SecretLayout meta={meta}>
+        <SecretLayout secretId={secretId} meta={meta}>
           <AccountSecretView meta={meta} secret={secret} />
         </SecretLayout>
       );
     case SecretKind.Note:
       return (
-        <SecretLayout meta={meta}>
+        <SecretLayout secretId={secretId} meta={meta}>
           <NoteSecretView meta={meta} secret={secret} />
         </SecretLayout>
       );
     case SecretKind.Credentials:
       return (
-        <SecretLayout meta={meta}>
+        <SecretLayout secretId={secretId} meta={meta}>
           <CredentialsSecretView meta={meta} secret={secret} />
         </SecretLayout>
       );
     case SecretKind.File:
       return (
-        <SecretLayout meta={meta}>
+        <SecretLayout secretId={secretId} meta={meta}>
           <FileSecretView meta={meta} secret={secret} />
         </SecretLayout>
       );

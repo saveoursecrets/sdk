@@ -51,35 +51,40 @@ export class SecretKindLabel {
   }
 }
 
-export interface VaultWorker {
+export type VaultWorker = {
   WebVault(): Promise<WebVault>;
   generatePassphrase(words: number): Promise<[string, number]>;
-}
+};
 
-export interface SecretMeta {
+export type SecretReference = {
+  secretId: string;
+  label: string;
+};
+
+export type SecretMeta = {
   label: string;
   kind: SecretKind;
-}
+};
 
-export interface NewVaultResult {
+export type NewVaultResult = {
   label: string;
   password: string;
-}
+};
 
-export interface KeyValueError {
+export type KeyValueError = {
   key: boolean;
   value: boolean;
-}
+};
 
-export interface Credentials {
+export type Credentials = {
   [index: string]: string;
-}
+};
 
-export interface UnlockVaultResult {
+export type UnlockVaultResult = {
   password: string;
-}
+};
 
-export interface User {
+export type User = {
   token?: string;
   address?: string;
-}
+};

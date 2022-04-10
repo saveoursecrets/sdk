@@ -5,18 +5,25 @@ export const NEW_SECURE_NOTE = "new-secure-note";
 export const NEW_ACCOUNT_PASSWORD = "new-account-password";
 export const NEW_CREDENTIALS = "new-credentials";
 export const NEW_FILE_UPLOAD = "new-file-upload";
+export const CONFIRM_DELETE_SECRET = "confirm-delete-secret";
+
+const dialogs = {};
+dialogs[NEW_VAULT] = [false];
+dialogs[NEW_SECURE_NOTE] = [false];
+dialogs[NEW_ACCOUNT_PASSWORD] = [false];
+dialogs[NEW_CREDENTIALS] = [false];
+dialogs[NEW_FILE_UPLOAD] = [false];
+dialogs[CONFIRM_DELETE_SECRET] = [false];
 
 export interface DialogDict {
-  [index: string]: boolean;
+  [index: string]: [boolean, unknown];
 }
 
 export interface DialogState {
   dialogs: DialogDict;
 }
 
-const initialState: DialogState = {
-  dialogs: {},
-};
+const initialState: DialogState = { dialogs };
 
 const dialogsSlice = createSlice({
   name: "dialogs",
@@ -24,11 +31,11 @@ const dialogsSlice = createSlice({
   reducers: {
     setDialogVisible: (
       state,
-      { payload }: PayloadAction<[string, boolean]>
+      { payload }: PayloadAction<[string, boolean, unknown]>
     ) => {
-      const [key, value] = payload;
+      const [key, value, data] = payload;
       const dialogs = Object.assign(state.dialogs);
-      dialogs[key] = value;
+      dialogs[key] = [value, data];
       state.dialogs = dialogs;
     },
   },
