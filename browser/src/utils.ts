@@ -1,5 +1,7 @@
 import React from "react";
 
+import { CredentialsSecret } from "./types";
+
 export function download(fileName: string, buffer: Uint8Array, type?: string) {
   const blob = new Blob([buffer], { type: type || "application/octet-stream" });
   const link = document.createElement("a");
@@ -14,6 +16,26 @@ export async function copyToClipboard(
 ) {
   e.preventDefault();
   await window.navigator.clipboard.writeText(text);
+}
+
+export function sortCredentials(
+  secret: CredentialsSecret
+): Array<[string, string]> {
+  const credentials = new Map(Object.entries(secret));
+  // Sort for deterministic ordering
+  return [...credentials.entries()].sort(
+    (a: [string, string], b: [string, string]) => {
+      const [ka] = a;
+      const [kb] = b;
+      if (ka < kb) {
+        return -1;
+      }
+      if (ka > kb) {
+        return 1;
+      }
+      return 0;
+    }
+  );
 }
 
 /**
