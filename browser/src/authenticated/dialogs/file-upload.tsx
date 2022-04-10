@@ -13,16 +13,17 @@ interface FileUploadProps {
   open: boolean;
   handleCancel: () => void;
   handleOk: (result: SecretData) => void;
+  secret?: SecretData;
 }
 
 export default function FileUploadDialog(props: FileUploadProps) {
-  const { open, handleCancel, handleOk } = props;
+  const { open, handleCancel, handleOk, secret } = props;
 
   return (
     <Dialog open={open} onClose={handleCancel}>
       <DialogTitle color="text.secondary">File Upload</DialogTitle>
       <DialogContent>
-        <FileUploadForm onFormSubmit={handleOk} />
+        <FileUploadForm onFormSubmit={handleOk} secret={secret} />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

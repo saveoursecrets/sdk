@@ -130,6 +130,7 @@ export default function Dialogs(props: DialogProps) {
         open={dialogs[NEW_FILE_UPLOAD][0] || false}
         handleCancel={() => cancelDialog(NEW_FILE_UPLOAD)}
         handleOk={createNewFileUpload}
+        secret={dialogs[NEW_FILE_UPLOAD][1] as SecretData}
       />
 
       <ConfirmDeleteSecretDialog
