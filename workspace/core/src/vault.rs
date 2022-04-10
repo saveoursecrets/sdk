@@ -23,6 +23,9 @@ use crate::{
 const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x33];
 const VERSION: u16 = 0;
 
+/// Default public name for a vault.
+pub const DEFAULT_VAULT_NAME: &str = "Login";
+
 /// Authentication information.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Auth {
@@ -53,17 +56,19 @@ pub struct Header {
     version: u16,
     algorithm: Algorithm,
     id: Uuid,
+    name: String,
     auth: Auth,
 }
 
 impl Header {
     /// Create a new header.
-    pub fn new(id: Uuid, algorithm: Algorithm) -> Self {
+    pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
             identity: Box::new(IDENTITY),
             version: VERSION,
             algorithm,
             id,
+            name,
             auth: Default::default(),
         }
     }
@@ -76,6 +81,7 @@ impl Default for Header {
             version: VERSION,
             algorithm: Default::default(),
             id: Uuid::new_v4(),
+            name: DEFAULT_VAULT_NAME.to_string(),
             auth: Default::default(),
         }
     }
@@ -87,6 +93,7 @@ impl Encode for Header {
         ser.writer.write_u16(self.version)?;
         self.algorithm.encode(&mut *ser)?;
         ser.writer.write_string(self.id.to_string())?;
+        ser.writer.write_string(&self.name)?;
         self.auth.encode(&mut *ser)?;
         Ok(())
     }
@@ -117,6 +124,7 @@ impl Decode for Header {
 
         self.id =
             Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
+        self.name = de.reader.read_string()?;
         self.auth.decode(&mut *de)?;
         Ok(())
     }
@@ -240,9 +248,9 @@ impl Decode for Vault {
 
 impl Vault {
     /// Create a new vault.
-    pub fn new(id: Uuid, algorithm: Algorithm) -> Self {
+    pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
-            header: Header::new(id, algorithm),
+            header: Header::new(id, name, algorithm),
             index: Default::default(),
             contents: Default::default(),
             trailer: Default::default(),
@@ -438,7 +446,11 @@ mod tests {
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
         let uuid = Uuid::new_v4();
-        let vault = Vault::new(uuid, Default::default());
+        let vault = Vault::new(
+            uuid,
+            String::from(DEFAULT_VAULT_NAME),
+            Default::default(),
+        );
         let mut stream = MemoryStream::new();
         Vault::encode(&mut stream, &vault)?;
 

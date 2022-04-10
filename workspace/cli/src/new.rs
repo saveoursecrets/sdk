@@ -7,7 +7,7 @@ use sos_core::{
     crypto::{authorize::jwt, keypair::generate},
     diceware,
     passphrase::{words, WordCount},
-    vault::Vault,
+    vault::{Vault, DEFAULT_VAULT_NAME},
     Algorithm,
 };
 use uuid::Uuid;
@@ -23,6 +23,7 @@ use crate::LOG_TARGET;
 /// Create a new empty vault
 pub fn vault(
     destination: PathBuf,
+    name: Option<String>,
     uuid: Option<Uuid>,
     algorithm: Option<Algorithm>,
 ) -> Result<()> {
@@ -53,7 +54,9 @@ pub fn vault(
         Default::default()
     };
 
-    let mut vault = Vault::new(uuid, algorithm);
+    let name = name.unwrap_or_else(|| String::from(DEFAULT_VAULT_NAME));
+
+    let mut vault = Vault::new(uuid, name, algorithm);
     vault.initialize(&passphrase)?;
     vault.write_file(&vault_path)?;
 

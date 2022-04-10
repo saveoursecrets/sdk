@@ -43,6 +43,10 @@ enum New {
         #[clap(short, long)]
         uuid: Option<Uuid>,
 
+        /// Public name for the vault.
+        #[clap(short, long)]
+        name: Option<String>,
+
         /// Encryption algorithm
         #[clap(short, long)]
         algorithm: Option<Algorithm>,
@@ -194,10 +198,11 @@ fn run() -> Result<()> {
         Command::New(cmd) => match cmd {
             New::Vault {
                 destination,
+                name,
                 uuid,
                 algorithm,
             } => {
-                sos_cli::new::vault(destination, uuid, algorithm)?;
+                sos_cli::new::vault(destination, name, uuid, algorithm)?;
             }
             New::Keypair { name, destination } => {
                 sos_cli::new::keypair(name, destination)?;
