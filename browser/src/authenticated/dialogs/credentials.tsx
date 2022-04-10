@@ -13,16 +13,17 @@ interface CredentialsProps {
   open: boolean;
   handleCancel: () => void;
   handleOk: (result: SecretData) => void;
+  secret?: SecretData;
 }
 
 export default function CredentialsDialog(props: CredentialsProps) {
-  const { open, handleCancel, handleOk } = props;
+  const { open, handleCancel, handleOk, secret } = props;
 
   return (
     <Dialog open={open} onClose={handleCancel}>
       <DialogTitle color="text.secondary">Credentials List</DialogTitle>
       <DialogContent>
-        <CredentialsForm onFormSubmit={handleOk} />
+        <CredentialsForm onFormSubmit={handleOk} secret={secret} />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

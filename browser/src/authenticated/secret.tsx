@@ -21,6 +21,7 @@ import { vaultsSelector } from "../store/vaults";
 import {
   NEW_ACCOUNT_PASSWORD,
   NEW_SECURE_NOTE,
+  NEW_CREDENTIALS,
   CONFIRM_DELETE_SECRET,
   setDialogVisible,
 } from "../store/dialogs";
@@ -36,7 +37,7 @@ import {
   CredentialsSecret,
 } from "../types";
 import { WorkerStorageProps, StorageProps } from "../props";
-import { download, humanFileSize } from "../utils";
+import { download, humanFileSize, sortCredentials } from "../utils";
 import { WorkerContext } from "../worker-provider";
 
 import SecretList from "./secret-list";
@@ -80,6 +81,11 @@ function SecretHeader(props: SecretHeaderProps) {
       case SecretKind.Note:
         dispatch(
           setDialogVisible([NEW_SECURE_NOTE, true, { secretId, meta, secret }])
+        );
+        break;
+      case SecretKind.Credentials:
+        dispatch(
+          setDialogVisible([NEW_CREDENTIALS, true, { secretId, meta, secret }])
         );
         break;
       default:
@@ -219,21 +225,8 @@ function FileSecretView(props: SecretItemProps) {
 function CredentialsSecretView(props: SecretItemProps) {
   const secret = props.secret as CredentialsSecret;
 
-  const credentials = new Map(Object.entries(secret));
   // Sort for deterministic ordering
-  const list = [...credentials.entries()].sort(
-    (a: [string, string], b: [string, string]) => {
-      const [ka] = a;
-      const [kb] = b;
-      if (ka < kb) {
-        return -1;
-      }
-      if (ka > kb) {
-        return 1;
-      }
-      return 0;
-    }
-  );
+  const list = sortCredentials(secret);
 
   return (
     <>

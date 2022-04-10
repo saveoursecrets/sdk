@@ -8,26 +8,26 @@ import { KeyValueError } from "../../types";
 
 interface KeyValueSecretProps {
   index: number;
-  name: string;
-  value: string;
   error: KeyValueError;
   onChange: (index: number, key: string, value: string) => void;
+  initialName: string;
+  initialValue: string;
 }
 
 export default function KeyValueSecret(props: KeyValueSecretProps) {
-  const { index, error, onChange } = props;
+  const { index, error, onChange, initialName, initialValue } = props;
 
-  const [key, setKey] = useState(props.name);
-  const [value, setValue] = useState(props.value);
+  const [key, setKey] = useState(initialName || "");
+  const [value, setValue] = useState(initialValue || "");
 
   const onKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setKey(e.target.value);
-    onChange(index, key, value);
+    onChange(index, e.target.value, value);
   };
 
   const onValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setValue(e.target.value);
-    onChange(index, key, value);
+    onChange(index, key, e.target.value);
   };
 
   return (

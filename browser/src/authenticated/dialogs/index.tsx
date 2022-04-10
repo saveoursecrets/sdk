@@ -105,13 +105,6 @@ export default function Dialogs(props: DialogProps) {
         handleOk={createNewVault}
       />
 
-      <SecureNoteDialog
-        open={dialogs[NEW_SECURE_NOTE][0] || false}
-        handleCancel={() => cancelDialog(NEW_SECURE_NOTE)}
-        handleOk={createNewSecureNote}
-        secret={dialogs[NEW_SECURE_NOTE][1] as SecretData}
-      />
-
       <AccountPasswordDialog
         open={dialogs[NEW_ACCOUNT_PASSWORD][0] || false}
         handleCancel={() => cancelDialog(NEW_ACCOUNT_PASSWORD)}
@@ -119,10 +112,18 @@ export default function Dialogs(props: DialogProps) {
         secret={dialogs[NEW_ACCOUNT_PASSWORD][1] as SecretData}
       />
 
+      <SecureNoteDialog
+        open={dialogs[NEW_SECURE_NOTE][0] || false}
+        handleCancel={() => cancelDialog(NEW_SECURE_NOTE)}
+        handleOk={createNewSecureNote}
+        secret={dialogs[NEW_SECURE_NOTE][1] as SecretData}
+      />
+
       <CredentialsDialog
         open={dialogs[NEW_CREDENTIALS][0] || false}
         handleCancel={() => cancelDialog(NEW_CREDENTIALS)}
         handleOk={createNewCredentials}
+        secret={dialogs[NEW_CREDENTIALS][1] as SecretData}
       />
 
       <FileUploadDialog

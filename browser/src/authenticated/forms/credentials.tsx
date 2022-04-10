@@ -8,17 +8,21 @@ import TextField from "@mui/material/TextField";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/RemoveCircleOutline";
 
+import { sortCredentials } from "../../utils";
+
 import {
   Credentials,
   KeyValueError,
   SecretData,
   SecretKind,
+  CredentialsSecret,
 } from "../../types";
 
 import KeyValueSecret from "./key-value-secret";
 
 interface CredentialsFormProps {
   onFormSubmit: (result: SecretData) => void;
+  secret?: SecretData;
 }
 
 function mapErrors(
@@ -43,11 +47,17 @@ function mapErrors(
 }
 
 export default function CredentialsForm(props: CredentialsFormProps) {
-  const { onFormSubmit } = props;
-  const [label, setLabel] = useState("");
+  const { onFormSubmit, secret } = props;
+
+  const initialLabel = secret && secret.meta.label;
+  const initialCredentials = secret && (secret.secret as CredentialsSecret);
+
+  const [label, setLabel] = useState(initialLabel || "");
   const [labelError, setLabelError] = useState(false);
 
-  const [credentials, setCredentials] = useState(Object.entries(new Object()));
+  const initialEntries = sortCredentials(initialCredentials || {});
+  const initialKeyValuePairs = [...initialEntries];
+  const [credentials, setCredentials] = useState(initialEntries);
 
   const [credentialsErrors, setCredentialsErrors] = useState(
     credentials.map(() => ({ key: false, value: false }))
@@ -57,7 +67,6 @@ export default function CredentialsForm(props: CredentialsFormProps) {
     setLabel(e.target.value);
 
   const addCredential = () => {
-    console.log("Credentials before add", credentials);
     const creds = [...credentials];
     creds.unshift(["", ""]);
     setCredentials(creds);
@@ -101,6 +110,7 @@ export default function CredentialsForm(props: CredentialsFormProps) {
       );
 
       const info: SecretData = {
+        secretId: secret && secret.secretId,
         meta: {
           label,
           kind: SecretKind.Credentials,
@@ -135,21 +145,24 @@ export default function CredentialsForm(props: CredentialsFormProps) {
             value: false,
           };
 
-          console.log("render cred", name, value);
-
           const onChange = (index: number, key: string, value: string) => {
             const creds = [...credentials];
             creds[index] = [key, value];
             setCredentials(creds);
           };
 
+          const initialName =
+            initialKeyValuePairs[index] && initialKeyValuePairs[index][0];
+          const initialValue =
+            initialKeyValuePairs[index] && initialKeyValuePairs[index][1];
+
           return (
             <Stack key={index} direction="row" spacing={2} alignItems="center">
               <KeyValueSecret
                 onChange={onChange}
                 error={error}
-                name={name}
-                value={value}
+                initialName={initialName}
+                initialValue={initialValue}
                 index={index}
               />
               <IconButton
