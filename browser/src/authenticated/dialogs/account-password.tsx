@@ -7,12 +7,12 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import AccountPasswordForm from "../forms/account-password";
 
-import { SecretInfo } from "../../types";
+import { SecretData } from "../../types";
 
 interface AccountPasswordProps {
   open: boolean;
   handleCancel: () => void;
-  handleOk: (result: SecretInfo) => void;
+  handleOk: (result: SecretData) => void;
 }
 
 export default function AccountPasswordDialog(props: AccountPasswordProps) {

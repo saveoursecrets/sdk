@@ -97,7 +97,7 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
     let meta = unlock_vault(&mut keeper, true)?;
 
     if let Some((uuid, secret_meta)) = meta.find_by_uuid_or_label(&target) {
-        match keeper.get(&uuid) {
+        match keeper.read(&uuid) {
             Ok(Some((_, secret))) => match secret {
                 Secret::Text(ref note) => {
                     print_secret_header(&secret, secret_meta, HashMap::new());
@@ -214,7 +214,7 @@ pub fn add_account(vault: PathBuf, label: Option<String>) -> Result<()> {
         password,
     };
     let secret_meta = SecretMeta::new(label, secret.kind());
-    let uuid = keeper.add(secret_meta, secret)?;
+    let uuid = keeper.create(secret_meta, secret)?;
     keeper.vault().write_file(vault)?;
     info!(target: LOG_TARGET, "saved secret {}", uuid);
     Ok(())
@@ -248,7 +248,7 @@ pub fn add_note(vault: PathBuf, label: Option<String>) -> Result<()> {
         let note = note.trim_end_matches('\n').to_string();
         let secret = Secret::Text(note);
         let secret_meta = SecretMeta::new(label, secret.kind());
-        let uuid = keeper.add(secret_meta, secret)?;
+        let uuid = keeper.create(secret_meta, secret)?;
         keeper.vault().write_file(vault)?;
         info!(target: LOG_TARGET, "saved secret {}", uuid);
     }
@@ -298,7 +298,7 @@ pub fn add_file(
         name: None,
     };
     let secret_meta = SecretMeta::new(label, secret.kind());
-    let uuid = keeper.add(secret_meta, secret)?;
+    let uuid = keeper.create(secret_meta, secret)?;
     keeper.vault().write_file(vault)?;
     info!(target: LOG_TARGET, "saved secret {}", uuid);
     Ok(())
@@ -337,7 +337,7 @@ pub fn add_credentials(vault: PathBuf, label: Option<String>) -> Result<()> {
 
     let secret = Secret::Credentials(credentials);
     let secret_meta = SecretMeta::new(label, secret.kind());
-    let uuid = keeper.add(secret_meta, secret)?;
+    let uuid = keeper.create(secret_meta, secret)?;
     keeper.vault().write_file(vault)?;
     info!(target: LOG_TARGET, "saved secret {}", uuid);
     Ok(())

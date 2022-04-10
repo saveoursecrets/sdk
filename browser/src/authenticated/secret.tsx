@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
@@ -18,7 +18,11 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 import { vaultsSelector } from "../store/vaults";
 
-import { CONFIRM_DELETE_SECRET, setDialogVisible } from "../store/dialogs";
+import {
+  NEW_SECURE_NOTE,
+  CONFIRM_DELETE_SECRET,
+  setDialogVisible,
+} from "../store/dialogs";
 
 import {
   SecretMeta,
@@ -46,10 +50,11 @@ type SecretMetaProps = {
 
 type SecretHeaderProps = {
   secretId: string;
+  secret: Secret;
 } & SecretMetaProps;
 
 function SecretHeader(props: SecretHeaderProps) {
-  const { secretId, meta } = props;
+  const { secretId, meta, secret } = props;
   const dispatch = useDispatch();
   const label = SecretKindLabel.toString(meta.kind);
 
@@ -61,7 +66,18 @@ function SecretHeader(props: SecretHeaderProps) {
   };
 
   const onEdit = (event: React.MouseEvent<HTMLElement>) => {
-    console.log("Edit item", secretId);
+    console.log("Edit item", secretId, meta.kind, SecretKind.Note);
+    switch (meta.kind) {
+      case SecretKind.Note:
+        console.log("edit a note!");
+        dispatch(
+          setDialogVisible([NEW_SECURE_NOTE, true, { secretId, meta, secret }])
+        );
+        break;
+      default:
+        console.error("TODO: edit other note types");
+    }
+
     closeMenu();
   };
 
@@ -128,36 +144,6 @@ function SecretHeader(props: SecretHeaderProps) {
     </Stack>
   );
 }
-
-/*
-type SecretProps = {
-  secretId: string;
-} & SecretMetaProps;
-
-function SecretHeader(props: SecretProps) {
-  const { meta, secretId } = props;
-
-  const editSecret = (e: React.MouseEvent<HTMLElement>) => {
-    e.preventDefault();
-    console.log("Edit secret", secretId);
-  };
-
-  return null;
-
-  return (
-    <>
-      <Box padding={2}>
-        <Typography variant="h4" component="div">
-          {meta.label}
-        </Typography>
-        <Link href="#" onClick={editSecret}>
-          Edit
-        </Link>
-      </Box>
-    </>
-  );
-}
-*/
 
 type SecretItemProps = {
   meta: SecretMeta;
@@ -266,12 +252,12 @@ function CredentialsSecretView(props: SecretItemProps) {
 type SecretLayoutProps = SecretHeaderProps & { children?: React.ReactNode };
 
 function SecretLayout(props: SecretLayoutProps) {
-  const { secretId, meta } = props;
+  const { secretId, meta, secret } = props;
   return (
     <Box padding={2}>
       <Paper variant="outlined">
         <Box padding={2}>
-          <SecretHeader secretId={secretId} meta={meta} />
+          <SecretHeader secretId={secretId} meta={meta} secret={secret} />
           <Divider />
           <Box marginTop={1}>{props.children}</Box>
         </Box>
@@ -280,20 +266,23 @@ function SecretLayout(props: SecretLayoutProps) {
   );
 }
 
-type SecretViewProps = WorkerStorageProps & SecretHeaderProps;
+type SecretViewProps = {
+  secretId: string;
+} & WorkerStorageProps;
 
 function SecretView(props: SecretViewProps) {
   const { storage, secretId } = props;
   const [secretData, setSecretData] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     const loadSecret = async () => {
       const { vault } = storage;
-      const result = await vault.getSecret(secretId);
+      const result = await vault.read(secretId);
       setSecretData(result);
     };
     loadSecret();
-  }, [secretId]);
+  }, [secretId, searchParams]);
 
   if (!secretData) {
     return null;
@@ -305,25 +294,25 @@ function SecretView(props: SecretViewProps) {
   switch (meta.kind) {
     case SecretKind.Account:
       return (
-        <SecretLayout secretId={secretId} meta={meta}>
+        <SecretLayout secretId={secretId} meta={meta} secret={secret}>
           <AccountSecretView meta={meta} secret={secret} />
         </SecretLayout>
       );
     case SecretKind.Note:
       return (
-        <SecretLayout secretId={secretId} meta={meta}>
+        <SecretLayout secretId={secretId} meta={meta} secret={secret}>
           <NoteSecretView meta={meta} secret={secret} />
         </SecretLayout>
       );
     case SecretKind.Credentials:
       return (
-        <SecretLayout secretId={secretId} meta={meta}>
+        <SecretLayout secretId={secretId} meta={meta} secret={secret}>
           <CredentialsSecretView meta={meta} secret={secret} />
         </SecretLayout>
       );
     case SecretKind.File:
       return (
-        <SecretLayout secretId={secretId} meta={meta}>
+        <SecretLayout secretId={secretId} meta={meta} secret={secret}>
           <FileSecretView meta={meta} secret={secret} />
         </SecretLayout>
       );
@@ -358,12 +347,7 @@ function SecretUnlocked(props: SecretUnlockedProps) {
           uuid={secretId}
         />
         <Box flex={1}>
-          <SecretView
-            storage={storage}
-            worker={worker}
-            secretId={secretId}
-            meta={meta}
-          />
+          <SecretView storage={storage} worker={worker} secretId={secretId} />
         </Box>
       </Stack>
       <NewSecretDial />

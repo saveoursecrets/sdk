@@ -7,12 +7,12 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import CredentialsForm from "../forms/credentials";
 
-import { SecretInfo } from "../../types";
+import { SecretData } from "../../types";
 
 interface CredentialsProps {
   open: boolean;
   handleCancel: () => void;
-  handleOk: (result: SecretInfo) => void;
+  handleOk: (result: SecretData) => void;
 }
 
 export default function CredentialsDialog(props: CredentialsProps) {

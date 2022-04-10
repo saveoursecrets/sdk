@@ -11,14 +11,14 @@ import RemoveIcon from "@mui/icons-material/RemoveCircleOutline";
 import {
   Credentials,
   KeyValueError,
-  SecretInfo,
+  SecretData,
   SecretKind,
 } from "../../types";
 
 import KeyValueSecret from "./key-value-secret";
 
 interface CredentialsFormProps {
-  onFormSubmit: (result: SecretInfo) => void;
+  onFormSubmit: (result: SecretData) => void;
 }
 
 function mapErrors(
@@ -100,13 +100,13 @@ export default function CredentialsForm(props: CredentialsFormProps) {
         {}
       );
 
-      const info: SecretInfo = [
-        {
+      const info: SecretData = {
+        meta: {
           label,
           kind: SecretKind.Credentials,
         },
-        map,
-      ];
+        secret: map,
+      };
 
       onFormSubmit(info);
     }

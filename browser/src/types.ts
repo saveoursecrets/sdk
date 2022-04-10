@@ -1,6 +1,10 @@
 import { WebVault } from "sos-wasm";
 
-export type SecretInfo = [SecretMeta, Secret];
+export type SecretData = {
+  secretId?: string;
+  meta: SecretMeta;
+  secret: Secret;
+};
 
 export type AccountSecret = {
   account: string;

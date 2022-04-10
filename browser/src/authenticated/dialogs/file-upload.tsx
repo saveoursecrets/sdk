@@ -7,12 +7,12 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import FileUploadForm from "../forms/file-upload";
 
-import { SecretInfo } from "../../types";
+import { SecretData } from "../../types";
 
 interface FileUploadProps {
   open: boolean;
   handleCancel: () => void;
-  handleOk: (result: SecretInfo) => void;
+  handleOk: (result: SecretData) => void;
 }
 
 export default function FileUploadDialog(props: FileUploadProps) {

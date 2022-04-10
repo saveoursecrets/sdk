@@ -6,7 +6,7 @@ import api from "./api";
 import {
   NewVaultResult,
   SecretMeta,
-  SecretInfo,
+  SecretData,
   User,
   VaultWorker,
 } from "../types";
@@ -35,8 +35,14 @@ export type NewVaultRequest = {
 };
 
 export type SecretRequest = {
-  result: SecretInfo;
+  result: SecretData;
   owner: VaultStorage;
+};
+
+export type UpdateSecretRequest = {
+  result: SecretData;
+  owner: VaultStorage;
+  navigate: NavigateFunction;
 };
 
 export type DeleteSecretRequest = {
@@ -130,6 +136,19 @@ export const createNewSecret = createAsyncThunk(
   }
 );
 
+export const updateSecret = createAsyncThunk(
+  "vaults/updateSecret",
+  async (request: UpdateSecretRequest) => {
+    const { result, navigate, owner } = request;
+    const { uuid, vault } = owner;
+    await vault.update(result);
+    const meta = await vault.getMetaData();
+    const random = Math.random();
+    navigate(`/vault/${uuid}/${result.secretId}?refresh=${random}`);
+    return { ...owner, meta };
+  }
+);
+
 export const deleteSecret = createAsyncThunk(
   "vaults/deleteSecret",
   async (request: DeleteSecretRequest) => {
@@ -192,6 +211,7 @@ const vaultsSlice = createSlice({
       state.vaults = action.payload;
     });
     builder.addCase(createNewSecret.fulfilled, updateVaultFromThunk);
+    builder.addCase(updateSecret.fulfilled, updateVaultFromThunk);
     builder.addCase(deleteSecret.fulfilled, updateVaultFromThunk);
   },
 });
