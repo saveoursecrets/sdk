@@ -57,6 +57,11 @@ impl Gatekeeper {
         self.vault.id()
     }
 
+    /// Get the public name for the vault.
+    pub fn name(&self) -> &str {
+        self.vault.name()
+    }
+
     /// Initialize the vault with the given label and password.
     pub fn initialize<S: AsRef<str>>(
         &mut self,

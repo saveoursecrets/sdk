@@ -257,11 +257,6 @@ impl Vault {
         }
     }
 
-    /// Get the encryption algorithm for the vault.
-    pub fn algorithm(&self) -> &Algorithm {
-        &self.header.algorithm
-    }
-
     /// Initialize the vault with the given label and password.
     pub fn initialize<S: AsRef<str>>(
         &mut self,
@@ -323,6 +318,16 @@ impl Vault {
     /// Get the unique identifier for this vault.
     pub fn id(&self) -> &Uuid {
         &self.header.id
+    }
+
+    /// Get the public name for this vault.
+    pub fn name(&self) -> &str {
+        &self.header.name
+    }
+
+    /// Get the encryption algorithm for the vault.
+    pub fn algorithm(&self) -> &Algorithm {
+        &self.header.algorithm
     }
 
     /// Get the meta data index.

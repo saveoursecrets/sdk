@@ -392,8 +392,6 @@ export default function Secret() {
     return <p>Secret not found</p>;
   }
 
-  console.log("Render secret", secret);
-
   const [, [, metaData]] = secret;
 
   return (
