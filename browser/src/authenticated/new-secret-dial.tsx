@@ -45,8 +45,7 @@ const actions = [
 export default function NewSecretDial() {
   const dispatch = useDispatch();
 
-  const createNewSecret = (kind: SecretKind) => {
-    console.log("create new secret", kind);
+  const createSecret = (kind: SecretKind) => {
     switch (kind) {
       case SecretKind.Account:
         dispatch(setDialogVisible([NEW_ACCOUNT_PASSWORD, true, null]));
@@ -74,7 +73,7 @@ export default function NewSecretDial() {
           key={action.name}
           icon={action.icon}
           tooltipTitle={action.name}
-          onClick={() => createNewSecret(action.kind)}
+          onClick={() => createSecret(action.kind)}
         />
       ))}
     </SpeedDial>

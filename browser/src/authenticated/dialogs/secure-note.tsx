@@ -23,7 +23,7 @@ export default function SecureNoteDialog(props: SecureNoteProps) {
     <Dialog open={open} onClose={handleCancel}>
       <DialogTitle color="text.secondary">Secure Note</DialogTitle>
       <DialogContent>
-        <SecureNoteForm secret={secret} onFormSubmit={handleOk} />
+        <SecureNoteForm onFormSubmit={handleOk} secret={secret} />
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>

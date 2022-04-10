@@ -5,24 +5,31 @@ import TextField from "@mui/material/TextField";
 
 import ViewablePassword from "./viewable-password";
 
-import { SecretData, SecretKind } from "../../types";
+import { SecretData, SecretKind, AccountSecret } from "../../types";
 
 interface AccountPasswordFormProps {
   onFormSubmit: (result: SecretData) => void;
+  secret?: SecretData;
 }
 
 export default function AccountPasswordForm(props: AccountPasswordFormProps) {
-  const { onFormSubmit } = props;
-  const [label, setLabel] = useState("");
+  const { onFormSubmit, secret } = props;
+
+  const initialLabel = secret && secret.meta.label;
+  const initialAccount = secret && (secret.secret as AccountSecret).account;
+  const initialUrl = secret && (secret.secret as AccountSecret).url;
+  const initialPassword = secret && (secret.secret as AccountSecret).password;
+
+  const [label, setLabel] = useState(initialLabel || "");
   const [labelError, setLabelError] = useState(false);
 
-  const [account, setAccount] = useState("");
+  const [account, setAccount] = useState(initialAccount || "");
   const [accountError, setAccountError] = useState(false);
 
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialUrl || "");
   const [urlError, setUrlError] = useState(false);
 
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(initialPassword || "");
   const [passwordError, setPasswordError] = useState(false);
 
   const onLabelChange = (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -69,6 +76,7 @@ export default function AccountPasswordForm(props: AccountPasswordFormProps) {
       setPassword("");
     } else {
       const info: SecretData = {
+        secretId: secret && secret.secretId,
         meta: {
           label,
           kind: SecretKind.Account,

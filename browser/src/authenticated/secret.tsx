@@ -19,6 +19,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { vaultsSelector } from "../store/vaults";
 
 import {
+  NEW_ACCOUNT_PASSWORD,
   NEW_SECURE_NOTE,
   CONFIRM_DELETE_SECRET,
   setDialogVisible,
@@ -66,10 +67,17 @@ function SecretHeader(props: SecretHeaderProps) {
   };
 
   const onEdit = (event: React.MouseEvent<HTMLElement>) => {
-    console.log("Edit item", secretId, meta.kind, SecretKind.Note);
     switch (meta.kind) {
+      case SecretKind.Account:
+        dispatch(
+          setDialogVisible([
+            NEW_ACCOUNT_PASSWORD,
+            true,
+            { secretId, meta, secret },
+          ])
+        );
+        break;
       case SecretKind.Note:
-        console.log("edit a note!");
         dispatch(
           setDialogVisible([NEW_SECURE_NOTE, true, { secretId, meta, secret }])
         );

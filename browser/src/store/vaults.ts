@@ -34,7 +34,7 @@ export type NewVaultRequest = {
   navigate: NavigateFunction;
 };
 
-export type SecretRequest = {
+export type CreateSecretRequest = {
   result: SecretData;
   owner: VaultStorage;
 };
@@ -125,9 +125,9 @@ export const createNewVault = createAsyncThunk(
   }
 );
 
-export const createNewSecret = createAsyncThunk(
-  "vaults/createNewSecret",
-  async (request: SecretRequest) => {
+export const createSecret = createAsyncThunk(
+  "vaults/createSecret",
+  async (request: CreateSecretRequest) => {
     const { result, owner } = request;
     const { vault } = owner;
     await vault.create(result);
@@ -210,7 +210,7 @@ const vaultsSlice = createSlice({
     builder.addCase(lockAll.fulfilled, (state, action) => {
       state.vaults = action.payload;
     });
-    builder.addCase(createNewSecret.fulfilled, updateVaultFromThunk);
+    builder.addCase(createSecret.fulfilled, updateVaultFromThunk);
     builder.addCase(updateSecret.fulfilled, updateVaultFromThunk);
     builder.addCase(deleteSecret.fulfilled, updateVaultFromThunk);
   },
