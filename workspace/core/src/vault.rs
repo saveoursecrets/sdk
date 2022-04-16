@@ -16,7 +16,7 @@ use crate::{
         aesgcm256, algorithms::*, authorize::PublicKey, secret_key::SecretKey,
         xchacha20poly1305, AeadPack,
     },
-    secret::MetaData,
+    secret::VaultMeta,
     Error, Result,
 };
 
@@ -275,7 +275,7 @@ impl Vault {
             self.header.auth.salt = Some(salt.to_string());
 
             self.index = Default::default();
-            let default_meta: MetaData = Default::default();
+            let default_meta: VaultMeta = Default::default();
             let meta_aead =
                 self.encrypt(&private_key, &encode(&default_meta)?)?;
             self.index.set_meta(Some(meta_aead));

@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 use sos_core::{
     decode, encode,
     gatekeeper::Gatekeeper,
-    secret::{MetaData, Secret, SecretMeta},
+    secret::{Secret, SecretMeta},
     uuid::Uuid,
     vault::Vault,
 };
@@ -83,25 +83,24 @@ impl WebVault {
     }
 
     /// Get the meta data for the vault.
-    #[wasm_bindgen(js_name = "getMetaData")]
+    #[wasm_bindgen(js_name = "getVaultMeta")]
     pub fn get_meta_data(&self) -> Result<JsValue, JsError> {
-        let meta = self.keeper.meta()?;
-        let sorted_meta = self.sort_meta_data(&meta);
+        let _meta = self.keeper.meta()?;
+        let sorted_meta = self.sort_meta_data()?;
         Ok(JsValue::from_serde(&sorted_meta)?)
     }
 
-    fn sort_meta_data<'a>(
-        &self,
-        meta: &'a MetaData,
-    ) -> BTreeMap<String, (&'a Uuid, &'a SecretMeta)> {
-        meta.secrets()
-            .iter()
+    fn sort_meta_data(
+        &self
+    ) -> Result<BTreeMap<String, (Uuid, SecretMeta)>, JsError> {
+        Ok(self.keeper.meta_data()?
+            .into_iter()
             .map(|(k, v)| {
                 let key =
                     format!("{} {}", v.label().to_lowercase().to_string(), k);
-                (key, (k, v))
+                (key, (*k, v))
             })
-            .collect()
+            .collect())
     }
 
     /// Get the identifier for the vault.
@@ -256,8 +255,8 @@ impl WebVault {
     /// Unlock the vault.
     pub fn unlock(&mut self, passphrase: JsValue) -> Result<JsValue, JsError> {
         let passphrase: String = passphrase.into_serde()?;
-        let meta = self.keeper.unlock(passphrase)?;
-        let sorted_meta = self.sort_meta_data(&meta);
+        let _meta = self.keeper.unlock(passphrase)?;
+        let sorted_meta = self.sort_meta_data()?;
         Ok(JsValue::from_serde(&sorted_meta)?)
     }
 

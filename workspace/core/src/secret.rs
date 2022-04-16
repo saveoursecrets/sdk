@@ -33,7 +33,7 @@ impl FromStr for UuidOrName {
 
 /// Unencrypted vault meta data.
 #[derive(Default, Serialize, Deserialize)]
-pub struct MetaData {
+pub struct VaultMeta {
     /// The human-friendly label for the vault.
     label: String,
 
@@ -43,7 +43,7 @@ pub struct MetaData {
     */
 }
 
-impl MetaData {
+impl VaultMeta {
     /// Get the vault label.
     pub fn label(&self) -> &str {
         &self.label
@@ -109,7 +109,7 @@ impl MetaData {
     }
 }
 
-impl Encode for MetaData {
+impl Encode for VaultMeta {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         self.label.serialize(&mut *ser)?;
         //self.secrets.serialize(&mut *ser)?;
@@ -117,7 +117,7 @@ impl Encode for MetaData {
     }
 }
 
-impl Decode for MetaData {
+impl Decode for VaultMeta {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.label = Deserialize::deserialize(&mut *de)?;
         //self.secrets = Deserialize::deserialize(&mut *de)?;

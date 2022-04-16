@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, Result};
 use human_bytes::human_bytes;
 use sos_core::{
     gatekeeper::Gatekeeper,
-    secret::{MetaData, Secret, SecretMeta, UuidOrName},
+    secret::{VaultMeta, Secret, SecretMeta, UuidOrName},
     vault::Vault,
 };
 use std::{
@@ -29,7 +29,7 @@ fn load_vault(vault: &PathBuf) -> Result<Gatekeeper> {
     Ok(Gatekeeper::new(vault))
 }
 
-fn unlock_vault(keeper: &mut Gatekeeper, stdin: bool) -> Result<MetaData> {
+fn unlock_vault(keeper: &mut Gatekeeper, stdin: bool) -> Result<VaultMeta> {
     let passphrase = if stdin {
         if let Some(passphrase) = read_stdin()? {
             passphrase
