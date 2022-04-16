@@ -8,7 +8,7 @@ use sos_core::{
 use std::{
     collections::HashMap,
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 use url::Url;
 
@@ -21,7 +21,7 @@ use crate::{
 };
 use log::{error, info, warn};
 
-fn load_vault(vault: &PathBuf) -> Result<Gatekeeper> {
+fn load_vault(vault: &Path) -> Result<Gatekeeper> {
     if !vault.is_file() {
         bail!("vault file {} does not exist", vault.display());
     }
@@ -282,7 +282,7 @@ pub fn add_file(
         label
     } else {
         file.file_name()
-            .ok_or(anyhow!("not a valid filename"))
+            .ok_or_else(|| anyhow!("not a valid filename"))
             .map(|name| name.to_string_lossy().into_owned())?
     };
 

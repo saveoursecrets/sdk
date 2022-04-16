@@ -104,36 +104,28 @@ pub fn read_line(prompt: Option<&str>) -> Result<String> {
 /// Read an optional string.
 pub fn read_option(prompt: Option<&str>) -> Result<Option<String>> {
     let mut rl = rustyline::Editor::<()>::new();
-    loop {
-        let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
-        match readline {
-            Ok(line) => {
-                if !line.trim().is_empty() {
-                    return Ok(Some(line));
-                } else {
-                    return Ok(None);
-                }
+    let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
+    match readline {
+        Ok(line) => {
+            if !line.trim().is_empty() {
+                Ok(Some(line))
+            } else {
+                Ok(None)
             }
-            Err(e) => return Err(anyhow!(e)),
         }
+        Err(e) => Err(anyhow!(e)),
     }
 }
 
 /// Read a flag value (y/n).
 pub fn read_flag(prompt: Option<&str>) -> Result<bool> {
     let mut rl = rustyline::Editor::<()>::new();
-    loop {
-        let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
-        match readline {
-            Ok(ref line) => {
-                let flag = if line == "y" || line == "yes" {
-                    true
-                } else {
-                    false
-                };
-                return Ok(flag);
-            }
-            Err(e) => return Err(anyhow!(e)),
+    let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
+    match readline {
+        Ok(ref line) => {
+            let flag = line == "y" || line == "yes";
+            Ok(flag)
         }
+        Err(e) => Err(anyhow!(e)),
     }
 }

@@ -262,11 +262,8 @@ fn main() -> Result<()> {
     }
     pretty_env_logger::init();
 
-    match run() {
-        Err(e) => {
-            log::error!(target: LOG_TARGET, "{}", e);
-        }
-        _ => {}
+    if let Err(e) = run() {
+        log::error!(target: LOG_TARGET, "{}", e);
     }
 
     Ok(())
