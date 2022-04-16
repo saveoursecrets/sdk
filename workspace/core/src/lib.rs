@@ -6,8 +6,10 @@ pub mod crypto;
 pub mod diceware;
 pub mod error;
 pub mod gatekeeper;
+pub mod operations;
 pub mod passphrase;
 pub mod secret;
+pub mod signer;
 pub mod vault;
 
 pub use crypto::algorithms::Algorithm;

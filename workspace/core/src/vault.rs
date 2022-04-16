@@ -20,8 +20,11 @@ use crate::{
     Error, Result,
 };
 
-const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x33];
-const VERSION: u16 = 0;
+/// Identity magic bytes.
+pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x33];
+
+/// Vault version identifier.
+pub const VERSION: u16 = 0;
 
 /// Default public name for a vault.
 pub const DEFAULT_VAULT_NAME: &str = "Login";
