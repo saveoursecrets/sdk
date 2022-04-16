@@ -57,6 +57,7 @@ pub struct Header {
     algorithm: Algorithm,
     id: Uuid,
     name: String,
+    meta: Option<AeadPack>,
     auth: Auth,
 }
 
@@ -69,8 +70,19 @@ impl Header {
             algorithm,
             id,
             name,
+            meta: None,
             auth: Default::default(),
         }
+    }
+
+    /// Get the encrypted meta data for the vault.
+    pub fn meta(&self) -> Option<&AeadPack> {
+        self.meta.as_ref()
+    }
+
+    /// Set the encrypted meta data for the vault.
+    pub fn set_meta(&mut self, meta: Option<AeadPack>) {
+        self.meta = meta;
     }
 }
 
@@ -82,6 +94,7 @@ impl Default for Header {
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
+            meta: None,
             auth: Default::default(),
         }
     }
@@ -94,6 +107,12 @@ impl Encode for Header {
         self.algorithm.encode(&mut *ser)?;
         ser.writer.write_string(self.id.to_string())?;
         ser.writer.write_string(&self.name)?;
+
+        ser.writer.write_bool(self.meta.is_some())?;
+        if let Some(meta) = &self.meta {
+            meta.encode(ser)?;
+        }
+
         self.auth.encode(&mut *ser)?;
         Ok(())
     }
@@ -125,41 +144,7 @@ impl Decode for Header {
         self.id =
             Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
         self.name = de.reader.read_string()?;
-        self.auth.decode(&mut *de)?;
-        Ok(())
-    }
-}
 
-/// Index of meta data describing the contents.
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct Index {
-    meta: Option<AeadPack>,
-}
-
-impl Index {
-    /// Get the encrypted meta data for the index.
-    pub fn meta(&self) -> Option<&AeadPack> {
-        self.meta.as_ref()
-    }
-
-    /// Set the encrypted meta data for the index.
-    pub fn set_meta(&mut self, meta: Option<AeadPack>) {
-        self.meta = meta;
-    }
-}
-
-impl Encode for Index {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_bool(self.meta.is_some())?;
-        if let Some(meta) = &self.meta {
-            meta.encode(ser)?;
-        }
-        Ok(())
-    }
-}
-
-impl Decode for Index {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let has_meta = de.reader.read_bool()?;
         if has_meta {
             self.meta = Some(Default::default());
@@ -168,6 +153,7 @@ impl Decode for Index {
             }
         }
 
+        self.auth.decode(&mut *de)?;
         Ok(())
     }
 }
@@ -225,7 +211,6 @@ impl Decode for Trailer {
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Vault {
     header: Header,
-    index: Index,
     contents: Contents,
     trailer: Trailer,
 }
@@ -233,7 +218,6 @@ pub struct Vault {
 impl Encode for Vault {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         self.header.encode(ser)?;
-        self.index.encode(ser)?;
         self.contents.encode(ser)?;
         self.trailer.encode(ser)?;
         Ok(())
@@ -243,7 +227,6 @@ impl Encode for Vault {
 impl Decode for Vault {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.header.decode(de)?;
-        self.index.decode(de)?;
         self.contents.decode(de)?;
         self.trailer.decode(de)?;
         Ok(())
@@ -255,7 +238,6 @@ impl Vault {
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
             header: Header::new(id, name, algorithm),
-            index: Default::default(),
             contents: Default::default(),
             trailer: Default::default(),
         }
@@ -274,11 +256,10 @@ impl Vault {
             // private key later
             self.header.auth.salt = Some(salt.to_string());
 
-            self.index = Default::default();
             let default_meta: VaultMeta = Default::default();
             let meta_aead =
                 self.encrypt(&private_key, &encode(&default_meta)?)?;
-            self.index.set_meta(Some(meta_aead));
+            self.header.set_meta(Some(meta_aead));
             Ok(private_key)
         } else {
             Err(Error::VaultAlreadyInit)
@@ -339,20 +320,22 @@ impl Vault {
         &self.header.algorithm
     }
 
-    /// Get the meta data index.
-    pub fn index(&self) -> &Index {
-        &self.index
+    /// Get the vault header.
+    pub fn header(&self) -> &Header {
+        &self.header
     }
 
-    /// Get the mutable meta data index.
-    pub fn index_mut(&mut self) -> &mut Index {
-        &mut self.index
+    /// Get the mutable vault header.
+    pub fn header_mut(&mut self) -> &mut Header {
+        &mut self.header
     }
 
-    /// Set the vault meta data index.
+    /*
+    /// Set the vault header.
     pub fn set_index(&mut self, index: Index) {
         self.index = index;
     }
+    */
 
     /// Add an encrypted secret to the vault.
     pub fn add_secret(&mut self, uuid: Uuid, secret: (AeadPack, AeadPack)) {

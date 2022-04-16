@@ -86,7 +86,7 @@ impl Gatekeeper {
     /// Attempt to decrypt the index meta data and extract the label.
     pub fn label(&self) -> Result<String> {
         if let Some(private_key) = &self.private_key {
-            if let Some(meta_aead) = self.vault.index().meta() {
+            if let Some(meta_aead) = self.vault.header().meta() {
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
                 let meta_data: VaultMeta = decode(meta_blob)?;
                 Ok(meta_data.label().to_string())
@@ -101,7 +101,7 @@ impl Gatekeeper {
     /// Attempt to decrypt the secrets meta data.
     pub fn meta_data(&self) -> Result<HashMap<&Uuid, SecretMeta>> {
         if let Some(private_key) = &self.private_key {
-            if let Some(meta_aead) = self.vault.index().meta() {
+            if let Some(meta_aead) = self.vault.header().meta() {
                 let mut result = HashMap::new();
                 for (uuid, meta_aead) in self.vault.meta_data() {
                     let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
@@ -121,7 +121,7 @@ impl Gatekeeper {
     /// using the passphrase assigned to this gatekeeper.
     pub fn meta(&self) -> Result<VaultMeta> {
         if let Some(private_key) = &self.private_key {
-            if let Some(meta_aead) = self.vault.index().meta() {
+            if let Some(meta_aead) = self.vault.header().meta() {
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
                 let meta_data: VaultMeta = decode(meta_blob)?;
                 Ok(meta_data)
@@ -138,7 +138,7 @@ impl Gatekeeper {
         if let Some(private_key) = &self.private_key {
             let meta_blob = encode(&meta_data)?;
             let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
-            self.vault.index_mut().set_meta(Some(meta_aead));
+            self.vault.header_mut().set_meta(Some(meta_aead));
             Ok(())
         } else {
             Err(Error::VaultLocked)
