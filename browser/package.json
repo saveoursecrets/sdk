@@ -8,8 +8,9 @@
   "scripts": {
     "clean": "rm -rf ./dist ./.parcel-cache",
     "types": "tsc --noEmit --project tsconfig.json",
+    "assets": "cp -r ./assets ./dist",
     "public": "rm -rf ../workspace/server/public && cp -r dist ../workspace/server/public",
-    "build": "parcel build index.html && yarn public",
+    "build": "parcel build index.html && yarn assets && yarn public",
     "start": "parcel index.html --port 8080",
     "prettier": "prettier --write . --no-color",
     "lint": "eslint src",

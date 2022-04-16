@@ -2,13 +2,13 @@ use anyhow::{anyhow, bail, Result};
 use human_bytes::human_bytes;
 use sos_core::{
     gatekeeper::Gatekeeper,
-    secret::{MetaData, Secret, SecretMeta, UuidOrName},
+    secret::{Secret, SecretMeta, UuidOrName, VaultMeta},
     vault::Vault,
 };
 use std::{
     collections::HashMap,
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 use url::Url;
 
@@ -21,7 +21,7 @@ use crate::{
 };
 use log::{error, info, warn};
 
-fn load_vault(vault: &PathBuf) -> Result<Gatekeeper> {
+fn load_vault(vault: &Path) -> Result<Gatekeeper> {
     if !vault.is_file() {
         bail!("vault file {} does not exist", vault.display());
     }
@@ -29,7 +29,7 @@ fn load_vault(vault: &PathBuf) -> Result<Gatekeeper> {
     Ok(Gatekeeper::new(vault))
 }
 
-fn unlock_vault(keeper: &mut Gatekeeper, stdin: bool) -> Result<MetaData> {
+fn unlock_vault(keeper: &mut Gatekeeper, stdin: bool) -> Result<VaultMeta> {
     let passphrase = if stdin {
         if let Some(passphrase) = read_stdin()? {
             passphrase
@@ -46,7 +46,7 @@ fn unlock_vault(keeper: &mut Gatekeeper, stdin: bool) -> Result<MetaData> {
 pub fn list(vault: PathBuf) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
     let meta_data = unlock_vault(&mut keeper, true)?;
-    let secrets = meta_data.secrets();
+    let secrets = keeper.meta_data()?;
     if secrets.is_empty() {
         info!(target: LOG_TARGET, "Empty vault");
     } else {
@@ -282,7 +282,7 @@ pub fn add_file(
         label
     } else {
         file.file_name()
-            .ok_or(anyhow!("not a valid filename"))
+            .ok_or_else(|| anyhow!("not a valid filename"))
             .map(|name| name.to_string_lossy().into_owned())?
     };
 
