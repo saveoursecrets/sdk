@@ -45,12 +45,12 @@ fn unlock_vault(keeper: &mut Gatekeeper, stdin: bool) -> Result<VaultMeta> {
 /// List the secrets in a vault.
 pub fn list(vault: PathBuf) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let meta_data = unlock_vault(&mut keeper, true)?;
-    let secrets = keeper.meta_data()?;
-    if secrets.is_empty() {
+    let vault_meta = unlock_vault(&mut keeper, true)?;
+    let meta_data = keeper.meta_data()?;
+    if meta_data.is_empty() {
         info!(target: LOG_TARGET, "Empty vault");
     } else {
-        for (id, meta) in secrets {
+        for (id, meta) in meta_data {
             info!(
                 target: LOG_TARGET,
                 "[{}] \"{}\" {}",
@@ -94,9 +94,10 @@ fn write_stdout(buffer: &[u8]) -> Result<()> {
 /// Show a secret from the vault.
 pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let meta = unlock_vault(&mut keeper, true)?;
+    let vault_meta = unlock_vault(&mut keeper, true)?;
+    let meta_data = keeper.meta_data()?;
 
-    if let Some((uuid, secret_meta)) = meta.find_by_uuid_or_label(&target) {
+    if let Some((uuid, secret_meta)) = keeper.find_by_uuid_or_label(&meta_data, &target) {
         match keeper.read(&uuid) {
             Ok(Some((_, secret))) => match secret {
                 Secret::Text(ref note) => {
@@ -160,9 +161,11 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
 /// Remove a secret from the vault.
 pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let meta = unlock_vault(&mut keeper, true)?;
+    let vault_meta = unlock_vault(&mut keeper, true)?;
+    let meta_data = keeper.meta_data()?;
 
-    if let Some((uuid, _)) = meta.find_by_uuid_or_label(&target) {
+    if let Some((uuid, _)) = keeper.find_by_uuid_or_label(&meta_data, &target) {
+        let id = *uuid;
         let delimiter = "-".repeat(60);
         warn!(target: LOG_TARGET, "{}", delimiter);
         warn!(target: LOG_TARGET, "DELETING A SECRET IS IRREVERSIBLE!");
@@ -171,9 +174,9 @@ pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
         let prompt =
             Some("Are you sure you want to delete this secret (y/n)? ");
         if read_flag(prompt)? {
-            keeper.delete(&uuid)?;
+            keeper.delete(&id)?;
             keeper.vault().write_file(vault)?;
-            log::info!(target: LOG_TARGET, "removed secret {}", uuid);
+            log::info!(target: LOG_TARGET, "removed secret {}", id);
         }
     } else {
         // Secret meta data not found
@@ -185,7 +188,8 @@ pub fn remove(vault: PathBuf, target: UuidOrName) -> Result<()> {
 /// Add a secret account to the vault.
 pub fn add_account(vault: PathBuf, label: Option<String>) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let meta = unlock_vault(&mut keeper, false)?;
+    let vault_meta = unlock_vault(&mut keeper, false)?;
+    let meta_data = keeper.meta_data()?;
 
     let mut label = if let Some(label) = label {
         label
@@ -193,7 +197,7 @@ pub fn add_account(vault: PathBuf, label: Option<String>) -> Result<()> {
         read_line(Some("Label: "))?
     };
 
-    while meta.find_by_label(&label).is_some() {
+    while keeper.find_by_label(&meta_data, &label).is_some() {
         error!(target: LOG_TARGET, "secret already exists for '{}'", &label);
         label = read_line(Some("Label: "))?
     }
@@ -223,7 +227,8 @@ pub fn add_account(vault: PathBuf, label: Option<String>) -> Result<()> {
 /// Add a secret note to the vault.
 pub fn add_note(vault: PathBuf, label: Option<String>) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let meta = unlock_vault(&mut keeper, false)?;
+    let vault_meta = unlock_vault(&mut keeper, false)?;
+    let meta_data = keeper.meta_data()?;
     let delimiter = "-".repeat(60);
 
     let mut label = if let Some(label) = label {
@@ -232,7 +237,7 @@ pub fn add_note(vault: PathBuf, label: Option<String>) -> Result<()> {
         read_line(Some("Label: "))?
     };
 
-    while meta.find_by_label(&label).is_some() {
+    while keeper.find_by_label(&meta_data, &label).is_some() {
         error!(target: LOG_TARGET, "secret already exists for '{}'", &label);
         label = read_line(Some("Label: "))?
     }
@@ -266,7 +271,8 @@ pub fn add_file(
     }
 
     let mut keeper = load_vault(&vault)?;
-    let meta = unlock_vault(&mut keeper, false)?;
+    let vault_meta = unlock_vault(&mut keeper, false)?;
+    let meta_data = keeper.meta_data()?;
 
     let mime = if let Some(name) = file.file_name() {
         if let Some(name) = name.to_str() {
@@ -286,7 +292,7 @@ pub fn add_file(
             .map(|name| name.to_string_lossy().into_owned())?
     };
 
-    while meta.find_by_label(&label).is_some() {
+    while keeper.find_by_label(&meta_data, &label).is_some() {
         error!(target: LOG_TARGET, "secret already exists for '{}'", &label);
         label = read_line(Some("Label: "))?
     }
@@ -307,7 +313,8 @@ pub fn add_file(
 /// Add a credentials list to the vault.
 pub fn add_credentials(vault: PathBuf, label: Option<String>) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
-    let meta = unlock_vault(&mut keeper, false)?;
+    let vault_meta = unlock_vault(&mut keeper, false)?;
+    let meta_data = keeper.meta_data()?;
 
     let mut label = if let Some(label) = label {
         label
@@ -315,7 +322,7 @@ pub fn add_credentials(vault: PathBuf, label: Option<String>) -> Result<()> {
         read_line(Some("Label: "))?
     };
 
-    while meta.find_by_label(&label).is_some() {
+    while keeper.find_by_label(&meta_data, &label).is_some() {
         error!(target: LOG_TARGET, "secret already exists for '{}'", &label);
         label = read_line(Some("Label: "))?;
     }

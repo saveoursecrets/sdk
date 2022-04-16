@@ -17,7 +17,7 @@
 use crate::{
     crypto::secret_key::SecretKey,
     decode, encode,
-    secret::{Secret, SecretMeta, VaultMeta},
+    secret::{Secret, SecretMeta, VaultMeta, UuidOrName},
     vault::Vault,
     Error, Result,
 };
@@ -101,7 +101,7 @@ impl Gatekeeper {
     /// Attempt to decrypt the secrets meta data.
     pub fn meta_data(&self) -> Result<HashMap<&Uuid, SecretMeta>> {
         if let Some(private_key) = &self.private_key {
-            if let Some(meta_aead) = self.vault.header().meta() {
+            if let Some(_) = self.vault.header().meta() {
                 let mut result = HashMap::new();
                 for (uuid, meta_aead) in self.vault.meta_data() {
                     let meta_blob =
@@ -146,20 +146,6 @@ impl Gatekeeper {
         }
     }
 
-    /*
-    /// Set the meta data for a secret.
-    fn set_secret_meta(
-        &mut self,
-        uuid: Uuid,
-        meta_data: SecretMeta,
-    ) -> Result<()> {
-        let mut meta = self.meta()?;
-        meta.add_secret_meta(uuid, meta_data);
-        self.set_meta(meta)?;
-        Ok(())
-    }
-    */
-
     /// Get the meta data for a secret.
     fn get_secret_meta(&self, uuid: &Uuid) -> Result<Option<SecretMeta>> {
         if let Some(private_key) = &self.private_key {
@@ -191,6 +177,35 @@ impl Gatekeeper {
         }
     }
 
+    /// Find secret meta by label.
+    pub fn find_by_label<'a>(
+        &self,
+        meta_data: &'a HashMap<&'a Uuid, SecretMeta>,
+        label: &str,
+    ) -> Option<&'a SecretMeta> {
+        meta_data.values().find(|m| m.label() == label)
+    }
+
+    /// Find secret meta by uuid or label.
+    pub fn find_by_uuid_or_label<'a>(
+        &self,
+        meta_data: &'a HashMap<&'a Uuid, SecretMeta>,
+        target: &'a UuidOrName,
+    ) -> Option<(&'a Uuid, &'a SecretMeta)> {
+        match target {
+            UuidOrName::Uuid(uuid) => {
+                meta_data.get(uuid).map(|v| (uuid, v))
+            }
+            UuidOrName::Name(name) => meta_data.iter().find_map(|(k, v)| {
+                if v.label() == name {
+                    return Some((*k, v));
+                } else {
+                    None
+                }
+            }),
+        }
+    }
+
     /// Add a secret to the vault.
     pub fn create(
         &mut self,
@@ -199,18 +214,14 @@ impl Gatekeeper {
     ) -> Result<Uuid> {
         let uuid = Uuid::new_v4();
 
-        /*
-        let mut meta = self.meta()?;
+        // TODO: use cached in-memory meta data
+        let meta = self.meta_data()?;
 
-        if meta.find_by_label(secret_meta.label()).is_some() {
+        if self.find_by_label(&meta, secret_meta.label()).is_some() {
             return Err(Error::SecretAlreadyExists(
                 secret_meta.label().to_string(),
             ));
         }
-        */
-
-        //meta.add_secret_meta(uuid, secret_meta);
-        //self.set_meta(meta)?;
 
         if let Some(private_key) = &self.private_key {
             let meta_blob = encode(&secret_meta)?;
@@ -245,10 +256,11 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<()> {
-        /*
-        let mut meta = self.meta()?;
 
-        let existing_meta = meta.get_secret_meta(&uuid);
+        // TODO: use cached in-memory meta data
+        let meta = self.meta_data()?;
+
+        let existing_meta = meta.get(&uuid);
 
         if existing_meta.is_none() {
             return Err(Error::SecretDoesNotExist(uuid));
@@ -258,16 +270,12 @@ impl Gatekeeper {
 
         // Label has changed, so ensure uniqueness
         if existing_meta.label() != secret_meta.label() {
-            if meta.find_by_label(secret_meta.label()).is_some() {
+            if self.find_by_label(&meta, secret_meta.label()).is_some() {
                 return Err(Error::SecretAlreadyExists(
                     secret_meta.label().to_string(),
                 ));
             }
         }
-
-        meta.add_secret_meta(uuid, secret_meta);
-        self.set_meta(meta)?;
-        */
 
         if let Some(private_key) = &self.private_key {
             let meta_blob = encode(&secret_meta)?;
