@@ -128,21 +128,12 @@ impl Default for Nonce {
 }
 
 /// Encrypted data with the nonce.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct AeadPack {
     /// Number once value.
     pub nonce: Nonce,
     /// Encrypted cipher text.
     pub ciphertext: Vec<u8>,
-}
-
-impl Default for AeadPack {
-    fn default() -> Self {
-        Self {
-            nonce: Default::default(),
-            ciphertext: Default::default(),
-        }
-    }
 }
 
 impl Encode for AeadPack {
