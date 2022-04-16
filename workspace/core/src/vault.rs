@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn decode_file() -> Result<()> {
-        let vault = Vault::read_file(
+        let _vault = Vault::read_file(
             "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
         )?;
         Ok(())
@@ -455,7 +455,7 @@ mod tests {
         let buffer = std::fs::read(
             "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
         )?;
-        let vault: Vault = decode(buffer)?;
+        let _vault: Vault = decode(buffer)?;
         Ok(())
     }
 }

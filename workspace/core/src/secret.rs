@@ -36,10 +36,6 @@ impl FromStr for UuidOrName {
 pub struct VaultMeta {
     /// The human-friendly label for the vault.
     label: String,
-    /*
-    /// Map of secret identifiers to meta data about the secret.
-    secrets: HashMap<Uuid, SecretMeta>,
-    */
 }
 
 impl VaultMeta {
@@ -52,65 +48,11 @@ impl VaultMeta {
     pub fn set_label(&mut self, label: String) {
         self.label = label;
     }
-
-    //////
-
-    /*
-    /// Get the secrets map.
-    pub fn secrets(&self) -> &HashMap<Uuid, SecretMeta> {
-        &self.secrets
-    }
-    */
-
-    /// Add meta data for a secret.
-    pub fn add_secret_meta(&mut self, uuid: Uuid, meta: SecretMeta) {
-        //self.secrets.insert(uuid, meta);
-    }
-
-    /// Get meta data for a secret.
-    pub fn get_secret_meta(&self, uuid: &Uuid) -> Option<&SecretMeta> {
-        //self.secrets.get(uuid)
-        None
-    }
-
-    /// Remove meta data for a secret.
-    pub fn remove_secret_meta(&mut self, uuid: &Uuid) {
-        //self.secrets.remove(uuid);
-    }
-
-    /// Find secret meta by label.
-    pub fn find_by_label(&self, label: &str) -> Option<&SecretMeta> {
-        //self.secrets.values().find(|m| m.label() == label)
-        None
-    }
-
-    /// Find secret meta by uuid or label.
-    pub fn find_by_uuid_or_label(
-        &self,
-        target: &UuidOrName,
-    ) -> Option<(Uuid, &SecretMeta)> {
-        /*
-        match target {
-            UuidOrName::Uuid(uuid) => {
-                self.secrets.get(uuid).map(|v| (*uuid, v))
-            }
-            UuidOrName::Name(name) => self.secrets.iter().find_map(|(k, v)| {
-                if v.label() == name {
-                    return Some((*k, v));
-                } else {
-                    None
-                }
-            }),
-        }
-        */
-        None
-    }
 }
 
 impl Encode for VaultMeta {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         self.label.serialize(&mut *ser)?;
-        //self.secrets.serialize(&mut *ser)?;
         Ok(())
     }
 }
@@ -118,7 +60,6 @@ impl Encode for VaultMeta {
 impl Decode for VaultMeta {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.label = Deserialize::deserialize(&mut *de)?;
-        //self.secrets = Deserialize::deserialize(&mut *de)?;
         Ok(())
     }
 }
