@@ -25,6 +25,10 @@ pub enum Error {
     #[error("unknown secret kind {0}")]
     UnknownSecretKind(u8),
 
+    /// Error generated when the kind of a payload is unknown.
+    #[error("unknown payload kind {0}")]
+    UnknownPayloadKind(u8),
+
     /// Error generated when an AeadPack contains a nonce that
     /// is invalid for the decryption algorithm.
     #[error("invalid nonce")]
