@@ -7,7 +7,7 @@ browser-gui:
 	@cd browser && yarn build
 
 fixtures:
-	@cd workspace/core && rm ./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault
+	@cd workspace/core && rm -f ./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault
 	@cd workspace/cli && cat ../core/fixtures/passphrase.txt | cargo run -- new vault --uuid fba77e3b-edd0-4849-a05f-dded6df31d22 ../core/fixtures
 
 server-release: browser-gui

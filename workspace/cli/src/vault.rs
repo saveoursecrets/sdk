@@ -46,7 +46,7 @@ fn unlock_vault(keeper: &mut Gatekeeper, stdin: bool) -> Result<MetaData> {
 pub fn list(vault: PathBuf) -> Result<()> {
     let mut keeper = load_vault(&vault)?;
     let meta_data = unlock_vault(&mut keeper, true)?;
-    let secrets = meta_data.secrets();
+    let secrets = keeper.meta_data()?;
     if secrets.is_empty() {
         info!(target: LOG_TARGET, "Empty vault");
     } else {

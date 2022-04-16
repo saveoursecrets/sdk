@@ -167,6 +167,7 @@ impl Decode for Index {
                 meta.decode(de)?;
             }
         }
+
         Ok(())
     }
 }
@@ -174,7 +175,7 @@ impl Decode for Index {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    data: HashMap<Uuid, AeadPack>,
+    data: HashMap<Uuid, (AeadPack, AeadPack)>,
 }
 
 impl Encode for Contents {
@@ -182,7 +183,8 @@ impl Encode for Contents {
         ser.writer.write_u32(self.data.len() as u32)?;
         for (key, item) in &self.data {
             key.serialize(&mut *ser)?;
-            item.encode(&mut *ser)?;
+            item.0.encode(&mut *ser)?;
+            item.1.encode(&mut *ser)?;
         }
         Ok(())
     }
@@ -193,9 +195,11 @@ impl Decode for Contents {
         let length = de.reader.read_u32()?;
         for _ in 0..length {
             let key: Uuid = Deserialize::deserialize(&mut *de)?;
-            let mut value: AeadPack = Default::default();
-            value.decode(&mut *de)?;
-            self.data.insert(key, value);
+            let mut meta: AeadPack = Default::default();
+            meta.decode(&mut *de)?;
+            let mut secret: AeadPack = Default::default();
+            secret.decode(&mut *de)?;
+            self.data.insert(key, (meta, secret));
         }
         Ok(())
     }
@@ -351,7 +355,7 @@ impl Vault {
     }
 
     /// Add an encrypted secret to the vault.
-    pub fn add_secret(&mut self, uuid: Uuid, secret: AeadPack) {
+    pub fn add_secret(&mut self, uuid: Uuid, secret: (AeadPack, AeadPack)) {
         self.contents.data.insert(uuid, secret);
     }
 
@@ -361,8 +365,14 @@ impl Vault {
     }
 
     /// Get an encrypted secret from the vault.
-    pub fn get_secret(&self, uuid: &Uuid) -> Option<&AeadPack> {
+    pub fn get_secret(&self, uuid: &Uuid) -> Option<&(AeadPack, AeadPack)> {
         self.contents.data.get(uuid)
+    }
+
+    /// Get the meta data for all the secrets.
+    pub fn meta_data(&self) -> HashMap<&Uuid, &AeadPack> {
+        self.contents.data.iter()
+            .map(|(k, v)| (k, &v.0)).collect::<HashMap<_, _>>()
     }
 
     /// Encode a vault to binary.
