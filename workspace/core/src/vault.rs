@@ -191,35 +191,17 @@ impl Decode for Contents {
     }
 }
 
-/// Trailer including checksum
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct Trailer {}
-
-impl Encode for Trailer {
-    fn encode(&self, _ser: &mut Serializer) -> BinaryResult<()> {
-        Ok(())
-    }
-}
-
-impl Decode for Trailer {
-    fn decode(&mut self, _de: &mut Deserializer) -> BinaryResult<()> {
-        Ok(())
-    }
-}
-
 /// Vault file storage.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Vault {
     header: Header,
     contents: Contents,
-    trailer: Trailer,
 }
 
 impl Encode for Vault {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         self.header.encode(ser)?;
         self.contents.encode(ser)?;
-        self.trailer.encode(ser)?;
         Ok(())
     }
 }
@@ -228,7 +210,6 @@ impl Decode for Vault {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.header.decode(de)?;
         self.contents.decode(de)?;
-        self.trailer.decode(de)?;
         Ok(())
     }
 }
@@ -239,7 +220,6 @@ impl Vault {
         Self {
             header: Header::new(id, name, algorithm),
             contents: Default::default(),
-            trailer: Default::default(),
         }
     }
 
