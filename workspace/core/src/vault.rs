@@ -131,11 +131,7 @@ impl Decode for Header {
         self.version = de.reader.read_u16()?;
         self.algorithm.decode(&mut *de)?;
 
-        if ALGORITHMS
-            .iter()
-            .find(|a| *a == self.algorithm.as_ref())
-            .is_none()
-        {
+        if !ALGORITHMS.contains(self.algorithm.as_ref()) {
             return Err(BinaryError::Boxed(Box::from(
                 Error::UnknownAlgorithm(self.algorithm.into()),
             )));
@@ -334,8 +330,11 @@ impl Vault {
 
     /// Get the meta data for all the secrets.
     pub fn meta_data(&self) -> HashMap<&Uuid, &AeadPack> {
-        self.contents.data.iter()
-            .map(|(k, v)| (k, &v.0)).collect::<HashMap<_, _>>()
+        self.contents
+            .data
+            .iter()
+            .map(|(k, v)| (k, &v.0))
+            .collect::<HashMap<_, _>>()
     }
 
     /// Encode a vault to binary.

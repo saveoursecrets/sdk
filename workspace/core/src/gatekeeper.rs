@@ -17,13 +17,13 @@
 use crate::{
     crypto::secret_key::SecretKey,
     decode, encode,
-    secret::{VaultMeta, Secret, SecretMeta},
+    secret::{Secret, SecretMeta, VaultMeta},
     vault::Vault,
     Error, Result,
 };
+use std::collections::HashMap;
 use uuid::Uuid;
 use zeroize::Zeroize;
-use std::collections::HashMap;
 
 /// Manage access to a vault's secrets.
 #[derive(Default)]
@@ -104,7 +104,8 @@ impl Gatekeeper {
             if let Some(meta_aead) = self.vault.header().meta() {
                 let mut result = HashMap::new();
                 for (uuid, meta_aead) in self.vault.meta_data() {
-                    let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+                    let meta_blob =
+                        self.vault.decrypt(private_key, meta_aead)?;
                     let secret_meta: SecretMeta = decode(meta_blob)?;
                     result.insert(uuid, secret_meta);
                 }
@@ -163,8 +164,7 @@ impl Gatekeeper {
     fn get_secret_meta(&self, uuid: &Uuid) -> Result<Option<SecretMeta>> {
         if let Some(private_key) = &self.private_key {
             if let Some((meta_aead, _)) = self.vault.get_secret(uuid) {
-                let meta_blob =
-                    self.vault.decrypt(private_key, meta_aead)?;
+                let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
                 let secret: SecretMeta = decode(meta_blob)?;
                 Ok(Some(secret))
             } else {
@@ -245,7 +245,6 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<()> {
-
         /*
         let mut meta = self.meta()?;
 
@@ -292,7 +291,10 @@ impl Gatekeeper {
     /// Unlock the vault by setting the private key from a passphrase.
     ///
     /// The private key is stored in memory by this gatekeeper.
-    pub fn unlock<S: AsRef<str>>(&mut self, passphrase: S) -> Result<VaultMeta> {
+    pub fn unlock<S: AsRef<str>>(
+        &mut self,
+        passphrase: S,
+    ) -> Result<VaultMeta> {
         if let Some(salt) = self.vault.salt() {
             let salt = SecretKey::parse_salt(salt)?;
             let private_key = SecretKey::derive_32(passphrase, &salt)?;

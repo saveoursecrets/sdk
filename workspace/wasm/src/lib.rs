@@ -91,9 +91,11 @@ impl WebVault {
     }
 
     fn sort_meta_data(
-        &self
+        &self,
     ) -> Result<BTreeMap<String, (Uuid, SecretMeta)>, JsError> {
-        Ok(self.keeper.meta_data()?
+        Ok(self
+            .keeper
+            .meta_data()?
             .into_iter()
             .map(|(k, v)| {
                 let key =

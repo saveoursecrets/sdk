@@ -36,7 +36,6 @@ impl FromStr for UuidOrName {
 pub struct VaultMeta {
     /// The human-friendly label for the vault.
     label: String,
-
     /*
     /// Map of secret identifiers to meta data about the secret.
     secrets: HashMap<Uuid, SecretMeta>,
@@ -90,7 +89,6 @@ impl VaultMeta {
         &self,
         target: &UuidOrName,
     ) -> Option<(Uuid, &SecretMeta)> {
-
         /*
         match target {
             UuidOrName::Uuid(uuid) => {

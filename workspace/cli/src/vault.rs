@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, Result};
 use human_bytes::human_bytes;
 use sos_core::{
     gatekeeper::Gatekeeper,
-    secret::{VaultMeta, Secret, SecretMeta, UuidOrName},
+    secret::{Secret, SecretMeta, UuidOrName, VaultMeta},
     vault::Vault,
 };
 use std::{
