@@ -2,6 +2,7 @@ use anyhow::{anyhow, bail, Result};
 use human_bytes::human_bytes;
 use sos_core::{
     gatekeeper::Gatekeeper,
+    operations::Payload,
     secret::{Secret, SecretMeta, UuidOrName, VaultMeta},
     vault::Vault,
 };
@@ -97,8 +98,10 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
     let vault_meta = unlock_vault(&mut keeper, true)?;
     let meta_data = keeper.meta_data()?;
 
-    if let Some((uuid, secret_meta)) = keeper.find_by_uuid_or_label(&meta_data, &target) {
-        match keeper.read(&uuid) {
+    if let Some((uuid, secret_meta)) =
+        keeper.find_by_uuid_or_label(&meta_data, &target)
+    {
+        match keeper.read(uuid) {
             Ok(Some((_, secret))) => match secret {
                 Secret::Text(ref note) => {
                     print_secret_header(&secret, secret_meta, HashMap::new());
@@ -218,9 +221,12 @@ pub fn add_account(vault: PathBuf, label: Option<String>) -> Result<()> {
         password,
     };
     let secret_meta = SecretMeta::new(label, secret.kind());
-    let uuid = keeper.create(secret_meta, secret)?;
-    keeper.vault().write_file(vault)?;
-    info!(target: LOG_TARGET, "saved secret {}", uuid);
+    if let Payload::CreateSecret(uuid, _) =
+        keeper.create(secret_meta, secret)?
+    {
+        keeper.vault().write_file(vault)?;
+        info!(target: LOG_TARGET, "saved secret {}", uuid);
+    }
     Ok(())
 }
 
@@ -253,9 +259,12 @@ pub fn add_note(vault: PathBuf, label: Option<String>) -> Result<()> {
         let note = note.trim_end_matches('\n').to_string();
         let secret = Secret::Text(note);
         let secret_meta = SecretMeta::new(label, secret.kind());
-        let uuid = keeper.create(secret_meta, secret)?;
-        keeper.vault().write_file(vault)?;
-        info!(target: LOG_TARGET, "saved secret {}", uuid);
+        if let Payload::CreateSecret(uuid, _) =
+            keeper.create(secret_meta, secret)?
+        {
+            keeper.vault().write_file(vault)?;
+            info!(target: LOG_TARGET, "saved secret {}", uuid);
+        }
     }
     Ok(())
 }
@@ -304,9 +313,12 @@ pub fn add_file(
         name: None,
     };
     let secret_meta = SecretMeta::new(label, secret.kind());
-    let uuid = keeper.create(secret_meta, secret)?;
-    keeper.vault().write_file(vault)?;
-    info!(target: LOG_TARGET, "saved secret {}", uuid);
+    if let Payload::CreateSecret(uuid, _) =
+        keeper.create(secret_meta, secret)?
+    {
+        keeper.vault().write_file(vault)?;
+        info!(target: LOG_TARGET, "saved secret {}", uuid);
+    }
     Ok(())
 }
 
@@ -344,8 +356,11 @@ pub fn add_credentials(vault: PathBuf, label: Option<String>) -> Result<()> {
 
     let secret = Secret::Credentials(credentials);
     let secret_meta = SecretMeta::new(label, secret.kind());
-    let uuid = keeper.create(secret_meta, secret)?;
-    keeper.vault().write_file(vault)?;
-    info!(target: LOG_TARGET, "saved secret {}", uuid);
+    if let Payload::CreateSecret(uuid, _) =
+        keeper.create(secret_meta, secret)?
+    {
+        keeper.vault().write_file(vault)?;
+        info!(target: LOG_TARGET, "saved secret {}", uuid);
+    }
     Ok(())
 }

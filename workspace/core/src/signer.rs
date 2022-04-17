@@ -1,8 +1,8 @@
 //! Traits and types for signing messages.
-use k256::{
-    ecdsa::{SigningKey, recoverable::Signature, signature::Signer as EcdsaSigner},
-};
 use async_trait::async_trait;
+use k256::ecdsa::{
+    recoverable::Signature, signature::Signer as EcdsaSigner, SigningKey,
+};
 
 use crate::Result;
 
@@ -13,7 +13,7 @@ pub trait Signer {
     ///
     /// The message digest used will be keccak256.
     ///
-    /// Note that libsecp256k1 uses SHA256 for it's digest 
+    /// Note that libsecp256k1 uses SHA256 for it's digest
     /// so these signatures are not compatible with libsecp256k1.
     async fn sign(&self, message: &[u8]) -> Result<Signature>;
 }
