@@ -98,8 +98,7 @@ impl WebVault {
             .meta_data()?
             .into_iter()
             .map(|(k, v)| {
-                let key =
-                    format!("{} {}", v.label().to_lowercase(), k);
+                let key = format!("{} {}", v.label().to_lowercase(), k);
                 (key, (*k, v))
             })
             .collect())

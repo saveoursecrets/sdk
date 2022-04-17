@@ -12,8 +12,9 @@ import { VaultWorker } from "./types";
 import LogoType from "./logotype";
 
 import AppBarActions from "./app-bar-actions";
-
-const NotFound = () => <h3>Page not found</h3>;
+import Home from "./home";
+import Signup from "./signup";
+import NotFound from "./not-found";
 
 const Main = styled("div", { shouldForwardProp: (prop) => prop !== "open" })<{
   open?: boolean;
@@ -44,6 +45,8 @@ export default function App(props: AppProps) {
       </AppBar>
       <Main>
         <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Main>

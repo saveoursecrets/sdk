@@ -28,8 +28,7 @@ import Secret from "./secret";
 import Dialogs from "./dialogs";
 import AppBarActions from "./app-bar-actions";
 import LogoType from "../logotype";
-
-const NotFound = () => <h3>Page not found</h3>;
+import NotFound from "../not-found";
 
 const drawerWidth = 240;
 

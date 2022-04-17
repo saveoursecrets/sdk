@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 
 import ButtonGroup from "@mui/material/ButtonGroup";
@@ -8,6 +9,7 @@ import LoginIcon from "@mui/icons-material/Login";
 import { login } from "./store/user";
 
 export default function AppBarActions() {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const onLogin = () => {
@@ -18,10 +20,14 @@ export default function AppBarActions() {
     dispatch(login(mock));
   };
 
+  const signup = () => {
+    navigate("/signup");
+  };
+
   return (
     <>
       <ButtonGroup variant="contained" aria-label="signup or login">
-        <Button>Signup</Button>
+        <Button onClick={signup}>Signup</Button>
         <Button onClick={onLogin} endIcon={<LoginIcon />}>
           Login
         </Button>
