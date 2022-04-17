@@ -17,3 +17,4 @@ url = { version = "2.2", features = ["serde"] }
 mime_guess = "2"
 rand = "0.8"
 getrandom = { version = "0.2", features = ["js"] }
+zeroize = "1.4"

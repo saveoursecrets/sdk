@@ -2453,6 +2453,7 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "web3-keystore",
+ "zeroize",
 ]
 
 [[package]]

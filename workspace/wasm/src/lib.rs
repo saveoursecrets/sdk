@@ -13,8 +13,12 @@ use sos_core::{
 };
 
 use serde::{Deserialize, Serialize};
-
+use sos_core::{
+    address::address_compressed, diceware::generate_passphrase_words,
+};
 use std::collections::BTreeMap;
+use web3_keystore::{decrypt, encrypt, KeyStore};
+use zeroize::Zeroize;
 
 #[wasm_bindgen]
 extern "C" {
@@ -35,12 +39,6 @@ pub fn start() {
     console_log!("WASM: module started {:?}", std::thread::current().id());
 }
 
-/// Binding to the gatekeeper for a vault.
-#[wasm_bindgen]
-pub struct WebVault {
-    keeper: Gatekeeper,
-}
-
 /// Request used to create or update a secret.
 #[derive(Serialize, Deserialize)]
 pub struct SecretData {
@@ -48,6 +46,12 @@ pub struct SecretData {
     secret_id: Option<Uuid>,
     meta: SecretMeta,
     secret: Secret,
+}
+
+/// Binding to the gatekeeper for a vault.
+#[wasm_bindgen]
+pub struct WebVault {
+    keeper: Gatekeeper,
 }
 
 #[wasm_bindgen]
@@ -211,24 +215,84 @@ impl WebVault {
     }
 }
 
+/// Store the state for a new account signup.
+#[wasm_bindgen]
+pub struct Signup {
+    /// Passphrase for the encrypted keystore.
+    key_passphrase: Option<String>,
+}
+
+#[wasm_bindgen]
+impl Signup {
+    /// Create a signup for a new account.
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self {
+            key_passphrase: None,
+        }
+    }
+
+    /// Set the passphrase for the key generation.
+    #[wasm_bindgen(js_name = "setPassphrase")]
+    pub fn set_passphrase(
+        &mut self,
+        passphrase: JsValue,
+    ) -> Result<JsValue, JsError> {
+        let passphrase: String = passphrase.into_serde()?;
+        self.key_passphrase = Some(passphrase);
+        Ok(JsValue::null())
+    }
+
+    // TODO: verify private key passphrase matches stored value (memorization test)
+    // TODO: verify encryption passphrase matches stored value (memorization test)
+    // TODO: initialize a vault with the encryption passphrase
+    // TODO: verify encryption passphrase can decrypt the vault meta data
+    // TODO: send the vault to the remote server to complete account creation
+
+    /// Verify the passphrase for a keystore by decrypting
+    /// the private key.
+    #[wasm_bindgen(js_name = "verifyPrivateKey")]
+    pub fn verify_private_key(
+        &mut self,
+        passphrase: JsValue,
+        keystore: JsValue,
+    ) -> Result<JsValue, JsError> {
+        let passphrase: String = passphrase.into_serde()?;
+        let keystore: KeyStore = keystore.into_serde()?;
+        let _ = decrypt(&keystore, &passphrase)?;
+        Ok(JsValue::null())
+    }
+
+    /// Generate an ECDSA private key and protect it with the given passphrase.
+    #[wasm_bindgen(js_name = "generatePrivateKey")]
+    pub fn generate_private_key(&self) -> Result<JsValue, JsError> {
+        let passphrase = self
+            .key_passphrase
+            .as_ref()
+            .ok_or_else(|| JsError::new("passphrase has not been set"))?;
+        let (private_key, public_key) = generate_random_ecdsa_signing_key();
+        let address = address_compressed(&public_key)?;
+        let mut rng = rand::thread_rng();
+        let keystore =
+            encrypt(&mut rng, &private_key, passphrase, Some(address.clone()))
+                .expect("unable to encrypt private key store");
+        Ok(JsValue::from_serde(&keystore)?)
+    }
+
+    /// Dispose of the internal state securely
+    /// zeroing memory.
+    pub fn dispose(&mut self) {
+        if let Some(key_passphrase) = self.key_passphrase.as_mut() {
+            key_passphrase.zeroize();
+        }
+
+        self.key_passphrase = None;
+    }
+}
+
 /// Generate a passphrase using the diceware module.
 #[wasm_bindgen(js_name = "generatePassphrase")]
 pub fn generate_passphrase(words: u8) -> Result<JsValue, JsError> {
-    use sos_core::diceware::generate_passphrase_words;
     let (passphrase, bits) = generate_passphrase_words(words)?;
     Ok(JsValue::from_serde(&(passphrase, bits))?)
-}
-
-/// Generate an ECDSA private key and protect it with the given passphrase.
-#[wasm_bindgen(js_name = "generatePrivateKey")]
-pub fn generate_private_key(passphrase: JsValue) -> Result<JsValue, JsError> {
-    use sos_core::address::address_compressed;
-    use web3_keystore::encrypt;
-    let passphrase: String = passphrase.into_serde()?;
-    let (private_key, public_key) = generate_random_ecdsa_signing_key();
-    let address = address_compressed(&public_key)?;
-    let mut rng = rand::thread_rng();
-    let keystore =
-        encrypt(&mut rng, &private_key, passphrase, Some(address)).unwrap();
-    Ok(JsValue::from_serde(&keystore)?)
 }

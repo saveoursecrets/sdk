@@ -2,12 +2,14 @@ import { configureStore } from "@reduxjs/toolkit";
 import vaultsReducer from "./vaults";
 import dialogsReducer from "./dialogs";
 import userReducer from "./user";
+import signupReducer from "./signup";
 
 const store = configureStore({
   reducer: {
     vaults: vaultsReducer,
     dialogs: dialogsReducer,
     user: userReducer,
+    signup: signupReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -44,11 +46,15 @@ const store = configureStore({
           "vaults/deleteSecret/pending",
           "vaults/deleteSecret/fulfilled",
           "vaults/deleteSecret/rejected",
+
+          "signup/new/pending",
+          "signup/new/fulfilled",
+          "signup/new/rejected",
         ],
         // Ignore these field paths in all actions
         ignoredActionPaths: [],
         // Ignore these paths in the state
-        ignoredPaths: ["vaults"],
+        ignoredPaths: ["vaults", "signup"],
       },
     }),
 });
