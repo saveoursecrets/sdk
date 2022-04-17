@@ -9,6 +9,7 @@ import Toolbar from "@mui/material/Toolbar";
 import Stack from "@mui/material/Stack";
 
 import { VaultWorker } from "./types";
+import { WorkerProps } from "./props";
 import LogoType from "./logotype";
 
 import AppBarActions from "./app-bar-actions";
@@ -23,12 +24,8 @@ const Main = styled("div", { shouldForwardProp: (prop) => prop !== "open" })<{
   padding: theme.spacing(3),
 }));
 
-type AppProps = {
-  worker: VaultWorker;
-};
-
-export default function App(props: AppProps) {
-  //const { worker } = props;
+export default function App(props: WorkerProps) {
+  const { worker } = props;
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
       <AppBar position="relative">
@@ -46,7 +43,7 @@ export default function App(props: AppProps) {
       <Main>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/signup" element={<Signup />} />
+          <Route path="/signup" element={<Signup worker={worker} />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Main>

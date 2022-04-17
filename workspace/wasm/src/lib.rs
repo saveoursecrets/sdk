@@ -4,6 +4,7 @@
 use wasm_bindgen::prelude::*;
 
 use sos_core::{
+    crypto::generate_random_ecdsa_signing_key,
     decode, encode,
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta},
@@ -216,4 +217,18 @@ pub fn generate_passphrase(words: u8) -> Result<JsValue, JsError> {
     use sos_core::diceware::generate_passphrase_words;
     let (passphrase, bits) = generate_passphrase_words(words)?;
     Ok(JsValue::from_serde(&(passphrase, bits))?)
+}
+
+/// Generate an ECDSA private key and protect it with the given passphrase.
+#[wasm_bindgen(js_name = "generatePrivateKey")]
+pub fn generate_private_key(passphrase: JsValue) -> Result<JsValue, JsError> {
+    use sos_core::address::address_compressed;
+    use web3_keystore::encrypt;
+    let passphrase: String = passphrase.into_serde()?;
+    let (private_key, public_key) = generate_random_ecdsa_signing_key();
+    let address = address_compressed(&public_key)?;
+    let mut rng = rand::thread_rng();
+    let keystore =
+        encrypt(&mut rng, &private_key, passphrase, Some(address)).unwrap();
+    Ok(JsValue::from_serde(&keystore)?)
 }

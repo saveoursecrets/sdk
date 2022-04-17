@@ -1,9 +1,13 @@
-import init, { WebVault, generatePassphrase } from "sos-wasm";
+import init, {
+  WebVault,
+  generatePassphrase,
+  generatePrivateKey,
+} from "sos-wasm";
 import * as Comlink from "comlink";
 
-export { WebVault, generatePassphrase } from "sos-wasm";
+//export { WebVault, generatePassphrase } from "sos-wasm";
 
-console.log("WORKER IS INITIALIZING...");
+console.log("WORKER IS INITIALIZING");
 void (async function () {
   // Requires top-level await experiment
   await init();
@@ -11,4 +15,4 @@ void (async function () {
   self.postMessage({ ready: true });
 })();
 
-Comlink.expose({ WebVault, generatePassphrase });
+Comlink.expose({ WebVault, generatePassphrase, generatePrivateKey });
