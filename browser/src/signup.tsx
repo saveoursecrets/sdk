@@ -1,8 +1,11 @@
 import React, { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 
 import { WorkerProps } from "./props";
 import Diceware from "./diceware";
 import { download } from "./utils";
+
+import { createSignup, setAddress, signupSelector } from "./store/signup";
 
 import {
   Button,
@@ -37,25 +40,33 @@ export default function Passphrase(props: StepProps) {
 }
 
 export default function VerifyKey(props: StepProps) {
+  const { signup, address } = useSelector(signupSelector);
   return (
     <>
       <Typography variant="h3" gutterBottom>
         Verify Key
       </Typography>
-      <Stack spacing={4}></Stack>
+      <Stack spacing={4}>
+        <p>Verify address: {address}</p>
+      </Stack>
     </>
   );
 }
 
 export default function PrivateKey(props: StepProps) {
+  const dispatch = useDispatch();
+  const { signup } = useSelector(signupSelector);
   const [downloaded, setDownloaded] = useState(false);
-  const [passphrase, setPassphrase] = useState(null);
   const { worker, setStep } = props;
 
-  const downloadPrivateKey = async () => {
-    const keystore = await worker.generatePrivateKey(passphrase);
-    const { address } = keystore;
+  const onGenerate = async (passphrase: string) => {
+    await signup.setPassphrase(passphrase);
+  };
 
+  const downloadPrivateKey = async () => {
+    const keystore = await signup.generatePrivateKey();
+    const { address } = keystore;
+    dispatch(setAddress(address));
     const fileName = `${address}.json`;
     const encoder = new TextEncoder();
     const contents = encoder.encode(JSON.stringify(keystore, undefined, 2));
@@ -77,7 +88,7 @@ export default function PrivateKey(props: StepProps) {
           </Typography>
         </Stack>
 
-        <Diceware onGenerate={setPassphrase} worker={worker} />
+        <Diceware onGenerate={onGenerate} worker={worker} />
 
         <Stack>
           <Typography variant="body1">
@@ -91,7 +102,7 @@ export default function PrivateKey(props: StepProps) {
         </Stack>
 
         <Button
-          disabled={!passphrase || downloaded}
+          disabled={downloaded}
           variant="contained"
           onClick={downloadPrivateKey}
         >
@@ -117,8 +128,14 @@ export default function PrivateKey(props: StepProps) {
 }
 
 export default function Accept(props: StepProps) {
-  const { setStep } = props;
+  const dispatch = useDispatch();
+  const { worker, setStep } = props;
   const [accepted, setAccepted] = useState(false);
+
+  const startSignup = async () => {
+    await dispatch(createSignup(worker));
+    setStep(SignupStep.PRIVATE_KEY);
+  };
 
   return (
     <>
@@ -141,8 +158,8 @@ export default function Accept(props: StepProps) {
             lose your private key you will not be able to access your vaults.
           </Typography>
           <Alert severity="warning">
-            Back up your private key to multiple storage devices and
-            remember the passphrase.
+            Back up your private key to multiple storage devices and remember
+            the passphrase.
           </Alert>
         </Stack>
         <Stack>
@@ -167,11 +184,7 @@ export default function Accept(props: StepProps) {
           label="I will backup my private key and memorize my passphrases"
         />
 
-        <Button
-          disabled={!accepted}
-          variant="contained"
-          onClick={() => setStep(SignupStep.PRIVATE_KEY)}
-        >
+        <Button disabled={!accepted} variant="contained" onClick={startSignup}>
           Next: Download private key
         </Button>
       </Stack>
@@ -179,7 +192,7 @@ export default function Accept(props: StepProps) {
   );
 }
 
-export default function Signup(props: WorkerProps) {
+export default function SignupView(props: WorkerProps) {
   const { worker } = props;
   const [step, setStep] = useState(SignupStep.ACCEPT);
 
@@ -188,6 +201,8 @@ export default function Signup(props: WorkerProps) {
       return <Accept worker={worker} setStep={setStep} />;
     case SignupStep.PRIVATE_KEY:
       return <PrivateKey worker={worker} setStep={setStep} />;
+    case SignupStep.VERIFY_KEY:
+      return <VerifyKey worker={worker} setStep={setStep} />;
     case SignupStep.PASSPHRASE:
       return <Passphrase worker={worker} setStep={setStep} />;
   }
