@@ -6,10 +6,13 @@ export interface UserState {
 }
 
 const initialState: UserState = {
+  user: null,
+  /*
   user: {
     token: "mock-logged-in-token",
     address: "0x8a67d6f4aae8165512774d63992623e10494c69f",
   },
+  */
 };
 
 const userSlice = createSlice({

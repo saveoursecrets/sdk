@@ -248,7 +248,9 @@ impl Gatekeeper {
         let existing_meta = existing_meta.unwrap();
 
         // Label has changed, so ensure uniqueness
-        if existing_meta.label() != secret_meta.label() && self.find_by_label(&meta, secret_meta.label()).is_some() {
+        if existing_meta.label() != secret_meta.label()
+            && self.find_by_label(&meta, secret_meta.label()).is_some()
+        {
             return Err(Error::SecretAlreadyExists(
                 secret_meta.label().to_string(),
             ));
