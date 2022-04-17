@@ -99,7 +99,7 @@ impl WebVault {
             .into_iter()
             .map(|(k, v)| {
                 let key =
-                    format!("{} {}", v.label().to_lowercase().to_string(), k);
+                    format!("{} {}", v.label().to_lowercase(), k);
                 (key, (*k, v))
             })
             .collect())
@@ -178,7 +178,7 @@ impl WebVault {
 
         console_log!("Updating secret");
 
-        self.keeper.update(*uuid, data.meta, data.secret)?;
+        self.keeper.update(uuid, data.meta, data.secret)?;
 
         console_log!("Secret update completed!");
 

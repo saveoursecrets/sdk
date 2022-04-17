@@ -113,7 +113,7 @@ pub mod types {
 }
 
 /// Enumeration of the sizes for nonces.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub enum Nonce {
     /// Standard 12 byte nonce used by AES-GCM and ChaCha20Poly1305.
     Nonce12([u8; 12]),
@@ -128,7 +128,7 @@ impl Default for Nonce {
 }
 
 /// Encrypted data with the nonce.
-#[derive(Default, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Default, Debug, Eq, PartialEq, Clone)]
 pub struct AeadPack {
     /// Number once value.
     pub nonce: Nonce,

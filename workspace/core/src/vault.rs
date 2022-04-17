@@ -7,8 +7,7 @@ use serde_binary::{
     Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
     Serializer,
 };
-use std::collections::HashMap;
-use std::path::Path;
+use std::{borrow::Cow, collections::HashMap, path::Path};
 use uuid::Uuid;
 
 use crate::{
@@ -16,6 +15,7 @@ use crate::{
         aesgcm256, algorithms::*, authorize::PublicKey, secret_key::SecretKey,
         xchacha20poly1305, AeadPack,
     },
+    operations::Payload,
     secret::VaultMeta,
     Error, Result,
 };
@@ -309,26 +309,46 @@ impl Vault {
         &mut self.header
     }
 
-    /*
-    /// Set the vault header.
-    pub fn set_index(&mut self, index: Index) {
-        self.index = index;
-    }
-    */
-
     /// Add an encrypted secret to the vault.
-    pub fn add_secret(&mut self, uuid: Uuid, secret: (AeadPack, AeadPack)) {
-        self.contents.data.insert(uuid, secret);
-    }
-
-    /// Remove an encrypted secret from the vault.
-    pub fn remove_secret(&mut self, uuid: &Uuid) {
-        self.contents.data.remove(uuid);
+    pub fn create(
+        &mut self,
+        uuid: Uuid,
+        secret: (AeadPack, AeadPack),
+    ) -> Payload {
+        let id = uuid;
+        let value = self.contents.data.entry(uuid).or_insert(secret);
+        Payload::CreateSecret(id, Cow::Borrowed(value))
     }
 
     /// Get an encrypted secret from the vault.
-    pub fn get_secret(&self, uuid: &Uuid) -> Option<&(AeadPack, AeadPack)> {
-        self.contents.data.get(uuid)
+    pub fn read(
+        &self,
+        uuid: &Uuid,
+    ) -> (Option<&(AeadPack, AeadPack)>, Payload) {
+        let id = *uuid;
+        (self.contents.data.get(uuid), Payload::ReadSecret(id))
+    }
+
+    /// Update an encrypted secret to the vault.
+    pub fn update(
+        &mut self,
+        uuid: &Uuid,
+        secret: (AeadPack, AeadPack),
+    ) -> Option<Payload> {
+        let id = *uuid;
+        if let Some(value) = self.contents.data.get_mut(uuid) {
+            *value = secret;
+            Some(Payload::UpdateSecret(id, Cow::Borrowed(value)))
+        } else {
+            None
+        }
+    }
+
+    /// Remove an encrypted secret from the vault.
+    pub fn delete(&mut self, uuid: &Uuid) -> Payload {
+        let id = *uuid;
+        self.contents.data.remove(uuid);
+        Payload::DeleteSecret(id)
     }
 
     /// Get the meta data for all the secrets.
