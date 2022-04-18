@@ -38,6 +38,10 @@ type AppProps = {
   worker: VaultWorker;
 };
 
+type WorkerMessage = {
+  data: { ready: boolean };
+};
+
 function MainApp(props: AppProps) {
   const { worker } = props;
   const { user } = useSelector(userSelector);
@@ -54,7 +58,7 @@ function MainApp(props: AppProps) {
     [prefersDarkMode]
   );
 
-  const onWorkerReady = (msg: any) => {
+  const onWorkerReady = (msg: WorkerMessage) => {
     if (msg.data.ready) {
       setWorkerReady(true);
       webWorker.removeEventListener("message", onWorkerReady);

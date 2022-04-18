@@ -129,7 +129,7 @@ export const createNewVault = createAsyncThunk(
     const vault: WebVault = await new (worker.WebVault as any)();
     await vault.initialize(name, label, password);
     const uuid = await vault.id();
-    const meta = await vault.getMetaData();
+    const meta = await vault.getVaultMeta();
     navigate(`/vault/${uuid}`);
     return { uuid, vault, label, locked: false, meta };
   }
@@ -141,7 +141,7 @@ export const createSecret = createAsyncThunk(
     const { result, owner } = request;
     const { vault } = owner;
     await vault.create(result);
-    const meta = await vault.getMetaData();
+    const meta = await vault.getVaultMeta();
     return { ...owner, meta };
   }
 );
@@ -161,7 +161,7 @@ export const updateSecret = createAsyncThunk(
     const { result, navigate, owner } = request;
     const { uuid, vault } = owner;
     await vault.update(result);
-    const meta = await vault.getMetaData();
+    const meta = await vault.getVaultMeta();
     const random = Math.random();
     navigate(`/vault/${uuid}/${result.secretId}?refresh=${random}`);
     return { ...owner, meta };
@@ -174,7 +174,7 @@ export const deleteSecret = createAsyncThunk(
     const { result, navigate, owner } = request;
     const { uuid, vault } = owner;
     await vault.delete(result);
-    const meta = await vault.getMetaData();
+    const meta = await vault.getVaultMeta();
     navigate(`/vault/${uuid}`);
     return { ...owner, meta };
   }
@@ -202,7 +202,7 @@ const updateVaultFromThunk = (
 
 const logError = (state: VaultState, action: PayloadAction<Error>) => {
   //const { payload } = action;
-  console.error(action.error);
+  console.error(action.payload);
 };
 
 const vaultsSlice = createSlice({

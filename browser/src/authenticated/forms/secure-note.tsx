@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 
-import { SecretData, SecretKind, NoteSecret } from "../../types";
+import { SecretData, SecretKind } from "../../types";
 
 interface SecureNoteFormProps {
   onFormSubmit: (result: SecretData) => void;

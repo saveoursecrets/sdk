@@ -218,8 +218,10 @@ impl WebVault {
 /// Store the state for a new account signup.
 #[wasm_bindgen]
 pub struct Signup {
-    /// Passphrase for the encrypted keystore.
+    /// Passphrase for the encrypted keystore containing the private key.
     key_passphrase: Option<String>,
+    /// Passphrase for vault encryption.
+    encryption_passphrase: Option<String>,
 }
 
 #[wasm_bindgen]
@@ -229,6 +231,7 @@ impl Signup {
     pub fn new() -> Self {
         Self {
             key_passphrase: None,
+            encryption_passphrase: None,
         }
     }
 
@@ -240,6 +243,17 @@ impl Signup {
     ) -> Result<JsValue, JsError> {
         let passphrase: String = passphrase.into_serde()?;
         self.key_passphrase = Some(passphrase);
+        Ok(JsValue::null())
+    }
+
+    /// Set the passphrase for vault encryption.
+    #[wasm_bindgen(js_name = "setEncryptionPassphrase")]
+    pub fn set_encryption_passphrase(
+        &mut self,
+        passphrase: JsValue,
+    ) -> Result<JsValue, JsError> {
+        let passphrase: String = passphrase.into_serde()?;
+        self.encryption_passphrase = Some(passphrase);
         Ok(JsValue::null())
     }
 
@@ -286,7 +300,13 @@ impl Signup {
             key_passphrase.zeroize();
         }
 
+        if let Some(encryption_passphrase) = self.encryption_passphrase.as_mut()
+        {
+            encryption_passphrase.zeroize();
+        }
+
         self.key_passphrase = None;
+        self.encryption_passphrase = None;
     }
 }
 

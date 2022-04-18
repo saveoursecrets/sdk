@@ -141,7 +141,7 @@ export default function CredentialsForm(props: CredentialsFormProps) {
           Add Credential
         </Button>
         {credentials.map((item: [string, string], index) => {
-          const [name, value] = item;
+          //const [name, value] = item;
           const error = credentialsErrors[index] || {
             key: false,
             value: false,

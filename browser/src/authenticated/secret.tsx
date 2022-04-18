@@ -16,6 +16,7 @@ import MenuItem from "@mui/material/MenuItem";
 
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 
+import { AppDispatch } from "../store";
 import { vaultsSelector, readSecret } from "../store/vaults";
 
 import {
@@ -37,7 +38,7 @@ import {
   FileSecret,
   CredentialsSecret,
 } from "../types";
-import { WorkerStorageProps, StorageProps } from "../props";
+import { WorkerStorageProps } from "../props";
 import { download, humanFileSize, sortCredentials } from "../utils";
 import { WorkerContext } from "../worker-provider";
 
@@ -64,11 +65,11 @@ function SecretHeader(props: SecretHeaderProps) {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const open = Boolean(menuAnchor);
 
-  const showMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setMenuAnchor(event.currentTarget);
+  const showMenu = (e: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchor(e.currentTarget);
   };
 
-  const onEdit = (event: React.MouseEvent<HTMLElement>) => {
+  const onEdit = () => {
     let dialogType = null;
     switch (meta.kind) {
       case SecretKind.Account:
@@ -90,7 +91,7 @@ function SecretHeader(props: SecretHeaderProps) {
     closeMenu();
   };
 
-  const onDelete = (event: React.MouseEvent<HTMLElement>) => {
+  const onDelete = () => {
     const { label } = meta;
     dispatch(
       setDialogVisible([CONFIRM_DELETE_SECRET, true, { label, secretId }])
@@ -269,8 +270,8 @@ type SecretViewProps = {
 function SecretView(props: SecretViewProps) {
   const { storage, secretId } = props;
   const [secretData, setSecretData] = useState(null);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const dispatch = useDispatch();
+  const [searchParams] = useSearchParams();
+  const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
     const loadSecret = async () => {
@@ -285,7 +286,7 @@ function SecretView(props: SecretViewProps) {
   }
 
   const [meta, secret] = secretData;
-  const label = SecretKindLabel.toString(meta.kind);
+  //const label = SecretKindLabel.toString(meta.kind);
 
   switch (meta.kind) {
     case SecretKind.Account:
@@ -331,7 +332,7 @@ type SecretUnlockedProps = {
 } & WorkerStorageProps;
 
 function SecretUnlocked(props: SecretUnlockedProps) {
-  const { worker, storage, secretId, meta } = props;
+  const { worker, storage, secretId /*, meta */ } = props;
   return (
     <>
       <VaultHeader storage={storage} worker={worker} />

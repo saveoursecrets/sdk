@@ -8,7 +8,6 @@ import Toolbar from "@mui/material/Toolbar";
 
 import Stack from "@mui/material/Stack";
 
-import { VaultWorker } from "./types";
 import { WorkerProps } from "./props";
 import LogoType from "./logotype";
 

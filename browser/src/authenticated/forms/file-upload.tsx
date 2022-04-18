@@ -21,7 +21,7 @@ interface FileInfo {
 type FileUploadFormProps = {
   onFormSubmit: (result: SecretData) => void;
   secret?: SecretData;
-}
+};
 
 export default function FileUploadForm(props: FileUploadFormProps) {
   const { onFormSubmit, secret } = props;

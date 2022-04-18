@@ -6,7 +6,7 @@ export function getDroppedFiles(e: React.DragEvent<HTMLElement>): File[] {
   const files = [];
   if (e.dataTransfer.items) {
     for (let i = 0; i < e.dataTransfer.items.length; i++) {
-      if (e.dataTransfer.items[i].kind === 'file') {
+      if (e.dataTransfer.items[i].kind === "file") {
         files.push(e.dataTransfer.items[i].getAsFile());
       }
     }
