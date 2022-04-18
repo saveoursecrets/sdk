@@ -18,7 +18,7 @@ interface FileInfo {
 }
 */
 
-interface FileUploadFormProps {
+type FileUploadFormProps = {
   onFormSubmit: (result: SecretData) => void;
   secret?: SecretData;
 }

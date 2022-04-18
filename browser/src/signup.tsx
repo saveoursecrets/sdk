@@ -3,7 +3,9 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { WorkerProps } from "./props";
 import Diceware from "./diceware";
-import { download } from "./utils";
+import { download, encode, decode } from "./utils";
+
+import FileUploadReader, { FileBuffer } from './file-upload-reader';
 
 import { createSignup, setAddress, signupSelector } from "./store/signup";
 
@@ -27,7 +29,7 @@ type StepProps = {
   setStep: (value: number) => void;
 } & WorkerProps;
 
-export default function Passphrase(props: StepProps) {
+function Passphrase(props: StepProps) {
   const { setStep } = props;
   return (
     <>
@@ -39,24 +41,44 @@ export default function Passphrase(props: StepProps) {
   );
 }
 
-export default function VerifyKey(props: StepProps) {
+function VerifyKey(props: StepProps) {
   const { signup, address } = useSelector(signupSelector);
+
+  const onFileChange = (data: FileBuffer) => {
+    console.log("Got file change event: ", data);
+    // TODO: handle UTF-8 decode error
+    const contents = decode(data.buffer);
+
+    // TODO: handle JSON parse error
+    const keystore = JSON.parse(contents);
+
+    if (keystore.address !== address) {
+      throw new Error("keystore address is not valid");
+    }
+
+    console.log("verify keystore", keystore);
+  }
+
   return (
     <>
       <Typography variant="h3" gutterBottom>
         Verify Key
       </Typography>
       <Stack spacing={4}>
-        <p>Verify address: {address}</p>
+        <Typography
+          variant="subtitle1" gutterBottom>
+          {address}
+        </Typography>
+
+        <FileUploadReader onChange={onFileChange} />
       </Stack>
     </>
   );
 }
 
-export default function PrivateKey(props: StepProps) {
+function PrivateKey(props: StepProps) {
   const dispatch = useDispatch();
-  const { signup } = useSelector(signupSelector);
-  const [downloaded, setDownloaded] = useState(false);
+  const { signup, address } = useSelector(signupSelector);
   const { worker, setStep } = props;
 
   const onGenerate = async (passphrase: string) => {
@@ -68,8 +90,7 @@ export default function PrivateKey(props: StepProps) {
     const { address } = keystore;
     dispatch(setAddress(address));
     const fileName = `${address}.json`;
-    const encoder = new TextEncoder();
-    const contents = encoder.encode(JSON.stringify(keystore, undefined, 2));
+    const contents = encode(JSON.stringify(keystore, undefined, 2));
     download(fileName, contents);
   };
 
@@ -101,33 +122,31 @@ export default function PrivateKey(props: StepProps) {
           </Typography>
         </Stack>
 
-        <Button
-          disabled={downloaded}
-          variant="contained"
-          onClick={downloadPrivateKey}
-        >
-          Download private key
-        </Button>
+        {
+          address === null ?
+            (
+              <Button
+                onClick={downloadPrivateKey}
+              >
+                Download private key
+              </Button>
+            ) :
+            (
+              <Button
+                variant="contained"
+                onClick={() => setStep(SignupStep.VERIFY_KEY)}
+              >
+                Next: Verify private key
+              </Button>
+            )
+        }
 
-        <FormControlLabel
-          control={<Checkbox />}
-          onChange={() => setDownloaded(!downloaded)}
-          label="I have downloaded my private key and memorized the passphrase"
-        />
-
-        <Button
-          disabled={!downloaded}
-          variant="contained"
-          onClick={() => setStep(SignupStep.VERIFY_KEY)}
-        >
-          Next: Verify private key
-        </Button>
       </Stack>
     </>
   );
 }
 
-export default function Accept(props: StepProps) {
+function Accept(props: StepProps) {
   const dispatch = useDispatch();
   const { worker, setStep } = props;
   const [accepted, setAccepted] = useState(false);
