@@ -9,7 +9,7 @@ import { VaultWorker } from "../types";
 
 const logError = (state: SignupState, action: PayloadAction<Error>) => {
   //const { payload } = action;
-  console.error(action.error);
+  console.error(action.payload);
 };
 
 export const createSignup = createAsyncThunk(
@@ -50,7 +50,7 @@ const signupSlice = createSlice({
     builder.addCase(createSignup.fulfilled, (state, action) => {
       state.signup = action.payload;
     });
-    builder.addCase(deleteSignup.fulfilled, (state, action) => {
+    builder.addCase(deleteSignup.fulfilled, (state) => {
       state.signup = null;
       state.address = null;
     });

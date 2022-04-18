@@ -22,16 +22,19 @@ const userSlice = createSlice({
     login: (state, { payload }: PayloadAction<User>) => {
       state.user = payload;
     },
-    logout: (state, { payload }: PayloadAction<void>) => {
+    logout: (state) => {
       state.user = null;
     },
+
+    /*
     setAuthToken: (state, { payload }: PayloadAction<string>) => {
-      let user = { ...state.user, token: payload };
+      const user = { ...state.user, token: payload };
       state.user = user;
     },
+    */
   },
 });
 
-export const { setAuthToken, login, logout } = userSlice.actions;
+export const { /* setAuthToken, */ login, logout } = userSlice.actions;
 export const userSelector = (state: { user: UserState }) => state.user;
 export default userSlice.reducer;
