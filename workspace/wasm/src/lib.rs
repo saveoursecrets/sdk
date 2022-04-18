@@ -8,6 +8,7 @@ use sos_core::{
     decode, encode,
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta},
+    signer::{SignSync, SingleParty},
     uuid::Uuid,
     vault::Vault,
 };
@@ -263,20 +264,6 @@ impl Signup {
     // TODO: verify encryption passphrase can decrypt the vault meta data
     // TODO: send the vault to the remote server to complete account creation
 
-    /// Verify the passphrase for a keystore by decrypting
-    /// the private key.
-    #[wasm_bindgen(js_name = "verifyPrivateKey")]
-    pub fn verify_private_key(
-        &mut self,
-        passphrase: JsValue,
-        keystore: JsValue,
-    ) -> Result<JsValue, JsError> {
-        let passphrase: String = passphrase.into_serde()?;
-        let keystore: KeyStore = keystore.into_serde()?;
-        let _ = decrypt(&keystore, &passphrase)?;
-        Ok(JsValue::null())
-    }
-
     /// Generate an ECDSA private key and protect it with the given passphrase.
     #[wasm_bindgen(js_name = "generatePrivateKey")]
     pub fn generate_private_key(&self) -> Result<JsValue, JsError> {
@@ -307,6 +294,49 @@ impl Signup {
 
         self.key_passphrase = None;
         self.encryption_passphrase = None;
+    }
+}
+
+/// Signer implementation for single-party ECDSA keys.
+#[wasm_bindgen]
+pub struct WebSigner {
+    signer: Option<SingleParty>,
+}
+
+#[wasm_bindgen]
+impl WebSigner {
+    /// Create a new web signer.
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self { signer: None }
+    }
+
+    /// Load a keystore into this web signer using the
+    /// given decryption passphrase.
+    #[wasm_bindgen(js_name = "loadKeystore")]
+    pub fn load_keystore(
+        &mut self,
+        passphrase: JsValue,
+        keystore: JsValue,
+    ) -> Result<JsValue, JsError> {
+        let passphrase: String = passphrase.into_serde()?;
+        let keystore: KeyStore = keystore.into_serde()?;
+        let private_key = decrypt(&keystore, &passphrase)?;
+        let private_bytes: [u8; 32] = private_key.as_slice().try_into()?;
+        self.signer = Some(SingleParty::try_from(&private_bytes)?);
+        Ok(JsValue::null())
+    }
+
+    /// Sign a message.
+    pub fn sign(&self, message: JsValue) -> Result<JsValue, JsError> {
+        if let Some(signer) = &self.signer {
+            let message: Vec<u8> = message.into_serde()?;
+            let signature = signer.sign_sync(&message)?;
+            //Ok(JsValue::null())
+            Ok(JsValue::from_serde(&signature)?)
+        } else {
+            Err(JsError::new("signer is not initialized"))
+        }
     }
 }
 

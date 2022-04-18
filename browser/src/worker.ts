@@ -1,4 +1,4 @@
-import init, { WebVault, Signup, generatePassphrase } from "sos-wasm";
+import init, { WebVault, WebSigner, Signup, generatePassphrase } from "sos-wasm";
 import * as Comlink from "comlink";
 
 //export { WebVault, generatePassphrase } from "sos-wasm";
@@ -11,4 +11,4 @@ void (async function () {
   self.postMessage({ ready: true });
 })();
 
-Comlink.expose({ WebVault, Signup, generatePassphrase });
+Comlink.expose({ WebVault, WebSigner, Signup, generatePassphrase });
