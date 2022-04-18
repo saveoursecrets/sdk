@@ -2,6 +2,32 @@ import React from "react";
 
 import { CredentialsSecret } from "./types";
 
+export function getDroppedFiles(e: React.DragEvent<HTMLElement>): File[] {
+  const files = [];
+  if (e.dataTransfer.items) {
+    for (let i = 0; i < e.dataTransfer.items.length; i++) {
+      if (e.dataTransfer.items[i].kind === 'file') {
+        files.push(e.dataTransfer.items[i].getAsFile());
+      }
+    }
+  } else {
+    for (let i = 0; i < e.dataTransfer.files.length; i++) {
+      files.push(e.dataTransfer.files[i]);
+    }
+  }
+  return files;
+}
+
+export function encode(value: string): Uint8Array {
+  const encoder = new TextEncoder();
+  return encoder.encode(value);
+}
+
+export function decode(value: Uint8Array): string {
+  const decoder = new TextDecoder();
+  return decoder.decode(value);
+}
+
 export function download(fileName: string, buffer: Uint8Array, type?: string) {
   const blob = new Blob([buffer], { type: type || "application/octet-stream" });
   const link = document.createElement("a");

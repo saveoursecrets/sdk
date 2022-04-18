@@ -2,7 +2,6 @@ import init, {
   WebVault,
   Signup,
   generatePassphrase,
-  generatePrivateKey,
 } from "sos-wasm";
 import * as Comlink from "comlink";
 
@@ -16,4 +15,4 @@ void (async function () {
   self.postMessage({ ready: true });
 })();
 
-Comlink.expose({ WebVault, Signup, generatePassphrase, generatePrivateKey });
+Comlink.expose({ WebVault, Signup, generatePassphrase });

@@ -5,7 +5,7 @@ import {
   isRejected,
 } from "@reduxjs/toolkit";
 import { Signup } from "sos-wasm";
-import { VaultWorker } from "./types";
+import { VaultWorker } from "../types";
 
 const logError = (state: SignupState, action: PayloadAction<Error>) => {
   //const { payload } = action;
