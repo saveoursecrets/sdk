@@ -2,7 +2,6 @@
 //! to an in-memory representation of a vault can be sent
 //! to a remote server.
 
-use k256::ecdsa::signature::Signature;
 use serde::{Deserialize, Serialize};
 use serde_binary::{
     Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
@@ -40,7 +39,7 @@ impl<'a> Payload<'a> {
     pub async fn sign(&self, signer: impl Signer) -> Result<SignedPayload> {
         let encoded = encode(self)?;
         let signature = signer.sign(&encoded).await?;
-        let signature_bytes: [u8; 65] = signature.as_bytes().try_into()?;
+        let signature_bytes: [u8; 65] = signature.to_bytes();
         Ok(SignedPayload(signature_bytes, encoded))
     }
 }

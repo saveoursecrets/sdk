@@ -1,4 +1,4 @@
-import { WebVault, Signup } from "sos-wasm";
+import { WebVault, WebSigner, Signup } from "sos-wasm";
 
 export type SecretData = {
   secretId?: string;
@@ -58,6 +58,7 @@ export class SecretKindLabel {
 export type VaultWorker = {
   WebVault(): Promise<WebVault>;
   Signup(): Promise<Signup>;
+  WebSigner(): Promise<WebSigner>;
   generatePassphrase(words: number): Promise<[string, number]>;
 };
 

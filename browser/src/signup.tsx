@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
+import { WebSigner } from "sos-wasm";
+
 import { WorkerProps } from "./props";
 import Diceware from "./diceware";
 import { download, encode, decode } from "./utils";
@@ -73,7 +75,7 @@ function Passphrase(props: StepProps) {
 }
 
 function VerifyKey(props: StepProps) {
-  const { setStep } = props;
+  const { worker, setStep } = props;
   const { signup, address } = useSelector(signupSelector);
   const [verified, setVerified] = useState(false);
   const [keystore, setKeystore] = useState(null);
@@ -87,7 +89,11 @@ function VerifyKey(props: StepProps) {
     console.log("verify passphrase", passphrase);
 
     try {
-      await signup.verifyPrivateKey(passphrase, keystore);
+      const signer: WebSigner = await new (worker.WebSigner as any)();
+      await signer.loadKeystore(passphrase, keystore);
+      setVerified(true);
+
+      // TODO: store the signer for later use
     } catch (e) {
       // TODO: handle verification error
       console.error(e);
@@ -95,7 +101,6 @@ function VerifyKey(props: StepProps) {
 
     setKeystore(null);
     setPassphrase("");
-    setVerified(true);
 
     console.log("Verification completed!");
   };

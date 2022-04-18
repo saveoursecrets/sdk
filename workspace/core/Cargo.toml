@@ -9,6 +9,7 @@ aes-gcm = { version = "0.9", features = ["std"] }
 chacha20poly1305 = { version = "0.9", features = ["std"] }
 rand = "0.8"
 thiserror = "1"
+web3-signature = { version = "0.2", features = ["single-party"] }
 serde = { version = "1", features = ["derive"] }
 hex = { version = "0.4", features = ["serde"] }
 serde_json = "1"
