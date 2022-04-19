@@ -18,6 +18,12 @@ export function getDroppedFiles(e: React.DragEvent<HTMLElement>): File[] {
   return files;
 }
 
+export const abbreviateAddress = (address: string): string => {
+  const start = address.substr(0, 5);
+  const end = address.substr(address.length - 5);
+  return `${start}...${end}`;
+};
+
 export function encode(value: string): Uint8Array {
   const encoder = new TextEncoder();
   return encoder.encode(value);
@@ -37,10 +43,8 @@ export function download(fileName: string, buffer: Uint8Array, type?: string) {
 }
 
 export async function copyToClipboard(
-  e: React.MouseEvent<HTMLElement>,
   text: string
 ) {
-  e.preventDefault();
   await window.navigator.clipboard.writeText(text);
 }
 
