@@ -3,14 +3,19 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { WebSigner } from "sos-wasm";
 
-import { WorkerProps } from "./props";
-import Diceware from "./diceware";
-import { download, encode, decode } from "./utils";
+import { WorkerProps } from "../props";
+import Diceware from "../diceware";
+import { download, encode, decode } from "../utils";
 
-import FileUploadReader, { FileBuffer } from "./file-upload-reader";
+import FileUploadReader, { FileBuffer } from "../file-upload-reader";
 
-import { createSignup, setAddress, setSigner, signupSelector } from "./store/signup";
-import { setSnackbar } from './store/snackbar';
+import PasswordForm from '../authenticated/forms/password-form';
+
+import { createSignup, setAddress, setSigner, setVault, signupSelector } from "../store/signup";
+import { createEmptyVault } from "../store/vaults";
+import { setSnackbar } from '../store/snackbar';
+
+import SignupCleanup from './cleanup';
 
 import {
   Button,
@@ -27,7 +32,8 @@ enum SignupStep {
   PRIVATE_KEY = 2,
   VERIFY_KEY = 3,
   PASSPHRASE = 4,
-  COMPLETE = 5,
+  VERIFY_PASSPHRASE = 5,
+  COMPLETE = 6,
 }
 
 type StepProps = {
@@ -35,12 +41,22 @@ type StepProps = {
 } & WorkerProps;
 
 function Passphrase(props: StepProps) {
+  const dispatch = useDispatch();
   const { worker, setStep } = props;
-  const { signup, address } = useSelector(signupSelector);
+  const { signup, address, vault } = useSelector(signupSelector);
 
   const onGenerate = async (passphrase: string) => {
     await signup.setEncryptionPassphrase(passphrase);
   };
+
+  const createVault = async () => {
+    const passphrase = await signup.getEncryptionPassphrase();
+    console.log("Create vault...", passphrase);
+    const vault = await createEmptyVault(worker);
+    await vault.initialize("Login", "", passphrase);
+    dispatch(setVault(vault));
+    setStep(SignupStep.VERIFY_PASSPHRASE);
+  }
 
   return (
     <Stack spacing={4}>
@@ -66,8 +82,7 @@ function Passphrase(props: StepProps) {
 
         <Button
           variant="contained"
-          onClick={() => setStep(SignupStep.COMPLETE)}
-        >
+          onClick={createVault}>
           Next: Verify encryption passphrase
         </Button>
       </Stack>
@@ -80,12 +95,8 @@ function VerifyKey(props: StepProps) {
   const { worker, setStep } = props;
   const { signup, address } = useSelector(signupSelector);
   const [keystore, setKeystore] = useState(null);
-  const [passphrase, setPassphrase] = useState("");
 
-  const onPassphraseChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setPassphrase(e.target.value);
-
-  const verifyPassphrase = async () => {
+  const verifyPassphrase = async (passphrase: string) => {
     try {
       const signer: WebSigner = await new (worker.WebSigner as any)();
       await signer.loadKeystore(passphrase, keystore);
@@ -100,7 +111,6 @@ function VerifyKey(props: StepProps) {
       );
 
       setKeystore(null);
-      setPassphrase("");
       setStep(SignupStep.PASSPHRASE)
 
     } catch (e) {
@@ -175,18 +185,11 @@ function VerifyKey(props: StepProps) {
             To decrypt and verify your keystore file
           </Typography>
         </Stack>
-        <form id="key-passphrase-form" onSubmit={verifyPassphrase} noValidate>
-          <Stack spacing={2}>
-            <TextField
-              type="password"
-              label="Passphrase"
-              value={passphrase}
-              onChange={onPassphraseChange}
-            />
 
-            <Button type="submit" form="key-passphrase-form" >Verify</Button>
-          </Stack>
-        </form>
+        <PasswordForm
+          onFormSubmit={verifyPassphrase}
+          submitLabel="Verify" />
+
       </>
     );
   };
@@ -285,8 +288,8 @@ function Accept(props: StepProps) {
       </Typography>
       <Stack spacing={4}>
         <Typography variant="body1">
-          Please read this page carefully and be sure you understand your
-          responsibilities.
+          Please read this page carefully and be certain you understand your
+          responsibilities; before you begin ensure you are in a private space and your screen is not visible by other people.
         </Typography>
         <Stack>
           <Typography variant="h5" gutterBottom>
@@ -333,7 +336,7 @@ function Accept(props: StepProps) {
   );
 }
 
-export default function SignupView(props: WorkerProps) {
+function SignupStepView(props: WorkerProps) {
   const { worker } = props;
   const [step, setStep] = useState(SignupStep.ACCEPT);
 
@@ -346,7 +349,19 @@ export default function SignupView(props: WorkerProps) {
       return <VerifyKey worker={worker} setStep={setStep} />;
     case SignupStep.PASSPHRASE:
       return <Passphrase worker={worker} setStep={setStep} />;
+    case SignupStep.VERIFY_PASSPHRASE:
+      return <p>TODO: verify passphrase!</p>;
     case SignupStep.COMPLETE:
-      return <p>Congratulations, signup is completed!</p>;
+      return <p>Congratulations, signup is completed! TODO: send vault to create new account on remote server</p>;
   }
+}
+
+export default function SignupView(props: WorkerProps) {
+  const { worker } = props;
+  return (
+    <>
+      <SignupStepView worker={worker} />
+      <SignupCleanup />
+    </>
+  );
 }

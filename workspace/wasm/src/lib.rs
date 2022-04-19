@@ -258,6 +258,12 @@ impl Signup {
         Ok(JsValue::null())
     }
 
+    /// Get the passphrase for vault encryption.
+    #[wasm_bindgen(js_name = "getEncryptionPassphrase")]
+    pub fn get_encryption_passphrase(&self) -> Result<JsValue, JsError> {
+        Ok(JsValue::from_serde(&self.encryption_passphrase)?)
+    }
+
     // TODO: verify private key passphrase matches stored value (memorization test)
     // TODO: verify encryption passphrase matches stored value (memorization test)
     // TODO: initialize a vault with the encryption passphrase
@@ -286,12 +292,10 @@ impl Signup {
         if let Some(key_passphrase) = self.key_passphrase.as_mut() {
             key_passphrase.zeroize();
         }
-
         if let Some(encryption_passphrase) = self.encryption_passphrase.as_mut()
         {
             encryption_passphrase.zeroize();
         }
-
         self.key_passphrase = None;
         self.encryption_passphrase = None;
     }
