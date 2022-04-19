@@ -9,7 +9,8 @@ import { download, encode, decode } from "./utils";
 
 import FileUploadReader, { FileBuffer } from "./file-upload-reader";
 
-import { createSignup, setAddress, signupSelector } from "./store/signup";
+import { createSignup, setAddress, setSigner, signupSelector } from "./store/signup";
+import { setSnackbar } from './store/snackbar';
 
 import {
   Button,
@@ -75,9 +76,9 @@ function Passphrase(props: StepProps) {
 }
 
 function VerifyKey(props: StepProps) {
+  const dispatch = useDispatch();
   const { worker, setStep } = props;
   const { signup, address } = useSelector(signupSelector);
-  const [verified, setVerified] = useState(false);
   const [keystore, setKeystore] = useState(null);
   const [passphrase, setPassphrase] = useState("");
 
@@ -85,24 +86,34 @@ function VerifyKey(props: StepProps) {
     setPassphrase(e.target.value);
 
   const verifyPassphrase = async () => {
-    console.log("verify keystore", keystore);
-    console.log("verify passphrase", passphrase);
-
     try {
       const signer: WebSigner = await new (worker.WebSigner as any)();
       await signer.loadKeystore(passphrase, keystore);
-      setVerified(true);
+      dispatch(setSigner(signer));
+      dispatch(
+        setSnackbar(
+          {
+            message: "Keystore passphrase verified",
+            severity: 'success'
+          }
+        )
+      );
 
-      // TODO: store the signer for later use
+      setKeystore(null);
+      setPassphrase("");
+      setStep(SignupStep.PASSPHRASE)
+
     } catch (e) {
-      // TODO: handle verification error
       console.error(e);
+      dispatch(
+        setSnackbar(
+          {
+            message: `Keystore verification failed`,
+            severity: 'error'
+          }
+        )
+      );
     }
-
-    setKeystore(null);
-    setPassphrase("");
-
-    console.log("Verification completed!");
   };
 
   const onFileSelect = (file: File) => {
@@ -111,22 +122,47 @@ function VerifyKey(props: StepProps) {
 
   const onFileChange = (data: FileBuffer) => {
     console.log("Got file change event: ", data);
-    // TODO: handle UTF-8 decode error
-    const contents = decode(new Uint8Array(data.buffer));
 
-    // TODO: handle JSON parse error
-    const keystore = JSON.parse(contents);
-
-    if (keystore.address !== address) {
-      throw new Error("keystore address is not correct");
+    try {
+      const contents = decode(new Uint8Array(data.buffer));
+      try {
+        const keystore = JSON.parse(contents);
+        if (keystore.address !== address) {
+          dispatch(
+            setSnackbar(
+              {
+                message: `Keystore address ${keystore.address} does not match expected address: ${address}, perhaps you uploaded the wrong keystore?`,
+                severity: 'error'
+              }
+            )
+          );
+        }
+        setKeystore(keystore);
+      } catch (e) {
+        console.error(e);
+        dispatch(
+          setSnackbar(
+            {
+              message: `Could not parse file as JSON: ${e.message || ''}`,
+              severity: 'error'
+            }
+          )
+        );
+      }
+    } catch (e) {
+      console.error(e);
+      dispatch(
+        setSnackbar(
+          {
+            message: `Could not decode file as UTF-8: ${e.message || ''}`,
+            severity: 'error'
+          }
+        )
+      );
     }
-
-    setKeystore(keystore);
-
-    console.log("verify keystore", keystore);
   };
 
-  const NotVerified = () => {
+  const KeystoreReader = () => {
     return keystore === null ? (
       <FileUploadReader onChange={onFileChange} onSelect={onFileSelect} />
     ) : (
@@ -139,7 +175,7 @@ function VerifyKey(props: StepProps) {
             To decrypt and verify your keystore file
           </Typography>
         </Stack>
-        <form>
+        <form id="key-passphrase-form" onSubmit={verifyPassphrase} noValidate>
           <Stack spacing={2}>
             <TextField
               type="password"
@@ -148,27 +184,10 @@ function VerifyKey(props: StepProps) {
               onChange={onPassphraseChange}
             />
 
-            <Button onClick={verifyPassphrase}>Verify</Button>
+            <Button type="submit" form="key-passphrase-form" >Verify</Button>
           </Stack>
         </form>
       </>
-    );
-  };
-
-  const Verified = () => {
-    return (
-      <Stack spacing={2}>
-        <Alert severity="success">
-          The passphrase for your private key has been verified.
-        </Alert>
-
-        <Button
-          variant="contained"
-          onClick={() => setStep(SignupStep.PASSPHRASE)}
-        >
-          Next: Encryption passphrase
-        </Button>
-      </Stack>
     );
   };
 
@@ -181,7 +200,9 @@ function VerifyKey(props: StepProps) {
         </Typography>
       </Stack>
 
-      <Stack spacing={4}>{!verified ? <NotVerified /> : <Verified />}</Stack>
+      <Stack spacing={4}>
+        <KeystoreReader />
+      </Stack>
     </Stack>
   );
 }

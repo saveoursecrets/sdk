@@ -3,6 +3,7 @@ import vaultsReducer from "./vaults";
 import dialogsReducer from "./dialogs";
 import userReducer from "./user";
 import signupReducer from "./signup";
+import snackbarReducer from "./snackbar";
 
 const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ const store = configureStore({
     dialogs: dialogsReducer,
     user: userReducer,
     signup: signupReducer,
+    snackbar: snackbarReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -46,6 +48,8 @@ const store = configureStore({
           "vaults/deleteSecret/pending",
           "vaults/deleteSecret/fulfilled",
           "vaults/deleteSecret/rejected",
+
+          "signup/setSigner",
 
           "signup/new/pending",
           "signup/new/fulfilled",

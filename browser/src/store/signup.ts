@@ -4,7 +4,7 @@ import {
   PayloadAction,
   isRejected,
 } from "@reduxjs/toolkit";
-import { Signup } from "sos-wasm";
+import { WebSigner, Signup } from "sos-wasm";
 import { VaultWorker } from "../types";
 
 const logError = (state: SignupState, action: PayloadAction<Error>) => {
@@ -31,11 +31,13 @@ export const deleteSignup = createAsyncThunk(
 type SignupState = {
   signup?: Signup;
   address?: string;
+  signer?: WebSigner;
 };
 
 const initialState: SignupState = {
   signup: null,
   address: null,
+  signer: null,
 };
 
 const signupSlice = createSlice({
@@ -44,6 +46,9 @@ const signupSlice = createSlice({
   reducers: {
     setAddress: (state, { payload }: PayloadAction<string>) => {
       state.address = payload;
+    },
+    setSigner: (state, { payload }: PayloadAction<WebSigner>) => {
+      state.signer = payload;
     },
   },
   extraReducers: (builder) => {
@@ -58,6 +63,6 @@ const signupSlice = createSlice({
   },
 });
 
-export const { setAddress } = signupSlice.actions;
+export const { setAddress, setSigner } = signupSlice.actions;
 export const signupSelector = (state: { signup: SignupState }) => state.signup;
 export default signupSlice.reducer;
