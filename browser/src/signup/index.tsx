@@ -32,13 +32,69 @@ enum SignupStep {
   PRIVATE_KEY = 2,
   VERIFY_KEY = 3,
   PASSPHRASE = 4,
-  VERIFY_PASSPHRASE = 5,
+  VERIFY_ENCRYPTION = 5,
   COMPLETE = 6,
 }
 
 type StepProps = {
   setStep: (value: number) => void;
 } & WorkerProps;
+
+function VerifyEncryption(props: StepProps) {
+  const dispatch = useDispatch();
+  const { setStep } = props;
+  const { address, vault } = useSelector(signupSelector);
+
+  const verifyPassphrase = async (passphrase: string) => {
+    try {
+      await vault.unlock(passphrase);
+      dispatch(
+        setSnackbar(
+          {
+            message: "Encryption passphrase verified",
+            severity: 'success'
+          }
+        )
+      );
+      setStep(SignupStep.COMPLETE);
+    } catch (e) {
+      dispatch(
+        setSnackbar(
+          {
+            message: `Encryption verification failed`,
+            severity: 'error'
+          }
+        )
+      );
+    }
+  }
+
+  return (
+    <Stack spacing={4}>
+      <Stack>
+        <Typography variant="h3">Verify Encryption</Typography>
+        <Typography variant="subtitle1" gutterBottom color="text.secondary">
+          {address}
+        </Typography>
+      </Stack>
+      <Stack spacing={4}>
+        <Stack>
+          <Typography variant="body1">
+            Your login vault has been prepared
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Verify your password to create the new account
+          </Typography>
+        </Stack>
+
+        <PasswordForm
+          onFormSubmit={verifyPassphrase}
+          submitLabel="Verify" />
+
+      </Stack>
+    </Stack>
+  );
+}
 
 function Passphrase(props: StepProps) {
   const dispatch = useDispatch();
@@ -51,11 +107,11 @@ function Passphrase(props: StepProps) {
 
   const createVault = async () => {
     const passphrase = await signup.getEncryptionPassphrase();
-    console.log("Create vault...", passphrase);
     const vault = await createEmptyVault(worker);
     await vault.initialize("Login", "", passphrase);
+    await vault.lock();
     dispatch(setVault(vault));
-    setStep(SignupStep.VERIFY_PASSPHRASE);
+    setStep(SignupStep.VERIFY_ENCRYPTION);
   }
 
   return (
@@ -287,10 +343,15 @@ function Accept(props: StepProps) {
         Signup
       </Typography>
       <Stack spacing={4}>
-        <Typography variant="body1">
-          Please read this page carefully and be certain you understand your
-          responsibilities; before you begin ensure you are in a private space and your screen is not visible by other people.
-        </Typography>
+        <Stack>
+          <Typography variant="body1">
+            Please read this page carefully and be certain you understand your
+            responsibilities.
+          </Typography>
+          <Alert severity="warning">
+            Before you begin ensure you are in a private space and your screen is not visible by other people.
+          </Alert>
+        </Stack>
         <Stack>
           <Typography variant="h5" gutterBottom>
             Private Key
@@ -349,8 +410,8 @@ function SignupStepView(props: WorkerProps) {
       return <VerifyKey worker={worker} setStep={setStep} />;
     case SignupStep.PASSPHRASE:
       return <Passphrase worker={worker} setStep={setStep} />;
-    case SignupStep.VERIFY_PASSPHRASE:
-      return <p>TODO: verify passphrase!</p>;
+    case SignupStep.VERIFY_ENCRYPTION:
+      return <VerifyEncryption worker={worker} setStep={setStep} />;
     case SignupStep.COMPLETE:
       return <p>Congratulations, signup is completed! TODO: send vault to create new account on remote server</p>;
   }
