@@ -1,12 +1,9 @@
-import React, { useState } from "react";
-import { useDispatch, useSelector } from 'react-redux';
+import React from "react";
+import { useDispatch, useSelector } from "react-redux";
 
-import {
-  Snackbar,
-  Alert,
-} from "@mui/material";
+import { Snackbar, Alert } from "@mui/material";
 
-import { snackbarSelector, setSnackbar } from './store/snackbar';
+import { snackbarSelector, setSnackbar } from "./store/snackbar";
 
 export default function SnackbarHandler() {
   const dispatch = useDispatch();
