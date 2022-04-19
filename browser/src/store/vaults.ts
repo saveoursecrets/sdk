@@ -120,13 +120,18 @@ export const lockAll = createAsyncThunk(
   }
 );
 
+export const createEmptyVault = async (worker: VaultWorker) => {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const vault: WebVault = await new (worker.WebVault as any)();
+  return vault;
+}
+
 export const createNewVault = createAsyncThunk(
   "vaults/create",
   async (request: NewVaultRequest) => {
     const { worker, navigate, result } = request;
     const { name, label, password } = result;
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    const vault: WebVault = await new (worker.WebVault as any)();
+    const vault = await createEmptyVault(worker);
     await vault.initialize(name, label, password);
     const uuid = await vault.id();
     const meta = await vault.getVaultMeta();
@@ -202,7 +207,7 @@ const updateVaultFromThunk = (
 
 const logError = (state: VaultState, action: PayloadAction<Error>) => {
   //const { payload } = action;
-  console.error(action.payload);
+  console.error(action.error);
 };
 
 const vaultsSlice = createSlice({

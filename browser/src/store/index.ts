@@ -50,10 +50,15 @@ const store = configureStore({
           "vaults/deleteSecret/rejected",
 
           "signup/setSigner",
+          "signup/setVault",
 
           "signup/new/pending",
           "signup/new/fulfilled",
           "signup/new/rejected",
+
+          "signup/delete/pending",
+          "signup/delete/fulfilled",
+          "signup/delete/rejected",
         ],
         // Ignore these field paths in all actions
         ignoredActionPaths: [],
