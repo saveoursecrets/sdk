@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { Stack, Typography } from "@mui/material";
 
 import PasswordForm from "../authenticated/forms/password-form";
+import PublicAddress from '../components/public-address';
 
 import { signupSelector } from "../store/signup";
 import { setSnackbar } from "../store/snackbar";
@@ -38,9 +39,7 @@ export default function VerifyEncryption(props: StepProps) {
     <Stack spacing={4}>
       <Stack>
         <Typography variant="h3">Verify Encryption</Typography>
-        <Typography variant="subtitle1" gutterBottom color="text.secondary">
-          {address}
-        </Typography>
+        <PublicAddress address={address} abbreviate={true} />
       </Stack>
       <Stack spacing={4}>
         <Stack>

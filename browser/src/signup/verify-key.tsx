@@ -10,6 +10,7 @@ import { decode } from "../utils";
 import FileUploadReader, { FileBuffer } from "../file-upload-reader";
 
 import PasswordForm from "../authenticated/forms/password-form";
+import PublicAddress from '../components/public-address';
 
 import { setSigner, signupSelector } from "../store/signup";
 import { setSnackbar } from "../store/snackbar";
@@ -111,9 +112,7 @@ export default function VerifyKey(props: StepProps) {
     <Stack spacing={4}>
       <Stack>
         <Typography variant="h3">Verify Key</Typography>
-        <Typography variant="subtitle1" gutterBottom color="text.secondary">
-          {address}
-        </Typography>
+        <PublicAddress address={address} abbreviate={true} />
       </Stack>
 
       <Stack spacing={4}>

@@ -8,23 +8,24 @@ import PrivateKey from "./private-key";
 import VerifyKey from "./verify-key";
 import EncryptionPassphrase from "./encryption-passphrase";
 import VerifyEncryption from "./verify-encryption";
+import Finish from './finish';
 
 enum SignupStep {
   ACCEPT = 1,
   PRIVATE_KEY = 2,
   VERIFY_KEY = 3,
-  PASSPHRASE = 4,
+  ENCRYPTION = 4,
   VERIFY_ENCRYPTION = 5,
-  COMPLETE = 6,
+  FINISH = 6,
 }
 
 const signupSteps = [
   SignupStep.ACCEPT,
   SignupStep.PRIVATE_KEY,
   SignupStep.VERIFY_KEY,
-  SignupStep.PASSPHRASE,
+  SignupStep.ENCRYPTION,
   SignupStep.VERIFY_ENCRYPTION,
-  SignupStep.COMPLETE,
+  SignupStep.FINISH,
 ];
 
 export type StepProps = {
@@ -48,17 +49,12 @@ function SignupStepView(props: WorkerProps) {
       return <PrivateKey worker={worker} nextStep={nextStep} />;
     case SignupStep.VERIFY_KEY:
       return <VerifyKey worker={worker} nextStep={nextStep} />;
-    case SignupStep.PASSPHRASE:
+    case SignupStep.ENCRYPTION:
       return <EncryptionPassphrase worker={worker} nextStep={nextStep} />;
     case SignupStep.VERIFY_ENCRYPTION:
       return <VerifyEncryption worker={worker} nextStep={nextStep} />;
-    case SignupStep.COMPLETE:
-      return (
-        <p>
-          Congratulations, signup is completed! TODO: send vault to create new
-          account on remote server
-        </p>
-      );
+    case SignupStep.FINISH:
+      return <Finish worker={worker} nextStep={nextStep} />;
   }
 }
 

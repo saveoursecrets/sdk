@@ -7,6 +7,7 @@ import Diceware from "../diceware";
 
 import { setVault, signupSelector } from "../store/signup";
 import { createEmptyVault } from "../store/vaults";
+import PublicAddress from '../components/public-address';
 
 import { StepProps } from "./index";
 
@@ -32,9 +33,7 @@ export default function EncryptionPassphrase(props: StepProps) {
     <Stack spacing={4}>
       <Stack>
         <Typography variant="h3">Encryption Passphrase</Typography>
-        <Typography variant="subtitle1" gutterBottom color="text.secondary">
-          {address}
-        </Typography>
+        <PublicAddress address={address} abbreviate={true} />
       </Stack>
       <Stack spacing={4}>
         <Stack>

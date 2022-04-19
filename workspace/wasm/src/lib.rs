@@ -336,7 +336,6 @@ impl WebSigner {
         if let Some(signer) = &self.signer {
             let message: Vec<u8> = message.into_serde()?;
             let signature = signer.sign_sync(&message)?;
-            //Ok(JsValue::null())
             Ok(JsValue::from_serde(&signature)?)
         } else {
             Err(JsError::new("signer is not initialized"))

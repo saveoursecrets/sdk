@@ -23,7 +23,7 @@ export default function ReadOnlyPassword(props: ReadOnlyPasswordProps) {
 
   const copy = compact ? (
     <Tooltip title="Copy to clipboard">
-      <IconButton onClick={async (e) => await copyToClipboard(e, value)}>
+      <IconButton onClick={async () => await copyToClipboard(value)}>
         <ContentCopyIcon />
       </IconButton>
     </Tooltip>
@@ -32,7 +32,7 @@ export default function ReadOnlyPassword(props: ReadOnlyPasswordProps) {
       <Tooltip title="Copy to clipboard">
         <Button
           startIcon={<ContentCopyIcon />}
-          onClick={async (e) => await copyToClipboard(e, value)}
+          onClick={async () => await copyToClipboard(value)}
         >
           Copy to clipboard
         </Button>
