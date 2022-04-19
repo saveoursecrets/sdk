@@ -15,7 +15,7 @@ import AppBarActions from "./app-bar-actions";
 import Home from "./home";
 import Signup from "./signup";
 import NotFound from "./not-found";
-import Snackbar from './snackbar';
+import Snackbar from "./snackbar";
 
 const Main = styled("div", { shouldForwardProp: (prop) => prop !== "open" })<{
   open?: boolean;

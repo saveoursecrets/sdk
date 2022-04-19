@@ -1,10 +1,6 @@
 import React, { useState } from "react";
 
-import {
-  Button,
-  Stack,
-  TextField,
-} from "@mui/material";
+import { Button, Stack, TextField } from "@mui/material";
 
 type PasswordFormProps = {
   onFormSubmit: (password: string) => void;
@@ -12,7 +8,7 @@ type PasswordFormProps = {
 };
 
 export default function PasswordForm(props: PasswordFormProps) {
-  const {onFormSubmit, submitLabel} = props;
+  const { onFormSubmit, submitLabel } = props;
   const [password, setPassword] = useState("");
 
   const onPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -21,7 +17,7 @@ export default function PasswordForm(props: PasswordFormProps) {
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onFormSubmit(password);
-  }
+  };
 
   return (
     <form id="password-form" onSubmit={onSubmit} noValidate>
@@ -32,7 +28,7 @@ export default function PasswordForm(props: PasswordFormProps) {
           value={password}
           onChange={onPasswordChange}
         />
-        <Button type="submit" form="password-form" >
+        <Button type="submit" form="password-form">
           {submitLabel}
         </Button>
       </Stack>

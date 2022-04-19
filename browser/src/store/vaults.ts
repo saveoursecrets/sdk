@@ -124,7 +124,7 @@ export const createEmptyVault = async (worker: VaultWorker) => {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const vault: WebVault = await new (worker.WebVault as any)();
   return vault;
-}
+};
 
 export const createNewVault = createAsyncThunk(
   "vaults/create",
