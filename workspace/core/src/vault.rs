@@ -87,6 +87,42 @@ impl Header {
     pub fn set_meta(&mut self, meta: Option<AeadPack>) {
         self.meta = meta;
     }
+
+    /// Read the identity magic bytes.
+    fn read_identity(de: &mut Deserializer) -> Result<()> {
+        for ident in &IDENTITY {
+            let byte = de.reader.read_u8()?;
+            if byte != *ident {
+                return Err(Error::BadIdentity(byte));
+            }
+        }
+        Ok(())
+    }
+
+    /// Read the UUID for a vault from a file.
+    pub fn read_uuid<P: AsRef<Path>>(file: P) -> Result<Uuid> {
+        //let mut vault: Vault = Default::default();
+        let mut stream = FileStream::new(file.as_ref(), OpenType::Open)?;
+        let reader = BinaryReader::new(&mut stream, Endian::Big);
+        let mut de = Deserializer { reader };
+
+        // Read magic identity bytes
+        Header::read_identity(&mut de)?;
+        // Read version
+        de.reader.read_u16()?;
+
+        // Read encryption algorithm
+        let mut algorithm: Algorithm = Default::default();
+        algorithm.decode(&mut de)?;
+
+        if !ALGORITHMS.contains(algorithm.as_ref()) {
+            return Err(Error::UnknownAlgorithm(algorithm.into()));
+        }
+
+        let uuid = Uuid::parse_str(&de.reader.read_string()?)?;
+
+        Ok(uuid)
+    }
 }
 
 impl Default for Header {
@@ -123,14 +159,9 @@ impl Encode for Header {
 
 impl Decode for Header {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        for ident in &IDENTITY {
-            let byte = de.reader.read_u8()?;
-            if byte != *ident {
-                return Err(BinaryError::Boxed(Box::from(Error::BadIdentity(
-                    byte,
-                ))));
-            }
-        }
+        Header::read_identity(de)
+            .map_err(|e| BinaryError::Boxed(Box::from(e)))?;
+
         self.version = de.reader.read_u16()?;
         self.algorithm.decode(&mut *de)?;
 

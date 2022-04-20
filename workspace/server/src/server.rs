@@ -34,7 +34,7 @@ pub struct State {
     /// Version of the crate.
     pub version: String,
     /// Map of backends for each user.
-    pub backends: HashMap<AddressStr, Box<dyn Backend + Send + Sync>>,
+    pub backend: Box<dyn Backend + Send + Sync>,
 }
 
 // Server implementation.
@@ -203,37 +203,6 @@ impl AccountHandler {
         } else {
             StatusCode::INTERNAL_SERVER_ERROR
         }
-
-        //if let Ok(value) = base64::decode(authorization.token()) {
-        //if let Ok(signature) = serde_json::from_slice::<Signature>(&value) {
-        //let recoverable: recoverable::Signature = signature.try_into().unwrap();
-        ////if let Ok(recoverable) = signature.try_into() {
-        //println!("Create a new account, sig: {:#?}", signature);
-        //println!("Create a new account, sig: {:#?}", recoverable);
-        //println!("Create a new account, sig: {:#?}", body.len());
-
-        //let pub_key = recoverable
-        //.recover_verify_key(&body)
-        //.expect("couldn't recover pubkey");
-
-        //let key_bytes: [u8; 33] = pub_key.to_bytes().as_slice().try_into()
-        //.expect("expecting a 33 byte SEC-1 encoded point");
-        //let address = address_compressed(&key_bytes).unwrap();
-
-        //println!("Create a new account, pubkey: {:#?}", pub_key);
-        //println!("Create a new account, address: {:#?}", address);
-
-        ////} else {
-        ////return StatusCode::INTERNAL_SERVER_ERROR;
-        ////}
-        //} else {
-        //return StatusCode::BAD_REQUEST;
-        //}
-        //} else {
-        //return StatusCode::BAD_REQUEST;
-        //}
-
-        //StatusCode::NOT_FOUND
     }
 }
 
@@ -246,6 +215,10 @@ impl VaultHandler {
         Path(user_id): Path<AddressStr>,
     ) -> impl IntoResponse {
         let reader = state.read().await;
+
+        todo!()
+
+        /*
         let (status, value) =
             if let Some(backend) = reader.backends.get(&user_id) {
                 let list: Vec<String> =
@@ -255,6 +228,7 @@ impl VaultHandler {
                 (StatusCode::NOT_FOUND, json!(()))
             };
         (status, Json(value))
+        */
     }
 
     /// Retrieve an encrypted vault.
@@ -263,9 +237,13 @@ impl VaultHandler {
         Path((user_id, vault_id)): Path<(AddressStr, Uuid)>,
     ) -> Result<Bytes, StatusCode> {
         let reader = state.read().await;
+
+        todo!()
+
+        /*
         if let Some(backend) = reader.backends.get(&user_id) {
-            if let Some(vault) = backend.get(&vault_id) {
-                let buffer = encode(vault)
+            if let Ok(Some(vault)) = backend.get(&vault_id) {
+                let buffer = encode(&vault)
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                 Ok(Bytes::from(buffer))
             } else {
@@ -274,6 +252,7 @@ impl VaultHandler {
         } else {
             Err(StatusCode::NOT_FOUND)
         }
+        */
     }
 
     /// Update an encrypted vault.
@@ -283,6 +262,10 @@ impl VaultHandler {
         body: Bytes,
     ) -> Result<(), StatusCode> {
         let mut writer = state.write().await;
+
+        todo!()
+
+        /*
         if let Some(backend) = writer.backends.get_mut(&user_id) {
             if let Some(vault) = backend.get_mut(&vault_id) {
                 let buffer = body.to_vec();
@@ -303,6 +286,7 @@ impl VaultHandler {
         } else {
             Err(StatusCode::NOT_FOUND)
         }
+        */
     }
 
     /*

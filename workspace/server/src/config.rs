@@ -16,8 +16,10 @@ pub struct ServerConfig {
     /// Whether to sever the web GUI.
     #[serde(default = "default_false")]
     pub gui: bool,
-    /// Map of user configurations to load.
-    pub users: HashMap<AddressStr, UserConfig>,
+
+    /// Storage for the backend.
+    pub storage: StorageConfig,
+
     /// Configuration for the API.
     pub api: ApiConfig,
 
@@ -31,6 +33,20 @@ pub struct ApiConfig {
     pub origins: Vec<Url>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StorageConfig {
+    /// URL for the backend storage.
+    pub url: Url,
+}
+
+impl Default for StorageConfig {
+    fn default() -> Self {
+        Self {
+            url: Url::parse("file://.").unwrap(),
+        }
+    }
+}
+
 impl ServerConfig {
     /// Load a server config from a file path.
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -39,9 +55,61 @@ impl ServerConfig {
         config.file = Some(path.as_ref().canonicalize()?);
         Ok(config)
     }
-}
 
-impl ServerConfig {
+    /// Get the backend implementation.
+    pub fn backend(&self) -> Result<Box<dyn Backend + Send + Sync>> {
+        // Config file directory for relative file paths.
+        let dir = self
+            .file
+            .as_ref()
+            .unwrap()
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap();
+
+        match self.storage.url.scheme() {
+            "file" => {
+                let url = self.storage.url.clone();
+                let mut is_relative = false;
+                if let Some(Host::Domain(name)) = url.host() {
+                    if name == "." {
+                        is_relative = true;
+                    }
+                }
+                let url = if is_relative {
+                    let base_file = format!(
+                        "file://{}",
+                        dir.to_string_lossy().into_owned()
+                    );
+                    let mut base: Url = base_file.parse()?;
+                    // Must end with a slash to join the relative path
+                    // correctly
+                    if !base.path().ends_with('/') {
+                        let path = format!("{}/", base.path());
+                        base.set_path(&path);
+                    }
+
+                    let path = format!(".{}", url.path());
+                    base.join(&path)?
+                } else {
+                    url
+                };
+
+                let path = url.to_file_path().map_err(|_| {
+                    Error::UrlFilePath(self.storage.url.clone())
+                })?;
+
+                let mut backend = FileSystemBackend::new(path);
+                backend.read_dir()?;
+                Ok(Box::new(backend))
+            }
+            _ => Err(Error::InvalidUrlScheme(
+                self.storage.url.scheme().to_string(),
+            )),
+        }
+    }
+
+    /*
     /// Map each user config to a backend implementation.
     pub fn backends(
         &self,
@@ -60,8 +128,10 @@ impl ServerConfig {
         }
         Ok(backends)
     }
+    */
 }
 
+/*
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserConfig {
     url: Url,
@@ -113,3 +183,4 @@ impl UserConfig {
         }
     }
 }
+*/
