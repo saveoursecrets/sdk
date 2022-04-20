@@ -10,19 +10,19 @@ use uuid::Uuid;
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]
 pub trait Backend {
+    /// Create a new account.
+    fn create_account(
+        &mut self,
+        owner: AddressStr,
+        uuid: Uuid,
+        vault: &[u8],
+    ) -> Result<()>;
+
     /// List vault identifiers for an account.
     fn list(&self, owner: &AddressStr) -> Option<Vec<&Uuid>>;
 
     /// Load a vault for an account.
     fn get(&self, owner: &AddressStr, id: &Uuid) -> Result<Option<Vault>>;
-
-    /*
-    /// Get a mutable vault.
-    //fn get_mut(&mut self, id: &Uuid) -> Option<&mut Vault>;
-
-    /// Flush the identified vault to backing storage.
-    //async fn flush(&self, id: &Uuid) -> Result<()>;
-    */
 }
 
 /// Backend storage for vaults on the file system.
@@ -80,6 +80,32 @@ impl FileSystemBackend {
 
 #[async_trait]
 impl Backend for FileSystemBackend {
+    fn create_account(
+        &mut self,
+        owner: AddressStr,
+        uuid: Uuid,
+        vault: &[u8],
+    ) -> Result<()> {
+        let account_dir = self.directory.join(owner.to_string());
+        if account_dir.exists() {
+            return Err(Error::DirectoryExists(account_dir));
+        }
+
+        let mut vault_file = account_dir.join(uuid.to_string());
+        vault_file.set_extension(Vault::extension());
+        if vault_file.exists() {
+            return Err(Error::FileExists(vault_file));
+        }
+
+        println!("creating account dir {:#?}", account_dir);
+        println!("writing vault file {:#?}", vault_file);
+
+        std::fs::create_dir(account_dir)?;
+        std::fs::write(vault_file, vault)?;
+
+        Ok(())
+    }
+
     fn list(&self, addr: &AddressStr) -> Option<Vec<&Uuid>> {
         if let Some(vaults) = self.accounts.get(addr) {
             Some(vaults.keys().collect::<Vec<_>>())
@@ -101,19 +127,4 @@ impl Backend for FileSystemBackend {
         };
         Ok(vault)
     }
-
-    //fn get_mut(&mut self, id: &Uuid) -> Option<&mut Vault> {
-    //self.vaults.get_mut(id).map(|r| &mut r.1)
-    //}
-
-    /*
-    // FIXME: lock while writing
-    async fn flush(&self, id: &Uuid) -> Result<()> {
-        if let Some((path, vault)) = self.vaults.get(id) {
-            vault.write_file(path)?;
-            return Ok(());
-        }
-        Err(Error::NotExist(*id))
-    }
-    */
 }

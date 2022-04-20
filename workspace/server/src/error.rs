@@ -8,6 +8,12 @@ pub enum Error {
     #[error("not a directory {0}")]
     NotDirectory(PathBuf),
 
+    #[error("directory {0} already exists")]
+    DirectoryExists(PathBuf),
+
+    #[error("file {0} already exists")]
+    FileExists(PathBuf),
+
     #[error("no vaults found")]
     NoVaults,
 
