@@ -152,6 +152,12 @@ async fn api(
     Json(json!({ "name": reader.name, "version": reader.version }))
 }
 
+#[derive(Debug)]
+struct BearerToken {
+    public_key: [u8; 33],
+    address: AddressStr,
+}
+
 /// Extract a public key and address from the ECDSA signature
 /// in the authorization header.
 ///
@@ -163,15 +169,21 @@ async fn api(
 fn bearer(
     authorization: Authorization<Bearer>,
     body: &Bytes,
-) -> crate::Result<(StatusCode, Option<AddressStr>)> {
+) -> crate::Result<(StatusCode, Option<BearerToken>)> {
     let result = if let Ok(value) = base64::decode(authorization.token()) {
         if let Ok(signature) = serde_json::from_slice::<Signature>(&value) {
             let recoverable: recoverable::Signature = signature.try_into()?;
-            let pub_key = recoverable.recover_verify_key(body)?;
-            let key_bytes: [u8; 33] =
-                pub_key.to_bytes().as_slice().try_into()?;
-            let addr: AddressStr = (&key_bytes).try_into()?;
-            (StatusCode::OK, Some(addr))
+            let public_key = recoverable.recover_verify_key(body)?;
+            let public_key: [u8; 33] =
+                public_key.to_bytes().as_slice().try_into()?;
+            let address: AddressStr = (&public_key).try_into()?;
+            (
+                StatusCode::OK,
+                Some(BearerToken {
+                    public_key,
+                    address,
+                }),
+            )
         } else {
             (StatusCode::BAD_REQUEST, None)
         }
@@ -191,12 +203,24 @@ impl AccountHandler {
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
     ) -> impl IntoResponse {
-        if let Ok((status_code, addr)) = bearer(authorization, &body) {
-            if let (StatusCode::OK, Some(addr)) = (status_code, addr) {
-                println!("Got authorization with {}", addr);
-                // TODO: create the account on the backend
-                // TODO: create the initial login vault
-                StatusCode::OK
+        if let Ok((status_code, token)) = bearer(authorization, &body) {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                //println!("Got authorization with {:#?}", token);
+                if let Ok(vault) = Vault::read_buffer(&body) {
+                    let uuid = vault.id();
+                    let mut writer = state.write().await;
+                    if let Ok(_) = writer.backend.create_account(
+                        token.address,
+                        *uuid,
+                        &body,
+                    ) {
+                        StatusCode::OK
+                    } else {
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    }
+                } else {
+                    StatusCode::BAD_REQUEST
+                }
             } else {
                 status_code
             }

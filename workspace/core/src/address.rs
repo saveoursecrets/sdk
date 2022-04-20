@@ -13,7 +13,7 @@ use subtle::Choice;
 /// a string.
 ///
 /// It must begin with 0x and be followed with 20 bytes hex-encoded.
-#[derive(Debug, Serialize, Deserialize, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Hash, Eq, PartialEq)]
 #[serde(try_from = "String", into = "String")]
 pub struct AddressStr([u8; 20]);
 
