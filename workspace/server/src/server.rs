@@ -1,9 +1,13 @@
 use axum::{
     body::{Body, Bytes},
-    extract::{Extension, Path},
-    http::{HeaderValue, Method, Request, Response, StatusCode},
+    extract::{Extension, Path, TypedHeader},
+    headers::{authorization::Bearer, Authorization},
+    http::{
+        header::{AUTHORIZATION, CONTENT_TYPE},
+        HeaderValue, Method, Request, Response, StatusCode,
+    },
     response::{IntoResponse, Redirect},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use tower_http::cors::{CorsLayer, Origin};
@@ -12,7 +16,10 @@ use tower_http::cors::{CorsLayer, Origin};
 
 use crate::{assets::Assets, Backend, ServerConfig};
 use serde_json::json;
-use sos_core::{address::AddressStr, decode, encode, vault::Vault};
+use sos_core::{
+    address::AddressStr, decode, encode, k256::ecdsa::recoverable,
+    vault::Vault, web3_signature::Signature,
+};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -59,15 +66,15 @@ impl Server {
         drop(reader);
 
         let cors = CorsLayer::new()
-            // allow `GET` and `POST` when accessing the resource
             .allow_methods(vec![Method::GET, Method::POST])
-            // allow requests from any origin
+            .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
             .allow_origin(Origin::list(origins));
 
         let app = Router::new()
             .route("/", get(home))
             .route("/gui/*path", get(asset))
             .route("/api", get(api))
+            .route("/api/users", post(AccountHandler::create))
             .route("/api/users/:user", get(VaultHandler::list))
             .route(
                 "/api/users/:user/vaults/:id",
@@ -143,6 +150,91 @@ async fn api(
 ) -> impl IntoResponse {
     let reader = state.read().await;
     Json(json!({ "name": reader.name, "version": reader.version }))
+}
+
+/// Extract a public key and address from the ECDSA signature
+/// in the authorization header.
+///
+/// Decodes the token from base64 and then parses as a JSON representation
+/// of a Signature with r, s and v values.
+///
+/// The signature is then converted to a recoverable signature and the public
+/// key is extracted using the body bytes as the message that has been signed.
+fn bearer(
+    authorization: Authorization<Bearer>,
+    body: &Bytes,
+) -> crate::Result<(StatusCode, Option<AddressStr>)> {
+    let result = if let Ok(value) = base64::decode(authorization.token()) {
+        if let Ok(signature) = serde_json::from_slice::<Signature>(&value) {
+            let recoverable: recoverable::Signature = signature.try_into()?;
+            let pub_key = recoverable.recover_verify_key(body)?;
+            let key_bytes: [u8; 33] =
+                pub_key.to_bytes().as_slice().try_into()?;
+            let addr: AddressStr = (&key_bytes).try_into()?;
+            (StatusCode::OK, Some(addr))
+        } else {
+            (StatusCode::BAD_REQUEST, None)
+        }
+    } else {
+        (StatusCode::BAD_REQUEST, None)
+    };
+
+    Ok(result)
+}
+
+// Handlers for account operations.
+struct AccountHandler;
+impl AccountHandler {
+    /// Create a new user account.
+    async fn create(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        body: Bytes,
+    ) -> impl IntoResponse {
+        if let Ok((status_code, addr)) = bearer(authorization, &body) {
+            if let (StatusCode::OK, Some(addr)) = (status_code, addr) {
+                println!("Got authorization with {}", addr);
+                // TODO: create the account on the backend
+                // TODO: create the initial login vault
+                StatusCode::OK
+            } else {
+                status_code
+            }
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+
+        //if let Ok(value) = base64::decode(authorization.token()) {
+        //if let Ok(signature) = serde_json::from_slice::<Signature>(&value) {
+        //let recoverable: recoverable::Signature = signature.try_into().unwrap();
+        ////if let Ok(recoverable) = signature.try_into() {
+        //println!("Create a new account, sig: {:#?}", signature);
+        //println!("Create a new account, sig: {:#?}", recoverable);
+        //println!("Create a new account, sig: {:#?}", body.len());
+
+        //let pub_key = recoverable
+        //.recover_verify_key(&body)
+        //.expect("couldn't recover pubkey");
+
+        //let key_bytes: [u8; 33] = pub_key.to_bytes().as_slice().try_into()
+        //.expect("expecting a 33 byte SEC-1 encoded point");
+        //let address = address_compressed(&key_bytes).unwrap();
+
+        //println!("Create a new account, pubkey: {:#?}", pub_key);
+        //println!("Create a new account, address: {:#?}", address);
+
+        ////} else {
+        ////return StatusCode::INTERNAL_SERVER_ERROR;
+        ////}
+        //} else {
+        //return StatusCode::BAD_REQUEST;
+        //}
+        //} else {
+        //return StatusCode::BAD_REQUEST;
+        //}
+
+        //StatusCode::NOT_FOUND
+    }
 }
 
 // Handlers for vault operations.

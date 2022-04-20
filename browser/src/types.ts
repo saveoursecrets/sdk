@@ -1,5 +1,11 @@
 import { WebVault, WebSigner, Signup } from "sos-wasm";
 
+export type Signature = {
+  r: string;
+  s: string;
+  v: number;
+};
+
 export type SecretData = {
   secretId?: string;
   meta: SecretMeta;

@@ -7,7 +7,7 @@ import Diceware from "../diceware";
 
 import { setVault, signupSelector } from "../store/signup";
 import { createEmptyVault } from "../store/vaults";
-import PublicAddress from '../components/public-address';
+import PublicAddress from "../components/public-address";
 
 import { StepProps } from "./index";
 

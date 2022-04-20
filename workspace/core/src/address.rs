@@ -49,6 +49,25 @@ impl TryFrom<String> for AddressStr {
     }
 }
 
+impl<'a> From<&'a [u8; 64]> for AddressStr {
+    fn from(bytes: &'a [u8; 64]) -> Self {
+        let digest = Keccak256::digest(bytes);
+        let final_bytes = &digest[12..];
+        Self(final_bytes.try_into().unwrap())
+    }
+}
+
+impl<'a> TryFrom<&'a [u8; 33]> for AddressStr {
+    type Error = Error;
+    fn try_from(bytes: &'a [u8; 33]) -> std::result::Result<Self, Self::Error> {
+        let point = decompress(bytes)?;
+        let x: [u8; 32] = *point.x().unwrap().as_ref();
+        let y: [u8; 32] = *point.y().unwrap().as_ref();
+        let bytes: [u8; 64] = [x, y].concat().as_slice().try_into()?;
+        Ok((&bytes).into())
+    }
+}
+
 // FIXME: handle panics / unwrap here!
 
 /// Decompress the bytes for a compressed public key into a point on the secp256k1 curve.

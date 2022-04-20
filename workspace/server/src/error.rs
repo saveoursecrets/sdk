@@ -21,6 +21,9 @@ pub enum Error {
     UrlFilePath(Url),
 
     #[error(transparent)]
+    TryFromSlice(#[from] std::array::TryFromSliceError),
+
+    #[error(transparent)]
     Core(#[from] sos_core::Error),
 
     #[error(transparent)]
@@ -37,4 +40,10 @@ pub enum Error {
 
     #[error(transparent)]
     AddrParse(#[from] std::net::AddrParseError),
+
+    #[error(transparent)]
+    Signature(#[from] sos_core::web3_signature::SignatureError),
+
+    #[error(transparent)]
+    Ecdsa(#[from] sos_core::k256::ecdsa::Error),
 }
