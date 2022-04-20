@@ -33,13 +33,13 @@ async fn run() -> Result<()> {
 
     //println!("Config {:#?}", config);
 
-    let backends = config.backends()?;
+    let backend = config.backend()?;
 
     let state = Arc::new(RwLock::new(State {
         name,
         version,
         config,
-        backends,
+        backend,
     }));
 
     let addr = SocketAddr::from_str(&args.bind)?;
