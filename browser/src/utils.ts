@@ -42,9 +42,7 @@ export function download(fileName: string, buffer: Uint8Array, type?: string) {
   link.click();
 }
 
-export async function copyToClipboard(
-  text: string
-) {
+export async function copyToClipboard(text: string) {
   await window.navigator.clipboard.writeText(text);
 }
 

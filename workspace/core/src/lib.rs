@@ -12,6 +12,9 @@ pub mod secret;
 pub mod signer;
 pub mod vault;
 
+pub use k256;
+pub use web3_signature;
+
 pub use crypto::algorithms::Algorithm;
 pub use vault::{decode, encode};
 

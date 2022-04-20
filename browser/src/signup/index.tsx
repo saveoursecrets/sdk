@@ -8,7 +8,7 @@ import PrivateKey from "./private-key";
 import VerifyKey from "./verify-key";
 import EncryptionPassphrase from "./encryption-passphrase";
 import VerifyEncryption from "./verify-encryption";
-import Finish from './finish';
+import Finish from "./finish";
 
 enum SignupStep {
   ACCEPT = 1,

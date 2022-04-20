@@ -10,7 +10,7 @@ import { decode } from "../utils";
 import FileUploadReader, { FileBuffer } from "../file-upload-reader";
 
 import PasswordForm from "../authenticated/forms/password-form";
-import PublicAddress from '../components/public-address';
+import PublicAddress from "../components/public-address";
 
 import { setSigner, signupSelector } from "../store/signup";
 import { setSnackbar } from "../store/snackbar";
