@@ -2651,6 +2651,7 @@ dependencies = [
  "rust-embed",
  "serde",
  "serde_json",
+ "sha3 0.10.1",
  "sos-core",
  "thiserror",
  "tokio",

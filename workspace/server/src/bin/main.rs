@@ -1,5 +1,5 @@
 use clap::Parser;
-use sos_server::{Result, Server, ServerConfig, State};
+use sos_server::{Result, Server, ServerConfig, State, Authentication};
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -33,6 +33,7 @@ async fn run() -> Result<()> {
 
     //println!("Config {:#?}", config);
 
+    let authentication: Authentication = Default::default();
     let backend = config.backend()?;
 
     let state = Arc::new(RwLock::new(State {
@@ -40,6 +41,7 @@ async fn run() -> Result<()> {
         version,
         config,
         backend,
+        authentication,
     }));
 
     let addr = SocketAddr::from_str(&args.bind)?;
