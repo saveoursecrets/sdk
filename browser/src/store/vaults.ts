@@ -12,7 +12,7 @@ import {
   NewVaultResult,
   SecretMeta,
   SecretData,
-  User,
+  Account,
   VaultWorker,
 } from "../types";
 
@@ -62,18 +62,18 @@ export type DeleteSecretRequest = {
 };
 
 type LoadVaultsRequest = {
-  user: User;
+  account: Account;
   worker: VaultWorker;
 };
 
 export const loadVaults = createAsyncThunk(
   "vaults/loadVaults",
   async (request: LoadVaultsRequest) => {
-    const { user, worker } = request;
-    const ids = await api.loadVaults(user);
+    const { account, worker } = request;
+    const ids = await api.loadVaults(account);
 
     const buffers = ids.map(async (id) => {
-      return await api.getVault(user, id);
+      return await api.getVault(account, id);
     });
 
     const vaults = await Promise.all(buffers);

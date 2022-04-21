@@ -97,7 +97,8 @@ export type UnlockVaultResult = {
   password: string;
 };
 
-export type User = {
-  token?: string;
+export type Account = {
+  signer?: WebSigner;
   address?: string;
+  verified?: boolean;
 };

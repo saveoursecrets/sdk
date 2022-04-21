@@ -8,7 +8,7 @@
   "scripts": {
     "clean": "rm -rf ./dist ./.parcel-cache",
     "types": "tsc --noEmit --project tsconfig.json",
-    "assets": "mkdir dist && cp -r ./assets ./dist",
+    "assets": "mkdir -p dist && cp -r ./assets ./dist",
     "public": "rm -rf ../workspace/server/public && cp -r dist ../workspace/server/public",
     "build": "parcel build index.html && yarn assets && yarn public",
     "start": "yarn assets && parcel index.html --port 8080",

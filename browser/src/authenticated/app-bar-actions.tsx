@@ -5,7 +5,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Button from "@mui/material/Button";
 import LogoutIcon from "@mui/icons-material/Logout";
 
-import { logout } from "../store/user";
+import { logout } from "../store/account";
 import { vaultsSelector, lockAll } from "../store/vaults";
 
 export default function AppBarActions() {
