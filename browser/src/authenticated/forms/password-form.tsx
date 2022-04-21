@@ -5,10 +5,11 @@ import { Button, Stack, TextField } from "@mui/material";
 type PasswordFormProps = {
   onFormSubmit: (password: string) => void;
   submitLabel: string;
+  autoFocus?: boolean;
 };
 
 export default function PasswordForm(props: PasswordFormProps) {
-  const { onFormSubmit, submitLabel } = props;
+  const { onFormSubmit, submitLabel, autoFocus } = props;
   const [password, setPassword] = useState("");
 
   const onPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -25,6 +26,7 @@ export default function PasswordForm(props: PasswordFormProps) {
         <TextField
           type="password"
           label="Passphrase"
+          autoFocus={autoFocus}
           value={password}
           onChange={onPasswordChange}
         />

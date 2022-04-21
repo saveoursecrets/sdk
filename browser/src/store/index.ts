@@ -1,7 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 import vaultsReducer from "./vaults";
 import dialogsReducer from "./dialogs";
-import userReducer from "./user";
+import accountReducer from "./account";
 import signupReducer from "./signup";
 import snackbarReducer from "./snackbar";
 
@@ -9,7 +9,7 @@ const store = configureStore({
   reducer: {
     vaults: vaultsReducer,
     dialogs: dialogsReducer,
-    user: userReducer,
+    account: accountReducer,
     signup: signupReducer,
     snackbar: snackbarReducer,
   },
@@ -59,11 +59,14 @@ const store = configureStore({
           "signup/delete/pending",
           "signup/delete/fulfilled",
           "signup/delete/rejected",
+
+          "account/login",
+          "account/logout",
         ],
         // Ignore these field paths in all actions
         ignoredActionPaths: [],
         // Ignore these paths in the state
-        ignoredPaths: ["vaults", "signup"],
+        ignoredPaths: ["vaults", "signup", "account"],
       },
     }),
 });

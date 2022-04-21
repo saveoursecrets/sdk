@@ -1,25 +1,31 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 import { Button, Stack, Typography } from "@mui/material";
 
 import { signupSelector } from "../store/signup";
+import { login } from "../store/account";
+import { setSnackbar } from "../store/snackbar";
 import api from "../store/api";
 import PublicAddress from "../components/public-address";
 
 import { StepProps } from "./index";
 
 export default function Finish(props: StepProps) {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { signer, vault, address } = useSelector(signupSelector);
   const { worker } = props;
 
   const saveVault = async () => {
     const buffer = await vault.buffer();
     const signature = await signer.sign(Array.from(buffer));
-    console.log("Save the vault...", signature);
-    console.log("Save the vault...", buffer.length);
-    const result = await api.createAccount(signature, buffer);
-    console.log("Got new account result...");
+    await api.createAccount(signature, buffer);
+    const account = { address, signer };
+    await dispatch(login(account));
+    dispatch(setSnackbar({ message: "Account created", severity: "success" }));
+    navigate("/login");
   };
 
   return (

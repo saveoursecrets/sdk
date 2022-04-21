@@ -18,8 +18,9 @@ import WorkerProvider, {
 import { VaultWorker } from "./types";
 
 import App from "./app";
+import Snackbar from "./snackbar";
 import AuthenticatedApp from "./authenticated";
-import { userSelector } from "./store/user";
+import { accountSelector } from "./store/account";
 
 declare module "@mui/material/styles" {
   interface Theme {
@@ -44,8 +45,10 @@ type WorkerMessage = {
 
 function MainApp(props: AppProps) {
   const { worker } = props;
-  const { user } = useSelector(userSelector);
+  const { account } = useSelector(accountSelector);
   const [workerReady, setWorkerReady] = useState(false);
+
+  const verified = account && account.verified;
 
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const theme = useMemo(
@@ -76,11 +79,14 @@ function MainApp(props: AppProps) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {user === null ? (
-        <App worker={worker} />
-      ) : (
-        <AuthenticatedApp worker={worker} />
-      )}
+      <>
+        {verified ? (
+          <AuthenticatedApp worker={worker} />
+        ) : (
+          <App worker={worker} />
+        )}
+        <Snackbar />
+      </>
     </ThemeProvider>
   );
 }

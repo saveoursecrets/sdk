@@ -18,7 +18,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import { VaultWorker } from "../types";
 
-import { userSelector } from "../store/user";
+import { accountSelector } from "../store/account";
 import { loadVaults } from "../store/vaults";
 
 import Home from "./home";
@@ -89,15 +89,17 @@ export default function AuthenticatedApp(props: AppProps) {
   const { worker } = props;
   const theme = useTheme();
 
-  const { user } = useSelector(userSelector);
+  const { account } = useSelector(accountSelector);
   const dispatch = useDispatch();
 
+  /*
   useEffect(() => {
     const useLoadVaults = async () => {
       dispatch(loadVaults({ user, worker }));
     };
     useLoadVaults();
   }, []);
+  */
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 

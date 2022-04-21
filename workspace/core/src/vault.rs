@@ -145,10 +145,6 @@ impl Header {
         Self {
             identity: Box::new(IDENTITY),
             summary: Summary::new(id, name, algorithm),
-            //version: VERSION,
-            //algorithm,
-            //id,
-            //name,
             meta: None,
             auth: Default::default(),
         }

@@ -67,7 +67,8 @@ impl FileSystemBackend {
                             let vault_path = vault_entry.path();
                             if let Some(ext) = vault_path.extension() {
                                 if ext == Vault::extension() {
-                                    let summary = Header::read_summary(&vault_path)?;
+                                    let summary =
+                                        Header::read_summary(&vault_path)?;
                                     vaults.insert(*summary.id(), vault_path);
                                 }
                             }
@@ -99,9 +100,6 @@ impl Backend for FileSystemBackend {
         if vault_file.exists() {
             return Err(Error::FileExists(vault_file));
         }
-
-        println!("creating account dir {:#?}", account_dir);
-        println!("writing vault file {:#?}", vault_file);
 
         std::fs::create_dir(account_dir)?;
         std::fs::write(vault_file, vault)?;

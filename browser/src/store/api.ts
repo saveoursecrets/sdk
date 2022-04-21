@@ -1,4 +1,4 @@
-import { User, Signature } from "../types";
+import { Account, Signature } from "../types";
 
 const MIME_TYPE_VAULT = "application/sos+vault";
 
@@ -18,7 +18,7 @@ export class VaultApi {
   async createAccount(
     signature: Signature,
     vault: Uint8Array
-  ): Promise<unknown> {
+  ): Promise<boolean> {
     const url = `${this.url}/accounts`;
     const body = new Blob([vault.buffer]);
     const headers = {
@@ -31,19 +31,61 @@ export class VaultApi {
       mode: "cors",
       headers,
     });
-    return response.json();
+    return response.ok;
+  }
+
+  // Generate a login challenge to sign.
+  async loginChallenge(
+    signature: Signature,
+    message: Uint8Array
+  ): Promise<[string, Uint8Array]> {
+    const url = `${this.url}/auth`;
+    const body = new Blob([message.buffer]);
+    const headers = {
+      authorization: bearer(signature),
+    };
+    const response = await fetch(url, {
+      method: "POST",
+      body,
+      mode: "cors",
+      headers,
+    });
+    const result = await response.json();
+    const [uuid, challenge] = result;
+    return [uuid, new Uint8Array(challenge)];
+  }
+
+  // Send a login challenge response.
+  async loginResponse(
+    signature: Signature,
+    uuid: string,
+    message: Uint8Array
+  ): Promise<void> {
+    const url = `${this.url}/auth/${uuid}`;
+    const body = new Blob([message.buffer]);
+    const headers = {
+      authorization: bearer(signature),
+    };
+    const response = await fetch(url, {
+      method: "POST",
+      body,
+      mode: "cors",
+      headers,
+    });
+
+    console.log("Response result", response.ok);
   }
 
   // Load the vault list for a user.
-  async loadVaults(user: User): Promise<string[]> {
-    const url = `${this.url}/accounts/${user.address}`;
+  async loadVaults(account: Account): Promise<string[]> {
+    const url = `${this.url}/accounts/${account.address}`;
     const response = await fetch(url);
     return response.json();
   }
 
   // Load the encrypted vault buffer for a user.
-  async getVault(user: User, id: string): Promise<ArrayBuffer> {
-    const url = `${this.url}/accounts/${user.address}/vaults/${id}`;
+  async getVault(account: Account, id: string): Promise<ArrayBuffer> {
+    const url = `${this.url}/accounts/${account.address}/vaults/${id}`;
     const response = await fetch(url);
     return response.arrayBuffer();
   }

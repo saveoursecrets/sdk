@@ -14,8 +14,8 @@ import LogoType from "./logotype";
 import AppBarActions from "./app-bar-actions";
 import Home from "./home";
 import Signup from "./signup";
+import Login from "./login";
 import NotFound from "./not-found";
-import Snackbar from "./snackbar";
 
 const Main = styled("div", { shouldForwardProp: (prop) => prop !== "open" })<{
   open?: boolean;
@@ -44,9 +44,9 @@ export default function App(props: WorkerProps) {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/signup" element={<Signup worker={worker} />} />
+          <Route path="/login" element={<Login worker={worker} />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-        <Snackbar />
       </Main>
     </Box>
   );
