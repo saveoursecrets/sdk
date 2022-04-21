@@ -64,10 +64,7 @@ export default function Accept(props: StepProps) {
             encrypt your secrets, you must remember this passphrase otherwise
             you will not be able to read the secrets in your vaults. You may
             wish to write down the passphrase until it has been memorized, once
-            you are certain it has been memorized destroy the paper version. To
-            help you remember the passphrase we will ask you to type it several
-            times when creating a new account.
-          </Typography>
+            you are certain it has been memorized destroy the paper version.                </Typography>
           <Alert severity="warning">You must memorize this passphrase.</Alert>
         </Stack>
 
