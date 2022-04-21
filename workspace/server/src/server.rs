@@ -209,6 +209,12 @@ impl AuthHandler {
         body: Bytes,
     ) -> impl IntoResponse {
         let mut writer = state.write().await;
+
+        // Immediately remove the identified challenge so we clean
+        // up the server state as early as possible. There is a possible
+        // DoS here if an intermediary MiTM detected the challenge identifier
+        // and submits it before the real client can authenticate then
+        // they can be denied access to the vault list.
         if let Some((challenge, _)) =
             writer.authentication.remove(&challenge_id)
         {

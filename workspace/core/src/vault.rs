@@ -52,14 +52,89 @@ impl Decode for Auth {
     }
 }
 
+/// Summary holding basic file information such as version,
+/// unique identifier and name.
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+pub struct Summary {
+    version: u16,
+    id: Uuid,
+    name: String,
+    #[serde(skip)]
+    algorithm: Algorithm,
+}
+
+impl Default for Summary {
+    fn default() -> Self {
+        Self {
+            version: VERSION,
+            algorithm: Default::default(),
+            id: Uuid::new_v4(),
+            name: DEFAULT_VAULT_NAME.to_string(),
+        }
+    }
+}
+
+impl Summary {
+    /// Create a new summary.
+    pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
+        Self {
+            id,
+            name,
+            algorithm,
+            version: VERSION,
+        }
+    }
+
+    /// Get the version identifier.
+    pub fn version(&self) -> &u16 {
+        &self.version
+    }
+
+    /// Get the unique identifier.
+    pub fn id(&self) -> &Uuid {
+        &self.id
+    }
+
+    /// Get the public name.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+impl Encode for Summary {
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_u16(self.version)?;
+        self.algorithm.encode(&mut *ser)?;
+        ser.writer.write_string(self.id.to_string())?;
+        ser.writer.write_string(&self.name)?;
+        Ok(())
+    }
+}
+
+impl Decode for Summary {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        self.version = de.reader.read_u16()?;
+        self.algorithm.decode(&mut *de)?;
+
+        if !ALGORITHMS.contains(self.algorithm.as_ref()) {
+            return Err(BinaryError::Boxed(Box::from(
+                Error::UnknownAlgorithm(self.algorithm.into()),
+            )));
+        }
+
+        self.id =
+            Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
+        self.name = de.reader.read_string()?;
+
+        Ok(())
+    }
+}
+
 /// File header, identifier and version information
 #[derive(Debug, Eq, PartialEq)]
 pub struct Header {
     identity: Box<[u8; 4]>,
-    version: u16,
-    algorithm: Algorithm,
-    id: Uuid,
-    name: String,
+    summary: Summary,
     meta: Option<AeadPack>,
     auth: Auth,
 }
@@ -69,10 +144,11 @@ impl Header {
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
             identity: Box::new(IDENTITY),
-            version: VERSION,
-            algorithm,
-            id,
-            name,
+            summary: Summary::new(id, name, algorithm),
+            //version: VERSION,
+            //algorithm,
+            //id,
+            //name,
             meta: None,
             auth: Default::default(),
         }
@@ -99,29 +175,20 @@ impl Header {
         Ok(())
     }
 
-    /// Read the UUID for a vault from a file.
-    pub fn read_uuid<P: AsRef<Path>>(file: P) -> Result<Uuid> {
-        //let mut vault: Vault = Default::default();
+    /// Read the summary for a vault from a file.
+    pub fn read_summary<P: AsRef<Path>>(file: P) -> Result<Summary> {
         let mut stream = FileStream::new(file.as_ref(), OpenType::Open)?;
         let reader = BinaryReader::new(&mut stream, Endian::Big);
         let mut de = Deserializer { reader };
 
         // Read magic identity bytes
         Header::read_identity(&mut de)?;
-        // Read version
-        de.reader.read_u16()?;
 
-        // Read encryption algorithm
-        let mut algorithm: Algorithm = Default::default();
-        algorithm.decode(&mut de)?;
+        // Read the summary
+        let mut summary: Summary = Default::default();
+        summary.decode(&mut de)?;
 
-        if !ALGORITHMS.contains(algorithm.as_ref()) {
-            return Err(Error::UnknownAlgorithm(algorithm.into()));
-        }
-
-        let uuid = Uuid::parse_str(&de.reader.read_string()?)?;
-
-        Ok(uuid)
+        Ok(summary)
     }
 }
 
@@ -129,10 +196,7 @@ impl Default for Header {
     fn default() -> Self {
         Self {
             identity: Box::new(IDENTITY),
-            version: VERSION,
-            algorithm: Default::default(),
-            id: Uuid::new_v4(),
-            name: DEFAULT_VAULT_NAME.to_string(),
+            summary: Default::default(),
             meta: None,
             auth: Default::default(),
         }
@@ -142,10 +206,8 @@ impl Default for Header {
 impl Encode for Header {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_bytes(self.identity.to_vec())?;
-        ser.writer.write_u16(self.version)?;
-        self.algorithm.encode(&mut *ser)?;
-        ser.writer.write_string(self.id.to_string())?;
-        ser.writer.write_string(&self.name)?;
+
+        self.summary.encode(&mut *ser)?;
 
         ser.writer.write_bool(self.meta.is_some())?;
         if let Some(meta) = &self.meta {
@@ -162,18 +224,7 @@ impl Decode for Header {
         Header::read_identity(de)
             .map_err(|e| BinaryError::Boxed(Box::from(e)))?;
 
-        self.version = de.reader.read_u16()?;
-        self.algorithm.decode(&mut *de)?;
-
-        if !ALGORITHMS.contains(self.algorithm.as_ref()) {
-            return Err(BinaryError::Boxed(Box::from(
-                Error::UnknownAlgorithm(self.algorithm.into()),
-            )));
-        }
-
-        self.id =
-            Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
-        self.name = de.reader.read_string()?;
+        self.summary.decode(&mut *de)?;
 
         let has_meta = de.reader.read_bool()?;
         if has_meta {
@@ -312,22 +363,22 @@ impl Vault {
 
     /// Get the unique identifier for this vault.
     pub fn id(&self) -> &Uuid {
-        &self.header.id
+        &self.header.summary.id
     }
 
     /// Get the public name for this vault.
     pub fn name(&self) -> &str {
-        &self.header.name
+        &self.header.summary.name
     }
 
     /// Set the public name for this vault.
     pub fn set_name(&mut self, name: String) {
-        self.header.name = name;
+        self.header.summary.name = name;
     }
 
     /// Get the encryption algorithm for the vault.
     pub fn algorithm(&self) -> &Algorithm {
-        &self.header.algorithm
+        &self.header.summary.algorithm
     }
 
     /// Get the vault header.
