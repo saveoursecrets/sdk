@@ -67,8 +67,8 @@ impl FileSystemBackend {
                             let vault_path = vault_entry.path();
                             if let Some(ext) = vault_path.extension() {
                                 if ext == Vault::extension() {
-                                    let uuid = Header::read_uuid(&vault_path)?;
-                                    vaults.insert(uuid, vault_path);
+                                    let summary = Header::read_summary(&vault_path)?;
+                                    vaults.insert(*summary.id(), vault_path);
                                 }
                             }
                         }
