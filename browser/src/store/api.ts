@@ -19,7 +19,7 @@ export class VaultApi {
     signature: Signature,
     vault: Uint8Array
   ): Promise<unknown> {
-    const url = `${this.url}/users`;
+    const url = `${this.url}/accounts`;
     const body = new Blob([vault.buffer]);
     const headers = {
       authorization: bearer(signature),
@@ -36,14 +36,14 @@ export class VaultApi {
 
   // Load the vault list for a user.
   async loadVaults(user: User): Promise<string[]> {
-    const url = `${this.url}/users/${user.address}`;
+    const url = `${this.url}/accounts/${user.address}`;
     const response = await fetch(url);
     return response.json();
   }
 
   // Load the encrypted vault buffer for a user.
   async getVault(user: User, id: string): Promise<ArrayBuffer> {
-    const url = `${this.url}/users/${user.address}/vaults/${id}`;
+    const url = `${this.url}/accounts/${user.address}/vaults/${id}`;
     const response = await fetch(url);
     return response.arrayBuffer();
   }
