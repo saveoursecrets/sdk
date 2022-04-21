@@ -228,22 +228,30 @@ impl AuthHandler {
                     if let (StatusCode::OK, Some(token)) = (status_code, token)
                     {
                         if writer.backend.account_exists(&token.address) {
-                            // TODO: return list of vaults to the client?
-                            StatusCode::OK
+                            if let Ok(summaries) =
+                                writer.backend.list(&token.address)
+                            {
+                                (StatusCode::OK, Json(json!(summaries)))
+                            } else {
+                                (
+                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                    Json(json!(null)),
+                                )
+                            }
                         } else {
-                            StatusCode::NOT_FOUND
+                            (StatusCode::NOT_FOUND, Json(json!(null)))
                         }
                     } else {
-                        status_code
+                        (status_code, Json(json!(null)))
                     }
                 } else {
-                    StatusCode::INTERNAL_SERVER_ERROR
+                    (StatusCode::INTERNAL_SERVER_ERROR, Json(json!(null)))
                 }
             } else {
-                StatusCode::BAD_REQUEST
+                (StatusCode::BAD_REQUEST, Json(json!(null)))
             }
         } else {
-            StatusCode::NOT_FOUND
+            (StatusCode::NOT_FOUND, Json(json!(null)))
         }
     }
 }
