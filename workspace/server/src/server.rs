@@ -76,10 +76,10 @@ impl Server {
             .route("/", get(home))
             .route("/gui/*path", get(asset))
             .route("/api", get(api))
-            .route("/api/users", post(AccountHandler::create))
-            .route("/api/users/:user", get(VaultHandler::list))
+            .route("/api/accounts", post(AccountHandler::create))
+            .route("/api/accounts/:user", get(VaultHandler::list))
             .route(
-                "/api/users/:user/vaults/:id",
+                "/api/accounts/:user/vaults/:id",
                 get(VaultHandler::retrieve_vault)
                     .post(VaultHandler::update_vault),
             )
