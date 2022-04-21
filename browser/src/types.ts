@@ -1,5 +1,17 @@
 import { WebVault, WebSigner, Signup } from "sos-wasm";
 
+export type Account = {
+  signer?: WebSigner;
+  address?: string;
+  vaults?: Summary[];
+};
+
+export type Summary = {
+  version: number;
+  id: string;
+  name: string;
+}
+
 export type Signature = {
   r: string;
   s: string;
@@ -97,8 +109,3 @@ export type UnlockVaultResult = {
   password: string;
 };
 
-export type Account = {
-  signer?: WebSigner;
-  address?: string;
-  verified?: boolean;
-};

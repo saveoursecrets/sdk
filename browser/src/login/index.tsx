@@ -121,20 +121,11 @@ function VerifyIdentity() {
   const verifyIdentity = async () => {
     const message = new Uint8Array(32);
     self.crypto.getRandomValues(message);
-
-    console.log("verify identity by signing challenge and response", message);
-
     const signature = await signer.sign(Array.from(message));
-
-    console.log("verify identity by signing challenge and response", signature);
-
     const [uuid, challenge] = await api.loginChallenge(signature, message);
-    console.log("Got challenge", uuid, challenge);
-
     const responseSignature = await signer.sign(Array.from(challenge));
-    await api.loginResponse(responseSignature, uuid, challenge);
-
-    const verified = { ...account, verified: true };
+    const vaults = await api.loginResponse(responseSignature, uuid, challenge);
+    const verified = { ...account, vaults };
     await dispatch(login(verified));
     navigate("/");
   };

@@ -2,7 +2,7 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
-    vault::{Header, Vault},
+    vault::{Header, Summary, Vault},
 };
 use std::{collections::HashMap, fs::read_dir, path::PathBuf};
 use uuid::Uuid;
@@ -21,8 +21,8 @@ pub trait Backend {
     /// Determine if an account exists for the given address.
     fn account_exists(&self, owner: &AddressStr) -> bool;
 
-    /// List vault identifiers for an account.
-    fn list(&self, owner: &AddressStr) -> Option<Vec<&Uuid>>;
+    /// List vaults for an account.
+    fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>>;
 
     /// Load a vault for an account.
     fn get(&self, owner: &AddressStr, id: &Uuid) -> Result<Option<Vault>>;
@@ -112,12 +112,20 @@ impl Backend for FileSystemBackend {
         account_dir.exists()
     }
 
-    fn list(&self, addr: &AddressStr) -> Option<Vec<&Uuid>> {
-        if let Some(vaults) = self.accounts.get(addr) {
-            Some(vaults.keys().collect::<Vec<_>>())
-        } else {
-            None
+    fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>> {
+        let mut summaries = Vec::new();
+        let account_dir = self.directory.join(owner.to_string());
+        for entry in read_dir(&account_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if let Some(ext) = path.extension() {
+                if ext == Vault::extension() {
+                    let summary = Header::read_summary(&path)?;
+                    summaries.push(summary);
+                }
+            }
         }
+        Ok(summaries)
     }
 
     fn get(&self, addr: &AddressStr, id: &Uuid) -> Result<Option<Vault>> {

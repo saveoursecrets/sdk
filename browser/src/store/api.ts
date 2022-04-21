@@ -1,4 +1,4 @@
-import { Account, Signature } from "../types";
+import { Account, Signature, Summary } from "../types";
 
 const MIME_TYPE_VAULT = "application/sos+vault";
 
@@ -60,7 +60,7 @@ export class VaultApi {
     signature: Signature,
     uuid: string,
     message: Uint8Array
-  ): Promise<void> {
+  ): Promise<Summary[]> {
     const url = `${this.url}/auth/${uuid}`;
     const body = new Blob([message.buffer]);
     const headers = {
@@ -73,7 +73,7 @@ export class VaultApi {
       headers,
     });
 
-    console.log("Response result", response.ok);
+    return response.json();
   }
 
   // Load the vault list for a user.
