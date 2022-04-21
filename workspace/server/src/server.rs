@@ -14,7 +14,7 @@ use tower_http::cors::{CorsLayer, Origin};
 
 //use axum_macros::debug_handler;
 
-use crate::{assets::Assets, Backend, ServerConfig};
+use crate::{assets::Assets, Backend, ServerConfig, authenticate::{self, Authentication}};
 use serde_json::json;
 use sos_core::{
     address::AddressStr, decode, encode, k256::ecdsa::recoverable,
@@ -35,6 +35,8 @@ pub struct State {
     pub version: String,
     /// Map of backends for each user.
     pub backend: Box<dyn Backend + Send + Sync>,
+    /// Collection of challenges for authentication
+    pub authentication: Authentication,
 }
 
 // Server implementation.
@@ -152,48 +154,6 @@ async fn api(
     Json(json!({ "name": reader.name, "version": reader.version }))
 }
 
-#[derive(Debug)]
-struct BearerToken {
-    public_key: [u8; 33],
-    address: AddressStr,
-}
-
-/// Extract a public key and address from the ECDSA signature
-/// in the authorization header.
-///
-/// Decodes the token from base64 and then parses as a JSON representation
-/// of a Signature with r, s and v values.
-///
-/// The signature is then converted to a recoverable signature and the public
-/// key is extracted using the body bytes as the message that has been signed.
-fn bearer(
-    authorization: Authorization<Bearer>,
-    body: &Bytes,
-) -> crate::Result<(StatusCode, Option<BearerToken>)> {
-    let result = if let Ok(value) = base64::decode(authorization.token()) {
-        if let Ok(signature) = serde_json::from_slice::<Signature>(&value) {
-            let recoverable: recoverable::Signature = signature.try_into()?;
-            let public_key = recoverable.recover_verify_key(body)?;
-            let public_key: [u8; 33] =
-                public_key.to_bytes().as_slice().try_into()?;
-            let address: AddressStr = (&public_key).try_into()?;
-            (
-                StatusCode::OK,
-                Some(BearerToken {
-                    public_key,
-                    address,
-                }),
-            )
-        } else {
-            (StatusCode::BAD_REQUEST, None)
-        }
-    } else {
-        (StatusCode::BAD_REQUEST, None)
-    };
-
-    Ok(result)
-}
-
 // Handlers for account operations.
 struct AccountHandler;
 impl AccountHandler {
@@ -203,7 +163,7 @@ impl AccountHandler {
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
     ) -> impl IntoResponse {
-        if let Ok((status_code, token)) = bearer(authorization, &body) {
+        if let Ok((status_code, token)) = authenticate::bearer(authorization, &body) {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 //println!("Got authorization with {:#?}", token);
                 if let Ok(vault) = Vault::read_buffer(&body) {
