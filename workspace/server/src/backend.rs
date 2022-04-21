@@ -18,6 +18,9 @@ pub trait Backend {
         vault: &[u8],
     ) -> Result<()>;
 
+    /// Determine if an account exists for the given address.
+    fn account_exists(&self, owner: &AddressStr) -> bool;
+
     /// List vault identifiers for an account.
     fn list(&self, owner: &AddressStr) -> Option<Vec<&Uuid>>;
 
@@ -104,6 +107,11 @@ impl Backend for FileSystemBackend {
         std::fs::write(vault_file, vault)?;
 
         Ok(())
+    }
+
+    fn account_exists(&self, owner: &AddressStr) -> bool {
+        let account_dir = self.directory.join(owner.to_string());
+        account_dir.exists()
     }
 
     fn list(&self, addr: &AddressStr) -> Option<Vec<&Uuid>> {

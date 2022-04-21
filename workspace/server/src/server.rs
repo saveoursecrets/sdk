@@ -14,7 +14,11 @@ use tower_http::cors::{CorsLayer, Origin};
 
 //use axum_macros::debug_handler;
 
-use crate::{assets::Assets, Backend, ServerConfig, authenticate::{self, Authentication}};
+use crate::{
+    assets::Assets,
+    authenticate::{self, Authentication},
+    Backend, ServerConfig,
+};
 use serde_json::json;
 use sos_core::{
     address::AddressStr, decode, encode, k256::ecdsa::recoverable,
@@ -67,6 +71,8 @@ impl Server {
 
         drop(reader);
 
+        // FIXME: start tokio task to reap stale authentication challenges
+
         let cors = CorsLayer::new()
             .allow_methods(vec![Method::GET, Method::POST])
             .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
@@ -76,6 +82,8 @@ impl Server {
             .route("/", get(home))
             .route("/gui/*path", get(asset))
             .route("/api", get(api))
+            .route("/api/auth", post(AuthHandler::challenge))
+            .route("/api/auth/:uuid", post(AuthHandler::response))
             .route("/api/accounts", post(AccountHandler::create))
             .route("/api/accounts/:user", get(VaultHandler::list))
             .route(
@@ -155,6 +163,86 @@ async fn api(
 }
 
 // Handlers for account operations.
+struct AuthHandler;
+impl AuthHandler {
+    /// Issue an authentication challenge.
+    ///
+    /// The request must be signed in a Authorization header but
+    /// the message is chosen by the client. It is recommended the
+    /// client choose a 32 byte random payload.
+    ///
+    /// The signature allows us to determine if an account exists
+    /// before creating a challenge.
+    ///
+    /// The response is a JSON array tuple containing the challenge
+    /// identifier as the first element and the 32 byte message to
+    /// be signed as the second element.
+    async fn challenge(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        body: Bytes,
+    ) -> impl IntoResponse {
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+                if writer.backend.account_exists(&token.address) {
+                    let challenge = writer.authentication.new_challenge();
+                    (StatusCode::OK, Json(json!(challenge)))
+                } else {
+                    (StatusCode::NOT_FOUND, Json(json!(null)))
+                }
+            } else {
+                (status_code, Json(json!(null)))
+            }
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!(null)))
+        }
+    }
+
+    /// Handle the response to a challenge.
+    async fn response(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        Path(challenge_id): Path<Uuid>,
+        body: Bytes,
+    ) -> impl IntoResponse {
+        let mut writer = state.write().await;
+        if let Some((challenge, _)) =
+            writer.authentication.remove(&challenge_id)
+        {
+            // Body payload must match the challenge corresponding
+            // to it's identifier
+            if challenge == body.as_ref() {
+                // Now check the bearer signature against the body payload
+                if let Ok((status_code, token)) =
+                    authenticate::bearer(authorization, &body)
+                {
+                    if let (StatusCode::OK, Some(token)) = (status_code, token)
+                    {
+                        if writer.backend.account_exists(&token.address) {
+                            // TODO: return list of vaults to the client?
+                            StatusCode::OK
+                        } else {
+                            StatusCode::NOT_FOUND
+                        }
+                    } else {
+                        status_code
+                    }
+                } else {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+            } else {
+                StatusCode::BAD_REQUEST
+            }
+        } else {
+            StatusCode::NOT_FOUND
+        }
+    }
+}
+
+// Handlers for account operations.
 struct AccountHandler;
 impl AccountHandler {
     /// Create a new user account.
@@ -163,7 +251,9 @@ impl AccountHandler {
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
     ) -> impl IntoResponse {
-        if let Ok((status_code, token)) = authenticate::bearer(authorization, &body) {
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 //println!("Got authorization with {:#?}", token);
                 if let Ok(vault) = Vault::read_buffer(&body) {
@@ -272,26 +362,4 @@ impl VaultHandler {
         }
         */
     }
-
-    /*
-    async fn create(Json(payload): Json<CreateVault>) -> impl IntoResponse {
-        let vault = VaultInfo {
-            label: payload.label,
-        };
-
-        (StatusCode::CREATED, Json(vault))
-    }
-    */
 }
-
-/*
-#[derive(Deserialize)]
-struct CreateVault {
-    label: String,
-}
-
-#[derive(Serialize)]
-struct VaultInfo {
-    label: String,
-}
-*/
