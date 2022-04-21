@@ -4,15 +4,14 @@ use sha3::{Digest, Keccak256};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
+    time::SystemTime,
 };
 use uuid::Uuid;
 
 use axum::{
     body::Bytes,
     headers::{authorization::Bearer, Authorization},
-    http::{
-        StatusCode,
-    },
+    http::StatusCode,
 };
 
 use sos_core::{
@@ -69,7 +68,7 @@ pub fn bearer(
 /// Encapsulates a collection of authentication challenges.
 #[derive(Debug)]
 pub struct Authentication {
-    challenges: Arc<RwLock<HashMap<Uuid, Challenge>>>,
+    challenges: Arc<RwLock<HashMap<Uuid, (Challenge, SystemTime)>>>,
 }
 
 impl Default for Authentication {
@@ -82,47 +81,24 @@ impl Default for Authentication {
 
 impl Authentication {
     /// Create a new challenge.
+    ///
+    /// A challenge is a v4 UUID that identifies the challenge
+    /// and a message that must be signed to authenticate.
+    ///
+    /// The message is a keccak256 digest of the UUID.
     pub fn new_challenge(&mut self) -> (Uuid, Challenge) {
+        let now = SystemTime::now();
         let id = Uuid::new_v4();
         let challenge: [u8; 32] =
             Keccak256::digest(id.as_bytes()).try_into().unwrap();
         let mut writer = self.challenges.write().unwrap();
-        writer.entry(id).or_insert(challenge);
+        writer.entry(id).or_insert((challenge, now));
         (id, challenge)
     }
 
-    /*
-    /// Determine if a challenge response is valid.
-    ///
-    /// Returns `Result::Ok` if the authorization was successful.
-    pub fn authorize(
-        &self,
-        public_keys: &[PublicKey],
-        response: &ChallengeResponse,
-    ) -> Result<()> {
+    /// Remove and return a challenge.
+    pub fn remove(&mut self, uuid: &Uuid) -> Option<(Challenge, SystemTime)> {
         let mut writer = self.challenges.write().unwrap();
-
-        if let Some(index) = writer.iter().position(|c| c.id() == response.id())
-        {
-            let challenge = writer.remove(index);
-            for public_key in public_keys {
-                if public_key.compressed {
-                    let signature =
-                        Signature::from_bytes(response.signature().as_ref())?;
-                    let verify_key: VerifyingKey = public_key.try_into()?;
-                    if verify_key
-                        .verify(challenge.message(), &signature)
-                        .is_ok()
-                    {
-                        return Ok(());
-                    }
-                } else {
-                    todo!("support uncompressed public keys")
-                }
-            }
-            return Err(Error::InvalidChallengeResponse);
-        }
-        Err(Error::ChallengeNotFound)
+        writer.remove(uuid)
     }
-    */
 }
