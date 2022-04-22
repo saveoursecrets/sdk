@@ -26,6 +26,8 @@ toml = "0.5"
 url = { version = "2", features = ["serde"] }
 base64 = "0.13"
 sha3 = "0.10"
+file-guard = "0.1"
+ouroboros = "0.15"
 
 [features]
 default = ["gui"]

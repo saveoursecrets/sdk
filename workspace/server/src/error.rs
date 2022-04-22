@@ -26,6 +26,9 @@ pub enum Error {
     #[error("url {0} is not a valid file path")]
     UrlFilePath(Url),
 
+    #[error("audit file {0} is already open for writing")]
+    AuditWouldBlock(PathBuf),
+
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
 

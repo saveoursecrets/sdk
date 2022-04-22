@@ -7,15 +7,13 @@ use sos_core::address::AddressStr;
 
 use crate::{Backend, Error, FileSystemBackend, Result};
 
-fn default_false() -> bool {
-    false
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ServerConfig {
-    /// Whether to sever the web GUI.
-    #[serde(default = "default_false")]
+    /// Whether to serve the web GUI.
     pub gui: bool,
+
+    /// Audit log file.
+    pub audit: Option<PathBuf>,
 
     /// Storage for the backend.
     pub storage: StorageConfig,
@@ -23,8 +21,22 @@ pub struct ServerConfig {
     /// Configuration for the API.
     pub api: ApiConfig,
 
+    /// Path the file was loaded from used to determine
+    /// relative paths.
     #[serde(skip)]
     file: Option<PathBuf>,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            gui: false,
+            audit: Some(PathBuf::from("audit.log")),
+            storage: Default::default(),
+            api: Default::default(),
+            file: None,
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
