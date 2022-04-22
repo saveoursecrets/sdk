@@ -1,5 +1,5 @@
 use clap::Parser;
-use sos_server::{Authentication, Result, Server, ServerConfig, State};
+use sos_server::{Authentication, Error, Result, Server, ServerConfig, State, AuditLogFile};
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -36,12 +36,21 @@ async fn run() -> Result<()> {
     let authentication: Authentication = Default::default();
     let backend = config.backend()?;
 
+    let audit_log_file = PathBuf::from("./audit.log");
+
+    if AuditLogFile::would_block(&audit_log_file)? {
+        return Err(Error::AuditWouldBlock(audit_log_file));
+    }
+
+    let audit_log = AuditLogFile::new(&audit_log_file)?;
+
     let state = Arc::new(RwLock::new(State {
         name,
         version,
         config,
         backend,
         authentication,
+        audit_log,
     }));
 
     let addr = SocketAddr::from_str(&args.bind)?;

@@ -3,6 +3,7 @@ use serde_binary::{
     Decode, Deserializer, Encode, Result as BinaryResult,
     Serializer,
 };
+use async_trait::async_trait;
 use chrono::{DateTime, Utc, NaiveDateTime};
 use uuid::Uuid;
 
@@ -26,7 +27,7 @@ pub struct Log {
 
 impl Log {
     /// Create a new audit log entry.
-    pub fn new(address: AddressStr, vault: Uuid, operation: u8) -> Self {
+    pub fn new(address: AddressStr, vault: Uuid, operation: u16) -> Self {
         Self {
             time: Utc::now(),
             address,
@@ -71,4 +72,14 @@ impl Decode for Log {
         self.operation = de.reader.read_u16()?;
         Ok(())
     }
+}
+
+/// Trait for types that append to an audit log.
+#[async_trait]
+pub trait Append {
+    /// Error type for this implementation.
+    type Error;
+
+    /// Append to a log destination.
+    async fn append(&mut self, log: Log) -> std::result::Result<(), Self::Error>;
 }

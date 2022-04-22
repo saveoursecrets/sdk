@@ -16,6 +16,7 @@ use tower_http::cors::{CorsLayer, Origin};
 
 use crate::{
     assets::Assets,
+    audit::LogFile,
     authenticate::{self, Authentication},
     Backend, ServerConfig,
 };
@@ -41,6 +42,8 @@ pub struct State {
     pub backend: Box<dyn Backend + Send + Sync>,
     /// Collection of challenges for authentication
     pub authentication: Authentication,
+    /// Audit log file
+    pub audit_log: LogFile,
 }
 
 // Server implementation.
