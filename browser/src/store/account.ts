@@ -3,10 +3,12 @@ import { Account } from "../types";
 
 export interface AccountState {
   account?: Account;
+  selectedIndex: number;
 }
 
 const initialState: AccountState = {
   account: null,
+  selectedIndex: -1,
 };
 
 const accountSlice = createSlice({
@@ -19,10 +21,13 @@ const accountSlice = createSlice({
     logout: (state) => {
       state.account = null;
     },
+    setSelectedIndex: (state, { payload }: PayloadAction<number>) => {
+      state.selectedIndex = payload;
+    },
   },
 });
 
-export const { login, logout } = accountSlice.actions;
+export const { login, logout, setSelectedIndex } = accountSlice.actions;
 export const accountSelector = (state: { account: AccountState }) =>
   state.account;
 export default accountSlice.reducer;

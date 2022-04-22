@@ -2,36 +2,40 @@ import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemButton from "@mui/material/ListItemButton";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-import ListSubheader from "@mui/material/ListSubheader";
-import Divider from "@mui/material/Divider";
-import Stack from "@mui/material/Stack";
-import IconButton from "@mui/material/IconButton";
+import {
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  ListSubheader,
+  Divider,
+  Stack,
+  IconButton,
+} from "@mui/material";
 
 import AddIcon from "@mui/icons-material/Add";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 
 import { VaultStorage, vaultsSelector, setCurrent } from "../store/vaults";
+import { accountSelector, setSelectedIndex } from "../store/account";
 import { setDialogVisible, NEW_VAULT } from "../store/dialogs";
 
 export default function VaultList() {
-  const { current, vaults } = useSelector(vaultsSelector);
+  const { account, selectedIndex } = useSelector(accountSelector);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const vaultId = current && current.uuid;
+
+  const { summaries } = account;
 
   const showNewVault = () => {
     dispatch(setDialogVisible([NEW_VAULT, true, null]));
   };
 
-  const openVault = (vault: VaultStorage) => {
-    dispatch(setCurrent(vault));
-    navigate(`/vault/${vault.uuid}`);
+  const openVault = (vault: Summary, index: number) => {
+    dispatch(setSelectedIndex(index));
+    navigate(`/vault/${vault.id}`);
   };
 
   const SubHeader = () => {
@@ -56,19 +60,19 @@ export default function VaultList() {
 
   return (
     <List component="nav" subheader={<SubHeader />}>
-      {vaults.map((vault: VaultStorage) => {
+      {summaries.map((vault: Summary, index: number) => {
         return (
-          <div key={vault.uuid}>
+          <div key={vault.id}>
             <ListItem
-              selected={vaultId === vault.uuid}
+              selected={selectedIndex === index}
               component="div"
               disablePadding
             >
-              <ListItemButton onClick={() => openVault(vault)}>
+              <ListItemButton onClick={() => openVault(vault, index)}>
                 <ListItemIcon>
                   {vault.locked ? <LockIcon /> : <LockOpenIcon />}
                 </ListItemIcon>
-                <ListItemText primary={vault.label} />
+                <ListItemText primary={vault.name} />
               </ListItemButton>
             </ListItem>
             <Divider light />
