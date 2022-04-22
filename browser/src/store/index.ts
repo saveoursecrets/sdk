@@ -21,9 +21,9 @@ const store = configureStore({
           "vaults/setCurrent",
           "vaults/updateVault",
 
-          "vaults/loadVaults/pending",
-          "vaults/loadVaults/fulfilled",
-          "vaults/loadVaults/rejected",
+          "vaults/loadVault/pending",
+          "vaults/loadVault/fulfilled",
+          "vaults/loadVault/rejected",
 
           "vaults/create/pending",
           "vaults/create/fulfilled",

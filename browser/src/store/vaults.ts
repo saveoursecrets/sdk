@@ -61,48 +61,27 @@ export type DeleteSecretRequest = {
   navigate: NavigateFunction;
 };
 
-type LoadVaultsRequest = {
+type LoadVaultRequest = {
+  summary: Summary;
   account: Account;
   worker: VaultWorker;
 };
 
-export const loadVaults = createAsyncThunk(
-  "vaults/loadVaults",
-  async (request: LoadVaultsRequest) => {
-    const { account, worker } = request;
-    const ids = await api.loadVaults(account);
+export const loadVault = createAsyncThunk(
+  "vaults/loadVault",
+  async (request: LoadVaultRequest) => {
+    const { account, worker, summary } = request;
+    const buffer = await api.getVault(account, summary.id);
 
-    const buffers = ids.map(async (id) => {
-      return await api.getVault(account, id);
-    });
+    const vault: WebVault = await new (worker.WebVault as any)();
+    await vault.importBuffer(Array.from(new Uint8Array(buffer)));
 
-    const vaults = await Promise.all(buffers);
-    const dict: any = {};
-    for (const [index, id] of ids.entries()) {
-      dict[id] = vaults[index];
-    }
-
-    const storage = Object.entries(dict).map(
-      async (item: [string, ArrayBuffer]) => {
-        const [id, buffer] = item;
-        const vault: WebVault = await new (worker.WebVault as any)();
-        const name: string = await vault.name();
-        try {
-          await vault.importBuffer(Array.from(new Uint8Array(buffer)));
-        } catch (e) {
-          console.error(e);
-        }
-
-        return {
-          uuid: id,
-          label: name,
-          vault,
-          locked: true,
-        };
-      }
-    );
-
-    return await Promise.all(storage);
+    return {
+      uuid: summary.id,
+      label: summary.name,
+      vault,
+      locked: true,
+    };
   }
 );
 
@@ -233,8 +212,10 @@ const vaultsSlice = createSlice({
       state.vaults = [action.payload, ...state.vaults];
       state.current = action.payload;
     });
-    builder.addCase(loadVaults.fulfilled, (state, action) => {
-      state.vaults = action.payload;
+    builder.addCase(loadVault.fulfilled, (state, action) => {
+      const vaults = [...state.vaults];
+      vaults.push(action.payload);
+      state.vaults = vaults;
     });
     builder.addCase(lockAll.fulfilled, (state, action) => {
       state.vaults = action.payload;

@@ -85,11 +85,10 @@ impl Server {
             .route("/api/auth", post(AuthHandler::challenge))
             .route("/api/auth/:uuid", post(AuthHandler::response))
             .route("/api/accounts", post(AccountHandler::create))
-            .route("/api/accounts/:user", get(VaultHandler::list))
+            //.route("/api/vaults", get(VaultHandler::list))
             .route(
-                "/api/accounts/:user/vaults/:id",
-                get(VaultHandler::retrieve_vault)
-                    .post(VaultHandler::update_vault),
+                "/api/vaults/:id",
+                post(VaultHandler::get_vault), //.post(VaultHandler::update_vault),
             )
             .layer(cors)
             .layer(Extension(shared_state));
@@ -229,7 +228,7 @@ impl AuthHandler {
                     {
                         if writer.backend.account_exists(&token.address) {
                             if let Ok(summaries) =
-                                writer.backend.list(&token.address)
+                                writer.backend.list(&token.address).await
                             {
                                 (StatusCode::OK, Json(json!(summaries)))
                             } else {
@@ -269,15 +268,14 @@ impl AccountHandler {
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                //println!("Got authorization with {:#?}", token);
                 if let Ok(vault) = Vault::read_buffer(&body) {
                     let uuid = vault.id();
                     let mut writer = state.write().await;
-                    if let Ok(_) = writer.backend.create_account(
-                        token.address,
-                        *uuid,
-                        &body,
-                    ) {
+                    if let Ok(_) = writer
+                        .backend
+                        .create_account(token.address, *uuid, &body)
+                        .await
+                    {
                         StatusCode::OK
                     } else {
                         StatusCode::INTERNAL_SERVER_ERROR
@@ -320,27 +318,38 @@ impl VaultHandler {
     }
 
     /// Retrieve an encrypted vault.
-    async fn retrieve_vault(
+    async fn get_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
-        Path((user_id, vault_id)): Path<(AddressStr, Uuid)>,
+        Path(uuid): Path<Uuid>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        body: Bytes,
     ) -> Result<Bytes, StatusCode> {
-        let reader = state.read().await;
-
-        todo!()
-
-        /*
-        if let Some(backend) = reader.backends.get(&user_id) {
-            if let Ok(Some(vault)) = backend.get(&vault_id) {
-                let buffer = encode(&vault)
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                Ok(Bytes::from(buffer))
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let reader = state.read().await;
+                if reader.backend.account_exists(&token.address) {
+                    if reader.backend.vault_exists(&token.address, &uuid) {
+                        if let Ok(buffer) =
+                            reader.backend.get(&token.address, &uuid).await
+                        {
+                            Ok(Bytes::from(buffer))
+                        } else {
+                            Err(StatusCode::INTERNAL_SERVER_ERROR)
+                        }
+                    } else {
+                        Err(StatusCode::NOT_FOUND)
+                    }
+                } else {
+                    Err(StatusCode::NOT_FOUND)
+                }
             } else {
-                Err(StatusCode::NOT_FOUND)
+                Err(status_code)
             }
         } else {
-            Err(StatusCode::NOT_FOUND)
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
-        */
     }
 
     /// Update an encrypted vault.

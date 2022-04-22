@@ -1,4 +1,5 @@
 import { Account, Signature, Summary } from "../types";
+import { WebSigner } from "sos-wasm";
 
 const MIME_TYPE_VAULT = "application/sos+vault";
 
@@ -12,6 +13,13 @@ export class VaultApi {
 
   constructor(url: string) {
     this.url = url;
+  }
+
+  async selfSigned(signer: WebSigner): [Signature, Uint8Array] {
+    const message = new Uint8Array(32);
+    self.crypto.getRandomValues(message);
+    const signature = await signer.sign(Array.from(message));
+    return [signature, message];
   }
 
   // Create a new account.
@@ -76,17 +84,20 @@ export class VaultApi {
     return response.json();
   }
 
-  // Load the vault list for a user.
-  async loadVaults(account: Account): Promise<string[]> {
-    const url = `${this.url}/accounts/${account.address}`;
-    const response = await fetch(url);
-    return response.json();
-  }
-
   // Load the encrypted vault buffer for a user.
   async getVault(account: Account, id: string): Promise<ArrayBuffer> {
-    const url = `${this.url}/accounts/${account.address}/vaults/${id}`;
-    const response = await fetch(url);
+    const [signature, message] = await this.selfSigned(account.signer);
+    const url = `${this.url}/vaults/${id}`;
+    const body = new Blob([message.buffer]);
+    const headers = {
+      authorization: bearer(signature),
+    };
+    const response = await fetch(url, {
+      method: "POST",
+      body,
+      mode: "cors",
+      headers,
+    });
     return response.arrayBuffer();
   }
 }
