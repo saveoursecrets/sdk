@@ -48,7 +48,7 @@ function MainApp(props: AppProps) {
   const { account } = useSelector(accountSelector);
   const [workerReady, setWorkerReady] = useState(false);
 
-  const verified = account !== null && Array.isArray(account.vaults);
+  const verified = account !== null && Array.isArray(account.summaries);
 
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const theme = useMemo(

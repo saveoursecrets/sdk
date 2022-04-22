@@ -124,8 +124,8 @@ function VerifyIdentity() {
     const signature = await signer.sign(Array.from(message));
     const [uuid, challenge] = await api.loginChallenge(signature, message);
     const responseSignature = await signer.sign(Array.from(challenge));
-    const vaults = await api.loginResponse(responseSignature, uuid, challenge);
-    const verified = { ...account, vaults };
+    const summaries = await api.loginResponse(responseSignature, uuid, challenge);
+    const verified = { ...account, summaries };
     await dispatch(login(verified));
     navigate("/");
   };
