@@ -105,7 +105,7 @@ impl Encode for Summary {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u16(self.version)?;
         self.algorithm.encode(&mut *ser)?;
-        ser.writer.write_string(self.id.to_string())?;
+        ser.writer.write_bytes(self.id.as_bytes())?;
         ser.writer.write_string(&self.name)?;
         Ok(())
     }
@@ -122,8 +122,10 @@ impl Decode for Summary {
             )));
         }
 
-        self.id =
-            Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
+
+        let uuid: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
+        self.id = Uuid::from_bytes(uuid);
+
         self.name = de.reader.read_string()?;
 
         Ok(())
@@ -245,7 +247,7 @@ impl Encode for Contents {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u32(self.data.len() as u32)?;
         for (key, item) in &self.data {
-            key.serialize(&mut *ser)?;
+            ser.writer.write_bytes(key.as_bytes())?;
             item.0.encode(&mut *ser)?;
             item.1.encode(&mut *ser)?;
         }
@@ -257,12 +259,14 @@ impl Decode for Contents {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let length = de.reader.read_u32()?;
         for _ in 0..length {
-            let key: Uuid = Deserialize::deserialize(&mut *de)?;
+            let uuid: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
+            let uuid = Uuid::from_bytes(uuid);
+
             let mut meta: AeadPack = Default::default();
             meta.decode(&mut *de)?;
             let mut secret: AeadPack = Default::default();
             secret.decode(&mut *de)?;
-            self.data.insert(key, (meta, secret));
+            self.data.insert(uuid, (meta, secret));
         }
         Ok(())
     }
