@@ -4,14 +4,14 @@ use sos_core::{
     address::AddressStr,
     vault::{Header, Summary, Vault},
 };
-use std::{collections::HashMap, fs::read_dir, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 use uuid::Uuid;
 
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]
 pub trait Backend {
     /// Create a new account.
-    fn create_account(
+    async fn create_account(
         &mut self,
         owner: AddressStr,
         uuid: Uuid,
@@ -22,10 +22,13 @@ pub trait Backend {
     fn account_exists(&self, owner: &AddressStr) -> bool;
 
     /// List vaults for an account.
-    fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>>;
+    async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>>;
 
-    /// Load a vault for an account.
-    fn get(&self, owner: &AddressStr, id: &Uuid) -> Result<Option<Vault>>;
+    /// Determine if an vault exists for the given address and uuid.
+    fn vault_exists(&self, owner: &AddressStr, uuid: &Uuid) -> bool;
+
+    /// Load a vault buffer for an account.
+    async fn get(&self, owner: &AddressStr, uuid: &Uuid) -> Result<Vec<u8>>;
 }
 
 /// Backend storage for vaults on the file system.
@@ -51,7 +54,7 @@ impl FileSystemBackend {
 
         let mut accounts: HashMap<AddressStr, HashMap<Uuid, PathBuf>> =
             HashMap::new();
-        for entry in read_dir(&self.directory)? {
+        for entry in std::fs::read_dir(&self.directory)? {
             let entry = entry?;
             let path = entry.path();
 
@@ -62,7 +65,7 @@ impl FileSystemBackend {
                     {
                         let vaults =
                             accounts.entry(owner).or_insert(Default::default());
-                        for vault_entry in read_dir(&path)? {
+                        for vault_entry in std::fs::read_dir(&path)? {
                             let vault_entry = vault_entry?;
                             let vault_path = vault_entry.path();
                             if let Some(ext) = vault_path.extension() {
@@ -84,7 +87,7 @@ impl FileSystemBackend {
 
 #[async_trait]
 impl Backend for FileSystemBackend {
-    fn create_account(
+    async fn create_account(
         &mut self,
         owner: AddressStr,
         uuid: Uuid,
@@ -101,8 +104,8 @@ impl Backend for FileSystemBackend {
             return Err(Error::FileExists(vault_file));
         }
 
-        std::fs::create_dir(account_dir)?;
-        std::fs::write(vault_file, vault)?;
+        tokio::fs::create_dir(account_dir).await?;
+        tokio::fs::write(vault_file, vault).await?;
 
         Ok(())
     }
@@ -112,11 +115,11 @@ impl Backend for FileSystemBackend {
         account_dir.exists()
     }
 
-    fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>> {
+    async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>> {
         let mut summaries = Vec::new();
         let account_dir = self.directory.join(owner.to_string());
-        for entry in read_dir(&account_dir)? {
-            let entry = entry?;
+        let mut stream = tokio::fs::read_dir(&account_dir).await?;
+        while let Some(entry) = stream.next_entry().await? {
             let path = entry.path();
             if let Some(ext) = path.extension() {
                 if ext == Vault::extension() {
@@ -128,17 +131,18 @@ impl Backend for FileSystemBackend {
         Ok(summaries)
     }
 
-    fn get(&self, addr: &AddressStr, id: &Uuid) -> Result<Option<Vault>> {
-        let vault = if let Some(vaults) = self.accounts.get(addr) {
-            if let Some(path) = vaults.get(id) {
-                let vault = Vault::read_file(&path)?;
-                Some(vault)
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        Ok(vault)
+    fn vault_exists(&self, owner: &AddressStr, uuid: &Uuid) -> bool {
+        let account_dir = self.directory.join(owner.to_string());
+        let mut vault_file = account_dir.join(uuid.to_string());
+        vault_file.set_extension(Vault::extension());
+        vault_file.exists()
+    }
+
+    async fn get(&self, owner: &AddressStr, uuid: &Uuid) -> Result<Vec<u8>> {
+        let account_dir = self.directory.join(owner.to_string());
+        let mut vault_file = account_dir.join(uuid.to_string());
+        vault_file.set_extension(Vault::extension());
+        let buffer = tokio::fs::read(&vault_file).await?;
+        Ok(buffer)
     }
 }

@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Routes, Route } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
 
 import { styled, useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
@@ -17,9 +16,6 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import { VaultWorker } from "../types";
-
-import { accountSelector } from "../store/account";
-import { loadVaults } from "../store/vaults";
 
 import Home from "./home";
 import VaultList from "./vault-list";
@@ -88,18 +84,6 @@ type AppProps = {
 export default function AuthenticatedApp(props: AppProps) {
   const { worker } = props;
   const theme = useTheme();
-
-  const { account } = useSelector(accountSelector);
-  const dispatch = useDispatch();
-
-  /*
-  useEffect(() => {
-    const useLoadVaults = async () => {
-      dispatch(loadVaults({ account, worker }));
-    };
-    useLoadVaults();
-  }, []);
-  */
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 

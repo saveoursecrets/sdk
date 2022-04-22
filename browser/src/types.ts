@@ -10,7 +10,7 @@ export type Summary = {
   version: number;
   id: string;
   name: string;
-}
+};
 
 export type Signature = {
   r: string;
@@ -108,4 +108,3 @@ export type Credentials = {
 export type UnlockVaultResult = {
   password: string;
 };
-

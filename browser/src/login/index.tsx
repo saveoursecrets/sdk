@@ -6,8 +6,8 @@ import { Stack, Typography } from "@mui/material";
 import { WorkerProps } from "../props";
 import { accountSelector } from "../store/account";
 
-import UploadKey from './upload-key';
-import VerifyIdentity from './verify-identity';
+import UploadKey from "./upload-key";
+import VerifyIdentity from "./verify-identity";
 
 export default function Login(props: WorkerProps) {
   const { worker } = props;
