@@ -23,6 +23,18 @@ impl fmt::Display for AddressStr {
     }
 }
 
+impl AsRef<[u8]> for AddressStr {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl From<[u8; 20]> for AddressStr {
+    fn from(value: [u8; 20]) -> Self {
+        Self(value)
+    }
+}
+
 impl FromStr for AddressStr {
     type Err = Error;
 
