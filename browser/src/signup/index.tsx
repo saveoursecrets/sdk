@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import { Stack } from '@mui/material';
+
 import { WorkerProps } from "../props";
 
 import SignupCleanup from "./cleanup";
@@ -61,9 +63,9 @@ function SignupStepView(props: WorkerProps) {
 export default function SignupView(props: WorkerProps) {
   const { worker } = props;
   return (
-    <>
+    <Stack padding={3}>
       <SignupStepView worker={worker} />
       <SignupCleanup />
-    </>
+    </Stack>
   );
 }
