@@ -19,7 +19,7 @@ import NotFound from "./not-found";
 
 const Main = styled("div", { shouldForwardProp: (prop) => prop !== "open" })<{
   open?: boolean;
-}>(({ theme }) => ({
+}>(() => ({
   flexGrow: 1,
   padding: 0,
 }));
