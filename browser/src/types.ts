@@ -3,7 +3,7 @@ import { WebVault, WebSigner, Signup } from "sos-wasm";
 export type Account = {
   signer?: WebSigner;
   address?: string;
-  vaults?: Summary[];
+  summaries?: Summary[];
 };
 
 export type Summary = {
