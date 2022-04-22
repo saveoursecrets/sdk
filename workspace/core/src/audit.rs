@@ -40,7 +40,7 @@ impl Encode for Log {
         // Address
         ser.writer.write_bytes(self.address.as_ref())?;
         // Uuid
-        ser.writer.write_string(self.vault.to_string())?;
+        ser.writer.write_bytes(self.vault.as_bytes())?;
         // Operation
         ser.writer.write_u8(self.operation)?;
         Ok(())
@@ -59,8 +59,8 @@ impl Decode for Log {
         let address: [u8; 20] = address.as_slice().try_into()?;
         self.address = address.into();
         // Uuid
-        self.vault =
-            Uuid::parse_str(&de.reader.read_string()?).map_err(Box::from)?;
+        let uuid: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
+        self.vault = Uuid::from_bytes(uuid);
         // Operation
         self.operation = de.reader.read_u8()?;
         Ok(())
