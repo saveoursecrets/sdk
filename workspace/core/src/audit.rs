@@ -10,12 +10,18 @@ use crate::{
     address::AddressStr,
 };
 
-/// Audit log record.
+/// Audit log record (50 bytes).
+///
+/// * 8 bytes for the timestamp seconds.
+/// * 4 bytes for the timestamp nanoseconds.
+/// * 20 bytes for the public address.
+/// * 16 bytes for the vault UUID.
+/// * 2 bytes for the operation identifier.
 pub struct Log {
     time: DateTime<Utc>,
     address: AddressStr,
     vault: Uuid,
-    operation: u8,
+    operation: u16,
 }
 
 impl Log {
@@ -42,7 +48,7 @@ impl Encode for Log {
         // Uuid
         ser.writer.write_bytes(self.vault.as_bytes())?;
         // Operation
-        ser.writer.write_u8(self.operation)?;
+        ser.writer.write_u16(self.operation)?;
         Ok(())
     }
 }
@@ -62,7 +68,7 @@ impl Decode for Log {
         let uuid: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
         self.vault = Uuid::from_bytes(uuid);
         // Operation
-        self.operation = de.reader.read_u8()?;
+        self.operation = de.reader.read_u16()?;
         Ok(())
     }
 }
