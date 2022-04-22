@@ -11,6 +11,10 @@ struct Cli {
     #[structopt(short, long)]
     gui: Option<bool>,
 
+    /// Override the audit log file path.
+    #[structopt(short, long)]
+    audit_log: Option<PathBuf>,
+
     /// Bind to host:port.
     #[structopt(short, long, default_value = "127.0.0.1:5053")]
     bind: String,
@@ -36,7 +40,7 @@ async fn run() -> Result<()> {
     let authentication: Authentication = Default::default();
     let backend = config.backend()?;
 
-    let audit_log_file = PathBuf::from("./audit.log");
+    let audit_log_file = args.audit_log.unwrap_or(config.audit_file());
 
     if AuditLogFile::would_block(&audit_log_file)? {
         return Err(Error::AuditWouldBlock(audit_log_file));

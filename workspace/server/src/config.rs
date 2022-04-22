@@ -13,7 +13,7 @@ pub struct ServerConfig {
     pub gui: bool,
 
     /// Audit log file.
-    pub audit: Option<PathBuf>,
+    pub audit: AuditConfig,
 
     /// Storage for the backend.
     pub storage: StorageConfig,
@@ -31,7 +31,7 @@ impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             gui: false,
-            audit: Some(PathBuf::from("audit.log")),
+            audit: Default::default(),
             storage: Default::default(),
             api: Default::default(),
             file: None,
@@ -43,6 +43,20 @@ impl Default for ServerConfig {
 pub struct ApiConfig {
     /// List of additional CORS origins for the server.
     pub origins: Vec<Url>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuditConfig {
+    /// File system path to the audit log.
+    pub file: PathBuf,
+}
+
+impl Default for AuditConfig {
+    fn default() -> Self {
+        Self {
+            file: PathBuf::from("audit.log"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -68,16 +82,32 @@ impl ServerConfig {
         Ok(config)
     }
 
-    /// Get the backend implementation.
-    pub fn backend(&self) -> Result<Box<dyn Backend + Send + Sync>> {
-        // Config file directory for relative file paths.
-        let dir = self
+    /// Parent directory of the configuration file.
+    fn directory(&self) -> PathBuf {
+        self
             .file
             .as_ref()
             .unwrap()
             .parent()
             .map(|p| p.to_path_buf())
-            .unwrap();
+            .unwrap()
+    }
+
+    /// Path to the audit log file.
+    pub fn audit_file(&self) -> PathBuf {
+        // Config file directory for relative file paths.
+        let dir = self.directory();
+        if self.audit.file.is_absolute() {
+            self.audit.file.clone()
+        } else {
+            dir.join(&self.audit.file)
+        }
+    }
+
+    /// Get the backend implementation.
+    pub fn backend(&self) -> Result<Box<dyn Backend + Send + Sync>> {
+        // Config file directory for relative file paths.
+        let dir = self.directory();
 
         match self.storage.url.scheme() {
             "file" => {
