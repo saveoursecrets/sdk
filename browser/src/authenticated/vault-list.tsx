@@ -18,7 +18,6 @@ import AddIcon from "@mui/icons-material/Add";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 
-import { VaultStorage, vaultsSelector, setCurrent } from "../store/vaults";
 import { accountSelector, setSelectedIndex } from "../store/account";
 import { setDialogVisible, NEW_VAULT } from "../store/dialogs";
 
