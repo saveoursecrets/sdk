@@ -15,24 +15,35 @@ use crate::Result;
 ///
 /// Panics if the exclusive file lock cannot be acquired.
 pub struct LogFile {
-    pub file: Mutex<File>,
+    file: Mutex<File>,
     guard: LockGuard,
 }
 
 impl LogFile {
+    /// Create an audit log file.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let std_file = std::fs::File::create(path.as_ref())?;
-        let file = File::from_std(std_file);
+        let file = LogFile::create(path.as_ref())?;
+        let file = File::from_std(file);
         Ok(Self {
             file: Mutex::new(file),
             guard: LockGuard::lock(path)?,
         })
     }
 
+    /// Create the file used to store audit logs.
+    pub fn create<P: AsRef<Path>>(path: P) -> Result<std::fs::File> {
+        let exists = path.as_ref().exists();
+        let file = std::fs::File::create(path.as_ref())?;
+        if !exists {
+            // TODO: if file didn't exist then write the audit identity bytes
+        }
+        Ok(file)
+    }
+
     /// Determine if attempting to acquire a file lock would block
     /// the process.
     pub fn would_block<P: AsRef<Path>>(path: P) -> Result<bool> {
-        let file = std::fs::File::create(path)?;
+        let file = LogFile::create(path.as_ref())?;
         let blocks = match file_guard::try_lock(&file, Lock::Exclusive, 0, 1) {
             Ok(_) => false,
             Err(_) => true,
