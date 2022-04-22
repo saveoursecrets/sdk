@@ -21,7 +21,7 @@ const Main = styled("div", { shouldForwardProp: (prop) => prop !== "open" })<{
   open?: boolean;
 }>(({ theme }) => ({
   flexGrow: 1,
-  padding: theme.spacing(3),
+  padding: 0,
 }));
 
 export default function App(props: WorkerProps) {

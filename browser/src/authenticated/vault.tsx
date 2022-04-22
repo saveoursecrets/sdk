@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import { WorkerStorageProps } from "../props";
 
 import { vaultsSelector } from "../store/vaults";
+import NotFound from '../not-found';
 
 import { WorkerContext } from "../worker-provider";
 import SecretList from "./secret-list";
@@ -41,7 +42,7 @@ export default function Vault() {
   const storage = vaults.find((v) => v.uuid === vaultId);
 
   if (!storage) {
-    return <p>Vault not found</p>;
+    return <NotFound />;
   }
 
   return (

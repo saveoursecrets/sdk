@@ -1,7 +1,11 @@
 import React from "react";
 
-import { Typography } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 
 export default function NotFound() {
-  return <Typography variant="h3">Page not found</Typography>;
+  return (
+    <Stack padding={3} spacing={4}>
+      <Typography variant="h3">Page not found</Typography>
+    </Stack>
+  );
 }

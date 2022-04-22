@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from 'react-router-dom';
 
 import { Button, Stack, Typography } from "@mui/material";
 
@@ -13,7 +13,6 @@ import { decode } from "../utils";
 import FileUploadReader, { FileBuffer } from "../file-upload-reader";
 
 import PasswordForm from "../authenticated/forms/password-form";
-import PublicAddress from "../components/public-address";
 
 import { login, logout, accountSelector } from "../store/account";
 import { setSnackbar } from "../store/snackbar";
@@ -21,9 +20,7 @@ import api from "../store/api";
 
 function UploadKey(props: WorkerProps) {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const { worker } = props;
-  const { account } = useSelector(accountSelector);
   const [keystore, setKeystore] = useState(null);
 
   const verifyPassphrase = async (passphrase: string) => {
@@ -178,7 +175,7 @@ export default function Login(props: WorkerProps) {
   );
 
   return (
-    <Stack spacing={4}>
+    <Stack padding={3} spacing={4}>
       <Stack>
         <Typography variant="h3">Login</Typography>
       </Stack>

@@ -95,7 +95,7 @@ export default function AuthenticatedApp(props: AppProps) {
   /*
   useEffect(() => {
     const useLoadVaults = async () => {
-      dispatch(loadVaults({ user, worker }));
+      dispatch(loadVaults({ account, worker }));
     };
     useLoadVaults();
   }, []);
