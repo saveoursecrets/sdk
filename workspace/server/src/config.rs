@@ -84,8 +84,7 @@ impl ServerConfig {
 
     /// Parent directory of the configuration file.
     fn directory(&self) -> PathBuf {
-        self
-            .file
+        self.file
             .as_ref()
             .unwrap()
             .parent()

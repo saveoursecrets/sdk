@@ -22,8 +22,13 @@ use crate::{
 };
 use serde_json::json;
 use sos_core::{
-    address::AddressStr, decode, encode, k256::ecdsa::recoverable,
-    vault::Vault, web3_signature::Signature,
+    address::AddressStr,
+    audit::{Append, Log},
+    decode, encode,
+    k256::ecdsa::recoverable,
+    operations::types::*,
+    vault::Vault,
+    web3_signature::Signature,
 };
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
@@ -266,7 +271,7 @@ impl AccountHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
-    ) -> impl IntoResponse {
+    ) -> Result<StatusCode, StatusCode> {
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &body)
         {
@@ -279,18 +284,24 @@ impl AccountHandler {
                         .create_account(token.address, *uuid, &body)
                         .await
                     {
-                        StatusCode::OK
+                        let log = Log::new(CREATE_ACCOUNT, token.address, None);
+                        writer
+                            .audit_log
+                            .append(log)
+                            .await
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                        Ok(StatusCode::OK)
                     } else {
-                        StatusCode::INTERNAL_SERVER_ERROR
+                        Err(StatusCode::INTERNAL_SERVER_ERROR)
                     }
                 } else {
-                    StatusCode::BAD_REQUEST
+                    Err(StatusCode::BAD_REQUEST)
                 }
             } else {
-                status_code
+                Err(status_code)
             }
         } else {
-            StatusCode::INTERNAL_SERVER_ERROR
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 }

@@ -11,6 +11,9 @@ use crate::{
     address::AddressStr,
 };
 
+/// Identity magic bytes (SOSA).
+pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
+
 /// Audit log record (34 or 50 bytes).
 ///
 /// * 8 bytes for the timestamp seconds.
@@ -99,6 +102,6 @@ pub trait Append {
     /// Error type for this implementation.
     type Error;
 
-    /// Append to a log destination.
-    async fn append(&mut self, log: Log) -> std::result::Result<(), Self::Error>;
+    /// Append a log to a destination.
+    async fn append(&mut self, logs: Log) -> std::result::Result<(), Self::Error>;
 }
