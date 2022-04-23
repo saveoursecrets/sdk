@@ -56,8 +56,6 @@ impl LogFile {
             let identity = FileIdentity(IDENTITY);
             let buffer = encode(&identity)?;
             file.write_all(&buffer)?;
-            file.flush()?;
-            file.sync_all()?;
         }
 
         Ok(file)
@@ -85,7 +83,6 @@ impl Append for LogFile {
         let mut writer = self.file.lock().await;
         let buffer = encode(&log)?;
         writer.write_all(&buffer).await?;
-        writer.sync_all().await?;
         Ok(())
     }
 }
