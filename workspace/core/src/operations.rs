@@ -16,7 +16,7 @@ use crate::{crypto::AeadPack, signer::Signer, vault::encode, Error, Result};
 #[derive(Serialize, Deserialize)]
 pub enum Payload<'a> {
     /// Update the vault meta data.
-    UpdateMeta(Cow<'a, Option<AeadPack>>),
+    UpdateVault(Cow<'a, Option<AeadPack>>),
 
     /// Create a secret.
     CreateSecret(Uuid, Cow<'a, (AeadPack, AeadPack)>),
@@ -44,29 +44,44 @@ impl<'a> Payload<'a> {
     }
 }
 
-/// Constants for the types of payload.
+/// Constants for the types of operations.
 pub mod types {
-    /// Type identifier for the update meta operation.
-    pub const UPDATE_META: u8 = 0x1;
+    /// Type identifier for the create account operation.
+    pub const CREATE_ACCOUNT: u8 = 0x01;
+
+    /// Type identifier for the delete account operation.
+    pub const DELETE_ACCOUNT: u8 = 0x02;
+
+    /// Type identifier for the create vault operation.
+    pub const CREATE_VAULT: u8 = 0x03;
+
+    /// Type identifier for the create vault operation.
+    pub const READ_VAULT: u8 = 0x04;
+
+    /// Type identifier for the update vault operation.
+    pub const UPDATE_VAULT: u8 = 0x05;
+
+    /// Type identifier for the delete vault operation.
+    pub const DELETE_VAULT: u8 = 0x06;
 
     /// Type identifier for the create secret operation.
-    pub const CREATE_SECRET: u8 = 0x2;
+    pub const CREATE_SECRET: u8 = 0x07;
 
     /// Type identifier for the read secret operation.
-    pub const READ_SECRET: u8 = 0x3;
+    pub const READ_SECRET: u8 = 0x08;
 
     /// Type identifier for the update secret operation.
-    pub const UPDATE_SECRET: u8 = 0x4;
+    pub const UPDATE_SECRET: u8 = 0x09;
 
     /// Type identifier for the delete secret operation.
-    pub const DELETE_SECRET: u8 = 0x5;
+    pub const DELETE_SECRET: u8 = 0x0A;
 }
 
 impl<'a> Encode for Payload<'a> {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         match self {
-            Payload::UpdateMeta(meta) => {
-                ser.writer.write_u8(types::UPDATE_META)?;
+            Payload::UpdateVault(meta) => {
+                ser.writer.write_u8(types::UPDATE_VAULT)?;
                 ser.writer.write_bool(meta.is_some())?;
                 if let Cow::Borrowed(Some(meta)) = meta {
                     meta.encode(&mut *ser)?;
@@ -114,7 +129,7 @@ impl<'a> Decode for Payload<'a> {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let kind = de.reader.read_u8()?;
         match kind {
-            types::UPDATE_META => {
+            types::UPDATE_VAULT => {
                 let has_meta = de.reader.read_bool()?;
                 let aead_pack = if has_meta {
                     let mut aead_pack: AeadPack = Default::default();
@@ -123,7 +138,7 @@ impl<'a> Decode for Payload<'a> {
                 } else {
                     None
                 };
-                *self = Payload::UpdateMeta(Cow::Owned(aead_pack));
+                *self = Payload::UpdateVault(Cow::Owned(aead_pack));
             }
             types::CREATE_SECRET => {
                 let uuid: Uuid = Deserialize::deserialize(&mut *de)?;
