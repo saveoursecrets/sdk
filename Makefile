@@ -4,6 +4,7 @@ wasm:
 	@cd workspace/wasm && wasm-pack build --target=web
 
 browser-gui:
+	@cd workspace/server && rm -rf public && mkdir public
 	@cd browser && yarn build
 
 fixtures:

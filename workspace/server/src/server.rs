@@ -146,6 +146,9 @@ async fn asset(
             let content_type = mime_guess::from_path(key)
                 .first()
                 .unwrap_or_else(|| "application/octet-stream".parse().unwrap());
+
+            println!("Serving content type {:#?}", content_type);
+
             let bytes = Bytes::from(asset.data.as_ref().to_vec());
             Response::builder()
                 .header("content-type", content_type.as_ref())
