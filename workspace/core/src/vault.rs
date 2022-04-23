@@ -123,7 +123,6 @@ impl Decode for Summary {
             )));
         }
 
-
         let uuid: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
         self.id = Uuid::from_bytes(uuid);
 
@@ -260,7 +259,8 @@ impl Decode for Contents {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let length = de.reader.read_u32()?;
         for _ in 0..length {
-            let uuid: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
+            let uuid: [u8; 16] =
+                de.reader.read_bytes(16)?.as_slice().try_into()?;
             let uuid = Uuid::from_bytes(uuid);
 
             let mut meta: AeadPack = Default::default();

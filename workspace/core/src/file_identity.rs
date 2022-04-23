@@ -1,13 +1,10 @@
 //! Type that represents the magic identity bytes for file formats.
 use serde_binary::{
-    Decode, Deserializer, Encode, Result as BinaryResult, Error as BinaryError,
+    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
     Serializer,
 };
 
-use crate::{
-    Error,
-    Result,
-};
+use crate::{Error, Result};
 
 /// Read and write the identity bytes for a file.
 #[derive(Debug, Eq, PartialEq)]
