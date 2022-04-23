@@ -1,12 +1,13 @@
 use async_trait::async_trait;
-use std::path::Path;
+use std::{io::Write, path::Path};
 use tokio::{fs::File, io::AsyncWriteExt, sync::Mutex};
 
 use crate::Result;
 use file_guard::{FileGuard, Lock};
 use ouroboros::self_referencing;
 use sos_core::{
-    audit::{Append, Log},
+    audit::{Append, Log, IDENTITY},
+    file_identity::FileIdentity,
     vault::encode,
 };
 
@@ -25,11 +26,14 @@ pub struct LogFile {
 impl LogFile {
     /// Create an audit log file.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let mut lock_file = path.as_ref().to_path_buf();
+        lock_file.set_extension("lock");
+
         let file = LogFile::create(path.as_ref())?;
         let file = File::from_std(file);
         Ok(Self {
             file: Mutex::new(file),
-            guard: LockGuard::lock(path)?,
+            guard: LockGuard::lock(lock_file)?,
         })
     }
 
@@ -42,14 +46,20 @@ impl LogFile {
             drop(file);
         }
 
-        let file = std::fs::OpenOptions::new()
+        let mut file = std::fs::OpenOptions::new()
             .write(true)
             .append(true)
             .open(path.as_ref())?;
 
-        if !exists {
-            // TODO: if file didn't exist then write the audit identity bytes
+        let size = file.metadata()?.len();
+        if size == 0 {
+            let identity = FileIdentity(IDENTITY);
+            let buffer = encode(&identity)?;
+            file.write_all(&buffer)?;
+            file.flush()?;
+            file.sync_all()?;
         }
+
         Ok(file)
     }
 

@@ -1,15 +1,12 @@
 //! Types for audit logs.
-use serde_binary::{
-    Decode, Deserializer, Encode, Result as BinaryResult,
-    Serializer,
-};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
+use serde_binary::{
+    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
+};
 use uuid::Uuid;
 
-use crate::{
-    address::AddressStr,
-};
+use crate::address::AddressStr;
 
 /// Identity magic bytes (SOSA).
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
@@ -43,7 +40,11 @@ impl Default for Log {
 
 impl Log {
     /// Create a new audit log entry.
-    pub fn new(operation: u8, address: AddressStr, vault: Option<Uuid>) -> Self {
+    pub fn new(
+        operation: u8,
+        address: AddressStr,
+        vault: Option<Uuid>,
+    ) -> Self {
         Self {
             time: Utc::now(),
             operation,
@@ -89,7 +90,8 @@ impl Decode for Log {
         // Uuid - on vault
         let has_uuid = de.reader.read_bool()?;
         if has_uuid {
-            let uuid: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
+            let uuid: [u8; 16] =
+                de.reader.read_bytes(16)?.as_slice().try_into()?;
             self.vault = Some(Uuid::from_bytes(uuid));
         }
         Ok(())
@@ -103,5 +105,8 @@ pub trait Append {
     type Error;
 
     /// Append a log to a destination.
-    async fn append(&mut self, logs: Log) -> std::result::Result<(), Self::Error>;
+    async fn append(
+        &mut self,
+        logs: Log,
+    ) -> std::result::Result<(), Self::Error>;
 }
