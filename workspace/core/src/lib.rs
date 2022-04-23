@@ -6,6 +6,7 @@ pub mod audit;
 pub mod crypto;
 pub mod diceware;
 pub mod error;
+pub mod file_identity;
 pub mod gatekeeper;
 pub mod operations;
 pub mod passphrase;

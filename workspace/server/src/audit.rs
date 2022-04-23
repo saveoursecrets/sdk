@@ -1,11 +1,14 @@
-use std::path::Path;
 use async_trait::async_trait;
-use tokio::{fs::File, sync::Mutex, io::AsyncWriteExt};
+use std::path::Path;
+use tokio::{fs::File, io::AsyncWriteExt, sync::Mutex};
 
-use sos_core::{audit::{Log, Append}, vault::encode};
+use crate::Result;
 use file_guard::{FileGuard, Lock};
 use ouroboros::self_referencing;
-use crate::Result;
+use sos_core::{
+    audit::{Append, Log},
+    vault::encode,
+};
 
 /// Represents an audit log file.
 ///
@@ -33,7 +36,17 @@ impl LogFile {
     /// Create the file used to store audit logs.
     pub fn create<P: AsRef<Path>>(path: P) -> Result<std::fs::File> {
         let exists = path.as_ref().exists();
-        let file = std::fs::File::create(path.as_ref())?;
+
+        if !exists {
+            let file = std::fs::File::create(path.as_ref())?;
+            drop(file);
+        }
+
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .append(true)
+            .open(path.as_ref())?;
+
         if !exists {
             // TODO: if file didn't exist then write the audit identity bytes
         }
@@ -55,9 +68,12 @@ impl LogFile {
 #[async_trait]
 impl Append for LogFile {
     type Error = crate::Error;
-    async fn append(&mut self, log: Log) -> std::result::Result<(), Self::Error> {
-        let buffer = encode(&log)?;
+    async fn append(
+        &mut self,
+        log: Log,
+    ) -> std::result::Result<(), Self::Error> {
         let mut writer = self.file.lock().await;
+        let buffer = encode(&log)?;
         writer.write_all(&buffer).await?;
         writer.sync_all().await?;
         Ok(())
@@ -76,11 +92,14 @@ impl LockGuard {
     pub fn lock<P: AsRef<Path>>(path: P) -> Result<Self> {
         let guard = LockGuardBuilder {
             lock: std::fs::File::create(path)?,
-            guard_builder: |data| {
-                match file_guard::try_lock(data, Lock::Exclusive, 0, 1) {
-                    Ok(guard) => guard,
-                    Err(_) => panic!("audit log is already locked"),
-                }
+            guard_builder: |data| match file_guard::try_lock(
+                data,
+                Lock::Exclusive,
+                0,
+                1,
+            ) {
+                Ok(guard) => guard,
+                Err(_) => panic!("audit log is already locked"),
             },
         }
         .build();

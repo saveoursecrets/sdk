@@ -15,13 +15,14 @@ use crate::{
         aesgcm256, algorithms::*, authorize::PublicKey, secret_key::SecretKey,
         xchacha20poly1305, AeadPack,
     },
+    file_identity::FileIdentity,
     operations::Payload,
     secret::VaultMeta,
     Error, Result,
 };
 
-/// Identity magic bytes.
-pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x33];
+/// Identity magic bytes (SOSV).
+pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
 
 /// Vault version identifier.
 pub const VERSION: u16 = 0;
@@ -135,7 +136,7 @@ impl Decode for Summary {
 /// File header, identifier and version information
 #[derive(Debug, Eq, PartialEq)]
 pub struct Header {
-    identity: Box<[u8; 4]>,
+    identity: FileIdentity,
     summary: Summary,
     meta: Option<AeadPack>,
     auth: Auth,
@@ -145,7 +146,7 @@ impl Header {
     /// Create a new header.
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
-            identity: Box::new(IDENTITY),
+            identity: FileIdentity(IDENTITY),
             summary: Summary::new(id, name, algorithm),
             meta: None,
             auth: Default::default(),
@@ -162,9 +163,10 @@ impl Header {
         self.meta = meta;
     }
 
+    /*
     /// Read the identity magic bytes.
-    fn read_identity(de: &mut Deserializer) -> Result<()> {
-        for ident in &IDENTITY {
+    fn read_identity(de: &mut Deserializer, identity: &[u8]) -> Result<()> {
+        for ident in identity {
             let byte = de.reader.read_u8()?;
             if byte != *ident {
                 return Err(Error::BadIdentity(byte));
@@ -172,6 +174,7 @@ impl Header {
         }
         Ok(())
     }
+    */
 
     /// Read the summary for a vault from a file.
     pub fn read_summary<P: AsRef<Path>>(file: P) -> Result<Summary> {
@@ -180,7 +183,7 @@ impl Header {
         let mut de = Deserializer { reader };
 
         // Read magic identity bytes
-        Header::read_identity(&mut de)?;
+        FileIdentity::read_identity(&mut de, &IDENTITY)?;
 
         // Read the summary
         let mut summary: Summary = Default::default();
@@ -193,7 +196,7 @@ impl Header {
 impl Default for Header {
     fn default() -> Self {
         Self {
-            identity: Box::new(IDENTITY),
+            identity: FileIdentity(IDENTITY),
             summary: Default::default(),
             meta: None,
             auth: Default::default(),
@@ -203,8 +206,7 @@ impl Default for Header {
 
 impl Encode for Header {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_bytes(self.identity.to_vec())?;
-
+        self.identity.encode(&mut *ser)?;
         self.summary.encode(&mut *ser)?;
 
         ser.writer.write_bool(self.meta.is_some())?;
@@ -219,8 +221,7 @@ impl Encode for Header {
 
 impl Decode for Header {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        Header::read_identity(de)
-            .map_err(|e| BinaryError::Boxed(Box::from(e)))?;
+        self.identity.decode(&mut *de)?;
 
         self.summary.decode(&mut *de)?;
 

@@ -1,5 +1,7 @@
 use clap::Parser;
-use sos_server::{Authentication, Error, Result, Server, ServerConfig, State, AuditLogFile};
+use sos_server::{
+    AuditLogFile, Authentication, Error, Result, Server, ServerConfig, State,
+};
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 
