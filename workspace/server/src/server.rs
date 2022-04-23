@@ -199,7 +199,7 @@ impl AuthHandler {
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
-                if writer.backend.account_exists(&token.address) {
+                if writer.backend.account_exists(&token.address).await {
                     let challenge = writer.authentication.new_challenge();
                     Ok(Json(challenge))
                 } else {
@@ -239,7 +239,7 @@ impl AuthHandler {
                 {
                     if let (StatusCode::OK, Some(token)) = (status_code, token)
                     {
-                        if !writer.backend.account_exists(&token.address) {
+                        if !writer.backend.account_exists(&token.address).await {
                             return Err(StatusCode::NOT_FOUND)
                         }
 
@@ -279,7 +279,7 @@ impl AccountHandler {
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
-                if writer.backend.account_exists(&token.address) {
+                if writer.backend.account_exists(&token.address).await {
                     return Err(StatusCode::CONFLICT);
                 }
 
@@ -349,11 +349,11 @@ impl VaultHandler {
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
-                if !writer.backend.account_exists(&token.address) {
+                if !writer.backend.account_exists(&token.address).await {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                if !writer.backend.vault_exists(&token.address, &uuid) {
+                if !writer.backend.vault_exists(&token.address, &uuid).await {
                     return Err(StatusCode::NOT_FOUND);
                 }
 

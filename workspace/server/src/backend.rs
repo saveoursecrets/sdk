@@ -19,13 +19,13 @@ pub trait Backend {
     ) -> Result<()>;
 
     /// Determine if an account exists for the given address.
-    fn account_exists(&self, owner: &AddressStr) -> bool;
+    async fn account_exists(&self, owner: &AddressStr) -> bool;
 
     /// List vaults for an account.
     async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>>;
 
     /// Determine if an vault exists for the given address and uuid.
-    fn vault_exists(&self, owner: &AddressStr, uuid: &Uuid) -> bool;
+    async fn vault_exists(&self, owner: &AddressStr, uuid: &Uuid) -> bool;
 
     /// Load a vault buffer for an account.
     async fn get(&self, owner: &AddressStr, uuid: &Uuid) -> Result<Vec<u8>>;
@@ -110,7 +110,7 @@ impl Backend for FileSystemBackend {
         Ok(())
     }
 
-    fn account_exists(&self, owner: &AddressStr) -> bool {
+    async fn account_exists(&self, owner: &AddressStr) -> bool {
         let account_dir = self.directory.join(owner.to_string());
         account_dir.exists()
     }
@@ -131,7 +131,7 @@ impl Backend for FileSystemBackend {
         Ok(summaries)
     }
 
-    fn vault_exists(&self, owner: &AddressStr, uuid: &Uuid) -> bool {
+    async fn vault_exists(&self, owner: &AddressStr, uuid: &Uuid) -> bool {
         let account_dir = self.directory.join(owner.to_string());
         let mut vault_file = account_dir.join(uuid.to_string());
         vault_file.set_extension(Vault::extension());
