@@ -18,6 +18,7 @@ use crate::{
     assets::Assets,
     audit::LogFile,
     authenticate::{self, Authentication},
+    headers::{SignedMessage, X_SIGNED_MESSAGE},
     Backend, ServerConfig,
 };
 use serde_json::json;
@@ -83,20 +84,24 @@ impl Server {
 
         let cors = CorsLayer::new()
             .allow_methods(vec![Method::GET, Method::POST])
-            .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
+            .allow_headers(vec![
+                AUTHORIZATION,
+                CONTENT_TYPE,
+                X_SIGNED_MESSAGE.clone(),
+            ])
             .allow_origin(Origin::list(origins));
 
         let app = Router::new()
             .route("/", get(home))
             .route("/gui/*path", get(asset))
             .route("/api", get(api))
-            .route("/api/auth", post(AuthHandler::challenge))
-            .route("/api/auth/:uuid", post(AuthHandler::response))
+            .route("/api/auth", get(AuthHandler::challenge))
+            .route("/api/auth/:uuid", get(AuthHandler::response))
             .route("/api/accounts", post(AccountHandler::create))
             //.route("/api/vaults", get(VaultHandler::list))
             .route(
                 "/api/vaults/:id",
-                post(VaultHandler::get_vault), //.post(VaultHandler::update_vault),
+                get(VaultHandler::get_vault).post(VaultHandler::update_vault),
             )
             .layer(cors)
             .layer(Extension(shared_state));
@@ -187,10 +192,10 @@ impl AuthHandler {
     async fn challenge(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
-        body: Bytes,
+        TypedHeader(message): TypedHeader<SignedMessage>,
     ) -> impl IntoResponse {
         if let Ok((status_code, token)) =
-            authenticate::bearer(authorization, &body)
+            authenticate::bearer(authorization, &message)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
@@ -212,8 +217,8 @@ impl AuthHandler {
     async fn response(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
         Path(challenge_id): Path<Uuid>,
-        body: Bytes,
     ) -> impl IntoResponse {
         let mut writer = state.write().await;
 
@@ -227,10 +232,10 @@ impl AuthHandler {
         {
             // Body payload must match the challenge corresponding
             // to it's identifier
-            if challenge == body.as_ref() {
+            if challenge == message.as_ref() {
                 // Now check the bearer signature against the body payload
                 if let Ok((status_code, token)) =
-                    authenticate::bearer(authorization, &body)
+                    authenticate::bearer(authorization, &message)
                 {
                     if let (StatusCode::OK, Some(token)) = (status_code, token)
                     {
@@ -336,10 +341,10 @@ impl VaultHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         Path(uuid): Path<Uuid>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
-        body: Bytes,
+        TypedHeader(message): TypedHeader<SignedMessage>,
     ) -> Result<Bytes, StatusCode> {
         if let Ok((status_code, token)) =
-            authenticate::bearer(authorization, &body)
+            authenticate::bearer(authorization, &message)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let reader = state.read().await;

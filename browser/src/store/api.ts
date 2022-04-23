@@ -7,6 +7,14 @@ function bearer(signature: Signature): string {
   return `Bearer ${btoa(JSON.stringify(signature))}`;
 }
 
+function signedMessageHeader(message: Uint8Array): string {
+  // NOTE: Converting the Uint8Array directly to base64 will
+  // NOTE: not result in the same bytes on the server.
+  //
+  // NOTE: However, converting to JSON ensures the bytes are correct.
+  return btoa(JSON.stringify(Array.from(message)));
+}
+
 // Client consumer of the server API.
 export class VaultApi {
   url: string;
@@ -48,13 +56,12 @@ export class VaultApi {
     message: Uint8Array
   ): Promise<[string, Uint8Array]> {
     const url = `${this.url}/auth`;
-    const body = new Blob([message.buffer]);
     const headers = {
       authorization: bearer(signature),
+      "x-signed-message": signedMessageHeader(message),
     };
     const response = await fetch(url, {
-      method: "POST",
-      body,
+      method: "GET",
       mode: "cors",
       headers,
     });
@@ -70,13 +77,12 @@ export class VaultApi {
     message: Uint8Array
   ): Promise<Summary[]> {
     const url = `${this.url}/auth/${uuid}`;
-    const body = new Blob([message.buffer]);
     const headers = {
       authorization: bearer(signature),
+      "x-signed-message": signedMessageHeader(message),
     };
     const response = await fetch(url, {
-      method: "POST",
-      body,
+      method: "GET",
       mode: "cors",
       headers,
     });
@@ -88,13 +94,12 @@ export class VaultApi {
   async getVault(account: Account, id: string): Promise<ArrayBuffer> {
     const [signature, message] = await this.selfSigned(account.signer);
     const url = `${this.url}/vaults/${id}`;
-    const body = new Blob([message.buffer]);
     const headers = {
       authorization: bearer(signature),
+      "x-signed-message": signedMessageHeader(message),
     };
     const response = await fetch(url, {
-      method: "POST",
-      body,
+      method: "GET",
       mode: "cors",
       headers,
     });

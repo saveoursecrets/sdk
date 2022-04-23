@@ -4,6 +4,7 @@ mod authenticate;
 mod backend;
 mod config;
 mod error;
+mod headers;
 mod server;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
