@@ -8,11 +8,14 @@ function bearer(signature: Signature): string {
 }
 
 function signedMessageHeader(message: Uint8Array): string {
-  // NOTE: Converting the Uint8Array directly to base64 will
-  // NOTE: not result in the same bytes on the server.
-  //
-  // NOTE: However, converting to JSON ensures the bytes are correct.
-  return btoa(JSON.stringify(Array.from(message)));
+  // NOTE: btoa() requires a "binary string", raw bytes won't
+  // NOTE: be decoded correctly on the server so we must
+  // NOTE: convert to a string before base64 encoding.
+  const msg = message.reduce((prev: string, num: number) => {
+    prev += String.fromCharCode(num);
+    return prev;
+  }, "");
+  return btoa(msg);
 }
 
 // Client consumer of the server API.

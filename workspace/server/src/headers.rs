@@ -27,11 +27,6 @@ impl Header for SignedMessage {
         let value = values.next().ok_or_else(headers::Error::invalid)?;
         let value =
             base64::decode(&value).map_err(|_| headers::Error::invalid())?;
-
-        // NOTE: must be a JSON encoded value for the bytes to be correct
-        let value: Vec<u8> = serde_json::from_slice(&value)
-            .map_err(|_| headers::Error::invalid())?;
-
         Ok(SignedMessage(value))
     }
 
