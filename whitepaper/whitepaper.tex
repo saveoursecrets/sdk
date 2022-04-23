@@ -141,6 +141,18 @@ Use a standard server/client architecture to separate responsibilities:
 
 \section{Spaced Repetition}
 
-\paragraph{Initially a passphrase will be unfamiliar and the more time that goes by without using the passphrase the more likely it is that a person may forget the passphrase. The user interface can use spaced repetition\footnote{\href{https://en.wikipedia.org/wiki/Spaced_repetition}{Spaced Repetition}} to aid the user in remembering the passphrase.}
+\paragraph{Initially a passphrase will be unfamiliar and the more time that goes by without using the passphrase the more likely it is that a person may forget the passphrase. The user interface may use spaced repetition\footnote{\href{https://en.wikipedia.org/wiki/Spaced_repetition}{Spaced Repetition}} to aid the user in remembering the passphrase.}
+
+\section{Server}
+
+\paragraph{The server must expose it's API\footnote{Application Programming Interface} over HTTPS to mitigate against MITM\footnote{\href{https://en.wikipedia.org/wiki/Man-in-the-middle_attack}{Man in the middle}} attacks.}
+
+\subsection{Authentication \& Identity}
+
+\paragraph{Authenticating to the server must be performed using an \emph{Authorization} header of the \emph{Bearer} type.}
+
+\paragraph{The value of the header is a Base64 encoded JSON document with \emph{r}, \emph{s} and \emph{v} fields which are a valid ECDSA\footnote{\href{https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm}{Elliptic Curve Digital Signature Algorithm}} \emph{recoverable signature}. The \emph{r} and \emph{s} values should be hex-encoded strings and the \emph{v} (or \emph{recovery identifier}) should be a number; it must be a normalized \emph{recovery identifier} with a value of either zero or one.}
+
+\paragraph{The server must always use an address derived from the public key recovered from the signature to determine the identity of the client. In order to recover the public key a message must be known which for POST and PUT requests should be provided as the body. For other requests that do not support body data such as GET and DELETE the client must supply the message as Base64 encoded data in the \emph{X-Signed-Message} header.}
 
 \end{document}
