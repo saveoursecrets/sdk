@@ -28,7 +28,7 @@ use sos_core::{
     decode, encode,
     k256::ecdsa::recoverable,
     operations::types::*,
-    vault::Vault,
+    vault::{Vault, Summary},
     web3_signature::Signature,
 };
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
@@ -193,7 +193,7 @@ impl AuthHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
-    ) -> impl IntoResponse {
+    ) -> Result<Json<(Uuid, [u8; 32])>, StatusCode> {
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &message)
         {
@@ -201,15 +201,15 @@ impl AuthHandler {
                 let mut writer = state.write().await;
                 if writer.backend.account_exists(&token.address) {
                     let challenge = writer.authentication.new_challenge();
-                    (StatusCode::OK, Json(json!(challenge)))
+                    Ok(Json(challenge))
                 } else {
-                    (StatusCode::NOT_FOUND, Json(json!(null)))
+                    Err(StatusCode::NOT_FOUND)
                 }
             } else {
-                (status_code, Json(json!(null)))
+                Err(status_code)
             }
         } else {
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!(null)))
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 
@@ -219,7 +219,7 @@ impl AuthHandler {
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
         Path(challenge_id): Path<Uuid>,
-    ) -> impl IntoResponse {
+    ) -> Result<Json<Vec<Summary>>, StatusCode> {
         let mut writer = state.write().await;
 
         // Immediately remove the identified challenge so we clean
@@ -239,31 +239,28 @@ impl AuthHandler {
                 {
                     if let (StatusCode::OK, Some(token)) = (status_code, token)
                     {
-                        if writer.backend.account_exists(&token.address) {
-                            if let Ok(summaries) =
-                                writer.backend.list(&token.address).await
-                            {
-                                (StatusCode::OK, Json(json!(summaries)))
-                            } else {
-                                (
-                                    StatusCode::INTERNAL_SERVER_ERROR,
-                                    Json(json!(null)),
-                                )
-                            }
+                        if !writer.backend.account_exists(&token.address) {
+                            return Err(StatusCode::NOT_FOUND)
+                        }
+
+                        if let Ok(summaries) =
+                            writer.backend.list(&token.address).await
+                        {
+                            Ok(Json(summaries))
                         } else {
-                            (StatusCode::NOT_FOUND, Json(json!(null)))
+                            Err(StatusCode::INTERNAL_SERVER_ERROR)
                         }
                     } else {
-                        (status_code, Json(json!(null)))
+                        Err(status_code)
                     }
                 } else {
-                    (StatusCode::INTERNAL_SERVER_ERROR, Json(json!(null)))
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
                 }
             } else {
-                (StatusCode::BAD_REQUEST, Json(json!(null)))
+                Err(StatusCode::BAD_REQUEST)
             }
         } else {
-            (StatusCode::NOT_FOUND, Json(json!(null)))
+            Err(StatusCode::NOT_FOUND)
         }
     }
 }
@@ -281,9 +278,13 @@ impl AccountHandler {
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+                if writer.backend.account_exists(&token.address) {
+                    return Err(StatusCode::CONFLICT);
+                }
+
                 if let Ok(vault) = Vault::read_buffer(&body) {
                     let uuid = vault.id();
-                    let mut writer = state.write().await;
                     if let Ok(_) = writer
                         .backend
                         .create_account(token.address, *uuid, &body)
@@ -347,21 +348,26 @@ impl VaultHandler {
             authenticate::bearer(authorization, &message)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let reader = state.read().await;
-                if reader.backend.account_exists(&token.address) {
-                    if reader.backend.vault_exists(&token.address, &uuid) {
-                        if let Ok(buffer) =
-                            reader.backend.get(&token.address, &uuid).await
-                        {
-                            Ok(Bytes::from(buffer))
-                        } else {
-                            Err(StatusCode::INTERNAL_SERVER_ERROR)
-                        }
-                    } else {
-                        Err(StatusCode::NOT_FOUND)
-                    }
+                let mut writer = state.write().await;
+                if !writer.backend.account_exists(&token.address) {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                if !writer.backend.vault_exists(&token.address, &uuid) {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                if let Ok(buffer) =
+                    writer.backend.get(&token.address, &uuid).await
+                {
+                    let log =
+                        Log::new(READ_VAULT, token.address, Some(uuid));
+                    writer.audit_log.append(log).await.map_err(
+                        |_| StatusCode::INTERNAL_SERVER_ERROR,
+                    )?;
+                    Ok(Bytes::from(buffer))
                 } else {
-                    Err(StatusCode::NOT_FOUND)
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
                 }
             } else {
                 Err(status_code)

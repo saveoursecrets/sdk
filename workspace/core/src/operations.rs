@@ -55,7 +55,7 @@ pub mod types {
     /// Type identifier for the create vault operation.
     pub const CREATE_VAULT: u8 = 0x03;
 
-    /// Type identifier for the create vault operation.
+    /// Type identifier for the read vault operation.
     pub const READ_VAULT: u8 = 0x04;
 
     /// Type identifier for the update vault operation.
