@@ -23,6 +23,12 @@ impl fmt::Display for AddressStr {
     }
 }
 
+impl Default for AddressStr {
+    fn default() -> Self {
+        Self([0u8; 20])
+    }
+}
+
 impl AsRef<[u8]> for AddressStr {
     fn as_ref(&self) -> &[u8] {
         &self.0
