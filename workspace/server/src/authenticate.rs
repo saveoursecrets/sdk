@@ -37,14 +37,17 @@ pub struct BearerToken {
 ///
 /// The signature is then converted to a recoverable signature and the public
 /// key is extracted using the body bytes as the message that has been signed.
-pub fn bearer(
+pub fn bearer<B>(
     authorization: Authorization<Bearer>,
-    body: &Bytes,
-) -> Result<(StatusCode, Option<BearerToken>)> {
+    body: B,
+) -> Result<(StatusCode, Option<BearerToken>)>
+where
+    B: AsRef<[u8]>,
+{
     let result = if let Ok(value) = base64::decode(authorization.token()) {
         if let Ok(signature) = serde_json::from_slice::<Signature>(&value) {
             let recoverable: recoverable::Signature = signature.try_into()?;
-            let public_key = recoverable.recover_verify_key(body)?;
+            let public_key = recoverable.recover_verify_key(body.as_ref())?;
             let public_key: [u8; 33] =
                 public_key.to_bytes().as_slice().try_into()?;
             let address: AddressStr = (&public_key).try_into()?;

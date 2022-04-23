@@ -151,8 +151,8 @@ Use a standard server/client architecture to separate responsibilities:
 
 \paragraph{Authenticating to the server must be performed using an \emph{Authorization} header of the \emph{Bearer} type.}
 
-\paragraph{The value of the header is a Base64 encoded JSON document with \emph{r}, \emph{s} and \emph{v} fields which are a valid ECDSA\footnote{\href{https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm}{Elliptic Curve Digital Signature Algorithm}} \emph{recoverable signature}. The \emph{r} and \emph{s} values should be hex-encoded strings and the \emph{v} (or \emph{recovery identifier}) should be a number; it must be a normalized \emph{recovery identifier} with a value of either zero or one.}
+\paragraph{The value of the header is a base64 encoded JSON document with \emph{r}, \emph{s} and \emph{v} fields which are a valid ECDSA\footnote{\href{https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm}{Elliptic Curve Digital Signature Algorithm}} \emph{recoverable signature}. The \emph{r} and \emph{s} values should be hex-encoded strings and the \emph{v} (or \emph{recovery identifier}) should be a number; it must be a normalized \emph{recovery identifier} with a value of either zero or one.}
 
-\paragraph{The server must always use an address derived from the public key recovered from the signature to determine the identity of the client. In order to recover the public key a message must be known which for POST and PUT requests should be provided as the body. For other requests that do not support body data such as GET and DELETE the client must supply the message as Base64 encoded data in the \emph{X-Signed-Message} header.}
+\paragraph{The server must always use an address derived from the public key recovered from the signature to determine the identity of the client. In order to recover the public key a message must be known which for POST and PUT requests should be provided as the body. For other requests that do not support body data such as GET and DELETE the client must supply the message as base64 encoded JSON in the \emph{x-signed-message} header.}
 
 \end{document}

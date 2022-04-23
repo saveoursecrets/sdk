@@ -2710,6 +2710,7 @@ dependencies = [
  "file-guard",
  "hyper",
  "mime_guess",
+ "once_cell",
  "ouroboros",
  "rust-embed",
  "serde",
