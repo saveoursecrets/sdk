@@ -25,31 +25,31 @@ use crate::{
 /// Constants for the types of operations.
 mod types {
     /// Type identifier for a noop.
-    pub const NOOP: u8 = 0x0;
+    pub const NOOP: u16 = 0x0;
     /// Type identifier for the create account operation.
-    pub const CREATE_ACCOUNT: u8 = 0x01;
+    pub const CREATE_ACCOUNT: u16 = 0x01;
     /// Type identifier for the delete account operation.
-    pub const DELETE_ACCOUNT: u8 = 0x02;
+    pub const DELETE_ACCOUNT: u16 = 0x02;
     /// Type identifier for the login challenge operation.
-    pub const LOGIN_CHALLENGE: u8 = 0x03;
+    pub const LOGIN_CHALLENGE: u16 = 0x03;
     /// Type identifier for the login response operation.
-    pub const LOGIN_RESPONSE: u8 = 0x04;
+    pub const LOGIN_RESPONSE: u16 = 0x04;
     /// Type identifier for the create vault operation.
-    pub const CREATE_VAULT: u8 = 0x05;
+    pub const CREATE_VAULT: u16 = 0x05;
     /// Type identifier for the read vault operation.
-    pub const READ_VAULT: u8 = 0x06;
+    pub const READ_VAULT: u16 = 0x06;
     /// Type identifier for the update vault operation.
-    pub const UPDATE_VAULT: u8 = 0x07;
+    pub const UPDATE_VAULT: u16 = 0x07;
     /// Type identifier for the delete vault operation.
-    pub const DELETE_VAULT: u8 = 0x08;
+    pub const DELETE_VAULT: u16 = 0x08;
     /// Type identifier for the create secret operation.
-    pub const CREATE_SECRET: u8 = 0x09;
+    pub const CREATE_SECRET: u16 = 0x09;
     /// Type identifier for the read secret operation.
-    pub const READ_SECRET: u8 = 0x0A;
+    pub const READ_SECRET: u16 = 0x0A;
     /// Type identifier for the update secret operation.
-    pub const UPDATE_SECRET: u8 = 0x0B;
+    pub const UPDATE_SECRET: u16 = 0x0B;
     /// Type identifier for the delete secret operation.
-    pub const DELETE_SECRET: u8 = 0x0C;
+    pub const DELETE_SECRET: u16 = 0x0C;
 }
 
 /// Operation wraps an operation type identifier and
@@ -93,14 +93,14 @@ impl Default for Operation {
 
 impl Encode for Operation {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_u8(self.into())?;
+        ser.writer.write_u16(self.into())?;
         Ok(())
     }
 }
 
 impl Decode for Operation {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let op = de.reader.read_u8()?;
+        let op = de.reader.read_u16()?;
         *self = op.try_into().map_err(|_| {
             BinaryError::Boxed(Box::from(Error::UnknownOperation(op)))
         })?;
@@ -108,9 +108,9 @@ impl Decode for Operation {
     }
 }
 
-impl TryFrom<u8> for Operation {
+impl TryFrom<u16> for Operation {
     type Error = Error;
-    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: u16) -> std::result::Result<Self, Self::Error> {
         match value {
             types::NOOP => Ok(Operation::Noop),
             types::CREATE_ACCOUNT => Ok(Operation::CreateAccount),
@@ -130,7 +130,7 @@ impl TryFrom<u8> for Operation {
     }
 }
 
-impl From<&Operation> for u8 {
+impl From<&Operation> for u16 {
     fn from(value: &Operation) -> Self {
         match value {
             Operation::Noop => types::NOOP,
