@@ -27,8 +27,8 @@ use sos_core::{
     audit::{Append, Log},
     decode, encode,
     k256::ecdsa::recoverable,
-    operations::types::*,
-    vault::{Vault, Summary},
+    operations::Operation,
+    vault::{Summary, Vault},
     web3_signature::Signature,
 };
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
@@ -240,8 +240,9 @@ impl AuthHandler {
                 {
                     if let (StatusCode::OK, Some(token)) = (status_code, token)
                     {
-                        if !writer.backend.account_exists(&token.address).await {
-                            return Err(StatusCode::NOT_FOUND)
+                        if !writer.backend.account_exists(&token.address).await
+                        {
+                            return Err(StatusCode::NOT_FOUND);
                         }
 
                         if let Ok(summaries) =
@@ -291,7 +292,11 @@ impl AccountHandler {
                         .create_account(token.address, *uuid, &body)
                         .await
                     {
-                        let log = Log::new(CREATE_ACCOUNT, token.address, None);
+                        let log = Log::new(
+                            Operation::CreateAccount,
+                            token.address,
+                            None,
+                        );
                         writer
                             .audit_log
                             .append(log)
@@ -361,11 +366,16 @@ impl VaultHandler {
                 if let Ok(buffer) =
                     writer.backend.get(&token.address, &uuid).await
                 {
-                    let log =
-                        Log::new(READ_VAULT, token.address, Some(uuid));
-                    writer.audit_log.append(log).await.map_err(
-                        |_| StatusCode::INTERNAL_SERVER_ERROR,
-                    )?;
+                    let log = Log::new(
+                        Operation::ReadVault,
+                        token.address,
+                        Some(uuid),
+                    );
+                    writer
+                        .audit_log
+                        .append(log)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                     Ok(Bytes::from(buffer))
                 } else {
                     Err(StatusCode::INTERNAL_SERVER_ERROR)
