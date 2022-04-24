@@ -7,8 +7,13 @@ use serde_binary::{
 };
 
 pub mod aesgcm256;
+
+#[deprecated]
 pub mod authorize;
+
+#[deprecated]
 pub mod keypair;
+
 pub mod secret_key;
 pub mod xchacha20poly1305;
 

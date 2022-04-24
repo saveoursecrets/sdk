@@ -9,7 +9,10 @@ pub mod error;
 pub mod file_identity;
 pub mod gatekeeper;
 pub mod operations;
+
+#[deprecated]
 pub mod passphrase;
+
 pub mod secret;
 pub mod signer;
 pub mod vault;
