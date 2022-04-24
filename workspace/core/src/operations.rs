@@ -13,7 +13,14 @@ use serde_binary::{
 use std::{borrow::Cow, fmt};
 use uuid::Uuid;
 
-use crate::{crypto::AeadPack, signer::Signer, vault::encode, Error, Result};
+use crate::{
+    address::AddressStr,
+    audit::{Log, LogData},
+    crypto::AeadPack,
+    signer::Signer,
+    vault::encode,
+    Error, Result,
+};
 
 /// Constants for the types of operations.
 mod types {
@@ -203,17 +210,42 @@ impl<'a> Payload<'a> {
         let signature_bytes: [u8; 65] = signature.to_bytes();
         Ok(SignedPayload(signature_bytes, encoded))
     }
-}
 
-impl<'a> Encode for Payload<'a> {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        let op = match self {
+    /// Get the operation corresponding to this payload.
+    pub fn operation(&self) -> Operation {
+        match self {
             Payload::UpdateVault(_) => Operation::UpdateVault,
             Payload::CreateSecret(_, _) => Operation::CreateSecret,
             Payload::ReadSecret(_) => Operation::ReadSecret,
             Payload::UpdateSecret(_, _) => Operation::UpdateSecret,
             Payload::DeleteSecret(_) => Operation::DeleteSecret,
+        }
+    }
+
+    /// Convert this payload into an audit log.
+    pub fn into_audit_log(&self, address: AddressStr, vault_id: Uuid) -> Log {
+        let log_data = match self {
+            Payload::UpdateVault(_) => LogData::Vault(vault_id),
+            Payload::CreateSecret(secret_id, _) => {
+                LogData::Secret(vault_id, *secret_id)
+            }
+            Payload::ReadSecret(secret_id) => {
+                LogData::Secret(vault_id, *secret_id)
+            }
+            Payload::UpdateSecret(secret_id, _) => {
+                LogData::Secret(vault_id, *secret_id)
+            }
+            Payload::DeleteSecret(secret_id) => {
+                LogData::Secret(vault_id, *secret_id)
+            }
         };
+        Log::new(self.operation(), address, Some(log_data))
+    }
+}
+
+impl<'a> Encode for Payload<'a> {
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        let op = self.operation();
         op.encode(&mut *ser)?;
 
         match self {
