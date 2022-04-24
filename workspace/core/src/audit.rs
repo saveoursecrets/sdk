@@ -21,7 +21,7 @@ pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 
 bitflags! {
     /// Bit flags for associated data.
-    pub struct LogFlags: u8 {
+    pub struct LogFlags: u16 {
         /// Indicates whether associated data is present.
         const DATA =        0b00000001;
         /// Indicates the data has a vault identifier.
@@ -33,18 +33,18 @@ bitflags! {
 
 /// Audit log record.
 ///
-/// An audit log record with no associated data is 34 bytes.
+/// An audit log record with no associated data is 36 bytes.
 ///
 /// When associated data is available an additional 16 bytes is used
 /// for operations on a vault and 32 bytes for operations on a secret.
 ///
-/// The maximum size of a log record is thus 66 bytes.
+/// The maximum size of a log record is thus 68 bytes.
 ///
+/// * 2 bytes for bit flags.
 /// * 8 bytes for the timestamp seconds.
 /// * 4 bytes for the timestamp nanoseconds.
-/// * 1 byte for the operation identifier.
+/// * 2 bytes for the operation identifier.
 /// * 20 bytes for the public address.
-/// * 1 byte bit flags for context data.
 /// * 16 or 32 bytes for the context data (one or two UUIDs).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Log {
@@ -109,7 +109,7 @@ impl Encode for Log {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         // Context bit flags
         let flags = self.log_flags();
-        ser.writer.write_u8(flags.bits())?;
+        ser.writer.write_u16(flags.bits())?;
         // Time - the when
         let seconds = self.time.timestamp();
         let nanos = self.time.timestamp_subsec_nanos();
@@ -131,7 +131,7 @@ impl Encode for Log {
 impl Decode for Log {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         // Context bit flags
-        let bits = de.reader.read_u8()?;
+        let bits = de.reader.read_u16()?;
         // Time - the when
         let seconds = de.reader.read_i64()?;
         let nanos = de.reader.read_u32()?;
