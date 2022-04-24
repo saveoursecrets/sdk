@@ -16,7 +16,7 @@ use tower_http::cors::{CorsLayer, Origin};
 
 use crate::{
     assets::Assets,
-    audit::LogFile,
+    audit_log::LogFile,
     authenticate::{self, Authentication},
     headers::{SignedMessage, X_SIGNED_MESSAGE},
     Backend, ServerConfig,
