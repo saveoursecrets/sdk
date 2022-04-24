@@ -201,6 +201,17 @@ impl AuthHandler {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
                 if writer.backend.account_exists(&token.address).await {
+                    let log = Log::new(
+                        Operation::LoginChallenge,
+                        token.address,
+                        None,
+                    );
+                    writer
+                        .audit_log
+                        .append(log)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
                     let challenge = writer.authentication.new_challenge();
                     Ok(Json(challenge))
                 } else {
@@ -248,6 +259,18 @@ impl AuthHandler {
                         if let Ok(summaries) =
                             writer.backend.list(&token.address).await
                         {
+
+                            let log = Log::new(
+                                Operation::LoginResponse,
+                                token.address,
+                                None,
+                            );
+                            writer
+                                .audit_log
+                                .append(log)
+                                .await
+                                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
                             Ok(Json(summaries))
                         } else {
                             Err(StatusCode::INTERNAL_SERVER_ERROR)
