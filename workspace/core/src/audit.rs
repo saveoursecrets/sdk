@@ -1,5 +1,6 @@
 //! Types for audit logs.
 use async_trait::async_trait;
+use bitflags::bitflags;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_binary::{
@@ -18,6 +19,18 @@ use crate::{
 /// Identity magic bytes (SOSA).
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 
+bitflags! {
+    /// Bit flags for associated data.
+    pub struct LogFlags: u8 {
+        /// Indicates whether associated data is present.
+        const DATA =        0b00000001;
+        /// Indicates the data has a vault identifier.
+        const DATA_VAULT =  0b00000010;
+        /// Indicates the data has a secret identifier.
+        const DATA_SECRET = 0b00000100;
+    }
+}
+
 /// Audit log record.
 ///
 /// An audit log record with no associated data is 34 bytes.
@@ -31,7 +44,7 @@ pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 /// * 4 bytes for the timestamp nanoseconds.
 /// * 1 byte for the operation identifier.
 /// * 20 bytes for the public address.
-/// * 1 byte flag to indicate presence of context data.
+/// * 1 byte bit flags for context data.
 /// * 16 or 32 bytes for the context data (one or two UUIDs).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Log {
@@ -71,6 +84,25 @@ impl Log {
             data,
         }
     }
+
+    fn log_flags(&self) -> LogFlags {
+        if let Some(data) = &self.data {
+            let mut flags = LogFlags::empty();
+            flags.set(LogFlags::DATA, true);
+            match data {
+                LogData::Vault(_) => {
+                    flags.set(LogFlags::DATA_VAULT, true);
+                }
+                LogData::Secret(_, _) => {
+                    flags.set(LogFlags::DATA_VAULT, true);
+                    flags.set(LogFlags::DATA_SECRET, true);
+                }
+            }
+            flags
+        } else {
+            LogFlags::empty()
+        }
+    }
 }
 
 impl Encode for Log {
@@ -85,8 +117,10 @@ impl Encode for Log {
         // Address - by whom
         ser.writer.write_bytes(self.address.as_ref())?;
         // Data - context
-        ser.writer.write_bool(self.data.is_some())?;
-        if let Some(data) = &self.data {
+        let flags = self.log_flags();
+        ser.writer.write_u8(flags.bits())?;
+        if flags.contains(LogFlags::DATA) {
+            let data = self.data.as_ref().unwrap();
             data.encode(&mut *ser)?;
         }
         Ok(())
@@ -107,12 +141,29 @@ impl Decode for Log {
         let address: [u8; 20] = address.as_slice().try_into()?;
         self.address = address.into();
         // Data - context
-        let has_data = de.reader.read_bool()?;
-        if has_data {
-            self.data = Some(Default::default());
-            if let Some(data) = self.data.as_mut() {
-                data.decode(&mut *de)?;
+        let bits = de.reader.read_u8()?;
+        if let Some(flags) = LogFlags::from_bits(bits) {
+            if flags.contains(LogFlags::DATA) {
+                if flags.contains(LogFlags::DATA_VAULT) {
+                    let vault_id: [u8; 16] =
+                        de.reader.read_bytes(16)?.as_slice().try_into()?;
+                    if !flags.contains(LogFlags::DATA_SECRET) {
+                        self.data =
+                            Some(LogData::Vault(Uuid::from_bytes(vault_id)));
+                    } else {
+                        let secret_id: [u8; 16] =
+                            de.reader.read_bytes(16)?.as_slice().try_into()?;
+                        self.data = Some(LogData::Secret(
+                            Uuid::from_bytes(vault_id),
+                            Uuid::from_bytes(secret_id),
+                        ));
+                    }
+                }
             }
+        } else {
+            return Err(BinaryError::Message(
+                "log data flags has bad bits".to_string(),
+            ));
         }
         Ok(())
     }
@@ -137,11 +188,6 @@ impl Default for LogData {
 
 impl Encode for LogData {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        let variant = match self {
-            LogData::Vault(_) => 0x01,
-            LogData::Secret(_, _) => 0x02,
-        };
-        ser.writer.write_u8(variant)?;
         match self {
             LogData::Vault(vault_id) => {
                 ser.writer.write_bytes(vault_id.as_bytes())?;
@@ -149,37 +195,6 @@ impl Encode for LogData {
             LogData::Secret(vault_id, secret_id) => {
                 ser.writer.write_bytes(vault_id.as_bytes())?;
                 ser.writer.write_bytes(secret_id.as_bytes())?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Decode for LogData {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let variant = de.reader.read_u8()?;
-
-        match variant {
-            0x01 => {
-                let vault_id: [u8; 16] =
-                    de.reader.read_bytes(16)?.as_slice().try_into()?;
-                *self = LogData::Vault(Uuid::from_bytes(vault_id));
-            }
-            0x02 => {
-                let vault_id: [u8; 16] =
-                    de.reader.read_bytes(16)?.as_slice().try_into()?;
-                let secret_id: [u8; 16] =
-                    de.reader.read_bytes(16)?.as_slice().try_into()?;
-                *self = LogData::Secret(
-                    Uuid::from_bytes(vault_id),
-                    Uuid::from_bytes(secret_id),
-                );
-            }
-            _ => {
-                return Err(BinaryError::Message(
-                    "audit log data encountered bad variant identifier"
-                        .to_string(),
-                ))
             }
         }
         Ok(())
