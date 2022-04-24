@@ -7,6 +7,7 @@ browser-gui:
 	@rm -rf workspace/server/public
 	@cd browser && yarn build
 	@cp -r browser/dist workspace/server/public
+	@rm -rf workspace/server/public/assets
 
 fixtures:
 	@cd workspace/core && rm -f ./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault

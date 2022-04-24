@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use std::{io::Write, path::Path};
+use std::{io::Write, path::{Path, PathBuf}};
 use tokio::{fs::File, io::AsyncWriteExt, sync::Mutex};
 
 use crate::Result;
@@ -26,8 +26,7 @@ pub struct LogFile {
 impl LogFile {
     /// Create an audit log file.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let mut lock_file = path.as_ref().to_path_buf();
-        lock_file.set_extension("lock");
+        let lock_file = LogFile::lock_file(path.as_ref());
 
         let file = LogFile::create(path.as_ref())?;
         let file = File::from_std(file);
@@ -61,10 +60,17 @@ impl LogFile {
         Ok(file)
     }
 
+    /// Get the lock file path for an audit log.
+    pub fn lock_file<P: AsRef<Path>>(path: P) -> PathBuf {
+        let mut lock_file = path.as_ref().to_path_buf();
+        lock_file.set_extension("lock");
+        lock_file
+    }
+
     /// Determine if attempting to acquire a file lock would block
     /// the process.
     pub fn would_block<P: AsRef<Path>>(path: P) -> Result<bool> {
-        let file = LogFile::create(path.as_ref())?;
+        let file = LogFile::create(LogFile::lock_file(path))?;
         let blocks = match file_guard::try_lock(&file, Lock::Exclusive, 0, 1) {
             Ok(_) => false,
             Err(_) => true,
