@@ -6,7 +6,7 @@ use serde_binary::{
 };
 use uuid::Uuid;
 
-use crate::address::AddressStr;
+use crate::{address::AddressStr, operations::Operation};
 
 /// Identity magic bytes (SOSA).
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
@@ -22,7 +22,7 @@ pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 #[derive(Debug)]
 pub struct Log {
     time: DateTime<Utc>,
-    operation: u8,
+    operation: Operation,
     address: AddressStr,
     vault: Option<Uuid>,
 }
@@ -31,7 +31,7 @@ impl Default for Log {
     fn default() -> Self {
         Self {
             time: Utc::now(),
-            operation: 0,
+            operation: Default::default(),
             address: Default::default(),
             vault: None,
         }
@@ -41,7 +41,7 @@ impl Default for Log {
 impl Log {
     /// Create a new audit log entry.
     pub fn new(
-        operation: u8,
+        operation: Operation,
         address: AddressStr,
         vault: Option<Uuid>,
     ) -> Self {
@@ -62,7 +62,7 @@ impl Encode for Log {
         ser.writer.write_i64(seconds)?;
         ser.writer.write_u32(nanos)?;
         // Operation - the what
-        ser.writer.write_u8(self.operation)?;
+        self.operation.encode(&mut *ser)?;
         // Address - by whom
         ser.writer.write_bytes(self.address.as_ref())?;
         // Uuid - on vault
@@ -82,7 +82,7 @@ impl Decode for Log {
         let date_time = NaiveDateTime::from_timestamp(seconds, nanos);
         self.time = DateTime::<Utc>::from_utc(date_time, Utc);
         // Operation - the what
-        self.operation = de.reader.read_u8()?;
+        self.operation.decode(&mut *de)?;
         // Address - by whom
         let address = de.reader.read_bytes(20)?;
         let address: [u8; 20] = address.as_slice().try_into()?;
