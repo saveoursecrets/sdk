@@ -147,14 +147,14 @@ Use a standard server/client architecture to separate responsibilities:
 
 \paragraph{An audit log record may be 34, 50 or 66 bytes long depending upon the presence of associated data. When a log record does not have any associated data it will be 34 bytes and consist of a \emph{timestamp}, \emph{operation} and \emph{address}. The \emph{timestamp} tells auditors when an event happened; timestamps should be stored in UTC relative to the UNIX epoch. The \emph{operation} is a single byte and thus limited to 256 possible values, it indicates \emph{what} happened. The \emph{address} is a 20-byte address generated from a verifying key which tells us \emph{who} performed the operation.}
 
-\paragraph{After the \emph{timestamp}, \emph{operation} and \emph{address} is a single byte that contains bit flags for any data associated with the log record. The first bit indicates if any associated data is present, the second bit indicates that a vault identifier is associated with the log record and the third bit indicates that a secret identifier is associated with the log record; the remaining bits should not be used.}
+\paragraph{Before the \emph{timestamp}, \emph{operation} and \emph{address} is a single byte that contains bit flags for any data associated with the log record. The first bit indicates if any associated data is present, the second bit indicates that a vault identifier is associated with the log record and the third bit indicates that a secret identifier is associated with the log record; the remaining bits should not be used.}
 
 \begin{itemize}
+  \item Context data bit flags = 1 byte
   \item Timestamp seconds = 8 bytes
   \item Timestamp nanoseconds = 4 bytes
   \item Operation identifier = 1 byte
   \item Address = 20 bytes
-  \item Context data bit flags = 1 byte
   \item Context data = 16 | 32 bytes
 \end{itemize}
 

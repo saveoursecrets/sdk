@@ -107,6 +107,9 @@ impl Log {
 
 impl Encode for Log {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        // Context bit flags
+        let flags = self.log_flags();
+        ser.writer.write_u8(flags.bits())?;
         // Time - the when
         let seconds = self.time.timestamp();
         let nanos = self.time.timestamp_subsec_nanos();
@@ -117,8 +120,6 @@ impl Encode for Log {
         // Address - by whom
         ser.writer.write_bytes(self.address.as_ref())?;
         // Data - context
-        let flags = self.log_flags();
-        ser.writer.write_u8(flags.bits())?;
         if flags.contains(LogFlags::DATA) {
             let data = self.data.as_ref().unwrap();
             data.encode(&mut *ser)?;
@@ -129,6 +130,8 @@ impl Encode for Log {
 
 impl Decode for Log {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        // Context bit flags
+        let bits = de.reader.read_u8()?;
         // Time - the when
         let seconds = de.reader.read_i64()?;
         let nanos = de.reader.read_u32()?;
@@ -141,7 +144,6 @@ impl Decode for Log {
         let address: [u8; 20] = address.as_slice().try_into()?;
         self.address = address.into();
         // Data - context
-        let bits = de.reader.read_u8()?;
         if let Some(flags) = LogFlags::from_bits(bits) {
             if flags.contains(LogFlags::DATA) {
                 if flags.contains(LogFlags::DATA_VAULT) {
