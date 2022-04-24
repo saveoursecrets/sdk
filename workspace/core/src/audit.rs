@@ -1,29 +1,38 @@
 //! Types for audit logs.
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_binary::{
-    binary_rw::{
-        BinaryReader, Endian, FileStream, OpenType,
-    },
-    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
+    binary_rw::{BinaryReader, Endian, FileStream, OpenType},
+    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
+    Serializer,
 };
-use uuid::Uuid;
 use std::path::Path;
+use uuid::Uuid;
 
-use crate::{Result, Error, address::AddressStr, operations::Operation, file_identity::FileIdentity};
+use crate::{
+    address::AddressStr, file_identity::FileIdentity, operations::Operation,
+    Error, Result,
+};
 
 /// Identity magic bytes (SOSA).
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 
-/// Audit log record (34 or 50 bytes).
+/// Audit log record.
+///
+/// An audit log record with no associated data is 34 bytes.
+///
+/// When associated data is available an additional 16 bytes is used
+/// for operations on a vault and 32 bytes for operations on a secret.
+///
+/// The maximum size of a log record is thus 66 bytes.
 ///
 /// * 8 bytes for the timestamp seconds.
 /// * 4 bytes for the timestamp nanoseconds.
 /// * 1 byte for the operation identifier.
 /// * 20 bytes for the public address.
-/// * 1 byte flag to indicate presence of vault UUID
-/// * 16 bytes for the vault UUID.
+/// * 1 byte flag to indicate presence of context data.
+/// * 16 or 32 bytes for the context data (one or two UUIDs).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Log {
     /// The time the log was created.
@@ -32,9 +41,9 @@ pub struct Log {
     pub operation: Operation,
     /// The address of the client performing the operation.
     pub address: AddressStr,
-    /// A vault the operation was being performed on.
+    /// Context data about the operation.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub vault: Option<Uuid>,
+    pub data: Option<LogData>,
 }
 
 impl Default for Log {
@@ -43,7 +52,7 @@ impl Default for Log {
             time: Utc::now(),
             operation: Default::default(),
             address: Default::default(),
-            vault: None,
+            data: None,
         }
     }
 }
@@ -53,13 +62,13 @@ impl Log {
     pub fn new(
         operation: Operation,
         address: AddressStr,
-        vault: Option<Uuid>,
+        data: Option<LogData>,
     ) -> Self {
         Self {
             time: Utc::now(),
             operation,
             address,
-            vault,
+            data,
         }
     }
 }
@@ -75,10 +84,10 @@ impl Encode for Log {
         self.operation.encode(&mut *ser)?;
         // Address - by whom
         ser.writer.write_bytes(self.address.as_ref())?;
-        // Uuid - on vault
-        ser.writer.write_bool(self.vault.is_some())?;
-        if let Some(vault) = &self.vault {
-            ser.writer.write_bytes(vault.as_bytes())?;
+        // Data - context
+        ser.writer.write_bool(self.data.is_some())?;
+        if let Some(data) = &self.data {
+            data.encode(&mut *ser)?;
         }
         Ok(())
     }
@@ -97,12 +106,81 @@ impl Decode for Log {
         let address = de.reader.read_bytes(20)?;
         let address: [u8; 20] = address.as_slice().try_into()?;
         self.address = address.into();
-        // Uuid - on vault
-        let has_uuid = de.reader.read_bool()?;
-        if has_uuid {
-            let uuid: [u8; 16] =
-                de.reader.read_bytes(16)?.as_slice().try_into()?;
-            self.vault = Some(Uuid::from_bytes(uuid));
+        // Data - context
+        let has_data = de.reader.read_bool()?;
+        if has_data {
+            self.data = Some(Default::default());
+            if let Some(data) = self.data.as_mut() {
+                data.decode(&mut *de)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Associated data for an audit log record.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogData {
+    /// Data for an associated vault.
+    Vault(Uuid),
+    /// Data for an associated secret.
+    Secret(Uuid, Uuid),
+}
+
+impl Default for LogData {
+    fn default() -> Self {
+        let zero = [0u8; 16];
+        Self::Vault(Uuid::from_bytes(zero))
+    }
+}
+
+impl Encode for LogData {
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        let variant = match self {
+            LogData::Vault(_) => 0x01,
+            LogData::Secret(_, _) => 0x02,
+        };
+        ser.writer.write_u8(variant)?;
+        match self {
+            LogData::Vault(vault_id) => {
+                ser.writer.write_bytes(vault_id.as_bytes())?;
+            }
+            LogData::Secret(vault_id, secret_id) => {
+                ser.writer.write_bytes(vault_id.as_bytes())?;
+                ser.writer.write_bytes(secret_id.as_bytes())?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Decode for LogData {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let variant = de.reader.read_u8()?;
+
+        match variant {
+            0x01 => {
+                let vault_id: [u8; 16] =
+                    de.reader.read_bytes(16)?.as_slice().try_into()?;
+                *self = LogData::Vault(Uuid::from_bytes(vault_id));
+            }
+            0x02 => {
+                let vault_id: [u8; 16] =
+                    de.reader.read_bytes(16)?.as_slice().try_into()?;
+                let secret_id: [u8; 16] =
+                    de.reader.read_bytes(16)?.as_slice().try_into()?;
+                *self = LogData::Secret(
+                    Uuid::from_bytes(vault_id),
+                    Uuid::from_bytes(secret_id),
+                );
+            }
+            _ => {
+                return Err(BinaryError::Message(
+                    "audit log data encountered bad variant identifier"
+                        .to_string(),
+                ))
+            }
         }
         Ok(())
     }
@@ -130,13 +208,15 @@ pub struct LogFileIterator {
 
 impl LogFileIterator {
     /// Create a new log file iterator.
-    pub fn new<P: AsRef<Path>>(path: P, expects_identity: bool) -> Result<Self> {
+    pub fn new<P: AsRef<Path>>(
+        path: P,
+        expects_identity: bool,
+    ) -> Result<Self> {
         let size = path.as_ref().metadata()?.len();
         if size == 0 {
             return Err(Error::EmptyFile(path.as_ref().to_path_buf()));
         } else if size < 4 {
-            return Err(
-                Error::FileTooSmall(path.as_ref().to_path_buf(), 4));
+            return Err(Error::FileTooSmall(path.as_ref().to_path_buf(), 4));
         }
 
         let stream = FileStream::new(path.as_ref(), OpenType::Open)?;
@@ -186,6 +266,8 @@ impl Iterator for LogFileIterator {
             log.decode(&mut de).unwrap();
             self.offset = de.reader.tell().unwrap();
             Some(log)
-        } else { None }
+        } else {
+            None
+        }
     }
 }

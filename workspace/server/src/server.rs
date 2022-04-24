@@ -24,7 +24,7 @@ use crate::{
 use serde_json::json;
 use sos_core::{
     address::AddressStr,
-    audit::{Append, Log},
+    audit::{Append, Log, LogData},
     decode, encode,
     k256::ecdsa::recoverable,
     operations::Operation,
@@ -392,7 +392,7 @@ impl VaultHandler {
                     let log = Log::new(
                         Operation::ReadVault,
                         token.address,
-                        Some(uuid),
+                        Some(LogData::Vault(uuid)),
                     );
                     writer
                         .audit_log
