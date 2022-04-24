@@ -139,9 +139,24 @@ Use a standard server/client architecture to separate responsibilities:
 
 \paragraph{Diceware\footnote{\href{https://en.wikipedia.org/wiki/Diceware}{Diceware}} is a method for generating passphrases with strong entropy. The user interface should enforce using a passphrase with strong entropy, the suggested minimum is 6 words which corresponds to approximately 77 bits of entropy. The user should be able to refresh to generate a new random passphrase to see if they may find words that could be more memorable or to avoid words they dislike. Controls may be provided to allow generating stronger passphrases.}
 
-\section{Spaced Repetition}
+\section{Audit Logs}
 
-\paragraph{Initially a passphrase will be unfamiliar and the more time that goes by without using the passphrase the more likely it is that a person may forget the passphrase. The user interface may use spaced repetition\footnote{\href{https://en.wikipedia.org/wiki/Spaced_repetition}{Spaced Repetition}} to aid the user in remembering the passphrase.}
+\paragraph{The server must implement audit logs so that in the case of a compromised signing key it would be possible to see the activity that occured during the period of the compromise.}
+
+\paragraph{Audit logs must not contain any personal information or leak any meta data other than a timestamp and opaque identifiers. Log records contain the \emph{when}, \emph{what} and by \emph{whom} of an interaction with the server.}
+
+\paragraph{An audit log record may be 34, 50 or 66 bytes long depending upon the presence of associated data. When a log record does not have any associated data it will be 34 bytes and consist of a \emph{timestamp}, \emph{operation} and \emph{address}. The \emph{timestamp} tells auditors when an event happened; timestamps should be stored in UTC relative to the UNIX epoch. The \emph{operation} is a single byte and thus limited to 256 possible values, it indicates \emph{what} happened. The \emph{address} is a 20-byte address generated from a verifying key which tells us \emph{who} performed the operation.}
+
+\paragraph{After the \emph{timestamp}, \emph{operation} and \emph{address} is a single byte that contains bit flags for any data associated with the log record. The first bit indicates if any associated data is present, the second bit indicates that a vault identifier is associated with the log record and the third bit indicates that a secret identifier is associated with the log record; the remaining bits should not be used.}
+
+\begin{itemize}
+  \item Timestamp seconds = 8 bytes
+  \item Timestamp nanoseconds = 4 bytes
+  \item Operation identifier = 1 byte
+  \item Address = 20 bytes
+  \item Context data bit flags = 1 byte
+  \item Context data = 16 | 32 bytes
+\end{itemize}
 
 \section{Server}
 

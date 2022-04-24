@@ -2679,6 +2679,7 @@ dependencies = [
  "argon2",
  "async-trait",
  "bip39",
+ "bitflags",
  "chacha20poly1305",
  "chbs",
  "chrono",
