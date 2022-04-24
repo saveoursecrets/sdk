@@ -145,6 +145,8 @@ Use a standard server/client architecture to separate responsibilities:
 
 \paragraph{Audit logs must not contain any personal information or leak any meta data other than a timestamp and opaque identifiers. Log records contain the \emph{when}, \emph{what} and by \emph{whom} of an interaction with the server.}
 
+\subsection{Log Records}
+
 \paragraph{An audit log record may be 34, 50 or 66 bytes long depending upon the presence of associated data. When a log record does not have any associated data it will be 34 bytes and consist of a \emph{timestamp}, \emph{operation} and \emph{address}. The \emph{timestamp} tells auditors when an event happened; timestamps should be stored in UTC relative to the UNIX epoch. The \emph{operation} is a single byte and thus limited to 256 possible values, it indicates \emph{what} happened. The \emph{address} is a 20-byte address generated from a verifying key which tells us \emph{who} performed the operation.}
 
 \paragraph{Before the \emph{timestamp}, \emph{operation} and \emph{address} is a single byte that contains bit flags for any data associated with the log record. The first bit indicates if any associated data is present, the second bit indicates that a vault identifier is associated with the log record and the third bit indicates that a secret identifier is associated with the log record; the remaining bits should not be used.}
@@ -157,6 +159,14 @@ Use a standard server/client architecture to separate responsibilities:
   \item Address = 20 bytes
   \item Context data = 16 | 32 bytes
 \end{itemize}
+
+\subsection{Log File}
+
+\paragraph{If a server chooses to write audit log records to a file it is recommened that the file have a \emph{.dat} extension. The file must start with the identity bytes:}
+
+\begin{verbatim}
+0x53, 0x4F, 0x53, 0x41
+\end{verbatim}
 
 \section{Server}
 
