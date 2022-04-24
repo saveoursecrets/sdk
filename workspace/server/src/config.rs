@@ -54,7 +54,7 @@ pub struct AuditConfig {
 impl Default for AuditConfig {
     fn default() -> Self {
         Self {
-            file: PathBuf::from("audit.log"),
+            file: PathBuf::from("audit.dat"),
         }
     }
 }
