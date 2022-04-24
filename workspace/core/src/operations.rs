@@ -48,7 +48,7 @@ mod types {
 /// Operation wraps an operation type identifier and
 /// provides a `Display` implementation used for printing
 /// audit logs.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Operation {
     /// No operation.
     Noop,

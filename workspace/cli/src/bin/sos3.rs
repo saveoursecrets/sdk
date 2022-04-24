@@ -4,7 +4,7 @@ use sos_core::passphrase::WordCount;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use sos_cli::{vault::*, LOG_TARGET};
+use sos_cli::{vault::*, LOG_TARGET, audit_log::*};
 use sos_core::{secret::UuidOrName, Algorithm};
 
 /// Safe secret storage for the web3 era.
@@ -26,6 +26,9 @@ enum Command {
     /// Access a vault.
     #[clap(subcommand)]
     Vault(Vault),
+    /// Read audit logs.
+    #[clap(subcommand)]
+    Audit(Audit),
 }
 
 #[derive(Subcommand, Debug)]
@@ -192,6 +195,21 @@ enum VaultAdd {
     },
 }
 
+#[derive(Subcommand, Debug)]
+enum Audit {
+    /// Print the log records in an audit log
+    #[clap(alias = "log")]
+    Logs {
+        /// Print each log record as a line of JSON
+        #[clap(short, long)]
+        json: bool,
+
+        /// Audit log file
+        #[clap(parse(from_os_str))]
+        audit_log: PathBuf,
+    },
+}
+
 fn run() -> Result<()> {
     let args = Cli::parse();
     match args.command {
@@ -252,6 +270,11 @@ fn run() -> Result<()> {
                 }
             },
         },
+        Command::Audit(cmd) => match cmd {
+            Audit::Logs { audit_log, json } => {
+                print_audit_logs(audit_log, json)?;
+            }
+        }
     }
     Ok(())
 }
