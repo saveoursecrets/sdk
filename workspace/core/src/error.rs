@@ -17,7 +17,7 @@ pub enum Error {
 
     /// Error generated when an unknown operation identifier is encountered.
     #[error("unknown operation {0}")]
-    UnknownOperation(u8),
+    UnknownOperation(u16),
 
     /// Error generated when a vault algorithm string identifier is wrong.
     #[error("invalid algorithm {0}")]
