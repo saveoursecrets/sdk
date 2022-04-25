@@ -9,7 +9,7 @@ import { WorkerProps } from "../props";
 
 import { decode } from "../utils";
 
-import FileUploadReader, { FileBuffer } from "../file-upload-reader";
+import FileUploadReader, { FileBuffer } from "../components/file-upload-reader";
 import PasswordForm from "../authenticated/forms/password-form";
 
 import { login } from "../store/account";

@@ -8,9 +8,12 @@ import {
   Input,
   Paper,
   Typography,
+  IconButton,
 } from "@mui/material";
 
-import { getDroppedFiles, humanFileSize } from "./utils";
+import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
+
+import { getDroppedFiles, humanFileSize } from "../utils";
 
 // 8MB for file uploads
 const MAX_FILE_SIZE = 8388608;
@@ -85,16 +88,21 @@ export default function FileUploadReader(props: FileUploadReaderProps) {
           <Stack padding={4}>
             {file ? (
               <Stack direction="row">
-                <Stack>
-                  <Typography variant="body1">{file.name}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {humanFileSize(file.size)}
-                  </Typography>
+                <Stack direction="row" spacing={2}>
+                  <IconButton onClick={() => setFile(null)}
+                    sx={{width: 40, height: 40}}>
+                    <RemoveCircleIcon />
+                  </IconButton>
+                  <Stack>
+                    <Typography variant="body1">{file.name}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {humanFileSize(file.size)}
+                    </Typography>
+                  </Stack>
                 </Stack>
                 <Box sx={{ flexGrow: 1 }} />
                 <ButtonGroup size="small" variant="outlined">
                   <Button onClick={readFileBuffer}>Upload</Button>
-                  <Button onClick={() => setFile(null)}>Cancel</Button>
                 </ButtonGroup>
               </Stack>
             ) : (
