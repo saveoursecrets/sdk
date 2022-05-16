@@ -1,9 +1,7 @@
 use anyhow::{bail, Result};
 use std::path::PathBuf;
 
-use sos_core::{
-    audit::{LogData, LogFileIterator},
-};
+use sos_core::audit::{LogData, LogFileIterator};
 
 use crate::LOG_TARGET;
 

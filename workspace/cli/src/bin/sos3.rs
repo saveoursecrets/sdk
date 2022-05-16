@@ -4,7 +4,7 @@ use sos_core::passphrase::WordCount;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use sos_cli::{vault::*, LOG_TARGET, audit_log::*};
+use sos_cli::{audit_log::*, vault::*, LOG_TARGET};
 use sos_core::{secret::UuidOrName, Algorithm};
 
 /// Safe secret storage for the web3 era.
@@ -274,7 +274,7 @@ fn run() -> Result<()> {
             Audit::Logs { audit_log, json } => {
                 print_audit_logs(audit_log, json)?;
             }
-        }
+        },
     }
     Ok(())
 }

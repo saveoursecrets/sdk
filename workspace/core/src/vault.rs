@@ -540,9 +540,9 @@ pub fn decode<T: Decode + Default>(buffer: Vec<u8>) -> Result<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::secret::*;
-    use crate::diceware::generate_passphrase;
     use crate::crypto::secret_key::*;
+    use crate::diceware::generate_passphrase;
+    use crate::secret::*;
     use anyhow::Result;
     use serde_binary::binary_rw::{MemoryStream, Stream};
     use uuid::Uuid;
@@ -581,8 +581,7 @@ mod tests {
 
         let secret_id = Uuid::new_v4();
         let secret_label = "Test note";
-        let secret_meta = SecretMeta::new(
-            secret_label.to_string(), kind::TEXT);
+        let secret_meta = SecretMeta::new(secret_label.to_string(), kind::TEXT);
         let secret_note = "Super secret note for you to read.";
         let secret_value = Secret::Text(secret_note.to_string());
 
