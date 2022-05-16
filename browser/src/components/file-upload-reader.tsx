@@ -11,7 +11,7 @@ import {
   IconButton,
 } from "@mui/material";
 
-import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
+import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 
 import { getDroppedFiles, humanFileSize } from "../utils";
 
@@ -89,8 +89,10 @@ export default function FileUploadReader(props: FileUploadReaderProps) {
             {file ? (
               <Stack direction="row">
                 <Stack direction="row" spacing={2}>
-                  <IconButton onClick={() => setFile(null)}
-                    sx={{width: 40, height: 40}}>
+                  <IconButton
+                    onClick={() => setFile(null)}
+                    sx={{ width: 40, height: 40 }}
+                  >
                     <RemoveCircleIcon />
                   </IconButton>
                   <Stack>
