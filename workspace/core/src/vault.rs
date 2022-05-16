@@ -247,9 +247,19 @@ impl Encode for Contents {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u32(self.data.len() as u32)?;
         for (key, item) in &self.data {
+            let size_pos = ser.writer.tell()?;
+            ser.writer.write_u32(0)?;
+
             ser.writer.write_bytes(key.as_bytes())?;
             item.0.encode(&mut *ser)?;
             item.1.encode(&mut *ser)?;
+
+            // Backtrack to size_pos and write new length
+            let row_pos = ser.writer.tell()?;
+            let row_len = row_pos - (size_pos + 4);
+            ser.writer.seek(size_pos)?;
+            ser.writer.write_u32(row_len as u32)?;
+            ser.writer.seek(row_pos)?;
         }
         Ok(())
     }
@@ -259,6 +269,9 @@ impl Decode for Contents {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let length = de.reader.read_u32()?;
         for _ in 0..length {
+            // Read in the row length
+            let _ = de.reader.read_u32()?;
+
             let uuid: [u8; 16] =
                 de.reader.read_bytes(16)?.as_slice().try_into()?;
             let uuid = Uuid::from_bytes(uuid);
@@ -527,6 +540,9 @@ pub fn decode<T: Decode + Default>(buffer: Vec<u8>) -> Result<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::secret_key::*;
+    use crate::diceware::generate_passphrase;
+    use crate::secret::*;
     use anyhow::Result;
     use serde_binary::binary_rw::{MemoryStream, Stream};
     use uuid::Uuid;
@@ -545,6 +561,65 @@ mod tests {
         stream.seek(0)?;
         let decoded = Vault::decode(&mut stream)?;
         assert_eq!(vault, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn encode_decode_secret_note() -> Result<()> {
+        let salt = SecretKey::generate_salt();
+        let (passphrase, _) = generate_passphrase(None)?;
+        let encryption_key = SecretKey::derive_32(&passphrase, &salt)?;
+
+        let uuid = Uuid::new_v4();
+        let mut vault = Vault::new(
+            uuid,
+            String::from(DEFAULT_VAULT_NAME),
+            Default::default(),
+        );
+
+        // TODO: encode the salt into the header meta data
+
+        let secret_id = Uuid::new_v4();
+        let secret_label = "Test note";
+        let secret_meta = SecretMeta::new(secret_label.to_string(), kind::TEXT);
+        let secret_note = "Super secret note for you to read.";
+        let secret_value = Secret::Text(secret_note.to_string());
+
+        let meta_bytes = encode(&secret_meta)?;
+        let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
+
+        let secret_bytes = encode(&secret_value)?;
+        let secret_aead = vault.encrypt(&encryption_key, &secret_bytes)?;
+
+        let _ = vault.create(secret_id, (meta_aead, secret_aead));
+
+        let mut stream = MemoryStream::new();
+        Vault::encode(&mut stream, &vault)?;
+
+        stream.seek(0)?;
+        let decoded = Vault::decode(&mut stream)?;
+        assert_eq!(vault, decoded);
+
+        let (row, _) = decoded.read(&secret_id);
+
+        let (row_meta, row_secret) = row.unwrap();
+
+        let row_meta = vault.decrypt(&encryption_key, row_meta)?;
+        let row_secret = vault.decrypt(&encryption_key, row_secret)?;
+
+        let row_meta: SecretMeta = decode(row_meta)?;
+        let row_secret: Secret = decode(row_secret)?;
+
+        assert_eq!(secret_meta, row_meta);
+        assert_eq!(secret_value, row_secret);
+
+        match &row_secret {
+            Secret::Text(value) => {
+                assert_eq!(secret_note, value);
+            }
+            _ => panic!("unexpected secret type"),
+        }
+
         Ok(())
     }
 

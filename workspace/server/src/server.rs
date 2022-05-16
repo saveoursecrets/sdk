@@ -259,17 +259,14 @@ impl AuthHandler {
                         if let Ok(summaries) =
                             writer.backend.list(&token.address).await
                         {
-
                             let log = Log::new(
                                 Operation::LoginResponse,
                                 token.address,
                                 None,
                             );
-                            writer
-                                .audit_log
-                                .append(log)
-                                .await
-                                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                            writer.audit_log.append(log).await.map_err(
+                                |_| StatusCode::INTERNAL_SERVER_ERROR,
+                            )?;
 
                             Ok(Json(summaries))
                         } else {
