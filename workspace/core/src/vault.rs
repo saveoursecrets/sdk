@@ -206,6 +206,10 @@ impl Default for Header {
 impl Encode for Header {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         self.identity.encode(&mut *ser)?;
+
+        let size_pos = ser.writer.tell()?;
+        ser.writer.write_u32(0)?;
+
         self.summary.encode(&mut *ser)?;
 
         ser.writer.write_bool(self.meta.is_some())?;
@@ -214,6 +218,14 @@ impl Encode for Header {
         }
 
         self.auth.encode(&mut *ser)?;
+
+        // Backtrack to size_pos and write new length
+        let header_pos = ser.writer.tell()?;
+        let header_len = header_pos - (size_pos + 4);
+        ser.writer.seek(size_pos)?;
+        ser.writer.write_u32(header_len as u32)?;
+        ser.writer.seek(header_pos)?;
+
         Ok(())
     }
 }
@@ -221,6 +233,9 @@ impl Encode for Header {
 impl Decode for Header {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.identity.decode(&mut *de)?;
+
+        // Read in the header length
+        let _ = de.reader.read_u32()?;
 
         self.summary.decode(&mut *de)?;
 
