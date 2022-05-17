@@ -22,6 +22,35 @@ use crate::{
     Error, Result,
 };
 
+/// Trait that defines the operations on a vault storage.
+///
+/// The storage may be in-memory, backed by a file on disc or another
+/// destination for the encrypted bytes.
+pub trait VaultAccess {
+    /// Add an encrypted secret to the vault.
+    fn create(
+        &mut self,
+        uuid: Uuid,
+        secret: (AeadPack, AeadPack),
+    ) -> Result<Payload>;
+
+    /// Get an encrypted secret from the vault.
+    fn read(
+        &self,
+        uuid: &Uuid,
+    ) -> Result<(Option<&(AeadPack, AeadPack)>, Payload)>;
+
+    /// Update an encrypted secret to the vault.
+    fn update(
+        &mut self,
+        uuid: &Uuid,
+        secret: (AeadPack, AeadPack),
+    ) -> Result<Option<Payload>>;
+
+    /// Remove an encrypted secret from the vault.
+    fn delete(&mut self, uuid: &Uuid) -> Result<Payload>;
+}
+
 /// Constants for the types of operations.
 mod types {
     /// Type identifier for a noop.
