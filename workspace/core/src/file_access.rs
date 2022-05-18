@@ -113,12 +113,14 @@ impl VaultAccess for VaultFileAccess {
             let row_id: [u8; 16] =
                 de.reader.read_bytes(16)?.as_slice().try_into()?;
             let row_id = Uuid::from_bytes(row_id);
-
             if uuid == &row_id {
+                // Need to backtrack as we just read the row length and UUID;
+                // calling decode_row() will try to read the length and UUID
+                // as well.
+                de.reader.seek(current_pos)?;
                 let (_, (meta, secret)) = Contents::decode_row(&mut de)?;
-                let payload = Payload::ReadSecret(row_id);
                 // TODO: returned owned AeadPack tuple
-                break;
+                return Ok((None, Payload::ReadSecret(row_id)));
             }
 
             // Move on to the next row
@@ -173,8 +175,8 @@ mod tests {
 
         let _ = vault_access.create(secret_id, (meta_aead, secret_aead))?;
 
-        //let (row, _) = vault_access.read(&secret_id)?;
-        //assert!(row.is_some());
+        let (row, _) = vault_access.read(&secret_id)?;
+        assert!(row.is_some());
 
         Ok(())
     }
