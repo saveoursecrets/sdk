@@ -94,10 +94,10 @@ impl VaultAccess for VaultFileAccess {
         Ok(Payload::CreateSecret(uuid, Cow::Owned(secret)))
     }
 
-    fn read(
-        &self,
+    fn read<'a>(
+        &'a self,
         uuid: &Uuid,
-    ) -> Result<(Option<&(AeadPack, AeadPack)>, Payload)> {
+    ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
         let content_offset = self.check_identity()?;
 
         let mut stream = self.stream.lock().unwrap();
@@ -115,12 +115,13 @@ impl VaultAccess for VaultFileAccess {
             let row_id = Uuid::from_bytes(row_id);
             if uuid == &row_id {
                 // Need to backtrack as we just read the row length and UUID;
-                // calling decode_row() will try to read the length and UUID
-                // as well.
+                // calling decode_row() will try to read the length and UUID.
                 de.reader.seek(current_pos)?;
                 let (_, (meta, secret)) = Contents::decode_row(&mut de)?;
-                // TODO: returned owned AeadPack tuple
-                return Ok((None, Payload::ReadSecret(row_id)));
+                return Ok((
+                    Some(Cow::Owned((meta, secret))),
+                    Payload::ReadSecret(row_id),
+                ));
             }
 
             // Move on to the next row
@@ -147,8 +148,8 @@ impl VaultAccess for VaultFileAccess {
 #[cfg(test)]
 mod tests {
     use super::VaultFileAccess;
-    use crate::{crypto::AeadPack, operations::VaultAccess, Result};
     use crate::test_utils::*;
+    use crate::{crypto::AeadPack, operations::VaultAccess, Result};
 
     use uuid::Uuid;
 

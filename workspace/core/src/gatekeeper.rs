@@ -150,9 +150,8 @@ impl Gatekeeper {
     /// Get a secret from the vault.
     fn read_secret(&self, uuid: &Uuid) -> Result<Option<(SecretMeta, Secret)>> {
         if let Some(private_key) = &self.private_key {
-            if let (Some((meta_aead, secret_aead)), _payload) =
-                self.vault.read(uuid)?
-            {
+            if let (Some(value), _payload) = self.vault.read(uuid)? {
+                let (meta_aead, secret_aead) = value.as_ref();
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
                 let secret_meta: SecretMeta = decode(meta_blob)?;
 

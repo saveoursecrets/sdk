@@ -35,10 +35,14 @@ pub trait VaultAccess {
     ) -> Result<Payload>;
 
     /// Get an encrypted secret from the vault.
-    fn read(
-        &self,
+    ///
+    /// Use a `Cow` smart pointer because when we are reading
+    /// from an in-memory `Vault` we can return references whereas
+    /// other containers such as file access would return owned data.
+    fn read<'a>(
+        &'a self,
         uuid: &Uuid,
-    ) -> Result<(Option<&(AeadPack, AeadPack)>, Payload)>;
+    ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)>;
 
     /// Update an encrypted secret to the vault.
     fn update(

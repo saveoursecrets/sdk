@@ -531,12 +531,13 @@ impl VaultAccess for Vault {
         Ok(Payload::CreateSecret(id, Cow::Borrowed(value)))
     }
 
-    fn read(
-        &self,
+    fn read<'a>(
+        &'a self,
         uuid: &Uuid,
-    ) -> Result<(Option<&(AeadPack, AeadPack)>, Payload)> {
+    ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
         let id = *uuid;
-        Ok((self.contents.data.get(uuid), Payload::ReadSecret(id)))
+        let result = self.contents.data.get(uuid).map(Cow::Borrowed);
+        Ok((result, Payload::ReadSecret(id)))
     }
 
     fn update(
@@ -622,7 +623,8 @@ mod tests {
 
         let (row, _) = decoded.read(&secret_id)?;
 
-        let (row_meta, row_secret) = row.unwrap();
+        let value = row.unwrap();
+        let (row_meta, row_secret) = value.as_ref();
 
         let row_meta = vault.decrypt(&encryption_key, row_meta)?;
         let row_secret = vault.decrypt(&encryption_key, row_secret)?;
