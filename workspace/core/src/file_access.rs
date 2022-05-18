@@ -1,5 +1,5 @@
 //! Manages access to a single vault file on disc.
-use std::{borrow::Cow, path::Path, sync::Mutex};
+use std::{borrow::Cow, path::Path, sync::Mutex, ops::Range, io::{Read, Write, Seek, SeekFrom}, path::PathBuf, fs::{File, OpenOptions}};
 
 use serde_binary::{
     binary_rw::{
@@ -20,6 +20,7 @@ use crate::{
 /// Wrapper type for accessing a vault file that manages
 /// an underlying file stream.
 pub struct VaultFileAccess {
+    file_path: PathBuf,
     stream: Mutex<FileStream>,
 }
 
@@ -28,10 +29,11 @@ impl VaultFileAccess {
     ///
     /// The underlying file should already exist and be a valid vault.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let file_path = path.as_ref().to_path_buf();
         let file = std::fs::File::open(path.as_ref())?;
         let metadata = file.metadata()?;
         let stream = Mutex::new(FileStream::new(path, OpenType::ReadWrite)?);
-        Ok(Self { stream })
+        Ok(Self { file_path, stream })
     }
 
     /// Check the identity bytes and return the byte offset of the
@@ -66,6 +68,77 @@ impl VaultFileAccess {
         ser.writer.write_u32(rows)?;
         Ok(())
     }
+
+    /// Splice a file preserving the head and tail and optionally inserting
+    /// content in between.
+    fn splice(
+        &self,
+        head: Range<usize>,
+        tail: Range<usize>,
+        content: Option<&[u8]>) -> Result<()> {
+
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&self.file_path)?;
+
+        // Read the tail into memory
+        file.seek(SeekFrom::Start(tail.start as u64))?;
+        let mut end = Vec::new();
+        file.read_to_end(&mut end)?;
+
+        if head.start == 0 {
+            // Rewind and truncate the file to the head
+            file.rewind()?;
+            file.set_len(head.end as u64)?;
+        } else {
+            unreachable!("file splice head range always starts at zero");
+        }
+
+        // Inject the content if necessary
+        if let Some(content) = content {
+            file.write_all(content)?;
+        }
+
+        // Write out the end portion
+        file.write_all(&end)?;
+
+        Ok(())
+    }
+
+    /// Find the byte offset of a row.
+    ///
+    /// Returns the content offset, total rows and the byte offset and row length of the row if it exists.
+    fn find_row(&self, uuid: &Uuid) -> Result<(usize, u32, Option<(usize, u32)>)> {
+        let content_offset = self.check_identity()?;
+
+        let mut stream = self.stream.lock().unwrap();
+        let reader = BinaryReader::new(&mut *stream, Endian::Big);
+        let mut de = Deserializer { reader };
+
+        de.reader.seek(content_offset)?;
+
+        let total_rows = de.reader.read_u32()?;
+        // Scan all the rows
+        let mut current_pos = de.reader.tell()?;
+        while let Ok(row_len) = de.reader.read_u32() {
+            let row_id: [u8; 16] =
+                de.reader.read_bytes(16)?.as_slice().try_into()?;
+            let row_id = Uuid::from_bytes(row_id);
+            if uuid == &row_id {
+                // Need to backtrack as we just read the row length and UUID;
+                // calling decode_row() will try to read the length and UUID.
+                de.reader.seek(current_pos)?;
+                return Ok((content_offset, total_rows, Some((current_pos, row_len))));
+            }
+
+            // Move on to the next row
+            de.reader.seek(current_pos + 4 + (row_len as usize))?;
+            current_pos = de.reader.tell()?;
+        }
+
+        return Ok((content_offset, total_rows, None));
+    }
 }
 
 impl VaultAccess for VaultFileAccess {
@@ -98,38 +171,20 @@ impl VaultAccess for VaultFileAccess {
         &'a self,
         uuid: &Uuid,
     ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
-        let content_offset = self.check_identity()?;
-
-        let mut stream = self.stream.lock().unwrap();
-        let reader = BinaryReader::new(&mut *stream, Endian::Big);
-        let mut de = Deserializer { reader };
-
-        de.reader.seek(content_offset)?;
-
-        let total_rows = de.reader.read_u32()?;
-        // Scan all the rows
-        let mut current_pos = de.reader.tell()?;
-        while let Ok(row_len) = de.reader.read_u32() {
-            let row_id: [u8; 16] =
-                de.reader.read_bytes(16)?.as_slice().try_into()?;
-            let row_id = Uuid::from_bytes(row_id);
-            if uuid == &row_id {
-                // Need to backtrack as we just read the row length and UUID;
-                // calling decode_row() will try to read the length and UUID.
-                de.reader.seek(current_pos)?;
-                let (_, (meta, secret)) = Contents::decode_row(&mut de)?;
-                return Ok((
-                    Some(Cow::Owned((meta, secret))),
-                    Payload::ReadSecret(row_id),
-                ));
-            }
-
-            // Move on to the next row
-            de.reader.seek(current_pos + 4 + (row_len as usize))?;
-            current_pos = de.reader.tell()?;
+        let (_, _, row) = self.find_row(uuid)?;
+        if let Some((row_offset, _)) = row {
+            let mut stream = self.stream.lock().unwrap();
+            let reader = BinaryReader::new(&mut *stream, Endian::Big);
+            let mut de = Deserializer { reader };
+            de.reader.seek(row_offset)?;
+            let (_, (meta, secret)) = Contents::decode_row(&mut de)?;
+            Ok((
+                Some(Cow::Owned((meta, secret))),
+                Payload::ReadSecret(*uuid),
+            ))
+        } else {
+            Ok((None, Payload::ReadSecret(*uuid)))
         }
-
-        Ok((None, Payload::ReadSecret(*uuid)))
     }
 
     fn update(
@@ -141,7 +196,24 @@ impl VaultAccess for VaultFileAccess {
     }
 
     fn delete(&mut self, uuid: &Uuid) -> Result<Payload> {
-        todo!("Delete a secret in vault file");
+        let id = *uuid;
+        let (content_offset, total_rows, row) = self.find_row(uuid)?;
+        if let Some((row_offset, row_len)) = row {
+            let stream = self.stream.lock().unwrap();
+            let length = stream.len()?;
+            drop(stream);
+
+            let head = 0..row_offset;
+            // Row offset is before the row length u32 so we
+            // need to account for that too
+            let tail = (row_offset + 4 + (row_len as usize))..length;
+
+            self.splice(head, tail, None)?;
+
+            // Update the total rows count
+            self.set_rows(content_offset, total_rows - 1)?;
+        }
+        Ok(Payload::DeleteSecret(id))
     }
 }
 
@@ -178,6 +250,11 @@ mod tests {
 
         let (row, _) = vault_access.read(&secret_id)?;
         assert!(row.is_some());
+
+        let _ = vault_access.delete(&secret_id)?;
+
+        let (row, _) = vault_access.read(&secret_id)?;
+        assert!(row.is_none());
 
         Ok(())
     }
