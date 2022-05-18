@@ -142,28 +142,39 @@ impl VaultAccess for VaultFileAccess {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::VaultFileAccess;
     use crate::{crypto::AeadPack, operations::VaultAccess, Result};
+    use crate::test_utils::*;
+
     use uuid::Uuid;
 
     #[test]
     fn vault_file_access() -> Result<()> {
-        let mut vault = VaultFileAccess::new(
+        let (encryption_key, _) = mock_encryption_key()?;
+        let vault = mock_vault();
+
+        let mut vault_access = VaultFileAccess::new(
             "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
         )?;
 
         let missing_id = Uuid::new_v4();
-        let (row, _) = vault.read(&missing_id)?;
+        let (row, _) = vault_access.read(&missing_id)?;
         assert!(row.is_none());
 
-        let secret_id = Uuid::new_v4();
-        let meta: AeadPack = Default::default();
-        let secret: AeadPack = Default::default();
-        let _ = vault.create(secret_id, (meta, secret))?;
+        let secret_label = "Test note";
+        let secret_note = "Super secret note for you to read.";
+        let (secret_id, _secret_meta, _secret_value, meta_bytes, secret_bytes) =
+            mock_secret_note(secret_label, secret_note)?;
 
-        //let (row, _) = vault.read(&secret_id)?;
-        //assert!(row.is_none());
+        let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
+        let secret_aead = vault.encrypt(&encryption_key, &secret_bytes)?;
+
+        let _ = vault_access.create(secret_id, (meta_aead, secret_aead))?;
+
+        //let (row, _) = vault_access.read(&secret_id)?;
+        //assert!(row.is_some());
 
         Ok(())
     }

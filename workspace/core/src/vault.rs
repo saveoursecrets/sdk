@@ -576,18 +576,16 @@ mod tests {
     use crate::crypto::secret_key::*;
     use crate::diceware::generate_passphrase;
     use crate::secret::*;
+
+    use crate::test_utils::*;
+
     use anyhow::Result;
     use serde_binary::binary_rw::{MemoryStream, Stream};
     use uuid::Uuid;
 
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
-        let uuid = Uuid::new_v4();
-        let vault = Vault::new(
-            uuid,
-            String::from(DEFAULT_VAULT_NAME),
-            Default::default(),
-        );
+        let vault = mock_vault();
         let mut stream = MemoryStream::new();
         Vault::encode(&mut stream, &vault)?;
 
@@ -599,29 +597,18 @@ mod tests {
 
     #[test]
     fn encode_decode_secret_note() -> Result<()> {
-        let salt = SecretKey::generate_salt();
-        let (passphrase, _) = generate_passphrase(None)?;
-        let encryption_key = SecretKey::derive_32(&passphrase, &salt)?;
-
-        let uuid = Uuid::new_v4();
-        let mut vault = Vault::new(
-            uuid,
-            String::from(DEFAULT_VAULT_NAME),
-            Default::default(),
-        );
+        let (encryption_key, _) = mock_encryption_key()?;
+        let mut vault = mock_vault();
 
         // TODO: encode the salt into the header meta data
 
-        let secret_id = Uuid::new_v4();
         let secret_label = "Test note";
-        let secret_meta = SecretMeta::new(secret_label.to_string(), kind::TEXT);
         let secret_note = "Super secret note for you to read.";
-        let secret_value = Secret::Text(secret_note.to_string());
 
-        let meta_bytes = encode(&secret_meta)?;
+        let (secret_id, secret_meta, secret_value, meta_bytes, secret_bytes) =
+            mock_secret_note(secret_label, secret_note)?;
+
         let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
-
-        let secret_bytes = encode(&secret_value)?;
         let secret_aead = vault.encrypt(&encryption_key, &secret_bytes)?;
 
         let _ = vault.create(secret_id, (meta_aead, secret_aead));

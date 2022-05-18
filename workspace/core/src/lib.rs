@@ -30,3 +30,6 @@ pub use uuid;
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[cfg(test)]
+pub mod test_utils;
