@@ -221,9 +221,26 @@ impl VaultAccess for VaultFileAccess {
 mod tests {
     use super::VaultFileAccess;
     use crate::test_utils::*;
-    use crate::{crypto::AeadPack, operations::VaultAccess, Result};
+    use crate::{secret::*, crypto::{AeadPack, secret_key::SecretKey}, operations::VaultAccess, Result, vault::Vault};
 
     use uuid::Uuid;
+
+    fn create_secure_note(
+        vault_access: &mut VaultFileAccess,
+        vault: &Vault,
+        encryption_key: &SecretKey,
+        secret_label: &str,
+        secret_note: &str) -> Result<(Uuid, SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
+        let (secret_id, secret_meta, secret_value, meta_bytes, secret_bytes) =
+            mock_secret_note(secret_label, secret_note)?;
+
+        let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
+        let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
+
+        let _ = vault_access.create(secret_id, (meta_aead, secret_aead))?;
+
+        Ok((secret_id, secret_meta, secret_value, meta_bytes, secret_bytes))
+    }
 
     #[test]
     fn vault_file_access() -> Result<()> {
@@ -234,27 +251,47 @@ mod tests {
             "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
         )?;
 
+        assert_eq!(0, vault_access.rows(vault_access.check_identity()?)?);
+
+        // Missing row should not exist
         let missing_id = Uuid::new_v4();
         let (row, _) = vault_access.read(&missing_id)?;
         assert!(row.is_none());
 
+        // Create a secret note
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
         let (secret_id, _secret_meta, _secret_value, meta_bytes, secret_bytes) =
-            mock_secret_note(secret_label, secret_note)?;
+            create_secure_note(
+                &mut vault_access, &vault, &encryption_key, secret_label, secret_note)?;
+        assert_eq!(1, vault_access.rows(vault_access.check_identity()?)?);
 
-        let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
-        let secret_aead = vault.encrypt(&encryption_key, &secret_bytes)?;
-
-        let _ = vault_access.create(secret_id, (meta_aead, secret_aead))?;
-
+        // Verify the secret exists
         let (row, _) = vault_access.read(&secret_id)?;
         assert!(row.is_some());
 
+        // Delete the secret
         let _ = vault_access.delete(&secret_id)?;
+        assert_eq!(0, vault_access.rows(vault_access.check_identity()?)?);
 
+        // Verify it does not exist after deletion
         let (row, _) = vault_access.read(&secret_id)?;
         assert!(row.is_none());
+
+        // Create a new secure note so we can update it
+        let (secret_id, _secret_meta, _secret_value, meta_bytes, secret_bytes) =
+            create_secure_note(
+                &mut vault_access, &vault, &encryption_key, secret_label, secret_note)?;
+
+        let updated_label = "Updated test note";
+        let updated_note = "Updated note text.";
+
+        let (_, _, _, meta_bytes, secret_bytes) =
+            mock_secret_note(updated_label, updated_note)?;
+
+        // Clean up the secret for next test execution
+        let _ = vault_access.delete(&secret_id)?;
+        assert_eq!(0, vault_access.rows(vault_access.check_identity()?)?);
 
         Ok(())
     }
