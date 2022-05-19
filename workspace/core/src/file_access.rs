@@ -1,9 +1,18 @@
 //! Manages access to a single vault file on disc.
-use std::{borrow::Cow, path::Path, sync::Mutex, ops::Range, io::{Read, Write, Seek, SeekFrom}, path::PathBuf, fs::{File, OpenOptions}};
+use std::{
+    borrow::Cow,
+    fs::{File, OpenOptions},
+    io::{Read, Seek, SeekFrom, Write},
+    ops::Range,
+    path::Path,
+    path::PathBuf,
+    sync::Mutex,
+};
 
 use serde_binary::{
     binary_rw::{
-        BinaryReader, BinaryWriter, Endian, FileStream, OpenType, Stream,
+        BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream, OpenType,
+        Stream,
     },
     Decode, Deserializer, Serializer,
 };
@@ -75,8 +84,8 @@ impl VaultFileAccess {
         &self,
         head: Range<usize>,
         tail: Range<usize>,
-        content: Option<&[u8]>) -> Result<()> {
-
+        content: Option<&[u8]>,
+    ) -> Result<()> {
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -97,6 +106,7 @@ impl VaultFileAccess {
 
         // Inject the content if necessary
         if let Some(content) = content {
+            file.seek(SeekFrom::End(0))?;
             file.write_all(content)?;
         }
 
@@ -109,7 +119,10 @@ impl VaultFileAccess {
     /// Find the byte offset of a row.
     ///
     /// Returns the content offset, total rows and the byte offset and row length of the row if it exists.
-    fn find_row(&self, uuid: &Uuid) -> Result<(usize, u32, Option<(usize, u32)>)> {
+    fn find_row(
+        &self,
+        uuid: &Uuid,
+    ) -> Result<(usize, u32, Option<(usize, u32)>)> {
         let content_offset = self.check_identity()?;
 
         let mut stream = self.stream.lock().unwrap();
@@ -129,7 +142,11 @@ impl VaultFileAccess {
                 // Need to backtrack as we just read the row length and UUID;
                 // calling decode_row() will try to read the length and UUID.
                 de.reader.seek(current_pos)?;
-                return Ok((content_offset, total_rows, Some((current_pos, row_len))));
+                return Ok((
+                    content_offset,
+                    total_rows,
+                    Some((current_pos, row_len)),
+                ));
             }
 
             // Move on to the next row
@@ -178,10 +195,7 @@ impl VaultAccess for VaultFileAccess {
             let mut de = Deserializer { reader };
             de.reader.seek(row_offset)?;
             let (_, (meta, secret)) = Contents::decode_row(&mut de)?;
-            Ok((
-                Some(Cow::Owned((meta, secret))),
-                Payload::ReadSecret(*uuid),
-            ))
+            Ok((Some(Cow::Owned((meta, secret))), Payload::ReadSecret(*uuid)))
         } else {
             Ok((None, Payload::ReadSecret(*uuid)))
         }
@@ -192,7 +206,31 @@ impl VaultAccess for VaultFileAccess {
         uuid: &Uuid,
         secret: (AeadPack, AeadPack),
     ) -> Result<Option<Payload>> {
-        todo!("Update a secret in vault file");
+        let (content_offset, total_rows, row) = self.find_row(uuid)?;
+        if let Some((row_offset, row_len)) = row {
+            // Prepare the row
+            let mut stream = MemoryStream::new();
+            let writer = BinaryWriter::new(&mut stream, Endian::Big);
+            let mut ser = Serializer { writer };
+            Contents::encode_row(&mut ser, uuid, &secret)?;
+            let encoded: Vec<u8> = stream.into();
+
+            // Splice the row into the file
+            let stream = self.stream.lock().unwrap();
+            let length = stream.len()?;
+            drop(stream);
+
+            let head = 0..row_offset;
+            // Row offset is before the row length u32 so we
+            // need to account for that too
+            let tail = (row_offset + 4 + (row_len as usize))..length;
+
+            self.splice(head, tail, Some(&encoded))?;
+
+            Ok(Some(Payload::UpdateSecret(*uuid, Cow::Owned(secret))))
+        } else {
+            Ok(None)
+        }
     }
 
     fn delete(&mut self, uuid: &Uuid) -> Result<Payload> {
@@ -221,7 +259,13 @@ impl VaultAccess for VaultFileAccess {
 mod tests {
     use super::VaultFileAccess;
     use crate::test_utils::*;
-    use crate::{secret::*, crypto::{AeadPack, secret_key::SecretKey}, operations::VaultAccess, Result, vault::Vault};
+    use crate::{
+        crypto::{secret_key::SecretKey, AeadPack},
+        operations::VaultAccess,
+        secret::*,
+        vault::Vault,
+        Result,
+    };
 
     use uuid::Uuid;
 
@@ -230,7 +274,8 @@ mod tests {
         vault: &Vault,
         encryption_key: &SecretKey,
         secret_label: &str,
-        secret_note: &str) -> Result<(Uuid, SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
+        secret_note: &str,
+    ) -> Result<(Uuid, SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
         let (secret_id, secret_meta, secret_value, meta_bytes, secret_bytes) =
             mock_secret_note(secret_label, secret_note)?;
 
@@ -238,8 +283,13 @@ mod tests {
         let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
         let _ = vault_access.create(secret_id, (meta_aead, secret_aead))?;
-
-        Ok((secret_id, secret_meta, secret_value, meta_bytes, secret_bytes))
+        Ok((
+            secret_id,
+            secret_meta,
+            secret_value,
+            meta_bytes,
+            secret_bytes,
+        ))
     }
 
     #[test]
@@ -248,9 +298,8 @@ mod tests {
         let vault = mock_vault();
 
         let mut vault_access = VaultFileAccess::new(
-            "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
+            "./fixtures/6691de55-f499-4ed9-b72d-5631dbf1815c.vault",
         )?;
-
         assert_eq!(0, vault_access.rows(vault_access.check_identity()?)?);
 
         // Missing row should not exist
@@ -263,7 +312,12 @@ mod tests {
         let secret_note = "Super secret note for you to read.";
         let (secret_id, _secret_meta, _secret_value, meta_bytes, secret_bytes) =
             create_secure_note(
-                &mut vault_access, &vault, &encryption_key, secret_label, secret_note)?;
+                &mut vault_access,
+                &vault,
+                &encryption_key,
+                secret_label,
+                secret_note,
+            )?;
         assert_eq!(1, vault_access.rows(vault_access.check_identity()?)?);
 
         // Verify the secret exists
@@ -281,13 +335,25 @@ mod tests {
         // Create a new secure note so we can update it
         let (secret_id, _secret_meta, _secret_value, meta_bytes, secret_bytes) =
             create_secure_note(
-                &mut vault_access, &vault, &encryption_key, secret_label, secret_note)?;
+                &mut vault_access,
+                &vault,
+                &encryption_key,
+                secret_label,
+                secret_note,
+            )?;
+        assert_eq!(1, vault_access.rows(vault_access.check_identity()?)?);
 
+        // Update the secret with new values
         let updated_label = "Updated test note";
         let updated_note = "Updated note text.";
-
         let (_, _, _, meta_bytes, secret_bytes) =
             mock_secret_note(updated_label, updated_note)?;
+
+        let updated_meta = vault.encrypt(&encryption_key, &meta_bytes)?;
+        let updated_secret = vault.encrypt(&encryption_key, &secret_bytes)?;
+        let _ =
+            vault_access.update(&secret_id, (updated_meta, updated_secret))?;
+        assert_eq!(1, vault_access.rows(vault_access.check_identity()?)?);
 
         // Clean up the secret for next test execution
         let _ = vault_access.delete(&secret_id)?;
