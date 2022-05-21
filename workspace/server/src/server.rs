@@ -7,7 +7,7 @@ use axum::{
         HeaderValue, Method, Request, Response, StatusCode,
     },
     response::{IntoResponse, Redirect},
-    routing::{get, post},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use tower_http::cors::{CorsLayer, Origin};
@@ -25,13 +25,14 @@ use serde_json::json;
 use sos_core::{
     address::AddressStr,
     audit::{Append, Log, LogData},
+    crypto::AeadPack,
     decode, encode,
     k256::ecdsa::recoverable,
     operations::Operation,
     vault::{Summary, Vault},
     web3_signature::Signature,
 };
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
@@ -44,7 +45,7 @@ pub struct State {
     pub name: String,
     /// Version of the crate.
     pub version: String,
-    /// Map of backends for each user.
+    /// Storage backend.
     pub backend: Box<dyn Backend + Send + Sync>,
     /// Collection of challenges for authentication
     pub authentication: Authentication,
@@ -83,7 +84,12 @@ impl Server {
         // FIXME: start tokio task to reap stale authentication challenges
 
         let cors = CorsLayer::new()
-            .allow_methods(vec![Method::GET, Method::POST])
+            .allow_methods(vec![
+                Method::PUT,
+                Method::GET,
+                Method::POST,
+                Method::DELETE,
+            ])
             .allow_headers(vec![
                 AUTHORIZATION,
                 CONTENT_TYPE,
@@ -100,8 +106,15 @@ impl Server {
             .route("/api/accounts", post(AccountHandler::create))
             //.route("/api/vaults", get(VaultHandler::list))
             .route(
-                "/api/vaults/:id",
+                "/api/vaults/:vault_id",
                 get(VaultHandler::get_vault).post(VaultHandler::update_vault),
+            )
+            .route(
+                "/api/vaults/:vault_id/secrets/:secret_id",
+                put(SecretHandler::create_secret)
+                    .get(SecretHandler::read_secret)
+                    .post(SecretHandler::update_secret)
+                    .delete(SecretHandler::delete_secret),
             )
             .layer(cors)
             .layer(Extension(shared_state));
@@ -366,7 +379,7 @@ impl VaultHandler {
     /// Retrieve an encrypted vault.
     async fn get_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
-        Path(uuid): Path<Uuid>,
+        Path(vault_id): Path<Uuid>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
     ) -> Result<Bytes, StatusCode> {
@@ -379,17 +392,18 @@ impl VaultHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                if !writer.backend.vault_exists(&token.address, &uuid).await {
+                if !writer.backend.vault_exists(&token.address, &vault_id).await
+                {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
                 if let Ok(buffer) =
-                    writer.backend.get(&token.address, &uuid).await
+                    writer.backend.get(&token.address, &vault_id).await
                 {
                     let log = Log::new(
                         Operation::ReadVault,
                         token.address,
-                        Some(LogData::Vault(uuid)),
+                        Some(LogData::Vault(vault_id)),
                     );
                     writer
                         .audit_log
@@ -411,7 +425,7 @@ impl VaultHandler {
     /// Update an encrypted vault.
     async fn update_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
-        Path((user_id, vault_id)): Path<(AddressStr, Uuid)>,
+        Path(vault_id): Path<Uuid>,
         body: Bytes,
     ) -> Result<(), StatusCode> {
         let mut writer = state.write().await;
@@ -440,5 +454,122 @@ impl VaultHandler {
             Err(StatusCode::NOT_FOUND)
         }
         */
+    }
+}
+
+// Handlers for secrets operations.
+struct SecretHandler;
+impl SecretHandler {
+    /// Create an encrypted secret in a vault.
+    async fn create_secret(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+        body: Bytes,
+    ) -> Result<(), StatusCode> {
+        todo!()
+    }
+
+    /// Get an encrypted secret from a vault.
+    async fn read_secret(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+    ) -> Result<Json<(AeadPack, AeadPack)>, StatusCode> {
+        // Get the response value and audit log
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let reader = state.read().await;
+                let handle = reader
+                    .backend
+                    .vault_read(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                if let Ok(result) = handle.read(&secret_id) {
+                    if let (Some(value), payload) = result {
+                        let secret = match value {
+                            Cow::Owned(val) => val,
+                            Cow::Borrowed(val) => val.clone(),
+                        };
+
+                        let log =
+                            payload.into_audit_log(token.address, vault_id);
+                        Ok((Json(secret), log))
+                    } else {
+                        Err(StatusCode::NOT_FOUND)
+                    }
+                } else {
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        let (json, log) = response?;
+        let mut writer = state.write().await;
+        writer
+            .audit_log
+            .append(log)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        Ok(json)
+    }
+
+    /// Update an encrypted secret in a vault.
+    async fn update_secret(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+        body: Bytes,
+    ) -> Result<(), StatusCode> {
+        todo!()
+    }
+
+    /// Delete an encrypted secret from a vault.
+    async fn delete_secret(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+    ) -> Result<(), StatusCode> {
+        // Perform the deletion and get an audit log
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+                let mut handle = writer
+                    .backend
+                    .vault_write(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                if let Ok(payload) = handle.delete(&secret_id) {
+                    Ok(payload.into_audit_log(token.address, vault_id))
+                } else {
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        let log = response?;
+        let mut writer = state.write().await;
+        writer
+            .audit_log
+            .append(log)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        Ok(())
     }
 }
