@@ -9,7 +9,7 @@ import { WebVault, WebSigner, Signup } from "sos-wasm";
 import { VaultWorker } from "../types";
 
 const logError = (state: SignupState, action: AnyAction) => {
-  console.error('', action.payload);
+  console.error("", action.payload);
 };
 
 export const createSignup = createAsyncThunk(

@@ -9,7 +9,7 @@ import { Summary } from "../types";
 
 import { loadVault, vaultsSelector } from "../store/vaults";
 import { accountSelector } from "../store/account";
-import { AppDispatch } from '../store';
+import { AppDispatch } from "../store";
 import { WorkerContext } from "../worker-provider";
 
 import NotFound from "../not-found";

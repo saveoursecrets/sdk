@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 
 import { createSignup } from "../store/signup";
-import { AppDispatch } from '../store';
+import { AppDispatch } from "../store";
 
 import { StepProps } from "./index";
 

@@ -13,7 +13,7 @@ import {
   CONFIRM_DELETE_SECRET,
 } from "../../store/dialogs";
 
-import { AppDispatch } from '../../store';
+import { AppDispatch } from "../../store";
 
 import {
   vaultsSelector,

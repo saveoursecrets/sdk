@@ -58,10 +58,9 @@ export default function VaultList() {
     );
   };
 
-
   // FIXME: restore locked icon handling!
   //<ListItemIcon>
-    //{vault.locked ? <LockIcon /> : <LockOpenIcon />}
+  //{vault.locked ? <LockIcon /> : <LockOpenIcon />}
   //</ListItemIcon>
 
   return (

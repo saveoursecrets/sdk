@@ -187,7 +187,7 @@ const updateVaultFromThunk = (
 };
 
 const logError = (state: VaultState, action: AnyAction) => {
-  console.error('', action.payload);
+  console.error("", action.payload);
 };
 
 const vaultsSlice = createSlice({
