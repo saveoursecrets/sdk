@@ -45,6 +45,11 @@ impl VaultFileAccess {
         Ok(Self { file_path, stream })
     }
 
+    /// Get a reference to the underlying path.
+    pub fn path(&self) -> &PathBuf {
+        &self.file_path
+    }
+
     /// Check the identity bytes and return the byte offset of the
     /// beginning of the vault content area.
     fn check_identity(&self) -> Result<usize> {

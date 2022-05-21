@@ -44,7 +44,7 @@ pub trait VaultAccess {
         uuid: &Uuid,
     ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)>;
 
-    /// Update an encrypted secret to the vault.
+    /// Update an encrypted secret in the vault.
     fn update(
         &mut self,
         uuid: &Uuid,

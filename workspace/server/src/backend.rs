@@ -2,11 +2,51 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
+    crypto::AeadPack,
+    file_access::VaultFileAccess,
+    operations::Payload,
     vault::{Header, Summary, Vault},
 };
-use std::{collections::HashMap, path::PathBuf};
+use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 use tokio::sync::RwLock;
 use uuid::Uuid;
+
+#[async_trait]
+pub trait OwnedVaultAccess {
+    /// Create a secret in the given vault.
+    async fn create_secret(
+        &mut self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+        secret_id: Uuid,
+        secret: (AeadPack, AeadPack),
+    ) -> Result<Payload>;
+
+    /// Read an encrypted secret from the vault.
+    fn read_secret<'a>(
+        &'a self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+        secret_id: &Uuid,
+    ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)>;
+
+    /// Update an encrypted secret in the vault.
+    fn update_secret(
+        &mut self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+        secret_id: &Uuid,
+        secret: (AeadPack, AeadPack),
+    ) -> Result<Option<Payload>>;
+
+    /// Remove an encrypted secret from the vault.
+    fn delete_secret(
+        &mut self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+        secret_id: &Uuid,
+    ) -> Result<Payload>;
+}
 
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]
@@ -41,11 +81,7 @@ pub trait Backend {
     async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>>;
 
     /// Determine if a vault exists.
-    async fn vault_exists(
-        &self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-    ) -> bool;
+    async fn vault_exists(&self, owner: &AddressStr, vault_id: &Uuid) -> bool;
 
     /// Load a vault buffer for an account.
     async fn get(&self, owner: &AddressStr, vault_id: &Uuid)
@@ -55,7 +91,8 @@ pub trait Backend {
 /// Backend storage for vaults on the file system.
 pub struct FileSystemBackend {
     directory: PathBuf,
-    accounts: RwLock<HashMap<AddressStr, HashMap<Uuid, (PathBuf, Summary)>>>,
+    accounts:
+        RwLock<HashMap<AddressStr, HashMap<Uuid, (VaultFileAccess, Summary)>>>,
 }
 
 impl FileSystemBackend {
@@ -93,7 +130,10 @@ impl FileSystemBackend {
                                         Header::read_summary(&vault_path)?;
                                     vaults.insert(
                                         *summary.id(),
-                                        (vault_path, summary),
+                                        (
+                                            VaultFileAccess::new(vault_path)?,
+                                            summary,
+                                        ),
                                     );
                                 }
                             }
@@ -134,7 +174,10 @@ impl FileSystemBackend {
         let mut accounts = self.accounts.write().await;
         let vaults = accounts.entry(owner).or_insert(Default::default());
         let summary = Header::read_summary(&vault_path)?;
-        vaults.insert(*summary.id(), (vault_path, summary));
+        vaults.insert(
+            *summary.id(),
+            (VaultFileAccess::new(vault_path)?, summary),
+        );
         Ok(())
     }
 }
@@ -197,11 +240,7 @@ impl Backend for FileSystemBackend {
         Ok(summaries)
     }
 
-    async fn vault_exists(
-        &self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-    ) -> bool {
+    async fn vault_exists(&self, owner: &AddressStr, vault_id: &Uuid) -> bool {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
             account.get(vault_id).is_some()
@@ -218,7 +257,7 @@ impl Backend for FileSystemBackend {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
             if let Some((vault_file, _)) = account.get(vault_id) {
-                let buffer = tokio::fs::read(&vault_file).await?;
+                let buffer = tokio::fs::read(vault_file.path()).await?;
                 return Ok(buffer);
             }
         }
