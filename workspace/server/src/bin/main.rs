@@ -40,9 +40,9 @@ async fn run() -> Result<()> {
     //println!("Config {:#?}", config);
 
     let authentication: Authentication = Default::default();
-    let backend = config.backend()?;
+    let backend = config.backend().await?;
 
-    let audit_log_file = args.audit_log.unwrap_or(config.audit_file());
+    let audit_log_file = args.audit_log.unwrap_or_else(|| config.audit_file());
 
     if AuditLogFile::would_block(&audit_log_file)? {
         return Err(Error::AuditWouldBlock(audit_log_file));

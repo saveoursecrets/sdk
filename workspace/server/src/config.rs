@@ -104,7 +104,7 @@ impl ServerConfig {
     }
 
     /// Get the backend implementation.
-    pub fn backend(&self) -> Result<Box<dyn Backend + Send + Sync>> {
+    pub async fn backend(&self) -> Result<Box<dyn Backend + Send + Sync>> {
         // Config file directory for relative file paths.
         let dir = self.directory();
 
@@ -141,7 +141,7 @@ impl ServerConfig {
                 })?;
 
                 let mut backend = FileSystemBackend::new(path);
-                backend.read_dir()?;
+                backend.read_dir().await?;
                 Ok(Box::new(backend))
             }
             _ => Err(Error::InvalidUrlScheme(
