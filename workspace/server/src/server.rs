@@ -467,7 +467,42 @@ impl SecretHandler {
         Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
         body: Bytes,
     ) -> Result<(), StatusCode> {
-        todo!()
+        // Perform the creation and get an audit log
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let secret: (AeadPack, AeadPack) =
+                    serde_json::from_slice(&body)
+                        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                let mut writer = state.write().await;
+                let mut handle = writer
+                    .backend
+                    .vault_write(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                if let Ok(payload) = handle.create(secret_id, secret) {
+                    Ok(payload.into_audit_log(token.address, vault_id))
+                } else {
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        let log = response?;
+        let mut writer = state.write().await;
+        writer
+            .audit_log
+            .append(log)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        Ok(())
     }
 
     /// Get an encrypted secret from a vault.
@@ -529,7 +564,46 @@ impl SecretHandler {
         Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
         body: Bytes,
     ) -> Result<(), StatusCode> {
-        todo!()
+        // Perform the update and get an audit log
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let secret: (AeadPack, AeadPack) =
+                    serde_json::from_slice(&body)
+                        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                let mut writer = state.write().await;
+                let mut handle = writer
+                    .backend
+                    .vault_write(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                if let Ok(result) = handle.update(&secret_id, secret) {
+                    if let Some(payload) = result {
+                        Ok(payload.into_audit_log(token.address, vault_id))
+                    } else {
+                        Err(StatusCode::NOT_FOUND)
+                    }
+                } else {
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        let log = response?;
+        let mut writer = state.write().await;
+        writer
+            .audit_log
+            .append(log)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        Ok(())
     }
 
     /// Delete an encrypted secret from a vault.
