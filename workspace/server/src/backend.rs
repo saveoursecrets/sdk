@@ -4,49 +4,16 @@ use sos_core::{
     address::AddressStr,
     crypto::AeadPack,
     file_access::VaultFileAccess,
-    operations::Payload,
+    operations::VaultAccess,
     vault::{Header, Summary, Vault},
 };
 use std::{borrow::Cow, collections::HashMap, path::PathBuf};
-use tokio::sync::RwLock;
+use tokio::sync::{
+    RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard,
+};
 use uuid::Uuid;
 
-#[async_trait]
-pub trait OwnedVaultAccess {
-    /// Create a secret in the given vault.
-    async fn create_secret(
-        &mut self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-        secret_id: Uuid,
-        secret: (AeadPack, AeadPack),
-    ) -> Result<Payload>;
-
-    /// Read an encrypted secret from the vault.
-    fn read_secret<'a>(
-        &'a self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-        secret_id: &Uuid,
-    ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)>;
-
-    /// Update an encrypted secret in the vault.
-    fn update_secret(
-        &mut self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-        secret_id: &Uuid,
-        secret: (AeadPack, AeadPack),
-    ) -> Result<Option<Payload>>;
-
-    /// Remove an encrypted secret from the vault.
-    fn delete_secret(
-        &mut self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-        secret_id: &Uuid,
-    ) -> Result<Payload>;
-}
+type VaultStorage = Box<dyn VaultAccess + Send + Sync>;
 
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]
@@ -86,13 +53,27 @@ pub trait Backend {
     /// Load a vault buffer for an account.
     async fn get(&self, owner: &AddressStr, vault_id: &Uuid)
         -> Result<Vec<u8>>;
+
+    /// Get a read handle to an existing vault.
+    async fn vault_read<'a>(
+        &'a self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<RwLockReadGuard<'a, VaultStorage>>;
+
+    /// Get a write handle to an existing vault.
+    async fn vault_write<'a>(
+        &'a mut self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<RwLockMappedWriteGuard<'a, VaultStorage>>;
 }
 
 /// Backend storage for vaults on the file system.
 pub struct FileSystemBackend {
     directory: PathBuf,
     accounts:
-        RwLock<HashMap<AddressStr, HashMap<Uuid, (VaultFileAccess, Summary)>>>,
+        RwLock<HashMap<AddressStr, HashMap<Uuid, (VaultStorage, Summary)>>>,
 }
 
 impl FileSystemBackend {
@@ -131,7 +112,9 @@ impl FileSystemBackend {
                                     vaults.insert(
                                         *summary.id(),
                                         (
-                                            VaultFileAccess::new(vault_path)?,
+                                            Box::new(VaultFileAccess::new(
+                                                vault_path,
+                                            )?),
                                             summary,
                                         ),
                                     );
@@ -146,16 +129,21 @@ impl FileSystemBackend {
         Ok(())
     }
 
-    /// Write a vault file to disc for the given owner address.
-    async fn new_vault_file(
-        &mut self,
-        owner: AddressStr,
-        vault_id: &Uuid,
-        vault: &[u8],
-    ) -> Result<PathBuf> {
+    fn vault_file_path(&self, owner: &AddressStr, vault_id: &Uuid) -> PathBuf {
         let account_dir = self.directory.join(owner.to_string());
         let mut vault_file = account_dir.join(vault_id.to_string());
         vault_file.set_extension(Vault::extension());
+        vault_file
+    }
+
+    /// Write a vault file to disc for the given owner address.
+    async fn new_vault_file(
+        &mut self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+        vault: &[u8],
+    ) -> Result<PathBuf> {
+        let vault_file = self.vault_file_path(owner, vault_id);
         if vault_file.exists() {
             return Err(Error::FileExists(vault_file));
         }
@@ -176,7 +164,7 @@ impl FileSystemBackend {
         let summary = Header::read_summary(&vault_path)?;
         vaults.insert(
             *summary.id(),
-            (VaultFileAccess::new(vault_path)?, summary),
+            (Box::new(VaultFileAccess::new(vault_path)?), summary),
         );
         Ok(())
     }
@@ -198,7 +186,7 @@ impl Backend for FileSystemBackend {
         // TODO: verify bytes looks like a vault file
 
         tokio::fs::create_dir(account_dir).await?;
-        let vault_path = self.new_vault_file(owner, &vault_id, vault).await?;
+        let vault_path = self.new_vault_file(&owner, &vault_id, vault).await?;
         self.add_vault_path(owner, vault_path).await?;
 
         Ok(())
@@ -217,7 +205,7 @@ impl Backend for FileSystemBackend {
 
         // TODO: verify bytes looks like a vault file
 
-        let vault_path = self.new_vault_file(owner, &vault_id, vault).await?;
+        let vault_path = self.new_vault_file(&owner, &vault_id, vault).await?;
         self.add_vault_path(owner, vault_path).await?;
 
         Ok(())
@@ -256,11 +244,62 @@ impl Backend for FileSystemBackend {
     ) -> Result<Vec<u8>> {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
-            if let Some((vault_file, _)) = account.get(vault_id) {
-                let buffer = tokio::fs::read(vault_file.path()).await?;
+            if let Some((_, _)) = account.get(vault_id) {
+                let vault_file = self.vault_file_path(owner, vault_id);
+                let buffer = tokio::fs::read(vault_file).await?;
                 return Ok(buffer);
             }
+        } else {
+            return Err(Error::AccountNotExist(*owner));
         }
-        Err(Error::NotExist(*vault_id))
+        Err(Error::VaultNotExist(*vault_id))
+    }
+
+    async fn vault_read<'a>(
+        &'a self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<RwLockReadGuard<'a, VaultStorage>> {
+        let accounts = self.accounts.read().await;
+        if accounts.get(owner).is_none() {
+            return Err(Error::AccountNotExist(*owner));
+        }
+
+        let account = accounts.get(owner).unwrap();
+        if account.get(vault_id).is_none() {
+            return Err(Error::VaultNotExist(*vault_id));
+        }
+
+        let guard = RwLockReadGuard::map(accounts, |accounts| {
+            let account = accounts.get(owner).unwrap();
+            let (vault_file, _) = account.get(vault_id).unwrap();
+            vault_file
+        });
+
+        Ok(guard)
+    }
+
+    async fn vault_write<'a>(
+        &'a mut self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<RwLockMappedWriteGuard<'a, VaultStorage>> {
+        let accounts = self.accounts.write().await;
+        if accounts.get(owner).is_none() {
+            return Err(Error::AccountNotExist(*owner));
+        }
+
+        let account = accounts.get(owner).unwrap();
+        if account.get(vault_id).is_none() {
+            return Err(Error::VaultNotExist(*vault_id));
+        }
+
+        let guard = RwLockWriteGuard::map(accounts, |accounts| {
+            let account = accounts.get_mut(owner).unwrap();
+            let (vault_file, _) = account.get_mut(vault_id).unwrap();
+            vault_file
+        });
+
+        Ok(guard)
     }
 }
