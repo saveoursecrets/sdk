@@ -8,10 +8,11 @@ import LogoutIcon from "@mui/icons-material/Logout";
 
 import { logout } from "../store/account";
 import { vaultsSelector, lockAll } from "../store/vaults";
+import { AppDispatch } from '../store';
 
 export default function AppBarActions() {
   const { vaults } = useSelector(vaultsSelector);
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
   const navigate = useNavigate();
 
   const onLogout = () => {
@@ -23,7 +24,10 @@ export default function AppBarActions() {
   return (
     <>
       <Tooltip title="Logout">
-        <Button variant="contained" onClick={onLogout} endIcon={<LogoutIcon />}>
+        <Button
+          variant="contained"
+          onClick={onLogout}
+          endIcon={<LogoutIcon />}>
           Logout
         </Button>
       </Tooltip>

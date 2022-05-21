@@ -3,6 +3,9 @@ import { WebSigner } from "sos-wasm";
 
 const MIME_TYPE_VAULT = "application/sos+vault";
 
+// TODO: define this type properly
+export type AeadPack = null;
+
 function bearer(signature: Signature): string {
   return `Bearer ${btoa(JSON.stringify(signature))}`;
 }
@@ -26,7 +29,9 @@ export class VaultApi {
     this.url = url;
   }
 
-  async selfSigned(signer: WebSigner): [Signature, Uint8Array] {
+  // Helper to sign a random message used for requests
+  // that do not have a body payload to sign (GET, DELETE).
+  async selfSigned(signer: WebSigner): Promise<[Signature, Uint8Array]> {
     const message = new Uint8Array(32);
     self.crypto.getRandomValues(message);
     const signature = await signer.sign(Array.from(message));
@@ -46,9 +51,9 @@ export class VaultApi {
     };
     const response = await fetch(url, {
       method: "POST",
-      body,
       mode: "cors",
       headers,
+      body,
     });
     return response.ok;
   }
@@ -94,9 +99,9 @@ export class VaultApi {
   }
 
   // Load the encrypted vault buffer for a user.
-  async getVault(account: Account, id: string): Promise<ArrayBuffer> {
+  async getVault(account: Account, vaultId: string): Promise<ArrayBuffer> {
     const [signature, message] = await this.selfSigned(account.signer);
-    const url = `${this.url}/vaults/${id}`;
+    const url = `${this.url}/vaults/${vaultId}`;
     const headers = {
       authorization: bearer(signature),
       "x-signed-message": signedMessageHeader(message),
@@ -107,6 +112,26 @@ export class VaultApi {
       headers,
     });
     return response.arrayBuffer();
+  }
+
+  // Read a secret.
+  async readSecret(
+    account: Account,
+    vaultId: string,
+    secretId: string
+  ): Promise<[AeadPack, AeadPack]> {
+    const [signature, message] = await this.selfSigned(account.signer);
+    const url = `${this.url}/vaults/${vaultId}/secrets/${secretId}`;
+    const headers = {
+      authorization: bearer(signature),
+      "x-signed-message": signedMessageHeader(message),
+    };
+    const response = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      headers,
+    });
+    return (await response.json()) as [AeadPack, AeadPack];
   }
 }
 

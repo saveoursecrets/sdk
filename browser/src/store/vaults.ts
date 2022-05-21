@@ -3,6 +3,7 @@ import {
   createAsyncThunk,
   PayloadAction,
   isRejected,
+  AnyAction,
 } from "@reduxjs/toolkit";
 import { NavigateFunction } from "react-router-dom";
 import { WebVault } from "sos-wasm";
@@ -14,6 +15,7 @@ import {
   SecretData,
   Account,
   VaultWorker,
+  Summary,
 } from "../types";
 
 export type VaultMetaData = {
@@ -184,9 +186,8 @@ const updateVaultFromThunk = (
   });
 };
 
-const logError = (state: VaultState, action: PayloadAction<Error>) => {
-  //const { payload } = action;
-  console.error(action.error);
+const logError = (state: VaultState, action: AnyAction) => {
+  console.error('', action.payload);
 };
 
 const vaultsSlice = createSlice({

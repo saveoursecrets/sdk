@@ -20,6 +20,7 @@ import LockOpenIcon from "@mui/icons-material/LockOpen";
 
 import { accountSelector, setSelectedIndex } from "../store/account";
 import { setDialogVisible, NEW_VAULT } from "../store/dialogs";
+import { Summary } from "../types";
 
 export default function VaultList() {
   const { account, selectedIndex } = useSelector(accountSelector);
@@ -57,6 +58,12 @@ export default function VaultList() {
     );
   };
 
+
+  // FIXME: restore locked icon handling!
+  //<ListItemIcon>
+    //{vault.locked ? <LockIcon /> : <LockOpenIcon />}
+  //</ListItemIcon>
+
   return (
     <List component="nav" subheader={<SubHeader />}>
       {summaries.map((vault: Summary, index: number) => {
@@ -68,9 +75,6 @@ export default function VaultList() {
               disablePadding
             >
               <ListItemButton onClick={() => openVault(vault, index)}>
-                <ListItemIcon>
-                  {vault.locked ? <LockIcon /> : <LockOpenIcon />}
-                </ListItemIcon>
                 <ListItemText primary={vault.name} />
               </ListItemButton>
             </ListItem>

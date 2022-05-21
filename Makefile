@@ -18,13 +18,11 @@ fixtures:
 server-release: browser-gui
 	@cd workspace/server && cargo build --release
 
-prettier:
-	@cd browser && yarn prettier
-
 lint:
 	@cd browser && yarn lint
 
-fmt: prettier
+fmt:
+	@cd browser && yarn fmt
 	@cargo fmt --all
 
 check:

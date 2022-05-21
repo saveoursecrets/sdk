@@ -12,6 +12,9 @@ import {
   NEW_FILE_UPLOAD,
   CONFIRM_DELETE_SECRET,
 } from "../../store/dialogs";
+
+import { AppDispatch } from '../../store';
+
 import {
   vaultsSelector,
   createNewVault as dispatchNewVault,
@@ -40,7 +43,7 @@ interface DialogProps {
 export default function Dialogs(props: DialogProps) {
   const { worker } = props;
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
   const { dialogs } = useSelector(dialogsSelector);
   const { current } = useSelector(vaultsSelector);
 
