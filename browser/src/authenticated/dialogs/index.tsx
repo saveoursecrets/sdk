@@ -94,7 +94,7 @@ export default function Dialogs(props: DialogProps) {
 
   const onDeleteSecret = async (result: string) => {
     cancelDialog(CONFIRM_DELETE_SECRET);
-    await dispatch(deleteSecret({ result, navigate, owner: current }));
+    await dispatch(deleteSecret({ result, account, navigate, owner: current }));
   };
 
   const cancelDialog = (key: string) => {

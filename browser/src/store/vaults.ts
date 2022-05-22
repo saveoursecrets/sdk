@@ -49,6 +49,7 @@ export type CreateSecretRequest = {
 };
 
 export type ReadSecretRequest = {
+  account: Account;
   secretId: string;
   owner: VaultStorage;
 };
@@ -61,6 +62,7 @@ export type UpdateSecretRequest = {
 };
 
 export type DeleteSecretRequest = {
+  account: Account;
   result: string;
   owner: VaultStorage;
   navigate: NavigateFunction;
@@ -152,9 +154,20 @@ export const createSecret = createAsyncThunk(
 export const readSecret = createAsyncThunk(
   "vaults/readSecret",
   async (request: ReadSecretRequest) => {
-    const { secretId, owner } = request;
-    const { vault } = owner;
-    return await vault.read(secretId);
+    const { account, secretId, owner } = request;
+    const { uuid: vaultId, vault } = owner;
+    const payload: Payload = await vault.read(secretId);
+
+    // Send to the server for the audit log
+    const saved = await api.readSecret(account, vaultId, secretId);
+    if (!saved) {
+      // FIXME: queue failed backend requests
+      throw new Error(`failed to read secret: ${secretId}`);
+    }
+
+    console.log("Secret was read", saved);
+
+    return payload;
   }
 );
 
@@ -187,11 +200,23 @@ export const updateSecret = createAsyncThunk(
 export const deleteSecret = createAsyncThunk(
   "vaults/deleteSecret",
   async (request: DeleteSecretRequest) => {
-    const { result, navigate, owner } = request;
-    const { uuid, vault } = owner;
-    await vault.delete(result);
+    const { result, account, navigate, owner } = request;
+    const { uuid: vaultId, vault } = owner;
+    const payload: Payload = await vault.delete(result);
+    const secretId = payload.DeleteSecret;
+
+    // Send to the server for persistence
+    const saved = await api.deleteSecret(account, vaultId, secretId);
+    if (!saved) {
+      // FIXME: queue failed backend requests
+      throw new Error(`failed to delete secret: ${secretId}`);
+    }
+
+    console.log("Secret was deleted", saved);
+
+    // Update the vault meta data
     const meta = await vault.getVaultMeta();
-    navigate(`/vault/${uuid}`);
+    navigate(`/vault/${vaultId}`);
     return { ...owner, meta };
   }
 );

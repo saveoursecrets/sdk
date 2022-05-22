@@ -18,6 +18,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 import { AppDispatch } from "../store";
 import { vaultsSelector, readSecret } from "../store/vaults";
+import { accountSelector } from "../store/account";
 
 import {
   NEW_ACCOUNT_PASSWORD,
@@ -272,10 +273,13 @@ function SecretView(props: SecretViewProps) {
   const [secretData, setSecretData] = useState(null);
   const [searchParams] = useSearchParams();
   const dispatch = useDispatch<AppDispatch>();
+  const { account } = useSelector(accountSelector);
 
   useEffect(() => {
     const loadSecret = async () => {
-      const result = await dispatch(readSecret({ owner: storage, secretId }));
+      const result = await dispatch(
+        readSecret({ account, owner: storage, secretId })
+      );
       setSecretData(result.payload);
     };
     loadSecret();

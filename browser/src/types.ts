@@ -12,7 +12,9 @@ export type AeadPack = {
 
 export type Payload = {
   CreateSecret: [string, [AeadPack, AeadPack]];
+  ReadSecret: string;
   UpdateSecret: [string, [AeadPack, AeadPack]];
+  DeleteSecret: string;
 };
 
 export type Account = {

@@ -28,7 +28,7 @@ use sos_core::{
     crypto::AeadPack,
     decode, encode,
     k256::ecdsa::recoverable,
-    operations::Operation,
+    operations::{Operation, Payload},
     vault::{Summary, Vault},
     web3_signature::Signature,
 };
@@ -505,56 +505,33 @@ impl SecretHandler {
         Ok(())
     }
 
-    /// Get an encrypted secret from a vault.
+    /// Write the audit log for a secret read event.
     async fn read_secret(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
         Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
-    ) -> Result<Json<(AeadPack, AeadPack)>, StatusCode> {
-        // Get the response value and audit log
-        let response = if let Ok((status_code, token)) =
+    ) -> Result<(), StatusCode> {
+        // Write the audit log
+        if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &message)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let reader = state.read().await;
-                let handle = reader
-                    .backend
-                    .vault_read(&token.address, &vault_id)
+                let payload = Payload::ReadSecret(secret_id);
+                let log = payload.into_audit_log(token.address, vault_id);
+                let mut writer = state.write().await;
+                writer
+                    .audit_log
+                    .append(log)
                     .await
-                    .map_err(|_| StatusCode::NOT_FOUND)?;
-
-                if let Ok(result) = handle.read(&secret_id) {
-                    if let (Some(value), payload) = result {
-                        let secret = match value {
-                            Cow::Owned(val) => val,
-                            Cow::Borrowed(val) => val.clone(),
-                        };
-
-                        let log =
-                            payload.into_audit_log(token.address, vault_id);
-                        Ok((Json(secret), log))
-                    } else {
-                        Err(StatusCode::NOT_FOUND)
-                    }
-                } else {
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
-                }
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                Ok(())
             } else {
                 Err(status_code)
             }
         } else {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
-        };
-
-        let (json, log) = response?;
-        let mut writer = state.write().await;
-        writer
-            .audit_log
-            .append(log)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        Ok(json)
+        }
     }
 
     /// Update an encrypted secret in a vault.

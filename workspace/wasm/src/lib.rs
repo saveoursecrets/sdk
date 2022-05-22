@@ -190,8 +190,8 @@ impl WebVault {
     /// Delete a secret from the vault.
     pub fn delete(&mut self, uuid: JsValue) -> Result<JsValue, JsError> {
         let uuid: Uuid = uuid.into_serde()?;
-        let result = self.keeper.delete(&uuid)?;
-        Ok(JsValue::from_serde(&result)?)
+        let payload = self.keeper.delete(&uuid)?;
+        Ok(JsValue::from_serde(&payload)?)
     }
 
     /// Unlock the vault.

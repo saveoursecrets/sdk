@@ -155,7 +155,7 @@ export class VaultApi {
     account: Account,
     vaultId: string,
     secretId: string
-  ): Promise<[AeadPack, AeadPack]> {
+  ): Promise<boolean> {
     const [signature, message] = await this.selfSigned(account.signer);
     const url = `${this.url}/vaults/${vaultId}/secrets/${secretId}`;
     const headers = {
@@ -167,7 +167,7 @@ export class VaultApi {
       mode: "cors",
       headers,
     });
-    return (await response.json()) as [AeadPack, AeadPack];
+    return response.ok;
   }
 
   // Update a secret.
