@@ -10,6 +10,11 @@ export type AeadPack = {
   ciphertext: number[];
 };
 
+export type Payload = {
+  CreateSecret: [string, [AeadPack, AeadPack]];
+  UpdateSecret: [string, [AeadPack, AeadPack]];
+};
+
 export type Account = {
   signer?: WebSigner;
   address?: string;

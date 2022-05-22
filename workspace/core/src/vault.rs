@@ -184,6 +184,9 @@ impl Header {
         // Read magic identity bytes
         FileIdentity::read_identity(&mut de, &IDENTITY)?;
 
+        // Read in the header length
+        let _ = de.reader.read_u32()?;
+
         // Read the summary
         let mut summary: Summary = Default::default();
         summary.decode(&mut de)?;

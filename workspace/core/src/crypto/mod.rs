@@ -120,6 +120,7 @@ pub mod algorithms {
             let id = de.reader.read_u8()?;
             *self = match id {
                 X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305(id),
+                AES_GCM_256 => Algorithm::AesGcm256(id),
                 _ => {
                     return Err(BinaryError::Boxed(Box::from(
                         Error::UnknownAlgorithm(id),

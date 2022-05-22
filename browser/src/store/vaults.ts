@@ -16,6 +16,7 @@ import {
   Account,
   VaultWorker,
   Summary,
+  Payload,
 } from "../types";
 
 export type VaultMetaData = {
@@ -130,16 +131,17 @@ export const createSecret = createAsyncThunk(
     const { vault, uuid: vaultId } = owner;
 
     // Create the secret in the memory buffer
-    const payload = await vault.create(result);
+    const payload: Payload = await vault.create(result);
     const [secretId, encrypted] = payload.CreateSecret;
 
     // Send to the server for persistence
     const saved = await api.createSecret(account, vaultId, secretId, encrypted);
-
     if (!saved) {
       // FIXME: queue failed backend requests
-      throw new Error(`failed to save secret: ${secretId}`);
+      throw new Error(`failed to create secret: ${secretId}`);
     }
+
+    console.log("Secret was saved", saved);
 
     // Update the vault meta data
     const meta = await vault.getVaultMeta();
@@ -159,12 +161,25 @@ export const readSecret = createAsyncThunk(
 export const updateSecret = createAsyncThunk(
   "vaults/updateSecret",
   async (request: UpdateSecretRequest) => {
-    const { result, navigate, owner } = request;
-    const { uuid, vault } = owner;
-    await vault.update(result);
+    const { result, account, navigate, owner } = request;
+    const { uuid: vaultId, vault } = owner;
+    const payload: Payload = await vault.update(result);
+    const [secretId, encrypted] = payload.UpdateSecret;
+
+    // Send to the server for persistence
+    const saved = await api.updateSecret(account, vaultId, secretId, encrypted);
+    if (!saved) {
+      // FIXME: queue failed backend requests
+      throw new Error(`failed to update secret: ${secretId}`);
+    }
+
+    console.log("Secret was updated", saved);
+
+    // Update the vault meta data and navigate to refresh
+    // the view
     const meta = await vault.getVaultMeta();
     const random = Math.random();
-    navigate(`/vault/${uuid}/${result.secretId}?refresh=${random}`);
+    navigate(`/vault/${vaultId}/${result.secretId}?refresh=${random}`);
     return { ...owner, meta };
   }
 );
