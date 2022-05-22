@@ -1,5 +1,15 @@
 import { WebVault, WebSigner, Signup } from "sos-wasm";
 
+export type Nonce = {
+  Nonce12?: number[];
+  Nonce24?: number[];
+};
+
+export type AeadPack = {
+  nonce: Nonce;
+  ciphertext: number[];
+};
+
 export type Account = {
   signer?: WebSigner;
   address?: string;

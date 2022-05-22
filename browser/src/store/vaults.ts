@@ -42,6 +42,7 @@ export type NewVaultRequest = {
 };
 
 export type CreateSecretRequest = {
+  account: Account;
   result: SecretData;
   owner: VaultStorage;
 };
@@ -52,6 +53,7 @@ export type ReadSecretRequest = {
 };
 
 export type UpdateSecretRequest = {
+  account: Account;
   result: SecretData;
   owner: VaultStorage;
   navigate: NavigateFunction;
@@ -124,9 +126,22 @@ export const createNewVault = createAsyncThunk(
 export const createSecret = createAsyncThunk(
   "vaults/createSecret",
   async (request: CreateSecretRequest) => {
-    const { result, owner } = request;
-    const { vault } = owner;
-    await vault.create(result);
+    const { result, owner, account } = request;
+    const { vault, uuid: vaultId } = owner;
+
+    // Create the secret in the memory buffer
+    const payload = await vault.create(result);
+    const [secretId, encrypted] = payload.CreateSecret;
+
+    // Send to the server for persistence
+    const saved = await api.createSecret(account, vaultId, secretId, encrypted);
+
+    if (!saved) {
+      // FIXME: queue failed backend requests
+      throw new Error(`failed to save secret: ${secretId}`);
+    }
+
+    // Update the vault meta data
     const meta = await vault.getVaultMeta();
     return { ...owner, meta };
   }
@@ -187,7 +202,8 @@ const updateVaultFromThunk = (
 };
 
 const logError = (state: VaultState, action: AnyAction) => {
-  console.error("", action.payload);
+  //console.error(action.error);
+  throw action.error;
 };
 
 const vaultsSlice = createSlice({

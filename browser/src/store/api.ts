@@ -1,11 +1,8 @@
-import { Account, Signature, Summary } from "../types";
+import { Account, Signature, Summary, AeadPack } from "../types";
 import { encode } from "../utils";
 import { WebSigner } from "sos-wasm";
 
 const MIME_TYPE_VAULT = "application/sos+vault";
-
-// TODO: define this type properly
-export type AeadPack = null;
 
 function bearer(signature: Signature): string {
   return `Bearer ${btoa(JSON.stringify(signature))}`;

@@ -8,9 +8,9 @@ import {
 import { WebVault, WebSigner, Signup } from "sos-wasm";
 import { VaultWorker } from "../types";
 
-const logError = (state: SignupState, action: AnyAction) => {
-  console.error("", action.payload);
-};
+//const logError = (state: SignupState, action: AnyAction) => {
+//console.error(action.error);
+//};
 
 export const createSignup = createAsyncThunk(
   "signup/new",
@@ -68,7 +68,7 @@ const signupSlice = createSlice({
       state.signer = null;
       state.vault = null;
     });
-    builder.addMatcher(isRejected, logError);
+    //builder.addMatcher(isRejected, logError);
   },
 });
 

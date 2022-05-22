@@ -144,8 +144,8 @@ impl WebVault {
             }
         }
 
-        let uuid = self.keeper.create(data.meta, data.secret)?;
-        Ok(JsValue::from_serde(&uuid)?)
+        let payload = self.keeper.create(data.meta, data.secret)?;
+        Ok(JsValue::from_serde(&payload)?)
     }
 
     /// Get a secret from the vault.
