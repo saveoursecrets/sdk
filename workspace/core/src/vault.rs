@@ -58,7 +58,7 @@ impl Decode for Auth {
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct Summary {
     version: u16,
-    sequence_num: u32,
+    change_seq: u32,
     id: Uuid,
     name: String,
     #[serde(skip)]
@@ -69,7 +69,7 @@ impl Default for Summary {
     fn default() -> Self {
         Self {
             version: VERSION,
-            sequence_num: 0,
+            change_seq: 0,
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -82,7 +82,7 @@ impl Summary {
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
             version: VERSION,
-            sequence_num: 0,
+            change_seq: 0,
             algorithm,
             id,
             name,
@@ -108,7 +108,7 @@ impl Summary {
 impl Encode for Summary {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u16(self.version)?;
-        ser.writer.write_u32(self.sequence_num)?;
+        ser.writer.write_u32(self.change_seq)?;
         self.algorithm.encode(&mut *ser)?;
         ser.writer.write_bytes(self.id.as_bytes())?;
         ser.writer.write_string(&self.name)?;
@@ -119,7 +119,7 @@ impl Encode for Summary {
 impl Decode for Summary {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.version = de.reader.read_u16()?;
-        self.sequence_num = de.reader.read_u32()?;
+        self.change_seq = de.reader.read_u32()?;
         self.algorithm.decode(&mut *de)?;
 
         if !ALGORITHMS.contains(self.algorithm.as_ref()) {
@@ -536,6 +536,7 @@ impl VaultAccess for Vault {
     ) -> Result<Payload> {
         let id = uuid;
         let value = self.contents.data.entry(uuid).or_insert(secret);
+        self.header.summary.change_seq = self.header.summary.change_seq + 1;
         Ok(Payload::CreateSecret(id, Cow::Borrowed(value)))
     }
 
@@ -556,6 +557,7 @@ impl VaultAccess for Vault {
         let id = *uuid;
         if let Some(value) = self.contents.data.get_mut(uuid) {
             *value = secret;
+            self.header.summary.change_seq = self.header.summary.change_seq + 1;
             Ok(Some(Payload::UpdateSecret(id, Cow::Borrowed(value))))
         } else {
             Ok(None)
@@ -565,6 +567,7 @@ impl VaultAccess for Vault {
     fn delete(&mut self, uuid: &Uuid) -> Result<Payload> {
         let id = *uuid;
         self.contents.data.remove(uuid);
+        self.header.summary.change_seq = self.header.summary.change_seq + 1;
         Ok(Payload::DeleteSecret(id))
     }
 }
