@@ -49,11 +49,6 @@ impl VaultFileAccess {
         Ok(Self { file_path, stream })
     }
 
-    /// Get a reference to the underlying path.
-    pub fn path(&self) -> &PathBuf {
-        &self.file_path
-    }
-
     /// Check the identity bytes and return the byte offset of the
     /// beginning of the vault content area.
     fn check_identity(&self) -> Result<usize> {
@@ -221,9 +216,8 @@ impl VaultAccess for VaultFileAccess {
         self.set_rows(content_offset, total_rows + 1)?;
 
         // Update the change sequence number
-        self.inc_change_seq(change_seq)?;
-
-        Ok(Payload::CreateSecret(uuid, Cow::Owned(secret)))
+        let change_seq = self.inc_change_seq(change_seq)?;
+        Ok(Payload::CreateSecret(change_seq, uuid, Cow::Owned(secret)))
     }
 
     fn read<'a>(
@@ -272,15 +266,15 @@ impl VaultAccess for VaultFileAccess {
             self.splice(head, tail, Some(&encoded))?;
 
             // Update the change sequence number
-            self.inc_change_seq(change_seq)?;
+            let change_seq = self.inc_change_seq(change_seq)?;
 
-            Ok(Some(Payload::UpdateSecret(*uuid, Cow::Owned(secret))))
+            Ok(Some(Payload::UpdateSecret(change_seq, *uuid, Cow::Owned(secret))))
         } else {
             Ok(None)
         }
     }
 
-    fn delete(&mut self, uuid: &Uuid) -> Result<Payload> {
+    fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
         let id = *uuid;
         let (content_offset, total_rows, row) = self.find_row(uuid)?;
         if let Some((row_offset, row_len)) = row {
@@ -301,9 +295,11 @@ impl VaultAccess for VaultFileAccess {
             self.set_rows(content_offset, total_rows - 1)?;
 
             // Update the change sequence number
-            self.inc_change_seq(change_seq)?;
+            let change_seq = self.inc_change_seq(change_seq)?;
+            Ok(Some(Payload::DeleteSecret(change_seq, id)))
+        } else {
+            Ok(None)
         }
-        Ok(Payload::DeleteSecret(id))
     }
 }
 

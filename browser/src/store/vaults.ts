@@ -134,7 +134,7 @@ export const createSecret = createAsyncThunk(
 
     // Create the secret in the memory buffer
     const payload: Payload = await vault.create(result);
-    const [secretId, encrypted] = payload.CreateSecret;
+    const [changeSequence, secretId, encrypted] = payload.CreateSecret;
 
     // Send to the server for persistence
     const saved = await api.createSecret(account, vaultId, secretId, encrypted);
@@ -177,23 +177,26 @@ export const updateSecret = createAsyncThunk(
     const { result, account, navigate, owner } = request;
     const { uuid: vaultId, vault } = owner;
     const payload: Payload = await vault.update(result);
-    const [secretId, encrypted] = payload.UpdateSecret;
+    if (payload) {
+      const [changeSequence, secretId, encrypted] = payload.UpdateSecret;
 
-    // Send to the server for persistence
-    const saved = await api.updateSecret(account, vaultId, secretId, encrypted);
-    if (!saved) {
-      // FIXME: queue failed backend requests
-      throw new Error(`failed to update secret: ${secretId}`);
+      // Send to the server for persistence
+      const saved = await api.updateSecret(account, vaultId, secretId, encrypted);
+      if (!saved) {
+        // FIXME: queue failed backend requests
+        throw new Error(`failed to update secret: ${secretId}`);
+      }
+
+      console.log("Secret was updated", saved);
+
+      // Update the vault meta data and navigate to refresh
+      // the view
+      const meta = await vault.getVaultMeta();
+      const random = Math.random();
+      navigate(`/vault/${vaultId}/${result.secretId}?refresh=${random}`);
+      return { ...owner, meta };
     }
-
-    console.log("Secret was updated", saved);
-
-    // Update the vault meta data and navigate to refresh
-    // the view
-    const meta = await vault.getVaultMeta();
-    const random = Math.random();
-    navigate(`/vault/${vaultId}/${result.secretId}?refresh=${random}`);
-    return { ...owner, meta };
+    return owner;
   }
 );
 
@@ -203,21 +206,24 @@ export const deleteSecret = createAsyncThunk(
     const { result, account, navigate, owner } = request;
     const { uuid: vaultId, vault } = owner;
     const payload: Payload = await vault.delete(result);
-    const secretId = payload.DeleteSecret;
+    if (payload) {
+      const [changeSequence, secretId] = payload.DeleteSecret;
 
-    // Send to the server for persistence
-    const saved = await api.deleteSecret(account, vaultId, secretId);
-    if (!saved) {
-      // FIXME: queue failed backend requests
-      throw new Error(`failed to delete secret: ${secretId}`);
+      // Send to the server for persistence
+      const saved = await api.deleteSecret(account, vaultId, secretId);
+      if (!saved) {
+        // FIXME: queue failed backend requests
+        throw new Error(`failed to delete secret: ${secretId}`);
+      }
+
+      console.log("Secret was deleted", saved);
+
+      // Update the vault meta data
+      const meta = await vault.getVaultMeta();
+      navigate(`/vault/${vaultId}`);
+      return { ...owner, meta };
     }
-
-    console.log("Secret was deleted", saved);
-
-    // Update the vault meta data
-    const meta = await vault.getVaultMeta();
-    navigate(`/vault/${vaultId}`);
-    return { ...owner, meta };
+    return owner;
   }
 );
 

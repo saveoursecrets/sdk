@@ -542,7 +542,7 @@ impl VaultAccess for Vault {
         let id = uuid;
         let value = self.contents.data.entry(uuid).or_insert(secret);
 
-        let next_change_seq = if let Some(next_change_seq) =
+        let change_seq = if let Some(next_change_seq) =
             self.header.summary.change_seq.checked_add(1)
         {
             self.header.summary.change_seq = next_change_seq;
@@ -551,7 +551,7 @@ impl VaultAccess for Vault {
             return Err(Error::TooManyChanges);
         };
 
-        Ok(Payload::CreateSecret(id, Cow::Borrowed(value)))
+        Ok(Payload::CreateSecret(change_seq, id, Cow::Borrowed(value)))
     }
 
     fn read<'a>(
@@ -572,7 +572,7 @@ impl VaultAccess for Vault {
         if let Some(value) = self.contents.data.get_mut(uuid) {
             *value = secret;
 
-            let next_change_seq = if let Some(next_change_seq) =
+            let change_seq = if let Some(next_change_seq) =
                 self.header.summary.change_seq.checked_add(1)
             {
                 self.header.summary.change_seq = next_change_seq;
@@ -581,26 +581,29 @@ impl VaultAccess for Vault {
                 return Err(Error::TooManyChanges);
             };
 
-            Ok(Some(Payload::UpdateSecret(id, Cow::Borrowed(value))))
+            Ok(Some(Payload::UpdateSecret(change_seq, id, Cow::Borrowed(value))))
         } else {
             Ok(None)
         }
     }
 
-    fn delete(&mut self, uuid: &Uuid) -> Result<Payload> {
+    fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
         let id = *uuid;
-        self.contents.data.remove(uuid);
-
-        let next_change_seq = if let Some(next_change_seq) =
-            self.header.summary.change_seq.checked_add(1)
-        {
-            self.header.summary.change_seq = next_change_seq;
-            next_change_seq
+        let entry = self.contents.data.remove(uuid);
+        if (entry.is_some()) {
+            let change_seq = if let Some(next_change_seq) =
+                self.header.summary.change_seq.checked_add(1)
+            {
+                self.header.summary.change_seq = next_change_seq;
+                next_change_seq
+            } else {
+                return Err(Error::TooManyChanges);
+            };
+            Ok(Some(Payload::DeleteSecret(change_seq, id)))
         } else {
-            return Err(Error::TooManyChanges);
-        };
+            Ok(None)
+        }
 
-        Ok(Payload::DeleteSecret(id))
     }
 }
 

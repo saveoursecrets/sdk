@@ -11,10 +11,10 @@ export type AeadPack = {
 };
 
 export type Payload = {
-  CreateSecret: [string, [AeadPack, AeadPack]];
+  CreateSecret: [number, string, [AeadPack, AeadPack]];
   ReadSecret: string;
-  UpdateSecret: [string, [AeadPack, AeadPack]];
-  DeleteSecret: string;
+  UpdateSecret: [number, string, [AeadPack, AeadPack]];
+  DeleteSecret: [number, string];
 };
 
 export type Account = {

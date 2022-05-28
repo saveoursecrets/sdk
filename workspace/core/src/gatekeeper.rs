@@ -273,7 +273,7 @@ impl Gatekeeper {
     }
 
     /// Delete a secret and it's meta data from the vault.
-    pub fn delete(&mut self, uuid: &Uuid) -> Result<Payload> {
+    pub fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
         Ok(self.vault.delete(uuid)?)
     }
 
@@ -334,7 +334,7 @@ mod tests {
         let secret = Secret::Text(secret_value.clone());
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        if let Payload::CreateSecret(secret_uuid, _) =
+        if let Payload::CreateSecret(_, secret_uuid, _) =
             keeper.create(secret_meta.clone(), secret.clone())?
         {
             let (saved_secret_meta, saved_secret) =

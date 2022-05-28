@@ -602,8 +602,12 @@ impl SecretHandler {
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
-                if let Ok(payload) = handle.delete(&secret_id) {
-                    Ok(payload.into_audit_log(token.address, vault_id))
+                if let Ok(result) = handle.delete(&secret_id) {
+                    if let Some(payload) = result {
+                        Ok(payload.into_audit_log(token.address, vault_id))
+                    } else {
+                        Err(StatusCode::NOT_FOUND)
+                    }
                 } else {
                     Err(StatusCode::INTERNAL_SERVER_ERROR)
                 }
