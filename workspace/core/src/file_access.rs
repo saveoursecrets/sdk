@@ -66,17 +66,15 @@ impl VaultFileAccess {
 
     /// Seek to the content offset and read the sequence number and
     /// total number of rows.
-    fn sequence_num_total_rows(
+    fn rows(
         &self,
         content_offset: usize,
-    ) -> Result<(u32, u32)> {
+    ) -> Result<u32> {
         let mut stream = self.stream.lock().unwrap();
         let reader = BinaryReader::new(&mut *stream, Endian::Big);
         let mut de = Deserializer { reader };
         de.reader.seek(content_offset)?;
-        let sequence_num = de.reader.read_u32()?;
-        let total_rows = de.reader.read_u32()?;
-        Ok((sequence_num, total_rows))
+        Ok(de.reader.read_u32()?)
     }
 
     /// Seek to the content offset and write the total number of rows.
@@ -84,8 +82,7 @@ impl VaultFileAccess {
         let mut stream = self.stream.lock().unwrap();
         let writer = BinaryWriter::new(&mut *stream, Endian::Big);
         let mut ser = Serializer { writer };
-        // Account for the sequence_num u32
-        ser.writer.seek(content_offset + 4)?;
+        ser.writer.seek(content_offset)?;
         ser.writer.write_u32(rows)?;
         Ok(())
     }
@@ -143,8 +140,6 @@ impl VaultFileAccess {
 
         de.reader.seek(content_offset)?;
 
-        let _sequence_num = de.reader.read_u32()?;
-
         let total_rows = de.reader.read_u32()?;
         // Scan all the rows
         let mut current_pos = de.reader.tell()?;
@@ -179,7 +174,7 @@ impl VaultAccess for VaultFileAccess {
         secret: (AeadPack, AeadPack),
     ) -> Result<Payload> {
         let content_offset = self.check_identity()?;
-        let (_, total_rows) = self.sequence_num_total_rows(content_offset)?;
+        let total_rows = self.rows(content_offset)?;
 
         let mut stream = self.stream.lock().unwrap();
         let length = stream.len()?;
@@ -314,8 +309,8 @@ mod tests {
         let mut vault_access = VaultFileAccess::new(
             "./fixtures/6691de55-f499-4ed9-b72d-5631dbf1815c.vault",
         )?;
-        let (_, total_rows) = vault_access
-            .sequence_num_total_rows(vault_access.check_identity()?)?;
+        let total_rows = vault_access
+            .rows(vault_access.check_identity()?)?;
         assert_eq!(0, total_rows);
 
         // Missing row should not exist
@@ -335,8 +330,8 @@ mod tests {
                 secret_note,
             )?;
 
-        let (_, total_rows) = vault_access
-            .sequence_num_total_rows(vault_access.check_identity()?)?;
+        let total_rows = vault_access
+            .rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 
         // Verify the secret exists
@@ -346,7 +341,7 @@ mod tests {
         // Delete the secret
         let _ = vault_access.delete(&secret_id)?;
         let (_, total_rows) = vault_access
-            .sequence_num_total_rows(vault_access.check_identity()?)?;
+            .rows(vault_access.check_identity()?)?;
         assert_eq!(0, total_rows);
 
         // Verify it does not exist after deletion
@@ -362,8 +357,8 @@ mod tests {
                 secret_label,
                 secret_note,
             )?;
-        let (_, total_rows) = vault_access
-            .sequence_num_total_rows(vault_access.check_identity()?)?;
+        let total_rows = vault_access
+            .rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 
         // Update the secret with new values
@@ -376,14 +371,14 @@ mod tests {
         let updated_secret = vault.encrypt(&encryption_key, &secret_bytes)?;
         let _ =
             vault_access.update(&secret_id, (updated_meta, updated_secret))?;
-        let (_, total_rows) = vault_access
-            .sequence_num_total_rows(vault_access.check_identity()?)?;
+        let total_rows = vault_access
+            .rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 
         // Clean up the secret for next test execution
         let _ = vault_access.delete(&secret_id)?;
-        let (_, total_rows) = vault_access
-            .sequence_num_total_rows(vault_access.check_identity()?)?;
+        let total_rows = vault_access
+            .rows(vault_access.check_identity()?)?;
         assert_eq!(0, total_rows);
 
         Ok(())

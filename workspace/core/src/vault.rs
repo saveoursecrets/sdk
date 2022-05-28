@@ -58,6 +58,7 @@ impl Decode for Auth {
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct Summary {
     version: u16,
+    sequence_num: u32,
     id: Uuid,
     name: String,
     #[serde(skip)]
@@ -68,6 +69,7 @@ impl Default for Summary {
     fn default() -> Self {
         Self {
             version: VERSION,
+            sequence_num: 0,
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -79,10 +81,11 @@ impl Summary {
     /// Create a new summary.
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
+            version: VERSION,
+            sequence_num: 0,
+            algorithm,
             id,
             name,
-            algorithm,
-            version: VERSION,
         }
     }
 
@@ -105,6 +108,7 @@ impl Summary {
 impl Encode for Summary {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u16(self.version)?;
+        ser.writer.write_u32(self.sequence_num)?;
         self.algorithm.encode(&mut *ser)?;
         ser.writer.write_bytes(self.id.as_bytes())?;
         ser.writer.write_string(&self.name)?;
@@ -115,6 +119,7 @@ impl Encode for Summary {
 impl Decode for Summary {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.version = de.reader.read_u16()?;
+        self.sequence_num = de.reader.read_u32()?;
         self.algorithm.decode(&mut *de)?;
 
         if !ALGORITHMS.contains(self.algorithm.as_ref()) {
@@ -258,7 +263,6 @@ impl Decode for Header {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    sequence_num: u32,
     data: HashMap<Uuid, (AeadPack, AeadPack)>,
 }
 
@@ -306,7 +310,6 @@ impl Contents {
 
 impl Encode for Contents {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_u32(self.sequence_num)?;
         ser.writer.write_u32(self.data.len() as u32)?;
         for (key, row) in &self.data {
             Contents::encode_row(ser, key, row)?;
@@ -317,7 +320,6 @@ impl Encode for Contents {
 
 impl Decode for Contents {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.sequence_num = de.reader.read_u32()?;
         let length = de.reader.read_u32()?;
         for _ in 0..length {
             let (uuid, (meta, secret)) = Contents::decode_row(de)?;
