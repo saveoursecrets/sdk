@@ -258,6 +258,7 @@ impl Decode for Header {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
+    sequence_num: u32,
     data: HashMap<Uuid, (AeadPack, AeadPack)>,
 }
 
@@ -305,6 +306,7 @@ impl Contents {
 
 impl Encode for Contents {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_u32(self.sequence_num)?;
         ser.writer.write_u32(self.data.len() as u32)?;
         for (key, row) in &self.data {
             Contents::encode_row(ser, key, row)?;
@@ -315,6 +317,7 @@ impl Encode for Contents {
 
 impl Decode for Contents {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        self.sequence_num = de.reader.read_u32()?;
         let length = de.reader.read_u32()?;
         for _ in 0..length {
             let (uuid, (meta, secret)) = Contents::decode_row(de)?;
