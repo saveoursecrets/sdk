@@ -541,7 +541,16 @@ impl VaultAccess for Vault {
     ) -> Result<Payload> {
         let id = uuid;
         let value = self.contents.data.entry(uuid).or_insert(secret);
-        self.header.summary.change_seq = self.header.summary.change_seq + 1;
+
+        let next_change_seq = if let Some(next_change_seq) =
+            self.header.summary.change_seq.checked_add(1)
+        {
+            self.header.summary.change_seq = next_change_seq;
+            next_change_seq
+        } else {
+            return Err(Error::TooManyChanges);
+        };
+
         Ok(Payload::CreateSecret(id, Cow::Borrowed(value)))
     }
 
@@ -562,7 +571,16 @@ impl VaultAccess for Vault {
         let id = *uuid;
         if let Some(value) = self.contents.data.get_mut(uuid) {
             *value = secret;
-            self.header.summary.change_seq = self.header.summary.change_seq + 1;
+
+            let next_change_seq = if let Some(next_change_seq) =
+                self.header.summary.change_seq.checked_add(1)
+            {
+                self.header.summary.change_seq = next_change_seq;
+                next_change_seq
+            } else {
+                return Err(Error::TooManyChanges);
+            };
+
             Ok(Some(Payload::UpdateSecret(id, Cow::Borrowed(value))))
         } else {
             Ok(None)
@@ -572,7 +590,16 @@ impl VaultAccess for Vault {
     fn delete(&mut self, uuid: &Uuid) -> Result<Payload> {
         let id = *uuid;
         self.contents.data.remove(uuid);
-        self.header.summary.change_seq = self.header.summary.change_seq + 1;
+
+        let next_change_seq = if let Some(next_change_seq) =
+            self.header.summary.change_seq.checked_add(1)
+        {
+            self.header.summary.change_seq = next_change_seq;
+            next_change_seq
+        } else {
+            return Err(Error::TooManyChanges);
+        };
+
         Ok(Payload::DeleteSecret(id))
     }
 }

@@ -23,7 +23,7 @@ use crate::{
     file_identity::FileIdentity,
     operations::{Payload, VaultAccess},
     vault::{Contents, IDENTITY},
-    Result,
+    Error, Result,
 };
 
 // 4 identity bytes, 4 bytes for the header length (u32) and
@@ -64,7 +64,6 @@ impl VaultFileAccess {
         de.reader.seek(0)?;
         FileIdentity::read_identity(&mut de, &IDENTITY)?;
         let header_len = de.reader.read_u32()? as usize;
-
         Ok(IDENTITY.len() + 4 + header_len)
     }
 
@@ -77,7 +76,7 @@ impl VaultFileAccess {
         Ok(de.reader.read_u32()?)
     }
 
-    /// Set the current seqeuence number.
+    /// Set the current sequence number.
     fn set_change_seq(&self, change_seq: u32) -> Result<()> {
         let mut stream = self.stream.lock().unwrap();
         let writer = BinaryWriter::new(&mut *stream, Endian::Big);
@@ -85,6 +84,16 @@ impl VaultFileAccess {
         ser.writer.seek(CHANGE_SEQ_OFFSET)?;
         ser.writer.write_u32(change_seq)?;
         Ok(())
+    }
+
+    /// Increment the current sequence number by one.
+    fn inc_change_seq(&self, change_seq: u32) -> Result<u32> {
+        if let Some(next_change_seq) = change_seq.checked_add(1) {
+            self.set_change_seq(next_change_seq)?;
+            Ok(next_change_seq)
+        } else {
+            Err(Error::TooManyChanges)
+        }
     }
 
     /// Seek to the content offset and read the sequence number and
@@ -212,7 +221,7 @@ impl VaultAccess for VaultFileAccess {
         self.set_rows(content_offset, total_rows + 1)?;
 
         // Update the change sequence number
-        self.set_change_seq(change_seq + 1)?;
+        self.inc_change_seq(change_seq)?;
 
         Ok(Payload::CreateSecret(uuid, Cow::Owned(secret)))
     }
@@ -263,7 +272,7 @@ impl VaultAccess for VaultFileAccess {
             self.splice(head, tail, Some(&encoded))?;
 
             // Update the change sequence number
-            self.set_change_seq(change_seq + 1)?;
+            self.inc_change_seq(change_seq)?;
 
             Ok(Some(Payload::UpdateSecret(*uuid, Cow::Owned(secret))))
         } else {
@@ -292,7 +301,7 @@ impl VaultAccess for VaultFileAccess {
             self.set_rows(content_offset, total_rows - 1)?;
 
             // Update the change sequence number
-            self.set_change_seq(change_seq + 1)?;
+            self.inc_change_seq(change_seq)?;
         }
         Ok(Payload::DeleteSecret(id))
     }
@@ -346,7 +355,7 @@ mod tests {
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(0, total_rows);
 
-        assert_eq!(0, vault_access.change_seq()?);
+        let initial_change_seq = vault_access.change_seq()?;
 
         // Missing row should not exist
         let missing_id = Uuid::new_v4();
@@ -368,7 +377,7 @@ mod tests {
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 
-        assert_eq!(1, vault_access.change_seq()?);
+        assert_eq!(initial_change_seq + 1, vault_access.change_seq()?);
 
         // Verify the secret exists
         let (row, _) = vault_access.read(&secret_id)?;
@@ -379,7 +388,7 @@ mod tests {
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(0, total_rows);
 
-        assert_eq!(2, vault_access.change_seq()?);
+        assert_eq!(initial_change_seq + 2, vault_access.change_seq()?);
 
         // Verify it does not exist after deletion
         let (row, _) = vault_access.read(&secret_id)?;
@@ -397,7 +406,7 @@ mod tests {
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 
-        assert_eq!(3, vault_access.change_seq()?);
+        assert_eq!(initial_change_seq + 3, vault_access.change_seq()?);
 
         // Update the secret with new values
         let updated_label = "Updated test note";
@@ -412,14 +421,14 @@ mod tests {
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 
-        assert_eq!(4, vault_access.change_seq()?);
+        assert_eq!(initial_change_seq + 4, vault_access.change_seq()?);
 
         // Clean up the secret for next test execution
         let _ = vault_access.delete(&secret_id)?;
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(0, total_rows);
 
-        assert_eq!(5, vault_access.change_seq()?);
+        assert_eq!(initial_change_seq + 5, vault_access.change_seq()?);
 
         Ok(())
     }
