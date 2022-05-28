@@ -54,6 +54,11 @@ impl Gatekeeper {
         self.vault = vault;
     }
 
+    /// Get the current change sequence number.
+    pub fn change_seq(&self) -> &u32 {
+        &self.vault.change_seq()
+    }
+
     /// Get the identifier for the vault.
     pub fn id(&self) -> &Uuid {
         self.vault.id()
