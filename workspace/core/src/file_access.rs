@@ -62,15 +62,6 @@ impl VaultFileAccess {
         Ok(IDENTITY.len() + 4 + header_len)
     }
 
-    /// Read the current sequence number from the header summary.
-    fn change_seq(&self) -> Result<u32> {
-        let mut stream = self.stream.lock().unwrap();
-        let reader = BinaryReader::new(&mut *stream, Endian::Big);
-        let mut de = Deserializer { reader };
-        de.reader.seek(CHANGE_SEQ_OFFSET)?;
-        Ok(de.reader.read_u32()?)
-    }
-
     /// Set the current sequence number.
     fn set_change_seq(&self, change_seq: u32) -> Result<()> {
         let mut stream = self.stream.lock().unwrap();
@@ -192,6 +183,14 @@ impl VaultFileAccess {
 }
 
 impl VaultAccess for VaultFileAccess {
+    fn change_seq(&self) -> Result<u32> {
+        let mut stream = self.stream.lock().unwrap();
+        let reader = BinaryReader::new(&mut *stream, Endian::Big);
+        let mut de = Deserializer { reader };
+        de.reader.seek(CHANGE_SEQ_OFFSET)?;
+        Ok(de.reader.read_u32()?)
+    }
+
     fn create(
         &mut self,
         uuid: Uuid,

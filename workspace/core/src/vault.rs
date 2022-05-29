@@ -384,11 +384,6 @@ impl Vault {
         }
     }
 
-    /// Get the current change sequence number.
-    pub fn change_seq(&self) -> &u32 {
-        &self.header.summary.change_seq
-    }
-
     /// Encrypt a plaintext value using the algorithm assigned to this vault.
     pub fn encrypt(
         &self,
@@ -534,6 +529,10 @@ impl Vault {
 }
 
 impl VaultAccess for Vault {
+    fn change_seq(&self) -> Result<u32> {
+        Ok(self.header.summary.change_seq)
+    }
+
     fn create(
         &mut self,
         uuid: Uuid,

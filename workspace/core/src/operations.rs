@@ -27,6 +27,9 @@ use crate::{
 /// The storage may be in-memory, backed by a file on disc or another
 /// destination for the encrypted bytes.
 pub trait VaultAccess {
+    /// Get the current change sequence number.
+    fn change_seq(&self) -> Result<u32>;
+
     /// Add an encrypted secret to the vault.
     fn create(
         &mut self,

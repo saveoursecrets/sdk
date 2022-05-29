@@ -795,7 +795,7 @@ async fn sse_handler(
                 let _guard = Guard { state: stream_state, address };
                 while let Some(event) = rx.recv().await {
                     let event: Event = event.try_into().unwrap();
-                    tracing::trace!("event: {:#?}", event);
+                    tracing::trace!("{:#?}", event);
                     yield Ok(event);
                 }
             };
