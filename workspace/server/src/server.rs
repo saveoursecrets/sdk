@@ -69,67 +69,77 @@ pub struct State {
     pub sse: HashMap<AddressStr, Sender<ServerEvent>>,
 }
 
-/// Type of server sent event notifications.
-#[derive(Debug)]
-pub enum ServerEventKind {
-    CreateVault,
-    UpdateVault,
-    DeleteVault,
-    CreateSecret,
-    UpdateSecret,
-    DeleteSecret,
-}
-
-impl Default for ServerEventKind {
-    fn default() -> Self {
-        ServerEventKind::CreateVault
-    }
-}
-
-impl ServerEventKind {
-    fn event_name(&self) -> &str {
-        match self {
-            Self::CreateVault => "createVault",
-            Self::UpdateVault => "updateVault",
-            Self::DeleteVault => "deleteVault",
-            Self::CreateSecret => "createSecret",
-            Self::UpdateSecret => "updateSecret",
-            Self::DeleteSecret => "deleteSecret",
-        }
-    }
-}
-
 /// Server notifications sent over the server sent events stream.
 #[derive(Debug, Serialize)]
-pub struct ServerEvent {
-    /// The kind of event being emitted, translated to the `event`
-    /// name for the server sent event.
-    #[serde(skip)]
-    kind: ServerEventKind,
-    /// The public address for the client, used internally
-    /// to locate the sender side of the channel in the server state.
-    #[serde(skip)]
-    address: AddressStr,
-    /// The change sequence after the operation was completed.
-    change_seq: u32,
-    /// The vault identifier.
-    vault_id: Uuid,
-    /// The secret identifier.
-    secret_id: Uuid,
+pub enum ServerEvent {
+    CreateVault {
+        #[serde(skip)]
+        address: AddressStr,
+        vault_id: Uuid,
+    },
+    UpdateVault {
+        #[serde(skip)]
+        address: AddressStr,
+        vault_id: Uuid,
+    },
+    DeleteVault {
+        #[serde(skip)]
+        address: AddressStr,
+        vault_id: Uuid,
+    },
+    CreateSecret {
+        #[serde(skip)]
+        address: AddressStr,
+        vault_id: Uuid,
+        secret_id: Uuid,
+        change_seq: u32,
+    },
+    UpdateSecret {
+        #[serde(skip)]
+        address: AddressStr,
+        vault_id: Uuid,
+        secret_id: Uuid,
+        change_seq: u32,
+    },
+    DeleteSecret {
+        #[serde(skip)]
+        address: AddressStr,
+        vault_id: Uuid,
+        secret_id: Uuid,
+        change_seq: u32,
+    },
 }
 
 impl ServerEvent {
-    /// Get the public address for the client that
-    /// triggered the event.
-    pub fn address(&self) -> &AddressStr {
-        &self.address
+    /// Name for the server sent event.
+    fn event_name(&self) -> &str {
+        match self {
+            Self::CreateVault { .. } => "createVault",
+            Self::UpdateVault { .. } => "updateVault",
+            Self::DeleteVault { .. } => "deleteVault",
+            Self::CreateSecret { .. } => "createSecret",
+            Self::UpdateSecret { .. } => "updateSecret",
+            Self::DeleteSecret { .. } => "deleteSecret",
+        }
+    }
+
+    /// Address of the client that triggered the event.
+    fn address(&self) -> &AddressStr {
+        match self {
+            Self::CreateVault { address, .. } => address,
+            Self::UpdateVault { address, .. } => address,
+            Self::DeleteVault { address, .. } => address,
+            Self::CreateSecret { address, .. } => address,
+            Self::UpdateSecret { address, .. } => address,
+            Self::DeleteSecret { address, .. } => address,
+        }
     }
 }
 
 impl TryFrom<ServerEvent> for Event {
     type Error = Error;
     fn try_from(event: ServerEvent) -> std::result::Result<Self, Self::Error> {
-        let event_name = event.kind.event_name();
+        let event_name = event.event_name();
         Ok(Event::default().event(&event_name).json_data(event)?)
     }
 }
@@ -568,8 +578,7 @@ impl SecretHandler {
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
                 if let Ok(payload) = handle.create(secret_id, secret) {
-                    let event = ServerEvent {
-                        kind: ServerEventKind::CreateSecret,
+                    let event = ServerEvent::CreateSecret {
                         address: token.address.clone(),
                         change_seq: *payload.change_seq().unwrap(),
                         vault_id: vault_id.clone(),
@@ -671,8 +680,7 @@ impl SecretHandler {
 
                 if let Ok(result) = handle.update(&secret_id, secret) {
                     if let Some(payload) = result {
-                        let event = ServerEvent {
-                            kind: ServerEventKind::UpdateSecret,
+                        let event = ServerEvent::UpdateSecret {
                             address: token.address.clone(),
                             change_seq: *payload.change_seq().unwrap(),
                             vault_id: vault_id.clone(),
@@ -735,8 +743,7 @@ impl SecretHandler {
 
                 if let Ok(result) = handle.delete(&secret_id) {
                     if let Some(payload) = result {
-                        let event = ServerEvent {
-                            kind: ServerEventKind::DeleteSecret,
+                        let event = ServerEvent::DeleteSecret {
                             address: token.address.clone(),
                             change_seq: *payload.change_seq().unwrap(),
                             vault_id: vault_id.clone(),
@@ -803,7 +810,7 @@ async fn sse_handler(
                         async move {
                             let mut writer = state.write().await;
                             writer.sse.remove(&address);
-                        }
+                        },
                     );
                 }
             }
