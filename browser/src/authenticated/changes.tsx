@@ -36,16 +36,28 @@ class Changes extends Component<ChangesProps, ChangesState> {
       });
       */
 
-      eventSource.addEventListener("create", (e) => {
-        console.log("SSE create event", e.data);
+      eventSource.addEventListener("createVault", (e) => {
+        console.log("SSE vault create event", e.data);
       });
 
-      eventSource.addEventListener("update", (e) => {
-        console.log("SSE update event", e.data);
+      eventSource.addEventListener("updateVault", (e) => {
+        console.log("SSE vault update event", e.data);
       });
 
-      eventSource.addEventListener("delete", (e) => {
-        console.log("SSE delete event", e.data);
+      eventSource.addEventListener("deleteVault", (e) => {
+        console.log("SSE vault delete event", e.data);
+      });
+
+      eventSource.addEventListener("createSecret", (e) => {
+        console.log("SSE secret create event", e.data);
+      });
+
+      eventSource.addEventListener("updateSecret", (e) => {
+        console.log("SSE secret update event", e.data);
+      });
+
+      eventSource.addEventListener("deleteSecret", (e) => {
+        console.log("SSE secret delete event", e.data);
       });
 
       this.setState( { eventSource } );

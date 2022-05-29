@@ -72,23 +72,29 @@ pub struct State {
 /// Type of server sent event notifications.
 #[derive(Debug)]
 pub enum ServerEventKind {
-    Create,
-    Update,
-    Delete,
+    CreateVault,
+    UpdateVault,
+    DeleteVault,
+    CreateSecret,
+    UpdateSecret,
+    DeleteSecret,
 }
 
 impl Default for ServerEventKind {
     fn default() -> Self {
-        ServerEventKind::Create
+        ServerEventKind::CreateVault
     }
 }
 
 impl ServerEventKind {
     fn event_name(&self) -> &str {
         match self {
-            Self::Create => "create",
-            Self::Update => "update",
-            Self::Delete => "delete",
+            Self::CreateVault => "createVault",
+            Self::UpdateVault => "updateVault",
+            Self::DeleteVault => "deleteVault",
+            Self::CreateSecret => "createSecret",
+            Self::UpdateSecret => "updateSecret",
+            Self::DeleteSecret => "deleteSecret",
         }
     }
 }
@@ -563,7 +569,7 @@ impl SecretHandler {
 
                 if let Ok(payload) = handle.create(secret_id, secret) {
                     let event = ServerEvent {
-                        kind: ServerEventKind::Create,
+                        kind: ServerEventKind::CreateSecret,
                         address: token.address.clone(),
                         change_seq: *payload.change_seq().unwrap(),
                         vault_id: vault_id.clone(),
@@ -606,26 +612,38 @@ impl SecretHandler {
         TypedHeader(message): TypedHeader<SignedMessage>,
         Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
     ) -> Result<(), StatusCode> {
-        // Write the audit log
-        if let Ok((status_code, token)) =
+        let response = if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &message)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let payload = Payload::ReadSecret(secret_id);
-                let log = payload.into_audit_log(token.address, vault_id);
                 let mut writer = state.write().await;
-                writer
-                    .audit_log
-                    .append(log)
+                let mut handle = writer
+                    .backend
+                    .vault_write(&token.address, &vault_id)
                     .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                Ok(())
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                if let Ok((_, payload)) = handle.read(&secret_id) {
+                    Ok(payload.into_audit_log(token.address, vault_id))
+                } else {
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
             } else {
                 Err(status_code)
             }
         } else {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
+        };
+
+        let log = response?;
+        let mut writer = state.write().await;
+        writer
+            .audit_log
+            .append(log)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        Ok(())
     }
 
     /// Update an encrypted secret in a vault.
@@ -654,7 +672,7 @@ impl SecretHandler {
                 if let Ok(result) = handle.update(&secret_id, secret) {
                     if let Some(payload) = result {
                         let event = ServerEvent {
-                            kind: ServerEventKind::Update,
+                            kind: ServerEventKind::UpdateSecret,
                             address: token.address.clone(),
                             change_seq: *payload.change_seq().unwrap(),
                             vault_id: vault_id.clone(),
@@ -718,7 +736,7 @@ impl SecretHandler {
                 if let Ok(result) = handle.delete(&secret_id) {
                     if let Some(payload) = result {
                         let event = ServerEvent {
-                            kind: ServerEventKind::Delete,
+                            kind: ServerEventKind::DeleteSecret,
                             address: token.address.clone(),
                             change_seq: *payload.change_seq().unwrap(),
                             vault_id: vault_id.clone(),
