@@ -2778,6 +2778,7 @@ dependencies = [
  "clap",
  "file-guard",
  "futures",
+ "hex",
  "hyper",
  "mime_guess",
  "once_cell",

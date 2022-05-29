@@ -1,6 +1,6 @@
 use axum::{
     body::{Body, Bytes},
-    extract::{Extension, Path, TypedHeader},
+    extract::{Extension, Path, Query, TypedHeader},
     headers::{authorization::Bearer, Authorization},
     http::{
         header::{AUTHORIZATION, CONTENT_TYPE},
@@ -45,7 +45,7 @@ use uuid::Uuid;
 use crate::{
     assets::Assets,
     audit_log::LogFile,
-    authenticate::{self, Authentication},
+    authenticate::{self, Authentication, SignedQuery},
     headers::{SignedMessage, X_SIGNED_MESSAGE},
     Backend, Error, ServerConfig,
 };
@@ -751,12 +751,9 @@ impl SecretHandler {
 
 async fn sse_handler(
     Extension(state): Extension<Arc<RwLock<State>>>,
-    TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
-    TypedHeader(message): TypedHeader<SignedMessage>,
+    Query(params): Query<SignedQuery>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
-    if let Ok((status_code, token)) =
-        authenticate::bearer(authorization, &message)
-    {
+    if let Ok((status_code, token)) = params.bearer() {
         if let (StatusCode::OK, Some(token)) = (status_code, token) {
             let address = token.address.clone();
             let stream_state = Arc::clone(&state);
