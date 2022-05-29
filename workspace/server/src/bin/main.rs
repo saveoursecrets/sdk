@@ -57,6 +57,7 @@ async fn run() -> Result<()> {
         backend,
         authentication,
         audit_log,
+        sse: Default::default(),
     }));
 
     let addr = SocketAddr::from_str(&args.bind)?;

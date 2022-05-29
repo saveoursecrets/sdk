@@ -59,4 +59,7 @@ pub enum Error {
 
     #[error(transparent)]
     Ecdsa(#[from] sos_core::k256::ecdsa::Error),
+
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }

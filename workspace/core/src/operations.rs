@@ -254,6 +254,16 @@ impl<'a> Payload<'a> {
         Ok(SignedPayload(signature_bytes, encoded))
     }
 
+    /// Get the change sequence for this payload.
+    pub fn change_seq(&self) -> Option<&u32> {
+        match self {
+            Self::CreateSecret(change_seq, _, _) => Some(change_seq),
+            Self::UpdateSecret(change_seq, _, _) => Some(change_seq),
+            Self::DeleteSecret(change_seq, _) => Some(change_seq),
+            _ => None
+        }
+    }
+
     /// Get the operation corresponding to this payload.
     pub fn operation(&self) -> Operation {
         match self {

@@ -6,21 +6,20 @@ use axum::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method, Request, Response, StatusCode,
     },
-    response::{IntoResponse, Redirect},
+    response::{
+        sse::{Event, Sse},
+        IntoResponse, Redirect,
+    },
     routing::{delete, get, post, put},
     Json, Router,
 };
+
+use futures::stream::{self, Stream};
 use tower_http::cors::{CorsLayer, Origin};
 
 //use axum_macros::debug_handler;
 
-use crate::{
-    assets::Assets,
-    audit_log::LogFile,
-    authenticate::{self, Authentication},
-    headers::{SignedMessage, X_SIGNED_MESSAGE},
-    Backend, ServerConfig,
-};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sos_core::{
     address::AddressStr,
@@ -32,10 +31,24 @@ use sos_core::{
     vault::{Summary, Vault},
     web3_signature::Signature,
 };
-use std::{borrow::Cow, collections::HashMap, net::SocketAddr, sync::Arc};
-use tokio::sync::RwLock;
+use std::{
+    borrow::Cow, collections::HashMap, convert::Infallible, net::SocketAddr,
+    sync::Arc, time::Duration,
+};
+use tokio::sync::{
+    mpsc::{self, Sender},
+    RwLock,
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
+
+use crate::{
+    assets::Assets,
+    audit_log::LogFile,
+    authenticate::{self, Authentication},
+    headers::{SignedMessage, X_SIGNED_MESSAGE},
+    Backend, Error, ServerConfig,
+};
 
 /// Server state.
 pub struct State {
@@ -51,6 +64,59 @@ pub struct State {
     pub authentication: Authentication,
     /// Audit log file
     pub audit_log: LogFile,
+    /// Map of server sent event channels by authenticated
+    /// client address.
+    pub sse: HashMap<AddressStr, Sender<ServerEvent>>,
+}
+
+/// Type of server sent event notifications.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged, rename_all = "lowercase")]
+pub enum ServerEventKind {
+    Create,
+    Update,
+    Delete,
+}
+
+impl Default for ServerEventKind {
+    fn default() -> Self {
+        ServerEventKind::Create
+    }
+}
+
+/// Server notifications sent over the server sent events stream.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ServerEvent {
+    /// The kind of event being emitted, translated to the `event`
+    /// name for the server sent event.
+    #[serde(skip)]
+    kind: ServerEventKind,
+    /// The public address for the client, used internally
+    /// to locate the sender side of the channel in the server state.
+    #[serde(skip)]
+    address: AddressStr,
+    /// The change sequence after the operation was completed.
+    change_seq: u32,
+    /// The vault identifier.
+    vault_id: Uuid,
+    /// The secret identifier.
+    secret_id: Uuid,
+}
+
+impl ServerEvent {
+    /// Get the public address for the client that
+    /// triggered the event.
+    pub fn address(&self) -> &AddressStr {
+        &self.address
+    }
+}
+
+impl TryFrom<ServerEvent> for Event {
+    type Error = Error;
+    fn try_from(event: ServerEvent) -> std::result::Result<Self, Self::Error> {
+        let event_name = serde_json::to_string(&event.kind).unwrap();
+        Ok(Event::default().event(&event_name).json_data(event)?)
+    }
 }
 
 // Server implementation.
@@ -116,6 +182,7 @@ impl Server {
                     .post(SecretHandler::update_secret)
                     .delete(SecretHandler::delete_secret),
             )
+            .route("/sse", get(sse_handler))
             .layer(cors)
             .layer(Extension(shared_state));
 
@@ -484,7 +551,15 @@ impl SecretHandler {
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
                 if let Ok(payload) = handle.create(secret_id, secret) {
-                    Ok(payload.into_audit_log(token.address, vault_id))
+                    let event = ServerEvent {
+                        kind: ServerEventKind::Create,
+                        address: token.address.clone(),
+                        change_seq: *payload.change_seq().unwrap(),
+                        vault_id: vault_id.clone(),
+                        secret_id,
+                    };
+
+                    Ok((event, payload.into_audit_log(token.address, vault_id)))
                 } else {
                     Err(StatusCode::INTERNAL_SERVER_ERROR)
                 }
@@ -495,13 +570,21 @@ impl SecretHandler {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         };
 
-        let log = response?;
+        let (event, log) = response?;
         let mut writer = state.write().await;
         writer
             .audit_log
             .append(log)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        // Send notification on the SSE channel
+        if let Some(tx) = writer.sse.get(event.address()) {
+            if let Err(_) = tx.send(event).await {
+                tracing::debug!("server sent events channel dropped");
+            }
+        }
+
         Ok(())
     }
 
@@ -559,7 +642,18 @@ impl SecretHandler {
 
                 if let Ok(result) = handle.update(&secret_id, secret) {
                     if let Some(payload) = result {
-                        Ok(payload.into_audit_log(token.address, vault_id))
+                        let event = ServerEvent {
+                            kind: ServerEventKind::Update,
+                            address: token.address.clone(),
+                            change_seq: *payload.change_seq().unwrap(),
+                            vault_id: vault_id.clone(),
+                            secret_id,
+                        };
+
+                        Ok((
+                            event,
+                            payload.into_audit_log(token.address, vault_id),
+                        ))
                     } else {
                         Err(StatusCode::NOT_FOUND)
                     }
@@ -573,13 +667,21 @@ impl SecretHandler {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         };
 
-        let log = response?;
+        let (event, log) = response?;
         let mut writer = state.write().await;
         writer
             .audit_log
             .append(log)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        // Send notification on the SSE channel
+        if let Some(tx) = writer.sse.get(event.address()) {
+            if let Err(_) = tx.send(event).await {
+                tracing::debug!("server sent events channel dropped");
+            }
+        }
+
         Ok(())
     }
 
@@ -604,7 +706,17 @@ impl SecretHandler {
 
                 if let Ok(result) = handle.delete(&secret_id) {
                     if let Some(payload) = result {
-                        Ok(payload.into_audit_log(token.address, vault_id))
+                        let event = ServerEvent {
+                            kind: ServerEventKind::Delete,
+                            address: token.address.clone(),
+                            change_seq: *payload.change_seq().unwrap(),
+                            vault_id: vault_id.clone(),
+                            secret_id,
+                        };
+                        Ok((
+                            event,
+                            payload.into_audit_log(token.address, vault_id),
+                        ))
                     } else {
                         Err(StatusCode::NOT_FOUND)
                     }
@@ -618,13 +730,70 @@ impl SecretHandler {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         };
 
-        let log = response?;
+        let (event, log) = response?;
         let mut writer = state.write().await;
         writer
             .audit_log
             .append(log)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        // Send notification on the SSE channel
+        if let Some(tx) = writer.sse.get(event.address()) {
+            if let Err(_) = tx.send(event).await {
+                tracing::debug!("server sent events channel dropped");
+            }
+        }
+
         Ok(())
+    }
+}
+
+async fn sse_handler(
+    Extension(state): Extension<Arc<RwLock<State>>>,
+    TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+    TypedHeader(message): TypedHeader<SignedMessage>,
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
+    if let Ok((status_code, token)) =
+        authenticate::bearer(authorization, &message)
+    {
+        if let (StatusCode::OK, Some(token)) = (status_code, token) {
+            let address = token.address.clone();
+            let stream_state = Arc::clone(&state);
+            let (tx, mut rx) = mpsc::channel::<ServerEvent>(256);
+
+            // Publish to the server sent events stream
+            let stream = async_stream::stream! {
+                loop {
+                    while let Some(event) = rx.recv().await {
+                        let event: Event = event.try_into().unwrap();
+                        println!("got server sent event to broadcast: {:#?}", event);
+                        yield Ok(event);
+                    }
+                }
+
+                // Clean up the state removing the channel for the
+                // client when the socket is closed.
+                {
+                    let mut writer = stream_state.write().await;
+                    writer.sse.remove(&address);
+                }
+            };
+
+            // Save the sender side of the channel so other handlers
+            // can publish to the server sent events stream
+            let mut writer = state.write().await;
+            writer.sse.entry(token.address).or_insert(tx);
+
+            Ok(Sse::new(stream).keep_alive(
+                axum::response::sse::KeepAlive::new()
+                    .interval(Duration::from_secs(30))
+                    .text("keep-alive"),
+            ))
+        } else {
+            Err(status_code)
+        }
+    } else {
+        Err(StatusCode::INTERNAL_SERVER_ERROR)
     }
 }
