@@ -224,15 +224,16 @@ impl VaultAccess for VaultFileAccess {
         uuid: &Uuid,
     ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
         let (_, _, row) = self.find_row(uuid)?;
+        let change_seq = self.change_seq()?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().unwrap();
             let reader = BinaryReader::new(&mut *stream, Endian::Big);
             let mut de = Deserializer { reader };
             de.reader.seek(row_offset)?;
             let (_, (meta, secret)) = Contents::decode_row(&mut de)?;
-            Ok((Some(Cow::Owned((meta, secret))), Payload::ReadSecret(*uuid)))
+            Ok((Some(Cow::Owned((meta, secret))), Payload::ReadSecret(change_seq, *uuid)))
         } else {
-            Ok((None, Payload::ReadSecret(*uuid)))
+            Ok((None, Payload::ReadSecret(change_seq, *uuid)))
         }
     }
 

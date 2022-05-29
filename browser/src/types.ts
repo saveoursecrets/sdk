@@ -12,7 +12,7 @@ export type AeadPack = {
 
 export type Payload = {
   CreateSecret: [number, string, [AeadPack, AeadPack]];
-  ReadSecret: string;
+  ReadSecret: [number, string];
   UpdateSecret: [number, string, [AeadPack, AeadPack]];
   DeleteSecret: [number, string];
 };

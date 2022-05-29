@@ -558,8 +558,9 @@ impl VaultAccess for Vault {
         uuid: &Uuid,
     ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
         let id = *uuid;
+        let change_seq = self.change_seq()?;
         let result = self.contents.data.get(uuid).map(Cow::Borrowed);
-        Ok((result, Payload::ReadSecret(id)))
+        Ok((result, Payload::ReadSecret(change_seq, id)))
     }
 
     fn update(

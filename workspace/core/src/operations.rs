@@ -232,7 +232,7 @@ pub enum Payload<'a> {
 
     /// Payload used to determine that a secret has been read,
     /// defined for audit log purposes.
-    ReadSecret(Uuid),
+    ReadSecret(u32, Uuid),
 
     /// Payload used to indicate that a secret should be
     /// updated in a remote destination.
@@ -261,6 +261,7 @@ impl<'a> Payload<'a> {
     pub fn change_seq(&self) -> Option<&u32> {
         match self {
             Self::CreateSecret(change_seq, _, _) => Some(change_seq),
+            Self::ReadSecret(change_seq, _) => Some(change_seq),
             Self::UpdateSecret(change_seq, _, _) => Some(change_seq),
             Self::DeleteSecret(change_seq, _) => Some(change_seq),
             _ => None
@@ -272,7 +273,7 @@ impl<'a> Payload<'a> {
         match self {
             Payload::UpdateVault(_) => Operation::UpdateVault,
             Payload::CreateSecret(_, _, _) => Operation::CreateSecret,
-            Payload::ReadSecret(_) => Operation::ReadSecret,
+            Payload::ReadSecret(_, _) => Operation::ReadSecret,
             Payload::UpdateSecret(_, _, _) => Operation::UpdateSecret,
             Payload::DeleteSecret(_, _) => Operation::DeleteSecret,
         }
@@ -285,7 +286,7 @@ impl<'a> Payload<'a> {
             Payload::CreateSecret(_, secret_id, _) => {
                 LogData::Secret(vault_id, *secret_id)
             }
-            Payload::ReadSecret(secret_id) => {
+            Payload::ReadSecret(_, secret_id) => {
                 LogData::Secret(vault_id, *secret_id)
             }
             Payload::UpdateSecret(_, secret_id, _) => {
@@ -325,7 +326,8 @@ impl<'a> Encode for Payload<'a> {
             Payload::CreateSecret(_change_seq, _uuid, Cow::Owned(_)) => {
                 unreachable!("cannot encode owned payload")
             }
-            Payload::ReadSecret(uuid) => {
+            Payload::ReadSecret(change_seq, uuid) => {
+                ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
             }
             Payload::UpdateSecret(
@@ -380,8 +382,9 @@ impl<'a> Decode for Payload<'a> {
                 );
             }
             Operation::ReadSecret => {
+                let change_seq = de.reader.read_u32()?;
                 let uuid: Uuid = Deserialize::deserialize(&mut *de)?;
-                *self = Payload::ReadSecret(uuid);
+                *self = Payload::ReadSecret(change_seq, uuid);
             }
             Operation::UpdateSecret => {
                 let change_seq = de.reader.read_u32()?;

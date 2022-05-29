@@ -157,6 +157,7 @@ export const readSecret = createAsyncThunk(
     const { account, secretId, owner } = request;
     const { uuid: vaultId, vault } = owner;
     const payload: Payload = await vault.read(secretId);
+    const [changeSequence] = payload.ReadSecret;
 
     // Send to the server for the audit log
     const saved = await api.readSecret(account, vaultId, secretId);
