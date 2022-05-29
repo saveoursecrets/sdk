@@ -1,11 +1,15 @@
 import { Account, Signature, Summary, AeadPack } from "../types";
-import { encode } from "../utils";
+import { encode, toHexString } from "../utils";
 import { WebSigner } from "sos-wasm";
 
 const MIME_TYPE_VAULT = "application/sos+vault";
 
+function base64encode(signature: Signature): string {
+  return btoa(JSON.stringify(signature));
+}
+
 function bearer(signature: Signature): string {
-  return `Bearer ${btoa(JSON.stringify(signature))}`;
+  return `Bearer ${base64encode(signature)}`;
 }
 
 function signedMessageHeader(message: Uint8Array): string {
@@ -198,6 +202,17 @@ export class VaultApi {
       headers,
     });
     return response.ok;
+  }
+
+
+  // Get an event source handler for the changes stream.
+  async getChanges(
+    account: Account,
+  ): Promise<EventSource> {
+    const [signature, message] = await this.selfSigned(account.signer);
+    const token = encodeURIComponent(base64encode(signature));
+    const url = `${this.url}/changes?message=${toHexString(message)}&token=${token}`;
+    return new EventSource(url, { withCredentials: true });
   }
 }
 

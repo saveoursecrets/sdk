@@ -23,6 +23,7 @@ import Vault from "./vault";
 import Secret from "./secret";
 import Dialogs from "./dialogs";
 import AppBarActions from "./app-bar-actions";
+import Changes from './changes';
 import LogoType from "../logotype";
 import NotFound from "../not-found";
 
@@ -151,6 +152,7 @@ export default function AuthenticatedApp(props: AppProps) {
           <Route path="*" element={<NotFound />} />
         </Routes>
 
+        <Changes />
         <Dialogs worker={worker} />
       </Main>
     </Box>

@@ -70,8 +70,7 @@ pub struct State {
 }
 
 /// Type of server sent event notifications.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged, rename_all = "lowercase")]
+#[derive(Debug)]
 pub enum ServerEventKind {
     Create,
     Update,
@@ -84,8 +83,18 @@ impl Default for ServerEventKind {
     }
 }
 
+impl ServerEventKind {
+    fn event_name(&self) -> &str {
+        match self {
+            Self::Create => "create",
+            Self::Update => "update",
+            Self::Delete => "delete",
+        }
+    }
+}
+
 /// Server notifications sent over the server sent events stream.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct ServerEvent {
     /// The kind of event being emitted, translated to the `event`
     /// name for the server sent event.
@@ -114,7 +123,7 @@ impl ServerEvent {
 impl TryFrom<ServerEvent> for Event {
     type Error = Error;
     fn try_from(event: ServerEvent) -> std::result::Result<Self, Self::Error> {
-        let event_name = serde_json::to_string(&event.kind).unwrap();
+        let event_name = event.kind.event_name();
         Ok(Event::default().event(&event_name).json_data(event)?)
     }
 }
@@ -156,6 +165,8 @@ impl Server {
                 Method::POST,
                 Method::DELETE,
             ])
+            // For SSE support must allow credentials
+            .allow_credentials(true)
             .allow_headers(vec![
                 AUTHORIZATION,
                 CONTENT_TYPE,
@@ -182,7 +193,7 @@ impl Server {
                     .post(SecretHandler::update_secret)
                     .delete(SecretHandler::delete_secret),
             )
-            .route("/sse", get(sse_handler))
+            .route("/api/changes", get(sse_handler))
             .layer(cors)
             .layer(Extension(shared_state));
 
@@ -759,23 +770,37 @@ async fn sse_handler(
             let stream_state = Arc::clone(&state);
             let (tx, mut rx) = mpsc::channel::<ServerEvent>(256);
 
+            struct Guard {
+                state: Arc<RwLock<State>>,
+                address: AddressStr,
+            }
+
+            impl Drop for Guard {
+                fn drop(&mut self) {
+                    let state = Arc::clone(&self.state);
+                    let address = self.address.clone();
+                    tokio::spawn(
+                        // Clean up the state removing the channel for the
+                        // client when the socket is closed.
+                        async move {
+                            let mut writer = state.write().await;
+                            writer.sse.remove(&address);
+                        }
+                    );
+                }
+            }
+
             // Publish to the server sent events stream
             let stream = async_stream::stream! {
-                loop {
-                    while let Some(event) = rx.recv().await {
-                        let event: Event = event.try_into().unwrap();
-                        println!("got server sent event to broadcast: {:#?}", event);
-                        yield Ok(event);
-                    }
-                }
-
-                // Clean up the state removing the channel for the
-                // client when the socket is closed.
-                {
-                    let mut writer = stream_state.write().await;
-                    writer.sse.remove(&address);
+                let _guard = Guard { state: stream_state, address };
+                while let Some(event) = rx.recv().await {
+                    let event: Event = event.try_into().unwrap();
+                    tracing::trace!("event: {:#?}", event);
+                    yield Ok(event);
                 }
             };
+
+            //println!("Created SSE event stream for {:#?}", &token.address);
 
             // Save the sender side of the channel so other handlers
             // can publish to the server sent events stream
