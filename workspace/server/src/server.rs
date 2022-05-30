@@ -52,8 +52,20 @@ use crate::{
     Backend, Error, ServerConfig,
 };
 
+/// State for the server sent events connection for a single
+/// authenticated client.
 pub struct SseConnection {
+    /// Broadcast sender for server sent events.
+    ///
+    /// Handlers can send messages via this sender to broadcast
+    /// to all the connected server sent events for the client.
     tx: Sender<ServerEvent>,
+
+    /// Number of connected clients, used to know when
+    /// the connection state can be disposed of.
+    ///
+    /// Browsers limit SSE connections per origin to six
+    /// so this should be more than enough.
     clients: u8,
 }
 
