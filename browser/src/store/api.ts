@@ -121,6 +121,7 @@ export class VaultApi {
   // Send an encrypted secret payload for a create or update operation.
   async sendSecretPayload(
     account: Account,
+    changeSequence: number,
     vaultId: string,
     secretId: string,
     secret: [AeadPack, AeadPack],
@@ -133,6 +134,7 @@ export class VaultApi {
     const url = `${this.url}/vaults/${vaultId}/secrets/${secretId}`;
     const headers = {
       authorization: bearer(signature),
+      "x-change-sequence": changeSequence.toString(),
     };
 
     const response = await fetch(url, {
@@ -147,16 +149,18 @@ export class VaultApi {
   // Create a secret.
   async createSecret(
     account: Account,
+    changeSequence: number,
     vaultId: string,
     secretId: string,
     secret: [AeadPack, AeadPack]
   ): Promise<boolean> {
-    return this.sendSecretPayload(account, vaultId, secretId, secret, "PUT");
+    return this.sendSecretPayload(account, changeSequence, vaultId, secretId, secret, "PUT");
   }
 
   // Read a secret.
   async readSecret(
     account: Account,
+    changeSequence: number,
     vaultId: string,
     secretId: string
   ): Promise<boolean> {
@@ -165,6 +169,7 @@ export class VaultApi {
     const headers = {
       authorization: bearer(signature),
       "x-signed-message": signedMessageHeader(message),
+      "x-change-sequence": changeSequence.toString(),
     };
     const response = await fetch(url, {
       method: "GET",
@@ -177,16 +182,18 @@ export class VaultApi {
   // Update a secret.
   async updateSecret(
     account: Account,
+    changeSequence: number,
     vaultId: string,
     secretId: string,
     secret: [AeadPack, AeadPack]
   ): Promise<boolean> {
-    return this.sendSecretPayload(account, vaultId, secretId, secret, "POST");
+    return this.sendSecretPayload(account, changeSequence, vaultId, secretId, secret, "POST");
   }
 
   // Delete a secret.
   async deleteSecret(
     account: Account,
+    changeSequence: number,
     vaultId: string,
     secretId: string
   ): Promise<boolean> {
@@ -195,6 +202,7 @@ export class VaultApi {
     const headers = {
       authorization: bearer(signature),
       "x-signed-message": signedMessageHeader(message),
+      "x-change-sequence": changeSequence.toString(),
     };
     const response = await fetch(url, {
       method: "DELETE",

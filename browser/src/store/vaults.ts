@@ -80,6 +80,7 @@ export const loadVault = createAsyncThunk(
     const { account, worker, summary } = request;
     const buffer = await api.getVault(account, summary.id);
 
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     const vault: WebVault = await new (worker.WebVault as any)();
     await vault.importBuffer(Array.from(new Uint8Array(buffer)));
 
@@ -137,7 +138,7 @@ export const createSecret = createAsyncThunk(
     const [changeSequence, secretId, encrypted] = payload.CreateSecret;
 
     // Send to the server for persistence
-    const saved = await api.createSecret(account, vaultId, secretId, encrypted);
+    const saved = await api.createSecret(account, changeSequence, vaultId, secretId, encrypted);
     if (!saved) {
       // FIXME: queue failed backend requests
       throw new Error(`failed to create secret: ${secretId}`);
@@ -160,7 +161,7 @@ export const readSecret = createAsyncThunk(
     const [changeSequence] = payload.ReadSecret;
 
     // Send to the server for the audit log
-    const saved = await api.readSecret(account, vaultId, secretId);
+    const saved = await api.readSecret(account, changeSequence, vaultId, secretId);
     if (!saved) {
       // FIXME: queue failed backend requests
       throw new Error(`failed to read secret: ${secretId}`);
@@ -182,7 +183,7 @@ export const updateSecret = createAsyncThunk(
       const [changeSequence, secretId, encrypted] = payload.UpdateSecret;
 
       // Send to the server for persistence
-      const saved = await api.updateSecret(account, vaultId, secretId, encrypted);
+      const saved = await api.updateSecret(account, changeSequence, vaultId, secretId, encrypted);
       if (!saved) {
         // FIXME: queue failed backend requests
         throw new Error(`failed to update secret: ${secretId}`);
@@ -211,7 +212,7 @@ export const deleteSecret = createAsyncThunk(
       const [changeSequence, secretId] = payload.DeleteSecret;
 
       // Send to the server for persistence
-      const saved = await api.deleteSecret(account, vaultId, secretId);
+      const saved = await api.deleteSecret(account, changeSequence, vaultId, secretId);
       if (!saved) {
         // FIXME: queue failed backend requests
         throw new Error(`failed to delete secret: ${secretId}`);

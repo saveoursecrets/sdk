@@ -10,13 +10,13 @@ import { setSnackbar } from "../store/snackbar";
 import api from "../store/api";
 import PublicAddress from "../components/public-address";
 
-import { StepProps } from "./index";
+//import { StepProps } from "./index";
 
-export default function Finish(props: StepProps) {
+export default function Finish(/*props: StepProps*/) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { signer, vault, address } = useSelector(signupSelector);
-  const { worker } = props;
+  //const { worker } = props;
 
   const saveVault = async () => {
     const buffer = await vault.buffer();
