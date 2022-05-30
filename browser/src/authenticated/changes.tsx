@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import { connect } from "react-redux";
-import api from '../store/api';
+import api from "../store/api";
 import { RootState, AppDispatch } from "../store";
 import { AccountState } from "../store/account";
 
@@ -15,14 +15,13 @@ type ChangesState = {
 
 // Cleanup the signup state when the component is unmounted.
 class Changes extends Component<ChangesProps, ChangesState> {
-
   constructor(props: ChangesProps) {
     super(props);
     this.state = { eventSource: null };
   }
 
   componentDidMount() {
-    const getChangesEventSource = async() => {
+    const getChangesEventSource = async () => {
       const { account } = this.props.state;
       const eventSource = await api.getChanges(account);
 
@@ -60,8 +59,8 @@ class Changes extends Component<ChangesProps, ChangesState> {
         console.log("SSE secret delete event", e.data);
       });
 
-      this.setState( { eventSource } );
-    }
+      this.setState({ eventSource });
+    };
     getChangesEventSource();
   }
 

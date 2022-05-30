@@ -154,7 +154,14 @@ export class VaultApi {
     secretId: string,
     secret: [AeadPack, AeadPack]
   ): Promise<boolean> {
-    return this.sendSecretPayload(account, changeSequence, vaultId, secretId, secret, "PUT");
+    return this.sendSecretPayload(
+      account,
+      changeSequence,
+      vaultId,
+      secretId,
+      secret,
+      "PUT"
+    );
   }
 
   // Read a secret.
@@ -187,7 +194,14 @@ export class VaultApi {
     secretId: string,
     secret: [AeadPack, AeadPack]
   ): Promise<boolean> {
-    return this.sendSecretPayload(account, changeSequence, vaultId, secretId, secret, "POST");
+    return this.sendSecretPayload(
+      account,
+      changeSequence,
+      vaultId,
+      secretId,
+      secret,
+      "POST"
+    );
   }
 
   // Delete a secret.
@@ -212,14 +226,13 @@ export class VaultApi {
     return response.ok;
   }
 
-
   // Get an event source handler for the changes stream.
-  async getChanges(
-    account: Account,
-  ): Promise<EventSource> {
+  async getChanges(account: Account): Promise<EventSource> {
     const [signature, message] = await this.selfSigned(account.signer);
     const token = encodeURIComponent(base64encode(signature));
-    const url = `${this.url}/changes?message=${toHexString(message)}&token=${token}`;
+    const url = `${this.url}/changes?message=${toHexString(
+      message
+    )}&token=${token}`;
     return new EventSource(url, { withCredentials: true });
   }
 }

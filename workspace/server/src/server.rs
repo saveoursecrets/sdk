@@ -36,7 +36,7 @@ use std::{
     sync::Arc, time::Duration,
 };
 use tokio::sync::{
-    mpsc::{self, Sender},
+    broadcast::{self, Receiver, Sender},
     RwLock,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -51,6 +51,11 @@ use crate::{
     },
     Backend, Error, ServerConfig,
 };
+
+pub struct SseConnection {
+    tx: Sender<ServerEvent>,
+    clients: u8,
+}
 
 /// Server state.
 pub struct State {
@@ -68,11 +73,11 @@ pub struct State {
     pub audit_log: LogFile,
     /// Map of server sent event channels by authenticated
     /// client address.
-    pub sse: HashMap<AddressStr, Sender<ServerEvent>>,
+    pub sse: HashMap<AddressStr, SseConnection>,
 }
 
 /// Server notifications sent over the server sent events stream.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub enum ServerEvent {
     CreateVault {
         #[serde(skip)]
@@ -617,8 +622,8 @@ impl SecretHandler {
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         // Send notification on the SSE channel
-        if let Some(tx) = writer.sse.get(event.address()) {
-            if let Err(_) = tx.send(event).await {
+        if let Some(conn) = writer.sse.get(event.address()) {
+            if let Err(_) = conn.tx.send(event) {
                 tracing::debug!("server sent events channel dropped");
             }
         }
@@ -743,8 +748,8 @@ impl SecretHandler {
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         // Send notification on the SSE channel
-        if let Some(tx) = writer.sse.get(event.address()) {
-            if let Err(_) = tx.send(event).await {
+        if let Some(conn) = writer.sse.get(event.address()) {
+            if let Err(_) = conn.tx.send(event) {
                 tracing::debug!("server sent events channel dropped");
             }
         }
@@ -814,8 +819,8 @@ impl SecretHandler {
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         // Send notification on the SSE channel
-        if let Some(tx) = writer.sse.get(event.address()) {
-            if let Err(_) = tx.send(event).await {
+        if let Some(conn) = writer.sse.get(event.address()) {
+            if let Err(_) = conn.tx.send(event) {
                 tracing::debug!("server sent events channel dropped");
             }
         }
@@ -832,7 +837,22 @@ async fn sse_handler(
         if let (StatusCode::OK, Some(token)) = (status_code, token) {
             let address = token.address.clone();
             let stream_state = Arc::clone(&state);
-            let (tx, mut rx) = mpsc::channel::<ServerEvent>(256);
+            // Save the sender side of the channel so other handlers
+            // can publish to the server sent events stream
+            let mut writer = state.write().await;
+
+            let conn = if let Some(conn) = writer.sse.get_mut(&token.address) {
+                conn
+            } else {
+                let (tx, _) = broadcast::channel::<ServerEvent>(256);
+                writer
+                    .sse
+                    .entry(token.address)
+                    .or_insert(SseConnection { tx, clients: 0 })
+            };
+
+            conn.clients = conn.clients + 1;
+            let mut rx = conn.tx.subscribe();
 
             struct Guard {
                 state: Arc<RwLock<State>>,
@@ -843,12 +863,26 @@ async fn sse_handler(
                 fn drop(&mut self) {
                     let state = Arc::clone(&self.state);
                     let address = self.address.clone();
+
                     tokio::spawn(
                         // Clean up the state removing the channel for the
                         // client when the socket is closed.
                         async move {
                             let mut writer = state.write().await;
-                            writer.sse.remove(&address);
+                            let clients = if let Some(conn) =
+                                writer.sse.get_mut(&address)
+                            {
+                                conn.clients = conn.clients - 1;
+                                Some(conn.clients)
+                            } else {
+                                None
+                            };
+
+                            if let Some(clients) = clients {
+                                if clients == 0 {
+                                    writer.sse.remove(&address);
+                                }
+                            }
                         },
                     );
                 }
@@ -857,23 +891,13 @@ async fn sse_handler(
             // Publish to the server sent events stream
             let stream = async_stream::stream! {
                 let _guard = Guard { state: stream_state, address };
-                while let Some(event) = rx.recv().await {
+                while let Ok(event) = rx.recv().await {
                     // Must be Infallible here
                     let event: Event = event.try_into().unwrap();
-
-                    println!("{:#?}", event);
-
-                    //tracing::trace!("{:#?}", event);
+                    tracing::trace!("{:#?}", event);
                     yield Ok(event);
                 }
             };
-
-            //println!("Created SSE event stream for {:#?}", &token.address);
-
-            // Save the sender side of the channel so other handlers
-            // can publish to the server sent events stream
-            let mut writer = state.write().await;
-            writer.sse.entry(token.address).or_insert(tx);
 
             Ok(Sse::new(stream).keep_alive(
                 axum::response::sse::KeepAlive::new()
