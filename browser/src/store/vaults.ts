@@ -12,6 +12,7 @@ import api from "./api";
 import {
   NewVaultResult,
   SecretMeta,
+  Secret,
   SecretData,
   Account,
   VaultWorker,
@@ -154,10 +155,11 @@ export const createSecret = createAsyncThunk(
 
 export const readSecret = createAsyncThunk(
   "vaults/readSecret",
-  async (request: ReadSecretRequest) => {
+  async (request: ReadSecretRequest): Promise<[SecretMeta, Secret]> => {
     const { account, secretId, owner } = request;
     const { uuid: vaultId, vault } = owner;
-    const payload: Payload = await vault.read(secretId);
+    const result: [SecretMeta, Secret, Payload] = await vault.read(secretId);
+    const [meta, secret, payload] = result;
     const [changeSequence] = payload.ReadSecret;
 
     // Send to the server for the audit log
@@ -169,7 +171,7 @@ export const readSecret = createAsyncThunk(
 
     console.log("Secret was read", saved);
 
-    return payload;
+    return [ meta, secret ];
   }
 );
 

@@ -649,7 +649,7 @@ impl SecretHandler {
                 let remote_change_seq = handle
                     .change_seq()
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                if local_change_seq != (remote_change_seq + 1) {
+                if local_change_seq != remote_change_seq {
                     return Err(StatusCode::CONFLICT);
                 }
 
@@ -858,8 +858,12 @@ async fn sse_handler(
             let stream = async_stream::stream! {
                 let _guard = Guard { state: stream_state, address };
                 while let Some(event) = rx.recv().await {
+                    // Must be Infallible here
                     let event: Event = event.try_into().unwrap();
-                    tracing::trace!("{:#?}", event);
+
+                    println!("{:#?}", event);
+
+                    //tracing::trace!("{:#?}", event);
                     yield Ok(event);
                 }
             };

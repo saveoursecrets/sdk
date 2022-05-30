@@ -231,7 +231,10 @@ impl VaultAccess for VaultFileAccess {
             let mut de = Deserializer { reader };
             de.reader.seek(row_offset)?;
             let (_, (meta, secret)) = Contents::decode_row(&mut de)?;
-            Ok((Some(Cow::Owned((meta, secret))), Payload::ReadSecret(change_seq, *uuid)))
+            Ok((
+                Some(Cow::Owned((meta, secret))),
+                Payload::ReadSecret(change_seq, *uuid),
+            ))
         } else {
             Ok((None, Payload::ReadSecret(change_seq, *uuid)))
         }
@@ -268,7 +271,11 @@ impl VaultAccess for VaultFileAccess {
             // Update the change sequence number
             let change_seq = self.inc_change_seq(change_seq)?;
 
-            Ok(Some(Payload::UpdateSecret(change_seq, *uuid, Cow::Owned(secret))))
+            Ok(Some(Payload::UpdateSecret(
+                change_seq,
+                *uuid,
+                Cow::Owned(secret),
+            )))
         } else {
             Ok(None)
         }

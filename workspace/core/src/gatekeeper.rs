@@ -229,8 +229,15 @@ impl Gatekeeper {
     }
 
     /// Get a secret and it's meta data from the vault.
-    pub fn read(&self, uuid: &Uuid) -> Result<Option<(SecretMeta, Secret)>> {
-        self.read_secret(uuid)
+    pub fn read(
+        &self,
+        uuid: &Uuid,
+    ) -> Result<Option<(SecretMeta, Secret, Payload)>> {
+        let change_seq = self.change_seq()?;
+        let payload = Payload::ReadSecret(change_seq, *uuid);
+        Ok(self
+            .read_secret(uuid)?
+            .map(|(meta, secret)| (meta, secret, payload)))
     }
 
     /// Update a secret in the vault.

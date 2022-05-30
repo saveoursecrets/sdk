@@ -581,7 +581,11 @@ impl VaultAccess for Vault {
                 return Err(Error::TooManyChanges);
             };
 
-            Ok(Some(Payload::UpdateSecret(change_seq, id, Cow::Borrowed(value))))
+            Ok(Some(Payload::UpdateSecret(
+                change_seq,
+                id,
+                Cow::Borrowed(value),
+            )))
         } else {
             Ok(None)
         }
@@ -603,7 +607,6 @@ impl VaultAccess for Vault {
         } else {
             Ok(None)
         }
-
     }
 }
 

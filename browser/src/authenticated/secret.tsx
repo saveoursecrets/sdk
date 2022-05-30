@@ -280,6 +280,7 @@ function SecretView(props: SecretViewProps) {
       const result = await dispatch(
         readSecret({ account, owner: storage, secretId })
       );
+
       setSecretData(result.payload);
     };
     loadSecret();

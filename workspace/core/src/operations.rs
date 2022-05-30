@@ -219,7 +219,6 @@ impl fmt::Display for Operation {
 pub enum Payload<'a> {
     // TODO: create new vault
     // TODO: delete vault
-
     /// Update the vault meta data.
     UpdateVault(Cow<'a, Option<AeadPack>>),
 
@@ -264,7 +263,7 @@ impl<'a> Payload<'a> {
             Self::ReadSecret(change_seq, _) => Some(change_seq),
             Self::UpdateSecret(change_seq, _, _) => Some(change_seq),
             Self::DeleteSecret(change_seq, _) => Some(change_seq),
-            _ => None
+            _ => None,
         }
     }
 
