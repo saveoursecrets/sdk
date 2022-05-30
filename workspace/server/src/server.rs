@@ -46,7 +46,7 @@ use crate::{
     assets::Assets,
     audit_log::LogFile,
     authenticate::{self, Authentication, SignedQuery},
-    headers::{SignedMessage, X_SIGNED_MESSAGE},
+    headers::{SignedMessage, ChangeSequence, X_SIGNED_MESSAGE, X_CHANGE_SEQUENCE},
     Backend, Error, ServerConfig,
 };
 
@@ -187,6 +187,7 @@ impl Server {
                 AUTHORIZATION,
                 CONTENT_TYPE,
                 X_SIGNED_MESSAGE.clone(),
+                X_CHANGE_SEQUENCE.clone(),
             ])
             .allow_origin(Origin::list(origins));
 
@@ -558,6 +559,7 @@ impl SecretHandler {
     async fn create_secret(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(change_seq): TypedHeader<ChangeSequence>,
         Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
         body: Bytes,
     ) -> Result<(), StatusCode> {
@@ -619,6 +621,7 @@ impl SecretHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
+        TypedHeader(change_seq): TypedHeader<ChangeSequence>,
         Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
     ) -> Result<(), StatusCode> {
         let response = if let Ok((status_code, token)) =
@@ -659,6 +662,7 @@ impl SecretHandler {
     async fn update_secret(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(change_seq): TypedHeader<ChangeSequence>,
         Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
         body: Bytes,
     ) -> Result<(), StatusCode> {
@@ -727,6 +731,7 @@ impl SecretHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
+        TypedHeader(change_seq): TypedHeader<ChangeSequence>,
         Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
     ) -> Result<(), StatusCode> {
         // Perform the deletion and get an audit log
