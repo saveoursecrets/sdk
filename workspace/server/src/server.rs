@@ -46,7 +46,9 @@ use crate::{
     assets::Assets,
     audit_log::LogFile,
     authenticate::{self, Authentication, SignedQuery},
-    headers::{SignedMessage, ChangeSequence, X_SIGNED_MESSAGE, X_CHANGE_SEQUENCE},
+    headers::{
+        ChangeSequence, SignedMessage, X_CHANGE_SEQUENCE, X_SIGNED_MESSAGE,
+    },
     Backend, Error, ServerConfig,
 };
 
@@ -579,6 +581,14 @@ impl SecretHandler {
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
+                let local_change_seq: u32 = change_seq.into();
+                let remote_change_seq = handle
+                    .change_seq()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                if local_change_seq != (remote_change_seq + 1) {
+                    return Err(StatusCode::CONFLICT);
+                }
+
                 if let Ok(payload) = handle.create(secret_id, secret) {
                     let event = ServerEvent::CreateSecret {
                         address: token.address.clone(),
@@ -635,6 +645,14 @@ impl SecretHandler {
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
+                let local_change_seq: u32 = change_seq.into();
+                let remote_change_seq = handle
+                    .change_seq()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                if local_change_seq != (remote_change_seq + 1) {
+                    return Err(StatusCode::CONFLICT);
+                }
+
                 if let Ok((_, payload)) = handle.read(&secret_id) {
                     Ok(payload.into_audit_log(token.address, vault_id))
                 } else {
@@ -681,6 +699,14 @@ impl SecretHandler {
                     .vault_write(&token.address, &vault_id)
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                let local_change_seq: u32 = change_seq.into();
+                let remote_change_seq = handle
+                    .change_seq()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                if local_change_seq != (remote_change_seq + 1) {
+                    return Err(StatusCode::CONFLICT);
+                }
 
                 if let Ok(result) = handle.update(&secret_id, secret) {
                     if let Some(payload) = result {
@@ -745,6 +771,14 @@ impl SecretHandler {
                     .vault_write(&token.address, &vault_id)
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                let local_change_seq: u32 = change_seq.into();
+                let remote_change_seq = handle
+                    .change_seq()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                if local_change_seq != (remote_change_seq + 1) {
+                    return Err(StatusCode::CONFLICT);
+                }
 
                 if let Ok(result) = handle.delete(&secret_id) {
                     if let Some(payload) = result {

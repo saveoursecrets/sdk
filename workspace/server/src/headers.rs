@@ -45,7 +45,7 @@ impl Header for SignedMessage {
 }
 
 /// Represents the `x-change-sequence` header.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ChangeSequence(u32);
 
 impl Header for ChangeSequence {
@@ -74,5 +74,11 @@ impl Header for ChangeSequence {
         let value = HeaderValue::from_str(&s)
             .expect("failed to create change sequence header");
         values.extend(std::iter::once(value));
+    }
+}
+
+impl From<ChangeSequence> for u32 {
+    fn from(value: ChangeSequence) -> Self {
+        value.0
     }
 }
