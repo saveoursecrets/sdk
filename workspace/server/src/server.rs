@@ -52,6 +52,8 @@ use crate::{
     Backend, Error, ServerConfig,
 };
 
+const MAX_SSE_CONNECTIONS_PER_CLIENT: u8 = 6;
+
 /// State for the server sent events connection for a single
 /// authenticated client.
 pub struct SseConnection {
@@ -863,7 +865,15 @@ async fn sse_handler(
                     .or_insert(SseConnection { tx, clients: 0 })
             };
 
-            conn.clients = conn.clients + 1;
+            if let Some(result) = conn.clients.checked_add(1) {
+                if result > MAX_SSE_CONNECTIONS_PER_CLIENT {
+                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                }
+                conn.clients = result;
+            } else {
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+
             let mut rx = conn.tx.subscribe();
 
             struct Guard {
