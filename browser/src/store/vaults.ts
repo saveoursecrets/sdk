@@ -146,7 +146,10 @@ export const createSecret = createAsyncThunk(
       secretId,
       encrypted
     );
-    if (!response.ok) {
+
+    if (response.status === 409) {
+      console.log("handle conflict in create operation");
+    } else if (!response.ok) {
       // FIXME: queue failed backend requests
       throw new Error(`failed to create secret: ${secretId}`);
     }
@@ -175,7 +178,10 @@ export const readSecret = createAsyncThunk(
       vaultId,
       secretId
     );
-    if (!response.ok) {
+
+    if (response.status === 409) {
+      console.log("handle conflict in read operation");
+    } else if (!response.ok) {
       // FIXME: queue failed backend requests
       throw new Error(`failed to read secret: ${secretId}`);
     }
@@ -203,7 +209,10 @@ export const updateSecret = createAsyncThunk(
         secretId,
         encrypted
       );
-      if (!response.ok) {
+
+      if (response.status === 409) {
+        console.log("handle conflict in update operation");
+      } else if (!response.ok) {
         // FIXME: queue failed backend requests
         throw new Error(`failed to update secret: ${secretId}`);
       }
@@ -237,7 +246,10 @@ export const deleteSecret = createAsyncThunk(
         vaultId,
         secretId
       );
-      if (!response.ok) {
+
+      if (response.status === 409) {
+        console.log("handle conflict in update operation");
+      } else if (!response.ok) {
         // FIXME: queue failed backend requests
         throw new Error(`failed to delete secret: ${secretId}`);
       }
