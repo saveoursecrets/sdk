@@ -150,18 +150,19 @@ export const createSecret = createAsyncThunk(
     );
 
     if (response.status === 409) {
-      console.log("handling conflict", response.headers);
-      const remoteChangeSequence = response.headers.get("x-change-sequence");
+      const remoteChangeSequence = parseInt(
+        response.headers.get("x-change-sequence")
+      );
+      console.log("handling conflict", remoteChangeSequence);
       const conflict = {
         operation: ConflictOperation.CREATE_SECRET,
         changePair: {
           local: changeSequence,
-          remote: remoteChangeSequence
+          remote: remoteChangeSequence,
         },
         vaultId,
         secretId,
       };
-
       console.log("handle conflict in create operation", conflict);
     } else if (!response.ok) {
       // FIXME: queue failed backend requests
@@ -194,7 +195,21 @@ export const readSecret = createAsyncThunk(
     );
 
     if (response.status === 409) {
-      console.log("handle conflict in read operation");
+      const remoteChangeSequence = parseInt(
+        response.headers.get("x-change-sequence")
+      );
+      console.log("handling conflict", remoteChangeSequence);
+      const conflict = {
+        operation: ConflictOperation.READ_SECRET,
+        changePair: {
+          local: changeSequence,
+          remote: remoteChangeSequence,
+        },
+        vaultId,
+        secretId,
+      };
+      console.log("handle conflict in read operation", conflict);
+
     } else if (!response.ok) {
       // FIXME: queue failed backend requests
       throw new Error(`failed to read secret: ${secretId}`);
@@ -225,7 +240,21 @@ export const updateSecret = createAsyncThunk(
       );
 
       if (response.status === 409) {
-        console.log("handle conflict in update operation");
+        const remoteChangeSequence = parseInt(
+          response.headers.get("x-change-sequence")
+        );
+        console.log("handling conflict", remoteChangeSequence);
+        const conflict = {
+          operation: ConflictOperation.UPDATE_SECRET,
+          changePair: {
+            local: changeSequence,
+            remote: remoteChangeSequence,
+          },
+          vaultId,
+          secretId,
+        };
+        console.log("handle conflict in update operation", conflict);
+
       } else if (!response.ok) {
         // FIXME: queue failed backend requests
         throw new Error(`failed to update secret: ${secretId}`);
@@ -262,7 +291,21 @@ export const deleteSecret = createAsyncThunk(
       );
 
       if (response.status === 409) {
-        console.log("handle conflict in update operation");
+        const remoteChangeSequence = parseInt(
+          response.headers.get("x-change-sequence")
+        );
+        console.log("handling conflict", remoteChangeSequence);
+        const conflict = {
+          operation: ConflictOperation.DELETE_SECRET,
+          changePair: {
+            local: changeSequence,
+            remote: remoteChangeSequence,
+          },
+          vaultId,
+          secretId,
+        };
+        console.log("handle conflict in delete operation", conflict);
+
       } else if (!response.ok) {
         // FIXME: queue failed backend requests
         throw new Error(`failed to delete secret: ${secretId}`);

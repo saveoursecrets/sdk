@@ -6,7 +6,7 @@ export enum ConflictOperation {
   READ_SECRET,
   UPDATE_SECRET,
   DELETE_SECRET,
-};
+}
 
 export type ChangeSequencePair = {
   local: number;
@@ -16,7 +16,7 @@ export type ChangeSequencePair = {
 // Intermediary state containing conflict information.
 export type Conflict = {
   operation: ConflictOperation;
-  changePair: ChangeSequencePair,
+  changePair: ChangeSequencePair;
   vaultId: string;
   secretId: string;
 };
