@@ -1,5 +1,26 @@
 import { WebVault, WebSigner, Signup } from "sos-wasm";
 
+// Operation that triggered a conflict response.
+export enum ConflictOperation {
+  CREATE_SECRET = 1,
+  READ_SECRET,
+  UPDATE_SECRET,
+  DELETE_SECRET,
+};
+
+export type ChangeSequencePair = {
+  local: number;
+  remote: number;
+};
+
+// Intermediary state containing conflict information.
+export type Conflict = {
+  operation: ConflictOperation;
+  changePair: ChangeSequencePair,
+  vaultId: string;
+  secretId: string;
+};
+
 export type Nonce = {
   Nonce12?: number[];
   Nonce24?: number[];

@@ -594,7 +594,7 @@ impl VaultAccess for Vault {
     fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
         let id = *uuid;
         let entry = self.contents.data.remove(uuid);
-        if (entry.is_some()) {
+        if entry.is_some() {
             let change_seq = if let Some(next_change_seq) =
                 self.header.summary.change_seq.checked_add(1)
             {

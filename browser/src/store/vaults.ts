@@ -10,6 +10,8 @@ import { WebVault } from "sos-wasm";
 
 import api from "./api";
 import {
+  ConflictOperation,
+  Conflict,
   NewVaultResult,
   SecretMeta,
   Secret,
@@ -148,7 +150,19 @@ export const createSecret = createAsyncThunk(
     );
 
     if (response.status === 409) {
-      console.log("handle conflict in create operation");
+      console.log("handling conflict", response.headers);
+      const remoteChangeSequence = response.headers.get("x-change-sequence");
+      const conflict = {
+        operation: ConflictOperation.CREATE_SECRET,
+        changePair: {
+          local: changeSequence,
+          remote: remoteChangeSequence
+        },
+        vaultId,
+        secretId,
+      };
+
+      console.log("handle conflict in create operation", conflict);
     } else if (!response.ok) {
       // FIXME: queue failed backend requests
       throw new Error(`failed to create secret: ${secretId}`);
