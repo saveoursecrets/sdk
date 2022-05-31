@@ -139,19 +139,19 @@ export const createSecret = createAsyncThunk(
     const [changeSequence, secretId, encrypted] = payload.CreateSecret;
 
     // Send to the server for persistence
-    const saved = await api.createSecret(
+    const response = await api.createSecret(
       account,
       changeSequence,
       vaultId,
       secretId,
       encrypted
     );
-    if (!saved) {
+    if (!response.ok) {
       // FIXME: queue failed backend requests
       throw new Error(`failed to create secret: ${secretId}`);
     }
 
-    console.log("Secret was saved", saved);
+    console.log("Secret was saved", response.ok);
 
     // Update the vault meta data
     const meta = await vault.getVaultMeta();
@@ -169,18 +169,18 @@ export const readSecret = createAsyncThunk(
     const [changeSequence] = payload.ReadSecret;
 
     // Send to the server for the audit log
-    const saved = await api.readSecret(
+    const response = await api.readSecret(
       account,
       changeSequence,
       vaultId,
       secretId
     );
-    if (!saved) {
+    if (!response.ok) {
       // FIXME: queue failed backend requests
       throw new Error(`failed to read secret: ${secretId}`);
     }
 
-    console.log("Secret was read", saved);
+    console.log("Secret was read", response.ok);
 
     return [meta, secret];
   }
@@ -196,19 +196,19 @@ export const updateSecret = createAsyncThunk(
       const [changeSequence, secretId, encrypted] = payload.UpdateSecret;
 
       // Send to the server for persistence
-      const saved = await api.updateSecret(
+      const response = await api.updateSecret(
         account,
         changeSequence,
         vaultId,
         secretId,
         encrypted
       );
-      if (!saved) {
+      if (!response.ok) {
         // FIXME: queue failed backend requests
         throw new Error(`failed to update secret: ${secretId}`);
       }
 
-      console.log("Secret was updated", saved);
+      console.log("Secret was updated", response.ok);
 
       // Update the vault meta data and navigate to refresh
       // the view
@@ -231,18 +231,18 @@ export const deleteSecret = createAsyncThunk(
       const [changeSequence, secretId] = payload.DeleteSecret;
 
       // Send to the server for persistence
-      const saved = await api.deleteSecret(
+      const response = await api.deleteSecret(
         account,
         changeSequence,
         vaultId,
         secretId
       );
-      if (!saved) {
+      if (!response.ok) {
         // FIXME: queue failed backend requests
         throw new Error(`failed to delete secret: ${secretId}`);
       }
 
-      console.log("Secret was deleted", saved);
+      console.log("Secret was deleted", response.ok);
 
       // Update the vault meta data
       const meta = await vault.getVaultMeta();

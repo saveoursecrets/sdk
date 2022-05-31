@@ -126,7 +126,7 @@ export class VaultApi {
     secretId: string,
     secret: [AeadPack, AeadPack],
     method: string
-  ): Promise<boolean> {
+  ): Promise<Response> {
     // Convert the tuple to JSON and sign the resulting bytes
     const body: Uint8Array = encode(JSON.stringify(secret));
     const signature = await account.signer.sign(Array.from(body));
@@ -143,7 +143,7 @@ export class VaultApi {
       headers,
       body,
     });
-    return response.ok;
+    return response;
   }
 
   // Create a secret.
@@ -153,7 +153,7 @@ export class VaultApi {
     vaultId: string,
     secretId: string,
     secret: [AeadPack, AeadPack]
-  ): Promise<boolean> {
+  ): Promise<Response> {
     return this.sendSecretPayload(
       account,
       changeSequence,
@@ -170,7 +170,7 @@ export class VaultApi {
     changeSequence: number,
     vaultId: string,
     secretId: string
-  ): Promise<boolean> {
+  ): Promise<Response> {
     const [signature, message] = await this.selfSigned(account.signer);
     const url = `${this.url}/vaults/${vaultId}/secrets/${secretId}`;
     const headers = {
@@ -183,7 +183,7 @@ export class VaultApi {
       mode: "cors",
       headers,
     });
-    return response.ok;
+    return response;
   }
 
   // Update a secret.
@@ -193,7 +193,7 @@ export class VaultApi {
     vaultId: string,
     secretId: string,
     secret: [AeadPack, AeadPack]
-  ): Promise<boolean> {
+  ): Promise<Response> {
     return this.sendSecretPayload(
       account,
       changeSequence,
@@ -210,7 +210,7 @@ export class VaultApi {
     changeSequence: number,
     vaultId: string,
     secretId: string
-  ): Promise<boolean> {
+  ): Promise<Response> {
     const [signature, message] = await this.selfSigned(account.signer);
     const url = `${this.url}/vaults/${vaultId}/secrets/${secretId}`;
     const headers = {
@@ -223,7 +223,7 @@ export class VaultApi {
       mode: "cors",
       headers,
     });
-    return response.ok;
+    return response;
   }
 
   // Get an event source handler for the changes stream.
