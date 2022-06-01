@@ -34,13 +34,8 @@ getrandom = {version = "0.2", features = ["js"]}
 uuid = { version = "1", features = ["serde", "v4", "js"] }
 
 [dependencies.serde-binary]
-version = "0.3"
-path = "../../../serde-binary"
-#features = ["wasm32"]
-
-#[dependencies.binary_rw]
-#version = "2"
-#path = "../../../forks/binary-rs"
+version = "0.3.3"
+#path = "../../../serde-binary"
 #features = ["wasm32"]
 
 [dependencies.chbs]
