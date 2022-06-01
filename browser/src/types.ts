@@ -1,5 +1,43 @@
 import { WebVault, WebSigner, Signup } from "sos-wasm";
 
+// Operation that triggered a conflict response.
+export enum ConflictOperation {
+  CREATE_SECRET = 1,
+  READ_SECRET,
+  UPDATE_SECRET,
+  DELETE_SECRET,
+}
+
+export type ChangeSequencePair = {
+  local: number;
+  remote: number;
+};
+
+// Intermediary state containing conflict information.
+export type Conflict = {
+  operation: ConflictOperation;
+  changePair: ChangeSequencePair;
+  vaultId: string;
+  secretId: string;
+};
+
+export type Nonce = {
+  Nonce12?: number[];
+  Nonce24?: number[];
+};
+
+export type AeadPack = {
+  nonce: Nonce;
+  ciphertext: number[];
+};
+
+export type Payload = {
+  CreateSecret: [number, string, [AeadPack, AeadPack]];
+  ReadSecret: [number, string];
+  UpdateSecret: [number, string, [AeadPack, AeadPack]];
+  DeleteSecret: [number, string];
+};
+
 export type Account = {
   signer?: WebSigner;
   address?: string;

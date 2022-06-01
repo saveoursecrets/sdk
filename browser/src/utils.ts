@@ -99,3 +99,10 @@ export function humanFileSize(bytes: number, si = false, dp = 1) {
 
   return bytes.toFixed(dp) + " " + units[u];
 }
+
+export function toHexString(bytes: Uint8Array) {
+  return bytes.reduce(
+    (str: string, byte: number) => str + byte.toString(16).padStart(2, "0"),
+    ""
+  );
+}

@@ -11,5 +11,6 @@
     "downlevelIteration": true,
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node"
-  }
+  },
+  "exclude": ["dist", "node_modules"]
 }

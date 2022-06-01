@@ -56,7 +56,7 @@ function SignupStepView(props: WorkerProps) {
     case SignupStep.VERIFY_ENCRYPTION:
       return <VerifyEncryption worker={worker} nextStep={nextStep} />;
     case SignupStep.FINISH:
-      return <Finish worker={worker} nextStep={nextStep} />;
+      return <Finish />;
   }
 }
 

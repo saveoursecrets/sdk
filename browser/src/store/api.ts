@@ -1,10 +1,15 @@
-import { Account, Signature, Summary } from "../types";
+import { Account, Signature, Summary, AeadPack } from "../types";
+import { encode, toHexString } from "../utils";
 import { WebSigner } from "sos-wasm";
 
 const MIME_TYPE_VAULT = "application/sos+vault";
 
+function base64encode(signature: Signature): string {
+  return btoa(JSON.stringify(signature));
+}
+
 function bearer(signature: Signature): string {
-  return `Bearer ${btoa(JSON.stringify(signature))}`;
+  return `Bearer ${base64encode(signature)}`;
 }
 
 function signedMessageHeader(message: Uint8Array): string {
@@ -26,7 +31,9 @@ export class VaultApi {
     this.url = url;
   }
 
-  async selfSigned(signer: WebSigner): [Signature, Uint8Array] {
+  // Helper to sign a random message used for requests
+  // that do not have a body payload to sign (GET, DELETE).
+  async selfSigned(signer: WebSigner): Promise<[Signature, Uint8Array]> {
     const message = new Uint8Array(32);
     self.crypto.getRandomValues(message);
     const signature = await signer.sign(Array.from(message));
@@ -46,9 +53,9 @@ export class VaultApi {
     };
     const response = await fetch(url, {
       method: "POST",
-      body,
       mode: "cors",
       headers,
+      body,
     });
     return response.ok;
   }
@@ -93,10 +100,12 @@ export class VaultApi {
     return response.json();
   }
 
+  /* ACCOUNT */
+
   // Load the encrypted vault buffer for a user.
-  async getVault(account: Account, id: string): Promise<ArrayBuffer> {
+  async getVault(account: Account, vaultId: string): Promise<ArrayBuffer> {
     const [signature, message] = await this.selfSigned(account.signer);
-    const url = `${this.url}/vaults/${id}`;
+    const url = `${this.url}/vaults/${vaultId}`;
     const headers = {
       authorization: bearer(signature),
       "x-signed-message": signedMessageHeader(message),
@@ -107,6 +116,124 @@ export class VaultApi {
       headers,
     });
     return response.arrayBuffer();
+  }
+
+  // Send an encrypted secret payload for a create or update operation.
+  async sendSecretPayload(
+    account: Account,
+    changeSequence: number,
+    vaultId: string,
+    secretId: string,
+    secret: [AeadPack, AeadPack],
+    method: string
+  ): Promise<Response> {
+    // Convert the tuple to JSON and sign the resulting bytes
+    const body: Uint8Array = encode(JSON.stringify(secret));
+    const signature = await account.signer.sign(Array.from(body));
+
+    const url = `${this.url}/vaults/${vaultId}/secrets/${secretId}`;
+    const headers = {
+      authorization: bearer(signature),
+      "x-change-sequence": changeSequence.toString(),
+    };
+
+    const response = await fetch(url, {
+      method,
+      mode: "cors",
+      headers,
+      body,
+    });
+    return response;
+  }
+
+  // Create a secret.
+  async createSecret(
+    account: Account,
+    changeSequence: number,
+    vaultId: string,
+    secretId: string,
+    secret: [AeadPack, AeadPack]
+  ): Promise<Response> {
+    return this.sendSecretPayload(
+      account,
+      changeSequence,
+      vaultId,
+      secretId,
+      secret,
+      "PUT"
+    );
+  }
+
+  // Read a secret.
+  async readSecret(
+    account: Account,
+    changeSequence: number,
+    vaultId: string,
+    secretId: string
+  ): Promise<Response> {
+    const [signature, message] = await this.selfSigned(account.signer);
+    const url = `${this.url}/vaults/${vaultId}/secrets/${secretId}`;
+    const headers = {
+      authorization: bearer(signature),
+      "x-signed-message": signedMessageHeader(message),
+      "x-change-sequence": changeSequence.toString(),
+    };
+    const response = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      headers,
+    });
+    return response;
+  }
+
+  // Update a secret.
+  async updateSecret(
+    account: Account,
+    changeSequence: number,
+    vaultId: string,
+    secretId: string,
+    secret: [AeadPack, AeadPack]
+  ): Promise<Response> {
+    return this.sendSecretPayload(
+      account,
+      changeSequence,
+      vaultId,
+      secretId,
+      secret,
+      "POST"
+    );
+  }
+
+  // Delete a secret.
+  async deleteSecret(
+    account: Account,
+    changeSequence: number,
+    vaultId: string,
+    secretId: string
+  ): Promise<Response> {
+    const [signature, message] = await this.selfSigned(account.signer);
+    const url = `${this.url}/vaults/${vaultId}/secrets/${secretId}`;
+    const headers = {
+      authorization: bearer(signature),
+      "x-signed-message": signedMessageHeader(message),
+      "x-change-sequence": changeSequence.toString(),
+    };
+    const response = await fetch(url, {
+      method: "DELETE",
+      mode: "cors",
+      headers,
+    });
+    return response;
+  }
+
+  // Get an event source handler for the changes stream.
+  async getChanges(account: Account): Promise<EventSource> {
+    const [signature, message] = await this.selfSigned(account.signer);
+    const token = encodeURIComponent(base64encode(signature));
+    const url = `${this.url}/changes?message=${toHexString(
+      message
+    )}&token=${token}`;
+    return new EventSource(url, { withCredentials: true });
   }
 }
 

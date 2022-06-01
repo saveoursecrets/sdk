@@ -17,7 +17,7 @@
 use crate::{
     crypto::secret_key::SecretKey,
     decode, encode,
-    operations::Payload,
+    operations::{Payload, VaultAccess},
     secret::{Secret, SecretMeta, UuidOrName, VaultMeta},
     vault::Vault,
     Error, Result,
@@ -52,6 +52,11 @@ impl Gatekeeper {
     /// Set the vault.
     pub fn set_vault(&mut self, vault: Vault) {
         self.vault = vault;
+    }
+
+    /// Get the current change sequence number.
+    pub fn change_seq(&self) -> Result<u32> {
+        self.vault.change_seq()
     }
 
     /// Get the identifier for the vault.
@@ -150,9 +155,8 @@ impl Gatekeeper {
     /// Get a secret from the vault.
     fn read_secret(&self, uuid: &Uuid) -> Result<Option<(SecretMeta, Secret)>> {
         if let Some(private_key) = &self.private_key {
-            if let (Some((meta_aead, secret_aead)), _payload) =
-                self.vault.read(uuid)
-            {
+            if let (Some(value), _payload) = self.vault.read(uuid)? {
+                let (meta_aead, secret_aead) = value.as_ref();
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
                 let secret_meta: SecretMeta = decode(meta_blob)?;
 
@@ -218,15 +222,22 @@ impl Gatekeeper {
 
             let secret_blob = encode(&secret)?;
             let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
-            Ok(self.vault.create(uuid, (meta_aead, secret_aead)))
+            Ok(self.vault.create(uuid, (meta_aead, secret_aead))?)
         } else {
             Err(Error::VaultLocked)
         }
     }
 
     /// Get a secret and it's meta data from the vault.
-    pub fn read(&self, uuid: &Uuid) -> Result<Option<(SecretMeta, Secret)>> {
-        self.read_secret(uuid)
+    pub fn read(
+        &self,
+        uuid: &Uuid,
+    ) -> Result<Option<(SecretMeta, Secret, Payload)>> {
+        let change_seq = self.change_seq()?;
+        let payload = Payload::ReadSecret(change_seq, *uuid);
+        Ok(self
+            .read_secret(uuid)?
+            .map(|(meta, secret)| (meta, secret, payload)))
     }
 
     /// Update a secret in the vault.
@@ -262,15 +273,15 @@ impl Gatekeeper {
 
             let secret_blob = encode(&secret)?;
             let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
-            Ok(self.vault.update(uuid, (meta_aead, secret_aead)))
+            Ok(self.vault.update(uuid, (meta_aead, secret_aead))?)
         } else {
             Err(Error::VaultLocked)
         }
     }
 
     /// Delete a secret and it's meta data from the vault.
-    pub fn delete(&mut self, uuid: &Uuid) -> Result<Payload> {
-        Ok(self.vault.delete(uuid))
+    pub fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
+        Ok(self.vault.delete(uuid)?)
     }
 
     /// Unlock the vault by setting the private key from a passphrase.
@@ -330,7 +341,7 @@ mod tests {
         let secret = Secret::Text(secret_value.clone());
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        if let Payload::CreateSecret(secret_uuid, _) =
+        if let Payload::CreateSecret(_, secret_uuid, _) =
             keeper.create(secret_meta.clone(), secret.clone())?
         {
             let (saved_secret_meta, saved_secret) =

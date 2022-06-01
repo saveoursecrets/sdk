@@ -11,11 +11,12 @@ import {
 } from "@mui/material";
 
 import { createSignup } from "../store/signup";
+import { AppDispatch } from "../store";
 
 import { StepProps } from "./index";
 
 export default function Accept(props: StepProps) {
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
   const { worker, nextStep } = props;
   const [accepted, setAccepted] = useState(false);
 

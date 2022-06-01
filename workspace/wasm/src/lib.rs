@@ -144,8 +144,8 @@ impl WebVault {
             }
         }
 
-        let uuid = self.keeper.create(data.meta, data.secret)?;
-        Ok(JsValue::from_serde(&uuid)?)
+        let payload = self.keeper.create(data.meta, data.secret)?;
+        Ok(JsValue::from_serde(&payload)?)
     }
 
     /// Get a secret from the vault.
@@ -156,7 +156,7 @@ impl WebVault {
     }
 
     /// Update a new secret.
-    pub fn update(&mut self, request: JsValue) -> Result<(), JsError> {
+    pub fn update(&mut self, request: JsValue) -> Result<JsValue, JsError> {
         let mut data: SecretData = request.into_serde()?;
 
         let uuid = data.secret_id.as_ref().ok_or_else(|| {
@@ -182,19 +182,16 @@ impl WebVault {
         }
 
         console_log!("Updating secret");
-
-        self.keeper.update(uuid, data.meta, data.secret)?;
-
+        let payload = self.keeper.update(uuid, data.meta, data.secret)?;
         console_log!("Secret update completed!");
-
-        Ok(())
+        Ok(JsValue::from_serde(&payload)?)
     }
 
     /// Delete a secret from the vault.
     pub fn delete(&mut self, uuid: JsValue) -> Result<JsValue, JsError> {
         let uuid: Uuid = uuid.into_serde()?;
-        let result = self.keeper.delete(&uuid)?;
-        Ok(JsValue::from_serde(&result)?)
+        let payload = self.keeper.delete(&uuid)?;
+        Ok(JsValue::from_serde(&payload)?)
     }
 
     /// Unlock the vault.

@@ -3,13 +3,13 @@ import {
   createAsyncThunk,
   PayloadAction,
   isRejected,
+  AnyAction,
 } from "@reduxjs/toolkit";
 import { WebVault, WebSigner, Signup } from "sos-wasm";
 import { VaultWorker } from "../types";
 
-const logError = (state: SignupState, action: PayloadAction<Error>) => {
-  //const { payload } = action;
-  console.error(action.error);
+const logError = (state: SignupState, action: AnyAction) => {
+  throw action.error;
 };
 
 export const createSignup = createAsyncThunk(

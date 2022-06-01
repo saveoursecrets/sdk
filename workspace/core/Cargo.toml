@@ -23,19 +23,19 @@ sha3 = "0.9"
 # Note using an old version of `rand` (0.6) due to bip39 dependency
 # SEE: https://github.com/rust-bitcoin/rust-bip39/issues/14
 bip39 = { version =  "1", features = ["std", "rand"] }
-uuid = { version = "0.8", features = ["serde", "v4"] }
+uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2.2", features = ["serde"] }
-serde-binary  = "0.3.2"
+#serde-binary  = "0.3.2"
 chrono = { version = "0.4", features = ["serde"] }
 bitflags = "1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = {version = "0.2", features = ["js"]}
-uuid = { version = "0.8", features = ["serde", "v4", "wasm-bindgen"] }
+uuid = { version = "1", features = ["serde", "v4", "js"] }
 
-#[dependencies.binary_rw]
-#version = "2"
-#path = "../../../forks/binary-rs"
+[dependencies.serde-binary]
+version = "0.3.3"
+#path = "../../../serde-binary"
 #features = ["wasm32"]
 
 [dependencies.chbs]

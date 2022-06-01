@@ -21,12 +21,56 @@ use sos_core::{
 
 use crate::{Error, Result};
 
+#[derive(Debug, Deserialize)]
+pub struct SignedQuery {
+    #[serde(deserialize_with = "hex::serde::deserialize")]
+    message: Vec<u8>,
+    token: String,
+}
+
+impl SignedQuery {
+    pub fn bearer(&self) -> Result<(StatusCode, Option<BearerToken>)> {
+        BearerToken::new(&self.token, &self.message)
+    }
+}
+
 type Challenge = [u8; 32];
 
 #[derive(Debug)]
 pub struct BearerToken {
     //public_key: [u8; 33],
     pub address: AddressStr,
+}
+
+impl BearerToken {
+    fn new(
+        token: &str,
+        message: &[u8],
+    ) -> Result<(StatusCode, Option<BearerToken>)> {
+        let result = if let Ok(value) = base64::decode(token) {
+            if let Ok(signature) = serde_json::from_slice::<Signature>(&value) {
+                let recoverable: recoverable::Signature =
+                    signature.try_into()?;
+                let public_key = recoverable.recover_verify_key(message)?;
+                let public_key: [u8; 33] =
+                    public_key.to_bytes().as_slice().try_into()?;
+                let address: AddressStr = (&public_key).try_into()?;
+                (
+                    StatusCode::OK,
+                    Some(BearerToken {
+                        //public_key,
+                        address,
+                    }),
+                )
+            } else {
+                (StatusCode::BAD_REQUEST, None)
+            }
+        } else {
+            (StatusCode::BAD_REQUEST, None)
+        };
+
+        Ok(result)
+    }
 }
 
 /// Extract a public key and address from the ECDSA signature
@@ -44,28 +88,7 @@ pub fn bearer<B>(
 where
     B: AsRef<[u8]>,
 {
-    let result = if let Ok(value) = base64::decode(authorization.token()) {
-        if let Ok(signature) = serde_json::from_slice::<Signature>(&value) {
-            let recoverable: recoverable::Signature = signature.try_into()?;
-            let public_key = recoverable.recover_verify_key(body.as_ref())?;
-            let public_key: [u8; 33] =
-                public_key.to_bytes().as_slice().try_into()?;
-            let address: AddressStr = (&public_key).try_into()?;
-            (
-                StatusCode::OK,
-                Some(BearerToken {
-                    //public_key,
-                    address,
-                }),
-            )
-        } else {
-            (StatusCode::BAD_REQUEST, None)
-        }
-    } else {
-        (StatusCode::BAD_REQUEST, None)
-    };
-
-    Ok(result)
+    BearerToken::new(authorization.token(), body.as_ref())
 }
 
 /// Encapsulates a collection of authentication challenges.
