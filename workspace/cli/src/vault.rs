@@ -102,7 +102,7 @@ pub fn show(vault: PathBuf, target: UuidOrName) -> Result<()> {
         keeper.find_by_uuid_or_label(&meta_data, &target)
     {
         match keeper.read(uuid) {
-            Ok(Some((_, secret))) => match secret {
+            Ok(Some((_, secret, _))) => match secret {
                 Secret::Text(ref note) => {
                     print_secret_header(&secret, secret_meta, HashMap::new());
                     println!("{}", note);
@@ -221,7 +221,7 @@ pub fn add_account(vault: PathBuf, label: Option<String>) -> Result<()> {
         password,
     };
     let secret_meta = SecretMeta::new(label, secret.kind());
-    if let Payload::CreateSecret(uuid, _) =
+    if let Payload::CreateSecret(_, uuid, _) =
         keeper.create(secret_meta, secret)?
     {
         keeper.vault().write_file(vault)?;
@@ -259,7 +259,7 @@ pub fn add_note(vault: PathBuf, label: Option<String>) -> Result<()> {
         let note = note.trim_end_matches('\n').to_string();
         let secret = Secret::Text(note);
         let secret_meta = SecretMeta::new(label, secret.kind());
-        if let Payload::CreateSecret(uuid, _) =
+        if let Payload::CreateSecret(_, uuid, _) =
             keeper.create(secret_meta, secret)?
         {
             keeper.vault().write_file(vault)?;
@@ -313,7 +313,7 @@ pub fn add_file(
         name: None,
     };
     let secret_meta = SecretMeta::new(label, secret.kind());
-    if let Payload::CreateSecret(uuid, _) =
+    if let Payload::CreateSecret(_, uuid, _) =
         keeper.create(secret_meta, secret)?
     {
         keeper.vault().write_file(vault)?;
@@ -356,7 +356,7 @@ pub fn add_credentials(vault: PathBuf, label: Option<String>) -> Result<()> {
 
     let secret = Secret::Credentials(credentials);
     let secret_meta = SecretMeta::new(label, secret.kind());
-    if let Payload::CreateSecret(uuid, _) =
+    if let Payload::CreateSecret(_, uuid, _) =
         keeper.create(secret_meta, secret)?
     {
         keeper.vault().write_file(vault)?;

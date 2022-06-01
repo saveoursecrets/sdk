@@ -2737,7 +2737,7 @@ dependencies = [
  "sos-core",
  "unicode-width",
  "url",
- "uuid 0.8.2",
+ "uuid 1.1.0",
 ]
 
 [[package]]
