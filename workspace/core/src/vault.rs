@@ -16,7 +16,7 @@ use crate::{
         xchacha20poly1305, AeadPack,
     },
     file_identity::FileIdentity,
-    operations::Payload,
+    operations::{Payload, VaultAccess},
     secret::VaultMeta,
     Error, Result,
 };
@@ -55,9 +55,10 @@ impl Decode for Auth {
 
 /// Summary holding basic file information such as version,
 /// unique identifier and name.
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct Summary {
     version: u16,
+    change_seq: u32,
     id: Uuid,
     name: String,
     #[serde(skip)]
@@ -68,6 +69,7 @@ impl Default for Summary {
     fn default() -> Self {
         Self {
             version: VERSION,
+            change_seq: 0,
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -79,10 +81,11 @@ impl Summary {
     /// Create a new summary.
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
+            version: VERSION,
+            change_seq: 0,
+            algorithm,
             id,
             name,
-            algorithm,
-            version: VERSION,
         }
     }
 
@@ -105,6 +108,7 @@ impl Summary {
 impl Encode for Summary {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u16(self.version)?;
+        ser.writer.write_u32(self.change_seq)?;
         self.algorithm.encode(&mut *ser)?;
         ser.writer.write_bytes(self.id.as_bytes())?;
         ser.writer.write_string(&self.name)?;
@@ -115,6 +119,7 @@ impl Encode for Summary {
 impl Decode for Summary {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.version = de.reader.read_u16()?;
+        self.change_seq = de.reader.read_u32()?;
         self.algorithm.decode(&mut *de)?;
 
         if !ALGORITHMS.contains(self.algorithm.as_ref()) {
@@ -183,6 +188,9 @@ impl Header {
 
         // Read magic identity bytes
         FileIdentity::read_identity(&mut de, &IDENTITY)?;
+
+        // Read in the header length
+        let _ = de.reader.read_u32()?;
 
         // Read the summary
         let mut summary: Summary = Default::default();
@@ -258,23 +266,53 @@ pub struct Contents {
     data: HashMap<Uuid, (AeadPack, AeadPack)>,
 }
 
+impl Contents {
+    /// Encode a single row into a serializer.
+    pub fn encode_row(
+        ser: &mut Serializer,
+        key: &Uuid,
+        row: &(AeadPack, AeadPack),
+    ) -> BinaryResult<()> {
+        let size_pos = ser.writer.tell()?;
+        ser.writer.write_u32(0)?;
+
+        ser.writer.write_bytes(key.as_bytes())?;
+        row.0.encode(&mut *ser)?;
+        row.1.encode(&mut *ser)?;
+
+        // Backtrack to size_pos and write new length
+        let row_pos = ser.writer.tell()?;
+        let row_len = row_pos - (size_pos + 4);
+        ser.writer.seek(size_pos)?;
+        ser.writer.write_u32(row_len as u32)?;
+        ser.writer.seek(row_pos)?;
+
+        Ok(())
+    }
+
+    /// Decode a single row from a deserializer.
+    pub fn decode_row(
+        de: &mut Deserializer,
+    ) -> BinaryResult<(Uuid, (AeadPack, AeadPack))> {
+        // Read in the row length
+        let _ = de.reader.read_u32()?;
+
+        let uuid: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
+        let uuid = Uuid::from_bytes(uuid);
+
+        let mut meta: AeadPack = Default::default();
+        meta.decode(&mut *de)?;
+        let mut secret: AeadPack = Default::default();
+        secret.decode(&mut *de)?;
+        Ok((uuid, (meta, secret)))
+    }
+}
+
 impl Encode for Contents {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u32(self.data.len() as u32)?;
-        for (key, item) in &self.data {
-            let size_pos = ser.writer.tell()?;
-            ser.writer.write_u32(0)?;
-
-            ser.writer.write_bytes(key.as_bytes())?;
-            item.0.encode(&mut *ser)?;
-            item.1.encode(&mut *ser)?;
-
-            // Backtrack to size_pos and write new length
-            let row_pos = ser.writer.tell()?;
-            let row_len = row_pos - (size_pos + 4);
-            ser.writer.seek(size_pos)?;
-            ser.writer.write_u32(row_len as u32)?;
-            ser.writer.seek(row_pos)?;
+        for (key, row) in &self.data {
+            Contents::encode_row(ser, key, row)?;
         }
         Ok(())
     }
@@ -284,17 +322,7 @@ impl Decode for Contents {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let length = de.reader.read_u32()?;
         for _ in 0..length {
-            // Read in the row length
-            let _ = de.reader.read_u32()?;
-
-            let uuid: [u8; 16] =
-                de.reader.read_bytes(16)?.as_slice().try_into()?;
-            let uuid = Uuid::from_bytes(uuid);
-
-            let mut meta: AeadPack = Default::default();
-            meta.decode(&mut *de)?;
-            let mut secret: AeadPack = Default::default();
-            secret.decode(&mut *de)?;
+            let (uuid, (meta, secret)) = Contents::decode_row(de)?;
             self.data.insert(uuid, (meta, secret));
         }
         Ok(())
@@ -385,7 +413,7 @@ impl Vault {
         self.header.auth.salt.as_ref()
     }
 
-    /// The file extensions for vaults.
+    /// The file extension for vault files.
     pub fn extension() -> &'static str {
         "vault"
     }
@@ -405,7 +433,7 @@ impl Vault {
         self.header.summary.name = name;
     }
 
-    /// Get the encryption algorithm for the vault.
+    /// Get the encryption algorithm for this vault.
     pub fn algorithm(&self) -> &Algorithm {
         &self.header.summary.algorithm
     }
@@ -418,48 +446,6 @@ impl Vault {
     /// Get the mutable vault header.
     pub fn header_mut(&mut self) -> &mut Header {
         &mut self.header
-    }
-
-    /// Add an encrypted secret to the vault.
-    pub fn create(
-        &mut self,
-        uuid: Uuid,
-        secret: (AeadPack, AeadPack),
-    ) -> Payload {
-        let id = uuid;
-        let value = self.contents.data.entry(uuid).or_insert(secret);
-        Payload::CreateSecret(id, Cow::Borrowed(value))
-    }
-
-    /// Get an encrypted secret from the vault.
-    pub fn read(
-        &self,
-        uuid: &Uuid,
-    ) -> (Option<&(AeadPack, AeadPack)>, Payload) {
-        let id = *uuid;
-        (self.contents.data.get(uuid), Payload::ReadSecret(id))
-    }
-
-    /// Update an encrypted secret to the vault.
-    pub fn update(
-        &mut self,
-        uuid: &Uuid,
-        secret: (AeadPack, AeadPack),
-    ) -> Option<Payload> {
-        let id = *uuid;
-        if let Some(value) = self.contents.data.get_mut(uuid) {
-            *value = secret;
-            Some(Payload::UpdateSecret(id, Cow::Borrowed(value)))
-        } else {
-            None
-        }
-    }
-
-    /// Remove an encrypted secret from the vault.
-    pub fn delete(&mut self, uuid: &Uuid) -> Payload {
-        let id = *uuid;
-        self.contents.data.remove(uuid);
-        Payload::DeleteSecret(id)
     }
 
     /// Get the meta data for all the secrets.
@@ -542,6 +528,88 @@ impl Vault {
     }
 }
 
+impl VaultAccess for Vault {
+    fn change_seq(&self) -> Result<u32> {
+        Ok(self.header.summary.change_seq)
+    }
+
+    fn create(
+        &mut self,
+        uuid: Uuid,
+        secret: (AeadPack, AeadPack),
+    ) -> Result<Payload> {
+        let id = uuid;
+        let value = self.contents.data.entry(uuid).or_insert(secret);
+
+        let change_seq = if let Some(next_change_seq) =
+            self.header.summary.change_seq.checked_add(1)
+        {
+            self.header.summary.change_seq = next_change_seq;
+            next_change_seq
+        } else {
+            return Err(Error::TooManyChanges);
+        };
+
+        Ok(Payload::CreateSecret(change_seq, id, Cow::Borrowed(value)))
+    }
+
+    fn read<'a>(
+        &'a self,
+        uuid: &Uuid,
+    ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
+        let id = *uuid;
+        let change_seq = self.change_seq()?;
+        let result = self.contents.data.get(uuid).map(Cow::Borrowed);
+        Ok((result, Payload::ReadSecret(change_seq, id)))
+    }
+
+    fn update(
+        &mut self,
+        uuid: &Uuid,
+        secret: (AeadPack, AeadPack),
+    ) -> Result<Option<Payload>> {
+        let id = *uuid;
+        if let Some(value) = self.contents.data.get_mut(uuid) {
+            *value = secret;
+
+            let change_seq = if let Some(next_change_seq) =
+                self.header.summary.change_seq.checked_add(1)
+            {
+                self.header.summary.change_seq = next_change_seq;
+                next_change_seq
+            } else {
+                return Err(Error::TooManyChanges);
+            };
+
+            Ok(Some(Payload::UpdateSecret(
+                change_seq,
+                id,
+                Cow::Borrowed(value),
+            )))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
+        let id = *uuid;
+        let entry = self.contents.data.remove(uuid);
+        if entry.is_some() {
+            let change_seq = if let Some(next_change_seq) =
+                self.header.summary.change_seq.checked_add(1)
+            {
+                self.header.summary.change_seq = next_change_seq;
+                next_change_seq
+            } else {
+                return Err(Error::TooManyChanges);
+            };
+            Ok(Some(Payload::DeleteSecret(change_seq, id)))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 /// Encode into a binary buffer.
 pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
     Ok(serde_binary::encode(encodable, Endian::Big)?)
@@ -558,18 +626,16 @@ mod tests {
     use crate::crypto::secret_key::*;
     use crate::diceware::generate_passphrase;
     use crate::secret::*;
+
+    use crate::test_utils::*;
+
     use anyhow::Result;
     use serde_binary::binary_rw::{MemoryStream, Stream};
     use uuid::Uuid;
 
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
-        let uuid = Uuid::new_v4();
-        let vault = Vault::new(
-            uuid,
-            String::from(DEFAULT_VAULT_NAME),
-            Default::default(),
-        );
+        let vault = mock_vault();
         let mut stream = MemoryStream::new();
         Vault::encode(&mut stream, &vault)?;
 
@@ -581,29 +647,18 @@ mod tests {
 
     #[test]
     fn encode_decode_secret_note() -> Result<()> {
-        let salt = SecretKey::generate_salt();
-        let (passphrase, _) = generate_passphrase(None)?;
-        let encryption_key = SecretKey::derive_32(&passphrase, &salt)?;
-
-        let uuid = Uuid::new_v4();
-        let mut vault = Vault::new(
-            uuid,
-            String::from(DEFAULT_VAULT_NAME),
-            Default::default(),
-        );
+        let (encryption_key, _) = mock_encryption_key()?;
+        let mut vault = mock_vault();
 
         // TODO: encode the salt into the header meta data
 
-        let secret_id = Uuid::new_v4();
         let secret_label = "Test note";
-        let secret_meta = SecretMeta::new(secret_label.to_string(), kind::TEXT);
         let secret_note = "Super secret note for you to read.";
-        let secret_value = Secret::Text(secret_note.to_string());
 
-        let meta_bytes = encode(&secret_meta)?;
+        let (secret_id, secret_meta, secret_value, meta_bytes, secret_bytes) =
+            mock_secret_note(secret_label, secret_note)?;
+
         let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
-
-        let secret_bytes = encode(&secret_value)?;
         let secret_aead = vault.encrypt(&encryption_key, &secret_bytes)?;
 
         let _ = vault.create(secret_id, (meta_aead, secret_aead));
@@ -615,9 +670,10 @@ mod tests {
         let decoded = Vault::decode(&mut stream)?;
         assert_eq!(vault, decoded);
 
-        let (row, _) = decoded.read(&secret_id);
+        let (row, _) = decoded.read(&secret_id)?;
 
-        let (row_meta, row_secret) = row.unwrap();
+        let value = row.unwrap();
+        let (row_meta, row_secret) = value.as_ref();
 
         let row_meta = vault.decrypt(&encryption_key, row_meta)?;
         let row_secret = vault.decrypt(&encryption_key, row_secret)?;

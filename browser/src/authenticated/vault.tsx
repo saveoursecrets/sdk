@@ -9,6 +9,7 @@ import { Summary } from "../types";
 
 import { loadVault, vaultsSelector } from "../store/vaults";
 import { accountSelector } from "../store/account";
+import { AppDispatch } from "../store";
 import { WorkerContext } from "../worker-provider";
 
 import NotFound from "../not-found";
@@ -43,7 +44,7 @@ type VaultLoaderProps = {
 } & WorkerProps;
 
 function VaultLoader(props: VaultLoaderProps) {
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
   const { account } = useSelector(accountSelector);
   const { summary, worker } = props;
 

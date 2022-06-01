@@ -1,3 +1,4 @@
+use sos_core::address::AddressStr;
 use std::path::PathBuf;
 use thiserror::Error;
 use url::Url;
@@ -17,8 +18,11 @@ pub enum Error {
     #[error("no vaults found")]
     NoVaults,
 
+    #[error("account {0} does not exist")]
+    AccountNotExist(AddressStr),
+
     #[error("vault {0} does not exist")]
-    NotExist(Uuid),
+    VaultNotExist(Uuid),
 
     #[error("url scheme {0} is not supported")]
     InvalidUrlScheme(String),
@@ -55,4 +59,7 @@ pub enum Error {
 
     #[error(transparent)]
     Ecdsa(#[from] sos_core::k256::ecdsa::Error),
+
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }

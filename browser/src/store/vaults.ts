@@ -3,17 +3,23 @@ import {
   createAsyncThunk,
   PayloadAction,
   isRejected,
+  AnyAction,
 } from "@reduxjs/toolkit";
 import { NavigateFunction } from "react-router-dom";
 import { WebVault } from "sos-wasm";
 
 import api from "./api";
 import {
+  ConflictOperation,
+  Conflict,
   NewVaultResult,
   SecretMeta,
+  Secret,
   SecretData,
   Account,
   VaultWorker,
+  Summary,
+  Payload,
 } from "../types";
 
 export type VaultMetaData = {
@@ -40,22 +46,26 @@ export type NewVaultRequest = {
 };
 
 export type CreateSecretRequest = {
+  account: Account;
   result: SecretData;
   owner: VaultStorage;
 };
 
 export type ReadSecretRequest = {
+  account: Account;
   secretId: string;
   owner: VaultStorage;
 };
 
 export type UpdateSecretRequest = {
+  account: Account;
   result: SecretData;
   owner: VaultStorage;
   navigate: NavigateFunction;
 };
 
 export type DeleteSecretRequest = {
+  account: Account;
   result: string;
   owner: VaultStorage;
   navigate: NavigateFunction;
@@ -73,6 +83,7 @@ export const loadVault = createAsyncThunk(
     const { account, worker, summary } = request;
     const buffer = await api.getVault(account, summary.id);
 
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     const vault: WebVault = await new (worker.WebVault as any)();
     await vault.importBuffer(Array.from(new Uint8Array(buffer)));
 
@@ -122,9 +133,45 @@ export const createNewVault = createAsyncThunk(
 export const createSecret = createAsyncThunk(
   "vaults/createSecret",
   async (request: CreateSecretRequest) => {
-    const { result, owner } = request;
-    const { vault } = owner;
-    await vault.create(result);
+    const { result, owner, account } = request;
+    const { vault, uuid: vaultId } = owner;
+
+    // Create the secret in the memory buffer
+    const payload: Payload = await vault.create(result);
+    const [changeSequence, secretId, encrypted] = payload.CreateSecret;
+
+    // Send to the server for persistence
+    const response = await api.createSecret(
+      account,
+      changeSequence,
+      vaultId,
+      secretId,
+      encrypted
+    );
+
+    if (response.status === 409) {
+      const remoteChangeSequence = parseInt(
+        response.headers.get("x-change-sequence")
+      );
+      console.log("handling conflict", remoteChangeSequence);
+      const conflict = {
+        operation: ConflictOperation.CREATE_SECRET,
+        changePair: {
+          local: changeSequence,
+          remote: remoteChangeSequence,
+        },
+        vaultId,
+        secretId,
+      };
+      console.log("handle conflict in create operation", conflict);
+    } else if (!response.ok) {
+      // FIXME: queue failed backend requests
+      throw new Error(`failed to create secret: ${secretId}`);
+    }
+
+    console.log("Secret was saved", response.ok);
+
+    // Update the vault meta data
     const meta = await vault.getVaultMeta();
     return { ...owner, meta };
   }
@@ -132,35 +179,143 @@ export const createSecret = createAsyncThunk(
 
 export const readSecret = createAsyncThunk(
   "vaults/readSecret",
-  async (request: ReadSecretRequest) => {
-    const { secretId, owner } = request;
-    const { vault } = owner;
-    return await vault.read(secretId);
+  async (request: ReadSecretRequest): Promise<[SecretMeta, Secret]> => {
+    const { account, secretId, owner } = request;
+    const { uuid: vaultId, vault } = owner;
+    const result: [SecretMeta, Secret, Payload] = await vault.read(secretId);
+    const [meta, secret, payload] = result;
+    const [changeSequence] = payload.ReadSecret;
+
+    // Send to the server for the audit log
+    const response = await api.readSecret(
+      account,
+      changeSequence,
+      vaultId,
+      secretId
+    );
+
+    if (response.status === 409) {
+      const remoteChangeSequence = parseInt(
+        response.headers.get("x-change-sequence")
+      );
+      console.log("handling conflict", remoteChangeSequence);
+      const conflict = {
+        operation: ConflictOperation.READ_SECRET,
+        changePair: {
+          local: changeSequence,
+          remote: remoteChangeSequence,
+        },
+        vaultId,
+        secretId,
+      };
+      console.log("handle conflict in read operation", conflict);
+    } else if (!response.ok) {
+      // FIXME: queue failed backend requests
+      throw new Error(`failed to read secret: ${secretId}`);
+    }
+
+    console.log("Secret was read", response.ok);
+
+    return [meta, secret];
   }
 );
 
 export const updateSecret = createAsyncThunk(
   "vaults/updateSecret",
   async (request: UpdateSecretRequest) => {
-    const { result, navigate, owner } = request;
-    const { uuid, vault } = owner;
-    await vault.update(result);
-    const meta = await vault.getVaultMeta();
-    const random = Math.random();
-    navigate(`/vault/${uuid}/${result.secretId}?refresh=${random}`);
-    return { ...owner, meta };
+    const { result, account, navigate, owner } = request;
+    const { uuid: vaultId, vault } = owner;
+    const payload: Payload = await vault.update(result);
+    if (payload) {
+      const [changeSequence, secretId, encrypted] = payload.UpdateSecret;
+
+      // Send to the server for persistence
+      const response = await api.updateSecret(
+        account,
+        changeSequence,
+        vaultId,
+        secretId,
+        encrypted
+      );
+
+      if (response.status === 409) {
+        const remoteChangeSequence = parseInt(
+          response.headers.get("x-change-sequence")
+        );
+        console.log("handling conflict", remoteChangeSequence);
+        const conflict = {
+          operation: ConflictOperation.UPDATE_SECRET,
+          changePair: {
+            local: changeSequence,
+            remote: remoteChangeSequence,
+          },
+          vaultId,
+          secretId,
+        };
+        console.log("handle conflict in update operation", conflict);
+      } else if (!response.ok) {
+        // FIXME: queue failed backend requests
+        throw new Error(`failed to update secret: ${secretId}`);
+      }
+
+      console.log("Secret was updated", response.ok);
+
+      // Update the vault meta data and navigate to refresh
+      // the view
+      const meta = await vault.getVaultMeta();
+      const random = Math.random();
+      navigate(`/vault/${vaultId}/${result.secretId}?refresh=${random}`);
+      return { ...owner, meta };
+    }
+    return owner;
   }
 );
 
 export const deleteSecret = createAsyncThunk(
   "vaults/deleteSecret",
   async (request: DeleteSecretRequest) => {
-    const { result, navigate, owner } = request;
-    const { uuid, vault } = owner;
-    await vault.delete(result);
-    const meta = await vault.getVaultMeta();
-    navigate(`/vault/${uuid}`);
-    return { ...owner, meta };
+    const { result, account, navigate, owner } = request;
+    const { uuid: vaultId, vault } = owner;
+    const payload: Payload = await vault.delete(result);
+    if (payload) {
+      const [changeSequence, secretId] = payload.DeleteSecret;
+
+      // Send to the server for persistence
+      const response = await api.deleteSecret(
+        account,
+        changeSequence,
+        vaultId,
+        secretId
+      );
+
+      if (response.status === 409) {
+        const remoteChangeSequence = parseInt(
+          response.headers.get("x-change-sequence")
+        );
+        console.log("handling conflict", remoteChangeSequence);
+        const conflict = {
+          operation: ConflictOperation.DELETE_SECRET,
+          changePair: {
+            local: changeSequence,
+            remote: remoteChangeSequence,
+          },
+          vaultId,
+          secretId,
+        };
+        console.log("handle conflict in delete operation", conflict);
+      } else if (!response.ok) {
+        // FIXME: queue failed backend requests
+        throw new Error(`failed to delete secret: ${secretId}`);
+      }
+
+      console.log("Secret was deleted", response.ok);
+
+      // Update the vault meta data
+      const meta = await vault.getVaultMeta();
+      navigate(`/vault/${vaultId}`);
+      return { ...owner, meta };
+    }
+    return owner;
   }
 );
 
@@ -184,9 +339,9 @@ const updateVaultFromThunk = (
   });
 };
 
-const logError = (state: VaultState, action: PayloadAction<Error>) => {
-  //const { payload } = action;
-  console.error(action.error);
+const logError = (state: VaultState, action: AnyAction) => {
+  //console.error(action.error);
+  throw action.error;
 };
 
 const vaultsSlice = createSlice({

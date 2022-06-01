@@ -12,6 +12,10 @@ import {
   NEW_FILE_UPLOAD,
   CONFIRM_DELETE_SECRET,
 } from "../../store/dialogs";
+import { accountSelector } from "../../store/account";
+
+import { AppDispatch } from "../../store";
+
 import {
   vaultsSelector,
   createNewVault as dispatchNewVault,
@@ -40,9 +44,10 @@ interface DialogProps {
 export default function Dialogs(props: DialogProps) {
   const { worker } = props;
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
   const { dialogs } = useSelector(dialogsSelector);
   const { current } = useSelector(vaultsSelector);
+  const { account } = useSelector(accountSelector);
 
   //console.log("Render dialog with current", current);
 
@@ -54,42 +59,42 @@ export default function Dialogs(props: DialogProps) {
   const createNewSecureNote = async (result: SecretData) => {
     cancelDialog(NEW_SECURE_NOTE);
     if (result.secretId) {
-      dispatch(updateSecret({ result, navigate, owner: current }));
+      dispatch(updateSecret({ result, account, navigate, owner: current }));
     } else {
-      dispatch(createSecret({ result, owner: current }));
+      dispatch(createSecret({ result, account, owner: current }));
     }
   };
 
   const createNewAccountPassword = async (result: SecretData) => {
     cancelDialog(NEW_ACCOUNT_PASSWORD);
     if (result.secretId) {
-      dispatch(updateSecret({ result, navigate, owner: current }));
+      dispatch(updateSecret({ result, account, navigate, owner: current }));
     } else {
-      dispatch(createSecret({ result, owner: current }));
+      dispatch(createSecret({ result, account, owner: current }));
     }
   };
 
   const createNewCredentials = async (result: SecretData) => {
     cancelDialog(NEW_CREDENTIALS);
     if (result.secretId) {
-      dispatch(updateSecret({ result, navigate, owner: current }));
+      dispatch(updateSecret({ result, account, navigate, owner: current }));
     } else {
-      dispatch(createSecret({ result, owner: current }));
+      dispatch(createSecret({ result, account, owner: current }));
     }
   };
 
   const createNewFileUpload = async (result: SecretData) => {
     cancelDialog(NEW_FILE_UPLOAD);
     if (result.secretId) {
-      dispatch(updateSecret({ result, navigate, owner: current }));
+      dispatch(updateSecret({ result, account, navigate, owner: current }));
     } else {
-      dispatch(createSecret({ result, owner: current }));
+      dispatch(createSecret({ result, account, owner: current }));
     }
   };
 
   const onDeleteSecret = async (result: string) => {
     cancelDialog(CONFIRM_DELETE_SECRET);
-    await dispatch(deleteSecret({ result, navigate, owner: current }));
+    await dispatch(deleteSecret({ result, account, navigate, owner: current }));
   };
 
   const cancelDialog = (key: string) => {

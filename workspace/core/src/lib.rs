@@ -6,6 +6,7 @@ pub mod audit;
 pub mod crypto;
 pub mod diceware;
 pub mod error;
+pub mod file_access;
 pub mod file_identity;
 pub mod gatekeeper;
 pub mod operations;
@@ -29,3 +30,6 @@ pub use uuid;
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[cfg(test)]
+pub mod test_utils;
