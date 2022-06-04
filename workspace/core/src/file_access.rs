@@ -12,7 +12,7 @@ use std::{
 use serde_binary::{
     binary_rw::{
         BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream, OpenType,
-        Stream,
+        ReadStream, WriteStream, SeekStream,
     },
     Decode, Deserializer, Serializer,
 };
