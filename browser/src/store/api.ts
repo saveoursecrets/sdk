@@ -1,4 +1,12 @@
-import { Account, Signature, Summary, AeadPack } from "../types";
+import {
+  Account,
+  Signature,
+  Summary,
+  AeadPack,
+  Conflict,
+  ConflictOperation,
+  ConflictHandlers,
+} from "../types";
 import { encode, toHexString } from "../utils";
 import { WebSigner } from "sos-wasm";
 
@@ -234,6 +242,34 @@ export class VaultApi {
       message
     )}&token=${token}`;
     return new EventSource(url, { withCredentials: true });
+  }
+
+  async resolveConflict(
+    conflict: Conflict,
+    handlers: ConflictHandlers
+  ): Promise<void> {
+    const { operation, changePair } = conflict;
+    const { local, remote } = changePair;
+
+    // Account for the fact that the local version of the vault
+    // has been updated before receiving the conflict response
+    let nextRemoteSequence = remote;
+    switch (operation) {
+      case ConflictOperation.CREATE_SECRET:
+      case ConflictOperation.UPDATE_SECRET:
+      case ConflictOperation.DELETE_SECRET:
+        nextRemoteSequence = remote + 1;
+        break;
+    }
+
+    const isRemoteAhead = nextRemoteSequence > local;
+    if (isRemoteAhead) {
+      console.log("Pull changes from remote server...");
+      await handlers.pull();
+      await handlers.replay();
+    } else {
+      throw new Error("TODO: push local changes to the remote server?");
+    }
   }
 }
 

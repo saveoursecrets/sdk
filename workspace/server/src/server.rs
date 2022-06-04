@@ -222,6 +222,7 @@ impl Server {
                 X_SIGNED_MESSAGE.clone(),
                 X_CHANGE_SEQUENCE.clone(),
             ])
+            .expose_headers(vec![X_CHANGE_SEQUENCE.clone()])
             .allow_origin(Origin::list(origins));
 
         let app = Router::new()

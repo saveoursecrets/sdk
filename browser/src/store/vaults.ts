@@ -8,10 +8,13 @@ import {
 import { NavigateFunction } from "react-router-dom";
 import { WebVault } from "sos-wasm";
 
+import { AppDispatch } from ".";
+
 import api from "./api";
 import {
   ConflictOperation,
   Conflict,
+  ConflictHandlers,
   NewVaultResult,
   SecretMeta,
   Secret,
@@ -48,26 +51,26 @@ export type NewVaultRequest = {
 export type CreateSecretRequest = {
   account: Account;
   result: SecretData;
-  owner: VaultStorage;
+  storage: VaultStorage;
 };
 
 export type ReadSecretRequest = {
   account: Account;
   secretId: string;
-  owner: VaultStorage;
+  storage: VaultStorage;
 };
 
 export type UpdateSecretRequest = {
   account: Account;
   result: SecretData;
-  owner: VaultStorage;
+  storage: VaultStorage;
   navigate: NavigateFunction;
 };
 
 export type DeleteSecretRequest = {
   account: Account;
   result: string;
-  owner: VaultStorage;
+  storage: VaultStorage;
   navigate: NavigateFunction;
 };
 
@@ -75,6 +78,30 @@ type LoadVaultRequest = {
   summary: Summary;
   account: Account;
   worker: VaultWorker;
+};
+
+type PullVaultRequest = {
+  account: Account;
+  storage: VaultStorage;
+};
+
+const makeConflictHandlers = (
+  dispatch: AppDispatch,
+  account: Account,
+  storage: VaultStorage,
+  replay: () => Promise<unknown>
+): ConflictHandlers => {
+  return {
+    pull: async () => {
+      console.log("pulling vault buffer...");
+      const request = { account, storage };
+      await dispatch(pullVault(request));
+    },
+    push: async () => {
+      throw new Error("TODO: push local vault to remote server");
+    },
+    replay,
+  };
 };
 
 export const loadVault = createAsyncThunk(
@@ -93,6 +120,22 @@ export const loadVault = createAsyncThunk(
       vault,
       locked: true,
     };
+  }
+);
+
+export const pullVault = createAsyncThunk(
+  "vaults/pullVault",
+  async (request: PullVaultRequest) => {
+    const { account, storage } = request;
+    const buffer = await api.getVault(account, storage.uuid);
+    const { vault } = storage;
+    await vault.importBuffer(Array.from(new Uint8Array(buffer)));
+
+    console.log("finished importing the new vault buffer in pull");
+
+    // Update the vault meta data
+    const meta = await vault.getVaultMeta();
+    return { ...storage, meta };
   }
 );
 
@@ -130,18 +173,133 @@ export const createNewVault = createAsyncThunk(
   }
 );
 
-export const createSecret = createAsyncThunk(
-  "vaults/createSecret",
-  async (request: CreateSecretRequest) => {
-    const { result, owner, account } = request;
-    const { vault, uuid: vaultId } = owner;
+export const createSecret = createAsyncThunk<
+  VaultStorage,
+  CreateSecretRequest,
+  { dispatch: AppDispatch }
+>("vaults/createSecret", async (request, { dispatch }) => {
+  const { result, storage, account } = request;
+  const { vault, uuid: vaultId } = storage;
 
-    // Create the secret in the memory buffer
-    const payload: Payload = await vault.create(result);
-    const [changeSequence, secretId, encrypted] = payload.CreateSecret;
+  // Create the secret in the memory buffer
+  const payload: Payload = await vault.create(result);
+  const [changeSequence, secretId, encrypted] = payload.CreateSecret;
+
+  // Send to the server for persistence
+  const response = await api.createSecret(
+    account,
+    changeSequence,
+    vaultId,
+    secretId,
+    encrypted
+  );
+
+  if (response.status === 409) {
+    const remoteChangeSequence = parseInt(
+      response.headers.get("x-change-sequence")
+    );
+    console.log("handling conflict", remoteChangeSequence);
+    const conflict = {
+      operation: ConflictOperation.CREATE_SECRET,
+      changePair: {
+        local: changeSequence,
+        remote: remoteChangeSequence,
+      },
+      vaultId,
+      secretId,
+    };
+    console.log("handle conflict in create operation", conflict);
+
+    const handlers = makeConflictHandlers(
+      dispatch,
+      account,
+      storage,
+      async () => {
+        console.log("retry the create operation!!");
+      }
+    );
+
+    await api.resolveConflict(conflict, handlers);
+  } else if (!response.ok) {
+    // FIXME: queue failed backend requests
+    throw new Error(`failed to create secret: ${secretId}`);
+  }
+
+  console.log("Secret was saved", response.ok);
+
+  // Update the vault meta data
+  const meta = await vault.getVaultMeta();
+  return { ...storage, meta };
+});
+
+export const readSecret = createAsyncThunk<
+  [SecretMeta, Secret],
+  ReadSecretRequest,
+  { dispatch: AppDispatch }
+>("vaults/readSecret", async (request, { dispatch }) => {
+  const { account, secretId, storage } = request;
+  const { uuid: vaultId, vault } = storage;
+  const result: [SecretMeta, Secret, Payload] = await vault.read(secretId);
+  const [meta, secret, payload] = result;
+  const [changeSequence] = payload.ReadSecret;
+
+  // Send to the server for the audit log
+  const response = await api.readSecret(
+    account,
+    changeSequence,
+    vaultId,
+    secretId
+  );
+
+  if (response.status === 409) {
+    const remoteChangeSequence = parseInt(
+      response.headers.get("x-change-sequence")
+    );
+    const conflict = {
+      operation: ConflictOperation.READ_SECRET,
+      changePair: {
+        local: changeSequence,
+        remote: remoteChangeSequence,
+      },
+      vaultId,
+      secretId,
+    };
+    console.log("handle conflict in read operation", conflict);
+
+    const handlers = makeConflictHandlers(
+      dispatch,
+      account,
+      storage,
+      async () => {
+        console.log("retry the read operation!!");
+        await dispatch(readSecret(request));
+      }
+    );
+
+    await api.resolveConflict(conflict, handlers);
+  } else if (!response.ok) {
+    // FIXME: queue failed backend requests
+    throw new Error(`failed to read secret: ${secretId}`);
+  }
+
+  console.log("Secret was read", response.ok);
+
+  return [meta, secret];
+});
+
+export const updateSecret = createAsyncThunk<
+  VaultStorage,
+  UpdateSecretRequest,
+  { dispatch: AppDispatch }
+>("vaults/updateSecret", async (request, { dispatch }) => {
+  const { result, account, navigate, storage } = request;
+  const { uuid: vaultId, vault } = storage;
+  const payload: Payload = await vault.update(result);
+  if (payload) {
+    const [changeSequence, secretId, encrypted] = payload.UpdateSecret;
 
     // Send to the server for persistence
-    const response = await api.createSecret(
+    const response = await api.updateSecret(
       account,
       changeSequence,
       vaultId,
@@ -155,7 +313,7 @@ export const createSecret = createAsyncThunk(
       );
       console.log("handling conflict", remoteChangeSequence);
       const conflict = {
-        operation: ConflictOperation.CREATE_SECRET,
+        operation: ConflictOperation.UPDATE_SECRET,
         changePair: {
           local: changeSequence,
           remote: remoteChangeSequence,
@@ -163,31 +321,48 @@ export const createSecret = createAsyncThunk(
         vaultId,
         secretId,
       };
-      console.log("handle conflict in create operation", conflict);
+      console.log("handle conflict in update operation", conflict);
+
+      const handlers = makeConflictHandlers(
+        dispatch,
+        account,
+        storage,
+        async () => {
+          console.log("retry the update operation!!");
+        }
+      );
+
+      await api.resolveConflict(conflict, handlers);
     } else if (!response.ok) {
       // FIXME: queue failed backend requests
-      throw new Error(`failed to create secret: ${secretId}`);
+      throw new Error(`failed to update secret: ${secretId}`);
     }
 
-    console.log("Secret was saved", response.ok);
+    console.log("Secret was updated", response.ok);
 
-    // Update the vault meta data
+    // Update the vault meta data and navigate to refresh
+    // the view
     const meta = await vault.getVaultMeta();
-    return { ...owner, meta };
+    const random = Math.random();
+    navigate(`/vault/${vaultId}/${result.secretId}?refresh=${random}`);
+    return { ...storage, meta };
   }
-);
+  return storage;
+});
 
-export const readSecret = createAsyncThunk(
-  "vaults/readSecret",
-  async (request: ReadSecretRequest): Promise<[SecretMeta, Secret]> => {
-    const { account, secretId, owner } = request;
-    const { uuid: vaultId, vault } = owner;
-    const result: [SecretMeta, Secret, Payload] = await vault.read(secretId);
-    const [meta, secret, payload] = result;
-    const [changeSequence] = payload.ReadSecret;
+export const deleteSecret = createAsyncThunk<
+  VaultStorage,
+  DeleteSecretRequest,
+  { dispatch: AppDispatch }
+>("vaults/deleteSecret", async (request, { dispatch }) => {
+  const { result, account, navigate, storage } = request;
+  const { uuid: vaultId, vault } = storage;
+  const payload: Payload = await vault.delete(result);
+  if (payload) {
+    const [changeSequence, secretId] = payload.DeleteSecret;
 
-    // Send to the server for the audit log
-    const response = await api.readSecret(
+    // Send to the server for persistence
+    const response = await api.deleteSecret(
       account,
       changeSequence,
       vaultId,
@@ -200,7 +375,7 @@ export const readSecret = createAsyncThunk(
       );
       console.log("handling conflict", remoteChangeSequence);
       const conflict = {
-        operation: ConflictOperation.READ_SECRET,
+        operation: ConflictOperation.DELETE_SECRET,
         changePair: {
           local: changeSequence,
           remote: remoteChangeSequence,
@@ -208,116 +383,32 @@ export const readSecret = createAsyncThunk(
         vaultId,
         secretId,
       };
-      console.log("handle conflict in read operation", conflict);
+      console.log("handle conflict in delete operation", conflict);
+
+      const handlers = makeConflictHandlers(
+        dispatch,
+        account,
+        storage,
+        async () => {
+          console.log("retry the delete operation!!");
+        }
+      );
+
+      await api.resolveConflict(conflict, handlers);
     } else if (!response.ok) {
       // FIXME: queue failed backend requests
-      throw new Error(`failed to read secret: ${secretId}`);
+      throw new Error(`failed to delete secret: ${secretId}`);
     }
 
-    console.log("Secret was read", response.ok);
+    console.log("Secret was deleted", response.ok);
 
-    return [meta, secret];
+    // Update the vault meta data
+    const meta = await vault.getVaultMeta();
+    navigate(`/vault/${vaultId}`);
+    return { ...storage, meta };
   }
-);
-
-export const updateSecret = createAsyncThunk(
-  "vaults/updateSecret",
-  async (request: UpdateSecretRequest) => {
-    const { result, account, navigate, owner } = request;
-    const { uuid: vaultId, vault } = owner;
-    const payload: Payload = await vault.update(result);
-    if (payload) {
-      const [changeSequence, secretId, encrypted] = payload.UpdateSecret;
-
-      // Send to the server for persistence
-      const response = await api.updateSecret(
-        account,
-        changeSequence,
-        vaultId,
-        secretId,
-        encrypted
-      );
-
-      if (response.status === 409) {
-        const remoteChangeSequence = parseInt(
-          response.headers.get("x-change-sequence")
-        );
-        console.log("handling conflict", remoteChangeSequence);
-        const conflict = {
-          operation: ConflictOperation.UPDATE_SECRET,
-          changePair: {
-            local: changeSequence,
-            remote: remoteChangeSequence,
-          },
-          vaultId,
-          secretId,
-        };
-        console.log("handle conflict in update operation", conflict);
-      } else if (!response.ok) {
-        // FIXME: queue failed backend requests
-        throw new Error(`failed to update secret: ${secretId}`);
-      }
-
-      console.log("Secret was updated", response.ok);
-
-      // Update the vault meta data and navigate to refresh
-      // the view
-      const meta = await vault.getVaultMeta();
-      const random = Math.random();
-      navigate(`/vault/${vaultId}/${result.secretId}?refresh=${random}`);
-      return { ...owner, meta };
-    }
-    return owner;
-  }
-);
-
-export const deleteSecret = createAsyncThunk(
-  "vaults/deleteSecret",
-  async (request: DeleteSecretRequest) => {
-    const { result, account, navigate, owner } = request;
-    const { uuid: vaultId, vault } = owner;
-    const payload: Payload = await vault.delete(result);
-    if (payload) {
-      const [changeSequence, secretId] = payload.DeleteSecret;
-
-      // Send to the server for persistence
-      const response = await api.deleteSecret(
-        account,
-        changeSequence,
-        vaultId,
-        secretId
-      );
-
-      if (response.status === 409) {
-        const remoteChangeSequence = parseInt(
-          response.headers.get("x-change-sequence")
-        );
-        console.log("handling conflict", remoteChangeSequence);
-        const conflict = {
-          operation: ConflictOperation.DELETE_SECRET,
-          changePair: {
-            local: changeSequence,
-            remote: remoteChangeSequence,
-          },
-          vaultId,
-          secretId,
-        };
-        console.log("handle conflict in delete operation", conflict);
-      } else if (!response.ok) {
-        // FIXME: queue failed backend requests
-        throw new Error(`failed to delete secret: ${secretId}`);
-      }
-
-      console.log("Secret was deleted", response.ok);
-
-      // Update the vault meta data
-      const meta = await vault.getVaultMeta();
-      navigate(`/vault/${vaultId}`);
-      return { ...owner, meta };
-    }
-    return owner;
-  }
-);
+  return storage;
+});
 
 const initialState: VaultState = {
   vaults: [],
@@ -375,6 +466,7 @@ const vaultsSlice = createSlice({
     builder.addCase(lockAll.fulfilled, (state, action) => {
       state.vaults = action.payload;
     });
+    builder.addCase(pullVault.fulfilled, updateVaultFromThunk);
     builder.addCase(createSecret.fulfilled, updateVaultFromThunk);
     builder.addCase(updateSecret.fulfilled, updateVaultFromThunk);
     builder.addCase(deleteSecret.fulfilled, updateVaultFromThunk);

@@ -21,6 +21,16 @@ export type Conflict = {
   secretId: string;
 };
 
+// Functions to handle attempts to resolve conflicts.
+export type ConflictHandlers = {
+  // Pull the remote vault.
+  pull: () => Promise<unknown>;
+  // Push local vault to the remote server.
+  push: () => Promise<unknown>;
+  // Replay the last operation that got a conflict response.
+  replay: () => Promise<unknown>;
+};
+
 export type Nonce = {
   Nonce12?: number[];
   Nonce24?: number[];

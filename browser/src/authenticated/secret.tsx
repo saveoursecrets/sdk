@@ -277,9 +277,7 @@ function SecretView(props: SecretViewProps) {
 
   useEffect(() => {
     const loadSecret = async () => {
-      const result = await dispatch(
-        readSecret({ account, owner: storage, secretId })
-      );
+      const result = await dispatch(readSecret({ account, storage, secretId }));
 
       setSecretData(result.payload);
     };
