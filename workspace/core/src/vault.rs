@@ -533,6 +533,13 @@ impl VaultAccess for Vault {
         Ok(self.header.summary.change_seq)
     }
 
+    fn save(&mut self, buffer: &[u8]) -> Result<Payload> {
+        let vault = Vault::read_buffer(buffer)?;
+        *self = vault;
+        let change_seq = self.change_seq()?;
+        Ok(Payload::SaveVault(change_seq))
+    }
+
     fn create(
         &mut self,
         uuid: Uuid,

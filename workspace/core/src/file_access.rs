@@ -191,6 +191,17 @@ impl VaultAccess for VaultFileAccess {
         Ok(de.reader.read_u32()?)
     }
 
+    fn save(&mut self, buffer: &[u8]) -> Result<Payload> {
+        let mut file = File::options()
+            .read(true)
+            .write(true)
+            .open(&self.file_path)?;
+        file.write_all(buffer)?;
+
+        let change_seq = self.change_seq()?;
+        Ok(Payload::SaveVault(change_seq))
+    }
+
     fn create(
         &mut self,
         uuid: Uuid,

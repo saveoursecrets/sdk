@@ -110,6 +110,12 @@ pub enum ServerEvent {
         address: AddressStr,
         vault_id: Uuid,
     },
+    SaveVault {
+        #[serde(skip)]
+        address: AddressStr,
+        vault_id: Uuid,
+        change_seq: u32,
+    },
     UpdateVault {
         #[serde(skip)]
         address: AddressStr,
@@ -148,6 +154,7 @@ impl ServerEvent {
     fn event_name(&self) -> &str {
         match self {
             Self::CreateVault { .. } => "createVault",
+            Self::SaveVault { .. } => "saveVault",
             Self::UpdateVault { .. } => "updateVault",
             Self::DeleteVault { .. } => "deleteVault",
             Self::CreateSecret { .. } => "createSecret",
@@ -160,6 +167,7 @@ impl ServerEvent {
     fn address(&self) -> &AddressStr {
         match self {
             Self::CreateVault { address, .. } => address,
+            Self::SaveVault { address, .. } => address,
             Self::UpdateVault { address, .. } => address,
             Self::DeleteVault { address, .. } => address,
             Self::CreateSecret { address, .. } => address,
@@ -235,7 +243,7 @@ impl Server {
             //.route("/api/vaults", get(VaultHandler::list))
             .route(
                 "/api/vaults/:vault_id",
-                get(VaultHandler::get_vault).post(VaultHandler::update_vault),
+                get(VaultHandler::get_vault).post(VaultHandler::save_vault),
             )
             .route(
                 "/api/vaults/:vault_id/secrets/:secret_id",
@@ -551,38 +559,82 @@ impl VaultHandler {
         }
     }
 
-    /// Update an encrypted vault.
-    async fn update_vault(
+    /// Save an encrypted vault.
+    async fn save_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(change_seq): TypedHeader<ChangeSequence>,
         Path(vault_id): Path<Uuid>,
         body: Bytes,
-    ) -> Result<(), StatusCode> {
-        let mut writer = state.write().await;
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+                let mut handle = writer
+                    .backend
+                    .vault_write(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
 
-        todo!()
-
-        /*
-        if let Some(backend) = writer.backends.get_mut(&user_id) {
-            if let Some(vault) = backend.get_mut(&vault_id) {
-                let buffer = body.to_vec();
-                let new_vault: Vault = decode(buffer)
+                let local_change_seq: u32 = change_seq.into();
+                let remote_change_seq = handle
+                    .change_seq()
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                *vault = new_vault;
+                if local_change_seq < remote_change_seq {
+                    Ok(MaybeConflict::Conflict(remote_change_seq))
+                } else {
+                    if let Ok(payload) = handle.save(&body) {
+                        let event = ServerEvent::SaveVault {
+                            address: token.address.clone(),
+                            change_seq: *payload.change_seq().unwrap(),
+                            vault_id: vault_id.clone(),
+                        };
+                        Ok(MaybeConflict::EventLog(
+                            event,
+                            payload.into_audit_log(token.address, vault_id),
+                        ))
+                    } else {
+                        Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    }
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
 
-                backend
-                    .flush(&vault_id)
+        let result = match response? {
+            MaybeConflict::Conflict(change_seq) => {
+                let mut headers = HeaderMap::new();
+                let x_change_sequence =
+                    HeaderValue::from_str(&change_seq.to_string())
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                headers.insert(X_CHANGE_SEQUENCE.clone(), x_change_sequence);
+                (StatusCode::CONFLICT, headers)
+            }
+            MaybeConflict::EventLog(event, log) => {
+                let mut writer = state.write().await;
+                writer
+                    .audit_log
+                    .append(log)
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                Ok(())
-            } else {
-                Err(StatusCode::NOT_FOUND)
+                // Send notification on the SSE channel
+                if let Some(conn) = writer.sse.get(event.address()) {
+                    if let Err(_) = conn.tx.send(event) {
+                        tracing::debug!("server sent events channel dropped");
+                    }
+                }
+                (StatusCode::OK, HeaderMap::new())
             }
-        } else {
-            Err(StatusCode::NOT_FOUND)
-        }
-        */
+            _ => unreachable!(),
+        };
+        Ok(result)
     }
 }
 
