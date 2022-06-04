@@ -40,6 +40,11 @@ export type VaultStorage = {
 export type VaultState = {
   vaults: VaultStorage[];
   current?: VaultStorage;
+  // Current secret being viewed.
+  //
+  // We want to put this in VaultStorage but trying to update
+  // VaultStorage with a new secret produces an obscure Immer error.
+  secret?: [SecretMeta, Secret];
 };
 
 export type NewVaultRequest = {
@@ -93,7 +98,6 @@ const makeConflictHandlers = (
 ): ConflictHandlers => {
   return {
     pull: async () => {
-      console.log("pulling vault buffer...");
       const request = { account, storage };
       await dispatch(pullVault(request));
     },
@@ -124,15 +128,12 @@ export const loadVault = createAsyncThunk(
 );
 
 export const pullVault = createAsyncThunk(
-  "vaults/pullVault",
+  "vaults/pull",
   async (request: PullVaultRequest) => {
     const { account, storage } = request;
     const buffer = await api.getVault(account, storage.uuid);
     const { vault } = storage;
     await vault.importBuffer(Array.from(new Uint8Array(buffer)));
-
-    console.log("finished importing the new vault buffer in pull");
-
     // Update the vault meta data
     const meta = await vault.getVaultMeta();
     return { ...storage, meta };
@@ -174,7 +175,7 @@ export const createNewVault = createAsyncThunk(
 );
 
 export const createSecret = createAsyncThunk<
-  VaultStorage,
+  VaultStorage | null,
   CreateSecretRequest,
   { dispatch: AppDispatch }
 >("vaults/createSecret", async (request, { dispatch }) => {
@@ -216,10 +217,12 @@ export const createSecret = createAsyncThunk<
       storage,
       async () => {
         console.log("retry the create operation!!");
+        await dispatch(createSecret(request));
       }
     );
 
     await api.resolveConflict(conflict, handlers);
+    return null;
   } else if (!response.ok) {
     // FIXME: queue failed backend requests
     throw new Error(`failed to create secret: ${secretId}`);
@@ -233,7 +236,7 @@ export const createSecret = createAsyncThunk<
 });
 
 export const readSecret = createAsyncThunk<
-  [SecretMeta, Secret],
+  [SecretMeta, Secret] | null,
   ReadSecretRequest,
   { dispatch: AppDispatch }
 >("vaults/readSecret", async (request, { dispatch }) => {
@@ -277,12 +280,13 @@ export const readSecret = createAsyncThunk<
     );
 
     await api.resolveConflict(conflict, handlers);
+    return null;
   } else if (!response.ok) {
     // FIXME: queue failed backend requests
     throw new Error(`failed to read secret: ${secretId}`);
   }
 
-  console.log("Secret was read", response.ok);
+  console.log("Secret was read", response.ok, response.status, response);
 
   return [meta, secret];
 });
@@ -329,10 +333,12 @@ export const updateSecret = createAsyncThunk<
         storage,
         async () => {
           console.log("retry the update operation!!");
+          await dispatch(updateSecret(request));
         }
       );
 
       await api.resolveConflict(conflict, handlers);
+      return null;
     } else if (!response.ok) {
       // FIXME: queue failed backend requests
       throw new Error(`failed to update secret: ${secretId}`);
@@ -391,10 +397,12 @@ export const deleteSecret = createAsyncThunk<
         storage,
         async () => {
           console.log("retry the delete operation!!");
+          await dispatch(deleteSecret(request));
         }
       );
 
       await api.resolveConflict(conflict, handlers);
+      return null;
     } else if (!response.ok) {
       // FIXME: queue failed backend requests
       throw new Error(`failed to delete secret: ${secretId}`);
@@ -413,21 +421,24 @@ export const deleteSecret = createAsyncThunk<
 const initialState: VaultState = {
   vaults: [],
   current: null,
+  secret: null,
 };
 
 const updateVaultFromThunk = (
   state: VaultState,
-  action: PayloadAction<VaultStorage>
+  action: PayloadAction<VaultStorage | null>
 ) => {
   const { payload } = action;
-  state.current = payload;
-  state.vaults = state.vaults.map((prop: VaultStorage) => {
-    if (payload.uuid === prop.uuid) {
-      return payload;
-    } else {
-      return prop;
-    }
-  });
+  if (payload) {
+    state.current = payload;
+    state.vaults = state.vaults.map((prop: VaultStorage) => {
+      if (payload.uuid === prop.uuid) {
+        return payload;
+      } else {
+        return prop;
+      }
+    });
+  }
 };
 
 const logError = (state: VaultState, action: AnyAction) => {
@@ -441,6 +452,7 @@ const vaultsSlice = createSlice({
   reducers: {
     setCurrent: (state, { payload }: PayloadAction<VaultStorage>) => {
       state.current = payload;
+      state.secret = null;
     },
     updateVault: (state, { payload }: PayloadAction<VaultStorage>) => {
       state.vaults = state.vaults.map((prop) => {
@@ -457,6 +469,7 @@ const vaultsSlice = createSlice({
     builder.addCase(createNewVault.fulfilled, (state, action) => {
       state.vaults = [action.payload, ...state.vaults];
       state.current = action.payload;
+      state.secret = null;
     });
     builder.addCase(loadVault.fulfilled, (state, action) => {
       const vaults = [...state.vaults];
@@ -468,6 +481,18 @@ const vaultsSlice = createSlice({
     });
     builder.addCase(pullVault.fulfilled, updateVaultFromThunk);
     builder.addCase(createSecret.fulfilled, updateVaultFromThunk);
+    builder.addCase(
+      readSecret.fulfilled,
+      (
+        state: VaultState,
+        action: PayloadAction<[SecretMeta, Secret] | null>
+      ) => {
+        const { payload } = action;
+        if (payload) {
+          state.secret = payload;
+        }
+      }
+    );
     builder.addCase(updateSecret.fulfilled, updateVaultFromThunk);
     builder.addCase(deleteSecret.fulfilled, updateVaultFromThunk);
 
@@ -477,4 +502,6 @@ const vaultsSlice = createSlice({
 
 export const { updateVault, setCurrent } = vaultsSlice.actions;
 export const vaultsSelector = (state: { vaults: VaultState }) => state.vaults;
+export const secretSelector = (state: { vaults: VaultState }) =>
+  state.vaults.secret;
 export default vaultsSlice.reducer;
