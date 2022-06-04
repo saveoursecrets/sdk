@@ -28,7 +28,7 @@ use sos_core::{
     decode, encode,
     k256::ecdsa::recoverable,
     operations::{Operation, Payload},
-    vault::{Summary, Vault},
+    vault::{Header, Summary, Vault},
     web3_signature::Signature,
 };
 use std::{
@@ -571,6 +571,10 @@ impl VaultHandler {
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                // Check it looks like a vault payload
+                Header::read_summary_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+
                 let mut writer = state.write().await;
                 let mut handle = writer
                     .backend

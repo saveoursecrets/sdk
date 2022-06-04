@@ -139,7 +139,8 @@ impl Default for Operation {
 
 impl Encode for Operation {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_u16(self.into())?;
+        let value: u16 = self.into();
+        ser.writer.write_u16(value)?;
         Ok(())
     }
 }

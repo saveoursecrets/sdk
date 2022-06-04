@@ -2,7 +2,8 @@
 use serde::{Deserialize, Serialize};
 use serde_binary::{
     binary_rw::{
-        BinaryReader, BinaryWriter, Endian, FileStream, OpenType, ReadStream, WriteStream, SeekStream,
+        BinaryReader, BinaryWriter, Endian, FileStream, OpenType, ReadStream,
+        SeekStream, SliceStream, WriteStream,
     },
     Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
     Serializer,
@@ -170,6 +171,12 @@ impl Header {
     /// Read the summary for a vault from a file.
     pub fn read_summary_file<P: AsRef<Path>>(file: P) -> Result<Summary> {
         let mut stream = FileStream::new(file.as_ref(), OpenType::Open)?;
+        Header::read_summary_stream(&mut stream)
+    }
+
+    /// Read the summary for a slice of bytes.
+    pub fn read_summary_slice(buffer: &[u8]) -> Result<Summary> {
+        let mut stream = SliceStream::new(buffer);
         Header::read_summary_stream(&mut stream)
     }
 

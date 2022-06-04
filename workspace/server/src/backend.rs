@@ -183,7 +183,8 @@ impl Backend for FileSystemBackend {
             return Err(Error::DirectoryExists(account_dir));
         }
 
-        // TODO: verify bytes looks like a vault file
+        // Check it looks like a vault payload
+        Header::read_summary_slice(vault)?;
 
         tokio::fs::create_dir(account_dir).await?;
         let vault_path = self.new_vault_file(&owner, &vault_id, vault).await?;
