@@ -194,15 +194,13 @@ export const syncChangeSet = createAsyncThunk<
       const changeSequence = await storage.vault.changeSequence();
       console.log("sync", vaultId, changeSequence);
       // Try to apply the patch
-      const response = await makeNetworkGuard(api.patchVault(
-        account,
-        vaultId,
-        patch,
-        changeSequence
-      ), (e: Error) => {
-        // FIXME: show UI notification that the sync failed
-        throw e;
-      });
+      const response = await makeNetworkGuard(
+        api.patchVault(account, vaultId, patch, changeSequence),
+        (e: Error) => {
+          // FIXME: show UI notification that the sync failed
+          throw e;
+        }
+      );
       if (response.ok) {
         // Patch success so we can clear those changes
         await dispatch(clearBatchChanges(vaultId));

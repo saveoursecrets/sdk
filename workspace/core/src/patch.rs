@@ -10,6 +10,7 @@ use crate::{file_identity::FileIdentity, operations::Payload};
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
 
 /// Patch wraps a changeset of operations to apply to a vault.
+#[derive(Default)]
 pub struct Patch<'a>(pub Vec<Payload<'a>>);
 
 impl Encode for Patch<'_> {

@@ -475,7 +475,7 @@ impl Vault {
 
     /// Read a vault from a buffer.
     pub fn read_buffer<B: AsRef<[u8]>>(buffer: B) -> Result<Vault> {
-        let vault: Vault = decode(buffer.as_ref().to_vec())?;
+        let vault: Vault = decode(buffer.as_ref())?;
         Ok(vault)
     }
 
@@ -621,8 +621,8 @@ pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
     Ok(serde_binary::encode(encodable, Endian::Big)?)
 }
 
-/// Decode into a binary buffer.
-pub fn decode<T: Decode + Default>(buffer: Vec<u8>) -> Result<T> {
+/// Decode from a binary buffer.
+pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
     Ok(serde_binary::decode::<T>(buffer, Endian::Big)?)
 }
 
