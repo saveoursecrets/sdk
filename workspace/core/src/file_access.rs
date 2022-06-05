@@ -12,9 +12,9 @@ use std::{
 use serde_binary::{
     binary_rw::{
         BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream, OpenType,
-        ReadStream, SeekStream, WriteStream,
+        SeekStream,
     },
-    Decode, Deserializer, Serializer,
+    Deserializer, Serializer,
 };
 use uuid::Uuid;
 

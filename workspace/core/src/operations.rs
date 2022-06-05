@@ -260,6 +260,12 @@ pub enum Payload<'a> {
     DeleteSecret(u32, Uuid),
 }
 
+impl Default for Payload<'_> {
+    fn default() -> Self {
+        Self::SaveVault(0)
+    }
+}
+
 /// Payload with an attached signature.
 pub struct SignedPayload([u8; 65], Vec<u8>);
 

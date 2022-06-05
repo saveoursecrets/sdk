@@ -221,6 +221,7 @@ impl Server {
                 Method::GET,
                 Method::POST,
                 Method::DELETE,
+                Method::PATCH,
             ])
             // For SSE support must allow credentials
             .allow_credentials(true)

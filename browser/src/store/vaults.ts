@@ -9,7 +9,7 @@ import { NavigateFunction } from "react-router-dom";
 import { WebVault } from "sos-wasm";
 
 import { AppDispatch } from ".";
-import { addBatchChange } from './batch';
+import { addBatchChange } from "./batch";
 
 import api from "./api";
 import {
@@ -102,7 +102,7 @@ const makeConflictHandlers = (
   account: Account,
   storage: VaultStorage,
   changeSequence: number,
-  replay: () => Promise<unknown>,
+  replay: () => Promise<unknown>
 ): ConflictHandlers => {
   return {
     pull: async () => {
@@ -122,13 +122,14 @@ const makeConflictHandlers = (
 
 const makeNetworkGuard = async (
   request: Promise<Response>,
-  handleError: (e: Error) => void): Promise<Response | null> => {
+  handleError: (e: Error) => void
+): Promise<Response | null> => {
   try {
     return await request;
   } catch (e) {
     handleError(e);
   }
-}
+};
 
 // Compare a local and remote change sequence and perform the
 // appropriate action depending upon which is ahead or behind
@@ -284,15 +285,12 @@ const syncCreateSecret = async (
   const { uuid: vaultId } = storage;
 
   // Send to the server for persistence
-  const response = await makeNetworkGuard(api.createSecret(
-    account,
-    changeSequence,
-    vaultId,
-    secretId,
-    encrypted
-  ), (e: Error) => {
-    handlers.queue([vaultId, payload]);
-  });
+  const response = await makeNetworkGuard(
+    api.createSecret(account, changeSequence, vaultId, secretId, encrypted),
+    (e: Error) => {
+      handlers.queue([vaultId, payload]);
+    }
+  );
 
   if (!response) {
     return null;
@@ -364,14 +362,12 @@ const syncReadSecret = async (
   const [changeSequence, secretId] = payload.ReadSecret;
 
   // Send to the server for the audit log
-  const response = await makeNetworkGuard(api.readSecret(
-    account,
-    changeSequence,
-    vaultId,
-    secretId
-  ), (e: Error) => {
-    handlers.queue([vaultId, payload]);
-  });
+  const response = await makeNetworkGuard(
+    api.readSecret(account, changeSequence, vaultId, secretId),
+    (e: Error) => {
+      handlers.queue([vaultId, payload]);
+    }
+  );
 
   if (!response) {
     return null;

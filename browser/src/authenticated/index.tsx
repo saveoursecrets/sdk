@@ -24,7 +24,7 @@ import Secret from "./secret";
 import Dialogs from "./dialogs";
 import AppBarActions from "./app-bar-actions";
 import Changes from "./changes";
-import BeforeUnload from './before-unload';
+import BeforeUnload from "./before-unload";
 import LogoType from "../logotype";
 import NotFound from "../not-found";
 

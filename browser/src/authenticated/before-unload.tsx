@@ -4,7 +4,7 @@ import { batchSelector } from "../store/batch";
 
 function onBeforeUnload(e: Event) {
   e.preventDefault();
-  return event.returnValue = true;
+  return (event.returnValue = true);
 }
 
 export default function BeforeUnload(): null {
