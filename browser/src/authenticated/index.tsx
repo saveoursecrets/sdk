@@ -16,6 +16,7 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import { VaultWorker } from "../types";
+import { WorkerProps } from "../props";
 
 import Home from "./home";
 import VaultList from "./vault-list";
@@ -79,11 +80,7 @@ const DrawerHeader = styled("div")(({ theme }) => ({
   justifyContent: "flex-end",
 }));
 
-type AppProps = {
-  worker: VaultWorker;
-};
-
-export default function AuthenticatedApp(props: AppProps) {
+export default function AuthenticatedApp(props: WorkerProps) {
   const { worker } = props;
   const theme = useTheme();
 
@@ -114,7 +111,7 @@ export default function AuthenticatedApp(props: AppProps) {
               <LogoType />
             </Stack>
 
-            <AppBarActions />
+            <AppBarActions worker={worker} />
           </Stack>
         </Toolbar>
       </AppBar>

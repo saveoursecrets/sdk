@@ -4,12 +4,7 @@
 // A batch of payloads may be converted to a PATCH request to the
 // server to apply local changes to a remote vault.
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Payload } from "../types";
-
-export type ChangeSet = {
-  // Keys are the vault UUID identifier.
-  [key: string]: Payload[];
-};
+import { Payload, ChangeSet } from "../types";
 
 export interface BatchState {
   changeSet: ChangeSet;
@@ -31,10 +26,14 @@ const batchSlice = createSlice({
       changes.push(change);
       state.changeSet = { ...state.changeSet, [vaultId]: changes };
     },
+    clearBatchChanges: (state, { payload }: PayloadAction<string>) => {
+      const vaultId = payload;
+      state.changeSet = { ...state.changeSet, [vaultId]: [] };
+    },
   },
 });
 
-export const { addBatchChange } = batchSlice.actions;
+export const { addBatchChange, clearBatchChanges } = batchSlice.actions;
 export const batchSelector = (state: { batch: BatchState }) => {
   const { changeSet } = state.batch;
   let totalChanges = 0;

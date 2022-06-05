@@ -7,13 +7,18 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import SyncIcon from "@mui/icons-material/Sync";
 
 import { logout } from "../store/account";
-import { vaultsSelector, lockAll } from "../store/vaults";
+import { vaultsSelector, lockAll, syncChangeSet } from "../store/vaults";
+import { accountSelector } from "../store/account";
 import { batchSelector } from "../store/batch";
 import { AppDispatch } from "../store";
 
-export default function AppBarActions() {
+import { WorkerProps } from "../props";
+
+export default function AppBarActions(props: WorkerProps) {
+  const { worker } = props;
+  const { account } = useSelector(accountSelector);
   const { vaults } = useSelector(vaultsSelector);
-  const { totalChanges } = useSelector(batchSelector);
+  const { totalChanges, changeSet } = useSelector(batchSelector);
   const dispatch: AppDispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -23,8 +28,9 @@ export default function AppBarActions() {
     navigate("/");
   };
 
-  const trySyncChanges = () => {
+  const trySyncChanges = async () => {
     console.log("try to sync unsaved changes...");
+    await dispatch(syncChangeSet({ account, worker, changeSet }));
   };
 
   console.log("got batch changeSet", totalChanges);

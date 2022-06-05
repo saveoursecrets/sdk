@@ -10,7 +10,7 @@ use crate::{file_identity::FileIdentity, operations::Payload};
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
 
 /// Patch wraps a changeset of operations to apply to a vault.
-pub struct Patch<'a>(Vec<Payload<'a>>);
+pub struct Patch<'a>(pub Vec<Payload<'a>>);
 
 impl Encode for Patch<'_> {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {

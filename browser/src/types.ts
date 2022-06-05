@@ -33,6 +33,11 @@ export type ConflictHandlers = {
   queue: (changes: [string, Payload]) => void;
 };
 
+export type ChangeSet = {
+  // Keys are the vault UUID identifier.
+  [key: string]: Payload[];
+};
+
 export type Nonce = {
   Nonce12?: number[];
   Nonce24?: number[];
@@ -128,6 +133,7 @@ export type VaultWorker = {
   Signup(): Promise<Signup>;
   WebSigner(): Promise<WebSigner>;
   generatePassphrase(words: number): Promise<[string, number]>;
+  patch(changeSet: Payload[]): Promise<Uint8Array>;
 };
 
 export type SecretReference = {

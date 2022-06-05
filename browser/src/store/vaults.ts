@@ -8,8 +8,8 @@ import {
 import { NavigateFunction } from "react-router-dom";
 import { WebVault } from "sos-wasm";
 
-import { AppDispatch } from ".";
-import { addBatchChange } from "./batch";
+import { AppDispatch, RootState } from ".";
+import { addBatchChange, clearBatchChanges } from "./batch";
 
 import api from "./api";
 import {
@@ -24,6 +24,7 @@ import {
   VaultWorker,
   Summary,
   Payload,
+  ChangeSet,
 } from "../types";
 
 export type VaultMetaData = {
@@ -78,6 +79,12 @@ export type DeleteSecretRequest = {
   result: string;
   storage: VaultStorage;
   navigate: NavigateFunction;
+};
+
+type SyncRequest = {
+  account: Account;
+  worker: VaultWorker;
+  changeSet: ChangeSet;
 };
 
 type LoadVaultRequest = {
@@ -166,6 +173,35 @@ const resolveConflict = async (
     }
   }
 };
+
+export const syncChangeSet = createAsyncThunk<
+  void,
+  SyncRequest,
+  { getState: () => RootState; dispatch: AppDispatch }
+>("vaults/syncChangeSet", async (request, { getState, dispatch }) => {
+  const state = getState() as RootState;
+  const { vaults } = state.vaults;
+  const { account, worker, changeSet } = request;
+  for (const [vaultId, changes] of Object.entries(changeSet)) {
+    const patch = await worker.patch(changes);
+    const storage = vaults.find((v) => v.uuid === vaultId);
+    if (storage) {
+      const changeSequence = await storage.vault.changeSequence();
+      console.log("sync", vaultId, changeSequence);
+      const response = await api.patchVault(
+        account,
+        vaultId,
+        patch,
+        changeSequence
+      );
+      if (response.ok) {
+        await dispatch(clearBatchChanges(vaultId));
+      }
+    } else {
+      throw new Error(`sync failed to find vault storage: ${vaultId}`);
+    }
+  }
+});
 
 export const loadVault = createAsyncThunk(
   "vaults/loadVault",
