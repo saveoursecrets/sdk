@@ -1,12 +1,4 @@
-import {
-  Account,
-  Signature,
-  Summary,
-  AeadPack,
-  Conflict,
-  ConflictOperation,
-  ConflictHandlers,
-} from "../types";
+import { Account, Signature, Summary, AeadPack } from "../types";
 import { encode, toHexString } from "../utils";
 import { WebSigner } from "sos-wasm";
 
@@ -126,6 +118,30 @@ export class VaultApi {
     return response.arrayBuffer();
   }
 
+  // Save the buffer for an entire vault.
+  async saveVault(
+    account: Account,
+    vaultId: string,
+    vault: Uint8Array,
+    changeSequence: number
+  ): Promise<Response> {
+    const signature = await account.signer.sign(Array.from(vault));
+    const url = `${this.url}/vaults/${vaultId}`;
+    const body = new Blob([vault.buffer]);
+    const headers = {
+      authorization: bearer(signature),
+      "content-type": MIME_TYPE_VAULT,
+      "x-change-sequence": changeSequence.toString(),
+    };
+    const response = await fetch(url, {
+      method: "PUT",
+      mode: "cors",
+      headers,
+      body,
+    });
+    return response;
+  }
+
   // Send an encrypted secret payload for a create or update operation.
   async sendSecretPayload(
     account: Account,
@@ -242,34 +258,6 @@ export class VaultApi {
       message
     )}&token=${token}`;
     return new EventSource(url, { withCredentials: true });
-  }
-
-  async resolveConflict(
-    conflict: Conflict,
-    handlers: ConflictHandlers
-  ): Promise<void> {
-    const { operation, changePair } = conflict;
-    const { local, remote } = changePair;
-
-    // Account for the fact that the local version of the vault
-    // has been updated before receiving the conflict response
-    let nextRemoteSequence = remote;
-    switch (operation) {
-      case ConflictOperation.CREATE_SECRET:
-      case ConflictOperation.UPDATE_SECRET:
-      case ConflictOperation.DELETE_SECRET:
-        nextRemoteSequence = remote + 1;
-        break;
-    }
-
-    const isRemoteAhead = nextRemoteSequence > local;
-    if (isRemoteAhead) {
-      console.log("Pull changes from remote server...");
-      await handlers.pull();
-      await handlers.replay();
-    } else {
-      throw new Error("TODO: push local changes to the remote server?");
-    }
   }
 }
 

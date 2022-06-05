@@ -29,6 +29,10 @@ const store = configureStore({
           "vaults/pull/fulfilled",
           "vaults/pull/rejected",
 
+          "vaults/push/pending",
+          "vaults/push/fulfilled",
+          "vaults/push/rejected",
+
           "vaults/create/pending",
           "vaults/create/fulfilled",
           "vaults/create/rejected",

@@ -243,7 +243,7 @@ impl Server {
             //.route("/api/vaults", get(VaultHandler::list))
             .route(
                 "/api/vaults/:vault_id",
-                get(VaultHandler::get_vault).post(VaultHandler::save_vault),
+                get(VaultHandler::get_vault).put(VaultHandler::save_vault),
             )
             .route(
                 "/api/vaults/:vault_id/secrets/:secret_id",
