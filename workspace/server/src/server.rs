@@ -660,13 +660,6 @@ impl VaultHandler {
                 let patch: Patch =
                     decode(&body).map_err(|_| StatusCode::BAD_REQUEST)?;
 
-                todo!()
-
-                /*
-                // Check it looks like a vault payload
-                Header::read_summary_slice(&body)
-                    .map_err(|_| StatusCode::BAD_REQUEST)?;
-
                 let mut writer = state.write().await;
                 let mut handle = writer
                     .backend
@@ -682,6 +675,11 @@ impl VaultHandler {
                 if local_change_seq < remote_change_seq {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
+                    let change_set: Vec<Payload> = patch.into();
+
+                    todo!()
+
+                    /*
                     if let Ok(payload) = handle.save(&body) {
                         let event = ServerEvent::SaveVault {
                             address: token.address.clone(),
@@ -695,8 +693,9 @@ impl VaultHandler {
                     } else {
                         Err(StatusCode::INTERNAL_SERVER_ERROR)
                     }
+                    */
                 }
-                */
+
             } else {
                 Err(status_code)
             }

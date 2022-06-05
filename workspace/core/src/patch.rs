@@ -11,7 +11,7 @@ pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
 
 /// Patch wraps a changeset of operations to apply to a vault.
 #[derive(Default)]
-pub struct Patch<'a>(pub Vec<Payload<'a>>);
+pub struct Patch<'a>(Vec<Payload<'a>>);
 
 impl Encode for Patch<'_> {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
@@ -36,5 +36,17 @@ impl Decode for Patch<'_> {
         }
 
         Ok(())
+    }
+}
+
+impl<'a> From<Patch<'a>> for Vec<Payload<'a>> {
+    fn from(value: Patch<'a>) -> Self {
+        value.0
+    }
+}
+
+impl<'a> From<Vec<Payload<'a>>> for Patch<'a> {
+    fn from(value: Vec<Payload<'a>>) -> Self {
+        Self(value)
     }
 }

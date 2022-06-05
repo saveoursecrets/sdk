@@ -361,5 +361,5 @@ pub fn generate_passphrase(words: u8) -> Result<JsValue, JsError> {
 #[wasm_bindgen]
 pub fn patch(change_set: JsValue) -> Result<Vec<u8>, JsError> {
     let patches: Vec<Payload> = change_set.into_serde()?;
-    Ok(encode(&Patch(patches))?)
+    Ok(encode(&Patch::from(patches))?)
 }
