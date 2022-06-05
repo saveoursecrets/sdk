@@ -365,7 +365,7 @@ impl<'a> Encode for Payload<'a> {
             }
             Payload::UpdateVault(meta) => {
                 ser.writer.write_bool(meta.is_some())?;
-                if let Cow::Borrowed(Some(meta)) = meta {
+                if let Some(meta) = meta.as_ref() {
                     meta.encode(&mut *ser)?;
                 }
             }
