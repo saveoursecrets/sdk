@@ -174,6 +174,8 @@ const resolveConflict = async (
   }
 };
 
+// Attempt to patch all vaults that have local changesets
+// that have not been sent to the server yet.
 export const syncChangeSet = createAsyncThunk<
   void,
   SyncRequest,
@@ -183,18 +185,26 @@ export const syncChangeSet = createAsyncThunk<
   const { vaults } = state.vaults;
   const { account, worker, changeSet } = request;
   for (const [vaultId, changes] of Object.entries(changeSet)) {
+    // Get the binary encoded data to send to the server
     const patch = await worker.patch(changes);
+    // Locate the current vault to determine the current change sequence
     const storage = vaults.find((v) => v.uuid === vaultId);
     if (storage) {
+      // Ensure we get also send the current change sequence
       const changeSequence = await storage.vault.changeSequence();
       console.log("sync", vaultId, changeSequence);
-      const response = await api.patchVault(
+      // Try to apply the patch
+      const response = await makeNetworkGuard(api.patchVault(
         account,
         vaultId,
         patch,
         changeSequence
-      );
+      ), (e: Error) => {
+        // FIXME: show UI notification that the sync failed
+        throw e;
+      });
       if (response.ok) {
+        // Patch success so we can clear those changes
         await dispatch(clearBatchChanges(vaultId));
       }
     } else {
