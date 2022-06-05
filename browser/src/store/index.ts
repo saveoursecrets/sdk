@@ -4,6 +4,7 @@ import dialogsReducer from "./dialogs";
 import accountReducer from "./account";
 import signupReducer from "./signup";
 import snackbarReducer from "./snackbar";
+import batchReducer from "./batch";
 
 const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ const store = configureStore({
     account: accountReducer,
     signup: signupReducer,
     snackbar: snackbarReducer,
+    batch: batchReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

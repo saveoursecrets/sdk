@@ -29,6 +29,8 @@ export type ConflictHandlers = {
   push: () => Promise<unknown>;
   // Replay the last operation that got a conflict response.
   replay: () => Promise<unknown>;
+  // Queue a failed request in the batch of changes to be sent to the server.
+  queue: (changes: [string, Payload]) => void;
 };
 
 export type Nonce = {

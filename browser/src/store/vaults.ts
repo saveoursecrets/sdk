@@ -9,6 +9,7 @@ import { NavigateFunction } from "react-router-dom";
 import { WebVault } from "sos-wasm";
 
 import { AppDispatch } from ".";
+import { addBatchChange } from './batch';
 
 import api from "./api";
 import {
@@ -101,7 +102,7 @@ const makeConflictHandlers = (
   account: Account,
   storage: VaultStorage,
   changeSequence: number,
-  replay: () => Promise<unknown>
+  replay: () => Promise<unknown>,
 ): ConflictHandlers => {
   return {
     pull: async () => {
@@ -113,8 +114,21 @@ const makeConflictHandlers = (
       await dispatch(pushVault(request));
     },
     replay,
+    queue: async (changes: [string, Payload]) => {
+      await dispatch(addBatchChange(changes));
+    },
   };
 };
+
+const makeNetworkGuard = async (
+  request: Promise<Response>,
+  handleError: (e: Error) => void): Promise<Response | null> => {
+  try {
+    return await request;
+  } catch (e) {
+    handleError(e);
+  }
+}
 
 // Compare a local and remote change sequence and perform the
 // appropriate action depending upon which is ahead or behind
@@ -270,13 +284,19 @@ const syncCreateSecret = async (
   const { uuid: vaultId } = storage;
 
   // Send to the server for persistence
-  const response = await api.createSecret(
+  const response = await makeNetworkGuard(api.createSecret(
     account,
     changeSequence,
     vaultId,
     secretId,
     encrypted
-  );
+  ), (e: Error) => {
+    handlers.queue([vaultId, payload]);
+  });
+
+  if (!response) {
+    return null;
+  }
 
   if (response.status === 409) {
     const remoteChangeSequence = parseInt(
@@ -297,8 +317,9 @@ const syncCreateSecret = async (
     await resolveConflict(conflict, handlers);
     return null;
   } else if (!response.ok) {
-    // FIXME: queue failed backend requests
-    throw new Error(`failed to create secret: ${secretId}`);
+    // Queue failed backend requests
+    await handlers.queue([vaultId, payload]);
+    return null;
   }
 
   console.log("Secret was saved", response.ok);
@@ -343,12 +364,18 @@ const syncReadSecret = async (
   const [changeSequence, secretId] = payload.ReadSecret;
 
   // Send to the server for the audit log
-  const response = await api.readSecret(
+  const response = await makeNetworkGuard(api.readSecret(
     account,
     changeSequence,
     vaultId,
     secretId
-  );
+  ), (e: Error) => {
+    handlers.queue([vaultId, payload]);
+  });
+
+  if (!response) {
+    return null;
+  }
 
   if (response.status === 409) {
     const remoteChangeSequence = parseInt(
@@ -368,8 +395,8 @@ const syncReadSecret = async (
     await resolveConflict(conflict, handlers);
     return null;
   } else if (!response.ok) {
-    // FIXME: queue failed backend requests
-    throw new Error(`failed to read secret: ${secretId}`);
+    await handlers.queue([vaultId, payload]);
+    return null;
   }
 
   console.log("Secret was read", response.ok, response.status, response);
@@ -448,8 +475,9 @@ const syncUpdateSecret = async (
     await resolveConflict(conflict, handlers);
     return null;
   } else if (!response.ok) {
-    // FIXME: queue failed backend requests
-    throw new Error(`failed to update secret: ${secretId}`);
+    // Queue failed backend requests
+    await handlers.queue([vaultId, payload]);
+    return null;
   }
 
   console.log("Secret was updated", response.ok);
@@ -523,8 +551,9 @@ const syncDeleteSecret = async (
     await resolveConflict(conflict, handlers);
     return null;
   } else if (!response.ok) {
-    // FIXME: queue failed backend requests
-    throw new Error(`failed to delete secret: ${secretId}`);
+    // Queue failed backend requests
+    await handlers.queue([vaultId, payload]);
+    return null;
   }
 
   console.log("Secret was deleted", response.ok);
