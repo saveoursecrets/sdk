@@ -62,6 +62,24 @@ pub trait VaultAccess {
 
     /// Remove an encrypted secret from the vault.
     fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>>;
+
+    /// Apply a payload to this vault and return the updated
+    /// change sequence.
+    fn apply(&mut self, payload: &Payload) -> Result<u32> {
+        match payload {
+            Payload::CreateSecret(_, secret_id, value) => {
+                self.create(*secret_id, value.as_ref().clone())?;
+            }
+            Payload::UpdateSecret(_, secret_id, value) => {
+                self.update(secret_id, value.as_ref().clone())?;
+            }
+            Payload::DeleteSecret(_, secret_id) => {
+                self.delete(secret_id)?;
+            }
+            _ => panic!("payload type not supported in apply()"),
+        }
+        self.change_seq()
+    }
 }
 
 /// Constants for the types of operations.
@@ -278,6 +296,17 @@ impl<'a> Payload<'a> {
         Ok(SignedPayload(signature_bytes, encoded))
     }
 
+    /// Determine if this payload would mutate state.
+    ///
+    /// Some payloads are purely for auditing and do not
+    /// mutate any data.
+    pub fn is_mutation(&self) -> bool {
+        match self {
+            Self::ReadSecret(_, _) => false,
+            _ => true,
+        }
+    }
+
     /// Get the change sequence for this payload.
     pub fn change_seq(&self) -> Option<&u32> {
         match self {
@@ -340,36 +369,23 @@ impl<'a> Encode for Payload<'a> {
                     meta.encode(&mut *ser)?;
                 }
             }
-            Payload::CreateSecret(
-                change_seq,
-                uuid,
-                Cow::Borrowed((meta_aead, secret_aead)),
-            ) => {
+            Payload::CreateSecret(change_seq, uuid, value) => {
+                let (meta_aead, secret_aead) = value.as_ref();
                 ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
                 meta_aead.encode(&mut *ser)?;
                 secret_aead.encode(&mut *ser)?;
-            }
-
-            Payload::CreateSecret(_change_seq, _uuid, Cow::Owned(_)) => {
-                unreachable!("cannot encode owned payload")
             }
             Payload::ReadSecret(change_seq, uuid) => {
                 ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
             }
-            Payload::UpdateSecret(
-                change_seq,
-                uuid,
-                Cow::Borrowed((meta_aead, secret_aead)),
-            ) => {
+            Payload::UpdateSecret(change_seq, uuid, value) => {
+                let (meta_aead, secret_aead) = value.as_ref();
                 ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
                 meta_aead.encode(&mut *ser)?;
                 secret_aead.encode(&mut *ser)?;
-            }
-            Payload::UpdateSecret(_change_seq, _uuid, Cow::Owned(_)) => {
-                unreachable!("cannot encode owned payload")
             }
             Payload::DeleteSecret(change_seq, uuid) => {
                 ser.writer.write_u32(*change_seq)?;

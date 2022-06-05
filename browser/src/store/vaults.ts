@@ -488,13 +488,16 @@ const syncUpdateSecret = async (
   const [changeSequence, secretId, encrypted] = payload.UpdateSecret;
 
   // Send to the server for persistence
-  const response = await api.updateSecret(
-    account,
-    changeSequence,
-    vaultId,
-    secretId,
-    encrypted
+  const response = await makeNetworkGuard(
+    api.updateSecret(account, changeSequence, vaultId, secretId, encrypted),
+    (e: Error) => {
+      handlers.queue([vaultId, payload]);
+    }
   );
+
+  if (!response) {
+    return null;
+  }
 
   if (response.status === 409) {
     const remoteChangeSequence = parseInt(
@@ -565,12 +568,16 @@ const syncDeleteSecret = async (
   const [changeSequence, secretId] = payload.DeleteSecret;
 
   // Send to the server for persistence
-  const response = await api.deleteSecret(
-    account,
-    changeSequence,
-    vaultId,
-    secretId
+  const response = await makeNetworkGuard(
+    api.deleteSecret(account, changeSequence, vaultId, secretId),
+    (e: Error) => {
+      handlers.queue([vaultId, payload]);
+    }
   );
+
+  if (!response) {
+    return null;
+  }
 
   if (response.status === 409) {
     const remoteChangeSequence = parseInt(

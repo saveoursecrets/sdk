@@ -745,8 +745,31 @@ impl VaultHandler {
                     let mut events: Vec<ResponseEvent> =
                         Vec::with_capacity(change_set.len());
 
-                    for payload in change_set {}
-                    todo!()
+                    for payload in change_set {
+                        if payload.is_mutation() {
+                            // FIXME: make this transactional and rollback
+                            handle.apply(&payload).map_err(|_| {
+                                StatusCode::INTERNAL_SERVER_ERROR
+                            })?;
+
+                            events.push(ResponseEvent {
+                                event: Some(ServerEvent::from((
+                                    &vault_id,
+                                    &token.address,
+                                    &payload,
+                                ))),
+                                log: payload
+                                    .into_audit_log(token.address, vault_id),
+                            });
+                        } else {
+                            events.push(ResponseEvent {
+                                event: None,
+                                log: payload
+                                    .into_audit_log(token.address, vault_id),
+                            });
+                        }
+                    }
+                    Ok(MaybeConflict::Success(events))
                 }
             } else {
                 Err(status_code)
