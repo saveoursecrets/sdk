@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 
 /// Secret storage server.
 #[derive(Parser, Debug)]
-#[clap(name = "sos3", author, version, about, long_about = None)]
+#[clap(name = "sos-server", author, version, about, long_about = None)]
 struct Cli {
     /// Serve the built in GUI.
     #[structopt(short, long)]

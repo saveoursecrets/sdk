@@ -13,11 +13,12 @@ use std::{
 };
 use url::Url;
 
+use sos_readline::{
+    read_flag, read_line, read_multiline, read_option, read_password,
+    read_stdin,
+};
+
 use crate::{
-    input::{
-        read_flag, read_line, read_multiline, read_option, read_password,
-        read_stdin,
-    },
     LOG_TARGET,
 };
 use log::{error, info, warn};

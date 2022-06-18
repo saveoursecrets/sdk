@@ -12,7 +12,9 @@ use sos_core::{
 };
 use uuid::Uuid;
 
-use crate::input::read_stdin;
+use sos_readline::{
+    read_stdin,
+};
 
 const KEY_EXT: &str = "key.json";
 const PUB_EXT: &str = "pub.json";

@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use std::{
     borrow::Cow::{self, Borrowed, Owned},
     io::{self, Read},
@@ -10,6 +9,8 @@ use rustyline::highlight::Highlighter;
 use rustyline::{ColorMode, Editor};
 
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
+
+use crate::{Error, Result};
 
 const DEFAULT_PROMPT: &str = ">> ";
 
@@ -79,8 +80,26 @@ pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
                     return Ok(Some(value));
                 }
                 ReadlineError::Interrupted => return Ok(None),
-                _ => return Err(anyhow!(e)),
+                _ => return Err(Error::Readline(e)),
             },
+        }
+    }
+}
+
+/// Read a line and invoke the shell callback.
+pub fn read_shell<H>(handler: H, prompt: Option<&str>) -> Result<String>
+where
+    H: Fn(String),
+{
+    let mut rl = rustyline::Editor::<()>::new();
+    loop {
+        let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(line.as_str());
+                handler(line);
+            }
+            Err(e) => return Err(Error::Readline(e)),
         }
     }
 }
@@ -96,7 +115,7 @@ pub fn read_line(prompt: Option<&str>) -> Result<String> {
                     return Ok(line);
                 }
             }
-            Err(e) => return Err(anyhow!(e)),
+            Err(e) => return Err(Error::Readline(e)),
         }
     }
 }
@@ -113,7 +132,7 @@ pub fn read_option(prompt: Option<&str>) -> Result<Option<String>> {
                 Ok(None)
             }
         }
-        Err(e) => Err(anyhow!(e)),
+        Err(e) => Err(Error::Readline(e)),
     }
 }
 
@@ -126,6 +145,6 @@ pub fn read_flag(prompt: Option<&str>) -> Result<bool> {
             let flag = line == "y" || line == "yes";
             Ok(flag)
         }
-        Err(e) => Err(anyhow!(e)),
+        Err(e) => Err(Error::Readline(e)),
     }
 }
