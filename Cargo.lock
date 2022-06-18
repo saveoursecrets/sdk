@@ -2969,7 +2969,6 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "k256 0.10.4",
- "once_cell",
  "reqwest",
  "serde_json",
  "sos-core",
