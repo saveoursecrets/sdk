@@ -87,13 +87,14 @@ pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
 }
 
 /// Read a line and invoke the shell callback.
-pub fn read_shell<H>(mut handler: H, prompt: Option<&str>) -> Result<String>
+pub fn read_shell<H>(mut handler: H, prompt: impl Fn() -> String) -> Result<String>
 where
     H: FnMut(String),
 {
     let mut rl = rustyline::Editor::<()>::new();
     loop {
-        let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
+        let prompt_value = prompt();
+        let readline = rl.readline(&prompt_value);
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());

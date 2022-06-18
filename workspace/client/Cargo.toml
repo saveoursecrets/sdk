@@ -10,7 +10,10 @@ sos-readline = { path = "../readline" }
 clap = { version = "3", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 url = "2"
-reqwest = "0.11"
+reqwest = { version = "0.11", features = ["json"] }
 k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
 web3-keystore = "0.4"
+web3-signature = { version = "0.2.3", features = ["single-party"] }
 serde_json = "1"
+uuid = { version = "1", features = ["serde", "v4"] }
+base64 = "0.13"

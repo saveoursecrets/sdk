@@ -1,4 +1,9 @@
-use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
+use std::{
+    fs::File,
+    io::Read,
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 
 use clap::{CommandFactory, Parser, Subcommand};
 use std::future::Future;
@@ -7,16 +12,16 @@ use url::Url;
 use web3_keystore::{decrypt, KeyStore};
 
 use sos_client::{Client, Result};
-use sos_core::signer::SingleParty;
+use sos_core::{secret::UuidOrName, signer::SingleParty, vault::Summary};
 use sos_readline::{read_password, read_shell};
 
 /// Secret storage interactive shell.
 #[derive(Parser, Debug)]
 #[clap(name = "sos-client", author, version, about, long_about = None)]
 struct Cli {
-    /// Server API URL.
+    /// Server URL.
     #[clap(short, long)]
-    api: Url,
+    server: Url,
 
     /// Keystore for the signing key.
     #[clap(short, long)]
@@ -34,7 +39,23 @@ struct Shell {
 #[derive(Subcommand, Debug)]
 enum ShellCommand {
     /// List vaults.
+    #[clap(alias = "ls")]
     ListVaults {},
+    /// Select a vault.
+    Use { vault: UuidOrName },
+    /// Clear selected vault.
+    Clear,
+    /// Exit the shell.
+    #[clap(alias = "q")]
+    Quit,
+}
+
+#[derive(Debug, Default)]
+struct ShellState {
+    /// Vaults managed by this signer.
+    summaries: Vec<Summary>,
+    /// Currently selected vault.
+    current: Option<Summary>,
 }
 
 /// Runs a future blocking the current thread so we can
@@ -42,20 +63,28 @@ enum ShellCommand {
 /// asynchronous API exposed by the client.
 fn run_blocking<F, R>(func: F) -> Result<R>
 where
-    F: Future<Output = Result<R>> + Send + Sync,
-    R: Send + Sync
+    F: Future<Output = Result<R>> + Send,
+    R: Send,
 {
     Ok(Runtime::new().unwrap().block_on(func)?)
 }
 
-fn run_shell_command(line: &str, client: Arc<Client>) -> Result<()> {
-    //let client = global_client(None);
+fn print_summaries_list(summaries: &[Summary]) -> Result<()> {
+    for (index, summary) in summaries.iter().enumerate() {
+        println!("{}) {} {}", index + 1, summary.name(), summary.id());
+    }
+    Ok(())
+}
+
+fn run_shell_command(
+    line: &str,
+    client: Arc<Client>,
+    state: Arc<RwLock<ShellState>>,
+) -> Result<()> {
     let prefixed = format!("sos-shell {}", line);
     let it = prefixed.split_ascii_whitespace();
     let mut cmd = Shell::command();
-    if line == "quit" || line == "q" {
-        std::process::exit(0);
-    } else if line == "-V" {
+    if line == "-V" {
         let version = cmd.render_version();
         print!("{}", version);
     } else if line == "version" || line == "--version" {
@@ -67,15 +96,41 @@ fn run_shell_command(line: &str, client: Arc<Client>) -> Result<()> {
         cmd.print_long_help()?;
     } else {
         match Shell::try_parse_from(it) {
-            Ok(args) => {
-                println!("Run shell command {:#?}", args);
-                match args.cmd {
-                    ShellCommand::ListVaults {} => {
-                        let summaries = run_blocking(client.login())?;
-                        println!("summaries {:#?}", summaries);
+            Ok(args) => match args.cmd {
+                ShellCommand::ListVaults {} => {
+                    let summaries = run_blocking(client.list_vaults())?;
+                    print_summaries_list(&summaries)?;
+                    let mut writer = state.write().unwrap();
+                    writer.summaries = summaries;
+                }
+                ShellCommand::Use { vault } => {
+                    let mut writer = state.write().unwrap();
+                    let summary = match &vault {
+                        UuidOrName::Name(name) => {
+                            writer.summaries.iter().find(|s| s.name() == name)
+                        }
+                        UuidOrName::Uuid(uuid) => {
+                            writer.summaries.iter().find(|s| s.id() == uuid)
+                        }
+                    };
+
+                    if let Some(summary) = summary {
+                        writer.current = Some(summary.clone());
+                    } else {
+                        eprintln!(
+                            r#"vault "{}" not found, run "ls" to load the vault list"#,
+                            vault
+                        )
                     }
                 }
-            }
+                ShellCommand::Clear => {
+                    let mut writer = state.write().unwrap();
+                    writer.current = None;
+                }
+                ShellCommand::Quit => {
+                    std::process::exit(0);
+                }
+            },
             Err(e) => e.print().expect("unable to write error output"),
         }
     }
@@ -106,16 +161,30 @@ fn run() -> Result<()> {
 
     let signing_key: [u8; 32] = signing_bytes.as_slice().try_into()?;
     let signer: SingleParty = (&signing_key).try_into()?;
-    let client = Arc::new(Client::new(args.api, Arc::new(signer)));
+    let client = Arc::new(Client::new(args.server, Arc::new(signer)));
 
     welcome(client.api())?;
+
+    let state: Arc<RwLock<ShellState>> =
+        Arc::new(RwLock::new(Default::default()));
+
+    let prompt_state = Arc::clone(&state);
+
+    let prompt = || -> String {
+        let reader = prompt_state.read().unwrap();
+        if let Some(current) = &reader.current {
+            return format!("sos@{}> ", current.name());
+        }
+        "sos> ".to_string()
+    };
 
     read_shell(
         |line: String| {
             let client = Arc::clone(&client);
-            run_shell_command(&line, client).unwrap();
+            let state = Arc::clone(&state);
+            run_shell_command(&line, client, state).unwrap();
         },
-        Some("sos> "),
+        prompt,
     )?;
 
     Ok(())

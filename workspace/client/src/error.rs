@@ -19,4 +19,10 @@ pub enum Error {
 
     #[error(transparent)]
     Readline(#[from] sos_readline::Error),
+
+    #[error(transparent)]
+    Http(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    UrlParse(#[from] url::ParseError),
 }

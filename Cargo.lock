@@ -2967,6 +2967,7 @@ dependencies = [
 name = "sos-client"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "clap",
  "k256 0.10.4",
  "reqwest",
@@ -2976,7 +2977,9 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
+ "uuid 1.1.0",
  "web3-keystore",
+ "web3-signature",
 ]
 
 [[package]]

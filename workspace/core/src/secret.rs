@@ -5,7 +5,7 @@ use serde_binary::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr, fmt};
 use url::Url;
 use uuid::Uuid;
 
@@ -18,6 +18,15 @@ pub enum UuidOrName {
     Uuid(Uuid),
     /// The name of a label.
     Name(String),
+}
+
+impl fmt::Display for UuidOrName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Uuid(uuid) => write!(f, "{}", uuid),
+            Self::Name(name) => write!(f, "{}", name),
+        }
+    }
 }
 
 impl FromStr for UuidOrName {

@@ -10,19 +10,19 @@ use tokio::sync::RwLock;
 #[clap(name = "sos-server", author, version, about, long_about = None)]
 struct Cli {
     /// Serve the built in GUI.
-    #[structopt(short, long)]
+    #[clap(short, long)]
     gui: Option<bool>,
 
     /// Override the audit log file path.
-    #[structopt(short, long)]
+    #[clap(short, long)]
     audit_log: Option<PathBuf>,
 
     /// Bind to host:port.
-    #[structopt(short, long, default_value = "127.0.0.1:5053")]
+    #[clap(short, long, default_value = "127.0.0.1:5053")]
     bind: String,
 
     /// Config file to load.
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     config: PathBuf,
 }
 
