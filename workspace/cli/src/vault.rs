@@ -18,9 +18,7 @@ use sos_readline::{
     read_stdin,
 };
 
-use crate::{
-    LOG_TARGET,
-};
+use crate::LOG_TARGET;
 use log::{error, info, warn};
 
 fn load_vault(vault: &Path) -> Result<Gatekeeper> {

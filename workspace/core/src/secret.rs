@@ -5,7 +5,7 @@ use serde_binary::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, str::FromStr, fmt};
+use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
 

@@ -87,7 +87,10 @@ pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
 }
 
 /// Read a line and invoke the shell callback.
-pub fn read_shell<H>(mut handler: H, prompt: impl Fn() -> String) -> Result<String>
+pub fn read_shell<H>(
+    mut handler: H,
+    prompt: impl Fn() -> String,
+) -> Result<String>
 where
     H: FnMut(String),
 {
