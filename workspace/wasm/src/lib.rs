@@ -7,6 +7,8 @@ use sos_core::{
     crypto::generate_random_ecdsa_signing_key,
     decode, encode,
     gatekeeper::Gatekeeper,
+    operations::Payload,
+    patch::Patch,
     secret::{Secret, SecretMeta},
     signer::{SignSync, SingleParty},
     uuid::Uuid,
@@ -83,9 +85,16 @@ impl WebVault {
     #[wasm_bindgen(js_name = "importBuffer")]
     pub fn import_buffer(&mut self, buffer: JsValue) -> Result<(), JsError> {
         let buffer: Vec<u8> = buffer.into_serde()?;
-        let vault: Vault = decode(buffer)?;
+        let vault: Vault = decode(&buffer)?;
         self.keeper.set_vault(vault);
         Ok(())
+    }
+
+    /// Get the change sequence for the vault.
+    #[wasm_bindgen(js_name = "changeSequence")]
+    pub fn change_seq(&self) -> Result<JsValue, JsError> {
+        let change_seq = self.keeper.change_seq()?;
+        Ok(JsValue::from_serde(&change_seq)?)
     }
 
     /// Get the meta data for the vault.
@@ -345,4 +354,12 @@ impl WebSigner {
 pub fn generate_passphrase(words: u8) -> Result<JsValue, JsError> {
     let (passphrase, bits) = generate_passphrase_words(words)?;
     Ok(JsValue::from_serde(&(passphrase, bits))?)
+}
+
+/// Generate an encoded `Patch` from the supplied
+/// list of change set (collection of `Payload`).
+#[wasm_bindgen]
+pub fn patch(change_set: JsValue) -> Result<Vec<u8>, JsError> {
+    let patches: Vec<Payload> = change_set.into_serde()?;
+    Ok(encode(&Patch::from(patches))?)
 }

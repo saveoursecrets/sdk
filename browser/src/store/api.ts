@@ -3,6 +3,7 @@ import { encode, toHexString } from "../utils";
 import { WebSigner } from "sos-wasm";
 
 const MIME_TYPE_VAULT = "application/sos+vault";
+const MIME_TYPE_PATCH = "application/sos+patch";
 
 function base64encode(signature: Signature): string {
   return btoa(JSON.stringify(signature));
@@ -116,6 +117,54 @@ export class VaultApi {
       headers,
     });
     return response.arrayBuffer();
+  }
+
+  // Save the buffer for an entire vault.
+  async saveVault(
+    account: Account,
+    vaultId: string,
+    vault: Uint8Array,
+    changeSequence: number
+  ): Promise<Response> {
+    const signature = await account.signer.sign(Array.from(vault));
+    const url = `${this.url}/vaults/${vaultId}`;
+    const body = new Blob([vault.buffer]);
+    const headers = {
+      authorization: bearer(signature),
+      "content-type": MIME_TYPE_VAULT,
+      "x-change-sequence": changeSequence.toString(),
+    };
+    const response = await fetch(url, {
+      method: "PUT",
+      mode: "cors",
+      headers,
+      body,
+    });
+    return response;
+  }
+
+  // Apply a changeset to patch a vault.
+  async patchVault(
+    account: Account,
+    vaultId: string,
+    patch: Uint8Array,
+    changeSequence: number
+  ): Promise<Response> {
+    const signature = await account.signer.sign(Array.from(patch));
+    const url = `${this.url}/vaults/${vaultId}`;
+    const body = new Blob([patch.buffer]);
+    const headers = {
+      authorization: bearer(signature),
+      "content-type": MIME_TYPE_PATCH,
+      "x-change-sequence": changeSequence.toString(),
+    };
+    const response = await fetch(url, {
+      method: "PATCH",
+      mode: "cors",
+      headers,
+      body,
+    });
+    return response;
   }
 
   // Send an encrypted secret payload for a create or update operation.

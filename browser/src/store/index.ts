@@ -4,6 +4,7 @@ import dialogsReducer from "./dialogs";
 import accountReducer from "./account";
 import signupReducer from "./signup";
 import snackbarReducer from "./snackbar";
+import batchReducer from "./batch";
 
 const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ const store = configureStore({
     account: accountReducer,
     signup: signupReducer,
     snackbar: snackbarReducer,
+    batch: batchReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -21,9 +23,21 @@ const store = configureStore({
           "vaults/setCurrent",
           "vaults/updateVault",
 
+          "vaults/syncChangeSet/pending",
+          "vaults/syncChangeSet/fulfilled",
+          "vaults/syncChangeSet/rejected",
+
           "vaults/loadVault/pending",
           "vaults/loadVault/fulfilled",
           "vaults/loadVault/rejected",
+
+          "vaults/pull/pending",
+          "vaults/pull/fulfilled",
+          "vaults/pull/rejected",
+
+          "vaults/push/pending",
+          "vaults/push/fulfilled",
+          "vaults/push/rejected",
 
           "vaults/create/pending",
           "vaults/create/fulfilled",

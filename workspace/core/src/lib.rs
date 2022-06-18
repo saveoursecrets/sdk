@@ -10,6 +10,7 @@ pub mod file_access;
 pub mod file_identity;
 pub mod gatekeeper;
 pub mod operations;
+pub mod patch;
 
 #[deprecated]
 pub mod passphrase;

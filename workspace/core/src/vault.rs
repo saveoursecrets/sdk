@@ -2,7 +2,8 @@
 use serde::{Deserialize, Serialize};
 use serde_binary::{
     binary_rw::{
-        BinaryReader, BinaryWriter, Endian, FileStream, OpenType, Stream,
+        BinaryReader, BinaryWriter, Endian, FileStream, OpenType, ReadStream,
+        SeekStream, SliceStream, WriteStream,
     },
     Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
     Serializer,
@@ -167,23 +168,21 @@ impl Header {
         self.meta = meta;
     }
 
-    /*
-    /// Read the identity magic bytes.
-    fn read_identity(de: &mut Deserializer, identity: &[u8]) -> Result<()> {
-        for ident in identity {
-            let byte = de.reader.read_u8()?;
-            if byte != *ident {
-                return Err(Error::BadIdentity(byte));
-            }
-        }
-        Ok(())
-    }
-    */
-
     /// Read the summary for a vault from a file.
-    pub fn read_summary<P: AsRef<Path>>(file: P) -> Result<Summary> {
+    pub fn read_summary_file<P: AsRef<Path>>(file: P) -> Result<Summary> {
         let mut stream = FileStream::new(file.as_ref(), OpenType::Open)?;
-        let reader = BinaryReader::new(&mut stream, Endian::Big);
+        Header::read_summary_stream(&mut stream)
+    }
+
+    /// Read the summary for a slice of bytes.
+    pub fn read_summary_slice(buffer: &[u8]) -> Result<Summary> {
+        let mut stream = SliceStream::new(buffer);
+        Header::read_summary_stream(&mut stream)
+    }
+
+    /// Read the summary from a stream.
+    fn read_summary_stream(stream: &mut impl ReadStream) -> Result<Summary> {
+        let reader = BinaryReader::new(stream, Endian::Big);
         let mut de = Deserializer { reader };
 
         // Read magic identity bytes
@@ -458,7 +457,7 @@ impl Vault {
     }
 
     /// Encode a vault to binary.
-    pub fn encode(stream: &mut impl Stream, vault: &Vault) -> Result<()> {
+    pub fn encode(stream: &mut impl WriteStream, vault: &Vault) -> Result<()> {
         let writer = BinaryWriter::new(stream, Endian::Big);
         let mut serializer = Serializer { writer };
         vault.encode(&mut serializer)?;
@@ -466,7 +465,7 @@ impl Vault {
     }
 
     /// Decode a vault from binary.
-    pub fn decode(stream: &mut impl Stream) -> Result<Vault> {
+    pub fn decode(stream: &mut impl ReadStream) -> Result<Vault> {
         let mut vault: Vault = Default::default();
         let reader = BinaryReader::new(stream, Endian::Big);
         let mut deserializer = Deserializer { reader };
@@ -476,7 +475,7 @@ impl Vault {
 
     /// Read a vault from a buffer.
     pub fn read_buffer<B: AsRef<[u8]>>(buffer: B) -> Result<Vault> {
-        let vault: Vault = decode(buffer.as_ref().to_vec())?;
+        let vault: Vault = decode(buffer.as_ref())?;
         Ok(vault)
     }
 
@@ -531,6 +530,13 @@ impl Vault {
 impl VaultAccess for Vault {
     fn change_seq(&self) -> Result<u32> {
         Ok(self.header.summary.change_seq)
+    }
+
+    fn save(&mut self, buffer: &[u8]) -> Result<Payload> {
+        let vault = Vault::read_buffer(buffer)?;
+        *self = vault;
+        let change_seq = self.change_seq()?;
+        Ok(Payload::SaveVault(change_seq))
     }
 
     fn create(
@@ -615,8 +621,8 @@ pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
     Ok(serde_binary::encode(encodable, Endian::Big)?)
 }
 
-/// Decode into a binary buffer.
-pub fn decode<T: Decode + Default>(buffer: Vec<u8>) -> Result<T> {
+/// Decode from a binary buffer.
+pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
     Ok(serde_binary::decode::<T>(buffer, Endian::Big)?)
 }
 
@@ -630,7 +636,7 @@ mod tests {
     use crate::test_utils::*;
 
     use anyhow::Result;
-    use serde_binary::binary_rw::{MemoryStream, Stream};
+    use serde_binary::binary_rw::{MemoryStream, ReadStream, WriteStream};
     use uuid::Uuid;
 
     #[test]

@@ -94,7 +94,7 @@ impl Gatekeeper {
         if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.header().meta() {
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-                let meta_data: VaultMeta = decode(meta_blob)?;
+                let meta_data: VaultMeta = decode(&meta_blob)?;
                 Ok(meta_data.label().to_string())
             } else {
                 Err(Error::VaultNotInit)
@@ -112,7 +112,7 @@ impl Gatekeeper {
                 for (uuid, meta_aead) in self.vault.meta_data() {
                     let meta_blob =
                         self.vault.decrypt(private_key, meta_aead)?;
-                    let secret_meta: SecretMeta = decode(meta_blob)?;
+                    let secret_meta: SecretMeta = decode(&meta_blob)?;
                     result.insert(uuid, secret_meta);
                 }
                 Ok(result)
@@ -130,7 +130,7 @@ impl Gatekeeper {
         if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.header().meta() {
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-                let meta_data: VaultMeta = decode(meta_blob)?;
+                let meta_data: VaultMeta = decode(&meta_blob)?;
                 Ok(meta_data)
             } else {
                 Err(Error::VaultNotInit)
@@ -158,11 +158,11 @@ impl Gatekeeper {
             if let (Some(value), _payload) = self.vault.read(uuid)? {
                 let (meta_aead, secret_aead) = value.as_ref();
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-                let secret_meta: SecretMeta = decode(meta_blob)?;
+                let secret_meta: SecretMeta = decode(&meta_blob)?;
 
                 let secret_blob =
                     self.vault.decrypt(private_key, secret_aead)?;
-                let secret: Secret = decode(secret_blob)?;
+                let secret: Secret = decode(&secret_blob)?;
                 Ok(Some((secret_meta, secret)))
             } else {
                 Ok(None)
