@@ -297,9 +297,9 @@ checksum = "8a32fd6af2b5827bce66c29053ba0e7c42b9dcab01835835058558c10851a46b"
 
 [[package]]
 name = "binary_rw"
-version = "2.0.3"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65ab618e7bb714fb677d6276c3c818938ebe7d9d8256f0e7a5e07967c961f2b2"
+checksum = "2cf424430d1cb1829080746d3bac4e7566af9d0b1753ec9d249a7aadd565f14f"
 dependencies = [
  "thiserror",
 ]
@@ -2561,9 +2561,9 @@ dependencies = [
 
 [[package]]
 name = "serde-binary"
-version = "0.3.3"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e60e1e56dbb1e47d1e3cc7835435977b726c8d832e112fb4642229639c50f2c6"
+checksum = "41643e62a35edcd08c9f1f1847f90e904212aed8bed6a10650a1c88582ab94d8"
 dependencies = [
  "binary_rw",
  "serde",

@@ -17,7 +17,7 @@ import MenuItem from "@mui/material/MenuItem";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 import { AppDispatch } from "../store";
-import { vaultsSelector, readSecret } from "../store/vaults";
+import { vaultsSelector, readSecret, secretSelector } from "../store/vaults";
 import { accountSelector } from "../store/account";
 
 import {
@@ -270,18 +270,14 @@ type SecretViewProps = {
 
 function SecretView(props: SecretViewProps) {
   const { storage, secretId } = props;
-  const [secretData, setSecretData] = useState(null);
   const [searchParams] = useSearchParams();
   const dispatch = useDispatch<AppDispatch>();
   const { account } = useSelector(accountSelector);
+  const secretData = useSelector(secretSelector);
 
   useEffect(() => {
     const loadSecret = async () => {
-      const result = await dispatch(
-        readSecret({ account, owner: storage, secretId })
-      );
-
-      setSecretData(result.payload);
+      await dispatch(readSecret({ account, storage, secretId }));
     };
     loadSecret();
   }, [secretId, searchParams]);

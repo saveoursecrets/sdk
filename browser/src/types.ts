@@ -21,6 +21,23 @@ export type Conflict = {
   secretId: string;
 };
 
+// Functions to handle attempts to resolve conflicts.
+export type ConflictHandlers = {
+  // Pull the remote vault.
+  pull: () => Promise<unknown>;
+  // Push local vault to the remote server.
+  push: () => Promise<unknown>;
+  // Replay the last operation that got a conflict response.
+  replay: () => Promise<unknown>;
+  // Queue a failed request in the batch of changes to be sent to the server.
+  queue: (changes: [string, Payload]) => void;
+};
+
+export type ChangeSet = {
+  // Keys are the vault UUID identifier.
+  [key: string]: Payload[];
+};
+
 export type Nonce = {
   Nonce12?: number[];
   Nonce24?: number[];
@@ -116,6 +133,7 @@ export type VaultWorker = {
   Signup(): Promise<Signup>;
   WebSigner(): Promise<WebSigner>;
   generatePassphrase(words: number): Promise<[string, number]>;
+  patch(changeSet: Payload[]): Promise<Uint8Array>;
 };
 
 export type SecretReference = {

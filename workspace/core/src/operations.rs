@@ -30,6 +30,12 @@ pub trait VaultAccess {
     /// Get the current change sequence number.
     fn change_seq(&self) -> Result<u32>;
 
+    /// Save a buffer as the entire vault.
+    ///
+    /// This is an unchecked operation and callers should
+    /// ensure the buffer represents a valid vault.
+    fn save(&mut self, buffer: &[u8]) -> Result<Payload>;
+
     /// Add an encrypted secret to the vault.
     fn create(
         &mut self,
@@ -56,6 +62,24 @@ pub trait VaultAccess {
 
     /// Remove an encrypted secret from the vault.
     fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>>;
+
+    /// Apply a payload to this vault and return the updated
+    /// change sequence.
+    fn apply(&mut self, payload: &Payload) -> Result<u32> {
+        match payload {
+            Payload::CreateSecret(_, secret_id, value) => {
+                self.create(*secret_id, value.as_ref().clone())?;
+            }
+            Payload::UpdateSecret(_, secret_id, value) => {
+                self.update(secret_id, value.as_ref().clone())?;
+            }
+            Payload::DeleteSecret(_, secret_id) => {
+                self.delete(secret_id)?;
+            }
+            _ => panic!("payload type not supported in apply()"),
+        }
+        self.change_seq()
+    }
 }
 
 /// Constants for the types of operations.
@@ -72,20 +96,22 @@ mod types {
     pub const LOGIN_RESPONSE: u16 = 0x04;
     /// Type identifier for the create vault operation.
     pub const CREATE_VAULT: u16 = 0x05;
+    /// Type identifier for the save vault operation.
+    pub const SAVE_VAULT: u16 = 0x06;
     /// Type identifier for the read vault operation.
-    pub const READ_VAULT: u16 = 0x06;
+    pub const READ_VAULT: u16 = 0x07;
     /// Type identifier for the update vault operation.
-    pub const UPDATE_VAULT: u16 = 0x07;
+    pub const UPDATE_VAULT: u16 = 0x08;
     /// Type identifier for the delete vault operation.
-    pub const DELETE_VAULT: u16 = 0x08;
+    pub const DELETE_VAULT: u16 = 0x09;
     /// Type identifier for the create secret operation.
-    pub const CREATE_SECRET: u16 = 0x09;
+    pub const CREATE_SECRET: u16 = 0x0A;
     /// Type identifier for the read secret operation.
-    pub const READ_SECRET: u16 = 0x0A;
+    pub const READ_SECRET: u16 = 0x0B;
     /// Type identifier for the update secret operation.
-    pub const UPDATE_SECRET: u16 = 0x0B;
+    pub const UPDATE_SECRET: u16 = 0x0C;
     /// Type identifier for the delete secret operation.
-    pub const DELETE_SECRET: u16 = 0x0C;
+    pub const DELETE_SECRET: u16 = 0x0D;
 }
 
 /// Operation wraps an operation type identifier and
@@ -105,6 +131,8 @@ pub enum Operation {
     LoginResponse,
     /// Operation to create a vault.
     CreateVault,
+    /// Operation to create a vault.
+    SaveVault,
     /// Operation to read a vault.
     ReadVault,
     /// Operation to update a vault.
@@ -129,7 +157,8 @@ impl Default for Operation {
 
 impl Encode for Operation {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_u16(self.into())?;
+        let value: u16 = self.into();
+        ser.writer.write_u16(value)?;
         Ok(())
     }
 }
@@ -175,6 +204,7 @@ impl From<&Operation> for u16 {
             Operation::LoginChallenge => types::LOGIN_CHALLENGE,
             Operation::LoginResponse => types::LOGIN_RESPONSE,
             Operation::CreateVault => types::CREATE_VAULT,
+            Operation::SaveVault => types::SAVE_VAULT,
             Operation::ReadVault => types::READ_VAULT,
             Operation::UpdateVault => types::UPDATE_VAULT,
             Operation::DeleteVault => types::DELETE_VAULT,
@@ -196,6 +226,7 @@ impl fmt::Display for Operation {
                 Operation::LoginChallenge => "LOGIN_CHALLENGE",
                 Operation::LoginResponse => "LOGIN_RESPONSE",
                 Operation::CreateVault => "CREATE_VAULT",
+                Operation::SaveVault => "SAVE_VAULT",
                 Operation::ReadVault => "READ_VAULT",
                 Operation::UpdateVault => "UPDATE_VAULT",
                 Operation::DeleteVault => "DELETE_VAULT",
@@ -219,6 +250,9 @@ impl fmt::Display for Operation {
 pub enum Payload<'a> {
     // TODO: create new vault
     // TODO: delete vault
+    /// Payload used to indicate that a save vault operation was performed.
+    SaveVault(u32),
+
     /// Update the vault meta data.
     UpdateVault(Cow<'a, Option<AeadPack>>),
 
@@ -244,6 +278,12 @@ pub enum Payload<'a> {
     DeleteSecret(u32, Uuid),
 }
 
+impl Default for Payload<'_> {
+    fn default() -> Self {
+        Self::SaveVault(0)
+    }
+}
+
 /// Payload with an attached signature.
 pub struct SignedPayload([u8; 65], Vec<u8>);
 
@@ -256,9 +296,21 @@ impl<'a> Payload<'a> {
         Ok(SignedPayload(signature_bytes, encoded))
     }
 
+    /// Determine if this payload would mutate state.
+    ///
+    /// Some payloads are purely for auditing and do not
+    /// mutate any data.
+    pub fn is_mutation(&self) -> bool {
+        match self {
+            Self::ReadSecret(_, _) => false,
+            _ => true,
+        }
+    }
+
     /// Get the change sequence for this payload.
     pub fn change_seq(&self) -> Option<&u32> {
         match self {
+            Self::SaveVault(change_seq) => Some(change_seq),
             Self::CreateSecret(change_seq, _, _) => Some(change_seq),
             Self::ReadSecret(change_seq, _) => Some(change_seq),
             Self::UpdateSecret(change_seq, _, _) => Some(change_seq),
@@ -270,6 +322,7 @@ impl<'a> Payload<'a> {
     /// Get the operation corresponding to this payload.
     pub fn operation(&self) -> Operation {
         match self {
+            Payload::SaveVault(_) => Operation::SaveVault,
             Payload::UpdateVault(_) => Operation::UpdateVault,
             Payload::CreateSecret(_, _, _) => Operation::CreateSecret,
             Payload::ReadSecret(_, _) => Operation::ReadSecret,
@@ -281,7 +334,9 @@ impl<'a> Payload<'a> {
     /// Convert this payload into an audit log.
     pub fn into_audit_log(&self, address: AddressStr, vault_id: Uuid) -> Log {
         let log_data = match self {
-            Payload::UpdateVault(_) => LogData::Vault(vault_id),
+            Payload::SaveVault(_) | Payload::UpdateVault(_) => {
+                LogData::Vault(vault_id)
+            }
             Payload::CreateSecret(_, secret_id, _) => {
                 LogData::Secret(vault_id, *secret_id)
             }
@@ -305,42 +360,32 @@ impl<'a> Encode for Payload<'a> {
         op.encode(&mut *ser)?;
 
         match self {
+            Payload::SaveVault(change_seq) => {
+                ser.writer.write_u32(*change_seq)?;
+            }
             Payload::UpdateVault(meta) => {
                 ser.writer.write_bool(meta.is_some())?;
-                if let Cow::Borrowed(Some(meta)) = meta {
+                if let Some(meta) = meta.as_ref() {
                     meta.encode(&mut *ser)?;
                 }
             }
-            Payload::CreateSecret(
-                change_seq,
-                uuid,
-                Cow::Borrowed((meta_aead, secret_aead)),
-            ) => {
+            Payload::CreateSecret(change_seq, uuid, value) => {
+                let (meta_aead, secret_aead) = value.as_ref();
                 ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
                 meta_aead.encode(&mut *ser)?;
                 secret_aead.encode(&mut *ser)?;
-            }
-
-            Payload::CreateSecret(_change_seq, _uuid, Cow::Owned(_)) => {
-                unreachable!("cannot encode owned payload")
             }
             Payload::ReadSecret(change_seq, uuid) => {
                 ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
             }
-            Payload::UpdateSecret(
-                change_seq,
-                uuid,
-                Cow::Borrowed((meta_aead, secret_aead)),
-            ) => {
+            Payload::UpdateSecret(change_seq, uuid, value) => {
+                let (meta_aead, secret_aead) = value.as_ref();
                 ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
                 meta_aead.encode(&mut *ser)?;
                 secret_aead.encode(&mut *ser)?;
-            }
-            Payload::UpdateSecret(_change_seq, _uuid, Cow::Owned(_)) => {
-                unreachable!("cannot encode owned payload")
             }
             Payload::DeleteSecret(change_seq, uuid) => {
                 ser.writer.write_u32(*change_seq)?;
@@ -356,6 +401,10 @@ impl<'a> Decode for Payload<'a> {
         let mut op: Operation = Default::default();
         op.decode(&mut *de)?;
         match op {
+            Operation::SaveVault => {
+                let change_seq = de.reader.read_u32()?;
+                *self = Payload::SaveVault(change_seq);
+            }
             Operation::UpdateVault => {
                 let has_meta = de.reader.read_bool()?;
                 let aead_pack = if has_meta {

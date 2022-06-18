@@ -108,7 +108,7 @@ impl FileSystemBackend {
                             if let Some(ext) = vault_path.extension() {
                                 if ext == Vault::extension() {
                                     let summary =
-                                        Header::read_summary(&vault_path)?;
+                                        Header::read_summary_file(&vault_path)?;
                                     vaults.insert(
                                         *summary.id(),
                                         (
@@ -161,7 +161,7 @@ impl FileSystemBackend {
     ) -> Result<()> {
         let mut accounts = self.accounts.write().await;
         let vaults = accounts.entry(owner).or_insert(Default::default());
-        let summary = Header::read_summary(&vault_path)?;
+        let summary = Header::read_summary_file(&vault_path)?;
         vaults.insert(
             *summary.id(),
             (Box::new(VaultFileAccess::new(vault_path)?), summary),
@@ -183,7 +183,8 @@ impl Backend for FileSystemBackend {
             return Err(Error::DirectoryExists(account_dir));
         }
 
-        // TODO: verify bytes looks like a vault file
+        // Check it looks like a vault payload
+        Header::read_summary_slice(vault)?;
 
         tokio::fs::create_dir(account_dir).await?;
         let vault_path = self.new_vault_file(&owner, &vault_id, vault).await?;

@@ -12,9 +12,9 @@ use std::{
 use serde_binary::{
     binary_rw::{
         BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream, OpenType,
-        Stream,
+        SeekStream,
     },
-    Decode, Deserializer, Serializer,
+    Deserializer, Serializer,
 };
 use uuid::Uuid;
 
@@ -189,6 +189,17 @@ impl VaultAccess for VaultFileAccess {
         let mut de = Deserializer { reader };
         de.reader.seek(CHANGE_SEQ_OFFSET)?;
         Ok(de.reader.read_u32()?)
+    }
+
+    fn save(&mut self, buffer: &[u8]) -> Result<Payload> {
+        let mut file = File::options()
+            .read(true)
+            .write(true)
+            .open(&self.file_path)?;
+        file.write_all(buffer)?;
+
+        let change_seq = self.change_seq()?;
+        Ok(Payload::SaveVault(change_seq))
     }
 
     fn create(

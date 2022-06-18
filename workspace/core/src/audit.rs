@@ -4,7 +4,7 @@ use bitflags::bitflags;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_binary::{
-    binary_rw::{BinaryReader, Endian, FileStream, OpenType},
+    binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
     Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
     Serializer,
 };

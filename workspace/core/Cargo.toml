@@ -25,7 +25,6 @@ sha3 = "0.9"
 bip39 = { version =  "1", features = ["std", "rand"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2.2", features = ["serde"] }
-#serde-binary  = "0.3.2"
 chrono = { version = "0.4", features = ["serde"] }
 bitflags = "1"
 
@@ -34,7 +33,7 @@ getrandom = {version = "0.2", features = ["js"]}
 uuid = { version = "1", features = ["serde", "v4", "js"] }
 
 [dependencies.serde-binary]
-version = "0.3.3"
+version = "0.3.6"
 #path = "../../../serde-binary"
 #features = ["wasm32"]
 
