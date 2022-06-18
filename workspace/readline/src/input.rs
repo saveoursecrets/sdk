@@ -87,9 +87,9 @@ pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
 }
 
 /// Read a line and invoke the shell callback.
-pub fn read_shell<H>(handler: H, prompt: Option<&str>) -> Result<String>
+pub fn read_shell<H>(mut handler: H, prompt: Option<&str>) -> Result<String>
 where
-    H: Fn(String),
+    H: FnMut(String),
 {
     let mut rl = rustyline::Editor::<()>::new();
     loop {

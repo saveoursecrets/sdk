@@ -1,18 +1,21 @@
 //! HTTP client implementation.
 //use std::{path::PathBuf, fs::File, io::Read};
 use reqwest::Client as HttpClient;
+use sos_core::{signer::Signer, vault::Summary};
+use std::sync::Arc;
 use url::Url;
-use sos_core::signer::Signer;
 
-pub struct Client<'a> {
+use crate::Result;
+
+pub struct Client {
     api: Url,
     http_client: HttpClient,
-    signer: &'a mut dyn Signer,
+    signer: Arc<dyn Signer + Send + Sync>,
 }
 
-impl<'a> Client<'a> {
+impl Client {
     /// Create a new client.
-    pub fn new(api: Url, signer: &'a mut impl Signer) -> Self {
+    pub fn new(api: Url, signer: Arc<dyn Signer + Send + Sync>) -> Self {
         let http_client = HttpClient::new();
         Self {
             api,
@@ -28,7 +31,8 @@ impl<'a> Client<'a> {
 
     /// Login to the server and retrieve the list of vaults
     /// accessible by this signer.
-    pub async fn login(&self) {
-        todo!("login to server");
+    pub async fn login(&self) -> Result<Vec<Summary>> {
+        println!("Do the login stuff...");
+        Ok(vec![])
     }
 }
