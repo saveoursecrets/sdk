@@ -9,7 +9,7 @@ use clap::Parser;
 use url::Url;
 use web3_keystore::{decrypt, KeyStore};
 
-use sos_client::{run_shell_command, Client, Result, ShellState};
+use sos_client::{list_vaults, run_shell_command, Client, Result, ShellState};
 use sos_core::signer::SingleParty;
 use sos_readline::{read_password, read_shell};
 
@@ -55,6 +55,11 @@ fn run() -> Result<()> {
 
     let state: Arc<RwLock<ShellState>> =
         Arc::new(RwLock::new(Default::default()));
+
+    if let Err(e) = list_vaults(Arc::clone(&client), Arc::clone(&state), false)
+    {
+        eprintln!("failed to list vaults, identity may not exist: {}", e);
+    }
 
     let prompt_state = Arc::clone(&state);
 

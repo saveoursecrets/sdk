@@ -53,7 +53,7 @@ struct Shell {
 #[derive(Subcommand, Debug)]
 enum ShellCommand {
     /// List vaults.
-    Vaults {},
+    Vaults,
     /// Select a vault.
     Use { vault: UuidOrName },
     /// Print information about the currently selected vault.
@@ -108,6 +108,22 @@ fn print_summary(summary: &Summary) -> Result<()> {
     Ok(())
 }
 
+/// Exposed so that the shell program can automatically
+/// try to list vaults after creating a signer.
+pub fn list_vaults(
+    client: Arc<Client>,
+    state: Arc<RwLock<ShellState>>,
+    print: bool,
+) -> std::result::Result<(), ShellError> {
+    let summaries = run_blocking(client.list_vaults())?;
+    if print {
+        print_summaries_list(&summaries)?;
+    }
+    let mut writer = state.write().unwrap();
+    writer.summaries = summaries;
+    Ok(())
+}
+
 pub fn run_shell_command(
     line: &str,
     client: Arc<Client>,
@@ -129,12 +145,7 @@ pub fn run_shell_command(
     } else {
         match Shell::try_parse_from(it) {
             Ok(args) => match args.cmd {
-                ShellCommand::Vaults {} => {
-                    let summaries = run_blocking(client.list_vaults())?;
-                    print_summaries_list(&summaries)?;
-                    let mut writer = state.write().unwrap();
-                    writer.summaries = summaries;
-                }
+                ShellCommand::Vaults => list_vaults(client, state, true)?,
                 ShellCommand::Use { vault } => {
                     let mut writer = state.write().unwrap();
                     let summary = match &vault {
