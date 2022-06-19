@@ -1,0 +1,178 @@
+use std::{
+    sync::{Arc, RwLock},
+};
+
+use clap::{CommandFactory, Parser, Subcommand};
+use std::future::Future;
+use tokio::runtime::Runtime;
+use thiserror::Error;
+
+use sos_core::{
+    gatekeeper::Gatekeeper,
+    secret::UuidOrName,
+    vault::{Summary, Vault},
+};
+use sos_readline::read_password;
+
+use crate::{Client, Result};
+
+#[derive(Debug, Error)]
+pub enum ShellError {
+
+    #[error(r#"vault "{0}" not found, run "list-vaults" to load the vault list"#)]
+    VaultNotAvailable(UuidOrName),
+
+    #[error("failed to unlock vault")]
+    VaultUnlockFail,
+
+    #[error(r#"no vault selected, run "use" to select a vault"#)]
+    NoVaultSelected,
+
+    #[error(transparent)]
+    Core(#[from] sos_core::Error),
+
+    #[error(transparent)]
+    Client(#[from] crate::Error),
+
+    #[error(transparent)]
+    Readline(#[from] sos_readline::Error),
+
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
+
+/// Secret storage shell.
+#[derive(Parser, Debug)]
+#[clap(name = "sos-shell", author, version, about, long_about = None)]
+struct Shell {
+    #[clap(subcommand)]
+    cmd: ShellCommand,
+}
+
+#[derive(Subcommand, Debug)]
+enum ShellCommand {
+    /// List vaults.
+    ListVaults {},
+    /// Select a vault.
+    Use { vault: UuidOrName },
+    /// Print information about the currently selected vault.
+    Info,
+    /// Close the selected vault.
+    Close,
+    /// Exit the shell.
+    #[clap(alias = "q")]
+    Quit,
+}
+
+#[derive(Default)]
+pub struct ShellState {
+    /// Vaults managed by this signer.
+    pub summaries: Vec<Summary>,
+    /// Currently selected vault.
+    pub current: Option<Gatekeeper>,
+}
+
+/// Runs a future blocking the current thread so we can
+/// merge the synchronous nature of the shell prompt with the
+/// asynchronous API exposed by the client.
+fn run_blocking<F, R>(func: F) -> Result<R>
+where
+    F: Future<Output = Result<R>> + Send,
+    R: Send,
+{
+    Ok(Runtime::new().unwrap().block_on(func)?)
+}
+
+fn print_summaries_list(summaries: &[Summary]) -> Result<()> {
+    for (index, summary) in summaries.iter().enumerate() {
+        println!("{}) {} {}", index + 1, summary.name(), summary.id());
+    }
+    Ok(())
+}
+
+fn print_summary(summary: &Summary) -> Result<()> {
+    println!(
+        "Version {} using {:?} at #{}",
+        summary.version(),
+        summary.algorithm(),
+        summary.change_seq()
+    );
+    println!("{} {}", summary.name(), summary.id());
+    Ok(())
+}
+
+pub fn run_shell_command(
+    line: &str,
+    client: Arc<Client>,
+    state: Arc<RwLock<ShellState>>,
+) -> std::result::Result<(), ShellError> {
+    let prefixed = format!("sos-shell {}", line);
+    let it = prefixed.split_ascii_whitespace();
+    let mut cmd = Shell::command();
+    if line == "-V" {
+        let version = cmd.render_version();
+        print!("{}", version);
+    } else if line == "version" || line == "--version" {
+        let version = cmd.render_long_version();
+        print!("{}", version);
+    } else if line == "-h" {
+        cmd.print_help()?;
+    } else if line == "help" || line == "--help" {
+        cmd.print_long_help()?;
+    } else {
+        match Shell::try_parse_from(it) {
+            Ok(args) => match args.cmd {
+                ShellCommand::ListVaults {} => {
+                    let summaries = run_blocking(client.list_vaults())?;
+                    print_summaries_list(&summaries)?;
+                    let mut writer = state.write().unwrap();
+                    writer.summaries = summaries;
+                }
+                ShellCommand::Use { vault } => {
+                    let mut writer = state.write().unwrap();
+                    let summary = match &vault {
+                        UuidOrName::Name(name) => {
+                            writer.summaries.iter().find(|s| s.name() == name)
+                        }
+                        UuidOrName::Uuid(uuid) => {
+                            writer.summaries.iter().find(|s| s.id() == uuid)
+                        }
+                    };
+
+                    if let Some(summary) = summary {
+                        let vault_bytes =
+                            run_blocking(client.load_vault(summary.id()))?;
+                        let vault = Vault::read_buffer(vault_bytes)?;
+                        let mut keeper = Gatekeeper::new(vault);
+                        let password = read_password(Some("Passphrase: "))?;
+                        if let Ok(_) = keeper.unlock(&password) {
+                            writer.current = Some(keeper);
+                        } else {
+                            return Err(ShellError::VaultUnlockFail);
+                        }
+                    } else {
+                        return Err(ShellError::VaultNotAvailable(vault))
+                    }
+                }
+                ShellCommand::Info => {
+                    let reader = state.read().unwrap();
+                    if let Some(keeper) = &reader.current {
+                        let summary = keeper.summary();
+                        print_summary(summary)?;
+                    } else {
+                        return Err(ShellError::NoVaultSelected)
+                    }
+                }
+                ShellCommand::Close => {
+                    let mut writer = state.write().unwrap();
+                    writer.current = None;
+                }
+                ShellCommand::Quit => {
+                    std::process::exit(0);
+                }
+            },
+            Err(e) => e.print().expect("unable to write error output"),
+        }
+    }
+    Ok(())
+}
