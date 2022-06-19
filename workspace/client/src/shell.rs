@@ -56,9 +56,9 @@ enum ShellCommand {
     Vaults,
     /// Select a vault.
     Use { vault: UuidOrName },
-    /// Print information about the currently selected vault.
+    /// Print information about the selected vault.
     Info,
-    /// Print secret keys.
+    /// Print secret keys for the selected vault.
     Keys,
     /// Print a secret.
     Get { secret: UuidOrName },

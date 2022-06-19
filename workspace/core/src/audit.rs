@@ -1,7 +1,7 @@
 //! Types for audit logs.
 use async_trait::async_trait;
 use bitflags::bitflags;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use time::{OffsetDateTime, Duration};
 use serde::{Deserialize, Serialize};
 use serde_binary::{
     binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
@@ -49,7 +49,7 @@ bitflags! {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Log {
     /// The time the log was created.
-    pub time: DateTime<Utc>,
+    pub time: OffsetDateTime,
     /// The operation being performed.
     pub operation: Operation,
     /// The address of the client performing the operation.
@@ -62,7 +62,7 @@ pub struct Log {
 impl Default for Log {
     fn default() -> Self {
         Self {
-            time: Utc::now(),
+            time: OffsetDateTime::now_utc(),
             operation: Default::default(),
             address: Default::default(),
             data: None,
@@ -78,7 +78,7 @@ impl Log {
         data: Option<LogData>,
     ) -> Self {
         Self {
-            time: Utc::now(),
+            time: OffsetDateTime::now_utc(),
             operation,
             address,
             data,
@@ -111,8 +111,8 @@ impl Encode for Log {
         let flags = self.log_flags();
         ser.writer.write_u16(flags.bits())?;
         // Time - the when
-        let seconds = self.time.timestamp();
-        let nanos = self.time.timestamp_subsec_nanos();
+        let seconds = self.time.unix_timestamp();
+        let nanos = self.time.nanosecond();
         ser.writer.write_i64(seconds)?;
         ser.writer.write_u32(nanos)?;
         // Operation - the what
@@ -135,8 +135,7 @@ impl Decode for Log {
         // Time - the when
         let seconds = de.reader.read_i64()?;
         let nanos = de.reader.read_u32()?;
-        let date_time = NaiveDateTime::from_timestamp(seconds, nanos);
-        self.time = DateTime::<Utc>::from_utc(date_time, Utc);
+        self.time = OffsetDateTime::from_unix_timestamp(seconds).map_err(Box::from)? + Duration::nanoseconds(nanos as i64);
         // Operation - the what
         self.operation.decode(&mut *de)?;
         // Address - by whom

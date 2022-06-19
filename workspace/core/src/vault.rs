@@ -704,8 +704,8 @@ mod tests {
         let row_meta = vault.decrypt(&encryption_key, row_meta)?;
         let row_secret = vault.decrypt(&encryption_key, row_secret)?;
 
-        let row_meta: SecretMeta = decode(row_meta)?;
-        let row_secret: Secret = decode(row_secret)?;
+        let row_meta: SecretMeta = decode(&row_meta)?;
+        let row_secret: Secret = decode(&row_secret)?;
 
         assert_eq!(secret_meta, row_meta);
         assert_eq!(secret_value, row_secret);
@@ -733,7 +733,7 @@ mod tests {
         let buffer = std::fs::read(
             "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
         )?;
-        let _vault: Vault = decode(buffer)?;
+        let _vault: Vault = decode(&buffer)?;
         Ok(())
     }
 }
