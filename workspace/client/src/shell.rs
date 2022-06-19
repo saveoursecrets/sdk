@@ -69,6 +69,8 @@ enum ShellCommand {
     List,
     /// Print a secret.
     Get { secret: UuidOrName },
+    /// Delete a secret.
+    Del { secret: UuidOrName },
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -185,7 +187,7 @@ fn exec_program(
                 if let Some((uuid, _)) =
                     keeper.find_by_uuid_or_label(&meta_data, &secret)
                 {
-                    if let Some((secret_meta, secret_data, _)) =
+                    if let Some((secret_meta, secret_data, payload)) =
                         keeper.read(uuid)?
                     {
                         println!(
@@ -208,6 +210,39 @@ fn exec_program(
                 }
             } else {
                 return Err(ShellError::NoVaultSelected);
+            }
+        }
+        ShellCommand::Del { secret } => {
+            let reader = state.read().unwrap();
+            let uuid = if let Some(keeper) = &reader.current {
+                let meta_data = keeper.meta_data()?;
+                if let Some((uuid, _)) =
+                    keeper.find_by_uuid_or_label(&meta_data, &secret)
+                {
+                    Some(*uuid)
+                } else {
+                    None
+                }
+            } else {
+                return Err(ShellError::NoVaultSelected);
+            };
+            drop(reader);
+
+            if let Some(uuid) = uuid {
+                let mut writer = state.write().unwrap();
+                if let Some(keeper) = writer.current.as_mut() {
+                    if let Some(payload) = keeper.delete(&uuid)? {
+                        run_blocking(client.delete_secret(
+                            *payload.change_seq().unwrap(),
+                            keeper.id(),
+                            &uuid,
+                        ))?;
+                    } else {
+                        return Err(ShellError::SecretNotAvailable(secret));
+                    }
+                }
+            } else {
+                return Err(ShellError::SecretNotAvailable(secret));
             }
         }
         ShellCommand::Whoami => {

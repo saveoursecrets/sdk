@@ -126,7 +126,7 @@ impl Client {
         change_seq: u32,
         vault_id: &Uuid,
         secret_id: &Uuid,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<Response> {
         let url = self
             .server
             .join(&format!("api/vaults/{}/secrets/{}", vault_id, secret_id))?;
@@ -134,6 +134,28 @@ impl Client {
         let response = self
             .http_client
             .get(url)
+            .header("authorization", self.bearer_prefix(&signature))
+            .header("x-signed-message", base64::encode(&message))
+            .header("x-change-sequence", change_seq.to_string())
+            .send()
+            .await?;
+        Ok(response)
+    }
+
+    /// Send a delete secret event to the server.
+    pub async fn delete_secret(
+        &self,
+        change_seq: u32,
+        vault_id: &Uuid,
+        secret_id: &Uuid,
+    ) -> Result<Vec<u8>> {
+        let url = self
+            .server
+            .join(&format!("api/vaults/{}/secrets/{}", vault_id, secret_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let response = self
+            .http_client
+            .delete(url)
             .header("authorization", self.bearer_prefix(&signature))
             .header("x-signed-message", base64::encode(&message))
             .header("x-change-sequence", change_seq.to_string())
