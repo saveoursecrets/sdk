@@ -72,6 +72,22 @@ impl Client {
         Ok(response)
     }
 
+    /// Create a new vault.
+    pub async fn create_vault(&self, vault: Vec<u8>) -> Result<Response> {
+        let url = self.server.join("api/vaults")?;
+        let signature =
+            self.encode_signature(self.signer.sign(&vault).await?)?;
+        let response = self
+            .http_client
+            .put(url)
+            .header("authorization", self.bearer_prefix(&signature))
+            .header("content-type", MIME_TYPE_VAULT)
+            .body(vault)
+            .send()
+            .await?;
+        Ok(response)
+    }
+
     /// List the vaults accessible by this signer.
     pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
         let url = self.server.join("api/auth")?;

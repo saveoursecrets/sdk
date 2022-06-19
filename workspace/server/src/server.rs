@@ -663,7 +663,6 @@ impl VaultHandler {
     async fn create_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
-        TypedHeader(change_seq): TypedHeader<ChangeSequence>,
         body: Bytes,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         let response = if let Ok((status_code, token)) =
@@ -680,6 +679,9 @@ impl VaultHandler {
                     .vault_exists(&token.address, summary.id())
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                drop(reader);
+
                 if exists {
                     Ok(MaybeConflict::Conflict(change_seq))
                 } else {

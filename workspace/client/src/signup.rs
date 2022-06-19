@@ -1,5 +1,5 @@
 //! Signup a new account.
-use crate::{run_blocking, Client, Error, Result};
+use crate::{display_passphrase, run_blocking, Client, Error, Result};
 use k256::ecdsa::SigningKey;
 use sos_core::{
     address::AddressStr,
@@ -12,16 +12,6 @@ use sos_readline::read_flag;
 use std::{path::PathBuf, sync::Arc};
 use url::Url;
 use web3_keystore::encrypt;
-
-fn display_passphrase(heading: &str, detail: &str, passphrase: &str) {
-    println!("### {}", heading);
-    println!("#");
-    println!("# {}", detail);
-    println!("#");
-    println!("# {}", passphrase);
-    println!("#");
-    println!("###");
-}
 
 pub fn signup(
     server: Url,

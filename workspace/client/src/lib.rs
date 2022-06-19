@@ -19,6 +19,20 @@ where
     Ok(Runtime::new().unwrap().block_on(func)?)
 }
 
+pub(crate) fn display_passphrase(
+    heading: &str,
+    detail: &str,
+    passphrase: &str,
+) {
+    println!("### {}", heading);
+    println!("#");
+    println!("# {}", detail);
+    println!("#");
+    println!("# {}", passphrase);
+    println!("#");
+    println!("###");
+}
+
 pub use client::Client;
 pub use error::Error;
 pub use shell::{exec, list_vaults, ShellState};

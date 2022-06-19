@@ -7,14 +7,15 @@ use clap::{CommandFactory, Parser, Subcommand};
 use thiserror::Error;
 
 use sos_core::{
+    diceware::generate,
     gatekeeper::Gatekeeper,
     secret::Secret,
     secret::UuidOrName,
-    vault::{Summary, Vault},
+    vault::{encode, Summary, Vault},
 };
 use sos_readline::read_password;
 
-use crate::{run_blocking, Client, Result};
+use crate::{display_passphrase, run_blocking, Client, Result};
 
 #[derive(Debug, Error)]
 pub enum ShellError {
@@ -29,6 +30,9 @@ pub enum ShellError {
 
     #[error(r#"secret "{0}" not found"#)]
     SecretNotAvailable(UuidOrName),
+
+    #[error("failed to create vault, got status code {0}")]
+    VaultCreate(u16),
 
     #[error(transparent)]
     Clap(#[from] clap::Error),
@@ -58,6 +62,8 @@ struct Shell {
 enum ShellCommand {
     /// List vaults.
     Vaults,
+    /// Create a new vault.
+    Create { name: String },
     /// Select a vault.
     Use { vault: UuidOrName },
     /// Print information about the selected vault.
@@ -114,6 +120,24 @@ fn exec_program(
 ) -> std::result::Result<(), ShellError> {
     match program.cmd {
         ShellCommand::Vaults => list_vaults(client, state, true)?,
+        ShellCommand::Create { name } => {
+            let (passphrase, _) = generate()?;
+            let mut vault: Vault = Default::default();
+            vault.set_name(name);
+            vault.initialize(&passphrase)?;
+            let buffer = encode(&vault)?;
+
+            let response = run_blocking(client.create_vault(buffer))?;
+
+            if !response.status().is_success() {
+                return Err(ShellError::VaultCreate(response.status().into()));
+            }
+            display_passphrase(
+                "Encryption passphrase",
+                "YOU MUST REMEMBER THIS PASSPHRASE!",
+                &passphrase,
+            );
+        }
         ShellCommand::Use { vault } => {
             let mut writer = state.write().unwrap();
             let summary = match &vault {
