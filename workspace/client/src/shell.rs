@@ -7,6 +7,7 @@ use tokio::runtime::Runtime;
 
 use sos_core::{
     gatekeeper::Gatekeeper,
+    secret::Secret,
     secret::UuidOrName,
     vault::{Summary, Vault},
 };
@@ -24,6 +25,9 @@ pub enum ShellError {
 
     #[error(r#"no vault selected, run "use" to select a vault"#)]
     NoVaultSelected,
+
+    #[error(r#"secret "{0}" not found"#)]
+    SecretNotAvailable(UuidOrName),
 
     #[error(transparent)]
     Core(#[from] sos_core::Error),
@@ -56,6 +60,8 @@ enum ShellCommand {
     Info,
     /// Print secret keys.
     Keys,
+    /// Print a secret.
+    Get { secret: UuidOrName },
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -169,6 +175,40 @@ pub fn run_shell_command(
                     if let Some(keeper) = &reader.current {
                         for uuid in keeper.vault().keys() {
                             println!("{}", uuid);
+                        }
+                    } else {
+                        return Err(ShellError::NoVaultSelected);
+                    }
+                }
+                ShellCommand::Get { secret } => {
+                    let reader = state.read().unwrap();
+                    if let Some(keeper) = &reader.current {
+                        let meta_data = keeper.meta_data()?;
+                        if let Some((uuid, _)) =
+                            keeper.find_by_uuid_or_label(&meta_data, &secret)
+                        {
+                            if let Some((secret_meta, secret_data, _)) =
+                                keeper.read(uuid)?
+                            {
+                                println!(
+                                    "[{}] {}",
+                                    Secret::type_name(*secret_meta.kind()),
+                                    secret_meta.label()
+                                );
+                                println!("{:#?}", secret_data);
+
+                                run_blocking(client.read_secret(
+                                    keeper.change_seq()?,
+                                    keeper.id(),
+                                    uuid,
+                                ))?;
+                            } else {
+                                return Err(ShellError::SecretNotAvailable(
+                                    secret,
+                                ));
+                            }
+                        } else {
+                            return Err(ShellError::SecretNotAvailable(secret));
                         }
                     } else {
                         return Err(ShellError::NoVaultSelected);

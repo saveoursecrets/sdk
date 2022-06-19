@@ -1,5 +1,4 @@
 //! HTTP client implementation.
-//use std::{path::PathBuf, fs::File, io::Read};
 use reqwest::Client as HttpClient;
 use sos_core::{address::AddressStr, signer::Signer, vault::Summary};
 use std::sync::Arc;
@@ -96,6 +95,28 @@ impl Client {
             .get(url)
             .header("authorization", self.bearer_prefix(&signature))
             .header("x-signed-message", base64::encode(&message))
+            .send()
+            .await?;
+        Ok(response.bytes().await?.to_vec())
+    }
+
+    /// Send a read secret event to the server.
+    pub async fn read_secret(
+        &self,
+        change_seq: u32,
+        vault_id: &Uuid,
+        secret_id: &Uuid,
+    ) -> Result<Vec<u8>> {
+        let url = self
+            .server
+            .join(&format!("api/vaults/{}/secrets/{}", vault_id, secret_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let response = self
+            .http_client
+            .get(url)
+            .header("authorization", self.bearer_prefix(&signature))
+            .header("x-signed-message", base64::encode(&message))
+            .header("x-change-sequence", change_seq.to_string())
             .send()
             .await?;
         Ok(response.bytes().await?.to_vec())
