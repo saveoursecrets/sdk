@@ -12,7 +12,7 @@ use url::Url;
 use web3_keystore::{decrypt, KeyStore};
 
 use sos_client::{Client, Result};
-use sos_core::{secret::UuidOrName, signer::SingleParty, vault::Summary};
+use sos_core::{secret::UuidOrName, signer::SingleParty, vault::{Summary, Vault}, gatekeeper::Gatekeeper};
 use sos_readline::{read_password, read_shell};
 
 /// Secret storage interactive shell.
@@ -50,12 +50,12 @@ enum ShellCommand {
     Quit,
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct ShellState {
     /// Vaults managed by this signer.
     summaries: Vec<Summary>,
     /// Currently selected vault.
-    current: Option<Summary>,
+    current: Option<Gatekeeper>,
 }
 
 /// Runs a future blocking the current thread so we can
@@ -115,7 +115,17 @@ fn run_shell_command(
                     };
 
                     if let Some(summary) = summary {
-                        writer.current = Some(summary.clone());
+                        let vault_bytes = run_blocking(
+                            client.load_vault(summary.id()))?;
+                        let vault = Vault::read_buffer(vault_bytes)?;
+                        let mut keeper = Gatekeeper::new(vault);
+                        let password = read_password(Some("Passphrase: "))?;
+                        if let Ok(_) = keeper.unlock(&password) {
+                            writer.current = Some(keeper);
+                        } else {
+                            eprintln!("failed to unlock vault");
+                        }
+
                     } else {
                         eprintln!(
                             r#"vault "{}" not found, run "ls" to load the vault list"#,
@@ -138,12 +148,12 @@ fn run_shell_command(
 }
 
 /// Print the welcome information.
-fn welcome(api: &Url) -> Result<()> {
+fn welcome(server: &Url) -> Result<()> {
     println!("SOS: interactive shell");
     println!(r#"Type "help", "--help" or "-h" for command usage"#);
     println!(r#"Type "version", "--version" or "-V" for version info"#);
     println!(r#"Type "quit" or "q" to exit"#);
-    println!("API: {}", api);
+    println!("Server {}", server);
     Ok(())
 }
 
@@ -163,7 +173,7 @@ fn run() -> Result<()> {
     let signer: SingleParty = (&signing_key).try_into()?;
     let client = Arc::new(Client::new(args.server, Arc::new(signer)));
 
-    welcome(client.api())?;
+    welcome(client.server())?;
 
     let state: Arc<RwLock<ShellState>> =
         Arc::new(RwLock::new(Default::default()));

@@ -12,25 +12,25 @@ use crate::Result;
 type Challenge = [u8; 32];
 
 pub struct Client {
-    api: Url,
+    server: Url,
     http_client: HttpClient,
     signer: Arc<dyn Signer + Send + Sync>,
 }
 
 impl Client {
     /// Create a new client.
-    pub fn new(api: Url, signer: Arc<dyn Signer + Send + Sync>) -> Self {
+    pub fn new(server: Url, signer: Arc<dyn Signer + Send + Sync>) -> Self {
         let http_client = HttpClient::new();
         Self {
-            api,
+            server,
             http_client,
             signer,
         }
     }
 
-    /// Get the API URL.
-    pub fn api(&self) -> &Url {
-        &self.api
+    /// Get the server URL.
+    pub fn server(&self) -> &Url {
+        &self.server
     }
 
     fn encode_signature(&self, signature: Signature) -> Result<String> {
@@ -50,7 +50,7 @@ impl Client {
 
     /// List the vaults accessible by this signer.
     pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
-        let url = self.api.join("api/auth")?;
+        let url = self.server.join("api/auth")?;
         let (message, signature) = self.self_signed().await?;
 
         let challenge: (Uuid, Challenge) = self
@@ -65,7 +65,7 @@ impl Client {
 
         let (uuid, message) = challenge;
         let url = format!("api/auth/{}", uuid);
-        let url = self.api.join(&url)?;
+        let url = self.server.join(&url)?;
         let signature =
             self.encode_signature(self.signer.sign(&message).await?)?;
 
@@ -80,5 +80,19 @@ impl Client {
             .await?;
 
         Ok(summaries)
+    }
+
+    /// Load the buffer for a vault.
+    pub async fn load_vault(&self, vault_id: &Uuid) -> Result<Vec<u8>> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let response = self
+            .http_client
+            .get(url)
+            .header("authorization", self.bearer_prefix(&signature))
+            .header("x-signed-message", base64::encode(&message))
+            .send()
+            .await?;
+        Ok(response.bytes().await?.to_vec())
     }
 }
