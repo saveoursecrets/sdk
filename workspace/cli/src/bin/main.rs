@@ -67,15 +67,6 @@ enum New {
         #[clap(parse(from_os_str))]
         destination: PathBuf,
     },
-    /// Create an EdDSA private and public key pair for JWT
-    Jwt {
-        /// Name for the private and public key files
-        name: String,
-
-        /// Directory to write the keypair file
-        #[clap(parse(from_os_str))]
-        destination: PathBuf,
-    },
     /// Print a random BIP39 passphrase
     Passphrase {
         /// Number of words: 12, 18 or 24.
@@ -224,9 +215,6 @@ fn run() -> Result<()> {
             }
             New::Keypair { name, destination } => {
                 sos_cli::new::keypair(name, destination)?;
-            }
-            New::Jwt { name, destination } => {
-                sos_cli::new::jwt(name, destination)?;
             }
             New::Passphrase { count } => {
                 sos_cli::new::passphrase(count)?;

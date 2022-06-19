@@ -1,7 +1,6 @@
 //! Types for audit logs.
 use async_trait::async_trait;
 use bitflags::bitflags;
-use time::{OffsetDateTime, Duration};
 use serde::{Deserialize, Serialize};
 use serde_binary::{
     binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
@@ -9,6 +8,7 @@ use serde_binary::{
     Serializer,
 };
 use std::path::Path;
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::{
@@ -135,7 +135,9 @@ impl Decode for Log {
         // Time - the when
         let seconds = de.reader.read_i64()?;
         let nanos = de.reader.read_u32()?;
-        self.time = OffsetDateTime::from_unix_timestamp(seconds).map_err(Box::from)? + Duration::nanoseconds(nanos as i64);
+        self.time = OffsetDateTime::from_unix_timestamp(seconds)
+            .map_err(Box::from)?
+            + Duration::nanoseconds(nanos as i64);
         // Operation - the what
         self.operation.decode(&mut *de)?;
         // Address - by whom

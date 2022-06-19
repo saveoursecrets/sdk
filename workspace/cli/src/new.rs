@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use log::info;
 use sos_core::{
     address::address_compressed,
-    crypto::{authorize::jwt, keypair::generate},
+    crypto::keypair::generate,
     diceware,
     passphrase::{words, WordCount},
     vault::{Vault, DEFAULT_VAULT_NAME},
@@ -124,34 +124,6 @@ pub fn keypair(name: String, destination: PathBuf) -> Result<()> {
     );
 
     info!("{}", address);
-    Ok(())
-}
-
-/// Create a new JWT keypair
-pub fn jwt(name: String, destination: PathBuf) -> Result<()> {
-    if !destination.is_dir() {
-        bail!("destination is not a directory: {}", destination.display());
-    }
-
-    let keypair = jwt::generate();
-    let key = keypair.to_pem();
-
-    let mut keypair_path = destination.join(&name);
-    keypair_path.set_extension(PEM_EXT);
-
-    if keypair_path.exists() {
-        bail!("file {} already exists", keypair_path.display());
-    }
-
-    std::fs::write(&keypair_path, &key).with_context(|| {
-        format!("failed to write to {}", keypair_path.display())
-    })?;
-    info!(
-        target: LOG_TARGET,
-        "wrote key to {}",
-        keypair_path.display()
-    );
-
     Ok(())
 }
 

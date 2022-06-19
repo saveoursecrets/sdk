@@ -330,8 +330,8 @@ mod tests {
         operations::VaultAccess,
         secret::*,
         vault::Vault,
-        Result,
     };
+    use anyhow::Result;
 
     use uuid::Uuid;
 
