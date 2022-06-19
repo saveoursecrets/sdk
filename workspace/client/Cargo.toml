@@ -2,6 +2,7 @@
 name = "sos-client"
 version = "0.1.0"
 edition = "2021"
+default-run = "sos-client"
 
 [dependencies]
 thiserror = "1"
@@ -17,3 +18,7 @@ web3-signature = { version = "0.2.3", features = ["single-party"] }
 serde_json = "1"
 uuid = { version = "1", features = ["serde", "v4"] }
 base64 = "0.13"
+
+[[bin]]
+name = "sos-client"
+path = "src/bin/main.rs"

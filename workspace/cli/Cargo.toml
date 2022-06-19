@@ -2,7 +2,7 @@
 name = "sos-cli"
 version = "0.1.0"
 edition = "2021"
-default-run = "sos3"
+default-run = "sos"
 
 [dependencies]
 anyhow = "1"
@@ -21,3 +21,6 @@ mime_guess = "2"
 url = "2"
 human_bytes = "0.3"
 
+[[bin]]
+name = "sos"
+path = "src/bin/main.rs"

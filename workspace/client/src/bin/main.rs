@@ -10,6 +10,7 @@ use std::future::Future;
 use tokio::runtime::Runtime;
 use url::Url;
 use web3_keystore::{decrypt, KeyStore};
+use thiserror::Error;
 
 use sos_client::{Client, Result};
 use sos_core::{
@@ -19,6 +20,32 @@ use sos_core::{
     vault::{Summary, Vault},
 };
 use sos_readline::{read_password, read_shell};
+
+
+#[derive(Debug, Error)]
+pub enum ShellError {
+
+    #[error(r#"vault "{0}" not found, run "list-vaults" to load the vault list"#)]
+    VaultNotAvailable(UuidOrName),
+
+    #[error("failed to unlock vault")]
+    VaultUnlockFail,
+
+    #[error(r#"no vault selected, run "use" to select a vault"#)]
+    NoVaultSelected,
+
+    #[error(transparent)]
+    Core(#[from] sos_core::Error),
+
+    #[error(transparent)]
+    Client(#[from] sos_client::Error),
+
+    #[error(transparent)]
+    Readline(#[from] sos_readline::Error),
+
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
 
 const WELCOME: &str = include_str!("welcome.txt");
 
@@ -46,14 +73,13 @@ struct Shell {
 #[derive(Subcommand, Debug)]
 enum ShellCommand {
     /// List vaults.
-    #[clap(alias = "ls")]
     ListVaults {},
     /// Select a vault.
     Use { vault: UuidOrName },
     /// Print information about the currently selected vault.
     Info,
-    /// Clear selected vault.
-    Clear,
+    /// Close the selected vault.
+    Close,
     /// Exit the shell.
     #[clap(alias = "q")]
     Quit,
@@ -100,7 +126,7 @@ fn run_shell_command(
     line: &str,
     client: Arc<Client>,
     state: Arc<RwLock<ShellState>>,
-) -> Result<()> {
+) -> std::result::Result<(), ShellError> {
     let prefixed = format!("sos-shell {}", line);
     let it = prefixed.split_ascii_whitespace();
     let mut cmd = Shell::command();
@@ -143,13 +169,10 @@ fn run_shell_command(
                         if let Ok(_) = keeper.unlock(&password) {
                             writer.current = Some(keeper);
                         } else {
-                            eprintln!("failed to unlock vault");
+                            return Err(ShellError::VaultUnlockFail);
                         }
                     } else {
-                        eprintln!(
-                            r#"vault "{}" not found, run "ls" to load the vault list"#,
-                            vault
-                        )
+                        return Err(ShellError::VaultNotAvailable(vault))
                     }
                 }
                 ShellCommand::Info => {
@@ -158,12 +181,10 @@ fn run_shell_command(
                         let summary = keeper.summary();
                         print_summary(summary)?;
                     } else {
-                        eprintln!(
-                            r#"no vault selected, run "use" to select a vault "#
-                        )
+                        return Err(ShellError::NoVaultSelected)
                     }
                 }
-                ShellCommand::Clear => {
+                ShellCommand::Close => {
                     let mut writer = state.write().unwrap();
                     writer.current = None;
                 }
@@ -219,7 +240,9 @@ fn run() -> Result<()> {
         |line: String| {
             let client = Arc::clone(&client);
             let state = Arc::clone(&state);
-            run_shell_command(&line, client, state).unwrap();
+            if let Err(e) = run_shell_command(&line, client, state) {
+                eprintln!("{}", e);
+            }
         },
         prompt,
     )?;
