@@ -44,7 +44,7 @@ pub mod algorithms {
         Decode, Deserializer, Encode, Error as BinaryError,
         Result as BinaryResult, Serializer,
     };
-    use std::{convert::AsRef, str::FromStr, fmt};
+    use std::{convert::AsRef, fmt, str::FromStr};
 
     /// Default algorithm.
     pub const X_CHACHA20_POLY1305: u8 = 0x01;

@@ -16,9 +16,7 @@ use crate::{Client, Result};
 
 #[derive(Debug, Error)]
 pub enum ShellError {
-    #[error(
-        r#"vault "{0}" not found, run "list-vaults" to load the vault list"#
-    )]
+    #[error(r#"vault "{0}" not found, run "vaults" to load the vault list"#)]
     VaultNotAvailable(UuidOrName),
 
     #[error("failed to unlock vault")]
@@ -51,7 +49,7 @@ struct Shell {
 #[derive(Subcommand, Debug)]
 enum ShellCommand {
     /// List vaults.
-    ListVaults {},
+    Vaults {},
     /// Select a vault.
     Use { vault: UuidOrName },
     /// Print information about the currently selected vault.
@@ -121,7 +119,7 @@ pub fn run_shell_command(
     } else {
         match Shell::try_parse_from(it) {
             Ok(args) => match args.cmd {
-                ShellCommand::ListVaults {} => {
+                ShellCommand::Vaults {} => {
                     let summaries = run_blocking(client.list_vaults())?;
                     print_summaries_list(&summaries)?;
                     let mut writer = state.write().unwrap();
