@@ -22,7 +22,7 @@ use crate::{
     crypto::AeadPack,
     file_identity::FileIdentity,
     operations::{Payload, VaultAccess},
-    vault::{Contents, IDENTITY},
+    vault::{Contents, Header, Summary, IDENTITY},
     Error, Result,
 };
 
@@ -183,6 +183,10 @@ impl VaultFileAccess {
 }
 
 impl VaultAccess for VaultFileAccess {
+    fn summary(&self) -> Result<Summary> {
+        Ok(Header::read_summary_file(&self.file_path)?)
+    }
+
     fn change_seq(&self) -> Result<u32> {
         let mut stream = self.stream.lock().unwrap();
         let reader = BinaryReader::new(&mut *stream, Endian::Big);

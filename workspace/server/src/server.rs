@@ -627,7 +627,8 @@ impl VaultHandler {
                 let (exists, _) = writer
                     .backend
                     .vault_exists(&token.address, &vault_id)
-                    .await;
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                 if !exists {
                     return Err(StatusCode::NOT_FOUND);
@@ -677,7 +678,8 @@ impl VaultHandler {
                 let (exists, change_seq) = reader
                     .backend
                     .vault_exists(&token.address, summary.id())
-                    .await;
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                 if exists {
                     Ok(MaybeConflict::Conflict(change_seq))
                 } else {

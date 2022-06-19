@@ -53,7 +53,7 @@ pub trait Backend {
         &self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> (bool, u32);
+    ) -> Result<(bool, u32)>;
 
     /// Load a vault buffer for an account.
     async fn get(&self, owner: &AddressStr, vault_id: &Uuid)
@@ -77,8 +77,7 @@ pub trait Backend {
 /// Backend storage for vaults on the file system.
 pub struct FileSystemBackend {
     directory: PathBuf,
-    accounts:
-        RwLock<HashMap<AddressStr, HashMap<Uuid, (VaultStorage, Summary)>>>,
+    accounts: RwLock<HashMap<AddressStr, HashMap<Uuid, VaultStorage>>>,
 }
 
 impl FileSystemBackend {
@@ -116,12 +115,9 @@ impl FileSystemBackend {
                                         Header::read_summary_file(&vault_path)?;
                                     vaults.insert(
                                         *summary.id(),
-                                        (
-                                            Box::new(VaultFileAccess::new(
-                                                vault_path,
-                                            )?),
-                                            summary,
-                                        ),
+                                        Box::new(VaultFileAccess::new(
+                                            vault_path,
+                                        )?),
                                     );
                                 }
                             }
@@ -167,10 +163,8 @@ impl FileSystemBackend {
         let mut accounts = self.accounts.write().await;
         let vaults = accounts.entry(owner).or_insert(Default::default());
         let summary = Header::read_summary_file(&vault_path)?;
-        vaults.insert(
-            *summary.id(),
-            (Box::new(VaultFileAccess::new(vault_path)?), summary),
-        );
+        vaults
+            .insert(*summary.id(), Box::new(VaultFileAccess::new(vault_path)?));
         Ok(())
     }
 }
@@ -228,8 +222,8 @@ impl Backend for FileSystemBackend {
         let mut summaries = Vec::new();
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
-            for (_, (_, summary)) in account {
-                summaries.push(summary.clone());
+            for (_, storage) in account {
+                summaries.push(storage.summary()?);
             }
         }
         Ok(summaries)
@@ -239,17 +233,16 @@ impl Backend for FileSystemBackend {
         &self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> (bool, u32) {
+    ) -> Result<(bool, u32)> {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
-            if let Some((_, summary)) = account.get(vault_id) {
-                // FIXME: ensure that the summary change_seq() is not stale
-                (true, *summary.change_seq())
+            if let Some(storage) = account.get(vault_id) {
+                Ok((true, storage.change_seq()?))
             } else {
-                (false, 0)
+                Ok((false, 0))
             }
         } else {
-            (false, 0)
+            Ok((false, 0))
         }
     }
 
@@ -260,7 +253,7 @@ impl Backend for FileSystemBackend {
     ) -> Result<Vec<u8>> {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
-            if let Some((_, _)) = account.get(vault_id) {
+            if let Some(_) = account.get(vault_id) {
                 let vault_file = self.vault_file_path(owner, vault_id);
                 let buffer = tokio::fs::read(vault_file).await?;
                 return Ok(buffer);
@@ -288,7 +281,7 @@ impl Backend for FileSystemBackend {
 
         let guard = RwLockReadGuard::map(accounts, |accounts| {
             let account = accounts.get(owner).unwrap();
-            let (vault_file, _) = account.get(vault_id).unwrap();
+            let vault_file = account.get(vault_id).unwrap();
             vault_file
         });
 
@@ -312,7 +305,7 @@ impl Backend for FileSystemBackend {
 
         let guard = RwLockWriteGuard::map(accounts, |accounts| {
             let account = accounts.get_mut(owner).unwrap();
-            let (vault_file, _) = account.get_mut(vault_id).unwrap();
+            let vault_file = account.get_mut(vault_id).unwrap();
             vault_file
         });
 

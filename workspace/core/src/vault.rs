@@ -513,6 +513,10 @@ impl Vault {
 }
 
 impl VaultAccess for Vault {
+    fn summary(&self) -> Result<Summary> {
+        Ok(self.header.summary.clone())
+    }
+
     fn change_seq(&self) -> Result<u32> {
         Ok(self.header.summary.change_seq)
     }

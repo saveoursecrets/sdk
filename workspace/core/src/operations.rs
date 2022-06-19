@@ -18,7 +18,7 @@ use crate::{
     audit::{Log, LogData},
     crypto::AeadPack,
     signer::Signer,
-    vault::encode,
+    vault::{encode, Summary},
     Error, Result,
 };
 
@@ -27,6 +27,9 @@ use crate::{
 /// The storage may be in-memory, backed by a file on disc or another
 /// destination for the encrypted bytes.
 pub trait VaultAccess {
+    /// Get the vault summary.
+    fn summary(&self) -> Result<Summary>;
+
     /// Get the current change sequence number.
     fn change_seq(&self) -> Result<u32>;
 
@@ -337,9 +340,9 @@ impl<'a> Payload<'a> {
     /// Convert this payload into an audit log.
     pub fn into_audit_log(&self, address: AddressStr, vault_id: Uuid) -> Log {
         let log_data = match self {
-            Payload::CreateVault | Payload::SaveVault(_) | Payload::UpdateVault(_) => {
-                LogData::Vault(vault_id)
-            }
+            Payload::CreateVault
+            | Payload::SaveVault(_)
+            | Payload::UpdateVault(_) => LogData::Vault(vault_id),
             Payload::CreateSecret(_, secret_id, _) => {
                 LogData::Secret(vault_id, *secret_id)
             }
