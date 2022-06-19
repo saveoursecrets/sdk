@@ -54,6 +54,8 @@ enum ShellCommand {
     Use { vault: UuidOrName },
     /// Print information about the currently selected vault.
     Info,
+    /// Print secret keys.
+    Keys,
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -158,6 +160,16 @@ pub fn run_shell_command(
                     if let Some(keeper) = &reader.current {
                         let summary = keeper.summary();
                         print_summary(summary)?;
+                    } else {
+                        return Err(ShellError::NoVaultSelected);
+                    }
+                }
+                ShellCommand::Keys => {
+                    let reader = state.read().unwrap();
+                    if let Some(keeper) = &reader.current {
+                        for uuid in keeper.vault().keys() {
+                            println!("{}", uuid);
+                        }
                     } else {
                         return Err(ShellError::NoVaultSelected);
                     }

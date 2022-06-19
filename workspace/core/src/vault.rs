@@ -417,6 +417,11 @@ impl Vault {
         }
     }
 
+    /// Iterator for the secret keys.
+    pub fn keys<'a>(&'a self) -> impl Iterator<Item = &'a Uuid> {
+        self.contents.data.keys()
+    }
+
     /// Get the salt used for passphrase authentication.
     pub fn salt(&self) -> Option<&String> {
         self.header.auth.salt.as_ref()
