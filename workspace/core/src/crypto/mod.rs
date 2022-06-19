@@ -7,13 +7,6 @@ use serde_binary::{
 };
 
 pub mod aesgcm256;
-
-#[deprecated]
-pub mod authorize;
-
-#[deprecated]
-pub mod keypair;
-
 pub mod secret_key;
 pub mod xchacha20poly1305;
 
@@ -272,55 +265,5 @@ mod tests {
             .recover_verify_key(message)
             .expect("couldn't recover pubkey");
         assert_eq!(&verify_key, &recovered_key);
-    }
-
-    #[test]
-    fn auth_success() -> Result<()> {
-        use super::authorize::*;
-
-        use k256::ecdsa::{
-            signature::{Signature as EcdsaSignature, Signer},
-            Signature, SigningKey, VerifyingKey,
-        };
-
-        // In the real world only the client knows about the SigningKey
-        let signing_key = SigningKey::random(&mut rand::thread_rng());
-        let verify_key = VerifyingKey::from(&signing_key);
-        let public_key: PublicKey = verify_key.into();
-
-        // List of allowed public keys would usually be extracted from
-        // the vault file header
-        let public_keys = vec![public_key];
-
-        // Server generates a challenge for the client
-        let mut authorization: Authorization = Default::default();
-        let challenge = Challenge::new("mock".to_string());
-        let server_packet = serde_json::to_string(&challenge)?;
-        authorization.add(challenge);
-
-        // ... server sends challenge to client
-
-        // Client receives the challenge
-        let client_challenge: Challenge = serde_json::from_str(&server_packet)?;
-        let client_signature: Signature =
-            signing_key.sign(client_challenge.message());
-        let signature_bytes = client_signature.as_bytes().to_vec();
-        let client_response = ChallengeResponse::new(
-            client_challenge.id().clone(),
-            signature_bytes,
-        );
-        let client_packet = serde_json::to_string(&client_response)?;
-
-        // ... client sends the response to the server
-
-        // Server receives the response
-        let challenge_response: ChallengeResponse =
-            serde_json::from_str(&client_packet)?;
-
-        assert!(authorization
-            .authorize(&public_keys, &challenge_response)
-            .is_ok());
-
-        Ok(())
     }
 }

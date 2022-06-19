@@ -58,15 +58,6 @@ enum New {
         #[clap(parse(from_os_str))]
         destination: PathBuf,
     },
-    /// Create an ECDSA private and public key pair
-    Keypair {
-        /// Name for the private and public key files
-        name: String,
-
-        /// Directory to write the key files
-        #[clap(parse(from_os_str))]
-        destination: PathBuf,
-    },
     /// Print a random BIP39 passphrase
     Passphrase {
         /// Number of words: 12, 18 or 24.
@@ -74,40 +65,6 @@ enum New {
         count: WordCount,
     },
 }
-
-/*
-#[derive(Subcommand, Debug)]
-enum User {
-    /// List the public keys for a vault
-    #[clap(alias = "ls")]
-    List {
-        /// Vault file
-        #[clap(parse(from_os_str))]
-        vault: PathBuf,
-    },
-    /// Add a public key to the vault
-    Add {
-        /// Vault file
-        #[clap(parse(from_os_str))]
-        vault: PathBuf,
-
-        /// Public key file
-        #[clap(parse(from_os_str))]
-        public_key: PathBuf,
-    },
-    /// Remove a public key from the vault
-    #[clap(alias = "rm")]
-    Remove {
-        /// Vault file
-        #[clap(parse(from_os_str))]
-        vault: PathBuf,
-
-        /// Public key file
-        #[clap(parse(from_os_str))]
-        public_key: PathBuf,
-    },
-}
-*/
 
 #[derive(Subcommand, Debug)]
 enum Vault {
@@ -213,26 +170,10 @@ fn run() -> Result<()> {
             } => {
                 sos_cli::new::vault(destination, name, uuid, algorithm)?;
             }
-            New::Keypair { name, destination } => {
-                sos_cli::new::keypair(name, destination)?;
-            }
             New::Passphrase { count } => {
                 sos_cli::new::passphrase(count)?;
             }
         },
-        /*
-        Command::User(cmd) => match cmd {
-            User::List { vault } => {
-                sos_cli::user::list(vault)?;
-            }
-            User::Add { vault, public_key } => {
-                sos_cli::user::add(vault, public_key)?;
-            }
-            User::Remove { vault, public_key } => {
-                sos_cli::user::remove(vault, public_key)?;
-            }
-        },
-        */
         Command::Vault(cmd) => match cmd {
             Vault::List { vault } => {
                 list(vault)?;

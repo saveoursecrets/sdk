@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use log::info;
 use sos_core::{
     address::address_compressed,
-    crypto::keypair::generate,
     diceware,
     passphrase::{words, WordCount},
     vault::{Vault, DEFAULT_VAULT_NAME},
@@ -16,7 +15,6 @@ use sos_readline::read_stdin;
 
 const KEY_EXT: &str = "key.json";
 const PUB_EXT: &str = "pub.json";
-const PEM_EXT: &str = "pem";
 
 use crate::LOG_TARGET;
 
@@ -73,57 +71,6 @@ pub fn vault(
         info!(target: LOG_TARGET, "{}", passphrase);
         info!(target: LOG_TARGET, "{}", delimiter);
     }
-    Ok(())
-}
-
-/// Create a new keypair
-pub fn keypair(name: String, destination: PathBuf) -> Result<()> {
-    if !destination.is_dir() {
-        bail!("destination is not a directory: {}", destination.display());
-    }
-
-    let keypair = generate();
-    let (private, public) = keypair.split();
-
-    let public_key_bytes: [u8; 33] = public.key.as_slice().try_into()?;
-    let address = address_compressed(&public_key_bytes)?;
-
-    let private = serde_json::to_string_pretty(&private)?;
-    let public = serde_json::to_string_pretty(&public)?;
-
-    let mut private_path = destination.join(&name);
-    let mut public_path = destination.join(&name);
-
-    private_path.set_extension(KEY_EXT);
-    public_path.set_extension(PUB_EXT);
-
-    if private_path.exists() {
-        bail!("file {} already exists", private_path.display());
-    }
-
-    if public_path.exists() {
-        bail!("file {} already exists", public_path.display());
-    }
-
-    std::fs::write(&private_path, private).with_context(|| {
-        format!("failed to write to {}", private_path.display())
-    })?;
-    info!(
-        target: LOG_TARGET,
-        "wrote private key to {}",
-        private_path.display()
-    );
-
-    std::fs::write(&public_path, public).with_context(|| {
-        format!("failed to write to {}", private_path.display())
-    })?;
-    info!(
-        target: LOG_TARGET,
-        "wrote public key to {}",
-        public_path.display()
-    );
-
-    info!("{}", address);
     Ok(())
 }
 

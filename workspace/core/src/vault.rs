@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 use crate::{
     crypto::{
-        aesgcm256, algorithms::*, authorize::PublicKey, secret_key::SecretKey,
-        xchacha20poly1305, AeadPack,
+        aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
+        AeadPack,
     },
     file_identity::FileIdentity,
     operations::{Payload, VaultAccess},
@@ -35,13 +35,11 @@ pub const DEFAULT_VAULT_NAME: &str = "Login";
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Auth {
     salt: Option<String>,
-    public_keys: Vec<PublicKey>,
 }
 
 impl Encode for Auth {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         self.salt.serialize(&mut *ser)?;
-        self.public_keys.serialize(&mut *ser)?;
         Ok(())
     }
 }
@@ -49,7 +47,6 @@ impl Encode for Auth {
 impl Decode for Auth {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.salt = Deserialize::deserialize(&mut *de)?;
-        self.public_keys = Deserialize::deserialize(&mut *de)?;
         Ok(())
     }
 }
@@ -509,41 +506,6 @@ impl Vault {
     pub fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let mut stream = FileStream::new(path, OpenType::OpenAndCreate)?;
         Vault::encode(&mut stream, self)
-    }
-
-    /// Get the list of public keys.
-    pub fn public_keys(&self) -> &Vec<PublicKey> {
-        &self.header.auth.public_keys
-    }
-
-    /// Check if a public key already exists.
-    pub fn get_public_key(
-        &mut self,
-        public_key: &PublicKey,
-    ) -> Option<(usize, &PublicKey)> {
-        self.header
-            .auth
-            .public_keys
-            .iter()
-            .enumerate()
-            .find_map(
-                |(i, k)| if k == public_key { Some((i, k)) } else { None },
-            )
-    }
-
-    /// Add a public key to this vault.
-    pub fn add_public_key(&mut self, public_key: PublicKey) {
-        self.header.auth.public_keys.push(public_key)
-    }
-
-    /// Remove a public key from this vault.
-    pub fn remove_public_key(&mut self, public_key: &PublicKey) -> bool {
-        if let Some((index, _)) = self.get_public_key(public_key) {
-            self.header.auth.public_keys.remove(index);
-            true
-        } else {
-            false
-        }
     }
 }
 
