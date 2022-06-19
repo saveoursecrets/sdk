@@ -1,7 +1,7 @@
 //! HTTP client implementation.
 //use std::{path::PathBuf, fs::File, io::Read};
 use reqwest::Client as HttpClient;
-use sos_core::{signer::Signer, vault::Summary};
+use sos_core::{address::AddressStr, signer::Signer, vault::Summary};
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
@@ -31,6 +31,11 @@ impl Client {
     /// Get the server URL.
     pub fn server(&self) -> &Url {
         &self.server
+    }
+
+    /// Compute the address of the current signer.
+    pub fn address(&self) -> Result<AddressStr> {
+        Ok(self.signer.address()?)
     }
 
     fn encode_signature(&self, signature: Signature) -> Result<String> {

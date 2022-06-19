@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use k256::ecdsa::{recoverable, signature::Signer as EcdsaSigner, SigningKey};
 use web3_signature::Signature;
 
-use crate::{Result, address::AddressStr};
+use crate::{address::AddressStr, Result};
 
 /// Trait for implementations that can sign a message.
 #[async_trait]

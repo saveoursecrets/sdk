@@ -54,6 +54,8 @@ enum ShellCommand {
     Use { vault: UuidOrName },
     /// Print information about the currently selected vault.
     Info,
+    /// Print the current identity.
+    Whoami,
     /// Close the selected vault.
     Close,
     /// Exit the shell.
@@ -159,6 +161,10 @@ pub fn run_shell_command(
                     } else {
                         return Err(ShellError::NoVaultSelected);
                     }
+                }
+                ShellCommand::Whoami => {
+                    let address = client.address()?;
+                    println!("{}", address);
                 }
                 ShellCommand::Close => {
                     let mut writer = state.write().unwrap();
