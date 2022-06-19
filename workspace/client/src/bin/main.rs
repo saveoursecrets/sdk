@@ -20,6 +20,8 @@ use sos_core::{
 };
 use sos_readline::{read_password, read_shell};
 
+const WELCOME: &str = include_str!("welcome.txt");
+
 /// Secret storage interactive shell.
 #[derive(Parser, Debug)]
 #[clap(name = "sos-client", author, version, about, long_about = None)]
@@ -177,11 +179,8 @@ fn run_shell_command(
 
 /// Print the welcome information.
 fn welcome(server: &Url) -> Result<()> {
-    println!("SOS: interactive shell");
-    println!(r#"Type "help", "--help" or "-h" for command usage"#);
-    println!(r#"Type "version", "--version" or "-V" for version info"#);
-    println!(r#"Type "quit" or "q" to exit"#);
-    println!("Server {}", server);
+    println!("{}", WELCOME.trim());
+    println!("# Server {}", server);
     Ok(())
 }
 

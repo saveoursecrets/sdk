@@ -1,0 +1,7 @@
+#  ___  ___  ___
+# / __|/ _ \/ __|
+# \__ \ (_) \__ \
+# |___/\___/|___/
+#
+# Type "help", "--help" or "-h" for command usage
+# Type "quit" or "q" to exit
