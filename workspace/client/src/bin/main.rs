@@ -12,7 +12,12 @@ use url::Url;
 use web3_keystore::{decrypt, KeyStore};
 
 use sos_client::{Client, Result};
-use sos_core::{secret::UuidOrName, signer::SingleParty, vault::{Summary, Vault}, gatekeeper::Gatekeeper};
+use sos_core::{
+    gatekeeper::Gatekeeper,
+    secret::UuidOrName,
+    signer::SingleParty,
+    vault::{Summary, Vault},
+};
 use sos_readline::{read_password, read_shell};
 
 /// Secret storage interactive shell.
@@ -43,6 +48,8 @@ enum ShellCommand {
     ListVaults {},
     /// Select a vault.
     Use { vault: UuidOrName },
+    /// Print information about the currently selected vault.
+    Info,
     /// Clear selected vault.
     Clear,
     /// Exit the shell.
@@ -73,6 +80,17 @@ fn print_summaries_list(summaries: &[Summary]) -> Result<()> {
     for (index, summary) in summaries.iter().enumerate() {
         println!("{}) {} {}", index + 1, summary.name(), summary.id());
     }
+    Ok(())
+}
+
+fn print_summary(summary: &Summary) -> Result<()> {
+    println!(
+        "Version {} using {:?} at #{}",
+        summary.version(),
+        summary.algorithm(),
+        summary.change_seq()
+    );
+    println!("{} {}", summary.name(), summary.id());
     Ok(())
 }
 
@@ -115,8 +133,8 @@ fn run_shell_command(
                     };
 
                     if let Some(summary) = summary {
-                        let vault_bytes = run_blocking(
-                            client.load_vault(summary.id()))?;
+                        let vault_bytes =
+                            run_blocking(client.load_vault(summary.id()))?;
                         let vault = Vault::read_buffer(vault_bytes)?;
                         let mut keeper = Gatekeeper::new(vault);
                         let password = read_password(Some("Passphrase: "))?;
@@ -125,11 +143,21 @@ fn run_shell_command(
                         } else {
                             eprintln!("failed to unlock vault");
                         }
-
                     } else {
                         eprintln!(
                             r#"vault "{}" not found, run "ls" to load the vault list"#,
                             vault
+                        )
+                    }
+                }
+                ShellCommand::Info => {
+                    let reader = state.read().unwrap();
+                    if let Some(keeper) = &reader.current {
+                        let summary = keeper.summary();
+                        print_summary(summary)?;
+                    } else {
+                        eprintln!(
+                            r#"no vault selected, run "use" to select a vault "#
                         )
                     }
                 }

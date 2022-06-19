@@ -19,7 +19,7 @@ use crate::{
     decode, encode,
     operations::{Payload, VaultAccess},
     secret::{Secret, SecretMeta, UuidOrName, VaultMeta},
-    vault::Vault,
+    vault::{Summary, Vault},
     Error, Result,
 };
 use std::collections::HashMap;
@@ -57,6 +57,11 @@ impl Gatekeeper {
     /// Get the current change sequence number.
     pub fn change_seq(&self) -> Result<u32> {
         self.vault.change_seq()
+    }
+
+    /// Get the summary for the vault.
+    pub fn summary(&self) -> &Summary {
+        self.vault.summary()
     }
 
     /// Get the identifier for the vault.

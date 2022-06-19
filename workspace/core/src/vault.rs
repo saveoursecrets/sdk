@@ -95,6 +95,16 @@ impl Summary {
         &self.version
     }
 
+    /// Get the change sequence.
+    pub fn change_seq(&self) -> &u32 {
+        &self.change_seq
+    }
+
+    /// Get the algorithm.
+    pub fn algorithm(&self) -> &Algorithm {
+        &self.algorithm
+    }
+
     /// Get the unique identifier.
     pub fn id(&self) -> &Uuid {
         &self.id
@@ -415,6 +425,11 @@ impl Vault {
     /// The file extension for vault files.
     pub fn extension() -> &'static str {
         "vault"
+    }
+
+    /// Get the summary for this vault.
+    pub fn summary(&self) -> &Summary {
+        &self.header.summary
     }
 
     /// Get the unique identifier for this vault.
