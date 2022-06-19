@@ -91,7 +91,7 @@ fn print_summaries_list(summaries: &[Summary]) -> Result<()> {
 
 fn print_summary(summary: &Summary) -> Result<()> {
     println!(
-        "Version {} using {:?} at #{}",
+        "Version {} using {} at #{}",
         summary.version(),
         summary.algorithm(),
         summary.change_seq()

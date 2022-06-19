@@ -44,8 +44,7 @@ pub mod algorithms {
         Decode, Deserializer, Encode, Error as BinaryError,
         Result as BinaryResult, Serializer,
     };
-    use std::convert::AsRef;
-    use std::str::FromStr;
+    use std::{convert::AsRef, str::FromStr, fmt};
 
     /// Default algorithm.
     pub const X_CHACHA20_POLY1305: u8 = 0x01;
@@ -69,6 +68,17 @@ pub mod algorithms {
         /// The AES-GCM 256 bit algorithm.
         pub fn aes() -> Self {
             Self::AesGcm256(AES_GCM_256)
+        }
+    }
+
+    impl fmt::Display for Algorithm {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", {
+                match self {
+                    Self::XChaCha20Poly1305(_) => "X_CHACHA20_POLY1305",
+                    Self::AesGcm256(_) => "AES_GCM_256",
+                }
+            })
         }
     }
 
