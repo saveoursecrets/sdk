@@ -9,6 +9,9 @@ pub enum Error {
     #[error("file {0} already exists")]
     FileExists(PathBuf),
 
+    #[error("failed to create account, got status code {0}")]
+    AccountCreate(u16),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 

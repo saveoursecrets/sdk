@@ -73,6 +73,10 @@ pub fn signup(
 
         let buffer = encode(&vault)?;
         let response = run_blocking(client.create_account(buffer))?;
+        if !response.status().is_success() {
+            return Err(Error::AccountCreate(response.status().into()));
+        }
+
         std::fs::write(keystore_file, serde_json::to_string(&keystore)?)?;
 
         display_passphrase(

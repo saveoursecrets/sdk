@@ -53,7 +53,7 @@ export class VaultApi {
       "content-type": MIME_TYPE_VAULT,
     };
     const response = await fetch(url, {
-      method: "POST",
+      method: "PUT",
       mode: "cors",
       headers,
       body,

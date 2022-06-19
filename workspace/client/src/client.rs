@@ -63,7 +63,7 @@ impl Client {
             self.encode_signature(self.signer.sign(&vault).await?)?;
         let response = self
             .http_client
-            .post(url)
+            .put(url)
             .header("authorization", self.bearer_prefix(&signature))
             .header("content-type", MIME_TYPE_VAULT)
             .body(vault)

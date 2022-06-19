@@ -331,7 +331,7 @@ impl Server {
             .route("/api", get(api))
             .route("/api/auth", get(AuthHandler::challenge))
             .route("/api/auth/:uuid", get(AuthHandler::response))
-            .route("/api/accounts", post(AccountHandler::create))
+            .route("/api/accounts", put(AccountHandler::create))
             //.route("/api/vaults", get(VaultHandler::list))
             .route(
                 "/api/vaults/:vault_id",
