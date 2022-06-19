@@ -47,8 +47,13 @@ pub trait Backend {
     /// list the the vaults for an account.
     async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>>;
 
-    /// Determine if a vault exists.
-    async fn vault_exists(&self, owner: &AddressStr, vault_id: &Uuid) -> bool;
+    /// Determine if a vault exists and get it's change sequence
+    /// if it already exists.
+    async fn vault_exists(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> (bool, u32);
 
     /// Load a vault buffer for an account.
     async fn get(&self, owner: &AddressStr, vault_id: &Uuid)
@@ -204,7 +209,8 @@ impl Backend for FileSystemBackend {
             return Err(Error::NotDirectory(account_dir));
         }
 
-        // TODO: verify bytes looks like a vault file
+        // Check it looks like a vault payload
+        Header::read_summary_slice(vault)?;
 
         let vault_path = self.new_vault_file(&owner, &vault_id, vault).await?;
         self.add_vault_path(owner, vault_path).await?;
@@ -229,12 +235,21 @@ impl Backend for FileSystemBackend {
         Ok(summaries)
     }
 
-    async fn vault_exists(&self, owner: &AddressStr, vault_id: &Uuid) -> bool {
+    async fn vault_exists(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> (bool, u32) {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
-            account.get(vault_id).is_some()
+            if let Some((_, summary)) = account.get(vault_id) {
+                // FIXME: ensure that the summary change_seq() is not stale
+                (true, *summary.change_seq())
+            } else {
+                (false, 0)
+            }
         } else {
-            false
+            (false, 0)
         }
     }
 

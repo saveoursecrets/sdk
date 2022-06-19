@@ -332,10 +332,7 @@ impl Server {
             .route("/api/auth", get(AuthHandler::challenge))
             .route("/api/auth/:uuid", get(AuthHandler::response))
             .route("/api/accounts", put(AccountHandler::create))
-            .route(
-                "/api/vaults",
-                put(VaultHandler::create_vault)
-            )
+            .route("/api/vaults", put(VaultHandler::create_vault))
             //.route("/api/vaults", get(VaultHandler::list))
             .route(
                 "/api/vaults/:vault_id",
@@ -627,8 +624,12 @@ impl VaultHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                if !writer.backend.vault_exists(&token.address, &vault_id).await
-                {
+                let (exists, _) = writer
+                    .backend
+                    .vault_exists(&token.address, &vault_id)
+                    .await;
+
+                if !exists {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
@@ -672,44 +673,37 @@ impl VaultHandler {
                 let summary = Header::read_summary_slice(&body)
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-                let mut writer = state.write().await;
-                let mut handle = writer
+                let reader = state.read().await;
+                let (exists, change_seq) = reader
                     .backend
-                    .vault_write(&token.address, summary.id())
-                    .await
-                    .map_err(|_| StatusCode::NOT_FOUND)?;
-
-                todo!()
-
-                //Ok()
-
-                /*
-
-                let local_change_seq: u32 = change_seq.into();
-                let remote_change_seq = handle
-                    .change_seq()
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-                if local_change_seq < remote_change_seq {
-                    Ok(MaybeConflict::Conflict(remote_change_seq))
+                    .vault_exists(&token.address, summary.id())
+                    .await;
+                if exists {
+                    Ok(MaybeConflict::Conflict(change_seq))
                 } else {
-                    if let Ok(payload) = handle.save(&body) {
-                        let event = ServerEvent::from((
-                            &vault_id,
-                            &token.address,
-                            &payload,
-                        ));
+                    let mut writer = state.write().await;
+                    writer
+                        .backend
+                        .create_vault(
+                            token.address.clone(),
+                            *summary.id(),
+                            &body,
+                        )
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                        Ok(MaybeConflict::Success(vec![ResponseEvent {
-                            event: Some(event),
-                            log: payload
-                                .into_audit_log(token.address, vault_id),
-                        }]))
-                    } else {
-                        Err(StatusCode::INTERNAL_SERVER_ERROR)
-                    }
+                    let event = ServerEvent::CreateVault {
+                        vault_id: *summary.id(),
+                        address: token.address.clone(),
+                    };
+
+                    let payload = Payload::CreateVault;
+                    Ok(MaybeConflict::Success(vec![ResponseEvent {
+                        event: Some(event),
+                        log: payload
+                            .into_audit_log(token.address, *summary.id()),
+                    }]))
                 }
-                */
             } else {
                 Err(status_code)
             }

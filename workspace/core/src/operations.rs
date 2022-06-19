@@ -1,4 +1,4 @@
-//! Encoding of the vault operations so that local changes
+//! Encoding of the vault operations so that local changes;
 //! to an in-memory representation of a vault can be sent
 //! to a remote server.
 //!
@@ -248,7 +248,9 @@ impl fmt::Display for Operation {
 /// to distinguish between borrowed and owned.
 #[derive(Serialize, Deserialize)]
 pub enum Payload<'a> {
-    // TODO: create new vault
+    /// Payload used to indicate a vault was created.
+    CreateVault,
+
     // TODO: delete vault
     /// Payload used to indicate that a save vault operation was performed.
     SaveVault(u32),
@@ -280,7 +282,7 @@ pub enum Payload<'a> {
 
 impl Default for Payload<'_> {
     fn default() -> Self {
-        Self::SaveVault(0)
+        Self::CreateVault
     }
 }
 
@@ -322,6 +324,7 @@ impl<'a> Payload<'a> {
     /// Get the operation corresponding to this payload.
     pub fn operation(&self) -> Operation {
         match self {
+            Payload::CreateVault => Operation::CreateVault,
             Payload::SaveVault(_) => Operation::SaveVault,
             Payload::UpdateVault(_) => Operation::UpdateVault,
             Payload::CreateSecret(_, _, _) => Operation::CreateSecret,
@@ -334,7 +337,7 @@ impl<'a> Payload<'a> {
     /// Convert this payload into an audit log.
     pub fn into_audit_log(&self, address: AddressStr, vault_id: Uuid) -> Log {
         let log_data = match self {
-            Payload::SaveVault(_) | Payload::UpdateVault(_) => {
+            Payload::CreateVault | Payload::SaveVault(_) | Payload::UpdateVault(_) => {
                 LogData::Vault(vault_id)
             }
             Payload::CreateSecret(_, secret_id, _) => {
@@ -360,6 +363,7 @@ impl<'a> Encode for Payload<'a> {
         op.encode(&mut *ser)?;
 
         match self {
+            Payload::CreateVault => {}
             Payload::SaveVault(change_seq) => {
                 ser.writer.write_u32(*change_seq)?;
             }
