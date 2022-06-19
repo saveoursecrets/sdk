@@ -60,6 +60,9 @@ enum ShellCommand {
     Info,
     /// Print secret keys for the selected vault.
     Keys,
+    /// List secrets for the selected vault.
+    #[clap(alias = "ls")]
+    List,
     /// Print a secret.
     Get { secret: UuidOrName },
     /// Print the current identity.
@@ -186,6 +189,29 @@ pub fn run_shell_command(
                     if let Some(keeper) = &reader.current {
                         for uuid in keeper.vault().keys() {
                             println!("{}", uuid);
+                        }
+                    } else {
+                        return Err(ShellError::NoVaultSelected);
+                    }
+                }
+                ShellCommand::List => {
+                    let reader = state.read().unwrap();
+                    if let Some(keeper) = &reader.current {
+                        for (index, uuid) in keeper.vault().keys().enumerate() {
+                            if let Some((secret_meta, _, _)) =
+                                keeper.read(uuid)?
+                            {
+                                println!(
+                                    "{}) {}",
+                                    index + 1,
+                                    secret_meta.label(),
+                                    //Secret::type_name(*secret_meta.kind()),
+                                );
+                            } else {
+                                return Err(ShellError::SecretNotAvailable(
+                                    UuidOrName::Uuid(*uuid),
+                                ));
+                            }
                         }
                     } else {
                         return Err(ShellError::NoVaultSelected);
