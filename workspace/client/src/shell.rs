@@ -4,9 +4,7 @@ use std::{
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
-use std::future::Future;
 use thiserror::Error;
-use tokio::runtime::Runtime;
 
 use sos_core::{
     gatekeeper::Gatekeeper,
@@ -16,7 +14,7 @@ use sos_core::{
 };
 use sos_readline::read_password;
 
-use crate::{Client, Result};
+use crate::{run_blocking, Client, Result};
 
 #[derive(Debug, Error)]
 pub enum ShellError {
@@ -86,17 +84,6 @@ pub struct ShellState {
     pub summaries: Vec<Summary>,
     /// Currently selected vault.
     pub current: Option<Gatekeeper>,
-}
-
-/// Runs a future blocking the current thread so we can
-/// merge the synchronous nature of the shell prompt with the
-/// asynchronous API exposed by the client.
-fn run_blocking<F, R>(func: F) -> Result<R>
-where
-    F: Future<Output = Result<R>> + Send,
-    R: Send,
-{
-    Ok(Runtime::new().unwrap().block_on(func)?)
 }
 
 fn print_summaries_list(summaries: &[Summary]) -> Result<()> {

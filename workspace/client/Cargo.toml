@@ -18,6 +18,7 @@ web3-signature = { version = "0.2.3", features = ["single-party"] }
 serde_json = "1"
 uuid = { version = "1", features = ["serde", "v4"] }
 base64 = "0.13"
+rand = "0.8"
 
 [[bin]]
 name = "sos-client"

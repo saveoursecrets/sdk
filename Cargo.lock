@@ -2679,6 +2679,7 @@ dependencies = [
  "base64",
  "clap",
  "k256",
+ "rand 0.8.5",
  "reqwest",
  "serde_json",
  "sos-core",

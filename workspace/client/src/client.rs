@@ -1,6 +1,10 @@
 //! HTTP client implementation.
-use reqwest::Client as HttpClient;
-use sos_core::{address::AddressStr, signer::Signer, vault::Summary};
+use reqwest::{Client as HttpClient, Response};
+use sos_core::{
+    address::AddressStr,
+    signer::Signer,
+    vault::{Summary, MIME_TYPE_VAULT},
+};
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
@@ -50,6 +54,22 @@ impl Client {
         let signature =
             self.encode_signature(self.signer.sign(&message).await?)?;
         Ok((message.to_vec(), signature))
+    }
+
+    /// Create a new account.
+    pub async fn create_account(&self, vault: Vec<u8>) -> Result<Response> {
+        let url = self.server.join("api/accounts")?;
+        let signature =
+            self.encode_signature(self.signer.sign(&vault).await?)?;
+        let response = self
+            .http_client
+            .post(url)
+            .header("authorization", self.bearer_prefix(&signature))
+            .header("content-type", MIME_TYPE_VAULT)
+            .body(vault)
+            .send()
+            .await?;
+        Ok(response)
     }
 
     /// List the vaults accessible by this signer.

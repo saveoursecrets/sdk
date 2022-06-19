@@ -1,7 +1,14 @@
+use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("file {0} is not a directory")]
+    NotDirectory(PathBuf),
+
+    #[error("file {0} already exists")]
+    FileExists(PathBuf),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
