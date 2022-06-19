@@ -9,7 +9,7 @@ use clap::Parser;
 use url::Url;
 use web3_keystore::{decrypt, KeyStore};
 
-use sos_client::{list_vaults, run_shell_command, Client, Result, ShellState};
+use sos_client::{exec, list_vaults, Client, Result, ShellState};
 use sos_core::signer::SingleParty;
 use sos_readline::{read_password, read_shell};
 
@@ -75,7 +75,7 @@ fn run() -> Result<()> {
         |line: String| {
             let client = Arc::clone(&client);
             let state = Arc::clone(&state);
-            if let Err(e) = run_shell_command(&line, client, state) {
+            if let Err(e) = exec(&line, client, state) {
                 eprintln!("{}", e);
             }
         },
