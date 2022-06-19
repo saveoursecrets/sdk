@@ -88,6 +88,20 @@ impl Client {
         Ok(response)
     }
 
+    /// Delete a vault.
+    pub async fn delete_vault(&self, vault_id: &Uuid) -> Result<Response> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let response = self
+            .http_client
+            .delete(url)
+            .header("authorization", self.bearer_prefix(&signature))
+            .header("x-signed-message", base64::encode(&message))
+            .send()
+            .await?;
+        Ok(response)
+    }
+
     /// List the vaults accessible by this signer.
     pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
         let url = self.server.join("api/auth")?;

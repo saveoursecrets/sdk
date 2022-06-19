@@ -161,6 +161,11 @@ pub enum ServerEvent {
         address: AddressStr,
         vault_id: Uuid,
     },
+    DeleteVault {
+        #[serde(skip)]
+        address: AddressStr,
+        vault_id: Uuid,
+    },
     SaveVault {
         #[serde(skip)]
         address: AddressStr,
@@ -168,11 +173,6 @@ pub enum ServerEvent {
         change_seq: u32,
     },
     UpdateVault {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-    },
-    DeleteVault {
         #[serde(skip)]
         address: AddressStr,
         vault_id: Uuid,
@@ -336,7 +336,8 @@ impl Server {
             //.route("/api/vaults", get(VaultHandler::list))
             .route(
                 "/api/vaults/:vault_id",
-                get(VaultHandler::get_vault)
+                get(VaultHandler::read_vault)
+                    .delete(VaultHandler::delete_vault)
                     .post(VaultHandler::save_vault)
                     .patch(VaultHandler::patch_vault),
             )
@@ -554,7 +555,7 @@ impl AccountHandler {
                     let uuid = vault.id();
                     if let Ok(_) = writer
                         .backend
-                        .create_account(token.address, *uuid, &body)
+                        .create_account(&token.address, &uuid, &body)
                         .await
                     {
                         let log = Log::new(
@@ -608,8 +609,63 @@ impl VaultHandler {
         */
     }
 
+    /// Create an encrypted vault.
+    async fn create_vault(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        body: Bytes,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                // Check it looks like a vault payload
+                let summary = Header::read_summary_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                let reader = state.read().await;
+                let (exists, change_seq) = reader
+                    .backend
+                    .vault_exists(&token.address, summary.id())
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                drop(reader);
+
+                if exists {
+                    Ok(MaybeConflict::Conflict(change_seq))
+                } else {
+                    let mut writer = state.write().await;
+                    writer
+                        .backend
+                        .create_vault(&token.address, summary.id(), &body)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                    let event = ServerEvent::CreateVault {
+                        vault_id: *summary.id(),
+                        address: token.address.clone(),
+                    };
+
+                    let payload = Payload::CreateVault;
+                    Ok(MaybeConflict::Success(vec![ResponseEvent {
+                        event: Some(event),
+                        log: payload
+                            .into_audit_log(token.address, *summary.id()),
+                    }]))
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        Ok(MaybeConflict::process(state, response?).await?)
+    }
+
     /// Retrieve an encrypted vault.
-    async fn get_vault(
+    async fn read_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
         Path(vault_id): Path<Uuid>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
@@ -659,54 +715,65 @@ impl VaultHandler {
         }
     }
 
-    /// Create an encrypted vault.
-    async fn create_vault(
+    /// Delete an encrypted vault.
+    async fn delete_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
+        Path(vault_id): Path<Uuid>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
-        body: Bytes,
+        TypedHeader(message): TypedHeader<SignedMessage>,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         let response = if let Ok((status_code, token)) =
-            authenticate::bearer(authorization, &body)
+            authenticate::bearer(authorization, &message)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                // Check it looks like a vault payload
-                let summary = Header::read_summary_slice(&body)
-                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+                let mut writer = state.write().await;
+                if !writer.backend.account_exists(&token.address).await {
+                    return Err(StatusCode::NOT_FOUND);
+                }
 
-                let reader = state.read().await;
-                let (exists, change_seq) = reader
+                let (exists, _) = writer
                     .backend
-                    .vault_exists(&token.address, summary.id())
+                    .vault_exists(&token.address, &vault_id)
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                drop(reader);
+                if !exists {
+                    return Err(StatusCode::NOT_FOUND);
+                }
 
-                if exists {
-                    Ok(MaybeConflict::Conflict(change_seq))
-                } else {
-                    let mut writer = state.write().await;
+                if let Ok(buffer) =
+                    writer.backend.get(&token.address, &vault_id).await
+                {
                     writer
                         .backend
-                        .create_vault(
-                            token.address.clone(),
-                            *summary.id(),
-                            &body,
-                        )
+                        .delete_vault(&token.address, &vault_id)
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                    let event = ServerEvent::CreateVault {
-                        vault_id: *summary.id(),
+                    let event = ServerEvent::DeleteVault {
+                        vault_id: vault_id.clone(),
                         address: token.address.clone(),
                     };
 
-                    let payload = Payload::CreateVault;
+                    let payload = Payload::DeleteVault;
                     Ok(MaybeConflict::Success(vec![ResponseEvent {
                         event: Some(event),
-                        log: payload
-                            .into_audit_log(token.address, *summary.id()),
+                        log: payload.into_audit_log(token.address, vault_id),
                     }]))
+
+                    //let log = Log::new(
+                    //Operation::ReadVault,
+                    //token.address,
+                    //Some(LogData::Vault(vault_id)),
+                    //);
+                    //writer
+                    //.audit_log
+                    //.append(log)
+                    //.await
+                    //.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    //Ok(Bytes::from(buffer))
+                } else {
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
                 }
             } else {
                 Err(status_code)

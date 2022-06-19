@@ -13,7 +13,7 @@ use sos_core::{
     secret::UuidOrName,
     vault::{encode, Summary, Vault},
 };
-use sos_readline::read_password;
+use sos_readline::{read_flag, read_password};
 
 use crate::{display_passphrase, run_blocking, Client, Result};
 
@@ -33,6 +33,9 @@ pub enum ShellError {
 
     #[error("failed to create vault, got status code {0}")]
     VaultCreate(u16),
+
+    #[error("failed to delete vault, got status code {0}")]
+    VaultRemove(u16),
 
     #[error(transparent)]
     Clap(#[from] clap::Error),
@@ -64,6 +67,8 @@ enum ShellCommand {
     Vaults,
     /// Create a new vault.
     Create { name: String },
+    /// Delete a vault.
+    Remove { vault: UuidOrName },
     /// Select a vault.
     Use { vault: UuidOrName },
     /// Print information about the selected vault.
@@ -137,6 +142,55 @@ fn exec_program(
                 "YOU MUST REMEMBER THIS PASSPHRASE!",
                 &passphrase,
             );
+
+            list_vaults(client, state, false)?;
+        }
+        ShellCommand::Remove { vault } => {
+            let mut writer = state.write().unwrap();
+            let summary = match &vault {
+                UuidOrName::Name(name) => {
+                    writer.summaries.iter().find(|s| s.name() == name)
+                }
+                UuidOrName::Uuid(uuid) => {
+                    writer.summaries.iter().find(|s| s.id() == uuid)
+                }
+            };
+
+            if let Some(summary) = summary {
+                let prompt = format!(
+                    r#"Permanently delete vault "{}" (y/n)? "#,
+                    summary.name()
+                );
+                let removed = if read_flag(Some(&prompt))? {
+                    let response =
+                        run_blocking(client.delete_vault(summary.id()))?;
+                    if !response.status().is_success() {
+                        return Err(ShellError::VaultRemove(
+                            response.status().into(),
+                        ));
+                    }
+
+                    // If the deleted vault is the currently selected
+                    // vault we must clear the selection
+                    let id = writer.current.as_ref().map(|c| c.id());
+                    if let Some(id) = id {
+                        if id == summary.id() {
+                            writer.current = None;
+                        }
+                    }
+
+                    true
+                } else {
+                    false
+                };
+
+                if removed {
+                    drop(writer);
+                    list_vaults(client, state, false)?;
+                }
+            } else {
+                return Err(ShellError::VaultNotAvailable(vault));
+            }
         }
         ShellCommand::Use { vault } => {
             let mut writer = state.write().unwrap();

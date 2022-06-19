@@ -23,8 +23,8 @@ pub trait Backend {
     /// The owner directory must not exist.
     async fn create_account(
         &mut self,
-        owner: AddressStr,
-        vault_id: Uuid,
+        owner: &AddressStr,
+        vault_id: &Uuid,
         vault: &[u8],
     ) -> Result<()>;
 
@@ -33,9 +33,16 @@ pub trait Backend {
     /// The owner directory must already exist.
     async fn create_vault(
         &mut self,
-        owner: AddressStr,
-        vault_id: Uuid,
+        owner: &AddressStr,
+        vault_id: &Uuid,
         vault: &[u8],
+    ) -> Result<()>;
+
+    /// Delete a vault.
+    async fn delete_vault(
+        &mut self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
     ) -> Result<()>;
 
     /// Determine if an account exists for the given address.
@@ -173,8 +180,8 @@ impl FileSystemBackend {
 impl Backend for FileSystemBackend {
     async fn create_account(
         &mut self,
-        owner: AddressStr,
-        vault_id: Uuid,
+        owner: &AddressStr,
+        vault_id: &Uuid,
         vault: &[u8],
     ) -> Result<()> {
         let account_dir = self.directory.join(owner.to_string());
@@ -186,16 +193,16 @@ impl Backend for FileSystemBackend {
         Header::read_summary_slice(vault)?;
 
         tokio::fs::create_dir(account_dir).await?;
-        let vault_path = self.new_vault_file(&owner, &vault_id, vault).await?;
-        self.add_vault_path(owner, vault_path).await?;
+        let vault_path = self.new_vault_file(owner, vault_id, vault).await?;
+        self.add_vault_path(*owner, vault_path).await?;
 
         Ok(())
     }
 
     async fn create_vault(
         &mut self,
-        owner: AddressStr,
-        vault_id: Uuid,
+        owner: &AddressStr,
+        vault_id: &Uuid,
         vault: &[u8],
     ) -> Result<()> {
         let account_dir = self.directory.join(owner.to_string());
@@ -206,8 +213,37 @@ impl Backend for FileSystemBackend {
         // Check it looks like a vault payload
         Header::read_summary_slice(vault)?;
 
-        let vault_path = self.new_vault_file(&owner, &vault_id, vault).await?;
-        self.add_vault_path(owner, vault_path).await?;
+        let vault_path = self.new_vault_file(owner, vault_id, vault).await?;
+        self.add_vault_path(*owner, vault_path).await?;
+
+        Ok(())
+    }
+
+    async fn delete_vault(
+        &mut self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<()> {
+        let account_dir = self.directory.join(owner.to_string());
+        if !account_dir.is_dir() {
+            return Err(Error::NotDirectory(account_dir));
+        }
+
+        let mut accounts = self.accounts.write().await;
+        if accounts.get(owner).is_none() {
+            return Err(Error::AccountNotExist(*owner));
+        }
+
+        let mut account = accounts.get_mut(owner).unwrap();
+        if account.get(vault_id).is_none() {
+            return Err(Error::VaultNotExist(*vault_id));
+        }
+
+        let removed = account.remove(vault_id);
+        if let Some(_) = removed {
+            let vault_file = self.vault_file_path(&owner, vault_id);
+            let _ = tokio::fs::remove_file(&vault_file).await;
+        }
 
         Ok(())
     }

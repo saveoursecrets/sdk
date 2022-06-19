@@ -254,7 +254,9 @@ pub enum Payload<'a> {
     /// Payload used to indicate a vault was created.
     CreateVault,
 
-    // TODO: delete vault
+    /// Payload used to indicate a vault was deleted.
+    DeleteVault,
+
     /// Payload used to indicate that a save vault operation was performed.
     SaveVault(u32),
 
@@ -328,6 +330,7 @@ impl<'a> Payload<'a> {
     pub fn operation(&self) -> Operation {
         match self {
             Payload::CreateVault => Operation::CreateVault,
+            Payload::DeleteVault => Operation::DeleteVault,
             Payload::SaveVault(_) => Operation::SaveVault,
             Payload::UpdateVault(_) => Operation::UpdateVault,
             Payload::CreateSecret(_, _, _) => Operation::CreateSecret,
@@ -341,6 +344,7 @@ impl<'a> Payload<'a> {
     pub fn into_audit_log(&self, address: AddressStr, vault_id: Uuid) -> Log {
         let log_data = match self {
             Payload::CreateVault
+            | Payload::DeleteVault
             | Payload::SaveVault(_)
             | Payload::UpdateVault(_) => LogData::Vault(vault_id),
             Payload::CreateSecret(_, secret_id, _) => {
@@ -366,7 +370,7 @@ impl<'a> Encode for Payload<'a> {
         op.encode(&mut *ser)?;
 
         match self {
-            Payload::CreateVault => {}
+            Payload::CreateVault | Payload::DeleteVault => {}
             Payload::SaveVault(change_seq) => {
                 ser.writer.write_u32(*change_seq)?;
             }
