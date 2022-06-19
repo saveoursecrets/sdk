@@ -332,11 +332,15 @@ impl Server {
             .route("/api/auth", get(AuthHandler::challenge))
             .route("/api/auth/:uuid", get(AuthHandler::response))
             .route("/api/accounts", put(AccountHandler::create))
+            .route(
+                "/api/vaults",
+                put(VaultHandler::create_vault)
+            )
             //.route("/api/vaults", get(VaultHandler::list))
             .route(
                 "/api/vaults/:vault_id",
                 get(VaultHandler::get_vault)
-                    .put(VaultHandler::save_vault)
+                    .post(VaultHandler::save_vault)
                     .patch(VaultHandler::patch_vault),
             )
             .route(
@@ -651,6 +655,69 @@ impl VaultHandler {
         } else {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
+    }
+
+    /// Create an encrypted vault.
+    async fn create_vault(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(change_seq): TypedHeader<ChangeSequence>,
+        body: Bytes,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                // Check it looks like a vault payload
+                let summary = Header::read_summary_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                let mut writer = state.write().await;
+                let mut handle = writer
+                    .backend
+                    .vault_write(&token.address, summary.id())
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                todo!()
+
+                //Ok()
+
+                /*
+
+                let local_change_seq: u32 = change_seq.into();
+                let remote_change_seq = handle
+                    .change_seq()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if local_change_seq < remote_change_seq {
+                    Ok(MaybeConflict::Conflict(remote_change_seq))
+                } else {
+                    if let Ok(payload) = handle.save(&body) {
+                        let event = ServerEvent::from((
+                            &vault_id,
+                            &token.address,
+                            &payload,
+                        ));
+
+                        Ok(MaybeConflict::Success(vec![ResponseEvent {
+                            event: Some(event),
+                            log: payload
+                                .into_audit_log(token.address, vault_id),
+                        }]))
+                    } else {
+                        Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    }
+                }
+                */
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        Ok(MaybeConflict::process(state, response?).await?)
     }
 
     /// Save an encrypted vault.
