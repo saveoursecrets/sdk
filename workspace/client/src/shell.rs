@@ -1,11 +1,9 @@
-use std::{
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 use clap::{CommandFactory, Parser, Subcommand};
 use std::future::Future;
-use tokio::runtime::Runtime;
 use thiserror::Error;
+use tokio::runtime::Runtime;
 
 use sos_core::{
     gatekeeper::Gatekeeper,
@@ -18,8 +16,9 @@ use crate::{Client, Result};
 
 #[derive(Debug, Error)]
 pub enum ShellError {
-
-    #[error(r#"vault "{0}" not found, run "list-vaults" to load the vault list"#)]
+    #[error(
+        r#"vault "{0}" not found, run "list-vaults" to load the vault list"#
+    )]
     VaultNotAvailable(UuidOrName),
 
     #[error("failed to unlock vault")]
@@ -151,7 +150,7 @@ pub fn run_shell_command(
                             return Err(ShellError::VaultUnlockFail);
                         }
                     } else {
-                        return Err(ShellError::VaultNotAvailable(vault))
+                        return Err(ShellError::VaultNotAvailable(vault));
                     }
                 }
                 ShellCommand::Info => {
@@ -160,7 +159,7 @@ pub fn run_shell_command(
                         let summary = keeper.summary();
                         print_summary(summary)?;
                     } else {
-                        return Err(ShellError::NoVaultSelected)
+                        return Err(ShellError::NoVaultSelected);
                     }
                 }
                 ShellCommand::Close => {

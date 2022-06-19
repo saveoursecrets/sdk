@@ -9,10 +9,8 @@ use clap::Parser;
 use url::Url;
 use web3_keystore::{decrypt, KeyStore};
 
-use sos_client::{Client, Result, run_shell_command, ShellState};
-use sos_core::{
-    signer::SingleParty,
-};
+use sos_client::{run_shell_command, Client, Result, ShellState};
+use sos_core::signer::SingleParty;
 use sos_readline::{read_password, read_shell};
 
 const WELCOME: &str = include_str!("welcome.txt");
