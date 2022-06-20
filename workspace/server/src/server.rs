@@ -161,16 +161,21 @@ pub enum ServerEvent {
         address: AddressStr,
         vault_id: Uuid,
     },
-    DeleteVault {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-    },
     UpdateVault {
         #[serde(skip)]
         address: AddressStr,
         vault_id: Uuid,
         change_seq: u32,
+    },
+    DeleteVault {
+        #[serde(skip)]
+        address: AddressStr,
+        vault_id: Uuid,
+    },
+    SetVaultName {
+        #[serde(skip)]
+        address: AddressStr,
+        vault_id: Uuid,
     },
     SetVaultMeta {
         #[serde(skip)]
@@ -206,8 +211,9 @@ impl ServerEvent {
         match self {
             Self::CreateVault { .. } => "createVault",
             Self::UpdateVault { .. } => "updateVault",
-            Self::SetVaultMeta { .. } => "setVaultMeta",
             Self::DeleteVault { .. } => "deleteVault",
+            Self::SetVaultName { .. } => "setVaultName",
+            Self::SetVaultMeta { .. } => "setVaultMeta",
             Self::CreateSecret { .. } => "createSecret",
             Self::UpdateSecret { .. } => "updateSecret",
             Self::DeleteSecret { .. } => "deleteSecret",
@@ -219,8 +225,9 @@ impl ServerEvent {
         match self {
             Self::CreateVault { address, .. } => address,
             Self::UpdateVault { address, .. } => address,
-            Self::SetVaultMeta { address, .. } => address,
             Self::DeleteVault { address, .. } => address,
+            Self::SetVaultName { address, .. } => address,
+            Self::SetVaultMeta { address, .. } => address,
             Self::CreateSecret { address, .. } => address,
             Self::UpdateSecret { address, .. } => address,
             Self::DeleteSecret { address, .. } => address,
@@ -338,7 +345,7 @@ impl Server {
                 "/api/vaults/:vault_id",
                 get(VaultHandler::read_vault)
                     .delete(VaultHandler::delete_vault)
-                    .post(VaultHandler::save_vault)
+                    .post(VaultHandler::update_vault)
                     .patch(VaultHandler::patch_vault),
             )
             .route(
@@ -664,7 +671,7 @@ impl VaultHandler {
         Ok(MaybeConflict::process(state, response?).await?)
     }
 
-    /// Retrieve an encrypted vault.
+    /// Read an encrypted vault.
     async fn read_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
         Path(vault_id): Path<Uuid>,
@@ -680,7 +687,7 @@ impl VaultHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                let (exists, _) = writer
+                let (exists, change_seq) = writer
                     .backend
                     .vault_exists(&token.address, &vault_id)
                     .await
@@ -693,11 +700,13 @@ impl VaultHandler {
                 if let Ok(buffer) =
                     writer.backend.get(&token.address, &vault_id).await
                 {
-                    let log = Log::new(
-                        Operation::ReadVault,
-                        token.address,
-                        Some(LogData::Vault(vault_id)),
-                    );
+                    let payload = Payload::ReadVault(change_seq);
+                    let log = payload.into_audit_log(token.address, vault_id);
+                    //let log = Log::new(
+                    //Operation::ReadVault,
+                    //token.address,
+                    //Some(LogData::Vault(vault_id)),
+                    //);
                     writer
                         .audit_log
                         .append(log)
@@ -760,18 +769,6 @@ impl VaultHandler {
                         event: Some(event),
                         log: payload.into_audit_log(token.address, vault_id),
                     }]))
-
-                    //let log = Log::new(
-                    //Operation::ReadVault,
-                    //token.address,
-                    //Some(LogData::Vault(vault_id)),
-                    //);
-                    //writer
-                    //.audit_log
-                    //.append(log)
-                    //.await
-                    //.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                    //Ok(Bytes::from(buffer))
                 } else {
                     Err(StatusCode::INTERNAL_SERVER_ERROR)
                 }
@@ -785,8 +782,8 @@ impl VaultHandler {
         Ok(MaybeConflict::process(state, response?).await?)
     }
 
-    /// Save an encrypted vault.
-    async fn save_vault(
+    /// Update an encrypted vault.
+    async fn update_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(change_seq): TypedHeader<ChangeSequence>,

@@ -262,7 +262,8 @@ pub enum Payload<'a> {
     /// Payload used to indicate a vault was created.
     CreateVault,
 
-    // TODO: read vault event!!!
+    /// Payload used to indicate that a vault was read.
+    ReadVault(u32),
 
     /// Payload used to indicate that a vault was updated.
     UpdateVault(u32),
@@ -322,6 +323,7 @@ impl<'a> Payload<'a> {
     /// mutate any data.
     pub fn is_mutation(&self) -> bool {
         match self {
+            Self::ReadVault(_) => false,
             Self::ReadSecret(_, _) => false,
             _ => true,
         }
@@ -331,6 +333,7 @@ impl<'a> Payload<'a> {
     pub fn change_seq(&self) -> Option<&u32> {
         match self {
             Self::CreateVault => Some(&0),
+            Self::ReadVault(change_seq) => Some(change_seq),
             Self::UpdateVault(change_seq) => Some(change_seq),
             Self::DeleteVault(change_seq) => Some(change_seq),
             Self::SetVaultName(change_seq, _) => Some(change_seq),
@@ -347,6 +350,7 @@ impl<'a> Payload<'a> {
     pub fn operation(&self) -> Operation {
         match self {
             Payload::CreateVault => Operation::CreateVault,
+            Payload::ReadVault(_) => Operation::ReadVault,
             Payload::UpdateVault(_) => Operation::UpdateVault,
             Payload::DeleteVault(_) => Operation::DeleteVault,
             Payload::SetVaultName(_, _) => Operation::SetVaultName,
@@ -362,6 +366,7 @@ impl<'a> Payload<'a> {
     pub fn into_audit_log(&self, address: AddressStr, vault_id: Uuid) -> Log {
         let log_data = match self {
             Payload::CreateVault
+            | Payload::ReadVault(_)
             | Payload::DeleteVault(_)
             | Payload::UpdateVault(_)
             | Payload::SetVaultName(_, _)
@@ -390,8 +395,9 @@ impl<'a> Encode for Payload<'a> {
 
         match self {
             Payload::CreateVault => {}
-            Payload::DeleteVault(change_seq)
-            | Payload::UpdateVault(change_seq) => {
+            Payload::ReadVault(change_seq)
+            | Payload::UpdateVault(change_seq)
+            | Payload::DeleteVault(change_seq) => {
                 ser.writer.write_u32(*change_seq)?;
             }
             Payload::SetVaultName(change_seq, name) => {
@@ -438,6 +444,10 @@ impl<'a> Decode for Payload<'a> {
         op.decode(&mut *de)?;
         match op {
             Operation::CreateVault => {}
+            Operation::ReadVault => {
+                let change_seq = de.reader.read_u32()?;
+                *self = Payload::ReadVault(change_seq);
+            }
             Operation::UpdateVault => {
                 let change_seq = de.reader.read_u32()?;
                 *self = Payload::UpdateVault(change_seq);
