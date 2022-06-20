@@ -360,7 +360,6 @@ impl<'a> Payload<'a> {
             Self::ReadSecret(change_seq, _) => Some(change_seq),
             Self::UpdateSecret(change_seq, _, _) => Some(change_seq),
             Self::DeleteSecret(change_seq, _) => Some(change_seq),
-            _ => None,
         }
     }
 

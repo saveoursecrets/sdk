@@ -9,11 +9,11 @@ use thiserror::Error;
 use sos_core::{
     diceware::generate,
     gatekeeper::Gatekeeper,
-    secret::Secret,
-    secret::UuidOrName,
+    operations::Payload,
+    secret::{kind, Secret, SecretMeta, UuidOrName},
     vault::{encode, Summary, Vault},
 };
-use sos_readline::{read_flag, read_password};
+use sos_readline::{read_flag, read_line, read_multiline, read_password};
 
 use crate::{display_passphrase, run_blocking, Client, Result, VaultInfo};
 
@@ -39,6 +39,9 @@ pub enum ShellError {
 
     #[error("failed to set vault name, got status code {0}")]
     SetVaultName(u16),
+
+    #[error("failed to add secret, got status code {0}")]
+    AddSecret(u16),
 
     #[error(transparent)]
     Clap(#[from] clap::Error),
@@ -85,6 +88,11 @@ enum ShellCommand {
     /// List secrets for the selected vault.
     #[clap(alias = "ls")]
     List,
+    /// Add a secret.
+    Add {
+        #[clap(subcommand)]
+        cmd: Add,
+    },
     /// Print a secret.
     Get { secret: UuidOrName },
     /// Delete a secret.
@@ -96,6 +104,39 @@ enum ShellCommand {
     /// Exit the shell.
     #[clap(alias = "q")]
     Quit,
+}
+
+#[derive(Subcommand, Debug)]
+enum Add {
+    Note { label: Option<String> },
+}
+
+fn get_label(label: Option<String>) -> Result<String> {
+    if let Some(label) = label {
+        Ok(label)
+    } else {
+        Ok(read_line(Some("Label: "))?)
+    }
+}
+
+fn add_note(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
+    let label = get_label(label)?;
+
+    println!("### NOTE");
+    println!("#");
+    println!("# To abort the note enter Ctrl+C");
+    println!("# To save the note enter Ctrl+D on a newline");
+    println!("#");
+    println!("###");
+
+    if let Some(note) = read_multiline(None)? {
+        let note = note.trim_end_matches('\n').to_string();
+        let secret = Secret::Text(note);
+        let secret_meta = SecretMeta::new(label, secret.kind());
+        Ok(Some((secret_meta, secret)))
+    } else {
+        Ok(None)
+    }
 }
 
 #[derive(Default)]
@@ -304,6 +345,42 @@ fn exec_program(
                         return Err(ShellError::SecretNotAvailable(
                             UuidOrName::Uuid(*uuid),
                         ));
+                    }
+                }
+            } else {
+                return Err(ShellError::NoVaultSelected);
+            }
+        }
+        ShellCommand::Add { cmd } => {
+            let mut writer = state.write().unwrap();
+            if let Some(keeper) = writer.current.as_mut() {
+                let change_seq = keeper.change_seq()?;
+                let id = *keeper.id();
+                let result = match cmd {
+                    Add::Note { label } => add_note(label)?,
+                };
+
+                if let Some((secret_meta, secret)) = result {
+                    if let Payload::CreateSecret(
+                        change_seq,
+                        secret_id,
+                        encrypted,
+                    ) = keeper.create(secret_meta, secret)?
+                    {
+                        let response = run_blocking(client.create_secret(
+                            &id,
+                            &secret_id,
+                            encrypted.as_ref(),
+                            change_seq,
+                        ))?;
+
+                        if !response.status().is_success() {
+                            return Err(ShellError::AddSecret(
+                                response.status().into(),
+                            ));
+                        }
+                    } else {
+                        unreachable!("unexpected payload for create secret");
                     }
                 }
             } else {
