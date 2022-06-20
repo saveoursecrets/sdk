@@ -4,6 +4,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
 use sos_client::{
@@ -67,6 +68,14 @@ fn welcome(server: &Url) -> Result<()> {
 }
 
 fn run() -> Result<()> {
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG")
+                .unwrap_or_else(|_| "sos_client=info".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
     let args = Cli::parse();
 
     match args.cmd {

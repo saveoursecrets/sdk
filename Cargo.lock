@@ -2722,6 +2722,8 @@ dependencies = [
  "sos-readline",
  "thiserror",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "url",
  "uuid 1.1.0",
  "web3-keystore",
