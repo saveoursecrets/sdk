@@ -22,7 +22,7 @@ use crate::{
     crypto::AeadPack,
     file_identity::FileIdentity,
     operations::{Payload, VaultAccess},
-    vault::{Contents, Header, Summary, IDENTITY},
+    vault::{encode, Contents, Header, Summary, IDENTITY},
     Error, Result,
 };
 
@@ -99,6 +99,36 @@ impl VaultFileAccess {
         let mut ser = Serializer { writer };
         ser.writer.seek(content_offset)?;
         ser.writer.write_u32(rows)?;
+        Ok(())
+    }
+
+    /// Write out the header preserving the existing content bytes.
+    fn write_header(
+        &self,
+        content_offset: usize,
+        header: &Header,
+    ) -> Result<()> {
+        let head = encode(header)?;
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&self.file_path)?;
+
+        // Read the content into memory
+        file.seek(SeekFrom::Start(content_offset as u64))?;
+        let mut content = Vec::new();
+        file.read_to_end(&mut content)?;
+
+        // Rewind and truncate the file
+        file.rewind()?;
+        file.set_len(0)?;
+
+        // Write out the header
+        file.write_all(&head)?;
+
+        // Write out the content
+        file.write_all(&content)?;
+
         Ok(())
     }
 
@@ -204,6 +234,23 @@ impl VaultAccess for VaultFileAccess {
 
         let change_seq = self.change_seq()?;
         Ok(Payload::UpdateVault(change_seq))
+    }
+
+    fn vault_name(&self) -> Result<(String, Payload)> {
+        let change_seq = self.change_seq()?;
+        let header = Header::read_header_file(&self.file_path)?;
+        let name = header.name().to_string();
+        Ok((name, Payload::GetVaultName(change_seq)))
+    }
+
+    fn set_vault_name(&mut self, name: String) -> Result<Payload> {
+        let change_seq = self.change_seq()?;
+        let content_offset = self.check_identity()?;
+        let mut header = Header::read_header_file(&self.file_path)?;
+        header.set_name(name.clone());
+        self.write_header(content_offset, &header)?;
+        let change_seq = self.inc_change_seq(change_seq)?;
+        Ok(Payload::SetVaultName(change_seq, Cow::Owned(name)))
     }
 
     fn create(
@@ -333,7 +380,7 @@ mod tests {
         crypto::{secret_key::SecretKey, AeadPack},
         operations::VaultAccess,
         secret::*,
-        vault::Vault,
+        vault::{Vault, DEFAULT_VAULT_NAME},
     };
     use anyhow::Result;
 
@@ -447,6 +494,20 @@ mod tests {
         assert_eq!(0, total_rows);
 
         assert_eq!(initial_change_seq + 5, vault_access.change_seq()?);
+
+        let (vault_name, _) = vault_access.vault_name()?;
+        assert_eq!(DEFAULT_VAULT_NAME, vault_name);
+
+        let new_name = String::from("New vault name");
+        let _ = vault_access.set_vault_name(new_name.clone());
+
+        assert_eq!(initial_change_seq + 6, vault_access.change_seq()?);
+
+        let (vault_name, _) = vault_access.vault_name()?;
+        assert_eq!(&new_name, &vault_name);
+
+        // Reset the fixture vault name
+        let _ = vault_access.set_vault_name(DEFAULT_VAULT_NAME.to_string());
 
         Ok(())
     }

@@ -14,23 +14,21 @@ use axum::{
     Json, Router,
 };
 
-use futures::stream::{self, Stream};
+use futures::stream::Stream;
 use tower_http::cors::{CorsLayer, Origin};
 
 //use axum_macros::debug_handler;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::json;
 use sos_core::{
     address::AddressStr,
-    audit::{Append, Log, LogData},
+    audit::{Append, Log},
     crypto::AeadPack,
-    decode, encode,
-    k256::ecdsa::recoverable,
+    decode,
     operations::{Operation, Payload},
     patch::Patch,
     vault::{Header, Summary, Vault},
-    web3_signature::Signature,
 };
 use std::{
     collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc,
@@ -171,16 +169,20 @@ pub enum ServerEvent {
         #[serde(skip)]
         address: AddressStr,
         vault_id: Uuid,
+        change_seq: u32,
     },
     SetVaultName {
         #[serde(skip)]
         address: AddressStr,
         vault_id: Uuid,
+        change_seq: u32,
+        name: String,
     },
     SetVaultMeta {
         #[serde(skip)]
         address: AddressStr,
         vault_id: Uuid,
+        change_seq: u32,
     },
     CreateSecret {
         #[serde(skip)]
@@ -249,11 +251,28 @@ impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
     fn from(value: (&'u Uuid, &'a AddressStr, &'p Payload<'p>)) -> Self {
         let (vault_id, address, payload) = value;
         match payload {
+            Payload::CreateVault => ServerEvent::CreateVault {
+                address: address.clone(),
+                vault_id: *vault_id,
+            },
             Payload::UpdateVault(change_seq) => ServerEvent::UpdateVault {
                 address: address.clone(),
                 change_seq: *change_seq,
                 vault_id: *vault_id,
             },
+            Payload::DeleteVault(change_seq) => ServerEvent::DeleteVault {
+                address: address.clone(),
+                change_seq: *change_seq,
+                vault_id: *vault_id,
+            },
+            Payload::SetVaultName(change_seq, name) => {
+                ServerEvent::SetVaultName {
+                    address: address.clone(),
+                    change_seq: *change_seq,
+                    vault_id: *vault_id,
+                    name: name.to_string(),
+                }
+            }
             Payload::CreateSecret(change_seq, secret_id, _) => {
                 ServerEvent::CreateSecret {
                     address: address.clone(),
@@ -340,13 +359,17 @@ impl Server {
             .route("/api/auth/:uuid", get(AuthHandler::response))
             .route("/api/accounts", put(AccountHandler::create))
             .route("/api/vaults", put(VaultHandler::create_vault))
-            //.route("/api/vaults", get(VaultHandler::list))
             .route(
                 "/api/vaults/:vault_id",
                 get(VaultHandler::read_vault)
                     .delete(VaultHandler::delete_vault)
                     .post(VaultHandler::update_vault)
                     .patch(VaultHandler::patch_vault),
+            )
+            .route(
+                "/api/vaults/:vault_id/name",
+                get(VaultHandler::get_vault_name)
+                    .post(VaultHandler::set_vault_name),
             )
             .route(
                 "/api/vaults/:vault_id/secrets/:secret_id",
@@ -594,28 +617,6 @@ impl AccountHandler {
 // Handlers for vault operations.
 struct VaultHandler;
 impl VaultHandler {
-    /// List vault identifiers for a user account.
-    async fn list(
-        Extension(state): Extension<Arc<RwLock<State>>>,
-        Path(user_id): Path<AddressStr>,
-    ) -> impl IntoResponse {
-        let reader = state.read().await;
-
-        todo!()
-
-        /*
-        let (status, value) =
-            if let Some(backend) = reader.backends.get(&user_id) {
-                let list: Vec<String> =
-                    backend.list().iter().map(|k| k.to_string()).collect();
-                (StatusCode::OK, json!(list))
-            } else {
-                (StatusCode::NOT_FOUND, json!(()))
-            };
-        (status, Json(value))
-        */
-    }
-
     /// Create an encrypted vault.
     async fn create_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
@@ -702,11 +703,6 @@ impl VaultHandler {
                 {
                     let payload = Payload::ReadVault(change_seq);
                     let log = payload.into_audit_log(token.address, vault_id);
-                    //let log = Log::new(
-                    //Operation::ReadVault,
-                    //token.address,
-                    //Some(LogData::Vault(vault_id)),
-                    //);
                     writer
                         .audit_log
                         .append(log)
@@ -750,7 +746,7 @@ impl VaultHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                if let Ok(buffer) =
+                if let Ok(_) =
                     writer.backend.get(&token.address, &vault_id).await
                 {
                     writer
@@ -762,6 +758,7 @@ impl VaultHandler {
                     let event = ServerEvent::DeleteVault {
                         vault_id: vault_id.clone(),
                         address: token.address.clone(),
+                        change_seq,
                     };
 
                     let payload = Payload::DeleteVault(change_seq);
@@ -899,6 +896,112 @@ impl VaultHandler {
                         }
                     }
                     Ok(MaybeConflict::Success(events))
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        Ok(MaybeConflict::process(state, response?).await?)
+    }
+
+    /// Get the name for a vault.
+    async fn get_vault_name(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        Path(vault_id): Path<Uuid>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+    ) -> Result<Json<String>, StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let reader = state.read().await;
+
+                let handle = reader
+                    .backend
+                    .vault_read(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                let (name, payload) = handle
+                    .vault_name()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                Ok((name, payload.into_audit_log(token.address, vault_id)))
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        let (name, log) = response?;
+        let mut writer = state.write().await;
+        writer
+            .audit_log
+            .append(log)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        Ok(Json(name))
+    }
+
+    /// Set the name for a vault.
+    async fn set_vault_name(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        Path(vault_id): Path<Uuid>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+        TypedHeader(change_seq): TypedHeader<ChangeSequence>,
+        Json(name): Json<String>,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+                if !writer.backend.account_exists(&token.address).await {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let (exists, remote_change_seq) = writer
+                    .backend
+                    .vault_exists(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if !exists {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let mut handle = writer
+                    .backend
+                    .vault_write(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                let local_change_seq: u32 = change_seq.into();
+                if local_change_seq != (remote_change_seq + 1) {
+                    Ok(MaybeConflict::Conflict(remote_change_seq))
+                } else {
+                    if let Ok(payload) = handle.set_vault_name(name) {
+                        let event = ServerEvent::from((
+                            &vault_id,
+                            &token.address,
+                            &payload,
+                        ));
+
+                        Ok(MaybeConflict::Success(vec![ResponseEvent {
+                            event: Some(event),
+                            log: payload
+                                .into_audit_log(token.address, vault_id),
+                        }]))
+                    } else {
+                        Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    }
                 }
             } else {
                 Err(status_code)

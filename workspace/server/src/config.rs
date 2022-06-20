@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use url::{Host, Url};
-
-use sos_core::address::AddressStr;
 
 use crate::{Backend, Error, FileSystemBackend, Result};
 

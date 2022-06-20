@@ -74,6 +74,11 @@ impl Gatekeeper {
         self.vault.name()
     }
 
+    /// Set the public name for the vault.
+    pub fn set_vault_name(&mut self, name: String) -> Result<Payload> {
+        Ok(self.vault.set_vault_name(name)?)
+    }
+
     /// Initialize the vault with the given label and password.
     pub fn initialize<S: AsRef<str>>(
         &mut self,

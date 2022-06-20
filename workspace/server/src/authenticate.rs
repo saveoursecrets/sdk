@@ -1,5 +1,5 @@
 //! Authentication helper functions and types for the authentication challenge and response.
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sha3::{Digest, Keccak256};
 use std::{
     collections::HashMap,
@@ -9,17 +9,15 @@ use std::{
 use uuid::Uuid;
 
 use axum::{
-    body::Bytes,
     headers::{authorization::Bearer, Authorization},
     http::StatusCode,
 };
 
 use sos_core::{
-    address::AddressStr, decode, encode, k256::ecdsa::recoverable,
-    vault::Vault, web3_signature::Signature,
+    address::AddressStr, k256::ecdsa::recoverable, web3_signature::Signature,
 };
 
-use crate::{Error, Result};
+use crate::Result;
 
 #[derive(Debug, Deserialize)]
 pub struct SignedQuery {

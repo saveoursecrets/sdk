@@ -39,6 +39,12 @@ pub trait VaultAccess {
     /// ensure the buffer represents a valid vault.
     fn save(&mut self, buffer: &[u8]) -> Result<Payload>;
 
+    /// Get the name of a vault.
+    fn vault_name(&self) -> Result<(String, Payload)>;
+
+    /// Set the name of a vault.
+    fn set_vault_name(&mut self, name: String) -> Result<Payload>;
+
     /// Add an encrypted secret to the vault.
     fn create(
         &mut self,
@@ -105,18 +111,20 @@ mod types {
     pub const UPDATE_VAULT: u16 = 0x07;
     /// Type identifier for the delete vault operation.
     pub const DELETE_VAULT: u16 = 0x08;
+    /// Type identifier for the get vault name operation.
+    pub const GET_VAULT_NAME: u16 = 0x09;
     /// Type identifier for the set vault name operation.
-    pub const SET_VAULT_NAME: u16 = 0x09;
+    pub const SET_VAULT_NAME: u16 = 0x0A;
     /// Type identifier for the set vault meta operation.
-    pub const SET_VAULT_META: u16 = 0x0A;
+    pub const SET_VAULT_META: u16 = 0x0B;
     /// Type identifier for the create secret operation.
-    pub const CREATE_SECRET: u16 = 0x0B;
+    pub const CREATE_SECRET: u16 = 0x0C;
     /// Type identifier for the read secret operation.
-    pub const READ_SECRET: u16 = 0x0C;
+    pub const READ_SECRET: u16 = 0x0D;
     /// Type identifier for the update secret operation.
-    pub const UPDATE_SECRET: u16 = 0x0D;
+    pub const UPDATE_SECRET: u16 = 0x0E;
     /// Type identifier for the delete secret operation.
-    pub const DELETE_SECRET: u16 = 0x0E;
+    pub const DELETE_SECRET: u16 = 0x0F;
 }
 
 /// Operation wraps an operation type identifier and
@@ -140,6 +148,8 @@ pub enum Operation {
     ReadVault,
     /// Operation to update a vault.
     UpdateVault,
+    /// Operation to get vault name.
+    GetVaultName,
     /// Operation to set vault name.
     SetVaultName,
     /// Operation to set vault meta data.
@@ -193,6 +203,7 @@ impl TryFrom<u16> for Operation {
             types::READ_VAULT => Ok(Operation::ReadVault),
             types::UPDATE_VAULT => Ok(Operation::UpdateVault),
             types::DELETE_VAULT => Ok(Operation::DeleteVault),
+            types::GET_VAULT_NAME => Ok(Operation::GetVaultName),
             types::SET_VAULT_NAME => Ok(Operation::SetVaultName),
             types::SET_VAULT_META => Ok(Operation::SetVaultMeta),
             types::CREATE_SECRET => Ok(Operation::CreateSecret),
@@ -216,6 +227,7 @@ impl From<&Operation> for u16 {
             Operation::ReadVault => types::READ_VAULT,
             Operation::UpdateVault => types::UPDATE_VAULT,
             Operation::DeleteVault => types::DELETE_VAULT,
+            Operation::GetVaultName => types::GET_VAULT_NAME,
             Operation::SetVaultName => types::SET_VAULT_NAME,
             Operation::SetVaultMeta => types::SET_VAULT_META,
             Operation::CreateSecret => types::CREATE_SECRET,
@@ -239,6 +251,7 @@ impl fmt::Display for Operation {
                 Operation::ReadVault => "READ_VAULT",
                 Operation::UpdateVault => "UPDATE_VAULT",
                 Operation::DeleteVault => "DELETE_VAULT",
+                Operation::GetVaultName => "GET_VAULT_NAME",
                 Operation::SetVaultName => "SET_VAULT_NAME",
                 Operation::SetVaultMeta => "SET_VAULT_META",
                 Operation::CreateSecret => "CREATE_SECRET",
@@ -270,6 +283,9 @@ pub enum Payload<'a> {
 
     /// Payload used to indicate a vault was deleted.
     DeleteVault(u32),
+
+    /// Get the vault name.
+    GetVaultName(u32),
 
     /// Set the vault name.
     SetVaultName(u32, Cow<'a, str>),
@@ -325,6 +341,7 @@ impl<'a> Payload<'a> {
         match self {
             Self::ReadVault(_) => false,
             Self::ReadSecret(_, _) => false,
+            Self::GetVaultName(_) => false,
             _ => true,
         }
     }
@@ -336,6 +353,7 @@ impl<'a> Payload<'a> {
             Self::ReadVault(change_seq) => Some(change_seq),
             Self::UpdateVault(change_seq) => Some(change_seq),
             Self::DeleteVault(change_seq) => Some(change_seq),
+            Self::GetVaultName(change_seq) => Some(change_seq),
             Self::SetVaultName(change_seq, _) => Some(change_seq),
             Self::SetVaultMeta(change_seq, _) => Some(change_seq),
             Self::CreateSecret(change_seq, _, _) => Some(change_seq),
@@ -353,6 +371,7 @@ impl<'a> Payload<'a> {
             Payload::ReadVault(_) => Operation::ReadVault,
             Payload::UpdateVault(_) => Operation::UpdateVault,
             Payload::DeleteVault(_) => Operation::DeleteVault,
+            Payload::GetVaultName(_) => Operation::GetVaultName,
             Payload::SetVaultName(_, _) => Operation::SetVaultName,
             Payload::SetVaultMeta(_, _) => Operation::SetVaultMeta,
             Payload::CreateSecret(_, _, _) => Operation::CreateSecret,
@@ -369,6 +388,7 @@ impl<'a> Payload<'a> {
             | Payload::ReadVault(_)
             | Payload::DeleteVault(_)
             | Payload::UpdateVault(_)
+            | Payload::GetVaultName(_)
             | Payload::SetVaultName(_, _)
             | Payload::SetVaultMeta(_, _) => LogData::Vault(vault_id),
             Payload::CreateSecret(_, secret_id, _) => {
@@ -397,7 +417,8 @@ impl<'a> Encode for Payload<'a> {
             Payload::CreateVault => {}
             Payload::ReadVault(change_seq)
             | Payload::UpdateVault(change_seq)
-            | Payload::DeleteVault(change_seq) => {
+            | Payload::DeleteVault(change_seq)
+            | Payload::GetVaultName(change_seq) => {
                 ser.writer.write_u32(*change_seq)?;
             }
             Payload::SetVaultName(change_seq, name) => {
@@ -455,6 +476,10 @@ impl<'a> Decode for Payload<'a> {
             Operation::DeleteVault => {
                 let change_seq = de.reader.read_u32()?;
                 *self = Payload::DeleteVault(change_seq);
+            }
+            Operation::GetVaultName => {
+                let change_seq = de.reader.read_u32()?;
+                *self = Payload::GetVaultName(change_seq);
             }
             Operation::SetVaultName => {
                 let change_seq = de.reader.read_u32()?;

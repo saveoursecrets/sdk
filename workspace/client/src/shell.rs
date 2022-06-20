@@ -37,6 +37,9 @@ pub enum ShellError {
     #[error("failed to delete vault, got status code {0}")]
     VaultRemove(u16),
 
+    #[error("failed to set vault name, got status code {0}")]
+    SetVaultName(u16),
+
     #[error(transparent)]
     Clap(#[from] clap::Error),
 
@@ -73,6 +76,8 @@ enum ShellCommand {
     Use { vault: UuidOrName },
     /// Print information about the selected vault.
     Info,
+    /// Get or set the name of the selected vault.
+    Name { name: Option<String> },
     /// Print secret keys for the selected vault.
     Keys,
     /// List secrets for the selected vault.
@@ -205,7 +210,7 @@ fn exec_program(
 
             if let Some(summary) = summary {
                 let vault_bytes =
-                    run_blocking(client.load_vault(summary.id()))?;
+                    run_blocking(client.read_vault(summary.id()))?;
                 let vault = Vault::read_buffer(vault_bytes)?;
                 let mut keeper = Gatekeeper::new(vault);
                 let password = read_password(Some("Passphrase: "))?;
@@ -225,6 +230,36 @@ fn exec_program(
                 print_summary(summary)?;
             } else {
                 return Err(ShellError::NoVaultSelected);
+            }
+        }
+        ShellCommand::Name { name } => {
+            let mut writer = state.write().unwrap();
+            let renamed = if let Some(keeper) = writer.current.as_mut() {
+                if let Some(name) = name {
+                    keeper.set_vault_name(name.clone())?;
+                    let response = run_blocking(client.set_vault_name(
+                        keeper.id(),
+                        keeper.change_seq()?,
+                        &name,
+                    ))?;
+                    if !response.status().is_success() {
+                        return Err(ShellError::SetVaultName(
+                            response.status().into(),
+                        ));
+                    }
+                    true
+                } else {
+                    let name = run_blocking(client.vault_name(keeper.id()))?;
+                    println!("{}", name);
+                    false
+                }
+            } else {
+                return Err(ShellError::NoVaultSelected);
+            };
+
+            if renamed {
+                drop(writer);
+                list_vaults(client, state, false)?;
             }
         }
         ShellCommand::Keys => {

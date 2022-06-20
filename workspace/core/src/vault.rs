@@ -100,6 +100,11 @@ impl Summary {
         &self.change_seq
     }
 
+    /// Set the change sequence.
+    pub fn set_change_seq(&mut self, change_seq: u32) {
+        self.change_seq = change_seq;
+    }
+
     /// Get the algorithm.
     pub fn algorithm(&self) -> &Algorithm {
         &self.algorithm
@@ -168,6 +173,16 @@ impl Header {
         }
     }
 
+    /// Get the public name for this vault.
+    pub fn name(&self) -> &str {
+        &self.summary.name
+    }
+
+    /// Set the public name for this vault.
+    pub fn set_name(&mut self, name: String) {
+        self.summary.name = name;
+    }
+
     /// Get the encrypted meta data for the vault.
     pub fn meta(&self) -> Option<&AeadPack> {
         self.meta.as_ref()
@@ -177,7 +192,6 @@ impl Header {
     pub fn set_meta(&mut self, meta: Option<AeadPack>) {
         self.meta = meta;
     }
-
     /// Read the summary for a vault from a file.
     pub fn read_summary_file<P: AsRef<Path>>(file: P) -> Result<Summary> {
         let mut stream = FileStream::new(file.as_ref(), OpenType::Open)?;
@@ -206,6 +220,21 @@ impl Header {
         summary.decode(&mut de)?;
 
         Ok(summary)
+    }
+
+    /// Read the header for a vault from a file.
+    pub fn read_header_file<P: AsRef<Path>>(file: P) -> Result<Header> {
+        let mut stream = FileStream::new(file.as_ref(), OpenType::Open)?;
+        Header::read_header_stream(&mut stream)
+    }
+
+    /// Read the header from a stream.
+    fn read_header_stream(stream: &mut impl ReadStream) -> Result<Header> {
+        let reader = BinaryReader::new(stream, Endian::Big);
+        let mut de = Deserializer { reader };
+        let mut header: Header = Default::default();
+        header.decode(&mut de)?;
+        Ok(header)
     }
 }
 
@@ -444,12 +473,12 @@ impl Vault {
 
     /// Get the public name for this vault.
     pub fn name(&self) -> &str {
-        &self.header.summary.name
+        self.header.name()
     }
 
     /// Set the public name for this vault.
     pub fn set_name(&mut self, name: String) {
-        self.header.summary.name = name;
+        self.header.set_name(name);
     }
 
     /// Get the encryption algorithm for this vault.
@@ -528,22 +557,44 @@ impl VaultAccess for Vault {
         Ok(Payload::UpdateVault(change_seq))
     }
 
+    fn vault_name(&self) -> Result<(String, Payload)> {
+        Ok((
+            self.name().to_string(),
+            Payload::GetVaultName(self.change_seq()?),
+        ))
+    }
+
+    fn set_vault_name(&mut self, name: String) -> Result<Payload> {
+        let change_seq = if let Some(next_change_seq) =
+            self.header.summary.change_seq.checked_add(1)
+        {
+            self.header.summary.set_change_seq(next_change_seq);
+            next_change_seq
+        } else {
+            return Err(Error::TooManyChanges);
+        };
+
+        self.set_name(name.clone());
+
+        Ok(Payload::SetVaultName(change_seq, Cow::Owned(name)))
+    }
+
     fn create(
         &mut self,
         uuid: Uuid,
         secret: (AeadPack, AeadPack),
     ) -> Result<Payload> {
-        let id = uuid;
-        let value = self.contents.data.entry(uuid).or_insert(secret);
-
         let change_seq = if let Some(next_change_seq) =
             self.header.summary.change_seq.checked_add(1)
         {
-            self.header.summary.change_seq = next_change_seq;
+            self.header.summary.set_change_seq(next_change_seq);
             next_change_seq
         } else {
             return Err(Error::TooManyChanges);
         };
+
+        let id = uuid;
+        let value = self.contents.data.entry(uuid).or_insert(secret);
 
         Ok(Payload::CreateSecret(change_seq, id, Cow::Borrowed(value)))
     }
@@ -565,16 +616,16 @@ impl VaultAccess for Vault {
     ) -> Result<Option<Payload>> {
         let id = *uuid;
         if let Some(value) = self.contents.data.get_mut(uuid) {
-            *value = secret;
-
             let change_seq = if let Some(next_change_seq) =
                 self.header.summary.change_seq.checked_add(1)
             {
-                self.header.summary.change_seq = next_change_seq;
+                self.header.summary.set_change_seq(next_change_seq);
                 next_change_seq
             } else {
                 return Err(Error::TooManyChanges);
             };
+
+            *value = secret;
 
             Ok(Some(Payload::UpdateSecret(
                 change_seq,
@@ -587,17 +638,18 @@ impl VaultAccess for Vault {
     }
 
     fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
+        let change_seq = if let Some(next_change_seq) =
+            self.header.summary.change_seq.checked_add(1)
+        {
+            self.header.summary.set_change_seq(next_change_seq);
+            next_change_seq
+        } else {
+            return Err(Error::TooManyChanges);
+        };
+
         let id = *uuid;
         let entry = self.contents.data.remove(uuid);
         if entry.is_some() {
-            let change_seq = if let Some(next_change_seq) =
-                self.header.summary.change_seq.checked_add(1)
-            {
-                self.header.summary.change_seq = next_change_seq;
-                next_change_seq
-            } else {
-                return Err(Error::TooManyChanges);
-            };
             Ok(Some(Payload::DeleteSecret(change_seq, id)))
         } else {
             Ok(None)

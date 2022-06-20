@@ -88,6 +88,22 @@ impl Client {
         Ok(response)
     }
 
+    /// Read the buffer for a vault.
+    pub async fn read_vault(&self, vault_id: &Uuid) -> Result<Vec<u8>> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let response = self
+            .http_client
+            .get(url)
+            .header("authorization", self.bearer_prefix(&signature))
+            .header("x-signed-message", base64::encode(&message))
+            .send()
+            .await?;
+        Ok(response.bytes().await?.to_vec())
+    }
+
+    // TODO: update vault
+
     /// Delete a vault.
     pub async fn delete_vault(&self, vault_id: &Uuid) -> Result<Response> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
@@ -97,6 +113,44 @@ impl Client {
             .delete(url)
             .header("authorization", self.bearer_prefix(&signature))
             .header("x-signed-message", base64::encode(&message))
+            .send()
+            .await?;
+        Ok(response)
+    }
+
+    /// Get the name of a vault.
+    pub async fn vault_name(&self, vault_id: &Uuid) -> Result<String> {
+        let url = self.server.join(&format!("api/vaults/{}/name", vault_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let response = self
+            .http_client
+            .get(url)
+            .header("authorization", self.bearer_prefix(&signature))
+            .header("x-signed-message", base64::encode(&message))
+            .send()
+            .await?;
+
+        let name: String = response.json().await?;
+        Ok(name)
+    }
+
+    /// Set the name of a vault.
+    pub async fn set_vault_name(
+        &self,
+        vault_id: &Uuid,
+        change_seq: u32,
+        name: &str,
+    ) -> Result<Response> {
+        let url = self.server.join(&format!("api/vaults/{}/name", vault_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let response = self
+            .http_client
+            .post(url)
+            .header("authorization", self.bearer_prefix(&signature))
+            .header("x-signed-message", base64::encode(&message))
+            .header("x-change-sequence", change_seq.to_string())
+            .header("content-type", "application/json")
+            .body(serde_json::to_vec(name)?)
             .send()
             .await?;
         Ok(response)
@@ -134,20 +188,6 @@ impl Client {
             .await?;
 
         Ok(summaries)
-    }
-
-    /// Load the buffer for a vault.
-    pub async fn load_vault(&self, vault_id: &Uuid) -> Result<Vec<u8>> {
-        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
-        let (message, signature) = self.self_signed().await?;
-        let response = self
-            .http_client
-            .get(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("x-signed-message", base64::encode(&message))
-            .send()
-            .await?;
-        Ok(response.bytes().await?.to_vec())
     }
 
     /// Send a read secret event to the server.

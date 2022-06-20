@@ -2,12 +2,11 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
-    crypto::AeadPack,
     file_access::VaultFileAccess,
     operations::VaultAccess,
     vault::{Header, Summary, Vault},
 };
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::{
     RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard,
 };
@@ -234,7 +233,7 @@ impl Backend for FileSystemBackend {
             return Err(Error::AccountNotExist(*owner));
         }
 
-        let mut account = accounts.get_mut(owner).unwrap();
+        let account = accounts.get_mut(owner).unwrap();
         if account.get(vault_id).is_none() {
             return Err(Error::VaultNotExist(*vault_id));
         }
