@@ -6,7 +6,7 @@ use url::Url;
 use crate::{run_blocking, Client, ClientBuilder, Result};
 
 async fn stream(client: Client) -> Result<()> {
-    let mut es = client.changes()?;
+    let mut es = client.changes().await?;
     while let Some(event) = es.next().await {
         match event {
             Ok(Event::Open) => println!("Connection Open!"),

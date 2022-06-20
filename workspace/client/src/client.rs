@@ -1,4 +1,5 @@
 //! HTTP client implementation.
+use rand::Rng;
 use reqwest::{Client as HttpClient, Response};
 use reqwest_eventsource::EventSource;
 use sos_core::{
@@ -63,7 +64,7 @@ impl Client {
     }
 
     async fn self_signed(&self) -> Result<(Vec<u8>, String)> {
-        let message: [u8; 32] = [0u8; 32];
+        let message: [u8; 32] = rand::thread_rng().gen();
         let signature =
             self.encode_signature(self.signer.sign(&message).await?)?;
         Ok((message.to_vec(), signature))
@@ -292,8 +293,16 @@ impl Client {
     }
 
     /// Get an event source for the changes feed.
-    pub fn changes(&self) -> Result<EventSource> {
-        let url = self.server.join("/api/changes")?;
+    pub async fn changes(&self) -> Result<EventSource> {
+        let message: [u8; 32] = rand::thread_rng().gen();
+        let token = base64::encode(serde_json::to_vec(
+            &self.signer.sign(&message).await?,
+        )?);
+        let message = hex::encode(&message);
+        let mut url = self.server.join("/api/changes")?;
+        url.query_pairs_mut()
+            .append_pair("message", &message)
+            .append_pair("token", &token);
         Ok(EventSource::get(url))
     }
 }
