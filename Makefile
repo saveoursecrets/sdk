@@ -31,4 +31,7 @@ check:
 test:
 	@cargo test --all
 
+docs:
+	@cargo doc --all --open --no-deps
+
 .PHONY: all wasm browser-gui fixtures server-release prettier lint fmt check test
