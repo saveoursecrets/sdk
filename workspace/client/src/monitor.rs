@@ -1,3 +1,4 @@
+//! Listen for changes events on the server sent events channel.
 use futures::stream::StreamExt;
 use reqwest_eventsource::Event;
 use std::path::PathBuf;
@@ -89,8 +90,7 @@ async fn stream(client: Client) -> Result<()> {
 
 /// Start a monitor listening for events on the SSE stream.
 pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
-    let builder = ClientBuilder::new(server, keystore);
-    let client = builder.build()?;
+    let client = ClientBuilder::new(server, keystore).build()?;
     if let Err(e) = run_blocking(stream(client)) {
         eprintln!("{}", e);
         std::process::exit(1);

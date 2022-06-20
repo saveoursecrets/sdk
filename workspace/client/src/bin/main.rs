@@ -68,14 +68,6 @@ fn welcome(server: &Url) -> Result<()> {
 }
 
 fn run() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "sos_client=info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
     let args = Cli::parse();
 
     match args.cmd {
@@ -90,8 +82,8 @@ fn run() -> Result<()> {
             signup(server, keystore, name)?;
         }
         Command::Shell { server, keystore } => {
-            let builder = ClientBuilder::new(server, keystore);
-            let client = Arc::new(builder.build()?);
+            let client =
+                Arc::new(ClientBuilder::new(server, keystore).build()?);
 
             welcome(client.server())?;
 
@@ -134,6 +126,14 @@ fn run() -> Result<()> {
 }
 
 fn main() -> Result<()> {
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG")
+                .unwrap_or_else(|_| "sos_client=info".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
     match run() {
         Ok(_) => {}
         Err(e) => {
