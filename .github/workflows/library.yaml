@@ -41,7 +41,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - name: Run cargo fmt
+      - name: Run cargo test
         run: cargo test --all
 
   build:
@@ -55,3 +55,15 @@ jobs:
           profile: minimal
       - name: Run cargo build
         run: cargo build --release
+
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+      - name: Run cargo audit
+        run: cargo install cargo-audit && cargo audit
