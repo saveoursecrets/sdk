@@ -15,7 +15,7 @@ use sos_core::{
 };
 use sos_readline::{read_flag, read_password};
 
-use crate::{display_passphrase, run_blocking, Client, Result};
+use crate::{display_passphrase, run_blocking, Client, Result, VaultInfo};
 
 #[derive(Debug, Error)]
 pub enum ShellError {
@@ -78,6 +78,8 @@ enum ShellCommand {
     Info,
     /// Get or set the name of the selected vault.
     Name { name: Option<String> },
+    /// Print local and remote change sequences.
+    Seq,
     /// Print secret keys for the selected vault.
     Keys,
     /// List secrets for the selected vault.
@@ -228,6 +230,21 @@ fn exec_program(
             if let Some(keeper) = &reader.current {
                 let summary = keeper.summary();
                 print_summary(summary)?;
+            } else {
+                return Err(ShellError::NoVaultSelected);
+            }
+        }
+        ShellCommand::Seq => {
+            let reader = state.read().unwrap();
+            if let Some(keeper) = &reader.current {
+                let local_change_seq = keeper.change_seq()?;
+                let VaultInfo {
+                    change_seq: remote_change_seq,
+                } = run_blocking(client.head_vault(keeper.id()))?;
+                println!(
+                    "Local = {}, Remote = {}",
+                    local_change_seq, remote_change_seq
+                );
             } else {
                 return Err(ShellError::NoVaultSelected);
             }

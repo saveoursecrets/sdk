@@ -362,6 +362,7 @@ impl Server {
             .route(
                 "/api/vaults/:vault_id",
                 get(VaultHandler::read_vault)
+                    .head(VaultHandler::head_vault)
                     .delete(VaultHandler::delete_vault)
                     .post(VaultHandler::update_vault)
                     .patch(VaultHandler::patch_vault),
@@ -670,6 +671,48 @@ impl VaultHandler {
         };
 
         Ok(MaybeConflict::process(state, response?).await?)
+    }
+
+    /// Get the change sequence for a vault.
+    async fn head_vault(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        Path(vault_id): Path<Uuid>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let reader = state.read().await;
+                if !reader.backend.account_exists(&token.address).await {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let (exists, change_seq) = reader
+                    .backend
+                    .vault_exists(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if !exists {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let mut headers = HeaderMap::new();
+                let x_change_sequence =
+                    HeaderValue::from_str(&change_seq.to_string())
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                headers.insert(X_CHANGE_SEQUENCE.clone(), x_change_sequence);
+                Ok((StatusCode::OK, headers))
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        Ok(response?)
     }
 
     /// Read an encrypted vault.

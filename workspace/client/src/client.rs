@@ -10,9 +10,20 @@ use url::Url;
 use uuid::Uuid;
 use web3_signature::Signature;
 
-use crate::Result;
+use crate::{Error, Result};
 
 type Challenge = [u8; 32];
+
+const AUTHORIZATION: &str = "authorization";
+const CONTENT_TYPE: &str = "content-type";
+const X_SIGNED_MESSAGE: &str = "x-signed-message";
+const X_CHANGE_SEQUENCE: &str = "x-change-sequence";
+
+/// Encapsulates the information returned
+/// by sending a HEAD request for a vault.
+pub struct VaultInfo {
+    pub change_seq: u32,
+}
 
 pub struct Client {
     server: Url,
@@ -64,8 +75,8 @@ impl Client {
         let response = self
             .http_client
             .put(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("content-type", MIME_TYPE_VAULT)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
             .body(vault)
             .send()
             .await?;
@@ -80,12 +91,31 @@ impl Client {
         let response = self
             .http_client
             .put(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("content-type", MIME_TYPE_VAULT)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
             .body(vault)
             .send()
             .await?;
         Ok(response)
+    }
+
+    /// Get the change sequence for a vault.
+    pub async fn head_vault(&self, vault_id: &Uuid) -> Result<VaultInfo> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let response = self
+            .http_client
+            .head(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message))
+            .send()
+            .await?;
+        let change_seq = response
+            .headers()
+            .get(X_CHANGE_SEQUENCE)
+            .ok_or_else(|| Error::ChangeSequenceHeader)?;
+        let change_seq: u32 = change_seq.to_str()?.parse()?;
+        Ok(VaultInfo { change_seq })
     }
 
     /// Read the buffer for a vault.
@@ -95,8 +125,8 @@ impl Client {
         let response = self
             .http_client
             .get(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("x-signed-message", base64::encode(&message))
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message))
             .send()
             .await?;
         Ok(response.bytes().await?.to_vec())
@@ -111,8 +141,8 @@ impl Client {
         let response = self
             .http_client
             .delete(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("x-signed-message", base64::encode(&message))
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message))
             .send()
             .await?;
         Ok(response)
@@ -125,8 +155,8 @@ impl Client {
         let response = self
             .http_client
             .get(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("x-signed-message", base64::encode(&message))
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message))
             .send()
             .await?;
 
@@ -146,10 +176,10 @@ impl Client {
         let response = self
             .http_client
             .post(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("x-signed-message", base64::encode(&message))
-            .header("x-change-sequence", change_seq.to_string())
-            .header("content-type", "application/json")
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message))
+            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
+            .header(CONTENT_TYPE, "application/json")
             .body(serde_json::to_vec(name)?)
             .send()
             .await?;
@@ -164,8 +194,8 @@ impl Client {
         let challenge: (Uuid, Challenge) = self
             .http_client
             .get(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("x-signed-message", base64::encode(&message))
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message))
             .send()
             .await?
             .json()
@@ -180,8 +210,8 @@ impl Client {
         let summaries: Vec<Summary> = self
             .http_client
             .get(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("x-signed-message", base64::encode(&message))
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message))
             .send()
             .await?
             .json()
@@ -204,9 +234,9 @@ impl Client {
         let response = self
             .http_client
             .get(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("x-signed-message", base64::encode(&message))
-            .header("x-change-sequence", change_seq.to_string())
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message))
+            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
             .send()
             .await?;
         Ok(response)
@@ -226,9 +256,9 @@ impl Client {
         let response = self
             .http_client
             .delete(url)
-            .header("authorization", self.bearer_prefix(&signature))
-            .header("x-signed-message", base64::encode(&message))
-            .header("x-change-sequence", change_seq.to_string())
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message))
+            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
             .send()
             .await?;
         Ok(response.bytes().await?.to_vec())

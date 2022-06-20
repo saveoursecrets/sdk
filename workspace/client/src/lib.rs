@@ -33,7 +33,7 @@ pub(crate) fn display_passphrase(
     println!("###");
 }
 
-pub use client::Client;
+pub use client::{Client, VaultInfo};
 pub use error::Error;
 pub use shell::{exec, list_vaults, ShellState};
 pub use signup::signup;

@@ -12,6 +12,15 @@ pub enum Error {
     #[error("failed to create account, got status code {0}")]
     AccountCreate(u16),
 
+    #[error("expecting an x-change-sequence header")]
+    ChangeSequenceHeader,
+
+    #[error(transparent)]
+    ParseInt(#[from] std::num::ParseIntError),
+
+    #[error(transparent)]
+    ToStr(#[from] reqwest::header::ToStrError),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
