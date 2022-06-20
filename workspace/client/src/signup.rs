@@ -1,6 +1,5 @@
 //! Signup a new account.
 use crate::{display_passphrase, run_blocking, Client, Error, Result};
-use k256::ecdsa::SigningKey;
 use sos_core::{
     address::AddressStr,
     crypto::generate_random_ecdsa_signing_key,

@@ -1,17 +1,15 @@
 use std::{
-    fs::File,
-    io::Read,
     path::PathBuf,
     sync::{Arc, RwLock},
 };
 
 use clap::{Parser, Subcommand};
 use url::Url;
-use web3_keystore::{decrypt, KeyStore};
 
-use sos_client::{exec, list_vaults, signup, Client, Result, ShellState};
-use sos_core::signer::SingleParty;
-use sos_readline::{read_password, read_shell};
+use sos_client::{
+    exec, list_vaults, monitor, signup, ClientBuilder, Result, ShellState,
+};
+use sos_readline::read_shell;
 
 const WELCOME: &str = include_str!("welcome.txt");
 
@@ -49,6 +47,16 @@ enum Command {
         #[clap(short, long)]
         keystore: PathBuf,
     },
+    /// Monitor server events.
+    Monitor {
+        /// Server URL.
+        #[clap(short, long)]
+        server: Url,
+
+        /// Keystore file containing the signing key.
+        #[clap(short, long)]
+        keystore: PathBuf,
+    },
 }
 
 /// Print the welcome information.
@@ -62,6 +70,9 @@ fn run() -> Result<()> {
     let args = Cli::parse();
 
     match args.cmd {
+        Command::Monitor { server, keystore } => {
+            monitor(server, keystore)?;
+        }
         Command::Signup {
             server,
             keystore,
@@ -70,18 +81,8 @@ fn run() -> Result<()> {
             signup(server, keystore, name)?;
         }
         Command::Shell { server, keystore } => {
-            // Decrypt the keystore and create the client.
-            let mut keystore_file = File::open(&keystore)?;
-            let mut keystore_bytes = Vec::new();
-            keystore_file.read_to_end(&mut keystore_bytes)?;
-            let keystore: KeyStore = serde_json::from_slice(&keystore_bytes)?;
-
-            let password = read_password(Some("Passphrase: "))?;
-            let signing_bytes = decrypt(&keystore, &password)?;
-
-            let signing_key: [u8; 32] = signing_bytes.as_slice().try_into()?;
-            let signer: SingleParty = (&signing_key).try_into()?;
-            let client = Arc::new(Client::new(server, Arc::new(signer)));
+            let builder = ClientBuilder::new(server, keystore);
+            let client = Arc::new(builder.build()?);
 
             welcome(client.server())?;
 

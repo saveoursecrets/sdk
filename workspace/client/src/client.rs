@@ -1,5 +1,6 @@
 //! HTTP client implementation.
 use reqwest::{Client as HttpClient, Response};
+use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
     crypto::AeadPack,
@@ -288,5 +289,11 @@ impl Client {
             .send()
             .await?;
         Ok(response.bytes().await?.to_vec())
+    }
+
+    /// Get an event source for the changes feed.
+    pub fn changes(&self) -> Result<EventSource> {
+        let url = self.server.join("/api/changes")?;
+        Ok(EventSource::get(url))
     }
 }
