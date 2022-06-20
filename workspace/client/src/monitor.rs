@@ -1,5 +1,5 @@
 use futures::stream::StreamExt;
-use reqwest_eventsource::{Event, EventSource};
+use reqwest_eventsource::Event;
 use std::path::PathBuf;
 use url::Url;
 

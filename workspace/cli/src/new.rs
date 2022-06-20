@@ -13,9 +13,6 @@ use uuid::Uuid;
 
 use sos_readline::read_stdin;
 
-const KEY_EXT: &str = "key.json";
-const PUB_EXT: &str = "pub.json";
-
 use crate::LOG_TARGET;
 
 /// Create a new empty vault
