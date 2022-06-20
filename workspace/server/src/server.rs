@@ -10,7 +10,7 @@ use axum::{
         sse::{Event, Sse},
         IntoResponse, Redirect,
     },
-    routing::{delete, get, patch, post, put},
+    routing::{get, put},
     Json, Router,
 };
 
@@ -19,11 +19,11 @@ use tower_http::cors::{CorsLayer, Origin};
 
 //use axum_macros::debug_handler;
 
-use serde::Serialize;
 use serde_json::json;
 use sos_core::{
     address::AddressStr,
     audit::{Append, Log},
+    changes::ChangeEvent,
     crypto::AeadPack,
     decode,
     operations::{Operation, Payload},
@@ -48,7 +48,7 @@ use crate::{
     headers::{
         ChangeSequence, SignedMessage, X_CHANGE_SEQUENCE, X_SIGNED_MESSAGE,
     },
-    Backend, Error, ServerConfig,
+    Backend, ServerConfig,
 };
 
 const MAX_SSE_CONNECTIONS_PER_CLIENT: u8 = 6;
@@ -58,7 +58,7 @@ struct ResponseEvent {
     /// Audit log record.
     log: Log,
     /// A server event to send to connected clients.
-    event: Option<ServerEvent>,
+    event: Option<ChangeEvent>,
 }
 
 /// Internal type used to reflect whether an operation detected
@@ -122,7 +122,7 @@ pub struct SseConnection {
     ///
     /// Handlers can send messages via this sender to broadcast
     /// to all the connected server sent events for the client.
-    tx: Sender<ServerEvent>,
+    tx: Sender<ChangeEvent>,
 
     /// Number of connected clients, used to know when
     /// the connection state can be disposed of.
@@ -149,157 +149,6 @@ pub struct State {
     /// Map of server sent event channels by authenticated
     /// client address.
     pub sse: HashMap<AddressStr, SseConnection>,
-}
-
-/// Server notifications sent over the server sent events stream.
-#[derive(Debug, Serialize, Clone)]
-pub enum ServerEvent {
-    CreateVault {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-    },
-    UpdateVault {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        change_seq: u32,
-    },
-    DeleteVault {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        change_seq: u32,
-    },
-    SetVaultName {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        change_seq: u32,
-        name: String,
-    },
-    SetVaultMeta {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        change_seq: u32,
-    },
-    CreateSecret {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        secret_id: Uuid,
-        change_seq: u32,
-    },
-    UpdateSecret {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        secret_id: Uuid,
-        change_seq: u32,
-    },
-    DeleteSecret {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        secret_id: Uuid,
-        change_seq: u32,
-    },
-}
-
-impl ServerEvent {
-    /// Name for the server sent event.
-    fn event_name(&self) -> &str {
-        match self {
-            Self::CreateVault { .. } => "createVault",
-            Self::UpdateVault { .. } => "updateVault",
-            Self::DeleteVault { .. } => "deleteVault",
-            Self::SetVaultName { .. } => "setVaultName",
-            Self::SetVaultMeta { .. } => "setVaultMeta",
-            Self::CreateSecret { .. } => "createSecret",
-            Self::UpdateSecret { .. } => "updateSecret",
-            Self::DeleteSecret { .. } => "deleteSecret",
-        }
-    }
-
-    /// Address of the client that triggered the event.
-    fn address(&self) -> &AddressStr {
-        match self {
-            Self::CreateVault { address, .. } => address,
-            Self::UpdateVault { address, .. } => address,
-            Self::DeleteVault { address, .. } => address,
-            Self::SetVaultName { address, .. } => address,
-            Self::SetVaultMeta { address, .. } => address,
-            Self::CreateSecret { address, .. } => address,
-            Self::UpdateSecret { address, .. } => address,
-            Self::DeleteSecret { address, .. } => address,
-        }
-    }
-}
-
-impl TryFrom<ServerEvent> for Event {
-    type Error = Error;
-    fn try_from(event: ServerEvent) -> std::result::Result<Self, Self::Error> {
-        let event_name = event.event_name();
-        Ok(Event::default().event(&event_name).json_data(event)?)
-    }
-}
-
-impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
-    for ServerEvent
-{
-    fn from(value: (&'u Uuid, &'a AddressStr, &'p Payload<'p>)) -> Self {
-        let (vault_id, address, payload) = value;
-        match payload {
-            Payload::CreateVault => ServerEvent::CreateVault {
-                address: address.clone(),
-                vault_id: *vault_id,
-            },
-            Payload::UpdateVault(change_seq) => ServerEvent::UpdateVault {
-                address: address.clone(),
-                change_seq: *change_seq,
-                vault_id: *vault_id,
-            },
-            Payload::DeleteVault(change_seq) => ServerEvent::DeleteVault {
-                address: address.clone(),
-                change_seq: *change_seq,
-                vault_id: *vault_id,
-            },
-            Payload::SetVaultName(change_seq, name) => {
-                ServerEvent::SetVaultName {
-                    address: address.clone(),
-                    change_seq: *change_seq,
-                    vault_id: *vault_id,
-                    name: name.to_string(),
-                }
-            }
-            Payload::CreateSecret(change_seq, secret_id, _) => {
-                ServerEvent::CreateSecret {
-                    address: address.clone(),
-                    change_seq: *change_seq,
-                    vault_id: *vault_id,
-                    secret_id: *secret_id,
-                }
-            }
-            Payload::UpdateSecret(change_seq, secret_id, _) => {
-                ServerEvent::UpdateSecret {
-                    address: address.clone(),
-                    change_seq: *change_seq,
-                    vault_id: *vault_id,
-                    secret_id: *secret_id,
-                }
-            }
-            Payload::DeleteSecret(change_seq, secret_id) => {
-                ServerEvent::DeleteSecret {
-                    address: address.clone(),
-                    change_seq: *change_seq,
-                    vault_id: *vault_id,
-                    secret_id: *secret_id,
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
 }
 
 // Server implementation.
@@ -651,7 +500,7 @@ impl VaultHandler {
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                    let event = ServerEvent::CreateVault {
+                    let event = ChangeEvent::CreateVault {
                         vault_id: *summary.id(),
                         address: token.address.clone(),
                     };
@@ -798,7 +647,7 @@ impl VaultHandler {
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                    let event = ServerEvent::DeleteVault {
+                    let event = ChangeEvent::DeleteVault {
                         vault_id: vault_id.clone(),
                         address: token.address.clone(),
                         change_seq,
@@ -854,7 +703,7 @@ impl VaultHandler {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
                     if let Ok(payload) = handle.save(&body) {
-                        let event = ServerEvent::from((
+                        let event = ChangeEvent::from((
                             &vault_id,
                             &token.address,
                             &payload,
@@ -922,7 +771,7 @@ impl VaultHandler {
                             })?;
 
                             events.push(ResponseEvent {
-                                event: Some(ServerEvent::from((
+                                event: Some(ChangeEvent::from((
                                     &vault_id,
                                     &token.address,
                                     &payload,
@@ -1031,7 +880,7 @@ impl VaultHandler {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
                     if let Ok(payload) = handle.set_vault_name(name) {
-                        let event = ServerEvent::from((
+                        let event = ChangeEvent::from((
                             &vault_id,
                             &token.address,
                             &payload,
@@ -1092,7 +941,7 @@ impl SecretHandler {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
                     if let Ok(payload) = handle.create(secret_id, secret) {
-                        let event = ServerEvent::from((
+                        let event = ChangeEvent::from((
                             &vault_id,
                             &token.address,
                             &payload,
@@ -1196,7 +1045,7 @@ impl SecretHandler {
                 } else {
                     if let Ok(result) = handle.update(&secret_id, secret) {
                         if let Some(payload) = result {
-                            let event = ServerEvent::from((
+                            let event = ChangeEvent::from((
                                 &vault_id,
                                 &token.address,
                                 &payload,
@@ -1253,7 +1102,7 @@ impl SecretHandler {
                 } else {
                     if let Ok(result) = handle.delete(&secret_id) {
                         if let Some(payload) = result {
-                            let event = ServerEvent::from((
+                            let event = ChangeEvent::from((
                                 &vault_id,
                                 &token.address,
                                 &payload,
@@ -1297,7 +1146,7 @@ async fn sse_handler(
             let conn = if let Some(conn) = writer.sse.get_mut(&token.address) {
                 conn
             } else {
-                let (tx, _) = broadcast::channel::<ServerEvent>(256);
+                let (tx, _) = broadcast::channel::<ChangeEvent>(256);
                 writer
                     .sse
                     .entry(token.address)
@@ -1354,7 +1203,11 @@ async fn sse_handler(
                 let _guard = Guard { state: stream_state, address };
                 while let Ok(event) = rx.recv().await {
                     // Must be Infallible here
-                    let event: Event = event.try_into().unwrap();
+                    let event_name = event.event_name();
+                    let event = Event::default()
+                        .event(&event_name)
+                        .json_data(event)
+                        .unwrap();
                     tracing::trace!("{:#?}", event);
                     yield Ok(event);
                 }

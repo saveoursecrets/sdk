@@ -44,4 +44,7 @@ pub enum Error {
 
     #[error(transparent)]
     UrlParse(#[from] url::ParseError),
+
+    #[error(transparent)]
+    EventSource(#[from] reqwest_eventsource::Error),
 }
