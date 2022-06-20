@@ -203,7 +203,7 @@ impl VaultAccess for VaultFileAccess {
         file.write_all(buffer)?;
 
         let change_seq = self.change_seq()?;
-        Ok(Payload::SaveVault(change_seq))
+        Ok(Payload::UpdateVault(change_seq))
     }
 
     fn create(

@@ -525,7 +525,7 @@ impl VaultAccess for Vault {
         let vault = Vault::read_buffer(buffer)?;
         *self = vault;
         let change_seq = self.change_seq()?;
-        Ok(Payload::SaveVault(change_seq))
+        Ok(Payload::UpdateVault(change_seq))
     }
 
     fn create(

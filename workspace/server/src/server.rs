@@ -166,13 +166,13 @@ pub enum ServerEvent {
         address: AddressStr,
         vault_id: Uuid,
     },
-    SaveVault {
+    UpdateVault {
         #[serde(skip)]
         address: AddressStr,
         vault_id: Uuid,
         change_seq: u32,
     },
-    UpdateVault {
+    SetVaultMeta {
         #[serde(skip)]
         address: AddressStr,
         vault_id: Uuid,
@@ -205,8 +205,8 @@ impl ServerEvent {
     fn event_name(&self) -> &str {
         match self {
             Self::CreateVault { .. } => "createVault",
-            Self::SaveVault { .. } => "saveVault",
             Self::UpdateVault { .. } => "updateVault",
+            Self::SetVaultMeta { .. } => "setVaultMeta",
             Self::DeleteVault { .. } => "deleteVault",
             Self::CreateSecret { .. } => "createSecret",
             Self::UpdateSecret { .. } => "updateSecret",
@@ -218,8 +218,8 @@ impl ServerEvent {
     fn address(&self) -> &AddressStr {
         match self {
             Self::CreateVault { address, .. } => address,
-            Self::SaveVault { address, .. } => address,
             Self::UpdateVault { address, .. } => address,
+            Self::SetVaultMeta { address, .. } => address,
             Self::DeleteVault { address, .. } => address,
             Self::CreateSecret { address, .. } => address,
             Self::UpdateSecret { address, .. } => address,
@@ -242,7 +242,7 @@ impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
     fn from(value: (&'u Uuid, &'a AddressStr, &'p Payload<'p>)) -> Self {
         let (vault_id, address, payload) = value;
         match payload {
-            Payload::SaveVault(change_seq) => ServerEvent::SaveVault {
+            Payload::UpdateVault(change_seq) => ServerEvent::UpdateVault {
                 address: address.clone(),
                 change_seq: *change_seq,
                 vault_id: *vault_id,
@@ -731,7 +731,7 @@ impl VaultHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                let (exists, _) = writer
+                let (exists, change_seq) = writer
                     .backend
                     .vault_exists(&token.address, &vault_id)
                     .await
@@ -755,7 +755,7 @@ impl VaultHandler {
                         address: token.address.clone(),
                     };
 
-                    let payload = Payload::DeleteVault;
+                    let payload = Payload::DeleteVault(change_seq);
                     Ok(MaybeConflict::Success(vec![ResponseEvent {
                         event: Some(event),
                         log: payload.into_audit_log(token.address, vault_id),

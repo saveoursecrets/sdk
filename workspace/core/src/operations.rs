@@ -99,22 +99,24 @@ mod types {
     pub const LOGIN_RESPONSE: u16 = 0x04;
     /// Type identifier for the create vault operation.
     pub const CREATE_VAULT: u16 = 0x05;
-    /// Type identifier for the save vault operation.
-    pub const SAVE_VAULT: u16 = 0x06;
     /// Type identifier for the read vault operation.
-    pub const READ_VAULT: u16 = 0x07;
+    pub const READ_VAULT: u16 = 0x06;
     /// Type identifier for the update vault operation.
-    pub const UPDATE_VAULT: u16 = 0x08;
+    pub const UPDATE_VAULT: u16 = 0x07;
     /// Type identifier for the delete vault operation.
-    pub const DELETE_VAULT: u16 = 0x09;
+    pub const DELETE_VAULT: u16 = 0x08;
+    /// Type identifier for the set vault name operation.
+    pub const SET_VAULT_NAME: u16 = 0x09;
+    /// Type identifier for the set vault meta operation.
+    pub const SET_VAULT_META: u16 = 0x0A;
     /// Type identifier for the create secret operation.
-    pub const CREATE_SECRET: u16 = 0x0A;
+    pub const CREATE_SECRET: u16 = 0x0B;
     /// Type identifier for the read secret operation.
-    pub const READ_SECRET: u16 = 0x0B;
+    pub const READ_SECRET: u16 = 0x0C;
     /// Type identifier for the update secret operation.
-    pub const UPDATE_SECRET: u16 = 0x0C;
+    pub const UPDATE_SECRET: u16 = 0x0D;
     /// Type identifier for the delete secret operation.
-    pub const DELETE_SECRET: u16 = 0x0D;
+    pub const DELETE_SECRET: u16 = 0x0E;
 }
 
 /// Operation wraps an operation type identifier and
@@ -134,12 +136,14 @@ pub enum Operation {
     LoginResponse,
     /// Operation to create a vault.
     CreateVault,
-    /// Operation to create a vault.
-    SaveVault,
     /// Operation to read a vault.
     ReadVault,
     /// Operation to update a vault.
     UpdateVault,
+    /// Operation to set vault name.
+    SetVaultName,
+    /// Operation to set vault meta data.
+    SetVaultMeta,
     /// Operation to delete a vault.
     DeleteVault,
     /// Operation to create a secret.
@@ -189,6 +193,8 @@ impl TryFrom<u16> for Operation {
             types::READ_VAULT => Ok(Operation::ReadVault),
             types::UPDATE_VAULT => Ok(Operation::UpdateVault),
             types::DELETE_VAULT => Ok(Operation::DeleteVault),
+            types::SET_VAULT_NAME => Ok(Operation::SetVaultName),
+            types::SET_VAULT_META => Ok(Operation::SetVaultMeta),
             types::CREATE_SECRET => Ok(Operation::CreateSecret),
             types::READ_SECRET => Ok(Operation::ReadSecret),
             types::UPDATE_SECRET => Ok(Operation::UpdateSecret),
@@ -207,10 +213,11 @@ impl From<&Operation> for u16 {
             Operation::LoginChallenge => types::LOGIN_CHALLENGE,
             Operation::LoginResponse => types::LOGIN_RESPONSE,
             Operation::CreateVault => types::CREATE_VAULT,
-            Operation::SaveVault => types::SAVE_VAULT,
             Operation::ReadVault => types::READ_VAULT,
             Operation::UpdateVault => types::UPDATE_VAULT,
             Operation::DeleteVault => types::DELETE_VAULT,
+            Operation::SetVaultName => types::SET_VAULT_NAME,
+            Operation::SetVaultMeta => types::SET_VAULT_META,
             Operation::CreateSecret => types::CREATE_SECRET,
             Operation::ReadSecret => types::READ_SECRET,
             Operation::UpdateSecret => types::UPDATE_SECRET,
@@ -229,10 +236,11 @@ impl fmt::Display for Operation {
                 Operation::LoginChallenge => "LOGIN_CHALLENGE",
                 Operation::LoginResponse => "LOGIN_RESPONSE",
                 Operation::CreateVault => "CREATE_VAULT",
-                Operation::SaveVault => "SAVE_VAULT",
                 Operation::ReadVault => "READ_VAULT",
                 Operation::UpdateVault => "UPDATE_VAULT",
                 Operation::DeleteVault => "DELETE_VAULT",
+                Operation::SetVaultName => "SET_VAULT_NAME",
+                Operation::SetVaultMeta => "SET_VAULT_META",
                 Operation::CreateSecret => "CREATE_SECRET",
                 Operation::ReadSecret => "READ_SECRET",
                 Operation::UpdateSecret => "UPDATE_SECRET",
@@ -254,14 +262,19 @@ pub enum Payload<'a> {
     /// Payload used to indicate a vault was created.
     CreateVault,
 
+    // TODO: read vault event!!!
+
+    /// Payload used to indicate that a vault was updated.
+    UpdateVault(u32),
+
     /// Payload used to indicate a vault was deleted.
-    DeleteVault,
+    DeleteVault(u32),
 
-    /// Payload used to indicate that a save vault operation was performed.
-    SaveVault(u32),
+    /// Set the vault name.
+    SetVaultName(u32, Cow<'a, str>),
 
-    /// Update the vault meta data.
-    UpdateVault(Cow<'a, Option<AeadPack>>),
+    /// Set the vault meta data.
+    SetVaultMeta(u32, Cow<'a, Option<AeadPack>>),
 
     /// Payload used to indicate that a secret should be
     /// created in a remote destination.
@@ -317,7 +330,11 @@ impl<'a> Payload<'a> {
     /// Get the change sequence for this payload.
     pub fn change_seq(&self) -> Option<&u32> {
         match self {
-            Self::SaveVault(change_seq) => Some(change_seq),
+            Self::CreateVault => Some(&0),
+            Self::UpdateVault(change_seq) => Some(change_seq),
+            Self::DeleteVault(change_seq) => Some(change_seq),
+            Self::SetVaultName(change_seq, _) => Some(change_seq),
+            Self::SetVaultMeta(change_seq, _) => Some(change_seq),
             Self::CreateSecret(change_seq, _, _) => Some(change_seq),
             Self::ReadSecret(change_seq, _) => Some(change_seq),
             Self::UpdateSecret(change_seq, _, _) => Some(change_seq),
@@ -330,9 +347,10 @@ impl<'a> Payload<'a> {
     pub fn operation(&self) -> Operation {
         match self {
             Payload::CreateVault => Operation::CreateVault,
-            Payload::DeleteVault => Operation::DeleteVault,
-            Payload::SaveVault(_) => Operation::SaveVault,
             Payload::UpdateVault(_) => Operation::UpdateVault,
+            Payload::DeleteVault(_) => Operation::DeleteVault,
+            Payload::SetVaultName(_, _) => Operation::SetVaultName,
+            Payload::SetVaultMeta(_, _) => Operation::SetVaultMeta,
             Payload::CreateSecret(_, _, _) => Operation::CreateSecret,
             Payload::ReadSecret(_, _) => Operation::ReadSecret,
             Payload::UpdateSecret(_, _, _) => Operation::UpdateSecret,
@@ -344,9 +362,10 @@ impl<'a> Payload<'a> {
     pub fn into_audit_log(&self, address: AddressStr, vault_id: Uuid) -> Log {
         let log_data = match self {
             Payload::CreateVault
-            | Payload::DeleteVault
-            | Payload::SaveVault(_)
-            | Payload::UpdateVault(_) => LogData::Vault(vault_id),
+            | Payload::DeleteVault(_)
+            | Payload::UpdateVault(_)
+            | Payload::SetVaultName(_, _)
+            | Payload::SetVaultMeta(_, _) => LogData::Vault(vault_id),
             Payload::CreateSecret(_, secret_id, _) => {
                 LogData::Secret(vault_id, *secret_id)
             }
@@ -370,11 +389,17 @@ impl<'a> Encode for Payload<'a> {
         op.encode(&mut *ser)?;
 
         match self {
-            Payload::CreateVault | Payload::DeleteVault => {}
-            Payload::SaveVault(change_seq) => {
+            Payload::CreateVault => {}
+            Payload::DeleteVault(change_seq)
+            | Payload::UpdateVault(change_seq) => {
                 ser.writer.write_u32(*change_seq)?;
             }
-            Payload::UpdateVault(meta) => {
+            Payload::SetVaultName(change_seq, name) => {
+                ser.writer.write_u32(*change_seq)?;
+                ser.writer.write_string(name)?;
+            }
+            Payload::SetVaultMeta(change_seq, meta) => {
+                ser.writer.write_u32(*change_seq)?;
                 ser.writer.write_bool(meta.is_some())?;
                 if let Some(meta) = meta.as_ref() {
                     meta.encode(&mut *ser)?;
@@ -412,11 +437,22 @@ impl<'a> Decode for Payload<'a> {
         let mut op: Operation = Default::default();
         op.decode(&mut *de)?;
         match op {
-            Operation::SaveVault => {
-                let change_seq = de.reader.read_u32()?;
-                *self = Payload::SaveVault(change_seq);
-            }
+            Operation::CreateVault => {}
             Operation::UpdateVault => {
+                let change_seq = de.reader.read_u32()?;
+                *self = Payload::UpdateVault(change_seq);
+            }
+            Operation::DeleteVault => {
+                let change_seq = de.reader.read_u32()?;
+                *self = Payload::DeleteVault(change_seq);
+            }
+            Operation::SetVaultName => {
+                let change_seq = de.reader.read_u32()?;
+                let name = de.reader.read_string()?;
+                *self = Payload::SetVaultName(change_seq, Cow::Owned(name));
+            }
+            Operation::SetVaultMeta => {
+                let change_seq = de.reader.read_u32()?;
                 let has_meta = de.reader.read_bool()?;
                 let aead_pack = if has_meta {
                     let mut aead_pack: AeadPack = Default::default();
@@ -425,7 +461,8 @@ impl<'a> Decode for Payload<'a> {
                 } else {
                     None
                 };
-                *self = Payload::UpdateVault(Cow::Owned(aead_pack));
+                *self =
+                    Payload::SetVaultMeta(change_seq, Cow::Owned(aead_pack));
             }
             Operation::CreateSecret => {
                 let change_seq = de.reader.read_u32()?;
