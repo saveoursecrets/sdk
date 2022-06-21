@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
     ffi::OsString,
     path::PathBuf,
@@ -6,6 +7,7 @@ use std::{
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
+use human_bytes::human_bytes;
 use url::Url;
 
 use sos_core::{
@@ -176,10 +178,6 @@ fn add_file(
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let file = PathBuf::from(&path);
 
-    if !file.is_file() {
-        return Err(Error::NotFile(file));
-    }
-
     let name = if let Some(name) = file.file_name() {
         name.to_string_lossy().into_owned()
     } else {
@@ -196,15 +194,31 @@ fn add_file(
         label = name.clone();
     }
 
+    let secret = read_file_secret(&path)?;
+    let secret_meta = SecretMeta::new(label, secret.kind());
+    Ok(Some((secret_meta, secret)))
+}
+
+fn read_file_secret(path: &str) -> Result<Secret> {
+    let file = PathBuf::from(path);
+
+    if !file.is_file() {
+        return Err(Error::NotFile(file));
+    }
+
+    let name = if let Some(name) = file.file_name() {
+        name.to_string_lossy().into_owned()
+    } else {
+        return Err(Error::FileName(file));
+    };
+
     let mime = mime_guess::from_path(&name)
         .first()
         .map(|m| m.to_string())
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
     let buffer = std::fs::read(file)?;
-    let secret = Secret::File { name, mime, buffer };
-    let secret_meta = SecretMeta::new(label, secret.kind());
-    Ok(Some((secret_meta, secret)))
+    Ok(Secret::File { name, mime, buffer })
 }
 
 #[derive(Default)]
@@ -493,8 +507,24 @@ fn exec_program(
             drop(reader);
 
             if let Some((uuid, secret_meta, secret)) = result {
-                println!("Set secret {:#?}", secret_meta);
-                let result = editor::edit(&secret)?;
+                let result =
+                    if let Secret::File { name, mime, buffer } = &secret {
+                        if mime.starts_with("text/") {
+                            editor::edit(&secret)?
+                        } else {
+                            println!(
+                                "Binary {} {} {}",
+                                name,
+                                mime,
+                                human_bytes(buffer.len() as f64)
+                            );
+                            let file_path = read_line(Some("File path: "))?;
+                            Cow::Owned(read_file_secret(&file_path)?)
+                        }
+                    } else {
+                        editor::edit(&secret)?
+                    };
+
                 println!("Got result {:#?}", result);
             } else {
                 return Err(Error::SecretNotAvailable(secret));

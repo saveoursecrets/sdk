@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     collections::HashMap,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, ExitStatus},
 };
 
@@ -26,13 +26,21 @@ fn spawn_editor<P: AsRef<Path>>(cmd: String, file: P) -> Result<ExitStatus> {
 }
 
 /// Convert the secret to bytes to be written to the tempfile.
-fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, &str)> {
+fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
     Ok(match secret {
-        Secret::Note(text) => (text.as_bytes().to_vec(), ".txt"),
+        Secret::Note(text) => (text.as_bytes().to_vec(), ".txt".to_string()),
         Secret::List(_) | Secret::Account { .. } => {
-            (serde_json::to_vec(secret)?, ".json")
+            (serde_json::to_vec(secret)?, ".json".to_string())
         }
-        _ => todo!(),
+        Secret::File { name, buffer, .. } => {
+            let file_path = PathBuf::from(name);
+            let suffix = if let Some(ext) = file_path.extension() {
+                format!(".{}", ext.to_string_lossy())
+            } else {
+                ".txt".to_string()
+            };
+            (buffer.to_vec(), suffix)
+        }
     })
 }
 
@@ -45,7 +53,11 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         Secret::List(_) | Secret::Account { .. } => {
             serde_json::from_slice::<Secret>(content)?
         }
-        _ => todo!(),
+        Secret::File { name, mime, .. } => Secret::File {
+            name: name.clone(),
+            mime: mime.clone(),
+            buffer: content.to_vec(),
+        },
     })
 }
 
@@ -91,5 +103,5 @@ fn edit_secret<'a>(
 /// Edit a secret.
 pub fn edit<'a>(secret: &'a Secret) -> Result<EditResult<'a>> {
     let (content, suffix) = to_bytes(secret)?;
-    Ok(edit_secret(&secret, content, suffix)?)
+    Ok(edit_secret(&secret, content, &suffix)?)
 }
