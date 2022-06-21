@@ -23,6 +23,8 @@ use crate::{
     display_passphrase, run_blocking, Client, Error, Result, VaultInfo,
 };
 
+mod arg_parser;
+
 /// Secret storage shell.
 #[derive(Parser, Debug)]
 #[clap(name = "sos-shell", author, version, about, long_about = None)]
