@@ -47,9 +47,11 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
 /// Convert back from the tempfile bytes to a secret.
 fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
     Ok(match secret {
-        Secret::Note(_) => {
-            Secret::Note(std::str::from_utf8(content)?.to_string())
-        }
+        Secret::Note(_) => Secret::Note(
+            std::str::from_utf8(content)?
+                .trim_end_matches('\n')
+                .to_string(),
+        ),
         Secret::List(_) | Secret::Account { .. } => {
             serde_json::from_slice::<Secret>(content)?
         }

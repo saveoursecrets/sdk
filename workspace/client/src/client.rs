@@ -251,6 +251,32 @@ impl Client {
         Ok(response)
     }
 
+    /// Update a secret.
+    pub async fn update_secret(
+        &self,
+        vault_id: &Uuid,
+        secret_id: &Uuid,
+        secret: &(AeadPack, AeadPack),
+        change_seq: u32,
+    ) -> Result<Response> {
+        let url = self.server.join(&format!(
+            "api/vaults/{}/secrets/{}",
+            vault_id, secret_id
+        ))?;
+        let body = serde_json::to_vec(secret)?;
+        let signature =
+            self.encode_signature(self.signer.sign(&body).await?)?;
+        let response = self
+            .http_client
+            .post(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
+            .body(body)
+            .send()
+            .await?;
+        Ok(response)
+    }
+
     /// Send a read secret event to the server.
     pub async fn read_secret(
         &self,

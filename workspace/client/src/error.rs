@@ -46,6 +46,9 @@ pub enum Error {
     #[error("failed to add secret, got status code {0}")]
     AddSecret(u16),
 
+    #[error("failed to set secret, got status code {0}")]
+    SetSecret(u16),
+
     #[error("editor command did not exit successfully, status {0}")]
     EditorExit(i32),
 

@@ -506,26 +506,61 @@ fn exec_program(
             };
             drop(reader);
 
-            if let Some((uuid, secret_meta, secret)) = result {
-                let result =
-                    if let Secret::File { name, mime, buffer } = &secret {
-                        if mime.starts_with("text/") {
-                            editor::edit(&secret)?
-                        } else {
-                            println!(
-                                "Binary {} {} {}",
-                                name,
-                                mime,
-                                human_bytes(buffer.len() as f64)
-                            );
-                            let file_path = read_line(Some("File path: "))?;
-                            Cow::Owned(read_file_secret(&file_path)?)
-                        }
+            if let Some((uuid, secret_meta, secret_data)) = result {
+                let result = if let Secret::File { name, mime, buffer } =
+                    &secret_data
+                {
+                    if mime.starts_with("text/") {
+                        editor::edit(&secret_data)?
                     } else {
-                        editor::edit(&secret)?
-                    };
+                        println!(
+                            "Binary {} {} {}",
+                            name,
+                            mime,
+                            human_bytes(buffer.len() as f64)
+                        );
+                        let file_path = read_line(Some("File path: "))?;
+                        Cow::Owned(read_file_secret(&file_path)?)
+                    }
+                } else {
+                    editor::edit(&secret_data)?
+                };
 
-                println!("Got result {:#?}", result);
+                if let Cow::Owned(edited_secret) = result {
+                    let mut writer = state.write().unwrap();
+                    if let Some(keeper) = writer.current.as_mut() {
+                        let vault_id = *keeper.id();
+
+                        if let Some(payload) = keeper.update(
+                            &uuid,
+                            secret_meta,
+                            edited_secret,
+                        )? {
+                            if let Payload::UpdateSecret(
+                                change_seq,
+                                uuid,
+                                value,
+                            ) = payload
+                            {
+                                let response =
+                                    run_blocking(client.update_secret(
+                                        &vault_id, &uuid, &*value, change_seq,
+                                    ))?;
+                                if !response.status().is_success() {
+                                    return Err(Error::SetSecret(
+                                        response.status().into(),
+                                    ));
+                                }
+                            } else {
+                                unreachable!(
+                                    "expected update secret payload"
+                                );
+                            }
+                        } else {
+                            return Err(Error::SecretNotAvailable(secret));
+                        }
+                    }
+                }
             } else {
                 return Err(Error::SecretNotAvailable(secret));
             }
