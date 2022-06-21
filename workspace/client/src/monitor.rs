@@ -92,7 +92,7 @@ async fn stream(client: Client) -> Result<()> {
 pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
     let client = ClientBuilder::new(server, keystore).build()?;
     if let Err(e) = run_blocking(stream(client)) {
-        eprintln!("{}", e);
+        tracing::error!("{}", e);
         std::process::exit(1);
     }
     Ok(())

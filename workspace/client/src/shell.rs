@@ -158,7 +158,7 @@ fn add_credentials(
     loop {
         let mut name = read_line(Some("Name: "))?;
         while credentials.get(&name).is_some() {
-            eprintln!("name '{}' already exists", &name);
+            tracing::error!("name '{}' already exists", &name);
             name = read_line(Some("Name: "))?;
         }
         let value = read_password(Some("Value: "))?;
@@ -487,12 +487,12 @@ fn exec_program(
         }
         ShellCommand::Del { secret } => {
             let reader = state.read().unwrap();
-            let uuid = if let Some(keeper) = &reader.current {
+            let result = if let Some(keeper) = &reader.current {
                 let meta_data = keeper.meta_data()?;
-                if let Some((uuid, _)) =
+                if let Some((uuid, secret_meta)) =
                     keeper.find_by_uuid_or_label(&meta_data, &secret)
                 {
-                    Some(*uuid)
+                    Some((*uuid, secret_meta.clone()))
                 } else {
                     None
                 }
@@ -501,17 +501,21 @@ fn exec_program(
             };
             drop(reader);
 
-            if let Some(uuid) = uuid {
-                let mut writer = state.write().unwrap();
-                if let Some(keeper) = writer.current.as_mut() {
-                    if let Some(payload) = keeper.delete(&uuid)? {
-                        run_blocking(client.delete_secret(
-                            *payload.change_seq().unwrap(),
-                            keeper.id(),
-                            &uuid,
-                        ))?;
-                    } else {
-                        return Err(ShellError::SecretNotAvailable(secret));
+            if let Some((uuid, secret_meta)) = result {
+                let prompt =
+                    format!(r#"Delete "{}" (y/n)? "#, secret_meta.label());
+                if read_flag(Some(&prompt))? {
+                    let mut writer = state.write().unwrap();
+                    if let Some(keeper) = writer.current.as_mut() {
+                        if let Some(payload) = keeper.delete(&uuid)? {
+                            run_blocking(client.delete_secret(
+                                *payload.change_seq().unwrap(),
+                                keeper.id(),
+                                &uuid,
+                            ))?;
+                        } else {
+                            return Err(ShellError::SecretNotAvailable(secret));
+                        }
                     }
                 }
             } else {

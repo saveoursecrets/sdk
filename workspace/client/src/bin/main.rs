@@ -93,7 +93,7 @@ fn run() -> Result<()> {
             if let Err(e) =
                 list_vaults(Arc::clone(&client), Arc::clone(&state), false)
             {
-                eprintln!(
+                tracing::error!(
                     "failed to list vaults, identity may not exist: {}",
                     e
                 );
@@ -114,7 +114,7 @@ fn run() -> Result<()> {
                     let client = Arc::clone(&client);
                     let state = Arc::clone(&state);
                     if let Err(e) = exec(&line, client, state) {
-                        eprintln!("{}", e);
+                        tracing::error!("{}", e);
                     }
                 },
                 prompt,
@@ -137,7 +137,7 @@ fn main() -> Result<()> {
     match run() {
         Ok(_) => {}
         Err(e) => {
-            eprintln!("{}", e);
+            tracing::error!("{}", e);
         }
     }
     Ok(())
