@@ -4,8 +4,11 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("file {0} is not a directory")]
+    #[error("path {0} is not a directory")]
     NotDirectory(PathBuf),
+
+    #[error("path {0} is not a file")]
+    NotFile(PathBuf),
 
     #[error("file {0} already exists")]
     FileExists(PathBuf),

@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     ffi::OsString,
+    path::PathBuf,
     sync::{Arc, RwLock},
 };
 
@@ -78,7 +79,7 @@ enum Add {
     Note { label: Option<String> },
     Credentials { label: Option<String> },
     Account { label: Option<String> },
-    File { path: String },
+    File { path: String, label: Option<String> },
 }
 
 fn get_label(label: Option<String>) -> Result<String> {
@@ -160,49 +161,40 @@ fn add_account(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
     Ok(Some((secret_meta, secret)))
 }
 
-fn add_file(path: String) -> Result<Option<(SecretMeta, Secret)>> {
-    todo!()
-
-    /*
-    let file_path = PathBuf::from(&path)?;
+fn add_file(
+    path: String,
+    label: Option<String>,
+) -> Result<Option<(SecretMeta, Secret)>> {
+    let file = PathBuf::from(&path);
 
     if !file.is_file() {
+        return Err(Error::NotFile(file));
     }
 
-    //let mut keeper = load_vault(&vault)?;
-    //let vault_meta = unlock_vault(&mut keeper, false)?;
-    //let meta_data = keeper.meta_data()?;
-
-    let mime = if let Some(name) = file.file_name() {
-        if let Some(name) = name.to_str() {
-            mime_guess::from_path(name).first().map(|m| m.to_string())
-        } else {
-            None
-        }
+    let name = if let Some(name) = file.file_name() {
+        Some(name.to_string_lossy().into_owned())
     } else {
         None
     };
 
-    /*
-    let mut label = if let Some(label) = label {
-        label
+    let label = label.unwrap_or({
+        if let Some(name) = &name {
+            name.clone()
+        } else {
+            get_label(None)?
+        }
+    });
+
+    let mime = if let Some(name) = &name {
+        mime_guess::from_path(name).first().map(|m| m.to_string())
     } else {
-        file.file_name()
-            .ok_or_else(|| anyhow!("not a valid filename"))
-            .map(|name| name.to_string_lossy().into_owned())?
+        Some("application/octet-stream".to_string())
     };
-    */
 
     let buffer = std::fs::read(file)?;
-    let secret = Secret::Blob {
-        buffer,
-        mime,
-        name: None,
-    };
+    let secret = Secret::Blob { buffer, mime, name };
     let secret_meta = SecretMeta::new(label, secret.kind());
     Ok(Some((secret_meta, secret)))
-
-    */
 }
 
 #[derive(Default)]
@@ -429,7 +421,7 @@ fn exec_program(
                     Add::Note { label } => add_note(label)?,
                     Add::Credentials { label } => add_credentials(label)?,
                     Add::Account { label } => add_account(label)?,
-                    Add::File { path } => add_file(path)?,
+                    Add::File { path, label } => add_file(path, label)?,
                 };
 
                 if let Some((secret_meta, secret)) = result {

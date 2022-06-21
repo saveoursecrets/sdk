@@ -2657,6 +2657,7 @@ dependencies = [
  "futures",
  "hex",
  "k256",
+ "mime_guess",
  "rand 0.8.5",
  "reqwest",
  "reqwest-eventsource",
