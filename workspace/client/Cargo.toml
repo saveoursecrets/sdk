@@ -26,6 +26,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 mime_guess = "2"
 logos = "0.12"
+human_bytes = "0.3"
 
 [[bin]]
 name = "sos-client"

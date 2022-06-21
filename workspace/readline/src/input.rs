@@ -108,13 +108,25 @@ where
     }
 }
 
-/// Read a non-empty string.
+pub fn read_line_allow_empty(prompt: Option<&str>) -> Result<String> {
+    read_line_value(prompt, true)
+}
+
+/// Read a string that may not be the empty string.
 pub fn read_line(prompt: Option<&str>) -> Result<String> {
+    read_line_value(prompt, false)
+}
+
+fn read_line_value(prompt: Option<&str>, allows_empty: bool) -> Result<String> {
     let mut rl = rustyline::Editor::<()>::new();
     loop {
         let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
         match readline {
             Ok(line) => {
+                if allows_empty {
+                    return Ok(line);
+                }
+
                 if !line.trim().is_empty() {
                     return Ok(line);
                 }

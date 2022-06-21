@@ -103,9 +103,9 @@ impl SecretMeta {
     pub fn short_name(&self) -> &str {
         match self.kind {
             kind::ACCOUNT => "ACCT",
-            kind::TEXT => "NOTE",
-            kind::CREDENTIALS => "LIST",
-            kind::BLOB => "FILE",
+            kind::NOTE => "NOTE",
+            kind::LIST => "LIST",
+            kind::FILE => "FILE",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }
@@ -132,16 +132,17 @@ impl Decode for SecretMeta {
 #[serde(untagged)]
 pub enum Secret {
     /// A UTF-8 encoded note.
-    Text(String),
+    Note(String),
     /// A binary blob.
-    Blob {
+    File {
+        /// File name.
+        name: String,
+        /// Mime type for the data.
+        ///
+        /// Use application/octet-stream if no mime-type is available.
+        mime: String,
         /// The binary data.
         buffer: Vec<u8>,
-        /// Optional mime type for the data.
-        mime: Option<String>,
-        /// Optional name used to guess the mime type.
-        #[serde(skip)]
-        name: Option<String>,
     },
     /// Account with login password.
     Account {
@@ -153,17 +154,17 @@ pub enum Secret {
         password: String,
     },
     /// Collection of credentials as key/value pairs.
-    Credentials(HashMap<String, String>),
+    List(HashMap<String, String>),
 }
 
 impl Secret {
     /// Get a human readable name for the type of secret.
     pub fn type_name(kind: u8) -> &'static str {
         match kind {
-            kind::TEXT => "Note",
-            kind::BLOB => "File",
+            kind::NOTE => "Note",
+            kind::FILE => "File",
             kind::ACCOUNT => "Account",
-            kind::CREDENTIALS => "Credentials",
+            kind::LIST => "List",
             _ => unreachable!(),
         }
     }
@@ -171,17 +172,17 @@ impl Secret {
     /// Get the kind identifier for this secret.
     pub fn kind(&self) -> u8 {
         match self {
-            Secret::Text(_) => kind::TEXT,
-            Secret::Blob { .. } => kind::BLOB,
+            Secret::Note(_) => kind::NOTE,
+            Secret::File { .. } => kind::FILE,
             Secret::Account { .. } => kind::ACCOUNT,
-            Secret::Credentials(_) => kind::CREDENTIALS,
+            Secret::List(_) => kind::LIST,
         }
     }
 }
 
 impl Default for Secret {
     fn default() -> Self {
-        Self::Text(String::new())
+        Self::Note(String::new())
     }
 }
 
@@ -194,34 +195,32 @@ pub mod kind {
     /// Account password type.
     pub const ACCOUNT: u8 = 0x01;
     /// Note UTF-8 text type.
-    pub const TEXT: u8 = 0x02;
+    pub const NOTE: u8 = 0x02;
     /// List of credentials key / value pairs.
-    pub const CREDENTIALS: u8 = 0x03;
+    pub const LIST: u8 = 0x03;
     /// Binary blob, may be file content.
-    pub const BLOB: u8 = 0x04;
+    pub const FILE: u8 = 0x04;
 }
 
 impl Encode for Secret {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         let kind = match self {
-            Self::Text(_) => kind::TEXT,
-            Self::Blob { .. } => kind::BLOB,
+            Self::Note(_) => kind::NOTE,
+            Self::File { .. } => kind::FILE,
             Self::Account { .. } => kind::ACCOUNT,
-            Self::Credentials { .. } => kind::CREDENTIALS,
+            Self::List { .. } => kind::LIST,
         };
         ser.writer.write_u8(kind)?;
 
         match self {
-            Self::Text(text) => {
+            Self::Note(text) => {
                 ser.writer.write_string(text)?;
             }
-            Self::Blob { buffer, mime, .. } => {
+            Self::File { name, mime, buffer } => {
+                ser.writer.write_string(name)?;
+                ser.writer.write_string(mime)?;
                 ser.writer.write_u32(buffer.len() as u32)?;
                 ser.writer.write_bytes(buffer)?;
-                ser.writer.write_bool(mime.is_some())?;
-                if let Some(mime) = mime {
-                    ser.writer.write_string(mime)?;
-                }
             }
             Self::Account {
                 account,
@@ -235,7 +234,7 @@ impl Encode for Secret {
                     ser.writer.write_string(url)?;
                 }
             }
-            Self::Credentials(list) => {
+            Self::List(list) => {
                 ser.writer.write_u32(list.len() as u32)?;
                 for (k, v) in list {
                     ser.writer.write_string(k)?;
@@ -252,24 +251,17 @@ impl Decode for Secret {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let kind = de.reader.read_u8()?;
         match kind {
-            kind::TEXT => {
-                *self = Self::Text(de.reader.read_string()?);
+            kind::NOTE => {
+                *self = Self::Note(de.reader.read_string()?);
             }
-            kind::BLOB => {
+            kind::FILE => {
+                let name = de.reader.read_string()?;
+                let mime = de.reader.read_string()?;
                 let buffer_len = de.reader.read_u32()?;
                 let buffer = de.reader.read_bytes(buffer_len as usize)?;
-                let has_mime = de.reader.read_bool()?;
-                let mime = if has_mime {
-                    Some(de.reader.read_string()?)
-                } else {
-                    None
-                };
 
-                *self = Self::Blob {
-                    buffer,
-                    mime,
-                    name: None,
-                };
+                // FIXME: ensure name is handled correctly
+                *self = Self::File { name, mime, buffer };
             }
             kind::ACCOUNT => {
                 let account = de.reader.read_string()?;
@@ -290,7 +282,7 @@ impl Decode for Secret {
                     url,
                 };
             }
-            kind::CREDENTIALS => {
+            kind::LIST => {
                 let list_len = de.reader.read_u32()?;
                 let mut list: HashMap<String, String> =
                     HashMap::with_capacity(list_len as usize);
@@ -300,7 +292,7 @@ impl Decode for Secret {
                     list.insert(key, value);
                 }
 
-                *self = Self::Credentials(list);
+                *self = Self::List(list);
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(

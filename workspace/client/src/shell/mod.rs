@@ -16,7 +16,8 @@ use sos_core::{
     vault::{encode, Summary, Vault},
 };
 use sos_readline::{
-    read_flag, read_line, read_multiline, read_option, read_password,
+    read_flag, read_line, read_line_allow_empty, read_multiline, read_option,
+    read_password,
 };
 
 use crate::{
@@ -24,6 +25,7 @@ use crate::{
 };
 
 mod dequote;
+mod print;
 
 /// Secret storage shell.
 #[derive(Parser, Debug)]
@@ -79,7 +81,7 @@ enum ShellCommand {
 #[derive(Subcommand, Debug)]
 enum Add {
     Note { label: Option<String> },
-    Credentials { label: Option<String> },
+    List { label: Option<String> },
     Account { label: Option<String> },
     File { path: String, label: Option<String> },
 }
@@ -104,7 +106,7 @@ fn add_note(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
 
     if let Some(note) = read_multiline(None)? {
         let note = note.trim_end_matches('\n').to_string();
-        let secret = Secret::Text(note);
+        let secret = Secret::Note(note);
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
     } else {
@@ -133,7 +135,7 @@ fn add_credentials(
     }
 
     if !credentials.is_empty() {
-        let secret = Secret::Credentials(credentials);
+        let secret = Secret::List(credentials);
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
     } else {
@@ -174,27 +176,28 @@ fn add_file(
     }
 
     let name = if let Some(name) = file.file_name() {
-        Some(name.to_string_lossy().into_owned())
+        name.to_string_lossy().into_owned()
     } else {
-        None
+        return Err(Error::FileName(file));
     };
 
-    let label = label.unwrap_or({
-        if let Some(name) = &name {
-            name.clone()
-        } else {
-            get_label(None)?
-        }
-    });
-
-    let mime = if let Some(name) = &name {
-        mime_guess::from_path(name).first().map(|m| m.to_string())
+    let mut label = if let Some(label) = label {
+        label
     } else {
-        Some("application/octet-stream".to_string())
+        read_line_allow_empty(Some("Label: "))?
     };
+
+    if label.is_empty() {
+        label = name.clone();
+    }
+
+    let mime = mime_guess::from_path(&name)
+        .first()
+        .map(|m| m.to_string())
+        .unwrap_or_else(|| "application/octet-stream".to_string());
 
     let buffer = std::fs::read(file)?;
-    let secret = Secret::Blob { buffer, mime, name };
+    let secret = Secret::File { name, mime, buffer };
     let secret_meta = SecretMeta::new(label, secret.kind());
     Ok(Some((secret_meta, secret)))
 }
@@ -205,24 +208,6 @@ pub struct ShellState {
     pub summaries: Vec<Summary>,
     /// Currently selected vault.
     pub current: Option<Gatekeeper>,
-}
-
-fn print_summaries_list(summaries: &[Summary]) -> Result<()> {
-    for (index, summary) in summaries.iter().enumerate() {
-        println!("{}) {} {}", index + 1, summary.name(), summary.id());
-    }
-    Ok(())
-}
-
-fn print_summary(summary: &Summary) -> Result<()> {
-    println!(
-        "Version {} using {} at #{}",
-        summary.version(),
-        summary.algorithm(),
-        summary.change_seq()
-    );
-    println!("{} {}", summary.name(), summary.id());
-    Ok(())
 }
 
 /// Execute the program command.
@@ -330,7 +315,7 @@ fn exec_program(
             let reader = state.read().unwrap();
             if let Some(keeper) = &reader.current {
                 let summary = keeper.summary();
-                print_summary(summary)?;
+                print::summary(summary);
             } else {
                 return Err(Error::NoVaultSelected);
             }
@@ -421,7 +406,7 @@ fn exec_program(
                 let id = *keeper.id();
                 let result = match cmd {
                     Add::Note { label } => add_note(label)?,
-                    Add::Credentials { label } => add_credentials(label)?,
+                    Add::List { label } => add_credentials(label)?,
                     Add::Account { label } => add_account(label)?,
                     Add::File { path, label } => add_file(path, label)?,
                 };
@@ -463,12 +448,7 @@ fn exec_program(
                     if let Some((secret_meta, secret_data, payload)) =
                         keeper.read(uuid)?
                     {
-                        println!(
-                            "[{}] {}",
-                            Secret::type_name(*secret_meta.kind()),
-                            secret_meta.label()
-                        );
-                        println!("{:#?}", secret_data);
+                        print::secret(&secret_meta, &secret_data);
 
                         run_blocking(client.read_secret(
                             keeper.change_seq()?,
@@ -563,7 +543,7 @@ pub fn list_vaults(
 ) -> Result<()> {
     let summaries = run_blocking(client.list_vaults())?;
     if print {
-        print_summaries_list(&summaries)?;
+        print::summaries_list(&summaries);
     }
     let mut writer = state.write().unwrap();
     writer.summaries = summaries;
@@ -576,22 +556,24 @@ pub fn exec(
     client: Arc<Client>,
     state: Arc<RwLock<ShellState>>,
 ) -> Result<()> {
-    let mut sanitized = dequote::group(line.trim_end_matches(' '));
-    sanitized.insert(0, String::from("sos-shell"));
-    let it = sanitized.into_iter();
-    let mut cmd = Shell::command();
-    if line == "-V" {
-        let version = cmd.render_version();
-        print!("{}", version);
-    } else if line == "version" || line == "--version" {
-        let version = cmd.render_long_version();
-        print!("{}", version);
-    } else if line == "-h" {
-        cmd.print_help()?;
-    } else if line == "help" || line == "--help" {
-        cmd.print_long_help()?;
-    } else {
-        exec_args(it, client, state)?;
+    if !line.trim().is_empty() {
+        let mut sanitized = dequote::group(line.trim_end_matches(' '));
+        sanitized.insert(0, String::from("sos-shell"));
+        let it = sanitized.into_iter();
+        let mut cmd = Shell::command();
+        if line == "-V" {
+            let version = cmd.render_version();
+            print!("{}", version);
+        } else if line == "version" || line == "--version" {
+            let version = cmd.render_long_version();
+            print!("{}", version);
+        } else if line == "-h" {
+            cmd.print_help()?;
+        } else if line == "help" || line == "--help" {
+            cmd.print_long_help()?;
+        } else {
+            exec_args(it, client, state)?;
+        }
     }
     Ok(())
 }

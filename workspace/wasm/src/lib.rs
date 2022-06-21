@@ -138,18 +138,18 @@ impl WebVault {
     pub fn create(&mut self, request: JsValue) -> Result<JsValue, JsError> {
         let mut data: SecretData = request.into_serde()?;
 
-        if let Secret::Blob {
+        if let Secret::File {
             ref mut mime,
             ref name,
             ..
         } = data.secret
         {
-            if let Some(name) = name {
-                if let Some(mime_type) =
-                    mime_guess::from_path(name).first().map(|m| m.to_string())
-                {
-                    *mime = Some(mime_type);
-                }
+            if let Some(mime_type) =
+                mime_guess::from_path(name).first().map(|m| m.to_string())
+            {
+                *mime = mime_type;
+            } else {
+                *mime = "application/octet-stream".to_string();
             }
         }
 
@@ -172,27 +172,7 @@ impl WebVault {
             JsError::new("update requires a valid identifier")
         })?;
 
-        if let Secret::Blob {
-            ref mut mime,
-            ref name,
-            ..
-        } = data.secret
-        {
-            if mime.is_none() {
-                if let Some(name) = name {
-                    if let Some(mime_type) = mime_guess::from_path(name)
-                        .first()
-                        .map(|m| m.to_string())
-                    {
-                        *mime = Some(mime_type);
-                    }
-                }
-            }
-        }
-
-        console_log!("Updating secret");
         let payload = self.keeper.update(uuid, data.meta, data.secret)?;
-        console_log!("Secret update completed!");
         Ok(JsValue::from_serde(&payload)?)
     }
 

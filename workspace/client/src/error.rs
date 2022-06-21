@@ -13,6 +13,9 @@ pub enum Error {
     #[error("file {0} already exists")]
     FileExists(PathBuf),
 
+    #[error("path {0} does not have a file name")]
+    FileName(PathBuf),
+
     #[error("failed to create account, got status code {0}")]
     AccountCreate(u16),
 
