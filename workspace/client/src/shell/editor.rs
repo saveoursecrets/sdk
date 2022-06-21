@@ -1,3 +1,8 @@
+//! Spawn an editor to edit a secret.
+//!
+//! VIM users should use `set nofixendofline` in their .vimrc
+//! to prevent an appended newline changing the file automatically.
+//!
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -30,7 +35,7 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
     Ok(match secret {
         Secret::Note(text) => (text.as_bytes().to_vec(), ".txt".to_string()),
         Secret::List(_) | Secret::Account { .. } => {
-            (serde_json::to_vec(secret)?, ".json".to_string())
+            (serde_json::to_vec_pretty(secret)?, ".json".to_string())
         }
         Secret::File { name, buffer, .. } => {
             let file_path = PathBuf::from(name);
