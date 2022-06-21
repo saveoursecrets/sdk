@@ -48,6 +48,7 @@ impl ClientBuilder {
         Self { server, keystore }
     }
 
+    /// Build a client implementation wrapping a signing key.
     pub fn build(self) -> Result<Client> {
         // Decrypt the keystore and create the client.
         let mut keystore_file = File::open(&self.keystore)?;

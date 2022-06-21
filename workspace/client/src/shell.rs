@@ -5,7 +5,6 @@ use std::{
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
-use thiserror::Error;
 use url::Url;
 
 use sos_core::{
@@ -19,49 +18,9 @@ use sos_readline::{
     read_flag, read_line, read_multiline, read_option, read_password,
 };
 
-use crate::{display_passphrase, run_blocking, Client, Result, VaultInfo};
-
-#[derive(Debug, Error)]
-pub enum ShellError {
-    #[error(r#"vault "{0}" not found, run "vaults" to load the vault list"#)]
-    VaultNotAvailable(UuidOrName),
-
-    #[error("failed to unlock vault")]
-    VaultUnlockFail,
-
-    #[error(r#"no vault selected, run "use" to select a vault"#)]
-    NoVaultSelected,
-
-    #[error(r#"secret "{0}" not found"#)]
-    SecretNotAvailable(UuidOrName),
-
-    #[error("failed to create vault, got status code {0}")]
-    VaultCreate(u16),
-
-    #[error("failed to delete vault, got status code {0}")]
-    VaultRemove(u16),
-
-    #[error("failed to set vault name, got status code {0}")]
-    SetVaultName(u16),
-
-    #[error("failed to add secret, got status code {0}")]
-    AddSecret(u16),
-
-    #[error(transparent)]
-    Clap(#[from] clap::Error),
-
-    #[error(transparent)]
-    Core(#[from] sos_core::Error),
-
-    #[error(transparent)]
-    Client(#[from] crate::Error),
-
-    #[error(transparent)]
-    Readline(#[from] sos_readline::Error),
-
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-}
+use crate::{
+    display_passphrase, run_blocking, Client, Error, Result, VaultInfo,
+};
 
 /// Secret storage shell.
 #[derive(Parser, Debug)]
@@ -119,6 +78,7 @@ enum Add {
     Note { label: Option<String> },
     Credentials { label: Option<String> },
     Account { label: Option<String> },
+    File { path: String },
 }
 
 fn get_label(label: Option<String>) -> Result<String> {
@@ -200,6 +160,51 @@ fn add_account(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
     Ok(Some((secret_meta, secret)))
 }
 
+fn add_file(path: String) -> Result<Option<(SecretMeta, Secret)>> {
+    todo!()
+
+    /*
+    let file_path = PathBuf::from(&path)?;
+
+    if !file.is_file() {
+    }
+
+    //let mut keeper = load_vault(&vault)?;
+    //let vault_meta = unlock_vault(&mut keeper, false)?;
+    //let meta_data = keeper.meta_data()?;
+
+    let mime = if let Some(name) = file.file_name() {
+        if let Some(name) = name.to_str() {
+            mime_guess::from_path(name).first().map(|m| m.to_string())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    /*
+    let mut label = if let Some(label) = label {
+        label
+    } else {
+        file.file_name()
+            .ok_or_else(|| anyhow!("not a valid filename"))
+            .map(|name| name.to_string_lossy().into_owned())?
+    };
+    */
+
+    let buffer = std::fs::read(file)?;
+    let secret = Secret::Blob {
+        buffer,
+        mime,
+        name: None,
+    };
+    let secret_meta = SecretMeta::new(label, secret.kind());
+    Ok(Some((secret_meta, secret)))
+
+    */
+}
+
 #[derive(Default)]
 pub struct ShellState {
     /// Vaults managed by this signer.
@@ -231,7 +236,7 @@ fn exec_program(
     program: Shell,
     client: Arc<Client>,
     state: Arc<RwLock<ShellState>>,
-) -> std::result::Result<(), ShellError> {
+) -> Result<()> {
     match program.cmd {
         ShellCommand::Vaults => list_vaults(client, state, true)?,
         ShellCommand::Create { name } => {
@@ -244,7 +249,7 @@ fn exec_program(
             let response = run_blocking(client.create_vault(buffer))?;
 
             if !response.status().is_success() {
-                return Err(ShellError::VaultCreate(response.status().into()));
+                return Err(Error::VaultCreate(response.status().into()));
             }
             display_passphrase(
                 "Encryption passphrase",
@@ -274,7 +279,7 @@ fn exec_program(
                     let response =
                         run_blocking(client.delete_vault(summary.id()))?;
                     if !response.status().is_success() {
-                        return Err(ShellError::VaultRemove(
+                        return Err(Error::VaultRemove(
                             response.status().into(),
                         ));
                     }
@@ -298,7 +303,7 @@ fn exec_program(
                     list_vaults(client, state, false)?;
                 }
             } else {
-                return Err(ShellError::VaultNotAvailable(vault));
+                return Err(Error::VaultNotAvailable(vault));
             }
         }
         ShellCommand::Use { vault } => {
@@ -321,10 +326,10 @@ fn exec_program(
                 if let Ok(_) = keeper.unlock(&password) {
                     writer.current = Some(keeper);
                 } else {
-                    return Err(ShellError::VaultUnlockFail);
+                    return Err(Error::VaultUnlockFail);
                 }
             } else {
-                return Err(ShellError::VaultNotAvailable(vault));
+                return Err(Error::VaultNotAvailable(vault));
             }
         }
         ShellCommand::Info => {
@@ -333,7 +338,7 @@ fn exec_program(
                 let summary = keeper.summary();
                 print_summary(summary)?;
             } else {
-                return Err(ShellError::NoVaultSelected);
+                return Err(Error::NoVaultSelected);
             }
         }
         ShellCommand::Seq => {
@@ -348,7 +353,7 @@ fn exec_program(
                     local_change_seq, remote_change_seq
                 );
             } else {
-                return Err(ShellError::NoVaultSelected);
+                return Err(Error::NoVaultSelected);
             }
         }
         ShellCommand::Name { name } => {
@@ -362,7 +367,7 @@ fn exec_program(
                         &name,
                     ))?;
                     if !response.status().is_success() {
-                        return Err(ShellError::SetVaultName(
+                        return Err(Error::SetVaultName(
                             response.status().into(),
                         ));
                     }
@@ -373,7 +378,7 @@ fn exec_program(
                     false
                 }
             } else {
-                return Err(ShellError::NoVaultSelected);
+                return Err(Error::NoVaultSelected);
             };
 
             if renamed {
@@ -388,7 +393,7 @@ fn exec_program(
                     println!("{}", uuid);
                 }
             } else {
-                return Err(ShellError::NoVaultSelected);
+                return Err(Error::NoVaultSelected);
             }
         }
         ShellCommand::List { verbose } => {
@@ -401,18 +406,18 @@ fn exec_program(
                         print!("[{}] ", short_name);
 
                         if verbose {
-                            println!("{} {}", label, uuid,);
+                            println!("{} {}", label, uuid);
                         } else {
-                            println!("{}", label,);
+                            println!("{}", label);
                         }
                     } else {
-                        return Err(ShellError::SecretNotAvailable(
+                        return Err(Error::SecretNotAvailable(
                             UuidOrName::Uuid(*uuid),
                         ));
                     }
                 }
             } else {
-                return Err(ShellError::NoVaultSelected);
+                return Err(Error::NoVaultSelected);
             }
         }
         ShellCommand::Add { cmd } => {
@@ -424,6 +429,7 @@ fn exec_program(
                     Add::Note { label } => add_note(label)?,
                     Add::Credentials { label } => add_credentials(label)?,
                     Add::Account { label } => add_account(label)?,
+                    Add::File { path } => add_file(path)?,
                 };
 
                 if let Some((secret_meta, secret)) = result {
@@ -441,7 +447,7 @@ fn exec_program(
                         ))?;
 
                         if !response.status().is_success() {
-                            return Err(ShellError::AddSecret(
+                            return Err(Error::AddSecret(
                                 response.status().into(),
                             ));
                         }
@@ -450,7 +456,7 @@ fn exec_program(
                     }
                 }
             } else {
-                return Err(ShellError::NoVaultSelected);
+                return Err(Error::NoVaultSelected);
             }
         }
         ShellCommand::Get { secret } => {
@@ -476,13 +482,13 @@ fn exec_program(
                             uuid,
                         ))?;
                     } else {
-                        return Err(ShellError::SecretNotAvailable(secret));
+                        return Err(Error::SecretNotAvailable(secret));
                     }
                 } else {
-                    return Err(ShellError::SecretNotAvailable(secret));
+                    return Err(Error::SecretNotAvailable(secret));
                 }
             } else {
-                return Err(ShellError::NoVaultSelected);
+                return Err(Error::NoVaultSelected);
             }
         }
         ShellCommand::Del { secret } => {
@@ -497,7 +503,7 @@ fn exec_program(
                     None
                 }
             } else {
-                return Err(ShellError::NoVaultSelected);
+                return Err(Error::NoVaultSelected);
             };
             drop(reader);
 
@@ -514,12 +520,12 @@ fn exec_program(
                                 &uuid,
                             ))?;
                         } else {
-                            return Err(ShellError::SecretNotAvailable(secret));
+                            return Err(Error::SecretNotAvailable(secret));
                         }
                     }
                 }
             } else {
-                return Err(ShellError::SecretNotAvailable(secret));
+                return Err(Error::SecretNotAvailable(secret));
             }
         }
         ShellCommand::Whoami => {
@@ -542,7 +548,7 @@ fn exec_args<I, T>(
     it: I,
     client: Arc<Client>,
     state: Arc<RwLock<ShellState>>,
-) -> std::result::Result<(), ShellError>
+) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -560,7 +566,7 @@ pub fn list_vaults(
     client: Arc<Client>,
     state: Arc<RwLock<ShellState>>,
     print: bool,
-) -> std::result::Result<(), ShellError> {
+) -> Result<()> {
     let summaries = run_blocking(client.list_vaults())?;
     if print {
         print_summaries_list(&summaries)?;
@@ -575,7 +581,7 @@ pub fn exec(
     line: &str,
     client: Arc<Client>,
     state: Arc<RwLock<ShellState>>,
-) -> std::result::Result<(), ShellError> {
+) -> Result<()> {
     let prefixed = format!("sos-shell {}", line);
     let it = prefixed.split_ascii_whitespace();
     let mut cmd = Shell::command();

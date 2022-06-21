@@ -1,3 +1,4 @@
+use sos_core::secret::UuidOrName;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -14,6 +15,30 @@ pub enum Error {
 
     #[error("expecting an x-change-sequence header")]
     ChangeSequenceHeader,
+
+    #[error(r#"vault "{0}" not found, run "vaults" to load the vault list"#)]
+    VaultNotAvailable(UuidOrName),
+
+    #[error("failed to unlock vault")]
+    VaultUnlockFail,
+
+    #[error(r#"no vault selected, run "use" to select a vault"#)]
+    NoVaultSelected,
+
+    #[error(r#"secret "{0}" not found"#)]
+    SecretNotAvailable(UuidOrName),
+
+    #[error("failed to create vault, got status code {0}")]
+    VaultCreate(u16),
+
+    #[error("failed to delete vault, got status code {0}")]
+    VaultRemove(u16),
+
+    #[error("failed to set vault name, got status code {0}")]
+    SetVaultName(u16),
+
+    #[error("failed to add secret, got status code {0}")]
+    AddSecret(u16),
 
     #[error(transparent)]
     ParseInt(#[from] std::num::ParseIntError),
@@ -47,4 +72,7 @@ pub enum Error {
 
     #[error(transparent)]
     EventSource(#[from] reqwest_eventsource::Error),
+
+    #[error(transparent)]
+    Clap(#[from] clap::Error),
 }
