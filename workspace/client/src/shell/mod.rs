@@ -12,7 +12,7 @@ use sos_core::{
     diceware::generate,
     gatekeeper::Gatekeeper,
     operations::Payload,
-    secret::{kind, Secret, SecretMeta, UuidOrName},
+    secret::{Secret, SecretMeta, UuidOrName},
     vault::{encode, Summary, Vault},
 };
 use sos_readline::{
@@ -23,7 +23,7 @@ use crate::{
     display_passphrase, run_blocking, Client, Error, Result, VaultInfo,
 };
 
-mod arg_parser;
+mod dequote;
 
 /// Secret storage shell.
 #[derive(Parser, Debug)]
@@ -576,8 +576,9 @@ pub fn exec(
     client: Arc<Client>,
     state: Arc<RwLock<ShellState>>,
 ) -> Result<()> {
-    let prefixed = format!("sos-shell {}", line);
-    let it = prefixed.split_ascii_whitespace();
+    let mut sanitized = dequote::group(line);
+    sanitized.insert(0, String::from("sos-shell"));
+    let it = sanitized.into_iter();
     let mut cmd = Shell::command();
     if line == "-V" {
         let version = cmd.render_version();

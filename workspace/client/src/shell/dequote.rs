@@ -23,7 +23,7 @@ enum QuoteType {
     Double,
 }
 
-pub fn parse(src: &str) -> Vec<String> {
+pub fn group(src: &str) -> Vec<String> {
     let mut lex = Token::lexer(src);
     let mut quote: Option<QuoteType> = None;
 
