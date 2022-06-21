@@ -573,6 +573,9 @@ fn exec_program(
         }
         ShellCommand::Close => {
             let mut writer = state.write().unwrap();
+            if let Some(current) = writer.current.as_mut() {
+                current.lock();
+            }
             writer.current = None;
         }
         ShellCommand::Quit => {
