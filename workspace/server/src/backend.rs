@@ -62,8 +62,11 @@ pub trait Backend {
     ) -> Result<(bool, u32)>;
 
     /// Load a vault buffer for an account.
-    async fn get(&self, owner: &AddressStr, vault_id: &Uuid)
-        -> Result<Vec<u8>>;
+    async fn get(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<Vec<u8>>;
 
     /// Get a read handle to an existing vault.
     async fn vault_read<'a>(
@@ -110,15 +113,17 @@ impl FileSystemBackend {
                         name.to_string_lossy().parse::<AddressStr>()
                     {
                         let mut accounts = self.accounts.write().await;
-                        let vaults =
-                            accounts.entry(owner).or_insert(Default::default());
+                        let vaults = accounts
+                            .entry(owner)
+                            .or_insert(Default::default());
                         for vault_entry in std::fs::read_dir(&path)? {
                             let vault_entry = vault_entry?;
                             let vault_path = vault_entry.path();
                             if let Some(ext) = vault_path.extension() {
                                 if ext == Vault::extension() {
-                                    let summary =
-                                        Header::read_summary_file(&vault_path)?;
+                                    let summary = Header::read_summary_file(
+                                        &vault_path,
+                                    )?;
                                     vaults.insert(
                                         *summary.id(),
                                         Box::new(VaultFileAccess::new(
@@ -136,7 +141,11 @@ impl FileSystemBackend {
         Ok(())
     }
 
-    fn vault_file_path(&self, owner: &AddressStr, vault_id: &Uuid) -> PathBuf {
+    fn vault_file_path(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> PathBuf {
         let account_dir = self.directory.join(owner.to_string());
         let mut vault_file = account_dir.join(vault_id.to_string());
         vault_file.set_extension(Vault::extension());
@@ -169,8 +178,10 @@ impl FileSystemBackend {
         let mut accounts = self.accounts.write().await;
         let vaults = accounts.entry(owner).or_insert(Default::default());
         let summary = Header::read_summary_file(&vault_path)?;
-        vaults
-            .insert(*summary.id(), Box::new(VaultFileAccess::new(vault_path)?));
+        vaults.insert(
+            *summary.id(),
+            Box::new(VaultFileAccess::new(vault_path)?),
+        );
         Ok(())
     }
 }

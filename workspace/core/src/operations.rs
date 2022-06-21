@@ -7,8 +7,8 @@
 
 use serde::{Deserialize, Serialize};
 use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
-    Serializer,
+    Decode, Deserializer, Encode, Error as BinaryError,
+    Result as BinaryResult, Serializer,
 };
 use std::{borrow::Cow, fmt};
 use uuid::Uuid;

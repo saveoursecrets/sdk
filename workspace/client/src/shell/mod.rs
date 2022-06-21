@@ -494,7 +494,7 @@ fn exec_program(
 
             if let Some((uuid, secret_meta, secret)) = result {
                 println!("Set secret {:#?}", secret_meta);
-                let result = editor::edit(secret_meta, secret)?;
+                let result = editor::edit(&secret)?;
                 println!("Got result {:#?}", result);
             } else {
                 return Err(Error::SecretNotAvailable(secret));

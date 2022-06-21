@@ -269,9 +269,10 @@ async fn asset(
         tracing::debug!(key, "static asset");
 
         if let Some(asset) = Assets::get(key) {
-            let content_type = mime_guess::from_path(key)
-                .first()
-                .unwrap_or_else(|| "application/octet-stream".parse().unwrap());
+            let content_type =
+                mime_guess::from_path(key).first().unwrap_or_else(|| {
+                    "application/octet-stream".parse().unwrap()
+                });
 
             let bytes = Bytes::from(asset.data.as_ref().to_vec());
             Response::builder()
@@ -375,9 +376,13 @@ impl AuthHandler {
                 if let Ok((status_code, token)) =
                     authenticate::bearer(authorization, &message)
                 {
-                    if let (StatusCode::OK, Some(token)) = (status_code, token)
+                    if let (StatusCode::OK, Some(token)) =
+                        (status_code, token)
                     {
-                        if !writer.backend.account_exists(&token.address).await
+                        if !writer
+                            .backend
+                            .account_exists(&token.address)
+                            .await
                         {
                             return Err(StatusCode::NOT_FOUND);
                         }
@@ -1143,7 +1148,8 @@ async fn sse_handler(
             // can publish to the server sent events stream
             let mut writer = state.write().await;
 
-            let conn = if let Some(conn) = writer.sse.get_mut(&token.address) {
+            let conn = if let Some(conn) = writer.sse.get_mut(&token.address)
+            {
                 conn
             } else {
                 let (tx, _) = broadcast::channel::<ChangeEvent>(256);

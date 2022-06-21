@@ -184,7 +184,10 @@ impl WebVault {
     }
 
     /// Unlock the vault.
-    pub fn unlock(&mut self, passphrase: JsValue) -> Result<JsValue, JsError> {
+    pub fn unlock(
+        &mut self,
+        passphrase: JsValue,
+    ) -> Result<JsValue, JsError> {
         let passphrase: String = passphrase.into_serde()?;
         let _meta = self.keeper.unlock(passphrase)?;
         let sorted_meta = self.sort_meta_data()?;
@@ -266,9 +269,13 @@ impl Signup {
         let (private_key, public_key) = generate_random_ecdsa_signing_key();
         let address = address_compressed(&public_key)?;
         let mut rng = rand::thread_rng();
-        let keystore =
-            encrypt(&mut rng, &private_key, passphrase, Some(address.clone()))
-                .expect("unable to encrypt private key store");
+        let keystore = encrypt(
+            &mut rng,
+            &private_key,
+            passphrase,
+            Some(address.clone()),
+        )
+        .expect("unable to encrypt private key store");
         Ok(JsValue::from_serde(&keystore)?)
     }
 
@@ -278,7 +285,8 @@ impl Signup {
         if let Some(key_passphrase) = self.key_passphrase.as_mut() {
             key_passphrase.zeroize();
         }
-        if let Some(encryption_passphrase) = self.encryption_passphrase.as_mut()
+        if let Some(encryption_passphrase) =
+            self.encryption_passphrase.as_mut()
         {
             encryption_passphrase.zeroize();
         }

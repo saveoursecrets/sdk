@@ -1,7 +1,7 @@
 //! Types used to represent vault meta data and secrets.
 use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
-    Serializer,
+    Decode, Deserializer, Encode, Error as BinaryError,
+    Result as BinaryResult, Serializer,
 };
 
 use serde::{Deserialize, Serialize};

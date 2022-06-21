@@ -53,7 +53,9 @@ pub enum Error {
     VaultLocked,
 
     /// Error generated when a secret already exists with the given label.
-    #[error("secret with the label {0} already exists, labels must be unique")]
+    #[error(
+        "secret with the label {0} already exists, labels must be unique"
+    )]
     SecretAlreadyExists(String),
 
     /// Error generated when a secret does not exist for an update operation.

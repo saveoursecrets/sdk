@@ -4,8 +4,8 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use serde_binary::{
     binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
-    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
-    Serializer,
+    Decode, Deserializer, Encode, Error as BinaryError,
+    Result as BinaryResult, Serializer,
 };
 use std::path::Path;
 use time::{Duration, OffsetDateTime};
@@ -154,8 +154,11 @@ impl Decode for Log {
                         self.data =
                             Some(LogData::Vault(Uuid::from_bytes(vault_id)));
                     } else {
-                        let secret_id: [u8; 16] =
-                            de.reader.read_bytes(16)?.as_slice().try_into()?;
+                        let secret_id: [u8; 16] = de
+                            .reader
+                            .read_bytes(16)?
+                            .as_slice()
+                            .try_into()?;
                         self.data = Some(LogData::Secret(
                             Uuid::from_bytes(vault_id),
                             Uuid::from_bytes(secret_id),

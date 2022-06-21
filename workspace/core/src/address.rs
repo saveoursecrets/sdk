@@ -77,7 +77,9 @@ impl<'a> From<&'a [u8; 64]> for AddressStr {
 
 impl<'a> TryFrom<&'a [u8; 33]> for AddressStr {
     type Error = Error;
-    fn try_from(bytes: &'a [u8; 33]) -> std::result::Result<Self, Self::Error> {
+    fn try_from(
+        bytes: &'a [u8; 33],
+    ) -> std::result::Result<Self, Self::Error> {
         let point = decompress(bytes)?;
         let x: [u8; 32] = *point.x().unwrap().as_ref();
         let y: [u8; 32] = *point.y().unwrap().as_ref();
@@ -137,9 +139,9 @@ mod tests {
         "0xd09d3103ccabfb769edc3e9b01500ca7241d470a";
 
     const PUBLIC_KEY: [u8; 33] = [
-        3, 191, 74, 169, 115, 14, 12, 199, 99, 221, 125, 5, 13, 247, 115, 157,
-        30, 185, 140, 2, 20, 153, 10, 245, 177, 145, 111, 188, 103, 92, 61,
-        227, 121,
+        3, 191, 74, 169, 115, 14, 12, 199, 99, 221, 125, 5, 13, 247, 115,
+        157, 30, 185, 140, 2, 20, 153, 10, 245, 177, 145, 111, 188, 103, 92,
+        61, 227, 121,
     ];
 
     #[test]

@@ -46,7 +46,8 @@ impl BearerToken {
         message: &[u8],
     ) -> Result<(StatusCode, Option<BearerToken>)> {
         let result = if let Ok(value) = base64::decode(token) {
-            if let Ok(signature) = serde_json::from_slice::<Signature>(&value) {
+            if let Ok(signature) = serde_json::from_slice::<Signature>(&value)
+            {
                 let recoverable: recoverable::Signature =
                     signature.try_into()?;
                 let public_key = recoverable.recover_verify_key(message)?;

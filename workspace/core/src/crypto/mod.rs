@@ -2,8 +2,8 @@
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
-    Serializer,
+    Decode, Deserializer, Encode, Error as BinaryError,
+    Result as BinaryResult, Serializer,
 };
 
 pub mod aesgcm256;
@@ -188,10 +188,12 @@ impl Decode for AeadPack {
         let nonce_buffer = de.reader.read_bytes(nonce_size as usize)?;
         match nonce_size {
             12 => {
-                self.nonce = Nonce::Nonce12(nonce_buffer.as_slice().try_into()?)
+                self.nonce =
+                    Nonce::Nonce12(nonce_buffer.as_slice().try_into()?)
             }
             24 => {
-                self.nonce = Nonce::Nonce24(nonce_buffer.as_slice().try_into()?)
+                self.nonce =
+                    Nonce::Nonce24(nonce_buffer.as_slice().try_into()?)
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(

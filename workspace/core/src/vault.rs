@@ -5,8 +5,8 @@ use serde_binary::{
         BinaryReader, BinaryWriter, Endian, FileStream, OpenType, ReadStream,
         SeekStream, SliceStream, WriteStream,
     },
-    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
-    Serializer,
+    Decode, Deserializer, Encode, Error as BinaryError,
+    Result as BinaryResult, Serializer,
 };
 use std::{borrow::Cow, collections::HashMap, path::Path};
 use uuid::Uuid;
@@ -144,7 +144,8 @@ impl Decode for Summary {
             )));
         }
 
-        let uuid: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
+        let uuid: [u8; 16] =
+            de.reader.read_bytes(16)?.as_slice().try_into()?;
         self.id = Uuid::from_bytes(uuid);
 
         self.name = de.reader.read_string()?;
@@ -335,7 +336,8 @@ impl Contents {
         // Read in the row length
         let _ = de.reader.read_u32()?;
 
-        let uuid: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
+        let uuid: [u8; 16] =
+            de.reader.read_bytes(16)?.as_slice().try_into()?;
         let uuid = Uuid::from_bytes(uuid);
 
         let mut meta: AeadPack = Default::default();
@@ -437,7 +439,11 @@ impl Vault {
     }
 
     /// Decrypt a ciphertext value using the algorithm assigned to this vault.
-    pub fn decrypt(&self, key: &SecretKey, aead: &AeadPack) -> Result<Vec<u8>> {
+    pub fn decrypt(
+        &self,
+        key: &SecretKey,
+        aead: &AeadPack,
+    ) -> Result<Vec<u8>> {
         match self.algorithm() {
             Algorithm::XChaCha20Poly1305(_) => {
                 xchacha20poly1305::decrypt(key, aead)
@@ -506,7 +512,10 @@ impl Vault {
     }
 
     /// Encode a vault to binary.
-    pub fn encode(stream: &mut impl WriteStream, vault: &Vault) -> Result<()> {
+    pub fn encode(
+        stream: &mut impl WriteStream,
+        vault: &Vault,
+    ) -> Result<()> {
         let writer = BinaryWriter::new(stream, Endian::Big);
         let mut serializer = Serializer { writer };
         vault.encode(&mut serializer)?;

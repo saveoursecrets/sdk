@@ -11,8 +11,8 @@ use std::{
 
 use serde_binary::{
     binary_rw::{
-        BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream, OpenType,
-        SeekStream,
+        BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream,
+        OpenType, SeekStream,
     },
     Deserializer, Serializer,
 };
@@ -430,14 +430,19 @@ mod tests {
         // Create a secret note
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
-        let (secret_id, _secret_meta, _secret_value, meta_bytes, secret_bytes) =
-            create_secure_note(
-                &mut vault_access,
-                &vault,
-                &encryption_key,
-                secret_label,
-                secret_note,
-            )?;
+        let (
+            secret_id,
+            _secret_meta,
+            _secret_value,
+            meta_bytes,
+            secret_bytes,
+        ) = create_secure_note(
+            &mut vault_access,
+            &vault,
+            &encryption_key,
+            secret_label,
+            secret_note,
+        )?;
 
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
@@ -460,14 +465,19 @@ mod tests {
         assert!(row.is_none());
 
         // Create a new secure note so we can update it
-        let (secret_id, _secret_meta, _secret_value, meta_bytes, secret_bytes) =
-            create_secure_note(
-                &mut vault_access,
-                &vault,
-                &encryption_key,
-                secret_label,
-                secret_note,
-            )?;
+        let (
+            secret_id,
+            _secret_meta,
+            _secret_value,
+            meta_bytes,
+            secret_bytes,
+        ) = create_secure_note(
+            &mut vault_access,
+            &vault,
+            &encryption_key,
+            secret_label,
+            secret_note,
+        )?;
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 
@@ -481,8 +491,8 @@ mod tests {
 
         let updated_meta = vault.encrypt(&encryption_key, &meta_bytes)?;
         let updated_secret = vault.encrypt(&encryption_key, &secret_bytes)?;
-        let _ =
-            vault_access.update(&secret_id, (updated_meta, updated_secret))?;
+        let _ = vault_access
+            .update(&secret_id, (updated_meta, updated_secret))?;
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 

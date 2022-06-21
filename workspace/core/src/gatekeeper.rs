@@ -163,7 +163,10 @@ impl Gatekeeper {
     }
 
     /// Get a secret from the vault.
-    fn read_secret(&self, uuid: &Uuid) -> Result<Option<(SecretMeta, Secret)>> {
+    fn read_secret(
+        &self,
+        uuid: &Uuid,
+    ) -> Result<Option<(SecretMeta, Secret)>> {
         if let Some(private_key) = &self.private_key {
             if let (Some(value), _payload) = self.vault.read(uuid)? {
                 let (meta_aead, secret_aead) = value.as_ref();
@@ -231,7 +234,8 @@ impl Gatekeeper {
             let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
 
             let secret_blob = encode(&secret)?;
-            let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
+            let secret_aead =
+                self.vault.encrypt(private_key, &secret_blob)?;
             Ok(self.vault.create(uuid, (meta_aead, secret_aead))?)
         } else {
             Err(Error::VaultLocked)
@@ -282,7 +286,8 @@ impl Gatekeeper {
             let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
 
             let secret_blob = encode(&secret)?;
-            let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
+            let secret_aead =
+                self.vault.encrypt(private_key, &secret_blob)?;
             Ok(self.vault.update(uuid, (meta_aead, secret_aead))?)
         } else {
             Err(Error::VaultLocked)

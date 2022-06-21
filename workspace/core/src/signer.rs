@@ -1,6 +1,8 @@
 //! Traits and types for signing messages.
 use async_trait::async_trait;
-use k256::ecdsa::{recoverable, signature::Signer as EcdsaSigner, SigningKey};
+use k256::ecdsa::{
+    recoverable, signature::Signer as EcdsaSigner, SigningKey,
+};
 use web3_signature::Signature;
 
 use crate::{address::AddressStr, Result};
@@ -60,7 +62,9 @@ impl SignSync for SingleParty {
 
 impl<'a> TryFrom<&'a [u8; 32]> for SingleParty {
     type Error = crate::Error;
-    fn try_from(value: &'a [u8; 32]) -> std::result::Result<Self, Self::Error> {
+    fn try_from(
+        value: &'a [u8; 32],
+    ) -> std::result::Result<Self, Self::Error> {
         Ok(Self(SigningKey::from_bytes(value)?))
     }
 }

@@ -117,7 +117,10 @@ pub fn read_line(prompt: Option<&str>) -> Result<String> {
     read_line_value(prompt, false)
 }
 
-fn read_line_value(prompt: Option<&str>, allows_empty: bool) -> Result<String> {
+fn read_line_value(
+    prompt: Option<&str>,
+    allows_empty: bool,
+) -> Result<String> {
     let mut rl = rustyline::Editor::<()>::new();
     loop {
         let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
