@@ -11,6 +11,9 @@ enum Token {
     #[token("'")]
     SingleQuote,
 
+    #[token("\\")]
+    Escape,
+
     #[regex(r"[ \t\n\f]+")]
     WhiteSpace,
 
@@ -26,9 +29,9 @@ enum QuoteType {
 pub fn group(src: &str) -> Vec<String> {
     let mut lex = Token::lexer(src);
     let mut quote: Option<QuoteType> = None;
-
     let mut slices: Vec<Vec<Range<usize>>> = Vec::new();
     let mut current: Vec<Range<usize>> = vec![0..0];
+    let mut last_token: Option<(Token, Range<usize>)> = None;
 
     while let Some(token) = lex.next() {
         let span = lex.span();
@@ -60,18 +63,38 @@ pub fn group(src: &str) -> Vec<String> {
                 }
             }
             Token::WhiteSpace => {
+                let is_escaped = if let Some((last, _)) = &last_token {
+                    if let Token::Escape = last {
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
                 if quote.is_none() {
-                    current.last_mut().unwrap().end = span.start;
-                    slices.push(current);
-                    current = vec![span.end..span.end];
+                    if is_escaped {
+                        let (_, escape_span) = last_token.unwrap();
+                        current.last_mut().unwrap().end = escape_span.start;
+                        current.push(escape_span.end..span.end);
+                    } else {
+                        // Create a new argument
+                        current.last_mut().unwrap().end = span.start;
+                        slices.push(current);
+                        current = vec![span.end..span.end];
+                    }
                 } else {
                     current.last_mut().unwrap().end = span.end;
                 }
             }
+            Token::Escape => {}
             Token::Error => {
                 current.last_mut().unwrap().end = span.end;
             }
         }
+
+        last_token = Some((token, span));
     }
 
     if current.last().unwrap().end == current.last().unwrap().start {
@@ -96,65 +119,76 @@ pub fn group(src: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod test {
-    use super::parse;
+    use super::group;
 
     #[test]
-    fn args_parse() {
+    fn args_group() {
         // Single argument not quoted
         let args = "foo";
-        let parsed = parse(args);
-        assert_eq!(&["foo"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["foo"], grouped.as_slice());
 
         // No quoted arguments
         let args = "a b c";
-        let parsed = parse(args);
-        assert_eq!(&["a", "b", "c"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["a", "b", "c"], grouped.as_slice());
 
         // Quoted single argument (double)
         let args = r#""a""#;
-        let parsed = parse(args);
-        assert_eq!(&["a"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["a"], grouped.as_slice());
 
         // Quoted single argument (single)
         let args = "'a'";
-        let parsed = parse(args);
-        assert_eq!(&["a"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["a"], grouped.as_slice());
 
         // Interspersed double quoted arguments
         let args = r#"a "b" c"#;
-        let parsed = parse(args);
-        assert_eq!(&["a", "b", "c"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["a", "b", "c"], grouped.as_slice());
 
         // Interspersed single quoted arguments
         let args = r#"a 'b' c"#;
-        let parsed = parse(args);
-        assert_eq!(&["a", "b", "c"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["a", "b", "c"], grouped.as_slice());
 
         // Mixed quote types
         let args = r#"a "b" 'c'"#;
-        let parsed = parse(args);
-        assert_eq!(&["a", "b", "c"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["a", "b", "c"], grouped.as_slice());
 
         // Double quoted whitespace
         let args = r#"a "b c" d"#;
-        let parsed = parse(args);
-        assert_eq!(&["a", "b c", "d"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["a", "b c", "d"], grouped.as_slice());
 
         // Single quoted whitespace
         let args = r#"a 'b c' d"#;
-        let parsed = parse(args);
-        assert_eq!(&["a", "b c", "d"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["a", "b c", "d"], grouped.as_slice());
 
         // Quoted with trailing value
         let args = r#"a "b c"d"#;
-        let parsed = parse(args);
-        assert_eq!(&["a", "b cd"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["a", "b cd"], grouped.as_slice());
 
         // Quoted with trailing value and extra arg
         let args = r#"a "b c"d e"#;
-        let parsed = parse(args);
-        assert_eq!(&["a", "b cd", "e"], parsed.as_slice());
+        let grouped = group(args);
+        assert_eq!(&["a", "b cd", "e"], grouped.as_slice());
 
-        //println!("{:#?}", parsed);
+        // Quoted with escaped space - preserves the backslash
+        let args = r#""\ ""#;
+        let grouped = group(args);
+        assert_eq!(&["\\ "], grouped.as_slice());
+
+        // Escaped whitespace preserves the whitespace
+        // and removes the backslash
+        let args = "a\\ b";
+        let grouped = group(args);
+        assert_eq!(&["a b"], grouped.as_slice());
+
+        //println!("{:#?}", grouped);
     }
 }

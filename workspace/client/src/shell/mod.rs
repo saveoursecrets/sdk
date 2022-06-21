@@ -576,7 +576,7 @@ pub fn exec(
     client: Arc<Client>,
     state: Arc<RwLock<ShellState>>,
 ) -> Result<()> {
-    let mut sanitized = dequote::group(line);
+    let mut sanitized = dequote::group(line.trim_end_matches(' '));
     sanitized.insert(0, String::from("sos-shell"));
     let it = sanitized.into_iter();
     let mut cmd = Shell::command();
