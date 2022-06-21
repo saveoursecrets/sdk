@@ -6,6 +6,7 @@ use std::{
 
 use clap::{CommandFactory, Parser, Subcommand};
 use thiserror::Error;
+use url::Url;
 
 use sos_core::{
     diceware::generate,
@@ -14,7 +15,9 @@ use sos_core::{
     secret::{kind, Secret, SecretMeta, UuidOrName},
     vault::{encode, Summary, Vault},
 };
-use sos_readline::{read_flag, read_line, read_multiline, read_password};
+use sos_readline::{
+    read_flag, read_line, read_multiline, read_option, read_password,
+};
 
 use crate::{display_passphrase, run_blocking, Client, Result, VaultInfo};
 
@@ -88,7 +91,11 @@ enum ShellCommand {
     Keys,
     /// List secrets for the selected vault.
     #[clap(alias = "ls")]
-    List,
+    List {
+        /// Print more information
+        #[clap(short, long)]
+        verbose: bool,
+    },
     /// Add a secret.
     Add {
         #[clap(subcommand)]
@@ -111,6 +118,7 @@ enum ShellCommand {
 enum Add {
     Note { label: Option<String> },
     Credentials { label: Option<String> },
+    Account { label: Option<String> },
 }
 
 fn get_label(label: Option<String>) -> Result<String> {
@@ -168,6 +176,28 @@ fn add_credentials(
     } else {
         Ok(None)
     }
+}
+
+fn add_account(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
+    let label = get_label(label)?;
+
+    let account = read_line(Some("Account name: "))?;
+    let url = read_option(Some("Website URL: "))?;
+    let password = read_password(Some("Password: "))?;
+
+    let url: Option<Url> = if let Some(url) = url {
+        Some(url.parse()?)
+    } else {
+        None
+    };
+
+    let secret = Secret::Account {
+        account,
+        url,
+        password,
+    };
+    let secret_meta = SecretMeta::new(label, secret.kind());
+    Ok(Some((secret_meta, secret)))
 }
 
 #[derive(Default)]
@@ -361,17 +391,20 @@ fn exec_program(
                 return Err(ShellError::NoVaultSelected);
             }
         }
-        ShellCommand::List => {
+        ShellCommand::List { verbose } => {
             let reader = state.read().unwrap();
             if let Some(keeper) = &reader.current {
                 for (index, uuid) in keeper.vault().keys().enumerate() {
                     if let Some((secret_meta, _, _)) = keeper.read(uuid)? {
-                        println!(
-                            "{}) {}",
-                            index + 1,
-                            secret_meta.label(),
-                            //Secret::type_name(*secret_meta.kind()),
-                        );
+                        let label = secret_meta.label();
+                        let short_name = secret_meta.short_name();
+                        print!("[{}] ", short_name);
+
+                        if verbose {
+                            println!("{} {}", label, uuid,);
+                        } else {
+                            println!("{}", label,);
+                        }
                     } else {
                         return Err(ShellError::SecretNotAvailable(
                             UuidOrName::Uuid(*uuid),
@@ -390,6 +423,7 @@ fn exec_program(
                 let result = match cmd {
                     Add::Note { label } => add_note(label)?,
                     Add::Credentials { label } => add_credentials(label)?,
+                    Add::Account { label } => add_account(label)?,
                 };
 
                 if let Some((secret_meta, secret)) = result {

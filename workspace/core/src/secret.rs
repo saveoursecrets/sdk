@@ -97,6 +97,18 @@ impl SecretMeta {
     pub fn kind(&self) -> &u8 {
         &self.kind
     }
+
+    /// Get an abbreviated short name based
+    /// on the kind of secret.
+    pub fn short_name(&self) -> &str {
+        match self.kind {
+            kind::ACCOUNT => "ACCT",
+            kind::TEXT => "NOTE",
+            kind::CREDENTIALS => "LIST",
+            kind::BLOB => "FILE",
+            _ => unreachable!("unknown kind encountered in short name"),
+        }
+    }
 }
 
 impl Encode for SecretMeta {
