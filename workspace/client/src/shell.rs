@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     ffi::OsString,
     sync::{Arc, RwLock},
 };
@@ -109,6 +110,7 @@ enum ShellCommand {
 #[derive(Subcommand, Debug)]
 enum Add {
     Note { label: Option<String> },
+    Credentials { label: Option<String> },
 }
 
 fn get_label(label: Option<String>) -> Result<String> {
@@ -132,6 +134,35 @@ fn add_note(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
     if let Some(note) = read_multiline(None)? {
         let note = note.trim_end_matches('\n').to_string();
         let secret = Secret::Text(note);
+        let secret_meta = SecretMeta::new(label, secret.kind());
+        Ok(Some((secret_meta, secret)))
+    } else {
+        Ok(None)
+    }
+}
+
+fn add_credentials(
+    label: Option<String>,
+) -> Result<Option<(SecretMeta, Secret)>> {
+    let label = get_label(label)?;
+
+    let mut credentials: HashMap<String, String> = HashMap::new();
+    loop {
+        let mut name = read_line(Some("Name: "))?;
+        while credentials.get(&name).is_some() {
+            eprintln!("name '{}' already exists", &name);
+            name = read_line(Some("Name: "))?;
+        }
+        let value = read_password(Some("Value: "))?;
+        credentials.insert(name, value);
+        let prompt = Some("Add more credentials (y/n)? ");
+        if !read_flag(prompt)? {
+            break;
+        }
+    }
+
+    if !credentials.is_empty() {
+        let secret = Secret::Credentials(credentials);
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
     } else {
@@ -358,6 +389,7 @@ fn exec_program(
                 let id = *keeper.id();
                 let result = match cmd {
                     Add::Note { label } => add_note(label)?,
+                    Add::Credentials { label } => add_credentials(label)?,
                 };
 
                 if let Some((secret_meta, secret)) = result {
