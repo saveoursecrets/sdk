@@ -153,7 +153,8 @@ impl Client {
 
     /// Get the name of a vault.
     pub async fn vault_name(&self, vault_id: &Uuid) -> Result<String> {
-        let url = self.server.join(&format!("api/vaults/{}/name", vault_id))?;
+        let url =
+            self.server.join(&format!("api/vaults/{}/name", vault_id))?;
         let (message, signature) = self.self_signed().await?;
         let response = self
             .http_client
@@ -174,7 +175,8 @@ impl Client {
         change_seq: u32,
         name: &str,
     ) -> Result<Response> {
-        let url = self.server.join(&format!("api/vaults/{}/name", vault_id))?;
+        let url =
+            self.server.join(&format!("api/vaults/{}/name", vault_id))?;
         let (message, signature) = self.self_signed().await?;
         let response = self
             .http_client
@@ -231,9 +233,10 @@ impl Client {
         secret: &(AeadPack, AeadPack),
         change_seq: u32,
     ) -> Result<Response> {
-        let url = self
-            .server
-            .join(&format!("api/vaults/{}/secrets/{}", vault_id, secret_id))?;
+        let url = self.server.join(&format!(
+            "api/vaults/{}/secrets/{}",
+            vault_id, secret_id
+        ))?;
         let body = serde_json::to_vec(secret)?;
         let signature =
             self.encode_signature(self.signer.sign(&body).await?)?;
@@ -255,9 +258,10 @@ impl Client {
         vault_id: &Uuid,
         secret_id: &Uuid,
     ) -> Result<Response> {
-        let url = self
-            .server
-            .join(&format!("api/vaults/{}/secrets/{}", vault_id, secret_id))?;
+        let url = self.server.join(&format!(
+            "api/vaults/{}/secrets/{}",
+            vault_id, secret_id
+        ))?;
         let (message, signature) = self.self_signed().await?;
         let response = self
             .http_client
@@ -277,9 +281,10 @@ impl Client {
         vault_id: &Uuid,
         secret_id: &Uuid,
     ) -> Result<Vec<u8>> {
-        let url = self
-            .server
-            .join(&format!("api/vaults/{}/secrets/{}", vault_id, secret_id))?;
+        let url = self.server.join(&format!(
+            "api/vaults/{}/secrets/{}",
+            vault_id, secret_id
+        ))?;
         let (message, signature) = self.self_signed().await?;
         let response = self
             .http_client

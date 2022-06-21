@@ -25,6 +25,7 @@ use crate::{
 };
 
 mod dequote;
+mod editor;
 mod print;
 
 /// Secret storage shell.
@@ -67,6 +68,8 @@ enum ShellCommand {
     },
     /// Print a secret.
     Get { secret: UuidOrName },
+    /// Update a secret.
+    Set { secret: UuidOrName },
     /// Delete a secret.
     Del { secret: UuidOrName },
     /// Print the current identity.
@@ -143,7 +146,9 @@ fn add_credentials(
     }
 }
 
-fn add_account(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
+fn add_account(
+    label: Option<String>,
+) -> Result<Option<(SecretMeta, Secret)>> {
     let label = get_label(label)?;
 
     let account = read_line(Some("Account name: "))?;
@@ -463,6 +468,36 @@ fn exec_program(
                 }
             } else {
                 return Err(Error::NoVaultSelected);
+            }
+        }
+        ShellCommand::Set { secret } => {
+            let reader = state.read().unwrap();
+            let result = if let Some(keeper) = &reader.current {
+                let meta_data = keeper.meta_data()?;
+                if let Some((uuid, _)) =
+                    keeper.find_by_uuid_or_label(&meta_data, &secret)
+                {
+                    if let Some((secret_meta, secret, _)) =
+                        keeper.read(uuid)?
+                    {
+                        Some((*uuid, secret_meta, secret))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                return Err(Error::NoVaultSelected);
+            };
+            drop(reader);
+
+            if let Some((uuid, secret_meta, secret)) = result {
+                println!("Set secret {:#?}", secret_meta);
+                let result = editor::edit(secret_meta, secret)?;
+                println!("Got result {:#?}", result);
+            } else {
+                return Err(Error::SecretNotAvailable(secret));
             }
         }
         ShellCommand::Del { secret } => {

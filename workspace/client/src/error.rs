@@ -46,6 +46,9 @@ pub enum Error {
     #[error("failed to add secret, got status code {0}")]
     AddSecret(u16),
 
+    #[error("editor command did not exit successfully, status {0}")]
+    EditorExit(i32),
+
     #[error(transparent)]
     ParseInt(#[from] std::num::ParseIntError),
 
@@ -81,4 +84,7 @@ pub enum Error {
 
     #[error(transparent)]
     Clap(#[from] clap::Error),
+
+    #[error(transparent)]
+    Utf8(#[from] std::str::Utf8Error),
 }

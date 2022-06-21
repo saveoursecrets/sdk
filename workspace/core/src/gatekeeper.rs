@@ -348,7 +348,7 @@ mod tests {
 
         let secret_label = String::from("Mock Secret");
         let secret_value = String::from("Super Secret Note");
-        let secret = Secret::Text(secret_value.clone());
+        let secret = Secret::Note(secret_value.clone());
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
         if let Payload::CreateSecret(_, secret_uuid, _) =

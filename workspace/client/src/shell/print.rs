@@ -46,7 +46,12 @@ pub(super) fn secret(secret_meta: &SecretMeta, secret_data: &Secret) {
             }
         }
         Secret::File { name, buffer, mime } => {
-            println!("{} {} {}", name, mime, human_bytes(buffer.len() as f64));
+            println!(
+                "{} {} {}",
+                name,
+                mime,
+                human_bytes(buffer.len() as f64)
+            );
         }
     }
 }

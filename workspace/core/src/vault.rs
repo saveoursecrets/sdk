@@ -732,7 +732,7 @@ mod tests {
         assert_eq!(secret_value, row_secret);
 
         match &row_secret {
-            Secret::Text(value) => {
+            Secret::Note(value) => {
                 assert_eq!(secret_note, value);
             }
             _ => panic!("unexpected secret type"),
