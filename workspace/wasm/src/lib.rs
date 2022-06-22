@@ -100,7 +100,7 @@ impl WebVault {
     /// Get the meta data for the vault.
     #[wasm_bindgen(js_name = "getVaultMeta")]
     pub fn get_meta_data(&self) -> Result<JsValue, JsError> {
-        let _meta = self.keeper.meta()?;
+        let _meta = self.keeper.vault_meta()?;
         let sorted_meta = self.sort_meta_data()?;
         Ok(JsValue::from_serde(&sorted_meta)?)
     }

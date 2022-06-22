@@ -12,8 +12,8 @@ browser-gui:
 fixtures:
 	@cd workspace/core && rm -f ./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault
 	@cd workspace/core && rm -f ./fixtures/6691de55-f499-4ed9-b72d-5631dbf1815c.vault
-	@cd workspace/cli && cat ../core/fixtures/passphrase.txt | cargo run -- new vault --uuid fba77e3b-edd0-4849-a05f-dded6df31d22 ../core/fixtures
-	@cd workspace/cli && cat ../core/fixtures/passphrase.txt | cargo run -- new vault --uuid 6691de55-f499-4ed9-b72d-5631dbf1815c ../core/fixtures
+	@cd workspace/client && cat ../core/fixtures/passphrase.txt | cargo run -- create --uuid fba77e3b-edd0-4849-a05f-dded6df31d22 ../core/fixtures
+	@cd workspace/client && cat ../core/fixtures/passphrase.txt | cargo run -- create --uuid 6691de55-f499-4ed9-b72d-5631dbf1815c ../core/fixtures
 
 server-release: browser-gui
 	@cd workspace/server && cargo build --release

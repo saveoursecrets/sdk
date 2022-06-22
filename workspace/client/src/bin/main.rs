@@ -6,10 +6,13 @@ use std::{
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
+use uuid::Uuid;
 
 use sos_client::{
-    exec, list_vaults, monitor, signup, ClientBuilder, Result, ShellState,
+    create_vault, exec, list_vaults, monitor, signup, ClientBuilder, Result,
+    ShellState,
 };
+use sos_core::Algorithm;
 use sos_readline::read_shell;
 
 const WELCOME: &str = include_str!("welcome.txt");
@@ -58,6 +61,31 @@ enum Command {
         #[clap(short, long)]
         keystore: PathBuf,
     },
+    /// Create a new secret storage vault.
+    ///
+    /// A passphrase for the new vault will be read from
+    /// stdin if data is detected on stdin otherwise a
+    /// random diceware passphrase is generated and printed
+    /// to the terminal.
+    ///
+    /// The filename will be the UUID for the new vault.
+    Create {
+        /// Unique identifier for the vault.
+        #[clap(short, long)]
+        uuid: Option<Uuid>,
+
+        /// Public name for the vault.
+        #[clap(short, long)]
+        name: Option<String>,
+
+        /// Encryption algorithm
+        #[clap(short, long)]
+        algorithm: Option<Algorithm>,
+
+        /// Directory to write the vault file
+        #[clap(parse(from_os_str))]
+        destination: PathBuf,
+    },
 }
 
 /// Print the welcome information.
@@ -73,6 +101,14 @@ fn run() -> Result<()> {
     match args.cmd {
         Command::Monitor { server, keystore } => {
             monitor(server, keystore)?;
+        }
+        Command::Create {
+            destination,
+            name,
+            uuid,
+            algorithm,
+        } => {
+            create_vault(destination, name, uuid, algorithm)?;
         }
         Command::Signup {
             server,

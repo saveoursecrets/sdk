@@ -507,7 +507,7 @@ impl VaultHandler {
 
                     let event = ChangeEvent::CreateVault {
                         vault_id: *summary.id(),
-                        address: token.address.clone(),
+                        address: token.address,
                     };
 
                     let payload = Payload::CreateVault;
@@ -643,8 +643,7 @@ impl VaultHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                if let Ok(_) =
-                    writer.backend.get(&token.address, &vault_id).await
+                if writer.backend.get(&token.address, &vault_id).await.is_ok()
                 {
                     writer
                         .backend
@@ -653,8 +652,8 @@ impl VaultHandler {
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                     let event = ChangeEvent::DeleteVault {
-                        vault_id: vault_id.clone(),
-                        address: token.address.clone(),
+                        vault_id,
+                        address: token.address,
                         change_seq,
                     };
 
@@ -1132,7 +1131,7 @@ impl SecretHandler {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         };
 
-        Ok(MaybeConflict::process(state, response?).await?)
+        MaybeConflict::process(state, response?).await
     }
 }
 
@@ -1142,7 +1141,7 @@ async fn sse_handler(
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
     if let Ok((status_code, token)) = params.bearer() {
         if let (StatusCode::OK, Some(token)) = (status_code, token) {
-            let address = token.address.clone();
+            let address = token.address;
             let stream_state = Arc::clone(&state);
             // Save the sender side of the channel so other handlers
             // can publish to the server sent events stream
@@ -1178,7 +1177,7 @@ async fn sse_handler(
             impl Drop for Guard {
                 fn drop(&mut self) {
                     let state = Arc::clone(&self.state);
-                    let address = self.address.clone();
+                    let address = self.address;
 
                     tokio::spawn(
                         // Clean up the state removing the channel for the
@@ -1188,7 +1187,7 @@ async fn sse_handler(
                             let clients = if let Some(conn) =
                                 writer.sse.get_mut(&address)
                             {
-                                conn.clients = conn.clients - 1;
+                                conn.clients -= 1;
                                 Some(conn.clients)
                             } else {
                                 None

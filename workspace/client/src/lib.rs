@@ -6,6 +6,7 @@ use url::Url;
 use web3_keystore::{decrypt, KeyStore};
 
 mod client;
+mod create;
 mod error;
 mod monitor;
 mod shell;
@@ -66,6 +67,7 @@ impl ClientBuilder {
 }
 
 pub use client::{Client, VaultInfo};
+pub use create::vault as create_vault;
 pub use error::Error;
 pub use monitor::monitor;
 pub use shell::{exec, list_vaults, ShellState};

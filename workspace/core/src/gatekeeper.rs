@@ -382,7 +382,7 @@ mod tests {
         keeper.initialize(name, label.clone(), passphrase)?;
 
         //// Decrypt the initialized meta data.
-        let meta = keeper.meta()?;
+        let meta = keeper.vault_meta()?;
 
         assert_eq!(&label, meta.label());
 
