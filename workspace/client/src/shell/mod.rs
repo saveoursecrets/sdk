@@ -13,7 +13,7 @@ use url::Url;
 use sos_core::{
     diceware::generate,
     gatekeeper::Gatekeeper,
-    operations::Payload,
+    operations::{Payload, VaultAccess},
     secret::{Secret, SecretMeta, UuidOrName},
     vault::{encode, Summary, Vault},
 };
@@ -607,7 +607,12 @@ fn exec_program(
                 if let Some((uuid, secret_meta)) =
                     keeper.find_by_uuid_or_label(&meta_data, &secret)
                 {
-                    Some((*uuid, secret_meta.clone()))
+                    if let (Some(value), _) = keeper.vault().read(uuid)? {
+                        let (meta_aead, secret_aead) = value.as_ref().clone();
+                        Some((*uuid, meta_aead, secret_aead))
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
@@ -616,15 +621,20 @@ fn exec_program(
             };
             drop(reader);
 
-            if let Some((uuid, mut secret_meta)) = result {
+            if let Some((uuid, meta_aead, secret_aead)) = result {
                 let mut writer = state.write().unwrap();
                 if let Some(keeper) = writer.current.as_mut() {
                     let label = get_label(label)?;
                     let vault_id = *keeper.id();
 
+                    let mut secret_meta = keeper.decrypt_meta(&meta_aead)?;
                     secret_meta.set_label(label);
+                    let meta_aead = keeper.encrypt_meta(&secret_meta)?;
 
-                    if let Some(payload) = keeper.meta(&uuid, secret_meta)? {
+                    if let Some(payload) = keeper
+                        .vault_mut()
+                        .update(&uuid, (meta_aead, secret_aead))?
+                    {
                         if let Payload::UpdateSecret(
                             change_seq,
                             uuid,

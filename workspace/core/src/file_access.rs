@@ -370,14 +370,6 @@ impl VaultAccess for VaultFileAccess {
             Ok(None)
         }
     }
-
-    fn meta(
-        &mut self,
-        uuid: &Uuid,
-        secret_meta: AeadPack,
-    ) -> Result<Option<Payload>> {
-        todo!("support setting secret meta for file access implementation")
-    }
 }
 
 #[cfg(test)]

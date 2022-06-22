@@ -72,13 +72,6 @@ pub trait VaultAccess {
     /// Remove an encrypted secret from the vault.
     fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>>;
 
-    /// Set the encrypted meta data for a secret in the vault.
-    fn meta(
-        &mut self,
-        uuid: &Uuid,
-        secret_meta: AeadPack,
-    ) -> Result<Option<Payload>>;
-
     /// Apply a payload to this vault and return the updated
     /// change sequence.
     fn apply(&mut self, payload: &Payload) -> Result<u32> {

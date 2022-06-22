@@ -15,7 +15,7 @@
 //! is used to encrypt the different chunks.
 //!
 use crate::{
-    crypto::secret_key::SecretKey,
+    crypto::{secret_key::SecretKey, AeadPack},
     decode, encode,
     operations::{Payload, VaultAccess},
     secret::{Secret, SecretMeta, UuidOrName, VaultMeta},
@@ -47,6 +47,11 @@ impl Gatekeeper {
     /// Get the vault.
     pub fn vault(&self) -> &Vault {
         &self.vault
+    }
+
+    /// Get a mutable reference to the vault.
+    pub fn vault_mut(&mut self) -> &mut Vault {
+        &mut self.vault
     }
 
     /// Set the vault.
@@ -294,44 +299,31 @@ impl Gatekeeper {
         }
     }
 
-    /// Set the meta data for a secret.
-    pub fn meta(
-        &mut self,
-        uuid: &Uuid,
-        secret_meta: SecretMeta,
-    ) -> Result<Option<Payload>> {
-        // TODO: use cached in-memory meta data
-        let meta = self.meta_data()?;
+    /// Delete a secret and it's meta data from the vault.
+    pub fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
+        Ok(self.vault.delete(uuid)?)
+    }
 
-        let existing_meta = meta.get(uuid);
-
-        if existing_meta.is_none() {
-            return Err(Error::SecretDoesNotExist(*uuid));
-        }
-
-        let existing_meta = existing_meta.unwrap();
-
-        // Label has changed, so ensure uniqueness
-        if existing_meta.label() != secret_meta.label()
-            && self.find_by_label(&meta, secret_meta.label()).is_some()
-        {
-            return Err(Error::SecretAlreadyExists(
-                secret_meta.label().to_string(),
-            ));
-        }
-
+    /// Decrypt secret meta data.
+    pub fn decrypt_meta(&self, meta_aead: &AeadPack) -> Result<SecretMeta> {
         if let Some(private_key) = &self.private_key {
-            let meta_blob = encode(&secret_meta)?;
-            let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
-            Ok(self.vault.meta(uuid, meta_aead)?)
+            let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+            let secret_meta: SecretMeta = decode(&meta_blob)?;
+            Ok(secret_meta)
         } else {
             Err(Error::VaultLocked)
         }
     }
 
-    /// Delete a secret and it's meta data from the vault.
-    pub fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
-        Ok(self.vault.delete(uuid)?)
+    /// Encrypt secret meta data.
+    pub fn encrypt_meta(&self, secret_meta: &SecretMeta) -> Result<AeadPack> {
+        if let Some(private_key) = &self.private_key {
+            let meta_blob = encode(secret_meta)?;
+            let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
+            Ok(meta_aead)
+        } else {
+            Err(Error::VaultLocked)
+        }
     }
 
     /// Unlock the vault by setting the private key from a passphrase.
