@@ -90,4 +90,7 @@ pub enum Error {
 
     #[error(transparent)]
     Utf8(#[from] std::str::Utf8Error),
+
+    #[error(transparent)]
+    ShellWords(#[from] shell_words::ParseError),
 }

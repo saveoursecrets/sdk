@@ -26,7 +26,6 @@ use crate::{
     display_passphrase, run_blocking, Client, Error, Result, VaultInfo,
 };
 
-mod dequote;
 mod editor;
 mod print;
 
@@ -713,7 +712,7 @@ pub fn exec(
     state: Arc<RwLock<ShellState>>,
 ) -> Result<()> {
     if !line.trim().is_empty() {
-        let mut sanitized = dequote::group(line.trim_end_matches(' '));
+        let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));
         let it = sanitized.into_iter();
         let mut cmd = Shell::command();
