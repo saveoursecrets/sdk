@@ -1,9 +1,7 @@
 use std::path::PathBuf;
 
 use sos_core::{
-    address::address_compressed,
     diceware,
-    passphrase::{words, WordCount},
     vault::{Vault, DEFAULT_VAULT_NAME},
     Algorithm,
 };

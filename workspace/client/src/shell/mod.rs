@@ -402,21 +402,15 @@ fn exec_program(
         ShellCommand::List { verbose } => {
             let reader = state.read().unwrap();
             if let Some(keeper) = &reader.current {
-                for (index, uuid) in keeper.vault().keys().enumerate() {
-                    if let Some((secret_meta, _, _)) = keeper.read(uuid)? {
-                        let label = secret_meta.label();
-                        let short_name = secret_meta.short_name();
-                        print!("[{}] ", short_name);
-
-                        if verbose {
-                            println!("{} {}", label, uuid);
-                        } else {
-                            println!("{}", label);
-                        }
+                let meta = keeper.meta_data()?;
+                for (uuid, secret_meta) in meta {
+                    let label = secret_meta.label();
+                    let short_name = secret_meta.short_name();
+                    print!("[{}] ", short_name);
+                    if verbose {
+                        println!("{} {}", label, uuid);
                     } else {
-                        return Err(Error::SecretNotAvailable(
-                            UuidOrName::Uuid(*uuid),
-                        ));
+                        println!("{}", label);
                     }
                 }
             } else {

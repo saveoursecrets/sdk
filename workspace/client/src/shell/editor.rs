@@ -5,7 +5,6 @@
 //!
 use std::{
     borrow::Cow,
-    collections::HashMap,
     path::{Path, PathBuf},
     process::{Command, ExitStatus},
 };
@@ -75,7 +74,7 @@ fn edit_secret<'a>(
 ) -> Result<EditResult<'a>> {
     let editor_cmd = std::env::var("EDITOR").unwrap_or_else(|_| "vim".into());
     let hash = Keccak256::digest(&content);
-    let mut file = Builder::new().suffix(suffix).tempfile()?;
+    let file = Builder::new().suffix(suffix).tempfile()?;
     std::fs::write(file.path(), content)?;
 
     let status = spawn_editor(editor_cmd, file.path())?;
