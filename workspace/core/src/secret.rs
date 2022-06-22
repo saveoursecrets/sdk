@@ -93,6 +93,11 @@ impl SecretMeta {
         &self.label
     }
 
+    /// Set the label for the secret.
+    pub fn set_label(&mut self, label: String) {
+        self.label = label;
+    }
+
     /// The kind of the secret.
     pub fn kind(&self) -> &u8 {
         &self.kind

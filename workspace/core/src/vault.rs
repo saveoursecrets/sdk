@@ -664,6 +664,34 @@ impl VaultAccess for Vault {
             Ok(None)
         }
     }
+
+    fn meta(
+        &mut self,
+        uuid: &Uuid,
+        secret_meta: AeadPack,
+    ) -> Result<Option<Payload>> {
+        let id = *uuid;
+        if let Some(value) = self.contents.data.get_mut(uuid) {
+            let change_seq = if let Some(next_change_seq) =
+                self.header.summary.change_seq.checked_add(1)
+            {
+                self.header.summary.set_change_seq(next_change_seq);
+                next_change_seq
+            } else {
+                return Err(Error::TooManyChanges);
+            };
+
+            value.0 = secret_meta;
+
+            Ok(Some(Payload::UpdateSecret(
+                change_seq,
+                id,
+                Cow::Borrowed(value),
+            )))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 /// Encode into a binary buffer.

@@ -74,6 +74,11 @@ enum ShellCommand {
     Set { secret: UuidOrName },
     /// Delete a secret.
     Del { secret: UuidOrName },
+    /// Rename a secret.
+    Mv {
+        secret: UuidOrName,
+        label: Option<String>,
+    },
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -602,6 +607,60 @@ fn exec_program(
                 return Err(Error::SecretNotAvailable(secret));
             }
         }
+        ShellCommand::Mv { secret, label } => {
+            let reader = state.read().unwrap();
+            let result = if let Some(keeper) = &reader.current {
+                let meta_data = keeper.meta_data()?;
+                if let Some((uuid, secret_meta)) =
+                    keeper.find_by_uuid_or_label(&meta_data, &secret)
+                {
+                    Some((*uuid, secret_meta.clone()))
+                } else {
+                    None
+                }
+            } else {
+                return Err(Error::NoVaultSelected);
+            };
+            drop(reader);
+
+            if let Some((uuid, mut secret_meta)) = result {
+                let mut writer = state.write().unwrap();
+                if let Some(keeper) = writer.current.as_mut() {
+                    let label = get_label(label)?;
+                    let vault_id = *keeper.id();
+
+                    secret_meta.set_label(label);
+
+                    if let Some(payload) = keeper.meta(&uuid, secret_meta)? {
+                        if let Payload::UpdateSecret(
+                            change_seq,
+                            uuid,
+                            value,
+                        ) = payload
+                        {
+                            let response =
+                                run_blocking(client.update_secret(
+                                    &vault_id, &uuid, &*value, change_seq,
+                                ))?;
+                            if !response.status().is_success() {
+                                return Err(Error::SetSecret(
+                                    response.status().into(),
+                                ));
+                            }
+                        } else {
+                            unreachable!("expected update secret payload");
+                        }
+                    } else {
+                        return Err(Error::SecretNotAvailable(secret));
+                    }
+                } else {
+                    return Err(Error::NoVaultSelected);
+                }
+            } else {
+                return Err(Error::SecretNotAvailable(secret));
+            }
+        }
+
         ShellCommand::Whoami => {
             let address = client.address()?;
             println!("{}", address);

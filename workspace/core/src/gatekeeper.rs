@@ -136,7 +136,7 @@ impl Gatekeeper {
 
     /// Attempt to decrypt the index meta data for the vault
     /// using the passphrase assigned to this gatekeeper.
-    pub fn meta(&self) -> Result<VaultMeta> {
+    pub fn vault_meta(&self) -> Result<VaultMeta> {
         if let Some(private_key) = &self.private_key {
             if let Some(meta_aead) = self.vault.header().meta() {
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
@@ -294,6 +294,41 @@ impl Gatekeeper {
         }
     }
 
+    /// Set the meta data for a secret.
+    pub fn meta(
+        &mut self,
+        uuid: &Uuid,
+        secret_meta: SecretMeta,
+    ) -> Result<Option<Payload>> {
+        // TODO: use cached in-memory meta data
+        let meta = self.meta_data()?;
+
+        let existing_meta = meta.get(uuid);
+
+        if existing_meta.is_none() {
+            return Err(Error::SecretDoesNotExist(*uuid));
+        }
+
+        let existing_meta = existing_meta.unwrap();
+
+        // Label has changed, so ensure uniqueness
+        if existing_meta.label() != secret_meta.label()
+            && self.find_by_label(&meta, secret_meta.label()).is_some()
+        {
+            return Err(Error::SecretAlreadyExists(
+                secret_meta.label().to_string(),
+            ));
+        }
+
+        if let Some(private_key) = &self.private_key {
+            let meta_blob = encode(&secret_meta)?;
+            let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
+            Ok(self.vault.meta(uuid, meta_aead)?)
+        } else {
+            Err(Error::VaultLocked)
+        }
+    }
+
     /// Delete a secret and it's meta data from the vault.
     pub fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
         Ok(self.vault.delete(uuid)?)
@@ -310,7 +345,7 @@ impl Gatekeeper {
             let salt = SecretKey::parse_salt(salt)?;
             let private_key = SecretKey::derive_32(passphrase, &salt)?;
             self.private_key = Some(Box::new(private_key));
-            self.meta()
+            self.vault_meta()
         } else {
             Err(Error::VaultNotInit)
         }
