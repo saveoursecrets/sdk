@@ -29,6 +29,7 @@ human_bytes = "0.3"
 tempfile = "3"
 sha3 = "0.10"
 shell-words = "1"
+terminal-banner = "0.1"
 
 [[bin]]
 name = "sos-client"

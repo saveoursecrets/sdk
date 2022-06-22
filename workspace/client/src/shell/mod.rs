@@ -253,11 +253,7 @@ fn exec_program(
             if !response.status().is_success() {
                 return Err(Error::VaultCreate(response.status().into()));
             }
-            display_passphrase(
-                "Encryption passphrase",
-                "YOU MUST REMEMBER THIS PASSPHRASE!",
-                &passphrase,
-            );
+            display_passphrase("ENCRYPTION PASSPHRASE", &passphrase);
 
             list_vaults(client, state, false)?;
         }

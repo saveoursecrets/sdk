@@ -68,17 +68,9 @@ pub fn signup(
 
         std::fs::write(keystore_file, serde_json::to_string(&keystore)?)?;
 
-        display_passphrase(
-            "Keystore passphrase",
-            "YOU MUST REMEMBER THIS PASSPHRASE!",
-            &keystore_passphrase,
-        );
+        display_passphrase("KEYSTORE PASSPHRASE", &keystore_passphrase);
 
-        display_passphrase(
-            "Encryption passphrase",
-            "YOU MUST REMEMBER THIS PASSPHRASE!",
-            &encryption_passphrase,
-        );
+        display_passphrase("ENCRYPTION PASSPHRASE", &encryption_passphrase);
     }
 
     Ok(())

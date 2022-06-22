@@ -1,6 +1,9 @@
 use sos_core::signer::SingleParty;
 use sos_readline::read_password;
-use std::{fs::File, future::Future, io::Read, path::PathBuf, sync::Arc};
+use std::{
+    borrow::Cow, fs::File, future::Future, io::Read, path::PathBuf, sync::Arc,
+};
+use terminal_banner::{Banner, Padding};
 use tokio::runtime::Runtime;
 use url::Url;
 use web3_keystore::{decrypt, KeyStore};
@@ -25,18 +28,21 @@ where
     Ok(Runtime::new().unwrap().block_on(func)?)
 }
 
-pub(crate) fn display_passphrase(
-    heading: &str,
-    detail: &str,
-    passphrase: &str,
-) {
-    println!("### {}", heading);
-    println!("#");
-    println!("# {}", detail);
-    println!("#");
-    println!("# {}", passphrase);
-    println!("#");
-    println!("###");
+pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {
+    let banner = Banner::new()
+        .padding(Padding::one())
+        .text(Cow::from(heading))
+        .text(Cow::from(passphrase))
+        .render();
+    println!("{}", banner);
+
+    //println!("### {}", heading);
+    //println!("#");
+    //println!("# {}", detail);
+    //println!("#");
+    //println!("# {}", passphrase);
+    //println!("#");
+    //println!("###");
 }
 
 pub struct ClientBuilder {

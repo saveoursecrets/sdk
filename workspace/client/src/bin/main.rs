@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     path::PathBuf,
     sync::{Arc, RwLock},
 };
@@ -14,6 +15,7 @@ use sos_client::{
 };
 use sos_core::Algorithm;
 use sos_readline::read_shell;
+use terminal_banner::{Banner, Padding};
 
 const WELCOME: &str = include_str!("welcome.txt");
 
@@ -90,8 +92,16 @@ enum Command {
 
 /// Print the welcome information.
 fn welcome(server: &Url) -> Result<()> {
-    println!("{}", WELCOME.trim());
-    println!("# Server {}", server);
+    let help_info = r#"Type "help", "--help" or "-h" for command usage
+Type "quit" or "q" to exit"#;
+    let status_info = format!("Server: {}", server);
+    let banner = Banner::new()
+        .padding(Padding::one())
+        .text(Cow::from(WELCOME))
+        .text(Cow::from(help_info))
+        .text(Cow::Owned(status_info))
+        .render();
+    println!("{}", banner);
     Ok(())
 }
 
