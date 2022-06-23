@@ -380,7 +380,7 @@ mod tests {
         crypto::{secret_key::SecretKey, AeadPack},
         operations::VaultAccess,
         secret::*,
-        vault::{Vault, DEFAULT_VAULT_NAME},
+        vault::{Header, Vault, DEFAULT_VAULT_NAME},
     };
     use anyhow::Result;
 
@@ -518,6 +518,55 @@ mod tests {
 
         // Reset the fixture vault name
         let _ = vault_access.set_vault_name(DEFAULT_VAULT_NAME.to_string());
+
+        Ok(())
+    }
+
+    #[test]
+    fn vault_file_del_splice() -> Result<()> {
+        let (encryption_key, _) = mock_encryption_key()?;
+        let vault = mock_vault();
+
+        let vault_path =
+            "./fixtures/a7db14d0-80ac-47e8-aeb4-07c1ac55bd8e.vault";
+        let mut vault_access = VaultFileAccess::new(vault_path)?;
+
+        let initial_change_seq = vault_access.change_seq()?;
+
+        let secrets = [
+            ("Note one", "First note"),
+            ("Note two", "Second note"),
+            ("Note three", "Third note"),
+        ];
+
+        let mut secret_ids = Vec::new();
+        for note_data in secrets {
+            let (
+                secret_id,
+                _secret_meta,
+                _secret_value,
+                _meta_bytes,
+                _secret_bytes,
+            ) = create_secure_note(
+                &mut vault_access,
+                &vault,
+                &encryption_key,
+                note_data.0,
+                note_data.1,
+            )?;
+            secret_ids.push(secret_id);
+        }
+
+        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
+        assert_eq!(3, total_rows);
+
+        let del_secret_id = secret_ids.get(1).unwrap();
+        let _ = vault_access.delete(&del_secret_id)?;
+
+        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
+        assert_eq!(2, total_rows);
+
+        assert!(Header::read_header_file(vault_path).is_ok());
 
         Ok(())
     }
