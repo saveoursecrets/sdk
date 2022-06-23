@@ -4,8 +4,10 @@ use sos_core::{
     secret::{Secret, SecretMeta},
     vault::Summary,
 };
+use std::borrow::Cow;
 
 use human_bytes::human_bytes;
+use terminal_banner::{Banner, Padding};
 
 pub(super) fn summaries_list(summaries: &[Summary]) {
     for (index, summary) in summaries.iter().enumerate() {
@@ -24,34 +26,45 @@ pub(super) fn summary(summary: &Summary) {
 }
 
 pub(super) fn secret(secret_meta: &SecretMeta, secret_data: &Secret) {
-    println!("[{}] {}", secret_meta.short_name(), secret_meta.label());
-    match secret_data {
-        Secret::Note(text) => {
-            println!("{}", text);
-        }
+    let heading =
+        format!("[{}] {}", secret_meta.short_name(), secret_meta.label());
+
+    let banner = Banner::new()
+        .padding(Padding::one())
+        .text(Cow::Owned(heading));
+
+    let banner = match secret_data {
+        Secret::Note(text) => banner.text(Cow::Borrowed(text)),
         Secret::Account {
             account,
             url,
             password,
         } => {
-            println!("Account: {}", account);
+            let mut account = format!("Account:  {}\n", account);
             if let Some(url) = url {
-                println!("Website: {}", url);
+                account.push_str(&format!("Website:  {}\n", url));
             }
-            println!("Password: {}", password);
+            account.push_str(&format!("Password: {}", password));
+            banner.text(Cow::Owned(account))
         }
         Secret::List(list) => {
-            for (name, value) in list {
-                println!("{} = {}", name, value);
+            let mut credentials = String::new();
+            for (index, (name, value)) in list.into_iter().enumerate() {
+                credentials.push_str(&format!("{} = {}", name, value));
+                if index < list.len() - 1 {
+                    credentials.push('\n');
+                }
             }
+            banner.text(Cow::Owned(credentials))
         }
         Secret::File { name, buffer, mime } => {
-            println!(
-                "{} {} {}",
-                name,
-                mime,
-                human_bytes(buffer.len() as f64)
-            );
+            let mut file =
+                format!("{} {}\n", name, human_bytes(buffer.len() as f64));
+            file.push_str(mime);
+            banner.text(Cow::Owned(file))
         }
-    }
+    };
+
+    let result = banner.render();
+    println!("{}", result);
 }

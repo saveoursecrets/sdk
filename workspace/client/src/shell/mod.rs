@@ -8,6 +8,7 @@ use std::{
 
 use clap::{CommandFactory, Parser, Subcommand};
 use human_bytes::human_bytes;
+use terminal_banner::{Banner, Padding};
 use url::Url;
 
 use sos_core::{
@@ -60,7 +61,7 @@ enum ShellCommand {
     List {
         /// Print more information
         #[clap(short, long)]
-        verbose: bool,
+        long: bool,
     },
     /// Add a secret.
     Add {
@@ -89,9 +90,13 @@ enum ShellCommand {
 
 #[derive(Subcommand, Debug)]
 enum Add {
+    /// Add a note.
     Note { label: Option<String> },
+    /// Add a list of credentials.
     List { label: Option<String> },
+    /// Add an account password.
     Account { label: Option<String> },
+    /// Add a file.
     File { path: String, label: Option<String> },
 }
 
@@ -105,13 +110,15 @@ fn get_label(label: Option<String>) -> Result<String> {
 
 fn add_note(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
     let label = get_label(label)?;
-
-    println!("### NOTE");
-    println!("#");
-    println!("# To abort the note enter Ctrl+C");
-    println!("# To save the note enter Ctrl+D on a newline");
-    println!("#");
-    println!("###");
+    let banner = Banner::new()
+        .padding(Padding::one())
+        .text(Cow::Owned(format!("[NOTE] {}", label)))
+        .text(Cow::Borrowed(
+            r#"To abort the note enter Ctrl+C
+To save the note enter Ctrl+D on a newline"#,
+        ))
+        .render();
+    println!("{}", banner);
 
     if let Some(note) = read_multiline(None)? {
         let note = note.trim_end_matches('\n').to_string();
@@ -394,7 +401,7 @@ fn exec_program(
                 return Err(Error::NoVaultSelected);
             }
         }
-        ShellCommand::List { verbose } => {
+        ShellCommand::List { long } => {
             let reader = state.read().unwrap();
             if let Some(keeper) = &reader.current {
                 let meta = keeper.meta_data()?;
@@ -402,7 +409,7 @@ fn exec_program(
                     let label = secret_meta.label();
                     let short_name = secret_meta.short_name();
                     print!("[{}] ", short_name);
-                    if verbose {
+                    if long {
                         println!("{} {}", label, uuid);
                     } else {
                         println!("{}", label);
