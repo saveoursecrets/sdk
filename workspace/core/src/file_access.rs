@@ -378,7 +378,7 @@ mod tests {
     use crate::test_utils::*;
     use crate::{
         crypto::{secret_key::SecretKey, AeadPack},
-        operations::VaultAccess,
+        operations::{Payload, VaultAccess},
         secret::*,
         vault::{Header, Vault, DEFAULT_VAULT_NAME},
     };
@@ -393,20 +393,25 @@ mod tests {
         secret_label: &str,
         secret_note: &str,
     ) -> Result<(SecretId, SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
-        let (secret_id, secret_meta, secret_value, meta_bytes, secret_bytes) =
+        let (secret_meta, secret_value, meta_bytes, secret_bytes) =
             mock_secret_note(secret_label, secret_note)?;
 
         let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
         let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
-        let _ = vault_access.create(secret_id, (meta_aead, secret_aead))?;
-        Ok((
-            secret_id,
-            secret_meta,
-            secret_value,
-            meta_bytes,
-            secret_bytes,
-        ))
+        if let Payload::CreateSecret(_, secret_id, _) =
+            vault_access.create((meta_aead, secret_aead))?
+        {
+            Ok((
+                secret_id,
+                secret_meta,
+                secret_value,
+                meta_bytes,
+                secret_bytes,
+            ))
+        } else {
+            panic!("expecting create secret payload");
+        }
     }
 
     #[test]
@@ -486,7 +491,7 @@ mod tests {
         // Update the secret with new values
         let updated_label = "Updated test note";
         let updated_note = "Updated note text.";
-        let (_, _, _, meta_bytes, secret_bytes) =
+        let (_, _, meta_bytes, secret_bytes) =
             mock_secret_note(updated_label, updated_note)?;
 
         let updated_meta = vault.encrypt(&encryption_key, &meta_bytes)?;

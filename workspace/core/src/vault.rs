@@ -673,13 +673,13 @@ mod tests {
     use super::*;
     use crate::crypto::secret_key::*;
     use crate::diceware::generate_passphrase;
+    use crate::operations::Payload;
     use crate::secret::*;
 
     use crate::test_utils::*;
 
     use anyhow::Result;
     use serde_binary::binary_rw::{MemoryStream, ReadStream, WriteStream};
-    use uuid::Uuid;
 
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
@@ -703,13 +703,16 @@ mod tests {
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
 
-        let (secret_id, secret_meta, secret_value, meta_bytes, secret_bytes) =
+        let (secret_meta, secret_value, meta_bytes, secret_bytes) =
             mock_secret_note(secret_label, secret_note)?;
 
         let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
         let secret_aead = vault.encrypt(&encryption_key, &secret_bytes)?;
 
-        let _ = vault.create(secret_id, (meta_aead, secret_aead));
+        let secret_id = match vault.create((meta_aead, secret_aead))? {
+            Payload::CreateSecret(_, secret_id, _) => secret_id,
+            _ => unreachable!(),
+        };
 
         let mut stream = MemoryStream::new();
         Vault::encode(&mut stream, &vault)?;
