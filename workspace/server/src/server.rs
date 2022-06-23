@@ -28,6 +28,7 @@ use sos_core::{
     decode,
     operations::{Operation, Payload},
     patch::Patch,
+    secret::SecretId,
     vault::{Header, Summary, Vault},
 };
 use std::{
@@ -918,7 +919,7 @@ impl SecretHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(change_seq): TypedHeader<ChangeSequence>,
-        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+        Path((vault_id, secret_id)): Path<(Uuid, SecretId)>,
         body: Bytes,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         // Perform the creation and get an audit log
@@ -976,7 +977,7 @@ impl SecretHandler {
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
         TypedHeader(change_seq): TypedHeader<ChangeSequence>,
-        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+        Path((vault_id, secret_id)): Path<(Uuid, SecretId)>,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         let response = if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &message)
@@ -1021,7 +1022,7 @@ impl SecretHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(change_seq): TypedHeader<ChangeSequence>,
-        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+        Path((vault_id, secret_id)): Path<(Uuid, SecretId)>,
         body: Bytes,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         // Perform the update and get an audit log
@@ -1083,7 +1084,7 @@ impl SecretHandler {
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
         TypedHeader(change_seq): TypedHeader<ChangeSequence>,
-        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+        Path((vault_id, secret_id)): Path<(Uuid, SecretId)>,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         // Perform the deletion and get an audit log
         let response = if let Ok((status_code, token)) =

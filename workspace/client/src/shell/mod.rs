@@ -15,7 +15,7 @@ use sos_core::{
     diceware::generate,
     gatekeeper::Gatekeeper,
     operations::{Payload, VaultAccess},
-    secret::{Secret, SecretMeta, UuidOrName},
+    secret::{Secret, SecretMeta, SecretRef},
     vault::{encode, Summary, Vault},
 };
 use sos_readline::{
@@ -45,9 +45,9 @@ enum ShellCommand {
     /// Create a new vault.
     Create { name: String },
     /// Delete a vault.
-    Remove { vault: UuidOrName },
+    Remove { vault: SecretRef },
     /// Select a vault.
-    Use { vault: UuidOrName },
+    Use { vault: SecretRef },
     /// Print information about the selected vault.
     Info,
     /// Get or set the name of the selected vault.
@@ -69,14 +69,14 @@ enum ShellCommand {
         cmd: Add,
     },
     /// Print a secret.
-    Get { secret: UuidOrName },
+    Get { secret: SecretRef },
     /// Update a secret.
-    Set { secret: UuidOrName },
+    Set { secret: SecretRef },
     /// Delete a secret.
-    Del { secret: UuidOrName },
+    Del { secret: SecretRef },
     /// Rename a secret.
     Mv {
-        secret: UuidOrName,
+        secret: SecretRef,
         label: Option<String>,
     },
     /// Print the current identity.
@@ -267,10 +267,10 @@ fn exec_program(
         ShellCommand::Remove { vault } => {
             let mut writer = state.write().unwrap();
             let summary = match &vault {
-                UuidOrName::Name(name) => {
+                SecretRef::Name(name) => {
                     writer.summaries.iter().find(|s| s.name() == name)
                 }
-                UuidOrName::Uuid(uuid) => {
+                SecretRef::Uuid(uuid) => {
                     writer.summaries.iter().find(|s| s.id() == uuid)
                 }
             };
@@ -314,10 +314,10 @@ fn exec_program(
         ShellCommand::Use { vault } => {
             let mut writer = state.write().unwrap();
             let summary = match &vault {
-                UuidOrName::Name(name) => {
+                SecretRef::Name(name) => {
                     writer.summaries.iter().find(|s| s.name() == name)
                 }
-                UuidOrName::Uuid(uuid) => {
+                SecretRef::Uuid(uuid) => {
                     writer.summaries.iter().find(|s| s.id() == uuid)
                 }
             };

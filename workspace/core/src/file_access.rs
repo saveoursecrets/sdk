@@ -22,6 +22,7 @@ use crate::{
     crypto::AeadPack,
     file_identity::FileIdentity,
     operations::{Payload, VaultAccess},
+    secret::SecretId,
     vault::{encode, Contents, Header, Summary, IDENTITY},
     Error, Result,
 };
@@ -178,7 +179,7 @@ impl VaultFileAccess {
     /// Returns the content offset, total rows and the byte offset and row length of the row if it exists.
     fn find_row(
         &self,
-        uuid: &Uuid,
+        id: &SecretId,
     ) -> Result<(usize, u32, Option<(usize, u32)>)> {
         let content_offset = self.check_identity()?;
 
@@ -195,7 +196,7 @@ impl VaultFileAccess {
             let row_id: [u8; 16] =
                 de.reader.read_bytes(16)?.as_slice().try_into()?;
             let row_id = Uuid::from_bytes(row_id);
-            if uuid == &row_id {
+            if id == &row_id {
                 // Need to backtrack as we just read the row length and UUID;
                 // calling decode_row() will try to read the length and UUID.
                 de.reader.seek(current_pos)?;
@@ -258,7 +259,7 @@ impl VaultAccess for VaultFileAccess {
 
     fn create(
         &mut self,
-        uuid: Uuid,
+        id: SecretId,
         secret: (AeadPack, AeadPack),
     ) -> Result<Payload> {
         let content_offset = self.check_identity()?;
@@ -272,7 +273,7 @@ impl VaultAccess for VaultFileAccess {
 
         // Seek to the end of the file and append the row
         ser.writer.seek(length)?;
-        Contents::encode_row(&mut ser, &uuid, &secret)?;
+        Contents::encode_row(&mut ser, &id, &secret)?;
 
         drop(stream);
 
@@ -281,14 +282,14 @@ impl VaultAccess for VaultFileAccess {
 
         // Update the change sequence number
         let change_seq = self.inc_change_seq(change_seq)?;
-        Ok(Payload::CreateSecret(change_seq, uuid, Cow::Owned(secret)))
+        Ok(Payload::CreateSecret(change_seq, id, Cow::Owned(secret)))
     }
 
     fn read<'a>(
         &'a self,
-        uuid: &Uuid,
+        id: &SecretId,
     ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
-        let (_, _, row) = self.find_row(uuid)?;
+        let (_, _, row) = self.find_row(id)?;
         let change_seq = self.change_seq()?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().unwrap();
@@ -298,19 +299,19 @@ impl VaultAccess for VaultFileAccess {
             let (_, (meta, secret)) = Contents::decode_row(&mut de)?;
             Ok((
                 Some(Cow::Owned((meta, secret))),
-                Payload::ReadSecret(change_seq, *uuid),
+                Payload::ReadSecret(change_seq, *id),
             ))
         } else {
-            Ok((None, Payload::ReadSecret(change_seq, *uuid)))
+            Ok((None, Payload::ReadSecret(change_seq, *id)))
         }
     }
 
     fn update(
         &mut self,
-        uuid: &Uuid,
+        id: &SecretId,
         secret: (AeadPack, AeadPack),
     ) -> Result<Option<Payload>> {
-        let (content_offset, total_rows, row) = self.find_row(uuid)?;
+        let (content_offset, total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             let change_seq = self.change_seq()?;
 
@@ -318,7 +319,7 @@ impl VaultAccess for VaultFileAccess {
             let mut stream = MemoryStream::new();
             let writer = BinaryWriter::new(&mut stream, Endian::Big);
             let mut ser = Serializer { writer };
-            Contents::encode_row(&mut ser, uuid, &secret)?;
+            Contents::encode_row(&mut ser, id, &secret)?;
             let encoded: Vec<u8> = stream.into();
 
             // Splice the row into the file
@@ -338,7 +339,7 @@ impl VaultAccess for VaultFileAccess {
 
             Ok(Some(Payload::UpdateSecret(
                 change_seq,
-                *uuid,
+                *id,
                 Cow::Owned(secret),
             )))
         } else {
@@ -346,9 +347,8 @@ impl VaultAccess for VaultFileAccess {
         }
     }
 
-    fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
-        let id = *uuid;
-        let (content_offset, total_rows, row) = self.find_row(uuid)?;
+    fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>> {
+        let (content_offset, total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             let change_seq = self.change_seq()?;
 
@@ -368,7 +368,7 @@ impl VaultAccess for VaultFileAccess {
 
             // Update the change sequence number
             let change_seq = self.inc_change_seq(change_seq)?;
-            Ok(Some(Payload::DeleteSecret(change_seq, id)))
+            Ok(Some(Payload::DeleteSecret(change_seq, *id)))
         } else {
             Ok(None)
         }
@@ -395,7 +395,7 @@ mod tests {
         encryption_key: &SecretKey,
         secret_label: &str,
         secret_note: &str,
-    ) -> Result<(Uuid, SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
+    ) -> Result<(SecretId, SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
         let (secret_id, secret_meta, secret_value, meta_bytes, secret_bytes) =
             mock_secret_note(secret_label, secret_note)?;
 

@@ -18,7 +18,7 @@ use crate::{
     },
     file_identity::FileIdentity,
     operations::{Payload, VaultAccess},
-    secret::VaultMeta,
+    secret::{SecretId, VaultMeta},
     Error, Result,
 };
 
@@ -302,14 +302,14 @@ impl Decode for Header {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    data: HashMap<Uuid, (AeadPack, AeadPack)>,
+    data: HashMap<SecretId, (AeadPack, AeadPack)>,
 }
 
 impl Contents {
     /// Encode a single row into a serializer.
     pub fn encode_row(
         ser: &mut Serializer,
-        key: &Uuid,
+        key: &SecretId,
         row: &(AeadPack, AeadPack),
     ) -> BinaryResult<()> {
         let size_pos = ser.writer.tell()?;
@@ -332,7 +332,7 @@ impl Contents {
     /// Decode a single row from a deserializer.
     pub fn decode_row(
         de: &mut Deserializer,
-    ) -> BinaryResult<(Uuid, (AeadPack, AeadPack))> {
+    ) -> BinaryResult<(SecretId, (AeadPack, AeadPack))> {
         // Read in the row length
         let _ = de.reader.read_u32()?;
 
@@ -590,7 +590,7 @@ impl VaultAccess for Vault {
 
     fn create(
         &mut self,
-        uuid: Uuid,
+        id: SecretId,
         secret: (AeadPack, AeadPack),
     ) -> Result<Payload> {
         let change_seq = if let Some(next_change_seq) =
@@ -602,29 +602,25 @@ impl VaultAccess for Vault {
             return Err(Error::TooManyChanges);
         };
 
-        let id = uuid;
-        let value = self.contents.data.entry(uuid).or_insert(secret);
-
+        let value = self.contents.data.entry(id.clone()).or_insert(secret);
         Ok(Payload::CreateSecret(change_seq, id, Cow::Borrowed(value)))
     }
 
     fn read<'a>(
         &'a self,
-        uuid: &Uuid,
+        id: &SecretId,
     ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
-        let id = *uuid;
         let change_seq = self.change_seq()?;
-        let result = self.contents.data.get(uuid).map(Cow::Borrowed);
-        Ok((result, Payload::ReadSecret(change_seq, id)))
+        let result = self.contents.data.get(id).map(Cow::Borrowed);
+        Ok((result, Payload::ReadSecret(change_seq, *id)))
     }
 
     fn update(
         &mut self,
-        uuid: &Uuid,
+        id: &SecretId,
         secret: (AeadPack, AeadPack),
     ) -> Result<Option<Payload>> {
-        let id = *uuid;
-        if let Some(value) = self.contents.data.get_mut(uuid) {
+        if let Some(value) = self.contents.data.get_mut(id) {
             let change_seq = if let Some(next_change_seq) =
                 self.header.summary.change_seq.checked_add(1)
             {
@@ -638,7 +634,7 @@ impl VaultAccess for Vault {
 
             Ok(Some(Payload::UpdateSecret(
                 change_seq,
-                id,
+                *id,
                 Cow::Borrowed(value),
             )))
         } else {
@@ -646,7 +642,7 @@ impl VaultAccess for Vault {
         }
     }
 
-    fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
+    fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>> {
         let change_seq = if let Some(next_change_seq) =
             self.header.summary.change_seq.checked_add(1)
         {
@@ -656,10 +652,9 @@ impl VaultAccess for Vault {
             return Err(Error::TooManyChanges);
         };
 
-        let id = *uuid;
-        let entry = self.contents.data.remove(uuid);
+        let entry = self.contents.data.remove(id);
         if entry.is_some() {
-            Ok(Some(Payload::DeleteSecret(change_seq, id)))
+            Ok(Some(Payload::DeleteSecret(change_seq, *id)))
         } else {
             Ok(None)
         }

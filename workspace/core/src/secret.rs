@@ -11,25 +11,28 @@ use uuid::Uuid;
 
 use crate::Error;
 
-/// Represents either a uuid or a named label.
+/// Identifier for secrets.
+pub type SecretId = Uuid;
+
+/// Reference to a secret using an id or a named label.
 #[derive(Debug)]
-pub enum UuidOrName {
-    /// A unique identifier.
-    Uuid(Uuid),
-    /// The name of a label.
+pub enum SecretRef {
+    /// Secret identifier.
+    Uuid(SecretId),
+    /// Secret label.
     Name(String),
 }
 
-impl fmt::Display for UuidOrName {
+impl fmt::Display for SecretRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Uuid(uuid) => write!(f, "{}", uuid),
+            Self::Uuid(id) => write!(f, "{}", id),
             Self::Name(name) => write!(f, "{}", name),
         }
     }
 }
 
-impl FromStr for UuidOrName {
+impl FromStr for SecretRef {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(uuid) = Uuid::parse_str(s) {

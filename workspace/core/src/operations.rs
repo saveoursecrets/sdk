@@ -17,6 +17,7 @@ use crate::{
     address::AddressStr,
     audit::{Log, LogData},
     crypto::AeadPack,
+    secret::SecretId,
     signer::Signer,
     vault::{encode, Summary},
     Error, Result,
@@ -48,7 +49,7 @@ pub trait VaultAccess {
     /// Add an encrypted secret to the vault.
     fn create(
         &mut self,
-        uuid: Uuid,
+        id: SecretId,
         secret: (AeadPack, AeadPack),
     ) -> Result<Payload>;
 
@@ -59,18 +60,18 @@ pub trait VaultAccess {
     /// other containers such as file access would return owned data.
     fn read<'a>(
         &'a self,
-        uuid: &Uuid,
+        id: &SecretId,
     ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)>;
 
     /// Update an encrypted secret in the vault.
     fn update(
         &mut self,
-        uuid: &Uuid,
+        id: &SecretId,
         secret: (AeadPack, AeadPack),
     ) -> Result<Option<Payload>>;
 
     /// Remove an encrypted secret from the vault.
-    fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>>;
+    fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>>;
 
     /// Apply a payload to this vault and return the updated
     /// change sequence.
@@ -298,21 +299,21 @@ pub enum Payload<'a> {
     ///
     /// The remote server must check the `change_seq` to
     /// determine if the change could be safely applied.
-    CreateSecret(u32, Uuid, Cow<'a, (AeadPack, AeadPack)>),
+    CreateSecret(u32, SecretId, Cow<'a, (AeadPack, AeadPack)>),
 
     /// Payload used to determine that a secret has been read,
     /// defined for audit log purposes.
-    ReadSecret(u32, Uuid),
+    ReadSecret(u32, SecretId),
 
     /// Payload used to indicate that a secret should be
     /// updated in a remote destination.
     ///
     /// The remote server must check the `change_seq` to
     /// determine if the change could be safely applied.
-    UpdateSecret(u32, Uuid, Cow<'a, (AeadPack, AeadPack)>),
+    UpdateSecret(u32, SecretId, Cow<'a, (AeadPack, AeadPack)>),
 
     /// Delete a secret.
-    DeleteSecret(u32, Uuid),
+    DeleteSecret(u32, SecretId),
 }
 
 impl Default for Payload<'_> {
@@ -500,39 +501,39 @@ impl<'a> Decode for Payload<'a> {
             }
             Operation::CreateSecret => {
                 let change_seq = de.reader.read_u32()?;
-                let uuid: Uuid = Deserialize::deserialize(&mut *de)?;
+                let id: SecretId = Deserialize::deserialize(&mut *de)?;
                 let mut meta_aead: AeadPack = Default::default();
                 meta_aead.decode(&mut *de)?;
                 let mut secret_aead: AeadPack = Default::default();
                 secret_aead.decode(&mut *de)?;
                 *self = Payload::CreateSecret(
                     change_seq,
-                    uuid,
+                    id,
                     Cow::Owned((meta_aead, secret_aead)),
                 );
             }
             Operation::ReadSecret => {
                 let change_seq = de.reader.read_u32()?;
-                let uuid: Uuid = Deserialize::deserialize(&mut *de)?;
-                *self = Payload::ReadSecret(change_seq, uuid);
+                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                *self = Payload::ReadSecret(change_seq, id);
             }
             Operation::UpdateSecret => {
                 let change_seq = de.reader.read_u32()?;
-                let uuid: Uuid = Deserialize::deserialize(&mut *de)?;
+                let id: SecretId = Deserialize::deserialize(&mut *de)?;
                 let mut meta_aead: AeadPack = Default::default();
                 meta_aead.decode(&mut *de)?;
                 let mut secret_aead: AeadPack = Default::default();
                 secret_aead.decode(&mut *de)?;
                 *self = Payload::UpdateSecret(
                     change_seq,
-                    uuid,
+                    id,
                     Cow::Owned((meta_aead, secret_aead)),
                 );
             }
             Operation::DeleteSecret => {
                 let change_seq = de.reader.read_u32()?;
-                let uuid: Uuid = Deserialize::deserialize(&mut *de)?;
-                *self = Payload::DeleteSecret(change_seq, uuid);
+                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                *self = Payload::DeleteSecret(change_seq, id);
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(

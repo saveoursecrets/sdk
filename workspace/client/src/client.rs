@@ -5,6 +5,7 @@ use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
     crypto::AeadPack,
+    secret::SecretId,
     signer::Signer,
     vault::{Summary, MIME_TYPE_VAULT},
 };
@@ -229,7 +230,7 @@ impl Client {
     pub async fn create_secret(
         &self,
         vault_id: &Uuid,
-        secret_id: &Uuid,
+        secret_id: &SecretId,
         secret: &(AeadPack, AeadPack),
         change_seq: u32,
     ) -> Result<Response> {
@@ -255,7 +256,7 @@ impl Client {
     pub async fn update_secret(
         &self,
         vault_id: &Uuid,
-        secret_id: &Uuid,
+        secret_id: &SecretId,
         secret: &(AeadPack, AeadPack),
         change_seq: u32,
     ) -> Result<Response> {
@@ -282,7 +283,7 @@ impl Client {
         &self,
         change_seq: u32,
         vault_id: &Uuid,
-        secret_id: &Uuid,
+        secret_id: &SecretId,
     ) -> Result<Response> {
         let url = self.server.join(&format!(
             "api/vaults/{}/secrets/{}",
@@ -305,7 +306,7 @@ impl Client {
         &self,
         change_seq: u32,
         vault_id: &Uuid,
-        secret_id: &Uuid,
+        secret_id: &SecretId,
     ) -> Result<Vec<u8>> {
         let url = self.server.join(&format!(
             "api/vaults/{}/secrets/{}",
