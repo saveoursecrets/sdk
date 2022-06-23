@@ -2,12 +2,11 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
-    crypto::AeadPack,
     file_access::VaultFileAccess,
     operations::VaultAccess,
     vault::{Header, Summary, Vault},
 };
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::{
     RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard,
 };
@@ -23,8 +22,8 @@ pub trait Backend {
     /// The owner directory must not exist.
     async fn create_account(
         &mut self,
-        owner: AddressStr,
-        vault_id: Uuid,
+        owner: &AddressStr,
+        vault_id: &Uuid,
         vault: &[u8],
     ) -> Result<()>;
 
@@ -33,9 +32,16 @@ pub trait Backend {
     /// The owner directory must already exist.
     async fn create_vault(
         &mut self,
-        owner: AddressStr,
-        vault_id: Uuid,
+        owner: &AddressStr,
+        vault_id: &Uuid,
         vault: &[u8],
+    ) -> Result<()>;
+
+    /// Delete a vault.
+    async fn delete_vault(
+        &mut self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
     ) -> Result<()>;
 
     /// Determine if an account exists for the given address.
@@ -47,12 +53,20 @@ pub trait Backend {
     /// list the the vaults for an account.
     async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>>;
 
-    /// Determine if a vault exists.
-    async fn vault_exists(&self, owner: &AddressStr, vault_id: &Uuid) -> bool;
+    /// Determine if a vault exists and get it's change sequence
+    /// if it already exists.
+    async fn vault_exists(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<(bool, u32)>;
 
     /// Load a vault buffer for an account.
-    async fn get(&self, owner: &AddressStr, vault_id: &Uuid)
-        -> Result<Vec<u8>>;
+    async fn get(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<Vec<u8>>;
 
     /// Get a read handle to an existing vault.
     async fn vault_read<'a>(
@@ -72,8 +86,7 @@ pub trait Backend {
 /// Backend storage for vaults on the file system.
 pub struct FileSystemBackend {
     directory: PathBuf,
-    accounts:
-        RwLock<HashMap<AddressStr, HashMap<Uuid, (VaultStorage, Summary)>>>,
+    accounts: RwLock<HashMap<AddressStr, HashMap<Uuid, VaultStorage>>>,
 }
 
 impl FileSystemBackend {
@@ -100,23 +113,22 @@ impl FileSystemBackend {
                         name.to_string_lossy().parse::<AddressStr>()
                     {
                         let mut accounts = self.accounts.write().await;
-                        let vaults =
-                            accounts.entry(owner).or_insert(Default::default());
+                        let vaults = accounts
+                            .entry(owner)
+                            .or_insert(Default::default());
                         for vault_entry in std::fs::read_dir(&path)? {
                             let vault_entry = vault_entry?;
                             let vault_path = vault_entry.path();
                             if let Some(ext) = vault_path.extension() {
                                 if ext == Vault::extension() {
-                                    let summary =
-                                        Header::read_summary_file(&vault_path)?;
+                                    let summary = Header::read_summary_file(
+                                        &vault_path,
+                                    )?;
                                     vaults.insert(
                                         *summary.id(),
-                                        (
-                                            Box::new(VaultFileAccess::new(
-                                                vault_path,
-                                            )?),
-                                            summary,
-                                        ),
+                                        Box::new(VaultFileAccess::new(
+                                            vault_path,
+                                        )?),
                                     );
                                 }
                             }
@@ -129,7 +141,11 @@ impl FileSystemBackend {
         Ok(())
     }
 
-    fn vault_file_path(&self, owner: &AddressStr, vault_id: &Uuid) -> PathBuf {
+    fn vault_file_path(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> PathBuf {
         let account_dir = self.directory.join(owner.to_string());
         let mut vault_file = account_dir.join(vault_id.to_string());
         vault_file.set_extension(Vault::extension());
@@ -164,7 +180,7 @@ impl FileSystemBackend {
         let summary = Header::read_summary_file(&vault_path)?;
         vaults.insert(
             *summary.id(),
-            (Box::new(VaultFileAccess::new(vault_path)?), summary),
+            Box::new(VaultFileAccess::new(vault_path)?),
         );
         Ok(())
     }
@@ -174,8 +190,8 @@ impl FileSystemBackend {
 impl Backend for FileSystemBackend {
     async fn create_account(
         &mut self,
-        owner: AddressStr,
-        vault_id: Uuid,
+        owner: &AddressStr,
+        vault_id: &Uuid,
         vault: &[u8],
     ) -> Result<()> {
         let account_dir = self.directory.join(owner.to_string());
@@ -187,16 +203,16 @@ impl Backend for FileSystemBackend {
         Header::read_summary_slice(vault)?;
 
         tokio::fs::create_dir(account_dir).await?;
-        let vault_path = self.new_vault_file(&owner, &vault_id, vault).await?;
-        self.add_vault_path(owner, vault_path).await?;
+        let vault_path = self.new_vault_file(owner, vault_id, vault).await?;
+        self.add_vault_path(*owner, vault_path).await?;
 
         Ok(())
     }
 
     async fn create_vault(
         &mut self,
-        owner: AddressStr,
-        vault_id: Uuid,
+        owner: &AddressStr,
+        vault_id: &Uuid,
         vault: &[u8],
     ) -> Result<()> {
         let account_dir = self.directory.join(owner.to_string());
@@ -204,10 +220,40 @@ impl Backend for FileSystemBackend {
             return Err(Error::NotDirectory(account_dir));
         }
 
-        // TODO: verify bytes looks like a vault file
+        // Check it looks like a vault payload
+        Header::read_summary_slice(vault)?;
 
-        let vault_path = self.new_vault_file(&owner, &vault_id, vault).await?;
-        self.add_vault_path(owner, vault_path).await?;
+        let vault_path = self.new_vault_file(owner, vault_id, vault).await?;
+        self.add_vault_path(*owner, vault_path).await?;
+
+        Ok(())
+    }
+
+    async fn delete_vault(
+        &mut self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<()> {
+        let account_dir = self.directory.join(owner.to_string());
+        if !account_dir.is_dir() {
+            return Err(Error::NotDirectory(account_dir));
+        }
+
+        let mut accounts = self.accounts.write().await;
+        if accounts.get(owner).is_none() {
+            return Err(Error::AccountNotExist(*owner));
+        }
+
+        let account = accounts.get_mut(owner).unwrap();
+        if account.get(vault_id).is_none() {
+            return Err(Error::VaultNotExist(*vault_id));
+        }
+
+        let removed = account.remove(vault_id);
+        if let Some(_) = removed {
+            let vault_file = self.vault_file_path(&owner, vault_id);
+            let _ = tokio::fs::remove_file(&vault_file).await;
+        }
 
         Ok(())
     }
@@ -222,19 +268,27 @@ impl Backend for FileSystemBackend {
         let mut summaries = Vec::new();
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
-            for (_, (_, summary)) in account {
-                summaries.push(summary.clone());
+            for (_, storage) in account {
+                summaries.push(storage.summary()?);
             }
         }
         Ok(summaries)
     }
 
-    async fn vault_exists(&self, owner: &AddressStr, vault_id: &Uuid) -> bool {
+    async fn vault_exists(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<(bool, u32)> {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
-            account.get(vault_id).is_some()
+            if let Some(storage) = account.get(vault_id) {
+                Ok((true, storage.change_seq()?))
+            } else {
+                Ok((false, 0))
+            }
         } else {
-            false
+            Ok((false, 0))
         }
     }
 
@@ -245,7 +299,7 @@ impl Backend for FileSystemBackend {
     ) -> Result<Vec<u8>> {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
-            if let Some((_, _)) = account.get(vault_id) {
+            if let Some(_) = account.get(vault_id) {
                 let vault_file = self.vault_file_path(owner, vault_id);
                 let buffer = tokio::fs::read(vault_file).await?;
                 return Ok(buffer);
@@ -273,7 +327,7 @@ impl Backend for FileSystemBackend {
 
         let guard = RwLockReadGuard::map(accounts, |accounts| {
             let account = accounts.get(owner).unwrap();
-            let (vault_file, _) = account.get(vault_id).unwrap();
+            let vault_file = account.get(vault_id).unwrap();
             vault_file
         });
 
@@ -297,7 +351,7 @@ impl Backend for FileSystemBackend {
 
         let guard = RwLockWriteGuard::map(accounts, |accounts| {
             let account = accounts.get_mut(owner).unwrap();
-            let (vault_file, _) = account.get_mut(vault_id).unwrap();
+            let vault_file = account.get_mut(vault_id).unwrap();
             vault_file
         });
 

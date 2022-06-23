@@ -53,7 +53,7 @@ export class VaultApi {
       "content-type": MIME_TYPE_VAULT,
     };
     const response = await fetch(url, {
-      method: "POST",
+      method: "PUT",
       mode: "cors",
       headers,
       body,
@@ -135,7 +135,7 @@ export class VaultApi {
       "x-change-sequence": changeSequence.toString(),
     };
     const response = await fetch(url, {
-      method: "PUT",
+      method: "POST",
       mode: "cors",
       headers,
       body,

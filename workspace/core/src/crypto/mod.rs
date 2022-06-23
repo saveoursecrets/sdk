@@ -2,18 +2,11 @@
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
-    Serializer,
+    Decode, Deserializer, Encode, Error as BinaryError,
+    Result as BinaryResult, Serializer,
 };
 
 pub mod aesgcm256;
-
-#[deprecated]
-pub mod authorize;
-
-#[deprecated]
-pub mod keypair;
-
 pub mod secret_key;
 pub mod xchacha20poly1305;
 
@@ -44,8 +37,7 @@ pub mod algorithms {
         Decode, Deserializer, Encode, Error as BinaryError,
         Result as BinaryResult, Serializer,
     };
-    use std::convert::AsRef;
-    use std::str::FromStr;
+    use std::{convert::AsRef, fmt, str::FromStr};
 
     /// Default algorithm.
     pub const X_CHACHA20_POLY1305: u8 = 0x01;
@@ -69,6 +61,17 @@ pub mod algorithms {
         /// The AES-GCM 256 bit algorithm.
         pub fn aes() -> Self {
             Self::AesGcm256(AES_GCM_256)
+        }
+    }
+
+    impl fmt::Display for Algorithm {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", {
+                match self {
+                    Self::XChaCha20Poly1305(_) => "X_CHACHA20_POLY1305",
+                    Self::AesGcm256(_) => "AES_GCM_256",
+                }
+            })
         }
     }
 
@@ -185,10 +188,12 @@ impl Decode for AeadPack {
         let nonce_buffer = de.reader.read_bytes(nonce_size as usize)?;
         match nonce_size {
             12 => {
-                self.nonce = Nonce::Nonce12(nonce_buffer.as_slice().try_into()?)
+                self.nonce =
+                    Nonce::Nonce12(nonce_buffer.as_slice().try_into()?)
             }
             24 => {
-                self.nonce = Nonce::Nonce24(nonce_buffer.as_slice().try_into()?)
+                self.nonce =
+                    Nonce::Nonce24(nonce_buffer.as_slice().try_into()?)
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
@@ -262,55 +267,5 @@ mod tests {
             .recover_verify_key(message)
             .expect("couldn't recover pubkey");
         assert_eq!(&verify_key, &recovered_key);
-    }
-
-    #[test]
-    fn auth_success() -> Result<()> {
-        use super::authorize::*;
-
-        use k256::ecdsa::{
-            signature::{Signature as EcdsaSignature, Signer},
-            Signature, SigningKey, VerifyingKey,
-        };
-
-        // In the real world only the client knows about the SigningKey
-        let signing_key = SigningKey::random(&mut rand::thread_rng());
-        let verify_key = VerifyingKey::from(&signing_key);
-        let public_key: PublicKey = verify_key.into();
-
-        // List of allowed public keys would usually be extracted from
-        // the vault file header
-        let public_keys = vec![public_key];
-
-        // Server generates a challenge for the client
-        let mut authorization: Authorization = Default::default();
-        let challenge = Challenge::new("mock".to_string());
-        let server_packet = serde_json::to_string(&challenge)?;
-        authorization.add(challenge);
-
-        // ... server sends challenge to client
-
-        // Client receives the challenge
-        let client_challenge: Challenge = serde_json::from_str(&server_packet)?;
-        let client_signature: Signature =
-            signing_key.sign(client_challenge.message());
-        let signature_bytes = client_signature.as_bytes().to_vec();
-        let client_response = ChallengeResponse::new(
-            client_challenge.id().clone(),
-            signature_bytes,
-        );
-        let client_packet = serde_json::to_string(&client_response)?;
-
-        // ... client sends the response to the server
-
-        // Server receives the response
-        let challenge_response: ChallengeResponse =
-            serde_json::from_str(&client_packet)?;
-
-        assert!(authorization
-            .authorize(&public_keys, &challenge_response)
-            .is_ok());
-
-        Ok(())
     }
 }

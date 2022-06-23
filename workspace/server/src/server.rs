@@ -10,27 +10,25 @@ use axum::{
         sse::{Event, Sse},
         IntoResponse, Redirect,
     },
-    routing::{delete, get, patch, post, put},
+    routing::{get, put},
     Json, Router,
 };
 
-use futures::stream::{self, Stream};
+use futures::stream::Stream;
 use tower_http::cors::{CorsLayer, Origin};
 
 //use axum_macros::debug_handler;
 
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sos_core::{
     address::AddressStr,
-    audit::{Append, Log, LogData},
+    audit::{Append, Log},
+    changes::ChangeEvent,
     crypto::AeadPack,
-    decode, encode,
-    k256::ecdsa::recoverable,
+    decode,
     operations::{Operation, Payload},
     patch::Patch,
     vault::{Header, Summary, Vault},
-    web3_signature::Signature,
 };
 use std::{
     collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc,
@@ -50,7 +48,7 @@ use crate::{
     headers::{
         ChangeSequence, SignedMessage, X_CHANGE_SEQUENCE, X_SIGNED_MESSAGE,
     },
-    Backend, Error, ServerConfig,
+    Backend, ServerConfig,
 };
 
 const MAX_SSE_CONNECTIONS_PER_CLIENT: u8 = 6;
@@ -60,7 +58,7 @@ struct ResponseEvent {
     /// Audit log record.
     log: Log,
     /// A server event to send to connected clients.
-    event: Option<ServerEvent>,
+    event: Option<ChangeEvent>,
 }
 
 /// Internal type used to reflect whether an operation detected
@@ -124,7 +122,7 @@ pub struct SseConnection {
     ///
     /// Handlers can send messages via this sender to broadcast
     /// to all the connected server sent events for the client.
-    tx: Sender<ServerEvent>,
+    tx: Sender<ChangeEvent>,
 
     /// Number of connected clients, used to know when
     /// the connection state can be disposed of.
@@ -151,129 +149,6 @@ pub struct State {
     /// Map of server sent event channels by authenticated
     /// client address.
     pub sse: HashMap<AddressStr, SseConnection>,
-}
-
-/// Server notifications sent over the server sent events stream.
-#[derive(Debug, Serialize, Clone)]
-pub enum ServerEvent {
-    CreateVault {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-    },
-    SaveVault {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        change_seq: u32,
-    },
-    UpdateVault {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-    },
-    DeleteVault {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-    },
-    CreateSecret {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        secret_id: Uuid,
-        change_seq: u32,
-    },
-    UpdateSecret {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        secret_id: Uuid,
-        change_seq: u32,
-    },
-    DeleteSecret {
-        #[serde(skip)]
-        address: AddressStr,
-        vault_id: Uuid,
-        secret_id: Uuid,
-        change_seq: u32,
-    },
-}
-
-impl ServerEvent {
-    /// Name for the server sent event.
-    fn event_name(&self) -> &str {
-        match self {
-            Self::CreateVault { .. } => "createVault",
-            Self::SaveVault { .. } => "saveVault",
-            Self::UpdateVault { .. } => "updateVault",
-            Self::DeleteVault { .. } => "deleteVault",
-            Self::CreateSecret { .. } => "createSecret",
-            Self::UpdateSecret { .. } => "updateSecret",
-            Self::DeleteSecret { .. } => "deleteSecret",
-        }
-    }
-
-    /// Address of the client that triggered the event.
-    fn address(&self) -> &AddressStr {
-        match self {
-            Self::CreateVault { address, .. } => address,
-            Self::SaveVault { address, .. } => address,
-            Self::UpdateVault { address, .. } => address,
-            Self::DeleteVault { address, .. } => address,
-            Self::CreateSecret { address, .. } => address,
-            Self::UpdateSecret { address, .. } => address,
-            Self::DeleteSecret { address, .. } => address,
-        }
-    }
-}
-
-impl TryFrom<ServerEvent> for Event {
-    type Error = Error;
-    fn try_from(event: ServerEvent) -> std::result::Result<Self, Self::Error> {
-        let event_name = event.event_name();
-        Ok(Event::default().event(&event_name).json_data(event)?)
-    }
-}
-
-impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
-    for ServerEvent
-{
-    fn from(value: (&'u Uuid, &'a AddressStr, &'p Payload<'p>)) -> Self {
-        let (vault_id, address, payload) = value;
-        match payload {
-            Payload::SaveVault(change_seq) => ServerEvent::SaveVault {
-                address: address.clone(),
-                change_seq: *change_seq,
-                vault_id: *vault_id,
-            },
-            Payload::CreateSecret(change_seq, secret_id, _) => {
-                ServerEvent::CreateSecret {
-                    address: address.clone(),
-                    change_seq: *change_seq,
-                    vault_id: *vault_id,
-                    secret_id: *secret_id,
-                }
-            }
-            Payload::UpdateSecret(change_seq, secret_id, _) => {
-                ServerEvent::UpdateSecret {
-                    address: address.clone(),
-                    change_seq: *change_seq,
-                    vault_id: *vault_id,
-                    secret_id: *secret_id,
-                }
-            }
-            Payload::DeleteSecret(change_seq, secret_id) => {
-                ServerEvent::DeleteSecret {
-                    address: address.clone(),
-                    change_seq: *change_seq,
-                    vault_id: *vault_id,
-                    secret_id: *secret_id,
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
 }
 
 // Server implementation.
@@ -331,13 +206,20 @@ impl Server {
             .route("/api", get(api))
             .route("/api/auth", get(AuthHandler::challenge))
             .route("/api/auth/:uuid", get(AuthHandler::response))
-            .route("/api/accounts", post(AccountHandler::create))
-            //.route("/api/vaults", get(VaultHandler::list))
+            .route("/api/accounts", put(AccountHandler::create))
+            .route("/api/vaults", put(VaultHandler::create_vault))
             .route(
                 "/api/vaults/:vault_id",
-                get(VaultHandler::get_vault)
-                    .put(VaultHandler::save_vault)
+                get(VaultHandler::read_vault)
+                    .head(VaultHandler::head_vault)
+                    .delete(VaultHandler::delete_vault)
+                    .post(VaultHandler::update_vault)
                     .patch(VaultHandler::patch_vault),
+            )
+            .route(
+                "/api/vaults/:vault_id/name",
+                get(VaultHandler::get_vault_name)
+                    .post(VaultHandler::set_vault_name),
             )
             .route(
                 "/api/vaults/:vault_id/secrets/:secret_id",
@@ -387,9 +269,10 @@ async fn asset(
         tracing::debug!(key, "static asset");
 
         if let Some(asset) = Assets::get(key) {
-            let content_type = mime_guess::from_path(key)
-                .first()
-                .unwrap_or_else(|| "application/octet-stream".parse().unwrap());
+            let content_type =
+                mime_guess::from_path(key).first().unwrap_or_else(|| {
+                    "application/octet-stream".parse().unwrap()
+                });
 
             let bytes = Bytes::from(asset.data.as_ref().to_vec());
             Response::builder()
@@ -493,9 +376,13 @@ impl AuthHandler {
                 if let Ok((status_code, token)) =
                     authenticate::bearer(authorization, &message)
                 {
-                    if let (StatusCode::OK, Some(token)) = (status_code, token)
+                    if let (StatusCode::OK, Some(token)) =
+                        (status_code, token)
                     {
-                        if !writer.backend.account_exists(&token.address).await
+                        if !writer
+                            .backend
+                            .account_exists(&token.address)
+                            .await
                         {
                             return Err(StatusCode::NOT_FOUND);
                         }
@@ -553,7 +440,7 @@ impl AccountHandler {
                     let uuid = vault.id();
                     if let Ok(_) = writer
                         .backend
-                        .create_account(token.address, *uuid, &body)
+                        .create_account(&token.address, &uuid, &body)
                         .await
                     {
                         let log = Log::new(
@@ -585,30 +472,105 @@ impl AccountHandler {
 // Handlers for vault operations.
 struct VaultHandler;
 impl VaultHandler {
-    /// List vault identifiers for a user account.
-    async fn list(
+    /// Create an encrypted vault.
+    async fn create_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
-        Path(user_id): Path<AddressStr>,
-    ) -> impl IntoResponse {
-        let reader = state.read().await;
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        body: Bytes,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                // Check it looks like a vault payload
+                let summary = Header::read_summary_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-        todo!()
+                let reader = state.read().await;
+                let (exists, change_seq) = reader
+                    .backend
+                    .vault_exists(&token.address, summary.id())
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        /*
-        let (status, value) =
-            if let Some(backend) = reader.backends.get(&user_id) {
-                let list: Vec<String> =
-                    backend.list().iter().map(|k| k.to_string()).collect();
-                (StatusCode::OK, json!(list))
+                drop(reader);
+
+                if exists {
+                    Ok(MaybeConflict::Conflict(change_seq))
+                } else {
+                    let mut writer = state.write().await;
+                    writer
+                        .backend
+                        .create_vault(&token.address, summary.id(), &body)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                    let event = ChangeEvent::CreateVault {
+                        vault_id: *summary.id(),
+                        address: token.address,
+                    };
+
+                    let payload = Payload::CreateVault;
+                    Ok(MaybeConflict::Success(vec![ResponseEvent {
+                        event: Some(event),
+                        log: payload
+                            .into_audit_log(token.address, *summary.id()),
+                    }]))
+                }
             } else {
-                (StatusCode::NOT_FOUND, json!(()))
-            };
-        (status, Json(value))
-        */
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        Ok(MaybeConflict::process(state, response?).await?)
     }
 
-    /// Retrieve an encrypted vault.
-    async fn get_vault(
+    /// Get the change sequence for a vault.
+    async fn head_vault(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        Path(vault_id): Path<Uuid>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let reader = state.read().await;
+                if !reader.backend.account_exists(&token.address).await {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let (exists, change_seq) = reader
+                    .backend
+                    .vault_exists(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if !exists {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let mut headers = HeaderMap::new();
+                let x_change_sequence =
+                    HeaderValue::from_str(&change_seq.to_string())
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                headers.insert(X_CHANGE_SEQUENCE.clone(), x_change_sequence);
+                Ok((StatusCode::OK, headers))
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        Ok(response?)
+    }
+
+    /// Read an encrypted vault.
+    async fn read_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
         Path(vault_id): Path<Uuid>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
@@ -623,19 +585,21 @@ impl VaultHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                if !writer.backend.vault_exists(&token.address, &vault_id).await
-                {
+                let (exists, change_seq) = writer
+                    .backend
+                    .vault_exists(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if !exists {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
                 if let Ok(buffer) =
                     writer.backend.get(&token.address, &vault_id).await
                 {
-                    let log = Log::new(
-                        Operation::ReadVault,
-                        token.address,
-                        Some(LogData::Vault(vault_id)),
-                    );
+                    let payload = Payload::ReadVault(change_seq);
+                    let log = payload.into_audit_log(token.address, vault_id);
                     writer
                         .audit_log
                         .append(log)
@@ -653,8 +617,66 @@ impl VaultHandler {
         }
     }
 
-    /// Save an encrypted vault.
-    async fn save_vault(
+    /// Delete an encrypted vault.
+    async fn delete_vault(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        Path(vault_id): Path<Uuid>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+                if !writer.backend.account_exists(&token.address).await {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let (exists, change_seq) = writer
+                    .backend
+                    .vault_exists(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if !exists {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                if writer.backend.get(&token.address, &vault_id).await.is_ok()
+                {
+                    writer
+                        .backend
+                        .delete_vault(&token.address, &vault_id)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                    let event = ChangeEvent::DeleteVault {
+                        vault_id,
+                        address: token.address,
+                        change_seq,
+                    };
+
+                    let payload = Payload::DeleteVault(change_seq);
+                    Ok(MaybeConflict::Success(vec![ResponseEvent {
+                        event: Some(event),
+                        log: payload.into_audit_log(token.address, vault_id),
+                    }]))
+                } else {
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        Ok(MaybeConflict::process(state, response?).await?)
+    }
+
+    /// Update an encrypted vault.
+    async fn update_vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(change_seq): TypedHeader<ChangeSequence>,
@@ -685,7 +707,7 @@ impl VaultHandler {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
                     if let Ok(payload) = handle.save(&body) {
-                        let event = ServerEvent::from((
+                        let event = ChangeEvent::from((
                             &vault_id,
                             &token.address,
                             &payload,
@@ -753,7 +775,7 @@ impl VaultHandler {
                             })?;
 
                             events.push(ResponseEvent {
-                                event: Some(ServerEvent::from((
+                                event: Some(ChangeEvent::from((
                                     &vault_id,
                                     &token.address,
                                     &payload,
@@ -770,6 +792,112 @@ impl VaultHandler {
                         }
                     }
                     Ok(MaybeConflict::Success(events))
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        Ok(MaybeConflict::process(state, response?).await?)
+    }
+
+    /// Get the name for a vault.
+    async fn get_vault_name(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        Path(vault_id): Path<Uuid>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+    ) -> Result<Json<String>, StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let reader = state.read().await;
+
+                let handle = reader
+                    .backend
+                    .vault_read(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                let (name, payload) = handle
+                    .vault_name()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                Ok((name, payload.into_audit_log(token.address, vault_id)))
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        let (name, log) = response?;
+        let mut writer = state.write().await;
+        writer
+            .audit_log
+            .append(log)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        Ok(Json(name))
+    }
+
+    /// Set the name for a vault.
+    async fn set_vault_name(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        Path(vault_id): Path<Uuid>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+        TypedHeader(change_seq): TypedHeader<ChangeSequence>,
+        Json(name): Json<String>,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+                if !writer.backend.account_exists(&token.address).await {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let (exists, remote_change_seq) = writer
+                    .backend
+                    .vault_exists(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if !exists {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let mut handle = writer
+                    .backend
+                    .vault_write(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                let local_change_seq: u32 = change_seq.into();
+                if local_change_seq != (remote_change_seq + 1) {
+                    Ok(MaybeConflict::Conflict(remote_change_seq))
+                } else {
+                    if let Ok(payload) = handle.set_vault_name(name) {
+                        let event = ChangeEvent::from((
+                            &vault_id,
+                            &token.address,
+                            &payload,
+                        ));
+
+                        Ok(MaybeConflict::Success(vec![ResponseEvent {
+                            event: Some(event),
+                            log: payload
+                                .into_audit_log(token.address, vault_id),
+                        }]))
+                    } else {
+                        Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    }
                 }
             } else {
                 Err(status_code)
@@ -817,7 +945,7 @@ impl SecretHandler {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
                     if let Ok(payload) = handle.create(secret_id, secret) {
-                        let event = ServerEvent::from((
+                        let event = ChangeEvent::from((
                             &vault_id,
                             &token.address,
                             &payload,
@@ -921,7 +1049,7 @@ impl SecretHandler {
                 } else {
                     if let Ok(result) = handle.update(&secret_id, secret) {
                         if let Some(payload) = result {
-                            let event = ServerEvent::from((
+                            let event = ChangeEvent::from((
                                 &vault_id,
                                 &token.address,
                                 &payload,
@@ -978,7 +1106,7 @@ impl SecretHandler {
                 } else {
                     if let Ok(result) = handle.delete(&secret_id) {
                         if let Some(payload) = result {
-                            let event = ServerEvent::from((
+                            let event = ChangeEvent::from((
                                 &vault_id,
                                 &token.address,
                                 &payload,
@@ -1003,7 +1131,7 @@ impl SecretHandler {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         };
 
-        Ok(MaybeConflict::process(state, response?).await?)
+        MaybeConflict::process(state, response?).await
     }
 }
 
@@ -1013,16 +1141,17 @@ async fn sse_handler(
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
     if let Ok((status_code, token)) = params.bearer() {
         if let (StatusCode::OK, Some(token)) = (status_code, token) {
-            let address = token.address.clone();
+            let address = token.address;
             let stream_state = Arc::clone(&state);
             // Save the sender side of the channel so other handlers
             // can publish to the server sent events stream
             let mut writer = state.write().await;
 
-            let conn = if let Some(conn) = writer.sse.get_mut(&token.address) {
+            let conn = if let Some(conn) = writer.sse.get_mut(&token.address)
+            {
                 conn
             } else {
-                let (tx, _) = broadcast::channel::<ServerEvent>(256);
+                let (tx, _) = broadcast::channel::<ChangeEvent>(256);
                 writer
                     .sse
                     .entry(token.address)
@@ -1048,7 +1177,7 @@ async fn sse_handler(
             impl Drop for Guard {
                 fn drop(&mut self) {
                     let state = Arc::clone(&self.state);
-                    let address = self.address.clone();
+                    let address = self.address;
 
                     tokio::spawn(
                         // Clean up the state removing the channel for the
@@ -1058,7 +1187,7 @@ async fn sse_handler(
                             let clients = if let Some(conn) =
                                 writer.sse.get_mut(&address)
                             {
-                                conn.clients = conn.clients - 1;
+                                conn.clients -= 1;
                                 Some(conn.clients)
                             } else {
                                 None
@@ -1079,7 +1208,11 @@ async fn sse_handler(
                 let _guard = Guard { state: stream_state, address };
                 while let Ok(event) = rx.recv().await {
                     // Must be Infallible here
-                    let event: Event = event.try_into().unwrap();
+                    let event_name = event.event_name();
+                    let event = Event::default()
+                        .event(&event_name)
+                        .json_data(event)
+                        .unwrap();
                     tracing::trace!("{:#?}", event);
                     yield Ok(event);
                 }

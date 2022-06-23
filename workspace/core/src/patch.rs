@@ -1,7 +1,7 @@
 //! Patch represents a changeset of operations to apply to a vault.
 use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
-    Serializer,
+    Decode, Deserializer, Encode, Error as BinaryError,
+    Result as BinaryResult, Serializer,
 };
 
 use crate::{file_identity::FileIdentity, operations::Payload};

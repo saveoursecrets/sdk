@@ -2,7 +2,7 @@
 name = "sos-server"
 version = "0.1.0"
 edition = "2021"
-default-run = "sos3-server"
+default-run = "sos-server"
 
 [dependencies]
 thiserror = "1"
@@ -38,5 +38,5 @@ default = ["gui"]
 gui = []
 
 [[bin]]
-name = "sos3-server"
+name = "sos-server"
 path = "src/bin/main.rs"

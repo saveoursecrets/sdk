@@ -7,22 +7,22 @@ use tokio::sync::RwLock;
 
 /// Secret storage server.
 #[derive(Parser, Debug)]
-#[clap(name = "sos3", author, version, about, long_about = None)]
+#[clap(name = "sos-server", author, version, about, long_about = None)]
 struct Cli {
     /// Serve the built in GUI.
-    #[structopt(short, long)]
+    #[clap(short, long)]
     gui: Option<bool>,
 
     /// Override the audit log file path.
-    #[structopt(short, long)]
+    #[clap(short, long)]
     audit_log: Option<PathBuf>,
 
     /// Bind to host:port.
-    #[structopt(short, long, default_value = "127.0.0.1:5053")]
+    #[clap(short, long, default_value = "127.0.0.1:5053")]
     bind: String,
 
     /// Config file to load.
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     config: PathBuf,
 }
 
@@ -42,7 +42,8 @@ async fn run() -> Result<()> {
     let authentication: Authentication = Default::default();
     let backend = config.backend().await?;
 
-    let audit_log_file = args.audit_log.unwrap_or_else(|| config.audit_file());
+    let audit_log_file =
+        args.audit_log.unwrap_or_else(|| config.audit_file());
 
     if AuditLogFile::would_block(&audit_log_file)? {
         return Err(Error::AuditWouldBlock(audit_log_file));

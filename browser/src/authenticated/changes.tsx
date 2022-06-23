@@ -39,12 +39,12 @@ class Changes extends Component<ChangesProps, ChangesState> {
         console.log("SSE vault create event", e.data);
       });
 
-      eventSource.addEventListener("saveVault", (e) => {
-        console.log("SSE vault save event", e.data);
-      });
-
       eventSource.addEventListener("updateVault", (e) => {
         console.log("SSE vault update event", e.data);
+      });
+
+      eventSource.addEventListener("setVaultMeta", (e) => {
+        console.log("SSE vault set meta event", e.data);
       });
 
       eventSource.addEventListener("deleteVault", (e) => {

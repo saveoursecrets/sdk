@@ -11,8 +11,8 @@ use std::{
 
 use serde_binary::{
     binary_rw::{
-        BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream, OpenType,
-        SeekStream,
+        BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream,
+        OpenType, SeekStream,
     },
     Deserializer, Serializer,
 };
@@ -22,7 +22,7 @@ use crate::{
     crypto::AeadPack,
     file_identity::FileIdentity,
     operations::{Payload, VaultAccess},
-    vault::{Contents, IDENTITY},
+    vault::{encode, Contents, Header, Summary, IDENTITY},
     Error, Result,
 };
 
@@ -102,6 +102,36 @@ impl VaultFileAccess {
         Ok(())
     }
 
+    /// Write out the header preserving the existing content bytes.
+    fn write_header(
+        &self,
+        content_offset: usize,
+        header: &Header,
+    ) -> Result<()> {
+        let head = encode(header)?;
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&self.file_path)?;
+
+        // Read the content into memory
+        file.seek(SeekFrom::Start(content_offset as u64))?;
+        let mut content = Vec::new();
+        file.read_to_end(&mut content)?;
+
+        // Rewind and truncate the file
+        file.rewind()?;
+        file.set_len(0)?;
+
+        // Write out the header
+        file.write_all(&head)?;
+
+        // Write out the content
+        file.write_all(&content)?;
+
+        Ok(())
+    }
+
     /// Splice a file preserving the head and tail and optionally inserting
     /// content in between.
     fn splice(
@@ -128,9 +158,12 @@ impl VaultFileAccess {
             unreachable!("file splice head range always starts at zero");
         }
 
+        // Must seek to the end before writing out the content or tail
+        file.seek(SeekFrom::End(0))?;
+
         // Inject the content if necessary
         if let Some(content) = content {
-            file.seek(SeekFrom::End(0))?;
+            //file.seek(SeekFrom::End(0))?;
             file.write_all(content)?;
         }
 
@@ -183,6 +216,10 @@ impl VaultFileAccess {
 }
 
 impl VaultAccess for VaultFileAccess {
+    fn summary(&self) -> Result<Summary> {
+        Ok(Header::read_summary_file(&self.file_path)?)
+    }
+
     fn change_seq(&self) -> Result<u32> {
         let mut stream = self.stream.lock().unwrap();
         let reader = BinaryReader::new(&mut *stream, Endian::Big);
@@ -199,7 +236,24 @@ impl VaultAccess for VaultFileAccess {
         file.write_all(buffer)?;
 
         let change_seq = self.change_seq()?;
-        Ok(Payload::SaveVault(change_seq))
+        Ok(Payload::UpdateVault(change_seq))
+    }
+
+    fn vault_name(&self) -> Result<(String, Payload)> {
+        let change_seq = self.change_seq()?;
+        let header = Header::read_header_file(&self.file_path)?;
+        let name = header.name().to_string();
+        Ok((name, Payload::GetVaultName(change_seq)))
+    }
+
+    fn set_vault_name(&mut self, name: String) -> Result<Payload> {
+        let change_seq = self.change_seq()?;
+        let content_offset = self.check_identity()?;
+        let mut header = Header::read_header_file(&self.file_path)?;
+        header.set_name(name.clone());
+        self.write_header(content_offset, &header)?;
+        let change_seq = self.inc_change_seq(change_seq)?;
+        Ok(Payload::SetVaultName(change_seq, Cow::Owned(name)))
     }
 
     fn create(
@@ -329,9 +383,9 @@ mod tests {
         crypto::{secret_key::SecretKey, AeadPack},
         operations::VaultAccess,
         secret::*,
-        vault::Vault,
-        Result,
+        vault::{Header, Vault, DEFAULT_VAULT_NAME},
     };
+    use anyhow::Result;
 
     use uuid::Uuid;
 
@@ -379,14 +433,19 @@ mod tests {
         // Create a secret note
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
-        let (secret_id, _secret_meta, _secret_value, meta_bytes, secret_bytes) =
-            create_secure_note(
-                &mut vault_access,
-                &vault,
-                &encryption_key,
-                secret_label,
-                secret_note,
-            )?;
+        let (
+            secret_id,
+            _secret_meta,
+            _secret_value,
+            meta_bytes,
+            secret_bytes,
+        ) = create_secure_note(
+            &mut vault_access,
+            &vault,
+            &encryption_key,
+            secret_label,
+            secret_note,
+        )?;
 
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
@@ -409,14 +468,19 @@ mod tests {
         assert!(row.is_none());
 
         // Create a new secure note so we can update it
-        let (secret_id, _secret_meta, _secret_value, meta_bytes, secret_bytes) =
-            create_secure_note(
-                &mut vault_access,
-                &vault,
-                &encryption_key,
-                secret_label,
-                secret_note,
-            )?;
+        let (
+            secret_id,
+            _secret_meta,
+            _secret_value,
+            meta_bytes,
+            secret_bytes,
+        ) = create_secure_note(
+            &mut vault_access,
+            &vault,
+            &encryption_key,
+            secret_label,
+            secret_note,
+        )?;
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 
@@ -430,8 +494,8 @@ mod tests {
 
         let updated_meta = vault.encrypt(&encryption_key, &meta_bytes)?;
         let updated_secret = vault.encrypt(&encryption_key, &secret_bytes)?;
-        let _ =
-            vault_access.update(&secret_id, (updated_meta, updated_secret))?;
+        let _ = vault_access
+            .update(&secret_id, (updated_meta, updated_secret))?;
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 
@@ -443,6 +507,81 @@ mod tests {
         assert_eq!(0, total_rows);
 
         assert_eq!(initial_change_seq + 5, vault_access.change_seq()?);
+
+        let (vault_name, _) = vault_access.vault_name()?;
+        assert_eq!(DEFAULT_VAULT_NAME, vault_name);
+
+        let new_name = String::from("New vault name");
+        let _ = vault_access.set_vault_name(new_name.clone());
+
+        assert_eq!(initial_change_seq + 6, vault_access.change_seq()?);
+
+        let (vault_name, _) = vault_access.vault_name()?;
+        assert_eq!(&new_name, &vault_name);
+
+        // Reset the fixture vault name
+        let _ = vault_access.set_vault_name(DEFAULT_VAULT_NAME.to_string());
+
+        Ok(())
+    }
+
+    #[test]
+    fn vault_file_del_splice() -> Result<()> {
+        let (encryption_key, _) = mock_encryption_key()?;
+        let vault = mock_vault();
+
+        let vault_path =
+            "./fixtures/a7db14d0-80ac-47e8-aeb4-07c1ac55bd8e.vault";
+        let mut vault_access = VaultFileAccess::new(vault_path)?;
+
+        let initial_change_seq = vault_access.change_seq()?;
+
+        let secrets = [
+            ("Note one", "First note"),
+            ("Note two", "Second note"),
+            ("Note three", "Third note"),
+        ];
+
+        let mut secret_ids = Vec::new();
+        for note_data in secrets {
+            let (
+                secret_id,
+                _secret_meta,
+                _secret_value,
+                _meta_bytes,
+                _secret_bytes,
+            ) = create_secure_note(
+                &mut vault_access,
+                &vault,
+                &encryption_key,
+                note_data.0,
+                note_data.1,
+            )?;
+            secret_ids.push(secret_id);
+        }
+
+        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
+        assert_eq!(3, total_rows);
+
+        let del_secret_id = secret_ids.get(1).unwrap();
+        let _ = vault_access.delete(&del_secret_id)?;
+
+        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
+        assert_eq!(2, total_rows);
+
+        // Check the file identity is good after the deletion splice
+        assert!(Header::read_header_file(vault_path).is_ok());
+
+        // Clean up other secrets
+        for secret_id in secret_ids {
+            let _ = vault_access.delete(&secret_id)?;
+        }
+
+        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
+        assert_eq!(0, total_rows);
+
+        // Verify again to finish up
+        assert!(Header::read_header_file(vault_path).is_ok());
 
         Ok(())
     }

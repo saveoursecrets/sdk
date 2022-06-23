@@ -1,7 +1,7 @@
 //! Type that represents the magic identity bytes for file formats.
 use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError, Result as BinaryResult,
-    Serializer,
+    Decode, Deserializer, Encode, Error as BinaryError,
+    Result as BinaryResult, Serializer,
 };
 
 use crate::{Error, Result};
@@ -12,7 +12,10 @@ pub struct FileIdentity(pub [u8; 4]);
 
 impl FileIdentity {
     /// Read the identity magic bytes.
-    pub fn read_identity(de: &mut Deserializer, identity: &[u8]) -> Result<()> {
+    pub fn read_identity(
+        de: &mut Deserializer,
+        identity: &[u8],
+    ) -> Result<()> {
         for ident in identity {
             let byte = de.reader.read_u8()?;
             if byte != *ident {

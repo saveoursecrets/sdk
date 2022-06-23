@@ -15,8 +15,7 @@ hex = { version = "0.4", features = ["serde"] }
 serde_json = "1"
 k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
 subtle = "2.4"
-jwt-simple = "0.10.8"
-zeroize = "1.4"
+zeroize = { version = "1.4", features = ["zeroize_derive"] }
 argon2 = { version = "0.4", features = ["std"]}
 # matches the version in k256
 sha3 = "0.9"
@@ -25,7 +24,7 @@ sha3 = "0.9"
 bip39 = { version =  "1", features = ["std", "rand"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2.2", features = ["serde"] }
-chrono = { version = "0.4", features = ["serde"] }
+time = { version = "0.3", features = ["serde"] }
 bitflags = "1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

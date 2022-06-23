@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use std::{
     borrow::Cow::{self, Borrowed, Owned},
     io::{self, Read},
@@ -10,6 +9,8 @@ use rustyline::highlight::Highlighter;
 use rustyline::{ColorMode, Editor};
 
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
+
+use crate::{Error, Result};
 
 const DEFAULT_PROMPT: &str = ">> ";
 
@@ -79,24 +80,61 @@ pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
                     return Ok(Some(value));
                 }
                 ReadlineError::Interrupted => return Ok(None),
-                _ => return Err(anyhow!(e)),
+                _ => return Err(Error::Readline(e)),
             },
         }
     }
 }
 
-/// Read a non-empty string.
+/// Read a line and invoke the shell callback.
+pub fn read_shell<H>(
+    mut handler: H,
+    prompt: impl Fn() -> String,
+) -> Result<String>
+where
+    H: FnMut(String),
+{
+    let mut rl = rustyline::Editor::<()>::new();
+    loop {
+        let prompt_value = prompt();
+        let readline = rl.readline(&prompt_value);
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(line.as_str());
+                handler(line);
+            }
+            Err(e) => return Err(Error::Readline(e)),
+        }
+    }
+}
+
+pub fn read_line_allow_empty(prompt: Option<&str>) -> Result<String> {
+    read_line_value(prompt, true)
+}
+
+/// Read a string that may not be the empty string.
 pub fn read_line(prompt: Option<&str>) -> Result<String> {
+    read_line_value(prompt, false)
+}
+
+fn read_line_value(
+    prompt: Option<&str>,
+    allows_empty: bool,
+) -> Result<String> {
     let mut rl = rustyline::Editor::<()>::new();
     loop {
         let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
         match readline {
             Ok(line) => {
+                if allows_empty {
+                    return Ok(line);
+                }
+
                 if !line.trim().is_empty() {
                     return Ok(line);
                 }
             }
-            Err(e) => return Err(anyhow!(e)),
+            Err(e) => return Err(Error::Readline(e)),
         }
     }
 }
@@ -113,7 +151,7 @@ pub fn read_option(prompt: Option<&str>) -> Result<Option<String>> {
                 Ok(None)
             }
         }
-        Err(e) => Err(anyhow!(e)),
+        Err(e) => Err(Error::Readline(e)),
     }
 }
 
@@ -126,6 +164,6 @@ pub fn read_flag(prompt: Option<&str>) -> Result<bool> {
             let flag = line == "y" || line == "yes";
             Ok(flag)
         }
-        Err(e) => Err(anyhow!(e)),
+        Err(e) => Err(Error::Readline(e)),
     }
 }

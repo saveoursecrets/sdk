@@ -1,12 +1,14 @@
 [package]
-name = "sos3"
+name = "sos"
 version = "0.1.0"
 edition = "2021"
 
 [workspace]
 members = [
-  "workspace/cli",
+  "workspace/audit",
+  "workspace/client",
   "workspace/core",
+  "workspace/readline",
   "workspace/server",
   "workspace/wasm",
 ]

@@ -1,0 +1,12 @@
+[package]
+name = "sos-readline"
+version = "0.1.0"
+edition = "2021"
+description = "Utilities for reading from stdin"
+
+[dependencies]
+thiserror = "1"
+rustyline = "9"
+rustyline-derive = "0.6"
+unicode-width = "0.1"
+atty = "0.2"
