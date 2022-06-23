@@ -18,7 +18,7 @@ pub type SecretId = Uuid;
 #[derive(Debug)]
 pub enum SecretRef {
     /// Secret identifier.
-    Uuid(SecretId),
+    Id(SecretId),
     /// Secret label.
     Name(String),
 }
@@ -26,7 +26,7 @@ pub enum SecretRef {
 impl fmt::Display for SecretRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Uuid(id) => write!(f, "{}", id),
+            Self::Id(id) => write!(f, "{}", id),
             Self::Name(name) => write!(f, "{}", name),
         }
     }
@@ -35,8 +35,8 @@ impl fmt::Display for SecretRef {
 impl FromStr for SecretRef {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(uuid) = Uuid::parse_str(s) {
-            Ok(Self::Uuid(uuid))
+        if let Ok(id) = Uuid::parse_str(s) {
+            Ok(Self::Id(id))
         } else {
             Ok(Self::Name(s.to_string()))
         }

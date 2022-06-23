@@ -270,8 +270,8 @@ fn exec_program(
                 SecretRef::Name(name) => {
                     writer.summaries.iter().find(|s| s.name() == name)
                 }
-                SecretRef::Uuid(uuid) => {
-                    writer.summaries.iter().find(|s| s.id() == uuid)
+                SecretRef::Id(id) => {
+                    writer.summaries.iter().find(|s| s.id() == id)
                 }
             };
 
@@ -317,8 +317,8 @@ fn exec_program(
                 SecretRef::Name(name) => {
                     writer.summaries.iter().find(|s| s.name() == name)
                 }
-                SecretRef::Uuid(uuid) => {
-                    writer.summaries.iter().find(|s| s.id() == uuid)
+                SecretRef::Id(id) => {
+                    writer.summaries.iter().find(|s| s.id() == id)
                 }
             };
 

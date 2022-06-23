@@ -206,7 +206,7 @@ impl Gatekeeper {
         target: &'a SecretRef,
     ) -> Option<(&'a SecretId, &'a SecretMeta)> {
         match target {
-            SecretRef::Uuid(id) => meta_data.get(id).map(|v| (id, v)),
+            SecretRef::Id(id) => meta_data.get(id).map(|v| (id, v)),
             SecretRef::Name(name) => meta_data.iter().find_map(|(k, v)| {
                 if v.label() == name {
                     Some((*k, v))
