@@ -47,11 +47,7 @@ pub trait VaultAccess {
     fn set_vault_name(&mut self, name: String) -> Result<Payload>;
 
     /// Add an encrypted secret to the vault.
-    fn create(
-        &mut self,
-        id: SecretId,
-        secret: (AeadPack, AeadPack),
-    ) -> Result<Payload>;
+    fn create(&mut self, secret: (AeadPack, AeadPack)) -> Result<Payload>;
 
     /// Get an encrypted secret from the vault.
     ///
@@ -78,7 +74,7 @@ pub trait VaultAccess {
     fn apply(&mut self, payload: &Payload) -> Result<u32> {
         match payload {
             Payload::CreateSecret(_, secret_id, value) => {
-                self.create(*secret_id, value.as_ref().clone())?;
+                self.create(value.as_ref().clone())?;
             }
             Payload::UpdateSecret(_, secret_id, value) => {
                 self.update(secret_id, value.as_ref().clone())?;

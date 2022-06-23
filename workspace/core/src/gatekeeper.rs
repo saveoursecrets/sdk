@@ -223,8 +223,6 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<Payload> {
-        let uuid = Uuid::new_v4();
-
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
@@ -241,7 +239,7 @@ impl Gatekeeper {
             let secret_blob = encode(&secret)?;
             let secret_aead =
                 self.vault.encrypt(private_key, &secret_blob)?;
-            Ok(self.vault.create(uuid, (meta_aead, secret_aead))?)
+            Ok(self.vault.create((meta_aead, secret_aead))?)
         } else {
             Err(Error::VaultLocked)
         }

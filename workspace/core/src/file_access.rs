@@ -257,11 +257,8 @@ impl VaultAccess for VaultFileAccess {
         Ok(Payload::SetVaultName(change_seq, Cow::Owned(name)))
     }
 
-    fn create(
-        &mut self,
-        id: SecretId,
-        secret: (AeadPack, AeadPack),
-    ) -> Result<Payload> {
+    fn create(&mut self, secret: (AeadPack, AeadPack)) -> Result<Payload> {
+        let id = Uuid::new_v4();
         let content_offset = self.check_identity()?;
         let total_rows = self.rows(content_offset)?;
         let change_seq = self.change_seq()?;

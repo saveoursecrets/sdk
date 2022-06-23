@@ -945,7 +945,10 @@ impl SecretHandler {
                 if local_change_seq != (remote_change_seq + 1) {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
-                    if let Ok(payload) = handle.create(secret_id, secret) {
+                    if let Ok(payload) = handle.create(secret) {
+                        // TODO: ensure the payload generate secret id
+                        // TODO: matches the client supplied id
+
                         let event = ChangeEvent::from((
                             &vault_id,
                             &token.address,
