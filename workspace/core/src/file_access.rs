@@ -158,9 +158,12 @@ impl VaultFileAccess {
             unreachable!("file splice head range always starts at zero");
         }
 
+        // Must seek to the end before writing out the content or tail
+        file.seek(SeekFrom::End(0))?;
+
         // Inject the content if necessary
         if let Some(content) = content {
-            file.seek(SeekFrom::End(0))?;
+            //file.seek(SeekFrom::End(0))?;
             file.write_all(content)?;
         }
 
@@ -566,6 +569,18 @@ mod tests {
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(2, total_rows);
 
+        // Check the file identity is good after the deletion splice
+        assert!(Header::read_header_file(vault_path).is_ok());
+
+        // Clean up other secrets
+        for secret_id in secret_ids {
+            let _ = vault_access.delete(&secret_id)?;
+        }
+
+        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
+        assert_eq!(0, total_rows);
+
+        // Verify again to finish up
         assert!(Header::read_header_file(vault_path).is_ok());
 
         Ok(())
