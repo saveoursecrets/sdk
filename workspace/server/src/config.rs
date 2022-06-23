@@ -1,13 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use url::{Host, Url};
 
-use sos_core::address::AddressStr;
-
 use crate::{Backend, Error, FileSystemBackend, Result};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct ServerConfig {
     /// Whether to serve the web GUI.
     pub gui: bool,
@@ -25,18 +22,6 @@ pub struct ServerConfig {
     /// relative paths.
     #[serde(skip)]
     file: Option<PathBuf>,
-}
-
-impl Default for ServerConfig {
-    fn default() -> Self {
-        Self {
-            gui: false,
-            audit: Default::default(),
-            storage: Default::default(),
-            api: Default::default(),
-            file: None,
-        }
-    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

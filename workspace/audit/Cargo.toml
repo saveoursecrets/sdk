@@ -1,0 +1,17 @@
+[package]
+name = "sos-audit"
+version = "0.1.0"
+edition = "2021"
+default-run = "sos-audit"
+
+[dependencies]
+thiserror = "1"
+clap = { version = "3", features = ["derive", "wrap_help"] }
+sos-core = { path = "../core" }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[[bin]]
+name = "sos-audit"
+path = "src/bin/main.rs"

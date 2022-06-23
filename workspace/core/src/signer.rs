@@ -1,9 +1,11 @@
 //! Traits and types for signing messages.
 use async_trait::async_trait;
-use k256::ecdsa::{recoverable, signature::Signer as EcdsaSigner, SigningKey};
+use k256::ecdsa::{
+    recoverable, signature::Signer as EcdsaSigner, SigningKey,
+};
 use web3_signature::Signature;
 
-use crate::Result;
+use crate::{address::AddressStr, Result};
 
 /// Trait for implementations that can sign a message.
 #[async_trait]
@@ -15,6 +17,9 @@ pub trait Signer {
     /// Note that libsecp256k1 uses SHA256 for it's digest
     /// so these signatures are not compatible with libsecp256k1.
     async fn sign(&self, message: &[u8]) -> Result<Signature>;
+
+    /// Compute the public address for this signer.
+    fn address(&self) -> Result<AddressStr>;
 }
 
 /// Trait for implementations that can sign a message synchronously.
@@ -38,6 +43,13 @@ impl Signer for SingleParty {
         let sig: Signature = recoverable.into();
         Ok(sig)
     }
+
+    fn address(&self) -> Result<AddressStr> {
+        let bytes = self.0.verifying_key().to_bytes();
+        let bytes: [u8; 33] = bytes.as_slice().try_into()?;
+        let address: AddressStr = (&bytes).try_into()?;
+        Ok(address)
+    }
 }
 
 impl SignSync for SingleParty {
@@ -50,7 +62,9 @@ impl SignSync for SingleParty {
 
 impl<'a> TryFrom<&'a [u8; 32]> for SingleParty {
     type Error = crate::Error;
-    fn try_from(value: &'a [u8; 32]) -> std::result::Result<Self, Self::Error> {
+    fn try_from(
+        value: &'a [u8; 32],
+    ) -> std::result::Result<Self, Self::Error> {
         Ok(Self(SigningKey::from_bytes(value)?))
     }
 }

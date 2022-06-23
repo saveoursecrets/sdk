@@ -1,0 +1,36 @@
+[package]
+name = "sos-client"
+version = "0.1.0"
+edition = "2021"
+default-run = "sos-client"
+
+[dependencies]
+thiserror = "1"
+sos-core = { path = "../core" }
+sos-readline = { path = "../readline" }
+clap = { version = "3", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+url = "2"
+reqwest = { version = "0.11", features = ["json"] }
+reqwest-eventsource = "0.4"
+futures = "0.3"
+k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
+web3-keystore = "0.4"
+web3-signature = { version = "0.2.3", features = ["single-party"] }
+serde_json = "1"
+uuid = { version = "1", features = ["serde", "v4"] }
+base64 = "0.13"
+rand = "0.8"
+hex = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+mime_guess = "2"
+human_bytes = "0.3"
+tempfile = "3"
+sha3 = "0.10"
+shell-words = "1"
+terminal-banner = "0.1"
+
+[[bin]]
+name = "sos-client"
+path = "src/bin/main.rs"

@@ -74,7 +74,8 @@ impl LogFile {
     /// the process.
     pub fn would_block<P: AsRef<Path>>(path: P) -> Result<bool> {
         let file = LogFile::create(LogFile::lock_file(path))?;
-        let blocks = match file_guard::try_lock(&file, Lock::Exclusive, 0, 1) {
+        let blocks = match file_guard::try_lock(&file, Lock::Exclusive, 0, 1)
+        {
             Ok(_) => false,
             Err(_) => true,
         };

@@ -100,7 +100,7 @@ impl WebVault {
     /// Get the meta data for the vault.
     #[wasm_bindgen(js_name = "getVaultMeta")]
     pub fn get_meta_data(&self) -> Result<JsValue, JsError> {
-        let _meta = self.keeper.meta()?;
+        let _meta = self.keeper.vault_meta()?;
         let sorted_meta = self.sort_meta_data()?;
         Ok(JsValue::from_serde(&sorted_meta)?)
     }
@@ -138,18 +138,18 @@ impl WebVault {
     pub fn create(&mut self, request: JsValue) -> Result<JsValue, JsError> {
         let mut data: SecretData = request.into_serde()?;
 
-        if let Secret::Blob {
+        if let Secret::File {
             ref mut mime,
             ref name,
             ..
         } = data.secret
         {
-            if let Some(name) = name {
-                if let Some(mime_type) =
-                    mime_guess::from_path(name).first().map(|m| m.to_string())
-                {
-                    *mime = Some(mime_type);
-                }
+            if let Some(mime_type) =
+                mime_guess::from_path(name).first().map(|m| m.to_string())
+            {
+                *mime = mime_type;
+            } else {
+                *mime = "application/octet-stream".to_string();
             }
         }
 
@@ -172,27 +172,7 @@ impl WebVault {
             JsError::new("update requires a valid identifier")
         })?;
 
-        if let Secret::Blob {
-            ref mut mime,
-            ref name,
-            ..
-        } = data.secret
-        {
-            if mime.is_none() {
-                if let Some(name) = name {
-                    if let Some(mime_type) = mime_guess::from_path(name)
-                        .first()
-                        .map(|m| m.to_string())
-                    {
-                        *mime = Some(mime_type);
-                    }
-                }
-            }
-        }
-
-        console_log!("Updating secret");
         let payload = self.keeper.update(uuid, data.meta, data.secret)?;
-        console_log!("Secret update completed!");
         Ok(JsValue::from_serde(&payload)?)
     }
 
@@ -204,7 +184,10 @@ impl WebVault {
     }
 
     /// Unlock the vault.
-    pub fn unlock(&mut self, passphrase: JsValue) -> Result<JsValue, JsError> {
+    pub fn unlock(
+        &mut self,
+        passphrase: JsValue,
+    ) -> Result<JsValue, JsError> {
         let passphrase: String = passphrase.into_serde()?;
         let _meta = self.keeper.unlock(passphrase)?;
         let sorted_meta = self.sort_meta_data()?;
@@ -286,9 +269,13 @@ impl Signup {
         let (private_key, public_key) = generate_random_ecdsa_signing_key();
         let address = address_compressed(&public_key)?;
         let mut rng = rand::thread_rng();
-        let keystore =
-            encrypt(&mut rng, &private_key, passphrase, Some(address.clone()))
-                .expect("unable to encrypt private key store");
+        let keystore = encrypt(
+            &mut rng,
+            &private_key,
+            passphrase,
+            Some(address.clone()),
+        )
+        .expect("unable to encrypt private key store");
         Ok(JsValue::from_serde(&keystore)?)
     }
 
@@ -298,7 +285,8 @@ impl Signup {
         if let Some(key_passphrase) = self.key_passphrase.as_mut() {
             key_passphrase.zeroize();
         }
-        if let Some(encryption_passphrase) = self.encryption_passphrase.as_mut()
+        if let Some(encryption_passphrase) =
+            self.encryption_passphrase.as_mut()
         {
             encryption_passphrase.zeroize();
         }
