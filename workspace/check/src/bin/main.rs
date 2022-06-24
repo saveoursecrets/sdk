@@ -1,12 +1,10 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use sos_check::{verify, Result};
+use sos_check::{keys, status, verify, Result};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-//use terminal_banner::{Banner, Padding};
-
-/// Tool to check the status and verify the integrity of vaults.
+/// Utility tool to check the status and integrity of vaults.
 #[derive(Parser, Debug)]
 #[clap(name = "sos-check", author, version, about, long_about = None)]
 struct Cli {
@@ -18,7 +16,7 @@ struct Cli {
 enum Command {
     /// Verify the integrity of a vault.
     Verify {
-        /// Print the root hash.
+        /// Print the root commit hash.
         #[clap(short, long)]
         root: bool,
 
@@ -26,6 +24,16 @@ enum Command {
         #[clap(short, long)]
         commits: bool,
 
+        /// Vault file path.
+        vault: PathBuf,
+    },
+    /// Print the vault header and root commit hash.
+    Status {
+        /// Vault file path.
+        vault: PathBuf,
+    },
+    /// Print the vault keys.
+    Keys {
         /// Vault file path.
         vault: PathBuf,
     },
@@ -41,6 +49,8 @@ fn run() -> Result<()> {
         } => {
             verify(vault, root, commits)?;
         }
+        Command::Status { vault } => status(vault)?,
+        Command::Keys { vault } => keys(vault)?,
     }
 
     Ok(())

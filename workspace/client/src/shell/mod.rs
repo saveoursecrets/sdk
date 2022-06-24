@@ -341,7 +341,7 @@ fn exec_program(
             let reader = state.read().unwrap();
             if let Some(keeper) = &reader.current {
                 let summary = keeper.summary();
-                print::summary(summary);
+                println!("{}", summary);
             } else {
                 return Err(Error::NoVaultSelected);
             }

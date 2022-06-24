@@ -100,6 +100,11 @@ impl RowInfo {
         Ok(value)
     }
 
+    /// Consume this row and yield the row identifier.
+    pub fn into_id(self) -> [u8; 16] {
+        self.id
+    }
+
     /// Consume this row and yield the commit hash bytes.
     pub fn into_commit(self) -> [u8; 32] {
         self.commit

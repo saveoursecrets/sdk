@@ -9,7 +9,7 @@ use serde_binary::{
     Decode, Deserializer, Encode, Error as BinaryError,
     Result as BinaryResult, Serializer,
 };
-use std::{borrow::Cow, collections::HashMap, path::Path};
+use std::{borrow::Cow, collections::HashMap, fmt, path::Path};
 use uuid::Uuid;
 
 use crate::{
@@ -205,6 +205,16 @@ pub struct Summary {
     algorithm: Algorithm,
 }
 
+impl fmt::Display for Summary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Version {} using {} at #{}\n{} {}",
+            self.version, self.algorithm, self.change_seq, self.name, self.id
+        )
+    }
+}
+
 impl Default for Summary {
     fn default() -> Self {
         Self {
@@ -388,6 +398,12 @@ impl Default for Header {
             meta: None,
             auth: Default::default(),
         }
+    }
+}
+
+impl fmt::Display for Header {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.summary)
     }
 }
 

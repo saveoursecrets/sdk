@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use uuid::Uuid;
 
 mod error;
 
@@ -21,7 +22,7 @@ pub fn verify(vault: PathBuf, root: bool, commits: bool) -> Result<()> {
     let mut reader = BinaryReader::new(&mut value, Endian::Big);
 
     let mut stream = FileStream::new(&vault, OpenType::Open)?;
-    let (mut iterator, header) = RowIterator::new(&mut stream)?;
+    let (mut iterator, _header) = RowIterator::new(&mut stream)?;
     for row_info in iterator {
         let row_info = row_info?;
         if commits {
@@ -55,5 +56,32 @@ pub fn verify(vault: PathBuf, root: bool, commits: bool) -> Result<()> {
 
     println!("Verified ✓");
 
+    Ok(())
+}
+
+/// Print the vault header and root commit.
+pub fn status(vault: PathBuf) -> Result<()> {
+    let mut stream = FileStream::new(&vault, OpenType::Open)?;
+    let (mut iterator, header) = RowIterator::new(&mut stream)?;
+    let total = *iterator.total_rows();
+    let tree = CommitTree::from_iterator(&mut iterator)?;
+
+    println!("{}", header);
+    println!("Rows: {}", total);
+    if let Some(root) = tree.root() {
+        println!("Commit: {}", hex::encode(root));
+    }
+    Ok(())
+}
+
+/// Print the vault keys.
+pub fn keys(vault: PathBuf) -> Result<()> {
+    let mut stream = FileStream::new(&vault, OpenType::Open)?;
+    let (mut iterator, _header) = RowIterator::new(&mut stream)?;
+    for row_info in iterator {
+        let row_info = row_info?;
+        let id = Uuid::from_bytes(row_info.into_id());
+        println!("{}", id);
+    }
     Ok(())
 }
