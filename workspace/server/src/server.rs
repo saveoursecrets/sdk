@@ -24,11 +24,11 @@ use sos_core::{
     address::AddressStr,
     audit::{Append, Log},
     changes::ChangeEvent,
-    crypto::AeadPack,
     decode,
     operations::{Operation, Payload},
     patch::Patch,
-    vault::{Header, Summary, Vault},
+    secret::SecretId,
+    vault::{Header, SecretCommit, Summary, Vault},
 };
 use std::{
     collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc,
@@ -918,7 +918,7 @@ impl SecretHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(change_seq): TypedHeader<ChangeSequence>,
-        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+        Path((vault_id, secret_id)): Path<(Uuid, SecretId)>,
         body: Bytes,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         // Perform the creation and get an audit log
@@ -926,9 +926,8 @@ impl SecretHandler {
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let secret: (AeadPack, AeadPack) =
-                    serde_json::from_slice(&body)
-                        .map_err(|_| StatusCode::BAD_REQUEST)?;
+                let secret: SecretCommit = serde_json::from_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let mut writer = state.write().await;
                 let mut handle = writer
@@ -944,7 +943,10 @@ impl SecretHandler {
                 if local_change_seq != (remote_change_seq + 1) {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
-                    if let Ok(payload) = handle.create(secret_id, secret) {
+                    if let Ok(payload) = handle.create(secret.0, secret.1) {
+                        // TODO: ensure the payload generate secret id
+                        // TODO: matches the client supplied id
+
                         let event = ChangeEvent::from((
                             &vault_id,
                             &token.address,
@@ -976,7 +978,7 @@ impl SecretHandler {
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
         TypedHeader(change_seq): TypedHeader<ChangeSequence>,
-        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+        Path((vault_id, secret_id)): Path<(Uuid, SecretId)>,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         let response = if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &message)
@@ -1021,7 +1023,7 @@ impl SecretHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(change_seq): TypedHeader<ChangeSequence>,
-        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+        Path((vault_id, secret_id)): Path<(Uuid, SecretId)>,
         body: Bytes,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         // Perform the update and get an audit log
@@ -1029,9 +1031,8 @@ impl SecretHandler {
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let secret: (AeadPack, AeadPack) =
-                    serde_json::from_slice(&body)
-                        .map_err(|_| StatusCode::BAD_REQUEST)?;
+                let secret: SecretCommit = serde_json::from_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let mut writer = state.write().await;
                 let mut handle = writer
@@ -1047,7 +1048,9 @@ impl SecretHandler {
                 if local_change_seq != (remote_change_seq + 1) {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
-                    if let Ok(result) = handle.update(&secret_id, secret) {
+                    if let Ok(result) =
+                        handle.update(&secret_id, secret.0, secret.1)
+                    {
                         if let Some(payload) = result {
                             let event = ChangeEvent::from((
                                 &vault_id,
@@ -1083,7 +1086,7 @@ impl SecretHandler {
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
         TypedHeader(change_seq): TypedHeader<ChangeSequence>,
-        Path((vault_id, secret_id)): Path<(Uuid, Uuid)>,
+        Path((vault_id, secret_id)): Path<(Uuid, SecretId)>,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         // Perform the deletion and get an audit log
         let response = if let Ok((status_code, token)) =

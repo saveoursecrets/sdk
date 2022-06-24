@@ -6,6 +6,7 @@ edition = "2021"
 [workspace]
 members = [
   "workspace/audit",
+  "workspace/check",
   "workspace/client",
   "workspace/core",
   "workspace/readline",

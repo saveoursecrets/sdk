@@ -1,4 +1,4 @@
-use sos_core::secret::UuidOrName;
+use sos_core::secret::SecretRef;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -23,7 +23,7 @@ pub enum Error {
     ChangeSequenceHeader,
 
     #[error(r#"vault "{0}" not found, run "vaults" to load the vault list"#)]
-    VaultNotAvailable(UuidOrName),
+    VaultNotAvailable(SecretRef),
 
     #[error("failed to unlock vault")]
     VaultUnlockFail,
@@ -32,7 +32,7 @@ pub enum Error {
     NoVaultSelected,
 
     #[error(r#"secret "{0}" not found"#)]
-    SecretNotAvailable(UuidOrName),
+    SecretNotAvailable(SecretRef),
 
     #[error("failed to create vault, got status code {0}")]
     VaultCreate(u16),

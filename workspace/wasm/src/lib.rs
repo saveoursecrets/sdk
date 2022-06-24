@@ -9,9 +9,8 @@ use sos_core::{
     gatekeeper::Gatekeeper,
     operations::Payload,
     patch::Patch,
-    secret::{Secret, SecretMeta},
+    secret::{Secret, SecretId, SecretMeta},
     signer::{SignSync, SingleParty},
-    uuid::Uuid,
     vault::Vault,
 };
 
@@ -46,7 +45,7 @@ pub fn start() {
 #[derive(Serialize, Deserialize)]
 pub struct SecretData {
     #[serde(rename = "secretId")]
-    secret_id: Option<Uuid>,
+    secret_id: Option<SecretId>,
     meta: SecretMeta,
     secret: Secret,
 }
@@ -107,7 +106,7 @@ impl WebVault {
 
     fn sort_meta_data(
         &self,
-    ) -> Result<BTreeMap<String, (Uuid, SecretMeta)>, JsError> {
+    ) -> Result<BTreeMap<String, (SecretId, SecretMeta)>, JsError> {
         Ok(self
             .keeper
             .meta_data()?
@@ -158,28 +157,28 @@ impl WebVault {
     }
 
     /// Get a secret from the vault.
-    pub fn read(&self, uuid: JsValue) -> Result<JsValue, JsError> {
-        let uuid: Uuid = uuid.into_serde()?;
-        let result = self.keeper.read(&uuid)?;
+    pub fn read(&self, id: JsValue) -> Result<JsValue, JsError> {
+        let id: SecretId = id.into_serde()?;
+        let result = self.keeper.read(&id)?;
         Ok(JsValue::from_serde(&result)?)
     }
 
     /// Update a new secret.
     pub fn update(&mut self, request: JsValue) -> Result<JsValue, JsError> {
-        let mut data: SecretData = request.into_serde()?;
+        let data: SecretData = request.into_serde()?;
 
-        let uuid = data.secret_id.as_ref().ok_or_else(|| {
+        let id = data.secret_id.as_ref().ok_or_else(|| {
             JsError::new("update requires a valid identifier")
         })?;
 
-        let payload = self.keeper.update(uuid, data.meta, data.secret)?;
+        let payload = self.keeper.update(id, data.meta, data.secret)?;
         Ok(JsValue::from_serde(&payload)?)
     }
 
     /// Delete a secret from the vault.
-    pub fn delete(&mut self, uuid: JsValue) -> Result<JsValue, JsError> {
-        let uuid: Uuid = uuid.into_serde()?;
-        let payload = self.keeper.delete(&uuid)?;
+    pub fn delete(&mut self, id: JsValue) -> Result<JsValue, JsError> {
+        let id: SecretId = id.into_serde()?;
+        let payload = self.keeper.delete(&id)?;
         Ok(JsValue::from_serde(&payload)?)
     }
 

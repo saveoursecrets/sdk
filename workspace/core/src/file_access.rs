@@ -19,10 +19,13 @@ use serde_binary::{
 use uuid::Uuid;
 
 use crate::{
-    crypto::AeadPack,
     file_identity::FileIdentity,
-    operations::{Payload, VaultAccess},
-    vault::{encode, Contents, Header, Summary, IDENTITY},
+    operations::Payload,
+    secret::SecretId,
+    vault::{
+        encode, CommitHash, Contents, Header, SecretCommit, SecretGroup,
+        Summary, VaultAccess, IDENTITY,
+    },
     Error, Result,
 };
 
@@ -178,7 +181,7 @@ impl VaultFileAccess {
     /// Returns the content offset, total rows and the byte offset and row length of the row if it exists.
     fn find_row(
         &self,
-        uuid: &Uuid,
+        id: &SecretId,
     ) -> Result<(usize, u32, Option<(usize, u32)>)> {
         let content_offset = self.check_identity()?;
 
@@ -195,7 +198,7 @@ impl VaultFileAccess {
             let row_id: [u8; 16] =
                 de.reader.read_bytes(16)?.as_slice().try_into()?;
             let row_id = Uuid::from_bytes(row_id);
-            if uuid == &row_id {
+            if id == &row_id {
                 // Need to backtrack as we just read the row length and UUID;
                 // calling decode_row() will try to read the length and UUID.
                 de.reader.seek(current_pos)?;
@@ -258,9 +261,10 @@ impl VaultAccess for VaultFileAccess {
 
     fn create(
         &mut self,
-        uuid: Uuid,
-        secret: (AeadPack, AeadPack),
+        commit: CommitHash,
+        secret: SecretGroup,
     ) -> Result<Payload> {
+        let id = Uuid::new_v4();
         let content_offset = self.check_identity()?;
         let total_rows = self.rows(content_offset)?;
         let change_seq = self.change_seq()?;
@@ -270,9 +274,11 @@ impl VaultAccess for VaultFileAccess {
         let writer = BinaryWriter::new(&mut *stream, Endian::Big);
         let mut ser = Serializer { writer };
 
+        let row = SecretCommit(commit, secret);
+
         // Seek to the end of the file and append the row
         ser.writer.seek(length)?;
-        Contents::encode_row(&mut ser, &uuid, &secret)?;
+        Contents::encode_row(&mut ser, &id, &row)?;
 
         drop(stream);
 
@@ -281,36 +287,37 @@ impl VaultAccess for VaultFileAccess {
 
         // Update the change sequence number
         let change_seq = self.inc_change_seq(change_seq)?;
-        Ok(Payload::CreateSecret(change_seq, uuid, Cow::Owned(secret)))
+        Ok(Payload::CreateSecret(change_seq, id, Cow::Owned(row)))
     }
 
     fn read<'a>(
         &'a self,
-        uuid: &Uuid,
-    ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
-        let (_, _, row) = self.find_row(uuid)?;
+        id: &SecretId,
+    ) -> Result<(Option<Cow<'a, SecretCommit>>, Payload)> {
+        let (_, _, row) = self.find_row(id)?;
         let change_seq = self.change_seq()?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().unwrap();
             let reader = BinaryReader::new(&mut *stream, Endian::Big);
             let mut de = Deserializer { reader };
             de.reader.seek(row_offset)?;
-            let (_, (meta, secret)) = Contents::decode_row(&mut de)?;
+            let (_, value) = Contents::decode_row(&mut de)?;
             Ok((
-                Some(Cow::Owned((meta, secret))),
-                Payload::ReadSecret(change_seq, *uuid),
+                Some(Cow::Owned(value)),
+                Payload::ReadSecret(change_seq, *id),
             ))
         } else {
-            Ok((None, Payload::ReadSecret(change_seq, *uuid)))
+            Ok((None, Payload::ReadSecret(change_seq, *id)))
         }
     }
 
     fn update(
         &mut self,
-        uuid: &Uuid,
-        secret: (AeadPack, AeadPack),
+        id: &SecretId,
+        commit: CommitHash,
+        secret: SecretGroup,
     ) -> Result<Option<Payload>> {
-        let (content_offset, total_rows, row) = self.find_row(uuid)?;
+        let (content_offset, total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             let change_seq = self.change_seq()?;
 
@@ -318,7 +325,9 @@ impl VaultAccess for VaultFileAccess {
             let mut stream = MemoryStream::new();
             let writer = BinaryWriter::new(&mut stream, Endian::Big);
             let mut ser = Serializer { writer };
-            Contents::encode_row(&mut ser, uuid, &secret)?;
+
+            let row = SecretCommit(commit, secret);
+            Contents::encode_row(&mut ser, id, &row)?;
             let encoded: Vec<u8> = stream.into();
 
             // Splice the row into the file
@@ -338,17 +347,16 @@ impl VaultAccess for VaultFileAccess {
 
             Ok(Some(Payload::UpdateSecret(
                 change_seq,
-                *uuid,
-                Cow::Owned(secret),
+                *id,
+                Cow::Owned(row),
             )))
         } else {
             Ok(None)
         }
     }
 
-    fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
-        let id = *uuid;
-        let (content_offset, total_rows, row) = self.find_row(uuid)?;
+    fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>> {
+        let (content_offset, total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             let change_seq = self.change_seq()?;
 
@@ -368,7 +376,7 @@ impl VaultAccess for VaultFileAccess {
 
             // Update the change sequence number
             let change_seq = self.inc_change_seq(change_seq)?;
-            Ok(Some(Payload::DeleteSecret(change_seq, id)))
+            Ok(Some(Payload::DeleteSecret(change_seq, *id)))
         } else {
             Ok(None)
         }
@@ -380,10 +388,12 @@ mod tests {
     use super::VaultFileAccess;
     use crate::test_utils::*;
     use crate::{
-        crypto::{secret_key::SecretKey, AeadPack},
-        operations::VaultAccess,
+        crypto::secret_key::SecretKey,
+        operations::Payload,
         secret::*,
-        vault::{Header, Vault, DEFAULT_VAULT_NAME},
+        vault::{
+            Header, SecretGroup, Vault, VaultAccess, DEFAULT_VAULT_NAME,
+        },
     };
     use anyhow::Result;
 
@@ -395,21 +405,28 @@ mod tests {
         encryption_key: &SecretKey,
         secret_label: &str,
         secret_note: &str,
-    ) -> Result<(Uuid, SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
-        let (secret_id, secret_meta, secret_value, meta_bytes, secret_bytes) =
+    ) -> Result<(SecretId, SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
+        let (secret_meta, secret_value, meta_bytes, secret_bytes) =
             mock_secret_note(secret_label, secret_note)?;
 
         let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
         let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
-        let _ = vault_access.create(secret_id, (meta_aead, secret_aead))?;
-        Ok((
-            secret_id,
-            secret_meta,
-            secret_value,
-            meta_bytes,
-            secret_bytes,
-        ))
+        let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+
+        if let Payload::CreateSecret(_, secret_id, _) = vault_access
+            .create(commit, SecretGroup(meta_aead, secret_aead))?
+        {
+            Ok((
+                secret_id,
+                secret_meta,
+                secret_value,
+                meta_bytes,
+                secret_bytes,
+            ))
+        } else {
+            panic!("expecting create secret payload");
+        }
     }
 
     #[test]
@@ -489,13 +506,17 @@ mod tests {
         // Update the secret with new values
         let updated_label = "Updated test note";
         let updated_note = "Updated note text.";
-        let (_, _, _, meta_bytes, secret_bytes) =
+        let (_, _, meta_bytes, secret_bytes) =
             mock_secret_note(updated_label, updated_note)?;
 
         let updated_meta = vault.encrypt(&encryption_key, &meta_bytes)?;
         let updated_secret = vault.encrypt(&encryption_key, &secret_bytes)?;
-        let _ = vault_access
-            .update(&secret_id, (updated_meta, updated_secret))?;
+        let (commit, _) = Vault::commit_hash(&updated_meta, &updated_secret)?;
+        let _ = vault_access.update(
+            &secret_id,
+            commit,
+            SecretGroup(updated_meta, updated_secret),
+        )?;
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);
 

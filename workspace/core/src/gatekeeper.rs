@@ -17,9 +17,9 @@
 use crate::{
     crypto::{secret_key::SecretKey, AeadPack},
     decode, encode,
-    operations::{Payload, VaultAccess},
-    secret::{Secret, SecretMeta, UuidOrName, VaultMeta},
-    vault::{Summary, Vault},
+    operations::Payload,
+    secret::{Secret, SecretId, SecretMeta, SecretRef, VaultMeta},
+    vault::{SecretCommit, SecretGroup, Summary, Vault, VaultAccess},
     Error, Result,
 };
 use std::collections::HashMap;
@@ -120,15 +120,15 @@ impl Gatekeeper {
     }
 
     /// Attempt to decrypt the secrets meta data.
-    pub fn meta_data(&self) -> Result<HashMap<&Uuid, SecretMeta>> {
+    pub fn meta_data(&self) -> Result<HashMap<&SecretId, SecretMeta>> {
         if let Some(private_key) = &self.private_key {
             if self.vault.header().meta().is_some() {
                 let mut result = HashMap::new();
-                for (uuid, meta_aead) in self.vault.meta_data() {
+                for (id, meta_aead) in self.vault.meta_data() {
                     let meta_blob =
                         self.vault.decrypt(private_key, meta_aead)?;
                     let secret_meta: SecretMeta = decode(&meta_blob)?;
-                    result.insert(uuid, secret_meta);
+                    result.insert(id, secret_meta);
                 }
                 Ok(result)
             } else {
@@ -170,11 +170,14 @@ impl Gatekeeper {
     /// Get a secret from the vault.
     fn read_secret(
         &self,
-        uuid: &Uuid,
+        id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret)>> {
         if let Some(private_key) = &self.private_key {
-            if let (Some(value), _payload) = self.vault.read(uuid)? {
-                let (meta_aead, secret_aead) = value.as_ref();
+            if let (Some(value), _payload) = self.vault.read(id)? {
+                let SecretCommit(
+                    _commit,
+                    SecretGroup(meta_aead, secret_aead),
+                ) = value.as_ref();
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
                 let secret_meta: SecretMeta = decode(&meta_blob)?;
 
@@ -193,7 +196,7 @@ impl Gatekeeper {
     /// Find secret meta by label.
     pub fn find_by_label<'a>(
         &self,
-        meta_data: &'a HashMap<&'a Uuid, SecretMeta>,
+        meta_data: &'a HashMap<&'a SecretId, SecretMeta>,
         label: &str,
     ) -> Option<&'a SecretMeta> {
         meta_data.values().find(|m| m.label() == label)
@@ -202,12 +205,12 @@ impl Gatekeeper {
     /// Find secret meta by uuid or label.
     pub fn find_by_uuid_or_label<'a>(
         &self,
-        meta_data: &'a HashMap<&'a Uuid, SecretMeta>,
-        target: &'a UuidOrName,
-    ) -> Option<(&'a Uuid, &'a SecretMeta)> {
+        meta_data: &'a HashMap<&'a SecretId, SecretMeta>,
+        target: &'a SecretRef,
+    ) -> Option<(&'a SecretId, &'a SecretMeta)> {
         match target {
-            UuidOrName::Uuid(uuid) => meta_data.get(uuid).map(|v| (uuid, v)),
-            UuidOrName::Name(name) => meta_data.iter().find_map(|(k, v)| {
+            SecretRef::Id(id) => meta_data.get(id).map(|v| (id, v)),
+            SecretRef::Name(name) => meta_data.iter().find_map(|(k, v)| {
                 if v.label() == name {
                     Some((*k, v))
                 } else {
@@ -223,8 +226,6 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<Payload> {
-        let uuid = Uuid::new_v4();
-
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
@@ -241,7 +242,11 @@ impl Gatekeeper {
             let secret_blob = encode(&secret)?;
             let secret_aead =
                 self.vault.encrypt(private_key, &secret_blob)?;
-            Ok(self.vault.create(uuid, (meta_aead, secret_aead))?)
+
+            let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+            Ok(self
+                .vault
+                .create(commit, SecretGroup(meta_aead, secret_aead))?)
         } else {
             Err(Error::VaultLocked)
         }
@@ -250,29 +255,29 @@ impl Gatekeeper {
     /// Get a secret and it's meta data from the vault.
     pub fn read(
         &self,
-        uuid: &Uuid,
+        id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, Payload)>> {
         let change_seq = self.change_seq()?;
-        let payload = Payload::ReadSecret(change_seq, *uuid);
+        let payload = Payload::ReadSecret(change_seq, *id);
         Ok(self
-            .read_secret(uuid)?
+            .read_secret(id)?
             .map(|(meta, secret)| (meta, secret, payload)))
     }
 
     /// Update a secret in the vault.
     pub fn update(
         &mut self,
-        uuid: &Uuid,
+        id: &SecretId,
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<Option<Payload>> {
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
-        let existing_meta = meta.get(uuid);
+        let existing_meta = meta.get(id);
 
         if existing_meta.is_none() {
-            return Err(Error::SecretDoesNotExist(*uuid));
+            return Err(Error::SecretDoesNotExist(*id));
         }
 
         let existing_meta = existing_meta.unwrap();
@@ -293,15 +298,21 @@ impl Gatekeeper {
             let secret_blob = encode(&secret)?;
             let secret_aead =
                 self.vault.encrypt(private_key, &secret_blob)?;
-            Ok(self.vault.update(uuid, (meta_aead, secret_aead))?)
+
+            let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+            Ok(self.vault.update(
+                id,
+                commit,
+                SecretGroup(meta_aead, secret_aead),
+            )?)
         } else {
             Err(Error::VaultLocked)
         }
     }
 
     /// Delete a secret and it's meta data from the vault.
-    pub fn delete(&mut self, uuid: &Uuid) -> Result<Option<Payload>> {
-        Ok(self.vault.delete(uuid)?)
+    pub fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>> {
+        Ok(self.vault.delete(id)?)
     }
 
     /// Decrypt secret meta data.
