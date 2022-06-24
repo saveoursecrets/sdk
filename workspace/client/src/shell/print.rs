@@ -15,16 +15,6 @@ pub(super) fn summaries_list(summaries: &[Summary]) {
     }
 }
 
-pub(super) fn summary(summary: &Summary) {
-    println!(
-        "Version {} using {} at #{}",
-        summary.version(),
-        summary.algorithm(),
-        summary.change_seq()
-    );
-    println!("{} {}", summary.name(), summary.id());
-}
-
 pub(super) fn secret(secret_meta: &SecretMeta, secret_data: &Secret) {
     let heading =
         format!("[{}] {}", secret_meta.short_name(), secret_meta.label());

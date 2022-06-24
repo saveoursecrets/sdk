@@ -14,9 +14,9 @@ use url::Url;
 use sos_core::{
     diceware::generate,
     gatekeeper::Gatekeeper,
-    operations::{Payload, VaultAccess},
-    secret::{Secret, SecretMeta, UuidOrName},
-    vault::{encode, Summary, Vault},
+    operations::Payload,
+    secret::{Secret, SecretMeta, SecretRef},
+    vault::{encode, SecretCommit, SecretGroup, Summary, Vault, VaultAccess},
 };
 use sos_readline::{
     read_flag, read_line, read_line_allow_empty, read_multiline, read_option,
@@ -45,9 +45,9 @@ enum ShellCommand {
     /// Create a new vault.
     Create { name: String },
     /// Delete a vault.
-    Remove { vault: UuidOrName },
+    Remove { vault: SecretRef },
     /// Select a vault.
-    Use { vault: UuidOrName },
+    Use { vault: SecretRef },
     /// Print information about the selected vault.
     Info,
     /// Get or set the name of the selected vault.
@@ -69,14 +69,14 @@ enum ShellCommand {
         cmd: Add,
     },
     /// Print a secret.
-    Get { secret: UuidOrName },
+    Get { secret: SecretRef },
     /// Update a secret.
-    Set { secret: UuidOrName },
+    Set { secret: SecretRef },
     /// Delete a secret.
-    Del { secret: UuidOrName },
+    Del { secret: SecretRef },
     /// Rename a secret.
     Mv {
-        secret: UuidOrName,
+        secret: SecretRef,
         label: Option<String>,
     },
     /// Print the current identity.
@@ -267,11 +267,11 @@ fn exec_program(
         ShellCommand::Remove { vault } => {
             let mut writer = state.write().unwrap();
             let summary = match &vault {
-                UuidOrName::Name(name) => {
+                SecretRef::Name(name) => {
                     writer.summaries.iter().find(|s| s.name() == name)
                 }
-                UuidOrName::Uuid(uuid) => {
-                    writer.summaries.iter().find(|s| s.id() == uuid)
+                SecretRef::Id(id) => {
+                    writer.summaries.iter().find(|s| s.id() == id)
                 }
             };
 
@@ -314,11 +314,11 @@ fn exec_program(
         ShellCommand::Use { vault } => {
             let mut writer = state.write().unwrap();
             let summary = match &vault {
-                UuidOrName::Name(name) => {
+                SecretRef::Name(name) => {
                     writer.summaries.iter().find(|s| s.name() == name)
                 }
-                UuidOrName::Uuid(uuid) => {
-                    writer.summaries.iter().find(|s| s.id() == uuid)
+                SecretRef::Id(id) => {
+                    writer.summaries.iter().find(|s| s.id() == id)
                 }
             };
 
@@ -341,7 +341,7 @@ fn exec_program(
             let reader = state.read().unwrap();
             if let Some(keeper) = &reader.current {
                 let summary = keeper.summary();
-                print::summary(summary);
+                println!("{}", summary);
             } else {
                 return Err(Error::NoVaultSelected);
             }
@@ -611,7 +611,10 @@ fn exec_program(
                     keeper.find_by_uuid_or_label(&meta_data, &secret)
                 {
                     if let (Some(value), _) = keeper.vault().read(uuid)? {
-                        let (meta_aead, secret_aead) = value.as_ref().clone();
+                        let SecretCommit(
+                            _,
+                            SecretGroup(meta_aead, secret_aead),
+                        ) = value.as_ref().clone();
                         Some((*uuid, meta_aead, secret_aead))
                     } else {
                         None
@@ -634,10 +637,14 @@ fn exec_program(
                     secret_meta.set_label(label);
                     let meta_aead = keeper.encrypt_meta(&secret_meta)?;
 
-                    if let Some(payload) = keeper
-                        .vault_mut()
-                        .update(&uuid, (meta_aead, secret_aead))?
-                    {
+                    let (commit, _) =
+                        Vault::commit_hash(&meta_aead, &secret_aead)?;
+
+                    if let Some(payload) = keeper.vault_mut().update(
+                        &uuid,
+                        commit,
+                        SecretGroup(meta_aead, secret_aead),
+                    )? {
                         if let Payload::UpdateSecret(
                             change_seq,
                             uuid,
