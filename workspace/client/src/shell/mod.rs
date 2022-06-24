@@ -16,7 +16,7 @@ use sos_core::{
     gatekeeper::Gatekeeper,
     operations::Payload,
     secret::{Secret, SecretMeta, SecretRef},
-    vault::{encode, Summary, Vault, VaultAccess},
+    vault::{encode, SecretCommit, SecretGroup, Summary, Vault, VaultAccess},
 };
 use sos_readline::{
     read_flag, read_line, read_line_allow_empty, read_multiline, read_option,
@@ -611,7 +611,10 @@ fn exec_program(
                     keeper.find_by_uuid_or_label(&meta_data, &secret)
                 {
                     if let (Some(value), _) = keeper.vault().read(uuid)? {
-                        let (meta_aead, secret_aead) = value.as_ref().clone();
+                        let SecretCommit(
+                            _,
+                            SecretGroup(meta_aead, secret_aead),
+                        ) = value.as_ref().clone();
                         Some((*uuid, meta_aead, secret_aead))
                     } else {
                         None
@@ -634,10 +637,14 @@ fn exec_program(
                     secret_meta.set_label(label);
                     let meta_aead = keeper.encrypt_meta(&secret_meta)?;
 
-                    if let Some(payload) = keeper
-                        .vault_mut()
-                        .update(&uuid, (meta_aead, secret_aead))?
-                    {
+                    let (commit, _) =
+                        Vault::commit_hash(&meta_aead, &secret_aead)?;
+
+                    if let Some(payload) = keeper.vault_mut().update(
+                        &uuid,
+                        commit,
+                        SecretGroup(meta_aead, secret_aead),
+                    )? {
                         if let Payload::UpdateSecret(
                             change_seq,
                             uuid,

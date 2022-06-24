@@ -24,12 +24,11 @@ use sos_core::{
     address::AddressStr,
     audit::{Append, Log},
     changes::ChangeEvent,
-    crypto::AeadPack,
     decode,
     operations::{Operation, Payload},
     patch::Patch,
     secret::SecretId,
-    vault::{Header, Summary, Vault},
+    vault::{Header, SecretCommit, Summary, Vault},
 };
 use std::{
     collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc,
@@ -927,9 +926,8 @@ impl SecretHandler {
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let secret: (AeadPack, AeadPack) =
-                    serde_json::from_slice(&body)
-                        .map_err(|_| StatusCode::BAD_REQUEST)?;
+                let secret: SecretCommit = serde_json::from_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let mut writer = state.write().await;
                 let mut handle = writer
@@ -945,7 +943,7 @@ impl SecretHandler {
                 if local_change_seq != (remote_change_seq + 1) {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
-                    if let Ok(payload) = handle.create(secret) {
+                    if let Ok(payload) = handle.create(secret.0, secret.1) {
                         // TODO: ensure the payload generate secret id
                         // TODO: matches the client supplied id
 
@@ -1033,9 +1031,8 @@ impl SecretHandler {
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let secret: (AeadPack, AeadPack) =
-                    serde_json::from_slice(&body)
-                        .map_err(|_| StatusCode::BAD_REQUEST)?;
+                let secret: SecretCommit = serde_json::from_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let mut writer = state.write().await;
                 let mut handle = writer
@@ -1051,7 +1048,9 @@ impl SecretHandler {
                 if local_change_seq != (remote_change_seq + 1) {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
-                    if let Ok(result) = handle.update(&secret_id, secret) {
+                    if let Ok(result) =
+                        handle.update(&secret_id, secret.0, secret.1)
+                    {
                         if let Some(payload) = result {
                             let event = ChangeEvent::from((
                                 &vault_id,

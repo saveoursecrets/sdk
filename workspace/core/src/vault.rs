@@ -1,5 +1,5 @@
 //! Vault secret storage file format.
-use rs_merkle::algorithms::Sha256;
+use rs_merkle::{algorithms::Sha256, Hasher};
 use serde::{Deserialize, Serialize};
 use serde_binary::{
     binary_rw::{
@@ -36,14 +36,65 @@ pub const DEFAULT_VAULT_NAME: &str = "Login";
 pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
 
 /// Type to represent the hash of the encrypted content for a secret.
-pub struct CommitHash(Sha256);
+#[derive(
+    Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize,
+)]
+pub struct CommitHash([u8; 32]);
+
+impl AsRef<[u8; 32]> for CommitHash {
+    fn as_ref(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
 
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
-pub type SecretGroup = (AeadPack, AeadPack);
+#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SecretGroup(pub AeadPack, pub AeadPack);
 
-/// Type to represent a secret with an associated commit hash.
-pub type SecretCommit = (CommitHash, SecretGroup);
+impl Encode for SecretGroup {
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        self.0.encode(&mut *ser)?;
+        self.1.encode(&mut *ser)?;
+        Ok(())
+    }
+}
+
+impl Decode for SecretGroup {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let mut meta: AeadPack = Default::default();
+        meta.decode(&mut *de)?;
+        let mut secret: AeadPack = Default::default();
+        secret.decode(&mut *de)?;
+        *self = SecretGroup(meta, secret);
+        Ok(())
+    }
+}
+
+/// Type to represent an encrypted secret with an associated commit hash.
+#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SecretCommit(pub CommitHash, pub SecretGroup);
+
+impl Encode for SecretCommit {
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_bytes(self.0.as_ref())?;
+        self.1.encode(&mut *ser)?;
+        Ok(())
+    }
+}
+
+impl Decode for SecretCommit {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let commit: [u8; 32] =
+            de.reader.read_bytes(32)?.as_slice().try_into()?;
+        let commit = CommitHash(commit);
+        let mut group: SecretGroup = Default::default();
+        group.decode(&mut *de)?;
+        self.0 = commit;
+        self.1 = group;
+        Ok(())
+    }
+}
 
 /// Trait that defines the operations on a vault storage.
 ///
@@ -69,7 +120,11 @@ pub trait VaultAccess {
     fn set_vault_name(&mut self, name: String) -> Result<Payload>;
 
     /// Add an encrypted secret to the vault.
-    fn create(&mut self, secret: SecretGroup) -> Result<Payload>;
+    fn create(
+        &mut self,
+        commit: CommitHash,
+        secret: SecretGroup,
+    ) -> Result<Payload>;
 
     /// Get an encrypted secret from the vault.
     ///
@@ -79,12 +134,13 @@ pub trait VaultAccess {
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, SecretGroup>>, Payload)>;
+    ) -> Result<(Option<Cow<'a, SecretCommit>>, Payload)>;
 
     /// Update an encrypted secret in the vault.
     fn update(
         &mut self,
         id: &SecretId,
+        commit: CommitHash,
         secret: SecretGroup,
     ) -> Result<Option<Payload>>;
 
@@ -96,10 +152,10 @@ pub trait VaultAccess {
     fn apply(&mut self, payload: &Payload) -> Result<u32> {
         match payload {
             Payload::CreateSecret(_, secret_id, value) => {
-                self.create(value.as_ref().clone())?;
+                self.create(value.0.clone(), value.1.clone())?;
             }
             Payload::UpdateSecret(_, secret_id, value) => {
-                self.update(secret_id, value.as_ref().clone())?;
+                self.update(secret_id, value.0.clone(), value.1.clone())?;
             }
             Payload::DeleteSecret(_, secret_id) => {
                 self.delete(secret_id)?;
@@ -378,7 +434,7 @@ impl Decode for Header {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    data: HashMap<SecretId, SecretGroup>,
+    data: HashMap<SecretId, SecretCommit>,
 }
 
 impl Contents {
@@ -386,14 +442,20 @@ impl Contents {
     pub fn encode_row(
         ser: &mut Serializer,
         key: &SecretId,
-        row: &SecretGroup,
+        row: &SecretCommit,
     ) -> BinaryResult<()> {
         let size_pos = ser.writer.tell()?;
         ser.writer.write_u32(0)?;
 
         ser.writer.write_bytes(key.as_bytes())?;
-        row.0.encode(&mut *ser)?;
-        row.1.encode(&mut *ser)?;
+        row.encode(&mut *ser)?;
+
+        /*
+        let (commit, group) = row;
+        ser.writer.write_bytes(commit.as_ref())?;
+        group.0.encode(&mut *ser)?;
+        group.1.encode(&mut *ser)?;
+        */
 
         // Backtrack to size_pos and write new length
         let row_pos = ser.writer.tell()?;
@@ -408,7 +470,7 @@ impl Contents {
     /// Decode a single row from a deserializer.
     pub fn decode_row(
         de: &mut Deserializer,
-    ) -> BinaryResult<(SecretId, SecretGroup)> {
+    ) -> BinaryResult<(SecretId, SecretCommit)> {
         // Read in the row length
         let _ = de.reader.read_u32()?;
 
@@ -416,11 +478,21 @@ impl Contents {
             de.reader.read_bytes(16)?.as_slice().try_into()?;
         let uuid = Uuid::from_bytes(uuid);
 
+        let mut row: SecretCommit = Default::default();
+        row.decode(&mut *de)?;
+
+        /*
+        let commit: [u8; 32] =
+            de.reader.read_bytes(32)?.as_slice().try_into()?;
+        let commit = CommitHash(commit);
+
         let mut meta: AeadPack = Default::default();
         meta.decode(&mut *de)?;
         let mut secret: AeadPack = Default::default();
         secret.decode(&mut *de)?;
-        Ok((uuid, (meta, secret)))
+        */
+
+        Ok((uuid, row))
     }
 }
 
@@ -438,8 +510,8 @@ impl Decode for Contents {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let length = de.reader.read_u32()?;
         for _ in 0..length {
-            let (uuid, (meta, secret)) = Contents::decode_row(de)?;
-            self.data.insert(uuid, (meta, secret));
+            let (uuid, value) = Contents::decode_row(de)?;
+            self.data.insert(uuid, value);
         }
         Ok(())
     }
@@ -583,7 +655,7 @@ impl Vault {
         self.contents
             .data
             .iter()
-            .map(|(k, v)| (k, &v.0))
+            .map(|(k, v)| (k, &v.1 .0))
             .collect::<HashMap<_, _>>()
     }
 
@@ -623,6 +695,22 @@ impl Vault {
     pub fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let mut stream = FileStream::new(path, OpenType::OpenAndCreate)?;
         Vault::encode(&mut stream, self)
+    }
+
+    /// Compute the hash of the encoded encrypted buffer for the meta and secret data.
+    pub fn commit_hash(
+        meta_aead: &AeadPack,
+        secret_aead: &AeadPack,
+    ) -> Result<(CommitHash, Vec<u8>)> {
+        // Compute the hash of the encrypted and encoded bytes
+        let encoded_meta = encode(meta_aead)?;
+        let encoded_data = encode(secret_aead)?;
+        let mut hash_bytes =
+            Vec::with_capacity(encoded_meta.len() + encoded_data.len());
+        hash_bytes.extend_from_slice(&encoded_meta);
+        hash_bytes.extend_from_slice(&encoded_data);
+        let commit = CommitHash(Sha256::hash(hash_bytes.as_slice()));
+        Ok((commit, hash_bytes))
     }
 }
 
@@ -664,7 +752,11 @@ impl VaultAccess for Vault {
         Ok(Payload::SetVaultName(change_seq, Cow::Owned(name)))
     }
 
-    fn create(&mut self, secret: SecretGroup) -> Result<Payload> {
+    fn create(
+        &mut self,
+        commit: CommitHash,
+        secret: SecretGroup,
+    ) -> Result<Payload> {
         let id = Uuid::new_v4();
         let change_seq = if let Some(next_change_seq) =
             self.header.summary.change_seq.checked_add(1)
@@ -675,14 +767,18 @@ impl VaultAccess for Vault {
             return Err(Error::TooManyChanges);
         };
 
-        let value = self.contents.data.entry(id.clone()).or_insert(secret);
+        let value = self
+            .contents
+            .data
+            .entry(id.clone())
+            .or_insert(SecretCommit(commit, secret));
         Ok(Payload::CreateSecret(change_seq, id, Cow::Borrowed(value)))
     }
 
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, SecretGroup>>, Payload)> {
+    ) -> Result<(Option<Cow<'a, SecretCommit>>, Payload)> {
         let change_seq = self.change_seq()?;
         let result = self.contents.data.get(id).map(Cow::Borrowed);
         Ok((result, Payload::ReadSecret(change_seq, *id)))
@@ -691,6 +787,7 @@ impl VaultAccess for Vault {
     fn update(
         &mut self,
         id: &SecretId,
+        commit: CommitHash,
         secret: SecretGroup,
     ) -> Result<Option<Payload>> {
         if let Some(value) = self.contents.data.get_mut(id) {
@@ -703,7 +800,7 @@ impl VaultAccess for Vault {
                 return Err(Error::TooManyChanges);
             };
 
-            *value = secret;
+            *value = SecretCommit(commit, secret);
 
             Ok(Some(Payload::UpdateSecret(
                 change_seq,
@@ -747,15 +844,13 @@ pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crypto::secret_key::*;
-    use crate::diceware::generate_passphrase;
     use crate::operations::Payload;
     use crate::secret::*;
 
     use crate::test_utils::*;
 
     use anyhow::Result;
-    use serde_binary::binary_rw::{MemoryStream, ReadStream, WriteStream};
+    use serde_binary::binary_rw::MemoryStream;
 
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
@@ -785,7 +880,10 @@ mod tests {
         let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
         let secret_aead = vault.encrypt(&encryption_key, &secret_bytes)?;
 
-        let secret_id = match vault.create((meta_aead, secret_aead))? {
+        let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+        let secret_id = match vault
+            .create(commit, SecretGroup(meta_aead, secret_aead))?
+        {
             Payload::CreateSecret(_, secret_id, _) => secret_id,
             _ => unreachable!(),
         };
@@ -800,7 +898,8 @@ mod tests {
         let (row, _) = decoded.read(&secret_id)?;
 
         let value = row.unwrap();
-        let (row_meta, row_secret) = value.as_ref();
+        let SecretCommit(_, SecretGroup(row_meta, row_secret)) =
+            value.as_ref();
 
         let row_meta = vault.decrypt(&encryption_key, row_meta)?;
         let row_secret = vault.decrypt(&encryption_key, row_secret)?;

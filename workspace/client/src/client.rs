@@ -4,10 +4,9 @@ use reqwest::{Client as HttpClient, Response};
 use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
-    crypto::AeadPack,
     secret::SecretId,
     signer::Signer,
-    vault::{Summary, MIME_TYPE_VAULT},
+    vault::{SecretCommit, Summary, MIME_TYPE_VAULT},
 };
 use std::sync::Arc;
 use url::Url;
@@ -231,7 +230,7 @@ impl Client {
         &self,
         vault_id: &Uuid,
         secret_id: &SecretId,
-        secret: &(AeadPack, AeadPack),
+        secret: &SecretCommit,
         change_seq: u32,
     ) -> Result<Response> {
         let url = self.server.join(&format!(
@@ -257,7 +256,7 @@ impl Client {
         &self,
         vault_id: &Uuid,
         secret_id: &SecretId,
-        secret: &(AeadPack, AeadPack),
+        secret: &SecretCommit,
         change_seq: u32,
     ) -> Result<Response> {
         let url = self.server.join(&format!(
