@@ -17,9 +17,9 @@
 use crate::{
     crypto::{secret_key::SecretKey, AeadPack},
     decode, encode,
-    operations::{Payload, VaultAccess},
+    operations::Payload,
     secret::{Secret, SecretId, SecretMeta, SecretRef, VaultMeta},
-    vault::{Summary, Vault},
+    vault::{Summary, Vault, VaultAccess},
     Error, Result,
 };
 use std::collections::HashMap;

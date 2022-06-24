@@ -14,9 +14,9 @@ use url::Url;
 use sos_core::{
     diceware::generate,
     gatekeeper::Gatekeeper,
-    operations::{Payload, VaultAccess},
+    operations::Payload,
     secret::{Secret, SecretMeta, SecretRef},
-    vault::{encode, Summary, Vault},
+    vault::{encode, Summary, Vault, VaultAccess},
 };
 use sos_readline::{
     read_flag, read_line, read_line_allow_empty, read_multiline, read_option,

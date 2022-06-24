@@ -1,4 +1,5 @@
 //! Vault secret storage file format.
+use rs_merkle::algorithms::Sha256;
 use serde::{Deserialize, Serialize};
 use serde_binary::{
     binary_rw::{
@@ -17,7 +18,7 @@ use crate::{
         AeadPack,
     },
     file_identity::FileIdentity,
-    operations::{Payload, VaultAccess},
+    operations::Payload,
     secret::{SecretId, VaultMeta},
     Error, Result,
 };
@@ -33,6 +34,81 @@ pub const DEFAULT_VAULT_NAME: &str = "Login";
 
 /// Mime type for vaults.
 pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
+
+/// Type to represent the hash of the encrypted content for a secret.
+pub struct CommitHash(Sha256);
+
+/// Type to represent a secret as an encrypted pair of meta data
+/// and secret data.
+pub type SecretGroup = (AeadPack, AeadPack);
+
+/// Type to represent a secret with an associated commit hash.
+pub type SecretCommit = (CommitHash, SecretGroup);
+
+/// Trait that defines the operations on a vault storage.
+///
+/// The storage may be in-memory, backed by a file on disc or another
+/// destination for the encrypted bytes.
+pub trait VaultAccess {
+    /// Get the vault summary.
+    fn summary(&self) -> Result<Summary>;
+
+    /// Get the current change sequence number.
+    fn change_seq(&self) -> Result<u32>;
+
+    /// Save a buffer as the entire vault.
+    ///
+    /// This is an unchecked operation and callers should
+    /// ensure the buffer represents a valid vault.
+    fn save(&mut self, buffer: &[u8]) -> Result<Payload>;
+
+    /// Get the name of a vault.
+    fn vault_name(&self) -> Result<(String, Payload)>;
+
+    /// Set the name of a vault.
+    fn set_vault_name(&mut self, name: String) -> Result<Payload>;
+
+    /// Add an encrypted secret to the vault.
+    fn create(&mut self, secret: SecretGroup) -> Result<Payload>;
+
+    /// Get an encrypted secret from the vault.
+    ///
+    /// Use a `Cow` smart pointer because when we are reading
+    /// from an in-memory `Vault` we can return references whereas
+    /// other containers such as file access would return owned data.
+    fn read<'a>(
+        &'a self,
+        id: &SecretId,
+    ) -> Result<(Option<Cow<'a, SecretGroup>>, Payload)>;
+
+    /// Update an encrypted secret in the vault.
+    fn update(
+        &mut self,
+        id: &SecretId,
+        secret: SecretGroup,
+    ) -> Result<Option<Payload>>;
+
+    /// Remove an encrypted secret from the vault.
+    fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>>;
+
+    /// Apply a payload to this vault and return the updated
+    /// change sequence.
+    fn apply(&mut self, payload: &Payload) -> Result<u32> {
+        match payload {
+            Payload::CreateSecret(_, secret_id, value) => {
+                self.create(value.as_ref().clone())?;
+            }
+            Payload::UpdateSecret(_, secret_id, value) => {
+                self.update(secret_id, value.as_ref().clone())?;
+            }
+            Payload::DeleteSecret(_, secret_id) => {
+                self.delete(secret_id)?;
+            }
+            _ => panic!("payload type not supported in apply()"),
+        }
+        self.change_seq()
+    }
+}
 
 /// Authentication information.
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -302,7 +378,7 @@ impl Decode for Header {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    data: HashMap<SecretId, (AeadPack, AeadPack)>,
+    data: HashMap<SecretId, SecretGroup>,
 }
 
 impl Contents {
@@ -310,7 +386,7 @@ impl Contents {
     pub fn encode_row(
         ser: &mut Serializer,
         key: &SecretId,
-        row: &(AeadPack, AeadPack),
+        row: &SecretGroup,
     ) -> BinaryResult<()> {
         let size_pos = ser.writer.tell()?;
         ser.writer.write_u32(0)?;
@@ -332,7 +408,7 @@ impl Contents {
     /// Decode a single row from a deserializer.
     pub fn decode_row(
         de: &mut Deserializer,
-    ) -> BinaryResult<(SecretId, (AeadPack, AeadPack))> {
+    ) -> BinaryResult<(SecretId, SecretGroup)> {
         // Read in the row length
         let _ = de.reader.read_u32()?;
 
@@ -588,7 +664,7 @@ impl VaultAccess for Vault {
         Ok(Payload::SetVaultName(change_seq, Cow::Owned(name)))
     }
 
-    fn create(&mut self, secret: (AeadPack, AeadPack)) -> Result<Payload> {
+    fn create(&mut self, secret: SecretGroup) -> Result<Payload> {
         let id = Uuid::new_v4();
         let change_seq = if let Some(next_change_seq) =
             self.header.summary.change_seq.checked_add(1)
@@ -606,7 +682,7 @@ impl VaultAccess for Vault {
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
+    ) -> Result<(Option<Cow<'a, SecretGroup>>, Payload)> {
         let change_seq = self.change_seq()?;
         let result = self.contents.data.get(id).map(Cow::Borrowed);
         Ok((result, Payload::ReadSecret(change_seq, *id)))
@@ -615,7 +691,7 @@ impl VaultAccess for Vault {
     fn update(
         &mut self,
         id: &SecretId,
-        secret: (AeadPack, AeadPack),
+        secret: SecretGroup,
     ) -> Result<Option<Payload>> {
         if let Some(value) = self.contents.data.get_mut(id) {
             let change_seq = if let Some(next_change_seq) =

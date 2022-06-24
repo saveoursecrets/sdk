@@ -14,47 +14,6 @@ use crate::Error;
 /// Identifier for secrets.
 pub type SecretId = Uuid;
 
-/// Identifier for a secret that is a 256 bit hash of the
-/// encrypted bytes.
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub struct SecretId2(
-    #[serde(
-        serialize_with = "hex::serde::serialize",
-        deserialize_with = "hex::serde::deserialize"
-    )]
-    [u8; 32],
-);
-
-impl SecretId2 {
-    /// Get a reference to the underlying bytes.
-    pub fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl fmt::Display for SecretId2 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::encode(&self.0))
-    }
-}
-
-impl FromStr for SecretId2 {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        /*
-        if s.len() == 64 {
-            let bytes = hex::decode()?;
-        }
-        */
-        todo!()
-        //if let Ok(id) = Uuid::parse_str(s) {
-        //Ok(Self::Id(id))
-        //} else {
-        //Ok(Self::Name(s.to_string()))
-        //}
-    }
-}
-
 /// Reference to a secret using an id or a named label.
 #[derive(Debug)]
 pub enum SecretRef {

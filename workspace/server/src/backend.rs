@@ -3,8 +3,7 @@ use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
     file_access::VaultFileAccess,
-    operations::VaultAccess,
-    vault::{Header, Summary, Vault},
+    vault::{Header, Summary, Vault, VaultAccess},
 };
 use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::{

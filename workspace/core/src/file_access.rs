@@ -21,9 +21,11 @@ use uuid::Uuid;
 use crate::{
     crypto::AeadPack,
     file_identity::FileIdentity,
-    operations::{Payload, VaultAccess},
+    operations::Payload,
     secret::SecretId,
-    vault::{encode, Contents, Header, Summary, IDENTITY},
+    vault::{
+        encode, Contents, Header, SecretGroup, Summary, VaultAccess, IDENTITY,
+    },
     Error, Result,
 };
 
@@ -257,7 +259,7 @@ impl VaultAccess for VaultFileAccess {
         Ok(Payload::SetVaultName(change_seq, Cow::Owned(name)))
     }
 
-    fn create(&mut self, secret: (AeadPack, AeadPack)) -> Result<Payload> {
+    fn create(&mut self, secret: SecretGroup) -> Result<Payload> {
         let id = Uuid::new_v4();
         let content_offset = self.check_identity()?;
         let total_rows = self.rows(content_offset)?;
@@ -285,7 +287,7 @@ impl VaultAccess for VaultFileAccess {
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, (AeadPack, AeadPack)>>, Payload)> {
+    ) -> Result<(Option<Cow<'a, SecretGroup>>, Payload)> {
         let (_, _, row) = self.find_row(id)?;
         let change_seq = self.change_seq()?;
         if let Some((row_offset, _)) = row {
@@ -306,7 +308,7 @@ impl VaultAccess for VaultFileAccess {
     fn update(
         &mut self,
         id: &SecretId,
-        secret: (AeadPack, AeadPack),
+        secret: SecretGroup,
     ) -> Result<Option<Payload>> {
         let (content_offset, total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
@@ -378,9 +380,9 @@ mod tests {
     use crate::test_utils::*;
     use crate::{
         crypto::{secret_key::SecretKey, AeadPack},
-        operations::{Payload, VaultAccess},
+        operations::Payload,
         secret::*,
-        vault::{Header, Vault, DEFAULT_VAULT_NAME},
+        vault::{Header, Vault, VaultAccess, DEFAULT_VAULT_NAME},
     };
     use anyhow::Result;
 
