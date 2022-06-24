@@ -4,6 +4,7 @@
 pub mod address;
 pub mod audit;
 pub mod changes;
+pub mod commit_tree;
 pub mod crypto;
 pub mod diceware;
 pub mod error;

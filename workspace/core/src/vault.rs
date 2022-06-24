@@ -47,6 +47,13 @@ impl AsRef<[u8; 32]> for CommitHash {
     }
 }
 
+impl CommitHash {
+    /// Get a copy of the underlying bytes for the commit hash.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0.clone()
+    }
+}
+
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
 #[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -362,7 +369,9 @@ impl Header {
     }
 
     /// Read the header from a stream.
-    fn read_header_stream(stream: &mut impl ReadStream) -> Result<Header> {
+    pub(crate) fn read_header_stream(
+        stream: &mut impl ReadStream,
+    ) -> Result<Header> {
         let reader = BinaryReader::new(stream, Endian::Big);
         let mut de = Deserializer { reader };
         let mut header: Header = Default::default();
@@ -603,6 +612,16 @@ impl Vault {
     /// Iterator for the secret keys.
     pub fn keys<'a>(&'a self) -> impl Iterator<Item = &'a Uuid> {
         self.contents.data.keys()
+    }
+
+    /// Iterator for the secret keys and commit hashes.
+    pub fn commits<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (&'a Uuid, &'a CommitHash)> {
+        self.contents
+            .data
+            .keys()
+            .zip(self.contents.data.values().map(|v| &v.0))
     }
 
     /// Get the salt used for passphrase authentication.
