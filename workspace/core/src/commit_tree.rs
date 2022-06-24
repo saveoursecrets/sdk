@@ -9,6 +9,11 @@ use crate::{
     Result,
 };
 
+/// Compute the Sha256 hash of some data.
+pub fn hash(data: &[u8]) -> [u8; 32] {
+    Sha256::hash(data)
+}
+
 /// Encapsulates the merkle tree for all commits to a vault.
 pub struct CommitTree {
     tree: MerkleTree<Sha256>,
@@ -43,6 +48,17 @@ impl CommitTree {
         Ok(commit_tree)
     }
 
+    /// Insert a commit hash into the tree,
+    pub fn insert(&mut self, hash: <Sha256 as Hasher>::Hash) -> &mut Self {
+        self.tree.insert(hash);
+        self
+    }
+
+    /// Commit changes to the tree to compute the root.
+    pub fn commit(&mut self) {
+        self.tree.commit()
+    }
+
     /// Get the root hash of the underlying merkle tree.
     pub fn root(&self) -> Option<<Sha256 as Hasher>::Hash> {
         self.tree.root()
@@ -50,7 +66,12 @@ impl CommitTree {
 }
 
 /// Refrerence to the identifier and commit for a row.
+#[derive(Debug)]
 pub struct RowInfo {
+    /// Index of the curent row.
+    pub index: u32,
+    /// Total number of rows.
+    pub total: u32,
     /// Byte offset of the row.
     pub position: usize,
     /// The length of the row in bytes.
@@ -116,6 +137,11 @@ impl<'a> RowIterator<'a> {
         &self.total_rows
     }
 
+    /// Get the current iteration index.
+    pub fn index(&self) -> &u32 {
+        &self.index
+    }
+
     fn read_row(&mut self) -> Result<RowInfo> {
         let position = self.reader.tell()?;
         let length = self.reader.read_u32()?;
@@ -124,17 +150,19 @@ impl<'a> RowIterator<'a> {
         let commit: [u8; 32] =
             self.reader.read_bytes(32)?.as_slice().try_into()?;
 
-        let start = self.reader.tell()?;
+        let start = position + 52;
         let end = start + (length as usize - 48);
 
         let row_info = RowInfo {
+            index: self.index,
+            total: self.total_rows,
             position,
             length,
             id,
             commit,
             value: start..end,
         };
-        self.index += 1;
+        self.reader.seek(position + 4 + (length as usize))?;
         Ok(row_info)
     }
 }
@@ -144,7 +172,9 @@ impl<'a> Iterator for RowIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.total_rows {
-            Some(self.read_row())
+            let row = self.read_row();
+            self.index += 1;
+            Some(row)
         } else {
             None
         }

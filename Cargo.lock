@@ -2694,6 +2694,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-check"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "hex",
+ "sos-core",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "sos-client"
 version = "0.1.0"
 dependencies = [

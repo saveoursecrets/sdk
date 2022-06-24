@@ -22,14 +22,13 @@ pub mod signer;
 pub mod vault;
 
 pub use k256;
+pub use serde_binary::binary_rw;
 pub use web3_signature;
 
 pub use crypto::algorithms::Algorithm;
 pub use vault::{decode, encode};
 
 pub use error::Error;
-
-pub use uuid;
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;

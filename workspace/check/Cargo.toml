@@ -1,0 +1,17 @@
+[package]
+name = "sos-check"
+version = "0.1.0"
+edition = "2021"
+default-run = "sos-check"
+
+[dependencies]
+thiserror = "1"
+sos-core = { path = "../core" }
+clap = { version = "3", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+hex = "0.4"
+
+[[bin]]
+name = "sos-check"
+path = "src/bin/main.rs"
