@@ -29,9 +29,13 @@ use time::{Duration, OffsetDateTime};
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
 
 /// Byte offset that accounts for encoded time and hash digest.
-const LOG_ROW_OFFSET: usize = 128;
+///
+/// 8 bytes for the timestamp seconds, 4 bytes for the timestamp
+/// nanoseconds and 32 bytes for the commit hash.
+const LOG_ROW_OFFSET: usize = 44;
 
 /// Timestamp for the log record.
+#[derive(Debug)]
 pub struct LogTime(OffsetDateTime);
 
 impl Default for LogTime {
@@ -126,7 +130,7 @@ impl Decode for LogRecord {
 }
 
 /// Reference to a row in the write ahead log.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct LogRow(LogTime, CommitHash, Range<usize>);
 
 impl Decode for LogRow {
@@ -156,25 +160,20 @@ trait WalProvider {
 trait WalIterator: DoubleEndedIterator {}
 
 /// A write ahead log that appends to a file.
-pub struct WalFile<'a> {
+pub struct WalFile {
     file_path: PathBuf,
     file: File,
-    phantom: PhantomData<&'a ()>,
 }
 
-impl<'a> WalFile<'a> {
+impl WalFile {
     /// Create a new write ahead log file.
     pub fn new(file_path: PathBuf) -> Result<Self> {
         let file = WalFile::create(&file_path)?;
-        Ok(Self {
-            file_path,
-            file,
-            phantom: PhantomData,
-        })
+        Ok(Self { file_path, file })
     }
 
     /// Create the write ahead log file.
-    pub fn create<P: AsRef<Path>>(path: P) -> Result<File> {
+    fn create<P: AsRef<Path>>(path: P) -> Result<File> {
         let exists = path.as_ref().exists();
 
         if !exists {
@@ -197,13 +196,15 @@ impl<'a> WalFile<'a> {
     }
 }
 
-impl<'a> WalProvider for WalFile<'a> {
+impl WalProvider for WalFile {
     fn append_event(&mut self, log_event: &LogData<'_>) -> Result<()> {
         let log_time: LogTime = Default::default();
         let log_bytes = encode(log_event)?;
+
         let log_commit = CommitHash(hash(&log_bytes));
         let log_record = LogRecord(log_time, log_commit, log_bytes);
         let buffer = encode(&log_record)?;
+
         self.file.write_all(&buffer)?;
         Ok(())
     }
@@ -243,11 +244,12 @@ impl WalFileIterator {
         let mut row: LogRow = Default::default();
         row.decode(&mut *de)?;
 
-        de.reader.seek(start + row_len as usize)?;
-        let end = de.reader.tell()?;
-
         // The byte range for the row value.
-        row.2 = (start + LOG_ROW_OFFSET)..end;
+        let begin = start + LOG_ROW_OFFSET;
+        let value_len = de.reader.read_u32()?;
+        let end = begin + 4 + value_len as usize;
+        row.2 = begin..end;
+
         Ok(row)
     }
 
@@ -262,6 +264,7 @@ impl WalFileIterator {
         // Prepare position for next iteration
         let next_pos = row.2.end + 4;
         de.reader.seek(next_pos)?;
+
         self.forward = Some(next_pos);
 
         Ok(row)
@@ -285,6 +288,7 @@ impl WalFileIterator {
 
         // Prepare position for next iteration
         let next_pos = row.2.start - (LOG_ROW_OFFSET + 4);
+
         de.reader.seek(next_pos)?;
         self.backward = Some(next_pos);
 
@@ -306,6 +310,13 @@ impl Iterator for WalFileIterator {
 
         match self.file_stream.len() {
             Ok(len) => {
+                // Got to EOF
+                if let Some(lpos) = self.forward {
+                    if lpos == len {
+                        return None;
+                    }
+                }
+
                 if len > 4 {
                     Some(self.read_row_next())
                 } else {
@@ -328,6 +339,13 @@ impl DoubleEndedIterator for WalFileIterator {
         match self.file_stream.len() {
             Ok(len) => {
                 if len > 4 {
+                    // Got to EOF
+                    if let Some(rpos) = self.backward {
+                        if rpos == IDENTITY.len() {
+                            return None;
+                        }
+                    }
+
                     if self.backward.is_none() {
                         if let Err(e) = self.file_stream.seek(len) {
                             return Some(Err(e.into()));
@@ -341,5 +359,76 @@ impl DoubleEndedIterator for WalFileIterator {
             }
             Err(_) => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::operations::Payload;
+    use anyhow::Result;
+    use tempfile::NamedTempFile;
+
+    fn mock_wal_file() -> Result<(NamedTempFile, WalFile)> {
+        let temp = NamedTempFile::new()?;
+        // 4 byte magic identity
+
+        // ROW
+        // 4 byte row length
+        // 12 byte timestamp
+        // 32 byte commit hash
+        // 4 byte value length (N)
+        // [N] byte value
+        // 4 byte row length
+
+        // = 58 bytes for an empty payload
+        //
+        // = 178 bytes total
+
+        let mut wal = WalFile::new(temp.path().to_path_buf())?;
+        let payload: Payload = Default::default();
+
+        wal.append_event(&payload)?;
+        wal.append_event(&payload)?;
+        wal.append_event(&payload)?;
+
+        Ok((temp, wal))
+    }
+
+    #[test]
+    fn wal_iter_forward() -> Result<()> {
+        let (temp, wal) = mock_wal_file()?;
+        let mut it = wal.iter()?;
+        let _first_row = it.next().unwrap();
+        let _second_row = it.next().unwrap();
+        let _third_row = it.next().unwrap();
+        assert!(it.next().is_none());
+        temp.close()?;
+        Ok(())
+    }
+
+    #[test]
+    fn wal_iter_backward() -> Result<()> {
+        let (temp, wal) = mock_wal_file()?;
+        let mut it = wal.iter()?;
+        let _third_row = it.next_back().unwrap();
+        let _second_row = it.next_back().unwrap();
+        let _first_row = it.next_back().unwrap();
+        assert!(it.next_back().is_none());
+        temp.close()?;
+        Ok(())
+    }
+
+    #[test]
+    fn wal_iter_mixed() -> Result<()> {
+        let (temp, wal) = mock_wal_file()?;
+        let mut it = wal.iter()?;
+        let _first_row = it.next().unwrap();
+        let _third_row = it.next_back().unwrap();
+        let _second_row = it.next_back().unwrap();
+        assert!(it.next_back().is_none());
+        assert!(it.next().is_none());
+        temp.close()?;
+        Ok(())
     }
 }

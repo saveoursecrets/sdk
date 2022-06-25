@@ -44,3 +44,4 @@ branch = "wasm32"
 
 [dev-dependencies]
 anyhow = "1"
+tempfile = "3"
