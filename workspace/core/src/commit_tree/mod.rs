@@ -84,10 +84,6 @@ impl CommitTree {
 /// Refrerence to the identifier and commit for a row.
 #[derive(Debug)]
 pub struct RowInfo {
-    /// Index of the curent row.
-    pub index: u32,
-    /// Total number of rows.
-    pub total: u32,
     /// Byte offset of the row.
     pub position: usize,
     /// The length of the row in bytes.
@@ -175,8 +171,6 @@ impl<'a> RowIterator<'a> {
         let end = start + (length as usize - 48);
 
         let row_info = RowInfo {
-            index: self.index,
-            total: self.total_rows,
             position,
             length,
             id,

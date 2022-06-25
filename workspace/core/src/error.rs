@@ -114,13 +114,9 @@ pub enum Error {
     #[error("too many changes, change sequence number would overflow")]
     TooManyChanges,
 
-    /// Error generated when vault row data does not match the commit hash.
-    #[error("row checksums do not match at {index}/{total}, expected {commit} but got {value}")]
-    VaultHashMismatch {
-        /// Index of the row.
-        index: u32,
-        /// Total number of rows.
-        total: u32,
+    /// Error generated when WAL row data does not match the commit hash.
+    #[error("row checksums do not match, expected {commit} but got {value}")]
+    HashMismatch {
         /// Expected commit hash.
         commit: String,
         /// Commit hash of the value.

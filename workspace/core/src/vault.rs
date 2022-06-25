@@ -636,6 +636,11 @@ impl Vault {
         self.contents.data.keys()
     }
 
+    /// Number of secrets in this vault.
+    pub fn len(&self) -> usize {
+        self.contents.data.len()
+    }
+
     /// Iterator for the secret keys and commit hashes.
     pub fn commits<'a>(
         &'a self,
@@ -918,20 +923,12 @@ mod tests {
 
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
-
-        let (secret_meta, secret_value, meta_bytes, secret_bytes) =
-            mock_secret_note(secret_label, secret_note)?;
-
-        let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
-        let secret_aead = vault.encrypt(&encryption_key, &secret_bytes)?;
-
-        let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
-        let secret_id = match vault
-            .create(commit, SecretGroup(meta_aead, secret_aead))?
-        {
-            SyncEvent::CreateSecret(_, secret_id, _) => secret_id,
-            _ => unreachable!(),
-        };
+        let (secret_id, commit, secret_meta, secret_value) = mock_vault_note(
+            &mut vault,
+            &encryption_key,
+            secret_label,
+            secret_note,
+        )?;
 
         let mut stream = MemoryStream::new();
         Vault::encode(&mut stream, &vault)?;

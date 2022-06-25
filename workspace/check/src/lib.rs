@@ -8,33 +8,47 @@ pub use error::Error;
 
 use sos_core::{
     binary_rw::{FileStream, OpenType},
-    commit_tree::{integrity::vault_file_tree, CommitTree, RowIterator},
+    commit_tree::{
+        integrity::{vault_commit_tree, wal_commit_tree},
+        CommitTree, RowIterator,
+    },
 };
 
 /// Verify the integrity of a vault.
-pub fn verify(vault: PathBuf, root: bool, commits: bool) -> Result<()> {
-    if !vault.is_file() {
-        return Err(Error::NotFile(vault));
+pub fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
+    if !file.is_file() {
+        return Err(Error::NotFile(file));
     }
-
-    let tree = vault_file_tree(&vault, true, |row_info| {
+    let tree = vault_commit_tree(&file, true, |row_info| {
         if commits {
-            println!(
-                "{}) {}",
-                row_info.index + 1,
-                hex::encode(&row_info.commit)
-            );
+            println!("{}", hex::encode(&row_info.commit));
         }
     })?;
-
     if root {
         if let Some(root) = tree.root() {
             println!("{}", hex::encode(root));
         }
     }
-
     println!("Verified ✓");
+    Ok(())
+}
 
+/// Verify the integrity of a WAL file.
+pub fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
+    if !file.is_file() {
+        return Err(Error::NotFile(file));
+    }
+    let tree = wal_commit_tree(&file, true, |row_info| {
+        if commits {
+            println!("{}", hex::encode(&row_info.commit));
+        }
+    })?;
+    if root {
+        if let Some(root) = tree.root() {
+            println!("{}", hex::encode(root));
+        }
+    }
+    println!("Verified ✓");
     Ok(())
 }
 
