@@ -541,7 +541,7 @@ mod tests {
         // Reset the fixture vault name
         let _ = vault_access.set_vault_name(DEFAULT_VAULT_NAME.to_string());
 
-        temp.close();
+        temp.close()?;
 
         Ok(())
     }

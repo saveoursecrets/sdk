@@ -26,7 +26,7 @@ use std::{
 };
 
 use serde_binary::{
-    binary_rw::{BinaryReader, Endian, FileStream, SeekStream},
+    binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
     Decode, Deserializer, Result as BinaryResult,
 };
 
@@ -139,7 +139,8 @@ pub struct WalFileIterator {
 impl WalFileIterator {
     fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         let file = File::open(file_path.as_ref())?;
-        let mut file_stream: FileStream = file.into();
+        let mut file_stream =
+            FileStream::new(file_path.as_ref(), OpenType::Open)?;
         let reader = BinaryReader::new(&mut file_stream, Endian::Big);
         let mut deserializer = Deserializer { reader };
         FileIdentity::read_identity(&mut deserializer, &IDENTITY)?;

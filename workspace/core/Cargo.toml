@@ -34,7 +34,7 @@ uuid = { version = "1", features = ["serde", "v4", "js"] }
 
 [dependencies.serde-binary]
 version = "0.3.6"
-path = "../../../serde-binary"
+#path = "../../../serde-binary"
 #features = ["wasm32"]
 
 [dependencies.chbs]
