@@ -150,7 +150,8 @@ pub type LogData<'a> = Payload<'a>;
 /// Trait for implementations that provide access to a WAL.
 trait WalProvider {
     /// Append a log event to the write ahead log.
-    fn append_event(&mut self, log_event: &LogData<'_>) -> Result<()>;
+    fn append_event(&mut self, log_event: &LogData<'_>)
+        -> Result<CommitHash>;
 
     /// Get an iterator for the provider.
     fn iter(&self) -> Result<Box<dyn WalIterator<Item = Result<LogRow>>>>;
@@ -197,16 +198,20 @@ impl WalFile {
 }
 
 impl WalProvider for WalFile {
-    fn append_event(&mut self, log_event: &LogData<'_>) -> Result<()> {
+    fn append_event(
+        &mut self,
+        log_event: &LogData<'_>,
+    ) -> Result<CommitHash> {
         let log_time: LogTime = Default::default();
         let log_bytes = encode(log_event)?;
 
-        let log_commit = CommitHash(hash(&log_bytes));
+        let hash_bytes = hash(&log_bytes);
+        let log_commit = CommitHash(hash_bytes);
         let log_record = LogRecord(log_time, log_commit, log_bytes);
         let buffer = encode(&log_record)?;
 
         self.file.write_all(&buffer)?;
-        Ok(())
+        Ok(CommitHash(hash_bytes))
     }
 
     fn iter(&self) -> Result<Box<dyn WalIterator<Item = Result<LogRow>>>> {
@@ -239,7 +244,7 @@ impl WalFileIterator {
     }
 
     /// Helper to decode the row time, commit and byte range.
-    fn read_row(de: &mut Deserializer, row_len: u32) -> Result<LogRow> {
+    fn read_row(de: &mut Deserializer) -> Result<LogRow> {
         let start = de.reader.tell()?;
         let mut row: LogRow = Default::default();
         row.decode(&mut *de)?;
@@ -259,12 +264,11 @@ impl WalFileIterator {
         let mut de = Deserializer { reader };
         let row_len = de.reader.read_u32()?;
 
-        let row = WalFileIterator::read_row(&mut de, row_len)?;
+        let row = WalFileIterator::read_row(&mut de)?;
 
         // Prepare position for next iteration
         let next_pos = row.2.end + 4;
         de.reader.seek(next_pos)?;
-
         self.forward = Some(next_pos);
 
         Ok(row)
@@ -284,11 +288,10 @@ impl WalFileIterator {
         // Seek to the beginning of the row
         de.reader.seek(rpos - 4 - row_len as usize)?;
 
-        let row = WalFileIterator::read_row(&mut de, row_len)?;
+        let row = WalFileIterator::read_row(&mut de)?;
 
         // Prepare position for next iteration
         let next_pos = row.2.start - (LOG_ROW_OFFSET + 4);
-
         de.reader.seek(next_pos)?;
         self.backward = Some(next_pos);
 
