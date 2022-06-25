@@ -28,6 +28,9 @@ use time::{Duration, OffsetDateTime};
 /// Identity magic bytes (SOSW).
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
 
+/// Byte offset that accounts for encoded time and hash digest.
+const LOG_ROW_OFFSET: usize = 128;
+
 /// Timestamp for the log record.
 pub struct LogTime(OffsetDateTime);
 
@@ -123,7 +126,19 @@ impl Decode for LogRecord {
 }
 
 /// Reference to a row in the write ahead log.
+#[derive(Default)]
 pub struct LogRow(LogTime, CommitHash, Range<usize>);
+
+impl Decode for LogRow {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let mut time: LogTime = Default::default();
+        time.decode(&mut *de)?;
+        let hash_bytes: [u8; 32] =
+            de.reader.read_bytes(32)?.as_slice().try_into()?;
+        self.1 = CommitHash(hash_bytes);
+        Ok(())
+    }
+}
 
 /// Data that is stored in each log record.
 pub type LogData<'a> = Payload<'a>;
@@ -134,7 +149,7 @@ trait WalProvider {
     fn append_event(&mut self, log_event: &LogData<'_>) -> Result<()>;
 
     /// Get an iterator for the provider.
-    fn iter(&self) -> Result<Box<dyn WalIterator<Item = LogRow>>>;
+    fn iter(&self) -> Result<Box<dyn WalIterator<Item = Result<LogRow>>>>;
 }
 
 /// Trait for implementations that can iterate a WAL log.
@@ -193,7 +208,7 @@ impl<'a> WalProvider for WalFile<'a> {
         Ok(())
     }
 
-    fn iter(&self) -> Result<Box<dyn WalIterator<Item = LogRow>>> {
+    fn iter(&self) -> Result<Box<dyn WalIterator<Item = Result<LogRow>>>> {
         Ok(Box::new(WalFileIterator::new(&self.file_path)?))
     }
 }
@@ -201,6 +216,10 @@ impl<'a> WalProvider for WalFile<'a> {
 /// Iterator for WAL files.
 pub struct WalFileIterator {
     file_stream: FileStream,
+    // Byte offset for forward iteration.
+    forward: Option<usize>,
+    // Byte offset for backward iteration.
+    backward: Option<usize>,
 }
 
 impl WalFileIterator {
@@ -211,24 +230,116 @@ impl WalFileIterator {
         let mut deserializer = Deserializer { reader };
         FileIdentity::read_identity(&mut deserializer, &IDENTITY)?;
         file_stream.seek(4)?;
-        Ok(Self { file_stream })
+        Ok(Self {
+            file_stream,
+            forward: Some(4),
+            backward: None,
+        })
+    }
+
+    /// Helper to decode the row time, commit and byte range.
+    fn read_row(de: &mut Deserializer, row_len: u32) -> Result<LogRow> {
+        let start = de.reader.tell()?;
+        let mut row: LogRow = Default::default();
+        row.decode(&mut *de)?;
+
+        de.reader.seek(start + row_len as usize)?;
+        let end = de.reader.tell()?;
+
+        // The byte range for the row value.
+        row.2 = (start + LOG_ROW_OFFSET)..end;
+        Ok(row)
+    }
+
+    /// Attempt to read the next log row.
+    fn read_row_next(&mut self) -> Result<LogRow> {
+        let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
+        let mut de = Deserializer { reader };
+        let row_len = de.reader.read_u32()?;
+
+        let row = WalFileIterator::read_row(&mut de, row_len)?;
+
+        // Prepare position for next iteration
+        let next_pos = row.2.end + 4;
+        de.reader.seek(next_pos)?;
+        self.forward = Some(next_pos);
+
+        Ok(row)
+    }
+
+    /// Attempt to read the next log row for backward iteration.
+    fn read_row_next_back(&mut self) -> Result<LogRow> {
+        let rpos = self.backward.unwrap();
+
+        let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
+        let mut de = Deserializer { reader };
+        de.reader.seek(rpos - 4)?;
+
+        // Read in the reverse iteration row length
+        let row_len = de.reader.read_u32()?;
+
+        // Seek to the beginning of the row
+        de.reader.seek(rpos - 4 - row_len as usize)?;
+
+        let row = WalFileIterator::read_row(&mut de, row_len)?;
+
+        // Prepare position for next iteration
+        let next_pos = row.2.start - (LOG_ROW_OFFSET + 4);
+        de.reader.seek(next_pos)?;
+        self.backward = Some(next_pos);
+
+        Ok(row)
     }
 }
 
 impl WalIterator for WalFileIterator {}
 
 impl Iterator for WalFileIterator {
-    type Item = LogRow;
+    type Item = Result<LogRow>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
-        None
+        if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
+            if lpos == rpos {
+                return None;
+            }
+        }
+
+        match self.file_stream.len() {
+            Ok(len) => {
+                if len > 4 {
+                    Some(self.read_row_next())
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
+        }
     }
 }
 
 impl DoubleEndedIterator for WalFileIterator {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
-        None
+        if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
+            if lpos == rpos {
+                return None;
+            }
+        }
+
+        match self.file_stream.len() {
+            Ok(len) => {
+                if len > 4 {
+                    if self.backward.is_none() {
+                        if let Err(e) = self.file_stream.seek(len) {
+                            return Some(Err(e.into()));
+                        }
+                        self.backward = Some(len);
+                    }
+                    Some(self.read_row_next_back())
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
+        }
     }
 }
