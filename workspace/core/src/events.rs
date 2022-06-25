@@ -204,6 +204,12 @@ impl fmt::Display for EventKind {
 /// to distinguish between borrowed and owned.
 #[derive(Serialize, Deserialize, Clone)]
 pub enum Payload<'a> {
+    /// Default variant, should never be used.
+    ///
+    /// We need a variant so we can implement the Default
+    /// trait which is required for decoding.
+    Noop,
+
     /// Payload used to indicate a vault was created.
     CreateVault,
 
@@ -249,7 +255,7 @@ pub enum Payload<'a> {
 
 impl Default for Payload<'_> {
     fn default() -> Self {
-        Self::CreateVault
+        Self::Noop
     }
 }
 
@@ -271,6 +277,7 @@ impl<'a> Payload<'a> {
     /// mutate any data.
     pub fn is_mutation(&self) -> bool {
         match self {
+            Self::Noop => false,
             Self::ReadVault(_) => false,
             Self::ReadSecret(_, _) => false,
             Self::GetVaultName(_) => false,
@@ -281,6 +288,7 @@ impl<'a> Payload<'a> {
     /// Get the change sequence for this payload.
     pub fn change_seq(&self) -> Option<&u32> {
         match self {
+            Self::Noop => panic!("no change sequence for noop variant"),
             Self::CreateVault => Some(&0),
             Self::ReadVault(change_seq) => Some(change_seq),
             Self::UpdateVault(change_seq) => Some(change_seq),
@@ -298,6 +306,7 @@ impl<'a> Payload<'a> {
     /// Get the operation corresponding to this payload.
     pub fn operation(&self) -> EventKind {
         match self {
+            Payload::Noop => EventKind::Noop,
             Payload::CreateVault => EventKind::CreateVault,
             Payload::ReadVault(_) => EventKind::ReadVault,
             Payload::UpdateVault(_) => EventKind::UpdateVault,
@@ -315,6 +324,7 @@ impl<'a> Payload<'a> {
     /// Convert this payload into an audit log.
     pub fn into_audit_log(&self, address: AddressStr, vault_id: Uuid) -> Log {
         let log_data = match self {
+            Payload::Noop => panic!("noop variant cannot be an audit log"),
             Payload::CreateVault
             | Payload::ReadVault(_)
             | Payload::DeleteVault(_)
@@ -345,6 +355,7 @@ impl<'a> Encode for Payload<'a> {
         op.encode(&mut *ser)?;
 
         match self {
+            Payload::Noop => panic!("attempt to encode a noop"),
             Payload::CreateVault => {}
             Payload::ReadVault(change_seq)
             | Payload::UpdateVault(change_seq)
@@ -403,6 +414,7 @@ impl<'a> Decode for Payload<'a> {
         let mut op: EventKind = Default::default();
         op.decode(&mut *de)?;
         match op {
+            EventKind::Noop => panic!("attempt to decode a noop"),
             EventKind::CreateVault => {}
             EventKind::ReadVault => {
                 let change_seq = de.reader.read_u32()?;
