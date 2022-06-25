@@ -1,5 +1,5 @@
 //! Write ahead log types and traits.
-use crate::{events::Payload, vault::CommitHash, Result};
+use crate::{events::SyncEvent, vault::CommitHash, Result};
 
 use serde_binary::{
     binary_rw::SeekStream, Decode, Deserializer, Encode,
@@ -106,7 +106,7 @@ impl Decode for LogRecord {
 }
 
 /// Data that is stored in each log record.
-pub type LogData<'a> = Payload<'a>;
+pub type LogData<'a> = SyncEvent<'a>;
 
 /// Trait for implementations that provide access to a write-ahead log (WAL).
 pub trait WalProvider {

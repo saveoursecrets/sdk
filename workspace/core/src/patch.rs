@@ -4,14 +4,14 @@ use serde_binary::{
     Result as BinaryResult, Serializer,
 };
 
-use crate::{events::Payload, file_identity::FileIdentity};
+use crate::{events::SyncEvent, file_identity::FileIdentity};
 
 /// Identity magic bytes (SOSP).
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
 
 /// Patch wraps a changeset of events to apply to a vault.
 #[derive(Default)]
-pub struct Patch<'a>(Vec<Payload<'a>>);
+pub struct Patch<'a>(Vec<SyncEvent<'a>>);
 
 impl Encode for Patch<'_> {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
@@ -31,7 +31,7 @@ impl Decode for Patch<'_> {
 
         let length = de.reader.read_u32()?;
         for _ in 0..length {
-            let mut payload: Payload = Default::default();
+            let mut payload: SyncEvent = Default::default();
             payload.decode(&mut *de)?;
         }
 
@@ -39,14 +39,14 @@ impl Decode for Patch<'_> {
     }
 }
 
-impl<'a> From<Patch<'a>> for Vec<Payload<'a>> {
+impl<'a> From<Patch<'a>> for Vec<SyncEvent<'a>> {
     fn from(value: Patch<'a>) -> Self {
         value.0
     }
 }
 
-impl<'a> From<Vec<Payload<'a>>> for Patch<'a> {
-    fn from(value: Vec<Payload<'a>>) -> Self {
+impl<'a> From<Vec<SyncEvent<'a>>> for Patch<'a> {
+    fn from(value: Vec<SyncEvent<'a>>) -> Self {
         Self(value)
     }
 }

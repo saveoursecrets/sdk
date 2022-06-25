@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 use sos_core::{
     crypto::generate_random_ecdsa_signing_key,
     decode, encode,
-    events::Payload,
+    events::SyncEvent,
     gatekeeper::Gatekeeper,
     patch::Patch,
     secret::{Secret, SecretId, SecretMeta},
@@ -344,9 +344,9 @@ pub fn generate_passphrase(words: u8) -> Result<JsValue, JsError> {
 }
 
 /// Generate an encoded `Patch` from the supplied
-/// list of change set (collection of `Payload`).
+/// list of change set (collection of `SyncEvent`).
 #[wasm_bindgen]
 pub fn patch(change_set: JsValue) -> Result<Vec<u8>, JsError> {
-    let patches: Vec<Payload> = change_set.into_serde()?;
+    let patches: Vec<SyncEvent> = change_set.into_serde()?;
     Ok(encode(&Patch::from(patches))?)
 }

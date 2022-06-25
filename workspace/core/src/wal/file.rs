@@ -14,7 +14,7 @@
 //!
 use crate::{
     commit_tree::hash,
-    events::Payload,
+    events::SyncEvent,
     file_identity::FileIdentity,
     vault::{encode, CommitHash},
     Result,
@@ -280,7 +280,7 @@ impl DoubleEndedIterator for WalFileIterator {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{commit_tree::CommitTree, events::Payload};
+    use crate::{commit_tree::CommitTree, events::SyncEvent};
     use anyhow::Result;
     use tempfile::NamedTempFile;
 
@@ -301,7 +301,7 @@ mod test {
         // = 178 bytes total
 
         let mut wal = WalFile::new(temp.path().to_path_buf())?;
-        let payload: Payload = Default::default();
+        let payload: SyncEvent = SyncEvent::CreateVault;
 
         wal.append_event(&payload)?;
         wal.append_event(&payload)?;

@@ -195,7 +195,7 @@ impl fmt::Display for EventKind {
     }
 }
 
-/// Payload sent to a remote server.
+/// SyncEvent sent to a remote server.
 ///
 /// When a payload is created on the client then we
 /// can borrow the underlying data but when we need
@@ -203,23 +203,23 @@ impl fmt::Display for EventKind {
 /// we should decode to owned data hence the use of `Cow`
 /// to distinguish between borrowed and owned.
 #[derive(Serialize, Deserialize, Clone)]
-pub enum Payload<'a> {
+pub enum SyncEvent<'a> {
     /// Default variant, should never be used.
     ///
     /// We need a variant so we can implement the Default
     /// trait which is required for decoding.
     Noop,
 
-    /// Payload used to indicate a vault was created.
+    /// SyncEvent used to indicate a vault was created.
     CreateVault,
 
-    /// Payload used to indicate that a vault was read.
+    /// SyncEvent used to indicate that a vault was read.
     ReadVault(u32),
 
-    /// Payload used to indicate that a vault was updated.
+    /// SyncEvent used to indicate that a vault was updated.
     UpdateVault(u32),
 
-    /// Payload used to indicate a vault was deleted.
+    /// SyncEvent used to indicate a vault was deleted.
     DeleteVault(u32),
 
     /// Get the vault name.
@@ -231,18 +231,18 @@ pub enum Payload<'a> {
     /// Set the vault meta data.
     SetVaultMeta(u32, Cow<'a, Option<AeadPack>>),
 
-    /// Payload used to indicate that a secret should be
+    /// SyncEvent used to indicate that a secret should be
     /// created in a remote destination.
     ///
     /// The remote server must check the `change_seq` to
     /// determine if the change could be safely applied.
     CreateSecret(u32, SecretId, Cow<'a, SecretCommit>),
 
-    /// Payload used to determine that a secret has been read,
+    /// SyncEvent used to determine that a secret has been read,
     /// defined for audit log purposes.
     ReadSecret(u32, SecretId),
 
-    /// Payload used to indicate that a secret should be
+    /// SyncEvent used to indicate that a secret should be
     /// updated in a remote destination.
     ///
     /// The remote server must check the `change_seq` to
@@ -253,22 +253,22 @@ pub enum Payload<'a> {
     DeleteSecret(u32, SecretId),
 }
 
-impl Default for Payload<'_> {
+impl Default for SyncEvent<'_> {
     fn default() -> Self {
         Self::Noop
     }
 }
 
-/// Payload with an attached signature.
-pub struct SignedPayload([u8; 65], Vec<u8>);
+/// SyncEvent with an attached signature.
+pub struct SignedSyncEvent([u8; 65], Vec<u8>);
 
-impl<'a> Payload<'a> {
+impl<'a> SyncEvent<'a> {
     /// Append a signature to a payload.
-    pub async fn sign(&self, signer: impl Signer) -> Result<SignedPayload> {
+    pub async fn sign(&self, signer: impl Signer) -> Result<SignedSyncEvent> {
         let encoded = encode(self)?;
         let signature = signer.sign(&encoded).await?;
         let signature_bytes: [u8; 65] = signature.to_bytes();
-        Ok(SignedPayload(signature_bytes, encoded))
+        Ok(SignedSyncEvent(signature_bytes, encoded))
     }
 
     /// Determine if this payload would mutate state.
@@ -306,42 +306,42 @@ impl<'a> Payload<'a> {
     /// Get the operation corresponding to this payload.
     pub fn operation(&self) -> EventKind {
         match self {
-            Payload::Noop => EventKind::Noop,
-            Payload::CreateVault => EventKind::CreateVault,
-            Payload::ReadVault(_) => EventKind::ReadVault,
-            Payload::UpdateVault(_) => EventKind::UpdateVault,
-            Payload::DeleteVault(_) => EventKind::DeleteVault,
-            Payload::GetVaultName(_) => EventKind::GetVaultName,
-            Payload::SetVaultName(_, _) => EventKind::SetVaultName,
-            Payload::SetVaultMeta(_, _) => EventKind::SetVaultMeta,
-            Payload::CreateSecret(_, _, _) => EventKind::CreateSecret,
-            Payload::ReadSecret(_, _) => EventKind::ReadSecret,
-            Payload::UpdateSecret(_, _, _) => EventKind::UpdateSecret,
-            Payload::DeleteSecret(_, _) => EventKind::DeleteSecret,
+            SyncEvent::Noop => EventKind::Noop,
+            SyncEvent::CreateVault => EventKind::CreateVault,
+            SyncEvent::ReadVault(_) => EventKind::ReadVault,
+            SyncEvent::UpdateVault(_) => EventKind::UpdateVault,
+            SyncEvent::DeleteVault(_) => EventKind::DeleteVault,
+            SyncEvent::GetVaultName(_) => EventKind::GetVaultName,
+            SyncEvent::SetVaultName(_, _) => EventKind::SetVaultName,
+            SyncEvent::SetVaultMeta(_, _) => EventKind::SetVaultMeta,
+            SyncEvent::CreateSecret(_, _, _) => EventKind::CreateSecret,
+            SyncEvent::ReadSecret(_, _) => EventKind::ReadSecret,
+            SyncEvent::UpdateSecret(_, _, _) => EventKind::UpdateSecret,
+            SyncEvent::DeleteSecret(_, _) => EventKind::DeleteSecret,
         }
     }
 
     /// Convert this payload into an audit log.
     pub fn into_audit_log(&self, address: AddressStr, vault_id: Uuid) -> Log {
         let log_data = match self {
-            Payload::Noop => panic!("noop variant cannot be an audit log"),
-            Payload::CreateVault
-            | Payload::ReadVault(_)
-            | Payload::DeleteVault(_)
-            | Payload::UpdateVault(_)
-            | Payload::GetVaultName(_)
-            | Payload::SetVaultName(_, _)
-            | Payload::SetVaultMeta(_, _) => LogData::Vault(vault_id),
-            Payload::CreateSecret(_, secret_id, _) => {
+            SyncEvent::Noop => panic!("noop variant cannot be an audit log"),
+            SyncEvent::CreateVault
+            | SyncEvent::ReadVault(_)
+            | SyncEvent::DeleteVault(_)
+            | SyncEvent::UpdateVault(_)
+            | SyncEvent::GetVaultName(_)
+            | SyncEvent::SetVaultName(_, _)
+            | SyncEvent::SetVaultMeta(_, _) => LogData::Vault(vault_id),
+            SyncEvent::CreateSecret(_, secret_id, _) => {
                 LogData::Secret(vault_id, *secret_id)
             }
-            Payload::ReadSecret(_, secret_id) => {
+            SyncEvent::ReadSecret(_, secret_id) => {
                 LogData::Secret(vault_id, *secret_id)
             }
-            Payload::UpdateSecret(_, secret_id, _) => {
+            SyncEvent::UpdateSecret(_, secret_id, _) => {
                 LogData::Secret(vault_id, *secret_id)
             }
-            Payload::DeleteSecret(_, secret_id) => {
+            SyncEvent::DeleteSecret(_, secret_id) => {
                 LogData::Secret(vault_id, *secret_id)
             }
         };
@@ -349,32 +349,32 @@ impl<'a> Payload<'a> {
     }
 }
 
-impl<'a> Encode for Payload<'a> {
+impl<'a> Encode for SyncEvent<'a> {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         let op = self.operation();
         op.encode(&mut *ser)?;
 
         match self {
-            Payload::Noop => panic!("attempt to encode a noop"),
-            Payload::CreateVault => {}
-            Payload::ReadVault(change_seq)
-            | Payload::UpdateVault(change_seq)
-            | Payload::DeleteVault(change_seq)
-            | Payload::GetVaultName(change_seq) => {
+            SyncEvent::Noop => panic!("attempt to encode a noop"),
+            SyncEvent::CreateVault => {}
+            SyncEvent::ReadVault(change_seq)
+            | SyncEvent::UpdateVault(change_seq)
+            | SyncEvent::DeleteVault(change_seq)
+            | SyncEvent::GetVaultName(change_seq) => {
                 ser.writer.write_u32(*change_seq)?;
             }
-            Payload::SetVaultName(change_seq, name) => {
+            SyncEvent::SetVaultName(change_seq, name) => {
                 ser.writer.write_u32(*change_seq)?;
                 ser.writer.write_string(name)?;
             }
-            Payload::SetVaultMeta(change_seq, meta) => {
+            SyncEvent::SetVaultMeta(change_seq, meta) => {
                 ser.writer.write_u32(*change_seq)?;
                 ser.writer.write_bool(meta.is_some())?;
                 if let Some(meta) = meta.as_ref() {
                     meta.encode(&mut *ser)?;
                 }
             }
-            Payload::CreateSecret(change_seq, uuid, value) => {
+            SyncEvent::CreateSecret(change_seq, uuid, value) => {
                 //let (meta_aead, secret_aead) = value.as_ref();
                 ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
@@ -385,11 +385,11 @@ impl<'a> Encode for Payload<'a> {
                 secret_aead.encode(&mut *ser)?;
                 */
             }
-            Payload::ReadSecret(change_seq, uuid) => {
+            SyncEvent::ReadSecret(change_seq, uuid) => {
                 ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
             }
-            Payload::UpdateSecret(change_seq, uuid, value) => {
+            SyncEvent::UpdateSecret(change_seq, uuid, value) => {
                 //let (meta_aead, secret_aead) = value.as_ref();
                 ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
@@ -400,7 +400,7 @@ impl<'a> Encode for Payload<'a> {
                 secret_aead.encode(&mut *ser)?;
                 */
             }
-            Payload::DeleteSecret(change_seq, uuid) => {
+            SyncEvent::DeleteSecret(change_seq, uuid) => {
                 ser.writer.write_u32(*change_seq)?;
                 uuid.serialize(&mut *ser)?;
             }
@@ -409,7 +409,7 @@ impl<'a> Encode for Payload<'a> {
     }
 }
 
-impl<'a> Decode for Payload<'a> {
+impl<'a> Decode for SyncEvent<'a> {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let mut op: EventKind = Default::default();
         op.decode(&mut *de)?;
@@ -418,24 +418,24 @@ impl<'a> Decode for Payload<'a> {
             EventKind::CreateVault => {}
             EventKind::ReadVault => {
                 let change_seq = de.reader.read_u32()?;
-                *self = Payload::ReadVault(change_seq);
+                *self = SyncEvent::ReadVault(change_seq);
             }
             EventKind::UpdateVault => {
                 let change_seq = de.reader.read_u32()?;
-                *self = Payload::UpdateVault(change_seq);
+                *self = SyncEvent::UpdateVault(change_seq);
             }
             EventKind::DeleteVault => {
                 let change_seq = de.reader.read_u32()?;
-                *self = Payload::DeleteVault(change_seq);
+                *self = SyncEvent::DeleteVault(change_seq);
             }
             EventKind::GetVaultName => {
                 let change_seq = de.reader.read_u32()?;
-                *self = Payload::GetVaultName(change_seq);
+                *self = SyncEvent::GetVaultName(change_seq);
             }
             EventKind::SetVaultName => {
                 let change_seq = de.reader.read_u32()?;
                 let name = de.reader.read_string()?;
-                *self = Payload::SetVaultName(change_seq, Cow::Owned(name));
+                *self = SyncEvent::SetVaultName(change_seq, Cow::Owned(name));
             }
             EventKind::SetVaultMeta => {
                 let change_seq = de.reader.read_u32()?;
@@ -447,8 +447,10 @@ impl<'a> Decode for Payload<'a> {
                 } else {
                     None
                 };
-                *self =
-                    Payload::SetVaultMeta(change_seq, Cow::Owned(aead_pack));
+                *self = SyncEvent::SetVaultMeta(
+                    change_seq,
+                    Cow::Owned(aead_pack),
+                );
             }
             EventKind::CreateSecret => {
                 let change_seq = de.reader.read_u32()?;
@@ -459,13 +461,16 @@ impl<'a> Decode for Payload<'a> {
                 //meta_aead.decode(&mut *de)?;
                 //let mut secret_aead: AeadPack = Default::default();
                 //secret_aead.decode(&mut *de)?;
-                *self =
-                    Payload::CreateSecret(change_seq, id, Cow::Owned(commit));
+                *self = SyncEvent::CreateSecret(
+                    change_seq,
+                    id,
+                    Cow::Owned(commit),
+                );
             }
             EventKind::ReadSecret => {
                 let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
-                *self = Payload::ReadSecret(change_seq, id);
+                *self = SyncEvent::ReadSecret(change_seq, id);
             }
             EventKind::UpdateSecret => {
                 let change_seq = de.reader.read_u32()?;
@@ -477,17 +482,20 @@ impl<'a> Decode for Payload<'a> {
                 //meta_aead.decode(&mut *de)?;
                 //let mut secret_aead: AeadPack = Default::default();
                 //secret_aead.decode(&mut *de)?;
-                *self =
-                    Payload::UpdateSecret(change_seq, id, Cow::Owned(commit));
+                *self = SyncEvent::UpdateSecret(
+                    change_seq,
+                    id,
+                    Cow::Owned(commit),
+                );
             }
             EventKind::DeleteSecret => {
                 let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
-                *self = Payload::DeleteSecret(change_seq, id);
+                *self = SyncEvent::DeleteSecret(change_seq, id);
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownPayloadEventKind(op),
+                    Error::UnknownSyncEventKind(op),
                 )))
             }
         }

@@ -33,7 +33,7 @@ pub enum Error {
 
     /// Error generated when the operation of a payload is unknown.
     #[error("unknown payload operation {0}")]
-    UnknownPayloadEventKind(EventKind),
+    UnknownSyncEventKind(EventKind),
 
     /// Error generated when a file is empty.
     #[error("file {0} is empty")]

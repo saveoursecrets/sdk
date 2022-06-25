@@ -204,7 +204,7 @@ impl<'a> Iterator for RowIterator<'a> {
 mod test {
     use super::*;
     use crate::{
-        events::Payload,
+        events::SyncEvent,
         test_utils::*,
         vault::{SecretGroup, Vault, VaultAccess},
     };
@@ -230,7 +230,7 @@ mod test {
             let secret_id = match vault
                 .create(commit, SecretGroup(meta_aead, secret_aead))?
             {
-                Payload::CreateSecret(_, secret_id, _) => secret_id,
+                SyncEvent::CreateSecret(_, secret_id, _) => secret_id,
                 _ => unreachable!(),
             };
         }

@@ -17,7 +17,7 @@
 use crate::{
     crypto::{secret_key::SecretKey, AeadPack},
     decode, encode,
-    events::Payload,
+    events::SyncEvent,
     secret::{Secret, SecretId, SecretMeta, SecretRef, VaultMeta},
     vault::{SecretCommit, SecretGroup, Summary, Vault, VaultAccess},
     Error, Result,
@@ -80,7 +80,7 @@ impl Gatekeeper {
     }
 
     /// Set the public name for the vault.
-    pub fn set_vault_name(&mut self, name: String) -> Result<Payload> {
+    pub fn set_vault_name(&mut self, name: String) -> Result<SyncEvent> {
         Ok(self.vault.set_vault_name(name)?)
     }
 
@@ -225,7 +225,7 @@ impl Gatekeeper {
         &mut self,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Payload> {
+    ) -> Result<SyncEvent> {
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
@@ -256,9 +256,9 @@ impl Gatekeeper {
     pub fn read(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(SecretMeta, Secret, Payload)>> {
+    ) -> Result<Option<(SecretMeta, Secret, SyncEvent)>> {
         let change_seq = self.change_seq()?;
-        let payload = Payload::ReadSecret(change_seq, *id);
+        let payload = SyncEvent::ReadSecret(change_seq, *id);
         Ok(self
             .read_secret(id)?
             .map(|(meta, secret)| (meta, secret, payload)))
@@ -270,7 +270,7 @@ impl Gatekeeper {
         id: &SecretId,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Option<Payload>> {
+    ) -> Result<Option<SyncEvent>> {
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
@@ -311,7 +311,7 @@ impl Gatekeeper {
     }
 
     /// Delete a secret and it's meta data from the vault.
-    pub fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>> {
+    pub fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>> {
         Ok(self.vault.delete(id)?)
     }
 
@@ -394,7 +394,7 @@ mod tests {
         let secret = Secret::Note(secret_value.clone());
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        if let Payload::CreateSecret(_, secret_uuid, _) =
+        if let SyncEvent::CreateSecret(_, secret_uuid, _) =
             keeper.create(secret_meta.clone(), secret.clone())?
         {
             let (saved_secret_meta, saved_secret) =

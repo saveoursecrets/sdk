@@ -25,7 +25,7 @@ use sos_core::{
     audit::{Append, Log},
     changes::FeedEvent,
     decode,
-    events::{EventKind, Payload},
+    events::{EventKind, SyncEvent},
     patch::Patch,
     secret::SecretId,
     vault::{Header, SecretCommit, Summary, Vault},
@@ -510,7 +510,7 @@ impl VaultHandler {
                         address: token.address,
                     };
 
-                    let payload = Payload::CreateVault;
+                    let payload = SyncEvent::CreateVault;
                     Ok(MaybeConflict::Success(vec![ResponseEvent {
                         event: Some(event),
                         log: payload
@@ -598,7 +598,7 @@ impl VaultHandler {
                 if let Ok(buffer) =
                     writer.backend.get(&token.address, &vault_id).await
                 {
-                    let payload = Payload::ReadVault(change_seq);
+                    let payload = SyncEvent::ReadVault(change_seq);
                     let log = payload.into_audit_log(token.address, vault_id);
                     writer
                         .audit_log
@@ -657,7 +657,7 @@ impl VaultHandler {
                         change_seq,
                     };
 
-                    let payload = Payload::DeleteVault(change_seq);
+                    let payload = SyncEvent::DeleteVault(change_seq);
                     Ok(MaybeConflict::Success(vec![ResponseEvent {
                         event: Some(event),
                         log: payload.into_audit_log(token.address, vault_id),
@@ -762,7 +762,7 @@ impl VaultHandler {
                 if local_change_seq < remote_change_seq {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
-                    let change_set: Vec<Payload> = patch.into();
+                    let change_set: Vec<SyncEvent> = patch.into();
 
                     let mut events: Vec<ResponseEvent> =
                         Vec::with_capacity(change_set.len());

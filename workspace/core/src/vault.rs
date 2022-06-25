@@ -17,7 +17,7 @@ use crate::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
         AeadPack,
     },
-    events::Payload,
+    events::SyncEvent,
     file_identity::FileIdentity,
     secret::{SecretId, VaultMeta},
     Error, Result,
@@ -124,20 +124,20 @@ pub trait VaultAccess {
     ///
     /// This is an unchecked operation and callers should
     /// ensure the buffer represents a valid vault.
-    fn save(&mut self, buffer: &[u8]) -> Result<Payload>;
+    fn save(&mut self, buffer: &[u8]) -> Result<SyncEvent>;
 
     /// Get the name of a vault.
-    fn vault_name(&self) -> Result<(String, Payload)>;
+    fn vault_name(&self) -> Result<(String, SyncEvent)>;
 
     /// Set the name of a vault.
-    fn set_vault_name(&mut self, name: String) -> Result<Payload>;
+    fn set_vault_name(&mut self, name: String) -> Result<SyncEvent>;
 
     /// Add an encrypted secret to the vault.
     fn create(
         &mut self,
         commit: CommitHash,
         secret: SecretGroup,
-    ) -> Result<Payload>;
+    ) -> Result<SyncEvent>;
 
     /// Get an encrypted secret from the vault.
     ///
@@ -147,7 +147,7 @@ pub trait VaultAccess {
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, SecretCommit>>, Payload)>;
+    ) -> Result<(Option<Cow<'a, SecretCommit>>, SyncEvent)>;
 
     /// Update an encrypted secret in the vault.
     fn update(
@@ -155,22 +155,22 @@ pub trait VaultAccess {
         id: &SecretId,
         commit: CommitHash,
         secret: SecretGroup,
-    ) -> Result<Option<Payload>>;
+    ) -> Result<Option<SyncEvent>>;
 
     /// Remove an encrypted secret from the vault.
-    fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>>;
+    fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>>;
 
     /// Apply a payload to this vault and return the updated
     /// change sequence.
-    fn apply(&mut self, payload: &Payload) -> Result<u32> {
+    fn apply(&mut self, payload: &SyncEvent) -> Result<u32> {
         match payload {
-            Payload::CreateSecret(_, secret_id, value) => {
+            SyncEvent::CreateSecret(_, secret_id, value) => {
                 self.create(value.0.clone(), value.1.clone())?;
             }
-            Payload::UpdateSecret(_, secret_id, value) => {
+            SyncEvent::UpdateSecret(_, secret_id, value) => {
                 self.update(secret_id, value.0.clone(), value.1.clone())?;
             }
-            Payload::DeleteSecret(_, secret_id) => {
+            SyncEvent::DeleteSecret(_, secret_id) => {
                 self.delete(secret_id)?;
             }
             _ => panic!("payload type not supported in apply()"),
@@ -764,21 +764,21 @@ impl VaultAccess for Vault {
         Ok(self.header.summary.change_seq)
     }
 
-    fn save(&mut self, buffer: &[u8]) -> Result<Payload> {
+    fn save(&mut self, buffer: &[u8]) -> Result<SyncEvent> {
         let vault = Vault::read_buffer(buffer)?;
         *self = vault;
         let change_seq = self.change_seq()?;
-        Ok(Payload::UpdateVault(change_seq))
+        Ok(SyncEvent::UpdateVault(change_seq))
     }
 
-    fn vault_name(&self) -> Result<(String, Payload)> {
+    fn vault_name(&self) -> Result<(String, SyncEvent)> {
         Ok((
             self.name().to_string(),
-            Payload::GetVaultName(self.change_seq()?),
+            SyncEvent::GetVaultName(self.change_seq()?),
         ))
     }
 
-    fn set_vault_name(&mut self, name: String) -> Result<Payload> {
+    fn set_vault_name(&mut self, name: String) -> Result<SyncEvent> {
         let change_seq = if let Some(next_change_seq) =
             self.header.summary.change_seq.checked_add(1)
         {
@@ -790,14 +790,14 @@ impl VaultAccess for Vault {
 
         self.set_name(name.clone());
 
-        Ok(Payload::SetVaultName(change_seq, Cow::Owned(name)))
+        Ok(SyncEvent::SetVaultName(change_seq, Cow::Owned(name)))
     }
 
     fn create(
         &mut self,
         commit: CommitHash,
         secret: SecretGroup,
-    ) -> Result<Payload> {
+    ) -> Result<SyncEvent> {
         let id = Uuid::new_v4();
         let change_seq = if let Some(next_change_seq) =
             self.header.summary.change_seq.checked_add(1)
@@ -813,16 +813,20 @@ impl VaultAccess for Vault {
             .data
             .entry(id.clone())
             .or_insert(SecretCommit(commit, secret));
-        Ok(Payload::CreateSecret(change_seq, id, Cow::Borrowed(value)))
+        Ok(SyncEvent::CreateSecret(
+            change_seq,
+            id,
+            Cow::Borrowed(value),
+        ))
     }
 
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, SecretCommit>>, Payload)> {
+    ) -> Result<(Option<Cow<'a, SecretCommit>>, SyncEvent)> {
         let change_seq = self.change_seq()?;
         let result = self.contents.data.get(id).map(Cow::Borrowed);
-        Ok((result, Payload::ReadSecret(change_seq, *id)))
+        Ok((result, SyncEvent::ReadSecret(change_seq, *id)))
     }
 
     fn update(
@@ -830,7 +834,7 @@ impl VaultAccess for Vault {
         id: &SecretId,
         commit: CommitHash,
         secret: SecretGroup,
-    ) -> Result<Option<Payload>> {
+    ) -> Result<Option<SyncEvent>> {
         if let Some(value) = self.contents.data.get_mut(id) {
             let change_seq = if let Some(next_change_seq) =
                 self.header.summary.change_seq.checked_add(1)
@@ -843,7 +847,7 @@ impl VaultAccess for Vault {
 
             *value = SecretCommit(commit, secret);
 
-            Ok(Some(Payload::UpdateSecret(
+            Ok(Some(SyncEvent::UpdateSecret(
                 change_seq,
                 *id,
                 Cow::Borrowed(value),
@@ -853,7 +857,7 @@ impl VaultAccess for Vault {
         }
     }
 
-    fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>> {
+    fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>> {
         let change_seq = if let Some(next_change_seq) =
             self.header.summary.change_seq.checked_add(1)
         {
@@ -865,7 +869,7 @@ impl VaultAccess for Vault {
 
         let entry = self.contents.data.remove(id);
         if entry.is_some() {
-            Ok(Some(Payload::DeleteSecret(change_seq, *id)))
+            Ok(Some(SyncEvent::DeleteSecret(change_seq, *id)))
         } else {
             Ok(None)
         }
@@ -885,7 +889,7 @@ pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::events::Payload;
+    use crate::events::SyncEvent;
     use crate::secret::*;
 
     use crate::test_utils::*;
@@ -925,7 +929,7 @@ mod tests {
         let secret_id = match vault
             .create(commit, SecretGroup(meta_aead, secret_aead))?
         {
-            Payload::CreateSecret(_, secret_id, _) => secret_id,
+            SyncEvent::CreateSecret(_, secret_id, _) => secret_id,
             _ => unreachable!(),
         };
 

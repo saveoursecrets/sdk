@@ -19,7 +19,7 @@ use serde_binary::{
 use uuid::Uuid;
 
 use crate::{
-    events::Payload,
+    events::SyncEvent,
     file_identity::FileIdentity,
     secret::SecretId,
     vault::{
@@ -231,7 +231,7 @@ impl VaultAccess for VaultFileAccess {
         Ok(de.reader.read_u32()?)
     }
 
-    fn save(&mut self, buffer: &[u8]) -> Result<Payload> {
+    fn save(&mut self, buffer: &[u8]) -> Result<SyncEvent> {
         let mut file = File::options()
             .read(true)
             .write(true)
@@ -239,31 +239,31 @@ impl VaultAccess for VaultFileAccess {
         file.write_all(buffer)?;
 
         let change_seq = self.change_seq()?;
-        Ok(Payload::UpdateVault(change_seq))
+        Ok(SyncEvent::UpdateVault(change_seq))
     }
 
-    fn vault_name(&self) -> Result<(String, Payload)> {
+    fn vault_name(&self) -> Result<(String, SyncEvent)> {
         let change_seq = self.change_seq()?;
         let header = Header::read_header_file(&self.file_path)?;
         let name = header.name().to_string();
-        Ok((name, Payload::GetVaultName(change_seq)))
+        Ok((name, SyncEvent::GetVaultName(change_seq)))
     }
 
-    fn set_vault_name(&mut self, name: String) -> Result<Payload> {
+    fn set_vault_name(&mut self, name: String) -> Result<SyncEvent> {
         let change_seq = self.change_seq()?;
         let content_offset = self.check_identity()?;
         let mut header = Header::read_header_file(&self.file_path)?;
         header.set_name(name.clone());
         self.write_header(content_offset, &header)?;
         let change_seq = self.inc_change_seq(change_seq)?;
-        Ok(Payload::SetVaultName(change_seq, Cow::Owned(name)))
+        Ok(SyncEvent::SetVaultName(change_seq, Cow::Owned(name)))
     }
 
     fn create(
         &mut self,
         commit: CommitHash,
         secret: SecretGroup,
-    ) -> Result<Payload> {
+    ) -> Result<SyncEvent> {
         let id = Uuid::new_v4();
         let content_offset = self.check_identity()?;
         let total_rows = self.rows(content_offset)?;
@@ -287,13 +287,13 @@ impl VaultAccess for VaultFileAccess {
 
         // Update the change sequence number
         let change_seq = self.inc_change_seq(change_seq)?;
-        Ok(Payload::CreateSecret(change_seq, id, Cow::Owned(row)))
+        Ok(SyncEvent::CreateSecret(change_seq, id, Cow::Owned(row)))
     }
 
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, SecretCommit>>, Payload)> {
+    ) -> Result<(Option<Cow<'a, SecretCommit>>, SyncEvent)> {
         let (_, _, row) = self.find_row(id)?;
         let change_seq = self.change_seq()?;
         if let Some((row_offset, _)) = row {
@@ -304,10 +304,10 @@ impl VaultAccess for VaultFileAccess {
             let (_, value) = Contents::decode_row(&mut de)?;
             Ok((
                 Some(Cow::Owned(value)),
-                Payload::ReadSecret(change_seq, *id),
+                SyncEvent::ReadSecret(change_seq, *id),
             ))
         } else {
-            Ok((None, Payload::ReadSecret(change_seq, *id)))
+            Ok((None, SyncEvent::ReadSecret(change_seq, *id)))
         }
     }
 
@@ -316,7 +316,7 @@ impl VaultAccess for VaultFileAccess {
         id: &SecretId,
         commit: CommitHash,
         secret: SecretGroup,
-    ) -> Result<Option<Payload>> {
+    ) -> Result<Option<SyncEvent>> {
         let (content_offset, total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             let change_seq = self.change_seq()?;
@@ -345,7 +345,7 @@ impl VaultAccess for VaultFileAccess {
             // Update the change sequence number
             let change_seq = self.inc_change_seq(change_seq)?;
 
-            Ok(Some(Payload::UpdateSecret(
+            Ok(Some(SyncEvent::UpdateSecret(
                 change_seq,
                 *id,
                 Cow::Owned(row),
@@ -355,7 +355,7 @@ impl VaultAccess for VaultFileAccess {
         }
     }
 
-    fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>> {
+    fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>> {
         let (content_offset, total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             let change_seq = self.change_seq()?;
@@ -376,7 +376,7 @@ impl VaultAccess for VaultFileAccess {
 
             // Update the change sequence number
             let change_seq = self.inc_change_seq(change_seq)?;
-            Ok(Some(Payload::DeleteSecret(change_seq, *id)))
+            Ok(Some(SyncEvent::DeleteSecret(change_seq, *id)))
         } else {
             Ok(None)
         }
@@ -389,7 +389,7 @@ mod tests {
     use crate::test_utils::*;
     use crate::{
         crypto::secret_key::SecretKey,
-        events::Payload,
+        events::SyncEvent,
         secret::*,
         vault::{
             Header, SecretGroup, Vault, VaultAccess, DEFAULT_VAULT_NAME,
@@ -414,7 +414,7 @@ mod tests {
 
         let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
 
-        if let Payload::CreateSecret(_, secret_id, _) = vault_access
+        if let SyncEvent::CreateSecret(_, secret_id, _) = vault_access
             .create(commit, SecretGroup(meta_aead, secret_aead))?
         {
             Ok((

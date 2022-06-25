@@ -13,7 +13,7 @@ use url::Url;
 
 use sos_core::{
     diceware::generate,
-    events::Payload,
+    events::SyncEvent,
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta, SecretRef},
     vault::{encode, SecretCommit, SecretGroup, Summary, Vault, VaultAccess},
@@ -432,7 +432,7 @@ fn exec_program(
                 };
 
                 if let Some((secret_meta, secret)) = result {
-                    if let Payload::CreateSecret(
+                    if let SyncEvent::CreateSecret(
                         change_seq,
                         secret_id,
                         encrypted,
@@ -537,7 +537,7 @@ fn exec_program(
                             secret_meta,
                             edited_secret,
                         )? {
-                            if let Payload::UpdateSecret(
+                            if let SyncEvent::UpdateSecret(
                                 change_seq,
                                 uuid,
                                 value,
@@ -645,7 +645,7 @@ fn exec_program(
                         commit,
                         SecretGroup(meta_aead, secret_aead),
                     )? {
-                        if let Payload::UpdateSecret(
+                        if let SyncEvent::UpdateSecret(
                             change_seq,
                             uuid,
                             value,

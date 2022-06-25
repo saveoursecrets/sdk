@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{address::AddressStr, events::Payload};
+use crate::{address::AddressStr, events::SyncEvent};
 
 /// Server notifications sent over the server sent events stream.
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -128,27 +128,27 @@ impl FeedEvent {
     }
 }
 
-impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
+impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p SyncEvent<'p>)>
     for FeedEvent
 {
-    fn from(value: (&'u Uuid, &'a AddressStr, &'p Payload<'p>)) -> Self {
+    fn from(value: (&'u Uuid, &'a AddressStr, &'p SyncEvent<'p>)) -> Self {
         let (vault_id, address, payload) = value;
         match payload {
-            Payload::CreateVault => FeedEvent::CreateVault {
+            SyncEvent::CreateVault => FeedEvent::CreateVault {
                 address: address.clone(),
                 vault_id: *vault_id,
             },
-            Payload::UpdateVault(change_seq) => FeedEvent::UpdateVault {
-                address: address.clone(),
-                change_seq: *change_seq,
-                vault_id: *vault_id,
-            },
-            Payload::DeleteVault(change_seq) => FeedEvent::DeleteVault {
+            SyncEvent::UpdateVault(change_seq) => FeedEvent::UpdateVault {
                 address: address.clone(),
                 change_seq: *change_seq,
                 vault_id: *vault_id,
             },
-            Payload::SetVaultName(change_seq, name) => {
+            SyncEvent::DeleteVault(change_seq) => FeedEvent::DeleteVault {
+                address: address.clone(),
+                change_seq: *change_seq,
+                vault_id: *vault_id,
+            },
+            SyncEvent::SetVaultName(change_seq, name) => {
                 FeedEvent::SetVaultName {
                     address: address.clone(),
                     change_seq: *change_seq,
@@ -156,7 +156,7 @@ impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
                     name: name.to_string(),
                 }
             }
-            Payload::CreateSecret(change_seq, secret_id, _) => {
+            SyncEvent::CreateSecret(change_seq, secret_id, _) => {
                 FeedEvent::CreateSecret {
                     address: address.clone(),
                     change_seq: *change_seq,
@@ -164,7 +164,7 @@ impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
                     secret_id: *secret_id,
                 }
             }
-            Payload::UpdateSecret(change_seq, secret_id, _) => {
+            SyncEvent::UpdateSecret(change_seq, secret_id, _) => {
                 FeedEvent::UpdateSecret {
                     address: address.clone(),
                     change_seq: *change_seq,
@@ -172,7 +172,7 @@ impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
                     secret_id: *secret_id,
                 }
             }
-            Payload::DeleteSecret(change_seq, secret_id) => {
+            SyncEvent::DeleteSecret(change_seq, secret_id) => {
                 FeedEvent::DeleteSecret {
                     address: address.clone(),
                     change_seq: *change_seq,
