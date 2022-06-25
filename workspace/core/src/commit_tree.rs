@@ -6,7 +6,7 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 
 use crate::{
     vault::{Header, Vault},
-    wal::{LogRow, WalIterator},
+    wal::{file::LogRow, WalIterator},
     Result,
 };
 

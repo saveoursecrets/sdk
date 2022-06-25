@@ -1,4 +1,4 @@
-//! Write ahead log implementation.
+//! Write ahead log file.
 //!
 //! WAL files consist of a 4 identity bytes followed by one or more
 //! rows of log records.
@@ -22,21 +22,16 @@ use crate::{
 use std::{
     fs::{File, OpenOptions},
     io::Write,
-    marker::PhantomData,
     ops::Range,
     path::{Path, PathBuf},
 };
 
 use serde_binary::{
-    binary_rw::{
-        BinaryReader, BinaryWriter, Endian, FileStream, OpenType, ReadStream,
-        SeekStream,
-    },
-    Decode, Deserializer, Encode, Error as BinaryError,
-    Result as BinaryResult, Serializer,
+    binary_rw::{BinaryReader, Endian, FileStream, SeekStream},
+    Decode, Deserializer, Result as BinaryResult,
 };
 
-use time::{Duration, OffsetDateTime};
+use super::{LogData, LogRecord, LogTime, WalIterator, WalProvider};
 
 /// Identity magic bytes (SOSW).
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
@@ -46,101 +41,6 @@ pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
 /// 8 bytes for the timestamp seconds, 4 bytes for the timestamp
 /// nanoseconds and 32 bytes for the commit hash.
 const LOG_ROW_OFFSET: usize = 44;
-
-/// Timestamp for the log record.
-#[derive(Debug)]
-pub struct LogTime(OffsetDateTime);
-
-impl Default for LogTime {
-    fn default() -> Self {
-        Self(OffsetDateTime::now_utc())
-    }
-}
-
-impl Encode for LogTime {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        let seconds = self.0.unix_timestamp();
-        let nanos = self.0.nanosecond();
-        ser.writer.write_i64(seconds)?;
-        ser.writer.write_u32(nanos)?;
-        Ok(())
-    }
-}
-
-impl Decode for LogTime {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let seconds = de.reader.read_i64()?;
-        let nanos = de.reader.read_u32()?;
-        self.0 = OffsetDateTime::from_unix_timestamp(seconds)
-            .map_err(Box::from)?
-            + Duration::nanoseconds(nanos as i64);
-        Ok(())
-    }
-}
-
-/// Record for a row in the write ahead log.
-pub struct LogRecord(LogTime, CommitHash, Vec<u8>);
-
-impl Encode for LogRecord {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        // Prepare the bytes for the row length
-        let size_pos = ser.writer.tell()?;
-        ser.writer.write_u32(0)?;
-
-        // Encode the time component
-        self.0.encode(&mut *ser)?;
-
-        // Write the commit hash bytes
-        ser.writer.write_bytes(self.1.as_ref())?;
-
-        // FIXME: ensure the buffer size does not exceed u32
-
-        // Write the data bytes
-        ser.writer.write_u32(self.2.len() as u32)?;
-        ser.writer.write_bytes(&self.2)?;
-
-        // Backtrack to size_pos and write new length
-        let row_pos = ser.writer.tell()?;
-        let row_len = row_pos - (size_pos + 4);
-        ser.writer.seek(size_pos)?;
-        ser.writer.write_u32(row_len as u32)?;
-        ser.writer.seek(row_pos)?;
-
-        // Write out the row len at the end of the record too
-        // so we can support double ended iteration
-        ser.writer.write_u32(row_len as u32)?;
-
-        Ok(())
-    }
-}
-
-impl Decode for LogRecord {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        // Read in the row length
-        let _ = de.reader.read_u32()?;
-
-        // Decode the time component
-        let mut time: LogTime = Default::default();
-        time.decode(&mut *de)?;
-
-        // Read the hash bytes
-        let hash_bytes: [u8; 32] =
-            de.reader.read_bytes(32)?.as_slice().try_into()?;
-
-        // Read the data bytes
-        let length = de.reader.read_u32()?;
-        let buffer = de.reader.read_bytes(length as usize)?;
-
-        self.0 = time;
-        self.1 = CommitHash(hash_bytes);
-        self.2 = buffer;
-
-        // Read in the row length appended to the end of the record
-        let _ = de.reader.read_u32()?;
-
-        Ok(())
-    }
-}
 
 /// Reference to a row in the write ahead log.
 #[derive(Default, Debug)]
@@ -164,22 +64,6 @@ impl Decode for LogRow {
     }
 }
 
-/// Data that is stored in each log record.
-pub type LogData<'a> = Payload<'a>;
-
-/// Trait for implementations that provide access to a WAL.
-pub trait WalProvider {
-    /// Append a log event to the write ahead log.
-    fn append_event(&mut self, log_event: &LogData<'_>)
-        -> Result<CommitHash>;
-
-    /// Get an iterator for the provider.
-    fn iter(&self) -> Result<Box<dyn WalIterator<Item = Result<LogRow>>>>;
-}
-
-/// Trait for implementations that can iterate a WAL log.
-pub trait WalIterator: DoubleEndedIterator {}
-
 /// A write ahead log that appends to a file.
 pub struct WalFile {
     file_path: PathBuf,
@@ -188,9 +72,19 @@ pub struct WalFile {
 
 impl WalFile {
     /// Create a new write ahead log file.
-    pub fn new(file_path: PathBuf) -> Result<Self> {
-        let file = WalFile::create(&file_path)?;
-        Ok(Self { file_path, file })
+    pub fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        let file = WalFile::create(file_path.as_ref())?;
+        Ok(Self {
+            file,
+            file_path: file_path.as_ref().to_path_buf(),
+        })
+    }
+
+    /// Get an iterator of the log record rows.
+    pub fn iter(
+        &self,
+    ) -> Result<Box<dyn WalIterator<Item = Result<LogRow>>>> {
+        Ok(Box::new(WalFileIterator::new(&self.file_path)?))
     }
 
     /// Create the write ahead log file.
@@ -231,18 +125,17 @@ impl WalProvider for WalFile {
         self.file.write_all(&buffer)?;
         Ok(log_commit)
     }
-
-    fn iter(&self) -> Result<Box<dyn WalIterator<Item = Result<LogRow>>>> {
-        Ok(Box::new(WalFileIterator::new(&self.file_path)?))
-    }
 }
 
 /// Iterator for WAL files.
 pub struct WalFileIterator {
+    /// The file path.
+    file_path: PathBuf,
+    /// The file read stream.
     file_stream: FileStream,
-    // Byte offset for forward iteration.
+    /// Byte offset for forward iteration.
     forward: Option<usize>,
-    // Byte offset for backward iteration.
+    /// Byte offset for backward iteration.
     backward: Option<usize>,
 }
 
@@ -255,6 +148,7 @@ impl WalFileIterator {
         FileIdentity::read_identity(&mut deserializer, &IDENTITY)?;
         file_stream.seek(4)?;
         Ok(Self {
+            file_path: file_path.as_ref().to_path_buf(),
             file_stream,
             forward: Some(4),
             backward: None,
