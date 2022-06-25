@@ -1,4 +1,4 @@
-//! Type for change events emitted by the server.
+//! Type for event notifications emitted by the server.
 //!
 //! Declared in this crate as this type is also used
 //! by the client for the monitor command.
@@ -9,7 +9,7 @@ use crate::{address::AddressStr, operations::Payload};
 
 /// Server notifications sent over the server sent events stream.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum ChangeEvent {
+pub enum FeedEvent {
     /// Event emitted when a vault is created.
     CreateVault {
         /// The owner address.
@@ -98,7 +98,7 @@ pub enum ChangeEvent {
     },
 }
 
-impl ChangeEvent {
+impl FeedEvent {
     /// Name for the server sent event.
     pub fn event_name(&self) -> &str {
         match self {
@@ -129,27 +129,27 @@ impl ChangeEvent {
 }
 
 impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
-    for ChangeEvent
+    for FeedEvent
 {
     fn from(value: (&'u Uuid, &'a AddressStr, &'p Payload<'p>)) -> Self {
         let (vault_id, address, payload) = value;
         match payload {
-            Payload::CreateVault => ChangeEvent::CreateVault {
+            Payload::CreateVault => FeedEvent::CreateVault {
                 address: address.clone(),
                 vault_id: *vault_id,
             },
-            Payload::UpdateVault(change_seq) => ChangeEvent::UpdateVault {
+            Payload::UpdateVault(change_seq) => FeedEvent::UpdateVault {
                 address: address.clone(),
                 change_seq: *change_seq,
                 vault_id: *vault_id,
             },
-            Payload::DeleteVault(change_seq) => ChangeEvent::DeleteVault {
+            Payload::DeleteVault(change_seq) => FeedEvent::DeleteVault {
                 address: address.clone(),
                 change_seq: *change_seq,
                 vault_id: *vault_id,
             },
             Payload::SetVaultName(change_seq, name) => {
-                ChangeEvent::SetVaultName {
+                FeedEvent::SetVaultName {
                     address: address.clone(),
                     change_seq: *change_seq,
                     vault_id: *vault_id,
@@ -157,7 +157,7 @@ impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
                 }
             }
             Payload::CreateSecret(change_seq, secret_id, _) => {
-                ChangeEvent::CreateSecret {
+                FeedEvent::CreateSecret {
                     address: address.clone(),
                     change_seq: *change_seq,
                     vault_id: *vault_id,
@@ -165,7 +165,7 @@ impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
                 }
             }
             Payload::UpdateSecret(change_seq, secret_id, _) => {
-                ChangeEvent::UpdateSecret {
+                FeedEvent::UpdateSecret {
                     address: address.clone(),
                     change_seq: *change_seq,
                     vault_id: *vault_id,
@@ -173,7 +173,7 @@ impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p Payload<'p>)>
                 }
             }
             Payload::DeleteSecret(change_seq, secret_id) => {
-                ChangeEvent::DeleteSecret {
+                FeedEvent::DeleteSecret {
                     address: address.clone(),
                     change_seq: *change_seq,
                     vault_id: *vault_id,

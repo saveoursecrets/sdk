@@ -386,7 +386,7 @@ impl DoubleEndedIterator for WalFileIterator {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{operations::Payload, commit_tree::CommitTree};
+    use crate::{commit_tree::CommitTree, operations::Payload};
     use anyhow::Result;
     use tempfile::NamedTempFile;
 

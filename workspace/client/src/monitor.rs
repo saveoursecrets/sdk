@@ -4,7 +4,7 @@ use reqwest_eventsource::Event;
 use std::path::PathBuf;
 use url::Url;
 
-use sos_core::changes::ChangeEvent;
+use sos_core::changes::FeedEvent;
 
 use crate::{run_blocking, Client, ClientBuilder, Result};
 
@@ -14,24 +14,24 @@ async fn stream(client: Client) -> Result<()> {
         match event {
             Ok(Event::Open) => tracing::debug!("sse connection open"),
             Ok(Event::Message(message)) => {
-                let info: ChangeEvent = serde_json::from_str(&message.data)?;
+                let info: FeedEvent = serde_json::from_str(&message.data)?;
                 match info {
-                    ChangeEvent::CreateVault { vault_id, .. } => {
+                    FeedEvent::CreateVault { vault_id, .. } => {
                         tracing::info!(
                             event = %message.event,
                             vault_id = %vault_id);
                     }
-                    ChangeEvent::UpdateVault {
+                    FeedEvent::UpdateVault {
                         vault_id,
                         change_seq,
                         ..
                     }
-                    | ChangeEvent::DeleteVault {
+                    | FeedEvent::DeleteVault {
                         vault_id,
                         change_seq,
                         ..
                     }
-                    | ChangeEvent::SetVaultMeta {
+                    | FeedEvent::SetVaultMeta {
                         vault_id,
                         change_seq,
                         ..
@@ -41,7 +41,7 @@ async fn stream(client: Client) -> Result<()> {
                             vault_id = %vault_id,
                             change_seq = %change_seq);
                     }
-                    ChangeEvent::SetVaultName {
+                    FeedEvent::SetVaultName {
                         vault_id,
                         change_seq,
                         name,
@@ -53,19 +53,19 @@ async fn stream(client: Client) -> Result<()> {
                             change_seq = %change_seq,
                             name = %name);
                     }
-                    ChangeEvent::CreateSecret {
+                    FeedEvent::CreateSecret {
                         vault_id,
                         secret_id,
                         change_seq,
                         ..
                     }
-                    | ChangeEvent::UpdateSecret {
+                    | FeedEvent::UpdateSecret {
                         vault_id,
                         secret_id,
                         change_seq,
                         ..
                     }
-                    | ChangeEvent::DeleteSecret {
+                    | FeedEvent::DeleteSecret {
                         vault_id,
                         secret_id,
                         change_seq,
