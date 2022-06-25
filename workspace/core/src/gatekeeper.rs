@@ -17,7 +17,7 @@
 use crate::{
     crypto::{secret_key::SecretKey, AeadPack},
     decode, encode,
-    operations::Payload,
+    events::Payload,
     secret::{Secret, SecretId, SecretMeta, SecretRef, VaultMeta},
     vault::{SecretCommit, SecretGroup, Summary, Vault, VaultAccess},
     Error, Result,

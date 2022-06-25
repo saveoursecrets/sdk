@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{address::AddressStr, operations::Payload};
+use crate::{address::AddressStr, events::Payload};
 
 /// Server notifications sent over the server sent events stream.
 #[derive(Debug, Serialize, Deserialize, Clone)]

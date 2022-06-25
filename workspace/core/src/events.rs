@@ -2,7 +2,7 @@
 //! to an in-memory representation of a vault can be sent
 //! to a remote server.
 //!
-//! These operations are also use to identify an action in
+//! These operations are also used to identify an action in
 //! the audit logs.
 
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,7 @@ use crate::{
     Error, Result,
 };
 
-/// Constants for the types of operations.
+/// Constants for the types of events.
 mod types {
     /// Type identifier for a noop.
     pub const NOOP: u16 = 0x0;
@@ -59,52 +59,52 @@ mod types {
     pub const DELETE_SECRET: u16 = 0x0F;
 }
 
-/// Operation wraps an operation type identifier and
+/// EventKind wraps an operation type identifier and
 /// provides a `Display` implementation used for printing
 /// audit logs.
 #[derive(Debug, Serialize, Deserialize)]
-pub enum Operation {
+pub enum EventKind {
     /// No operation.
     Noop,
-    /// Operation to create an account.
+    /// EventKind to create an account.
     CreateAccount,
-    /// Operation to delete an account.
+    /// EventKind to delete an account.
     DeleteAccount,
-    /// Operation to create a login challenge.
+    /// EventKind to create a login challenge.
     LoginChallenge,
-    /// Operation to create a login response.
+    /// EventKind to create a login response.
     LoginResponse,
-    /// Operation to create a vault.
+    /// EventKind to create a vault.
     CreateVault,
-    /// Operation to read a vault.
+    /// EventKind to read a vault.
     ReadVault,
-    /// Operation to update a vault.
+    /// EventKind to update a vault.
     UpdateVault,
-    /// Operation to get vault name.
+    /// EventKind to get vault name.
     GetVaultName,
-    /// Operation to set vault name.
+    /// EventKind to set vault name.
     SetVaultName,
-    /// Operation to set vault meta data.
+    /// EventKind to set vault meta data.
     SetVaultMeta,
-    /// Operation to delete a vault.
+    /// EventKind to delete a vault.
     DeleteVault,
-    /// Operation to create a secret.
+    /// EventKind to create a secret.
     CreateSecret,
-    /// Operation to read a secret.
+    /// EventKind to read a secret.
     ReadSecret,
-    /// Operation to update a secret.
+    /// EventKind to update a secret.
     UpdateSecret,
-    /// Operation to delete a secret.
+    /// EventKind to delete a secret.
     DeleteSecret,
 }
 
-impl Default for Operation {
+impl Default for EventKind {
     fn default() -> Self {
         Self::Noop
     }
 }
 
-impl Encode for Operation {
+impl Encode for EventKind {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         let value: u16 = self.into();
         ser.writer.write_u16(value)?;
@@ -112,84 +112,84 @@ impl Encode for Operation {
     }
 }
 
-impl Decode for Operation {
+impl Decode for EventKind {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let op = de.reader.read_u16()?;
         *self = op.try_into().map_err(|_| {
-            BinaryError::Boxed(Box::from(Error::UnknownOperation(op)))
+            BinaryError::Boxed(Box::from(Error::UnknownEventKind(op)))
         })?;
         Ok(())
     }
 }
 
-impl TryFrom<u16> for Operation {
+impl TryFrom<u16> for EventKind {
     type Error = Error;
     fn try_from(value: u16) -> std::result::Result<Self, Self::Error> {
         match value {
-            types::NOOP => Ok(Operation::Noop),
-            types::CREATE_ACCOUNT => Ok(Operation::CreateAccount),
-            types::DELETE_ACCOUNT => Ok(Operation::DeleteAccount),
-            types::LOGIN_CHALLENGE => Ok(Operation::LoginChallenge),
-            types::LOGIN_RESPONSE => Ok(Operation::LoginResponse),
-            types::CREATE_VAULT => Ok(Operation::CreateVault),
-            types::READ_VAULT => Ok(Operation::ReadVault),
-            types::UPDATE_VAULT => Ok(Operation::UpdateVault),
-            types::DELETE_VAULT => Ok(Operation::DeleteVault),
-            types::GET_VAULT_NAME => Ok(Operation::GetVaultName),
-            types::SET_VAULT_NAME => Ok(Operation::SetVaultName),
-            types::SET_VAULT_META => Ok(Operation::SetVaultMeta),
-            types::CREATE_SECRET => Ok(Operation::CreateSecret),
-            types::READ_SECRET => Ok(Operation::ReadSecret),
-            types::UPDATE_SECRET => Ok(Operation::UpdateSecret),
-            types::DELETE_SECRET => Ok(Operation::DeleteSecret),
-            _ => Err(Error::UnknownOperation(value)),
+            types::NOOP => Ok(EventKind::Noop),
+            types::CREATE_ACCOUNT => Ok(EventKind::CreateAccount),
+            types::DELETE_ACCOUNT => Ok(EventKind::DeleteAccount),
+            types::LOGIN_CHALLENGE => Ok(EventKind::LoginChallenge),
+            types::LOGIN_RESPONSE => Ok(EventKind::LoginResponse),
+            types::CREATE_VAULT => Ok(EventKind::CreateVault),
+            types::READ_VAULT => Ok(EventKind::ReadVault),
+            types::UPDATE_VAULT => Ok(EventKind::UpdateVault),
+            types::DELETE_VAULT => Ok(EventKind::DeleteVault),
+            types::GET_VAULT_NAME => Ok(EventKind::GetVaultName),
+            types::SET_VAULT_NAME => Ok(EventKind::SetVaultName),
+            types::SET_VAULT_META => Ok(EventKind::SetVaultMeta),
+            types::CREATE_SECRET => Ok(EventKind::CreateSecret),
+            types::READ_SECRET => Ok(EventKind::ReadSecret),
+            types::UPDATE_SECRET => Ok(EventKind::UpdateSecret),
+            types::DELETE_SECRET => Ok(EventKind::DeleteSecret),
+            _ => Err(Error::UnknownEventKind(value)),
         }
     }
 }
 
-impl From<&Operation> for u16 {
-    fn from(value: &Operation) -> Self {
+impl From<&EventKind> for u16 {
+    fn from(value: &EventKind) -> Self {
         match value {
-            Operation::Noop => types::NOOP,
-            Operation::CreateAccount => types::CREATE_ACCOUNT,
-            Operation::DeleteAccount => types::DELETE_ACCOUNT,
-            Operation::LoginChallenge => types::LOGIN_CHALLENGE,
-            Operation::LoginResponse => types::LOGIN_RESPONSE,
-            Operation::CreateVault => types::CREATE_VAULT,
-            Operation::ReadVault => types::READ_VAULT,
-            Operation::UpdateVault => types::UPDATE_VAULT,
-            Operation::DeleteVault => types::DELETE_VAULT,
-            Operation::GetVaultName => types::GET_VAULT_NAME,
-            Operation::SetVaultName => types::SET_VAULT_NAME,
-            Operation::SetVaultMeta => types::SET_VAULT_META,
-            Operation::CreateSecret => types::CREATE_SECRET,
-            Operation::ReadSecret => types::READ_SECRET,
-            Operation::UpdateSecret => types::UPDATE_SECRET,
-            Operation::DeleteSecret => types::DELETE_SECRET,
+            EventKind::Noop => types::NOOP,
+            EventKind::CreateAccount => types::CREATE_ACCOUNT,
+            EventKind::DeleteAccount => types::DELETE_ACCOUNT,
+            EventKind::LoginChallenge => types::LOGIN_CHALLENGE,
+            EventKind::LoginResponse => types::LOGIN_RESPONSE,
+            EventKind::CreateVault => types::CREATE_VAULT,
+            EventKind::ReadVault => types::READ_VAULT,
+            EventKind::UpdateVault => types::UPDATE_VAULT,
+            EventKind::DeleteVault => types::DELETE_VAULT,
+            EventKind::GetVaultName => types::GET_VAULT_NAME,
+            EventKind::SetVaultName => types::SET_VAULT_NAME,
+            EventKind::SetVaultMeta => types::SET_VAULT_META,
+            EventKind::CreateSecret => types::CREATE_SECRET,
+            EventKind::ReadSecret => types::READ_SECRET,
+            EventKind::UpdateSecret => types::UPDATE_SECRET,
+            EventKind::DeleteSecret => types::DELETE_SECRET,
         }
     }
 }
 
-impl fmt::Display for Operation {
+impl fmt::Display for EventKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", {
             match self {
-                Operation::Noop => "NOOP",
-                Operation::CreateAccount => "CREATE_ACCOUNT",
-                Operation::DeleteAccount => "DELETE_ACCOUNT",
-                Operation::LoginChallenge => "LOGIN_CHALLENGE",
-                Operation::LoginResponse => "LOGIN_RESPONSE",
-                Operation::CreateVault => "CREATE_VAULT",
-                Operation::ReadVault => "READ_VAULT",
-                Operation::UpdateVault => "UPDATE_VAULT",
-                Operation::DeleteVault => "DELETE_VAULT",
-                Operation::GetVaultName => "GET_VAULT_NAME",
-                Operation::SetVaultName => "SET_VAULT_NAME",
-                Operation::SetVaultMeta => "SET_VAULT_META",
-                Operation::CreateSecret => "CREATE_SECRET",
-                Operation::ReadSecret => "READ_SECRET",
-                Operation::UpdateSecret => "UPDATE_SECRET",
-                Operation::DeleteSecret => "DELETE_SECRET",
+                EventKind::Noop => "NOOP",
+                EventKind::CreateAccount => "CREATE_ACCOUNT",
+                EventKind::DeleteAccount => "DELETE_ACCOUNT",
+                EventKind::LoginChallenge => "LOGIN_CHALLENGE",
+                EventKind::LoginResponse => "LOGIN_RESPONSE",
+                EventKind::CreateVault => "CREATE_VAULT",
+                EventKind::ReadVault => "READ_VAULT",
+                EventKind::UpdateVault => "UPDATE_VAULT",
+                EventKind::DeleteVault => "DELETE_VAULT",
+                EventKind::GetVaultName => "GET_VAULT_NAME",
+                EventKind::SetVaultName => "SET_VAULT_NAME",
+                EventKind::SetVaultMeta => "SET_VAULT_META",
+                EventKind::CreateSecret => "CREATE_SECRET",
+                EventKind::ReadSecret => "READ_SECRET",
+                EventKind::UpdateSecret => "UPDATE_SECRET",
+                EventKind::DeleteSecret => "DELETE_SECRET",
             }
         })
     }
@@ -296,19 +296,19 @@ impl<'a> Payload<'a> {
     }
 
     /// Get the operation corresponding to this payload.
-    pub fn operation(&self) -> Operation {
+    pub fn operation(&self) -> EventKind {
         match self {
-            Payload::CreateVault => Operation::CreateVault,
-            Payload::ReadVault(_) => Operation::ReadVault,
-            Payload::UpdateVault(_) => Operation::UpdateVault,
-            Payload::DeleteVault(_) => Operation::DeleteVault,
-            Payload::GetVaultName(_) => Operation::GetVaultName,
-            Payload::SetVaultName(_, _) => Operation::SetVaultName,
-            Payload::SetVaultMeta(_, _) => Operation::SetVaultMeta,
-            Payload::CreateSecret(_, _, _) => Operation::CreateSecret,
-            Payload::ReadSecret(_, _) => Operation::ReadSecret,
-            Payload::UpdateSecret(_, _, _) => Operation::UpdateSecret,
-            Payload::DeleteSecret(_, _) => Operation::DeleteSecret,
+            Payload::CreateVault => EventKind::CreateVault,
+            Payload::ReadVault(_) => EventKind::ReadVault,
+            Payload::UpdateVault(_) => EventKind::UpdateVault,
+            Payload::DeleteVault(_) => EventKind::DeleteVault,
+            Payload::GetVaultName(_) => EventKind::GetVaultName,
+            Payload::SetVaultName(_, _) => EventKind::SetVaultName,
+            Payload::SetVaultMeta(_, _) => EventKind::SetVaultMeta,
+            Payload::CreateSecret(_, _, _) => EventKind::CreateSecret,
+            Payload::ReadSecret(_, _) => EventKind::ReadSecret,
+            Payload::UpdateSecret(_, _, _) => EventKind::UpdateSecret,
+            Payload::DeleteSecret(_, _) => EventKind::DeleteSecret,
         }
     }
 
@@ -400,32 +400,32 @@ impl<'a> Encode for Payload<'a> {
 
 impl<'a> Decode for Payload<'a> {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let mut op: Operation = Default::default();
+        let mut op: EventKind = Default::default();
         op.decode(&mut *de)?;
         match op {
-            Operation::CreateVault => {}
-            Operation::ReadVault => {
+            EventKind::CreateVault => {}
+            EventKind::ReadVault => {
                 let change_seq = de.reader.read_u32()?;
                 *self = Payload::ReadVault(change_seq);
             }
-            Operation::UpdateVault => {
+            EventKind::UpdateVault => {
                 let change_seq = de.reader.read_u32()?;
                 *self = Payload::UpdateVault(change_seq);
             }
-            Operation::DeleteVault => {
+            EventKind::DeleteVault => {
                 let change_seq = de.reader.read_u32()?;
                 *self = Payload::DeleteVault(change_seq);
             }
-            Operation::GetVaultName => {
+            EventKind::GetVaultName => {
                 let change_seq = de.reader.read_u32()?;
                 *self = Payload::GetVaultName(change_seq);
             }
-            Operation::SetVaultName => {
+            EventKind::SetVaultName => {
                 let change_seq = de.reader.read_u32()?;
                 let name = de.reader.read_string()?;
                 *self = Payload::SetVaultName(change_seq, Cow::Owned(name));
             }
-            Operation::SetVaultMeta => {
+            EventKind::SetVaultMeta => {
                 let change_seq = de.reader.read_u32()?;
                 let has_meta = de.reader.read_bool()?;
                 let aead_pack = if has_meta {
@@ -438,7 +438,7 @@ impl<'a> Decode for Payload<'a> {
                 *self =
                     Payload::SetVaultMeta(change_seq, Cow::Owned(aead_pack));
             }
-            Operation::CreateSecret => {
+            EventKind::CreateSecret => {
                 let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
                 let mut commit: SecretCommit = Default::default();
@@ -450,12 +450,12 @@ impl<'a> Decode for Payload<'a> {
                 *self =
                     Payload::CreateSecret(change_seq, id, Cow::Owned(commit));
             }
-            Operation::ReadSecret => {
+            EventKind::ReadSecret => {
                 let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
                 *self = Payload::ReadSecret(change_seq, id);
             }
-            Operation::UpdateSecret => {
+            EventKind::UpdateSecret => {
                 let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
                 let mut commit: SecretCommit = Default::default();
@@ -468,14 +468,14 @@ impl<'a> Decode for Payload<'a> {
                 *self =
                     Payload::UpdateSecret(change_seq, id, Cow::Owned(commit));
             }
-            Operation::DeleteSecret => {
+            EventKind::DeleteSecret => {
                 let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
                 *self = Payload::DeleteSecret(change_seq, id);
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownPayloadOperation(op),
+                    Error::UnknownPayloadEventKind(op),
                 )))
             }
         }

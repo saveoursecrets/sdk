@@ -14,8 +14,8 @@
 //!
 use crate::{
     commit_tree::hash,
+    events::Payload,
     file_identity::FileIdentity,
-    operations::Payload,
     vault::{encode, CommitHash},
     Result,
 };
@@ -386,7 +386,7 @@ impl DoubleEndedIterator for WalFileIterator {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{commit_tree::CommitTree, operations::Payload};
+    use crate::{commit_tree::CommitTree, events::Payload};
     use anyhow::Result;
     use tempfile::NamedTempFile;
 

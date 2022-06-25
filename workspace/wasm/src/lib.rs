@@ -6,8 +6,8 @@ use wasm_bindgen::prelude::*;
 use sos_core::{
     crypto::generate_random_ecdsa_signing_key,
     decode, encode,
+    events::Payload,
     gatekeeper::Gatekeeper,
-    operations::Payload,
     patch::Patch,
     secret::{Secret, SecretId, SecretMeta},
     signer::{SignSync, SingleParty},

@@ -12,7 +12,7 @@ use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::{
-    address::AddressStr, file_identity::FileIdentity, operations::Operation,
+    address::AddressStr, events::EventKind, file_identity::FileIdentity,
     Error, Result,
 };
 
@@ -36,7 +36,7 @@ bitflags! {
 /// An audit log record with no associated data is 36 bytes.
 ///
 /// When associated data is available an additional 16 bytes is used
-/// for operations on a vault and 32 bytes for operations on a secret.
+/// for events on a vault and 32 bytes for events on a secret.
 ///
 /// The maximum size of a log record is thus 68 bytes.
 ///
@@ -51,7 +51,7 @@ pub struct Log {
     /// The time the log was created.
     pub time: OffsetDateTime,
     /// The operation being performed.
-    pub operation: Operation,
+    pub operation: EventKind,
     /// The address of the client performing the operation.
     pub address: AddressStr,
     /// Context data about the operation.
@@ -73,7 +73,7 @@ impl Default for Log {
 impl Log {
     /// Create a new audit log entry.
     pub fn new(
-        operation: Operation,
+        operation: EventKind,
         address: AddressStr,
         data: Option<LogData>,
     ) -> Self {
@@ -115,7 +115,7 @@ impl Encode for Log {
         let nanos = self.time.nanosecond();
         ser.writer.write_i64(seconds)?;
         ser.writer.write_u32(nanos)?;
-        // Operation - the what
+        // EventKind - the what
         self.operation.encode(&mut *ser)?;
         // Address - by whom
         ser.writer.write_bytes(self.address.as_ref())?;
@@ -138,7 +138,7 @@ impl Decode for Log {
         self.time = OffsetDateTime::from_unix_timestamp(seconds)
             .map_err(Box::from)?
             + Duration::nanoseconds(nanos as i64);
-        // Operation - the what
+        // EventKind - the what
         self.operation.decode(&mut *de)?;
         // Address - by whom
         let address = de.reader.read_bytes(20)?;

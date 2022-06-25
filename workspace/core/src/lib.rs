@@ -8,10 +8,10 @@ pub mod commit_tree;
 pub mod crypto;
 pub mod diceware;
 pub mod error;
+pub mod events;
 pub mod file_access;
 pub mod file_identity;
 pub mod gatekeeper;
-pub mod operations;
 pub mod patch;
 
 #[deprecated]

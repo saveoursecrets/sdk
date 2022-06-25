@@ -1,15 +1,15 @@
-//! Patch represents a changeset of operations to apply to a vault.
+//! Patch represents a changeset of events to apply to a vault.
 use serde_binary::{
     Decode, Deserializer, Encode, Error as BinaryError,
     Result as BinaryResult, Serializer,
 };
 
-use crate::{file_identity::FileIdentity, operations::Payload};
+use crate::{events::Payload, file_identity::FileIdentity};
 
 /// Identity magic bytes (SOSP).
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
 
-/// Patch wraps a changeset of operations to apply to a vault.
+/// Patch wraps a changeset of events to apply to a vault.
 #[derive(Default)]
 pub struct Patch<'a>(Vec<Payload<'a>>);
 

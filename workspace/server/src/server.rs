@@ -25,7 +25,7 @@ use sos_core::{
     audit::{Append, Log},
     changes::FeedEvent,
     decode,
-    operations::{Operation, Payload},
+    events::{EventKind, Payload},
     patch::Patch,
     secret::SecretId,
     vault::{Header, SecretCommit, Summary, Vault},
@@ -69,7 +69,7 @@ enum MaybeConflict {
     Conflict(u32),
     /// No conflict was detected.
     ///
-    /// This is a list of events as certain operations such as
+    /// This is a list of events as certain events such as
     /// PATCH can execute multiple payloads.
     Success(Vec<ResponseEvent>),
 }
@@ -302,7 +302,7 @@ async fn api(
     Json(json!({ "name": reader.name, "version": reader.version }))
 }
 
-// Handlers for account operations.
+// Handlers for account events.
 struct AuthHandler;
 impl AuthHandler {
     /// Issue an authentication challenge.
@@ -329,7 +329,7 @@ impl AuthHandler {
                 let mut writer = state.write().await;
                 if writer.backend.account_exists(&token.address).await {
                     let log = Log::new(
-                        Operation::LoginChallenge,
+                        EventKind::LoginChallenge,
                         token.address,
                         None,
                     );
@@ -391,7 +391,7 @@ impl AuthHandler {
                             writer.backend.list(&token.address).await
                         {
                             let log = Log::new(
-                                Operation::LoginResponse,
+                                EventKind::LoginResponse,
                                 token.address,
                                 None,
                             );
@@ -418,7 +418,7 @@ impl AuthHandler {
     }
 }
 
-// Handlers for account operations.
+// Handlers for account events.
 struct AccountHandler;
 impl AccountHandler {
     /// Create a new user account.
@@ -444,7 +444,7 @@ impl AccountHandler {
                         .await
                     {
                         let log = Log::new(
-                            Operation::CreateAccount,
+                            EventKind::CreateAccount,
                             token.address,
                             None,
                         );
@@ -469,7 +469,7 @@ impl AccountHandler {
     }
 }
 
-// Handlers for vault operations.
+// Handlers for vault events.
 struct VaultHandler;
 impl VaultHandler {
     /// Create an encrypted vault.
@@ -910,7 +910,7 @@ impl VaultHandler {
     }
 }
 
-// Handlers for secrets operations.
+// Handlers for secrets events.
 struct SecretHandler;
 impl SecretHandler {
     /// Create an encrypted secret in a vault.

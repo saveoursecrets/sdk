@@ -17,8 +17,8 @@ use crate::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
         AeadPack,
     },
+    events::Payload,
     file_identity::FileIdentity,
-    operations::Payload,
     secret::{SecretId, VaultMeta},
     Error, Result,
 };
@@ -109,7 +109,7 @@ impl Decode for SecretCommit {
     }
 }
 
-/// Trait that defines the operations on a vault storage.
+/// Trait that defines the events on a vault storage.
 ///
 /// The storage may be in-memory, backed by a file on disc or another
 /// destination for the encrypted bytes.
@@ -885,7 +885,7 @@ pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::operations::Payload;
+    use crate::events::Payload;
     use crate::secret::*;
 
     use crate::test_utils::*;

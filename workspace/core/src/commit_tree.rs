@@ -204,7 +204,7 @@ impl<'a> Iterator for RowIterator<'a> {
 mod test {
     use super::*;
     use crate::{
-        operations::Payload,
+        events::Payload,
         test_utils::*,
         vault::{SecretGroup, Vault, VaultAccess},
     };

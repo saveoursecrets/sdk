@@ -13,8 +13,8 @@ use url::Url;
 
 use sos_core::{
     diceware::generate,
+    events::Payload,
     gatekeeper::Gatekeeper,
-    operations::Payload,
     secret::{Secret, SecretMeta, SecretRef},
     vault::{encode, SecretCommit, SecretGroup, Summary, Vault, VaultAccess},
 };

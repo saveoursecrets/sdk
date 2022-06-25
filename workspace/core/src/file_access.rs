@@ -19,8 +19,8 @@ use serde_binary::{
 use uuid::Uuid;
 
 use crate::{
+    events::Payload,
     file_identity::FileIdentity,
-    operations::Payload,
     secret::SecretId,
     vault::{
         encode, CommitHash, Contents, Header, SecretCommit, SecretGroup,
@@ -389,7 +389,7 @@ mod tests {
     use crate::test_utils::*;
     use crate::{
         crypto::secret_key::SecretKey,
-        operations::Payload,
+        events::Payload,
         secret::*,
         vault::{
             Header, SecretGroup, Vault, VaultAccess, DEFAULT_VAULT_NAME,
