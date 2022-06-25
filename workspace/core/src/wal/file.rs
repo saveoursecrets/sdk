@@ -300,35 +300,6 @@ mod test {
     use super::*;
     use crate::{commit_tree::CommitTree, events::SyncEvent, test_utils::*};
 
-    fn mock_wal_file() -> Result<(NamedTempFile, WalFile)> {
-        let (_, _, buffer) = mock_vault_file()?;
-
-        let temp = NamedTempFile::new()?;
-
-        // 4 byte magic identity
-
-        // ROW
-        // 4 byte row length
-        // 12 byte timestamp
-        // 32 byte commit hash
-        // 4 byte value length (N)
-        // [N] byte value
-        // 4 byte row length
-
-        // = 58 bytes for an empty payload
-        //
-        // = 178 bytes total
-
-        let mut wal = WalFile::new(temp.path().to_path_buf())?;
-        let payload: SyncEvent = SyncEvent::CreateVault(Cow::Owned(buffer));
-
-        wal.append_event(&payload)?;
-        wal.append_event(&payload)?;
-        wal.append_event(&payload)?;
-
-        Ok((temp, wal))
-    }
-
     #[test]
     fn wal_iter_forward() -> Result<()> {
         let (temp, wal) = mock_wal_file()?;
