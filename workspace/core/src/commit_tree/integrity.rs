@@ -1,4 +1,4 @@
-//! Helper function to run integrity checks.
+//! Functions to build commit trees and run integrity checks.
 use std::path::Path;
 
 use serde_binary::binary_rw::{BinaryReader, Endian, FileStream, OpenType};
@@ -10,6 +10,9 @@ use crate::{
 
 /// Build a commit tree from a vault file optionally
 /// verifying all the row checksums.
+///
+/// The `func` is invoked with the row information so
+/// callers can display debugging information if necessary.
 pub fn vault_file_tree<P: AsRef<Path>, F>(
     vault: P,
     verify: bool,

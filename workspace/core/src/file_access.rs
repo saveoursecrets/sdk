@@ -432,11 +432,9 @@ mod tests {
     #[test]
     fn vault_file_access() -> Result<()> {
         let (encryption_key, _) = mock_encryption_key()?;
-        let vault = mock_vault();
+        let (temp, vault, _) = mock_vault_file()?;
 
-        let mut vault_access = VaultFileAccess::new(
-            "./fixtures/6691de55-f499-4ed9-b72d-5631dbf1815c.vault",
-        )?;
+        let mut vault_access = VaultFileAccess::new(temp.path())?;
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(0, total_rows);
 
@@ -543,17 +541,17 @@ mod tests {
         // Reset the fixture vault name
         let _ = vault_access.set_vault_name(DEFAULT_VAULT_NAME.to_string());
 
+        temp.close();
+
         Ok(())
     }
 
     #[test]
     fn vault_file_del_splice() -> Result<()> {
         let (encryption_key, _) = mock_encryption_key()?;
-        let vault = mock_vault();
+        let (temp, vault, _) = mock_vault_file()?;
 
-        let vault_path =
-            "./fixtures/a7db14d0-80ac-47e8-aeb4-07c1ac55bd8e.vault";
-        let mut vault_access = VaultFileAccess::new(vault_path)?;
+        let mut vault_access = VaultFileAccess::new(temp.path())?;
 
         let initial_change_seq = vault_access.change_seq()?;
 
@@ -591,7 +589,7 @@ mod tests {
         assert_eq!(2, total_rows);
 
         // Check the file identity is good after the deletion splice
-        assert!(Header::read_header_file(vault_path).is_ok());
+        assert!(Header::read_header_file(temp.path()).is_ok());
 
         // Clean up other secrets
         for secret_id in secret_ids {
@@ -602,7 +600,9 @@ mod tests {
         assert_eq!(0, total_rows);
 
         // Verify again to finish up
-        assert!(Header::read_header_file(vault_path).is_ok());
+        assert!(Header::read_header_file(temp.path()).is_ok());
+
+        temp.close()?;
 
         Ok(())
     }

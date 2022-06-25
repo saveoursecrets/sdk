@@ -4,9 +4,10 @@ use crate::{
     secret::{Secret, SecretMeta},
     vault::{encode, Vault, DEFAULT_VAULT_NAME},
 };
+use std::io::Write;
 
 use anyhow::Result;
-use uuid::Uuid;
+use tempfile::NamedTempFile;
 
 use argon2::password_hash::SaltString;
 
@@ -18,8 +19,16 @@ pub fn mock_encryption_key() -> Result<(SecretKey, SaltString)> {
 }
 
 pub fn mock_vault() -> Vault {
-    let uuid = Uuid::new_v4();
-    Vault::new(uuid, String::from(DEFAULT_VAULT_NAME), Default::default())
+    let vault: Vault = Default::default();
+    vault
+}
+
+pub fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
+    let mut temp = NamedTempFile::new()?;
+    let vault = mock_vault();
+    let buffer = encode(&vault)?;
+    temp.write_all(&buffer)?;
+    Ok((temp, vault, buffer))
 }
 
 pub fn mock_secret_note(

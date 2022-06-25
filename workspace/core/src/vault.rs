@@ -967,17 +967,15 @@ mod tests {
 
     #[test]
     fn decode_file() -> Result<()> {
-        let _vault = Vault::read_file(
-            "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
-        )?;
+        let (temp, _, _) = mock_vault_file()?;
+        let _vault = Vault::read_file(temp.path())?;
+        temp.close()?;
         Ok(())
     }
 
     #[test]
     fn decode_buffer() -> Result<()> {
-        let buffer = std::fs::read(
-            "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
-        )?;
+        let (temp, _, buffer) = mock_vault_file()?;
         let _vault: Vault = decode(&buffer)?;
         Ok(())
     }
