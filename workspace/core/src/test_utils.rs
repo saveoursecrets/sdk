@@ -70,19 +70,16 @@ pub fn mock_vault_note(
     Ok((secret_id, commit, secret_meta, secret_value))
 }
 
-pub fn mock_wal_file() -> Result<(NamedTempFile, WalFile)> {
+pub fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
     let (_, _, buffer) = mock_vault_file()?;
 
     let temp = NamedTempFile::new()?;
     let mut wal = WalFile::new(temp.path().to_path_buf())?;
     let payload: SyncEvent = SyncEvent::CreateVault(Cow::Owned(buffer));
 
-    let commit = wal.append_event(&payload)?;
-
-    println!("{}", hex::encode(commit.as_ref()));
-
-    wal.append_event(&payload)?;
-    wal.append_event(&payload)?;
-
-    Ok((temp, wal))
+    let mut commits = Vec::new();
+    commits.push(wal.append_event(&payload)?);
+    commits.push(wal.append_event(&payload)?);
+    commits.push(wal.append_event(&payload)?);
+    Ok((temp, wal, commits))
 }

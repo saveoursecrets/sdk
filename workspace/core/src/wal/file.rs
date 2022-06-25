@@ -66,6 +66,9 @@ impl LogRow {
         let length = self.value.end - self.value.start;
         reader.seek(self.value.start)?;
         let value = reader.read_bytes(length)?;
+
+        println!("Decode {:#?}", value.len());
+
         Ok(value)
     }
 }
@@ -139,6 +142,8 @@ impl WalProvider for WalFile {
         let log_record = LogRecord(log_time, log_commit, log_bytes);
         let buffer = encode(&log_record)?;
 
+        println!("Encode {:#?}", buffer.len());
+
         self.file.write_all(&buffer)?;
         Ok(log_commit)
     }
@@ -180,6 +185,12 @@ impl WalFileIterator {
         let value_len = de.reader.read_u32()?;
         let end = begin + 4 + value_len as usize;
         row.value = begin..end;
+
+        println!(
+            "Read row {:#?} {}",
+            row.value,
+            row.value.end - row.value.start
+        );
 
         Ok(row)
     }
@@ -302,11 +313,16 @@ mod test {
 
     #[test]
     fn wal_iter_forward() -> Result<()> {
-        let (temp, wal) = mock_wal_file()?;
+        let (temp, wal, commits) = mock_wal_file()?;
         let mut it = wal.iter()?;
-        let _first_row = it.next().unwrap();
-        let _second_row = it.next().unwrap();
-        let _third_row = it.next().unwrap();
+        let first_row = it.next().unwrap()?;
+        let second_row = it.next().unwrap()?;
+        let third_row = it.next().unwrap()?;
+
+        assert_eq!(commits.get(0).unwrap().as_ref(), &first_row.commit);
+        assert_eq!(commits.get(1).unwrap().as_ref(), &second_row.commit);
+        assert_eq!(commits.get(2).unwrap().as_ref(), &third_row.commit);
+
         assert!(it.next().is_none());
         temp.close()?;
         Ok(())
@@ -314,7 +330,7 @@ mod test {
 
     #[test]
     fn wal_iter_backward() -> Result<()> {
-        let (temp, wal) = mock_wal_file()?;
+        let (temp, wal, _) = mock_wal_file()?;
         let mut it = wal.iter()?;
         let _third_row = it.next_back().unwrap();
         let _second_row = it.next_back().unwrap();
@@ -326,7 +342,7 @@ mod test {
 
     #[test]
     fn wal_iter_mixed() -> Result<()> {
-        let (temp, wal) = mock_wal_file()?;
+        let (temp, wal, _) = mock_wal_file()?;
         let mut it = wal.iter()?;
         let _first_row = it.next().unwrap();
         let _third_row = it.next_back().unwrap();
@@ -339,7 +355,7 @@ mod test {
 
     #[test]
     fn wal_commit_tree() -> Result<()> {
-        let (temp, wal) = mock_wal_file()?;
+        let (temp, wal, _) = mock_wal_file()?;
         let mut it = wal.iter()?;
         let tree = CommitTree::from_wal_iterator(&mut it)?;
         assert!(tree.root().is_some());
