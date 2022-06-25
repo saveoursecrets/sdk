@@ -211,7 +211,7 @@ pub enum SyncEvent<'a> {
     Noop,
 
     /// SyncEvent used to indicate a vault was created.
-    CreateVault,
+    CreateVault(Cow<'a, [u8]>),
 
     /// SyncEvent used to indicate that a vault was read.
     ReadVault(u32),
@@ -289,7 +289,7 @@ impl<'a> SyncEvent<'a> {
     pub fn change_seq(&self) -> Option<&u32> {
         match self {
             Self::Noop => panic!("no change sequence for noop variant"),
-            Self::CreateVault => Some(&0),
+            Self::CreateVault(_) => Some(&0),
             Self::ReadVault(change_seq) => Some(change_seq),
             Self::UpdateVault(change_seq) => Some(change_seq),
             Self::DeleteVault(change_seq) => Some(change_seq),
@@ -307,7 +307,7 @@ impl<'a> SyncEvent<'a> {
     pub fn operation(&self) -> EventKind {
         match self {
             SyncEvent::Noop => EventKind::Noop,
-            SyncEvent::CreateVault => EventKind::CreateVault,
+            SyncEvent::CreateVault(_) => EventKind::CreateVault,
             SyncEvent::ReadVault(_) => EventKind::ReadVault,
             SyncEvent::UpdateVault(_) => EventKind::UpdateVault,
             SyncEvent::DeleteVault(_) => EventKind::DeleteVault,
@@ -325,7 +325,7 @@ impl<'a> SyncEvent<'a> {
     pub fn into_audit_log(&self, address: AddressStr, vault_id: Uuid) -> Log {
         let log_data = match self {
             SyncEvent::Noop => panic!("noop variant cannot be an audit log"),
-            SyncEvent::CreateVault
+            SyncEvent::CreateVault(_)
             | SyncEvent::ReadVault(_)
             | SyncEvent::DeleteVault(_)
             | SyncEvent::UpdateVault(_)
@@ -356,7 +356,10 @@ impl<'a> Encode for SyncEvent<'a> {
 
         match self {
             SyncEvent::Noop => panic!("attempt to encode a noop"),
-            SyncEvent::CreateVault => {}
+            SyncEvent::CreateVault(vault) => {
+                ser.writer.write_u32(vault.as_ref().len() as u32)?;
+                ser.writer.write_bytes(vault.as_ref())?;
+            }
             SyncEvent::ReadVault(change_seq)
             | SyncEvent::UpdateVault(change_seq)
             | SyncEvent::DeleteVault(change_seq)
@@ -415,7 +418,11 @@ impl<'a> Decode for SyncEvent<'a> {
         op.decode(&mut *de)?;
         match op {
             EventKind::Noop => panic!("attempt to decode a noop"),
-            EventKind::CreateVault => {}
+            EventKind::CreateVault => {
+                let length = de.reader.read_u32()?;
+                let buffer = de.reader.read_bytes(length as usize)?;
+                *self = SyncEvent::CreateVault(Cow::Owned(buffer))
+            }
             EventKind::ReadVault => {
                 let change_seq = de.reader.read_u32()?;
                 *self = SyncEvent::ReadVault(change_seq);

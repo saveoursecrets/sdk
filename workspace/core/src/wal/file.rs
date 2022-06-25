@@ -276,13 +276,18 @@ impl DoubleEndedIterator for WalFileIterator {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::{commit_tree::CommitTree, events::SyncEvent};
     use anyhow::Result;
+    use std::borrow::Cow;
     use tempfile::NamedTempFile;
 
+    use super::*;
+    use crate::{commit_tree::CommitTree, events::SyncEvent, test_utils::*};
+
     fn mock_wal_file() -> Result<(NamedTempFile, WalFile)> {
+        let (_, _, buffer) = mock_vault_file()?;
+
         let temp = NamedTempFile::new()?;
+
         // 4 byte magic identity
 
         // ROW
@@ -298,7 +303,7 @@ mod test {
         // = 178 bytes total
 
         let mut wal = WalFile::new(temp.path().to_path_buf())?;
-        let payload: SyncEvent = SyncEvent::CreateVault;
+        let payload: SyncEvent = SyncEvent::CreateVault(Cow::Owned(buffer));
 
         wal.append_event(&payload)?;
         wal.append_event(&payload)?;

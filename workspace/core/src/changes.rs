@@ -17,6 +17,8 @@ pub enum FeedEvent {
         address: AddressStr,
         /// The vault identifier.
         vault_id: Uuid,
+        /// The vault buffer.
+        vault: Vec<u8>,
     },
     /// Event emitted when a vault is updated.
     UpdateVault {
@@ -134,9 +136,10 @@ impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p SyncEvent<'p>)>
     fn from(value: (&'u Uuid, &'a AddressStr, &'p SyncEvent<'p>)) -> Self {
         let (vault_id, address, payload) = value;
         match payload {
-            SyncEvent::CreateVault => FeedEvent::CreateVault {
+            SyncEvent::CreateVault(vault) => FeedEvent::CreateVault {
                 address: address.clone(),
                 vault_id: *vault_id,
+                vault: vault.to_vec(),
             },
             SyncEvent::UpdateVault(change_seq) => FeedEvent::UpdateVault {
                 address: address.clone(),

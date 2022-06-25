@@ -31,8 +31,8 @@ use sos_core::{
     vault::{Header, SecretCommit, Summary, Vault},
 };
 use std::{
-    collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc,
-    time::Duration,
+    borrow::Cow, collections::HashMap, convert::Infallible, net::SocketAddr,
+    sync::Arc, time::Duration,
 };
 use tokio::sync::{
     broadcast::{self, Sender},
@@ -505,12 +505,15 @@ impl VaultHandler {
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+                    let payload =
+                        SyncEvent::CreateVault(Cow::Borrowed(&body));
+
                     let event = FeedEvent::CreateVault {
                         vault_id: *summary.id(),
                         address: token.address,
+                        vault: body.to_vec(),
                     };
 
-                    let payload = SyncEvent::CreateVault;
                     Ok(MaybeConflict::Success(vec![ResponseEvent {
                         event: Some(event),
                         log: payload
