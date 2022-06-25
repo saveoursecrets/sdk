@@ -14,7 +14,6 @@
 //!
 use crate::{
     commit_tree::hash,
-    events::SyncEvent,
     file_identity::FileIdentity,
     vault::{encode, CommitHash},
     Result,
@@ -129,8 +128,6 @@ impl WalProvider for WalFile {
 
 /// Iterator for WAL files.
 pub struct WalFileIterator {
-    /// The file path.
-    file_path: PathBuf,
     /// The file read stream.
     file_stream: FileStream,
     /// Byte offset for forward iteration.
@@ -148,7 +145,6 @@ impl WalFileIterator {
         FileIdentity::read_identity(&mut deserializer, &IDENTITY)?;
         file_stream.seek(4)?;
         Ok(Self {
-            file_path: file_path.as_ref().to_path_buf(),
             file_stream,
             forward: Some(4),
             backward: None,
@@ -174,7 +170,7 @@ impl WalFileIterator {
     fn read_row_next(&mut self) -> Result<LogRow> {
         let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
         let mut de = Deserializer { reader };
-        let row_len = de.reader.read_u32()?;
+        let _row_len = de.reader.read_u32()?;
 
         let row = WalFileIterator::read_row(&mut de)?;
 

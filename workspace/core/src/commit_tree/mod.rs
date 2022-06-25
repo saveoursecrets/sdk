@@ -10,6 +10,8 @@ use crate::{
     Result,
 };
 
+pub mod integrity;
+
 /// Compute the Sha256 hash of some data.
 pub fn hash(data: &[u8]) -> [u8; 32] {
     Sha256::hash(data)
