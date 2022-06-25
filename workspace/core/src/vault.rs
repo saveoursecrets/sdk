@@ -39,7 +39,7 @@ pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
 #[derive(
     Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize,
 )]
-pub struct CommitHash([u8; 32]);
+pub struct CommitHash(pub [u8; 32]);
 
 impl AsRef<[u8; 32]> for CommitHash {
     fn as_ref(&self) -> &[u8; 32] {

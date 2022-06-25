@@ -20,6 +20,7 @@ pub mod passphrase;
 pub mod secret;
 pub mod signer;
 pub mod vault;
+pub mod wal;
 
 pub use k256;
 pub use serde_binary::binary_rw;

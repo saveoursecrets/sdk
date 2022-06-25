@@ -202,7 +202,7 @@ impl fmt::Display for Operation {
 /// it on the server side to make changes to a vault
 /// we should decode to owned data hence the use of `Cow`
 /// to distinguish between borrowed and owned.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum Payload<'a> {
     /// Payload used to indicate a vault was created.
     CreateVault,
