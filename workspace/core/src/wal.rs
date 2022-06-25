@@ -1,4 +1,17 @@
 //! Write ahead log implementation.
+//!
+//! WAL files consist of a 4 identity bytes followed by one or more
+//! rows of log records.
+//!
+//! Each row contains the row length prepended and appended so that
+//! rows can be efficiently iterated in both directions.
+//!
+//! Row components with byte sizes:
+//!
+//! ```norun
+//! | 4 row length | 12 timestamp | 32 hash | 4 data length | data | 4 row length |
+//! ```
+//!
 use crate::{
     commit_tree::hash,
     file_identity::FileIdentity,
@@ -133,6 +146,13 @@ impl Decode for LogRecord {
 #[derive(Default, Debug)]
 pub struct LogRow(LogTime, CommitHash, Range<usize>);
 
+impl LogRow {
+    /// Consume this log row and yield the commit hash.
+    pub fn into_commit(self) -> CommitHash {
+        self.1
+    }
+}
+
 impl Decode for LogRow {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let mut time: LogTime = Default::default();
@@ -148,7 +168,7 @@ impl Decode for LogRow {
 pub type LogData<'a> = Payload<'a>;
 
 /// Trait for implementations that provide access to a WAL.
-trait WalProvider {
+pub trait WalProvider {
     /// Append a log event to the write ahead log.
     fn append_event(&mut self, log_event: &LogData<'_>)
         -> Result<CommitHash>;
@@ -158,7 +178,7 @@ trait WalProvider {
 }
 
 /// Trait for implementations that can iterate a WAL log.
-trait WalIterator: DoubleEndedIterator {}
+pub trait WalIterator: DoubleEndedIterator {}
 
 /// A write ahead log that appends to a file.
 pub struct WalFile {
@@ -204,14 +224,12 @@ impl WalProvider for WalFile {
     ) -> Result<CommitHash> {
         let log_time: LogTime = Default::default();
         let log_bytes = encode(log_event)?;
-
-        let hash_bytes = hash(&log_bytes);
-        let log_commit = CommitHash(hash_bytes);
+        let log_commit = CommitHash(hash(&log_bytes));
         let log_record = LogRecord(log_time, log_commit, log_bytes);
         let buffer = encode(&log_record)?;
 
         self.file.write_all(&buffer)?;
-        Ok(CommitHash(hash_bytes))
+        Ok(log_commit)
     }
 
     fn iter(&self) -> Result<Box<dyn WalIterator<Item = Result<LogRow>>>> {
@@ -368,7 +386,7 @@ impl DoubleEndedIterator for WalFileIterator {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::operations::Payload;
+    use crate::{operations::Payload, commit_tree::CommitTree};
     use anyhow::Result;
     use tempfile::NamedTempFile;
 
@@ -431,6 +449,16 @@ mod test {
         let _second_row = it.next_back().unwrap();
         assert!(it.next_back().is_none());
         assert!(it.next().is_none());
+        temp.close()?;
+        Ok(())
+    }
+
+    #[test]
+    fn wal_commit_tree() -> Result<()> {
+        let (temp, wal) = mock_wal_file()?;
+        let mut it = wal.iter()?;
+        let tree = CommitTree::from_wal_iterator(&mut it)?;
+        assert!(tree.root().is_some());
         temp.close()?;
         Ok(())
     }

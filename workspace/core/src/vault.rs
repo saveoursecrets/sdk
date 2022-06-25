@@ -54,6 +54,12 @@ impl CommitHash {
     }
 }
 
+impl From<CommitHash> for [u8; 32] {
+    fn from(value: CommitHash) -> Self {
+        value.0
+    }
+}
+
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
 #[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]

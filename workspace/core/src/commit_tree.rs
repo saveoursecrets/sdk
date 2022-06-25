@@ -6,6 +6,7 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 
 use crate::{
     vault::{Header, Vault},
+    wal::{LogRow, WalIterator},
     Result,
 };
 
@@ -14,7 +15,7 @@ pub fn hash(data: &[u8]) -> [u8; 32] {
     Sha256::hash(data)
 }
 
-/// Encapsulates the merkle tree for all commits to a vault.
+/// Encapsulates the merkle tree for all commits to a vault or WAL.
 pub struct CommitTree {
     tree: MerkleTree<Sha256>,
 }
@@ -43,6 +44,19 @@ impl CommitTree {
         while let Some(row_info) = it.next() {
             let row_info = row_info?;
             commit_tree.tree.insert(row_info.into_commit());
+        }
+        commit_tree.tree.commit();
+        Ok(commit_tree)
+    }
+
+    /// Create a commit tree from a WAL iterator.
+    pub fn from_wal_iterator(
+        it: &mut Box<dyn WalIterator<Item = Result<LogRow>>>,
+    ) -> Result<Self> {
+        let mut commit_tree = Self::new();
+        while let Some(row_info) = it.next() {
+            let row_info = row_info?;
+            commit_tree.tree.insert(row_info.into_commit().into());
         }
         commit_tree.tree.commit();
         Ok(commit_tree)
