@@ -33,7 +33,7 @@ use serde_binary::{
     Decode, Deserializer, Result as BinaryResult,
 };
 
-use super::{LogRecord, LogTime, WalIterator, WalProvider};
+use super::{LogRecord, LogTime, WalItem, WalIterator, WalProvider};
 
 /// Identity magic bytes (SOSW).
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
@@ -64,6 +64,16 @@ impl WalFileRow {
         reader.seek(self.value.start)?;
         let value = reader.read_bytes(length)?;
         Ok(value)
+    }
+}
+
+impl WalItem for WalFileRow {
+    fn commit(&self) -> [u8; 32] {
+        self.commit
+    }
+
+    fn time(&self) -> &LogTime {
+        &self.time
     }
 }
 

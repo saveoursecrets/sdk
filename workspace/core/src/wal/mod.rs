@@ -106,10 +106,19 @@ impl Decode for LogRecord {
     }
 }
 
+/// Trait for items yielded by the iterator.
+pub trait WalItem: std::fmt::Debug {
+    /// Get the commit hash for the item.
+    fn commit(&self) -> [u8; 32];
+
+    /// Get the time for the log record.
+    fn time(&self) -> &LogTime;
+}
+
 /// Trait for implementations that provide access to a write-ahead log (WAL).
 pub trait WalProvider {
     /// The item yielded by the iterator implementation.
-    type Item: std::fmt::Debug;
+    type Item: WalItem;
 
     /// Append a log event to the write ahead log.
     fn append_event(&mut self, log_event: WalEvent<'_>)

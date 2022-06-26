@@ -18,6 +18,7 @@ pub fn hash(data: &[u8]) -> [u8; 32] {
 }
 
 /// Encapsulates the merkle tree for all commits to a vault or WAL.
+#[derive(Default)]
 pub struct CommitTree {
     tree: MerkleTree<Sha256>,
 }
@@ -62,6 +63,11 @@ impl CommitTree {
         }
         commit_tree.tree.commit();
         Ok(commit_tree)
+    }
+
+    /// Get the number of leaves in the tree.
+    pub fn len(&self) -> usize {
+        self.tree.leaves_len()
     }
 
     /// Insert a commit hash into the tree,

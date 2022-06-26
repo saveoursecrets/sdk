@@ -609,6 +609,11 @@ impl Vault {
         self.contents.data.insert(id, entry);
     }
 
+    /// Get a secret in this vault.
+    pub(crate) fn get(&self, id: &SecretId) -> Option<&VaultCommit> {
+        self.contents.data.get(id)
+    }
+
     /// Encrypt a plaintext value using the algorithm assigned to this vault.
     pub fn encrypt(
         &self,
