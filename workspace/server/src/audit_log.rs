@@ -10,12 +10,6 @@ use sos_core::{
 };
 
 /// Represents an audit log file.
-///
-/// The log file is backed by a `tokio::fs::File`
-/// wrapped in a `tokio::sync::Mutex` and an exclusive
-/// file lock is acquired.
-///
-/// Panics if the exclusive file lock cannot be acquired.
 pub struct LogFile {
     file: Mutex<File>,
 }

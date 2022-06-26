@@ -7,41 +7,48 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Attempts to acquire exclusive locks to a collection of files.
+/// Manages a collection of exclusive file locks.
+///
+/// This prevents server process' possibly running on
+/// other ports from writing to the files concurrently.
+///
+/// It does not prevent other programs from writing to those
+/// files and corrupting the data.
 #[derive(Default)]
-pub struct LockFiles {
+pub struct FileLocks {
+    /// Maps source files to their `.lock` file equivalents
+    files: HashMap<PathBuf, PathBuf>,
+    /// Keep the guards in memory to maintain the locks.
     guards: HashMap<PathBuf, LockGuard>,
 }
 
-impl LockFiles {
-    /// Create a new collection of locks files.
+impl FileLocks {
+    /// Create a new collection of file locks.
     pub fn new() -> Self {
         Default::default()
     }
 
-    /// Attempt to acquire a lock on all the source files.
-    pub fn acquire<P: AsRef<Path>>(&mut self, sources: Vec<P>) -> Result<()> {
-        for path in sources {
-            self.add(path)?;
-        }
-        Ok(())
-    }
-
     /// Add a guard to a locked file.
     pub fn add<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
-        let file = LockFiles::lock_file(path.as_ref())?;
-        if LockFiles::would_block(&file) {
+        let (file, lock_path) = self.lock_file(path.as_ref())?;
+        if self.would_block(&file) {
             return Err(Error::FileLocked(path.as_ref().to_path_buf()));
         }
         let guard = LockGuard::lock(file)?;
         self.guards.insert(path.as_ref().to_path_buf(), guard);
+        self.files.insert(path.as_ref().to_path_buf(), lock_path);
         Ok(())
     }
 
     /// Remove the guard on a locked file.
-    pub fn remove(&mut self, path: &PathBuf) -> bool {
+    pub fn remove(&mut self, path: &PathBuf) -> Result<bool> {
         let removed = self.guards.remove(path);
-        removed.is_some()
+        if let Some(_) = removed {
+            if let Some(lock_path) = self.files.remove(path) {
+                std::fs::remove_file(lock_path)?;
+            }
+        }
+        Ok(removed.is_some())
     }
 
     /// Get the paths for locked files.
@@ -50,7 +57,7 @@ impl LockFiles {
     }
 
     /// Get the lock file for a source file.
-    fn lock_file<P: AsRef<Path>>(path: P) -> Result<File> {
+    fn lock_file<P: AsRef<Path>>(&self, path: P) -> Result<(File, PathBuf)> {
         let mut lock_file = path.as_ref().to_path_buf();
         let ext = "lock";
         let extension = if let Some(file_ext) = path.as_ref().extension() {
@@ -59,12 +66,12 @@ impl LockFiles {
             ext.to_owned()
         };
         lock_file.set_extension(&extension);
-        Ok(File::create(lock_file)?)
+        Ok((File::create(&lock_file)?, lock_file))
     }
 
     /// Determine if attempting to acquire a file lock would block
     /// the process.
-    fn would_block(file: &File) -> bool {
+    fn would_block(&self, file: &File) -> bool {
         match file_guard::try_lock(file, Lock::Exclusive, 0, 1) {
             Ok(_) => false,
             Err(_) => true,

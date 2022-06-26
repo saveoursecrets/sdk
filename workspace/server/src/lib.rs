@@ -15,5 +15,5 @@ pub use authenticate::Authentication;
 pub use backend::{Backend, FileSystemBackend};
 pub use config::ServerConfig;
 pub use error::Error;
-pub use file_locks::LockFiles;
+pub use file_locks::FileLocks;
 pub use server::{Server, State};

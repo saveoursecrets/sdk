@@ -1,4 +1,4 @@
-use crate::{file_locks::LockFiles, Error, Result};
+use crate::{file_locks::FileLocks, Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
@@ -17,10 +17,10 @@ type VaultStorage = Box<dyn VaultAccess + Send + Sync>;
 #[async_trait]
 pub trait Backend {
     /// Sets the lock files.
-    fn set_lock_files(&mut self, locks: LockFiles) -> Result<()>;
+    fn set_file_locks(&mut self, locks: FileLocks) -> Result<()>;
 
     /// Get the lock files.
-    fn lock_files(&self) -> &LockFiles;
+    fn file_locks(&self) -> &FileLocks;
 
     /// Create a new account with the given default vault.
     ///
@@ -91,7 +91,7 @@ pub trait Backend {
 /// Backend storage for vaults on the file system.
 pub struct FileSystemBackend {
     directory: PathBuf,
-    locks: LockFiles,
+    locks: FileLocks,
     files: Vec<PathBuf>,
     accounts: RwLock<HashMap<AddressStr, HashMap<Uuid, VaultStorage>>>,
 }
@@ -198,7 +198,7 @@ impl FileSystemBackend {
 
 #[async_trait]
 impl Backend for FileSystemBackend {
-    fn set_lock_files(&mut self, mut locks: LockFiles) -> Result<()> {
+    fn set_file_locks(&mut self, mut locks: FileLocks) -> Result<()> {
         for file in &self.files {
             locks.add(file)?;
         }
@@ -206,7 +206,7 @@ impl Backend for FileSystemBackend {
         Ok(())
     }
 
-    fn lock_files(&self) -> &LockFiles {
+    fn file_locks(&self) -> &FileLocks {
         &self.locks
     }
 
@@ -275,7 +275,7 @@ impl Backend for FileSystemBackend {
         let removed = account.remove(vault_id);
         if let Some(_) = removed {
             let vault_path = self.vault_file_path(&owner, vault_id);
-            self.locks.remove(&vault_path);
+            self.locks.remove(&vault_path)?;
             let _ = tokio::fs::remove_file(&vault_path).await;
         }
 

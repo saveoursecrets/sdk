@@ -1,6 +1,6 @@
 use clap::Parser;
 use sos_server::{
-    AuditLogFile, Authentication, LockFiles, Result, Server, ServerConfig,
+    AuditLogFile, Authentication, FileLocks, Result, Server, ServerConfig,
     State,
 };
 
@@ -48,13 +48,12 @@ async fn run() -> Result<()> {
     let audit_log_file =
         args.audit_log.unwrap_or_else(|| config.audit_file());
 
-    let mut locks = LockFiles::new();
-    let sources = vec![audit_log_file.clone()];
-    let _ = locks.acquire(sources)?;
+    let mut locks = FileLocks::new();
+    let _ = locks.add(&audit_log_file)?;
     // Move into the backend so it can manage lock files too
-    backend.set_lock_files(locks)?;
+    backend.set_file_locks(locks)?;
 
-    tracing::debug!("lock files {:#?}", backend.lock_files().paths());
+    tracing::debug!("lock files {:#?}", backend.file_locks().paths());
 
     // Set up the audit log
     let audit_log = AuditLogFile::new(&audit_log_file)?;
