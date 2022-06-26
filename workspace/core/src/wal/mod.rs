@@ -114,6 +114,9 @@ pub trait WalProvider {
     fn append_event(&mut self, log_event: WalEvent<'_>)
         -> Result<CommitHash>;
 
+    /// Read the event data from an item.
+    fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>>;
+
     /// Get an iterator of the log records.
     fn iter(&self)
         -> Result<Box<dyn WalIterator<Item = Result<Self::Item>>>>;

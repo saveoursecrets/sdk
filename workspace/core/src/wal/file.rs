@@ -21,13 +21,15 @@ use crate::{
 };
 use std::{
     fs::{File, OpenOptions},
-    io::Write,
+    io::{Read, Seek, SeekFrom, Write},
     ops::Range,
     path::{Path, PathBuf},
 };
 
 use serde_binary::{
-    binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
+    binary_rw::{
+        BinaryReader, Endian, FileStream, OpenType, SeekStream, SliceStream,
+    },
     Decode, Deserializer, Result as BinaryResult,
 };
 
@@ -132,7 +134,24 @@ impl WalProvider for WalFile {
         Ok(log_commit)
     }
 
-    /// Get an iterator of the log record rows.
+    fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>> {
+        let value = item.value;
+
+        // Use a different file handle as the owned `file` should
+        // be used exclusively for appending
+        let mut file = File::open(&self.file_path)?;
+        file.seek(SeekFrom::Start(value.start as u64))?;
+        let mut buffer = Vec::with_capacity(value.end - value.start);
+        file.read_exact(buffer.as_mut_slice())?;
+
+        let mut stream = SliceStream::new(&buffer);
+        let reader = BinaryReader::new(&mut stream, Endian::Big);
+        let mut de = Deserializer { reader };
+        let mut event: WalEvent = Default::default();
+        event.decode(&mut de)?;
+        Ok(event)
+    }
+
     fn iter(
         &self,
     ) -> Result<Box<dyn WalIterator<Item = Result<Self::Item>>>> {
