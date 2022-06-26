@@ -323,7 +323,44 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{commit_tree::CommitTree, events::SyncEvent, test_utils::*};
+    use crate::{commit_tree::CommitTree, events::WalEvent, test_utils::*};
+
+    fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
+        let (encryption_key, _) = mock_encryption_key()?;
+        let (_, mut vault, buffer) = mock_vault_file()?;
+
+        let temp = NamedTempFile::new()?;
+        let mut wal = WalFile::new(temp.path().to_path_buf())?;
+
+        let mut commits = Vec::new();
+
+        // Create the vault
+        let event = WalEvent::CreateVault(Cow::Owned(buffer));
+        commits.push(wal.append_event(event)?);
+
+        // Create a secret
+        let (secret_id, _, _, _, event) = mock_vault_note(
+            &mut vault,
+            &encryption_key,
+            "WAL Note",
+            "This a WAL note secret.",
+        )?;
+        commits.push(wal.append_event((&event).into())?);
+
+        // Update the secret
+        let (_, _, _, event) = mock_vault_note_update(
+            &mut vault,
+            &encryption_key,
+            &secret_id,
+            "WAL Note Edited",
+            "This a WAL note secret that was edited.",
+        )?;
+        if let Some(event) = event {
+            commits.push(wal.append_event((&event).into())?);
+        }
+
+        Ok((temp, wal, commits))
+    }
 
     #[test]
     fn wal_iter_forward() -> Result<()> {

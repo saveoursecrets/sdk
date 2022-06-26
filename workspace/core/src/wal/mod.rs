@@ -9,6 +9,7 @@ use serde_binary::{
 use time::{Duration, OffsetDateTime};
 
 pub mod file;
+pub mod reducer;
 
 /// Timestamp for the log record.
 #[derive(Debug)]

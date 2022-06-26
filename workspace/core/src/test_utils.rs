@@ -1,8 +1,8 @@
 use crate::{
     crypto::secret_key::SecretKey,
     diceware::generate_passphrase,
-    events::SyncEvent,
-    secret::{Secret, SecretMeta},
+    events::{SyncEvent, WalEvent},
+    secret::{Secret, SecretId, SecretMeta},
     vault::{encode, CommitHash, SecretGroup, Vault, VaultAccess},
     wal::{file::WalFile, WalProvider},
 };
@@ -67,6 +67,25 @@ pub fn mock_vault_note<'a>(
     Ok((secret_id, commit, secret_meta, secret_value, event))
 }
 
+pub fn mock_vault_note_update<'a>(
+    vault: &'a mut Vault,
+    encryption_key: &SecretKey,
+    id: &SecretId,
+    secret_label: &str,
+    secret_note: &str,
+) -> Result<(CommitHash, SecretMeta, Secret, Option<SyncEvent<'a>>)> {
+    let (secret_meta, secret_value, meta_bytes, secret_bytes) =
+        mock_secret_note(secret_label, secret_note)?;
+
+    let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
+    let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
+
+    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+    let event =
+        vault.update(id, commit, SecretGroup(meta_aead, secret_aead))?;
+    Ok((commit, secret_meta, secret_value, event))
+}
+
 pub fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
     let (encryption_key, _) = mock_encryption_key()?;
     let (_, mut vault, buffer) = mock_vault_file()?;
@@ -75,20 +94,31 @@ pub fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
     let mut wal = WalFile::new(temp.path().to_path_buf())?;
 
     let mut commits = Vec::new();
-    let event = SyncEvent::CreateVault(Cow::Owned(buffer));
 
-    commits.push(wal.append_event((&event).into())?);
+    // Create the vault
+    let event = WalEvent::CreateVault(Cow::Owned(buffer));
+    commits.push(wal.append_event(event)?);
 
-    let secret_label = "WAL Note";
-    let secret_note = "This a WAL note secret.";
-    let (_, _, _, _, event) = mock_vault_note(
+    // Create a secret
+    let (secret_id, _, _, _, event) = mock_vault_note(
         &mut vault,
         &encryption_key,
-        secret_label,
-        secret_note,
+        "WAL Note",
+        "This a WAL note secret.",
     )?;
     commits.push(wal.append_event((&event).into())?);
-    // TODO: add an UpdateSecret event
-    commits.push(wal.append_event((&event).into())?);
+
+    // Update the secret
+    let (_, _, _, event) = mock_vault_note_update(
+        &mut vault,
+        &encryption_key,
+        &secret_id,
+        "WAL Note Edited",
+        "This a WAL note secret that was edited.",
+    )?;
+    if let Some(event) = event {
+        commits.push(wal.append_event((&event).into())?);
+    }
+
     Ok((temp, wal, commits))
 }

@@ -897,7 +897,6 @@ pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::events::SyncEvent;
     use crate::secret::*;
 
     use crate::test_utils::*;
