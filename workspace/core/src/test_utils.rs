@@ -86,7 +86,8 @@ pub fn mock_vault_note_update<'a>(
     Ok((commit, secret_meta, secret_value, event))
 }
 
-pub fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
+pub fn mock_wal_file(
+) -> Result<(NamedTempFile, WalFile, Vec<CommitHash>, SecretKey)> {
     let (encryption_key, _) = mock_encryption_key()?;
     let (_, mut vault, buffer) = mock_vault_file()?;
 
@@ -120,5 +121,5 @@ pub fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
         commits.push(wal.append_event((&event).into())?);
     }
 
-    Ok((temp, wal, commits))
+    Ok((temp, wal, commits, encryption_key))
 }

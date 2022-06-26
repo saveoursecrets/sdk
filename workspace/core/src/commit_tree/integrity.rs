@@ -146,7 +146,7 @@ mod test {
 
     #[test]
     fn integrity_wal() -> Result<()> {
-        let (temp, _, _) = mock_wal_file()?;
+        let (temp, _, _, _) = mock_wal_file()?;
         let commit_tree = wal_commit_tree(temp.path(), true, |_| {})?;
         assert!(commit_tree.root().is_some());
         Ok(())

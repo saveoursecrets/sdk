@@ -109,7 +109,7 @@ impl Decode for LogRecord {
 /// Trait for implementations that provide access to a write-ahead log (WAL).
 pub trait WalProvider {
     /// The item yielded by the iterator implementation.
-    type Item;
+    type Item: std::fmt::Debug;
 
     /// Append a log event to the write ahead log.
     fn append_event(&mut self, log_event: WalEvent<'_>)

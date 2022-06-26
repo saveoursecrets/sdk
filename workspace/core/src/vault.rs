@@ -348,6 +348,7 @@ impl Header {
     pub fn set_meta(&mut self, meta: Option<AeadPack>) {
         self.meta = meta;
     }
+
     /// Read the summary for a vault from a file.
     pub fn read_summary_file<P: AsRef<Path>>(file: P) -> Result<Summary> {
         let mut stream = FileStream::new(file.as_ref(), OpenType::Open)?;
@@ -601,6 +602,11 @@ impl Vault {
         } else {
             Err(Error::VaultAlreadyInit)
         }
+    }
+
+    /// Insert a secret into this vault.
+    pub(crate) fn insert(&mut self, id: SecretId, entry: VaultCommit) {
+        self.contents.data.insert(id, entry);
     }
 
     /// Encrypt a plaintext value using the algorithm assigned to this vault.

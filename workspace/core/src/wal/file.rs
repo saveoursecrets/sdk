@@ -140,8 +140,9 @@ impl WalProvider for WalFile {
         // Use a different file handle as the owned `file` should
         // be used exclusively for appending
         let mut file = File::open(&self.file_path)?;
+
         file.seek(SeekFrom::Start(value.start as u64))?;
-        let mut buffer = Vec::with_capacity(value.end - value.start);
+        let mut buffer = vec![0; value.end - value.start];
         file.read_exact(buffer.as_mut_slice())?;
 
         let mut stream = SliceStream::new(&buffer);
