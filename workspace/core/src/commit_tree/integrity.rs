@@ -5,7 +5,10 @@ use serde_binary::binary_rw::{BinaryReader, Endian, FileStream, OpenType};
 
 use crate::{
     commit_tree::{hash, CommitTree, RowInfo, RowIterator},
-    wal::file::{LogRow, WalFile},
+    wal::{
+        file::{WalFile, WalFileRow},
+        WalProvider,
+    },
     Error, Result,
 };
 
@@ -64,7 +67,7 @@ pub fn wal_commit_tree<P: AsRef<Path>, F>(
     func: F,
 ) -> Result<CommitTree>
 where
-    F: Fn(&LogRow) -> (),
+    F: Fn(&WalFileRow) -> (),
 {
     let mut tree = CommitTree::new();
 

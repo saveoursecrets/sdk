@@ -37,7 +37,7 @@ pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
 
 /// Reference to a row in the write ahead log.
 #[derive(Default, Debug)]
-pub struct LogRow {
+pub struct WalFileRow {
     /// The time the row was created.
     pub time: LogTime,
     /// The commit hash for the value.
@@ -46,7 +46,7 @@ pub struct LogRow {
     pub value: Range<usize>,
 }
 
-impl LogRow {
+impl WalFileRow {
     /// Consume this log row and yield the commit hash.
     pub fn into_commit(self) -> [u8; 32] {
         self.commit
@@ -64,7 +64,7 @@ impl LogRow {
     }
 }
 
-impl Decode for LogRow {
+impl Decode for WalFileRow {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let mut time: LogTime = Default::default();
         time.decode(&mut *de)?;
@@ -89,13 +89,6 @@ impl WalFile {
             file,
             file_path: file_path.as_ref().to_path_buf(),
         })
-    }
-
-    /// Get an iterator of the log record rows.
-    pub fn iter(
-        &self,
-    ) -> Result<Box<dyn WalIterator<Item = Result<LogRow>>>> {
-        Ok(Box::new(WalFileIterator::new(&self.file_path)?))
     }
 
     /// Create the write ahead log file.
@@ -123,6 +116,8 @@ impl WalFile {
 }
 
 impl WalProvider for WalFile {
+    type Item = WalFileRow;
+
     fn append_event(
         &mut self,
         log_event: &LogData<'_>,
@@ -134,6 +129,13 @@ impl WalProvider for WalFile {
         let buffer = encode(&log_record)?;
         self.file.write_all(&buffer)?;
         Ok(log_commit)
+    }
+
+    /// Get an iterator of the log record rows.
+    fn iter(
+        &self,
+    ) -> Result<Box<dyn WalIterator<Item = Result<Self::Item>>>> {
+        Ok(Box::new(WalFileIterator::new(&self.file_path)?))
     }
 }
 
@@ -163,9 +165,9 @@ impl WalFileIterator {
     }
 
     /// Helper to decode the row time, commit and byte range.
-    fn read_row(de: &mut Deserializer) -> Result<LogRow> {
+    fn read_row(de: &mut Deserializer) -> Result<WalFileRow> {
         let start = de.reader.tell()?;
-        let mut row: LogRow = Default::default();
+        let mut row: WalFileRow = Default::default();
         row.decode(&mut *de)?;
 
         // The byte range for the row value.
@@ -178,7 +180,7 @@ impl WalFileIterator {
     }
 
     /// Attempt to read the next log row.
-    fn read_row_next(&mut self) -> Result<LogRow> {
+    fn read_row_next(&mut self) -> Result<WalFileRow> {
         let row_pos = self.forward.unwrap();
 
         let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
@@ -198,7 +200,7 @@ impl WalFileIterator {
     }
 
     /// Attempt to read the next log row for backward iteration.
-    fn read_row_next_back(&mut self) -> Result<LogRow> {
+    fn read_row_next_back(&mut self) -> Result<WalFileRow> {
         let row_pos = self.backward.unwrap();
 
         let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
@@ -226,7 +228,7 @@ impl WalFileIterator {
 impl WalIterator for WalFileIterator {}
 
 impl Iterator for WalFileIterator {
-    type Item = Result<LogRow>;
+    type Item = Result<WalFileRow>;
 
     fn next(&mut self) -> Option<Self::Item> {
         const OFFSET: usize = IDENTITY.len();

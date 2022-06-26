@@ -6,7 +6,7 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 
 use crate::{
     vault::{Header, Vault},
-    wal::{file::LogRow, WalIterator},
+    wal::{file::WalFileRow, WalIterator},
     Result,
 };
 
@@ -53,7 +53,7 @@ impl CommitTree {
 
     /// Create a commit tree from a WAL iterator.
     pub fn from_wal_iterator(
-        it: &mut Box<dyn WalIterator<Item = Result<LogRow>>>,
+        it: &mut Box<dyn WalIterator<Item = Result<WalFileRow>>>,
     ) -> Result<Self> {
         let mut commit_tree = Self::new();
         while let Some(row_info) = it.next() {
