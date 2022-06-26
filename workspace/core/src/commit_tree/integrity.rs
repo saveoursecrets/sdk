@@ -125,7 +125,7 @@ mod test {
         let (_, mut vault, _) = mock_vault_file()?;
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
-        let (secret_id, commit, _, _) = mock_vault_note(
+        let (secret_id, commit, _, _, _) = mock_vault_note(
             &mut vault,
             &encryption_key,
             secret_label,

@@ -923,12 +923,13 @@ mod tests {
 
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
-        let (secret_id, commit, secret_meta, secret_value) = mock_vault_note(
-            &mut vault,
-            &encryption_key,
-            secret_label,
-            secret_note,
-        )?;
+        let (secret_id, commit, secret_meta, secret_value, _) =
+            mock_vault_note(
+                &mut vault,
+                &encryption_key,
+                secret_label,
+                secret_note,
+            )?;
 
         let mut stream = MemoryStream::new();
         Vault::encode(&mut stream, &vault)?;
