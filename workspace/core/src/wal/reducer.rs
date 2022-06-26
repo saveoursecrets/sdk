@@ -97,6 +97,14 @@ impl<'a> WalReducer<'a> {
     /// This series of events can then be appended to a
     /// new WAL log to create a compact version with
     /// history pruned.
+    ///
+    /// Note that using this to compact a WAL log is lossy;
+    /// log record timestamps will be reset.
+    ///
+    /// The commit tree returned here will be invalid once
+    /// the new series of events have been applied so callers
+    /// must generate a new commit tree once the new WAL log has
+    /// been created.
     pub fn compact(self) -> Result<(Vec<WalEvent<'a>>, CommitTree)> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();
@@ -111,7 +119,6 @@ impl<'a> WalReducer<'a> {
 
             let buffer = encode(&vault)?;
             events.push(WalEvent::CreateVault(Cow::Owned(buffer)));
-
             for (id, entry) in self.secrets {
                 let entry = entry.into_owned();
                 events.push(WalEvent::CreateSecret(id, Cow::Owned(entry)));
@@ -205,7 +212,7 @@ mod test {
     }
 
     #[test]
-    fn wal_reduce_events() -> Result<()> {
+    fn wal_reduce_build() -> Result<()> {
         let (temp, mut wal, _, encryption_key, secret_id) = mock_wal_file()?;
         let (vault, tree) = WalReducer::new().reduce(&mut wal)?.build()?;
 
@@ -233,6 +240,32 @@ mod test {
         }
 
         temp.close()?;
+        Ok(())
+    }
+
+    #[test]
+    fn wal_reduce_compact() -> Result<()> {
+        let (temp, mut wal, _, encryption_key, secret_id) = mock_wal_file()?;
+
+        // Get a vault so we can assert on the compaction result
+        let (vault, _) = WalReducer::new().reduce(&mut wal)?.build()?;
+
+        // Get the compacted series of events
+        let (events, tree) = WalReducer::new().reduce(&mut wal)?.compact()?;
+
+        assert_eq!(2, events.len());
+        assert_eq!(5, tree.len());
+
+        let compact_temp = NamedTempFile::new()?;
+        let mut compact = WalFile::new(compact_temp.path())?;
+        for event in events {
+            compact.append_event(event)?;
+        }
+
+        let (compact_vault, _) =
+            WalReducer::new().reduce(&mut compact)?.build()?;
+        assert_eq!(vault, compact_vault);
+
         Ok(())
     }
 }
