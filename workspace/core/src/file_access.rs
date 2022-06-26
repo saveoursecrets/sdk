@@ -239,7 +239,10 @@ impl VaultAccess for VaultFileAccess {
         file.write_all(buffer)?;
 
         let change_seq = self.change_seq()?;
-        Ok(SyncEvent::UpdateVault(change_seq))
+        Ok(SyncEvent::UpdateVault(
+            change_seq,
+            Cow::Owned(buffer.to_vec()),
+        ))
     }
 
     fn vault_name(&self) -> Result<(String, SyncEvent)> {

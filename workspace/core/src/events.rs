@@ -23,7 +23,7 @@ use crate::{
     Error, Result,
 };
 
-/// Constants for the types of events.
+/// Constants for the kind of events.
 mod types {
     /// Type identifier for a noop.
     pub const NOOP: u16 = 0x0;
@@ -217,7 +217,7 @@ pub enum SyncEvent<'a> {
     ReadVault(u32),
 
     /// SyncEvent used to indicate that a vault was updated.
-    UpdateVault(u32),
+    UpdateVault(u32, Cow<'a, [u8]>),
 
     /// SyncEvent used to indicate a vault was deleted.
     DeleteVault(u32),
@@ -262,7 +262,7 @@ impl Default for SyncEvent<'_> {
 /// SyncEvent with an attached signature.
 pub struct SignedSyncEvent([u8; 65], Vec<u8>);
 
-impl<'a> SyncEvent<'a> {
+impl SyncEvent<'_> {
     /// Append a signature to a payload.
     pub async fn sign(&self, signer: impl Signer) -> Result<SignedSyncEvent> {
         let encoded = encode(self)?;
@@ -291,7 +291,7 @@ impl<'a> SyncEvent<'a> {
             Self::Noop => panic!("no change sequence for noop variant"),
             Self::CreateVault(_) => Some(&0),
             Self::ReadVault(change_seq) => Some(change_seq),
-            Self::UpdateVault(change_seq) => Some(change_seq),
+            Self::UpdateVault(change_seq, _) => Some(change_seq),
             Self::DeleteVault(change_seq) => Some(change_seq),
             Self::GetVaultName(change_seq) => Some(change_seq),
             Self::SetVaultName(change_seq, _) => Some(change_seq),
@@ -303,13 +303,13 @@ impl<'a> SyncEvent<'a> {
         }
     }
 
-    /// Get the operation corresponding to this payload.
-    pub fn operation(&self) -> EventKind {
+    /// Get the event kind for this event.
+    fn event_kind(&self) -> EventKind {
         match self {
             SyncEvent::Noop => EventKind::Noop,
             SyncEvent::CreateVault(_) => EventKind::CreateVault,
             SyncEvent::ReadVault(_) => EventKind::ReadVault,
-            SyncEvent::UpdateVault(_) => EventKind::UpdateVault,
+            SyncEvent::UpdateVault(_, _) => EventKind::UpdateVault,
             SyncEvent::DeleteVault(_) => EventKind::DeleteVault,
             SyncEvent::GetVaultName(_) => EventKind::GetVaultName,
             SyncEvent::SetVaultName(_, _) => EventKind::SetVaultName,
@@ -328,7 +328,7 @@ impl<'a> SyncEvent<'a> {
             SyncEvent::CreateVault(_)
             | SyncEvent::ReadVault(_)
             | SyncEvent::DeleteVault(_)
-            | SyncEvent::UpdateVault(_)
+            | SyncEvent::UpdateVault(_, _)
             | SyncEvent::GetVaultName(_)
             | SyncEvent::SetVaultName(_, _)
             | SyncEvent::SetVaultMeta(_, _) => LogData::Vault(vault_id),
@@ -345,23 +345,27 @@ impl<'a> SyncEvent<'a> {
                 LogData::Secret(vault_id, *secret_id)
             }
         };
-        Log::new(self.operation(), address, Some(log_data))
+        Log::new(self.event_kind(), address, Some(log_data))
     }
 }
 
 impl<'a> Encode for SyncEvent<'a> {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        let op = self.operation();
+        let op = self.event_kind();
         op.encode(&mut *ser)?;
 
         match self {
-            SyncEvent::Noop => panic!("attempt to encode a noop"),
+            SyncEvent::Noop => panic!("SyncEvent: attempt to encode a noop"),
             SyncEvent::CreateVault(vault) => {
                 ser.writer.write_u32(vault.as_ref().len() as u32)?;
                 ser.writer.write_bytes(vault.as_ref())?;
             }
+            SyncEvent::UpdateVault(change_seq, vault) => {
+                ser.writer.write_u32(*change_seq)?;
+                ser.writer.write_u32(vault.as_ref().len() as u32)?;
+                ser.writer.write_bytes(vault.as_ref())?;
+            }
             SyncEvent::ReadVault(change_seq)
-            | SyncEvent::UpdateVault(change_seq)
             | SyncEvent::DeleteVault(change_seq)
             | SyncEvent::GetVaultName(change_seq) => {
                 ser.writer.write_u32(*change_seq)?;
@@ -417,7 +421,7 @@ impl<'a> Decode for SyncEvent<'a> {
         let mut op: EventKind = Default::default();
         op.decode(&mut *de)?;
         match op {
-            EventKind::Noop => panic!("attempt to decode a noop"),
+            EventKind::Noop => panic!("SyncEvent: attempt to decode a noop"),
             EventKind::CreateVault => {
                 let length = de.reader.read_u32()?;
                 let buffer = de.reader.read_bytes(length as usize)?;
@@ -429,7 +433,10 @@ impl<'a> Decode for SyncEvent<'a> {
             }
             EventKind::UpdateVault => {
                 let change_seq = de.reader.read_u32()?;
-                *self = SyncEvent::UpdateVault(change_seq);
+                let length = de.reader.read_u32()?;
+                let buffer = de.reader.read_bytes(length as usize)?;
+                *self =
+                    SyncEvent::UpdateVault(change_seq, Cow::Owned(buffer));
             }
             EventKind::DeleteVault => {
                 let change_seq = de.reader.read_u32()?;
@@ -502,11 +509,188 @@ impl<'a> Decode for SyncEvent<'a> {
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownSyncEventKind(op),
+                    Error::UnknownEventKind((&op).into()),
                 )))
             }
         }
         Ok(())
+    }
+}
+
+/// Event that can be stored in a write-ahead log.
+///
+/// The variants in this type represent a subset of
+/// the SyncEvent that are allowed in a write-ahead log.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum WalEvent<'a> {
+    /// Variant used for the Default implementation.
+    Noop,
+
+    /// Create a new vault.
+    CreateVault(Cow<'a, [u8]>),
+
+    /// Update the vault buffer.
+    UpdateVault(Cow<'a, [u8]>),
+
+    /// Set the vault name.
+    SetVaultName(Cow<'a, str>),
+
+    /// Set the vault meta data.
+    SetVaultMeta(Cow<'a, Option<AeadPack>>),
+
+    /// Create a secret.
+    CreateSecret(SecretId, Cow<'a, SecretCommit>),
+
+    /// Update a secret.
+    UpdateSecret(SecretId, Cow<'a, SecretCommit>),
+
+    /// Delete a secret.
+    DeleteSecret(SecretId),
+}
+
+impl Default for WalEvent<'_> {
+    fn default() -> Self {
+        WalEvent::Noop
+    }
+}
+
+impl WalEvent<'_> {
+    /// Get the event kind for this event.
+    fn event_kind(&self) -> EventKind {
+        match self {
+            WalEvent::Noop => EventKind::Noop,
+            WalEvent::CreateVault(_) => EventKind::CreateVault,
+            WalEvent::UpdateVault(_) => EventKind::UpdateVault,
+            WalEvent::SetVaultName(_) => EventKind::SetVaultName,
+            WalEvent::SetVaultMeta(_) => EventKind::SetVaultMeta,
+            WalEvent::CreateSecret(_, _) => EventKind::CreateSecret,
+            WalEvent::UpdateSecret(_, _) => EventKind::UpdateSecret,
+            WalEvent::DeleteSecret(_) => EventKind::DeleteSecret,
+        }
+    }
+}
+
+impl<'a> Encode for WalEvent<'a> {
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        let op = self.event_kind();
+        op.encode(&mut *ser)?;
+
+        match self {
+            WalEvent::Noop => panic!("WalEvent: attempt to encode a noop"),
+            WalEvent::CreateVault(vault) | WalEvent::UpdateVault(vault) => {
+                ser.writer.write_u32(vault.as_ref().len() as u32)?;
+                ser.writer.write_bytes(vault.as_ref())?;
+            }
+            WalEvent::SetVaultName(name) => {
+                ser.writer.write_string(name)?;
+            }
+            WalEvent::SetVaultMeta(meta) => {
+                ser.writer.write_bool(meta.is_some())?;
+                if let Some(meta) = meta.as_ref() {
+                    meta.encode(&mut *ser)?;
+                }
+            }
+            WalEvent::CreateSecret(uuid, value) => {
+                uuid.serialize(&mut *ser)?;
+                value.as_ref().encode(&mut *ser)?;
+            }
+            WalEvent::UpdateSecret(uuid, value) => {
+                uuid.serialize(&mut *ser)?;
+                value.as_ref().encode(&mut *ser)?;
+            }
+            WalEvent::DeleteSecret(uuid) => {
+                uuid.serialize(&mut *ser)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'a> Decode for WalEvent<'a> {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let mut op: EventKind = Default::default();
+        op.decode(&mut *de)?;
+        match op {
+            EventKind::Noop => panic!("WalEvent: attempt to decode a noop"),
+            EventKind::CreateVault => {
+                let length = de.reader.read_u32()?;
+                let buffer = de.reader.read_bytes(length as usize)?;
+                *self = WalEvent::CreateVault(Cow::Owned(buffer));
+            }
+            EventKind::UpdateVault => {
+                let length = de.reader.read_u32()?;
+                let buffer = de.reader.read_bytes(length as usize)?;
+                *self = WalEvent::UpdateVault(Cow::Owned(buffer));
+            }
+
+            EventKind::SetVaultName => {
+                let name = de.reader.read_string()?;
+                *self = WalEvent::SetVaultName(Cow::Owned(name));
+            }
+            EventKind::SetVaultMeta => {
+                let has_meta = de.reader.read_bool()?;
+                let aead_pack = if has_meta {
+                    let mut aead_pack: AeadPack = Default::default();
+                    aead_pack.decode(&mut *de)?;
+                    Some(aead_pack)
+                } else {
+                    None
+                };
+                *self = WalEvent::SetVaultMeta(Cow::Owned(aead_pack));
+            }
+            EventKind::CreateSecret => {
+                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let mut commit: SecretCommit = Default::default();
+                commit.decode(&mut *de)?;
+                *self = WalEvent::CreateSecret(id, Cow::Owned(commit));
+            }
+            EventKind::UpdateSecret => {
+                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let mut commit: SecretCommit = Default::default();
+                commit.decode(&mut *de)?;
+                *self = WalEvent::UpdateSecret(id, Cow::Owned(commit));
+            }
+            EventKind::DeleteSecret => {
+                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                *self = WalEvent::DeleteSecret(id);
+            }
+            _ => {
+                return Err(BinaryError::Boxed(Box::from(
+                    Error::UnknownEventKind((&op).into()),
+                )))
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'a> From<&'a SyncEvent<'a>> for WalEvent<'a> {
+    fn from(value: &'a SyncEvent) -> Self {
+        match value {
+            SyncEvent::CreateVault(value) => {
+                WalEvent::CreateVault(value.clone())
+            }
+            SyncEvent::UpdateVault(_, value) => {
+                WalEvent::UpdateVault(value.clone())
+            }
+            SyncEvent::SetVaultName(_, name) => {
+                WalEvent::SetVaultName(name.clone())
+            }
+            SyncEvent::SetVaultMeta(_, meta) => {
+                WalEvent::SetVaultMeta(meta.clone())
+            }
+            SyncEvent::CreateSecret(_, id, value) => {
+                WalEvent::CreateSecret(*id, value.clone())
+            }
+            SyncEvent::UpdateSecret(_, id, value) => {
+                WalEvent::UpdateSecret(*id, value.clone())
+            }
+            SyncEvent::DeleteSecret(_, id) => WalEvent::DeleteSecret(*id),
+            _ => panic!(
+                "cannot convert sync event {} to WAL event",
+                value.event_kind()
+            ),
+        }
     }
 }
 
@@ -532,6 +716,8 @@ pub enum ChangeEvent {
         vault_id: Uuid,
         /// The change sequence.
         change_seq: u32,
+        /// The vault buffer.
+        vault: Vec<u8>,
     },
     /// Event emitted when a vault is deleted.
     DeleteVault {
@@ -633,10 +819,10 @@ impl ChangeEvent {
     }
 }
 
-impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p SyncEvent<'p>)>
+impl<'u, 'a, 'e> From<(&'u Uuid, &'a AddressStr, &'e SyncEvent<'e>)>
     for ChangeEvent
 {
-    fn from(value: (&'u Uuid, &'a AddressStr, &'p SyncEvent<'p>)) -> Self {
+    fn from(value: (&'u Uuid, &'a AddressStr, &'e SyncEvent<'e>)) -> Self {
         let (vault_id, address, payload) = value;
         match payload {
             SyncEvent::CreateVault(vault) => ChangeEvent::CreateVault {
@@ -644,11 +830,14 @@ impl<'u, 'a, 'p> From<(&'u Uuid, &'a AddressStr, &'p SyncEvent<'p>)>
                 vault_id: *vault_id,
                 vault: vault.to_vec(),
             },
-            SyncEvent::UpdateVault(change_seq) => ChangeEvent::UpdateVault {
-                address: address.clone(),
-                change_seq: *change_seq,
-                vault_id: *vault_id,
-            },
+            SyncEvent::UpdateVault(change_seq, vault) => {
+                ChangeEvent::UpdateVault {
+                    address: address.clone(),
+                    change_seq: *change_seq,
+                    vault_id: *vault_id,
+                    vault: vault.to_vec(),
+                }
+            }
             SyncEvent::DeleteVault(change_seq) => ChangeEvent::DeleteVault {
                 address: address.clone(),
                 change_seq: *change_seq,

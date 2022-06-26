@@ -773,7 +773,10 @@ impl VaultAccess for Vault {
         let vault = Vault::read_buffer(buffer)?;
         *self = vault;
         let change_seq = self.change_seq()?;
-        Ok(SyncEvent::UpdateVault(change_seq))
+        Ok(SyncEvent::UpdateVault(
+            change_seq,
+            Cow::Owned(buffer.to_vec()),
+        ))
     }
 
     fn vault_name(&self) -> Result<(String, SyncEvent)> {

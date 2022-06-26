@@ -77,7 +77,7 @@ pub fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
     let mut commits = Vec::new();
     let event = SyncEvent::CreateVault(Cow::Owned(buffer));
 
-    commits.push(wal.append_event(&event)?);
+    commits.push(wal.append_event((&event).into())?);
 
     let secret_label = "WAL Note";
     let secret_note = "This a WAL note secret.";
@@ -87,8 +87,8 @@ pub fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
         secret_label,
         secret_note,
     )?;
-    commits.push(wal.append_event(&event)?);
+    commits.push(wal.append_event((&event).into())?);
     // TODO: add an UpdateSecret event
-    commits.push(wal.append_event(&event)?);
+    commits.push(wal.append_event((&event).into())?);
     Ok((temp, wal, commits))
 }

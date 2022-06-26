@@ -1,5 +1,5 @@
 //! Write ahead log types and traits.
-use crate::{events::SyncEvent, vault::CommitHash, Result};
+use crate::{events::WalEvent, vault::CommitHash, Result};
 
 use serde_binary::{
     binary_rw::SeekStream, Decode, Deserializer, Encode,
@@ -105,16 +105,13 @@ impl Decode for LogRecord {
     }
 }
 
-/// Data that is stored in each log record.
-pub type LogData<'a> = SyncEvent<'a>;
-
 /// Trait for implementations that provide access to a write-ahead log (WAL).
 pub trait WalProvider {
     /// The item yielded by the iterator implementation.
     type Item;
 
     /// Append a log event to the write ahead log.
-    fn append_event(&mut self, log_event: &LogData<'_>)
+    fn append_event(&mut self, log_event: WalEvent<'_>)
         -> Result<CommitHash>;
 
     /// Get an iterator of the log records.

@@ -14,6 +14,7 @@
 //!
 use crate::{
     commit_tree::hash,
+    events::WalEvent,
     file_identity::FileIdentity,
     vault::{encode, CommitHash},
     Result,
@@ -30,7 +31,7 @@ use serde_binary::{
     Decode, Deserializer, Result as BinaryResult,
 };
 
-use super::{LogData, LogRecord, LogTime, WalIterator, WalProvider};
+use super::{LogRecord, LogTime, WalIterator, WalProvider};
 
 /// Identity magic bytes (SOSW).
 pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
@@ -120,10 +121,10 @@ impl WalProvider for WalFile {
 
     fn append_event(
         &mut self,
-        log_event: &LogData<'_>,
+        log_event: WalEvent<'_>,
     ) -> Result<CommitHash> {
         let log_time: LogTime = Default::default();
-        let log_bytes = encode(log_event)?;
+        let log_bytes = encode(&log_event)?;
         let log_commit = CommitHash(hash(&log_bytes));
         let log_record = LogRecord(log_time, log_commit, log_bytes);
         let buffer = encode(&log_record)?;
