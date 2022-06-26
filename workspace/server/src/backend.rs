@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::{file_locks::LockFiles, Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
@@ -16,6 +16,12 @@ type VaultStorage = Box<dyn VaultAccess + Send + Sync>;
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]
 pub trait Backend {
+    /// Sets the lock files.
+    fn set_lock_files(&mut self, locks: LockFiles) -> Result<()>;
+
+    /// Get the lock files.
+    fn lock_files(&self) -> &LockFiles;
+
     /// Create a new account with the given default vault.
     ///
     /// The owner directory must not exist.
@@ -85,6 +91,8 @@ pub trait Backend {
 /// Backend storage for vaults on the file system.
 pub struct FileSystemBackend {
     directory: PathBuf,
+    locks: LockFiles,
+    files: Vec<PathBuf>,
     accounts: RwLock<HashMap<AddressStr, HashMap<Uuid, VaultStorage>>>,
 }
 
@@ -93,6 +101,8 @@ impl FileSystemBackend {
     pub fn new(directory: PathBuf) -> Self {
         Self {
             directory,
+            locks: Default::default(),
+            files: Vec::new(),
             accounts: RwLock::new(Default::default()),
         }
     }
@@ -123,6 +133,7 @@ impl FileSystemBackend {
                                     let summary = Header::read_summary_file(
                                         &vault_path,
                                     )?;
+                                    self.files.push(vault_path.to_path_buf());
                                     vaults.insert(
                                         *summary.id(),
                                         Box::new(VaultFileAccess::new(
@@ -187,6 +198,18 @@ impl FileSystemBackend {
 
 #[async_trait]
 impl Backend for FileSystemBackend {
+    fn set_lock_files(&mut self, mut locks: LockFiles) -> Result<()> {
+        for file in &self.files {
+            locks.add(file)?;
+        }
+        self.locks = locks;
+        Ok(())
+    }
+
+    fn lock_files(&self) -> &LockFiles {
+        &self.locks
+    }
+
     async fn create_account(
         &mut self,
         owner: &AddressStr,
@@ -223,6 +246,7 @@ impl Backend for FileSystemBackend {
         Header::read_summary_slice(vault)?;
 
         let vault_path = self.new_vault_file(owner, vault_id, vault).await?;
+        self.locks.add(&vault_path)?;
         self.add_vault_path(*owner, vault_path).await?;
 
         Ok(())
@@ -250,8 +274,9 @@ impl Backend for FileSystemBackend {
 
         let removed = account.remove(vault_id);
         if let Some(_) = removed {
-            let vault_file = self.vault_file_path(&owner, vault_id);
-            let _ = tokio::fs::remove_file(&vault_file).await;
+            let vault_path = self.vault_file_path(&owner, vault_id);
+            self.locks.remove(&vault_path);
+            let _ = tokio::fs::remove_file(&vault_path).await;
         }
 
         Ok(())

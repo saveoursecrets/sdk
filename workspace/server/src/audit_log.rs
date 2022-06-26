@@ -1,8 +1,5 @@
 use async_trait::async_trait;
-use std::{
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::{io::Write, path::Path};
 use tokio::{fs::File, io::AsyncWriteExt, sync::Mutex};
 
 use crate::Result;

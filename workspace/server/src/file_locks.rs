@@ -1,12 +1,16 @@
 use crate::{Error, Result};
 use file_guard::{FileGuard, Lock};
 use ouroboros::self_referencing;
-use std::{fs::File, path::Path};
+use std::{
+    collections::HashMap,
+    fs::File,
+    path::{Path, PathBuf},
+};
 
 /// Attempts to acquire exclusive locks to a collection of files.
 #[derive(Default)]
 pub struct LockFiles {
-    guards: Vec<LockGuard>,
+    guards: HashMap<PathBuf, LockGuard>,
 }
 
 impl LockFiles {
@@ -18,14 +22,31 @@ impl LockFiles {
     /// Attempt to acquire a lock on all the source files.
     pub fn acquire<P: AsRef<Path>>(&mut self, sources: Vec<P>) -> Result<()> {
         for path in sources {
-            let file = LockFiles::lock_file(path.as_ref())?;
-            if LockFiles::would_block(&file) {
-                return Err(Error::FileLocked(path.as_ref().to_path_buf()));
-            }
-            let guard = LockGuard::lock(file)?;
-            self.guards.push(guard);
+            self.add(path)?;
         }
         Ok(())
+    }
+
+    /// Add a guard to a locked file.
+    pub fn add<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let file = LockFiles::lock_file(path.as_ref())?;
+        if LockFiles::would_block(&file) {
+            return Err(Error::FileLocked(path.as_ref().to_path_buf()));
+        }
+        let guard = LockGuard::lock(file)?;
+        self.guards.insert(path.as_ref().to_path_buf(), guard);
+        Ok(())
+    }
+
+    /// Remove the guard on a locked file.
+    pub fn remove(&mut self, path: &PathBuf) -> bool {
+        let removed = self.guards.remove(path);
+        removed.is_some()
+    }
+
+    /// Get the paths for locked files.
+    pub fn paths(&self) -> Vec<&PathBuf> {
+        self.guards.keys().collect::<Vec<_>>()
     }
 
     /// Get the lock file for a source file.

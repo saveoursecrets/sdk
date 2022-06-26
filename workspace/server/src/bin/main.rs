@@ -43,19 +43,20 @@ async fn run() -> Result<()> {
     //println!("Config {:#?}", config);
 
     let authentication: Authentication = Default::default();
-    let backend = config.backend().await?;
+    let mut backend = config.backend().await?;
 
     let audit_log_file =
         args.audit_log.unwrap_or_else(|| config.audit_file());
 
     let mut locks = LockFiles::new();
-    let sources = vec![&audit_log_file];
+    let sources = vec![audit_log_file.clone()];
     let _ = locks.acquire(sources)?;
+    // Move into the backend so it can manage lock files too
+    backend.set_lock_files(locks)?;
 
-    //if AuditLogFile::would_block(&audit_log_file)? {
-    //return Err(Error::AuditWouldBlock(audit_log_file));
-    //}
+    tracing::debug!("lock files {:#?}", backend.lock_files().paths());
 
+    // Set up the audit log
     let audit_log = AuditLogFile::new(&audit_log_file)?;
 
     let state = Arc::new(RwLock::new(State {
@@ -78,7 +79,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "sos_server=debug".into()),
+                .unwrap_or_else(|_| "sos_server=info".into()),
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();

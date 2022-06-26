@@ -222,7 +222,7 @@ impl Server {
             .layer(cors)
             .layer(Extension(shared_state));
 
-        tracing::debug!("listening on {}", addr);
+        tracing::info!("listening on {}", addr);
         axum::Server::bind(&addr)
             .serve(app.into_make_service())
             .await
