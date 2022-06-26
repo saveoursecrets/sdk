@@ -10,7 +10,6 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
-    commit_tree::CommitTree,
     crypto::AeadPack,
     events::WalEvent,
     secret::SecretId,
@@ -30,8 +29,6 @@ pub struct WalReducer<'a> {
     vault_meta: Option<Cow<'a, Option<AeadPack>>>,
     /// Map of the reduced secrets.
     secrets: HashMap<SecretId, Cow<'a, VaultCommit>>,
-    /// Commit tree.
-    tree: CommitTree,
 }
 
 impl<'a> WalReducer<'a> {
@@ -48,14 +45,12 @@ impl<'a> WalReducer<'a> {
         let mut it = wal.iter()?;
         if let Some(first) = it.next() {
             let log = first?;
-            self.tree.insert(log.commit());
             let event = wal.event_data(log)?;
 
             if let WalEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
                 for record in it {
                     let log = record?;
-                    self.tree.insert(log.commit());
                     let event = wal.event_data(log)?;
                     match event {
                         WalEvent::Noop => unreachable!(),
@@ -87,7 +82,6 @@ impl<'a> WalReducer<'a> {
             }
         }
 
-        self.tree.commit();
         Ok(self)
     }
 
@@ -105,7 +99,7 @@ impl<'a> WalReducer<'a> {
     /// the new series of events have been applied so callers
     /// must generate a new commit tree once the new WAL log has
     /// been created.
-    pub fn compact(self) -> Result<(Vec<WalEvent<'a>>, CommitTree)> {
+    pub fn compact(self) -> Result<Vec<WalEvent<'a>>> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();
             let mut vault = Vault::read_buffer(&vault)?;
@@ -123,14 +117,14 @@ impl<'a> WalReducer<'a> {
                 let entry = entry.into_owned();
                 events.push(WalEvent::CreateSecret(id, Cow::Owned(entry)));
             }
-            Ok((events, self.tree))
+            Ok(events)
         } else {
-            Ok((Vec::new(), self.tree))
+            Ok(Vec::new())
         }
     }
 
     /// Consume this reducer and build a vault.
-    pub fn build(self) -> Result<(Vault, CommitTree)> {
+    pub fn build(self) -> Result<Vault> {
         if let Some(vault) = self.vault {
             let mut vault = Vault::read_buffer(&vault)?;
 
@@ -146,9 +140,9 @@ impl<'a> WalReducer<'a> {
                 let entry = entry.into_owned();
                 vault.insert(id, entry);
             }
-            Ok((vault, self.tree))
+            Ok(vault)
         } else {
-            Ok((Default::default(), self.tree))
+            Ok(Default::default())
         }
     }
 }
@@ -214,10 +208,12 @@ mod test {
     #[test]
     fn wal_reduce_build() -> Result<()> {
         let (temp, mut wal, _, encryption_key, secret_id) = mock_wal_file()?;
-        let (vault, tree) = WalReducer::new().reduce(&mut wal)?.build()?;
+
+        assert_eq!(5, wal.tree().len());
+
+        let vault = WalReducer::new().reduce(&mut wal)?.build()?;
 
         assert_eq!(1, vault.len());
-        assert_eq!(5, tree.len());
 
         let entry = vault.get(&secret_id);
         assert!(entry.is_some());
@@ -247,14 +243,15 @@ mod test {
     fn wal_reduce_compact() -> Result<()> {
         let (temp, mut wal, _, encryption_key, secret_id) = mock_wal_file()?;
 
+        assert_eq!(5, wal.tree().len());
+
         // Get a vault so we can assert on the compaction result
-        let (vault, _) = WalReducer::new().reduce(&mut wal)?.build()?;
+        let vault = WalReducer::new().reduce(&mut wal)?.build()?;
 
         // Get the compacted series of events
-        let (events, tree) = WalReducer::new().reduce(&mut wal)?.compact()?;
+        let events = WalReducer::new().reduce(&mut wal)?.compact()?;
 
         assert_eq!(2, events.len());
-        assert_eq!(5, tree.len());
 
         let compact_temp = NamedTempFile::new()?;
         let mut compact = WalFile::new(compact_temp.path())?;
@@ -262,7 +259,7 @@ mod test {
             compact.append_event(event)?;
         }
 
-        let (compact_vault, _) =
+        let compact_vault =
             WalReducer::new().reduce(&mut compact)?.build()?;
         assert_eq!(vault, compact_vault);
 

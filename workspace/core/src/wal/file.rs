@@ -13,7 +13,7 @@
 //! ```
 //!
 use crate::{
-    commit_tree::hash,
+    commit_tree::{hash, CommitTree},
     events::WalEvent,
     file_identity::FileIdentity,
     vault::{encode, CommitHash},
@@ -92,6 +92,7 @@ impl Decode for WalFileRow {
 pub struct WalFile {
     file_path: PathBuf,
     file: File,
+    tree: CommitTree,
 }
 
 impl WalFile {
@@ -101,6 +102,7 @@ impl WalFile {
         Ok(Self {
             file,
             file_path: file_path.as_ref().to_path_buf(),
+            tree: Default::default(),
         })
     }
 
@@ -131,16 +133,23 @@ impl WalFile {
 impl WalProvider for WalFile {
     type Item = WalFileRow;
 
+    fn tree(&self) -> &CommitTree {
+        &self.tree
+    }
+
     fn append_event(
         &mut self,
         log_event: WalEvent<'_>,
     ) -> Result<CommitHash> {
         let log_time: LogTime = Default::default();
         let log_bytes = encode(&log_event)?;
-        let log_commit = CommitHash(hash(&log_bytes));
+        let hash_bytes = hash(&log_bytes);
+        self.tree.insert(hash_bytes);
+        let log_commit = CommitHash(hash_bytes);
         let log_record = LogRecord(log_time, log_commit, log_bytes);
         let buffer = encode(&log_record)?;
         self.file.write_all(&buffer)?;
+        self.tree.commit();
         Ok(log_commit)
     }
 

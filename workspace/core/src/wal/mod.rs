@@ -1,5 +1,7 @@
 //! Write ahead log types and traits.
-use crate::{events::WalEvent, vault::CommitHash, Result};
+use crate::{
+    commit_tree::CommitTree, events::WalEvent, vault::CommitHash, Result,
+};
 
 use serde_binary::{
     binary_rw::SeekStream, Decode, Deserializer, Encode,
@@ -126,6 +128,9 @@ pub trait WalProvider {
 
     /// Read the event data from an item.
     fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>>;
+
+    /// Get the commit tree for the log records.
+    fn tree(&self) -> &CommitTree;
 
     /// Get an iterator of the log records.
     fn iter(&self)
