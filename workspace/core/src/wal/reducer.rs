@@ -14,7 +14,7 @@ use crate::{
     crypto::AeadPack,
     events::WalEvent,
     secret::SecretId,
-    vault::{Vault, VaultCommit},
+    vault::{encode, Vault, VaultCommit},
     wal::{WalItem, WalProvider},
     Error, Result,
 };
@@ -89,6 +89,37 @@ impl<'a> WalReducer<'a> {
 
         self.tree.commit();
         Ok(self)
+    }
+
+    /// Create a series of new WAL events that represent
+    /// a compacted version of the WAL.
+    ///
+    /// This series of events can then be appended to a
+    /// new WAL log to create a compact version with
+    /// history pruned.
+    pub fn compact(self) -> Result<(Vec<WalEvent<'a>>, CommitTree)> {
+        if let Some(vault) = self.vault {
+            let mut events = Vec::new();
+            let mut vault = Vault::read_buffer(&vault)?;
+            if let Some(name) = self.vault_name {
+                vault.set_name(name.into_owned());
+            }
+
+            if let Some(meta) = self.vault_meta {
+                vault.header_mut().set_meta(meta.into_owned());
+            }
+
+            let buffer = encode(&vault)?;
+            events.push(WalEvent::CreateVault(Cow::Owned(buffer)));
+
+            for (id, entry) in self.secrets {
+                let entry = entry.into_owned();
+                events.push(WalEvent::CreateSecret(id, Cow::Owned(entry)));
+            }
+            Ok((events, self.tree))
+        } else {
+            Ok((Vec::new(), self.tree))
+        }
     }
 
     /// Consume this reducer and build a vault.
