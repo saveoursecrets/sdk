@@ -23,9 +23,8 @@ use serde_json::json;
 use sos_core::{
     address::AddressStr,
     audit::{Append, Log},
-    changes::FeedEvent,
     decode,
-    events::{EventKind, SyncEvent},
+    events::{ChangeEvent, EventKind, SyncEvent},
     patch::Patch,
     secret::SecretId,
     vault::{Header, SecretCommit, Summary, Vault},
@@ -58,7 +57,7 @@ struct ResponseEvent {
     /// Audit log record.
     log: Log,
     /// A server event to send to connected clients.
-    event: Option<FeedEvent>,
+    event: Option<ChangeEvent>,
 }
 
 /// Internal type used to reflect whether an operation detected
@@ -122,7 +121,7 @@ pub struct SseConnection {
     ///
     /// Handlers can send messages via this sender to broadcast
     /// to all the connected server sent events for the client.
-    tx: Sender<FeedEvent>,
+    tx: Sender<ChangeEvent>,
 
     /// Number of connected clients, used to know when
     /// the connection state can be disposed of.
@@ -508,7 +507,7 @@ impl VaultHandler {
                     let payload =
                         SyncEvent::CreateVault(Cow::Borrowed(&body));
 
-                    let event = FeedEvent::CreateVault {
+                    let event = ChangeEvent::CreateVault {
                         vault_id: *summary.id(),
                         address: token.address,
                         vault: body.to_vec(),
@@ -654,7 +653,7 @@ impl VaultHandler {
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                    let event = FeedEvent::DeleteVault {
+                    let event = ChangeEvent::DeleteVault {
                         vault_id,
                         address: token.address,
                         change_seq,
@@ -710,7 +709,7 @@ impl VaultHandler {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
                     if let Ok(payload) = handle.save(&body) {
-                        let event = FeedEvent::from((
+                        let event = ChangeEvent::from((
                             &vault_id,
                             &token.address,
                             &payload,
@@ -778,7 +777,7 @@ impl VaultHandler {
                             })?;
 
                             events.push(ResponseEvent {
-                                event: Some(FeedEvent::from((
+                                event: Some(ChangeEvent::from((
                                     &vault_id,
                                     &token.address,
                                     &payload,
@@ -887,7 +886,7 @@ impl VaultHandler {
                     Ok(MaybeConflict::Conflict(remote_change_seq))
                 } else {
                     if let Ok(payload) = handle.set_vault_name(name) {
-                        let event = FeedEvent::from((
+                        let event = ChangeEvent::from((
                             &vault_id,
                             &token.address,
                             &payload,
@@ -950,7 +949,7 @@ impl SecretHandler {
                         // TODO: ensure the payload generate secret id
                         // TODO: matches the client supplied id
 
-                        let event = FeedEvent::from((
+                        let event = ChangeEvent::from((
                             &vault_id,
                             &token.address,
                             &payload,
@@ -1055,7 +1054,7 @@ impl SecretHandler {
                         handle.update(&secret_id, secret.0, secret.1)
                     {
                         if let Some(payload) = result {
-                            let event = FeedEvent::from((
+                            let event = ChangeEvent::from((
                                 &vault_id,
                                 &token.address,
                                 &payload,
@@ -1112,7 +1111,7 @@ impl SecretHandler {
                 } else {
                     if let Ok(result) = handle.delete(&secret_id) {
                         if let Some(payload) = result {
-                            let event = FeedEvent::from((
+                            let event = ChangeEvent::from((
                                 &vault_id,
                                 &token.address,
                                 &payload,
@@ -1157,7 +1156,7 @@ async fn sse_handler(
             {
                 conn
             } else {
-                let (tx, _) = broadcast::channel::<FeedEvent>(256);
+                let (tx, _) = broadcast::channel::<ChangeEvent>(256);
                 writer
                     .sse
                     .entry(token.address)
