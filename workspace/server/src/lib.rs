@@ -4,6 +4,7 @@ mod authenticate;
 mod backend;
 mod config;
 mod error;
+mod file_locks;
 mod headers;
 mod server;
 
@@ -14,4 +15,5 @@ pub use authenticate::Authentication;
 pub use backend::{Backend, FileSystemBackend};
 pub use config::ServerConfig;
 pub use error::Error;
+pub use file_locks::LockFiles;
 pub use server::{Server, State};

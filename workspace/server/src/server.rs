@@ -37,7 +37,6 @@ use tokio::sync::{
     broadcast::{self, Sender},
     RwLock,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
 use crate::{
@@ -158,14 +157,6 @@ impl Server {
         addr: SocketAddr,
         state: Arc<RwLock<State>>,
     ) -> crate::Result<()> {
-        tracing_subscriber::registry()
-            .with(tracing_subscriber::EnvFilter::new(
-                std::env::var("RUST_LOG")
-                    .unwrap_or_else(|_| "sos_server=debug".into()),
-            ))
-            .with(tracing_subscriber::fmt::layer())
-            .init();
-
         let shared_state = Arc::clone(&state);
 
         let reader = shared_state.read().await;

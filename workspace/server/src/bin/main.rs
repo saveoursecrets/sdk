@@ -1,9 +1,12 @@
 use clap::Parser;
 use sos_server::{
-    AuditLogFile, Authentication, Error, Result, Server, ServerConfig, State,
+    AuditLogFile, Authentication, LockFiles, Result, Server, ServerConfig,
+    State,
 };
+
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Secret storage server.
 #[derive(Parser, Debug)]
@@ -45,9 +48,13 @@ async fn run() -> Result<()> {
     let audit_log_file =
         args.audit_log.unwrap_or_else(|| config.audit_file());
 
-    if AuditLogFile::would_block(&audit_log_file)? {
-        return Err(Error::AuditWouldBlock(audit_log_file));
-    }
+    let mut locks = LockFiles::new();
+    let sources = vec![&audit_log_file];
+    let _ = locks.acquire(sources)?;
+
+    //if AuditLogFile::would_block(&audit_log_file)? {
+    //return Err(Error::AuditWouldBlock(audit_log_file));
+    //}
 
     let audit_log = AuditLogFile::new(&audit_log_file)?;
 
@@ -68,10 +75,18 @@ async fn run() -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG")
+                .unwrap_or_else(|_| "sos_server=debug".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
     match run().await {
         Ok(_) => {}
         Err(e) => {
-            eprintln!("{}", e);
+            tracing::error!("{}", e);
         }
     }
     Ok(())

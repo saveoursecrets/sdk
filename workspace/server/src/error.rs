@@ -15,6 +15,9 @@ pub enum Error {
     #[error("file {0} already exists")]
     FileExists(PathBuf),
 
+    #[error("file {0} is already locked")]
+    FileLocked(PathBuf),
+
     #[error("no vaults found")]
     NoVaults,
 
