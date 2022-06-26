@@ -19,6 +19,10 @@ fmt:
 	@cd browser && yarn fmt
 	@cargo fmt --all
 
+dev:
+	@cargo test --all
+	@cargo fmt --all
+
 check:
 	@cargo check --all
 

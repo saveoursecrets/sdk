@@ -6,7 +6,7 @@ use sos_core::{
     address::AddressStr,
     secret::SecretId,
     signer::Signer,
-    vault::{SecretCommit, Summary, MIME_TYPE_VAULT},
+    vault::{Summary, VaultCommit, MIME_TYPE_VAULT},
 };
 use std::sync::Arc;
 use url::Url;
@@ -230,7 +230,7 @@ impl Client {
         &self,
         vault_id: &Uuid,
         secret_id: &SecretId,
-        secret: &SecretCommit,
+        secret: &VaultCommit,
         change_seq: u32,
     ) -> Result<Response> {
         let url = self.server.join(&format!(
@@ -256,7 +256,7 @@ impl Client {
         &self,
         vault_id: &Uuid,
         secret_id: &SecretId,
-        secret: &SecretCommit,
+        secret: &VaultCommit,
         change_seq: u32,
     ) -> Result<Response> {
         let url = self.server.join(&format!(

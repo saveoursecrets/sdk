@@ -3,7 +3,7 @@ use crate::{
     diceware::generate_passphrase,
     events::{SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
-    vault::{encode, CommitHash, SecretGroup, Vault, VaultAccess},
+    vault::{encode, CommitHash, Vault, VaultAccess, VaultEntry},
     wal::{file::WalFile, WalProvider},
 };
 use std::{borrow::Cow, io::Write};
@@ -58,7 +58,7 @@ pub fn mock_vault_note<'a>(
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
-    let event = vault.create(commit, SecretGroup(meta_aead, secret_aead))?;
+    let event = vault.create(commit, VaultEntry(meta_aead, secret_aead))?;
     let secret_id = match &event {
         SyncEvent::CreateSecret(_, secret_id, _) => *secret_id,
         _ => unreachable!(),
@@ -82,7 +82,7 @@ pub fn mock_vault_note_update<'a>(
 
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
     let event =
-        vault.update(id, commit, SecretGroup(meta_aead, secret_aead))?;
+        vault.update(id, commit, VaultEntry(meta_aead, secret_aead))?;
     Ok((commit, secret_meta, secret_value, event))
 }
 

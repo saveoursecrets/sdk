@@ -27,7 +27,7 @@ use sos_core::{
     events::{ChangeEvent, EventKind, SyncEvent},
     patch::Patch,
     secret::SecretId,
-    vault::{Header, SecretCommit, Summary, Vault},
+    vault::{Header, Summary, Vault, VaultCommit},
 };
 use std::{
     borrow::Cow, collections::HashMap, convert::Infallible, net::SocketAddr,
@@ -928,7 +928,7 @@ impl SecretHandler {
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let secret: SecretCommit = serde_json::from_slice(&body)
+                let secret: VaultCommit = serde_json::from_slice(&body)
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let mut writer = state.write().await;
@@ -1033,7 +1033,7 @@ impl SecretHandler {
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let secret: SecretCommit = serde_json::from_slice(&body)
+                let secret: VaultCommit = serde_json::from_slice(&body)
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let mut writer = state.write().await;

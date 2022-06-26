@@ -202,7 +202,7 @@ mod test {
     use crate::{
         events::SyncEvent,
         test_utils::*,
-        vault::{SecretGroup, Vault, VaultAccess},
+        vault::{Vault, VaultAccess, VaultEntry},
     };
     use anyhow::Result;
 
@@ -224,7 +224,7 @@ mod test {
                 vault.encrypt(&encryption_key, &secret_bytes)?;
             let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
             let secret_id = match vault
-                .create(commit, SecretGroup(meta_aead, secret_aead))?
+                .create(commit, VaultEntry(meta_aead, secret_aead))?
             {
                 SyncEvent::CreateSecret(_, secret_id, _) => secret_id,
                 _ => unreachable!(),

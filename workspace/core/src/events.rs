@@ -19,7 +19,7 @@ use crate::{
     crypto::AeadPack,
     secret::SecretId,
     signer::Signer,
-    vault::{encode, SecretCommit},
+    vault::{encode, VaultCommit},
     Error, Result,
 };
 
@@ -236,7 +236,7 @@ pub enum SyncEvent<'a> {
     ///
     /// The remote server must check the `change_seq` to
     /// determine if the change could be safely applied.
-    CreateSecret(u32, SecretId, Cow<'a, SecretCommit>),
+    CreateSecret(u32, SecretId, Cow<'a, VaultCommit>),
 
     /// SyncEvent used to determine that a secret has been read,
     /// defined for audit log purposes.
@@ -247,7 +247,7 @@ pub enum SyncEvent<'a> {
     ///
     /// The remote server must check the `change_seq` to
     /// determine if the change could be safely applied.
-    UpdateSecret(u32, SecretId, Cow<'a, SecretCommit>),
+    UpdateSecret(u32, SecretId, Cow<'a, VaultCommit>),
 
     /// Delete a secret.
     DeleteSecret(u32, SecretId),
@@ -469,7 +469,7 @@ impl<'a> Decode for SyncEvent<'a> {
             EventKind::CreateSecret => {
                 let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
-                let mut commit: SecretCommit = Default::default();
+                let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *de)?;
                 //let mut meta_aead: AeadPack = Default::default();
                 //meta_aead.decode(&mut *de)?;
@@ -489,7 +489,7 @@ impl<'a> Decode for SyncEvent<'a> {
             EventKind::UpdateSecret => {
                 let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
-                let mut commit: SecretCommit = Default::default();
+                let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *de)?;
 
                 //let mut meta_aead: AeadPack = Default::default();
@@ -539,10 +539,10 @@ pub enum WalEvent<'a> {
     SetVaultMeta(Cow<'a, Option<AeadPack>>),
 
     /// Create a secret.
-    CreateSecret(SecretId, Cow<'a, SecretCommit>),
+    CreateSecret(SecretId, Cow<'a, VaultCommit>),
 
     /// Update a secret.
-    UpdateSecret(SecretId, Cow<'a, SecretCommit>),
+    UpdateSecret(SecretId, Cow<'a, VaultCommit>),
 
     /// Delete a secret.
     DeleteSecret(SecretId),
@@ -640,13 +640,13 @@ impl<'a> Decode for WalEvent<'a> {
             }
             EventKind::CreateSecret => {
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
-                let mut commit: SecretCommit = Default::default();
+                let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *de)?;
                 *self = WalEvent::CreateSecret(id, Cow::Owned(commit));
             }
             EventKind::UpdateSecret => {
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
-                let mut commit: SecretCommit = Default::default();
+                let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *de)?;
                 *self = WalEvent::UpdateSecret(id, Cow::Owned(commit));
             }

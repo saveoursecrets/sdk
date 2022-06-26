@@ -8,7 +8,7 @@ use std::{borrow::Cow, collections::HashMap};
 use crate::{
     crypto::AeadPack,
     secret::SecretId,
-    vault::{SecretGroup, Vault},
+    vault::{Vault, VaultEntry},
     Result,
 };
 
@@ -25,7 +25,7 @@ pub struct WalReducer<'a> {
     vault_meta: Option<AeadPack>,
 
     /// Map of the reduced secrets.
-    secrets: HashMap<SecretId, SecretGroup>,
+    secrets: HashMap<SecretId, VaultEntry>,
 }
 
 impl<'a> WalReducer<'a> {

@@ -23,8 +23,8 @@ use crate::{
     file_identity::FileIdentity,
     secret::SecretId,
     vault::{
-        encode, CommitHash, Contents, Header, SecretCommit, SecretGroup,
-        Summary, VaultAccess, IDENTITY,
+        encode, CommitHash, Contents, Header, Summary, VaultAccess,
+        VaultCommit, VaultEntry, IDENTITY,
     },
     Error, Result,
 };
@@ -265,7 +265,7 @@ impl VaultAccess for VaultFileAccess {
     fn create(
         &mut self,
         commit: CommitHash,
-        secret: SecretGroup,
+        secret: VaultEntry,
     ) -> Result<SyncEvent> {
         let id = Uuid::new_v4();
         let content_offset = self.check_identity()?;
@@ -277,7 +277,7 @@ impl VaultAccess for VaultFileAccess {
         let writer = BinaryWriter::new(&mut *stream, Endian::Big);
         let mut ser = Serializer { writer };
 
-        let row = SecretCommit(commit, secret);
+        let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
         ser.writer.seek(length)?;
@@ -296,7 +296,7 @@ impl VaultAccess for VaultFileAccess {
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, SecretCommit>>, SyncEvent)> {
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, SyncEvent)> {
         let (_, _, row) = self.find_row(id)?;
         let change_seq = self.change_seq()?;
         if let Some((row_offset, _)) = row {
@@ -318,7 +318,7 @@ impl VaultAccess for VaultFileAccess {
         &mut self,
         id: &SecretId,
         commit: CommitHash,
-        secret: SecretGroup,
+        secret: VaultEntry,
     ) -> Result<Option<SyncEvent>> {
         let (content_offset, total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
@@ -329,7 +329,7 @@ impl VaultAccess for VaultFileAccess {
             let writer = BinaryWriter::new(&mut stream, Endian::Big);
             let mut ser = Serializer { writer };
 
-            let row = SecretCommit(commit, secret);
+            let row = VaultCommit(commit, secret);
             Contents::encode_row(&mut ser, id, &row)?;
             let encoded: Vec<u8> = stream.into();
 
@@ -394,9 +394,7 @@ mod tests {
         crypto::secret_key::SecretKey,
         events::SyncEvent,
         secret::*,
-        vault::{
-            Header, SecretGroup, Vault, VaultAccess, DEFAULT_VAULT_NAME,
-        },
+        vault::{Header, Vault, VaultAccess, VaultEntry, DEFAULT_VAULT_NAME},
     };
     use anyhow::Result;
 
@@ -417,8 +415,8 @@ mod tests {
 
         let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
 
-        if let SyncEvent::CreateSecret(_, secret_id, _) = vault_access
-            .create(commit, SecretGroup(meta_aead, secret_aead))?
+        if let SyncEvent::CreateSecret(_, secret_id, _) =
+            vault_access.create(commit, VaultEntry(meta_aead, secret_aead))?
         {
             Ok((
                 secret_id,
@@ -516,7 +514,7 @@ mod tests {
         let _ = vault_access.update(
             &secret_id,
             commit,
-            SecretGroup(updated_meta, updated_secret),
+            VaultEntry(updated_meta, updated_secret),
         )?;
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(1, total_rows);

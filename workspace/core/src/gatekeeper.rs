@@ -19,7 +19,7 @@ use crate::{
     decode, encode,
     events::SyncEvent,
     secret::{Secret, SecretId, SecretMeta, SecretRef, VaultMeta},
-    vault::{SecretCommit, SecretGroup, Summary, Vault, VaultAccess},
+    vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
 use std::collections::HashMap;
@@ -174,10 +174,8 @@ impl Gatekeeper {
     ) -> Result<Option<(SecretMeta, Secret)>> {
         if let Some(private_key) = &self.private_key {
             if let (Some(value), _payload) = self.vault.read(id)? {
-                let SecretCommit(
-                    _commit,
-                    SecretGroup(meta_aead, secret_aead),
-                ) = value.as_ref();
+                let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
+                    value.as_ref();
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
                 let secret_meta: SecretMeta = decode(&meta_blob)?;
 
@@ -246,7 +244,7 @@ impl Gatekeeper {
             let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
             Ok(self
                 .vault
-                .create(commit, SecretGroup(meta_aead, secret_aead))?)
+                .create(commit, VaultEntry(meta_aead, secret_aead))?)
         } else {
             Err(Error::VaultLocked)
         }
@@ -303,7 +301,7 @@ impl Gatekeeper {
             Ok(self.vault.update(
                 id,
                 commit,
-                SecretGroup(meta_aead, secret_aead),
+                VaultEntry(meta_aead, secret_aead),
             )?)
         } else {
             Err(Error::VaultLocked)
