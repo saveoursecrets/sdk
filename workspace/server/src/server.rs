@@ -506,8 +506,11 @@ impl VaultHandler {
 
                     Ok(MaybeConflict::Success(vec![ResponseEvent {
                         event: Some(event),
-                        log: payload
-                            .into_audit_log(token.address, *summary.id()),
+                        log: AuditEvent::from_sync_event(
+                            &payload,
+                            token.address,
+                            *summary.id(),
+                        ),
                     }]))
                 }
             } else {
@@ -592,7 +595,11 @@ impl VaultHandler {
                     writer.backend.get_vault(&token.address, &vault_id).await
                 {
                     let payload = SyncEvent::ReadVault(change_seq);
-                    let log = payload.into_audit_log(token.address, vault_id);
+                    let log = AuditEvent::from_sync_event(
+                        &payload,
+                        token.address,
+                        vault_id,
+                    );
                     writer
                         .audit_log
                         .append(log)
@@ -648,7 +655,11 @@ impl VaultHandler {
                 let payload = SyncEvent::DeleteVault(change_seq);
                 Ok(MaybeConflict::Success(vec![ResponseEvent {
                     event: Some(event),
-                    log: payload.into_audit_log(token.address, vault_id),
+                    log: AuditEvent::from_sync_event(
+                        &payload,
+                        token.address,
+                        vault_id,
+                    ),
                 }]))
             } else {
                 Err(status_code)
@@ -700,8 +711,11 @@ impl VaultHandler {
 
                         Ok(MaybeConflict::Success(vec![ResponseEvent {
                             event: Some(event),
-                            log: payload
-                                .into_audit_log(token.address, vault_id),
+                            log: AuditEvent::from_sync_event(
+                                &payload,
+                                token.address,
+                                vault_id,
+                            ),
                         }]))
                     } else {
                         Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -765,14 +779,20 @@ impl VaultHandler {
                                     &token.address,
                                     &payload,
                                 ))),
-                                log: payload
-                                    .into_audit_log(token.address, vault_id),
+                                log: AuditEvent::from_sync_event(
+                                    &payload,
+                                    token.address,
+                                    vault_id,
+                                ),
                             });
                         } else {
                             events.push(ResponseEvent {
                                 event: None,
-                                log: payload
-                                    .into_audit_log(token.address, vault_id),
+                                log: AuditEvent::from_sync_event(
+                                    &payload,
+                                    token.address,
+                                    vault_id,
+                                ),
                             });
                         }
                     }
@@ -811,7 +831,14 @@ impl VaultHandler {
                     .vault_name()
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                Ok((name, payload.into_audit_log(token.address, vault_id)))
+                Ok((
+                    name,
+                    AuditEvent::from_sync_event(
+                        &payload,
+                        token.address,
+                        vault_id,
+                    ),
+                ))
             } else {
                 Err(status_code)
             }
@@ -877,8 +904,11 @@ impl VaultHandler {
 
                         Ok(MaybeConflict::Success(vec![ResponseEvent {
                             event: Some(event),
-                            log: payload
-                                .into_audit_log(token.address, vault_id),
+                            log: AuditEvent::from_sync_event(
+                                &payload,
+                                token.address,
+                                vault_id,
+                            ),
                         }]))
                     } else {
                         Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -940,8 +970,11 @@ impl SecretHandler {
 
                         Ok(MaybeConflict::Success(vec![ResponseEvent {
                             event: Some(event),
-                            log: payload
-                                .into_audit_log(token.address, vault_id),
+                            log: AuditEvent::from_sync_event(
+                                &payload,
+                                token.address,
+                                vault_id,
+                            ),
                         }]))
                     } else {
                         Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -986,8 +1019,11 @@ impl SecretHandler {
                     if let Ok((_, payload)) = handle.read(&secret_id) {
                         Ok(MaybeConflict::Success(vec![ResponseEvent {
                             event: None,
-                            log: payload
-                                .into_audit_log(token.address, vault_id),
+                            log: AuditEvent::from_sync_event(
+                                &payload,
+                                token.address,
+                                vault_id,
+                            ),
                         }]))
                     } else {
                         Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -1045,8 +1081,11 @@ impl SecretHandler {
 
                             Ok(MaybeConflict::Success(vec![ResponseEvent {
                                 event: Some(event),
-                                log: payload
-                                    .into_audit_log(token.address, vault_id),
+                                log: AuditEvent::from_sync_event(
+                                    &payload,
+                                    token.address,
+                                    vault_id,
+                                ),
                             }]))
                         } else {
                             Err(StatusCode::NOT_FOUND)
@@ -1102,8 +1141,11 @@ impl SecretHandler {
 
                             Ok(MaybeConflict::Success(vec![ResponseEvent {
                                 event: Some(event),
-                                log: payload
-                                    .into_audit_log(token.address, vault_id),
+                                log: AuditEvent::from_sync_event(
+                                    &payload,
+                                    token.address,
+                                    vault_id,
+                                ),
                             }]))
                         } else {
                             Err(StatusCode::NOT_FOUND)
@@ -1154,7 +1196,7 @@ impl WalHandler {
                 {
                     /*
                     let payload = SyncEvent::ReadVault(change_seq);
-                    let log = payload.into_audit_log(token.address, vault_id);
+                    let log = AuditEvent::from_sync_event(&payload, token.address, vault_id);
                     writer
                         .audit_log
                         .append(log)

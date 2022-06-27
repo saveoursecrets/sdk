@@ -16,6 +16,8 @@ use crate::{
     Error, Result,
 };
 
+use super::SyncEvent;
+
 /// Identity magic bytes (SOSA).
 pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 
@@ -102,6 +104,39 @@ impl AuditEvent {
         } else {
             LogFlags::empty()
         }
+    }
+
+    /// Convert from a sync event to an audit event.
+    pub fn from_sync_event(
+        event: &SyncEvent,
+        address: AddressStr,
+        vault_id: Uuid,
+    ) -> AuditEvent {
+        let audit_data = match event {
+            SyncEvent::Noop => {
+                panic!("noop variant cannot be an audit event")
+            }
+            SyncEvent::CreateVault(_)
+            | SyncEvent::ReadVault(_)
+            | SyncEvent::DeleteVault(_)
+            | SyncEvent::UpdateVault(_, _)
+            | SyncEvent::GetVaultName(_)
+            | SyncEvent::SetVaultName(_, _)
+            | SyncEvent::SetVaultMeta(_, _) => AuditData::Vault(vault_id),
+            SyncEvent::CreateSecret(_, secret_id, _) => {
+                AuditData::Secret(vault_id, *secret_id)
+            }
+            SyncEvent::ReadSecret(_, secret_id) => {
+                AuditData::Secret(vault_id, *secret_id)
+            }
+            SyncEvent::UpdateSecret(_, secret_id, _) => {
+                AuditData::Secret(vault_id, *secret_id)
+            }
+            SyncEvent::DeleteSecret(_, secret_id) => {
+                AuditData::Secret(vault_id, *secret_id)
+            }
+        };
+        AuditEvent::new(event.event_kind(), address, Some(audit_data))
     }
 }
 

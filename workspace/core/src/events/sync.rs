@@ -22,10 +22,7 @@ use crate::{
     Error, Result,
 };
 
-use super::{
-    audit::{AuditData, AuditEvent},
-    EventKind,
-};
+use super::EventKind;
 
 /// SyncEvent sent to a remote server.
 ///
@@ -151,38 +148,6 @@ impl SyncEvent<'_> {
             SyncEvent::UpdateSecret(_, _, _) => EventKind::UpdateSecret,
             SyncEvent::DeleteSecret(_, _) => EventKind::DeleteSecret,
         }
-    }
-
-    /// Convert this payload into an audit log.
-    #[deprecated(note = "Use functions on AuditEvent instead")]
-    pub fn into_audit_log(
-        &self,
-        address: AddressStr,
-        vault_id: Uuid,
-    ) -> AuditEvent {
-        let log_data = match self {
-            SyncEvent::Noop => panic!("noop variant cannot be an audit log"),
-            SyncEvent::CreateVault(_)
-            | SyncEvent::ReadVault(_)
-            | SyncEvent::DeleteVault(_)
-            | SyncEvent::UpdateVault(_, _)
-            | SyncEvent::GetVaultName(_)
-            | SyncEvent::SetVaultName(_, _)
-            | SyncEvent::SetVaultMeta(_, _) => AuditData::Vault(vault_id),
-            SyncEvent::CreateSecret(_, secret_id, _) => {
-                AuditData::Secret(vault_id, *secret_id)
-            }
-            SyncEvent::ReadSecret(_, secret_id) => {
-                AuditData::Secret(vault_id, *secret_id)
-            }
-            SyncEvent::UpdateSecret(_, secret_id, _) => {
-                AuditData::Secret(vault_id, *secret_id)
-            }
-            SyncEvent::DeleteSecret(_, secret_id) => {
-                AuditData::Secret(vault_id, *secret_id)
-            }
-        };
-        AuditEvent::new(self.event_kind(), address, Some(log_data))
     }
 }
 
