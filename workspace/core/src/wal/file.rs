@@ -123,7 +123,7 @@ impl WalFile {
     }
 }
 
-impl<'a> WalProvider<'a> for WalFile {
+impl WalProvider for WalFile {
     type Item = WalFileRecord;
 
     fn tree(&self) -> &CommitTree {
@@ -166,7 +166,7 @@ impl<'a> WalProvider<'a> for WalFile {
     }
 
     fn iter(
-        &'a self,
+        &self,
     ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>
     {
         Ok(Box::new(WalFileIterator::new(&self.file_path)?))

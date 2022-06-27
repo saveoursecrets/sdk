@@ -2,6 +2,13 @@
 //!
 //! Clients that do not have the ability to write to disc
 //! can use this for caching a WAL.
+//!
+//! Whilst it is possible for this iterator implementation to
+//! return a reference (`&'a WalRecord`) it requires adding a
+//! lifetime to the `WalProvider` trait which cascades all the
+//! way down to the server `Backend` and associated `State` and
+//! causes numerous lifetime issues in the server code so for
+//! the moment we just clone the records during iteration.
 use crate::{
     commit_tree::{hash, CommitTree},
     decode, encode,
@@ -27,8 +34,8 @@ impl WalMemory {
     }
 }
 
-impl<'a> WalProvider<'a> for WalMemory {
-    type Item = &'a WalRecord;
+impl WalProvider for WalMemory {
+    type Item = WalRecord;
 
     fn tree(&self) -> &CommitTree {
         &self.tree
@@ -55,9 +62,9 @@ impl<'a> WalProvider<'a> for WalMemory {
     }
 
     fn iter(
-        &'a self,
+        &self,
     ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>
     {
-        Ok(Box::new(self.records.iter().map(|v| Ok(v))))
+        Ok(Box::new(self.records.iter().cloned().map(|v| Ok(v))))
     }
 }

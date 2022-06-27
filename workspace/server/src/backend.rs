@@ -17,7 +17,7 @@ use tokio::sync::{
 use uuid::Uuid;
 
 type VaultStorage = Box<dyn VaultAccess + Send + Sync>;
-type WalStorage<'a, T> = Box<dyn WalProvider<'a, Item = T> + Send + Sync>;
+type WalStorage<T> = Box<dyn WalProvider<Item = T> + Send + Sync>;
 
 const WAL_EXT: &str = "wal";
 const WAL_DELETED_EXT: &str = "wal.deleted";
@@ -105,19 +105,19 @@ pub trait Backend {
 }
 
 /// Backend storage for vaults on the file system.
-pub struct FileSystemBackend<'a> {
+pub struct FileSystemBackend {
     directory: PathBuf,
     locks: FileLocks,
     files: Vec<PathBuf>,
     accounts: RwLock<
         HashMap<
             AddressStr,
-            HashMap<Uuid, (VaultStorage, WalStorage<'a, WalFileRecord>)>,
+            HashMap<Uuid, (VaultStorage, WalStorage<WalFileRecord>)>,
         >,
     >,
 }
 
-impl FileSystemBackend<'_> {
+impl FileSystemBackend {
     /// Create a new file system backend.
     pub fn new(directory: PathBuf) -> Self {
         Self {
@@ -254,7 +254,7 @@ impl FileSystemBackend<'_> {
 }
 
 #[async_trait]
-impl Backend for FileSystemBackend<'_> {
+impl Backend for FileSystemBackend {
     fn set_file_locks(&mut self, mut locks: FileLocks) -> Result<()> {
         for file in &self.files {
             locks.add(file)?;

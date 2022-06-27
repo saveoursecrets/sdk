@@ -14,7 +14,7 @@ pub mod memory;
 pub mod reducer;
 
 /// Trait for implementations that provide access to a write-ahead log (WAL).
-pub trait WalProvider<'a> {
+pub trait WalProvider {
     /// The item yielded by the iterator implementation.
     type Item: WalItem;
 
@@ -30,7 +30,7 @@ pub trait WalProvider<'a> {
 
     /// Get an iterator of the log records.
     fn iter(
-        &'a self,
+        &self,
     ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>;
 }
 
@@ -108,7 +108,7 @@ impl Decode for WalRecord {
     }
 }
 
-impl WalItem for &WalRecord {
+impl WalItem for WalRecord {
     fn commit(&self) -> [u8; 32] {
         self.1 .0
     }
