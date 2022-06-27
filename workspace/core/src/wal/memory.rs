@@ -55,6 +55,17 @@ impl WalMemory {
 
 impl WalProvider for WalMemory {
     type Item = WalMemoryRecord;
+    type Partial = Vec<WalMemoryRecord>;
+
+    fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
+        let mut partial = Vec::new();
+        let index = item.0.start + 1;
+        if index < self.records.len() {
+            let items = &self.records[index..self.records.len()];
+            partial.extend_from_slice(items);
+        }
+        Ok(partial)
+    }
 
     fn tree(&self) -> &CommitTree {
         &self.tree

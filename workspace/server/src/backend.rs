@@ -14,8 +14,10 @@ use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 use uuid::Uuid;
 
 type VaultStorage = Box<dyn VaultAccess + Send + Sync>;
-type WalStorage<T> = Box<dyn WalProvider<Item = T> + Send + Sync>;
-type Storage = (VaultStorage, WalStorage<WalFileRecord>);
+type WalStorage = Box<
+    dyn WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync,
+>;
+type Storage = (VaultStorage, WalStorage);
 
 const WAL_EXT: &str = "wal";
 const WAL_DELETED_EXT: &str = "wal.deleted";

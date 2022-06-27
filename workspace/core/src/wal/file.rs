@@ -131,6 +131,24 @@ impl WalFile {
 
 impl WalProvider for WalFile {
     type Item = WalFileRecord;
+    type Partial = Vec<u8>;
+
+    fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
+        let mut partial = WAL_IDENTITY.to_vec();
+        let start = item.offset.end;
+        let mut file = File::open(&self.file_path)?;
+        let end = file.metadata()?.len() as usize;
+
+        if start < end {
+            file.seek(SeekFrom::Start(start as u64))?;
+            let mut buffer = vec![0; end - start];
+            file.read_exact(buffer.as_mut_slice())?;
+            partial.extend_from_slice(buffer.as_slice());
+            Ok(partial)
+        } else {
+            Ok(partial)
+        }
+    }
 
     fn tree(&self) -> &CommitTree {
         &self.tree

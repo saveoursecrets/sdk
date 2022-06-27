@@ -18,6 +18,12 @@ pub mod reducer;
 pub trait WalProvider {
     /// The item yielded by the iterator implementation.
     type Item: WalItem;
+    /// Partial data yielded after an iterator item until
+    /// the end of the log.
+    type Partial;
+
+    /// Get the tail after the given item until the end of the log.
+    fn tail(&self, item: Self::Item) -> Result<Self::Partial>;
 
     /// Append a log event to the write ahead log.
     fn append_event(&mut self, log_event: WalEvent<'_>)

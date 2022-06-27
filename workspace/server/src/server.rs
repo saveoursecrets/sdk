@@ -1219,9 +1219,11 @@ impl WalHandler {
                             break;
                         }
                     }
-
                     if let Some(matched) = matched {
-                        todo!("get partial wal data and return it");
+                        let partial = wal
+                            .tail(matched)
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                        Ok(partial)
                     } else {
                         Err(StatusCode::CONFLICT)
                     }
