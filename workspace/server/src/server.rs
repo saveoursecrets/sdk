@@ -701,7 +701,7 @@ impl VaultHandler {
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let mut writer = state.write().await;
-                let mut handle = writer
+                let (handle, _) = writer
                     .backend
                     .vault_write(&token.address, &vault_id)
                     .await
@@ -760,7 +760,7 @@ impl VaultHandler {
                     decode(&body).map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let mut writer = state.write().await;
-                let mut handle = writer
+                let (handle, _) = writer
                     .backend
                     .vault_write(&token.address, &vault_id)
                     .await
@@ -834,7 +834,7 @@ impl VaultHandler {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let reader = state.read().await;
 
-                let handle = reader
+                let (handle, _) = reader
                     .backend
                     .vault_read(&token.address, &vault_id)
                     .await
@@ -898,7 +898,7 @@ impl VaultHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                let mut handle = writer
+                let (handle, _) = writer
                     .backend
                     .vault_write(&token.address, &vault_id)
                     .await
@@ -958,7 +958,7 @@ impl SecretHandler {
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let mut writer = state.write().await;
-                let mut handle = writer
+                let (handle, _) = writer
                     .backend
                     .vault_write(&token.address, &vault_id)
                     .await
@@ -1016,7 +1016,7 @@ impl SecretHandler {
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
-                let handle = writer
+                let (handle, _) = writer
                     .backend
                     .vault_write(&token.address, &vault_id)
                     .await
@@ -1069,7 +1069,7 @@ impl SecretHandler {
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let mut writer = state.write().await;
-                let mut handle = writer
+                let (handle, _) = writer
                     .backend
                     .vault_write(&token.address, &vault_id)
                     .await
@@ -1131,7 +1131,7 @@ impl SecretHandler {
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
-                let mut handle = writer
+                let (handle, _) = writer
                     .backend
                     .vault_write(&token.address, &vault_id)
                     .await

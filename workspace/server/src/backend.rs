@@ -11,13 +11,11 @@ use sos_core::{
     },
 };
 use std::{borrow::Cow, collections::HashMap, path::PathBuf};
-use tokio::sync::{
-    RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard,
-};
 use uuid::Uuid;
 
 type VaultStorage = Box<dyn VaultAccess + Send + Sync>;
 type WalStorage<T> = Box<dyn WalProvider<Item = T> + Send + Sync>;
+type Account = (VaultStorage, WalStorage<WalFileRecord>);
 
 const WAL_EXT: &str = "wal";
 const WAL_DELETED_EXT: &str = "wal.deleted";
@@ -94,14 +92,14 @@ pub trait Backend {
         &'a self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<RwLockReadGuard<'a, VaultStorage>>;
+    ) -> Result<&'a Account>;
 
     /// Get a write handle to an existing vault.
     async fn vault_write<'a>(
         &'a mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<RwLockMappedWriteGuard<'a, VaultStorage>>;
+    ) -> Result<&'a mut Account>;
 }
 
 /// Backend storage for vaults on the file system.
@@ -109,12 +107,7 @@ pub struct FileSystemBackend {
     directory: PathBuf,
     locks: FileLocks,
     files: Vec<PathBuf>,
-    accounts: RwLock<
-        HashMap<
-            AddressStr,
-            HashMap<Uuid, (VaultStorage, WalStorage<WalFileRecord>)>,
-        >,
-    >,
+    accounts: HashMap<AddressStr, HashMap<Uuid, Account>>,
 }
 
 impl FileSystemBackend {
@@ -124,7 +117,7 @@ impl FileSystemBackend {
             directory,
             locks: Default::default(),
             files: Vec::new(),
-            accounts: RwLock::new(Default::default()),
+            accounts: Default::default(),
         }
     }
 
@@ -142,7 +135,7 @@ impl FileSystemBackend {
                     if let Ok(owner) =
                         name.to_string_lossy().parse::<AddressStr>()
                     {
-                        let mut accounts = self.accounts.write().await;
+                        let accounts = &mut self.accounts;
                         let vaults = accounts
                             .entry(owner)
                             .or_insert(Default::default());
@@ -228,7 +221,7 @@ impl FileSystemBackend {
         vault_path: PathBuf,
         vault: &[u8],
     ) -> Result<()> {
-        let mut accounts = self.accounts.write().await;
+        let accounts = &mut self.accounts;
         let vaults = accounts.entry(owner).or_insert(Default::default());
         let summary = Header::read_summary_file(&vault_path)?;
 
@@ -318,12 +311,11 @@ impl Backend for FileSystemBackend {
             return Err(Error::NotDirectory(account_dir));
         }
 
-        let mut accounts = self.accounts.write().await;
-        if accounts.get(owner).is_none() {
+        if self.accounts.get(owner).is_none() {
             return Err(Error::AccountNotExist(*owner));
         }
 
-        let account = accounts.get_mut(owner).unwrap();
+        let account = self.accounts.get_mut(owner).unwrap();
         if account.get(vault_id).is_none() {
             return Err(Error::VaultNotExist(*vault_id));
         }
@@ -350,14 +342,12 @@ impl Backend for FileSystemBackend {
 
     async fn account_exists(&self, owner: &AddressStr) -> bool {
         let account_dir = self.directory.join(owner.to_string());
-        let accounts = self.accounts.read().await;
-        accounts.get(owner).is_some() && account_dir.is_dir()
+        self.accounts.get(owner).is_some() && account_dir.is_dir()
     }
 
     async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>> {
         let mut summaries = Vec::new();
-        let accounts = self.accounts.read().await;
-        if let Some(account) = accounts.get(owner) {
+        if let Some(account) = self.accounts.get(owner) {
             for (_, (storage, _)) in account {
                 summaries.push(storage.summary()?);
             }
@@ -370,8 +360,7 @@ impl Backend for FileSystemBackend {
         owner: &AddressStr,
         vault_id: &Uuid,
     ) -> Result<(bool, u32)> {
-        let accounts = self.accounts.read().await;
-        if let Some(account) = accounts.get(owner) {
+        if let Some(account) = self.accounts.get(owner) {
             if let Some((storage, _)) = account.get(vault_id) {
                 Ok((true, storage.change_seq()?))
             } else {
@@ -387,8 +376,7 @@ impl Backend for FileSystemBackend {
         owner: &AddressStr,
         vault_id: &Uuid,
     ) -> Result<Vec<u8>> {
-        let accounts = self.accounts.read().await;
-        if let Some(account) = accounts.get(owner) {
+        if let Some(account) = self.accounts.get(owner) {
             if let Some(_) = account.get(vault_id) {
                 let vault_file = self.vault_file_path(owner, vault_id);
                 let buffer = tokio::fs::read(vault_file).await?;
@@ -405,8 +393,7 @@ impl Backend for FileSystemBackend {
         owner: &AddressStr,
         vault_id: &Uuid,
     ) -> Result<Vec<u8>> {
-        let accounts = self.accounts.read().await;
-        if let Some(account) = accounts.get(owner) {
+        if let Some(account) = self.accounts.get(owner) {
             if let Some(_) = account.get(vault_id) {
                 let mut wal_file = self.vault_file_path(owner, vault_id);
                 wal_file.set_extension(WAL_EXT);
@@ -423,45 +410,35 @@ impl Backend for FileSystemBackend {
         &'a self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<RwLockReadGuard<'a, VaultStorage>> {
-        let accounts = self.accounts.read().await;
-        if accounts.get(owner).is_none() {
+    ) -> Result<&'a Account> {
+        if self.accounts.get(owner).is_none() {
             return Err(Error::AccountNotExist(*owner));
         }
 
-        let account = accounts.get(owner).unwrap();
+        let account = self.accounts.get(owner).unwrap();
         if account.get(vault_id).is_none() {
             return Err(Error::VaultNotExist(*vault_id));
         }
 
-        let guard = RwLockReadGuard::map(accounts, |accounts| {
-            let account = accounts.get(owner).unwrap();
-            &account.get(vault_id).unwrap().0
-        });
-
-        Ok(guard)
+        let account = self.accounts.get(owner).unwrap();
+        Ok(&account.get(vault_id).unwrap())
     }
 
     async fn vault_write<'a>(
         &'a mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<RwLockMappedWriteGuard<'a, VaultStorage>> {
-        let accounts = self.accounts.write().await;
-        if accounts.get(owner).is_none() {
+    ) -> Result<&'a mut Account> {
+        if self.accounts.get(owner).is_none() {
             return Err(Error::AccountNotExist(*owner));
         }
 
-        let account = accounts.get(owner).unwrap();
+        let account = self.accounts.get(owner).unwrap();
         if account.get(vault_id).is_none() {
             return Err(Error::VaultNotExist(*vault_id));
         }
 
-        let guard = RwLockWriteGuard::map(accounts, |accounts| {
-            let account = accounts.get_mut(owner).unwrap();
-            &mut account.get_mut(vault_id).unwrap().0
-        });
-
-        Ok(guard)
+        let account = self.accounts.get_mut(owner).unwrap();
+        Ok(account.get_mut(vault_id).unwrap())
     }
 }
