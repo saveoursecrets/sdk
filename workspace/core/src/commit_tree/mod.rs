@@ -52,19 +52,6 @@ impl CommitTree {
         Ok(commit_tree)
     }
 
-    /// Create a commit tree from a WAL iterator.
-    pub fn from_wal_iterator(
-        it: &mut Box<dyn DoubleEndedIterator<Item = Result<WalFileRow>>>,
-    ) -> Result<Self> {
-        let mut commit_tree = Self::new();
-        while let Some(row_info) = it.next() {
-            let row_info = row_info?;
-            commit_tree.tree.insert(row_info.commit());
-        }
-        commit_tree.tree.commit();
-        Ok(commit_tree)
-    }
-
     /// Get the number of leaves in the tree.
     pub fn len(&self) -> usize {
         self.tree.leaves_len()

@@ -26,8 +26,8 @@ impl WalMemory {
     }
 }
 
-impl WalProvider for WalMemory {
-    type Item = LogRecord;
+impl<'a> WalProvider<'a> for WalMemory {
+    type Item = &'a LogRecord;
 
     fn tree(&self) -> &CommitTree {
         &self.tree
@@ -54,11 +54,9 @@ impl WalProvider for WalMemory {
     }
 
     fn iter(
-        &self,
-    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>>>> {
-        // TODO: figure out how to avoid this clone without
-        // TODO: getting caught up in lifetime madness
-        let records = self.records.clone();
-        Ok(Box::new(records.into_iter().map(|v| Ok(v))))
+        &'a self,
+    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>
+    {
+        Ok(Box::new(self.records.iter().map(|v| Ok(v))))
     }
 }

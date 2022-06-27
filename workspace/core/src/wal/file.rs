@@ -122,7 +122,7 @@ impl WalFile {
     }
 }
 
-impl WalProvider for WalFile {
+impl<'a> WalProvider<'a> for WalFile {
     type Item = WalFileRow;
 
     fn tree(&self) -> &CommitTree {
@@ -165,8 +165,9 @@ impl WalProvider for WalFile {
     }
 
     fn iter(
-        &self,
-    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>>>> {
+        &'a self,
+    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>
+    {
         Ok(Box::new(WalFileIterator::new(&self.file_path)?))
     }
 }
@@ -410,16 +411,6 @@ mod test {
         let _second_row = it.next_back().unwrap();
         assert!(it.next_back().is_none());
         assert!(it.next().is_none());
-        temp.close()?;
-        Ok(())
-    }
-
-    #[test]
-    fn wal_commit_tree() -> Result<()> {
-        let (temp, wal, _) = mock_wal_file()?;
-        let mut it = wal.iter()?;
-        let tree = CommitTree::from_wal_iterator(&mut it)?;
-        assert!(tree.root().is_some());
         temp.close()?;
         Ok(())
     }
