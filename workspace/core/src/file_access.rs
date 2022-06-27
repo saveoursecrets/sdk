@@ -20,11 +20,11 @@ use uuid::Uuid;
 
 use crate::{
     events::SyncEvent,
-    file_identity::FileIdentity,
+    file_identity::{FileIdentity, VAULT_IDENTITY},
     secret::SecretId,
     vault::{
         encode, CommitHash, Contents, Header, Summary, VaultAccess,
-        VaultCommit, VaultEntry, IDENTITY,
+        VaultCommit, VaultEntry,
     },
     Error, Result,
 };
@@ -60,9 +60,9 @@ impl VaultFileAccess {
         let mut de = Deserializer { reader };
         // Must reset to beginning of the file
         de.reader.seek(0)?;
-        FileIdentity::read_identity(&mut de, &IDENTITY)?;
+        FileIdentity::read_identity(&mut de, &VAULT_IDENTITY)?;
         let header_len = de.reader.read_u32()? as usize;
-        Ok(IDENTITY.len() + 4 + header_len)
+        Ok(VAULT_IDENTITY.len() + 4 + header_len)
     }
 
     /// Set the current sequence number.

@@ -6,7 +6,7 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 
 use crate::{
     vault::{Header, Vault},
-    wal::{file::WalFileRow, WalIterator},
+    wal::{file::WalFileRow, WalItem},
     Result,
 };
 
@@ -46,7 +46,7 @@ impl CommitTree {
         let mut commit_tree = Self::new();
         while let Some(row_info) = it.next() {
             let row_info = row_info?;
-            commit_tree.tree.insert(row_info.into_commit());
+            commit_tree.tree.insert(row_info.commit);
         }
         commit_tree.tree.commit();
         Ok(commit_tree)
@@ -54,12 +54,12 @@ impl CommitTree {
 
     /// Create a commit tree from a WAL iterator.
     pub fn from_wal_iterator(
-        it: &mut Box<dyn WalIterator<Item = Result<WalFileRow>>>,
+        it: &mut Box<dyn DoubleEndedIterator<Item = Result<WalFileRow>>>,
     ) -> Result<Self> {
         let mut commit_tree = Self::new();
         while let Some(row_info) = it.next() {
             let row_info = row_info?;
-            commit_tree.tree.insert(row_info.into_commit().into());
+            commit_tree.tree.insert(row_info.commit());
         }
         commit_tree.tree.commit();
         Ok(commit_tree)
@@ -118,14 +118,9 @@ impl RowInfo {
         Ok(value)
     }
 
-    /// Consume this row and yield the row identifier.
-    pub fn into_id(self) -> [u8; 16] {
-        self.id
-    }
-
-    /// Consume this row and yield the commit hash bytes.
-    pub fn into_commit(self) -> [u8; 32] {
-        self.commit
+    /// Get the row identifier.
+    pub fn id(&self) -> &[u8; 16] {
+        &self.id
     }
 }
 

@@ -11,10 +11,41 @@ use serde_binary::{
 use time::{Duration, OffsetDateTime};
 
 pub mod file;
+pub mod memory;
 pub mod reducer;
 
+/// Trait for implementations that provide access to a write-ahead log (WAL).
+pub trait WalProvider {
+    /// The item yielded by the iterator implementation.
+    type Item: WalItem;
+
+    /// Append a log event to the write ahead log.
+    fn append_event(&mut self, log_event: WalEvent<'_>)
+        -> Result<CommitHash>;
+
+    /// Read the event data from an item.
+    fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>>;
+
+    /// Get the commit tree for the log records.
+    fn tree(&self) -> &CommitTree;
+
+    /// Get an iterator of the log records.
+    fn iter(
+        &self,
+    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>>>>;
+}
+
+/// Trait for items yielded by the iterator.
+pub trait WalItem: std::fmt::Debug {
+    /// Get the commit hash for the item.
+    fn commit(&self) -> [u8; 32];
+
+    /// Get the time for the log record.
+    fn time(&self) -> &LogTime;
+}
+
 /// Timestamp for the log record.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LogTime(OffsetDateTime);
 
 impl Default for LogTime {
@@ -45,7 +76,8 @@ impl Decode for LogTime {
 }
 
 /// Record for a row in the write ahead log.
-pub struct LogRecord(LogTime, CommitHash, Vec<u8>);
+#[derive(Debug, Clone)]
+pub struct LogRecord(LogTime, CommitHash, pub Vec<u8>);
 
 impl Encode for LogRecord {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
@@ -108,34 +140,12 @@ impl Decode for LogRecord {
     }
 }
 
-/// Trait for items yielded by the iterator.
-pub trait WalItem: std::fmt::Debug {
-    /// Get the commit hash for the item.
-    fn commit(&self) -> [u8; 32];
+impl WalItem for LogRecord {
+    fn commit(&self) -> [u8; 32] {
+        self.1 .0
+    }
 
-    /// Get the time for the log record.
-    fn time(&self) -> &LogTime;
+    fn time(&self) -> &LogTime {
+        &self.0
+    }
 }
-
-/// Trait for implementations that provide access to a write-ahead log (WAL).
-pub trait WalProvider {
-    /// The item yielded by the iterator implementation.
-    type Item: WalItem;
-
-    /// Append a log event to the write ahead log.
-    fn append_event(&mut self, log_event: WalEvent<'_>)
-        -> Result<CommitHash>;
-
-    /// Read the event data from an item.
-    fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>>;
-
-    /// Get the commit tree for the log records.
-    fn tree(&self) -> &CommitTree;
-
-    /// Get an iterator of the log records.
-    fn iter(&self)
-        -> Result<Box<dyn WalIterator<Item = Result<Self::Item>>>>;
-}
-
-/// Trait for implementations that can iterate a WAL log.
-pub trait WalIterator: DoubleEndedIterator {}

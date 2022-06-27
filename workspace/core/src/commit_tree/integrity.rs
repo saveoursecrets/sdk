@@ -7,7 +7,7 @@ use crate::{
     commit_tree::{hash, CommitTree, RowInfo, RowIterator},
     wal::{
         file::{WalFile, WalFileRow},
-        WalProvider,
+        WalItem, WalProvider,
     },
     Error, Result,
 };
@@ -49,7 +49,7 @@ where
         }
 
         func(&row_info);
-        tree.insert(row_info.into_commit());
+        tree.insert(row_info.commit);
     }
 
     tree.commit();
@@ -84,16 +84,16 @@ where
         if verify {
             let value = row_info.read_value(&mut reader)?;
             let checksum = hash(&value);
-            if checksum != row_info.commit {
+            if checksum != row_info.commit() {
                 return Err(Error::HashMismatch {
-                    commit: hex::encode(row_info.commit),
+                    commit: hex::encode(row_info.commit()),
                     value: hex::encode(checksum),
                 });
             }
         }
 
         func(&row_info);
-        tree.insert(row_info.into_commit());
+        tree.insert(row_info.commit());
     }
 
     tree.commit();

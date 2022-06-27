@@ -15,7 +15,7 @@
 use crate::{
     commit_tree::{hash, CommitTree},
     events::WalEvent,
-    file_identity::FileIdentity,
+    file_identity::{FileIdentity, WAL_IDENTITY},
     vault::{encode, CommitHash},
     Result,
 };
@@ -33,28 +33,20 @@ use serde_binary::{
     Decode, Deserializer, Result as BinaryResult,
 };
 
-use super::{LogRecord, LogTime, WalItem, WalIterator, WalProvider};
-
-/// Identity magic bytes (SOSW).
-pub const WAL_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+use super::{LogRecord, LogTime, WalItem, WalProvider};
 
 /// Reference to a row in the write ahead log.
 #[derive(Default, Debug)]
 pub struct WalFileRow {
     /// The time the row was created.
-    pub time: LogTime,
+    time: LogTime,
     /// The commit hash for the value.
-    pub commit: [u8; 32],
+    commit: [u8; 32],
     /// The byte range for the value.
-    pub value: Range<usize>,
+    value: Range<usize>,
 }
 
 impl WalFileRow {
-    /// Consume this log row and yield the commit hash.
-    pub fn into_commit(self) -> [u8; 32] {
-        self.commit
-    }
-
     /// Read the bytes for the row value into an owned buffer.
     pub fn read_value<'a>(
         &self,
@@ -174,7 +166,7 @@ impl WalProvider for WalFile {
 
     fn iter(
         &self,
-    ) -> Result<Box<dyn WalIterator<Item = Result<Self::Item>>>> {
+    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>>>> {
         Ok(Box::new(WalFileIterator::new(&self.file_path)?))
     }
 }
@@ -264,8 +256,6 @@ impl WalFileIterator {
         Ok(row)
     }
 }
-
-impl WalIterator for WalFileIterator {}
 
 impl Iterator for WalFileIterator {
     type Item = Result<WalFileRow>;

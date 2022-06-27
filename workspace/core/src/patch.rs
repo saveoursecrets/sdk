@@ -4,10 +4,10 @@ use serde_binary::{
     Result as BinaryResult, Serializer,
 };
 
-use crate::{events::SyncEvent, file_identity::FileIdentity};
-
-/// Identity magic bytes (SOSP).
-pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
+use crate::{
+    events::SyncEvent,
+    file_identity::{FileIdentity, PATCH_IDENTITY},
+};
 
 /// Patch wraps a changeset of events to apply to a vault.
 #[derive(Default)]
@@ -15,7 +15,7 @@ pub struct Patch<'a>(Vec<SyncEvent<'a>>);
 
 impl Encode for Patch<'_> {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_bytes(&IDENTITY)?;
+        ser.writer.write_bytes(&PATCH_IDENTITY)?;
         ser.writer.write_u32(self.0.len() as u32)?;
         for payload in self.0.iter() {
             payload.encode(&mut *ser)?;
@@ -26,7 +26,7 @@ impl Encode for Patch<'_> {
 
 impl Decode for Patch<'_> {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        FileIdentity::read_identity(de, &IDENTITY)
+        FileIdentity::read_identity(de, &PATCH_IDENTITY)
             .map_err(|e| BinaryError::Boxed(Box::from(e)))?;
 
         let length = de.reader.read_u32()?;

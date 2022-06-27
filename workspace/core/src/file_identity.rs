@@ -6,8 +6,17 @@ use serde_binary::{
 
 use crate::{Error, Result};
 
-/// Identity magic bytes (SOSA).
+/// Aduit log identity magic bytes (SOSA).
 pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
+
+/// Write-ahead log identity magic bytes (SOSW).
+pub const WAL_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+
+/// Patch file identity magic bytes (SOSP).
+pub const PATCH_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
+
+/// Vault file identity magic bytes (SOSV).
+pub const VAULT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
 
 /// Read and write the identity bytes for a file.
 #[derive(Debug, Eq, PartialEq)]

@@ -12,6 +12,7 @@ use sos_core::{
         integrity::{vault_commit_tree, wal_commit_tree},
         CommitTree, RowIterator,
     },
+    wal::WalItem,
 };
 
 /// Verify the integrity of a vault.
@@ -40,7 +41,7 @@ pub fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     }
     let tree = wal_commit_tree(&file, true, |row_info| {
         if commits {
-            println!("{}", hex::encode(&row_info.commit));
+            println!("{}", hex::encode(&row_info.commit()));
         }
     })?;
     if root {
@@ -81,7 +82,7 @@ pub fn keys(vault: PathBuf) -> Result<()> {
     let (iterator, _header) = RowIterator::new(&mut stream)?;
     for row_info in iterator {
         let row_info = row_info?;
-        let id = Uuid::from_bytes(row_info.into_id());
+        let id = Uuid::from_bytes(*row_info.id());
         println!("{}", id);
     }
     Ok(())

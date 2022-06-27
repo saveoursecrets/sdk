@@ -18,13 +18,10 @@ use crate::{
         AeadPack,
     },
     events::SyncEvent,
-    file_identity::FileIdentity,
+    file_identity::{FileIdentity, VAULT_IDENTITY},
     secret::{SecretId, VaultMeta},
     Error, Result,
 };
-
-/// Identity magic bytes (SOSV).
-pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
 
 /// Vault version identifier.
 pub const VERSION: u16 = 0;
@@ -322,7 +319,7 @@ impl Header {
     /// Create a new header.
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
-            identity: FileIdentity(IDENTITY),
+            identity: FileIdentity(VAULT_IDENTITY),
             summary: Summary::new(id, name, algorithm),
             meta: None,
             auth: Default::default(),
@@ -367,7 +364,7 @@ impl Header {
         let mut de = Deserializer { reader };
 
         // Read magic identity bytes
-        FileIdentity::read_identity(&mut de, &IDENTITY)?;
+        FileIdentity::read_identity(&mut de, &VAULT_IDENTITY)?;
 
         // Read in the header length
         let _ = de.reader.read_u32()?;
@@ -400,7 +397,7 @@ impl Header {
 impl Default for Header {
     fn default() -> Self {
         Self {
-            identity: FileIdentity(IDENTITY),
+            identity: FileIdentity(VAULT_IDENTITY),
             summary: Default::default(),
             meta: None,
             auth: Default::default(),
