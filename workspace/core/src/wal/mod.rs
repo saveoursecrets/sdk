@@ -3,6 +3,7 @@ use crate::{
     commit_tree::CommitTree, events::WalEvent, timestamp::Timestamp,
     vault::CommitHash, Result,
 };
+use std::ops::Range;
 
 use serde_binary::{
     binary_rw::SeekStream, Decode, Deserializer, Encode,
@@ -36,6 +37,12 @@ pub trait WalProvider {
 
 /// Trait for items yielded by the iterator.
 pub trait WalItem: std::fmt::Debug {
+    /// Get an offset for the item.
+    ///
+    /// May be a byte offset or an index depending
+    /// upon the implmentation.
+    fn offset(&self) -> &Range<usize>;
+
     /// Get the commit hash for the item.
     fn commit(&self) -> [u8; 32];
 
@@ -105,15 +112,5 @@ impl Decode for WalRecord {
         let _ = de.reader.read_u32()?;
 
         Ok(())
-    }
-}
-
-impl WalItem for WalRecord {
-    fn commit(&self) -> [u8; 32] {
-        self.1 .0
-    }
-
-    fn time(&self) -> &Timestamp {
-        &self.0
     }
 }

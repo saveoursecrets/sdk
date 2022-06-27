@@ -30,6 +30,7 @@ use sos_core::{
     patch::Patch,
     secret::SecretId,
     vault::{Header, Summary, Vault, VaultCommit},
+    wal::{file::WalFileRecord, WalItem},
 };
 use std::{
     borrow::Cow, collections::HashMap, convert::Infallible, net::SocketAddr,
@@ -1195,40 +1196,60 @@ impl WalHandler {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
 
-                let (exists, change_seq) = writer
+                let (_, wal) = writer
                     .backend
-                    .vault_exists(&token.address, &vault_id)
+                    .vault_read(&token.address, &vault_id)
                     .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-                if !exists {
-                    return Err(StatusCode::NOT_FOUND);
-                }
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
 
                 let hash: Option<[u8; 32]> = hash.into();
-                if let Some(hash) = hash {
-                    todo!("read WAL from specific commit hash")
+                // Client is asking for data from a specific commit hash
+                let buffer = if let Some(hash) = hash {
+                    // Search backwards in the WAL for a matching commit
+                    let it = wal
+                        .iter()
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+                        .rev();
+                    let mut matched: Option<WalFileRecord> = None;
+                    for record in it {
+                        let record = record
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                        if record.commit() == hash {
+                            matched = Some(record);
+                            break;
+                        }
+                    }
+
+                    if let Some(matched) = matched {
+                        todo!("get partial wal data and return it");
+                    } else {
+                        Err(StatusCode::CONFLICT)
+                    }
+                // Otherwise get the entire WAL buffer
                 } else {
                     if let Ok(buffer) = writer
                         .backend
                         .get_wal(&token.address, &vault_id)
                         .await
                     {
-                        let log = AuditEvent::new(
-                            EventKind::ReadWal,
-                            token.address,
-                            Some(AuditData::Vault(vault_id)),
-                        );
-                        writer
-                            .audit_log
-                            .append_audit_event(log)
-                            .await
-                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                        Ok(Bytes::from(buffer))
+                        Ok(buffer)
                     } else {
                         Err(StatusCode::INTERNAL_SERVER_ERROR)
                     }
-                }
+                };
+
+                let log = AuditEvent::new(
+                    EventKind::ReadWal,
+                    token.address,
+                    Some(AuditData::Vault(vault_id)),
+                );
+                writer
+                    .audit_log
+                    .append_audit_event(log)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                Ok(Bytes::from(buffer?))
             } else {
                 Err(status_code)
             }

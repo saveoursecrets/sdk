@@ -39,6 +39,8 @@ use super::{WalItem, WalProvider, WalRecord};
 /// Reference to a row in the write ahead log.
 #[derive(Default, Debug)]
 pub struct WalFileRecord {
+    /// Byte offset for the record.
+    offset: Range<usize>,
     /// The time the row was created.
     time: Timestamp,
     /// The commit hash for the value.
@@ -61,6 +63,10 @@ impl WalFileRecord {
 }
 
 impl WalItem for WalFileRecord {
+    fn offset(&self) -> &Range<usize> {
+        &self.offset
+    }
+
     fn commit(&self) -> [u8; 32] {
         self.commit
     }
@@ -199,10 +205,15 @@ impl WalFileIterator {
     }
 
     /// Helper to decode the row time, commit and byte range.
-    fn read_row(de: &mut Deserializer) -> Result<WalFileRecord> {
+    fn read_row(
+        de: &mut Deserializer,
+        offset: Range<usize>,
+    ) -> Result<WalFileRecord> {
         let start = de.reader.tell()?;
         let mut row: WalFileRecord = Default::default();
         row.decode(&mut *de)?;
+
+        row.offset = offset;
 
         // The byte range for the row value.
         let value_len = de.reader.read_u32()?;
@@ -225,7 +236,7 @@ impl WalFileIterator {
         // Position of the end of the row
         let row_end = row_pos + (row_len as usize + 8);
 
-        let row = WalFileIterator::read_row(&mut de)?;
+        let row = WalFileIterator::read_row(&mut de, row_pos..row_end)?;
 
         // Prepare position for next iteration
         self.forward = Some(row_end);
@@ -246,11 +257,12 @@ impl WalFileIterator {
 
         // Position of the beginning of the row
         let row_start = row_pos - (row_len as usize + 8);
+        let row_end = row_start + (row_len as usize + 8);
 
         // Seek to the beginning of the row after the initial
         // row length so we can read in the row data
         de.reader.seek(row_start + 4)?;
-        let row = WalFileIterator::read_row(&mut de)?;
+        let row = WalFileIterator::read_row(&mut de, row_start..row_end)?;
 
         // Prepare position for next iteration.
         self.backward = Some(row_start);

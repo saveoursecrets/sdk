@@ -17,13 +17,32 @@ use crate::{
     vault::CommitHash,
     Result,
 };
+use std::ops::Range;
 
-use super::{WalProvider, WalRecord};
+use super::{WalItem, WalProvider, WalRecord};
+
+/// Wrapper for a WAL record that includes an index offset.
+#[derive(Debug, Clone)]
+pub struct WalMemoryRecord(Range<usize>, WalRecord);
+
+impl WalItem for WalMemoryRecord {
+    fn offset(&self) -> &Range<usize> {
+        &self.0
+    }
+
+    fn commit(&self) -> [u8; 32] {
+        self.1 .1 .0
+    }
+
+    fn time(&self) -> &Timestamp {
+        &self.1 .0
+    }
+}
 
 /// A write ahead log that stores records in memory.
 #[derive(Default)]
 pub struct WalMemory {
-    records: Vec<WalRecord>,
+    records: Vec<WalMemoryRecord>,
     tree: CommitTree,
 }
 
@@ -35,7 +54,7 @@ impl WalMemory {
 }
 
 impl WalProvider for WalMemory {
-    type Item = WalRecord;
+    type Item = WalMemoryRecord;
 
     fn tree(&self) -> &CommitTree {
         &self.tree
@@ -50,14 +69,18 @@ impl WalProvider for WalMemory {
         let hash_bytes = hash(&log_bytes);
         self.tree.insert(hash_bytes);
         let log_commit = CommitHash(hash_bytes);
-        let log_record = WalRecord(log_time, log_commit, log_bytes);
+        let offset = self.records.len();
+        let log_record = WalMemoryRecord(
+            offset..offset,
+            WalRecord(log_time, log_commit, log_bytes),
+        );
         self.records.push(log_record);
         self.tree.commit();
         Ok(log_commit)
     }
 
     fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>> {
-        let event: WalEvent = decode(&item.2)?;
+        let event: WalEvent = decode(&item.1 .2)?;
         Ok(event)
     }
 
