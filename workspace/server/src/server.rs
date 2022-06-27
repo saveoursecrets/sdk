@@ -23,7 +23,10 @@ use serde_json::json;
 use sos_core::{
     address::AddressStr,
     decode,
-    events::{AuditEvent, AuditProvider, ChangeEvent, EventKind, SyncEvent},
+    events::{
+        AuditData, AuditEvent, AuditProvider, ChangeEvent, EventKind,
+        SyncEvent,
+    },
     patch::Patch,
     secret::SecretId,
     vault::{Header, Summary, Vault, VaultCommit},
@@ -38,9 +41,10 @@ use tokio::sync::{
 };
 use uuid::Uuid;
 
+use sos_audit::AuditLogFile;
+
 use crate::{
     assets::Assets,
-    audit_log::LogFile,
     authenticate::{self, Authentication, SignedQuery},
     headers::{
         ChangeSequence, SignedMessage, X_CHANGE_SEQUENCE, X_SIGNED_MESSAGE,
@@ -90,7 +94,7 @@ impl MaybeConflict {
                 for response_event in events {
                     writer
                         .audit_log
-                        .append(response_event.log)
+                        .append_audit_event(response_event.log)
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -142,7 +146,7 @@ pub struct State {
     /// Collection of challenges for authentication
     pub authentication: Authentication,
     /// Audit log file
-    pub audit_log: LogFile,
+    pub audit_log: AuditLogFile,
     /// Map of server sent event channels by authenticated
     /// client address.
     pub sse: HashMap<AddressStr, SseConnection>,
@@ -325,7 +329,7 @@ impl AuthHandler {
                     );
                     writer
                         .audit_log
-                        .append(log)
+                        .append_audit_event(log)
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -385,9 +389,13 @@ impl AuthHandler {
                                 token.address,
                                 None,
                             );
-                            writer.audit_log.append(log).await.map_err(
-                                |_| StatusCode::INTERNAL_SERVER_ERROR,
-                            )?;
+                            writer
+                                .audit_log
+                                .append_audit_event(log)
+                                .await
+                                .map_err(|_| {
+                                    StatusCode::INTERNAL_SERVER_ERROR
+                                })?;
 
                             Ok(Json(summaries))
                         } else {
@@ -440,7 +448,7 @@ impl AccountHandler {
                         );
                         writer
                             .audit_log
-                            .append(log)
+                            .append_audit_event(log)
                             .await
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                         Ok(StatusCode::OK)
@@ -602,7 +610,7 @@ impl VaultHandler {
                     );
                     writer
                         .audit_log
-                        .append(log)
+                        .append_audit_event(log)
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                     Ok(Bytes::from(buffer))
@@ -850,7 +858,7 @@ impl VaultHandler {
         let mut writer = state.write().await;
         writer
             .audit_log
-            .append(log)
+            .append_audit_event(log)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -1194,16 +1202,16 @@ impl WalHandler {
                 if let Ok(buffer) =
                     writer.backend.get_wal(&token.address, &vault_id).await
                 {
-                    /*
-                    let payload = SyncEvent::ReadVault(change_seq);
-                    let log = AuditEvent::from_sync_event(&payload, token.address, vault_id);
+                    let log = AuditEvent::new(
+                        EventKind::ReadWal,
+                        token.address,
+                        Some(AuditData::Vault(vault_id)),
+                    );
                     writer
                         .audit_log
-                        .append(log)
+                        .append_audit_event(log)
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                    */
-
                     Ok(Bytes::from(buffer))
                 } else {
                     Err(StatusCode::INTERNAL_SERVER_ERROR)

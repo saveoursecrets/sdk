@@ -9,37 +9,40 @@ use serde_binary::{
 use std::fmt;
 
 /// Type identifier for a noop.
-pub const NOOP: u16 = 0x0;
+pub const NOOP: u16 = 0;
 /// Type identifier for the create account operation.
-pub const CREATE_ACCOUNT: u16 = 0x01;
+pub const CREATE_ACCOUNT: u16 = 1;
 /// Type identifier for the delete account operation.
-pub const DELETE_ACCOUNT: u16 = 0x02;
+pub const DELETE_ACCOUNT: u16 = 2;
 /// Type identifier for the login challenge operation.
-pub const LOGIN_CHALLENGE: u16 = 0x03;
+pub const LOGIN_CHALLENGE: u16 = 3;
 /// Type identifier for the login response operation.
-pub const LOGIN_RESPONSE: u16 = 0x04;
+pub const LOGIN_RESPONSE: u16 = 4;
 /// Type identifier for the create vault operation.
-pub const CREATE_VAULT: u16 = 0x05;
+pub const CREATE_VAULT: u16 = 5;
 /// Type identifier for the read vault operation.
-pub const READ_VAULT: u16 = 0x06;
+pub const READ_VAULT: u16 = 6;
 /// Type identifier for the update vault operation.
-pub const UPDATE_VAULT: u16 = 0x07;
+pub const UPDATE_VAULT: u16 = 7;
 /// Type identifier for the delete vault operation.
-pub const DELETE_VAULT: u16 = 0x08;
+pub const DELETE_VAULT: u16 = 8;
 /// Type identifier for the get vault name operation.
-pub const GET_VAULT_NAME: u16 = 0x09;
+pub const GET_VAULT_NAME: u16 = 9;
 /// Type identifier for the set vault name operation.
-pub const SET_VAULT_NAME: u16 = 0x0A;
+pub const SET_VAULT_NAME: u16 = 10;
 /// Type identifier for the set vault meta operation.
-pub const SET_VAULT_META: u16 = 0x0B;
+pub const SET_VAULT_META: u16 = 11;
 /// Type identifier for the create secret operation.
-pub const CREATE_SECRET: u16 = 0x0C;
+pub const CREATE_SECRET: u16 = 12;
 /// Type identifier for the read secret operation.
-pub const READ_SECRET: u16 = 0x0D;
+pub const READ_SECRET: u16 = 13;
 /// Type identifier for the update secret operation.
-pub const UPDATE_SECRET: u16 = 0x0E;
+pub const UPDATE_SECRET: u16 = 14;
 /// Type identifier for the delete secret operation.
-pub const DELETE_SECRET: u16 = 0x0F;
+pub const DELETE_SECRET: u16 = 15;
+
+/// Type identifier for the read WAL operation.
+pub const READ_WAL: u16 = 16;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation used for printing.
@@ -77,6 +80,9 @@ pub enum EventKind {
     UpdateSecret,
     /// EventKind to delete a secret.
     DeleteSecret,
+
+    /// EventKind to read a WAL log.
+    ReadWal,
 }
 
 impl Default for EventKind {
@@ -123,6 +129,7 @@ impl TryFrom<u16> for EventKind {
             READ_SECRET => Ok(EventKind::ReadSecret),
             UPDATE_SECRET => Ok(EventKind::UpdateSecret),
             DELETE_SECRET => Ok(EventKind::DeleteSecret),
+            READ_WAL => Ok(EventKind::ReadWal),
             _ => Err(Error::UnknownEventKind(value)),
         }
     }
@@ -147,6 +154,7 @@ impl From<&EventKind> for u16 {
             EventKind::ReadSecret => READ_SECRET,
             EventKind::UpdateSecret => UPDATE_SECRET,
             EventKind::DeleteSecret => DELETE_SECRET,
+            EventKind::ReadWal => READ_WAL,
         }
     }
 }
@@ -171,6 +179,7 @@ impl fmt::Display for EventKind {
                 EventKind::ReadSecret => "READ_SECRET",
                 EventKind::UpdateSecret => "UPDATE_SECRET",
                 EventKind::DeleteSecret => "DELETE_SECRET",
+                EventKind::ReadWal => "READ_WAL",
             }
         })
     }

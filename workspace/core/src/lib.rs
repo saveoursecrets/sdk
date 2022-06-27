@@ -21,6 +21,7 @@ pub mod vault;
 pub mod wal;
 
 pub use k256;
+pub use serde_binary;
 pub use serde_binary::binary_rw;
 pub use web3_signature;
 

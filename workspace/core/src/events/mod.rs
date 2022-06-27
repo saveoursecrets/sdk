@@ -8,9 +8,7 @@ mod sync;
 mod types;
 mod wal;
 
-pub use audit::{
-    AuditData, AuditEvent, AuditProvider, LogFileIterator, AUDIT_IDENTITY,
-};
+pub use audit::{AuditData, AuditEvent, AuditProvider};
 pub use change::ChangeEvent;
 pub use sync::SyncEvent;
 pub use types::EventKind;

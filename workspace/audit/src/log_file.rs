@@ -1,27 +1,25 @@
 use async_trait::async_trait;
 use std::{io::Write, path::Path};
-use tokio::{fs::File, io::AsyncWriteExt, sync::Mutex};
+use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::Result;
 use sos_core::{
-    events::{AuditEvent, AuditProvider, AUDIT_IDENTITY},
-    file_identity::FileIdentity,
+    events::{AuditEvent, AuditProvider},
+    file_identity::{FileIdentity, AUDIT_IDENTITY},
     vault::encode,
 };
 
 /// Represents an audit log file.
-pub struct LogFile {
-    file: Mutex<File>,
+pub struct AuditLogFile {
+    file: File,
 }
 
-impl LogFile {
+impl AuditLogFile {
     /// Create an audit log file.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let file = LogFile::create(path.as_ref())?;
+        let file = AuditLogFile::create(path.as_ref())?;
         let file = File::from_std(file);
-        Ok(Self {
-            file: Mutex::new(file),
-        })
+        Ok(Self { file })
     }
 
     /// Create the file used to store audit logs.
@@ -50,15 +48,14 @@ impl LogFile {
 }
 
 #[async_trait]
-impl AuditProvider for LogFile {
+impl AuditProvider for AuditLogFile {
     type Error = crate::Error;
-    async fn append(
+    async fn append_audit_event(
         &mut self,
         log: AuditEvent,
     ) -> std::result::Result<(), Self::Error> {
-        let mut writer = self.file.lock().await;
         let buffer = encode(&log)?;
-        writer.write_all(&buffer).await?;
+        self.file.write_all(&buffer).await?;
         Ok(())
     }
 }

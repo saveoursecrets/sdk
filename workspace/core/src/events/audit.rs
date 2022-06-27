@@ -3,23 +3,15 @@ use async_trait::async_trait;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use serde_binary::{
-    binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
     Decode, Deserializer, Encode, Error as BinaryError,
     Result as BinaryResult, Serializer,
 };
-use std::path::Path;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
-use crate::{
-    address::AddressStr, events::EventKind, file_identity::FileIdentity,
-    Error, Result,
-};
+use crate::{address::AddressStr, events::EventKind};
 
 use super::SyncEvent;
-
-/// Identity magic bytes (SOSA).
-pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 
 bitflags! {
     /// Bit flags for associated data.
@@ -31,6 +23,19 @@ bitflags! {
         /// Indicates the data has a secret identifier.
         const DATA_SECRET = 0b00000100;
     }
+}
+
+/// Trait for types that append to an audit log.
+#[async_trait]
+pub trait AuditProvider {
+    /// Error type for this implementation.
+    type Error;
+
+    /// Append an audit log record to a destination.
+    async fn append_audit_event(
+        &mut self,
+        logs: AuditEvent,
+    ) -> std::result::Result<(), Self::Error>;
 }
 
 /// Audit log record.
@@ -240,91 +245,5 @@ impl Encode for AuditData {
             }
         }
         Ok(())
-    }
-}
-
-/// Trait for types that append to an audit log.
-#[async_trait]
-pub trait AuditProvider {
-    /// Error type for this implementation.
-    type Error;
-
-    /// Append an audit log record to a destination.
-    async fn append(
-        &mut self,
-        logs: AuditEvent,
-    ) -> std::result::Result<(), Self::Error>;
-}
-
-/// Iterate a buffer any yield audit log records.
-pub struct LogFileIterator {
-    stream: FileStream,
-    offset: usize,
-    size: u64,
-}
-
-impl LogFileIterator {
-    /// Create a new log file iterator.
-    pub fn new<P: AsRef<Path>>(
-        path: P,
-        expects_identity: bool,
-    ) -> Result<Self> {
-        let size = path.as_ref().metadata()?.len();
-        if size == 0 {
-            return Err(Error::EmptyFile(path.as_ref().to_path_buf()));
-        } else if size < 4 {
-            return Err(Error::FileTooSmall(path.as_ref().to_path_buf(), 4));
-        }
-
-        let stream = FileStream::new(path.as_ref(), OpenType::Open)?;
-        let mut it = Self {
-            stream,
-            offset: 0,
-            size,
-        };
-        if expects_identity {
-            it.read_identity()?;
-        }
-        Ok(it)
-    }
-
-    fn deserializer(&mut self) -> Result<Deserializer<'_>> {
-        let reader = BinaryReader::new(&mut self.stream, Endian::Big);
-        let mut de = Deserializer { reader };
-        de.reader.seek(self.offset)?;
-        Ok(de)
-    }
-
-    /// Attempt to read the identity bytes from the buffer and
-    /// advance the offset.
-    pub fn read_identity(&mut self) -> Result<()> {
-        let mut de = self.deserializer()?;
-        FileIdentity::read_identity(&mut de, &AUDIT_IDENTITY)?;
-        self.offset = de.reader.tell()?;
-        Ok(())
-    }
-}
-
-impl Iterator for LogFileIterator {
-    type Item = AuditEvent;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // WARN: this will fail on 32-bit platforms!
-        let size = self.size as usize;
-
-        if let Ok(mut de) = self.deserializer() {
-            let pos = de.reader.tell().unwrap();
-            if pos == size {
-                // EOF
-                return None;
-            }
-
-            let mut log: AuditEvent = Default::default();
-            log.decode(&mut de).unwrap();
-            self.offset = de.reader.tell().unwrap();
-            Some(log)
-        } else {
-            None
-        }
     }
 }

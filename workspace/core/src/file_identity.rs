@@ -6,6 +6,9 @@ use serde_binary::{
 
 use crate::{Error, Result};
 
+/// Identity magic bytes (SOSA).
+pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
+
 /// Read and write the identity bytes for a file.
 #[derive(Debug, Eq, PartialEq)]
 pub struct FileIdentity(pub [u8; 4]);

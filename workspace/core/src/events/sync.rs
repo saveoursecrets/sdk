@@ -11,10 +11,8 @@ use serde_binary::{
     Result as BinaryResult, Serializer,
 };
 use std::borrow::Cow;
-use uuid::Uuid;
 
 use crate::{
-    address::AddressStr,
     crypto::AeadPack,
     secret::SecretId,
     signer::Signer,
