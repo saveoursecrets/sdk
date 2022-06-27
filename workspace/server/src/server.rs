@@ -47,8 +47,8 @@ use crate::{
     assets::Assets,
     authenticate::{self, Authentication, SignedQuery},
     headers::{
-        ChangeSequence, SignedMessage, X_CHANGE_SEQUENCE, X_COMMIT_HASH,
-        X_SIGNED_MESSAGE,
+        ChangeSequence, CommitHash, SignedMessage, X_CHANGE_SEQUENCE,
+        X_COMMIT_HASH, X_SIGNED_MESSAGE,
     },
     Backend, ServerConfig,
 };
@@ -1186,6 +1186,7 @@ impl WalHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
+        TypedHeader(hash): TypedHeader<CommitHash>,
         Path(vault_id): Path<Uuid>,
     ) -> Result<Bytes, StatusCode> {
         if let Ok((status_code, token)) =
@@ -1204,22 +1205,29 @@ impl WalHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                if let Ok(buffer) =
-                    writer.backend.get_wal(&token.address, &vault_id).await
-                {
-                    let log = AuditEvent::new(
-                        EventKind::ReadWal,
-                        token.address,
-                        Some(AuditData::Vault(vault_id)),
-                    );
-                    writer
-                        .audit_log
-                        .append_audit_event(log)
-                        .await
-                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                    Ok(Bytes::from(buffer))
+                let hash: Option<[u8; 32]> = hash.into();
+                if let Some(hash) = hash {
+                    todo!("read WAL from specific commit hash")
                 } else {
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    if let Ok(buffer) = writer
+                        .backend
+                        .get_wal(&token.address, &vault_id)
+                        .await
+                    {
+                        let log = AuditEvent::new(
+                            EventKind::ReadWal,
+                            token.address,
+                            Some(AuditData::Vault(vault_id)),
+                        );
+                        writer
+                            .audit_log
+                            .append_audit_event(log)
+                            .await
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                        Ok(Bytes::from(buffer))
+                    } else {
+                        Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    }
                 }
             } else {
                 Err(status_code)
