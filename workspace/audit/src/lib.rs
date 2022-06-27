@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use sos_core::audit::{LogData, LogFileIterator};
+use sos_core::events::{AuditData, LogFileIterator};
 
 mod error;
 
@@ -17,11 +17,9 @@ pub fn logs(audit_log: PathBuf, json: bool) -> Result<()> {
         if json {
             println!("{}", serde_json::to_string(&log)?);
         } else {
-            println!("logging");
-
             if let Some(data) = log.data {
                 match data {
-                    LogData::Vault(vault_id) => {
+                    AuditData::Vault(vault_id) => {
                         tracing::info!(
                             "{} {} by {} (vault = {})",
                             log.time,
@@ -30,7 +28,7 @@ pub fn logs(audit_log: PathBuf, json: bool) -> Result<()> {
                             vault_id,
                         );
                     }
-                    LogData::Secret(vault_id, secret_id) => {
+                    AuditData::Secret(vault_id, secret_id) => {
                         tracing::info!(
                             "{} {} by {} (vault = {}, secret = {})",
                             log.time,

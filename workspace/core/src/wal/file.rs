@@ -36,7 +36,7 @@ use serde_binary::{
 use super::{LogRecord, LogTime, WalItem, WalIterator, WalProvider};
 
 /// Identity magic bytes (SOSW).
-pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+pub const WAL_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
 
 /// Reference to a row in the write ahead log.
 #[derive(Default, Debug)]
@@ -122,7 +122,7 @@ impl WalFile {
 
         let size = file.metadata()?.len();
         if size == 0 {
-            let identity = FileIdentity(IDENTITY);
+            let identity = FileIdentity(WAL_IDENTITY);
             let buffer = encode(&identity)?;
             file.write_all(&buffer)?;
         }
@@ -195,7 +195,7 @@ impl WalFileIterator {
             FileStream::new(file_path.as_ref(), OpenType::Open)?;
         let reader = BinaryReader::new(&mut file_stream, Endian::Big);
         let mut deserializer = Deserializer { reader };
-        FileIdentity::read_identity(&mut deserializer, &IDENTITY)?;
+        FileIdentity::read_identity(&mut deserializer, &WAL_IDENTITY)?;
         file_stream.seek(4)?;
         Ok(Self {
             file_stream,
@@ -271,7 +271,7 @@ impl Iterator for WalFileIterator {
     type Item = Result<WalFileRow>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        const OFFSET: usize = IDENTITY.len();
+        const OFFSET: usize = WAL_IDENTITY.len();
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
             if lpos == rpos {
@@ -305,7 +305,7 @@ impl Iterator for WalFileIterator {
 
 impl DoubleEndedIterator for WalFileIterator {
     fn next_back(&mut self) -> Option<Self::Item> {
-        const OFFSET: usize = IDENTITY.len();
+        const OFFSET: usize = WAL_IDENTITY.len();
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
             if lpos == rpos {

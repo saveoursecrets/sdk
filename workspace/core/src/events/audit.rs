@@ -1,4 +1,4 @@
-//! Types for audit logs.
+//! Event for audit log records.
 use async_trait::async_trait;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -17,7 +17,7 @@ use crate::{
 };
 
 /// Identity magic bytes (SOSA).
-pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
+pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 
 bitflags! {
     /// Bit flags for associated data.
@@ -47,7 +47,7 @@ bitflags! {
 /// * 20 bytes for the public address.
 /// * 16 or 32 bytes for the context data (one or two UUIDs).
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Log {
+pub struct AuditEvent {
     /// The time the log was created.
     pub time: OffsetDateTime,
     /// The operation being performed.
@@ -56,10 +56,10 @@ pub struct Log {
     pub address: AddressStr,
     /// Context data about the operation.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<LogData>,
+    pub data: Option<AuditData>,
 }
 
-impl Default for Log {
+impl Default for AuditEvent {
     fn default() -> Self {
         Self {
             time: OffsetDateTime::now_utc(),
@@ -70,12 +70,12 @@ impl Default for Log {
     }
 }
 
-impl Log {
+impl AuditEvent {
     /// Create a new audit log entry.
     pub fn new(
         operation: EventKind,
         address: AddressStr,
-        data: Option<LogData>,
+        data: Option<AuditData>,
     ) -> Self {
         Self {
             time: OffsetDateTime::now_utc(),
@@ -90,10 +90,10 @@ impl Log {
             let mut flags = LogFlags::empty();
             flags.set(LogFlags::DATA, true);
             match data {
-                LogData::Vault(_) => {
+                AuditData::Vault(_) => {
                     flags.set(LogFlags::DATA_VAULT, true);
                 }
-                LogData::Secret(_, _) => {
+                AuditData::Secret(_, _) => {
                     flags.set(LogFlags::DATA_VAULT, true);
                     flags.set(LogFlags::DATA_SECRET, true);
                 }
@@ -105,7 +105,7 @@ impl Log {
     }
 }
 
-impl Encode for Log {
+impl Encode for AuditEvent {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         // Context bit flags
         let flags = self.log_flags();
@@ -128,7 +128,7 @@ impl Encode for Log {
     }
 }
 
-impl Decode for Log {
+impl Decode for AuditEvent {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         // Context bit flags
         let bits = de.reader.read_u16()?;
@@ -151,15 +151,16 @@ impl Decode for Log {
                     let vault_id: [u8; 16] =
                         de.reader.read_bytes(16)?.as_slice().try_into()?;
                     if !flags.contains(LogFlags::DATA_SECRET) {
-                        self.data =
-                            Some(LogData::Vault(Uuid::from_bytes(vault_id)));
+                        self.data = Some(AuditData::Vault(Uuid::from_bytes(
+                            vault_id,
+                        )));
                     } else {
                         let secret_id: [u8; 16] = de
                             .reader
                             .read_bytes(16)?
                             .as_slice()
                             .try_into()?;
-                        self.data = Some(LogData::Secret(
+                        self.data = Some(AuditData::Secret(
                             Uuid::from_bytes(vault_id),
                             Uuid::from_bytes(secret_id),
                         ));
@@ -178,27 +179,27 @@ impl Decode for Log {
 /// Associated data for an audit log record.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum LogData {
+pub enum AuditData {
     /// Data for an associated vault.
     Vault(Uuid),
     /// Data for an associated secret.
     Secret(Uuid, Uuid),
 }
 
-impl Default for LogData {
+impl Default for AuditData {
     fn default() -> Self {
         let zero = [0u8; 16];
         Self::Vault(Uuid::from_bytes(zero))
     }
 }
 
-impl Encode for LogData {
+impl Encode for AuditData {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         match self {
-            LogData::Vault(vault_id) => {
+            AuditData::Vault(vault_id) => {
                 ser.writer.write_bytes(vault_id.as_bytes())?;
             }
-            LogData::Secret(vault_id, secret_id) => {
+            AuditData::Secret(vault_id, secret_id) => {
                 ser.writer.write_bytes(vault_id.as_bytes())?;
                 ser.writer.write_bytes(secret_id.as_bytes())?;
             }
@@ -209,14 +210,14 @@ impl Encode for LogData {
 
 /// Trait for types that append to an audit log.
 #[async_trait]
-pub trait Append {
+pub trait AuditProvider {
     /// Error type for this implementation.
     type Error;
 
-    /// Append a log to a destination.
+    /// Append an audit log record to a destination.
     async fn append(
         &mut self,
-        logs: Log,
+        logs: AuditEvent,
     ) -> std::result::Result<(), Self::Error>;
 }
 
@@ -263,14 +264,14 @@ impl LogFileIterator {
     /// advance the offset.
     pub fn read_identity(&mut self) -> Result<()> {
         let mut de = self.deserializer()?;
-        FileIdentity::read_identity(&mut de, &IDENTITY)?;
+        FileIdentity::read_identity(&mut de, &AUDIT_IDENTITY)?;
         self.offset = de.reader.tell()?;
         Ok(())
     }
 }
 
 impl Iterator for LogFileIterator {
-    type Item = Log;
+    type Item = AuditEvent;
 
     fn next(&mut self) -> Option<Self::Item> {
         // WARN: this will fail on 32-bit platforms!
@@ -283,7 +284,7 @@ impl Iterator for LogFileIterator {
                 return None;
             }
 
-            let mut log: Log = Default::default();
+            let mut log: AuditEvent = Default::default();
             log.decode(&mut de).unwrap();
             self.offset = de.reader.tell().unwrap();
             Some(log)

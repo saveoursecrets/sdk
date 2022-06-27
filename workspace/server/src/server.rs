@@ -22,9 +22,8 @@ use tower_http::cors::{CorsLayer, Origin};
 use serde_json::json;
 use sos_core::{
     address::AddressStr,
-    audit::{Append, Log},
     decode,
-    events::{ChangeEvent, EventKind, SyncEvent},
+    events::{AuditEvent, AuditProvider, ChangeEvent, EventKind, SyncEvent},
     patch::Patch,
     secret::SecretId,
     vault::{Header, Summary, Vault, VaultCommit},
@@ -54,7 +53,7 @@ const MAX_SSE_CONNECTIONS_PER_CLIENT: u8 = 6;
 /// Intermediary type used when handling HTTP requests.
 struct ResponseEvent {
     /// Audit log record.
-    log: Log,
+    log: AuditEvent,
     /// A server event to send to connected clients.
     event: Option<ChangeEvent>,
 }
@@ -206,10 +205,7 @@ impl Server {
                     .post(VaultHandler::update_vault)
                     .patch(VaultHandler::patch_vault),
             )
-            .route(
-                "/api/vaults/:vault_id/wal",
-                get(WalHandler::read_wal)
-            )
+            .route("/api/vaults/:vault_id/wal", get(WalHandler::read_wal))
             .route(
                 "/api/vaults/:vault_id/name",
                 get(VaultHandler::get_vault_name)
@@ -322,7 +318,7 @@ impl AuthHandler {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
                 if writer.backend.account_exists(&token.address).await {
-                    let log = Log::new(
+                    let log = AuditEvent::new(
                         EventKind::LoginChallenge,
                         token.address,
                         None,
@@ -384,7 +380,7 @@ impl AuthHandler {
                         if let Ok(summaries) =
                             writer.backend.list(&token.address).await
                         {
-                            let log = Log::new(
+                            let log = AuditEvent::new(
                                 EventKind::LoginResponse,
                                 token.address,
                                 None,
@@ -437,7 +433,7 @@ impl AccountHandler {
                         .create_account(&token.address, &uuid, &body)
                         .await
                     {
-                        let log = Log::new(
+                        let log = AuditEvent::new(
                             EventKind::CreateAccount,
                             token.address,
                             None,
@@ -579,7 +575,7 @@ impl VaultHandler {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
                 //if !writer.backend.account_exists(&token.address).await {
-                    //return Err(StatusCode::NOT_FOUND);
+                //return Err(StatusCode::NOT_FOUND);
                 //}
 
                 let (exists, change_seq) = writer
@@ -1156,7 +1152,6 @@ impl WalHandler {
                 if let Ok(buffer) =
                     writer.backend.get_wal(&token.address, &vault_id).await
                 {
-
                     /*
                     let payload = SyncEvent::ReadVault(change_seq);
                     let log = payload.into_audit_log(token.address, vault_id);

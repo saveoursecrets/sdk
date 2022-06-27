@@ -2,7 +2,6 @@
 //! Secret storage manager.
 
 pub mod address;
-pub mod audit;
 pub mod commit_tree;
 pub mod crypto;
 pub mod diceware;

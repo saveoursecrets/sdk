@@ -4,7 +4,7 @@ use tokio::{fs::File, io::AsyncWriteExt, sync::Mutex};
 
 use crate::Result;
 use sos_core::{
-    audit::{Append, Log, IDENTITY},
+    events::{AuditEvent, AuditProvider, AUDIT_IDENTITY},
     file_identity::FileIdentity,
     vault::encode,
 };
@@ -40,7 +40,7 @@ impl LogFile {
 
         let size = file.metadata()?.len();
         if size == 0 {
-            let identity = FileIdentity(IDENTITY);
+            let identity = FileIdentity(AUDIT_IDENTITY);
             let buffer = encode(&identity)?;
             file.write_all(&buffer)?;
         }
@@ -50,11 +50,11 @@ impl LogFile {
 }
 
 #[async_trait]
-impl Append for LogFile {
+impl AuditProvider for LogFile {
     type Error = crate::Error;
     async fn append(
         &mut self,
-        log: Log,
+        log: AuditEvent,
     ) -> std::result::Result<(), Self::Error> {
         let mut writer = self.file.lock().await;
         let buffer = encode(&log)?;
