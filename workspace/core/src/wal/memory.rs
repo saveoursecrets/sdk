@@ -11,7 +11,7 @@ use crate::{
     Result,
 };
 
-use super::{WalItem, WalProvider, WalRecord};
+use super::{WalProvider, WalRecord};
 
 /// A write ahead log that stores records in memory.
 #[derive(Default)]

@@ -6,7 +6,7 @@ use sos_core::{
     file_access::VaultFileAccess,
     vault::{Header, Summary, Vault, VaultAccess},
     wal::{
-        file::{WalFile, WalFileRow},
+        file::{WalFile, WalFileRecord},
         WalItem, WalProvider,
     },
 };
@@ -112,7 +112,7 @@ pub struct FileSystemBackend<'a> {
     accounts: RwLock<
         HashMap<
             AddressStr,
-            HashMap<Uuid, (VaultStorage, WalStorage<'a, WalFileRow>)>,
+            HashMap<Uuid, (VaultStorage, WalStorage<'a, WalFileRecord>)>,
         >,
     >,
 }

@@ -38,7 +38,7 @@ use super::{WalItem, WalProvider, WalRecord};
 
 /// Reference to a row in the write ahead log.
 #[derive(Default, Debug)]
-pub struct WalFileRow {
+pub struct WalFileRecord {
     /// The time the row was created.
     time: Timestamp,
     /// The commit hash for the value.
@@ -47,7 +47,7 @@ pub struct WalFileRow {
     value: Range<usize>,
 }
 
-impl WalFileRow {
+impl WalFileRecord {
     /// Read the bytes for the row value into an owned buffer.
     pub fn read_value<'a>(
         &self,
@@ -60,7 +60,7 @@ impl WalFileRow {
     }
 }
 
-impl WalItem for WalFileRow {
+impl WalItem for WalFileRecord {
     fn commit(&self) -> [u8; 32] {
         self.commit
     }
@@ -70,7 +70,7 @@ impl WalItem for WalFileRow {
     }
 }
 
-impl Decode for WalFileRow {
+impl Decode for WalFileRecord {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let mut time: Timestamp = Default::default();
         time.decode(&mut *de)?;
@@ -124,7 +124,7 @@ impl WalFile {
 }
 
 impl<'a> WalProvider<'a> for WalFile {
-    type Item = WalFileRow;
+    type Item = WalFileRecord;
 
     fn tree(&self) -> &CommitTree {
         &self.tree
@@ -199,9 +199,9 @@ impl WalFileIterator {
     }
 
     /// Helper to decode the row time, commit and byte range.
-    fn read_row(de: &mut Deserializer) -> Result<WalFileRow> {
+    fn read_row(de: &mut Deserializer) -> Result<WalFileRecord> {
         let start = de.reader.tell()?;
-        let mut row: WalFileRow = Default::default();
+        let mut row: WalFileRecord = Default::default();
         row.decode(&mut *de)?;
 
         // The byte range for the row value.
@@ -214,7 +214,7 @@ impl WalFileIterator {
     }
 
     /// Attempt to read the next log row.
-    fn read_row_next(&mut self) -> Result<WalFileRow> {
+    fn read_row_next(&mut self) -> Result<WalFileRecord> {
         let row_pos = self.forward.unwrap();
 
         let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
@@ -234,7 +234,7 @@ impl WalFileIterator {
     }
 
     /// Attempt to read the next log row for backward iteration.
-    fn read_row_next_back(&mut self) -> Result<WalFileRow> {
+    fn read_row_next_back(&mut self) -> Result<WalFileRecord> {
         let row_pos = self.backward.unwrap();
 
         let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
@@ -260,7 +260,7 @@ impl WalFileIterator {
 }
 
 impl Iterator for WalFileIterator {
-    type Item = Result<WalFileRow>;
+    type Item = Result<WalFileRecord>;
 
     fn next(&mut self) -> Option<Self::Item> {
         const OFFSET: usize = WAL_IDENTITY.len();

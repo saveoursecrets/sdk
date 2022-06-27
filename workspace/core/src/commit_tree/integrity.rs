@@ -6,7 +6,7 @@ use serde_binary::binary_rw::{BinaryReader, Endian, FileStream, OpenType};
 use crate::{
     commit_tree::{hash, CommitTree, RowInfo, RowIterator},
     wal::{
-        file::{WalFile, WalFileRow},
+        file::{WalFile, WalFileRecord},
         WalItem, WalProvider,
     },
     Error, Result,
@@ -62,21 +62,21 @@ where
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
 pub fn wal_commit_tree<P: AsRef<Path>, F>(
-    vault: P,
+    wal_file: P,
     verify: bool,
     func: F,
 ) -> Result<CommitTree>
 where
-    F: Fn(&WalFileRow) -> (),
+    F: Fn(&WalFileRecord) -> (),
 {
     let mut tree = CommitTree::new();
 
     // Need an additional reader as we may also read in the
     // values for the rows
-    let mut value = FileStream::new(vault.as_ref(), OpenType::Open)?;
+    let mut value = FileStream::new(wal_file.as_ref(), OpenType::Open)?;
     let mut reader = BinaryReader::new(&mut value, Endian::Big);
 
-    let wal = WalFile::new(vault.as_ref())?;
+    let wal = WalFile::new(wal_file.as_ref())?;
 
     for row_info in wal.iter()? {
         let row_info = row_info?;
