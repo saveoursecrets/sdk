@@ -5,8 +5,12 @@ use once_cell::sync::Lazy;
 pub static X_SIGNED_MESSAGE: Lazy<HeaderName> =
     Lazy::new(|| HeaderName::from_static("x-signed-message"));
 
+#[deprecated]
 pub static X_CHANGE_SEQUENCE: Lazy<HeaderName> =
     Lazy::new(|| HeaderName::from_static("x-change-sequence"));
+
+pub static X_COMMIT_HASH: Lazy<HeaderName> =
+    Lazy::new(|| HeaderName::from_static("x-commit-hash"));
 
 /// Represents the `x-signed-message` header.
 #[derive(Debug)]
@@ -45,6 +49,7 @@ impl Header for SignedMessage {
 }
 
 /// Represents the `x-change-sequence` header.
+#[deprecated]
 #[derive(Debug, Eq, PartialEq)]
 pub struct ChangeSequence(u32);
 
@@ -79,6 +84,68 @@ impl Header for ChangeSequence {
 
 impl From<ChangeSequence> for u32 {
     fn from(value: ChangeSequence) -> Self {
+        value.0
+    }
+}
+
+/// Represents the `x-commit-hash` header.
+///
+/// An empty string indicates no commit hash is available
+/// and can be used to indicate that all available data
+/// should be returned by the server; for example, to fetch
+/// an entire WAL file whan a client connects with no cached
+/// WAL.
+#[derive(Debug, Eq, PartialEq)]
+pub struct CommitHash(Option<[u8; 32]>);
+
+impl Header for CommitHash {
+    fn name() -> &'static HeaderName {
+        &X_COMMIT_HASH
+    }
+
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let value = values.next().ok_or_else(headers::Error::invalid)?;
+        let value: &str =
+            value.to_str().map_err(|_| headers::Error::invalid())?;
+
+        if value.is_empty() {
+            Ok(CommitHash(None))
+        } else {
+            if value.len() != 64 {
+                return Err(headers::Error::invalid());
+            }
+
+            let value = hex::decode(value.as_bytes())
+                .map_err(|_| headers::Error::invalid())?;
+
+            let value: [u8; 32] = value
+                .as_slice()
+                .try_into()
+                .map_err(|_| headers::Error::invalid())?;
+            Ok(CommitHash(Some(value)))
+        }
+    }
+
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        let s = if let Some(value) = &self.0 {
+            hex::encode(value)
+        } else {
+            String::new()
+        };
+        let value = HeaderValue::from_str(&s)
+            .expect("failed to create commit hash header");
+        values.extend(std::iter::once(value));
+    }
+}
+
+impl From<CommitHash> for Option<[u8; 32]> {
+    fn from(value: CommitHash) -> Self {
         value.0
     }
 }

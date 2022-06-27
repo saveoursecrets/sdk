@@ -47,7 +47,8 @@ use crate::{
     assets::Assets,
     authenticate::{self, Authentication, SignedQuery},
     headers::{
-        ChangeSequence, SignedMessage, X_CHANGE_SEQUENCE, X_SIGNED_MESSAGE,
+        ChangeSequence, SignedMessage, X_CHANGE_SEQUENCE, X_COMMIT_HASH,
+        X_SIGNED_MESSAGE,
     },
     Backend, ServerConfig,
 };
@@ -189,8 +190,12 @@ impl Server {
                 CONTENT_TYPE,
                 X_SIGNED_MESSAGE.clone(),
                 X_CHANGE_SEQUENCE.clone(),
+                X_COMMIT_HASH.clone(),
             ])
-            .expose_headers(vec![X_CHANGE_SEQUENCE.clone()])
+            .expose_headers(vec![
+                X_CHANGE_SEQUENCE.clone(),
+                X_COMMIT_HASH.clone(),
+            ])
             .allow_origin(Origin::list(origins));
 
         let app = Router::new()
