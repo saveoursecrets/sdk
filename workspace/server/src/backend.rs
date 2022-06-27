@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 type VaultStorage = Box<dyn VaultAccess + Send + Sync>;
 type WalStorage<T> = Box<dyn WalProvider<Item = T> + Send + Sync>;
-type Account = (VaultStorage, WalStorage<WalFileRecord>);
+type Storage = (VaultStorage, WalStorage<WalFileRecord>);
 
 const WAL_EXT: &str = "wal";
 const WAL_DELETED_EXT: &str = "wal.deleted";
@@ -88,18 +88,18 @@ pub trait Backend {
     ) -> Result<Vec<u8>>;
 
     /// Get a read handle to an existing vault.
-    async fn vault_read<'a>(
-        &'a self,
+    async fn vault_read(
+        &self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<&'a Account>;
+    ) -> Result<&Storage>;
 
     /// Get a write handle to an existing vault.
-    async fn vault_write<'a>(
-        &'a mut self,
+    async fn vault_write(
+        &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<&'a mut Account>;
+    ) -> Result<&mut Storage>;
 }
 
 /// Backend storage for vaults on the file system.
@@ -107,7 +107,7 @@ pub struct FileSystemBackend {
     directory: PathBuf,
     locks: FileLocks,
     files: Vec<PathBuf>,
-    accounts: HashMap<AddressStr, HashMap<Uuid, Account>>,
+    accounts: HashMap<AddressStr, HashMap<Uuid, Storage>>,
 }
 
 impl FileSystemBackend {
@@ -380,12 +380,13 @@ impl Backend for FileSystemBackend {
             if let Some(_) = account.get(vault_id) {
                 let vault_file = self.vault_file_path(owner, vault_id);
                 let buffer = tokio::fs::read(vault_file).await?;
-                return Ok(buffer);
+                Ok(buffer)
+            } else {
+                Err(Error::VaultNotExist(*vault_id))
             }
         } else {
-            return Err(Error::AccountNotExist(*owner));
+            Err(Error::AccountNotExist(*owner))
         }
-        Err(Error::VaultNotExist(*vault_id))
     }
 
     async fn get_wal(
@@ -398,47 +399,44 @@ impl Backend for FileSystemBackend {
                 let mut wal_file = self.vault_file_path(owner, vault_id);
                 wal_file.set_extension(WAL_EXT);
                 let buffer = tokio::fs::read(wal_file).await?;
-                return Ok(buffer);
+                Ok(buffer)
+            } else {
+                Err(Error::VaultNotExist(*vault_id))
             }
         } else {
-            return Err(Error::AccountNotExist(*owner));
+            Err(Error::AccountNotExist(*owner))
         }
-        Err(Error::VaultNotExist(*vault_id))
     }
 
-    async fn vault_read<'a>(
-        &'a self,
+    async fn vault_read(
+        &self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<&'a Account> {
-        if self.accounts.get(owner).is_none() {
-            return Err(Error::AccountNotExist(*owner));
+    ) -> Result<&Storage> {
+        if let Some(account) = self.accounts.get(owner) {
+            if let Some(storage) = account.get(vault_id) {
+                Ok(storage)
+            } else {
+                Err(Error::VaultNotExist(*vault_id))
+            }
+        } else {
+            Err(Error::AccountNotExist(*owner))
         }
-
-        let account = self.accounts.get(owner).unwrap();
-        if account.get(vault_id).is_none() {
-            return Err(Error::VaultNotExist(*vault_id));
-        }
-
-        let account = self.accounts.get(owner).unwrap();
-        Ok(&account.get(vault_id).unwrap())
     }
 
-    async fn vault_write<'a>(
-        &'a mut self,
+    async fn vault_write(
+        &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<&'a mut Account> {
-        if self.accounts.get(owner).is_none() {
-            return Err(Error::AccountNotExist(*owner));
+    ) -> Result<&mut Storage> {
+        if let Some(account) = self.accounts.get_mut(owner) {
+            if let Some(storage) = account.get_mut(vault_id) {
+                Ok(storage)
+            } else {
+                Err(Error::VaultNotExist(*vault_id))
+            }
+        } else {
+            Err(Error::AccountNotExist(*owner))
         }
-
-        let account = self.accounts.get(owner).unwrap();
-        if account.get(vault_id).is_none() {
-            return Err(Error::VaultNotExist(*vault_id));
-        }
-
-        let account = self.accounts.get_mut(owner).unwrap();
-        Ok(account.get_mut(vault_id).unwrap())
     }
 }
