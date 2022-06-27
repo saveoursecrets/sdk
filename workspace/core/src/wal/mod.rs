@@ -77,9 +77,9 @@ impl Decode for LogTime {
 
 /// Record for a row in the write ahead log.
 #[derive(Debug, Clone)]
-pub struct LogRecord(LogTime, CommitHash, pub Vec<u8>);
+pub struct WalRecord(LogTime, CommitHash, pub Vec<u8>);
 
-impl Encode for LogRecord {
+impl Encode for WalRecord {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         // Prepare the bytes for the row length
         let size_pos = ser.writer.tell()?;
@@ -112,7 +112,7 @@ impl Encode for LogRecord {
     }
 }
 
-impl Decode for LogRecord {
+impl Decode for WalRecord {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         // Read in the row length
         let _ = de.reader.read_u32()?;
@@ -140,7 +140,7 @@ impl Decode for LogRecord {
     }
 }
 
-impl WalItem for &LogRecord {
+impl WalItem for &WalRecord {
     fn commit(&self) -> [u8; 32] {
         self.1 .0
     }

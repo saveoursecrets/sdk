@@ -33,7 +33,7 @@ use serde_binary::{
     Decode, Deserializer, Result as BinaryResult,
 };
 
-use super::{LogRecord, LogTime, WalItem, WalProvider};
+use super::{LogTime, WalItem, WalProvider, WalRecord};
 
 /// Reference to a row in the write ahead log.
 #[derive(Default, Debug)]
@@ -138,7 +138,7 @@ impl<'a> WalProvider<'a> for WalFile {
         let hash_bytes = hash(&log_bytes);
         self.tree.insert(hash_bytes);
         let log_commit = CommitHash(hash_bytes);
-        let log_record = LogRecord(log_time, log_commit, log_bytes);
+        let log_record = WalRecord(log_time, log_commit, log_bytes);
         let buffer = encode(&log_record)?;
         self.file.write_all(&buffer)?;
         self.tree.commit();

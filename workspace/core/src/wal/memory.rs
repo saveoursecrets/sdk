@@ -10,12 +10,12 @@ use crate::{
     Result,
 };
 
-use super::{LogRecord, LogTime, WalItem, WalProvider};
+use super::{LogTime, WalItem, WalProvider, WalRecord};
 
 /// A write ahead log that stores records in memory.
 #[derive(Default)]
 pub struct WalMemory {
-    records: Vec<LogRecord>,
+    records: Vec<WalRecord>,
     tree: CommitTree,
 }
 
@@ -27,7 +27,7 @@ impl WalMemory {
 }
 
 impl<'a> WalProvider<'a> for WalMemory {
-    type Item = &'a LogRecord;
+    type Item = &'a WalRecord;
 
     fn tree(&self) -> &CommitTree {
         &self.tree
@@ -42,7 +42,7 @@ impl<'a> WalProvider<'a> for WalMemory {
         let hash_bytes = hash(&log_bytes);
         self.tree.insert(hash_bytes);
         let log_commit = CommitHash(hash_bytes);
-        let log_record = LogRecord(log_time, log_commit, log_bytes);
+        let log_record = WalRecord(log_time, log_commit, log_bytes);
         self.records.push(log_record);
         self.tree.commit();
         Ok(log_commit)
