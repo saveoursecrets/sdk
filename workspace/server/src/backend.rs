@@ -76,7 +76,14 @@ pub trait Backend {
     ) -> Result<(bool, u32)>;
 
     /// Load a vault buffer for an account.
-    async fn get(
+    async fn get_vault(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<Vec<u8>>;
+
+    /// Load a WAL buffer for an account.
+    async fn get_wal(
         &self,
         owner: &AddressStr,
         vault_id: &Uuid,
@@ -375,7 +382,7 @@ impl Backend for FileSystemBackend {
         }
     }
 
-    async fn get(
+    async fn get_vault(
         &self,
         owner: &AddressStr,
         vault_id: &Uuid,
@@ -385,6 +392,25 @@ impl Backend for FileSystemBackend {
             if let Some(_) = account.get(vault_id) {
                 let vault_file = self.vault_file_path(owner, vault_id);
                 let buffer = tokio::fs::read(vault_file).await?;
+                return Ok(buffer);
+            }
+        } else {
+            return Err(Error::AccountNotExist(*owner));
+        }
+        Err(Error::VaultNotExist(*vault_id))
+    }
+
+    async fn get_wal(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<Vec<u8>> {
+        let accounts = self.accounts.read().await;
+        if let Some(account) = accounts.get(owner) {
+            if let Some(_) = account.get(vault_id) {
+                let mut wal_file = self.vault_file_path(owner, vault_id);
+                wal_file.set_extension(WAL_EXT);
+                let buffer = tokio::fs::read(wal_file).await?;
                 return Ok(buffer);
             }
         } else {

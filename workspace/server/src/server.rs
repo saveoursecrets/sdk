@@ -207,6 +207,10 @@ impl Server {
                     .patch(VaultHandler::patch_vault),
             )
             .route(
+                "/api/vaults/:vault_id/wal",
+                get(WalHandler::read_wal)
+            )
+            .route(
                 "/api/vaults/:vault_id/name",
                 get(VaultHandler::get_vault_name)
                     .post(VaultHandler::set_vault_name),
@@ -574,9 +578,9 @@ impl VaultHandler {
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
-                if !writer.backend.account_exists(&token.address).await {
-                    return Err(StatusCode::NOT_FOUND);
-                }
+                //if !writer.backend.account_exists(&token.address).await {
+                    //return Err(StatusCode::NOT_FOUND);
+                //}
 
                 let (exists, change_seq) = writer
                     .backend
@@ -589,7 +593,7 @@ impl VaultHandler {
                 }
 
                 if let Ok(buffer) =
-                    writer.backend.get(&token.address, &vault_id).await
+                    writer.backend.get_vault(&token.address, &vault_id).await
                 {
                     let payload = SyncEvent::ReadVault(change_seq);
                     let log = payload.into_audit_log(token.address, vault_id);
@@ -622,9 +626,6 @@ impl VaultHandler {
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
-                if !writer.backend.account_exists(&token.address).await {
-                    return Err(StatusCode::NOT_FOUND);
-                }
 
                 let (exists, change_seq) = writer
                     .backend
@@ -636,28 +637,23 @@ impl VaultHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
-                if writer.backend.get(&token.address, &vault_id).await.is_ok()
-                {
-                    writer
-                        .backend
-                        .delete_vault(&token.address, &vault_id)
-                        .await
-                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                writer
+                    .backend
+                    .delete_vault(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                    let event = ChangeEvent::DeleteVault {
-                        vault_id,
-                        address: token.address,
-                        change_seq,
-                    };
+                let event = ChangeEvent::DeleteVault {
+                    vault_id,
+                    address: token.address,
+                    change_seq,
+                };
 
-                    let payload = SyncEvent::DeleteVault(change_seq);
-                    Ok(MaybeConflict::Success(vec![ResponseEvent {
-                        event: Some(event),
-                        log: payload.into_audit_log(token.address, vault_id),
-                    }]))
-                } else {
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
-                }
+                let payload = SyncEvent::DeleteVault(change_seq);
+                Ok(MaybeConflict::Success(vec![ResponseEvent {
+                    event: Some(event),
+                    log: payload.into_audit_log(token.address, vault_id),
+                }]))
             } else {
                 Err(status_code)
             }
@@ -1128,6 +1124,59 @@ impl SecretHandler {
         };
 
         MaybeConflict::process(state, response?).await
+    }
+}
+
+// Handlers for WAL log events.
+struct WalHandler;
+impl WalHandler {
+    /// Read the WAL bytes.
+    async fn read_wal(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+        Path(vault_id): Path<Uuid>,
+    ) -> Result<Bytes, StatusCode> {
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+
+                let (exists, change_seq) = writer
+                    .backend
+                    .vault_exists(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if !exists {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                if let Ok(buffer) =
+                    writer.backend.get_wal(&token.address, &vault_id).await
+                {
+
+                    /*
+                    let payload = SyncEvent::ReadVault(change_seq);
+                    let log = payload.into_audit_log(token.address, vault_id);
+                    writer
+                        .audit_log
+                        .append(log)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    */
+
+                    Ok(Bytes::from(buffer))
+                } else {
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }
 
