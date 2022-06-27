@@ -1,6 +1,7 @@
 //! Write ahead log types and traits.
 use crate::{
-    commit_tree::CommitTree, events::WalEvent, vault::CommitHash, Result,
+    commit_tree::CommitTree, events::WalEvent, timestamp::Timestamp,
+    vault::CommitHash, Result,
 };
 
 use serde_binary::{
@@ -41,43 +42,12 @@ pub trait WalItem: std::fmt::Debug {
     fn commit(&self) -> [u8; 32];
 
     /// Get the time for the log record.
-    fn time(&self) -> &LogTime;
-}
-
-/// Timestamp for the log record.
-#[derive(Debug, Clone)]
-pub struct LogTime(OffsetDateTime);
-
-impl Default for LogTime {
-    fn default() -> Self {
-        Self(OffsetDateTime::now_utc())
-    }
-}
-
-impl Encode for LogTime {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        let seconds = self.0.unix_timestamp();
-        let nanos = self.0.nanosecond();
-        ser.writer.write_i64(seconds)?;
-        ser.writer.write_u32(nanos)?;
-        Ok(())
-    }
-}
-
-impl Decode for LogTime {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let seconds = de.reader.read_i64()?;
-        let nanos = de.reader.read_u32()?;
-        self.0 = OffsetDateTime::from_unix_timestamp(seconds)
-            .map_err(Box::from)?
-            + Duration::nanoseconds(nanos as i64);
-        Ok(())
-    }
+    fn time(&self) -> &Timestamp;
 }
 
 /// Record for a row in the write ahead log.
 #[derive(Debug, Clone)]
-pub struct WalRecord(LogTime, CommitHash, pub Vec<u8>);
+pub struct WalRecord(Timestamp, CommitHash, pub Vec<u8>);
 
 impl Encode for WalRecord {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
@@ -118,7 +88,7 @@ impl Decode for WalRecord {
         let _ = de.reader.read_u32()?;
 
         // Decode the time component
-        let mut time: LogTime = Default::default();
+        let mut time: Timestamp = Default::default();
         time.decode(&mut *de)?;
 
         // Read the hash bytes
@@ -145,7 +115,7 @@ impl WalItem for &WalRecord {
         self.1 .0
     }
 
-    fn time(&self) -> &LogTime {
+    fn time(&self) -> &Timestamp {
         &self.0
     }
 }

@@ -17,6 +17,7 @@ pub mod passphrase;
 
 pub mod secret;
 pub mod signer;
+pub mod timestamp;
 pub mod vault;
 pub mod wal;
 

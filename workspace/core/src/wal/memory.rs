@@ -6,11 +6,12 @@ use crate::{
     commit_tree::{hash, CommitTree},
     decode, encode,
     events::WalEvent,
+    timestamp::Timestamp,
     vault::CommitHash,
     Result,
 };
 
-use super::{LogTime, WalItem, WalProvider, WalRecord};
+use super::{WalItem, WalProvider, WalRecord};
 
 /// A write ahead log that stores records in memory.
 #[derive(Default)]
@@ -37,7 +38,7 @@ impl<'a> WalProvider<'a> for WalMemory {
         &mut self,
         log_event: WalEvent<'_>,
     ) -> Result<CommitHash> {
-        let log_time: LogTime = Default::default();
+        let log_time: Timestamp = Default::default();
         let log_bytes = encode(&log_event)?;
         let hash_bytes = hash(&log_bytes);
         self.tree.insert(hash_bytes);

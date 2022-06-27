@@ -6,10 +6,9 @@ use serde_binary::{
     Decode, Deserializer, Encode, Error as BinaryError,
     Result as BinaryResult, Serializer,
 };
-use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
-use crate::{address::AddressStr, events::EventKind};
+use crate::{address::AddressStr, events::EventKind, timestamp::Timestamp};
 
 use super::SyncEvent;
 
@@ -56,7 +55,7 @@ pub trait AuditProvider {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuditEvent {
     /// The time the log was created.
-    pub time: OffsetDateTime,
+    pub time: Timestamp,
     /// The operation being performed.
     pub operation: EventKind,
     /// The address of the client performing the operation.
@@ -69,7 +68,7 @@ pub struct AuditEvent {
 impl Default for AuditEvent {
     fn default() -> Self {
         Self {
-            time: OffsetDateTime::now_utc(),
+            time: Default::default(),
             operation: Default::default(),
             address: Default::default(),
             data: None,
@@ -85,7 +84,7 @@ impl AuditEvent {
         data: Option<AuditData>,
     ) -> Self {
         Self {
-            time: OffsetDateTime::now_utc(),
+            time: Default::default(),
             operation,
             address,
             data,
@@ -151,10 +150,7 @@ impl Encode for AuditEvent {
         let flags = self.log_flags();
         ser.writer.write_u16(flags.bits())?;
         // Time - the when
-        let seconds = self.time.unix_timestamp();
-        let nanos = self.time.nanosecond();
-        ser.writer.write_i64(seconds)?;
-        ser.writer.write_u32(nanos)?;
+        self.time.encode(&mut *ser)?;
         // EventKind - the what
         self.operation.encode(&mut *ser)?;
         // Address - by whom
@@ -173,11 +169,8 @@ impl Decode for AuditEvent {
         // Context bit flags
         let bits = de.reader.read_u16()?;
         // Time - the when
-        let seconds = de.reader.read_i64()?;
-        let nanos = de.reader.read_u32()?;
-        self.time = OffsetDateTime::from_unix_timestamp(seconds)
-            .map_err(Box::from)?
-            + Duration::nanoseconds(nanos as i64);
+        let mut timestamp: Timestamp = Default::default();
+        timestamp.decode(&mut *de)?;
         // EventKind - the what
         self.operation.decode(&mut *de)?;
         // Address - by whom

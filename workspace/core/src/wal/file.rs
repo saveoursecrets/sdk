@@ -16,6 +16,7 @@ use crate::{
     commit_tree::{hash, CommitTree},
     events::WalEvent,
     file_identity::{FileIdentity, WAL_IDENTITY},
+    timestamp::Timestamp,
     vault::{encode, CommitHash},
     Result,
 };
@@ -33,13 +34,13 @@ use serde_binary::{
     Decode, Deserializer, Result as BinaryResult,
 };
 
-use super::{LogTime, WalItem, WalProvider, WalRecord};
+use super::{WalItem, WalProvider, WalRecord};
 
 /// Reference to a row in the write ahead log.
 #[derive(Default, Debug)]
 pub struct WalFileRow {
     /// The time the row was created.
-    time: LogTime,
+    time: Timestamp,
     /// The commit hash for the value.
     commit: [u8; 32],
     /// The byte range for the value.
@@ -64,14 +65,14 @@ impl WalItem for WalFileRow {
         self.commit
     }
 
-    fn time(&self) -> &LogTime {
+    fn time(&self) -> &Timestamp {
         &self.time
     }
 }
 
 impl Decode for WalFileRow {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let mut time: LogTime = Default::default();
+        let mut time: Timestamp = Default::default();
         time.decode(&mut *de)?;
         let hash_bytes: [u8; 32] =
             de.reader.read_bytes(32)?.as_slice().try_into()?;
@@ -133,7 +134,7 @@ impl<'a> WalProvider<'a> for WalFile {
         &mut self,
         log_event: WalEvent<'_>,
     ) -> Result<CommitHash> {
-        let log_time: LogTime = Default::default();
+        let log_time: Timestamp = Default::default();
         let log_bytes = encode(&log_event)?;
         let hash_bytes = hash(&log_bytes);
         self.tree.insert(hash_bytes);
