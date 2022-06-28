@@ -387,7 +387,7 @@ mod test {
             "WAL Note",
             "This a WAL note secret.",
         )?;
-        commits.push(wal.append_event((&event).into())?);
+        commits.push(wal.append_event(event.try_into()?)?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -398,7 +398,7 @@ mod test {
             "This a WAL note secret that was edited.",
         )?;
         if let Some(event) = event {
-            commits.push(wal.append_event((&event).into())?);
+            commits.push(wal.append_event(event.try_into()?)?);
         }
 
         Ok((temp, wal, commits))

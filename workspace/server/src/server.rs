@@ -26,7 +26,7 @@ use sos_core::{
     decode,
     events::{
         AuditData, AuditEvent, AuditProvider, ChangeEvent, EventKind,
-        SyncEvent,
+        SyncEvent, WalEvent,
     },
     patch::Patch,
     secret::SecretId,
@@ -219,7 +219,10 @@ impl Server {
                     .post(VaultHandler::update_vault)
                     .patch(VaultHandler::patch_vault),
             )
-            .route("/api/vaults/:vault_id/wal", get(WalHandler::read_wal))
+            .route(
+                "/api/vaults/:vault_id/wal",
+                get(WalHandler::read_wal).patch(WalHandler::patch_wal),
+            )
             /*
             .route(
                 "/api/vaults/:vault_id/name",
@@ -1292,6 +1295,94 @@ impl WalHandler {
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                 Ok(Bytes::from(buffer?))
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+
+    /// Attempt to append to a WAL file.
+    async fn patch_wal(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(root_hash): TypedHeader<CommitHash>,
+        TypedHeader(commit_proof): TypedHeader<CommitProof>,
+        Path(vault_id): Path<Uuid>,
+        body: Bytes,
+    ) -> Result<StatusCode, StatusCode> {
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+                let (_, wal) = writer
+                    .backend
+                    .vault_write(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                let root_hash: [u8; 32] = root_hash.into();
+                let proof = decode_proof(commit_proof.as_ref())
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                let comparison = wal
+                    .tree()
+                    .compare(root_hash, proof)
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                let result = match comparison {
+                    Comparison::Equal => {
+                        let patch: Patch = decode(&body)
+                            .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                        let change_set: Vec<SyncEvent> = patch.into();
+                        let audit_logs = change_set
+                            .iter()
+                            .map(|event| {
+                                AuditEvent::from_sync_event(
+                                    event,
+                                    token.address,
+                                    vault_id,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+
+                        let mut changes = Vec::new();
+                        for event in change_set {
+                            if let Ok::<WalEvent<'_>, sos_core::Error>(
+                                wal_event,
+                            ) = event.try_into()
+                            {
+                                changes.push(wal_event);
+                            }
+                        }
+
+                        todo!("apply the WAL changes");
+
+                        Ok((audit_logs))
+                    }
+                    Comparison::Contains(_, leaf) => {
+                        // Client should attempt to synchronize
+                        // before applying a patch
+                        Err(StatusCode::CONFLICT)
+                    }
+                    // Could not find leaf node in the commit tree
+                    Comparison::Unknown => Err(StatusCode::CONFLICT),
+                };
+
+                let (logs) = result?;
+
+                for log in logs {
+                    writer
+                        .audit_log
+                        .append_audit_event(log)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                }
+
+                Ok(StatusCode::OK)
             } else {
                 Err(status_code)
             }

@@ -158,32 +158,30 @@ impl<'a> Decode for WalEvent<'a> {
     }
 }
 
-impl<'a> From<&'a SyncEvent<'a>> for WalEvent<'a> {
-    fn from(value: &'a SyncEvent) -> Self {
+impl<'a> TryFrom<SyncEvent<'a>> for WalEvent<'a> {
+    type Error = Error;
+    fn try_from(value: SyncEvent<'a>) -> Result<Self, Self::Error> {
         match value {
             SyncEvent::CreateVault(value) => {
-                WalEvent::CreateVault(value.clone())
+                Ok(WalEvent::CreateVault(value.clone()))
             }
             SyncEvent::UpdateVault(_, value) => {
-                WalEvent::UpdateVault(value.clone())
+                Ok(WalEvent::UpdateVault(value.clone()))
             }
             SyncEvent::SetVaultName(_, name) => {
-                WalEvent::SetVaultName(name.clone())
+                Ok(WalEvent::SetVaultName(name.clone()))
             }
             SyncEvent::SetVaultMeta(_, meta) => {
-                WalEvent::SetVaultMeta(meta.clone())
+                Ok(WalEvent::SetVaultMeta(meta.clone()))
             }
             SyncEvent::CreateSecret(_, id, value) => {
-                WalEvent::CreateSecret(*id, value.clone())
+                Ok(WalEvent::CreateSecret(id, value.clone()))
             }
             SyncEvent::UpdateSecret(_, id, value) => {
-                WalEvent::UpdateSecret(*id, value.clone())
+                Ok(WalEvent::UpdateSecret(id, value.clone()))
             }
-            SyncEvent::DeleteSecret(_, id) => WalEvent::DeleteSecret(*id),
-            _ => panic!(
-                "cannot convert sync event {} to WAL event",
-                value.event_kind()
-            ),
+            SyncEvent::DeleteSecret(_, id) => Ok(WalEvent::DeleteSecret(id)),
+            _ => Err(Error::SyncWalConvert),
         }
     }
 }

@@ -107,7 +107,7 @@ pub fn mock_wal_file(
         "WAL Note",
         "This a WAL note secret.",
     )?;
-    commits.push(wal.append_event((&event).into())?);
+    commits.push(wal.append_event(event.try_into()?)?);
 
     // Update the secret
     let (_, _, _, event) = mock_vault_note_update(
@@ -118,7 +118,7 @@ pub fn mock_wal_file(
         "This a WAL note secret that was edited.",
     )?;
     if let Some(event) = event {
-        commits.push(wal.append_event((&event).into())?);
+        commits.push(wal.append_event(event.try_into()?)?);
     }
 
     Ok((temp, wal, commits, encryption_key))
