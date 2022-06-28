@@ -22,6 +22,7 @@ use tower_http::cors::{CorsLayer, Origin};
 use serde_json::json;
 use sos_core::{
     address::AddressStr,
+    commit_tree::decode_proof,
     decode,
     events::{
         AuditData, AuditEvent, AuditProvider, ChangeEvent, EventKind,
@@ -32,6 +33,7 @@ use sos_core::{
     vault::{Header, Summary, Vault, VaultCommit},
     wal::{file::WalFileRecord, WalItem},
 };
+
 use std::{
     borrow::Cow, collections::HashMap, convert::Infallible, net::SocketAddr,
     sync::Arc, time::Duration,
@@ -48,8 +50,8 @@ use crate::{
     assets::Assets,
     authenticate::{self, Authentication, SignedQuery},
     headers::{
-        ChangeSequence, CommitHash, SignedMessage, X_CHANGE_SEQUENCE,
-        X_COMMIT_HASH, X_SIGNED_MESSAGE,
+        ChangeSequence, CommitHash, CommitProof, SignedMessage,
+        X_CHANGE_SEQUENCE, X_COMMIT_HASH, X_COMMIT_PROOF, X_SIGNED_MESSAGE,
     },
     Backend, ServerConfig,
 };
@@ -192,10 +194,12 @@ impl Server {
                 X_SIGNED_MESSAGE.clone(),
                 X_CHANGE_SEQUENCE.clone(),
                 X_COMMIT_HASH.clone(),
+                X_COMMIT_PROOF.clone(),
             ])
             .expose_headers(vec![
                 X_CHANGE_SEQUENCE.clone(),
                 X_COMMIT_HASH.clone(),
+                X_COMMIT_PROOF.clone(),
             ])
             .allow_origin(Origin::list(origins));
 
@@ -1187,9 +1191,13 @@ impl WalHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
-        TypedHeader(hash): TypedHeader<CommitHash>,
+        TypedHeader(root_hash): TypedHeader<CommitHash>,
+        TypedHeader(commit_proof): TypedHeader<CommitProof>,
         Path(vault_id): Path<Uuid>,
     ) -> Result<Bytes, StatusCode> {
+        let proof = decode_proof(commit_proof.as_ref())
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
+
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &message)
         {
@@ -1202,31 +1210,10 @@ impl WalHandler {
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
-                let hash: Option<[u8; 32]> = hash.into();
+                let root_hash: Option<[u8; 32]> = root_hash.into();
                 // Client is asking for data from a specific commit hash
-                let buffer = if let Some(hash) = hash {
-                    // Search backwards in the WAL for a matching commit
-                    let it = wal
-                        .iter()
-                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-                        .rev();
-                    let mut matched: Option<WalFileRecord> = None;
-                    for record in it {
-                        let record = record
-                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                        if record.commit() == hash {
-                            matched = Some(record);
-                            break;
-                        }
-                    }
-                    if let Some(matched) = matched {
-                        let partial = wal
-                            .tail(matched)
-                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                        Ok(partial)
-                    } else {
-                        Err(StatusCode::CONFLICT)
-                    }
+                let buffer = if let Some(root_hash) = root_hash {
+                    todo!()
                 // Otherwise get the entire WAL buffer
                 } else {
                     if let Ok(buffer) = writer

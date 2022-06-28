@@ -237,7 +237,7 @@ mod test {
         // A completely different tree should also be unknown to the server.
         //
         // This can happen if a client compacts its WAL which would create
-        // a completely new commit tree.
+        // a new commit tree.
         let (standalone, _) = mock_wal_standalone()?;
         let leaf_indices = vec![standalone.tree().len() - 1];
         let proof = standalone.tree().proof(&leaf_indices);

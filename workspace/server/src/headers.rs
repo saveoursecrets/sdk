@@ -12,6 +12,9 @@ pub static X_CHANGE_SEQUENCE: Lazy<HeaderName> =
 pub static X_COMMIT_HASH: Lazy<HeaderName> =
     Lazy::new(|| HeaderName::from_static("x-commit-hash"));
 
+pub static X_COMMIT_PROOF: Lazy<HeaderName> =
+    Lazy::new(|| HeaderName::from_static("x-commit-proof"));
+
 /// Represents the `x-signed-message` header.
 #[derive(Debug)]
 pub struct SignedMessage(Vec<u8>);
@@ -147,5 +150,43 @@ impl Header for CommitHash {
 impl From<CommitHash> for Option<[u8; 32]> {
     fn from(value: CommitHash) -> Self {
         value.0
+    }
+}
+
+/// Represents the `x-commit-proof` header.
+#[derive(Debug, Eq, PartialEq)]
+pub struct CommitProof(Vec<u8>);
+
+impl Header for CommitProof {
+    fn name() -> &'static HeaderName {
+        &X_COMMIT_PROOF
+    }
+
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let value = values.next().ok_or_else(headers::Error::invalid)?;
+        let value: &str =
+            value.to_str().map_err(|_| headers::Error::invalid())?;
+        let value =
+            base64::decode(value).map_err(|_| headers::Error::invalid())?;
+        Ok(CommitProof(value))
+    }
+
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        let s = base64::encode(&self.0);
+        let value = HeaderValue::from_str(&s)
+            .expect("failed to create commit proof header");
+        values.extend(std::iter::once(value));
+    }
+}
+
+impl AsRef<[u8]> for CommitProof {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
     }
 }

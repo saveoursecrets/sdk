@@ -11,6 +11,18 @@ use crate::{
 
 pub mod integrity;
 
+/// Decode a merkle proof.
+pub fn decode_proof<B: AsRef<[u8]>>(
+    buffer: B,
+) -> Result<MerkleProof<Sha256>> {
+    Ok(MerkleProof::<Sha256>::from_bytes(buffer.as_ref())?)
+}
+
+/// Encode a merkle proof.
+pub fn encode_proof(proof: &MerkleProof<Sha256>) -> Vec<u8> {
+    proof.to_bytes()
+}
+
 /// Compute the Sha256 hash of some data.
 pub fn hash(data: &[u8]) -> [u8; 32] {
     Sha256::hash(data)
