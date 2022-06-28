@@ -120,3 +120,119 @@ impl Decode for WalRecord {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use anyhow::Result;
+    use std::borrow::Cow;
+    use uuid::Uuid;
+
+    use super::{memory::*, *};
+    use crate::{
+        commit_tree::{hash, Comparison},
+        crypto::AeadPack,
+        events::WalEvent,
+        secret::SecretId,
+        vault::{encode, CommitHash, Vault, VaultCommit, VaultEntry},
+    };
+
+    fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {
+        let id = Uuid::new_v4();
+        let entry = VaultEntry(Default::default(), Default::default());
+        let buffer = encode(&entry)?;
+        let commit = CommitHash(hash(&buffer));
+        let result = VaultCommit(commit, entry);
+        Ok((id, Cow::Owned(result)))
+    }
+
+    fn mock_wal_standalone() -> Result<(WalMemory, SecretId)> {
+        let mut vault: Vault = Default::default();
+        vault.set_name(String::from("Standalone vault"));
+        let vault_buffer = encode(&vault)?;
+
+        let (id, data) = mock_secret()?;
+
+        // Create a simple WAL
+        let mut server = WalMemory::new();
+        server
+            .append_event(WalEvent::CreateVault(Cow::Owned(vault_buffer)))?;
+        server.append_event(WalEvent::CreateSecret(id.clone(), data))?;
+
+        Ok((server, id))
+    }
+
+    fn mock_wal_server_client() -> Result<(WalMemory, WalMemory, SecretId)> {
+        let vault: Vault = Default::default();
+        let vault_buffer = encode(&vault)?;
+
+        let (id, data) = mock_secret()?;
+
+        // Create a simple WAL
+        let mut server = WalMemory::new();
+        server
+            .append_event(WalEvent::CreateVault(Cow::Owned(vault_buffer)))?;
+        server.append_event(WalEvent::CreateSecret(id.clone(), data))?;
+
+        // Duplicate the server events on the client
+        let mut client = WalMemory::new();
+        for record in server.iter()? {
+            let record = record?;
+            let event = server.event_data(record)?;
+            client.append_event(event)?;
+        }
+
+        let leaf_indices = vec![client.tree().len() - 1];
+        let proof = client.tree().proof(&leaf_indices);
+        let comparison = server
+            .tree()
+            .compare(client.tree().root().unwrap(), proof)?;
+        assert_eq!(Comparison::Equal, comparison);
+
+        assert_eq!(server.tree().len(), client.tree().len());
+        Ok((server, client, id))
+    }
+
+    #[test]
+    fn wal_compare_exists() -> Result<()> {
+        let (mut server, client, id) = mock_wal_server_client()?;
+
+        // Add another event to the server from another client.
+        server.append_event(WalEvent::DeleteSecret(id.clone()))?;
+
+        /// Check that the server contains the client proof
+        let leaf_indices = vec![client.tree().len() - 1];
+        let proof = client.tree().proof(&leaf_indices);
+        let comparison = server
+            .tree()
+            .compare(client.tree().root().unwrap(), proof)?;
+
+        let matched = if let Comparison::Contains(index, _) = comparison {
+            index == 1
+        } else {
+            false
+        };
+        assert!(matched);
+
+        // Verify that the server root is not contained by the client.
+        let leaf_indices = vec![server.tree().len() - 1];
+        let proof = server.tree().proof(&leaf_indices);
+        let comparison = client
+            .tree()
+            .compare(server.tree().root().unwrap(), proof)?;
+        assert_eq!(Comparison::Unknown, comparison);
+
+        // A completely different tree should also be unknown to the server.
+        //
+        // This can happen if a client compacts its WAL which would create
+        // a completely new commit tree.
+        let (standalone, _) = mock_wal_standalone()?;
+        let leaf_indices = vec![standalone.tree().len() - 1];
+        let proof = standalone.tree().proof(&leaf_indices);
+        let comparison = server
+            .tree()
+            .compare(standalone.tree().root().unwrap(), proof)?;
+        assert_eq!(Comparison::Unknown, comparison);
+
+        Ok(())
+    }
+}

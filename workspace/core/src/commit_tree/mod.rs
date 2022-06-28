@@ -2,11 +2,11 @@
 use serde_binary::binary_rw::{BinaryReader, Endian, ReadStream, SeekStream};
 use std::ops::Range;
 
-use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
+use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 
 use crate::{
     vault::{Header, Vault},
-    Result,
+    Error, Result,
 };
 
 pub mod integrity;
@@ -16,7 +16,22 @@ pub fn hash(data: &[u8]) -> [u8; 32] {
     Sha256::hash(data)
 }
 
-/// Encapsulates the merkle tree for all commits to a vault or WAL.
+/// The result of comparing two commit trees.
+///
+/// Either the trees are equal, the other tree
+/// is a subset of this tree or the trees completely
+/// diverge.
+#[derive(Debug, Eq, PartialEq)]
+pub enum Comparison {
+    /// Trees are equal as their root commits match.
+    Equal,
+    /// Tree contains the other proof.
+    Contains(usize, [u8; 32]),
+    /// Unable to find a match against the proof.
+    Unknown,
+}
+
+/// Encapsulates a merkle tree using a Sha256 hash function.
 #[derive(Default)]
 pub struct CommitTree {
     tree: MerkleTree<Sha256>,
@@ -30,6 +45,7 @@ impl CommitTree {
         }
     }
 
+    // TODO: move this to another module!
     /// Create a commit tree from an existing vault.
     pub fn from_vault(vault: &Vault) -> Self {
         let mut commit_tree = Self::new();
@@ -40,6 +56,7 @@ impl CommitTree {
         commit_tree
     }
 
+    // TODO: move this to another module!
     /// Create a commit tree from a row iterator.
     pub fn from_iterator<'a>(it: &mut RowIterator<'a>) -> Result<Self> {
         let mut commit_tree = Self::new();
@@ -65,6 +82,45 @@ impl CommitTree {
     /// Commit changes to the tree to compute the root.
     pub fn commit(&mut self) {
         self.tree.commit()
+    }
+
+    /// Get the leaves of the tree.
+    pub fn leaves(&self) -> Option<Vec<<Sha256 as Hasher>::Hash>> {
+        self.tree.leaves()
+    }
+
+    /// Compare this tree against another root hash and merkle proof.
+    pub fn compare(
+        &self,
+        other_root: <Sha256 as Hasher>::Hash,
+        proof: MerkleProof<Sha256>,
+    ) -> Result<Comparison> {
+        let root = self.root().ok_or_else(|| Error::NoRootCommit)?;
+        if root == other_root {
+            Ok(Comparison::Equal)
+        } else {
+            let leaves = self.tree.leaves().unwrap_or_else(|| vec![]);
+            let it = leaves.into_iter().enumerate().rev();
+            for (index, leaf) in it {
+                let indices = vec![index];
+                let leaves = vec![leaf];
+                let matched = proof.verify(
+                    other_root,
+                    &indices,
+                    leaves.as_slice(),
+                    leaves.len(),
+                );
+                if matched {
+                    return Ok(Comparison::Contains(index, leaf));
+                }
+            }
+            Ok(Comparison::Unknown)
+        }
+    }
+
+    /// Get a commit proof for the given leaf indices.
+    pub fn proof(&self, leaf_indices: &[usize]) -> MerkleProof<Sha256> {
+        self.tree.proof(&leaf_indices)
     }
 
     /// Get the root hash of the underlying merkle tree.
