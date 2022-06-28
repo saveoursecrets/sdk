@@ -11,7 +11,7 @@ use std::fmt;
 use time::{Duration, OffsetDateTime};
 
 /// Timestamp for the log record.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Timestamp(OffsetDateTime);
 
 impl Default for Timestamp {

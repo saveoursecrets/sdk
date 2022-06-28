@@ -22,6 +22,19 @@ pub trait WalProvider {
     /// the end of the log.
     type Partial;
 
+    /// Get a diff of the records after the record with the
+    /// given commit hash.
+    fn diff(&self, commit: [u8; 32]) -> Result<Option<Self::Partial>> {
+        let it = self.iter()?.rev();
+        for record in it {
+            let record = record?;
+            if record.commit() == commit {
+                return Ok(Some(self.tail(record)?));
+            }
+        }
+        Ok(None)
+    }
+
     /// Get the tail after the given item until the end of the log.
     fn tail(&self, item: Self::Item) -> Result<Self::Partial>;
 
@@ -57,7 +70,7 @@ pub trait WalItem: std::fmt::Debug {
 }
 
 /// Record for a row in the write ahead log.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WalRecord(Timestamp, CommitHash, pub Vec<u8>);
 
 impl Encode for WalRecord {
@@ -193,7 +206,7 @@ mod test {
     }
 
     #[test]
-    fn wal_compare_exists() -> Result<()> {
+    fn wal_compare() -> Result<()> {
         let (mut server, client, id) = mock_wal_server_client()?;
 
         // Add another event to the server from another client.
@@ -232,6 +245,36 @@ mod test {
             .tree()
             .compare(standalone.tree().root().unwrap(), proof)?;
         assert_eq!(Comparison::Unknown, comparison);
+
+        Ok(())
+    }
+
+    #[test]
+    fn wal_diff() -> Result<()> {
+        let (mut server, client, id) = mock_wal_server_client()?;
+
+        // Add another event to the server from another client.
+        server.append_event(WalEvent::DeleteSecret(id.clone()))?;
+
+        // Get the last record for our assertion
+        let record = server.iter()?.next_back().unwrap()?;
+
+        let leaf_indices = vec![client.tree().len() - 1];
+        let proof = client.tree().proof(&leaf_indices);
+        let comparison = server
+            .tree()
+            .compare(client.tree().root().unwrap(), proof)?;
+
+        if let Comparison::Contains(_, leaf) = comparison {
+            if let Some(records) = server.diff(leaf)? {
+                assert_eq!(1, records.len());
+                assert_eq!(&record, records.get(0).unwrap());
+            } else {
+                panic!("expected records from diff result");
+            }
+        } else {
+            panic!("expected comparison contains variant");
+        }
 
         Ok(())
     }

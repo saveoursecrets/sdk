@@ -22,7 +22,7 @@ use std::ops::Range;
 use super::{WalItem, WalProvider, WalRecord};
 
 /// Wrapper for a WAL record that includes an index offset.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WalMemoryRecord(Range<usize>, WalRecord);
 
 impl WalItem for WalMemoryRecord {
