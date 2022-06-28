@@ -18,7 +18,7 @@ use crate::{
     file_identity::{FileIdentity, WAL_IDENTITY},
     timestamp::Timestamp,
     vault::{encode, CommitHash},
-    Result,
+    Error, Result,
 };
 use std::{
     fs::{File, OpenOptions},
@@ -127,6 +127,17 @@ impl WalFile {
         }
         Ok(file)
     }
+
+    fn encode_event(
+        &self,
+        event: WalEvent<'_>,
+    ) -> Result<(CommitHash, WalRecord)> {
+        let time: Timestamp = Default::default();
+        let bytes = encode(&event)?;
+        let commit = CommitHash(hash(&bytes));
+        let record = WalRecord(time, commit, bytes);
+        Ok((commit, record))
+    }
 }
 
 impl WalProvider for WalFile {
@@ -154,20 +165,45 @@ impl WalProvider for WalFile {
         &self.tree
     }
 
-    fn append_event(
+    fn apply(
         &mut self,
-        log_event: WalEvent<'_>,
-    ) -> Result<CommitHash> {
-        let log_time: Timestamp = Default::default();
-        let log_bytes = encode(&log_event)?;
-        let hash_bytes = hash(&log_bytes);
-        self.tree.insert(hash_bytes);
-        let log_commit = CommitHash(hash_bytes);
-        let log_record = WalRecord(log_time, log_commit, log_bytes);
-        let buffer = encode(&log_record)?;
+        events: Vec<WalEvent<'_>>,
+    ) -> Result<Vec<CommitHash>> {
+        let mut buffer: Vec<u8> = Vec::new();
+        let mut commits = Vec::new();
+        for event in events {
+            let (commit, record) = self.encode_event(event)?;
+            commits.push(commit);
+            buffer.extend_from_slice(&encode(&record)?);
+        }
+
+        let mut hashes =
+            commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
+
+        let len = self.file_path.metadata()?.len();
+        match self.file.write_all(&buffer) {
+            Ok(_) => {
+                self.tree.append(&mut hashes);
+                self.tree.commit();
+                Ok(commits)
+            }
+            Err(e) => {
+                // In case of partial write attempt to truncate
+                // to the previous file length restoring to the
+                // previous state of the WAL log
+                self.file.set_len(len)?;
+                Err(Error::from(e))
+            }
+        }
+    }
+
+    fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash> {
+        let (commit, record) = self.encode_event(event)?;
+        let buffer = encode(&record)?;
         self.file.write_all(&buffer)?;
+        self.tree.insert(*commit.as_ref());
         self.tree.commit();
-        Ok(log_commit)
+        Ok(commit)
     }
 
     fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>> {

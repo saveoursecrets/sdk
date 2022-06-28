@@ -1359,9 +1359,10 @@ impl WalHandler {
                             }
                         }
 
-                        todo!("apply the WAL changes");
-
-                        Ok((audit_logs))
+                        let commits = wal
+                            .apply(changes)
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                        Ok((audit_logs, commits))
                     }
                     Comparison::Contains(_, leaf) => {
                         // Client should attempt to synchronize
@@ -1372,7 +1373,8 @@ impl WalHandler {
                     Comparison::Unknown => Err(StatusCode::CONFLICT),
                 };
 
-                let (logs) = result?;
+                // TODO: send commit hashes to the client?
+                let (logs, _commits) = result?;
 
                 for log in logs {
                     writer

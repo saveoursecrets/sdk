@@ -91,6 +91,15 @@ impl CommitTree {
         self
     }
 
+    /// Append a collections of commit hashes to the tree.
+    pub fn append(
+        &mut self,
+        hashes: &mut Vec<<Sha256 as Hasher>::Hash>,
+    ) -> &mut Self {
+        self.tree.append(hashes);
+        self
+    }
+
     /// Commit changes to the tree to compute the root.
     pub fn commit(&mut self) {
         self.tree.commit()

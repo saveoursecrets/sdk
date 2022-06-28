@@ -38,9 +38,17 @@ pub trait WalProvider {
     /// Get the tail after the given item until the end of the log.
     fn tail(&self, item: Self::Item) -> Result<Self::Partial>;
 
-    /// Append a log event to the write ahead log.
-    fn append_event(&mut self, log_event: WalEvent<'_>)
-        -> Result<CommitHash>;
+    /// Append a collection of events and commit the tree hashes
+    /// only if all the events were successfully persisted.
+    ///
+    /// If any events fail this function will rollback the
+    /// WAL to it's previous state.
+    fn apply(&mut self, events: Vec<WalEvent<'_>>)
+        -> Result<Vec<CommitHash>>;
+
+    /// Append a log event to the write ahead log and commit
+    /// the hash to the commit tree.
+    fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash>;
 
     /// Read the event data from an item.
     fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>>;
@@ -167,9 +175,10 @@ mod test {
 
         // Create a simple WAL
         let mut server = WalMemory::new();
-        server
-            .append_event(WalEvent::CreateVault(Cow::Owned(vault_buffer)))?;
-        server.append_event(WalEvent::CreateSecret(id.clone(), data))?;
+        server.apply(vec![
+            WalEvent::CreateVault(Cow::Owned(vault_buffer)),
+            WalEvent::CreateSecret(id.clone(), data),
+        ])?;
 
         Ok((server, id))
     }
@@ -182,6 +191,14 @@ mod test {
 
         // Create a simple WAL
         let mut server = WalMemory::new();
+
+        /*
+        server.apply(vec![
+            WalEvent::CreateVault(Cow::Owned(vault_buffer)),
+            WalEvent::CreateSecret(id.clone(), data),
+        ])?;
+        */
+
         server
             .append_event(WalEvent::CreateVault(Cow::Owned(vault_buffer)))?;
         server.append_event(WalEvent::CreateSecret(id.clone(), data))?;

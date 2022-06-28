@@ -51,6 +51,20 @@ impl WalMemory {
     pub fn new() -> Self {
         Default::default()
     }
+
+    fn encode_event(
+        &self,
+        event: WalEvent<'_>,
+    ) -> Result<(CommitHash, WalMemoryRecord)> {
+        let time: Timestamp = Default::default();
+        let bytes = encode(&event)?;
+        let commit = CommitHash(hash(&bytes));
+        let offset = self.records.len();
+        Ok((
+            commit,
+            WalMemoryRecord(offset..offset, WalRecord(time, commit, bytes)),
+        ))
+    }
 }
 
 impl WalProvider for WalMemory {
@@ -71,23 +85,33 @@ impl WalProvider for WalMemory {
         &self.tree
     }
 
-    fn append_event(
+    fn apply(
         &mut self,
-        log_event: WalEvent<'_>,
-    ) -> Result<CommitHash> {
-        let log_time: Timestamp = Default::default();
-        let log_bytes = encode(&log_event)?;
-        let hash_bytes = hash(&log_bytes);
-        self.tree.insert(hash_bytes);
-        let log_commit = CommitHash(hash_bytes);
-        let offset = self.records.len();
-        let log_record = WalMemoryRecord(
-            offset..offset,
-            WalRecord(log_time, log_commit, log_bytes),
-        );
-        self.records.push(log_record);
+        events: Vec<WalEvent<'_>>,
+    ) -> Result<Vec<CommitHash>> {
+        let mut records = Vec::new();
+        let mut commits = Vec::new();
+        for event in events {
+            let (commit, record) = self.encode_event(event)?;
+            commits.push(commit);
+            records.push(record);
+        }
+
+        let mut hashes =
+            commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
+
+        self.records.extend_from_slice(&records);
+        self.tree.append(&mut hashes);
         self.tree.commit();
-        Ok(log_commit)
+        Ok(commits)
+    }
+
+    fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash> {
+        let (commit, record) = self.encode_event(event)?;
+        self.records.push(record);
+        self.tree.insert(*commit.as_ref());
+        self.tree.commit();
+        Ok(commit)
     }
 
     fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>> {
