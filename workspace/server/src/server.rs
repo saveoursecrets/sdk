@@ -22,7 +22,7 @@ use tower_http::cors::{CorsLayer, Origin};
 use serde_json::json;
 use sos_core::{
     address::AddressStr,
-    commit_tree::decode_proof,
+    commit_tree::{decode_proof, Comparison},
     decode,
     events::{
         AuditData, AuditEvent, AuditProvider, ChangeEvent, EventKind,
@@ -220,11 +220,13 @@ impl Server {
                     .patch(VaultHandler::patch_vault),
             )
             .route("/api/vaults/:vault_id/wal", get(WalHandler::read_wal))
+            /*
             .route(
                 "/api/vaults/:vault_id/name",
                 get(VaultHandler::get_vault_name)
                     .post(VaultHandler::set_vault_name),
             )
+            */
             .route(
                 "/api/vaults/:vault_id/secrets/:secret_id",
                 put(SecretHandler::create_secret)
@@ -826,6 +828,7 @@ impl VaultHandler {
         Ok(MaybeConflict::process(state, response?).await?)
     }
 
+    /*
     /// Get the name for a vault.
     async fn get_vault_name(
         Extension(state): Extension<Arc<RwLock<State>>>,
@@ -941,6 +944,7 @@ impl VaultHandler {
 
         Ok(MaybeConflict::process(state, response?).await?)
     }
+    */
 }
 
 // Handlers for secrets events.
@@ -1186,37 +1190,85 @@ impl SecretHandler {
 // Handlers for WAL log events.
 struct WalHandler;
 impl WalHandler {
-    /// Read the WAL bytes.
+    /// Read the buffer of a WAL file.
+    ///
+    /// If an `x-commit-hash` header is present then we attempt to
+    /// fetch a tail of the log after the `x-commit-hash` record.
+    ///
+    /// When the `x-commit-hash` header is given the `x-commit-proof`
+    /// header must also be sent.
+    ///
+    /// If neither header is present then the entire contents of the
+    /// WAL file are returned.
+    ///
+    /// If an `x-commit-hash` header is present but the WAL does
+    /// not contain the leaf node specified in `x-commit-proof` then
+    /// a CONFLICT status code is returned.
+    ///
+    /// The `x-commit-hash` MUST be the root hash in the client WAL
+    /// log and the `x-commit-proof` MUST contain the merkle proof for the
+    /// most recent leaf node on the client.
+    ///
+    /// If the client and server root hashes match then a NOT_MODIFIED
+    /// status code is returned.
     async fn read_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
-        TypedHeader(root_hash): TypedHeader<CommitHash>,
-        TypedHeader(commit_proof): TypedHeader<CommitProof>,
+        root_hash: Option<TypedHeader<CommitHash>>,
+        commit_proof: Option<TypedHeader<CommitProof>>,
         Path(vault_id): Path<Uuid>,
     ) -> Result<Bytes, StatusCode> {
-        let proof = decode_proof(commit_proof.as_ref())
-            .map_err(|_| StatusCode::BAD_REQUEST)?;
-
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &message)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let mut writer = state.write().await;
+                let reader = state.read().await;
 
-                let (_, wal) = writer
+                let (_, wal) = reader
                     .backend
                     .vault_read(&token.address, &vault_id)
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
-                let root_hash: Option<[u8; 32]> = root_hash.into();
                 // Client is asking for data from a specific commit hash
-                let buffer = if let Some(root_hash) = root_hash {
-                    todo!()
+                let buffer = if let Some(TypedHeader(root_hash)) = root_hash {
+                    let root_hash: [u8; 32] = root_hash.into();
+                    if let Some(TypedHeader(commit_proof)) = commit_proof {
+                        let proof = decode_proof(commit_proof.as_ref())
+                            .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                        let comparison = wal
+                            .tree()
+                            .compare(root_hash, proof)
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                        match comparison {
+                            Comparison::Equal => {
+                                Err(StatusCode::NOT_MODIFIED)
+                            }
+                            Comparison::Contains(_, leaf) => {
+                                if let Some(partial) =
+                                    wal.diff(leaf).map_err(|_| {
+                                        StatusCode::INTERNAL_SERVER_ERROR
+                                    })?
+                                {
+                                    Ok(partial)
+                                // Could not find a record corresponding
+                                // to the leaf node
+                                } else {
+                                    Err(StatusCode::CONFLICT)
+                                }
+                            }
+                            // Could not find leaf node in the commit tree
+                            Comparison::Unknown => Err(StatusCode::CONFLICT),
+                        }
+                    } else {
+                        Err(StatusCode::BAD_REQUEST)
+                    }
                 // Otherwise get the entire WAL buffer
                 } else {
-                    if let Ok(buffer) = writer
+                    if let Ok(buffer) = reader
                         .backend
                         .get_wal(&token.address, &vault_id)
                         .await
@@ -1227,6 +1279,7 @@ impl WalHandler {
                     }
                 };
 
+                let mut writer = state.write().await;
                 let log = AuditEvent::new(
                     EventKind::ReadWal,
                     token.address,

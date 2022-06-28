@@ -92,14 +92,8 @@ impl From<ChangeSequence> for u32 {
 }
 
 /// Represents the `x-commit-hash` header.
-///
-/// An empty string indicates no commit hash is available
-/// and can be used to indicate that all available data
-/// should be returned by the server; for example, to fetch
-/// an entire WAL file whan a client connects with no cached
-/// WAL.
 #[derive(Debug, Eq, PartialEq)]
-pub struct CommitHash(Option<[u8; 32]>);
+pub struct CommitHash([u8; 32]);
 
 impl Header for CommitHash {
     fn name() -> &'static HeaderName {
@@ -114,40 +108,32 @@ impl Header for CommitHash {
         let value: &str =
             value.to_str().map_err(|_| headers::Error::invalid())?;
 
-        if value.is_empty() {
-            Ok(CommitHash(None))
-        } else {
-            if value.len() != 64 {
-                return Err(headers::Error::invalid());
-            }
-
-            let value = hex::decode(value.as_bytes())
-                .map_err(|_| headers::Error::invalid())?;
-
-            let value: [u8; 32] = value
-                .as_slice()
-                .try_into()
-                .map_err(|_| headers::Error::invalid())?;
-            Ok(CommitHash(Some(value)))
+        if value.len() != 64 {
+            return Err(headers::Error::invalid());
         }
+
+        let value = hex::decode(value.as_bytes())
+            .map_err(|_| headers::Error::invalid())?;
+
+        let value: [u8; 32] = value
+            .as_slice()
+            .try_into()
+            .map_err(|_| headers::Error::invalid())?;
+        Ok(CommitHash(value))
     }
 
     fn encode<E>(&self, values: &mut E)
     where
         E: Extend<HeaderValue>,
     {
-        let s = if let Some(value) = &self.0 {
-            hex::encode(value)
-        } else {
-            String::new()
-        };
+        let s = hex::encode(&self.0);
         let value = HeaderValue::from_str(&s)
             .expect("failed to create commit hash header");
         values.extend(std::iter::once(value));
     }
 }
 
-impl From<CommitHash> for Option<[u8; 32]> {
+impl From<CommitHash> for [u8; 32] {
     fn from(value: CommitHash) -> Self {
         value.0
     }
