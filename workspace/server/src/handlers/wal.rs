@@ -9,6 +9,7 @@ use axum::{
 //use axum_macros::debug_handler;
 
 use sos_core::{
+    address::AddressStr,
     commit_tree::{decode_proof, encode_proof, CommitProof, Comparison},
     decode,
     events::{
@@ -54,6 +55,7 @@ enum PatchResult {
         Vec<ChangeEvent>,
         Vec<CommitHash>,
         CommitProof,
+        Option<(AddressStr, String)>,
     ),
 }
 
@@ -65,7 +67,7 @@ impl WalHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
-    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &body)
         {
@@ -75,16 +77,20 @@ impl WalHandler {
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                 let reader = state.read().await;
-                let (exists, _change_seq) = reader
+                let (exists, proof) = reader
                     .backend
-                    .vault_exists(&token.address, summary.id())
+                    .wal_exists(&token.address, summary.id())
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                 drop(reader);
 
                 if exists {
-                    Err(StatusCode::CONFLICT)
+                    let mut headers = HeaderMap::new();
+                    if let Some(proof) = &proof {
+                        append_commit_headers(&mut headers, proof)?;
+                    }
+                    Ok((StatusCode::CONFLICT, headers, Bytes::from(vec![])))
                 } else {
                     todo!();
 
@@ -163,9 +169,9 @@ impl WalHandler {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let reader = state.read().await;
 
-                let (_, wal) = reader
+                let wal = reader
                     .backend
-                    .vault_read(&token.address, &vault_id)
+                    .wal_read(&token.address, &vault_id)
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
@@ -267,9 +273,9 @@ impl WalHandler {
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
-                let (_, wal) = writer
+                let wal = writer
                     .backend
-                    .vault_write(&token.address, &vault_id)
+                    .wal_write(&token.address, &vault_id)
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
@@ -288,6 +294,20 @@ impl WalHandler {
                             .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                         let change_set: Vec<SyncEvent> = patch.into();
+
+                        // Setting vault name requires special handling
+                        // as we need to update the vault header on disc
+                        // as well so summary listings are kept up to date
+                        let vault_name =
+                            change_set.iter().find_map(|event| {
+                                if let SyncEvent::SetVaultName(_, name) =
+                                    event
+                                {
+                                    Some(name.to_string())
+                                } else {
+                                    None
+                                }
+                            });
 
                         // Audit log events
                         let audit_logs = change_set
@@ -340,6 +360,7 @@ impl WalHandler {
                             notifications,
                             commits,
                             proof,
+                            vault_name.map(|name| (token.address, name)),
                         ))
                     }
                     Comparison::Unknown | Comparison::Contains(_, _) => {
@@ -358,8 +379,23 @@ impl WalHandler {
         };
 
         match result? {
-            PatchResult::Success(logs, notifications, commits, proof) => {
+            PatchResult::Success(
+                logs,
+                notifications,
+                commits,
+                proof,
+                name,
+            ) => {
                 let mut writer = state.write().await;
+
+                // Must update the vault name in it's summary
+                if let Some((address, name)) = name {
+                    writer
+                        .backend
+                        .set_vault_name(&address, &vault_id, name)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                }
 
                 // Append audit logs
                 for log in logs {
@@ -461,9 +497,9 @@ impl WalHandler {
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let reader = state.read().await;
-                let (_, wal) = reader
+                let wal = reader
                     .backend
-                    .vault_read(&token.address, &vault_id)
+                    .wal_read(&token.address, &vault_id)
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 

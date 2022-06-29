@@ -15,6 +15,12 @@ pub enum Error {
     #[error("file {0} already exists")]
     FileExists(PathBuf),
 
+    #[error("file {0} does not exist")]
+    FileMissing(PathBuf),
+
+    #[error("file stem was expected")]
+    NoFileStem,
+
     #[error("file {0} is already locked")]
     FileLocked(PathBuf),
 
@@ -38,6 +44,9 @@ pub enum Error {
 
     #[error("checksum mismatch validating WAL file")]
     WalValidateMismatch,
+
+    #[error("failed to remove in-memory vault, files still exist on disc")]
+    VaultRemove,
 
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
@@ -71,4 +80,7 @@ pub enum Error {
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    Uuid(#[from] uuid::Error),
 }

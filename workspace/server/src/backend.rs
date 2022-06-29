@@ -2,7 +2,7 @@ use crate::{file_locks::FileLocks, Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
-    commit_tree::integrity::wal_commit_tree,
+    commit_tree::{integrity::wal_commit_tree, CommitProof},
     events::WalEvent,
     file_access::VaultFileAccess,
     vault::{Header, Summary, Vault, VaultAccess},
@@ -17,11 +17,9 @@ use uuid::Uuid;
 
 use tokio::io;
 
-type VaultStorage = Box<dyn VaultAccess + Send + Sync>;
 type WalStorage = Box<
     dyn WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync,
 >;
-type Storage = (VaultStorage, WalStorage);
 
 const WAL_EXT: &str = "wal";
 const WAL_BACKUP_EXT: &str = "wal.backup";
@@ -36,6 +34,8 @@ pub trait Backend {
     /// Get the lock files.
     fn file_locks(&self) -> &FileLocks;
 
+    /// ACCOUNT ///
+
     /// Create a new account with the given default vault.
     ///
     /// The owner directory must not exist.
@@ -48,53 +48,65 @@ pub trait Backend {
 
     // TODO: support account deletion
 
-    /// Create a new vault.
+    /// Determine if an account exists for the given address.
+    async fn account_exists(&self, owner: &AddressStr) -> bool;
+
+    /// VAULT ///
+
+    /// List vaults for an account.
+    ///
+    /// Callers should ensure the account exists before attempting to
+    /// list the vaults for an account.
+    async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>>;
+
+    /// Set the name of the vault.
+    async fn set_vault_name(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+        name: String,
+    ) -> Result<()>;
+
+    /// WAL ///
+
+    /// Create a new WAL.
     ///
     /// The owner directory must already exist.
-    async fn create_vault(
+    async fn create_wal(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
         vault: &[u8],
     ) -> Result<()>;
 
-    /// Delete a vault.
-    async fn delete_vault(
+    /// Delete a WAL log and corresponding vault.
+    async fn delete_wal(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
     ) -> Result<()>;
 
-    /// Determine if an account exists for the given address.
-    async fn account_exists(&self, owner: &AddressStr) -> bool;
-
-    /// List vaults for an account.
-    ///
-    /// Callers should ensure the account exists before attempting to
-    /// list the the vaults for an account.
-    async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>>;
-
     /// Determine if a vault exists and get it's change sequence
     /// if it already exists.
-    async fn vault_exists(
+    async fn wal_exists(
         &self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<(bool, u32)>;
+    ) -> Result<(bool, Option<CommitProof>)>;
 
     /// Get a read handle to an existing vault.
-    async fn vault_read(
+    async fn wal_read(
         &self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<&Storage>;
+    ) -> Result<&WalStorage>;
 
     /// Get a write handle to an existing vault.
-    async fn vault_write(
+    async fn wal_write(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<&mut Storage>;
+    ) -> Result<&mut WalStorage>;
 
     /// Load a WAL buffer for an account.
     async fn get_wal(
@@ -117,8 +129,8 @@ pub trait Backend {
 pub struct FileSystemBackend {
     directory: PathBuf,
     locks: FileLocks,
-    files: Vec<PathBuf>,
-    accounts: HashMap<AddressStr, HashMap<Uuid, Storage>>,
+    startup_files: Vec<PathBuf>,
+    accounts: HashMap<AddressStr, HashMap<Uuid, WalStorage>>,
 }
 
 impl FileSystemBackend {
@@ -127,7 +139,7 @@ impl FileSystemBackend {
         Self {
             directory,
             locks: Default::default(),
-            files: Vec::new(),
+            startup_files: Vec::new(),
             accounts: Default::default(),
         }
     }
@@ -150,42 +162,40 @@ impl FileSystemBackend {
                         let vaults = accounts
                             .entry(owner)
                             .or_insert(Default::default());
-                        for vault_entry in std::fs::read_dir(&path)? {
-                            let vault_entry = vault_entry?;
-                            let vault_path = vault_entry.path();
-                            if let Some(ext) = vault_path.extension() {
-                                if ext == Vault::extension() {
+                        for entry in std::fs::read_dir(&path)? {
+                            let entry = entry?;
+                            let wal_path = entry.path();
+                            if let Some(ext) = wal_path.extension() {
+                                if ext == WAL_EXT {
+                                    let mut vault_path =
+                                        wal_path.to_path_buf();
+                                    vault_path
+                                        .set_extension(Vault::extension());
+                                    if !vault_path.exists() {
+                                        return Err(Error::FileMissing(
+                                            vault_path,
+                                        ));
+                                    }
+
                                     let summary = Header::read_summary_file(
                                         &vault_path,
                                     )?;
-
-                                    let mut wal_path = vault_path.clone();
-                                    wal_path.set_extension(WAL_EXT);
-                                    let wal_exists = wal_path.exists();
+                                    let id = *summary.id();
 
                                     let mut wal_file =
                                         WalFile::new(&wal_path)?;
 
-                                    if !wal_exists {
-                                        let event = WalEvent::CreateVault(
-                                            Cow::Owned(std::fs::read(
-                                                &vault_path,
-                                            )?),
-                                        );
-                                        wal_file.append_event(event)?;
-                                    }
+                                    // Store these file paths so locks
+                                    // are acquired later
+                                    self.startup_files
+                                        .push(vault_path.to_path_buf());
+                                    self.startup_files
+                                        .push(wal_path.to_path_buf());
 
-                                    self.files.push(wal_path);
-                                    self.files.push(vault_path.to_path_buf());
-                                    vaults.insert(
-                                        *summary.id(),
-                                        (
-                                            Box::new(VaultFileAccess::new(
-                                                vault_path,
-                                            )?),
-                                            Box::new(wal_file),
-                                        ),
-                                    );
+                                    self.add_wal_path(
+                                        owner, id, wal_path, wal_file,
+                                    )
+                                    .await?;
                                 }
                             }
                         }
@@ -197,62 +207,52 @@ impl FileSystemBackend {
         Ok(())
     }
 
-    /// Write a vault file to disc for the given owner address.
-    async fn new_vault_file(
+    /// Write a WAL file to disc for the given owner address.
+    async fn new_wal_file(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
         vault: &[u8],
-    ) -> Result<PathBuf> {
-        let vault_file = self.vault_file_path(owner, vault_id);
-        if vault_file.exists() {
-            return Err(Error::FileExists(vault_file));
+    ) -> Result<(PathBuf, WalFile)> {
+        let wal_path = self.wal_file_path(owner, vault_id);
+        if wal_path.exists() {
+            return Err(Error::FileExists(wal_path));
         }
 
-        tokio::fs::write(&vault_file, vault).await?;
+        // Write out the vault for so that we can easily
+        // list summaries
+        let mut vault_path = wal_path.clone();
+        vault_path.set_extension(Vault::extension());
+        tokio::fs::write(&vault_path, vault).await?;
 
-        Ok(vault_file)
+        // Create the WAL file
+        let mut wal = WalFile::new(&wal_path)?;
+        let event = WalEvent::CreateVault(Cow::Borrowed(vault));
+        wal.append_event(event)?;
+
+        self.locks.add(&vault_path)?;
+        self.locks.add(&wal_path)?;
+
+        Ok((wal_path, wal))
     }
 
-    fn vault_file_path(
-        &self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-    ) -> PathBuf {
+    fn wal_file_path(&self, owner: &AddressStr, vault_id: &Uuid) -> PathBuf {
         let account_dir = self.directory.join(owner.to_string());
-        let mut vault_file = account_dir.join(vault_id.to_string());
-        vault_file.set_extension(Vault::extension());
-        vault_file
+        let mut wal_file = account_dir.join(vault_id.to_string());
+        wal_file.set_extension(WAL_EXT);
+        wal_file
     }
 
-    /// Add a vault file path to the in-memory account.
-    async fn add_vault_path(
+    /// Add a WAL file path to the in-memory account.
+    async fn add_wal_path(
         &mut self,
         owner: AddressStr,
-        vault_path: PathBuf,
-        vault: &[u8],
+        vault_id: Uuid,
+        wal_path: PathBuf,
+        wal_file: WalFile,
     ) -> Result<()> {
-        let accounts = &mut self.accounts;
-        let vaults = accounts.entry(owner).or_insert(Default::default());
-        let summary = Header::read_summary_file(&vault_path)?;
-
-        let mut wal_path = vault_path.clone();
-        wal_path.set_extension(WAL_EXT);
-        let mut wal_file = WalFile::new(&wal_path)?;
-        let event = WalEvent::CreateVault(Cow::Borrowed(vault));
-        wal_file.append_event(event)?;
-
-        self.locks.add(&wal_path)?;
-        self.locks.add(&vault_path)?;
-
-        vaults.insert(
-            *summary.id(),
-            (
-                Box::new(VaultFileAccess::new(vault_path)?),
-                Box::new(wal_file),
-            ),
-        );
-
+        let vaults = self.accounts.entry(owner).or_insert(Default::default());
+        vaults.insert(vault_id, Box::new(wal_file));
         Ok(())
     }
 }
@@ -260,10 +260,11 @@ impl FileSystemBackend {
 #[async_trait]
 impl Backend for FileSystemBackend {
     fn set_file_locks(&mut self, mut locks: FileLocks) -> Result<()> {
-        for file in &self.files {
+        for file in &self.startup_files {
             locks.add(file)?;
         }
         self.locks = locks;
+        self.startup_files.clear();
         Ok(())
     }
 
@@ -283,16 +284,18 @@ impl Backend for FileSystemBackend {
         }
 
         // Check it looks like a vault payload
-        Header::read_summary_slice(vault)?;
+        let summary = Header::read_summary_slice(vault)?;
 
         tokio::fs::create_dir(account_dir).await?;
-        let vault_path = self.new_vault_file(owner, vault_id, vault).await?;
-        self.add_vault_path(*owner, vault_path, vault).await?;
+        let (wal_path, wal_file) =
+            self.new_wal_file(owner, vault_id, vault).await?;
+        self.add_wal_path(*owner, *summary.id(), wal_path, wal_file)
+            .await?;
 
         Ok(())
     }
 
-    async fn create_vault(
+    async fn create_wal(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
@@ -304,15 +307,17 @@ impl Backend for FileSystemBackend {
         }
 
         // Check it looks like a vault payload
-        Header::read_summary_slice(vault)?;
+        let summary = Header::read_summary_slice(vault)?;
 
-        let vault_path = self.new_vault_file(owner, vault_id, vault).await?;
-        self.add_vault_path(*owner, vault_path, vault).await?;
+        let (wal_path, wal_file) =
+            self.new_wal_file(owner, vault_id, vault).await?;
+        self.add_wal_path(*owner, *summary.id(), wal_path, wal_file)
+            .await?;
 
         Ok(())
     }
 
-    async fn delete_vault(
+    async fn delete_wal(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
@@ -322,33 +327,34 @@ impl Backend for FileSystemBackend {
             return Err(Error::NotDirectory(account_dir));
         }
 
-        if self.accounts.get(owner).is_none() {
-            return Err(Error::AccountNotExist(*owner));
+        if let Some(account) = self.accounts.get_mut(owner) {
+            if let Some(_) = account.get_mut(vault_id) {
+                let removed = account.remove(vault_id);
+                if let Some(_) = removed {
+                    let wal_path = self.wal_file_path(owner, vault_id);
+
+                    // Remove the vault file and lock
+                    let mut vault_path = wal_path.clone();
+                    vault_path.set_extension(Vault::extension());
+                    let _ = tokio::fs::remove_file(&vault_path).await?;
+                    self.locks.remove(&vault_path)?;
+
+                    // Keep a backup of the WAL file as .wal.deleted
+                    let mut wal_backup = wal_path.clone();
+                    wal_backup.set_extension(WAL_DELETED_EXT);
+                    let _ = tokio::fs::rename(&wal_path, wal_backup).await?;
+                    self.locks.remove(&wal_path)?;
+
+                    Ok(())
+                } else {
+                    Err(Error::VaultRemove)
+                }
+            } else {
+                Err(Error::VaultNotExist(*vault_id))
+            }
+        } else {
+            Err(Error::AccountNotExist(*owner))
         }
-
-        let account = self.accounts.get_mut(owner).unwrap();
-        if account.get(vault_id).is_none() {
-            return Err(Error::VaultNotExist(*vault_id));
-        }
-
-        let removed = account.remove(vault_id);
-        if let Some(_) = removed {
-            let vault_path = self.vault_file_path(&owner, vault_id);
-            let mut wal_path = vault_path.clone();
-            wal_path.set_extension(WAL_EXT);
-
-            self.locks.remove(&wal_path)?;
-            self.locks.remove(&vault_path)?;
-
-            let _ = tokio::fs::remove_file(&vault_path).await;
-
-            // Keep a backup of the WAL file as .wal.deleted
-            let mut wal_backup = wal_path.clone();
-            wal_backup.set_extension(WAL_DELETED_EXT);
-            let _ = tokio::fs::rename(wal_path, wal_backup).await?;
-        }
-
-        Ok(())
     }
 
     async fn account_exists(&self, owner: &AddressStr) -> bool {
@@ -356,29 +362,45 @@ impl Backend for FileSystemBackend {
         self.accounts.get(owner).is_some() && account_dir.is_dir()
     }
 
+    async fn set_vault_name(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+        name: String,
+    ) -> Result<()> {
+        let mut vault_path = self.wal_file_path(owner, vault_id);
+        vault_path.set_extension(Vault::extension());
+        let mut access = VaultFileAccess::new(&vault_path)?;
+        let _ = access.set_vault_name(name)?;
+        Ok(())
+    }
+
     async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>> {
         let mut summaries = Vec::new();
         if let Some(account) = self.accounts.get(owner) {
-            for (_, (storage, _)) in account {
-                summaries.push(storage.summary()?);
+            for (id, _) in account {
+                let mut vault_path = self.wal_file_path(owner, id);
+                vault_path.set_extension(Vault::extension());
+                let summary = Header::read_summary_file(&vault_path)?;
+                summaries.push(summary);
             }
         }
         Ok(summaries)
     }
 
-    async fn vault_exists(
+    async fn wal_exists(
         &self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<(bool, u32)> {
+    ) -> Result<(bool, Option<CommitProof>)> {
         if let Some(account) = self.accounts.get(owner) {
-            if let Some((storage, _)) = account.get(vault_id) {
-                Ok((true, storage.change_seq()?))
+            if let Some(wal) = account.get(vault_id) {
+                Ok((true, Some(wal.tree().head()?)))
             } else {
-                Ok((false, 0))
+                Ok((false, None))
             }
         } else {
-            Ok((false, 0))
+            Ok((false, None))
         }
     }
 
@@ -389,8 +411,7 @@ impl Backend for FileSystemBackend {
     ) -> Result<Vec<u8>> {
         if let Some(account) = self.accounts.get(owner) {
             if let Some(_) = account.get(vault_id) {
-                let mut wal_file = self.vault_file_path(owner, vault_id);
-                wal_file.set_extension(WAL_EXT);
+                let mut wal_file = self.wal_file_path(owner, vault_id);
                 let buffer = tokio::fs::read(wal_file).await?;
                 Ok(buffer)
             } else {
@@ -401,11 +422,11 @@ impl Backend for FileSystemBackend {
         }
     }
 
-    async fn vault_read(
+    async fn wal_read(
         &self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<&Storage> {
+    ) -> Result<&WalStorage> {
         if let Some(account) = self.accounts.get(owner) {
             if let Some(storage) = account.get(vault_id) {
                 Ok(storage)
@@ -417,11 +438,11 @@ impl Backend for FileSystemBackend {
         }
     }
 
-    async fn vault_write(
+    async fn wal_write(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
-    ) -> Result<&mut Storage> {
+    ) -> Result<&mut WalStorage> {
         if let Some(account) = self.accounts.get_mut(owner) {
             if let Some(storage) = account.get_mut(vault_id) {
                 Ok(storage)
@@ -459,8 +480,7 @@ impl Backend for FileSystemBackend {
             return Err(Error::WalValidateMismatch);
         }
 
-        let mut original_wal = self.vault_file_path(owner, vault_id);
-        original_wal.set_extension(WAL_EXT);
+        let mut original_wal = self.wal_file_path(owner, vault_id);
 
         let mut backup_wal = original_wal.clone();
         backup_wal.set_extension(WAL_BACKUP_EXT);
