@@ -21,9 +21,6 @@ pub enum Error {
     #[error("file stem was expected")]
     NoFileStem,
 
-    #[error("file {0} is already locked")]
-    FileLocked(PathBuf),
-
     #[error("no vaults found")]
     NoVaults,
 

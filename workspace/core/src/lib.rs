@@ -9,6 +9,7 @@ pub mod error;
 pub mod events;
 pub mod file_access;
 pub mod file_identity;
+pub mod file_locks;
 pub mod gatekeeper;
 pub mod headers;
 pub mod patch;

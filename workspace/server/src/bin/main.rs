@@ -1,7 +1,8 @@
 use clap::Parser;
+
+use sos_core::file_locks::FileLocks;
 use sos_server::{
-    Authentication, FileLocks, Result, Server, ServerConfig, ServerInfo,
-    State,
+    Authentication, Result, Server, ServerConfig, ServerInfo, State,
 };
 
 use sos_audit::AuditLogFile;

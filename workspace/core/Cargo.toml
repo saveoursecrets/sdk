@@ -27,6 +27,8 @@ url = { version = "2.2", features = ["serde"] }
 time = { version = "0.3", features = ["serde"] }
 bitflags = "1"
 rs_merkle = "1.2"
+file-guard = "0.1"
+ouroboros = "0.15"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = {version = "0.2", features = ["js"]}

@@ -1,10 +1,11 @@
-use crate::{file_locks::FileLocks, Error, Result};
+use crate::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
     commit_tree::{integrity::wal_commit_tree, CommitProof},
     events::WalEvent,
     file_access::VaultFileAccess,
+    file_locks::FileLocks,
     vault::{Header, Summary, Vault, VaultAccess},
     wal::{
         file::{WalFile, WalFileRecord},

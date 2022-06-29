@@ -1,3 +1,4 @@
+//! Type for getting exclusive file locks.
 use crate::{Error, Result};
 use file_guard::{FileGuard, Lock};
 use ouroboros::self_referencing;
