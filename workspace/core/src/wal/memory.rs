@@ -55,11 +55,11 @@ impl WalMemory {
     fn encode_event(
         &self,
         event: WalEvent<'_>,
+        offset: usize,
     ) -> Result<(CommitHash, WalMemoryRecord)> {
         let time: Timestamp = Default::default();
         let bytes = encode(&event)?;
         let commit = CommitHash(hash(&bytes));
-        let offset = self.records.len();
         Ok((
             commit,
             WalMemoryRecord(offset..offset, WalRecord(time, commit, bytes)),
@@ -91,8 +91,10 @@ impl WalProvider for WalMemory {
     ) -> Result<Vec<CommitHash>> {
         let mut records = Vec::new();
         let mut commits = Vec::new();
-        for event in events {
-            let (commit, record) = self.encode_event(event)?;
+        let offset = self.records.len();
+        for (index, event) in events.into_iter().enumerate() {
+            let (commit, record) =
+                self.encode_event(event, offset + index)?;
             commits.push(commit);
             records.push(record);
         }
@@ -107,7 +109,8 @@ impl WalProvider for WalMemory {
     }
 
     fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash> {
-        let (commit, record) = self.encode_event(event)?;
+        let (commit, record) =
+            self.encode_event(event, self.records.len())?;
         self.records.push(record);
         self.tree.insert(*commit.as_ref());
         self.tree.commit();

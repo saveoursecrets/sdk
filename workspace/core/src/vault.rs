@@ -57,6 +57,12 @@ impl From<CommitHash> for [u8; 32] {
     }
 }
 
+impl fmt::Display for CommitHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(&self.0))
+    }
+}
+
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
 #[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]

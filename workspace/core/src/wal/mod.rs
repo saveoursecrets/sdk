@@ -191,17 +191,16 @@ mod test {
 
         // Create a simple WAL
         let mut server = WalMemory::new();
-
-        /*
         server.apply(vec![
             WalEvent::CreateVault(Cow::Owned(vault_buffer)),
             WalEvent::CreateSecret(id.clone(), data),
         ])?;
-        */
 
+        /*
         server
             .append_event(WalEvent::CreateVault(Cow::Owned(vault_buffer)))?;
         server.append_event(WalEvent::CreateSecret(id.clone(), data))?;
+        */
 
         // Duplicate the server events on the client
         let mut client = WalMemory::new();
