@@ -46,6 +46,8 @@ pub trait Backend {
         vault: &[u8],
     ) -> Result<()>;
 
+    // TODO: support account deletion
+
     /// Create a new vault.
     ///
     /// The owner directory must already exist.
@@ -80,20 +82,6 @@ pub trait Backend {
         vault_id: &Uuid,
     ) -> Result<(bool, u32)>;
 
-    /// Load a vault buffer for an account.
-    async fn get_vault(
-        &self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-    ) -> Result<Vec<u8>>;
-
-    /// Load a WAL buffer for an account.
-    async fn get_wal(
-        &self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-    ) -> Result<Vec<u8>>;
-
     /// Get a read handle to an existing vault.
     async fn vault_read(
         &self,
@@ -107,6 +95,13 @@ pub trait Backend {
         owner: &AddressStr,
         vault_id: &Uuid,
     ) -> Result<&mut Storage>;
+
+    /// Load a WAL buffer for an account.
+    async fn get_wal(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> Result<Vec<u8>>;
 
     /// Replace a WAL file with a new buffer.
     async fn replace_wal(
@@ -384,24 +379,6 @@ impl Backend for FileSystemBackend {
             }
         } else {
             Ok((false, 0))
-        }
-    }
-
-    async fn get_vault(
-        &self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-    ) -> Result<Vec<u8>> {
-        if let Some(account) = self.accounts.get(owner) {
-            if let Some(_) = account.get(vault_id) {
-                let vault_file = self.vault_file_path(owner, vault_id);
-                let buffer = tokio::fs::read(vault_file).await?;
-                Ok(buffer)
-            } else {
-                Err(Error::VaultNotExist(*vault_id))
-            }
-        } else {
-            Err(Error::AccountNotExist(*owner))
         }
     }
 
