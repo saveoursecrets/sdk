@@ -30,7 +30,7 @@ use sos_core::{
     },
     patch::Patch,
     secret::SecretId,
-    vault::{Header, Summary, Vault, VaultCommit},
+    vault::{CommitHash, Header, Summary, Vault, VaultCommit},
     wal::{file::WalFileRecord, WalItem},
 };
 
@@ -1205,6 +1205,16 @@ fn append_commit_headers(
     Ok(())
 }
 
+enum PatchResult {
+    Conflict(CommitProof),
+    Success(
+        Vec<AuditEvent>,
+        Vec<ChangeEvent>,
+        Vec<CommitHash>,
+        CommitProof,
+    ),
+}
+
 // Handlers for WAL log events.
 struct WalHandler;
 impl WalHandler {
@@ -1346,8 +1356,8 @@ impl WalHandler {
         TypedHeader(commit_proof): TypedHeader<CommitProofHeader>,
         Path(vault_id): Path<Uuid>,
         body: Bytes,
-    ) -> Result<StatusCode, StatusCode> {
-        if let Ok((status_code, token)) =
+    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+        let result = if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
@@ -1367,12 +1377,14 @@ impl WalHandler {
                     .compare(CommitProof(root_hash, proof))
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                let result = match comparison {
+                match comparison {
                     Comparison::Equal => {
                         let patch: Patch = decode(&body)
                             .map_err(|_| StatusCode::BAD_REQUEST)?;
 
                         let change_set: Vec<SyncEvent> = patch.into();
+
+                        // Audit log events
                         let audit_logs = change_set
                             .iter()
                             .map(|event| {
@@ -1384,6 +1396,19 @@ impl WalHandler {
                             })
                             .collect::<Vec<_>>();
 
+                        // Notifications for the SSE channel
+                        let notifications = change_set
+                            .iter()
+                            .map(|event| {
+                                ChangeEvent::from((
+                                    &vault_id,
+                                    &token.address,
+                                    event,
+                                ))
+                            })
+                            .collect::<Vec<_>>();
+
+                        // Changes to apply to the WAL log
                         let mut changes = Vec::new();
                         for event in change_set {
                             if let Ok::<WalEvent<'_>, sos_core::Error>(
@@ -1394,25 +1419,44 @@ impl WalHandler {
                             }
                         }
 
+                        // Apply the change set of WAL events to the log
                         let commits = wal
                             .apply(changes)
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                        Ok((audit_logs, commits))
+
+                        // Get a new commit proof for the last leaf hash
+                        let proof = wal
+                            .tree()
+                            .head()
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                        Ok(PatchResult::Success(
+                            audit_logs,
+                            notifications,
+                            commits,
+                            proof,
+                        ))
                     }
-                    Comparison::Contains(_, leaf) => {
-                        // Client should attempt to synchronize
-                        // before applying a patch
-                        Err(StatusCode::CONFLICT)
+                    Comparison::Unknown | Comparison::Contains(_, _) => {
+                        let proof = wal
+                            .tree()
+                            .head()
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                        Ok(PatchResult::Conflict(proof))
                     }
-                    // Could not find leaf node in the commit tree
-                    Comparison::Unknown => Err(StatusCode::CONFLICT),
-                };
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
 
-                // TODO: send commit hashes to the client?
-                let (logs, _commits) = result?;
+        match result? {
+            PatchResult::Success(logs, notifications, commits, proof) => {
+                let mut writer = state.write().await;
 
-                // TODO: emit change events to the SSE client(s)
-
+                // Append audit logs
                 for log in logs {
                     writer
                         .audit_log
@@ -1421,12 +1465,44 @@ impl WalHandler {
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                 }
 
-                Ok(StatusCode::OK)
-            } else {
-                Err(status_code)
+                // Send notifications on the SSE channel
+                for event in notifications {
+                    if let Some(conn) = writer.sse.get(event.address()) {
+                        if let Err(_) = conn.tx.send(event) {
+                            tracing::debug!(
+                                "server sent events channel dropped"
+                            );
+                        }
+                    }
+                }
+
+                // TODO: is sending the commits overkill as the new root
+                // TODO: hash in `x-commit-hash` is enough for the client
+                // TODO: to verify that applying cached changes to the WAL
+                // TODO: matches the changes that are applied here.
+
+                // Create a response buffer of all the commit hashes
+                // derived from the events that were applied to the WAL
+                let mut buffer = Vec::with_capacity(commits.len() * 32);
+                for hash in commits {
+                    buffer.extend_from_slice(hash.as_ref());
+                }
+
+                // Always send the `x-commit-hash` and `x-commit-proof`
+                // headers to the client with the new updated commit
+                // after applying the patch events.
+                //
+                // Clients can use this to verify the integrity when moving
+                // staged events to their cached WAL
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &proof)?;
+                Ok((StatusCode::OK, headers, Bytes::from(buffer)))
             }
-        } else {
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            PatchResult::Conflict(proof) => {
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &proof)?;
+                Ok((StatusCode::CONFLICT, headers, Bytes::from(vec![])))
+            }
         }
     }
 }
