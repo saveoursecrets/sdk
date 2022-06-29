@@ -20,6 +20,7 @@ use axum::{
     routing::{get, put},
     Router,
 };
+use axum_server::tls_rustls::RustlsConfig;
 use serde::Serialize;
 use sos_audit::AuditLogFile;
 use sos_core::address::AddressStr;
@@ -70,6 +71,15 @@ impl Server {
             )?);
         }
 
+        tracing::debug!(certificate = ?reader.config.tls.cert);
+        tracing::debug!(key = ?reader.config.tls.cert);
+
+        let tls = RustlsConfig::from_pem_file(
+            &reader.config.tls.cert,
+            &reader.config.tls.key,
+        )
+        .await?;
+
         drop(reader);
 
         // FIXME: start tokio task to reap stale authentication challenges
@@ -117,10 +127,9 @@ impl Server {
             .layer(Extension(shared_state));
 
         tracing::info!("listening on {}", addr);
-        axum::Server::bind(&addr)
+        axum_server::bind_rustls(addr, tls)
             .serve(app.into_make_service())
-            .await
-            .unwrap();
+            .await?;
         Ok(())
     }
 }

@@ -11,6 +11,7 @@ sos-audit = { path = "../audit" }
 clap = { version = "3", features = ["derive", "wrap_help"] }
 axum = { version = "0.5", features = ["headers"] }
 axum-macros = "0.2"
+axum-server = { version = "0.4", features = ["tls-rustls"] }
 hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 tower = "0.4"

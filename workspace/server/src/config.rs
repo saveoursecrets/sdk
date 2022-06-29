@@ -30,9 +30,9 @@ pub struct ServerConfig {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct TlsConfig {
     /// Path to the certificate.
-    cert: PathBuf,
+    pub cert: PathBuf,
     /// Path to the certificate key file.
-    key: PathBuf,
+    pub key: PathBuf,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
