@@ -27,7 +27,7 @@ use crate::{
     authenticate,
     headers::{
         CommitHashHeader, CommitProofHeader, SignedMessage,
-        X_CHANGE_SEQUENCE, X_COMMIT_HASH, X_COMMIT_PROOF,
+        X_COMMIT_HASH, X_COMMIT_PROOF,
     },
     Backend, State,
 };
@@ -460,6 +460,8 @@ impl WalHandler {
             authenticate::bearer(authorization, &message)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                todo!()
+                /*
                 let reader = state.read().await;
 
                 let (exists, change_seq) = reader
@@ -478,6 +480,7 @@ impl WalHandler {
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                 headers.insert(X_CHANGE_SEQUENCE.clone(), x_change_sequence);
                 Ok((StatusCode::OK, headers))
+                */
             } else {
                 Err(status_code)
             }

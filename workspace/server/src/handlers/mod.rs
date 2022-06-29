@@ -1,52 +1,30 @@
 use axum::{
     body::{Body, Bytes},
-    extract::{Extension, Path, TypedHeader},
-    headers::{authorization::Bearer, Authorization},
+    extract::{Extension},
     http::{
-        header::{HeaderMap, AUTHORIZATION, CONTENT_TYPE},
-        HeaderValue, Method, Request, Response, StatusCode,
+        Request, Response, StatusCode,
     },
     response::{IntoResponse, Redirect},
-    routing::{get, put},
-    Json, Router,
+    Json,
 };
 
-use tower_http::cors::{CorsLayer, Origin};
+
 
 //use axum_macros::debug_handler;
 
-use serde::Serialize;
+
 use serde_json::json;
-use sos_core::{
-    address::AddressStr,
-    decode,
-    events::{AuditEvent, AuditProvider, ChangeEvent, SyncEvent},
-    patch::Patch,
-    secret::SecretId,
-    vault::{Header, VaultCommit},
-};
 
-use std::{borrow::Cow, collections::HashMap, net::SocketAddr, sync::Arc};
+
+use std::{sync::Arc};
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
-use sos_audit::AuditLogFile;
+
+
 
 use crate::{
     State,
     assets::Assets,
-    authenticate::{self, Authentication},
-    handlers::{
-        account::AccountHandler,
-        auth::AuthHandler,
-        sse::{sse_handler, SseConnection},
-        wal::WalHandler,
-    },
-    headers::{
-        ChangeSequence, SignedMessage, X_CHANGE_SEQUENCE, X_COMMIT_HASH,
-        X_COMMIT_PROOF, X_SIGNED_MESSAGE,
-    },
-    Backend, ServerConfig,
 };
 
 pub(crate) mod account;

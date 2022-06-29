@@ -6,10 +6,6 @@ use once_cell::sync::Lazy;
 pub static X_SIGNED_MESSAGE: Lazy<HeaderName> =
     Lazy::new(|| HeaderName::from_static("x-signed-message"));
 
-#[deprecated]
-pub static X_CHANGE_SEQUENCE: Lazy<HeaderName> =
-    Lazy::new(|| HeaderName::from_static("x-change-sequence"));
-
 pub static X_COMMIT_HASH: Lazy<HeaderName> =
     Lazy::new(|| HeaderName::from_static("x-commit-hash"));
 
@@ -49,46 +45,6 @@ impl Header for SignedMessage {
         let value = HeaderValue::from_str(&s)
             .expect("failed to create signed message header");
         values.extend(std::iter::once(value));
-    }
-}
-
-/// Represents the `x-change-sequence` header.
-#[deprecated]
-#[derive(Debug, Eq, PartialEq)]
-pub struct ChangeSequence(u32);
-
-impl Header for ChangeSequence {
-    fn name() -> &'static HeaderName {
-        &X_CHANGE_SEQUENCE
-    }
-
-    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
-    where
-        I: Iterator<Item = &'i HeaderValue>,
-    {
-        let value = values.next().ok_or_else(headers::Error::invalid)?;
-        let value: u32 = value
-            .to_str()
-            .map_err(|_| headers::Error::invalid())?
-            .parse()
-            .map_err(|_| headers::Error::invalid())?;
-        Ok(ChangeSequence(value))
-    }
-
-    fn encode<E>(&self, values: &mut E)
-    where
-        E: Extend<HeaderValue>,
-    {
-        let s = format!("{}", &self.0);
-        let value = HeaderValue::from_str(&s)
-            .expect("failed to create change sequence header");
-        values.extend(std::iter::once(value));
-    }
-}
-
-impl From<ChangeSequence> for u32 {
-    fn from(value: ChangeSequence) -> Self {
-        value.0
     }
 }
 

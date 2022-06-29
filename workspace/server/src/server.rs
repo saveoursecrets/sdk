@@ -1,14 +1,10 @@
 use axum::{
-    body::{Body, Bytes},
-    extract::{Extension, Path, TypedHeader},
-    headers::{authorization::Bearer, Authorization},
+    extract::{Extension},
     http::{
-        header::{HeaderMap, AUTHORIZATION, CONTENT_TYPE},
-        HeaderValue, Method, Request, Response, StatusCode,
+        header::{AUTHORIZATION, CONTENT_TYPE},
+        HeaderValue, Method,
     },
-    response::{IntoResponse, Redirect},
-    routing::{get, put},
-    Json, Router,
+    routing::{get, put}, Router,
 };
 
 use tower_http::cors::{CorsLayer, Origin};
@@ -16,24 +12,18 @@ use tower_http::cors::{CorsLayer, Origin};
 //use axum_macros::debug_handler;
 
 use serde::Serialize;
-use serde_json::json;
+
 use sos_core::{
     address::AddressStr,
-    decode,
-    events::{AuditEvent, AuditProvider, ChangeEvent, SyncEvent},
-    patch::Patch,
-    secret::SecretId,
-    vault::{Header, VaultCommit},
 };
 
-use std::{borrow::Cow, collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 use sos_audit::AuditLogFile;
 
 use crate::{
-    authenticate::{self, Authentication},
+    authenticate::{Authentication},
     handlers::{
         account::AccountHandler,
         auth::AuthHandler,
@@ -44,7 +34,7 @@ use crate::{
         assets,
     },
     headers::{
-        ChangeSequence, SignedMessage, X_CHANGE_SEQUENCE, X_COMMIT_HASH,
+        X_COMMIT_HASH,
         X_COMMIT_PROOF, X_SIGNED_MESSAGE,
     },
     Backend, ServerConfig,
@@ -111,12 +101,10 @@ impl Server {
                 AUTHORIZATION,
                 CONTENT_TYPE,
                 X_SIGNED_MESSAGE.clone(),
-                X_CHANGE_SEQUENCE.clone(),
                 X_COMMIT_HASH.clone(),
                 X_COMMIT_PROOF.clone(),
             ])
             .expose_headers(vec![
-                X_CHANGE_SEQUENCE.clone(),
                 X_COMMIT_HASH.clone(),
                 X_COMMIT_PROOF.clone(),
             ])
