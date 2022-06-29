@@ -1,34 +1,31 @@
+use crate::{
+    authenticate::Authentication,
+    handlers::{
+        account::AccountHandler,
+        api, assets,
+        auth::AuthHandler,
+        home,
+        sse::{sse_handler, SseConnection},
+        wal::WalHandler,
+    },
+    headers::{X_COMMIT_HASH, X_COMMIT_PROOF, X_SIGNED_MESSAGE},
+    Backend, ServerConfig,
+};
 use axum::{
-    extract::{Extension},
+    extract::Extension,
     http::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
     },
-    routing::{get, put}, Router,
+    routing::{get, put},
+    Router,
 };
-use tower_http::cors::{CorsLayer, Origin};
 use serde::Serialize;
+use sos_audit::AuditLogFile;
 use sos_core::address::AddressStr;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
-use sos_audit::AuditLogFile;
-use crate::{
-    authenticate::{Authentication},
-    handlers::{
-        account::AccountHandler,
-        auth::AuthHandler,
-        sse::{sse_handler, SseConnection},
-        wal::WalHandler,
-        home,
-        api,
-        assets,
-    },
-    headers::{
-        X_COMMIT_HASH,
-        X_COMMIT_PROOF, X_SIGNED_MESSAGE,
-    },
-    Backend, ServerConfig,
-};
+use tower_http::cors::{CorsLayer, Origin};
 
 /// Server state.
 pub struct State {

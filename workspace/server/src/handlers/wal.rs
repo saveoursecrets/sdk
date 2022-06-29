@@ -26,8 +26,8 @@ use uuid::Uuid;
 use crate::{
     authenticate,
     headers::{
-        CommitHashHeader, CommitProofHeader, SignedMessage,
-        X_COMMIT_HASH, X_COMMIT_PROOF,
+        CommitHashHeader, CommitProofHeader, SignedMessage, X_COMMIT_HASH,
+        X_COMMIT_PROOF,
     },
     Backend, State,
 };
@@ -456,38 +456,32 @@ impl WalHandler {
         TypedHeader(message): TypedHeader<SignedMessage>,
         Path(vault_id): Path<Uuid>,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
-        let response = if let Ok((status_code, token)) =
+        if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &message)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                todo!()
-                /*
                 let reader = state.read().await;
-
-                let (exists, change_seq) = reader
+                let (_, wal) = reader
                     .backend
-                    .vault_exists(&token.address, &vault_id)
+                    .vault_read(&token.address, &vault_id)
                     .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
 
-                if !exists {
-                    return Err(StatusCode::NOT_FOUND);
-                }
-
+                // Always send the `x-commit-hash` and `x-commit-proof`
+                // headers to the client
                 let mut headers = HeaderMap::new();
-                let x_change_sequence =
-                    HeaderValue::from_str(&change_seq.to_string())
-                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                headers.insert(X_CHANGE_SEQUENCE.clone(), x_change_sequence);
+                let proof = wal
+                    .tree()
+                    .head()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                append_commit_headers(&mut headers, &proof)?;
+
                 Ok((StatusCode::OK, headers))
-                */
             } else {
                 Err(status_code)
             }
         } else {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
-        };
-
-        Ok(response?)
+        }
     }
 }

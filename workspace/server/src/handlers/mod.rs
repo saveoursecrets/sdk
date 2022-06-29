@@ -1,31 +1,19 @@
 use axum::{
     body::{Body, Bytes},
-    extract::{Extension},
-    http::{
-        Request, Response, StatusCode,
-    },
+    extract::Extension,
+    http::{Request, Response, StatusCode},
     response::{IntoResponse, Redirect},
     Json,
 };
 
-
-
 //use axum_macros::debug_handler;
-
 
 use serde_json::json;
 
-
-use std::{sync::Arc};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
-
-
-
-use crate::{
-    State,
-    assets::Assets,
-};
+use crate::{assets::Assets, State};
 
 pub(crate) mod account;
 pub(crate) mod auth;
