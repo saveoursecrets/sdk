@@ -8,6 +8,7 @@ use tokio::runtime::Runtime;
 use url::Url;
 use web3_keystore::{decrypt, KeyStore};
 
+mod cache;
 mod client;
 mod create;
 mod error;
