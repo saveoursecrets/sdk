@@ -6,22 +6,12 @@ use axum::{
     },
     routing::{get, put}, Router,
 };
-
 use tower_http::cors::{CorsLayer, Origin};
-
-//use axum_macros::debug_handler;
-
 use serde::Serialize;
-
-use sos_core::{
-    address::AddressStr,
-};
-
+use sos_core::address::AddressStr;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
-
 use sos_audit::AuditLogFile;
-
 use crate::{
     authenticate::{Authentication},
     handlers::{
@@ -117,17 +107,6 @@ impl Server {
             .route("/api/auth", get(AuthHandler::challenge))
             .route("/api/auth/:uuid", get(AuthHandler::response))
             .route("/api/accounts", put(AccountHandler::put_account))
-            //.route("/api/vaults", put(VaultHandler::create_vault))
-            /*
-            .route(
-                "/api/vaults/:vault_id",
-                get(VaultHandler::read_vault)
-                    .head(VaultHandler::head_vault)
-                    .delete(VaultHandler::delete_vault)
-                    .post(VaultHandler::update_vault)
-                    .patch(VaultHandler::patch_vault),
-            )
-            */
             .route("/api/vaults", put(WalHandler::put_wal))
             .route(
                 "/api/vaults/:vault_id",
@@ -136,22 +115,6 @@ impl Server {
                     .post(WalHandler::post_wal)
                     .patch(WalHandler::patch_wal),
             )
-            /*
-            .route(
-                "/api/vaults/:vault_id/name",
-                get(VaultHandler::get_vault_name)
-                    .post(VaultHandler::set_vault_name),
-            )
-            */
-            /*
-            .route(
-                "/api/vaults/:vault_id/secrets/:secret_id",
-                put(SecretHandler::create_secret)
-                    .get(SecretHandler::read_secret)
-                    .post(SecretHandler::update_secret)
-                    .delete(SecretHandler::delete_secret),
-            )
-            */
             .route("/api/changes", get(sse_handler))
             .layer(cors)
             .layer(Extension(shared_state));
