@@ -1,6 +1,7 @@
 use clap::Parser;
 use sos_server::{
-    Authentication, FileLocks, Result, Server, ServerConfig, State,
+    Authentication, FileLocks, Result, Server, ServerConfig, ServerInfo,
+    State,
 };
 
 use sos_audit::AuditLogFile;
@@ -60,8 +61,7 @@ async fn run() -> Result<()> {
     let audit_log = AuditLogFile::new(&audit_log_file)?;
 
     let state = Arc::new(RwLock::new(State {
-        name,
-        version,
+        info: ServerInfo { name, version },
         config,
         backend,
         authentication,

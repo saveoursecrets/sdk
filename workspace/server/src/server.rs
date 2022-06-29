@@ -19,6 +19,7 @@ use tower_http::cors::{CorsLayer, Origin};
 
 //use axum_macros::debug_handler;
 
+use serde::Serialize;
 use serde_json::json;
 use sos_core::{
     address::AddressStr,
@@ -141,10 +142,8 @@ pub struct SseConnection {
 pub struct State {
     /// The server configuration.
     pub config: ServerConfig,
-    /// Name of the crate.
-    pub name: String,
-    /// Version of the crate.
-    pub version: String,
+    /// Server information.
+    pub info: ServerInfo,
     /// Storage backend.
     pub backend: Box<dyn Backend + Send + Sync>,
     /// Collection of challenges for authentication
@@ -154,6 +153,14 @@ pub struct State {
     /// Map of server sent event channels by authenticated
     /// client address.
     pub sse: HashMap<AddressStr, SseConnection>,
+}
+
+#[derive(Serialize)]
+pub struct ServerInfo {
+    /// Name of the crate.
+    pub name: String,
+    /// Version of the crate.
+    pub version: String,
 }
 
 // Server implementation.
@@ -211,6 +218,7 @@ impl Server {
             .route("/api/auth/:uuid", get(AuthHandler::response))
             .route("/api/accounts", put(AccountHandler::create))
             .route("/api/vaults", put(VaultHandler::create_vault))
+            /*
             .route(
                 "/api/vaults/:vault_id",
                 get(VaultHandler::read_vault)
@@ -219,8 +227,9 @@ impl Server {
                     .post(VaultHandler::update_vault)
                     .patch(VaultHandler::patch_vault),
             )
+            */
             .route(
-                "/api/vaults/:vault_id/wal",
+                "/api/vaults/:vault_id",
                 get(WalHandler::read_wal).patch(WalHandler::patch_wal),
             )
             /*
@@ -230,6 +239,7 @@ impl Server {
                     .post(VaultHandler::set_vault_name),
             )
             */
+            /*
             .route(
                 "/api/vaults/:vault_id/secrets/:secret_id",
                 put(SecretHandler::create_secret)
@@ -237,6 +247,7 @@ impl Server {
                     .post(SecretHandler::update_secret)
                     .delete(SecretHandler::delete_secret),
             )
+            */
             .route("/api/changes", get(sse_handler))
             .layer(cors)
             .layer(Extension(shared_state));
@@ -308,7 +319,7 @@ async fn api(
     Extension(state): Extension<Arc<RwLock<State>>>,
 ) -> impl IntoResponse {
     let reader = state.read().await;
-    Json(json!({ "name": reader.name, "version": reader.version }))
+    Json(json!(&reader.info))
 }
 
 // Handlers for account events.

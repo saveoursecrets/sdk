@@ -14,4 +14,4 @@ pub use backend::{Backend, FileSystemBackend};
 pub use config::ServerConfig;
 pub use error::Error;
 pub use file_locks::FileLocks;
-pub use server::{Server, State};
+pub use server::{Server, ServerInfo, State};
