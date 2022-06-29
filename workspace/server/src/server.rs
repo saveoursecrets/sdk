@@ -32,7 +32,6 @@ use sos_core::{
     patch::Patch,
     secret::SecretId,
     vault::{CommitHash, Header, Summary, Vault, VaultCommit},
-    wal::{file::WalFileRecord, WalItem},
 };
 
 use std::{
@@ -230,7 +229,9 @@ impl Server {
             */
             .route(
                 "/api/vaults/:vault_id",
-                get(WalHandler::read_wal).patch(WalHandler::patch_wal),
+                get(WalHandler::read_wal)
+                    .post(WalHandler::write_wal)
+                    .patch(WalHandler::patch_wal),
             )
             /*
             .route(
@@ -1514,6 +1515,44 @@ impl WalHandler {
                 append_commit_headers(&mut headers, &proof)?;
                 Ok((StatusCode::CONFLICT, headers, Bytes::from(vec![])))
             }
+        }
+    }
+
+    /// Attempt to write an entire WAL file.
+    ///
+    /// This is the equivalent of a force push and should only be
+    /// used by clients after they have created a completely different
+    /// commit tree which can happen if they compact a locally cached
+    /// WAL to prune history and save disc space.
+    async fn write_wal(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(root_hash): TypedHeader<CommitHashHeader>,
+        Path(vault_id): Path<Uuid>,
+        body: Bytes,
+    ) -> Result<StatusCode, StatusCode> {
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+                // TODO: better error to status code mapping
+                writer
+                    .backend
+                    .replace_wal(
+                        &token.address,
+                        &vault_id,
+                        root_hash.into(),
+                        body.as_ref(),
+                    )
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                Ok(StatusCode::OK)
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 }

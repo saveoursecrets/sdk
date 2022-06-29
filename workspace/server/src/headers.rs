@@ -139,6 +139,12 @@ impl From<CommitHashHeader> for [u8; 32] {
     }
 }
 
+impl AsRef<[u8]> for CommitHashHeader {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 /// Represents the `x-commit-proof` header.
 #[derive(Debug, Eq, PartialEq)]
 pub struct CommitProofHeader(Vec<u8>);

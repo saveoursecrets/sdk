@@ -2804,6 +2804,7 @@ dependencies = [
  "sha3 0.10.1",
  "sos-audit",
  "sos-core",
+ "tempfile",
  "thiserror",
  "tokio",
  "toml",

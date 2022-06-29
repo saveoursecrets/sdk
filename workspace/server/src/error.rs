@@ -36,6 +36,9 @@ pub enum Error {
     #[error("audit log {0} is already open for writing")]
     AuditWouldBlock(PathBuf),
 
+    #[error("checksum mismatch validating WAL file")]
+    WalValidateMismatch,
+
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
 

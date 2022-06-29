@@ -2,16 +2,20 @@ use crate::{file_locks::FileLocks, Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
+    commit_tree::integrity::wal_commit_tree,
     events::WalEvent,
     file_access::VaultFileAccess,
     vault::{Header, Summary, Vault, VaultAccess},
     wal::{
         file::{WalFile, WalFileRecord},
-        WalItem, WalProvider,
+        WalProvider,
     },
 };
 use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use tempfile::NamedTempFile;
 use uuid::Uuid;
+
+use tokio::io;
 
 type VaultStorage = Box<dyn VaultAccess + Send + Sync>;
 type WalStorage = Box<
@@ -20,6 +24,7 @@ type WalStorage = Box<
 type Storage = (VaultStorage, WalStorage);
 
 const WAL_EXT: &str = "wal";
+const WAL_BACKUP_EXT: &str = "wal.backup";
 const WAL_DELETED_EXT: &str = "wal.deleted";
 
 /// Trait for types that provide an interface to vault storage.
@@ -102,6 +107,15 @@ pub trait Backend {
         owner: &AddressStr,
         vault_id: &Uuid,
     ) -> Result<&mut Storage>;
+
+    /// Replace a WAL file with a new buffer.
+    async fn replace_wal(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+        root_hash: [u8; 32],
+        buffer: &[u8],
+    ) -> Result<()>;
 }
 
 /// Backend storage for vaults on the file system.
@@ -188,17 +202,6 @@ impl FileSystemBackend {
         Ok(())
     }
 
-    fn vault_file_path(
-        &self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-    ) -> PathBuf {
-        let account_dir = self.directory.join(owner.to_string());
-        let mut vault_file = account_dir.join(vault_id.to_string());
-        vault_file.set_extension(Vault::extension());
-        vault_file
-    }
-
     /// Write a vault file to disc for the given owner address.
     async fn new_vault_file(
         &mut self,
@@ -214,6 +217,17 @@ impl FileSystemBackend {
         tokio::fs::write(&vault_file, vault).await?;
 
         Ok(vault_file)
+    }
+
+    fn vault_file_path(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> PathBuf {
+        let account_dir = self.directory.join(owner.to_string());
+        let mut vault_file = account_dir.join(vault_id.to_string());
+        vault_file.set_extension(Vault::extension());
+        vault_file
     }
 
     /// Add a vault file path to the in-memory account.
@@ -440,5 +454,43 @@ impl Backend for FileSystemBackend {
         } else {
             Err(Error::AccountNotExist(*owner))
         }
+    }
+
+    async fn replace_wal(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+        root_hash: [u8; 32],
+        mut buffer: &[u8],
+    ) -> Result<()> {
+        let mut tempfile = NamedTempFile::new()?;
+        let temp_path = tempfile.path().to_path_buf();
+        let mut tempfile = tokio::fs::File::from_std(tempfile.into_file());
+
+        io::copy(&mut buffer, &mut tempfile).await?;
+
+        // Compute the root hash of the submitted WAL file
+        // and verify the integrity of each record event against
+        // each leaf node hash
+        let tree = wal_commit_tree(&temp_path, true, |_| {})?;
+        let tree_root = tree.root().ok_or(sos_core::Error::NoRootCommit)?;
+
+        // If the hash does not match the header then
+        // something went wrong with the client POST
+        // or was modified in transit
+        if root_hash != tree_root {
+            return Err(Error::WalValidateMismatch);
+        }
+
+        let mut original_wal = self.vault_file_path(owner, vault_id);
+        original_wal.set_extension(WAL_EXT);
+
+        let mut backup_wal = original_wal.clone();
+        backup_wal.set_extension(WAL_BACKUP_EXT);
+
+        std::fs::rename(&original_wal, &backup_wal)?;
+        std::fs::rename(&temp_path, &original_wal)?;
+
+        Ok(())
     }
 }
