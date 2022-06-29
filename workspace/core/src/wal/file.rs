@@ -138,6 +138,11 @@ impl WalFile {
         let record = WalRecord(time, commit, bytes);
         Ok((commit, record))
     }
+
+    /// The file extension for WAL files.
+    pub fn extension() -> &'static str {
+        "wal"
+    }
 }
 
 impl WalProvider for WalFile {

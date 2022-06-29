@@ -22,7 +22,6 @@ type WalStorage = Box<
     dyn WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync,
 >;
 
-const WAL_EXT: &str = "wal";
 const WAL_BACKUP_EXT: &str = "wal.backup";
 const WAL_DELETED_EXT: &str = "wal.deleted";
 
@@ -167,7 +166,7 @@ impl FileSystemBackend {
                             let entry = entry?;
                             let wal_path = entry.path();
                             if let Some(ext) = wal_path.extension() {
-                                if ext == WAL_EXT {
+                                if ext == WalFile::extension() {
                                     let mut vault_path =
                                         wal_path.to_path_buf();
                                     vault_path
@@ -240,7 +239,7 @@ impl FileSystemBackend {
     fn wal_file_path(&self, owner: &AddressStr, vault_id: &Uuid) -> PathBuf {
         let account_dir = self.directory.join(owner.to_string());
         let mut wal_file = account_dir.join(vault_id.to_string());
-        wal_file.set_extension(WAL_EXT);
+        wal_file.set_extension(WalFile::extension());
         wal_file
     }
 
