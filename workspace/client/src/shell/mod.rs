@@ -24,7 +24,7 @@ use sos_readline::{
 };
 
 use crate::{
-    display_passphrase, run_blocking, Client, Error, Result, VaultInfo,
+    display_passphrase, run_blocking, Cache, Client, Error, Result, VaultInfo,
 };
 
 mod editor;
@@ -232,38 +232,32 @@ fn read_file_secret(path: &str) -> Result<Secret> {
     Ok(Secret::File { name, mime, buffer })
 }
 
-#[derive(Default)]
-pub struct ShellState {
-    /// Vaults managed by this signer.
-    pub summaries: Vec<Summary>,
-    /// Currently selected vault.
-    pub current: Option<Gatekeeper>,
-}
-
 /// Execute the program command.
-fn exec_program(
-    program: Shell,
-    client: Arc<Client>,
-    state: Arc<RwLock<ShellState>>,
-) -> Result<()> {
+fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
     match program.cmd {
-        ShellCommand::Vaults => list_vaults(client, state, true)?,
+        ShellCommand::Vaults => list_vaults(cache, true)?,
         ShellCommand::Create { name } => {
+            let reader = cache.read().unwrap();
             let (passphrase, _) = generate()?;
             let mut vault: Vault = Default::default();
             vault.set_name(name);
             vault.initialize(&passphrase)?;
             let buffer = encode(&vault)?;
 
-            let response = run_blocking(client.create_vault(buffer))?;
+            let response =
+                run_blocking(reader.client().create_vault(buffer))?;
 
             if !response.status().is_success() {
                 return Err(Error::VaultCreate(response.status().into()));
             }
             display_passphrase("ENCRYPTION PASSPHRASE", &passphrase);
 
-            list_vaults(client, state, false)?;
+            drop(reader);
+            list_vaults(cache, false)?;
         }
+        _ => todo!(),
+
+        /*
         ShellCommand::Remove { vault } => {
             let mut writer = state.write().unwrap();
             let summary = match &vault {
@@ -656,17 +650,18 @@ fn exec_program(
                 return Err(Error::SecretNotAvailable(secret));
             }
         }
-
+        */
         ShellCommand::Whoami => {
-            let address = client.address()?;
+            let reader = cache.read().unwrap();
+            let address = reader.client().address()?;
             println!("{}", address);
         }
         ShellCommand::Close => {
-            let mut writer = state.write().unwrap();
-            if let Some(current) = writer.current.as_mut() {
+            let mut writer = cache.write().unwrap();
+            if let Some(current) = writer.current_mut() {
                 current.lock();
             }
-            writer.current = None;
+            writer.set_current(None);
         }
         ShellCommand::Quit => {
             std::process::exit(0);
@@ -676,17 +671,13 @@ fn exec_program(
 }
 
 /// Intermediary to pretty print clap parse errors.
-fn exec_args<I, T>(
-    it: I,
-    client: Arc<Client>,
-    state: Arc<RwLock<ShellState>>,
-) -> Result<()>
+fn exec_args<I, T>(it: I, cache: Arc<RwLock<Cache>>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
     match Shell::try_parse_from(it) {
-        Ok(program) => exec_program(program, client, state)?,
+        Ok(program) => exec_program(program, cache)?,
         Err(e) => e.print().expect("unable to write error output"),
     }
     Ok(())
@@ -694,26 +685,17 @@ where
 
 /// Exposed so that the shell program can automatically
 /// try to list vaults after creating a signer.
-pub fn list_vaults(
-    client: Arc<Client>,
-    state: Arc<RwLock<ShellState>>,
-    print: bool,
-) -> Result<()> {
-    let summaries = run_blocking(client.list_vaults())?;
+pub fn list_vaults(cache: Arc<RwLock<Cache>>, print: bool) -> Result<()> {
+    let mut writer = cache.write().unwrap();
+    let summaries = run_blocking(writer.load_summaries())?;
     if print {
         print::summaries_list(&summaries);
     }
-    let mut writer = state.write().unwrap();
-    writer.summaries = summaries;
     Ok(())
 }
 
 /// Execute a line of input in the context of the shell program.
-pub fn exec(
-    line: &str,
-    client: Arc<Client>,
-    state: Arc<RwLock<ShellState>>,
-) -> Result<()> {
+pub fn exec(line: &str, cache: Arc<RwLock<Cache>>) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));
@@ -730,7 +712,7 @@ pub fn exec(
         } else if line == "help" || line == "--help" {
             cmd.print_long_help()?;
         } else {
-            exec_args(it, client, state)?;
+            exec_args(it, cache)?;
         }
     }
     Ok(())

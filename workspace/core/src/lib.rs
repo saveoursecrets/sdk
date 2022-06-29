@@ -10,6 +10,7 @@ pub mod events;
 pub mod file_access;
 pub mod file_identity;
 pub mod gatekeeper;
+pub mod headers;
 pub mod patch;
 
 #[deprecated]

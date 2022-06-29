@@ -3,14 +3,15 @@ use axum::headers::{self, Header, HeaderName, HeaderValue};
 
 use once_cell::sync::Lazy;
 
-pub static X_SIGNED_MESSAGE: Lazy<HeaderName> =
-    Lazy::new(|| HeaderName::from_static("x-signed-message"));
+pub static X_SIGNED_MESSAGE: Lazy<HeaderName> = Lazy::new(|| {
+    HeaderName::from_static(sos_core::headers::X_SIGNED_MESSAGE)
+});
 
 pub static X_COMMIT_HASH: Lazy<HeaderName> =
-    Lazy::new(|| HeaderName::from_static("x-commit-hash"));
+    Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_HASH));
 
 pub static X_COMMIT_PROOF: Lazy<HeaderName> =
-    Lazy::new(|| HeaderName::from_static("x-commit-proof"));
+    Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_PROOF));
 
 /// Represents the `x-signed-message` header.
 #[derive(Debug)]

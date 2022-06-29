@@ -16,6 +16,9 @@ pub enum Error {
     #[error("path {0} does not have a file name")]
     FileName(PathBuf),
 
+    #[error("could not determine local data directory")]
+    NoDataLocalDir,
+
     #[error("failed to create account, got status code {0}")]
     AccountCreate(u16),
 

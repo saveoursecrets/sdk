@@ -1,9 +1,9 @@
-//! Cache of local vaults and WAL files.
+//! Cache of local WAL files.
 use crate::{client::Client, Error, Result};
 use sos_core::{gatekeeper::Gatekeeper, vault::Summary};
 use std::path::{Path, PathBuf};
 
-/// Implements client-side caching of vaults and WAL files.
+/// Implements client-side caching of WAL files.
 pub struct Cache {
     /// Vaults managed by this cache.
     summaries: Vec<Summary>,
@@ -59,10 +59,26 @@ impl Cache {
         self.current.as_mut()
     }
 
+    /// Set the currently active in-memory vault.
+    pub fn set_current(&mut self, current: Option<Gatekeeper>) {
+        self.current = current;
+    }
+
     /// Load the vault summaries from the remote server.
     pub async fn load_summaries(&mut self) -> Result<&[Summary]> {
         let summaries = self.client.list_vaults().await?;
         self.summaries = summaries;
         Ok(self.summaries())
+    }
+
+    /// Get the default root directory used for caching client data.
+    pub fn cache_dir() -> Result<PathBuf> {
+        let data_local_dir =
+            dirs::data_local_dir().ok_or(Error::NoDataLocalDir)?;
+        let cache_dir = data_local_dir.join("sos");
+        if !cache_dir.exists() {
+            std::fs::create_dir(&cache_dir)?;
+        }
+        Ok(cache_dir)
     }
 }

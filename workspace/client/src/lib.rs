@@ -36,14 +36,6 @@ pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {
         .text(Cow::from(passphrase))
         .render();
     println!("{}", banner);
-
-    //println!("### {}", heading);
-    //println!("#");
-    //println!("# {}", detail);
-    //println!("#");
-    //println!("# {}", passphrase);
-    //println!("#");
-    //println!("###");
 }
 
 pub struct ClientBuilder {
@@ -73,9 +65,10 @@ impl ClientBuilder {
     }
 }
 
+pub use cache::Cache;
 pub use client::{Client, VaultInfo};
 pub use create::vault as create_vault;
 pub use error::Error;
 pub use monitor::monitor;
-pub use shell::{exec, list_vaults, ShellState};
+pub use shell::{exec, list_vaults};
 pub use signup::signup;

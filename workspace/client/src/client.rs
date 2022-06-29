@@ -4,6 +4,7 @@ use reqwest::{Client as HttpClient, Response};
 use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
+    headers::{X_COMMIT_HASH, X_COMMIT_PROOF, X_SIGNED_MESSAGE},
     secret::SecretId,
     signer::Signer,
     vault::{Summary, VaultCommit, MIME_TYPE_VAULT},
@@ -19,7 +20,6 @@ type Challenge = [u8; 32];
 
 const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
-const X_SIGNED_MESSAGE: &str = "x-signed-message";
 
 /// Encapsulates the information returned
 /// by sending a HEAD request for a vault.
@@ -120,6 +120,7 @@ impl Client {
     }
     */
 
+    /*
     /// Read the buffer for a vault.
     pub async fn read_vault(&self, vault_id: &Uuid) -> Result<Vec<u8>> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
@@ -149,7 +150,9 @@ impl Client {
             .await?;
         Ok(response)
     }
+    */
 
+    /*
     /// Get the name of a vault.
     pub async fn vault_name(&self, vault_id: &Uuid) -> Result<String> {
         let url =
@@ -187,6 +190,7 @@ impl Client {
             .await?;
         Ok(response)
     }
+    */
 
     /// List the vaults accessible by this signer.
     pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
@@ -222,6 +226,7 @@ impl Client {
         Ok(summaries)
     }
 
+    /*
     /// Create a secret.
     pub async fn create_secret(
         &self,
@@ -311,6 +316,7 @@ impl Client {
             .await?;
         Ok(response.bytes().await?.to_vec())
     }
+    */
 
     /// Get an event source for the changes feed.
     pub async fn changes(&self) -> Result<EventSource> {

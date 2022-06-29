@@ -10,8 +10,8 @@ use url::Url;
 use uuid::Uuid;
 
 use sos_client::{
-    create_vault, exec, list_vaults, monitor, signup, ClientBuilder, Result,
-    ShellState,
+    create_vault, exec, list_vaults, monitor, signup, Cache, ClientBuilder,
+    Result,
 };
 use sos_core::Algorithm;
 use sos_readline::read_shell;
@@ -128,28 +128,25 @@ fn run() -> Result<()> {
             signup(server, keystore, name)?;
         }
         Command::Shell { server, keystore } => {
-            let client =
-                Arc::new(ClientBuilder::new(server, keystore).build()?);
+            let cache_dir = Cache::cache_dir()?;
+            let client = ClientBuilder::new(server, keystore).build()?;
+            let cache = Arc::new(RwLock::new(Cache::new(client, cache_dir)?));
 
-            welcome(client.server())?;
+            let reader = cache.read().unwrap();
+            welcome(reader.client().server())?;
+            drop(reader);
 
-            let state: Arc<RwLock<ShellState>> =
-                Arc::new(RwLock::new(Default::default()));
-
-            if let Err(e) =
-                list_vaults(Arc::clone(&client), Arc::clone(&state), false)
-            {
+            if let Err(e) = list_vaults(Arc::clone(&cache), false) {
                 tracing::error!(
-                    "failed to list vaults, identity may not exist: {}",
+                    "failed to load vault summaries, identity may not exist: {}",
                     e
                 );
             }
 
-            let prompt_state = Arc::clone(&state);
-
+            let prompt_cache = Arc::clone(&cache);
             let prompt = || -> String {
-                let reader = prompt_state.read().unwrap();
-                if let Some(current) = &reader.current {
+                let cache = prompt_cache.read().unwrap();
+                if let Some(current) = cache.current() {
                     return format!("sos@{}> ", current.name());
                 }
                 "sos> ".to_string()
@@ -157,9 +154,8 @@ fn run() -> Result<()> {
 
             read_shell(
                 |line: String| {
-                    let client = Arc::clone(&client);
-                    let state = Arc::clone(&state);
-                    if let Err(e) = exec(&line, client, state) {
+                    let shell_cache = Arc::clone(&cache);
+                    if let Err(e) = exec(&line, shell_cache) {
                         tracing::error!("{}", e);
                     }
                 },
