@@ -15,6 +15,9 @@ pub struct ServerConfig {
     /// Storage for the backend.
     pub storage: StorageConfig,
 
+    /// Configuration for the TLS encryption.
+    pub tls: TlsConfig,
+
     /// Configuration for the API.
     pub api: ApiConfig,
 
@@ -22,6 +25,14 @@ pub struct ServerConfig {
     /// relative paths.
     #[serde(skip)]
     file: Option<PathBuf>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TlsConfig {
+    /// Path to the certificate.
+    cert: PathBuf,
+    /// Path to the certificate key file.
+    key: PathBuf,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -64,6 +75,18 @@ impl ServerConfig {
         let contents = std::fs::read_to_string(path.as_ref())?;
         let mut config: ServerConfig = toml::from_str(&contents)?;
         config.file = Some(path.as_ref().canonicalize()?);
+
+        let dir = config.directory();
+        if config.tls.cert.is_relative() {
+            config.tls.cert = dir.join(&config.tls.cert);
+        }
+        if config.tls.key.is_relative() {
+            config.tls.key = dir.join(&config.tls.key);
+        }
+
+        config.tls.cert = config.tls.cert.canonicalize()?;
+        config.tls.key = config.tls.key.canonicalize()?;
+
         Ok(config)
     }
 
@@ -134,79 +157,4 @@ impl ServerConfig {
             )),
         }
     }
-
-    /*
-    /// Map each user config to a backend implementation.
-    pub fn backends(
-        &self,
-    ) -> Result<HashMap<AddressStr, Box<dyn Backend + Send + Sync>>> {
-        // Config file directory for relative file paths.
-        let dir = self
-            .file
-            .as_ref()
-            .unwrap()
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap();
-        let mut backends = HashMap::new();
-        for (addr, user) in self.users.iter() {
-            backends.insert(addr.clone(), user.backend(&dir)?);
-        }
-        Ok(backends)
-    }
-    */
 }
-
-/*
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UserConfig {
-    url: Url,
-}
-
-impl UserConfig {
-    /// Get the backend implementation for a user configuration.
-    fn backend<P: AsRef<Path>>(
-        &self,
-        dir: P,
-    ) -> Result<Box<dyn Backend + Send + Sync>> {
-        match self.url.scheme() {
-            "file" => {
-                let url = self.url.clone();
-                let mut is_relative = false;
-                if let Some(Host::Domain(name)) = url.host() {
-                    if name == "." {
-                        is_relative = true;
-                    }
-                }
-                let url = if is_relative {
-                    let base_file = format!(
-                        "file://{}",
-                        dir.as_ref().to_string_lossy().into_owned()
-                    );
-                    let mut base: Url = base_file.parse()?;
-                    // Must end with a slash to join the relative path
-                    // correctly
-                    if !base.path().ends_with('/') {
-                        let path = format!("{}/", base.path());
-                        base.set_path(&path);
-                    }
-
-                    let path = format!(".{}", url.path());
-                    base.join(&path)?
-                } else {
-                    url
-                };
-
-                let path = url
-                    .to_file_path()
-                    .map_err(|_| Error::UrlFilePath(self.url.clone()))?;
-
-                let mut backend = FileSystemBackend::new(path);
-                backend.read_dir()?;
-                Ok(Box::new(backend))
-            }
-            _ => Err(Error::InvalidUrlScheme(self.url.scheme().to_string())),
-        }
-    }
-}
-*/
