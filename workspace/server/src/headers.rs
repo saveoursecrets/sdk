@@ -93,9 +93,9 @@ impl From<ChangeSequence> for u32 {
 
 /// Represents the `x-commit-hash` header.
 #[derive(Debug, Eq, PartialEq)]
-pub struct CommitHash([u8; 32]);
+pub struct CommitHashHeader([u8; 32]);
 
-impl Header for CommitHash {
+impl Header for CommitHashHeader {
     fn name() -> &'static HeaderName {
         &X_COMMIT_HASH
     }
@@ -119,7 +119,7 @@ impl Header for CommitHash {
             .as_slice()
             .try_into()
             .map_err(|_| headers::Error::invalid())?;
-        Ok(CommitHash(value))
+        Ok(CommitHashHeader(value))
     }
 
     fn encode<E>(&self, values: &mut E)
@@ -133,17 +133,17 @@ impl Header for CommitHash {
     }
 }
 
-impl From<CommitHash> for [u8; 32] {
-    fn from(value: CommitHash) -> Self {
+impl From<CommitHashHeader> for [u8; 32] {
+    fn from(value: CommitHashHeader) -> Self {
         value.0
     }
 }
 
 /// Represents the `x-commit-proof` header.
 #[derive(Debug, Eq, PartialEq)]
-pub struct CommitProof(Vec<u8>);
+pub struct CommitProofHeader(Vec<u8>);
 
-impl Header for CommitProof {
+impl Header for CommitProofHeader {
     fn name() -> &'static HeaderName {
         &X_COMMIT_PROOF
     }
@@ -157,7 +157,7 @@ impl Header for CommitProof {
             value.to_str().map_err(|_| headers::Error::invalid())?;
         let value =
             base64::decode(value).map_err(|_| headers::Error::invalid())?;
-        Ok(CommitProof(value))
+        Ok(CommitProofHeader(value))
     }
 
     fn encode<E>(&self, values: &mut E)
@@ -171,7 +171,7 @@ impl Header for CommitProof {
     }
 }
 
-impl AsRef<[u8]> for CommitProof {
+impl AsRef<[u8]> for CommitProofHeader {
     fn as_ref(&self) -> &[u8] {
         &self.0
     }

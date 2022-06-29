@@ -28,6 +28,9 @@ pub fn hash(data: &[u8]) -> [u8; 32] {
     Sha256::hash(data)
 }
 
+/// Represents a root hash and a proof of certain nodes.
+pub struct CommitProof(pub <Sha256 as Hasher>::Hash, pub MerkleProof<Sha256>);
+
 /// The result of comparing two commit trees.
 ///
 /// Either the trees are equal, the other tree
@@ -110,12 +113,17 @@ impl CommitTree {
         self.tree.leaves()
     }
 
+    /// Get the root hash and a proof of the last leaf node.
+    pub fn head(&self) -> Result<CommitProof> {
+        let root = self.root().ok_or_else(|| Error::NoRootCommit)?;
+        let leaf_indices = vec![self.tree.leaves_len() - 1];
+        let proof = self.tree.proof(&leaf_indices);
+        Ok(CommitProof(root, proof))
+    }
+
     /// Compare this tree against another root hash and merkle proof.
-    pub fn compare(
-        &self,
-        other_root: <Sha256 as Hasher>::Hash,
-        proof: MerkleProof<Sha256>,
-    ) -> Result<Comparison> {
+    pub fn compare(&self, proof: CommitProof) -> Result<Comparison> {
+        let CommitProof(other_root, proof) = proof;
         let root = self.root().ok_or_else(|| Error::NoRootCommit)?;
         if root == other_root {
             Ok(Comparison::Equal)

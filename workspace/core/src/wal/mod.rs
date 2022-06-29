@@ -196,12 +196,6 @@ mod test {
             WalEvent::CreateSecret(id.clone(), data),
         ])?;
 
-        /*
-        server
-            .append_event(WalEvent::CreateVault(Cow::Owned(vault_buffer)))?;
-        server.append_event(WalEvent::CreateSecret(id.clone(), data))?;
-        */
-
         // Duplicate the server events on the client
         let mut client = WalMemory::new();
         for record in server.iter()? {
@@ -210,11 +204,8 @@ mod test {
             client.append_event(event)?;
         }
 
-        let leaf_indices = vec![client.tree().len() - 1];
-        let proof = client.tree().proof(&leaf_indices);
-        let comparison = server
-            .tree()
-            .compare(client.tree().root().unwrap(), proof)?;
+        let proof = client.tree().head()?;
+        let comparison = server.tree().compare(proof)?;
         assert_eq!(Comparison::Equal, comparison);
 
         assert_eq!(server.tree().len(), client.tree().len());
@@ -229,11 +220,8 @@ mod test {
         server.append_event(WalEvent::DeleteSecret(id.clone()))?;
 
         /// Check that the server contains the client proof
-        let leaf_indices = vec![client.tree().len() - 1];
-        let proof = client.tree().proof(&leaf_indices);
-        let comparison = server
-            .tree()
-            .compare(client.tree().root().unwrap(), proof)?;
+        let proof = client.tree().head()?;
+        let comparison = server.tree().compare(proof)?;
 
         let matched = if let Comparison::Contains(index, _) = comparison {
             index == 1
@@ -243,11 +231,8 @@ mod test {
         assert!(matched);
 
         // Verify that the server root is not contained by the client.
-        let leaf_indices = vec![server.tree().len() - 1];
-        let proof = server.tree().proof(&leaf_indices);
-        let comparison = client
-            .tree()
-            .compare(server.tree().root().unwrap(), proof)?;
+        let proof = server.tree().head()?;
+        let comparison = client.tree().compare(proof)?;
         assert_eq!(Comparison::Unknown, comparison);
 
         // A completely different tree should also be unknown to the server.
@@ -255,11 +240,8 @@ mod test {
         // This can happen if a client compacts its WAL which would create
         // a new commit tree.
         let (standalone, _) = mock_wal_standalone()?;
-        let leaf_indices = vec![standalone.tree().len() - 1];
-        let proof = standalone.tree().proof(&leaf_indices);
-        let comparison = server
-            .tree()
-            .compare(standalone.tree().root().unwrap(), proof)?;
+        let proof = standalone.tree().head()?;
+        let comparison = server.tree().compare(proof)?;
         assert_eq!(Comparison::Unknown, comparison);
 
         Ok(())
@@ -275,11 +257,8 @@ mod test {
         // Get the last record for our assertion
         let record = server.iter()?.next_back().unwrap()?;
 
-        let leaf_indices = vec![client.tree().len() - 1];
-        let proof = client.tree().proof(&leaf_indices);
-        let comparison = server
-            .tree()
-            .compare(client.tree().root().unwrap(), proof)?;
+        let proof = client.tree().head()?;
+        let comparison = server.tree().compare(proof)?;
 
         if let Comparison::Contains(_, leaf) = comparison {
             if let Some(records) = server.diff(leaf)? {

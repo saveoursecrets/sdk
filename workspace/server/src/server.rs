@@ -22,7 +22,7 @@ use tower_http::cors::{CorsLayer, Origin};
 use serde_json::json;
 use sos_core::{
     address::AddressStr,
-    commit_tree::{decode_proof, Comparison},
+    commit_tree::{decode_proof, encode_proof, CommitProof, Comparison},
     decode,
     events::{
         AuditData, AuditEvent, AuditProvider, ChangeEvent, EventKind,
@@ -50,7 +50,7 @@ use crate::{
     assets::Assets,
     authenticate::{self, Authentication, SignedQuery},
     headers::{
-        ChangeSequence, CommitHash, CommitProof, SignedMessage,
+        ChangeSequence, CommitHashHeader, CommitProofHeader, SignedMessage,
         X_CHANGE_SEQUENCE, X_COMMIT_HASH, X_COMMIT_PROOF, X_SIGNED_MESSAGE,
     },
     Backend, ServerConfig,
@@ -1190,6 +1190,21 @@ impl SecretHandler {
     }
 }
 
+fn append_commit_headers(
+    headers: &mut HeaderMap,
+    proof: &CommitProof,
+) -> Result<(), StatusCode> {
+    let CommitProof(server_root, server_proof) = proof;
+    let x_commit_hash = HeaderValue::from_str(&hex::encode(server_root))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    headers.insert(X_COMMIT_HASH.clone(), x_commit_hash);
+    let x_commit_proof =
+        HeaderValue::from_str(&base64::encode(encode_proof(&server_proof)))
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
+    Ok(())
+}
+
 // Handlers for WAL log events.
 struct WalHandler;
 impl WalHandler {
@@ -1214,14 +1229,19 @@ impl WalHandler {
     ///
     /// If the client and server root hashes match then a NOT_MODIFIED
     /// status code is returned.
+    ///
+    /// If the server has a root hash in it's WAL commit tree (which
+    /// should always be the case) then it returns it's root hash in
+    /// the `x-commit-hash` and a proof of the last leaf node in the
+    /// `x-commit-proof` header.
     async fn read_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
-        root_hash: Option<TypedHeader<CommitHash>>,
-        commit_proof: Option<TypedHeader<CommitProof>>,
+        root_hash: Option<TypedHeader<CommitHashHeader>>,
+        commit_proof: Option<TypedHeader<CommitProofHeader>>,
         Path(vault_id): Path<Uuid>,
-    ) -> Result<Bytes, StatusCode> {
+    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &message)
         {
@@ -1234,8 +1254,17 @@ impl WalHandler {
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
+                // Always send the `x-commit-hash` and `x-commit-proof`
+                // headers to the client
+                let mut headers = HeaderMap::new();
+                let proof = wal
+                    .tree()
+                    .head()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                append_commit_headers(&mut headers, &proof)?;
+
                 // Client is asking for data from a specific commit hash
-                let buffer = if let Some(TypedHeader(root_hash)) = root_hash {
+                let result = if let Some(TypedHeader(root_hash)) = root_hash {
                     let root_hash: [u8; 32] = root_hash.into();
                     if let Some(TypedHeader(commit_proof)) = commit_proof {
                         let proof = decode_proof(commit_proof.as_ref())
@@ -1243,7 +1272,7 @@ impl WalHandler {
 
                         let comparison = wal
                             .tree()
-                            .compare(root_hash, proof)
+                            .compare(CommitProof(root_hash, proof))
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                         match comparison {
@@ -1256,15 +1285,17 @@ impl WalHandler {
                                         StatusCode::INTERNAL_SERVER_ERROR
                                     })?
                                 {
-                                    Ok(partial)
+                                    Ok((StatusCode::OK, partial))
                                 // Could not find a record corresponding
                                 // to the leaf node
                                 } else {
-                                    Err(StatusCode::CONFLICT)
+                                    Ok((StatusCode::CONFLICT, vec![]))
                                 }
                             }
                             // Could not find leaf node in the commit tree
-                            Comparison::Unknown => Err(StatusCode::CONFLICT),
+                            Comparison::Unknown => {
+                                Ok((StatusCode::CONFLICT, vec![]))
+                            }
                         }
                     } else {
                         Err(StatusCode::BAD_REQUEST)
@@ -1276,25 +1307,29 @@ impl WalHandler {
                         .get_wal(&token.address, &vault_id)
                         .await
                     {
-                        Ok(buffer)
+                        Ok((StatusCode::OK, buffer))
                     } else {
                         Err(StatusCode::INTERNAL_SERVER_ERROR)
                     }
                 };
 
-                let mut writer = state.write().await;
-                let log = AuditEvent::new(
-                    EventKind::ReadWal,
-                    token.address,
-                    Some(AuditData::Vault(vault_id)),
-                );
-                writer
-                    .audit_log
-                    .append_audit_event(log)
-                    .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                let (status, buffer) = result?;
 
-                Ok(Bytes::from(buffer?))
+                if status == StatusCode::OK {
+                    let mut writer = state.write().await;
+                    let log = AuditEvent::new(
+                        EventKind::ReadWal,
+                        token.address,
+                        Some(AuditData::Vault(vault_id)),
+                    );
+                    writer
+                        .audit_log
+                        .append_audit_event(log)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                }
+
+                Ok((status, headers, Bytes::from(buffer)))
             } else {
                 Err(status_code)
             }
@@ -1303,12 +1338,12 @@ impl WalHandler {
         }
     }
 
-    /// Attempt to append to a WAL file.
+    /// Attempt to append a series of events to a WAL file.
     async fn patch_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
-        TypedHeader(root_hash): TypedHeader<CommitHash>,
-        TypedHeader(commit_proof): TypedHeader<CommitProof>,
+        TypedHeader(root_hash): TypedHeader<CommitHashHeader>,
+        TypedHeader(commit_proof): TypedHeader<CommitProofHeader>,
         Path(vault_id): Path<Uuid>,
         body: Bytes,
     ) -> Result<StatusCode, StatusCode> {
@@ -1329,7 +1364,7 @@ impl WalHandler {
 
                 let comparison = wal
                     .tree()
-                    .compare(root_hash, proof)
+                    .compare(CommitProof(root_hash, proof))
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                 let result = match comparison {
@@ -1375,6 +1410,8 @@ impl WalHandler {
 
                 // TODO: send commit hashes to the client?
                 let (logs, _commits) = result?;
+
+                // TODO: emit change events to the SSE client(s)
 
                 for log in logs {
                     writer
