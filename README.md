@@ -2,7 +2,9 @@
 
 A distributed, encrypted database with a focus on security, integrity and redundancy.
 
-Stores our secrets such as passwords, GPG keys and SSH keys using 256 bit AES-GCM encryption with support for recovery using multi-party ECDSA signatures.
+Used to store private secrets such as account passwords, notes, certificates and encryption keys.
+
+## Repository
 
 * `android`: Sources for the Android build.
 * `browser`: React web application for the browser.
@@ -60,16 +62,4 @@ To develop with the webassembly bindings in the browser application link the web
 (cd browser && yarn link sos-wasm)
 ```
 
-## Command Line
-
-To create a new vault with a randomly generated diceware passphrase:
-
-```
-sos3 new vault /path/to/folder
-```
-
-To create a new vault from an existing passphrase write it to stdin:
-
-```
-cat secret.txt | sos3 new vault /path/to/folder
-```
+[mkcert]: https://github.com/FiloSottile/mkcert
