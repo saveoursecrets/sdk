@@ -1,3 +1,4 @@
+//! Custom typed headers.
 use axum::headers::{self, Header, HeaderName, HeaderValue};
 
 use once_cell::sync::Lazy;

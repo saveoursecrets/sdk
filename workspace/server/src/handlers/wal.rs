@@ -1,0 +1,490 @@
+//! Handlers for the wal routes.
+use axum::{
+    body::Bytes,
+    extract::{Extension, Path, TypedHeader},
+    headers::{authorization::Bearer, Authorization},
+    http::{header::HeaderMap, HeaderValue, StatusCode},
+};
+
+//use axum_macros::debug_handler;
+
+use sos_core::{
+    commit_tree::{decode_proof, encode_proof, CommitProof, Comparison},
+    decode,
+    events::{
+        AuditData, AuditEvent, AuditProvider, ChangeEvent, EventKind,
+        SyncEvent, WalEvent,
+    },
+    patch::Patch,
+    vault::{CommitHash, Header},
+};
+
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use uuid::Uuid;
+
+use crate::{
+    authenticate,
+    headers::{
+        CommitHashHeader, CommitProofHeader, SignedMessage,
+        X_CHANGE_SEQUENCE, X_COMMIT_HASH, X_COMMIT_PROOF,
+    },
+    Backend, State,
+};
+
+fn append_commit_headers(
+    headers: &mut HeaderMap,
+    proof: &CommitProof,
+) -> Result<(), StatusCode> {
+    let CommitProof(server_root, server_proof) = proof;
+    let x_commit_hash = HeaderValue::from_str(&hex::encode(server_root))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    headers.insert(X_COMMIT_HASH.clone(), x_commit_hash);
+    let x_commit_proof =
+        HeaderValue::from_str(&base64::encode(encode_proof(&server_proof)))
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
+    Ok(())
+}
+
+enum PatchResult {
+    Conflict(CommitProof),
+    Success(
+        Vec<AuditEvent>,
+        Vec<ChangeEvent>,
+        Vec<CommitHash>,
+        CommitProof,
+    ),
+}
+
+// Handlers for WAL log events.
+pub(crate) struct WalHandler;
+impl WalHandler {
+    /// Create a WAL file.
+    pub(crate) async fn put_wal(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        body: Bytes,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                // Check it looks like a vault payload
+                let summary = Header::read_summary_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                let reader = state.read().await;
+                let (exists, _change_seq) = reader
+                    .backend
+                    .vault_exists(&token.address, summary.id())
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                drop(reader);
+
+                if exists {
+                    Err(StatusCode::CONFLICT)
+                } else {
+                    todo!();
+
+                    /*
+                    let mut writer = state.write().await;
+                    writer
+                        .backend
+                        .create_vault(&token.address, summary.id(), &body)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                    let payload =
+                        SyncEvent::CreateVault(Cow::Borrowed(&body));
+
+                    let event = ChangeEvent::CreateVault {
+                        vault_id: *summary.id(),
+                        address: token.address,
+                        vault: body.to_vec(),
+                    };
+
+                    Ok(MaybeConflict::Success(vec![ResponseEvent {
+                        event: Some(event),
+                        log: AuditEvent::from_sync_event(
+                            &payload,
+                            token.address,
+                            *summary.id(),
+                        ),
+                    }]))
+                    */
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+
+    /// Read the buffer of a WAL file.
+    ///
+    /// If an `x-commit-hash` header is present then we attempt to
+    /// fetch a tail of the log after the `x-commit-hash` record.
+    ///
+    /// When the `x-commit-hash` header is given the `x-commit-proof`
+    /// header must also be sent.
+    ///
+    /// If neither header is present then the entire contents of the
+    /// WAL file are returned.
+    ///
+    /// If an `x-commit-hash` header is present but the WAL does
+    /// not contain the leaf node specified in `x-commit-proof` then
+    /// a CONFLICT status code is returned.
+    ///
+    /// The `x-commit-hash` MUST be the root hash in the client WAL
+    /// log and the `x-commit-proof` MUST contain the merkle proof for the
+    /// most recent leaf node on the client.
+    ///
+    /// If the client and server root hashes match then a NOT_MODIFIED
+    /// status code is returned.
+    ///
+    /// If the server has a root hash in it's WAL commit tree (which
+    /// should always be the case) then it returns it's root hash in
+    /// the `x-commit-hash` and a proof of the last leaf node in the
+    /// `x-commit-proof` header.
+    pub(crate) async fn get_wal(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+        root_hash: Option<TypedHeader<CommitHashHeader>>,
+        commit_proof: Option<TypedHeader<CommitProofHeader>>,
+        Path(vault_id): Path<Uuid>,
+    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let reader = state.read().await;
+
+                let (_, wal) = reader
+                    .backend
+                    .vault_read(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                // Always send the `x-commit-hash` and `x-commit-proof`
+                // headers to the client
+                let mut headers = HeaderMap::new();
+                let proof = wal
+                    .tree()
+                    .head()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                append_commit_headers(&mut headers, &proof)?;
+
+                // Client is asking for data from a specific commit hash
+                let result = if let Some(TypedHeader(root_hash)) = root_hash {
+                    let root_hash: [u8; 32] = root_hash.into();
+                    if let Some(TypedHeader(commit_proof)) = commit_proof {
+                        let proof = decode_proof(commit_proof.as_ref())
+                            .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                        let comparison = wal
+                            .tree()
+                            .compare(CommitProof(root_hash, proof))
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                        match comparison {
+                            Comparison::Equal => {
+                                Err(StatusCode::NOT_MODIFIED)
+                            }
+                            Comparison::Contains(_, leaf) => {
+                                if let Some(partial) =
+                                    wal.diff(leaf).map_err(|_| {
+                                        StatusCode::INTERNAL_SERVER_ERROR
+                                    })?
+                                {
+                                    Ok((StatusCode::OK, partial))
+                                // Could not find a record corresponding
+                                // to the leaf node
+                                } else {
+                                    Ok((StatusCode::CONFLICT, vec![]))
+                                }
+                            }
+                            // Could not find leaf node in the commit tree
+                            Comparison::Unknown => {
+                                Ok((StatusCode::CONFLICT, vec![]))
+                            }
+                        }
+                    } else {
+                        Err(StatusCode::BAD_REQUEST)
+                    }
+                // Otherwise get the entire WAL buffer
+                } else {
+                    if let Ok(buffer) = reader
+                        .backend
+                        .get_wal(&token.address, &vault_id)
+                        .await
+                    {
+                        Ok((StatusCode::OK, buffer))
+                    } else {
+                        Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    }
+                };
+
+                let (status, buffer) = result?;
+
+                if status == StatusCode::OK {
+                    let mut writer = state.write().await;
+                    let log = AuditEvent::new(
+                        EventKind::ReadWal,
+                        token.address,
+                        Some(AuditData::Vault(vault_id)),
+                    );
+                    writer
+                        .audit_log
+                        .append_audit_event(log)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                }
+
+                Ok((status, headers, Bytes::from(buffer)))
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+
+    /// Attempt to append a series of events to a WAL file.
+    pub(crate) async fn patch_wal(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(root_hash): TypedHeader<CommitHashHeader>,
+        TypedHeader(commit_proof): TypedHeader<CommitProofHeader>,
+        Path(vault_id): Path<Uuid>,
+        body: Bytes,
+    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+        let result = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+                let (_, wal) = writer
+                    .backend
+                    .vault_write(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+                let root_hash: [u8; 32] = root_hash.into();
+                let proof = decode_proof(commit_proof.as_ref())
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                let comparison = wal
+                    .tree()
+                    .compare(CommitProof(root_hash, proof))
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                match comparison {
+                    Comparison::Equal => {
+                        let patch: Patch = decode(&body)
+                            .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                        let change_set: Vec<SyncEvent> = patch.into();
+
+                        // Audit log events
+                        let audit_logs = change_set
+                            .iter()
+                            .map(|event| {
+                                AuditEvent::from_sync_event(
+                                    event,
+                                    token.address,
+                                    vault_id,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+
+                        // Notifications for the SSE channel
+                        let notifications = change_set
+                            .iter()
+                            .map(|event| {
+                                ChangeEvent::from((
+                                    &vault_id,
+                                    &token.address,
+                                    event,
+                                ))
+                            })
+                            .collect::<Vec<_>>();
+
+                        // Changes to apply to the WAL log
+                        let mut changes = Vec::new();
+                        for event in change_set {
+                            if let Ok::<WalEvent<'_>, sos_core::Error>(
+                                wal_event,
+                            ) = event.try_into()
+                            {
+                                changes.push(wal_event);
+                            }
+                        }
+
+                        // Apply the change set of WAL events to the log
+                        let commits = wal
+                            .apply(changes)
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                        // Get a new commit proof for the last leaf hash
+                        let proof = wal
+                            .tree()
+                            .head()
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                        Ok(PatchResult::Success(
+                            audit_logs,
+                            notifications,
+                            commits,
+                            proof,
+                        ))
+                    }
+                    Comparison::Unknown | Comparison::Contains(_, _) => {
+                        let proof = wal
+                            .tree()
+                            .head()
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                        Ok(PatchResult::Conflict(proof))
+                    }
+                }
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        match result? {
+            PatchResult::Success(logs, notifications, commits, proof) => {
+                let mut writer = state.write().await;
+
+                // Append audit logs
+                for log in logs {
+                    writer
+                        .audit_log
+                        .append_audit_event(log)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                }
+
+                // Send notifications on the SSE channel
+                for event in notifications {
+                    if let Some(conn) = writer.sse.get(event.address()) {
+                        if let Err(_) = conn.tx.send(event) {
+                            tracing::debug!(
+                                "server sent events channel dropped"
+                            );
+                        }
+                    }
+                }
+
+                // TODO: is sending the commits overkill as the new root
+                // TODO: hash in `x-commit-hash` is enough for the client
+                // TODO: to verify that applying cached changes to the WAL
+                // TODO: matches the changes that are applied here.
+
+                // Create a response buffer of all the commit hashes
+                // derived from the events that were applied to the WAL
+                let mut buffer = Vec::with_capacity(commits.len() * 32);
+                for hash in commits {
+                    buffer.extend_from_slice(hash.as_ref());
+                }
+
+                // Always send the `x-commit-hash` and `x-commit-proof`
+                // headers to the client with the new updated commit
+                // after applying the patch events.
+                //
+                // Clients can use this to verify the integrity when moving
+                // staged events to their cached WAL
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &proof)?;
+                Ok((StatusCode::OK, headers, Bytes::from(buffer)))
+            }
+            PatchResult::Conflict(proof) => {
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &proof)?;
+                Ok((StatusCode::CONFLICT, headers, Bytes::from(vec![])))
+            }
+        }
+    }
+
+    /// Attempt to write an entire WAL file.
+    ///
+    /// This is the equivalent of a force push and should only be
+    /// used by clients after they have created a completely different
+    /// commit tree which can happen if they compact a locally cached
+    /// WAL to prune history and save disc space.
+    pub(crate) async fn post_wal(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(root_hash): TypedHeader<CommitHashHeader>,
+        Path(vault_id): Path<Uuid>,
+        body: Bytes,
+    ) -> Result<StatusCode, StatusCode> {
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let writer = state.write().await;
+                // TODO: better error to status code mapping
+                writer
+                    .backend
+                    .replace_wal(
+                        &token.address,
+                        &vault_id,
+                        root_hash.into(),
+                        body.as_ref(),
+                    )
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                Ok(StatusCode::OK)
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+
+    /// Get the root commit and merkle proof for the WAL file.
+    pub(crate) async fn head_wal(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+        Path(vault_id): Path<Uuid>,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        let response = if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let reader = state.read().await;
+
+                let (exists, change_seq) = reader
+                    .backend
+                    .vault_exists(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if !exists {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let mut headers = HeaderMap::new();
+                let x_change_sequence =
+                    HeaderValue::from_str(&change_seq.to_string())
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                headers.insert(X_CHANGE_SEQUENCE.clone(), x_change_sequence);
+                Ok((StatusCode::OK, headers))
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        Ok(response?)
+    }
+}

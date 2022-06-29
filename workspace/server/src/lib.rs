@@ -4,6 +4,7 @@ mod backend;
 mod config;
 mod error;
 mod file_locks;
+mod handlers;
 mod headers;
 mod server;
 

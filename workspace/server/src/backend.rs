@@ -463,7 +463,7 @@ impl Backend for FileSystemBackend {
         root_hash: [u8; 32],
         mut buffer: &[u8],
     ) -> Result<()> {
-        let mut tempfile = NamedTempFile::new()?;
+        let tempfile = NamedTempFile::new()?;
         let temp_path = tempfile.path().to_path_buf();
         let mut tempfile = tokio::fs::File::from_std(tempfile.into_file());
 
