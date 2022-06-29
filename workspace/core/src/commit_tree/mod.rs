@@ -298,7 +298,7 @@ mod test {
             let secret_id = match vault
                 .create(commit, VaultEntry(meta_aead, secret_aead))?
             {
-                SyncEvent::CreateSecret(_, secret_id, _) => secret_id,
+                SyncEvent::CreateSecret(secret_id, _) => secret_id,
                 _ => unreachable!(),
             };
         }

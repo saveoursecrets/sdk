@@ -59,11 +59,6 @@ impl Gatekeeper {
         self.vault = vault;
     }
 
-    /// Get the current change sequence number.
-    pub fn change_seq(&self) -> Result<u32> {
-        self.vault.change_seq()
-    }
-
     /// Get the summary for the vault.
     pub fn summary(&self) -> &Summary {
         self.vault.summary()
@@ -255,8 +250,7 @@ impl Gatekeeper {
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, SyncEvent)>> {
-        let change_seq = self.change_seq()?;
-        let payload = SyncEvent::ReadSecret(change_seq, *id);
+        let payload = SyncEvent::ReadSecret(*id);
         Ok(self
             .read_secret(id)?
             .map(|(meta, secret)| (meta, secret, payload)))
@@ -392,7 +386,7 @@ mod tests {
         let secret = Secret::Note(secret_value.clone());
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        if let SyncEvent::CreateSecret(_, secret_uuid, _) =
+        if let SyncEvent::CreateSecret(secret_uuid, _) =
             keeper.create(secret_meta.clone(), secret.clone())?
         {
             let (saved_secret_meta, saved_secret) =

@@ -96,10 +96,6 @@ pub enum Error {
     #[error("address must begin with 0x")]
     BadAddressPrefix,
 
-    /// Error generated when a change sequence overflows `u32::MAX`.
-    #[error("too many changes, change sequence number would overflow")]
-    TooManyChanges,
-
     /// Error generated when WAL row data does not match the commit hash.
     #[error("row checksums do not match, expected {commit} but got {value}")]
     HashMismatch {

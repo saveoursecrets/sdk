@@ -20,13 +20,10 @@ type Challenge = [u8; 32];
 const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
 const X_SIGNED_MESSAGE: &str = "x-signed-message";
-const X_CHANGE_SEQUENCE: &str = "x-change-sequence";
 
 /// Encapsulates the information returned
 /// by sending a HEAD request for a vault.
-pub struct VaultInfo {
-    pub change_seq: u32,
-}
+pub struct VaultInfo {}
 
 pub struct Client {
     server: Url,
@@ -102,6 +99,7 @@ impl Client {
         Ok(response)
     }
 
+    /*
     /// Get the change sequence for a vault.
     pub async fn head_vault(&self, vault_id: &Uuid) -> Result<VaultInfo> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
@@ -120,6 +118,7 @@ impl Client {
         let change_seq: u32 = change_seq.to_str()?.parse()?;
         Ok(VaultInfo { change_seq })
     }
+    */
 
     /// Read the buffer for a vault.
     pub async fn read_vault(&self, vault_id: &Uuid) -> Result<Vec<u8>> {
@@ -172,7 +171,6 @@ impl Client {
     pub async fn set_vault_name(
         &self,
         vault_id: &Uuid,
-        change_seq: u32,
         name: &str,
     ) -> Result<Response> {
         let url =
@@ -183,7 +181,6 @@ impl Client {
             .post(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
             .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
             .header(CONTENT_TYPE, "application/json")
             .body(serde_json::to_vec(name)?)
             .send()
@@ -231,7 +228,6 @@ impl Client {
         vault_id: &Uuid,
         secret_id: &SecretId,
         secret: &VaultCommit,
-        change_seq: u32,
     ) -> Result<Response> {
         let url = self.server.join(&format!(
             "api/vaults/{}/secrets/{}",
@@ -244,7 +240,6 @@ impl Client {
             .http_client
             .put(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
             .body(body)
             .send()
             .await?;
@@ -257,7 +252,6 @@ impl Client {
         vault_id: &Uuid,
         secret_id: &SecretId,
         secret: &VaultCommit,
-        change_seq: u32,
     ) -> Result<Response> {
         let url = self.server.join(&format!(
             "api/vaults/{}/secrets/{}",
@@ -270,7 +264,6 @@ impl Client {
             .http_client
             .post(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
             .body(body)
             .send()
             .await?;
@@ -280,7 +273,6 @@ impl Client {
     /// Send a read secret event to the server.
     pub async fn read_secret(
         &self,
-        change_seq: u32,
         vault_id: &Uuid,
         secret_id: &SecretId,
     ) -> Result<Response> {
@@ -294,7 +286,6 @@ impl Client {
             .get(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
             .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
             .send()
             .await?;
         Ok(response)
@@ -303,7 +294,6 @@ impl Client {
     /// Send a delete secret event to the server.
     pub async fn delete_secret(
         &self,
-        change_seq: u32,
         vault_id: &Uuid,
         secret_id: &SecretId,
     ) -> Result<Vec<u8>> {
@@ -317,7 +307,6 @@ impl Client {
             .delete(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
             .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
             .send()
             .await?;
         Ok(response.bytes().await?.to_vec())

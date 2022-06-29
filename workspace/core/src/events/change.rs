@@ -28,8 +28,6 @@ pub enum ChangeEvent {
         address: AddressStr,
         /// The vault identifier.
         vault_id: Uuid,
-        /// The change sequence.
-        change_seq: u32,
         /// The vault buffer.
         vault: Vec<u8>,
     },
@@ -40,8 +38,6 @@ pub enum ChangeEvent {
         address: AddressStr,
         /// The vault identifier.
         vault_id: Uuid,
-        /// The change sequence.
-        change_seq: u32,
     },
     /// Event emitted when a vault name is set.
     SetVaultName {
@@ -50,8 +46,6 @@ pub enum ChangeEvent {
         address: AddressStr,
         /// The vault identifier.
         vault_id: Uuid,
-        /// The change sequence.
-        change_seq: u32,
         /// The vault name.
         name: String,
     },
@@ -62,8 +56,6 @@ pub enum ChangeEvent {
         address: AddressStr,
         /// The vault identifier.
         vault_id: Uuid,
-        /// The change sequence.
-        change_seq: u32,
     },
     /// Event emitted when a secret is created.
     CreateSecret {
@@ -74,8 +66,6 @@ pub enum ChangeEvent {
         vault_id: Uuid,
         /// The secret identifier.
         secret_id: Uuid,
-        /// The change sequence.
-        change_seq: u32,
     },
     /// Event emitted when a secret is updated.
     UpdateSecret {
@@ -86,8 +76,6 @@ pub enum ChangeEvent {
         vault_id: Uuid,
         /// The secret identifier.
         secret_id: Uuid,
-        /// The change sequence.
-        change_seq: u32,
     },
     /// Event emitted when a secret is deleted.
     DeleteSecret {
@@ -98,8 +86,6 @@ pub enum ChangeEvent {
         vault_id: Uuid,
         /// The secret identifier.
         secret_id: Uuid,
-        /// The change sequence.
-        change_seq: u32,
     },
 }
 
@@ -144,51 +130,39 @@ impl<'u, 'a, 'e> From<(&'u Uuid, &'a AddressStr, &'e SyncEvent<'e>)>
                 vault_id: *vault_id,
                 vault: vault.to_vec(),
             },
-            SyncEvent::UpdateVault(change_seq, vault) => {
-                ChangeEvent::UpdateVault {
-                    address: address.clone(),
-                    change_seq: *change_seq,
-                    vault_id: *vault_id,
-                    vault: vault.to_vec(),
-                }
-            }
-            SyncEvent::DeleteVault(change_seq) => ChangeEvent::DeleteVault {
+            SyncEvent::UpdateVault(vault) => ChangeEvent::UpdateVault {
                 address: address.clone(),
-                change_seq: *change_seq,
+                vault_id: *vault_id,
+                vault: vault.to_vec(),
+            },
+            SyncEvent::DeleteVault => ChangeEvent::DeleteVault {
+                address: address.clone(),
                 vault_id: *vault_id,
             },
-            SyncEvent::SetVaultName(change_seq, name) => {
-                ChangeEvent::SetVaultName {
-                    address: address.clone(),
-                    change_seq: *change_seq,
-                    vault_id: *vault_id,
-                    name: name.to_string(),
-                }
-            }
-            SyncEvent::CreateSecret(change_seq, secret_id, _) => {
+            SyncEvent::SetVaultName(name) => ChangeEvent::SetVaultName {
+                address: address.clone(),
+                vault_id: *vault_id,
+                name: name.to_string(),
+            },
+            SyncEvent::CreateSecret(secret_id, _) => {
                 ChangeEvent::CreateSecret {
                     address: address.clone(),
-                    change_seq: *change_seq,
                     vault_id: *vault_id,
                     secret_id: *secret_id,
                 }
             }
-            SyncEvent::UpdateSecret(change_seq, secret_id, _) => {
+            SyncEvent::UpdateSecret(secret_id, _) => {
                 ChangeEvent::UpdateSecret {
                     address: address.clone(),
-                    change_seq: *change_seq,
                     vault_id: *vault_id,
                     secret_id: *secret_id,
                 }
             }
-            SyncEvent::DeleteSecret(change_seq, secret_id) => {
-                ChangeEvent::DeleteSecret {
-                    address: address.clone(),
-                    change_seq: *change_seq,
-                    vault_id: *vault_id,
-                    secret_id: *secret_id,
-                }
-            }
+            SyncEvent::DeleteSecret(secret_id) => ChangeEvent::DeleteSecret {
+                address: address.clone(),
+                vault_id: *vault_id,
+                secret_id: *secret_id,
+            },
             _ => unreachable!(),
         }
     }

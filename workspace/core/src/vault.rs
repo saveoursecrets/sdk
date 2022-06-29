@@ -120,9 +120,6 @@ pub trait VaultAccess {
     /// Get the vault summary.
     fn summary(&self) -> Result<Summary>;
 
-    /// Get the current change sequence number.
-    fn change_seq(&self) -> Result<u32>;
-
     /// Save a buffer as the entire vault.
     ///
     /// This is an unchecked operation and callers should
@@ -162,24 +159,6 @@ pub trait VaultAccess {
 
     /// Remove an encrypted secret from the vault.
     fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>>;
-
-    /// Apply a payload to this vault and return the updated
-    /// change sequence.
-    fn apply(&mut self, payload: &SyncEvent) -> Result<u32> {
-        match payload {
-            SyncEvent::CreateSecret(_, secret_id, value) => {
-                self.create(value.0.clone(), value.1.clone())?;
-            }
-            SyncEvent::UpdateSecret(_, secret_id, value) => {
-                self.update(secret_id, value.0.clone(), value.1.clone())?;
-            }
-            SyncEvent::DeleteSecret(_, secret_id) => {
-                self.delete(secret_id)?;
-            }
-            _ => panic!("payload type not supported in apply()"),
-        }
-        self.change_seq()
-    }
 }
 
 /// Authentication information.
@@ -207,7 +186,6 @@ impl Decode for Auth {
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct Summary {
     version: u16,
-    change_seq: u32,
     id: Uuid,
     name: String,
     #[serde(skip)]
@@ -218,8 +196,8 @@ impl fmt::Display for Summary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Version {} using {} at #{}\n{} {}",
-            self.version, self.algorithm, self.change_seq, self.name, self.id
+            "Version {} using {}\n{} {}",
+            self.version, self.algorithm, self.name, self.id
         )
     }
 }
@@ -228,7 +206,6 @@ impl Default for Summary {
     fn default() -> Self {
         Self {
             version: VERSION,
-            change_seq: 0,
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -241,7 +218,6 @@ impl Summary {
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
             version: VERSION,
-            change_seq: 0,
             algorithm,
             id,
             name,
@@ -251,16 +227,6 @@ impl Summary {
     /// Get the version identifier.
     pub fn version(&self) -> &u16 {
         &self.version
-    }
-
-    /// Get the change sequence.
-    pub fn change_seq(&self) -> &u32 {
-        &self.change_seq
-    }
-
-    /// Set the change sequence.
-    pub fn set_change_seq(&mut self, change_seq: u32) {
-        self.change_seq = change_seq;
     }
 
     /// Get the algorithm.
@@ -282,7 +248,6 @@ impl Summary {
 impl Encode for Summary {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u16(self.version)?;
-        ser.writer.write_u32(self.change_seq)?;
         self.algorithm.encode(&mut *ser)?;
         ser.writer.write_bytes(self.id.as_bytes())?;
         ser.writer.write_string(&self.name)?;
@@ -293,7 +258,6 @@ impl Encode for Summary {
 impl Decode for Summary {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.version = de.reader.read_u16()?;
-        self.change_seq = de.reader.read_u32()?;
         self.algorithm.decode(&mut *de)?;
 
         if !ALGORITHMS.contains(self.algorithm.as_ref()) {
@@ -779,40 +743,19 @@ impl VaultAccess for Vault {
         Ok(self.header.summary.clone())
     }
 
-    fn change_seq(&self) -> Result<u32> {
-        Ok(self.header.summary.change_seq)
-    }
-
     fn save(&mut self, buffer: &[u8]) -> Result<SyncEvent> {
         let vault = Vault::read_buffer(buffer)?;
         *self = vault;
-        let change_seq = self.change_seq()?;
-        Ok(SyncEvent::UpdateVault(
-            change_seq,
-            Cow::Owned(buffer.to_vec()),
-        ))
+        Ok(SyncEvent::UpdateVault(Cow::Owned(buffer.to_vec())))
     }
 
     fn vault_name(&self) -> Result<(String, SyncEvent)> {
-        Ok((
-            self.name().to_string(),
-            SyncEvent::GetVaultName(self.change_seq()?),
-        ))
+        Ok((self.name().to_string(), SyncEvent::GetVaultName))
     }
 
     fn set_vault_name(&mut self, name: String) -> Result<SyncEvent> {
-        let change_seq = if let Some(next_change_seq) =
-            self.header.summary.change_seq.checked_add(1)
-        {
-            self.header.summary.set_change_seq(next_change_seq);
-            next_change_seq
-        } else {
-            return Err(Error::TooManyChanges);
-        };
-
         self.set_name(name.clone());
-
-        Ok(SyncEvent::SetVaultName(change_seq, Cow::Owned(name)))
+        Ok(SyncEvent::SetVaultName(Cow::Owned(name)))
     }
 
     fn create(
@@ -821,34 +764,20 @@ impl VaultAccess for Vault {
         secret: VaultEntry,
     ) -> Result<SyncEvent> {
         let id = Uuid::new_v4();
-        let change_seq = if let Some(next_change_seq) =
-            self.header.summary.change_seq.checked_add(1)
-        {
-            self.header.summary.set_change_seq(next_change_seq);
-            next_change_seq
-        } else {
-            return Err(Error::TooManyChanges);
-        };
-
         let value = self
             .contents
             .data
             .entry(id.clone())
             .or_insert(VaultCommit(commit, secret));
-        Ok(SyncEvent::CreateSecret(
-            change_seq,
-            id,
-            Cow::Borrowed(value),
-        ))
+        Ok(SyncEvent::CreateSecret(id, Cow::Borrowed(value)))
     }
 
     fn read<'a>(
         &'a self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, SyncEvent)> {
-        let change_seq = self.change_seq()?;
         let result = self.contents.data.get(id).map(Cow::Borrowed);
-        Ok((result, SyncEvent::ReadSecret(change_seq, *id)))
+        Ok((result, SyncEvent::ReadSecret(*id)))
     }
 
     fn update(
@@ -858,40 +787,18 @@ impl VaultAccess for Vault {
         secret: VaultEntry,
     ) -> Result<Option<SyncEvent>> {
         if let Some(value) = self.contents.data.get_mut(id) {
-            let change_seq = if let Some(next_change_seq) =
-                self.header.summary.change_seq.checked_add(1)
-            {
-                self.header.summary.set_change_seq(next_change_seq);
-                next_change_seq
-            } else {
-                return Err(Error::TooManyChanges);
-            };
-
             *value = VaultCommit(commit, secret);
 
-            Ok(Some(SyncEvent::UpdateSecret(
-                change_seq,
-                *id,
-                Cow::Borrowed(value),
-            )))
+            Ok(Some(SyncEvent::UpdateSecret(*id, Cow::Borrowed(value))))
         } else {
             Ok(None)
         }
     }
 
     fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>> {
-        let change_seq = if let Some(next_change_seq) =
-            self.header.summary.change_seq.checked_add(1)
-        {
-            self.header.summary.set_change_seq(next_change_seq);
-            next_change_seq
-        } else {
-            return Err(Error::TooManyChanges);
-        };
-
         let entry = self.contents.data.remove(id);
         if entry.is_some() {
-            Ok(Some(SyncEvent::DeleteSecret(change_seq, *id)))
+            Ok(Some(SyncEvent::DeleteSecret(*id)))
         } else {
             Ok(None)
         }

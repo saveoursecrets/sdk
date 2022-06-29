@@ -165,22 +165,22 @@ impl<'a> TryFrom<SyncEvent<'a>> for WalEvent<'a> {
             SyncEvent::CreateVault(value) => {
                 Ok(WalEvent::CreateVault(value.clone()))
             }
-            SyncEvent::UpdateVault(_, value) => {
+            SyncEvent::UpdateVault(value) => {
                 Ok(WalEvent::UpdateVault(value.clone()))
             }
-            SyncEvent::SetVaultName(_, name) => {
+            SyncEvent::SetVaultName(name) => {
                 Ok(WalEvent::SetVaultName(name.clone()))
             }
-            SyncEvent::SetVaultMeta(_, meta) => {
+            SyncEvent::SetVaultMeta(meta) => {
                 Ok(WalEvent::SetVaultMeta(meta.clone()))
             }
-            SyncEvent::CreateSecret(_, id, value) => {
+            SyncEvent::CreateSecret(id, value) => {
                 Ok(WalEvent::CreateSecret(id, value.clone()))
             }
-            SyncEvent::UpdateSecret(_, id, value) => {
+            SyncEvent::UpdateSecret(id, value) => {
                 Ok(WalEvent::UpdateSecret(id, value.clone()))
             }
-            SyncEvent::DeleteSecret(_, id) => Ok(WalEvent::DeleteSecret(id)),
+            SyncEvent::DeleteSecret(id) => Ok(WalEvent::DeleteSecret(id)),
             _ => Err(Error::SyncWalConvert),
         }
     }

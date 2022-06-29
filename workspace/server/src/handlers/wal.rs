@@ -300,9 +300,7 @@ impl WalHandler {
                         // as well so summary listings are kept up to date
                         let vault_name =
                             change_set.iter().find_map(|event| {
-                                if let SyncEvent::SetVaultName(_, name) =
-                                    event
-                                {
+                                if let SyncEvent::SetVaultName(name) = event {
                                     Some(name.to_string())
                                 } else {
                                     None

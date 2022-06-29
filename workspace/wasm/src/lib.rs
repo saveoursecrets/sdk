@@ -89,13 +89,6 @@ impl WebVault {
         Ok(())
     }
 
-    /// Get the change sequence for the vault.
-    #[wasm_bindgen(js_name = "changeSequence")]
-    pub fn change_seq(&self) -> Result<JsValue, JsError> {
-        let change_seq = self.keeper.change_seq()?;
-        Ok(JsValue::from_serde(&change_seq)?)
-    }
-
     /// Get the meta data for the vault.
     #[wasm_bindgen(js_name = "getVaultMeta")]
     pub fn get_meta_data(&self) -> Result<JsValue, JsError> {

@@ -121,22 +121,22 @@ impl AuditEvent {
                 panic!("noop variant cannot be an audit event")
             }
             SyncEvent::CreateVault(_)
-            | SyncEvent::ReadVault(_)
-            | SyncEvent::DeleteVault(_)
-            | SyncEvent::UpdateVault(_, _)
-            | SyncEvent::GetVaultName(_)
-            | SyncEvent::SetVaultName(_, _)
-            | SyncEvent::SetVaultMeta(_, _) => AuditData::Vault(vault_id),
-            SyncEvent::CreateSecret(_, secret_id, _) => {
+            | SyncEvent::ReadVault
+            | SyncEvent::DeleteVault
+            | SyncEvent::UpdateVault(_)
+            | SyncEvent::GetVaultName
+            | SyncEvent::SetVaultName(_)
+            | SyncEvent::SetVaultMeta(_) => AuditData::Vault(vault_id),
+            SyncEvent::CreateSecret(secret_id, _) => {
                 AuditData::Secret(vault_id, *secret_id)
             }
-            SyncEvent::ReadSecret(_, secret_id) => {
+            SyncEvent::ReadSecret(secret_id) => {
                 AuditData::Secret(vault_id, *secret_id)
             }
-            SyncEvent::UpdateSecret(_, secret_id, _) => {
+            SyncEvent::UpdateSecret(secret_id, _) => {
                 AuditData::Secret(vault_id, *secret_id)
             }
-            SyncEvent::DeleteSecret(_, secret_id) => {
+            SyncEvent::DeleteSecret(secret_id) => {
                 AuditData::Secret(vault_id, *secret_id)
             }
         };

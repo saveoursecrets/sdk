@@ -349,7 +349,9 @@ fn exec_program(
         ShellCommand::Seq => {
             let reader = state.read().unwrap();
             if let Some(keeper) = &reader.current {
-                let local_change_seq = keeper.change_seq()?;
+                todo!();
+
+                /*
                 let VaultInfo {
                     change_seq: remote_change_seq,
                 } = run_blocking(client.head_vault(keeper.id()))?;
@@ -357,6 +359,7 @@ fn exec_program(
                     "Local = {}, Remote = {}",
                     local_change_seq, remote_change_seq
                 );
+                */
             } else {
                 return Err(Error::NoVaultSelected);
             }
@@ -366,11 +369,9 @@ fn exec_program(
             let renamed = if let Some(keeper) = writer.current.as_mut() {
                 if let Some(name) = name {
                     keeper.set_vault_name(name.clone())?;
-                    let response = run_blocking(client.set_vault_name(
-                        keeper.id(),
-                        keeper.change_seq()?,
-                        &name,
-                    ))?;
+                    let response = run_blocking(
+                        client.set_vault_name(keeper.id(), &name),
+                    )?;
                     if !response.status().is_success() {
                         return Err(Error::SetVaultName(
                             response.status().into(),
@@ -422,7 +423,6 @@ fn exec_program(
         ShellCommand::Add { cmd } => {
             let mut writer = state.write().unwrap();
             if let Some(keeper) = writer.current.as_mut() {
-                let change_seq = keeper.change_seq()?;
                 let id = *keeper.id();
                 let result = match cmd {
                     Add::Note { label } => add_note(label)?,
@@ -432,17 +432,13 @@ fn exec_program(
                 };
 
                 if let Some((secret_meta, secret)) = result {
-                    if let SyncEvent::CreateSecret(
-                        change_seq,
-                        secret_id,
-                        encrypted,
-                    ) = keeper.create(secret_meta, secret)?
+                    if let SyncEvent::CreateSecret(secret_id, encrypted) =
+                        keeper.create(secret_meta, secret)?
                     {
                         let response = run_blocking(client.create_secret(
                             &id,
                             &secret_id,
                             encrypted.as_ref(),
-                            change_seq,
                         ))?;
 
                         if !response.status().is_success() {
@@ -470,11 +466,7 @@ fn exec_program(
                     {
                         print::secret(&secret_meta, &secret_data);
 
-                        run_blocking(client.read_secret(
-                            keeper.change_seq()?,
-                            keeper.id(),
-                            uuid,
-                        ))?;
+                        run_blocking(client.read_secret(keeper.id(), uuid))?;
                     } else {
                         return Err(Error::SecretNotAvailable(secret));
                     }
@@ -537,15 +529,12 @@ fn exec_program(
                             secret_meta,
                             edited_secret,
                         )? {
-                            if let SyncEvent::UpdateSecret(
-                                change_seq,
-                                uuid,
-                                value,
-                            ) = payload
+                            if let SyncEvent::UpdateSecret(uuid, value) =
+                                payload
                             {
                                 let response =
                                     run_blocking(client.update_secret(
-                                        &vault_id, &uuid, &*value, change_seq,
+                                        &vault_id, &uuid, &*value,
                                     ))?;
                                 if !response.status().is_success() {
                                     return Err(Error::SetSecret(
@@ -589,11 +578,9 @@ fn exec_program(
                     let mut writer = state.write().unwrap();
                     if let Some(keeper) = writer.current.as_mut() {
                         if let Some(payload) = keeper.delete(&uuid)? {
-                            run_blocking(client.delete_secret(
-                                *payload.change_seq().unwrap(),
-                                keeper.id(),
-                                &uuid,
-                            ))?;
+                            run_blocking(
+                                client.delete_secret(keeper.id(), &uuid),
+                            )?;
                         } else {
                             return Err(Error::SecretNotAvailable(secret));
                         }
@@ -645,16 +632,12 @@ fn exec_program(
                         commit,
                         VaultEntry(meta_aead, secret_aead),
                     )? {
-                        if let SyncEvent::UpdateSecret(
-                            change_seq,
-                            uuid,
-                            value,
-                        ) = payload
+                        if let SyncEvent::UpdateSecret(uuid, value) = payload
                         {
-                            let response =
-                                run_blocking(client.update_secret(
-                                    &vault_id, &uuid, &*value, change_seq,
-                                ))?;
+                            let response = run_blocking(
+                                client
+                                    .update_secret(&vault_id, &uuid, &*value),
+                            )?;
                             if !response.status().is_success() {
                                 return Err(Error::SetSecret(
                                     response.status().into(),

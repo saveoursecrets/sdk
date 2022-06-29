@@ -60,7 +60,7 @@ pub fn mock_vault_note<'a>(
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
     let event = vault.create(commit, VaultEntry(meta_aead, secret_aead))?;
     let secret_id = match &event {
-        SyncEvent::CreateSecret(_, secret_id, _) => *secret_id,
+        SyncEvent::CreateSecret(secret_id, _) => *secret_id,
         _ => unreachable!(),
     };
 

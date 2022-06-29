@@ -41,43 +41,37 @@ pub enum SyncEvent<'a> {
     CreateVault(Cow<'a, [u8]>),
 
     /// SyncEvent used to indicate that a vault was read.
-    ReadVault(u32),
+    ReadVault,
 
     /// SyncEvent used to indicate that a vault was updated.
-    UpdateVault(u32, Cow<'a, [u8]>),
+    UpdateVault(Cow<'a, [u8]>),
 
     /// SyncEvent used to indicate a vault was deleted.
-    DeleteVault(u32),
+    DeleteVault,
 
     /// Get the vault name.
-    GetVaultName(u32),
+    GetVaultName,
 
     /// Set the vault name.
-    SetVaultName(u32, Cow<'a, str>),
+    SetVaultName(Cow<'a, str>),
 
     /// Set the vault meta data.
-    SetVaultMeta(u32, Cow<'a, Option<AeadPack>>),
+    SetVaultMeta(Cow<'a, Option<AeadPack>>),
 
     /// SyncEvent used to indicate that a secret should be
     /// created in a remote destination.
-    ///
-    /// The remote server must check the `change_seq` to
-    /// determine if the change could be safely applied.
-    CreateSecret(u32, SecretId, Cow<'a, VaultCommit>),
+    CreateSecret(SecretId, Cow<'a, VaultCommit>),
 
     /// SyncEvent used to determine that a secret has been read,
     /// defined for audit log purposes.
-    ReadSecret(u32, SecretId),
+    ReadSecret(SecretId),
 
     /// SyncEvent used to indicate that a secret should be
     /// updated in a remote destination.
-    ///
-    /// The remote server must check the `change_seq` to
-    /// determine if the change could be safely applied.
-    UpdateSecret(u32, SecretId, Cow<'a, VaultCommit>),
+    UpdateSecret(SecretId, Cow<'a, VaultCommit>),
 
     /// Delete a secret.
-    DeleteSecret(u32, SecretId),
+    DeleteSecret(SecretId),
 }
 
 impl Default for SyncEvent<'_> {
@@ -105,28 +99,10 @@ impl SyncEvent<'_> {
     pub fn is_mutation(&self) -> bool {
         match self {
             Self::Noop => false,
-            Self::ReadVault(_) => false,
-            Self::ReadSecret(_, _) => false,
-            Self::GetVaultName(_) => false,
+            Self::ReadVault => false,
+            Self::ReadSecret(_) => false,
+            Self::GetVaultName => false,
             _ => true,
-        }
-    }
-
-    /// Get the change sequence for this payload.
-    pub fn change_seq(&self) -> Option<&u32> {
-        match self {
-            Self::Noop => panic!("no change sequence for noop variant"),
-            Self::CreateVault(_) => Some(&0),
-            Self::ReadVault(change_seq) => Some(change_seq),
-            Self::UpdateVault(change_seq, _) => Some(change_seq),
-            Self::DeleteVault(change_seq) => Some(change_seq),
-            Self::GetVaultName(change_seq) => Some(change_seq),
-            Self::SetVaultName(change_seq, _) => Some(change_seq),
-            Self::SetVaultMeta(change_seq, _) => Some(change_seq),
-            Self::CreateSecret(change_seq, _, _) => Some(change_seq),
-            Self::ReadSecret(change_seq, _) => Some(change_seq),
-            Self::UpdateSecret(change_seq, _, _) => Some(change_seq),
-            Self::DeleteSecret(change_seq, _) => Some(change_seq),
         }
     }
 
@@ -135,16 +111,16 @@ impl SyncEvent<'_> {
         match self {
             SyncEvent::Noop => EventKind::Noop,
             SyncEvent::CreateVault(_) => EventKind::CreateVault,
-            SyncEvent::ReadVault(_) => EventKind::ReadVault,
-            SyncEvent::UpdateVault(_, _) => EventKind::UpdateVault,
-            SyncEvent::DeleteVault(_) => EventKind::DeleteVault,
-            SyncEvent::GetVaultName(_) => EventKind::GetVaultName,
-            SyncEvent::SetVaultName(_, _) => EventKind::SetVaultName,
-            SyncEvent::SetVaultMeta(_, _) => EventKind::SetVaultMeta,
-            SyncEvent::CreateSecret(_, _, _) => EventKind::CreateSecret,
-            SyncEvent::ReadSecret(_, _) => EventKind::ReadSecret,
-            SyncEvent::UpdateSecret(_, _, _) => EventKind::UpdateSecret,
-            SyncEvent::DeleteSecret(_, _) => EventKind::DeleteSecret,
+            SyncEvent::ReadVault => EventKind::ReadVault,
+            SyncEvent::UpdateVault(_) => EventKind::UpdateVault,
+            SyncEvent::DeleteVault => EventKind::DeleteVault,
+            SyncEvent::GetVaultName => EventKind::GetVaultName,
+            SyncEvent::SetVaultName(_) => EventKind::SetVaultName,
+            SyncEvent::SetVaultMeta(_) => EventKind::SetVaultMeta,
+            SyncEvent::CreateSecret(_, _) => EventKind::CreateSecret,
+            SyncEvent::ReadSecret(_) => EventKind::ReadSecret,
+            SyncEvent::UpdateSecret(_, _) => EventKind::UpdateSecret,
+            SyncEvent::DeleteSecret(_) => EventKind::DeleteSecret,
         }
     }
 }
@@ -160,43 +136,34 @@ impl<'a> Encode for SyncEvent<'a> {
                 ser.writer.write_u32(vault.as_ref().len() as u32)?;
                 ser.writer.write_bytes(vault.as_ref())?;
             }
-            SyncEvent::UpdateVault(change_seq, vault) => {
-                ser.writer.write_u32(*change_seq)?;
+            SyncEvent::UpdateVault(vault) => {
                 ser.writer.write_u32(vault.as_ref().len() as u32)?;
                 ser.writer.write_bytes(vault.as_ref())?;
             }
-            SyncEvent::ReadVault(change_seq)
-            | SyncEvent::DeleteVault(change_seq)
-            | SyncEvent::GetVaultName(change_seq) => {
-                ser.writer.write_u32(*change_seq)?;
-            }
-            SyncEvent::SetVaultName(change_seq, name) => {
-                ser.writer.write_u32(*change_seq)?;
+            SyncEvent::ReadVault
+            | SyncEvent::DeleteVault
+            | SyncEvent::GetVaultName => {}
+            SyncEvent::SetVaultName(name) => {
                 ser.writer.write_string(name)?;
             }
-            SyncEvent::SetVaultMeta(change_seq, meta) => {
-                ser.writer.write_u32(*change_seq)?;
+            SyncEvent::SetVaultMeta(meta) => {
                 ser.writer.write_bool(meta.is_some())?;
                 if let Some(meta) = meta.as_ref() {
                     meta.encode(&mut *ser)?;
                 }
             }
-            SyncEvent::CreateSecret(change_seq, uuid, value) => {
-                ser.writer.write_u32(*change_seq)?;
+            SyncEvent::CreateSecret(uuid, value) => {
                 uuid.serialize(&mut *ser)?;
                 value.as_ref().encode(&mut *ser)?;
             }
-            SyncEvent::ReadSecret(change_seq, uuid) => {
-                ser.writer.write_u32(*change_seq)?;
+            SyncEvent::ReadSecret(uuid) => {
                 uuid.serialize(&mut *ser)?;
             }
-            SyncEvent::UpdateSecret(change_seq, uuid, value) => {
-                ser.writer.write_u32(*change_seq)?;
+            SyncEvent::UpdateSecret(uuid, value) => {
                 uuid.serialize(&mut *ser)?;
                 value.as_ref().encode(&mut *ser)?;
             }
-            SyncEvent::DeleteSecret(change_seq, uuid) => {
-                ser.writer.write_u32(*change_seq)?;
+            SyncEvent::DeleteSecret(uuid) => {
                 uuid.serialize(&mut *ser)?;
             }
         }
@@ -216,31 +183,24 @@ impl<'a> Decode for SyncEvent<'a> {
                 *self = SyncEvent::CreateVault(Cow::Owned(buffer))
             }
             EventKind::ReadVault => {
-                let change_seq = de.reader.read_u32()?;
-                *self = SyncEvent::ReadVault(change_seq);
+                *self = SyncEvent::ReadVault;
             }
             EventKind::UpdateVault => {
-                let change_seq = de.reader.read_u32()?;
                 let length = de.reader.read_u32()?;
                 let buffer = de.reader.read_bytes(length as usize)?;
-                *self =
-                    SyncEvent::UpdateVault(change_seq, Cow::Owned(buffer));
+                *self = SyncEvent::UpdateVault(Cow::Owned(buffer));
             }
             EventKind::DeleteVault => {
-                let change_seq = de.reader.read_u32()?;
-                *self = SyncEvent::DeleteVault(change_seq);
+                *self = SyncEvent::DeleteVault;
             }
             EventKind::GetVaultName => {
-                let change_seq = de.reader.read_u32()?;
-                *self = SyncEvent::GetVaultName(change_seq);
+                *self = SyncEvent::GetVaultName;
             }
             EventKind::SetVaultName => {
-                let change_seq = de.reader.read_u32()?;
                 let name = de.reader.read_string()?;
-                *self = SyncEvent::SetVaultName(change_seq, Cow::Owned(name));
+                *self = SyncEvent::SetVaultName(Cow::Owned(name));
             }
             EventKind::SetVaultMeta => {
-                let change_seq = de.reader.read_u32()?;
                 let has_meta = de.reader.read_bool()?;
                 let aead_pack = if has_meta {
                     let mut aead_pack: AeadPack = Default::default();
@@ -249,13 +209,9 @@ impl<'a> Decode for SyncEvent<'a> {
                 } else {
                     None
                 };
-                *self = SyncEvent::SetVaultMeta(
-                    change_seq,
-                    Cow::Owned(aead_pack),
-                );
+                *self = SyncEvent::SetVaultMeta(Cow::Owned(aead_pack));
             }
             EventKind::CreateSecret => {
-                let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *de)?;
@@ -263,19 +219,13 @@ impl<'a> Decode for SyncEvent<'a> {
                 //meta_aead.decode(&mut *de)?;
                 //let mut secret_aead: AeadPack = Default::default();
                 //secret_aead.decode(&mut *de)?;
-                *self = SyncEvent::CreateSecret(
-                    change_seq,
-                    id,
-                    Cow::Owned(commit),
-                );
+                *self = SyncEvent::CreateSecret(id, Cow::Owned(commit));
             }
             EventKind::ReadSecret => {
-                let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
-                *self = SyncEvent::ReadSecret(change_seq, id);
+                *self = SyncEvent::ReadSecret(id);
             }
             EventKind::UpdateSecret => {
-                let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *de)?;
@@ -284,16 +234,11 @@ impl<'a> Decode for SyncEvent<'a> {
                 //meta_aead.decode(&mut *de)?;
                 //let mut secret_aead: AeadPack = Default::default();
                 //secret_aead.decode(&mut *de)?;
-                *self = SyncEvent::UpdateSecret(
-                    change_seq,
-                    id,
-                    Cow::Owned(commit),
-                );
+                *self = SyncEvent::UpdateSecret(id, Cow::Owned(commit));
             }
             EventKind::DeleteSecret => {
-                let change_seq = de.reader.read_u32()?;
                 let id: SecretId = Deserialize::deserialize(&mut *de)?;
-                *self = SyncEvent::DeleteSecret(change_seq, id);
+                *self = SyncEvent::DeleteSecret(id);
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
