@@ -26,7 +26,7 @@ where
     F: Future<Output = Result<R>> + Send,
     R: Send,
 {
-    Ok(Runtime::new().unwrap().block_on(func)?)
+    Runtime::new().unwrap().block_on(func)
 }
 
 pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {

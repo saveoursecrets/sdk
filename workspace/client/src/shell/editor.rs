@@ -85,7 +85,7 @@ fn edit_secret<'a>(
         if edited_hash == hash {
             Ok(Cow::Borrowed(secret))
         } else {
-            match from_bytes(&secret, &content) {
+            match from_bytes(secret, &content) {
                 Ok(edited_secret) => Ok(Cow::Owned(edited_secret)),
                 // Parse error, launch the editor again so the user
                 // gets the chance to correct the mistake.
@@ -99,15 +99,15 @@ fn edit_secret<'a>(
     } else {
         // Use default exit code if one is not available
         // for example if the command was terminated by a signal
-        Err(Error::EditorExit(status.code().unwrap_or_else(|| -1)))
+        Err(Error::EditorExit(status.code().unwrap_or(-1)))
     };
 
     file.close()?;
-    Ok(result?)
+    result
 }
 
 /// Edit a secret.
 pub fn edit<'a>(secret: &'a Secret) -> Result<EditResult<'a>> {
     let (content, suffix) = to_bytes(secret)?;
-    Ok(edit_secret(&secret, content, &suffix)?)
+    edit_secret(secret, content, &suffix)
 }

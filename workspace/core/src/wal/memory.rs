@@ -88,6 +88,7 @@ impl WalProvider for WalMemory {
     fn apply(
         &mut self,
         events: Vec<WalEvent<'_>>,
+        expect: Option<CommitHash>,
     ) -> Result<Vec<CommitHash>> {
         let mut records = Vec::new();
         let mut commits = Vec::new();
@@ -105,6 +106,11 @@ impl WalProvider for WalMemory {
         self.records.extend_from_slice(&records);
         self.tree.append(&mut hashes);
         self.tree.commit();
+
+        if let Some(_expected) = expect {
+            todo!("rollback if expected hash does not match");
+        }
+
         Ok(commits)
     }
 
@@ -130,6 +136,6 @@ impl WalProvider for WalMemory {
         &self,
     ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>
     {
-        Ok(Box::new(self.records.iter().cloned().map(|v| Ok(v))))
+        Ok(Box::new(self.records.iter().cloned().map(Ok)))
     }
 }

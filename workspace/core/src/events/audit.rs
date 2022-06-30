@@ -179,25 +179,21 @@ impl Decode for AuditEvent {
         self.address = address.into();
         // Data - context
         if let Some(flags) = LogFlags::from_bits(bits) {
-            if flags.contains(LogFlags::DATA) {
-                if flags.contains(LogFlags::DATA_VAULT) {
-                    let vault_id: [u8; 16] =
+            if flags.contains(LogFlags::DATA)
+                && flags.contains(LogFlags::DATA_VAULT)
+            {
+                let vault_id: [u8; 16] =
+                    de.reader.read_bytes(16)?.as_slice().try_into()?;
+                if !flags.contains(LogFlags::DATA_SECRET) {
+                    self.data =
+                        Some(AuditData::Vault(Uuid::from_bytes(vault_id)));
+                } else {
+                    let secret_id: [u8; 16] =
                         de.reader.read_bytes(16)?.as_slice().try_into()?;
-                    if !flags.contains(LogFlags::DATA_SECRET) {
-                        self.data = Some(AuditData::Vault(Uuid::from_bytes(
-                            vault_id,
-                        )));
-                    } else {
-                        let secret_id: [u8; 16] = de
-                            .reader
-                            .read_bytes(16)?
-                            .as_slice()
-                            .try_into()?;
-                        self.data = Some(AuditData::Secret(
-                            Uuid::from_bytes(vault_id),
-                            Uuid::from_bytes(secret_id),
-                        ));
-                    }
+                    self.data = Some(AuditData::Secret(
+                        Uuid::from_bytes(vault_id),
+                        Uuid::from_bytes(secret_id),
+                    ));
                 }
             }
         } else {

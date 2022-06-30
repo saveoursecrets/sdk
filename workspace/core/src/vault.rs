@@ -47,7 +47,7 @@ impl AsRef<[u8; 32]> for CommitHash {
 impl CommitHash {
     /// Get a copy of the underlying bytes for the commit hash.
     pub fn to_bytes(&self) -> [u8; 32] {
-        self.0.clone()
+        self.0
     }
 }
 
@@ -767,7 +767,7 @@ impl VaultAccess for Vault {
         let value = self
             .contents
             .data
-            .entry(id.clone())
+            .entry(id)
             .or_insert(VaultCommit(commit, secret));
         Ok(SyncEvent::CreateSecret(id, Cow::Borrowed(value)))
     }

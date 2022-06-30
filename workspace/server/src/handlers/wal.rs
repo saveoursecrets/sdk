@@ -201,16 +201,12 @@ impl WalHandler {
                         Err(StatusCode::BAD_REQUEST)
                     }
                 // Otherwise get the entire WAL buffer
+                } else if let Ok(buffer) =
+                    reader.backend.get_wal(&token.address, &vault_id).await
+                {
+                    Ok((StatusCode::OK, buffer))
                 } else {
-                    if let Ok(buffer) = reader
-                        .backend
-                        .get_wal(&token.address, &vault_id)
-                        .await
-                    {
-                        Ok((StatusCode::OK, buffer))
-                    } else {
-                        Err(StatusCode::INTERNAL_SERVER_ERROR)
-                    }
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
                 };
 
                 drop(reader);
@@ -321,7 +317,7 @@ impl WalHandler {
 
                         // Apply the change set of WAL events to the log
                         let commits = wal
-                            .apply(changes)
+                            .apply(changes, None)
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                         // Get a new commit proof for the last leaf hash

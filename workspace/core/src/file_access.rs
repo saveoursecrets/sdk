@@ -190,13 +190,13 @@ impl VaultFileAccess {
             current_pos = de.reader.tell()?;
         }
 
-        return Ok((content_offset, total_rows, None));
+        Ok((content_offset, total_rows, None))
     }
 }
 
 impl VaultAccess for VaultFileAccess {
     fn summary(&self) -> Result<Summary> {
-        Ok(Header::read_summary_file(&self.file_path)?)
+        Header::read_summary_file(&self.file_path)
     }
 
     fn save(&mut self, buffer: &[u8]) -> Result<SyncEvent> {
@@ -511,7 +511,7 @@ mod tests {
         assert_eq!(3, total_rows);
 
         let del_secret_id = secret_ids.get(1).unwrap();
-        let _ = vault_access.delete(&del_secret_id)?;
+        let _ = vault_access.delete(del_secret_id)?;
 
         let total_rows = vault_access.rows(vault_access.check_identity()?)?;
         assert_eq!(2, total_rows);

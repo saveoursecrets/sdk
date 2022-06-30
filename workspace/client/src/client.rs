@@ -142,7 +142,7 @@ impl Client {
             .header(X_SIGNED_MESSAGE, base64::encode(&message));
 
         if let Some(proof) = proof {
-            builder = encode_headers_proof(builder, &proof);
+            builder = encode_headers_proof(builder, proof);
         }
 
         let response = builder.send().await?;

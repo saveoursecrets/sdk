@@ -23,7 +23,7 @@ pub fn vault_commit_tree<P: AsRef<Path>, F>(
     func: F,
 ) -> Result<CommitTree>
 where
-    F: Fn(&RowInfo) -> (),
+    F: Fn(&RowInfo),
 {
     let mut tree = CommitTree::new();
 
@@ -67,7 +67,7 @@ pub fn wal_commit_tree<P: AsRef<Path>, F>(
     func: F,
 ) -> Result<CommitTree>
 where
-    F: Fn(&WalFileRecord) -> (),
+    F: Fn(&WalFileRecord),
 {
     let mut tree = CommitTree::new();
 

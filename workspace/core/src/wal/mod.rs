@@ -43,8 +43,11 @@ pub trait WalProvider {
     ///
     /// If any events fail this function will rollback the
     /// WAL to it's previous state.
-    fn apply(&mut self, events: Vec<WalEvent<'_>>)
-        -> Result<Vec<CommitHash>>;
+    fn apply(
+        &mut self,
+        events: Vec<WalEvent<'_>>,
+        expect: Option<CommitHash>,
+    ) -> Result<Vec<CommitHash>>;
 
     /// Append a log event to the write ahead log and commit
     /// the hash to the commit tree.
@@ -177,10 +180,13 @@ mod test {
 
         // Create a simple WAL
         let mut server = WalMemory::new();
-        server.apply(vec![
-            WalEvent::CreateVault(Cow::Owned(vault_buffer)),
-            WalEvent::CreateSecret(id.clone(), data),
-        ])?;
+        server.apply(
+            vec![
+                WalEvent::CreateVault(Cow::Owned(vault_buffer)),
+                WalEvent::CreateSecret(id, data),
+            ],
+            None,
+        )?;
 
         Ok((server, id))
     }
@@ -193,10 +199,13 @@ mod test {
 
         // Create a simple WAL
         let mut server = WalMemory::new();
-        server.apply(vec![
-            WalEvent::CreateVault(Cow::Owned(vault_buffer)),
-            WalEvent::CreateSecret(id.clone(), data),
-        ])?;
+        server.apply(
+            vec![
+                WalEvent::CreateVault(Cow::Owned(vault_buffer)),
+                WalEvent::CreateSecret(id, data),
+            ],
+            None,
+        )?;
 
         // Duplicate the server events on the client
         let mut client = WalMemory::new();
@@ -219,7 +228,7 @@ mod test {
         let (mut server, client, id) = mock_wal_server_client()?;
 
         // Add another event to the server from another client.
-        server.append_event(WalEvent::DeleteSecret(id.clone()))?;
+        server.append_event(WalEvent::DeleteSecret(id))?;
 
         /// Check that the server contains the client proof
         let proof = client.tree().head()?;
@@ -254,7 +263,7 @@ mod test {
         let (mut server, client, id) = mock_wal_server_client()?;
 
         // Add another event to the server from another client.
-        server.append_event(WalEvent::DeleteSecret(id.clone()))?;
+        server.append_event(WalEvent::DeleteSecret(id))?;
 
         // Get the last record for our assertion
         let record = server.iter()?.next_back().unwrap()?;

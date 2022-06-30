@@ -223,7 +223,7 @@ mod tests {
     }
 
     #[test]
-    fn xchacha20poly1305_encrypt_decrypt_tamper() -> () {
+    fn xchacha20poly1305_encrypt_decrypt_tamper() {
         let key = SecretKey::new_random_32();
         let value = b"plaintext message";
         let mut aead = encrypt(&key, value).unwrap();

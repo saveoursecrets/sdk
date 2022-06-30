@@ -39,7 +39,7 @@ fn append_commit_headers(
     headers.insert(X_COMMIT_HASH.clone(), x_commit_hash);
 
     let x_commit_proof =
-        HeaderValue::from_str(&base64::encode(encode_proof(&server_proof)))
+        HeaderValue::from_str(&base64::encode(encode_proof(server_proof)))
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);

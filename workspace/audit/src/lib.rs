@@ -22,37 +22,35 @@ pub fn logs(audit_log: PathBuf, json: bool) -> Result<()> {
         let log = event?;
         if json {
             println!("{}", serde_json::to_string(&log)?);
-        } else {
-            if let Some(data) = log.data {
-                match data {
-                    AuditData::Vault(vault_id) => {
-                        tracing::info!(
-                            "{} {} by {} (vault = {})",
-                            log.time,
-                            log.operation,
-                            log.address,
-                            vault_id,
-                        );
-                    }
-                    AuditData::Secret(vault_id, secret_id) => {
-                        tracing::info!(
-                            "{} {} by {} (vault = {}, secret = {})",
-                            log.time,
-                            log.operation,
-                            log.address,
-                            vault_id,
-                            secret_id,
-                        );
-                    }
+        } else if let Some(data) = log.data {
+            match data {
+                AuditData::Vault(vault_id) => {
+                    tracing::info!(
+                        "{} {} by {} (vault = {})",
+                        log.time,
+                        log.operation,
+                        log.address,
+                        vault_id,
+                    );
                 }
-            } else {
-                tracing::info!(
-                    "{} {} by {}",
-                    log.time,
-                    log.operation,
-                    log.address,
-                );
+                AuditData::Secret(vault_id, secret_id) => {
+                    tracing::info!(
+                        "{} {} by {} (vault = {}, secret = {})",
+                        log.time,
+                        log.operation,
+                        log.address,
+                        vault_id,
+                        secret_id,
+                    );
+                }
             }
+        } else {
+            tracing::info!(
+                "{} {} by {}",
+                log.time,
+                log.operation,
+                log.address,
+            );
         }
     }
     Ok(())

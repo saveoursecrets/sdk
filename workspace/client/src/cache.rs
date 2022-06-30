@@ -146,7 +146,7 @@ impl Cache {
             (wal_file, Some(proof))
         // Otherwise prepare a new WAL cache
         } else {
-            let mut wal_file = WalFile::new(&cached_wal_path)?;
+            let wal_file = WalFile::new(&cached_wal_path)?;
             (wal_file, None)
         };
 
@@ -161,7 +161,7 @@ impl Cache {
                     let (client_proof, wal_file) = match cached {
                         // If we sent a proof to the server then we
                         // are expecting a diff of records
-                        (mut wal_file, Some(proof)) => {
+                        (mut wal_file, Some(_proof)) => {
                             let buffer = response.bytes().await?;
 
                             // Check the identity looks good
@@ -176,7 +176,7 @@ impl Cache {
                                 .write(true)
                                 .append(true)
                                 .open(&cached_wal_path)?;
-                            file.write(record_bytes)?;
+                            file.write_all(record_bytes)?;
                             wal_file.load_tree()?;
 
                             (wal_file.tree().head()?, wal_file)
@@ -265,7 +265,7 @@ impl Cache {
                     }
 
                     // TODO: revert these changes if the new hashes do not match!
-                    wal.apply(changes)?;
+                    wal.apply(changes, None)?;
 
                     let client_proof = wal.tree().head()?;
                     assert_proofs_eq(client_proof, server_proof)?;

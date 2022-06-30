@@ -75,7 +75,7 @@ impl CommitTree {
     /// Create a commit tree from a row iterator.
     pub fn from_iterator<'a>(it: &mut RowIterator<'a>) -> Result<Self> {
         let mut commit_tree = Self::new();
-        while let Some(row_info) = it.next() {
+        for row_info in it {
             let row_info = row_info?;
             commit_tree.tree.insert(row_info.commit);
         }
@@ -115,7 +115,7 @@ impl CommitTree {
 
     /// Get the root hash and a proof of the last leaf node.
     pub fn head(&self) -> Result<CommitProof> {
-        let root = self.root().ok_or_else(|| Error::NoRootCommit)?;
+        let root = self.root().ok_or(Error::NoRootCommit)?;
         let leaf_indices = vec![self.tree.leaves_len() - 1];
         let proof = self.tree.proof(&leaf_indices);
         Ok(CommitProof(root, proof))
@@ -124,11 +124,11 @@ impl CommitTree {
     /// Compare this tree against another root hash and merkle proof.
     pub fn compare(&self, proof: CommitProof) -> Result<Comparison> {
         let CommitProof(other_root, proof) = proof;
-        let root = self.root().ok_or_else(|| Error::NoRootCommit)?;
+        let root = self.root().ok_or(Error::NoRootCommit)?;
         if root == other_root {
             Ok(Comparison::Equal)
         } else {
-            let leaves = self.tree.leaves().unwrap_or_else(|| vec![]);
+            let leaves = self.tree.leaves().unwrap_or_default();
             let it = leaves.into_iter().enumerate().rev();
             for (index, leaf) in it {
                 let indices = vec![index];
@@ -149,7 +149,7 @@ impl CommitTree {
 
     /// Get a commit proof for the given leaf indices.
     pub fn proof(&self, leaf_indices: &[usize]) -> MerkleProof<Sha256> {
-        self.tree.proof(&leaf_indices)
+        self.tree.proof(leaf_indices)
     }
 
     /// Get the root hash of the underlying merkle tree.

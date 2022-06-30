@@ -173,6 +173,7 @@ impl WalProvider for WalFile {
     fn apply(
         &mut self,
         events: Vec<WalEvent<'_>>,
+        expect: Option<CommitHash>,
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
@@ -190,6 +191,11 @@ impl WalProvider for WalFile {
             Ok(_) => {
                 self.tree.append(&mut hashes);
                 self.tree.commit();
+
+                if let Some(_expected) = expect {
+                    todo!("rollback if expected hash does not match");
+                }
+
                 Ok(commits)
             }
             Err(e) => {
@@ -424,7 +430,7 @@ mod test {
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;
-        let mut wal = WalFile::new(temp.path().to_path_buf())?;
+        let mut wal = WalFile::new(temp.path())?;
 
         let mut commits = Vec::new();
 

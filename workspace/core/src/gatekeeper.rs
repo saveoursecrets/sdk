@@ -76,7 +76,7 @@ impl Gatekeeper {
 
     /// Set the public name for the vault.
     pub fn set_vault_name(&mut self, name: String) -> Result<SyncEvent> {
-        Ok(self.vault.set_vault_name(name)?)
+        self.vault.set_vault_name(name)
     }
 
     /// Initialize the vault with the given label and password.
@@ -304,7 +304,7 @@ impl Gatekeeper {
 
     /// Delete a secret and it's meta data from the vault.
     pub fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>> {
-        Ok(self.vault.delete(id)?)
+        self.vault.delete(id)
     }
 
     /// Decrypt secret meta data.
@@ -383,7 +383,7 @@ mod tests {
 
         let secret_label = String::from("Mock Secret");
         let secret_value = String::from("Super Secret Note");
-        let secret = Secret::Note(secret_value.clone());
+        let secret = Secret::Note(secret_value);
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
         if let SyncEvent::CreateSecret(secret_uuid, _) =

@@ -122,38 +122,38 @@ impl<'u, 'a, 'e> From<(&'u Uuid, &'a AddressStr, &'e SyncEvent<'e>)>
         let (vault_id, address, payload) = value;
         match payload {
             SyncEvent::CreateVault(_) => ChangeEvent::CreateVault {
-                address: address.clone(),
+                address: *address,
                 vault_id: *vault_id,
             },
             SyncEvent::UpdateVault(_) => ChangeEvent::UpdateVault {
-                address: address.clone(),
+                address: *address,
                 vault_id: *vault_id,
             },
             SyncEvent::DeleteVault => ChangeEvent::DeleteVault {
-                address: address.clone(),
+                address: *address,
                 vault_id: *vault_id,
             },
             SyncEvent::SetVaultName(name) => ChangeEvent::SetVaultName {
-                address: address.clone(),
+                address: *address,
                 vault_id: *vault_id,
                 name: name.to_string(),
             },
             SyncEvent::CreateSecret(secret_id, _) => {
                 ChangeEvent::CreateSecret {
-                    address: address.clone(),
+                    address: *address,
                     vault_id: *vault_id,
                     secret_id: *secret_id,
                 }
             }
             SyncEvent::UpdateSecret(secret_id, _) => {
                 ChangeEvent::UpdateSecret {
-                    address: address.clone(),
+                    address: *address,
                     vault_id: *vault_id,
                     secret_id: *secret_id,
                 }
             }
             SyncEvent::DeleteSecret(secret_id) => ChangeEvent::DeleteSecret {
-                address: address.clone(),
+                address: *address,
                 vault_id: *vault_id,
                 secret_id: *secret_id,
             },

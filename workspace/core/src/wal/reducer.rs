@@ -167,7 +167,7 @@ mod test {
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;
-        let mut wal = WalFile::new(temp.path().to_path_buf())?;
+        let mut wal = WalFile::new(temp.path())?;
 
         let mut commits = Vec::new();
 

@@ -214,7 +214,7 @@ fn add_file(
     };
 
     if label.is_empty() {
-        label = name.clone();
+        label = name;
     }
 
     let secret = read_file_secret(&path)?;
@@ -269,7 +269,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
         }
         ShellCommand::Use { vault } => {
             let reader = cache.read().unwrap();
-            let summary = reader.find_summary(&vault).map(|s| s.clone());
+            let summary = reader.find_summary(&vault).cloned();
             drop(reader);
             if let Some(summary) = &summary {
                 let mut writer = cache.write().unwrap();
@@ -328,7 +328,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 if let Some(keeper) = writer.current_mut() {
                     if let Some(name) = name {
                         keeper.set_vault_name(name.clone())?;
-                        (true, keeper.summary().clone(), name.to_string())
+                        (true, keeper.summary().clone(), name)
                     } else {
                         let name = keeper.name();
                         println!("{}", name);
@@ -724,7 +724,7 @@ pub fn list_vaults(cache: Arc<RwLock<Cache>>, print: bool) -> Result<()> {
     let mut writer = cache.write().unwrap();
     let summaries = run_blocking(writer.load_summaries())?;
     if print {
-        print::summaries_list(&summaries);
+        print::summaries_list(summaries);
     }
     Ok(())
 }

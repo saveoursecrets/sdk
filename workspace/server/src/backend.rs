@@ -293,7 +293,7 @@ impl Backend for FileSystemBackend {
         let proof = wal_file.tree().head()?;
         self.add_wal_path(*owner, *summary.id(), wal_path, wal_file)
             .await?;
-        let event = SyncEvent::CreateVault(Cow::Borrowed(&vault));
+        let event = SyncEvent::CreateVault(Cow::Borrowed(vault));
         Ok((event, proof))
     }
 
@@ -317,7 +317,7 @@ impl Backend for FileSystemBackend {
         let proof = wal_file.tree().head()?;
         self.add_wal_path(*owner, *summary.id(), wal_path, wal_file)
             .await?;
-        let event = SyncEvent::CreateVault(Cow::Borrowed(&vault));
+        let event = SyncEvent::CreateVault(Cow::Borrowed(vault));
         Ok((event, proof))
     }
 
@@ -332,7 +332,7 @@ impl Backend for FileSystemBackend {
         }
 
         if let Some(account) = self.accounts.get_mut(owner) {
-            if let Some(_) = account.get_mut(vault_id) {
+            if account.get_mut(vault_id).is_some() {
                 let removed = account.remove(vault_id);
                 if let Some(_) = removed {
                     let wal_path = self.wal_file_path(owner, vault_id);
@@ -414,7 +414,7 @@ impl Backend for FileSystemBackend {
         vault_id: &Uuid,
     ) -> Result<Vec<u8>> {
         if let Some(account) = self.accounts.get(owner) {
-            if let Some(_) = account.get(vault_id) {
+            if account.get(vault_id).is_some() {
                 let wal_file = self.wal_file_path(owner, vault_id);
                 let buffer = tokio::fs::read(wal_file).await?;
                 Ok(buffer)
