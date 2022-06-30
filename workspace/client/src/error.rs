@@ -1,6 +1,7 @@
 use sos_core::{secret::SecretRef, vault::CommitHash};
 use std::path::PathBuf;
 use thiserror::Error;
+use url::Url;
 use uuid::Uuid;
 
 #[derive(Debug, Error)]
@@ -16,6 +17,9 @@ pub enum Error {
 
     #[error("path {0} does not have a file name")]
     FileName(PathBuf),
+
+    #[error("server url {0} is not HTTPS")]
+    ServerHttps(Url),
 
     #[error("could not determine local data directory")]
     NoDataLocalDir,

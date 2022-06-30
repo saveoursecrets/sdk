@@ -1,8 +1,9 @@
 //! Cache of local WAL files.
 use crate::{client::Client, Error, Result};
-use reqwest::StatusCode;
+use reqwest::{Response, StatusCode};
 use sos_core::{
     commit_tree::CommitProof,
+    events::SyncEvent,
     file_identity::{FileIdentity, WAL_IDENTITY},
     gatekeeper::Gatekeeper,
     secret::SecretRef,
@@ -10,6 +11,7 @@ use sos_core::{
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
 };
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fs::OpenOptions,
     io::Write,
@@ -231,6 +233,50 @@ impl Cache {
                 todo!("handle errors {:#?}", response);
             }
         }
+    }
+
+    /// Attempt to patch a remote WAL file.
+    pub async fn patch_vault<'a>(
+        &self,
+        summary: &Summary,
+        events: Vec<SyncEvent<'a>>,
+    ) -> Result<Response> {
+        if let Some((_, wal)) = self.cache.get(summary.id()) {
+            let proof = wal.tree().head()?;
+
+            let (response, _, server_proof) =
+                self.client.patch_wal(summary.id(), &proof, events).await?;
+
+            let status = response.status();
+            match status {
+                StatusCode::OK => {
+                    println!("REMOTE SERVER PATCH WAS APPLIED");
+                    Ok(response)
+                }
+                StatusCode::CONFLICT => {
+                    todo!("handle patch conflict");
+                }
+                _ => {
+                    todo!("handle patch errors");
+                }
+            }
+        } else {
+            todo!();
+        }
+    }
+
+    /// Attempt to set the vault name on the remote server.
+    pub async fn set_vault_name(
+        &self,
+        summary: &Summary,
+        name: &str,
+    ) -> Result<()> {
+        let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
+        let response = self.patch_vault(summary, vec![event]).await?;
+        if !response.status().is_success() {
+            return Err(Error::SetVaultName(response.status().into()));
+        }
+        Ok(())
     }
 
     /// Get the default root directory used for caching client data.

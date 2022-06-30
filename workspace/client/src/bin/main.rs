@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use sos_client::{
     create_vault, exec, list_vaults, monitor, signup, Cache, ClientBuilder,
-    Result,
+    Error, Result,
 };
 use sos_core::Algorithm;
 use sos_readline::read_shell;
@@ -90,6 +90,15 @@ enum Command {
     },
 }
 
+/// Ensure a supplied URL is https.
+fn ensure_https(url: &Url) -> Result<()> {
+    if url.scheme() != "https" {
+        Err(Error::ServerHttps(url.clone()))
+    } else {
+        Ok(())
+    }
+}
+
 /// Print the welcome information.
 fn welcome(server: &Url) -> Result<()> {
     let help_info = r#"Type "help", "--help" or "-h" for command usage
@@ -110,6 +119,7 @@ fn run() -> Result<()> {
 
     match args.cmd {
         Command::Monitor { server, keystore } => {
+            ensure_https(&server)?;
             monitor(server, keystore)?;
         }
         Command::Create {
@@ -125,9 +135,11 @@ fn run() -> Result<()> {
             keystore,
             name,
         } => {
+            ensure_https(&server)?;
             signup(server, keystore, name)?;
         }
         Command::Shell { server, keystore } => {
+            ensure_https(&server)?;
             let cache_dir = Cache::cache_dir()?;
             let client = ClientBuilder::new(server, keystore).build()?;
             let cache = Arc::new(RwLock::new(Cache::new(client, cache_dir)?));

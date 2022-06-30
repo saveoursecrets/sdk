@@ -266,48 +266,68 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 } else {
                     return Err(Error::VaultUnlockFail);
                 }
-
-                /*
-                let vault_bytes =
-                    run_blocking(client.read_vault(summary.id()))?;
-                let vault = Vault::read_buffer(vault_bytes)?;
-                let mut keeper = Gatekeeper::new(vault);
-                let password = read_password(Some("Passphrase: "))?;
-                if let Ok(_) = keeper.unlock(&password) {
-                    writer.current = Some(keeper);
-                } else {
-                    return Err(Error::VaultUnlockFail);
-                }
-                */
             } else {
                 return Err(Error::VaultNotAvailable(vault));
             }
-
-            /*
-            let summary = match &vault {
-                SecretRef::Name(name) => {
-                    writer.summaries.iter().find(|s| s.name() == name)
-                }
-                SecretRef::Id(id) => {
-                    writer.summaries.iter().find(|s| s.id() == id)
-                }
-            };
-
-            if let Some(summary) = summary {
-                let vault_bytes =
-                    run_blocking(client.read_vault(summary.id()))?;
-                let vault = Vault::read_buffer(vault_bytes)?;
-                let mut keeper = Gatekeeper::new(vault);
-                let password = read_password(Some("Passphrase: "))?;
-                if let Ok(_) = keeper.unlock(&password) {
-                    writer.current = Some(keeper);
-                } else {
-                    return Err(Error::VaultUnlockFail);
+        }
+        ShellCommand::Info => {
+            let reader = cache.read().unwrap();
+            if let Some(keeper) = reader.current() {
+                let summary = keeper.summary();
+                println!("{}", summary);
+            } else {
+                return Err(Error::NoVaultSelected);
+            }
+        }
+        ShellCommand::Keys => {
+            let reader = cache.read().unwrap();
+            if let Some(keeper) = reader.current() {
+                for uuid in keeper.vault().keys() {
+                    println!("{}", uuid);
                 }
             } else {
-                return Err(Error::VaultNotAvailable(vault));
+                return Err(Error::NoVaultSelected);
             }
-            */
+        }
+        ShellCommand::List { long } => {
+            let reader = cache.read().unwrap();
+            if let Some(keeper) = reader.current() {
+                let meta = keeper.meta_data()?;
+                for (uuid, secret_meta) in meta {
+                    let label = secret_meta.label();
+                    let short_name = secret_meta.short_name();
+                    print!("[{}] ", short_name);
+                    if long {
+                        println!("{} {}", label, uuid);
+                    } else {
+                        println!("{}", label);
+                    }
+                }
+            } else {
+                return Err(Error::NoVaultSelected);
+            }
+        }
+        ShellCommand::Name { name } => {
+            let mut writer = cache.write().unwrap();
+            let (renamed, summary, name) =
+                if let Some(keeper) = writer.current_mut() {
+                    if let Some(name) = name {
+                        keeper.set_vault_name(name.clone())?;
+                        (true, keeper.summary().clone(), name.to_string())
+                    } else {
+                        let name = keeper.name();
+                        println!("{}", name);
+                        (false, keeper.summary().clone(), name.to_string())
+                    }
+                } else {
+                    return Err(Error::NoVaultSelected);
+                };
+
+            if renamed {
+                run_blocking(writer.set_vault_name(&summary, &name))?;
+                drop(writer);
+                list_vaults(cache, false)?;
+            }
         }
 
         /*
@@ -358,15 +378,6 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 return Err(Error::VaultNotAvailable(vault));
             }
         }
-        ShellCommand::Info => {
-            let reader = state.read().unwrap();
-            if let Some(keeper) = &reader.current {
-                let summary = keeper.summary();
-                println!("{}", summary);
-            } else {
-                return Err(Error::NoVaultSelected);
-            }
-        }
         ShellCommand::Seq => {
             let reader = state.read().unwrap();
             if let Some(keeper) = &reader.current {
@@ -381,62 +392,6 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     local_change_seq, remote_change_seq
                 );
                 */
-            } else {
-                return Err(Error::NoVaultSelected);
-            }
-        }
-        ShellCommand::Name { name } => {
-            let mut writer = state.write().unwrap();
-            let renamed = if let Some(keeper) = writer.current.as_mut() {
-                if let Some(name) = name {
-                    keeper.set_vault_name(name.clone())?;
-                    let response = run_blocking(
-                        client.set_vault_name(keeper.id(), &name),
-                    )?;
-                    if !response.status().is_success() {
-                        return Err(Error::SetVaultName(
-                            response.status().into(),
-                        ));
-                    }
-                    true
-                } else {
-                    let name = run_blocking(client.vault_name(keeper.id()))?;
-                    println!("{}", name);
-                    false
-                }
-            } else {
-                return Err(Error::NoVaultSelected);
-            };
-
-            if renamed {
-                drop(writer);
-                list_vaults(client, state, false)?;
-            }
-        }
-        ShellCommand::Keys => {
-            let reader = state.read().unwrap();
-            if let Some(keeper) = &reader.current {
-                for uuid in keeper.vault().keys() {
-                    println!("{}", uuid);
-                }
-            } else {
-                return Err(Error::NoVaultSelected);
-            }
-        }
-        ShellCommand::List { long } => {
-            let reader = state.read().unwrap();
-            if let Some(keeper) = &reader.current {
-                let meta = keeper.meta_data()?;
-                for (uuid, secret_meta) in meta {
-                    let label = secret_meta.label();
-                    let short_name = secret_meta.short_name();
-                    print!("[{}] ", short_name);
-                    if long {
-                        println!("{} {}", label, uuid);
-                    } else {
-                        println!("{}", label);
-                    }
-                }
             } else {
                 return Err(Error::NoVaultSelected);
             }

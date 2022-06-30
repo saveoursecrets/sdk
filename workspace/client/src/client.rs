@@ -1,13 +1,17 @@
 //! HTTP client implementation.
 use rand::Rng;
-use reqwest::{header::HeaderMap, Client as HttpClient, Response};
+use reqwest::{
+    header::HeaderMap, Client as HttpClient, RequestBuilder, Response,
+};
 use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
     commit_tree::{decode_proof, encode_proof, CommitProof},
+    events::SyncEvent,
     headers::{X_COMMIT_HASH, X_COMMIT_PROOF, X_SIGNED_MESSAGE},
+    patch::Patch,
     signer::Signer,
-    vault::{Summary, MIME_TYPE_VAULT},
+    vault::{encode, Summary, MIME_TYPE_VAULT},
 };
 use std::sync::Arc;
 use url::Url;
@@ -33,6 +37,16 @@ fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
     } else {
         Ok(None)
     }
+}
+
+fn encode_headers_proof(
+    mut builder: RequestBuilder,
+    proof: &CommitProof,
+) -> RequestBuilder {
+    builder = builder.header(X_COMMIT_HASH, base64::encode(&proof.0));
+    builder = builder
+        .header(X_COMMIT_PROOF, base64::encode(encode_proof(&proof.1)));
+    builder
 }
 
 /// Encapsulates the information returned
@@ -128,17 +142,40 @@ impl Client {
             .header(X_SIGNED_MESSAGE, base64::encode(&message));
 
         if let Some(proof) = proof {
-            builder = builder.header(X_COMMIT_HASH, base64::encode(&proof.0));
-            builder = builder.header(
-                X_COMMIT_PROOF,
-                base64::encode(encode_proof(&proof.1)),
-            );
+            builder = encode_headers_proof(builder, &proof);
         }
 
         let response = builder.send().await?;
         let headers = response.headers();
-        let proof = decode_headers_proof(headers)?;
-        Ok((response, proof))
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((response, server_proof))
+    }
+
+    /// Apply events to the WAL file on a remote server.
+    pub async fn patch_wal<'a>(
+        &self,
+        vault_id: &Uuid,
+        proof: &CommitProof,
+        events: Vec<SyncEvent<'a>>,
+    ) -> Result<(Response, Patch<'a>, Option<CommitProof>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let patch: Patch = events.into();
+        let message = encode(&patch)?;
+        let signature =
+            self.encode_signature(self.signer.sign(&message).await?)?;
+
+        let mut builder = self
+            .http_client
+            .patch(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature));
+
+        builder = encode_headers_proof(builder, proof);
+        builder = builder.body(message);
+
+        let response = builder.send().await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((response, patch, server_proof))
     }
 
     /*
