@@ -18,7 +18,7 @@ use url::Url;
 use uuid::Uuid;
 use web3_signature::Signature;
 
-use crate::Result;
+use crate::{Error, Result};
 
 type Challenge = [u8; 32];
 
@@ -178,9 +178,11 @@ impl Client {
         Ok((response, patch, server_proof))
     }
 
-    /*
-    /// Get the change sequence for a vault.
-    pub async fn head_vault(&self, vault_id: &Uuid) -> Result<VaultInfo> {
+    /// Get the commit proof for a remote WAL file.
+    pub async fn head_wal(
+        &self,
+        vault_id: &Uuid,
+    ) -> Result<(Response, CommitProof)> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let (message, signature) = self.self_signed().await?;
         let response = self
@@ -190,14 +192,11 @@ impl Client {
             .header(X_SIGNED_MESSAGE, base64::encode(&message))
             .send()
             .await?;
-        let change_seq = response
-            .headers()
-            .get(X_CHANGE_SEQUENCE)
-            .ok_or_else(|| Error::ChangeSequenceHeader)?;
-        let change_seq: u32 = change_seq.to_str()?.parse()?;
-        Ok(VaultInfo { change_seq })
+        let headers = response.headers();
+        let server_proof =
+            decode_headers_proof(headers)?.ok_or(Error::ServerProof)?;
+        Ok((response, server_proof))
     }
-    */
 
     /*
     /// Read the buffer for a vault.

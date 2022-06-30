@@ -261,7 +261,7 @@ impl Cache {
                 }
             }
         } else {
-            todo!();
+            Err(Error::CacheNotAvailable(*summary.id()))
         }
     }
 
@@ -277,6 +277,21 @@ impl Cache {
             return Err(Error::SetVaultName(response.status().into()));
         }
         Ok(())
+    }
+
+    /// Get a comparison between a local WAL and remote WAL.
+    pub async fn head_wal(
+        &self,
+        summary: &Summary,
+    ) -> Result<(CommitProof, CommitProof)> {
+        if let Some((_, wal)) = self.cache.get(summary.id()) {
+            let client_proof = wal.tree().head()?;
+            let (_response, server_proof) =
+                self.client.head_wal(summary.id()).await?;
+            Ok((client_proof, server_proof))
+        } else {
+            Err(Error::CacheNotAvailable(*summary.id()))
+        }
     }
 
     /// Get the default root directory used for caching client data.

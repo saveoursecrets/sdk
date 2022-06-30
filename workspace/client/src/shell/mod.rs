@@ -15,7 +15,7 @@ use sos_core::{
     diceware::generate,
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta, SecretRef},
-    vault::{encode, Vault, VaultAccess},
+    vault::{encode, CommitHash, Vault, VaultAccess},
 };
 use sos_readline::{
     read_flag, read_line, read_line_allow_empty, read_multiline, read_option,
@@ -49,8 +49,11 @@ enum ShellCommand {
     Info,
     /// Get or set the name of the selected vault.
     Name { name: Option<String> },
-    /// Print local and remote change sequences.
-    Seq,
+    /// Inspect WAL commit trees.
+    Wal {
+        #[clap(subcommand)]
+        cmd: Wal,
+    },
     /// Print secret keys for the selected vault.
     Keys,
     /// List secrets for the selected vault.
@@ -95,6 +98,12 @@ enum Add {
     Account { label: Option<String> },
     /// Add a file.
     File { path: String, label: Option<String> },
+}
+
+#[derive(Subcommand, Debug)]
+enum Wal {
+    /// Print status of current vault.
+    Status,
 }
 
 fn get_label(label: Option<String>) -> Result<String> {
@@ -329,6 +338,19 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 list_vaults(cache, false)?;
             }
         }
+        ShellCommand::Wal { cmd } => match cmd {
+            Wal::Status => {
+                let reader = cache.read().unwrap();
+                if let Some(keeper) = reader.current() {
+                    let (client_proof, server_proof) =
+                        run_blocking(reader.head_wal(keeper.summary()))?;
+                    println!("client = {}", CommitHash(client_proof.0));
+                    println!("server = {}", CommitHash(server_proof.0));
+                } else {
+                    return Err(Error::NoVaultSelected);
+                }
+            }
+        },
 
         /*
         ShellCommand::Remove { vault } => {
