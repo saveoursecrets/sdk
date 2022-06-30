@@ -107,8 +107,14 @@ impl WalProvider for WalMemory {
         self.tree.append(&mut hashes);
         self.tree.commit();
 
-        if let Some(_expected) = expect {
-            todo!("rollback if expected hash does not match");
+        // Rollback to previous state if expected commit hash
+        // does not match the new commit hash
+        if let (Some(expected), Some(root)) = (expect, self.tree.root()) {
+            let other_root: [u8; 32] = expected.into();
+            if other_root != root {
+                self.records.truncate(offset);
+                self.tree.rollback();
+            }
         }
 
         Ok(commits)

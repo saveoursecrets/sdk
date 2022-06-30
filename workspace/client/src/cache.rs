@@ -264,8 +264,9 @@ impl Cache {
                         }
                     }
 
-                    // TODO: revert these changes if the new hashes do not match!
-                    wal.apply(changes, None)?;
+                    // Pass the expected root hash so changes are reverted
+                    // if the root hashes do not match
+                    wal.apply(changes, Some(CommitHash(server_proof.0)))?;
 
                     let client_proof = wal.tree().head()?;
                     assert_proofs_eq(client_proof, server_proof)?;

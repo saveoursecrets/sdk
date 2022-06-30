@@ -108,6 +108,11 @@ impl CommitTree {
         self.tree.commit()
     }
 
+    /// Revert changes to the tree.
+    pub fn rollback(&mut self) {
+        self.tree.rollback()
+    }
+
     /// Get the leaves of the tree.
     pub fn leaves(&self) -> Option<Vec<<Sha256 as Hasher>::Hash>> {
         self.tree.leaves()
