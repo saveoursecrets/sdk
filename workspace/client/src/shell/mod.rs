@@ -13,6 +13,7 @@ use url::Url;
 
 use sos_core::{
     diceware::generate,
+    events::SyncEvent,
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta, SecretRef},
     vault::{encode, CommitHash, Vault, VaultAccess},
@@ -104,6 +105,11 @@ enum Add {
 enum Wal {
     /// Print status of current vault.
     Status,
+    /*
+    /// List commits in local WAL cache.
+    #[clap(alias = "ls")]
+    List,
+    */
 }
 
 fn get_label(label: Option<String>) -> Result<String> {
@@ -351,6 +357,45 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 }
             }
         },
+        ShellCommand::Add { cmd } => {
+            let mut writer = cache.write().unwrap();
+            let keeper =
+                writer.current_mut().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
+            let result = match cmd {
+                Add::Note { label } => add_note(label)?,
+                Add::List { label } => add_credentials(label)?,
+                Add::Account { label } => add_account(label)?,
+                Add::File { path, label } => add_file(path, label)?,
+            };
+
+            let result = if let Some((secret_meta, secret)) = result {
+                if let SyncEvent::CreateSecret(id, value) =
+                    keeper.create(secret_meta, secret)?
+                {
+                    // Must clone the event to appease the borrow checker
+                    Some((
+                        summary,
+                        SyncEvent::CreateSecret(
+                            id,
+                            Cow::Owned(value.into_owned()),
+                        ),
+                    ))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            if let Some((summary, event)) = result {
+                let response =
+                    run_blocking(writer.patch_vault(&summary, vec![event]))?;
+                if !response.status().is_success() {
+                    return Err(Error::AddSecret(response.status().into()));
+                }
+            }
+        }
 
         /*
         ShellCommand::Remove { vault } => {
@@ -398,24 +443,6 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 }
             } else {
                 return Err(Error::VaultNotAvailable(vault));
-            }
-        }
-        ShellCommand::Seq => {
-            let reader = state.read().unwrap();
-            if let Some(keeper) = &reader.current {
-                todo!();
-
-                /*
-                let VaultInfo {
-                    change_seq: remote_change_seq,
-                } = run_blocking(client.head_vault(keeper.id()))?;
-                println!(
-                    "Local = {}, Remote = {}",
-                    local_change_seq, remote_change_seq
-                );
-                */
-            } else {
-                return Err(Error::NoVaultSelected);
             }
         }
         ShellCommand::Add { cmd } => {

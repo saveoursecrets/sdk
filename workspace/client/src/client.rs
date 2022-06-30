@@ -161,6 +161,7 @@ impl Client {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let patch: Patch = events.into();
         let message = encode(&patch)?;
+
         let signature =
             self.encode_signature(self.signer.sign(&message).await?)?;
 

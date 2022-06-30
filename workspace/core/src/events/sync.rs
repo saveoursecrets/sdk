@@ -29,7 +29,7 @@ use super::EventKind;
 /// it on the server side to make changes to a vault
 /// we should decode to owned data hence the use of `Cow`
 /// to distinguish between borrowed and owned.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SyncEvent<'a> {
     /// Default variant, should never be used.
     ///

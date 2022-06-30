@@ -3,7 +3,7 @@ use crate::{client::Client, Error, Result};
 use reqwest::{Response, StatusCode};
 use sos_core::{
     commit_tree::CommitProof,
-    events::SyncEvent,
+    events::{SyncEvent, WalEvent},
     file_identity::{FileIdentity, WAL_IDENTITY},
     gatekeeper::Gatekeeper,
     secret::SecretRef,
@@ -237,20 +237,38 @@ impl Cache {
 
     /// Attempt to patch a remote WAL file.
     pub async fn patch_vault<'a>(
-        &self,
+        &mut self,
         summary: &Summary,
         events: Vec<SyncEvent<'a>>,
     ) -> Result<Response> {
-        if let Some((_, wal)) = self.cache.get(summary.id()) {
+        if let Some((_, wal)) = self.cache.get_mut(summary.id()) {
             let proof = wal.tree().head()?;
-
-            let (response, _, server_proof) =
+            let (response, patch, server_proof) =
                 self.client.patch_wal(summary.id(), &proof, events).await?;
 
             let status = response.status();
             match status {
                 StatusCode::OK => {
-                    println!("REMOTE SERVER PATCH WAS APPLIED");
+                    let server_proof =
+                        server_proof.ok_or(Error::ServerProof)?;
+                    let change_set: Vec<SyncEvent<'a>> = patch.into();
+
+                    // Apply changes to the local WAL file
+                    let mut changes = Vec::new();
+                    for event in change_set {
+                        if let Ok::<WalEvent<'_>, sos_core::Error>(
+                            wal_event,
+                        ) = event.try_into()
+                        {
+                            changes.push(wal_event);
+                        }
+                    }
+
+                    // TODO: revert these changes if the new hashes do not match!
+                    wal.apply(changes)?;
+
+                    let client_proof = wal.tree().head()?;
+                    assert_proofs_eq(client_proof, server_proof)?;
                     Ok(response)
                 }
                 StatusCode::CONFLICT => {
@@ -267,7 +285,7 @@ impl Cache {
 
     /// Attempt to set the vault name on the remote server.
     pub async fn set_vault_name(
-        &self,
+        &mut self,
         summary: &Summary,
         name: &str,
     ) -> Result<()> {
