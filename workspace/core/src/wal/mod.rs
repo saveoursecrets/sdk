@@ -151,7 +151,6 @@ mod test {
     use super::{memory::*, *};
     use crate::{
         commit_tree::{hash, Comparison},
-        crypto::AeadPack,
         events::WalEvent,
         secret::SecretId,
         vault::{encode, CommitHash, Vault, VaultCommit, VaultEntry},

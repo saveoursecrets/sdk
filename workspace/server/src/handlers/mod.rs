@@ -1,7 +1,7 @@
 use axum::{
     body::{Body, Bytes},
     extract::Extension,
-    http::{Request, Response, StatusCode},
+    http::{header::HeaderMap, HeaderValue, Request, Response, StatusCode},
     response::{IntoResponse, Redirect},
     Json,
 };
@@ -11,14 +11,66 @@ use axum::{
 use serde_json::json;
 
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockWriteGuard};
 
-use crate::{assets::Assets, State};
+use crate::{
+    assets::Assets,
+    headers::{X_COMMIT_HASH, X_COMMIT_PROOF},
+    State,
+};
+
+use sos_core::{
+    commit_tree::{encode_proof, CommitProof},
+    events::{AuditEvent, AuditProvider, ChangeEvent},
+};
 
 pub(crate) mod account;
 pub(crate) mod auth;
 pub(crate) mod sse;
 pub(crate) mod wal;
+
+fn append_commit_headers(
+    headers: &mut HeaderMap,
+    proof: &CommitProof,
+) -> Result<(), StatusCode> {
+    let CommitProof(server_root, server_proof) = proof;
+    let x_commit_hash = HeaderValue::from_str(&hex::encode(server_root))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    headers.insert(X_COMMIT_HASH.clone(), x_commit_hash);
+    let x_commit_proof =
+        HeaderValue::from_str(&base64::encode(encode_proof(&server_proof)))
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
+    Ok(())
+}
+
+async fn append_audit_logs<'a>(
+    writer: &mut RwLockWriteGuard<'a, State>,
+    logs: Vec<AuditEvent>,
+) -> Result<(), StatusCode> {
+    for log in logs {
+        writer
+            .audit_log
+            .append_audit_event(log)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    }
+    Ok(())
+}
+
+fn send_notifications<'a>(
+    writer: &mut RwLockWriteGuard<'a, State>,
+    notifications: Vec<ChangeEvent>,
+) {
+    // Send notifications on the SSE channel
+    for event in notifications {
+        if let Some(conn) = writer.sse.get(event.address()) {
+            if let Err(_) = conn.tx.send(event) {
+                tracing::debug!("server sent events channel dropped");
+            }
+        }
+    }
+}
 
 // Serve the home page.
 pub(crate) async fn home(

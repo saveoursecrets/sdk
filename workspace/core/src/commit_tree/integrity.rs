@@ -107,10 +107,7 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{
-        test_utils::*,
-        vault::{encode, VaultAccess},
-    };
+    use crate::{test_utils::*, vault::encode};
 
     // TODO: test for corrupt vault / WAL
 
@@ -128,7 +125,7 @@ mod test {
         let (_, mut vault, _) = mock_vault_file()?;
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
-        let (secret_id, commit, _, _, _) = mock_vault_note(
+        let (_secret_id, _commit, _, _, _) = mock_vault_note(
             &mut vault,
             &encryption_key,
             secret_label,

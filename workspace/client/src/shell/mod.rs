@@ -7,25 +7,21 @@ use std::{
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
-use human_bytes::human_bytes;
+
 use terminal_banner::{Banner, Padding};
 use url::Url;
 
 use sos_core::{
     diceware::generate,
-    events::SyncEvent,
-    gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta, SecretRef},
-    vault::{encode, Summary, Vault, VaultAccess, VaultCommit, VaultEntry},
+    vault::{encode, Vault, VaultAccess},
 };
 use sos_readline::{
     read_flag, read_line, read_line_allow_empty, read_multiline, read_option,
     read_password,
 };
 
-use crate::{
-    display_passphrase, run_blocking, Cache, Client, Error, Result, VaultInfo,
-};
+use crate::{display_passphrase, run_blocking, Cache, Error, Result};
 
 mod editor;
 mod print;

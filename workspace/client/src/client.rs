@@ -4,17 +4,16 @@ use reqwest::{Client as HttpClient, Response};
 use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
-    headers::{X_COMMIT_HASH, X_COMMIT_PROOF, X_SIGNED_MESSAGE},
-    secret::SecretId,
+    headers::X_SIGNED_MESSAGE,
     signer::Signer,
-    vault::{Summary, VaultCommit, MIME_TYPE_VAULT},
+    vault::{Summary, MIME_TYPE_VAULT},
 };
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
 use web3_signature::Signature;
 
-use crate::{Error, Result};
+use crate::Result;
 
 type Challenge = [u8; 32];
 

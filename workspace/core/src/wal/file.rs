@@ -268,7 +268,7 @@ impl WalFileIterator {
         de: &mut Deserializer,
         offset: Range<usize>,
     ) -> Result<WalFileRecord> {
-        let start = de.reader.tell()?;
+        let _start = de.reader.tell()?;
         let mut row: WalFileRecord = Default::default();
         row.decode(&mut *de)?;
 
@@ -406,7 +406,7 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{commit_tree::CommitTree, events::WalEvent, test_utils::*};
+    use crate::{events::WalEvent, test_utils::*};
 
     fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
         let (encryption_key, _) = mock_encryption_key()?;

@@ -2,14 +2,14 @@ use axum::{
     body::Bytes,
     extract::{Extension, TypedHeader},
     headers::{authorization::Bearer, Authorization},
-    http::StatusCode,
+    http::{header::HeaderMap, StatusCode},
 };
 
 //use axum_macros::debug_handler;
 
 use sos_core::{
-    events::{AuditEvent, AuditProvider, EventKind},
-    vault::Vault,
+    events::{AuditEvent, ChangeEvent},
+    vault::Header,
 };
 
 use std::sync::Arc;
@@ -20,6 +20,8 @@ use crate::{
     Backend, State,
 };
 
+use super::{append_audit_logs, append_commit_headers, send_notifications};
+
 // Handlers for account events.
 pub(crate) struct AccountHandler;
 impl AccountHandler {
@@ -28,7 +30,7 @@ impl AccountHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
-    ) -> Result<StatusCode, StatusCode> {
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &body)
         {
@@ -38,30 +40,32 @@ impl AccountHandler {
                     return Err(StatusCode::CONFLICT);
                 }
 
-                if let Ok(vault) = Vault::read_buffer(&body) {
-                    let uuid = vault.id();
-                    if let Ok(_) = writer
-                        .backend
-                        .create_account(&token.address, &uuid, &body)
-                        .await
-                    {
-                        let log = AuditEvent::new(
-                            EventKind::CreateAccount,
-                            token.address,
-                            None,
-                        );
-                        writer
-                            .audit_log
-                            .append_audit_event(log)
-                            .await
-                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                        Ok(StatusCode::OK)
-                    } else {
-                        Err(StatusCode::INTERNAL_SERVER_ERROR)
-                    }
-                } else {
-                    Err(StatusCode::BAD_REQUEST)
-                }
+                let summary = Header::read_summary_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                let (sync_event, proof) = writer
+                    .backend
+                    .create_account(&token.address, summary.id(), &body)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                let change_event = ChangeEvent::CreateVault {
+                    vault_id: *summary.id(),
+                    address: token.address,
+                };
+
+                let log = AuditEvent::from_sync_event(
+                    &sync_event,
+                    token.address,
+                    *summary.id(),
+                );
+
+                append_audit_logs(&mut writer, vec![log]).await?;
+                send_notifications(&mut writer, vec![change_event]);
+
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &proof)?;
+                Ok((StatusCode::OK, headers))
             } else {
                 Err(status_code)
             }

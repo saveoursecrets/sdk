@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
     commit_tree::{integrity::wal_commit_tree, CommitProof},
-    events::WalEvent,
+    events::{SyncEvent, WalEvent},
     file_access::VaultFileAccess,
     file_locks::FileLocks,
     vault::{Header, Summary, Vault, VaultAccess},
@@ -39,12 +39,12 @@ pub trait Backend {
     /// Create a new account with the given default vault.
     ///
     /// The owner directory must not exist.
-    async fn create_account(
+    async fn create_account<'a>(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
-        vault: &[u8],
-    ) -> Result<()>;
+        vault: &'a [u8],
+    ) -> Result<(SyncEvent<'a>, CommitProof)>;
 
     // TODO: support account deletion
 
@@ -72,12 +72,12 @@ pub trait Backend {
     /// Create a new WAL.
     ///
     /// The owner directory must already exist.
-    async fn create_wal(
+    async fn create_wal<'a>(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
-        vault: &[u8],
-    ) -> Result<()>;
+        vault: &'a [u8],
+    ) -> Result<(SyncEvent<'a>, CommitProof)>;
 
     /// Delete a WAL log and corresponding vault.
     async fn delete_wal(
@@ -159,7 +159,7 @@ impl FileSystemBackend {
                         name.to_string_lossy().parse::<AddressStr>()
                     {
                         let accounts = &mut self.accounts;
-                        let vaults = accounts
+                        let _vaults = accounts
                             .entry(owner)
                             .or_insert(Default::default());
                         for entry in std::fs::read_dir(&path)? {
@@ -182,8 +182,7 @@ impl FileSystemBackend {
                                     )?;
                                     let id = *summary.id();
 
-                                    let mut wal_file =
-                                        WalFile::new(&wal_path)?;
+                                    let wal_file = WalFile::new(&wal_path)?;
 
                                     // Store these file paths so locks
                                     // are acquired later
@@ -248,7 +247,7 @@ impl FileSystemBackend {
         &mut self,
         owner: AddressStr,
         vault_id: Uuid,
-        wal_path: PathBuf,
+        _wal_path: PathBuf,
         wal_file: WalFile,
     ) -> Result<()> {
         let vaults = self.accounts.entry(owner).or_insert(Default::default());
@@ -272,12 +271,12 @@ impl Backend for FileSystemBackend {
         &self.locks
     }
 
-    async fn create_account(
+    async fn create_account<'a>(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
-        vault: &[u8],
-    ) -> Result<()> {
+        vault: &'a [u8],
+    ) -> Result<(SyncEvent<'a>, CommitProof)> {
         let account_dir = self.directory.join(owner.to_string());
         if account_dir.exists() {
             return Err(Error::DirectoryExists(account_dir));
@@ -289,18 +288,19 @@ impl Backend for FileSystemBackend {
         tokio::fs::create_dir(account_dir).await?;
         let (wal_path, wal_file) =
             self.new_wal_file(owner, vault_id, vault).await?;
+        let proof = wal_file.tree().head()?;
         self.add_wal_path(*owner, *summary.id(), wal_path, wal_file)
             .await?;
-
-        Ok(())
+        let event = SyncEvent::CreateVault(Cow::Borrowed(&vault));
+        Ok((event, proof))
     }
 
-    async fn create_wal(
+    async fn create_wal<'a>(
         &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
-        vault: &[u8],
-    ) -> Result<()> {
+        vault: &'a [u8],
+    ) -> Result<(SyncEvent<'a>, CommitProof)> {
         let account_dir = self.directory.join(owner.to_string());
         if !account_dir.is_dir() {
             return Err(Error::NotDirectory(account_dir));
@@ -311,10 +311,12 @@ impl Backend for FileSystemBackend {
 
         let (wal_path, wal_file) =
             self.new_wal_file(owner, vault_id, vault).await?;
+
+        let proof = wal_file.tree().head()?;
         self.add_wal_path(*owner, *summary.id(), wal_path, wal_file)
             .await?;
-
-        Ok(())
+        let event = SyncEvent::CreateVault(Cow::Borrowed(&vault));
+        Ok((event, proof))
     }
 
     async fn delete_wal(
@@ -411,7 +413,7 @@ impl Backend for FileSystemBackend {
     ) -> Result<Vec<u8>> {
         if let Some(account) = self.accounts.get(owner) {
             if let Some(_) = account.get(vault_id) {
-                let mut wal_file = self.wal_file_path(owner, vault_id);
+                let wal_file = self.wal_file_path(owner, vault_id);
                 let buffer = tokio::fs::read(wal_file).await?;
                 Ok(buffer)
             } else {
@@ -480,7 +482,7 @@ impl Backend for FileSystemBackend {
             return Err(Error::WalValidateMismatch);
         }
 
-        let mut original_wal = self.wal_file_path(owner, vault_id);
+        let original_wal = self.wal_file_path(owner, vault_id);
 
         let mut backup_wal = original_wal.clone();
         backup_wal.set_extension(WAL_BACKUP_EXT);

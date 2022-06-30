@@ -3,18 +3,17 @@ use axum::{
     body::Bytes,
     extract::{Extension, Path, TypedHeader},
     headers::{authorization::Bearer, Authorization},
-    http::{header::HeaderMap, HeaderValue, StatusCode},
+    http::{header::HeaderMap, StatusCode},
 };
 
 //use axum_macros::debug_handler;
 
 use sos_core::{
     address::AddressStr,
-    commit_tree::{decode_proof, encode_proof, CommitProof, Comparison},
+    commit_tree::{decode_proof, CommitProof, Comparison},
     decode,
     events::{
-        AuditData, AuditEvent, AuditProvider, ChangeEvent, EventKind,
-        SyncEvent, WalEvent,
+        AuditData, AuditEvent, ChangeEvent, EventKind, SyncEvent, WalEvent,
     },
     patch::Patch,
     vault::{CommitHash, Header},
@@ -26,27 +25,11 @@ use uuid::Uuid;
 
 use crate::{
     authenticate,
-    headers::{
-        CommitHashHeader, CommitProofHeader, SignedMessage, X_COMMIT_HASH,
-        X_COMMIT_PROOF,
-    },
+    headers::{CommitHashHeader, CommitProofHeader, SignedMessage},
     Backend, State,
 };
 
-fn append_commit_headers(
-    headers: &mut HeaderMap,
-    proof: &CommitProof,
-) -> Result<(), StatusCode> {
-    let CommitProof(server_root, server_proof) = proof;
-    let x_commit_hash = HeaderValue::from_str(&hex::encode(server_root))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    headers.insert(X_COMMIT_HASH.clone(), x_commit_hash);
-    let x_commit_proof =
-        HeaderValue::from_str(&base64::encode(encode_proof(&server_proof)))
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
-    Ok(())
-}
+use super::{append_audit_logs, append_commit_headers, send_notifications};
 
 enum PatchResult {
     Conflict(CommitProof),
@@ -67,7 +50,7 @@ impl WalHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
-    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &body)
         {
@@ -90,36 +73,32 @@ impl WalHandler {
                     if let Some(proof) = &proof {
                         append_commit_headers(&mut headers, proof)?;
                     }
-                    Ok((StatusCode::CONFLICT, headers, Bytes::from(vec![])))
+                    Ok((StatusCode::CONFLICT, headers))
                 } else {
-                    todo!();
-
-                    /*
                     let mut writer = state.write().await;
-                    writer
+                    let (sync_event, proof) = writer
                         .backend
-                        .create_vault(&token.address, summary.id(), &body)
+                        .create_wal(&token.address, summary.id(), &body)
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                    let payload =
-                        SyncEvent::CreateVault(Cow::Borrowed(&body));
-
-                    let event = ChangeEvent::CreateVault {
+                    let change_event = ChangeEvent::CreateVault {
                         vault_id: *summary.id(),
                         address: token.address,
-                        vault: body.to_vec(),
                     };
 
-                    Ok(MaybeConflict::Success(vec![ResponseEvent {
-                        event: Some(event),
-                        log: AuditEvent::from_sync_event(
-                            &payload,
-                            token.address,
-                            *summary.id(),
-                        ),
-                    }]))
-                    */
+                    let log = AuditEvent::from_sync_event(
+                        &sync_event,
+                        token.address,
+                        *summary.id(),
+                    );
+
+                    append_audit_logs(&mut writer, vec![log]).await?;
+                    send_notifications(&mut writer, vec![change_event]);
+
+                    let mut headers = HeaderMap::new();
+                    append_commit_headers(&mut headers, &proof)?;
+                    Ok((StatusCode::OK, headers))
                 }
             } else {
                 Err(status_code)
@@ -243,11 +222,7 @@ impl WalHandler {
                         token.address,
                         Some(AuditData::Vault(vault_id)),
                     );
-                    writer
-                        .audit_log
-                        .append_audit_event(log)
-                        .await
-                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    append_audit_logs(&mut writer, vec![log]).await?;
                 }
 
                 Ok((status, headers, Bytes::from(buffer)))
@@ -396,24 +371,10 @@ impl WalHandler {
                 }
 
                 // Append audit logs
-                for log in logs {
-                    writer
-                        .audit_log
-                        .append_audit_event(log)
-                        .await
-                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                }
+                append_audit_logs(&mut writer, logs).await?;
 
                 // Send notifications on the SSE channel
-                for event in notifications {
-                    if let Some(conn) = writer.sse.get(event.address()) {
-                        if let Err(_) = conn.tx.send(event) {
-                            tracing::debug!(
-                                "server sent events channel dropped"
-                            );
-                        }
-                    }
-                }
+                send_notifications(&mut writer, notifications);
 
                 // TODO: is sending the commits overkill as the new root
                 // TODO: hash in `x-commit-hash` is enough for the client

@@ -18,8 +18,6 @@ pub enum ChangeEvent {
         address: AddressStr,
         /// The vault identifier.
         vault_id: Uuid,
-        /// The vault buffer.
-        vault: Vec<u8>,
     },
     /// Event emitted when a vault is updated.
     UpdateVault {
@@ -28,8 +26,6 @@ pub enum ChangeEvent {
         address: AddressStr,
         /// The vault identifier.
         vault_id: Uuid,
-        /// The vault buffer.
-        vault: Vec<u8>,
     },
     /// Event emitted when a vault is deleted.
     DeleteVault {
@@ -125,15 +121,13 @@ impl<'u, 'a, 'e> From<(&'u Uuid, &'a AddressStr, &'e SyncEvent<'e>)>
     fn from(value: (&'u Uuid, &'a AddressStr, &'e SyncEvent<'e>)) -> Self {
         let (vault_id, address, payload) = value;
         match payload {
-            SyncEvent::CreateVault(vault) => ChangeEvent::CreateVault {
+            SyncEvent::CreateVault(_) => ChangeEvent::CreateVault {
                 address: address.clone(),
                 vault_id: *vault_id,
-                vault: vault.to_vec(),
             },
-            SyncEvent::UpdateVault(vault) => ChangeEvent::UpdateVault {
+            SyncEvent::UpdateVault(_) => ChangeEvent::UpdateVault {
                 address: address.clone(),
                 vault_id: *vault_id,
-                vault: vault.to_vec(),
             },
             SyncEvent::DeleteVault => ChangeEvent::DeleteVault {
                 address: address.clone(),

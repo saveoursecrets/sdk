@@ -846,7 +846,7 @@ mod tests {
 
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
-        let (secret_id, commit, secret_meta, secret_value, _) =
+        let (secret_id, _commit, secret_meta, secret_value, _) =
             mock_vault_note(
                 &mut vault,
                 &encryption_key,
@@ -895,7 +895,7 @@ mod tests {
 
     #[test]
     fn decode_buffer() -> Result<()> {
-        let (temp, _, buffer) = mock_vault_file()?;
+        let (_temp, _, buffer) = mock_vault_file()?;
         let _vault: Vault = decode(&buffer)?;
         Ok(())
     }

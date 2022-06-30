@@ -241,7 +241,8 @@ mod test {
 
     #[test]
     fn wal_reduce_compact() -> Result<()> {
-        let (temp, mut wal, _, encryption_key, secret_id) = mock_wal_file()?;
+        let (_temp, mut wal, _, _encryption_key, _secret_id) =
+            mock_wal_file()?;
 
         assert_eq!(5, wal.tree().len());
 

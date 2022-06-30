@@ -289,13 +289,13 @@ mod test {
         ];
 
         for (label, note) in secrets {
-            let (secret_meta, secret_value, meta_bytes, secret_bytes) =
+            let (_secret_meta, _secret_value, meta_bytes, secret_bytes) =
                 mock_secret_note(label, note)?;
             let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
             let secret_aead =
                 vault.encrypt(&encryption_key, &secret_bytes)?;
             let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
-            let secret_id = match vault
+            let _secret_id = match vault
                 .create(commit, VaultEntry(meta_aead, secret_aead))?
             {
                 SyncEvent::CreateSecret(secret_id, _) => secret_id,

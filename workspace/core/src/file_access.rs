@@ -26,7 +26,7 @@ use crate::{
         encode, CommitHash, Contents, Header, Summary, VaultAccess,
         VaultCommit, VaultEntry,
     },
-    Error, Result,
+    Result,
 };
 
 /// Wrapper type for accessing a vault file that manages
@@ -43,7 +43,7 @@ impl VaultFileAccess {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
         let file = std::fs::File::open(path.as_ref())?;
-        let metadata = file.metadata()?;
+        let _metadata = file.metadata()?;
         let stream = Mutex::new(FileStream::new(path, OpenType::ReadWrite)?);
         Ok(Self { file_path, stream })
     }
@@ -275,7 +275,7 @@ impl VaultAccess for VaultFileAccess {
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<Option<SyncEvent>> {
-        let (content_offset, total_rows, row) = self.find_row(id)?;
+        let (_content_offset, _total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
             let mut stream = MemoryStream::new();
@@ -394,8 +394,8 @@ mod tests {
             secret_id,
             _secret_meta,
             _secret_value,
-            meta_bytes,
-            secret_bytes,
+            _meta_bytes,
+            _secret_bytes,
         ) = create_secure_note(
             &mut vault_access,
             &vault,
@@ -425,8 +425,8 @@ mod tests {
             secret_id,
             _secret_meta,
             _secret_value,
-            meta_bytes,
-            secret_bytes,
+            _meta_bytes,
+            _secret_bytes,
         ) = create_secure_note(
             &mut vault_access,
             &vault,
