@@ -122,6 +122,10 @@ impl WalProvider for WalMemory {
         Ok(event)
     }
 
+    fn load_tree(&mut self) -> Result<()> {
+        Ok(())
+    }
+
     fn iter(
         &self,
     ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>

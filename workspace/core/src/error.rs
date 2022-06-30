@@ -14,6 +14,11 @@ pub enum Error {
     #[error("bad identity byte {0}")]
     BadIdentity(u8),
 
+    /// Error generated when a buffer used to read identity bytes
+    /// is not long enough.
+    #[error("buffer passed for identity check is too short")]
+    IdentityLength,
+
     /// Error generated when a vault algorithm identifier byte is wrong.
     #[error("unknown algorithm {0}")]
     UnknownAlgorithm(u8),

@@ -65,14 +65,8 @@ impl Header for CommitHashHeader {
         let value = values.next().ok_or_else(headers::Error::invalid)?;
         let value: &str =
             value.to_str().map_err(|_| headers::Error::invalid())?;
-
-        if value.len() != 64 {
-            return Err(headers::Error::invalid());
-        }
-
-        let value = hex::decode(value.as_bytes())
+        let value = base64::decode(value.as_bytes())
             .map_err(|_| headers::Error::invalid())?;
-
         let value: [u8; 32] = value
             .as_slice()
             .try_into()
@@ -84,7 +78,7 @@ impl Header for CommitHashHeader {
     where
         E: Extend<HeaderValue>,
     {
-        let s = hex::encode(&self.0);
+        let s = base64::encode(&self.0);
         let value = HeaderValue::from_str(&s)
             .expect("failed to create commit hash header");
         values.extend(std::iter::once(value));

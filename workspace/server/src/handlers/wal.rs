@@ -177,7 +177,7 @@ impl WalHandler {
 
                         match comparison {
                             Comparison::Equal => {
-                                Err(StatusCode::NOT_MODIFIED)
+                                Ok((StatusCode::NOT_MODIFIED, vec![]))
                             }
                             Comparison::Contains(_, leaf) => {
                                 if let Some(partial) =
@@ -212,6 +212,8 @@ impl WalHandler {
                         Err(StatusCode::INTERNAL_SERVER_ERROR)
                     }
                 };
+
+                drop(reader);
 
                 let (status, buffer) = result?;
 

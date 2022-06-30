@@ -23,6 +23,21 @@ pub const VAULT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
 pub struct FileIdentity(pub [u8; 4]);
 
 impl FileIdentity {
+    /// Read the identity magic bytes from a slice.
+    pub fn read_slice(buffer: &[u8], identity: &[u8]) -> Result<()> {
+        if buffer.len() >= identity.len() {
+            for (index, ident) in identity.iter().enumerate() {
+                let byte = buffer[index];
+                if byte != *ident {
+                    return Err(Error::BadIdentity(byte));
+                }
+            }
+        } else {
+            return Err(Error::IdentityLength);
+        }
+        Ok(())
+    }
+
     /// Read the identity magic bytes.
     pub fn read_identity(
         de: &mut Deserializer,

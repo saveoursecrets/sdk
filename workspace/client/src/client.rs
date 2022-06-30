@@ -1,10 +1,11 @@
 //! HTTP client implementation.
 use rand::Rng;
-use reqwest::{Client as HttpClient, Response};
+use reqwest::{header::HeaderMap, Client as HttpClient, Response};
 use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
-    headers::X_SIGNED_MESSAGE,
+    commit_tree::{decode_proof, encode_proof, CommitProof},
+    headers::{X_COMMIT_HASH, X_COMMIT_PROOF, X_SIGNED_MESSAGE},
     signer::Signer,
     vault::{Summary, MIME_TYPE_VAULT},
 };
@@ -19,6 +20,20 @@ type Challenge = [u8; 32];
 
 const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
+
+fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
+    if let (Some(commit_hash), Some(commit_proof)) =
+        (headers.get(X_COMMIT_HASH), headers.get(X_COMMIT_PROOF))
+    {
+        let commit_hash = base64::decode(commit_hash)?;
+        let commit_proof = base64::decode(commit_proof)?;
+        let commit_hash: [u8; 32] = commit_hash.as_slice().try_into()?;
+        let commit_proof = decode_proof(&commit_proof)?;
+        Ok(Some(CommitProof(commit_hash, commit_proof)))
+    } else {
+        Ok(None)
+    }
+}
 
 /// Encapsulates the information returned
 /// by sending a HEAD request for a vault.
@@ -96,6 +111,34 @@ impl Client {
             .send()
             .await?;
         Ok(response)
+    }
+
+    /// Get the WAL bytes for a vault.
+    pub async fn get_wal(
+        &self,
+        vault_id: &Uuid,
+        proof: Option<&CommitProof>,
+    ) -> Result<(Response, Option<CommitProof>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let mut builder = self
+            .http_client
+            .get(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message));
+
+        if let Some(proof) = proof {
+            builder = builder.header(X_COMMIT_HASH, base64::encode(&proof.0));
+            builder = builder.header(
+                X_COMMIT_PROOF,
+                base64::encode(encode_proof(&proof.1)),
+            );
+        }
+
+        let response = builder.send().await?;
+        let headers = response.headers();
+        let proof = decode_headers_proof(headers)?;
+        Ok((response, proof))
     }
 
     /*

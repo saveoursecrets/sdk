@@ -182,7 +182,9 @@ impl FileSystemBackend {
                                     )?;
                                     let id = *summary.id();
 
-                                    let wal_file = WalFile::new(&wal_path)?;
+                                    let mut wal_file =
+                                        WalFile::new(&wal_path)?;
+                                    wal_file.load_tree()?;
 
                                     // Store these file paths so locks
                                     // are acquired later

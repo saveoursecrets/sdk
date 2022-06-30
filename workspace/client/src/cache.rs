@@ -1,7 +1,34 @@
 //! Cache of local WAL files.
 use crate::{client::Client, Error, Result};
-use sos_core::{gatekeeper::Gatekeeper, vault::Summary};
-use std::path::{Path, PathBuf};
+use reqwest::StatusCode;
+use sos_core::{
+    commit_tree::CommitProof,
+    file_identity::{FileIdentity, WAL_IDENTITY},
+    gatekeeper::Gatekeeper,
+    secret::SecretRef,
+    vault::{CommitHash, Summary, Vault},
+    wal::{file::WalFile, reducer::WalReducer, WalProvider},
+};
+use std::{
+    collections::HashMap,
+    fs::OpenOptions,
+    io::Write,
+    path::{Path, PathBuf},
+};
+use uuid::Uuid;
+
+fn assert_proofs_eq(
+    client_proof: CommitProof,
+    server_proof: CommitProof,
+) -> Result<()> {
+    if client_proof.0 != server_proof.0 {
+        let client = CommitHash(client_proof.0);
+        let server = CommitHash(server_proof.0);
+        Err(Error::RootHashMismatch(client, server))
+    } else {
+        Ok(())
+    }
+}
 
 /// Implements client-side caching of WAL files.
 pub struct Cache {
@@ -15,6 +42,8 @@ pub struct Cache {
     cache_dir: PathBuf,
     /// Directory for the user cache.
     user_dir: PathBuf,
+    /// Data for the cache.
+    cache: HashMap<Uuid, (PathBuf, WalFile)>,
 }
 
 impl Cache {
@@ -36,6 +65,7 @@ impl Cache {
             client,
             cache_dir,
             user_dir,
+            cache: Default::default(),
         })
     }
 
@@ -64,11 +94,143 @@ impl Cache {
         self.current = current;
     }
 
+    /// Attempt to find a summary in this cache.
+    pub fn find_summary(&self, vault: &SecretRef) -> Option<&Summary> {
+        match vault {
+            SecretRef::Name(name) => {
+                self.summaries.iter().find(|s| s.name() == name)
+            }
+            SecretRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
+        }
+    }
+
     /// Load the vault summaries from the remote server.
     pub async fn load_summaries(&mut self) -> Result<&[Summary]> {
         let summaries = self.client.list_vaults().await?;
+        self.load_caches(&summaries)?;
         self.summaries = summaries;
         Ok(self.summaries())
+    }
+
+    fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
+        for summary in summaries {
+            let cached_wal_path = self.wal_path(summary);
+            if cached_wal_path.exists() {
+                let mut wal_file = WalFile::new(&cached_wal_path)?;
+                wal_file.load_tree()?;
+                self.cache
+                    .insert(*summary.id(), (cached_wal_path, wal_file));
+            }
+        }
+        Ok(())
+    }
+
+    fn wal_path(&self, summary: &Summary) -> PathBuf {
+        let wal_name = format!("{}.{}", summary.id(), WalFile::extension());
+        self.user_dir.join(&wal_name)
+    }
+
+    /// Load a vault by attempting to fetch the WAL file and caching
+    /// the result on disc.
+    pub async fn load_vault(&mut self, summary: &Summary) -> Result<Vault> {
+        let cached_wal_path = self.wal_path(summary);
+
+        // Cache already exists so attempt to get a diff of records
+        // to append
+        let cached = if cached_wal_path.exists() {
+            let mut wal_file = WalFile::new(&cached_wal_path)?;
+            wal_file.load_tree()?;
+            let proof = wal_file.tree().head()?;
+            (wal_file, Some(proof))
+        // Otherwise prepare a new WAL cache
+        } else {
+            let mut wal_file = WalFile::new(&cached_wal_path)?;
+            (wal_file, None)
+        };
+
+        let (response, server_proof) =
+            self.client.get_wal(summary.id(), cached.1.as_ref()).await?;
+
+        let status = response.status();
+
+        match status {
+            StatusCode::OK => {
+                if let Some(server_proof) = server_proof {
+                    let (client_proof, wal_file) = match cached {
+                        // If we sent a proof to the server then we
+                        // are expecting a diff of records
+                        (mut wal_file, Some(proof)) => {
+                            let buffer = response.bytes().await?;
+
+                            // Check the identity looks good
+                            FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
+
+                            // Get buffer of log records after the identity
+                            let record_bytes =
+                                &buffer[WAL_IDENTITY.len() - 1..buffer.len()];
+
+                            // Append the diff bytes without the identity
+                            let mut file = OpenOptions::new()
+                                .write(true)
+                                .append(true)
+                                .open(&cached_wal_path)?;
+                            file.write(record_bytes)?;
+                            wal_file.load_tree()?;
+
+                            (wal_file.tree().head()?, wal_file)
+                        }
+                        // Otherwise the server should send us the entire
+                        // WAL file
+                        (mut wal_file, None) => {
+                            // Read in the entire response buffer
+                            let buffer = response.bytes().await?;
+
+                            // Check the identity looks good
+                            FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
+
+                            std::fs::write(&cached_wal_path, &buffer)?;
+                            wal_file.load_tree()?;
+
+                            (wal_file.tree().head()?, wal_file)
+                        }
+                    };
+
+                    assert_proofs_eq(client_proof, server_proof)?;
+
+                    self.cache
+                        .insert(*summary.id(), (cached_wal_path, wal_file));
+
+                    // Build the vault from the WAL file
+                    let (_, wal) = self.cache.get_mut(summary.id()).unwrap();
+                    let vault = WalReducer::new().reduce(wal)?.build()?;
+
+                    Ok(vault)
+                } else {
+                    Err(Error::ServerProof)
+                }
+            }
+            StatusCode::NOT_MODIFIED => {
+                // Build the vault from the cached WAL file
+                if let Some((_, wal)) = self.cache.get_mut(summary.id()) {
+                    if let Some(server_proof) = server_proof {
+                        let client_proof = wal.tree().head()?;
+                        assert_proofs_eq(client_proof, server_proof)?;
+                        let vault = WalReducer::new().reduce(wal)?.build()?;
+                        Ok(vault)
+                    } else {
+                        Err(Error::ServerProof)
+                    }
+                } else {
+                    Err(Error::CacheNotAvailable(*summary.id()))
+                }
+            }
+            StatusCode::CONFLICT => {
+                todo!("handle conflicts");
+            }
+            _ => {
+                todo!("handle errors {:#?}", response);
+            }
+        }
     }
 
     /// Get the default root directory used for caching client data.

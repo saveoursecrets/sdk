@@ -13,6 +13,7 @@ use url::Url;
 
 use sos_core::{
     diceware::generate,
+    gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta, SecretRef},
     vault::{encode, Vault, VaultAccess},
 };
@@ -251,7 +252,63 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
             drop(reader);
             list_vaults(cache, false)?;
         }
-        _ => todo!(),
+        ShellCommand::Use { vault } => {
+            let reader = cache.read().unwrap();
+            let summary = reader.find_summary(&vault).map(|s| s.clone());
+            drop(reader);
+            if let Some(summary) = &summary {
+                let mut writer = cache.write().unwrap();
+                let vault = run_blocking(writer.load_vault(summary))?;
+                let mut keeper = Gatekeeper::new(vault);
+                let password = read_password(Some("Passphrase: "))?;
+                if let Ok(_) = keeper.unlock(&password) {
+                    writer.set_current(Some(keeper));
+                } else {
+                    return Err(Error::VaultUnlockFail);
+                }
+
+                /*
+                let vault_bytes =
+                    run_blocking(client.read_vault(summary.id()))?;
+                let vault = Vault::read_buffer(vault_bytes)?;
+                let mut keeper = Gatekeeper::new(vault);
+                let password = read_password(Some("Passphrase: "))?;
+                if let Ok(_) = keeper.unlock(&password) {
+                    writer.current = Some(keeper);
+                } else {
+                    return Err(Error::VaultUnlockFail);
+                }
+                */
+            } else {
+                return Err(Error::VaultNotAvailable(vault));
+            }
+
+            /*
+            let summary = match &vault {
+                SecretRef::Name(name) => {
+                    writer.summaries.iter().find(|s| s.name() == name)
+                }
+                SecretRef::Id(id) => {
+                    writer.summaries.iter().find(|s| s.id() == id)
+                }
+            };
+
+            if let Some(summary) = summary {
+                let vault_bytes =
+                    run_blocking(client.read_vault(summary.id()))?;
+                let vault = Vault::read_buffer(vault_bytes)?;
+                let mut keeper = Gatekeeper::new(vault);
+                let password = read_password(Some("Passphrase: "))?;
+                if let Ok(_) = keeper.unlock(&password) {
+                    writer.current = Some(keeper);
+                } else {
+                    return Err(Error::VaultUnlockFail);
+                }
+            } else {
+                return Err(Error::VaultNotAvailable(vault));
+            }
+            */
+        }
 
         /*
         ShellCommand::Remove { vault } => {
@@ -296,32 +353,6 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 if removed {
                     drop(writer);
                     list_vaults(client, state, false)?;
-                }
-            } else {
-                return Err(Error::VaultNotAvailable(vault));
-            }
-        }
-        ShellCommand::Use { vault } => {
-            let mut writer = state.write().unwrap();
-            let summary = match &vault {
-                SecretRef::Name(name) => {
-                    writer.summaries.iter().find(|s| s.name() == name)
-                }
-                SecretRef::Id(id) => {
-                    writer.summaries.iter().find(|s| s.id() == id)
-                }
-            };
-
-            if let Some(summary) = summary {
-                let vault_bytes =
-                    run_blocking(client.read_vault(summary.id()))?;
-                let vault = Vault::read_buffer(vault_bytes)?;
-                let mut keeper = Gatekeeper::new(vault);
-                let password = read_password(Some("Passphrase: "))?;
-                if let Ok(_) = keeper.unlock(&password) {
-                    writer.current = Some(keeper);
-                } else {
-                    return Err(Error::VaultUnlockFail);
                 }
             } else {
                 return Err(Error::VaultNotAvailable(vault));
@@ -662,6 +693,10 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
         ShellCommand::Quit => {
             std::process::exit(0);
         }
+
+        /////////////////////////////////////////////////////
+        _ => todo!(),
+        /////////////////////////////////////////////////////
     }
     Ok(())
 }

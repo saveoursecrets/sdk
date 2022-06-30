@@ -56,6 +56,9 @@ pub trait WalProvider {
     /// Get the commit tree for the log records.
     fn tree(&self) -> &CommitTree;
 
+    /// Load any cached data into the WAL implementation to build a commit tree in memory.
+    fn load_tree(&mut self) -> Result<()>;
+
     /// Get an iterator of the log records.
     fn iter(
         &self,

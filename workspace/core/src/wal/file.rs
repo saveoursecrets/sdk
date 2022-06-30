@@ -230,6 +230,17 @@ impl WalProvider for WalFile {
         Ok(event)
     }
 
+    fn load_tree(&mut self) -> Result<()> {
+        let mut commits = Vec::new();
+        for record in self.iter()? {
+            let record = record?;
+            commits.push(record.commit());
+        }
+        self.tree.append(&mut commits);
+        self.tree.commit();
+        Ok(())
+    }
+
     fn iter(
         &self,
     ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>

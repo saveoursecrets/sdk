@@ -1,6 +1,7 @@
-use sos_core::secret::SecretRef;
+use sos_core::{secret::SecretRef, vault::CommitHash};
 use std::path::PathBuf;
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -55,6 +56,15 @@ pub enum Error {
     #[error("editor command did not exit successfully, status {0}")]
     EditorExit(i32),
 
+    #[error("client and server root hashes do not match; client = {0}, server = {1}")]
+    RootHashMismatch(CommitHash, CommitHash),
+
+    #[error("server failed to send the expected commit proof headers")]
+    ServerProof,
+
+    #[error("cache not available for {0}")]
+    CacheNotAvailable(Uuid),
+
     #[error(transparent)]
     ParseInt(#[from] std::num::ParseIntError),
 
@@ -96,4 +106,7 @@ pub enum Error {
 
     #[error(transparent)]
     ShellWords(#[from] shell_words::ParseError),
+
+    #[error(transparent)]
+    Base64Decode(#[from] base64::DecodeError),
 }
