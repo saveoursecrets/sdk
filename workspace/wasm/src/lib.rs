@@ -336,6 +336,6 @@ pub fn generate_passphrase(words: u8) -> Result<JsValue, JsError> {
 /// list of change set (collection of `SyncEvent`).
 #[wasm_bindgen]
 pub fn patch(change_set: JsValue) -> Result<Vec<u8>, JsError> {
-    let patches: Vec<SyncEvent> = change_set.into_serde()?;
-    Ok(encode(&Patch::from(patches))?)
+    let patches: Vec<SyncEvent<'_>> = change_set.into_serde()?;
+    Ok(encode(&Patch(patches))?)
 }

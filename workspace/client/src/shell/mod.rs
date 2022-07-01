@@ -14,7 +14,6 @@ use url::Url;
 use human_bytes::human_bytes;
 use sos_core::{
     diceware::generate,
-    events::SyncEvent,
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{
@@ -131,24 +130,6 @@ fn find_secret_meta(
         Ok(None)
     }
 }
-
-/// Attempt to read secret meta data and the secret for a reference.
-/*
-fn find_secret(
-    cache: Arc<RwLock<Cache>>,
-    secret: &SecretRef,
-) -> Result<Option<(SecretId, SecretMeta, Secret)>> {
-    let (uuid, _) = find_secret_meta(Arc::clone(&cache), secret)?
-        .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-    let reader = cache.read().unwrap();
-    let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
-    if let Some((secret_meta, secret, _)) = keeper.read(&uuid)? {
-        Ok(Some((uuid, secret_meta, secret)))
-    } else {
-        Ok(None)
-    }
-}
-*/
 
 fn get_label(label: Option<String>) -> Result<String> {
     if let Some(label) = label {
@@ -287,74 +268,58 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
     match program.cmd {
         ShellCommand::Vaults => list_vaults(cache, true),
         ShellCommand::Create { name } => {
-            let reader = cache.read().unwrap();
+            let mut writer = cache.write().unwrap();
             let (passphrase, _) = generate()?;
             let mut vault: Vault = Default::default();
             vault.set_name(name);
             vault.initialize(&passphrase)?;
             let buffer = encode(&vault)?;
 
-            let response =
-                run_blocking(reader.client().create_vault(buffer))?;
+            let response = run_blocking(writer.create_wal(buffer))?;
 
-            if !response.status().is_success() {
-                return Err(Error::VaultCreate(response.status().into()));
-            }
+            response
+                .status()
+                .is_success()
+                .then_some(())
+                .ok_or(Error::VaultCreate(response.status().into()))?;
+
             display_passphrase("ENCRYPTION PASSPHRASE", &passphrase);
 
-            drop(reader);
+            drop(writer);
             list_vaults(cache, false)
         }
         ShellCommand::Remove { vault } => {
-            todo!();
+            let reader = cache.read().unwrap();
+            let summary = reader
+                .find_summary(&vault)
+                .ok_or(Error::VaultNotAvailable(vault.clone()))?
+                .clone();
+            let prompt = format!(
+                r#"Permanently delete vault "{}" (y/n)? "#,
+                summary.name(),
+            );
 
-            /*
-            let mut writer = state.write().unwrap();
-            let summary = match &vault {
-                SecretRef::Name(name) => {
-                    writer.summaries.iter().find(|s| s.name() == name)
-                }
-                SecretRef::Id(id) => {
-                    writer.summaries.iter().find(|s| s.id() == id)
-                }
-            };
+            drop(reader);
 
-            if let Some(summary) = summary {
-                let prompt = format!(
-                    r#"Permanently delete vault "{}" (y/n)? "#,
-                    summary.name()
-                );
-                let removed = if read_flag(Some(&prompt))? {
-                    let response =
-                        run_blocking(client.delete_vault(summary.id()))?;
-                    if !response.status().is_success() {
-                        return Err(Error::VaultRemove(
-                            response.status().into(),
-                        ));
-                    }
+            let removed =
+                if read_flag(Some(&prompt))? {
+                    let mut writer = cache.write().unwrap();
+                    let response = run_blocking(writer.delete_wal(&summary))?;
 
-                    // If the deleted vault is the currently selected
-                    // vault we must clear the selection
-                    let id = writer.current.as_ref().map(|c| c.id());
-                    if let Some(id) = id {
-                        if id == summary.id() {
-                            writer.current = None;
-                        }
-                    }
+                    response.status().is_success().then_some(()).ok_or(
+                        Error::VaultRemove(response.status().into()),
+                    )?;
 
                     true
                 } else {
                     false
                 };
 
-                if removed {
-                    drop(writer);
-                    list_vaults(client, state, false)?;
-                }
+            if removed {
+                list_vaults(cache, false)
             } else {
-                return Err(Error::VaultNotAvailable(vault));
+                Ok(())
             }
-            */
         }
         ShellCommand::Use { vault } => {
             let reader = cache.read().unwrap();
@@ -422,7 +387,14 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 (false, keeper.summary().clone(), name.to_string())
             };
             if renamed {
-                run_blocking(writer.set_vault_name(&summary, &name))?;
+                let response =
+                    run_blocking(writer.set_vault_name(&summary, &name))?;
+                response
+                    .status()
+                    .is_success()
+                    .then_some(())
+                    .ok_or(Error::SetVaultName(response.status().into()))?;
+
                 drop(writer);
                 list_vaults(cache, false)
             } else {
@@ -518,7 +490,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
 
             drop(reader);
 
-            let (uuid, secret_meta, secret_data) =
+            let (_uuid, secret_meta, secret_data) =
                 result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let result =
@@ -599,9 +571,8 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
         }
 
         ShellCommand::Mv { secret, label } => {
-            let (uuid, secret_meta) =
-                find_secret_meta(Arc::clone(&cache), &secret)?
-                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+            let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret)?
+                .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let reader = cache.read().unwrap();
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
@@ -624,7 +595,6 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 writer.current_mut().ok_or(Error::NoVaultSelected)?;
             let label = get_label(label)?;
             let summary = keeper.summary().clone();
-            let vault_id = *keeper.id();
 
             let mut secret_meta = keeper.decrypt_meta(&meta_aead)?;
             secret_meta.set_label(label);
@@ -664,7 +634,6 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
         }
         ShellCommand::Quit => {
             std::process::exit(0);
-            Ok(())
         }
     }
 }

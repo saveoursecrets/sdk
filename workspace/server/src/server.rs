@@ -120,7 +120,8 @@ impl Server {
                 get(WalHandler::get_wal)
                     .head(WalHandler::head_wal)
                     .post(WalHandler::post_wal)
-                    .patch(WalHandler::patch_wal),
+                    .patch(WalHandler::patch_wal)
+                    .delete(WalHandler::delete_wal),
             )
             .route("/api/changes", get(sse_handler))
             .layer(cors)

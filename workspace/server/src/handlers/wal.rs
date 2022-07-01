@@ -26,7 +26,7 @@ use uuid::Uuid;
 use crate::{
     authenticate,
     headers::{CommitHashHeader, CommitProofHeader, SignedMessage},
-    Backend, State,
+    State,
 };
 
 use super::{append_audit_logs, append_commit_headers, send_notifications};
@@ -266,7 +266,7 @@ impl WalHandler {
                         let patch: Patch = decode(&body)
                             .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-                        let change_set: Vec<SyncEvent> = patch.into();
+                        let change_set = patch.0;
 
                         // Setting vault name requires special handling
                         // as we need to update the vault header on disc
@@ -469,6 +469,62 @@ impl WalHandler {
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                 append_commit_headers(&mut headers, &proof)?;
 
+                Ok((StatusCode::OK, headers))
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+
+    /// Delete a WAL file.
+    pub(crate) async fn delete_wal(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        Path(vault_id): Path<Uuid>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        TypedHeader(message): TypedHeader<SignedMessage>,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &message)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                let mut writer = state.write().await;
+
+                let (exists, proof) = writer
+                    .backend
+                    .wal_exists(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if !exists {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                writer
+                    .backend
+                    .delete_wal(&token.address, &vault_id)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                let change_event = ChangeEvent::DeleteVault {
+                    vault_id: vault_id.clone(),
+                    address: token.address,
+                };
+
+                let log = AuditEvent::new(
+                    EventKind::DeleteVault,
+                    token.address,
+                    Some(AuditData::Vault(vault_id)),
+                );
+
+                append_audit_logs(&mut writer, vec![log]).await?;
+                send_notifications(&mut writer, vec![change_event]);
+
+                let mut headers = HeaderMap::new();
+                if let Some(proof) = &proof {
+                    append_commit_headers(&mut headers, proof)?;
+                }
                 Ok((StatusCode::OK, headers))
             } else {
                 Err(status_code)

@@ -27,9 +27,6 @@ pub enum Error {
     #[error("failed to create account, got status code {0}")]
     AccountCreate(u16),
 
-    #[error("expecting an x-change-sequence header")]
-    ChangeSequenceHeader,
-
     #[error(r#"vault "{0}" not found, run "vaults" to load the vault list"#)]
     VaultNotAvailable(SecretRef),
 

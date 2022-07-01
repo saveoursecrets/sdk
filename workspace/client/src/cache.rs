@@ -6,6 +6,7 @@ use sos_core::{
     events::{SyncEvent, WalEvent},
     file_identity::{FileIdentity, WAL_IDENTITY},
     gatekeeper::Gatekeeper,
+    patch::Patch,
     secret::SecretRef,
     vault::{CommitHash, Summary, Vault},
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
@@ -40,8 +41,6 @@ pub struct Cache {
     current: Option<Gatekeeper>,
     /// Client to use for server communication.
     client: Client,
-    /// Root directory to store cached files.
-    cache_dir: PathBuf,
     /// Directory for the user cache.
     user_dir: PathBuf,
     /// Data for the cache.
@@ -65,7 +64,6 @@ impl Cache {
             summaries: Default::default(),
             current: None,
             client,
-            cache_dir,
             user_dir,
             cache: Default::default(),
         })
@@ -236,22 +234,23 @@ impl Cache {
     }
 
     /// Attempt to patch a remote WAL file.
-    pub async fn patch_vault<'a>(
+    pub async fn patch_vault(
         &mut self,
         summary: &Summary,
-        events: Vec<SyncEvent<'a>>,
+        events: Vec<SyncEvent<'_>>,
     ) -> Result<Response> {
         if let Some((_, wal)) = self.cache.get_mut(summary.id()) {
+            let patch = Patch(events);
             let proof = wal.tree().head()?;
-            let (response, patch, server_proof) =
-                self.client.patch_wal(summary.id(), &proof, events).await?;
+            let (response, server_proof) =
+                self.client.patch_wal(summary.id(), &proof, &patch).await?;
 
             let status = response.status();
             match status {
                 StatusCode::OK => {
                     let server_proof =
                         server_proof.ok_or(Error::ServerProof)?;
-                    let change_set: Vec<SyncEvent<'a>> = patch.into();
+                    let change_set = patch.0;
 
                     // Apply changes to the local WAL file
                     let mut changes = Vec::new();
@@ -289,13 +288,38 @@ impl Cache {
         &mut self,
         summary: &Summary,
         name: &str,
-    ) -> Result<()> {
+    ) -> Result<Response> {
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
         let response = self.patch_vault(summary, vec![event]).await?;
-        if !response.status().is_success() {
-            return Err(Error::SetVaultName(response.status().into()));
+        Ok(response)
+    }
+
+    /// Create a new WAL file.
+    pub async fn create_wal(&mut self, vault: Vec<u8>) -> Result<Response> {
+        let (response, _) = self.client.create_wal(vault).await?;
+        Ok(response)
+    }
+
+    /// Delete an existing WAL file.
+    pub async fn delete_wal(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<Response> {
+        let current_id = self.current().map(|c| c.id().clone());
+
+        let (response, _) = self.client.delete_wal(summary.id()).await?;
+
+        if response.status().is_success() {
+            // If the deleted vault is the currently selected
+            // vault we must clear the selection
+            if let Some(id) = &current_id {
+                if id == summary.id() {
+                    self.set_current(None);
+                }
+            }
         }
-        Ok(())
+
+        Ok(response)
     }
 
     /// Get a comparison between a local WAL and remote WAL.

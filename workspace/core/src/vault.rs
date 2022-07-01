@@ -577,6 +577,7 @@ impl Vault {
     }
 
     /// Get a secret in this vault.
+    #[cfg(test)]
     pub(crate) fn get(&self, id: &SecretId) -> Option<&VaultCommit> {
         self.contents.data.get(id)
     }

@@ -17,7 +17,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     authenticate::{self},
-    Backend, State,
+    State,
 };
 
 use super::{append_audit_logs, append_commit_headers, send_notifications};

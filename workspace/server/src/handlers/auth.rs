@@ -19,7 +19,7 @@ use uuid::Uuid;
 use crate::{
     authenticate::{self},
     headers::SignedMessage,
-    Backend, State,
+    State,
 };
 
 // Handlers for authentication.

@@ -9,9 +9,9 @@ use crate::{
     file_identity::{FileIdentity, PATCH_IDENTITY},
 };
 
-/// Patch wraps a changeset of events to apply to a vault.
+/// Patch wraps a changeset of events to be sent across the network.
 #[derive(Debug, Default)]
-pub struct Patch<'a>(Vec<SyncEvent<'a>>);
+pub struct Patch<'a>(pub Vec<SyncEvent<'a>>);
 
 impl Encode for Patch<'_> {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
@@ -35,17 +35,5 @@ impl Decode for Patch<'_> {
             self.0.push(event);
         }
         Ok(())
-    }
-}
-
-impl<'a> From<Patch<'a>> for Vec<SyncEvent<'a>> {
-    fn from(value: Patch<'a>) -> Self {
-        value.0
-    }
-}
-
-impl<'a> From<Vec<SyncEvent<'a>>> for Patch<'a> {
-    fn from(value: Vec<SyncEvent<'a>>) -> Self {
-        Self(value)
     }
 }
