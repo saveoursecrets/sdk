@@ -15,6 +15,12 @@ mkcert -install
 cd sandbox && mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1
 ```
 
+The server bundles a web-based GUI from the browser webapp code so to run the server CLI tool you must have the [browser][] repository as a sibling folder of this repository and then you can build the public folder containing the bundled assets:
+
+```
+make browser-gui
+```
+
 Now you can start a development version of the server:
 
 ```
@@ -26,7 +32,7 @@ Accounts and vaults will be created in the sandbox directory.
 
 ### Release
 
-The server bundles a web-based GUI from the browser webapp code so to make a release build of the server CLI tool you must have the [browser][] repository as a sibling folder of this repository and then run:
+To create a release build with the bundled GUI assets run:
 
 ```
 make server-release
