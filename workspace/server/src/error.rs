@@ -15,6 +15,12 @@ pub enum Error {
     #[error("file {0} already exists")]
     FileExists(PathBuf),
 
+    #[error("file {0} does not exist")]
+    FileMissing(PathBuf),
+
+    #[error("file stem was expected")]
+    NoFileStem,
+
     #[error("no vaults found")]
     NoVaults,
 
@@ -33,11 +39,20 @@ pub enum Error {
     #[error("audit log {0} is already open for writing")]
     AuditWouldBlock(PathBuf),
 
+    #[error("checksum mismatch validating WAL file")]
+    WalValidateMismatch,
+
+    #[error("failed to remove in-memory vault, files still exist on disc")]
+    VaultRemove,
+
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
 
     #[error(transparent)]
     Core(#[from] sos_core::Error),
+
+    #[error(transparent)]
+    Audit(#[from] sos_audit::Error),
 
     #[error(transparent)]
     Url(#[from] url::ParseError),
@@ -62,4 +77,7 @@ pub enum Error {
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    Uuid(#[from] uuid::Error),
 }

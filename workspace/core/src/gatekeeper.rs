@@ -17,9 +17,9 @@
 use crate::{
     crypto::{secret_key::SecretKey, AeadPack},
     decode, encode,
-    operations::Payload,
+    events::SyncEvent,
     secret::{Secret, SecretId, SecretMeta, SecretRef, VaultMeta},
-    vault::{SecretCommit, SecretGroup, Summary, Vault, VaultAccess},
+    vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
 use std::collections::HashMap;
@@ -59,11 +59,6 @@ impl Gatekeeper {
         self.vault = vault;
     }
 
-    /// Get the current change sequence number.
-    pub fn change_seq(&self) -> Result<u32> {
-        self.vault.change_seq()
-    }
-
     /// Get the summary for the vault.
     pub fn summary(&self) -> &Summary {
         self.vault.summary()
@@ -80,8 +75,8 @@ impl Gatekeeper {
     }
 
     /// Set the public name for the vault.
-    pub fn set_vault_name(&mut self, name: String) -> Result<Payload> {
-        Ok(self.vault.set_vault_name(name)?)
+    pub fn set_vault_name(&mut self, name: String) -> Result<SyncEvent> {
+        self.vault.set_vault_name(name)
     }
 
     /// Initialize the vault with the given label and password.
@@ -174,10 +169,8 @@ impl Gatekeeper {
     ) -> Result<Option<(SecretMeta, Secret)>> {
         if let Some(private_key) = &self.private_key {
             if let (Some(value), _payload) = self.vault.read(id)? {
-                let SecretCommit(
-                    _commit,
-                    SecretGroup(meta_aead, secret_aead),
-                ) = value.as_ref();
+                let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
+                    value.as_ref();
                 let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
                 let secret_meta: SecretMeta = decode(&meta_blob)?;
 
@@ -225,7 +218,7 @@ impl Gatekeeper {
         &mut self,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Payload> {
+    ) -> Result<SyncEvent> {
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
@@ -246,7 +239,7 @@ impl Gatekeeper {
             let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
             Ok(self
                 .vault
-                .create(commit, SecretGroup(meta_aead, secret_aead))?)
+                .create(commit, VaultEntry(meta_aead, secret_aead))?)
         } else {
             Err(Error::VaultLocked)
         }
@@ -256,9 +249,8 @@ impl Gatekeeper {
     pub fn read(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(SecretMeta, Secret, Payload)>> {
-        let change_seq = self.change_seq()?;
-        let payload = Payload::ReadSecret(change_seq, *id);
+    ) -> Result<Option<(SecretMeta, Secret, SyncEvent)>> {
+        let payload = SyncEvent::ReadSecret(*id);
         Ok(self
             .read_secret(id)?
             .map(|(meta, secret)| (meta, secret, payload)))
@@ -270,7 +262,7 @@ impl Gatekeeper {
         id: &SecretId,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Option<Payload>> {
+    ) -> Result<Option<SyncEvent>> {
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
@@ -303,7 +295,7 @@ impl Gatekeeper {
             Ok(self.vault.update(
                 id,
                 commit,
-                SecretGroup(meta_aead, secret_aead),
+                VaultEntry(meta_aead, secret_aead),
             )?)
         } else {
             Err(Error::VaultLocked)
@@ -311,8 +303,8 @@ impl Gatekeeper {
     }
 
     /// Delete a secret and it's meta data from the vault.
-    pub fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>> {
-        Ok(self.vault.delete(id)?)
+    pub fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>> {
+        self.vault.delete(id)
     }
 
     /// Decrypt secret meta data.
@@ -391,10 +383,10 @@ mod tests {
 
         let secret_label = String::from("Mock Secret");
         let secret_value = String::from("Super Secret Note");
-        let secret = Secret::Note(secret_value.clone());
+        let secret = Secret::Note(secret_value);
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        if let Payload::CreateSecret(_, secret_uuid, _) =
+        if let SyncEvent::CreateSecret(secret_uuid, _) =
             keeper.create(secret_meta.clone(), secret.clone())?
         {
             let (saved_secret_meta, saved_secret) =

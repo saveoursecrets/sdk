@@ -39,7 +39,7 @@ pub(super) fn secret(secret_meta: &SecretMeta, secret_data: &Secret) {
         }
         Secret::List(list) => {
             let mut credentials = String::new();
-            for (index, (name, value)) in list.into_iter().enumerate() {
+            for (index, (name, value)) in list.iter().enumerate() {
                 credentials.push_str(&format!("{} = {}", name, value));
                 if index < list.len() - 1 {
                     credentials.push('\n');

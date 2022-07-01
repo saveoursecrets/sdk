@@ -6,11 +6,38 @@ use serde_binary::{
 
 use crate::{Error, Result};
 
+/// Aduit log identity magic bytes (SOSA).
+pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
+
+/// Write-ahead log identity magic bytes (SOSW).
+pub const WAL_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+
+/// Patch file identity magic bytes (SOSP).
+pub const PATCH_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
+
+/// Vault file identity magic bytes (SOSV).
+pub const VAULT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
+
 /// Read and write the identity bytes for a file.
 #[derive(Debug, Eq, PartialEq)]
 pub struct FileIdentity(pub [u8; 4]);
 
 impl FileIdentity {
+    /// Read the identity magic bytes from a slice.
+    pub fn read_slice(buffer: &[u8], identity: &[u8]) -> Result<()> {
+        if buffer.len() >= identity.len() {
+            for (index, ident) in identity.iter().enumerate() {
+                let byte = buffer[index];
+                if byte != *ident {
+                    return Err(Error::BadIdentity(byte));
+                }
+            }
+        } else {
+            return Err(Error::IdentityLength);
+        }
+        Ok(())
+    }
+
     /// Read the identity magic bytes.
     pub fn read_identity(
         de: &mut Deserializer,

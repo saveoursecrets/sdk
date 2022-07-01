@@ -85,7 +85,7 @@ mod tests {
         let passphrase =
             mnemonic_in(Language::English, WordCount::Short(word_count))?;
         let words = format!("{}", passphrase);
-        let items: Vec<&str> = words.split(" ").collect();
+        let items: Vec<&str> = words.split(' ').collect();
         assert_eq!(word_count as usize, items.len());
         Ok(())
     }

@@ -1,12 +1,16 @@
 //! HTTP client implementation.
 use rand::Rng;
-use reqwest::{Client as HttpClient, Response};
+use reqwest::{
+    header::HeaderMap, Client as HttpClient, RequestBuilder, Response,
+};
 use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
-    secret::SecretId,
+    commit_tree::{decode_proof, encode_proof, CommitProof},
+    headers::{X_COMMIT_HASH, X_COMMIT_PROOF, X_SIGNED_MESSAGE},
+    patch::Patch,
     signer::Signer,
-    vault::{SecretCommit, Summary, MIME_TYPE_VAULT},
+    vault::{encode, Summary, MIME_TYPE_VAULT},
 };
 use std::sync::Arc;
 use url::Url;
@@ -19,14 +23,34 @@ type Challenge = [u8; 32];
 
 const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
-const X_SIGNED_MESSAGE: &str = "x-signed-message";
-const X_CHANGE_SEQUENCE: &str = "x-change-sequence";
+
+fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
+    if let (Some(commit_hash), Some(commit_proof)) =
+        (headers.get(X_COMMIT_HASH), headers.get(X_COMMIT_PROOF))
+    {
+        let commit_hash = base64::decode(commit_hash)?;
+        let commit_proof = base64::decode(commit_proof)?;
+        let commit_hash: [u8; 32] = commit_hash.as_slice().try_into()?;
+        let commit_proof = decode_proof(&commit_proof)?;
+        Ok(Some(CommitProof(commit_hash, commit_proof)))
+    } else {
+        Ok(None)
+    }
+}
+
+fn encode_headers_proof(
+    mut builder: RequestBuilder,
+    proof: &CommitProof,
+) -> RequestBuilder {
+    builder = builder.header(X_COMMIT_HASH, base64::encode(&proof.0));
+    builder = builder
+        .header(X_COMMIT_PROOF, base64::encode(encode_proof(&proof.1)));
+    builder
+}
 
 /// Encapsulates the information returned
 /// by sending a HEAD request for a vault.
-pub struct VaultInfo {
-    pub change_seq: u32,
-}
+pub struct VaultInfo {}
 
 pub struct Client {
     server: Url,
@@ -70,127 +94,6 @@ impl Client {
         Ok((message.to_vec(), signature))
     }
 
-    /// Create a new account.
-    pub async fn create_account(&self, vault: Vec<u8>) -> Result<Response> {
-        let url = self.server.join("api/accounts")?;
-        let signature =
-            self.encode_signature(self.signer.sign(&vault).await?)?;
-        let response = self
-            .http_client
-            .put(url)
-            .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
-            .body(vault)
-            .send()
-            .await?;
-        Ok(response)
-    }
-
-    /// Create a new vault.
-    pub async fn create_vault(&self, vault: Vec<u8>) -> Result<Response> {
-        let url = self.server.join("api/vaults")?;
-        let signature =
-            self.encode_signature(self.signer.sign(&vault).await?)?;
-        let response = self
-            .http_client
-            .put(url)
-            .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
-            .body(vault)
-            .send()
-            .await?;
-        Ok(response)
-    }
-
-    /// Get the change sequence for a vault.
-    pub async fn head_vault(&self, vault_id: &Uuid) -> Result<VaultInfo> {
-        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
-        let (message, signature) = self.self_signed().await?;
-        let response = self
-            .http_client
-            .head(url)
-            .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .send()
-            .await?;
-        let change_seq = response
-            .headers()
-            .get(X_CHANGE_SEQUENCE)
-            .ok_or_else(|| Error::ChangeSequenceHeader)?;
-        let change_seq: u32 = change_seq.to_str()?.parse()?;
-        Ok(VaultInfo { change_seq })
-    }
-
-    /// Read the buffer for a vault.
-    pub async fn read_vault(&self, vault_id: &Uuid) -> Result<Vec<u8>> {
-        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
-        let (message, signature) = self.self_signed().await?;
-        let response = self
-            .http_client
-            .get(url)
-            .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .send()
-            .await?;
-        Ok(response.bytes().await?.to_vec())
-    }
-
-    // TODO: update vault
-
-    /// Delete a vault.
-    pub async fn delete_vault(&self, vault_id: &Uuid) -> Result<Response> {
-        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
-        let (message, signature) = self.self_signed().await?;
-        let response = self
-            .http_client
-            .delete(url)
-            .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .send()
-            .await?;
-        Ok(response)
-    }
-
-    /// Get the name of a vault.
-    pub async fn vault_name(&self, vault_id: &Uuid) -> Result<String> {
-        let url =
-            self.server.join(&format!("api/vaults/{}/name", vault_id))?;
-        let (message, signature) = self.self_signed().await?;
-        let response = self
-            .http_client
-            .get(url)
-            .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .send()
-            .await?;
-
-        let name: String = response.json().await?;
-        Ok(name)
-    }
-
-    /// Set the name of a vault.
-    pub async fn set_vault_name(
-        &self,
-        vault_id: &Uuid,
-        change_seq: u32,
-        name: &str,
-    ) -> Result<Response> {
-        let url =
-            self.server.join(&format!("api/vaults/{}/name", vault_id))?;
-        let (message, signature) = self.self_signed().await?;
-        let response = self
-            .http_client
-            .post(url)
-            .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
-            .header(CONTENT_TYPE, "application/json")
-            .body(serde_json::to_vec(name)?)
-            .send()
-            .await?;
-        Ok(response)
-    }
-
     /// List the vaults accessible by this signer.
     pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
         let url = self.server.join("api/auth")?;
@@ -225,102 +128,132 @@ impl Client {
         Ok(summaries)
     }
 
-    /// Create a secret.
-    pub async fn create_secret(
-        &self,
-        vault_id: &Uuid,
-        secret_id: &SecretId,
-        secret: &SecretCommit,
-        change_seq: u32,
-    ) -> Result<Response> {
-        let url = self.server.join(&format!(
-            "api/vaults/{}/secrets/{}",
-            vault_id, secret_id
-        ))?;
-        let body = serde_json::to_vec(secret)?;
+    /// Create a new account.
+    pub async fn create_account(&self, vault: Vec<u8>) -> Result<Response> {
+        let url = self.server.join("api/accounts")?;
         let signature =
-            self.encode_signature(self.signer.sign(&body).await?)?;
+            self.encode_signature(self.signer.sign(&vault).await?)?;
         let response = self
             .http_client
             .put(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
-            .body(body)
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(vault)
             .send()
             .await?;
         Ok(response)
     }
 
-    /// Update a secret.
-    pub async fn update_secret(
+    /// Create a new WAL file.
+    pub async fn create_wal(
         &self,
-        vault_id: &Uuid,
-        secret_id: &SecretId,
-        secret: &SecretCommit,
-        change_seq: u32,
-    ) -> Result<Response> {
-        let url = self.server.join(&format!(
-            "api/vaults/{}/secrets/{}",
-            vault_id, secret_id
-        ))?;
-        let body = serde_json::to_vec(secret)?;
+        vault: Vec<u8>,
+    ) -> Result<(Response, Option<CommitProof>)> {
+        let url = self.server.join("api/vaults")?;
         let signature =
-            self.encode_signature(self.signer.sign(&body).await?)?;
+            self.encode_signature(self.signer.sign(&vault).await?)?;
         let response = self
             .http_client
-            .post(url)
+            .put(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
-            .body(body)
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(vault)
             .send()
             .await?;
-        Ok(response)
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((response, server_proof))
     }
 
-    /// Send a read secret event to the server.
-    pub async fn read_secret(
+    /// Delete a WAL file.
+    pub async fn delete_wal(
         &self,
-        change_seq: u32,
         vault_id: &Uuid,
-        secret_id: &SecretId,
-    ) -> Result<Response> {
-        let url = self.server.join(&format!(
-            "api/vaults/{}/secrets/{}",
-            vault_id, secret_id
-        ))?;
-        let (message, signature) = self.self_signed().await?;
-        let response = self
-            .http_client
-            .get(url)
-            .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
-            .send()
-            .await?;
-        Ok(response)
-    }
-
-    /// Send a delete secret event to the server.
-    pub async fn delete_secret(
-        &self,
-        change_seq: u32,
-        vault_id: &Uuid,
-        secret_id: &SecretId,
-    ) -> Result<Vec<u8>> {
-        let url = self.server.join(&format!(
-            "api/vaults/{}/secrets/{}",
-            vault_id, secret_id
-        ))?;
+    ) -> Result<(Response, Option<CommitProof>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let (message, signature) = self.self_signed().await?;
         let response = self
             .http_client
             .delete(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
             .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .header(X_CHANGE_SEQUENCE, change_seq.to_string())
             .send()
             .await?;
-        Ok(response.bytes().await?.to_vec())
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((response, server_proof))
+    }
+
+    /// Get the WAL bytes for a vault.
+    pub async fn get_wal(
+        &self,
+        vault_id: &Uuid,
+        proof: Option<&CommitProof>,
+    ) -> Result<(Response, Option<CommitProof>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let mut builder = self
+            .http_client
+            .get(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message));
+
+        if let Some(proof) = proof {
+            builder = encode_headers_proof(builder, proof);
+        }
+
+        let response = builder.send().await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((response, server_proof))
+    }
+
+    /// Apply events to the WAL file on a remote server.
+    pub async fn patch_wal(
+        &self,
+        vault_id: &Uuid,
+        proof: &CommitProof,
+        patch: &Patch<'_>,
+    ) -> Result<(Response, Option<CommitProof>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        //let patch: Patch = events.into();
+        let message = encode(&*patch)?;
+
+        let signature =
+            self.encode_signature(self.signer.sign(&message).await?)?;
+
+        let mut builder = self
+            .http_client
+            .patch(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature));
+
+        builder = encode_headers_proof(builder, proof);
+        builder = builder.body(message);
+
+        let response = builder.send().await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((response, server_proof))
+    }
+
+    /// Get the commit proof for a remote WAL file.
+    pub async fn head_wal(
+        &self,
+        vault_id: &Uuid,
+    ) -> Result<(Response, CommitProof)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self.self_signed().await?;
+        let response = self
+            .http_client
+            .head(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, base64::encode(&message))
+            .send()
+            .await?;
+        let headers = response.headers();
+        let server_proof =
+            decode_headers_proof(headers)?.ok_or(Error::ServerProof)?;
+        Ok((response, server_proof))
     }
 
     /// Get an event source for the changes feed.

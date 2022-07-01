@@ -7,25 +7,25 @@ use std::{
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
-use human_bytes::human_bytes;
+
 use terminal_banner::{Banner, Padding};
 use url::Url;
 
+use human_bytes::human_bytes;
 use sos_core::{
     diceware::generate,
     gatekeeper::Gatekeeper,
-    operations::Payload,
-    secret::{Secret, SecretMeta, SecretRef},
-    vault::{encode, SecretCommit, SecretGroup, Summary, Vault, VaultAccess},
+    secret::{Secret, SecretId, SecretMeta, SecretRef},
+    vault::{
+        encode, CommitHash, Vault, VaultAccess, VaultCommit, VaultEntry,
+    },
 };
 use sos_readline::{
     read_flag, read_line, read_line_allow_empty, read_multiline, read_option,
     read_password,
 };
 
-use crate::{
-    display_passphrase, run_blocking, Client, Error, Result, VaultInfo,
-};
+use crate::{display_passphrase, run_blocking, Cache, Error, Result};
 
 mod editor;
 mod print;
@@ -52,8 +52,11 @@ enum ShellCommand {
     Info,
     /// Get or set the name of the selected vault.
     Name { name: Option<String> },
-    /// Print local and remote change sequences.
-    Seq,
+    /// Inspect WAL commit trees.
+    Wal {
+        #[clap(subcommand)]
+        cmd: Wal,
+    },
     /// Print secret keys for the selected vault.
     Keys,
     /// List secrets for the selected vault.
@@ -98,6 +101,34 @@ enum Add {
     Account { label: Option<String> },
     /// Add a file.
     File { path: String, label: Option<String> },
+}
+
+#[derive(Subcommand, Debug)]
+enum Wal {
+    /// Print status of current vault.
+    Status,
+    /*
+    /// List commits in local WAL cache.
+    #[clap(alias = "ls")]
+    List,
+    */
+}
+
+/// Attempt to read secret meta data for a reference.
+fn find_secret_meta(
+    cache: Arc<RwLock<Cache>>,
+    secret: &SecretRef,
+) -> Result<Option<(SecretId, SecretMeta)>> {
+    let reader = cache.read().unwrap();
+    let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
+    let meta_data = keeper.meta_data()?;
+    if let Some((uuid, secret_meta)) =
+        keeper.find_by_uuid_or_label(&meta_data, secret)
+    {
+        Ok(Some((*uuid, secret_meta.clone())))
+    } else {
+        Ok(None)
+    }
 }
 
 fn get_label(label: Option<String>) -> Result<String> {
@@ -202,7 +233,7 @@ fn add_file(
     };
 
     if label.is_empty() {
-        label = name.clone();
+        label = name;
     }
 
     let secret = read_file_secret(&path)?;
@@ -232,178 +263,101 @@ fn read_file_secret(path: &str) -> Result<Secret> {
     Ok(Secret::File { name, mime, buffer })
 }
 
-#[derive(Default)]
-pub struct ShellState {
-    /// Vaults managed by this signer.
-    pub summaries: Vec<Summary>,
-    /// Currently selected vault.
-    pub current: Option<Gatekeeper>,
-}
-
 /// Execute the program command.
-fn exec_program(
-    program: Shell,
-    client: Arc<Client>,
-    state: Arc<RwLock<ShellState>>,
-) -> Result<()> {
+fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
     match program.cmd {
-        ShellCommand::Vaults => list_vaults(client, state, true)?,
+        ShellCommand::Vaults => list_vaults(cache, true),
         ShellCommand::Create { name } => {
+            let mut writer = cache.write().unwrap();
             let (passphrase, _) = generate()?;
             let mut vault: Vault = Default::default();
             vault.set_name(name);
             vault.initialize(&passphrase)?;
             let buffer = encode(&vault)?;
 
-            let response = run_blocking(client.create_vault(buffer))?;
+            let response = run_blocking(writer.create_wal(buffer))?;
 
-            if !response.status().is_success() {
-                return Err(Error::VaultCreate(response.status().into()));
-            }
+            response
+                .status()
+                .is_success()
+                .then_some(())
+                .ok_or(Error::VaultCreate(response.status().into()))?;
+
             display_passphrase("ENCRYPTION PASSPHRASE", &passphrase);
 
-            list_vaults(client, state, false)?;
+            drop(writer);
+            list_vaults(cache, false)
         }
         ShellCommand::Remove { vault } => {
-            let mut writer = state.write().unwrap();
-            let summary = match &vault {
-                SecretRef::Name(name) => {
-                    writer.summaries.iter().find(|s| s.name() == name)
-                }
-                SecretRef::Id(id) => {
-                    writer.summaries.iter().find(|s| s.id() == id)
-                }
-            };
+            let reader = cache.read().unwrap();
+            let summary = reader
+                .find_summary(&vault)
+                .ok_or(Error::VaultNotAvailable(vault.clone()))?
+                .clone();
+            let prompt = format!(
+                r#"Permanently delete vault "{}" (y/n)? "#,
+                summary.name(),
+            );
 
-            if let Some(summary) = summary {
-                let prompt = format!(
-                    r#"Permanently delete vault "{}" (y/n)? "#,
-                    summary.name()
-                );
-                let removed = if read_flag(Some(&prompt))? {
-                    let response =
-                        run_blocking(client.delete_vault(summary.id()))?;
-                    if !response.status().is_success() {
-                        return Err(Error::VaultRemove(
-                            response.status().into(),
-                        ));
-                    }
+            drop(reader);
 
-                    // If the deleted vault is the currently selected
-                    // vault we must clear the selection
-                    let id = writer.current.as_ref().map(|c| c.id());
-                    if let Some(id) = id {
-                        if id == summary.id() {
-                            writer.current = None;
-                        }
-                    }
+            let removed =
+                if read_flag(Some(&prompt))? {
+                    let mut writer = cache.write().unwrap();
+                    let response = run_blocking(writer.delete_wal(&summary))?;
+
+                    response.status().is_success().then_some(()).ok_or(
+                        Error::VaultRemove(response.status().into()),
+                    )?;
 
                     true
                 } else {
                     false
                 };
 
-                if removed {
-                    drop(writer);
-                    list_vaults(client, state, false)?;
-                }
+            if removed {
+                list_vaults(cache, false)
             } else {
-                return Err(Error::VaultNotAvailable(vault));
+                Ok(())
             }
         }
         ShellCommand::Use { vault } => {
-            let mut writer = state.write().unwrap();
-            let summary = match &vault {
-                SecretRef::Name(name) => {
-                    writer.summaries.iter().find(|s| s.name() == name)
-                }
-                SecretRef::Id(id) => {
-                    writer.summaries.iter().find(|s| s.id() == id)
-                }
-            };
-
-            if let Some(summary) = summary {
-                let vault_bytes =
-                    run_blocking(client.read_vault(summary.id()))?;
-                let vault = Vault::read_buffer(vault_bytes)?;
+            let reader = cache.read().unwrap();
+            let summary = reader.find_summary(&vault).cloned();
+            drop(reader);
+            if let Some(summary) = &summary {
+                let mut writer = cache.write().unwrap();
+                let vault = run_blocking(writer.load_vault(summary))?;
                 let mut keeper = Gatekeeper::new(vault);
                 let password = read_password(Some("Passphrase: "))?;
                 if let Ok(_) = keeper.unlock(&password) {
-                    writer.current = Some(keeper);
+                    writer.set_current(Some(keeper));
+                    Ok(())
                 } else {
-                    return Err(Error::VaultUnlockFail);
+                    Err(Error::VaultUnlockFail)
                 }
             } else {
-                return Err(Error::VaultNotAvailable(vault));
+                Err(Error::VaultNotAvailable(vault))
             }
         }
         ShellCommand::Info => {
-            let reader = state.read().unwrap();
-            if let Some(keeper) = &reader.current {
-                let summary = keeper.summary();
-                println!("{}", summary);
-            } else {
-                return Err(Error::NoVaultSelected);
-            }
-        }
-        ShellCommand::Seq => {
-            let reader = state.read().unwrap();
-            if let Some(keeper) = &reader.current {
-                let local_change_seq = keeper.change_seq()?;
-                let VaultInfo {
-                    change_seq: remote_change_seq,
-                } = run_blocking(client.head_vault(keeper.id()))?;
-                println!(
-                    "Local = {}, Remote = {}",
-                    local_change_seq, remote_change_seq
-                );
-            } else {
-                return Err(Error::NoVaultSelected);
-            }
-        }
-        ShellCommand::Name { name } => {
-            let mut writer = state.write().unwrap();
-            let renamed = if let Some(keeper) = writer.current.as_mut() {
-                if let Some(name) = name {
-                    keeper.set_vault_name(name.clone())?;
-                    let response = run_blocking(client.set_vault_name(
-                        keeper.id(),
-                        keeper.change_seq()?,
-                        &name,
-                    ))?;
-                    if !response.status().is_success() {
-                        return Err(Error::SetVaultName(
-                            response.status().into(),
-                        ));
-                    }
-                    true
-                } else {
-                    let name = run_blocking(client.vault_name(keeper.id()))?;
-                    println!("{}", name);
-                    false
-                }
-            } else {
-                return Err(Error::NoVaultSelected);
-            };
-
-            if renamed {
-                drop(writer);
-                list_vaults(client, state, false)?;
-            }
+            let reader = cache.read().unwrap();
+            let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary();
+            println!("{}", summary);
+            Ok(())
         }
         ShellCommand::Keys => {
-            let reader = state.read().unwrap();
-            if let Some(keeper) = &reader.current {
-                for uuid in keeper.vault().keys() {
-                    println!("{}", uuid);
-                }
-            } else {
-                return Err(Error::NoVaultSelected);
+            let reader = cache.read().unwrap();
+            let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
+            for uuid in keeper.vault().keys() {
+                println!("{}", uuid);
             }
+            Ok(())
         }
         ShellCommand::List { long } => {
-            let reader = state.read().unwrap();
-            if let Some(keeper) = &reader.current {
+            let reader = cache.read().unwrap();
+            if let Some(keeper) = reader.current() {
                 let meta = keeper.meta_data()?;
                 for (uuid, secret_meta) in meta {
                     let label = secret_meta.label();
@@ -415,102 +369,132 @@ fn exec_program(
                         println!("{}", label);
                     }
                 }
+                Ok(())
             } else {
-                return Err(Error::NoVaultSelected);
+                Err(Error::NoVaultSelected)
             }
         }
-        ShellCommand::Add { cmd } => {
-            let mut writer = state.write().unwrap();
-            if let Some(keeper) = writer.current.as_mut() {
-                let change_seq = keeper.change_seq()?;
-                let id = *keeper.id();
-                let result = match cmd {
-                    Add::Note { label } => add_note(label)?,
-                    Add::List { label } => add_credentials(label)?,
-                    Add::Account { label } => add_account(label)?,
-                    Add::File { path, label } => add_file(path, label)?,
-                };
-
-                if let Some((secret_meta, secret)) = result {
-                    if let Payload::CreateSecret(
-                        change_seq,
-                        secret_id,
-                        encrypted,
-                    ) = keeper.create(secret_meta, secret)?
-                    {
-                        let response = run_blocking(client.create_secret(
-                            &id,
-                            &secret_id,
-                            encrypted.as_ref(),
-                            change_seq,
-                        ))?;
-
-                        if !response.status().is_success() {
-                            return Err(Error::AddSecret(
-                                response.status().into(),
-                            ));
-                        }
-                    } else {
-                        unreachable!("unexpected payload for create secret");
-                    }
-                }
+        ShellCommand::Name { name } => {
+            let mut writer = cache.write().unwrap();
+            let keeper =
+                writer.current_mut().ok_or(Error::NoVaultSelected)?;
+            let (renamed, summary, name) = if let Some(name) = name {
+                keeper.set_vault_name(name.clone())?;
+                (true, keeper.summary().clone(), name)
             } else {
-                return Err(Error::NoVaultSelected);
+                let name = keeper.name();
+                println!("{}", name);
+                (false, keeper.summary().clone(), name.to_string())
+            };
+            if renamed {
+                let response =
+                    run_blocking(writer.set_vault_name(&summary, &name))?;
+                response
+                    .status()
+                    .is_success()
+                    .then_some(())
+                    .ok_or(Error::SetVaultName(response.status().into()))?;
+
+                drop(writer);
+                list_vaults(cache, false)
+            } else {
+                Ok(())
+            }
+        }
+        ShellCommand::Wal { cmd } => match cmd {
+            Wal::Status => {
+                let reader = cache.read().unwrap();
+                let keeper =
+                    reader.current().ok_or(Error::NoVaultSelected)?;
+                let (client_proof, server_proof) =
+                    run_blocking(reader.head_wal(keeper.summary()))?;
+                println!("client = {}", CommitHash(client_proof.0));
+                println!("server = {}", CommitHash(server_proof.0));
+                Ok(())
+            }
+        },
+        ShellCommand::Add { cmd } => {
+            let mut writer = cache.write().unwrap();
+            let keeper =
+                writer.current_mut().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
+            let result = match cmd {
+                Add::Note { label } => add_note(label)?,
+                Add::List { label } => add_credentials(label)?,
+                Add::Account { label } => add_account(label)?,
+                Add::File { path, label } => add_file(path, label)?,
+            };
+
+            let result = if let Some((secret_meta, secret)) = result {
+                let event = keeper.create(secret_meta, secret)?;
+                // Must call into_owned() on the event to prevent
+                // attempting to borrow mutably twice
+                Some((summary, event.into_owned()))
+            } else {
+                None
+            };
+
+            if let Some((summary, event)) = result {
+                let response =
+                    run_blocking(writer.patch_vault(&summary, vec![event]))?;
+                response
+                    .status()
+                    .is_success()
+                    .then_some(())
+                    .ok_or(Error::AddSecret(response.status().into()))
+            } else {
+                Ok(())
             }
         }
         ShellCommand::Get { secret } => {
-            let reader = state.read().unwrap();
-            if let Some(keeper) = &reader.current {
-                let meta_data = keeper.meta_data()?;
-                if let Some((uuid, _)) =
-                    keeper.find_by_uuid_or_label(&meta_data, &secret)
-                {
-                    if let Some((secret_meta, secret_data, payload)) =
-                        keeper.read(uuid)?
-                    {
-                        print::secret(&secret_meta, &secret_data);
+            let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret)?
+                .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+            let mut writer = cache.write().unwrap();
+            let keeper =
+                writer.current_mut().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
 
-                        run_blocking(client.read_secret(
-                            keeper.change_seq()?,
-                            keeper.id(),
-                            uuid,
-                        ))?;
-                    } else {
-                        return Err(Error::SecretNotAvailable(secret));
-                    }
-                } else {
-                    return Err(Error::SecretNotAvailable(secret));
-                }
+            if let Some((secret_meta, secret_data, event)) =
+                keeper.read(&uuid)?
+            {
+                // Must call into_owned() on the event to prevent
+                // attempting to borrow mutably twice
+                let event = event.into_owned();
+
+                print::secret(&secret_meta, &secret_data);
+                let response =
+                    run_blocking(writer.patch_vault(&summary, vec![event]))?;
+                response
+                    .status()
+                    .is_success()
+                    .then_some(())
+                    .ok_or(Error::ReadSecret(response.status().into()))
             } else {
-                return Err(Error::NoVaultSelected);
+                Err(Error::SecretNotAvailable(secret))
             }
         }
+
         ShellCommand::Set { secret } => {
-            let reader = state.read().unwrap();
-            let result = if let Some(keeper) = &reader.current {
-                let meta_data = keeper.meta_data()?;
-                if let Some((uuid, _)) =
-                    keeper.find_by_uuid_or_label(&meta_data, &secret)
-                {
-                    if let Some((secret_meta, secret, _)) =
-                        keeper.read(uuid)?
-                    {
-                        Some((*uuid, secret_meta, secret))
-                    } else {
-                        None
-                    }
+            let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret)?
+                .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+
+            // Read in secret data for editing.
+            let reader = cache.read().unwrap();
+            let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
+            let result =
+                if let Some((secret_meta, secret, _)) = keeper.read(&uuid)? {
+                    Some((uuid, secret_meta, secret))
                 } else {
                     None
-                }
-            } else {
-                return Err(Error::NoVaultSelected);
-            };
+                };
+
             drop(reader);
 
-            if let Some((uuid, secret_meta, secret_data)) = result {
-                let result = if let Secret::File { name, mime, buffer } =
-                    &secret_data
-                {
+            let (_uuid, secret_meta, secret_data) =
+                result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
+
+            let result =
+                if let Secret::File { name, mime, buffer } = &secret_data {
                     if mime.starts_with("text/") {
                         editor::edit(&secret_data)?
                     } else {
@@ -527,183 +511,141 @@ fn exec_program(
                     editor::edit(&secret_data)?
                 };
 
-                if let Cow::Owned(edited_secret) = result {
-                    let mut writer = state.write().unwrap();
-                    if let Some(keeper) = writer.current.as_mut() {
-                        let vault_id = *keeper.id();
+            if let Cow::Owned(edited_secret) = result {
+                let mut writer = cache.write().unwrap();
+                let keeper =
+                    writer.current_mut().ok_or(Error::NoVaultSelected)?;
 
-                        if let Some(payload) = keeper.update(
-                            &uuid,
-                            secret_meta,
-                            edited_secret,
-                        )? {
-                            if let Payload::UpdateSecret(
-                                change_seq,
-                                uuid,
-                                value,
-                            ) = payload
-                            {
-                                let response =
-                                    run_blocking(client.update_secret(
-                                        &vault_id, &uuid, &*value, change_seq,
-                                    ))?;
-                                if !response.status().is_success() {
-                                    return Err(Error::SetSecret(
-                                        response.status().into(),
-                                    ));
-                                }
-                            } else {
-                                unreachable!(
-                                    "expected update secret payload"
-                                );
-                            }
-                        } else {
-                            return Err(Error::SecretNotAvailable(secret));
-                        }
-                    }
-                }
+                let summary = keeper.summary().clone();
+                let vault_id = *keeper.id();
+                let event = keeper
+                    .update(&vault_id, secret_meta, edited_secret)?
+                    .ok_or(Error::SecretNotAvailable(secret))?;
+
+                let event = event.into_owned();
+                let response =
+                    run_blocking(writer.patch_vault(&summary, vec![event]))?;
+                response
+                    .status()
+                    .is_success()
+                    .then_some(())
+                    .ok_or(Error::SetSecret(response.status().into()))
+            // If the edited result was borrowed
+            // it indicates that no changes were made
             } else {
-                return Err(Error::SecretNotAvailable(secret));
+                Ok(())
             }
         }
+
         ShellCommand::Del { secret } => {
-            let reader = state.read().unwrap();
-            let result = if let Some(keeper) = &reader.current {
-                let meta_data = keeper.meta_data()?;
-                if let Some((uuid, secret_meta)) =
-                    keeper.find_by_uuid_or_label(&meta_data, &secret)
-                {
-                    Some((*uuid, secret_meta.clone()))
-                } else {
-                    None
-                }
-            } else {
-                return Err(Error::NoVaultSelected);
-            };
-            drop(reader);
+            let (uuid, secret_meta) =
+                find_secret_meta(Arc::clone(&cache), &secret)?
+                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
-            if let Some((uuid, secret_meta)) = result {
-                let prompt =
-                    format!(r#"Delete "{}" (y/n)? "#, secret_meta.label());
-                if read_flag(Some(&prompt))? {
-                    let mut writer = state.write().unwrap();
-                    if let Some(keeper) = writer.current.as_mut() {
-                        if let Some(payload) = keeper.delete(&uuid)? {
-                            run_blocking(client.delete_secret(
-                                *payload.change_seq().unwrap(),
-                                keeper.id(),
-                                &uuid,
-                            ))?;
-                        } else {
-                            return Err(Error::SecretNotAvailable(secret));
-                        }
-                    }
+            let prompt =
+                format!(r#"Delete "{}" (y/n)? "#, secret_meta.label());
+            if read_flag(Some(&prompt))? {
+                let mut writer = cache.write().unwrap();
+                let keeper =
+                    writer.current_mut().ok_or(Error::NoVaultSelected)?;
+                let summary = keeper.summary().clone();
+                if let Some(event) = keeper.delete(&uuid)? {
+                    // Must call into_owned() on the event to prevent
+                    // attempting to borrow mutably twice
+                    let event = event.into_owned();
+
+                    let response = run_blocking(
+                        writer.patch_vault(&summary, vec![event]),
+                    )?;
+                    response
+                        .status()
+                        .is_success()
+                        .then_some(())
+                        .ok_or(Error::DelSecret(response.status().into()))
+                } else {
+                    Err(Error::SecretNotAvailable(secret))
                 }
             } else {
-                return Err(Error::SecretNotAvailable(secret));
+                Ok(())
             }
         }
+
         ShellCommand::Mv { secret, label } => {
-            let reader = state.read().unwrap();
-            let result = if let Some(keeper) = &reader.current {
-                let meta_data = keeper.meta_data()?;
-                if let Some((uuid, secret_meta)) =
-                    keeper.find_by_uuid_or_label(&meta_data, &secret)
-                {
-                    if let (Some(value), _) = keeper.vault().read(uuid)? {
-                        let SecretCommit(
-                            _,
-                            SecretGroup(meta_aead, secret_aead),
-                        ) = value.as_ref().clone();
-                        Some((*uuid, meta_aead, secret_aead))
-                    } else {
-                        None
-                    }
+            let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret)?
+                .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+
+            let reader = cache.read().unwrap();
+            let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
+            let result =
+                if let (Some(value), _) = keeper.vault().read(&uuid)? {
+                    let VaultCommit(_, VaultEntry(meta_aead, secret_aead)) =
+                        value.as_ref().clone();
+                    Some((uuid, meta_aead, secret_aead))
                 } else {
                     None
-                }
-            } else {
-                return Err(Error::NoVaultSelected);
-            };
+                };
+
             drop(reader);
 
-            if let Some((uuid, meta_aead, secret_aead)) = result {
-                let mut writer = state.write().unwrap();
-                if let Some(keeper) = writer.current.as_mut() {
-                    let label = get_label(label)?;
-                    let vault_id = *keeper.id();
+            let (uuid, meta_aead, secret_aead) =
+                result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
-                    let mut secret_meta = keeper.decrypt_meta(&meta_aead)?;
-                    secret_meta.set_label(label);
-                    let meta_aead = keeper.encrypt_meta(&secret_meta)?;
+            let mut writer = cache.write().unwrap();
+            let keeper =
+                writer.current_mut().ok_or(Error::NoVaultSelected)?;
+            let label = get_label(label)?;
+            let summary = keeper.summary().clone();
 
-                    let (commit, _) =
-                        Vault::commit_hash(&meta_aead, &secret_aead)?;
+            let mut secret_meta = keeper.decrypt_meta(&meta_aead)?;
+            secret_meta.set_label(label);
+            let meta_aead = keeper.encrypt_meta(&secret_meta)?;
 
-                    if let Some(payload) = keeper.vault_mut().update(
-                        &uuid,
-                        commit,
-                        SecretGroup(meta_aead, secret_aead),
-                    )? {
-                        if let Payload::UpdateSecret(
-                            change_seq,
-                            uuid,
-                            value,
-                        ) = payload
-                        {
-                            let response =
-                                run_blocking(client.update_secret(
-                                    &vault_id, &uuid, &*value, change_seq,
-                                ))?;
-                            if !response.status().is_success() {
-                                return Err(Error::SetSecret(
-                                    response.status().into(),
-                                ));
-                            }
-                        } else {
-                            unreachable!("expected update secret payload");
-                        }
-                    } else {
-                        return Err(Error::SecretNotAvailable(secret));
-                    }
-                } else {
-                    return Err(Error::NoVaultSelected);
-                }
-            } else {
-                return Err(Error::SecretNotAvailable(secret));
-            }
+            let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+
+            let event = keeper
+                .vault_mut()
+                .update(&uuid, commit, VaultEntry(meta_aead, secret_aead))?
+                .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+
+            let event = event.into_owned();
+            let response =
+                run_blocking(writer.patch_vault(&summary, vec![event]))?;
+
+            response
+                .status()
+                .is_success()
+                .then_some(())
+                .ok_or(Error::MvSecret(response.status().into()))
         }
 
         ShellCommand::Whoami => {
-            let address = client.address()?;
+            let reader = cache.read().unwrap();
+            let address = reader.client().address()?;
             println!("{}", address);
+            Ok(())
         }
         ShellCommand::Close => {
-            let mut writer = state.write().unwrap();
-            if let Some(current) = writer.current.as_mut() {
+            let mut writer = cache.write().unwrap();
+            if let Some(current) = writer.current_mut() {
                 current.lock();
             }
-            writer.current = None;
+            writer.set_current(None);
+            Ok(())
         }
         ShellCommand::Quit => {
             std::process::exit(0);
         }
     }
-    Ok(())
 }
 
 /// Intermediary to pretty print clap parse errors.
-fn exec_args<I, T>(
-    it: I,
-    client: Arc<Client>,
-    state: Arc<RwLock<ShellState>>,
-) -> Result<()>
+fn exec_args<I, T>(it: I, cache: Arc<RwLock<Cache>>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
     match Shell::try_parse_from(it) {
-        Ok(program) => exec_program(program, client, state)?,
+        Ok(program) => exec_program(program, cache)?,
         Err(e) => e.print().expect("unable to write error output"),
     }
     Ok(())
@@ -711,26 +653,17 @@ where
 
 /// Exposed so that the shell program can automatically
 /// try to list vaults after creating a signer.
-pub fn list_vaults(
-    client: Arc<Client>,
-    state: Arc<RwLock<ShellState>>,
-    print: bool,
-) -> Result<()> {
-    let summaries = run_blocking(client.list_vaults())?;
+pub fn list_vaults(cache: Arc<RwLock<Cache>>, print: bool) -> Result<()> {
+    let mut writer = cache.write().unwrap();
+    let summaries = run_blocking(writer.load_summaries())?;
     if print {
-        print::summaries_list(&summaries);
+        print::summaries_list(summaries);
     }
-    let mut writer = state.write().unwrap();
-    writer.summaries = summaries;
     Ok(())
 }
 
 /// Execute a line of input in the context of the shell program.
-pub fn exec(
-    line: &str,
-    client: Arc<Client>,
-    state: Arc<RwLock<ShellState>>,
-) -> Result<()> {
+pub fn exec(line: &str, cache: Arc<RwLock<Cache>>) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));
@@ -747,7 +680,7 @@ pub fn exec(
         } else if line == "help" || line == "--help" {
             cmd.print_long_help()?;
         } else {
-            exec_args(it, client, state)?;
+            exec_args(it, cache)?;
         }
     }
     Ok(())

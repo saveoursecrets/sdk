@@ -15,7 +15,7 @@ use crate::Error;
 pub type SecretId = Uuid;
 
 /// Reference to a secret using an id or a named label.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SecretRef {
     /// Secret identifier.
     Id(SecretId),

@@ -1,6 +1,8 @@
-use sos_core::secret::SecretRef;
+use sos_core::{secret::SecretRef, vault::CommitHash};
 use std::path::PathBuf;
 use thiserror::Error;
+use url::Url;
+use uuid::Uuid;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -16,11 +18,14 @@ pub enum Error {
     #[error("path {0} does not have a file name")]
     FileName(PathBuf),
 
+    #[error("server url {0} is not HTTPS")]
+    ServerHttps(Url),
+
+    #[error("could not determine local data directory")]
+    NoDataLocalDir,
+
     #[error("failed to create account, got status code {0}")]
     AccountCreate(u16),
-
-    #[error("expecting an x-change-sequence header")]
-    ChangeSequenceHeader,
 
     #[error(r#"vault "{0}" not found, run "vaults" to load the vault list"#)]
     VaultNotAvailable(SecretRef),
@@ -46,11 +51,29 @@ pub enum Error {
     #[error("failed to add secret, got status code {0}")]
     AddSecret(u16),
 
+    #[error("failed to read secret, got status code {0}")]
+    ReadSecret(u16),
+
     #[error("failed to set secret, got status code {0}")]
     SetSecret(u16),
 
+    #[error("failed to delete secret, got status code {0}")]
+    DelSecret(u16),
+
+    #[error("failed to rename secret, got status code {0}")]
+    MvSecret(u16),
+
     #[error("editor command did not exit successfully, status {0}")]
     EditorExit(i32),
+
+    #[error("client and server root hashes do not match; client = {0}, server = {1}")]
+    RootHashMismatch(CommitHash, CommitHash),
+
+    #[error("server failed to send the expected commit proof headers")]
+    ServerProof,
+
+    #[error("cache not available for {0}")]
+    CacheNotAvailable(Uuid),
 
     #[error(transparent)]
     ParseInt(#[from] std::num::ParseIntError),
@@ -93,4 +116,7 @@ pub enum Error {
 
     #[error(transparent)]
     ShellWords(#[from] shell_words::ParseError),
+
+    #[error(transparent)]
+    Base64Decode(#[from] base64::DecodeError),
 }

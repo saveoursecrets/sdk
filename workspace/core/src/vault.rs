@@ -17,14 +17,11 @@ use crate::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
         AeadPack,
     },
-    file_identity::FileIdentity,
-    operations::Payload,
+    events::SyncEvent,
+    file_identity::{FileIdentity, VAULT_IDENTITY},
     secret::{SecretId, VaultMeta},
     Error, Result,
 };
-
-/// Identity magic bytes (SOSV).
-pub const IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
 
 /// Vault version identifier.
 pub const VERSION: u16 = 0;
@@ -39,7 +36,7 @@ pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
 #[derive(
     Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize,
 )]
-pub struct CommitHash([u8; 32]);
+pub struct CommitHash(pub [u8; 32]);
 
 impl AsRef<[u8; 32]> for CommitHash {
     fn as_ref(&self) -> &[u8; 32] {
@@ -50,16 +47,28 @@ impl AsRef<[u8; 32]> for CommitHash {
 impl CommitHash {
     /// Get a copy of the underlying bytes for the commit hash.
     pub fn to_bytes(&self) -> [u8; 32] {
-        self.0.clone()
+        self.0
+    }
+}
+
+impl From<CommitHash> for [u8; 32] {
+    fn from(value: CommitHash) -> Self {
+        value.0
+    }
+}
+
+impl fmt::Display for CommitHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(&self.0))
     }
 }
 
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
 #[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SecretGroup(pub AeadPack, pub AeadPack);
+pub struct VaultEntry(pub AeadPack, pub AeadPack);
 
-impl Encode for SecretGroup {
+impl Encode for VaultEntry {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         self.0.encode(&mut *ser)?;
         self.1.encode(&mut *ser)?;
@@ -67,22 +76,22 @@ impl Encode for SecretGroup {
     }
 }
 
-impl Decode for SecretGroup {
+impl Decode for VaultEntry {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let mut meta: AeadPack = Default::default();
         meta.decode(&mut *de)?;
         let mut secret: AeadPack = Default::default();
         secret.decode(&mut *de)?;
-        *self = SecretGroup(meta, secret);
+        *self = VaultEntry(meta, secret);
         Ok(())
     }
 }
 
 /// Type to represent an encrypted secret with an associated commit hash.
 #[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SecretCommit(pub CommitHash, pub SecretGroup);
+pub struct VaultCommit(pub CommitHash, pub VaultEntry);
 
-impl Encode for SecretCommit {
+impl Encode for VaultCommit {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_bytes(self.0.as_ref())?;
         self.1.encode(&mut *ser)?;
@@ -90,12 +99,12 @@ impl Encode for SecretCommit {
     }
 }
 
-impl Decode for SecretCommit {
+impl Decode for VaultCommit {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         let commit: [u8; 32] =
             de.reader.read_bytes(32)?.as_slice().try_into()?;
         let commit = CommitHash(commit);
-        let mut group: SecretGroup = Default::default();
+        let mut group: VaultEntry = Default::default();
         group.decode(&mut *de)?;
         self.0 = commit;
         self.1 = group;
@@ -103,7 +112,7 @@ impl Decode for SecretCommit {
     }
 }
 
-/// Trait that defines the operations on a vault storage.
+/// Trait that defines the events on a vault storage.
 ///
 /// The storage may be in-memory, backed by a file on disc or another
 /// destination for the encrypted bytes.
@@ -111,27 +120,24 @@ pub trait VaultAccess {
     /// Get the vault summary.
     fn summary(&self) -> Result<Summary>;
 
-    /// Get the current change sequence number.
-    fn change_seq(&self) -> Result<u32>;
-
     /// Save a buffer as the entire vault.
     ///
     /// This is an unchecked operation and callers should
     /// ensure the buffer represents a valid vault.
-    fn save(&mut self, buffer: &[u8]) -> Result<Payload>;
+    fn save(&mut self, buffer: &[u8]) -> Result<SyncEvent>;
 
     /// Get the name of a vault.
-    fn vault_name(&self) -> Result<(String, Payload)>;
+    fn vault_name(&self) -> Result<(String, SyncEvent)>;
 
     /// Set the name of a vault.
-    fn set_vault_name(&mut self, name: String) -> Result<Payload>;
+    fn set_vault_name(&mut self, name: String) -> Result<SyncEvent>;
 
     /// Add an encrypted secret to the vault.
     fn create(
         &mut self,
         commit: CommitHash,
-        secret: SecretGroup,
-    ) -> Result<Payload>;
+        secret: VaultEntry,
+    ) -> Result<SyncEvent>;
 
     /// Get an encrypted secret from the vault.
     ///
@@ -141,36 +147,18 @@ pub trait VaultAccess {
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, SecretCommit>>, Payload)>;
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, SyncEvent)>;
 
     /// Update an encrypted secret in the vault.
     fn update(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
-        secret: SecretGroup,
-    ) -> Result<Option<Payload>>;
+        secret: VaultEntry,
+    ) -> Result<Option<SyncEvent>>;
 
     /// Remove an encrypted secret from the vault.
-    fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>>;
-
-    /// Apply a payload to this vault and return the updated
-    /// change sequence.
-    fn apply(&mut self, payload: &Payload) -> Result<u32> {
-        match payload {
-            Payload::CreateSecret(_, secret_id, value) => {
-                self.create(value.0.clone(), value.1.clone())?;
-            }
-            Payload::UpdateSecret(_, secret_id, value) => {
-                self.update(secret_id, value.0.clone(), value.1.clone())?;
-            }
-            Payload::DeleteSecret(_, secret_id) => {
-                self.delete(secret_id)?;
-            }
-            _ => panic!("payload type not supported in apply()"),
-        }
-        self.change_seq()
-    }
+    fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>>;
 }
 
 /// Authentication information.
@@ -198,7 +186,6 @@ impl Decode for Auth {
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct Summary {
     version: u16,
-    change_seq: u32,
     id: Uuid,
     name: String,
     #[serde(skip)]
@@ -209,8 +196,8 @@ impl fmt::Display for Summary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Version {} using {} at #{}\n{} {}",
-            self.version, self.algorithm, self.change_seq, self.name, self.id
+            "Version {} using {}\n{} {}",
+            self.version, self.algorithm, self.name, self.id
         )
     }
 }
@@ -219,7 +206,6 @@ impl Default for Summary {
     fn default() -> Self {
         Self {
             version: VERSION,
-            change_seq: 0,
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -232,7 +218,6 @@ impl Summary {
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
             version: VERSION,
-            change_seq: 0,
             algorithm,
             id,
             name,
@@ -242,16 +227,6 @@ impl Summary {
     /// Get the version identifier.
     pub fn version(&self) -> &u16 {
         &self.version
-    }
-
-    /// Get the change sequence.
-    pub fn change_seq(&self) -> &u32 {
-        &self.change_seq
-    }
-
-    /// Set the change sequence.
-    pub fn set_change_seq(&mut self, change_seq: u32) {
-        self.change_seq = change_seq;
     }
 
     /// Get the algorithm.
@@ -273,7 +248,6 @@ impl Summary {
 impl Encode for Summary {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u16(self.version)?;
-        ser.writer.write_u32(self.change_seq)?;
         self.algorithm.encode(&mut *ser)?;
         ser.writer.write_bytes(self.id.as_bytes())?;
         ser.writer.write_string(&self.name)?;
@@ -284,7 +258,6 @@ impl Encode for Summary {
 impl Decode for Summary {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.version = de.reader.read_u16()?;
-        self.change_seq = de.reader.read_u32()?;
         self.algorithm.decode(&mut *de)?;
 
         if !ALGORITHMS.contains(self.algorithm.as_ref()) {
@@ -316,7 +289,7 @@ impl Header {
     /// Create a new header.
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
-            identity: FileIdentity(IDENTITY),
+            identity: FileIdentity(VAULT_IDENTITY),
             summary: Summary::new(id, name, algorithm),
             meta: None,
             auth: Default::default(),
@@ -342,6 +315,7 @@ impl Header {
     pub fn set_meta(&mut self, meta: Option<AeadPack>) {
         self.meta = meta;
     }
+
     /// Read the summary for a vault from a file.
     pub fn read_summary_file<P: AsRef<Path>>(file: P) -> Result<Summary> {
         let mut stream = FileStream::new(file.as_ref(), OpenType::Open)?;
@@ -360,7 +334,7 @@ impl Header {
         let mut de = Deserializer { reader };
 
         // Read magic identity bytes
-        FileIdentity::read_identity(&mut de, &IDENTITY)?;
+        FileIdentity::read_identity(&mut de, &VAULT_IDENTITY)?;
 
         // Read in the header length
         let _ = de.reader.read_u32()?;
@@ -393,7 +367,7 @@ impl Header {
 impl Default for Header {
     fn default() -> Self {
         Self {
-            identity: FileIdentity(IDENTITY),
+            identity: FileIdentity(VAULT_IDENTITY),
             summary: Default::default(),
             meta: None,
             auth: Default::default(),
@@ -459,7 +433,7 @@ impl Decode for Header {
 /// The vault contents
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    data: HashMap<SecretId, SecretCommit>,
+    data: HashMap<SecretId, VaultCommit>,
 }
 
 impl Contents {
@@ -467,7 +441,7 @@ impl Contents {
     pub fn encode_row(
         ser: &mut Serializer,
         key: &SecretId,
-        row: &SecretCommit,
+        row: &VaultCommit,
     ) -> BinaryResult<()> {
         let size_pos = ser.writer.tell()?;
         ser.writer.write_u32(0)?;
@@ -495,7 +469,7 @@ impl Contents {
     /// Decode a single row from a deserializer.
     pub fn decode_row(
         de: &mut Deserializer,
-    ) -> BinaryResult<(SecretId, SecretCommit)> {
+    ) -> BinaryResult<(SecretId, VaultCommit)> {
         // Read in the row length
         let _ = de.reader.read_u32()?;
 
@@ -503,7 +477,7 @@ impl Contents {
             de.reader.read_bytes(16)?.as_slice().try_into()?;
         let uuid = Uuid::from_bytes(uuid);
 
-        let mut row: SecretCommit = Default::default();
+        let mut row: VaultCommit = Default::default();
         row.decode(&mut *de)?;
 
         /*
@@ -597,6 +571,17 @@ impl Vault {
         }
     }
 
+    /// Insert a secret into this vault.
+    pub(crate) fn insert(&mut self, id: SecretId, entry: VaultCommit) {
+        self.contents.data.insert(id, entry);
+    }
+
+    /// Get a secret in this vault.
+    #[cfg(test)]
+    pub(crate) fn get(&self, id: &SecretId) -> Option<&VaultCommit> {
+        self.contents.data.get(id)
+    }
+
     /// Encrypt a plaintext value using the algorithm assigned to this vault.
     pub fn encrypt(
         &self,
@@ -628,6 +613,11 @@ impl Vault {
     /// Iterator for the secret keys.
     pub fn keys<'a>(&'a self) -> impl Iterator<Item = &'a Uuid> {
         self.contents.data.keys()
+    }
+
+    /// Number of secrets in this vault.
+    pub fn len(&self) -> usize {
+        self.contents.data.len()
     }
 
     /// Iterator for the secret keys and commit hashes.
@@ -754,112 +744,62 @@ impl VaultAccess for Vault {
         Ok(self.header.summary.clone())
     }
 
-    fn change_seq(&self) -> Result<u32> {
-        Ok(self.header.summary.change_seq)
-    }
-
-    fn save(&mut self, buffer: &[u8]) -> Result<Payload> {
+    fn save(&mut self, buffer: &[u8]) -> Result<SyncEvent> {
         let vault = Vault::read_buffer(buffer)?;
         *self = vault;
-        let change_seq = self.change_seq()?;
-        Ok(Payload::UpdateVault(change_seq))
+        Ok(SyncEvent::UpdateVault(Cow::Owned(buffer.to_vec())))
     }
 
-    fn vault_name(&self) -> Result<(String, Payload)> {
-        Ok((
-            self.name().to_string(),
-            Payload::GetVaultName(self.change_seq()?),
-        ))
+    fn vault_name(&self) -> Result<(String, SyncEvent)> {
+        Ok((self.name().to_string(), SyncEvent::GetVaultName))
     }
 
-    fn set_vault_name(&mut self, name: String) -> Result<Payload> {
-        let change_seq = if let Some(next_change_seq) =
-            self.header.summary.change_seq.checked_add(1)
-        {
-            self.header.summary.set_change_seq(next_change_seq);
-            next_change_seq
-        } else {
-            return Err(Error::TooManyChanges);
-        };
-
+    fn set_vault_name(&mut self, name: String) -> Result<SyncEvent> {
         self.set_name(name.clone());
-
-        Ok(Payload::SetVaultName(change_seq, Cow::Owned(name)))
+        Ok(SyncEvent::SetVaultName(Cow::Owned(name)))
     }
 
     fn create(
         &mut self,
         commit: CommitHash,
-        secret: SecretGroup,
-    ) -> Result<Payload> {
+        secret: VaultEntry,
+    ) -> Result<SyncEvent> {
         let id = Uuid::new_v4();
-        let change_seq = if let Some(next_change_seq) =
-            self.header.summary.change_seq.checked_add(1)
-        {
-            self.header.summary.set_change_seq(next_change_seq);
-            next_change_seq
-        } else {
-            return Err(Error::TooManyChanges);
-        };
-
         let value = self
             .contents
             .data
-            .entry(id.clone())
-            .or_insert(SecretCommit(commit, secret));
-        Ok(Payload::CreateSecret(change_seq, id, Cow::Borrowed(value)))
+            .entry(id)
+            .or_insert(VaultCommit(commit, secret));
+        Ok(SyncEvent::CreateSecret(id, Cow::Borrowed(value)))
     }
 
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, SecretCommit>>, Payload)> {
-        let change_seq = self.change_seq()?;
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, SyncEvent)> {
         let result = self.contents.data.get(id).map(Cow::Borrowed);
-        Ok((result, Payload::ReadSecret(change_seq, *id)))
+        Ok((result, SyncEvent::ReadSecret(*id)))
     }
 
     fn update(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
-        secret: SecretGroup,
-    ) -> Result<Option<Payload>> {
+        secret: VaultEntry,
+    ) -> Result<Option<SyncEvent>> {
         if let Some(value) = self.contents.data.get_mut(id) {
-            let change_seq = if let Some(next_change_seq) =
-                self.header.summary.change_seq.checked_add(1)
-            {
-                self.header.summary.set_change_seq(next_change_seq);
-                next_change_seq
-            } else {
-                return Err(Error::TooManyChanges);
-            };
+            *value = VaultCommit(commit, secret);
 
-            *value = SecretCommit(commit, secret);
-
-            Ok(Some(Payload::UpdateSecret(
-                change_seq,
-                *id,
-                Cow::Borrowed(value),
-            )))
+            Ok(Some(SyncEvent::UpdateSecret(*id, Cow::Borrowed(value))))
         } else {
             Ok(None)
         }
     }
 
-    fn delete(&mut self, id: &SecretId) -> Result<Option<Payload>> {
-        let change_seq = if let Some(next_change_seq) =
-            self.header.summary.change_seq.checked_add(1)
-        {
-            self.header.summary.set_change_seq(next_change_seq);
-            next_change_seq
-        } else {
-            return Err(Error::TooManyChanges);
-        };
-
+    fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>> {
         let entry = self.contents.data.remove(id);
         if entry.is_some() {
-            Ok(Some(Payload::DeleteSecret(change_seq, *id)))
+            Ok(Some(SyncEvent::DeleteSecret(*id)))
         } else {
             Ok(None)
         }
@@ -879,7 +819,6 @@ pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::operations::Payload;
     use crate::secret::*;
 
     use crate::test_utils::*;
@@ -908,20 +847,13 @@ mod tests {
 
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
-
-        let (secret_meta, secret_value, meta_bytes, secret_bytes) =
-            mock_secret_note(secret_label, secret_note)?;
-
-        let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
-        let secret_aead = vault.encrypt(&encryption_key, &secret_bytes)?;
-
-        let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
-        let secret_id = match vault
-            .create(commit, SecretGroup(meta_aead, secret_aead))?
-        {
-            Payload::CreateSecret(_, secret_id, _) => secret_id,
-            _ => unreachable!(),
-        };
+        let (secret_id, _commit, secret_meta, secret_value, _) =
+            mock_vault_note(
+                &mut vault,
+                &encryption_key,
+                secret_label,
+                secret_note,
+            )?;
 
         let mut stream = MemoryStream::new();
         Vault::encode(&mut stream, &vault)?;
@@ -933,8 +865,7 @@ mod tests {
         let (row, _) = decoded.read(&secret_id)?;
 
         let value = row.unwrap();
-        let SecretCommit(_, SecretGroup(row_meta, row_secret)) =
-            value.as_ref();
+        let VaultCommit(_, VaultEntry(row_meta, row_secret)) = value.as_ref();
 
         let row_meta = vault.decrypt(&encryption_key, row_meta)?;
         let row_secret = vault.decrypt(&encryption_key, row_secret)?;
@@ -957,17 +888,15 @@ mod tests {
 
     #[test]
     fn decode_file() -> Result<()> {
-        let _vault = Vault::read_file(
-            "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
-        )?;
+        let (temp, _, _) = mock_vault_file()?;
+        let _vault = Vault::read_file(temp.path())?;
+        temp.close()?;
         Ok(())
     }
 
     #[test]
     fn decode_buffer() -> Result<()> {
-        let buffer = std::fs::read(
-            "./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault",
-        )?;
+        let (_temp, _, buffer) = mock_vault_file()?;
         let _vault: Vault = decode(&buffer)?;
         Ok(())
     }

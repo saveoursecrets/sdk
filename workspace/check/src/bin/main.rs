@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use sos_check::{keys, status, verify, Result};
+use sos_check::{keys, status, verify_vault, verify_wal, Result};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-/// Utility tool to check the status and integrity of vaults.
+/// Utility tool to check status and integrity.
 #[derive(Parser, Debug)]
 #[clap(name = "sos-check", author, version, about, long_about = None)]
 struct Cli {
@@ -25,17 +25,39 @@ enum Command {
         commits: bool,
 
         /// Vault file path.
-        vault: PathBuf,
+        file: PathBuf,
     },
     /// Print the vault header and root commit hash.
     Status {
         /// Vault file path.
-        vault: PathBuf,
+        file: PathBuf,
     },
     /// Print the vault keys.
     Keys {
         /// Vault file path.
-        vault: PathBuf,
+        file: PathBuf,
+    },
+    /// Write ahead log tools.
+    Wal {
+        #[clap(subcommand)]
+        cmd: Wal,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum Wal {
+    /// Verify the integrity of a WAL file.
+    Verify {
+        /// Print the root commit hash.
+        #[clap(short, long)]
+        root: bool,
+
+        /// Print the commit hash for each row.
+        #[clap(short, long)]
+        commits: bool,
+
+        /// Write ahead log file path.
+        file: PathBuf,
     },
 }
 
@@ -43,14 +65,23 @@ fn run() -> Result<()> {
     let args = Cli::parse();
     match args.cmd {
         Command::Verify {
-            vault,
+            file,
             root,
             commits,
         } => {
-            verify(vault, root, commits)?;
+            verify_vault(file, root, commits)?;
         }
-        Command::Status { vault } => status(vault)?,
-        Command::Keys { vault } => keys(vault)?,
+        Command::Status { file } => status(file)?,
+        Command::Keys { file } => keys(file)?,
+        Command::Wal { cmd } => match cmd {
+            Wal::Verify {
+                file,
+                root,
+                commits,
+            } => {
+                verify_wal(file, root, commits)?;
+            }
+        },
     }
 
     Ok(())

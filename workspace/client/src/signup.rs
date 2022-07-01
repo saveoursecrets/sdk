@@ -33,14 +33,14 @@ pub fn signup(
     let (keystore_passphrase, _) = generate()?;
     let (encryption_passphrase, _) = generate()?;
 
-    println!("");
+    println!();
     println!("Creating a new account will perform the following actions:");
-    println!("");
+    println!();
     println!("* Write keystore file to {}", keystore_file.display());
     println!("* Send the encrypted vault to {}", server);
     println!("* Keystore passphrase will be displayed");
     println!("* Encryption passphrase will be displayed");
-    println!("");
+    println!();
 
     let prompt = Some("Are you sure (y/n)? ");
     if read_flag(prompt)? {
