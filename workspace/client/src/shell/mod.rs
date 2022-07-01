@@ -370,20 +370,8 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
             };
 
             let result = if let Some((secret_meta, secret)) = result {
-                if let SyncEvent::CreateSecret(id, value) =
-                    keeper.create(secret_meta, secret)?
-                {
-                    // Must clone the event to appease the borrow checker
-                    Some((
-                        summary,
-                        SyncEvent::CreateSecret(
-                            id,
-                            Cow::Owned(value.into_owned()),
-                        ),
-                    ))
-                } else {
-                    None
-                }
+                let event = keeper.create(secret_meta, secret)?;
+                Some((summary, event.into_owned()))
             } else {
                 None
             };

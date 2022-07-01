@@ -118,6 +118,40 @@ impl SyncEvent<'_> {
             SyncEvent::DeleteSecret(_) => EventKind::DeleteSecret,
         }
     }
+
+    /// Convert this sync event into an owned version
+    /// converting any inner `Cow` values into owned data.
+    ///
+    /// This is required to appease the borrow checker in the
+    /// shell client code.
+    pub fn into_owned(self) -> SyncEvent<'static> {
+        match self {
+            SyncEvent::Noop => SyncEvent::Noop,
+            SyncEvent::CreateVault(value) => {
+                SyncEvent::CreateVault(Cow::Owned(value.into_owned()))
+            }
+            SyncEvent::ReadVault => SyncEvent::ReadVault,
+            SyncEvent::UpdateVault(value) => {
+                SyncEvent::UpdateVault(Cow::Owned(value.into_owned()))
+            }
+            SyncEvent::DeleteVault => SyncEvent::DeleteVault,
+            SyncEvent::GetVaultName => SyncEvent::GetVaultName,
+            SyncEvent::SetVaultName(value) => {
+                SyncEvent::SetVaultName(Cow::Owned(value.into_owned()))
+            }
+            SyncEvent::SetVaultMeta(value) => {
+                SyncEvent::SetVaultMeta(Cow::Owned(value.into_owned()))
+            }
+            SyncEvent::CreateSecret(id, value) => {
+                SyncEvent::CreateSecret(id, Cow::Owned(value.into_owned()))
+            }
+            SyncEvent::ReadSecret(id) => SyncEvent::ReadSecret(id),
+            SyncEvent::UpdateSecret(id, value) => {
+                SyncEvent::UpdateSecret(id, Cow::Owned(value.into_owned()))
+            }
+            SyncEvent::DeleteSecret(id) => SyncEvent::DeleteSecret(id),
+        }
+    }
 }
 
 impl<'a> Encode for SyncEvent<'a> {
