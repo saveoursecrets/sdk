@@ -2,6 +2,8 @@
 name = "sos-library"
 version = "0.1.0"
 edition = "2021"
+description = "Core vault library and CLI tools for encryption, encoding and signing "
+license = "GPL-3.0"
 
 [workspace]
 members = [
