@@ -5,7 +5,7 @@ pub mod address;
 pub mod commit_tree;
 pub mod crypto;
 pub mod diceware;
-pub mod error;
+mod error;
 pub mod events;
 pub mod file_access;
 pub mod file_identity;
@@ -25,6 +25,9 @@ pub mod timestamp;
 pub mod vault;
 pub mod wal;
 
+#[cfg(test)]
+pub mod test_utils;
+
 pub use k256;
 pub use serde_binary;
 pub use serde_binary::binary_rw;
@@ -37,6 +40,3 @@ pub use error::Error;
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;
-
-#[cfg(test)]
-pub mod test_utils;

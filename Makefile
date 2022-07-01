@@ -2,8 +2,8 @@ all: lint fmt check
 
 browser-gui:
 	@rm -rf workspace/server/public
-	@cd ../browser/webapp && yarn build
-	@cp -r ../browser/webapp/dist workspace/server/public
+	@cd ../browser && make dist
+	@cp -r ../browser/app/dist workspace/server/public
 	@rm -rf workspace/server/public/assets
 
 server-release: browser-gui
