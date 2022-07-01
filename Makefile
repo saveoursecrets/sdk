@@ -25,4 +25,4 @@ test:
 docs:
 	@cargo doc --all --open --no-deps
 
-.PHONY: all browser-gui server-release prettier fmt check test
+.PHONY: all browser-gui server-release fmt dev check test docs
