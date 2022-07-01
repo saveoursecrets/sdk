@@ -52,11 +52,8 @@ enum ShellCommand {
     Info,
     /// Get or set the name of the selected vault.
     Name { name: Option<String> },
-    /// Inspect WAL commit trees.
-    Wal {
-        #[clap(subcommand)]
-        cmd: Wal,
-    },
+    /// Print commit status.
+    Status,
     /// Print secret keys for the selected vault.
     Keys,
     /// List secrets for the selected vault.
@@ -101,17 +98,6 @@ enum Add {
     Account { label: Option<String> },
     /// Add a file.
     File { path: String, label: Option<String> },
-}
-
-#[derive(Subcommand, Debug)]
-enum Wal {
-    /// Print status of current vault.
-    Status,
-    /*
-    /// List commits in local WAL cache.
-    #[clap(alias = "ls")]
-    List,
-    */
 }
 
 /// Attempt to read secret meta data for a reference.
@@ -394,17 +380,15 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
             }
             Ok(())
         }
-        ShellCommand::Wal { cmd } => match cmd {
-            Wal::Status => {
-                let reader = cache.read().unwrap();
-                let keeper =
-                    reader.current().ok_or(Error::NoVaultSelected)?;
-                let (client_proof, server_proof) =
-                    run_blocking(reader.head_wal(keeper.summary()))?;
-                println!("client = {}", CommitHash(client_proof.0));
-                println!("server = {}", CommitHash(server_proof.0));
-                Ok(())
-            }
+        ShellCommand::Status => {
+            let reader = cache.read().unwrap();
+            let keeper =
+                reader.current().ok_or(Error::NoVaultSelected)?;
+            let (client_proof, server_proof) =
+                run_blocking(reader.head_wal(keeper.summary()))?;
+            println!("client = {}", CommitHash(client_proof.0));
+            println!("server = {}", CommitHash(server_proof.0));
+            Ok(())
         },
         ShellCommand::Add { cmd } => {
             let mut writer = cache.write().unwrap();
