@@ -113,51 +113,47 @@ impl ChangeEvent {
             Self::DeleteSecret { address, .. } => address,
         }
     }
-}
 
-impl<'u, 'a, 'e> From<(&'u Uuid, &'a AddressStr, &'e SyncEvent<'e>)>
-    for ChangeEvent
-{
-    fn from(value: (&'u Uuid, &'a AddressStr, &'e SyncEvent<'e>)) -> Self {
-        let (vault_id, address, payload) = value;
+    /// Convert from a sync event.
+    pub fn from_sync_event(vault_id: &Uuid, address: &AddressStr, payload: &SyncEvent<'_>) -> Option<Self> {
         match payload {
-            SyncEvent::CreateVault(_) => ChangeEvent::CreateVault {
+            SyncEvent::CreateVault(_) => Some(ChangeEvent::CreateVault {
                 address: *address,
                 vault_id: *vault_id,
-            },
-            SyncEvent::UpdateVault(_) => ChangeEvent::UpdateVault {
+            }),
+            SyncEvent::UpdateVault(_) => Some(ChangeEvent::UpdateVault {
                 address: *address,
                 vault_id: *vault_id,
-            },
-            SyncEvent::DeleteVault => ChangeEvent::DeleteVault {
+            }),
+            SyncEvent::DeleteVault => Some(ChangeEvent::DeleteVault {
                 address: *address,
                 vault_id: *vault_id,
-            },
-            SyncEvent::SetVaultName(name) => ChangeEvent::SetVaultName {
+            }),
+            SyncEvent::SetVaultName(name) => Some(ChangeEvent::SetVaultName {
                 address: *address,
                 vault_id: *vault_id,
                 name: name.to_string(),
-            },
+            }),
             SyncEvent::CreateSecret(secret_id, _) => {
-                ChangeEvent::CreateSecret {
+                Some(ChangeEvent::CreateSecret {
                     address: *address,
                     vault_id: *vault_id,
                     secret_id: *secret_id,
-                }
+                })
             }
             SyncEvent::UpdateSecret(secret_id, _) => {
-                ChangeEvent::UpdateSecret {
+                Some(ChangeEvent::UpdateSecret {
                     address: *address,
                     vault_id: *vault_id,
                     secret_id: *secret_id,
-                }
+                })
             }
-            SyncEvent::DeleteSecret(secret_id) => ChangeEvent::DeleteSecret {
+            SyncEvent::DeleteSecret(secret_id) => Some(ChangeEvent::DeleteSecret {
                 address: *address,
                 vault_id: *vault_id,
                 secret_id: *secret_id,
-            },
-            _ => unreachable!(),
+            }),
+            _ => None,
         }
     }
 }
