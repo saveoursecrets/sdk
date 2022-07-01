@@ -13,9 +13,9 @@ use sos_core::{
     commit_tree::{decode_proof, CommitProof, Comparison},
     decode,
     events::{
-        AuditData, AuditEvent, ChangeEvent, EventKind, SyncEvent, WalEvent,
+        AuditData, AuditEvent, ChangeEvent, EventKind, Patch, SyncEvent,
+        WalEvent,
     },
-    patch::Patch,
     vault::{CommitHash, Header},
 };
 

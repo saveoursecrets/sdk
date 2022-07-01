@@ -15,7 +15,6 @@ pub mod file_locks;
 
 pub mod gatekeeper;
 pub mod headers;
-pub mod patch;
 
 #[deprecated]
 pub mod passphrase;
