@@ -1,0 +1,20 @@
+gui = true
+
+[audit]
+file = "audit.dat"
+
+[api]
+origins = [
+  "http://localhost:5053",
+  "http://localhost:8080",
+]
+
+[tls]
+cert = "cert.pem"
+key = "key.pem"
+
+[storage]
+url = "file://."
+
+#[users.0x8a67d6f4aae8165512774d63992623e10494c69f]
+#url = "file://./0x8a67d6f4aae8165512774d63992623e10494c69f"
