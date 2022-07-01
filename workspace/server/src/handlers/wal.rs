@@ -296,12 +296,14 @@ impl WalHandler {
                         let notifications = change_set
                             .iter()
                             .map(|event| {
-                                ChangeEvent::from((
+                                ChangeEvent::from_sync_event(
                                     &vault_id,
                                     &token.address,
                                     event,
-                                ))
+                                )
                             })
+                            .filter(|e| e.is_some())
+                            .map(|e| e.unwrap())
                             .collect::<Vec<_>>();
 
                         // Changes to apply to the WAL log
