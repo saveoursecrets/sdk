@@ -1,7 +1,7 @@
 //! Manages access to a single vault file on disc.
 use std::{
     borrow::Cow,
-    fs::{File, OpenOptions},
+    fs::OpenOptions,
     io::{Read, Seek, SeekFrom, Write},
     ops::Range,
     path::Path,
@@ -199,23 +199,13 @@ impl VaultAccess for VaultFileAccess {
         Header::read_summary_file(&self.file_path)
     }
 
-    fn save(&mut self, buffer: &[u8]) -> Result<SyncEvent> {
-        let mut file = File::options()
-            .read(true)
-            .write(true)
-            .open(&self.file_path)?;
-        file.write_all(buffer)?;
-
-        Ok(SyncEvent::UpdateVault(Cow::Owned(buffer.to_vec())))
-    }
-
-    fn vault_name(&self) -> Result<(String, SyncEvent)> {
+    fn vault_name(&self) -> Result<(String, SyncEvent<'_>)> {
         let header = Header::read_header_file(&self.file_path)?;
         let name = header.name().to_string();
         Ok((name, SyncEvent::GetVaultName))
     }
 
-    fn set_vault_name(&mut self, name: String) -> Result<SyncEvent> {
+    fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>> {
         let content_offset = self.check_identity()?;
         let mut header = Header::read_header_file(&self.file_path)?;
         header.set_name(name.clone());
@@ -227,7 +217,7 @@ impl VaultAccess for VaultFileAccess {
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<SyncEvent> {
+    ) -> Result<SyncEvent<'_>> {
         let id = Uuid::new_v4();
         let content_offset = self.check_identity()?;
         let total_rows = self.rows(content_offset)?;
@@ -255,7 +245,7 @@ impl VaultAccess for VaultFileAccess {
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, SyncEvent)> {
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, SyncEvent<'_>)> {
         let (_, _, row) = self.find_row(id)?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().unwrap();
@@ -274,7 +264,7 @@ impl VaultAccess for VaultFileAccess {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<SyncEvent>> {
+    ) -> Result<Option<SyncEvent<'_>>> {
         let (_content_offset, _total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
@@ -304,7 +294,7 @@ impl VaultAccess for VaultFileAccess {
         }
     }
 
-    fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>> {
+    fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent<'_>>> {
         let (content_offset, total_rows, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             let stream = self.stream.lock().unwrap();
