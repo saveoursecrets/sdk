@@ -565,16 +565,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "console_error_panic_hook"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
-dependencies = [
- "cfg-if",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2770,10 +2760,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos"
-version = "0.1.0"
-
-[[package]]
 name = "sos-audit"
 version = "0.1.0"
 dependencies = [
@@ -2866,6 +2852,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-library"
+version = "0.1.0"
+
+[[package]]
 name = "sos-readline"
 version = "0.1.0"
 dependencies = [
@@ -2910,22 +2900,6 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid 1.1.0",
-]
-
-[[package]]
-name = "sos-wasm"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "getrandom",
- "mime_guess",
- "rand 0.8.5",
- "serde",
- "sos-core",
- "url",
- "wasm-bindgen",
- "web3-keystore",
- "zeroize",
 ]
 
 [[package]]
@@ -3510,8 +3484,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27370197c907c55e3f1a9fbe26f44e937fe6451368324e009cba39e139dc08ad"
 dependencies = [
  "cfg-if",
- "serde",
- "serde_json",
  "wasm-bindgen-macro",
 ]
 

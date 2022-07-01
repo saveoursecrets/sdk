@@ -1,6 +1,6 @@
-# Secret Storage
+# Save Our Secrets Library
 
-A distributed, encrypted database with a focus on security, integrity and redundancy.
+> A distributed, encrypted database with a focus on security, integrity and redundancy.
 
 Used to store private secrets such as account passwords, notes, certificates and encryption keys.
 
