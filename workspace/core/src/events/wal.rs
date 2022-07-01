@@ -15,9 +15,10 @@ use crate::{crypto::AeadPack, secret::SecretId, vault::VaultCommit, Error};
 use super::{EventKind, SyncEvent};
 
 /// Write ahead log event.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub enum WalEvent<'a> {
     /// Variant used for the Default implementation.
+    #[default]
     Noop,
 
     /// Create a new vault.
@@ -40,12 +41,6 @@ pub enum WalEvent<'a> {
 
     /// Delete a secret.
     DeleteSecret(SecretId),
-}
-
-impl Default for WalEvent<'_> {
-    fn default() -> Self {
-        WalEvent::Noop
-    }
 }
 
 impl WalEvent<'_> {

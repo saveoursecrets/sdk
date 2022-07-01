@@ -29,12 +29,13 @@ use super::EventKind;
 /// it on the server side to make changes to a vault
 /// we should decode to owned data hence the use of `Cow`
 /// to distinguish between borrowed and owned.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub enum SyncEvent<'a> {
     /// Default variant, should never be used.
     ///
     /// We need a variant so we can implement the Default
     /// trait which is required for decoding.
+    #[default]
     Noop,
 
     /// SyncEvent used to indicate a vault was created.
@@ -72,12 +73,6 @@ pub enum SyncEvent<'a> {
 
     /// Delete a secret.
     DeleteSecret(SecretId),
-}
-
-impl Default for SyncEvent<'_> {
-    fn default() -> Self {
-        Self::Noop
-    }
 }
 
 /// SyncEvent with an attached signature.

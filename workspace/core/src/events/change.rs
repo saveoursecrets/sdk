@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::address::AddressStr;
+use crate::{address::AddressStr, secret::SecretId};
 
 use super::SyncEvent;
 
@@ -61,7 +61,7 @@ pub enum ChangeEvent {
         /// The vault identifier.
         vault_id: Uuid,
         /// The secret identifier.
-        secret_id: Uuid,
+        secret_id: SecretId,
     },
     /// Event emitted when a secret is updated.
     UpdateSecret {
@@ -71,7 +71,7 @@ pub enum ChangeEvent {
         /// The vault identifier.
         vault_id: Uuid,
         /// The secret identifier.
-        secret_id: Uuid,
+        secret_id: SecretId,
     },
     /// Event emitted when a secret is deleted.
     DeleteSecret {
@@ -81,7 +81,7 @@ pub enum ChangeEvent {
         /// The vault identifier.
         vault_id: Uuid,
         /// The secret identifier.
-        secret_id: Uuid,
+        secret_id: SecretId,
     },
 }
 
