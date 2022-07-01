@@ -24,4 +24,14 @@ cargo run -- -c ../../sandbox/config.toml
 
 Accounts and vaults will be created in the sandbox directory.
 
+### Release
+
+The server bundles a web-based GUI from the browser webapp code so to make a release build of the server CLI tool you must have the [browser][] repository as a sibling folder of this repository and then run:
+
+```
+make server-release
+```
+
 [mkcert]: https://github.com/FiloSottile/mkcert
+
+[browser]: https://github.com/saveoursecrets/browser
