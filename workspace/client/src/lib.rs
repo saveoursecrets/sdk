@@ -70,5 +70,5 @@ pub use client::{Client, VaultInfo};
 pub use create::vault as create_vault;
 pub use error::Error;
 pub use monitor::monitor;
-pub use shell::{exec, list_vaults};
+pub use shell::exec;
 pub use signup::signup;

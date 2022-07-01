@@ -10,8 +10,7 @@ use url::Url;
 use uuid::Uuid;
 
 use sos_client::{
-    create_vault, exec, list_vaults, monitor, signup, Cache, ClientBuilder,
-    Error, Result,
+    create_vault, exec, monitor, signup, Cache, ClientBuilder, Error, Result,
 };
 use sos_core::Algorithm;
 use sos_readline::read_shell;
@@ -147,13 +146,6 @@ fn run() -> Result<()> {
             let reader = cache.read().unwrap();
             welcome(reader.client().server())?;
             drop(reader);
-
-            if let Err(e) = list_vaults(Arc::clone(&cache), false) {
-                tracing::error!(
-                    "failed to load vault summaries, identity may not exist: {}",
-                    e
-                );
-            }
 
             let prompt_cache = Arc::clone(&cache);
             let prompt = || -> String {

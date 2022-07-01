@@ -8,7 +8,7 @@ use sos_core::{
     gatekeeper::Gatekeeper,
     patch::Patch,
     secret::SecretRef,
-    vault::{CommitHash, Summary, Vault},
+    vault::{CommitHash, Header, Summary, Vault},
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
 };
 use std::{
@@ -291,12 +291,25 @@ impl Cache {
     ) -> Result<Response> {
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
         let response = self.patch_vault(summary, vec![event]).await?;
+
+        if response.status().is_success() {
+            for item in self.summaries.iter_mut() {
+                if item.id() == summary.id() {
+                    item.set_name(name.to_string());
+                }
+            }
+        }
+
         Ok(response)
     }
 
     /// Create a new WAL file.
     pub async fn create_wal(&mut self, vault: Vec<u8>) -> Result<Response> {
+        let summary = Header::read_summary_slice(&vault)?;
         let (response, _) = self.client.create_wal(vault).await?;
+        if response.status().is_success() {
+            self.summaries.push(summary);
+        }
         Ok(response)
     }
 
@@ -316,6 +329,12 @@ impl Cache {
                 if id == summary.id() {
                     self.set_current(None);
                 }
+            }
+
+            let index =
+                self.summaries.iter().position(|s| s.id() == summary.id());
+            if let Some(index) = index {
+                self.summaries.remove(index);
             }
         }
 

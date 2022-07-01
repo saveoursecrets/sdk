@@ -266,7 +266,12 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 /// Execute the program command.
 fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
     match program.cmd {
-        ShellCommand::Vaults => list_vaults(cache, true),
+        ShellCommand::Vaults => {
+            let mut writer = cache.write().unwrap();
+            let summaries = run_blocking(writer.load_summaries())?;
+            print::summaries_list(summaries);
+            Ok(())
+        }
         ShellCommand::Create { name } => {
             let mut writer = cache.write().unwrap();
             let (passphrase, _) = generate()?;
@@ -285,8 +290,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
 
             display_passphrase("ENCRYPTION PASSPHRASE", &passphrase);
 
-            drop(writer);
-            list_vaults(cache, false)
+            Ok(())
         }
         ShellCommand::Remove { vault } => {
             let reader = cache.read().unwrap();
@@ -301,25 +305,18 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
 
             drop(reader);
 
-            let removed =
-                if read_flag(Some(&prompt))? {
-                    let mut writer = cache.write().unwrap();
-                    let response = run_blocking(writer.delete_wal(&summary))?;
+            if read_flag(Some(&prompt))? {
+                let mut writer = cache.write().unwrap();
+                let response = run_blocking(writer.delete_wal(&summary))?;
 
-                    response.status().is_success().then_some(()).ok_or(
-                        Error::VaultRemove(response.status().into()),
-                    )?;
-
-                    true
-                } else {
-                    false
-                };
-
-            if removed {
-                list_vaults(cache, false)
-            } else {
-                Ok(())
+                response
+                    .status()
+                    .is_success()
+                    .then_some(())
+                    .ok_or(Error::VaultRemove(response.status().into()))?;
             }
+
+            Ok(())
         }
         ShellCommand::Use { vault } => {
             let reader = cache.read().unwrap();
@@ -394,12 +391,8 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     .is_success()
                     .then_some(())
                     .ok_or(Error::SetVaultName(response.status().into()))?;
-
-                drop(writer);
-                list_vaults(cache, false)
-            } else {
-                Ok(())
             }
+            Ok(())
         }
         ShellCommand::Wal { cmd } => match cmd {
             Wal::Status => {
@@ -647,17 +640,6 @@ where
     match Shell::try_parse_from(it) {
         Ok(program) => exec_program(program, cache)?,
         Err(e) => e.print().expect("unable to write error output"),
-    }
-    Ok(())
-}
-
-/// Exposed so that the shell program can automatically
-/// try to list vaults after creating a signer.
-pub fn list_vaults(cache: Arc<RwLock<Cache>>, print: bool) -> Result<()> {
-    let mut writer = cache.write().unwrap();
-    let summaries = run_blocking(writer.load_summaries())?;
-    if print {
-        print::summaries_list(summaries);
     }
     Ok(())
 }

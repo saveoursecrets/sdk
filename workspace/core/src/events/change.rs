@@ -115,7 +115,11 @@ impl ChangeEvent {
     }
 
     /// Convert from a sync event.
-    pub fn from_sync_event(vault_id: &Uuid, address: &AddressStr, payload: &SyncEvent<'_>) -> Option<Self> {
+    pub fn from_sync_event(
+        vault_id: &Uuid,
+        address: &AddressStr,
+        payload: &SyncEvent<'_>,
+    ) -> Option<Self> {
         match payload {
             SyncEvent::CreateVault(_) => Some(ChangeEvent::CreateVault {
                 address: *address,
@@ -129,11 +133,13 @@ impl ChangeEvent {
                 address: *address,
                 vault_id: *vault_id,
             }),
-            SyncEvent::SetVaultName(name) => Some(ChangeEvent::SetVaultName {
-                address: *address,
-                vault_id: *vault_id,
-                name: name.to_string(),
-            }),
+            SyncEvent::SetVaultName(name) => {
+                Some(ChangeEvent::SetVaultName {
+                    address: *address,
+                    vault_id: *vault_id,
+                    name: name.to_string(),
+                })
+            }
             SyncEvent::CreateSecret(secret_id, _) => {
                 Some(ChangeEvent::CreateSecret {
                     address: *address,
@@ -148,11 +154,13 @@ impl ChangeEvent {
                     secret_id: *secret_id,
                 })
             }
-            SyncEvent::DeleteSecret(secret_id) => Some(ChangeEvent::DeleteSecret {
-                address: *address,
-                vault_id: *vault_id,
-                secret_id: *secret_id,
-            }),
+            SyncEvent::DeleteSecret(secret_id) => {
+                Some(ChangeEvent::DeleteSecret {
+                    address: *address,
+                    vault_id: *vault_id,
+                    secret_id: *secret_id,
+                })
+            }
             _ => None,
         }
     }

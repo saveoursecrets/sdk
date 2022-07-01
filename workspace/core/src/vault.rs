@@ -243,6 +243,11 @@ impl Summary {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    /// Set the public name.
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
 }
 
 impl Encode for Summary {
@@ -303,7 +308,7 @@ impl Header {
 
     /// Set the public name for this vault.
     pub fn set_name(&mut self, name: String) {
-        self.summary.name = name;
+        self.summary.set_name(name);
     }
 
     /// Get the encrypted meta data for the vault.
