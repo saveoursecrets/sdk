@@ -3,10 +3,9 @@ use crate::{client::Client, Error, Result};
 use reqwest::{Response, StatusCode};
 use sos_core::{
     commit_tree::CommitProof,
-    events::{SyncEvent, WalEvent},
+    events::{Patch, SyncEvent, WalEvent},
     file_identity::{FileIdentity, WAL_IDENTITY},
     gatekeeper::Gatekeeper,
-    patch::Patch,
     secret::SecretRef,
     vault::{CommitHash, Header, Summary, Vault},
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
