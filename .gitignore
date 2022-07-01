@@ -1,3 +1,4 @@
 .DS_Store
 target
 *.bak
+workspace/server/public
