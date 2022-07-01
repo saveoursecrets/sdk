@@ -4,7 +4,7 @@ use reqwest_eventsource::Event;
 use std::path::PathBuf;
 use url::Url;
 
-use sos_core::changes::ChangeEvent;
+use sos_core::events::ChangeEvent;
 
 use crate::{run_blocking, Client, ClientBuilder, Result};
 
@@ -21,61 +21,38 @@ async fn stream(client: Client) -> Result<()> {
                             event = %message.event,
                             vault_id = %vault_id);
                     }
-                    ChangeEvent::UpdateVault {
-                        vault_id,
-                        change_seq,
-                        ..
+                    ChangeEvent::UpdateVault { vault_id, .. }
+                    | ChangeEvent::DeleteVault { vault_id, .. }
+                    | ChangeEvent::SetVaultMeta { vault_id, .. } => {
+                        tracing::info!(
+                            event = %message.event,
+                            vault_id = %vault_id);
                     }
-                    | ChangeEvent::DeleteVault {
-                        vault_id,
-                        change_seq,
-                        ..
-                    }
-                    | ChangeEvent::SetVaultMeta {
-                        vault_id,
-                        change_seq,
-                        ..
-                    } => {
+                    ChangeEvent::SetVaultName { vault_id, name, .. } => {
                         tracing::info!(
                             event = %message.event,
                             vault_id = %vault_id,
-                            change_seq = %change_seq);
-                    }
-                    ChangeEvent::SetVaultName {
-                        vault_id,
-                        change_seq,
-                        name,
-                        ..
-                    } => {
-                        tracing::info!(
-                            event = %message.event,
-                            vault_id = %vault_id,
-                            change_seq = %change_seq,
                             name = %name);
                     }
                     ChangeEvent::CreateSecret {
                         vault_id,
                         secret_id,
-                        change_seq,
                         ..
                     }
                     | ChangeEvent::UpdateSecret {
                         vault_id,
                         secret_id,
-                        change_seq,
                         ..
                     }
                     | ChangeEvent::DeleteSecret {
                         vault_id,
                         secret_id,
-                        change_seq,
                         ..
                     } => {
                         tracing::info!(
                             event = %message.event,
                             vault_id = %vault_id,
-                            secret_id = %secret_id,
-                            change_seq = %change_seq);
+                            secret_id = %secret_id);
                     }
                 }
             }

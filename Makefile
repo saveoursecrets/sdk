@@ -1,30 +1,19 @@
-all: wasm lint fmt check
-
-wasm:
-	@cd workspace/wasm && wasm-pack build --target=web
+all: lint fmt check
 
 browser-gui:
 	@rm -rf workspace/server/public
-	@cd browser && yarn build
-	@cp -r browser/dist workspace/server/public
+	@cd ../browser/webapp && yarn build
+	@cp -r ../browser/webapp/dist workspace/server/public
 	@rm -rf workspace/server/public/assets
-
-fixtures:
-	@cd workspace/core && rm -f ./fixtures/fba77e3b-edd0-4849-a05f-dded6df31d22.vault
-	@cd workspace/core && rm -f ./fixtures/6691de55-f499-4ed9-b72d-5631dbf1815c.vault
-	@cd workspace/core && rm -f ./fixtures/a7db14d0-80ac-47e8-aeb4-07c1ac55bd8e.vault
-	@cd workspace/client && cat ../core/fixtures/passphrase.txt | cargo run -- create --uuid fba77e3b-edd0-4849-a05f-dded6df31d22 ../core/fixtures
-	@cd workspace/client && cat ../core/fixtures/passphrase.txt | cargo run -- create --uuid 6691de55-f499-4ed9-b72d-5631dbf1815c ../core/fixtures
-	@cd workspace/client && cat ../core/fixtures/passphrase.txt | cargo run -- create --uuid a7db14d0-80ac-47e8-aeb4-07c1ac55bd8e ../core/fixtures
 
 server-release: browser-gui
 	@cd workspace/server && cargo build --release
 
-lint:
-	@cd browser && yarn lint
-
 fmt:
-	@cd browser && yarn fmt
+	@cargo fmt --all
+
+dev:
+	@cargo test --all
 	@cargo fmt --all
 
 check:
@@ -36,4 +25,4 @@ test:
 docs:
 	@cargo doc --all --open --no-deps
 
-.PHONY: all wasm browser-gui fixtures server-release prettier lint fmt check test
+.PHONY: all browser-gui server-release fmt dev check test docs

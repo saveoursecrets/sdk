@@ -5,12 +5,14 @@ edition = "2021"
 default-run = "sos-audit"
 
 [dependencies]
+async-trait = "0.1"
 thiserror = "1"
 clap = { version = "3", features = ["derive", "wrap_help"] }
 sos-core = { path = "../core" }
 serde_json = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { version = "1", default-features = false, features = ["fs", "io-util"] }
 
 [[bin]]
 name = "sos-audit"

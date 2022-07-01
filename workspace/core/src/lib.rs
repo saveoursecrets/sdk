@@ -2,16 +2,19 @@
 //! Secret storage manager.
 
 pub mod address;
-pub mod audit;
-pub mod changes;
 pub mod commit_tree;
 pub mod crypto;
 pub mod diceware;
 pub mod error;
+pub mod events;
 pub mod file_access;
 pub mod file_identity;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod file_locks;
+
 pub mod gatekeeper;
-pub mod operations;
+pub mod headers;
 pub mod patch;
 
 #[deprecated]
@@ -19,9 +22,12 @@ pub mod passphrase;
 
 pub mod secret;
 pub mod signer;
+pub mod timestamp;
 pub mod vault;
+pub mod wal;
 
 pub use k256;
+pub use serde_binary;
 pub use serde_binary::binary_rw;
 pub use web3_signature;
 

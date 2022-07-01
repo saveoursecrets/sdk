@@ -1,5 +1,5 @@
 [package]
-name = "sos"
+name = "sos-library"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,5 +11,4 @@ members = [
   "workspace/core",
   "workspace/readline",
   "workspace/server",
-  "workspace/wasm",
 ]
