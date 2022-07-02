@@ -8,7 +8,9 @@ use sos_core::{
     address::AddressStr,
     commit_tree::{decode_proof, encode_proof, CommitProof},
     events::Patch,
-    headers::{X_COMMIT_HASH, X_COMMIT_PROOF, X_SIGNED_MESSAGE},
+    headers::{
+        X_COMMIT_HASH, X_COMMIT_PROOF, X_LEAF_PROOF, X_SIGNED_MESSAGE,
+    },
     signer::Signer,
     vault::{encode, Summary, MIME_TYPE_VAULT},
 };
@@ -33,6 +35,17 @@ fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
         let commit_hash: [u8; 32] = commit_hash.as_slice().try_into()?;
         let commit_proof = decode_proof(&commit_proof)?;
         Ok(Some(CommitProof(commit_hash, commit_proof)))
+    } else {
+        Ok(None)
+    }
+}
+
+pub(crate) fn decode_leaf_proof(
+    headers: &HeaderMap,
+) -> Result<Option<Vec<u8>>> {
+    if let Some(leaf_proof) = headers.get(X_LEAF_PROOF) {
+        let leaf_proof = base64::decode(leaf_proof)?;
+        Ok(Some(leaf_proof))
     } else {
         Ok(None)
     }

@@ -19,6 +19,7 @@ use sos_core::{
     vault::{
         encode, CommitHash, Vault, VaultAccess, VaultCommit, VaultEntry,
     },
+    wal::WalProvider,
 };
 use sos_readline::{
     read_flag, read_line, read_line_allow_empty, read_multiline, read_option,
@@ -54,6 +55,8 @@ enum ShellCommand {
     Name { name: Option<String> },
     /// Print commit status.
     Status,
+    /// Print commit tree leaves for the WAL of the current vault.
+    Tree,
     /// Print secret keys for the selected vault.
     Keys,
     /// List secrets for the selected vault.
@@ -382,14 +385,30 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
         }
         ShellCommand::Status => {
             let reader = cache.read().unwrap();
-            let keeper =
-                reader.current().ok_or(Error::NoVaultSelected)?;
+            let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
             let (client_proof, server_proof) =
                 run_blocking(reader.head_wal(keeper.summary()))?;
             println!("client = {}", CommitHash(client_proof.0));
             println!("server = {}", CommitHash(server_proof.0));
             Ok(())
-        },
+        }
+        ShellCommand::Tree => {
+            let reader = cache.read().unwrap();
+            let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary();
+            if let Some((_, wal)) = reader.wal_file(summary) {
+                if let Some(leaves) = wal.tree().leaves() {
+                    for leaf in &leaves {
+                        println!("{}", hex::encode(leaf));
+                    }
+                    println!("leaves = {}", leaves.len());
+                }
+                if let Some(root) = wal.tree().root() {
+                    println!("root = {}", hex::encode(root));
+                }
+            }
+            Ok(())
+        }
         ShellCommand::Add { cmd } => {
             let mut writer = cache.write().unwrap();
             let keeper =

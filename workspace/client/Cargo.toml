@@ -8,6 +8,7 @@ default-run = "sos-client"
 thiserror = "1"
 sos-core = { path = "../core" }
 sos-readline = { path = "../readline" }
+async-recursion = "1"
 clap = { version = "3", features = ["derive", "wrap_help"] }
 tokio = { version = "1", features = ["full"] }
 url = "2"

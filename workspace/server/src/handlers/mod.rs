@@ -15,7 +15,7 @@ use tokio::sync::{RwLock, RwLockWriteGuard};
 
 use crate::{
     assets::Assets,
-    headers::{X_COMMIT_HASH, X_COMMIT_PROOF},
+    headers::{X_COMMIT_HASH, X_COMMIT_PROOF, X_LEAF_PROOF},
     State,
 };
 
@@ -43,6 +43,17 @@ fn append_commit_headers(
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
+    Ok(())
+}
+
+fn append_leaf_header(
+    headers: &mut HeaderMap,
+    leaf_proof: &[u8],
+) -> Result<(), StatusCode> {
+    let x_leaf_proof =
+        HeaderValue::from_str(&base64::encode(leaf_proof))
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    headers.insert(X_LEAF_PROOF.clone(), x_leaf_proof);
     Ok(())
 }
 

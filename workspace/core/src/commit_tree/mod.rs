@@ -136,6 +136,7 @@ impl CommitTree {
             let leaves = self.tree.leaves().unwrap_or_default();
             let it = leaves.into_iter().enumerate().rev();
             for (index, leaf) in it {
+                println!("comparing on {} {}", index, hex::encode(leaf));
                 let indices = vec![index];
                 let leaves = vec![leaf];
                 let matched = proof.verify(

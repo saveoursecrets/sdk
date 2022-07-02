@@ -1,8 +1,12 @@
 //! Cache of local WAL files.
-use crate::{client::Client, Error, Result};
+use crate::{
+    client::{decode_leaf_proof, Client},
+    Error, Result,
+};
+use async_recursion::async_recursion;
 use reqwest::{Response, StatusCode};
 use sos_core::{
-    commit_tree::CommitProof,
+    commit_tree::{CommitProof, decode_proof, Comparison},
     events::{Patch, SyncEvent, WalEvent},
     file_identity::{FileIdentity, WAL_IDENTITY},
     gatekeeper::Gatekeeper,
@@ -129,9 +133,12 @@ impl Cache {
         self.user_dir.join(&wal_name)
     }
 
-    /// Load a vault by attempting to fetch the WAL file and caching
-    /// the result on disc.
-    pub async fn load_vault(&mut self, summary: &Summary) -> Result<Vault> {
+    pub fn wal_file(&self, summary: &Summary) -> Option<&(PathBuf, WalFile)> {
+        self.cache.get(summary.id())
+    }
+
+    /// Fetch the remote WAL file.
+    pub async fn pull_wal<'a>(&'a mut self, summary: &Summary) -> Result<&'a mut WalFile> {
         let cached_wal_path = self.wal_path(summary);
 
         // Cache already exists so attempt to get a diff of records
@@ -199,11 +206,17 @@ impl Cache {
                     self.cache
                         .insert(*summary.id(), (cached_wal_path, wal_file));
 
-                    // Build the vault from the WAL file
                     let (_, wal) = self.cache.get_mut(summary.id()).unwrap();
+
+                    Ok(wal)
+
+                    /*
+                    // Build the vault from the WAL file
+                    //let (_, wal) = self.cache.get_mut(summary.id()).unwrap();
                     let vault = WalReducer::new().reduce(wal)?.build()?;
 
                     Ok(vault)
+                    */
                 } else {
                     Err(Error::ServerProof)
                 }
@@ -214,8 +227,13 @@ impl Cache {
                     if let Some(server_proof) = server_proof {
                         let client_proof = wal.tree().head()?;
                         assert_proofs_eq(client_proof, server_proof)?;
+
+                        /*
                         let vault = WalReducer::new().reduce(wal)?.build()?;
                         Ok(vault)
+                        */
+
+                        Ok(wal)
                     } else {
                         Err(Error::ServerProof)
                     }
@@ -232,11 +250,20 @@ impl Cache {
         }
     }
 
+    /// Load a vault by attempting to fetch the WAL file and caching
+    /// the result on disc then building a vault from the WAL.
+    pub async fn load_vault(&mut self, summary: &Summary) -> Result<Vault> {
+        let wal = self.pull_wal(summary).await?;
+        let vault = WalReducer::new().reduce(wal)?.build()?;
+        Ok(vault)
+    }
+
     /// Attempt to patch a remote WAL file.
+    #[async_recursion]
     pub async fn patch_vault(
         &mut self,
         summary: &Summary,
-        events: Vec<SyncEvent<'_>>,
+        events: Vec<SyncEvent<'async_recursion>>,
     ) -> Result<Response> {
         if let Some((_, wal)) = self.cache.get_mut(summary.id()) {
             let patch = Patch(events);
@@ -271,7 +298,78 @@ impl Cache {
                     Ok(response)
                 }
                 StatusCode::CONFLICT => {
-                    todo!("handle patch conflict");
+                    let server_proof =
+                        server_proof.ok_or(Error::ServerProof)?;
+
+                    println!("Got conflict response {:#?}", response.headers());
+
+                    // Server replied with a proof that they have a 
+                    // leaf node corresponding to our root hash
+                    if let Some(leaf_proof) =
+                        decode_leaf_proof(response.headers())?
+                    {
+                        let proof = decode_proof(&leaf_proof)?;
+                        let other_root = server_proof.0;
+                        let commit_proof = CommitProof(other_root, proof);
+                        let comparison = wal.tree().compare(commit_proof)?;
+
+                        println!("got leaf comparison {:#?}", comparison);
+
+                        match comparison {
+                            Comparison::Equal => {
+                                // We got a conflict from the server so this
+                                // should not happen but if it does then it's ok
+                                Ok(response)
+                            }
+                            Comparison::Contains(index, _) => {
+                                // The leaf proof from the server matches
+                                // the index for our last leaf so we can
+                                // go ahead and pull a diff from the server
+                                if index == wal.tree().len() - 1 {
+                                    println!("pull wal diff from the server");
+
+                                    // Pull the updated WAL from the server
+                                    let _ = self.pull_wal(summary).await?;
+
+                                    println!("retry patching changes");
+
+                                    // Retry sending our local changes to 
+                                    // the remote WAL
+                                    let response = self.patch_vault(
+                                        summary, patch.0.clone()).await?;
+
+                                    if response.status().is_success() {
+                                        println!("remote patch was applied");
+
+                                        println!("Apply the changes to our locwal WAL");
+                                        let updated_vault = 
+                                            self.load_vault(summary).await?;
+
+                                        if let Some(keeper) = self.current_mut() {
+                                            if keeper.id() == summary.id() {
+                                                let existing_vault = 
+                                                    keeper.vault_mut();
+                                                *existing_vault = updated_vault;
+                                                println!("Merge updated vault data with our local changes!!!!");
+                                            }
+                                        }
+                                    }
+
+                                    Ok(response)
+                                } else {
+                                    self.conflict_pull_sync()?;
+                                    Ok(response)
+                                }
+                            }
+                            Comparison::Unknown => {
+                                self.conflict_pull_sync()?;
+                                Ok(response)
+                            }
+                        }
+                    } else {
+                        self.conflict_pull_sync()?;
+                        Ok(response)
+                    }
                 }
                 _ => {
                     todo!("handle patch errors");
@@ -280,6 +378,10 @@ impl Cache {
         } else {
             Err(Error::CacheNotAvailable(*summary.id()))
         }
+    }
+
+    fn conflict_pull_sync(&mut self) -> Result<()> {
+        todo!("handle patch conflict that requires complete sync");
     }
 
     /// Attempt to set the vault name on the remote server.

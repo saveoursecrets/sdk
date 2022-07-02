@@ -13,6 +13,9 @@ pub static X_COMMIT_HASH: Lazy<HeaderName> =
 pub static X_COMMIT_PROOF: Lazy<HeaderName> =
     Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_PROOF));
 
+pub static X_LEAF_PROOF: Lazy<HeaderName> =
+    Lazy::new(|| HeaderName::from_static(sos_core::headers::X_LEAF_PROOF));
+
 /// Represents the `x-signed-message` header.
 #[derive(Debug)]
 pub struct SignedMessage(Vec<u8>);

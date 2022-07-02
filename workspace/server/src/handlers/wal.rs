@@ -10,7 +10,7 @@ use axum::{
 
 use sos_core::{
     address::AddressStr,
-    commit_tree::{decode_proof, CommitProof, Comparison},
+    commit_tree::{encode_proof, decode_proof, CommitProof, Comparison},
     decode,
     events::{
         AuditData, AuditEvent, ChangeEvent, EventKind, Patch, SyncEvent,
@@ -29,10 +29,10 @@ use crate::{
     State,
 };
 
-use super::{append_audit_logs, append_commit_headers, send_notifications};
+use super::{append_audit_logs, append_commit_headers, send_notifications, append_leaf_header};
 
 enum PatchResult {
-    Conflict(CommitProof),
+    Conflict(CommitProof, Option<Vec<u8>>),
     Success(
         Vec<AuditEvent>,
         Vec<ChangeEvent>,
@@ -261,6 +261,10 @@ impl WalHandler {
                     .compare(CommitProof(root_hash, proof))
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+                println!("Client root hash {:#?}", hex::encode(&root_hash));
+                println!("Commit proof bytes {:#?}", hex::encode(commit_proof.as_ref()));
+                println!("Server comparison {:#?}", comparison);
+
                 match comparison {
                     Comparison::Equal => {
                         let patch: Patch = decode(&body)
@@ -336,12 +340,24 @@ impl WalHandler {
                             vault_name.map(|name| (token.address, name)),
                         ))
                     }
-                    Comparison::Unknown | Comparison::Contains(_, _) => {
+                    Comparison::Contains(index, _leaf) => {
                         let proof = wal
                             .tree()
                             .head()
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                        Ok(PatchResult::Conflict(proof))
+                        // Prepare the proof that this WAL contains the 
+                        // matched leaf node
+                        let indices = [index];
+                        let leaf_proof = encode_proof(
+                            &wal.tree().proof(&indices));
+                        Ok(PatchResult::Conflict(proof, Some(leaf_proof)))
+                    }
+                    Comparison::Unknown => {
+                        let proof = wal
+                            .tree()
+                            .head()
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                        Ok(PatchResult::Conflict(proof, None))
                     }
                 }
             } else {
@@ -355,7 +371,7 @@ impl WalHandler {
             PatchResult::Success(
                 logs,
                 notifications,
-                commits,
+                _commits,
                 proof,
                 name,
             ) => {
@@ -386,9 +402,19 @@ impl WalHandler {
                 append_commit_headers(&mut headers, &proof)?;
                 Ok((StatusCode::OK, headers))
             }
-            PatchResult::Conflict(proof) => {
+            PatchResult::Conflict(proof, leaf_proof) => {
                 let mut headers = HeaderMap::new();
                 append_commit_headers(&mut headers, &proof)?;
+
+                // Send a proof that this WAL contains the 
+                // root hash sent by the client.
+                //
+                // The client can use this to determine that it 
+                // is safe to pull changes from the server.
+                if let Some(leaf_proof) = leaf_proof {
+                    append_leaf_header(&mut headers, &leaf_proof)?;
+                }
+
                 Ok((StatusCode::CONFLICT, headers))
             }
         }
