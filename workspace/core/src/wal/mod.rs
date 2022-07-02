@@ -234,8 +234,8 @@ mod test {
         let proof = client.tree().head()?;
         let comparison = server.tree().compare(proof)?;
 
-        let matched = if let Comparison::Contains(index, _) = comparison {
-            index == 1
+        let matched = if let Comparison::Contains(indices, _) = comparison {
+            indices == vec![1]
         } else {
             false
         };
@@ -284,9 +284,10 @@ mod test {
 
         let comparison = server.tree().compare(proof)?;
 
-        if let Comparison::Contains(index, leaf) = comparison {
-            assert_eq!(1, index);
-            if let Some(records) = server.diff(leaf)? {
+        if let Comparison::Contains(indices, leaves) = comparison {
+            assert_eq!(vec![1], indices);
+            let leaf = leaves.get(0).unwrap();
+            if let Some(records) = server.diff(*leaf)? {
                 assert_eq!(1, records.len());
                 assert_eq!(&record, records.get(0).unwrap());
             } else {

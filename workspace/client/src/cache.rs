@@ -271,6 +271,12 @@ impl Cache {
         if let Some((_, wal)) = self.cache.get_mut(summary.id()) {
             let patch = Patch(events);
             let proof = wal.tree().head()?;
+
+            println!("patch client with index {}", wal.tree().len() - 1);
+            println!("patch client with last leaf {}", hex::encode(
+                    wal.tree().leaves().unwrap().pop().unwrap()));
+            println!("patch client with root hash {}", hex::encode(&proof.0));
+
             let (response, server_proof) =
                 self.client.patch_wal(summary.id(), &proof, &patch).await?;
 
