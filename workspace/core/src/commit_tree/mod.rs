@@ -29,14 +29,6 @@ pub struct CommitProof(
 );
 
 impl CommitProof {
-    /*
-    /// Inherit the root hash and leaves count from another commit proof.
-    pub fn inherit(&mut self, other: &CommitProof) {
-        self.0 = other.0;
-        self.2 = other.2;
-    }
-    */
-
     /// The root hash for the proof.
     pub fn root(&self) -> &<Sha256 as Hasher>::Hash {
         &self.0

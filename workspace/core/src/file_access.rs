@@ -19,6 +19,7 @@ use serde_binary::{
 use uuid::Uuid;
 
 use crate::{
+    crypto::AeadPack,
     events::SyncEvent,
     file_identity::{FileIdentity, VAULT_IDENTITY},
     secret::SecretId,
@@ -211,6 +212,17 @@ impl VaultAccess for VaultFileAccess {
         header.set_name(name.clone());
         self.write_header(content_offset, &header)?;
         Ok(SyncEvent::SetVaultName(Cow::Owned(name)))
+    }
+
+    fn set_vault_meta(
+        &mut self,
+        meta_data: Option<AeadPack>,
+    ) -> Result<SyncEvent<'_>> {
+        let content_offset = self.check_identity()?;
+        let mut header = Header::read_header_file(&self.file_path)?;
+        header.set_meta(meta_data.clone());
+        self.write_header(content_offset, &header)?;
+        Ok(SyncEvent::SetVaultMeta(Cow::Owned(meta_data)))
     }
 
     fn create(

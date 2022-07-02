@@ -126,6 +126,12 @@ pub trait VaultAccess {
     /// Set the name of a vault.
     fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>>;
 
+    /// Set the vault meta data.
+    fn set_vault_meta(
+        &mut self,
+        meta_data: Option<AeadPack>,
+    ) -> Result<SyncEvent<'_>>;
+
     /// Add an encrypted secret to the vault.
     fn create(
         &mut self,
@@ -750,6 +756,15 @@ impl VaultAccess for Vault {
     fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>> {
         self.set_name(name.clone());
         Ok(SyncEvent::SetVaultName(Cow::Owned(name)))
+    }
+
+    fn set_vault_meta(
+        &mut self,
+        meta_data: Option<AeadPack>,
+    ) -> Result<SyncEvent<'_>> {
+        self.header.set_meta(meta_data);
+        let meta = self.header.meta().map(|m| m.clone());
+        Ok(SyncEvent::SetVaultMeta(Cow::Owned(meta)))
     }
 
     fn create(
