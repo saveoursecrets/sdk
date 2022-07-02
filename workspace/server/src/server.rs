@@ -9,7 +9,7 @@ use crate::{
         wal::WalHandler,
     },
     headers::{
-        X_COMMIT_HASH, X_COMMIT_PROOF, X_LEAF_PROOF, X_SIGNED_MESSAGE,
+        X_COMMIT_PROOF, X_LEAF_PROOF, X_SIGNED_MESSAGE,
     },
     Backend, ServerConfig,
 };
@@ -100,12 +100,10 @@ impl Server {
                 AUTHORIZATION,
                 CONTENT_TYPE,
                 X_SIGNED_MESSAGE.clone(),
-                X_COMMIT_HASH.clone(),
                 X_COMMIT_PROOF.clone(),
                 X_LEAF_PROOF.clone(),
             ])
             .expose_headers(vec![
-                X_COMMIT_HASH.clone(),
                 X_COMMIT_PROOF.clone(),
                 X_LEAF_PROOF.clone(),
             ])

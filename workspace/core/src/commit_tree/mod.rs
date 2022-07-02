@@ -15,6 +15,7 @@ use crate::{
 pub mod integrity;
 
 /// Decode a merkle proof.
+#[deprecated]
 pub fn decode_proof<B: AsRef<[u8]>>(
     buffer: B,
 ) -> Result<MerkleProof<Sha256>> {
@@ -22,6 +23,7 @@ pub fn decode_proof<B: AsRef<[u8]>>(
 }
 
 /// Encode a merkle proof.
+#[deprecated]
 pub fn encode_proof(proof: &MerkleProof<Sha256>) -> Vec<u8> {
     proof.to_bytes()
 }
@@ -32,6 +34,7 @@ pub fn hash(data: &[u8]) -> [u8; 32] {
 }
 
 /// Represents a root hash and a proof of certain nodes.
+#[derive(Debug, Eq, PartialEq)]
 pub struct CommitProof(
     pub <Sha256 as Hasher>::Hash,
     pub MerkleProof<Sha256>,

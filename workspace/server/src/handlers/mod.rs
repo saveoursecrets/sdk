@@ -15,13 +15,14 @@ use tokio::sync::{RwLock, RwLockWriteGuard};
 
 use crate::{
     assets::Assets,
-    headers::{X_COMMIT_HASH, X_COMMIT_PROOF, X_LEAF_PROOF},
+    headers::{X_COMMIT_PROOF, X_LEAF_PROOF},
     State,
 };
 
 use sos_core::{
     commit_tree::{encode_proof, CommitProof},
     events::{AuditEvent, AuditProvider, ChangeEvent},
+    encode,
 };
 
 pub(crate) mod account;
@@ -33,24 +34,22 @@ fn append_commit_headers(
     headers: &mut HeaderMap,
     proof: &CommitProof,
 ) -> Result<(), StatusCode> {
-    let CommitProof(server_root, server_proof) = proof;
-    let x_commit_hash = HeaderValue::from_str(&base64::encode(server_root))
+    let value = encode(proof)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    headers.insert(X_COMMIT_HASH.clone(), x_commit_hash);
-
     let x_commit_proof =
-        HeaderValue::from_str(&base64::encode(encode_proof(server_proof)))
+        HeaderValue::from_str(&base64::encode(&value))
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
     headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
     Ok(())
 }
 
 fn append_leaf_header(
     headers: &mut HeaderMap,
-    leaf_proof: &[u8],
+    proof: &CommitProof,
 ) -> Result<(), StatusCode> {
-    let x_leaf_proof = HeaderValue::from_str(&base64::encode(leaf_proof))
+    let value = encode(proof)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let x_leaf_proof = HeaderValue::from_str(&base64::encode(&value))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     headers.insert(X_LEAF_PROOF.clone(), x_leaf_proof);
     Ok(())

@@ -1,14 +1,16 @@
 //! Custom typed headers.
 use axum::headers::{self, Header, HeaderName, HeaderValue};
 
+use sos_core::{encode, decode, commit_tree::CommitProof};
+
 use once_cell::sync::Lazy;
 
 pub static X_SIGNED_MESSAGE: Lazy<HeaderName> = Lazy::new(|| {
     HeaderName::from_static(sos_core::headers::X_SIGNED_MESSAGE)
 });
 
-pub static X_COMMIT_HASH: Lazy<HeaderName> =
-    Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_HASH));
+//pub static X_COMMIT_HASH: Lazy<HeaderName> =
+    //Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_HASH));
 
 pub static X_COMMIT_PROOF: Lazy<HeaderName> =
     Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_PROOF));
@@ -52,6 +54,7 @@ impl Header for SignedMessage {
     }
 }
 
+/*
 /// Represents the `x-commit-hash` header.
 #[derive(Debug, Eq, PartialEq)]
 pub struct CommitHashHeader([u8; 32]);
@@ -99,10 +102,11 @@ impl AsRef<[u8]> for CommitHashHeader {
         &self.0
     }
 }
+*/
 
 /// Represents the `x-commit-proof` header.
 #[derive(Debug, Eq, PartialEq)]
-pub struct CommitProofHeader(Vec<u8>);
+pub struct CommitProofHeader(CommitProof);
 
 impl Header for CommitProofHeader {
     fn name() -> &'static HeaderName {
@@ -118,6 +122,8 @@ impl Header for CommitProofHeader {
             value.to_str().map_err(|_| headers::Error::invalid())?;
         let value =
             base64::decode(value).map_err(|_| headers::Error::invalid())?;
+        let value: CommitProof =
+            decode(&value).map_err(|_| headers::Error::invalid())?;
         Ok(CommitProofHeader(value))
     }
 
@@ -125,15 +131,17 @@ impl Header for CommitProofHeader {
     where
         E: Extend<HeaderValue>,
     {
-        let s = base64::encode(&self.0);
+        let v = encode(&self.0)
+            .expect("failed to encode commit proof header");
+        let s = base64::encode(&v);
         let value = HeaderValue::from_str(&s)
             .expect("failed to create commit proof header");
         values.extend(std::iter::once(value));
     }
 }
 
-impl AsRef<[u8]> for CommitProofHeader {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
+impl From<CommitProofHeader> for CommitProof {
+    fn from(proof: CommitProofHeader) -> Self {
+        proof.0
     }
 }

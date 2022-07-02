@@ -25,7 +25,7 @@ use uuid::Uuid;
 
 use crate::{
     authenticate,
-    headers::{CommitHashHeader, CommitProofHeader, SignedMessage},
+    headers::{CommitProofHeader, SignedMessage},
     State,
 };
 
@@ -35,7 +35,7 @@ use super::{
 };
 
 enum PatchResult {
-    Conflict(CommitProof, Option<Vec<u8>>),
+    Conflict(CommitProof, Option<CommitProof>),
     Success(
         Vec<AuditEvent>,
         Vec<ChangeEvent>,
@@ -141,7 +141,6 @@ impl WalHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
-        root_hash: Option<TypedHeader<CommitHashHeader>>,
         commit_proof: Option<TypedHeader<CommitProofHeader>>,
         Path(vault_id): Path<Uuid>,
     ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
@@ -167,22 +166,24 @@ impl WalHandler {
                 append_commit_headers(&mut headers, &proof)?;
 
                 // Client is asking for data from a specific commit hash
-                let result = if let Some(TypedHeader(root_hash)) = root_hash {
-                    let root_hash: [u8; 32] = root_hash.into();
-                    if let Some(TypedHeader(commit_proof)) = commit_proof {
-                        let proof = decode_proof(commit_proof.as_ref())
-                            .map_err(|_| StatusCode::BAD_REQUEST)?;
+                //let result = if let Some(TypedHeader(root_hash)) = root_hash {
+                    //let root_hash: [u8; 32] = root_hash.into();
+                let result = if let Some(TypedHeader(proof)) = commit_proof {
+                    //let proof = decode_proof(commit_proof.as_ref())
+                        //.map_err(|_| StatusCode::BAD_REQUEST)?;
 
-                        let comparison = wal
-                            .tree()
-                            .compare(CommitProof(root_hash, proof))
-                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    let comparison = wal
+                        .tree()
+                        .compare(proof.into())
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                        match comparison {
-                            Comparison::Equal => {
-                                Ok((StatusCode::NOT_MODIFIED, vec![]))
-                            }
-                            Comparison::Contains(_, leaf) => {
+                    match comparison {
+                        Comparison::Equal => {
+                            Ok((StatusCode::NOT_MODIFIED, vec![]))
+                        }
+                        Comparison::Contains(_, mut leaves) => {
+                            if leaves.len() == 1 {
+                                let leaf = leaves.remove(0);
                                 if let Some(partial) =
                                     wal.diff(leaf).map_err(|_| {
                                         StatusCode::INTERNAL_SERVER_ERROR
@@ -194,14 +195,14 @@ impl WalHandler {
                                 } else {
                                     Ok((StatusCode::CONFLICT, vec![]))
                                 }
-                            }
-                            // Could not find leaf node in the commit tree
-                            Comparison::Unknown => {
-                                Ok((StatusCode::CONFLICT, vec![]))
+                            } else {
+                                Err(StatusCode::BAD_REQUEST)
                             }
                         }
-                    } else {
-                        Err(StatusCode::BAD_REQUEST)
+                        // Could not find leaf node in the commit tree
+                        Comparison::Unknown => {
+                            Ok((StatusCode::CONFLICT, vec![]))
+                        }
                     }
                 // Otherwise get the entire WAL buffer
                 } else if let Ok(buffer) =
@@ -239,8 +240,7 @@ impl WalHandler {
     pub(crate) async fn patch_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
-        TypedHeader(root_hash): TypedHeader<CommitHashHeader>,
-        TypedHeader(commit_proof): TypedHeader<CommitProofHeader>,
+        TypedHeader(proof): TypedHeader<CommitProofHeader>,
         Path(vault_id): Path<Uuid>,
         body: Bytes,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
@@ -255,21 +255,10 @@ impl WalHandler {
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
-                let root_hash: [u8; 32] = root_hash.into();
-                let proof = decode_proof(commit_proof.as_ref())
-                    .map_err(|_| StatusCode::BAD_REQUEST)?;
-
                 let comparison = wal
                     .tree()
-                    .compare(CommitProof(root_hash, proof))
+                    .compare(proof.into())
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-                println!("Client root hash {:#?}", hex::encode(&root_hash));
-                println!(
-                    "Commit proof bytes {:#?}",
-                    hex::encode(commit_proof.as_ref())
-                );
-                println!("Server comparison {:#?}", comparison);
 
                 match comparison {
                     Comparison::Equal => {
@@ -353,9 +342,11 @@ impl WalHandler {
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                         // Prepare the proof that this WAL contains the
                         // matched leaf node
-                        let indices = [index];
-                        let leaf_proof =
-                            encode_proof(&wal.tree().proof(&indices));
+                        //let indices = [index];
+                        //let leaf_proof =
+                            //encode_proof(&wal.tree().proof(&indices));
+                        let leaf_proof = wal.tree().head()
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                         Ok(PatchResult::Conflict(proof, Some(leaf_proof)))
                     }
                     Comparison::Unknown => {
@@ -435,7 +426,7 @@ impl WalHandler {
     pub(crate) async fn post_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
-        TypedHeader(root_hash): TypedHeader<CommitHashHeader>,
+        TypedHeader(proof): TypedHeader<CommitProofHeader>,
         Path(vault_id): Path<Uuid>,
         body: Bytes,
     ) -> Result<StatusCode, StatusCode> {
@@ -444,13 +435,14 @@ impl WalHandler {
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let writer = state.write().await;
+                let proof: CommitProof = proof.into();
                 // TODO: better error to status code mapping
                 writer
                     .backend
                     .replace_wal(
                         &token.address,
                         &vault_id,
-                        root_hash.into(),
+                        proof.0.into(),
                         body.as_ref(),
                     )
                     .await
