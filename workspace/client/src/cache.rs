@@ -15,6 +15,7 @@ use sos_core::{
     vault::{CommitHash, Header, Summary, Vault},
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
 };
+use tempfile::NamedTempFile;
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -151,6 +152,7 @@ impl Cache {
             let mut wal_file = WalFile::new(&cached_wal_path)?;
             wal_file.load_tree()?;
             let proof = wal_file.tree().head()?;
+            tracing::debug!(root = %proof.root_hex(), "pull_wal root commit");
             (wal_file, Some(proof))
         // Otherwise prepare a new WAL cache
         } else {
@@ -163,9 +165,12 @@ impl Cache {
 
         let status = response.status();
 
+        tracing::debug!(status = %status, "pull_wal status");
+
         match status {
             StatusCode::OK => {
                 if let Some(server_proof) = server_proof {
+
                     let (client_proof, wal_file) = match cached {
                         // If we sent a proof to the server then we
                         // are expecting a diff of records
@@ -175,9 +180,12 @@ impl Cache {
                             // Check the identity looks good
                             FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
-                            // Get buffer of log records after the identity
+                            // Get buffer of log records after the identity bytes
                             let record_bytes =
-                                &buffer[WAL_IDENTITY.len() - 1..buffer.len()];
+                                &buffer[WAL_IDENTITY.len()..];
+
+                            debug_assert!(
+                                record_bytes.len() == buffer.len() - 4);
 
                             // Append the diff bytes without the identity
                             let mut file = OpenOptions::new()
@@ -185,6 +193,8 @@ impl Cache {
                                 .append(true)
                                 .open(&cached_wal_path)?;
                             file.write_all(record_bytes)?;
+
+                            // Update with the new commit tree
                             wal_file.load_tree()?;
 
                             (wal_file.tree().head()?, wal_file)
@@ -213,14 +223,6 @@ impl Cache {
                     let (_, wal) = self.cache.get_mut(summary.id()).unwrap();
 
                     Ok(wal)
-
-                    /*
-                    // Build the vault from the WAL file
-                    //let (_, wal) = self.cache.get_mut(summary.id()).unwrap();
-                    let vault = WalReducer::new().reduce(wal)?.build()?;
-
-                    Ok(vault)
-                    */
                 } else {
                     Err(Error::ServerProof)
                 }
@@ -231,12 +233,6 @@ impl Cache {
                     if let Some(server_proof) = server_proof {
                         let client_proof = wal.tree().head()?;
                         assert_proofs_eq(client_proof, server_proof)?;
-
-                        /*
-                        let vault = WalReducer::new().reduce(wal)?.build()?;
-                        Ok(vault)
-                        */
-
                         Ok(wal)
                     } else {
                         Err(Error::ServerProof)
@@ -273,13 +269,6 @@ impl Cache {
             let patch = Patch(events);
             let proof = wal.tree().head()?;
 
-            println!("patch client with index {}", wal.tree().len() - 1);
-            println!(
-                "patch client with last leaf {}",
-                hex::encode(wal.tree().leaves().unwrap().pop().unwrap())
-            );
-            println!("patch client with root hash {}", hex::encode(&proof.0));
-
             let (response, server_proof) =
                 self.client.patch_wal(summary.id(), &proof, &patch).await?;
 
@@ -313,73 +302,53 @@ impl Cache {
                     let server_proof =
                         server_proof.ok_or(Error::ServerProof)?;
 
-                    println!(
-                        "Got conflict response {:#?}",
-                        response.headers()
-                    );
-
                     // Server replied with a proof that they have a
                     // leaf node corresponding to our root hash
                     if let Some(leaf_proof) =
                         decode_leaf_proof(response.headers())?
                     {
-                        let commit_proof: CommitProof = decode(&leaf_proof)?;
-
-                        println!("got leaf commit proof {:#?}", commit_proof);
-
-                        let comparison = wal.tree().compare(commit_proof)?;
-
-                        println!("got leaf comparison {:#?}", comparison);
+                        // TODO: remove this comparison and inherit()
+                        // TODO: the server returning the leaf proof is enough?
+                        let mut server_proof: CommitProof = decode(&leaf_proof)?;
+                        server_proof.inherit(&proof);
+                        let comparison = wal.tree().compare(server_proof)?;
 
                         match comparison {
                             Comparison::Equal => {
-                                // We got a conflict from the server so this
-                                // should not happen but if it does then it's ok
+                                // Pull the updated WAL from the server
+                                let _ = self.pull_wal(summary).await?;
+
+                                // Retry sending our local changes to
+                                // the remote WAL
+                                let response = self
+                                    .patch_vault(summary, patch.0.clone())
+                                    .await?;
+
+                                if response.status().is_success() {
+
+                                    // If the retry was successful then 
+                                    // we should update the in-memory vault
+                                    // so if reflects the pulled changes
+                                    // with our patch applied over the top
+                                    let updated_vault =
+                                        self.load_vault(summary).await?;
+
+                                    if let Some(keeper) =
+                                        self.current_mut()
+                                    {
+                                        if keeper.id() == summary.id() {
+                                            let existing_vault =
+                                                keeper.vault_mut();
+                                            *existing_vault =
+                                                updated_vault;
+                                        }
+                                    }
+                                }
                                 Ok(response)
                             }
                             Comparison::Contains(indices, _) => {
-                                // The leaf proof from the server matches
-                                // the index for our last leaf so we can
-                                // go ahead and pull a diff from the server
-                                if indices == vec![wal.tree().len() - 1] {
-                                    println!("pull wal diff from the server");
-
-                                    // Pull the updated WAL from the server
-                                    let _ = self.pull_wal(summary).await?;
-
-                                    println!("retry patching changes");
-
-                                    // Retry sending our local changes to
-                                    // the remote WAL
-                                    let response = self
-                                        .patch_vault(summary, patch.0.clone())
-                                        .await?;
-
-                                    if response.status().is_success() {
-                                        println!("remote patch was applied");
-
-                                        println!("Apply the changes to our locwal WAL");
-                                        let updated_vault =
-                                            self.load_vault(summary).await?;
-
-                                        if let Some(keeper) =
-                                            self.current_mut()
-                                        {
-                                            if keeper.id() == summary.id() {
-                                                let existing_vault =
-                                                    keeper.vault_mut();
-                                                *existing_vault =
-                                                    updated_vault;
-                                                println!("Merge updated vault data with our local changes!!!!");
-                                            }
-                                        }
-                                    }
-
-                                    Ok(response)
-                                } else {
-                                    self.conflict_pull_sync()?;
-                                    Ok(response)
-                                }
+                                self.conflict_pull_sync()?;
+                                Ok(response)
                             }
                             Comparison::Unknown => {
                                 self.conflict_pull_sync()?;
@@ -479,12 +448,25 @@ impl Cache {
 
     /// Get the default root directory used for caching client data.
     pub fn cache_dir() -> Result<PathBuf> {
-        let data_local_dir =
-            dirs::data_local_dir().ok_or(Error::NoDataLocalDir)?;
-        let cache_dir = data_local_dir.join("sos");
-        if !cache_dir.exists() {
-            std::fs::create_dir(&cache_dir)?;
-        }
+        let cache_dir = if let Ok(env_cache_dir) = std::env::var("CACHE_DIR") {
+            let cache_dir = PathBuf::from(env_cache_dir);
+            if !cache_dir.is_dir() {
+                return Err(Error::NotDirectory(cache_dir))
+            }
+
+            //tracing::debug!(cache_dir = ?cache_dir, "cache_dir");
+
+            cache_dir
+        } else {
+            let data_local_dir =
+                dirs::data_local_dir().ok_or(Error::NoDataLocalDir)?;
+            let cache_dir = data_local_dir.join("sos");
+            if !cache_dir.exists() {
+                std::fs::create_dir(&cache_dir)?;
+            }
+            cache_dir
+        };
+
         Ok(cache_dir)
     }
 }

@@ -250,6 +250,7 @@ impl WalProvider for WalFile {
             let record = record?;
             commits.push(record.commit());
         }
+        self.tree = CommitTree::new();
         self.tree.append(&mut commits);
         self.tree.commit();
         Ok(())

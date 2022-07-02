@@ -166,15 +166,14 @@ impl WalHandler {
                 append_commit_headers(&mut headers, &proof)?;
 
                 // Client is asking for data from a specific commit hash
-                //let result = if let Some(TypedHeader(root_hash)) = root_hash {
-                //let root_hash: [u8; 32] = root_hash.into();
                 let result = if let Some(TypedHeader(proof)) = commit_proof {
-                    //let proof = decode_proof(commit_proof.as_ref())
-                    //.map_err(|_| StatusCode::BAD_REQUEST)?;
+                    let proof: CommitProof = proof.into();
+
+                    tracing::debug!(root = %proof.root_hex(), "get_wal client root");
 
                     let comparison = wal
                         .tree()
-                        .compare(proof.into())
+                        .compare(proof)
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                     match comparison {
@@ -346,9 +345,6 @@ impl WalHandler {
                             .tree()
                             .proof(&indices)
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-                        println!("sending leaf commit proof {:#?}", leaf_proof);
-
                         Ok(PatchResult::Conflict(proof, Some(leaf_proof)))
                     }
                     Comparison::Unknown => {
