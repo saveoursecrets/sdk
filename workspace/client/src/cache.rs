@@ -323,11 +323,10 @@ impl Cache {
                     if let Some(leaf_proof) =
                         decode_leaf_proof(response.headers())?
                     {
-                        //let proof = decode_proof(&leaf_proof)?;
-                        //let other_root = server_proof.0;
-                        //let commit_proof = CommitProof(other_root, proof);
-
                         let commit_proof: CommitProof = decode(&leaf_proof)?;
+
+                        println!("got leaf commit proof {:#?}", commit_proof);
+
                         let comparison = wal.tree().compare(commit_proof)?;
 
                         println!("got leaf comparison {:#?}", comparison);

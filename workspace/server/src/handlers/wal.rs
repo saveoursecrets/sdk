@@ -346,6 +346,9 @@ impl WalHandler {
                             .tree()
                             .proof(&indices)
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                        println!("sending leaf commit proof {:#?}", leaf_proof);
+
                         Ok(PatchResult::Conflict(proof, Some(leaf_proof)))
                     }
                     Comparison::Unknown => {
