@@ -269,9 +269,23 @@ mod test {
         let record = server.iter()?.next_back().unwrap()?;
 
         let proof = client.tree().head()?;
+
+        /*
+        println!("client proof root {}", hex::encode(&proof.0));
+        for leaf in client.tree().leaves().unwrap() {
+            println!("client leaf: {}", hex::encode(&leaf));
+        }
+        println!("server proof root {}",
+            hex::encode(server.tree().root().unwrap()));
+        for leaf in server.tree().leaves().unwrap() {
+            println!("server leaf: {}", hex::encode(&leaf));
+        }
+        */
+
         let comparison = server.tree().compare(proof)?;
 
-        if let Comparison::Contains(_, leaf) = comparison {
+        if let Comparison::Contains(index, leaf) = comparison {
+            assert_eq!(1, index);
             if let Some(records) = server.diff(leaf)? {
                 assert_eq!(1, records.len());
                 assert_eq!(&record, records.get(0).unwrap());

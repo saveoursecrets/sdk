@@ -10,8 +10,8 @@ use url::Url;
 use uuid::Uuid;
 
 use sos_client::{
-    create_vault, exec, monitor, signup, Cache, ClientBuilder, Error, Result,
-    run_blocking,
+    create_vault, exec, monitor, run_blocking, signup, Cache, ClientBuilder,
+    Error, Result,
 };
 use sos_core::Algorithm;
 use sos_readline::read_shell;

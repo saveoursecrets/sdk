@@ -56,6 +56,12 @@ fn encode_headers_proof(
     proof: &CommitProof,
 ) -> RequestBuilder {
     builder = builder.header(X_COMMIT_HASH, base64::encode(&proof.0));
+
+    println!(
+        "encoding proof bytes {}",
+        hex::encode(encode_proof(&proof.1))
+    );
+
     builder = builder
         .header(X_COMMIT_PROOF, base64::encode(encode_proof(&proof.1)));
     builder

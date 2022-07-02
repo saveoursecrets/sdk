@@ -50,9 +50,8 @@ fn append_leaf_header(
     headers: &mut HeaderMap,
     leaf_proof: &[u8],
 ) -> Result<(), StatusCode> {
-    let x_leaf_proof =
-        HeaderValue::from_str(&base64::encode(leaf_proof))
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let x_leaf_proof = HeaderValue::from_str(&base64::encode(leaf_proof))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     headers.insert(X_LEAF_PROOF.clone(), x_leaf_proof);
     Ok(())
 }

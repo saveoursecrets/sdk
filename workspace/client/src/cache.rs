@@ -6,7 +6,7 @@ use crate::{
 use async_recursion::async_recursion;
 use reqwest::{Response, StatusCode};
 use sos_core::{
-    commit_tree::{CommitProof, decode_proof, Comparison},
+    commit_tree::{decode_proof, CommitProof, Comparison},
     events::{Patch, SyncEvent, WalEvent},
     file_identity::{FileIdentity, WAL_IDENTITY},
     gatekeeper::Gatekeeper,
@@ -138,7 +138,10 @@ impl Cache {
     }
 
     /// Fetch the remote WAL file.
-    pub async fn pull_wal<'a>(&'a mut self, summary: &Summary) -> Result<&'a mut WalFile> {
+    pub async fn pull_wal<'a>(
+        &'a mut self,
+        summary: &Summary,
+    ) -> Result<&'a mut WalFile> {
         let cached_wal_path = self.wal_path(summary);
 
         // Cache already exists so attempt to get a diff of records
@@ -301,9 +304,12 @@ impl Cache {
                     let server_proof =
                         server_proof.ok_or(Error::ServerProof)?;
 
-                    println!("Got conflict response {:#?}", response.headers());
+                    println!(
+                        "Got conflict response {:#?}",
+                        response.headers()
+                    );
 
-                    // Server replied with a proof that they have a 
+                    // Server replied with a proof that they have a
                     // leaf node corresponding to our root hash
                     if let Some(leaf_proof) =
                         decode_leaf_proof(response.headers())?
@@ -333,23 +339,27 @@ impl Cache {
 
                                     println!("retry patching changes");
 
-                                    // Retry sending our local changes to 
+                                    // Retry sending our local changes to
                                     // the remote WAL
-                                    let response = self.patch_vault(
-                                        summary, patch.0.clone()).await?;
+                                    let response = self
+                                        .patch_vault(summary, patch.0.clone())
+                                        .await?;
 
                                     if response.status().is_success() {
                                         println!("remote patch was applied");
 
                                         println!("Apply the changes to our locwal WAL");
-                                        let updated_vault = 
+                                        let updated_vault =
                                             self.load_vault(summary).await?;
 
-                                        if let Some(keeper) = self.current_mut() {
+                                        if let Some(keeper) =
+                                            self.current_mut()
+                                        {
                                             if keeper.id() == summary.id() {
-                                                let existing_vault = 
+                                                let existing_vault =
                                                     keeper.vault_mut();
-                                                *existing_vault = updated_vault;
+                                                *existing_vault =
+                                                    updated_vault;
                                                 println!("Merge updated vault data with our local changes!!!!");
                                             }
                                         }

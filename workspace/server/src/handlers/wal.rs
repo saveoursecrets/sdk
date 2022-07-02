@@ -10,7 +10,7 @@ use axum::{
 
 use sos_core::{
     address::AddressStr,
-    commit_tree::{encode_proof, decode_proof, CommitProof, Comparison},
+    commit_tree::{decode_proof, encode_proof, CommitProof, Comparison},
     decode,
     events::{
         AuditData, AuditEvent, ChangeEvent, EventKind, Patch, SyncEvent,
@@ -29,7 +29,10 @@ use crate::{
     State,
 };
 
-use super::{append_audit_logs, append_commit_headers, send_notifications, append_leaf_header};
+use super::{
+    append_audit_logs, append_commit_headers, append_leaf_header,
+    send_notifications,
+};
 
 enum PatchResult {
     Conflict(CommitProof, Option<Vec<u8>>),
@@ -262,7 +265,10 @@ impl WalHandler {
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                 println!("Client root hash {:#?}", hex::encode(&root_hash));
-                println!("Commit proof bytes {:#?}", hex::encode(commit_proof.as_ref()));
+                println!(
+                    "Commit proof bytes {:#?}",
+                    hex::encode(commit_proof.as_ref())
+                );
                 println!("Server comparison {:#?}", comparison);
 
                 match comparison {
@@ -345,11 +351,11 @@ impl WalHandler {
                             .tree()
                             .head()
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                        // Prepare the proof that this WAL contains the 
+                        // Prepare the proof that this WAL contains the
                         // matched leaf node
                         let indices = [index];
-                        let leaf_proof = encode_proof(
-                            &wal.tree().proof(&indices));
+                        let leaf_proof =
+                            encode_proof(&wal.tree().proof(&indices));
                         Ok(PatchResult::Conflict(proof, Some(leaf_proof)))
                     }
                     Comparison::Unknown => {
@@ -406,10 +412,10 @@ impl WalHandler {
                 let mut headers = HeaderMap::new();
                 append_commit_headers(&mut headers, &proof)?;
 
-                // Send a proof that this WAL contains the 
+                // Send a proof that this WAL contains the
                 // root hash sent by the client.
                 //
-                // The client can use this to determine that it 
+                // The client can use this to determine that it
                 // is safe to pull changes from the server.
                 if let Some(leaf_proof) = leaf_proof {
                     append_leaf_header(&mut headers, &leaf_proof)?;
