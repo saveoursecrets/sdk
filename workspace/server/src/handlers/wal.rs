@@ -240,7 +240,7 @@ impl WalHandler {
         TypedHeader(commit_proof): TypedHeader<CommitProofHeader>,
         Path(vault_id): Path<Uuid>,
         body: Bytes,
-    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         let result = if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &body)
         {
@@ -376,18 +376,6 @@ impl WalHandler {
                 // Send notifications on the SSE channel
                 send_notifications(&mut writer, notifications);
 
-                // TODO: is sending the commits overkill as the new root
-                // TODO: hash in `x-commit-hash` is enough for the client
-                // TODO: to verify that applying cached changes to the WAL
-                // TODO: matches the changes that are applied here.
-
-                // Create a response buffer of all the commit hashes
-                // derived from the events that were applied to the WAL
-                let mut buffer = Vec::with_capacity(commits.len() * 32);
-                for hash in commits {
-                    buffer.extend_from_slice(hash.as_ref());
-                }
-
                 // Always send the `x-commit-hash` and `x-commit-proof`
                 // headers to the client with the new updated commit
                 // after applying the patch events.
@@ -396,12 +384,12 @@ impl WalHandler {
                 // staged events to their cached WAL
                 let mut headers = HeaderMap::new();
                 append_commit_headers(&mut headers, &proof)?;
-                Ok((StatusCode::OK, headers, Bytes::from(buffer)))
+                Ok((StatusCode::OK, headers))
             }
             PatchResult::Conflict(proof) => {
                 let mut headers = HeaderMap::new();
                 append_commit_headers(&mut headers, &proof)?;
-                Ok((StatusCode::CONFLICT, headers, Bytes::from(vec![])))
+                Ok((StatusCode::CONFLICT, headers))
             }
         }
     }
