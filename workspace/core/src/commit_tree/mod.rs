@@ -14,20 +14,6 @@ use crate::{
 
 pub mod integrity;
 
-/// Decode a merkle proof.
-#[deprecated]
-pub fn decode_proof<B: AsRef<[u8]>>(
-    buffer: B,
-) -> Result<MerkleProof<Sha256>> {
-    Ok(MerkleProof::<Sha256>::from_bytes(buffer.as_ref())?)
-}
-
-/// Encode a merkle proof.
-#[deprecated]
-pub fn encode_proof(proof: &MerkleProof<Sha256>) -> Vec<u8> {
-    proof.to_bytes()
-}
-
 /// Compute the Sha256 hash of some data.
 pub fn hash(data: &[u8]) -> [u8; 32] {
     Sha256::hash(data)
@@ -170,11 +156,35 @@ impl CommitTree {
 
     /// Get the root hash and a proof of the last leaf node.
     pub fn head(&self) -> Result<CommitProof> {
-        let root = self.root().ok_or(Error::NoRootCommit)?;
-        let leaf_indices = vec![self.tree.leaves_len() - 1];
         let range = self.tree.leaves_len() - 1..self.tree.leaves_len();
+        self.proof_range(range)
+    }
+
+    /// Get a proof for the given range.
+    pub fn proof_range(&self, indices: Range<usize>) -> Result<CommitProof> {
+        let leaf_indices = indices.clone().map(|i| i).collect::<Vec<_>>();
+        self.proof(&leaf_indices)
+    }
+
+    /// Get a proof for the given indices.
+    pub fn proof(&self, leaf_indices: &[usize]) -> Result<CommitProof> {
+        let root = self.root().ok_or(Error::NoRootCommit)?;
         let proof = self.tree.proof(&leaf_indices);
-        Ok(CommitProof(root, proof, self.len(), range))
+        // Map the usize array to a Range, implies all the elements
+        // are continuous, sparse indices are not supported
+        //
+        // Internally we use a range to represent the indices as these
+        // proofs are sent over the network.
+        let indices = if leaf_indices.len() == 0 {
+            0..0
+        } else {
+            if leaf_indices.len() > 1 {
+                leaf_indices[0]..leaf_indices[leaf_indices.len() - 1] + 1
+            } else {
+                leaf_indices[0]..leaf_indices[0] + 1
+            }
+        };
+        Ok(CommitProof(root, proof, self.len(), indices))
     }
 
     /// Compare this tree against another root hash and merkle proof.
@@ -210,11 +220,6 @@ impl CommitTree {
                 Ok(Comparison::Unknown)
             }
         }
-    }
-
-    /// Get a commit proof for the given leaf indices.
-    pub fn proof(&self, leaf_indices: &[usize]) -> MerkleProof<Sha256> {
-        self.tree.proof(leaf_indices)
     }
 
     /// Get the root hash of the underlying merkle tree.

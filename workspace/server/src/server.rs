@@ -8,9 +8,7 @@ use crate::{
         sse::{sse_handler, SseConnection},
         wal::WalHandler,
     },
-    headers::{
-        X_COMMIT_PROOF, X_LEAF_PROOF, X_SIGNED_MESSAGE,
-    },
+    headers::{X_COMMIT_PROOF, X_LEAF_PROOF, X_SIGNED_MESSAGE},
     Backend, ServerConfig,
 };
 use axum::{

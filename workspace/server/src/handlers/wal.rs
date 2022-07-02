@@ -10,7 +10,7 @@ use axum::{
 
 use sos_core::{
     address::AddressStr,
-    commit_tree::{decode_proof, encode_proof, CommitProof, Comparison},
+    commit_tree::{CommitProof, Comparison},
     decode,
     events::{
         AuditData, AuditEvent, ChangeEvent, EventKind, Patch, SyncEvent,
@@ -167,10 +167,10 @@ impl WalHandler {
 
                 // Client is asking for data from a specific commit hash
                 //let result = if let Some(TypedHeader(root_hash)) = root_hash {
-                    //let root_hash: [u8; 32] = root_hash.into();
+                //let root_hash: [u8; 32] = root_hash.into();
                 let result = if let Some(TypedHeader(proof)) = commit_proof {
                     //let proof = decode_proof(commit_proof.as_ref())
-                        //.map_err(|_| StatusCode::BAD_REQUEST)?;
+                    //.map_err(|_| StatusCode::BAD_REQUEST)?;
 
                     let comparison = wal
                         .tree()
@@ -335,17 +335,16 @@ impl WalHandler {
                             vault_name.map(|name| (token.address, name)),
                         ))
                     }
-                    Comparison::Contains(index, _leaf) => {
+                    Comparison::Contains(indices, _leaves) => {
                         let proof = wal
                             .tree()
                             .head()
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                         // Prepare the proof that this WAL contains the
                         // matched leaf node
-                        //let indices = [index];
-                        //let leaf_proof =
-                            //encode_proof(&wal.tree().proof(&indices));
-                        let leaf_proof = wal.tree().head()
+                        let leaf_proof = wal
+                            .tree()
+                            .proof(&indices)
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                         Ok(PatchResult::Conflict(proof, Some(leaf_proof)))
                     }

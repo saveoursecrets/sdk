@@ -20,9 +20,9 @@ use crate::{
 };
 
 use sos_core::{
-    commit_tree::{encode_proof, CommitProof},
-    events::{AuditEvent, AuditProvider, ChangeEvent},
+    commit_tree::CommitProof,
     encode,
+    events::{AuditEvent, AuditProvider, ChangeEvent},
 };
 
 pub(crate) mod account;
@@ -34,11 +34,10 @@ fn append_commit_headers(
     headers: &mut HeaderMap,
     proof: &CommitProof,
 ) -> Result<(), StatusCode> {
-    let value = encode(proof)
+    let value =
+        encode(proof).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let x_commit_proof = HeaderValue::from_str(&base64::encode(&value))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let x_commit_proof =
-        HeaderValue::from_str(&base64::encode(&value))
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
     Ok(())
 }
@@ -47,8 +46,8 @@ fn append_leaf_header(
     headers: &mut HeaderMap,
     proof: &CommitProof,
 ) -> Result<(), StatusCode> {
-    let value = encode(proof)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let value =
+        encode(proof).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let x_leaf_proof = HeaderValue::from_str(&base64::encode(&value))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     headers.insert(X_LEAF_PROOF.clone(), x_leaf_proof);

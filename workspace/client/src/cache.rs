@@ -6,7 +6,8 @@ use crate::{
 use async_recursion::async_recursion;
 use reqwest::{Response, StatusCode};
 use sos_core::{
-    commit_tree::{decode_proof, CommitProof, Comparison},
+    commit_tree::{CommitProof, Comparison},
+    decode,
     events::{Patch, SyncEvent, WalEvent},
     file_identity::{FileIdentity, WAL_IDENTITY},
     gatekeeper::Gatekeeper,
@@ -273,8 +274,10 @@ impl Cache {
             let proof = wal.tree().head()?;
 
             println!("patch client with index {}", wal.tree().len() - 1);
-            println!("patch client with last leaf {}", hex::encode(
-                    wal.tree().leaves().unwrap().pop().unwrap()));
+            println!(
+                "patch client with last leaf {}",
+                hex::encode(wal.tree().leaves().unwrap().pop().unwrap())
+            );
             println!("patch client with root hash {}", hex::encode(&proof.0));
 
             let (response, server_proof) =
@@ -320,9 +323,11 @@ impl Cache {
                     if let Some(leaf_proof) =
                         decode_leaf_proof(response.headers())?
                     {
-                        let proof = decode_proof(&leaf_proof)?;
-                        let other_root = server_proof.0;
-                        let commit_proof = CommitProof(other_root, proof);
+                        //let proof = decode_proof(&leaf_proof)?;
+                        //let other_root = server_proof.0;
+                        //let commit_proof = CommitProof(other_root, proof);
+
+                        let commit_proof: CommitProof = decode(&leaf_proof)?;
                         let comparison = wal.tree().compare(commit_proof)?;
 
                         println!("got leaf comparison {:#?}", comparison);
@@ -333,11 +338,11 @@ impl Cache {
                                 // should not happen but if it does then it's ok
                                 Ok(response)
                             }
-                            Comparison::Contains(index, _) => {
+                            Comparison::Contains(indices, _) => {
                                 // The leaf proof from the server matches
                                 // the index for our last leaf so we can
                                 // go ahead and pull a diff from the server
-                                if index == wal.tree().len() - 1 {
+                                if indices == vec![wal.tree().len() - 1] {
                                     println!("pull wal diff from the server");
 
                                     // Pull the updated WAL from the server

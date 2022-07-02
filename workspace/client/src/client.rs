@@ -6,11 +6,10 @@ use reqwest::{
 use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
-    commit_tree::{decode_proof, encode_proof, CommitProof},
+    commit_tree::CommitProof,
+    decode,
     events::Patch,
-    headers::{
-        X_COMMIT_HASH, X_COMMIT_PROOF, X_LEAF_PROOF, X_SIGNED_MESSAGE,
-    },
+    headers::{X_COMMIT_PROOF, X_LEAF_PROOF, X_SIGNED_MESSAGE},
     signer::Signer,
     vault::{encode, Summary, MIME_TYPE_VAULT},
 };
@@ -27,14 +26,10 @@ const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
 
 fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
-    if let (Some(commit_hash), Some(commit_proof)) =
-        (headers.get(X_COMMIT_HASH), headers.get(X_COMMIT_PROOF))
-    {
-        let commit_hash = base64::decode(commit_hash)?;
-        let commit_proof = base64::decode(commit_proof)?;
-        let commit_hash: [u8; 32] = commit_hash.as_slice().try_into()?;
-        let commit_proof = decode_proof(&commit_proof)?;
-        Ok(Some(CommitProof(commit_hash, commit_proof)))
+    if let Some(commit_proof) = headers.get(X_COMMIT_PROOF) {
+        let value = base64::decode(commit_proof)?;
+        let value: CommitProof = decode(&value)?;
+        Ok(Some(value))
     } else {
         Ok(None)
     }
@@ -54,17 +49,10 @@ pub(crate) fn decode_leaf_proof(
 fn encode_headers_proof(
     mut builder: RequestBuilder,
     proof: &CommitProof,
-) -> RequestBuilder {
-    builder = builder.header(X_COMMIT_HASH, base64::encode(&proof.0));
-
-    println!(
-        "encoding proof bytes {}",
-        hex::encode(encode_proof(&proof.1))
-    );
-
-    builder = builder
-        .header(X_COMMIT_PROOF, base64::encode(encode_proof(&proof.1)));
-    builder
+) -> Result<RequestBuilder> {
+    let value = encode(proof)?;
+    builder = builder.header(X_COMMIT_PROOF, base64::encode(&value));
+    Ok(builder)
 }
 
 /// Encapsulates the information returned
@@ -218,7 +206,7 @@ impl Client {
             .header(X_SIGNED_MESSAGE, base64::encode(&message));
 
         if let Some(proof) = proof {
-            builder = encode_headers_proof(builder, proof);
+            builder = encode_headers_proof(builder, proof)?;
         }
 
         let response = builder.send().await?;
@@ -246,7 +234,7 @@ impl Client {
             .patch(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature));
 
-        builder = encode_headers_proof(builder, proof);
+        builder = encode_headers_proof(builder, proof)?;
         builder = builder.body(message);
 
         let response = builder.send().await?;

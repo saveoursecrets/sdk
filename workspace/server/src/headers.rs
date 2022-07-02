@@ -1,7 +1,7 @@
 //! Custom typed headers.
 use axum::headers::{self, Header, HeaderName, HeaderValue};
 
-use sos_core::{encode, decode, commit_tree::CommitProof};
+use sos_core::{commit_tree::CommitProof, decode, encode};
 
 use once_cell::sync::Lazy;
 
@@ -10,7 +10,7 @@ pub static X_SIGNED_MESSAGE: Lazy<HeaderName> = Lazy::new(|| {
 });
 
 //pub static X_COMMIT_HASH: Lazy<HeaderName> =
-    //Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_HASH));
+//Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_HASH));
 
 pub static X_COMMIT_PROOF: Lazy<HeaderName> =
     Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_PROOF));
@@ -131,8 +131,8 @@ impl Header for CommitProofHeader {
     where
         E: Extend<HeaderValue>,
     {
-        let v = encode(&self.0)
-            .expect("failed to encode commit proof header");
+        let v =
+            encode(&self.0).expect("failed to encode commit proof header");
         let s = base64::encode(&v);
         let value = HeaderValue::from_str(&s)
             .expect("failed to create commit proof header");
