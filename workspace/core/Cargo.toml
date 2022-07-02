@@ -37,7 +37,7 @@ uuid = { version = "1", features = ["serde", "v4", "js"] }
 
 [dependencies.rs_merkle]
 version = "1.2"
-path = "../../../../forks/rs-merkle"
+#path = "../../../../forks/rs-merkle"
 
 [dependencies.serde-binary]
 version = "0.3.6"

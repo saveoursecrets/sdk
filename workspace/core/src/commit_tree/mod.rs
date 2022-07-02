@@ -20,7 +20,7 @@ pub fn hash(data: &[u8]) -> [u8; 32] {
 }
 
 /// Represents a root hash and a proof of certain nodes.
-#[derive(Debug, Eq, PartialEq)]
+//#[derive(Debug, Eq, PartialEq)]
 pub struct CommitProof(
     pub <Sha256 as Hasher>::Hash,
     pub MerkleProof<Sha256>,
@@ -29,7 +29,6 @@ pub struct CommitProof(
 );
 
 impl CommitProof {
-
     /*
     /// Inherit the root hash and leaves count from another commit proof.
     pub fn inherit(&mut self, other: &CommitProof) {
@@ -218,8 +217,7 @@ impl CommitTree {
         if root == other_root {
             Ok(Comparison::Equal)
         } else {
-            if range.start < self.len() && range.end < self.len()
-            {
+            if range.start < self.len() && range.end < self.len() {
                 let leaves = self.tree.leaves().unwrap_or_default();
                 let indices_to_prove =
                     range.clone().map(|i| i).collect::<Vec<_>>();

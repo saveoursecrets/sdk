@@ -168,7 +168,6 @@ impl Cache {
         match status {
             StatusCode::OK => {
                 if let Some(server_proof) = server_proof {
-
                     let (client_proof, wal_file) = match cached {
                         // If we sent a proof to the server then we
                         // are expecting a diff of records
@@ -179,11 +178,11 @@ impl Cache {
                             FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
                             // Get buffer of log records after the identity bytes
-                            let record_bytes =
-                                &buffer[WAL_IDENTITY.len()..];
+                            let record_bytes = &buffer[WAL_IDENTITY.len()..];
 
                             debug_assert!(
-                                record_bytes.len() == buffer.len() - 4);
+                                record_bytes.len() == buffer.len() - 4
+                            );
 
                             // Append the diff bytes without the identity
                             let mut file = OpenOptions::new()
@@ -301,15 +300,13 @@ impl Cache {
 
                     // Server replied with a proof that they have a
                     // leaf node corresponding to our root hash
-                    if let Some(_) =
-                        decode_leaf_proof(response.headers())?
-                    {
+                    if let Some(_) = decode_leaf_proof(response.headers())? {
                         tracing::debug!(
                             client_root = %proof.root_hex(),
                             server_root = %server_proof.root_hex(),
                             "conflict on patch, attempting sync");
 
-                        // Pull the WAL from the server that we 
+                        // Pull the WAL from the server that we
                         // are behind
                         self.pull_wal(summary).await?;
 
@@ -326,22 +323,17 @@ impl Cache {
                             "conflict on patch, retry patch status");
 
                         if response.status().is_success() {
-
-                            // If the retry was successful then 
+                            // If the retry was successful then
                             // we should update the in-memory vault
                             // so if reflects the pulled changes
                             // with our patch applied over the top
                             let updated_vault =
                                 self.load_vault(summary).await?;
 
-                            if let Some(keeper) =
-                                self.current_mut()
-                            {
+                            if let Some(keeper) = self.current_mut() {
                                 if keeper.id() == summary.id() {
-                                    let existing_vault =
-                                        keeper.vault_mut();
-                                    *existing_vault =
-                                        updated_vault;
+                                    let existing_vault = keeper.vault_mut();
+                                    *existing_vault = updated_vault;
                                 }
                             }
                         }
@@ -439,10 +431,11 @@ impl Cache {
 
     /// Get the default root directory used for caching client data.
     pub fn cache_dir() -> Result<PathBuf> {
-        let cache_dir = if let Ok(env_cache_dir) = std::env::var("CACHE_DIR") {
+        let cache_dir = if let Ok(env_cache_dir) = std::env::var("CACHE_DIR")
+        {
             let cache_dir = PathBuf::from(env_cache_dir);
             if !cache_dir.is_dir() {
-                return Err(Error::NotDirectory(cache_dir))
+                return Err(Error::NotDirectory(cache_dir));
             }
             cache_dir
         } else {

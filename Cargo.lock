@@ -2367,6 +2367,8 @@ dependencies = [
 [[package]]
 name = "rs_merkle"
 version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a632a43487c1332be8e183588079f89b6820fab24e04db49521eacd536837372"
 dependencies = [
  "micromath",
  "sha2 0.10.2",

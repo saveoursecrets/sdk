@@ -218,7 +218,7 @@ impl Gatekeeper {
         &mut self,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<SyncEvent> {
+    ) -> Result<SyncEvent<'_>> {
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
@@ -249,7 +249,7 @@ impl Gatekeeper {
     pub fn read(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(SecretMeta, Secret, SyncEvent)>> {
+    ) -> Result<Option<(SecretMeta, Secret, SyncEvent<'_>)>> {
         let payload = SyncEvent::ReadSecret(*id);
         Ok(self
             .read_secret(id)?
@@ -262,7 +262,7 @@ impl Gatekeeper {
         id: &SecretId,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Option<SyncEvent>> {
+    ) -> Result<Option<SyncEvent<'_>>> {
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
@@ -303,7 +303,7 @@ impl Gatekeeper {
     }
 
     /// Delete a secret and it's meta data from the vault.
-    pub fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>> {
+    pub fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent<'_>>> {
         self.vault.delete(id)
     }
 
