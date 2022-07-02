@@ -1,5 +1,8 @@
 //! Type for iterating and managing the commit trees for a vault.
-use serde_binary::binary_rw::{BinaryReader, Endian, ReadStream, SeekStream};
+use serde_binary::{
+    binary_rw::{BinaryReader, Endian, ReadStream, SeekStream},
+    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
+};
 use std::ops::Range;
 
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
@@ -33,7 +36,47 @@ pub struct CommitProof(
     pub <Sha256 as Hasher>::Hash,
     pub MerkleProof<Sha256>,
     pub usize,
-    pub Range<usize>);
+    pub Range<usize>,
+);
+
+impl Default for CommitProof {
+    fn default() -> Self {
+        Self([0; 32], MerkleProof::<Sha256>::new(vec![]), 0, 0..0)
+    }
+}
+
+impl Encode for CommitProof {
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_bytes(&self.0)?;
+        let proof_bytes = self.1.to_bytes();
+        ser.writer.write_u32(proof_bytes.len() as u32)?;
+        ser.writer.write_bytes(&proof_bytes)?;
+
+        ser.writer.write_u32(self.2 as u32)?;
+        ser.writer.write_u32(self.3.start as u32)?;
+        ser.writer.write_u32(self.3.end as u32)?;
+        Ok(())
+    }
+}
+
+impl Decode for CommitProof {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let root_hash: [u8; 32] =
+            de.reader.read_bytes(32)?.as_slice().try_into()?;
+        self.0 = root_hash;
+        let length = de.reader.read_u32()?;
+        let proof_bytes = de.reader.read_bytes(length as usize)?;
+        let proof = MerkleProof::<Sha256>::from_bytes(&proof_bytes)
+            .map_err(Box::from)?;
+
+        self.1 = proof;
+        self.2 = de.reader.read_u32()? as usize;
+        let start = de.reader.read_u32()?;
+        let end = de.reader.read_u32()?;
+        self.3 = start as usize..end as usize;
+        Ok(())
+    }
+}
 
 /// The result of comparing two commit trees.
 ///
@@ -138,14 +181,15 @@ impl CommitTree {
         if root == other_root {
             Ok(Comparison::Equal)
         } else {
-            
             if (range.start >= 0 && range.start < self.len())
-                && (range.end >= 0 && range.end < self.len()) {
+                && (range.end >= 0 && range.end < self.len())
+            {
                 let leaves = self.tree.leaves().unwrap_or_default();
-                let indices_to_prove = range
-                    .clone().map(|i| i).collect::<Vec<_>>();
+                let indices_to_prove =
+                    range.clone().map(|i| i).collect::<Vec<_>>();
                 let leaves_to_prove = range
-                    .map(|i| *leaves.get(i).unwrap()).collect::<Vec<_>>();
+                    .map(|i| *leaves.get(i).unwrap())
+                    .collect::<Vec<_>>();
                 if proof.verify(
                     other_root,
                     indices_to_prove.as_slice(),
@@ -153,7 +197,9 @@ impl CommitTree {
                     count,
                 ) {
                     Ok(Comparison::Contains(
-                        indices_to_prove, leaves_to_prove))
+                        indices_to_prove,
+                        leaves_to_prove,
+                    ))
                 } else {
                     Ok(Comparison::Unknown)
                 }
@@ -327,8 +373,7 @@ mod test {
 
     #[test]
     fn wal_tree_test() -> Result<()> {
-
-        use rs_merkle::{*, algorithms::Sha256};
+        use rs_merkle::{algorithms::Sha256, *};
 
         let client_root = hex::decode("af200fd75cc882d721400ba54b532f30c1b1d6351cac4dafa0e0bc3f2ff36567");
 
@@ -373,7 +418,8 @@ mod test {
 
         println!("{}", hex::encode(tree.root().unwrap()));
 
-        let client_proof = MerkleProof::<Sha256>::from_bytes(&client_proof_bytes)?;
+        let client_proof =
+            MerkleProof::<Sha256>::from_bytes(&client_proof_bytes)?;
 
         /*
         let matched = client_proof.verify(
