@@ -6,8 +6,7 @@ use crate::{
 use async_recursion::async_recursion;
 use reqwest::{Response, StatusCode};
 use sos_core::{
-    commit_tree::{CommitProof, Comparison},
-    decode,
+    commit_tree::CommitProof,
     events::{Patch, SyncEvent, WalEvent},
     file_identity::{FileIdentity, WAL_IDENTITY},
     gatekeeper::Gatekeeper,
@@ -15,7 +14,6 @@ use sos_core::{
     vault::{CommitHash, Header, Summary, Vault},
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
 };
-use tempfile::NamedTempFile;
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -140,9 +138,9 @@ impl Cache {
     }
 
     /// Fetch the remote WAL file.
-    pub async fn pull_wal<'a>(
+    pub async fn pull_wal<'a, 's>(
         &'a mut self,
-        summary: &Summary,
+        summary: &'s Summary,
     ) -> Result<&'a mut WalFile> {
         let cached_wal_path = self.wal_path(summary);
 
@@ -277,11 +275,10 @@ impl Cache {
                 StatusCode::OK => {
                     let server_proof =
                         server_proof.ok_or(Error::ServerProof)?;
-                    let change_set = patch.0;
 
                     // Apply changes to the local WAL file
                     let mut changes = Vec::new();
-                    for event in change_set {
+                    for event in patch.0 {
                         if let Ok::<WalEvent<'_>, sos_core::Error>(
                             wal_event,
                         ) = event.try_into()
@@ -304,57 +301,51 @@ impl Cache {
 
                     // Server replied with a proof that they have a
                     // leaf node corresponding to our root hash
-                    if let Some(leaf_proof) =
+                    if let Some(_) =
                         decode_leaf_proof(response.headers())?
                     {
-                        // TODO: remove this comparison and inherit()
-                        // TODO: the server returning the leaf proof is enough?
-                        let mut server_proof: CommitProof = decode(&leaf_proof)?;
-                        server_proof.inherit(&proof);
-                        let comparison = wal.tree().compare(server_proof)?;
+                        tracing::debug!(
+                            client_root = %proof.root_hex(),
+                            server_root = %server_proof.root_hex(),
+                            "conflict on patch, attempting sync");
 
-                        match comparison {
-                            Comparison::Equal => {
-                                // Pull the updated WAL from the server
-                                let _ = self.pull_wal(summary).await?;
+                        // Pull the WAL from the server that we 
+                        // are behind
+                        self.pull_wal(summary).await?;
 
-                                // Retry sending our local changes to
-                                // the remote WAL
-                                let response = self
-                                    .patch_vault(summary, patch.0.clone())
-                                    .await?;
+                        tracing::debug!(vault_id = %summary.id(),
+                            "conflict on patch, pulled remote WAL");
 
-                                if response.status().is_success() {
+                        // Retry sending our local changes to
+                        // the remote WAL
+                        let response = self
+                            .patch_vault(summary, patch.0.clone())
+                            .await?;
 
-                                    // If the retry was successful then 
-                                    // we should update the in-memory vault
-                                    // so if reflects the pulled changes
-                                    // with our patch applied over the top
-                                    let updated_vault =
-                                        self.load_vault(summary).await?;
+                        tracing::debug!(status = %response.status(),
+                            "conflict on patch, retry patch status");
 
-                                    if let Some(keeper) =
-                                        self.current_mut()
-                                    {
-                                        if keeper.id() == summary.id() {
-                                            let existing_vault =
-                                                keeper.vault_mut();
-                                            *existing_vault =
-                                                updated_vault;
-                                        }
-                                    }
+                        if response.status().is_success() {
+
+                            // If the retry was successful then 
+                            // we should update the in-memory vault
+                            // so if reflects the pulled changes
+                            // with our patch applied over the top
+                            let updated_vault =
+                                self.load_vault(summary).await?;
+
+                            if let Some(keeper) =
+                                self.current_mut()
+                            {
+                                if keeper.id() == summary.id() {
+                                    let existing_vault =
+                                        keeper.vault_mut();
+                                    *existing_vault =
+                                        updated_vault;
                                 }
-                                Ok(response)
-                            }
-                            Comparison::Contains(indices, _) => {
-                                self.conflict_pull_sync()?;
-                                Ok(response)
-                            }
-                            Comparison::Unknown => {
-                                self.conflict_pull_sync()?;
-                                Ok(response)
                             }
                         }
+                        Ok(response)
                     } else {
                         self.conflict_pull_sync()?;
                         Ok(response)
@@ -453,9 +444,6 @@ impl Cache {
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir))
             }
-
-            //tracing::debug!(cache_dir = ?cache_dir, "cache_dir");
-
             cache_dir
         } else {
             let data_local_dir =
@@ -466,6 +454,8 @@ impl Cache {
             }
             cache_dir
         };
+
+        tracing::debug!(cache_dir = ?cache_dir, "cache_dir");
 
         Ok(cache_dir)
     }

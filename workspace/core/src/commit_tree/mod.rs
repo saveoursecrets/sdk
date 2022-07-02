@@ -29,11 +29,14 @@ pub struct CommitProof(
 );
 
 impl CommitProof {
+
+    /*
     /// Inherit the root hash and leaves count from another commit proof.
     pub fn inherit(&mut self, other: &CommitProof) {
         self.0 = other.0;
         self.2 = other.2;
     }
+    */
 
     /// The root hash for the proof.
     pub fn root(&self) -> &<Sha256 as Hasher>::Hash {
@@ -80,6 +83,9 @@ impl Decode for CommitProof {
         self.2 = de.reader.read_u32()? as usize;
         let start = de.reader.read_u32()?;
         let end = de.reader.read_u32()?;
+
+        // TODO: validate range start is <= range end
+
         self.3 = start as usize..end as usize;
         Ok(())
     }
@@ -212,8 +218,7 @@ impl CommitTree {
         if root == other_root {
             Ok(Comparison::Equal)
         } else {
-            if (range.start >= 0 && range.start < self.len())
-                && (range.end >= 0 && range.end < self.len())
+            if range.start < self.len() && range.end < self.len()
             {
                 let leaves = self.tree.leaves().unwrap_or_default();
                 let indices_to_prove =
