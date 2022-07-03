@@ -30,7 +30,7 @@ use crate::{
     FileIdentity, Result,
 };
 
-/// Implements access to a encrypted vault backed by a file on disc.
+/// Implements access to an encrypted vault backed by a file on disc.
 pub struct VaultFileAccess {
     file_path: PathBuf,
     stream: Mutex<FileStream>,

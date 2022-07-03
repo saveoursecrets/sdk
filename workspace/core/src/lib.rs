@@ -16,9 +16,6 @@ mod file_locks;
 
 mod gatekeeper;
 
-#[deprecated]
-pub mod passphrase;
-
 pub mod secret;
 pub mod signer;
 mod timestamp;
@@ -39,6 +36,7 @@ pub use vault::{decode, encode};
 pub use error::Error;
 pub use file_access::VaultFileAccess;
 pub use file_identity::FileIdentity;
+#[cfg(not(target_arch = "wasm32"))]
 pub use file_locks::FileLocks;
 pub use gatekeeper::Gatekeeper;
 pub use timestamp::Timestamp;
