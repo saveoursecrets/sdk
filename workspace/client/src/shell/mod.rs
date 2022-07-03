@@ -497,7 +497,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
 
             drop(reader);
 
-            let (_uuid, secret_meta, secret_data) =
+            let (uuid, secret_meta, secret_data) =
                 result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let result =
@@ -524,9 +524,9 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     writer.current_mut().ok_or(Error::NoVaultSelected)?;
 
                 let summary = keeper.summary().clone();
-                let vault_id = *keeper.id();
+
                 let event = keeper
-                    .update(&vault_id, secret_meta, edited_secret)?
+                    .update(&uuid, secret_meta, edited_secret)?
                     .ok_or(Error::SecretNotAvailable(secret))?;
 
                 let event = event.into_owned();
