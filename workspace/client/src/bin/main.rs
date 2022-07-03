@@ -107,7 +107,8 @@ fn run() -> Result<()> {
             ensure_https(&server)?;
             let cache_dir = Cache::cache_dir()?;
             let client = ClientBuilder::new(server, keystore).build()?;
-            let cache = Arc::new(RwLock::new(Cache::new(client, cache_dir)?));
+            let cache =
+                Arc::new(RwLock::new(Cache::new(client, cache_dir, true)?));
 
             let reader = cache.read().unwrap();
             welcome(reader.server())?;

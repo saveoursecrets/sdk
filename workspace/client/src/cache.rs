@@ -12,21 +12,24 @@ use sos_core::{
     diceware::generate,
     encode,
     events::{Patch, SyncEvent, WalEvent},
+    file_access::VaultFileAccess,
     file_identity::{FileIdentity, WAL_IDENTITY},
     gatekeeper::Gatekeeper,
     secret::SecretRef,
-    vault::{CommitHash, Header, Summary, Vault},
+    vault::{CommitHash, Summary, Vault},
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
 };
 use std::{
     borrow::Cow,
     collections::HashMap,
-    fs::OpenOptions,
+    fs::{File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
 };
 use url::Url;
 use uuid::Uuid;
+
+const WAL_DELETED_EXT: &str = "wal.deleted";
 
 fn assert_proofs_eq(
     client_proof: CommitProof,
@@ -60,6 +63,12 @@ pub trait ClientCache {
 
     /// Attempt to find a summary in this cache.
     fn find_vault(&self, vault: &SecretRef) -> Option<&Summary>;
+
+    /// Create a new account and default login vault.
+    async fn create_account(
+        &mut self,
+        name: Option<String>,
+    ) -> Result<String>;
 
     /// Create a new vault.
     async fn create_vault(&mut self, name: String) -> Result<String>;
@@ -123,6 +132,8 @@ pub struct Cache {
     user_dir: PathBuf,
     /// Data for the cache.
     cache: HashMap<Uuid, (PathBuf, WalFile)>,
+    /// Mirror WAL files and in-memory contents to vault files
+    mirror: bool,
 }
 
 #[async_trait]
@@ -155,28 +166,58 @@ impl ClientCache for Cache {
         }
     }
 
+    async fn create_account(
+        &mut self,
+        name: Option<String>,
+    ) -> Result<String> {
+        self.create(name, true).await
+    }
+
     async fn create_vault(&mut self, name: String) -> Result<String> {
-        let (passphrase, _) = generate()?;
-        let mut vault: Vault = Default::default();
-        vault.set_name(name);
-        vault.initialize(&passphrase)?;
-        let buffer = encode(&vault)?;
-        let response = self.create_wal(buffer).await?;
-        response
-            .status()
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
-        Ok(passphrase)
+        self.create(Some(name), false).await
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
-        let response = self.delete_wal(summary).await?;
+        let current_id = self.current().map(|c| c.id().clone());
+
+        // Attempt to delete on the remote server
+        let (response, _) = self.client.delete_wal(summary.id()).await?;
         response
             .status()
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        // If the deleted vault is the currently selected
+        // vault we must close it
+        if let Some(id) = &current_id {
+            if id == summary.id() {
+                self.close_vault();
+            }
+        }
+
+        // Remove local vault mirror if it exists
+        let vault_path = self.vault_path(summary);
+        if vault_path.exists() {
+            std::fs::remove_file(vault_path)?;
+        }
+
+        // Rename the local WAL file so recovery is still possible
+        let wal_path = self.vault_path(summary);
+        if wal_path.exists() {
+            let mut wal_path_backup = wal_path.clone();
+            wal_path_backup.set_extension(WAL_DELETED_EXT);
+            std::fs::rename(wal_path, wal_path_backup)?;
+        }
+
+        // Remove from our cache of managed vaults
+        self.cache.remove(summary.id());
+        let index =
+            self.summaries.iter().position(|s| s.id() == summary.id());
+        if let Some(index) = index {
+            self.summaries.remove(index);
+        }
+
         Ok(())
     }
 
@@ -219,7 +260,14 @@ impl ClientCache for Cache {
         password: &str,
     ) -> Result<()> {
         let vault = self.load_vault(summary).await?;
-        let mut keeper = Gatekeeper::new(vault);
+        let mut keeper = if self.mirror {
+            let mirror =
+                Box::new(VaultFileAccess::new(self.vault_path(summary))?);
+            Gatekeeper::new_mirror(vault, mirror)
+        } else {
+            Gatekeeper::new(vault)
+        };
+
         keeper
             .unlock(password)
             .map_err(|_| Error::VaultUnlockFail)?;
@@ -263,7 +311,15 @@ impl ClientCache for Cache {
 
 impl Cache {
     /// Create a new cache using the given client and root directory.
-    pub fn new<D: AsRef<Path>>(client: Client, cache_dir: D) -> Result<Self> {
+    ///
+    /// If the `mirror` option is given then the cache will mirror WAL files
+    /// and in-memory content to disc as vault files providing an extra level
+    /// if redundancy in case of failure.
+    pub fn new<D: AsRef<Path>>(
+        client: Client,
+        cache_dir: D,
+        mirror: bool,
+    ) -> Result<Self> {
         let cache_dir = cache_dir.as_ref().to_path_buf();
         if !cache_dir.is_dir() {
             return Err(Error::NotDirectory(cache_dir));
@@ -280,6 +336,7 @@ impl Cache {
             client,
             user_dir,
             cache: Default::default(),
+            mirror,
         })
     }
 
@@ -308,6 +365,52 @@ impl Cache {
         Ok(cache_dir)
     }
 
+    /// Create a new account or vault.
+    async fn create(
+        &mut self,
+        name: Option<String>,
+        is_account: bool,
+    ) -> Result<String> {
+        let (passphrase, vault, buffer) = self.new_vault(name)?;
+        let summary = vault.summary().clone();
+
+        if self.mirror {
+            let vault_path = self.vault_path(&summary);
+            let mut file = File::create(vault_path)?;
+            file.write_all(&buffer)?;
+        }
+
+        let response = if is_account {
+            self.client.create_account(buffer).await?
+        } else {
+            let (response, _) = self.client.create_wal(buffer).await?;
+            response
+        };
+
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+        self.summaries.push(summary);
+
+        Ok(passphrase)
+    }
+
+    fn new_vault(
+        &self,
+        name: Option<String>,
+    ) -> Result<(String, Vault, Vec<u8>)> {
+        let (passphrase, _) = generate()?;
+        let mut vault: Vault = Default::default();
+        if let Some(name) = name {
+            vault.set_name(name);
+        }
+        vault.initialize(&passphrase)?;
+        let buffer = encode(&vault)?;
+        Ok((passphrase, vault, buffer))
+    }
+
     fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
         for summary in summaries {
             let cached_wal_path = self.wal_path(summary);
@@ -323,6 +426,11 @@ impl Cache {
 
     fn wal_path(&self, summary: &Summary) -> PathBuf {
         let wal_name = format!("{}.{}", summary.id(), WalFile::extension());
+        self.user_dir.join(&wal_name)
+    }
+
+    fn vault_path(&self, summary: &Summary) -> PathBuf {
+        let wal_name = format!("{}.{}", summary.id(), Vault::extension());
         self.user_dir.join(&wal_name)
     }
 
@@ -540,38 +648,15 @@ impl Cache {
         todo!("handle patch conflict that requires complete sync");
     }
 
+    /*
     /// Create a new WAL file.
     async fn create_wal(&mut self, vault: Vec<u8>) -> Result<Response> {
         let summary = Header::read_summary_slice(&vault)?;
-        let (response, _) = self.client.create_wal(vault).await?;
+        let (response, _) = self.client.create_wal(&vault).await?;
         if response.status().is_success() {
             self.summaries.push(summary);
         }
         Ok(response)
     }
-
-    /// Delete an existing WAL file.
-    async fn delete_wal(&mut self, summary: &Summary) -> Result<Response> {
-        let current_id = self.current().map(|c| c.id().clone());
-
-        let (response, _) = self.client.delete_wal(summary.id()).await?;
-
-        if response.status().is_success() {
-            // If the deleted vault is the currently selected
-            // vault we must close it
-            if let Some(id) = &current_id {
-                if id == summary.id() {
-                    self.close_vault();
-                }
-            }
-
-            let index =
-                self.summaries.iter().position(|s| s.id() == summary.id());
-            if let Some(index) = index {
-                self.summaries.remove(index);
-            }
-        }
-
-        Ok(response)
-    }
+    */
 }
