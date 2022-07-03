@@ -230,6 +230,15 @@ impl VaultAccess for VaultFileAccess {
         secret: VaultEntry,
     ) -> Result<SyncEvent<'_>> {
         let id = Uuid::new_v4();
+        self.insert(id, commit, secret)
+    }
+
+    fn insert(
+        &mut self,
+        id: SecretId,
+        commit: CommitHash,
+        secret: VaultEntry,
+    ) -> Result<SyncEvent<'_>> {
         let content_offset = self.check_identity()?;
         let total_rows = self.rows(content_offset)?;
 

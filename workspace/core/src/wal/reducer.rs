@@ -138,7 +138,7 @@ impl<'a> WalReducer<'a> {
 
             for (id, entry) in self.secrets {
                 let entry = entry.into_owned();
-                vault.insert(id, entry);
+                vault.insert_entry(id, entry);
             }
             Ok(vault)
         } else {

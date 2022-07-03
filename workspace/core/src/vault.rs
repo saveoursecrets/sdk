@@ -139,6 +139,15 @@ pub trait VaultAccess {
         secret: VaultEntry,
     ) -> Result<SyncEvent<'_>>;
 
+    /// Insert an encrypted secret to the vault with the given id.
+    #[doc(hidden)]
+    fn insert(
+        &mut self,
+        id: SecretId,
+        commit: CommitHash,
+        secret: VaultEntry,
+    ) -> Result<SyncEvent<'_>>;
+
     /// Get an encrypted secret from the vault.
     ///
     /// Use a `Cow` smart pointer because when we are reading
@@ -576,7 +585,7 @@ impl Vault {
     }
 
     /// Insert a secret into this vault.
-    pub(crate) fn insert(&mut self, id: SecretId, entry: VaultCommit) {
+    pub(crate) fn insert_entry(&mut self, id: SecretId, entry: VaultCommit) {
         self.contents.data.insert(id, entry);
     }
 
@@ -772,6 +781,15 @@ impl VaultAccess for Vault {
         secret: VaultEntry,
     ) -> Result<SyncEvent<'_>> {
         let id = Uuid::new_v4();
+        self.insert(id, commit, secret)
+    }
+
+    fn insert(
+        &mut self,
+        id: SecretId,
+        commit: CommitHash,
+        secret: VaultEntry,
+    ) -> Result<SyncEvent<'_>> {
         let value = self
             .contents
             .data

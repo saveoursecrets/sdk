@@ -258,16 +258,21 @@ impl Gatekeeper {
 
             let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
 
+            let id = Uuid::new_v4();
+
             if let Some(mirror) = self.mirror.as_mut() {
-                mirror.create(
+                mirror.insert(
+                    id,
                     commit.clone(),
                     VaultEntry(meta_aead.clone(), secret_aead.clone()),
                 )?;
             }
 
-            Ok(self
-                .vault
-                .create(commit, VaultEntry(meta_aead, secret_aead))?)
+            Ok(self.vault.insert(
+                id,
+                commit,
+                VaultEntry(meta_aead, secret_aead),
+            )?)
         } else {
             Err(Error::VaultLocked)
         }
