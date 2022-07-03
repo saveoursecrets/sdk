@@ -341,17 +341,16 @@ impl WalHandler {
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                         // Prepare the proof that this WAL contains the
                         // matched leaf node
-
-                        /*
                         let match_proof = wal
                             .tree()
                             .proof(&indices)
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                         Ok(PatchResult::Conflict(proof, Some(match_proof)))
-                        */
 
+                        /*
                         // FIXME: remove this and restore the above
                         Ok(PatchResult::Conflict(proof, None))
+                        */
                     }
                     Comparison::Unknown => {
                         let proof = wal
