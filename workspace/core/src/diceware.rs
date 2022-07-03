@@ -7,8 +7,8 @@ use chbs::{
     word::{WordList, WordSampler},
 };
 
-/// Generate a passphrase and the entropy in bits.
-pub fn generate_passphrase(
+/// Generate a passphrase using the given config.
+fn generate_passphrase_config(
     config: Option<BasicConfig<WordSampler>>,
 ) -> Result<(String, f64)> {
     let config = if let Some(config) = config {
@@ -31,11 +31,11 @@ pub fn generate_passphrase(
 /// The number of words must be at least six.
 pub fn generate_passphrase_words(words: u8) -> Result<(String, f64)> {
     let config = default_config(words as usize);
-    generate_passphrase(Some(config))
+    generate_passphrase_config(Some(config))
 }
 
-/// Generate a passphrase with six words.
-pub fn generate() -> Result<(String, f64)> {
+/// Generate a passphrase with six words which is ~171 bits of entropy.
+pub fn generate_passphrase() -> Result<(String, f64)> {
     generate_passphrase_words(6)
 }
 

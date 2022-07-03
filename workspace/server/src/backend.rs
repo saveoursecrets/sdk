@@ -2,7 +2,7 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
-    commit_tree::{integrity::wal_commit_tree, CommitProof},
+    commit_tree::{wal_commit_tree, CommitProof},
     constants::{WAL_BACKUP_EXT, WAL_DELETED_EXT},
     events::{SyncEvent, WalEvent},
     vault::{Header, Summary, Vault, VaultAccess},

@@ -230,7 +230,7 @@ mod test {
         // Add another event to the server from another client.
         server.append_event(WalEvent::DeleteSecret(id))?;
 
-        /// Check that the server contains the client proof
+        // Check that the server contains the client proof
         let proof = client.tree().head()?;
         let comparison = server.tree().compare(proof)?;
 

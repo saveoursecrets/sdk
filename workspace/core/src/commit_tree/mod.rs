@@ -12,7 +12,10 @@ use crate::{
     Error, Result,
 };
 
-pub mod integrity;
+mod integrity;
+
+pub use integrity::vault_commit_tree;
+pub use integrity::wal_commit_tree;
 
 /// Compute the Sha256 hash of some data.
 pub fn hash(data: &[u8]) -> [u8; 32] {
@@ -388,68 +391,6 @@ mod test {
 
         let commit_tree = CommitTree::from_vault(&vault);
         assert!(commit_tree.root().is_some());
-
-        Ok(())
-    }
-
-    #[test]
-    fn wal_tree_test() -> Result<()> {
-        use rs_merkle::{algorithms::Sha256, *};
-
-        let client_root = hex::decode("af200fd75cc882d721400ba54b532f30c1b1d6351cac4dafa0e0bc3f2ff36567");
-
-        let client_index = 15;
-        let client_last_leaf = hex::decode("fcbd6f4235b1c3203b9c073e5e7ad044a6e2949317e93cf784f1febfd52b3de0")?;
-
-        let client_proof_bytes = hex::decode("17254c4cfe3bf6bc66fdbb41207de622dded95cf3e16ef195441151dcfd5438073eba4a97936f3806d75c2b15c8c1fd5b2e8b0da2b0913dd15788f496b67221f9c43fc7ed83b8184cb65d34a31a5bdf66d7cb351494bf817fba6f9a3e546e9c3d2f60cce9fce1160622b0ca03b90664aa15bac2adb898f2dec5f6f4d343db510")?;
-
-        let server_leaves = [
-            "79e1b77fadbfbf1e3035f490dd073e18256ad616aaf4c4a6bea1e37f68c7b481",
-            "fcbd6f4235b1c3203b9c073e5e7ad044a6e2949317e93cf784f1febfd52b3de0",
-            "17254c4cfe3bf6bc66fdbb41207de622dded95cf3e16ef195441151dcfd54380",
-            "004cf966806dbbe3794f21388f879eafbb0d40c3912586df3a4a589ed12fcc6a",
-            "4815a60fbff6dc188300051d68769daab4c277d9c554d2d5abd40e6ed9d59307",
-            "e1c2b8e58c1419d9e8b80fcd03035c55128488696abac0f881b041da13552d1e",
-            "98613d30d14961fff01f75ca0aeacd71f01be7ecae7ec506c31d4b5bb41ce010",
-            "57f207fb5ee9c72e486d45c3679b84252ab8cc3d7e527ee54549d8b59a3e392d",
-            "eadaaa9290469083226286c2387392250dc8db9f2efcb22dbe897fabe257e602",
-            "4d7d5f9ca7772afe9d15d3dec4b50e6c12d2e045704f540421bfeaf34227738a",
-            "2cb274573b0b97ea246fa174f1a9d57c2f884c48dea66cd9b396493d9340f9fa",
-            "3e0d4d6da69161b3114938f9651f924848f598dfe8da08dbcbbc5b14c6080b12",
-            "4ab185e27a6f64d0bdf2af852bf2d7598336fd6cc352cabb346edccb6118a0e3",
-            "2163f694f6507878fadbc3be07f20fe6e44e481d00ded5a3427557589c0ffd3c",
-            "0645ff80afaadd9da3a9019f548ede671a0b5550130075fa46f96eb3d6240044",
-            "016f7702402fe6148d483001e7fce415c758f8db4fcfdb1a820e9fed063e3452",
-            "339d8354c6b4219da2337445180385b890c1a6364d801c74fc6119ad1e8c1f4d",
-        ];
-
-        let leaves = server_leaves
-            .into_iter()
-            .rev()
-            .map(|l| {
-                let buf = hex::decode(l).unwrap();
-                let buf: [u8; 32] = buf.as_slice().try_into().unwrap();
-                buf
-            })
-            .collect::<Vec<_>>();
-
-        println!("leaves length {}", leaves.len());
-
-        let tree = MerkleTree::<Sha256>::from_leaves(leaves.as_slice());
-
-        println!("{}", hex::encode(tree.root().unwrap()));
-
-        let client_proof =
-            MerkleProof::<Sha256>::from_bytes(&client_proof_bytes)?;
-
-        /*
-        let matched = client_proof.verify(
-            client_root,
-            &indices,
-            &leaves,
-            leaves.len(),
-        );
-        */
 
         Ok(())
     }

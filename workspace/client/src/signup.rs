@@ -5,7 +5,7 @@ use crate::{
 };
 use sos_core::{
     address::AddressStr, crypto::generate_random_ecdsa_signing_key,
-    diceware::generate, signer::SingleParty,
+    generate_passphrase, signer::SingleParty,
 };
 use sos_readline::read_flag;
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
@@ -30,7 +30,7 @@ pub fn signup(
         return Err(Error::FileExists(keystore_file));
     }
 
-    let (keystore_passphrase, _) = generate()?;
+    let (keystore_passphrase, _) = generate_passphrase()?;
 
     let message = format!(
         r#"* Write keystore file to {}

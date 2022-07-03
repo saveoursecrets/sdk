@@ -9,8 +9,7 @@ pub use error::Error;
 use sos_core::{
     binary_rw::{FileStream, OpenType},
     commit_tree::{
-        integrity::{vault_commit_tree, wal_commit_tree},
-        CommitTree, RowIterator,
+        vault_commit_tree, wal_commit_tree, CommitTree, RowIterator,
     },
     wal::WalItem,
 };

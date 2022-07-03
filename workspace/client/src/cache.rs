@@ -11,9 +11,9 @@ use sos_core::{
     commit_tree::{CommitProof, CommitTree},
     constants::WAL_DELETED_EXT,
     constants::WAL_IDENTITY,
-    diceware::generate,
     encode,
     events::{Patch, SyncEvent, WalEvent},
+    generate_passphrase,
     secret::SecretRef,
     vault::{CommitHash, Summary, Vault},
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
@@ -398,7 +398,7 @@ impl Cache {
         &self,
         name: Option<String>,
     ) -> Result<(String, Vault, Vec<u8>)> {
-        let (passphrase, _) = generate()?;
+        let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
         if let Some(name) = name {
             vault.set_name(name);

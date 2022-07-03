@@ -5,7 +5,7 @@ pub mod address;
 pub mod commit_tree;
 pub mod constants;
 pub mod crypto;
-pub mod diceware;
+mod diceware;
 mod error;
 pub mod events;
 mod file_access;
@@ -33,6 +33,7 @@ pub use web3_signature;
 pub use crypto::algorithms::Algorithm;
 pub use vault::{decode, encode};
 
+pub use diceware::{generate_passphrase, generate_passphrase_words};
 pub use error::Error;
 pub use file_access::VaultFileAccess;
 pub use file_identity::FileIdentity;
