@@ -89,13 +89,12 @@ impl PatchFile {
     pub fn append<'a>(
         &mut self,
         mut events: Vec<SyncEvent<'a>>,
-    ) -> Result<Vec<SyncEvent<'a>>> {
+    ) -> Result<Patch<'a>> {
         let len = self.file_path.metadata()?.len() as usize;
 
         // Load any existing events in to memory
         let mut all_events = if len > PATCH_IDENTITY.len() {
-            let buffer = std::fs::read(&self.file_path)?;
-            let patch: Patch = decode(&buffer)?;
+            let patch = self.read()?;
             patch.0
         } else {
             vec![]
@@ -110,7 +109,14 @@ impl PatchFile {
         // Append the given events on to any existing events
         all_events.append(&mut events);
 
-        Ok(all_events)
+        Ok(Patch(all_events))
+    }
+
+    /// Read a patch from the file on disc.
+    pub fn read(&self) -> Result<Patch<'static>> {
+        let buffer = std::fs::read(&self.file_path)?;
+        let patch: Patch = decode(&buffer)?;
+        Ok(patch)
     }
 
     /// Truncate the file to the identity bytes only.

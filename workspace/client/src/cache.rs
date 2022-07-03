@@ -13,7 +13,7 @@ use sos_core::{
         VAULT_BACKUP_EXT, WAL_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY,
     },
     encode,
-    events::{Patch, PatchFile, SyncEvent, WalEvent},
+    events::{PatchFile, SyncEvent, WalEvent},
     generate_passphrase,
     secret::SecretRef,
     vault::{CommitHash, Summary, Vault},
@@ -337,15 +337,39 @@ impl ClientCache for Cache {
             let mut wal_backup = wal_path.clone();
             wal_backup.set_extension(WAL_BACKUP_EXT);
             std::fs::rename(&wal_path, &wal_backup)?;
+
             tracing::debug!(
                 wal = ?wal_path, backup = ?wal_backup, "WAL backup");
         }
 
+        // Need to recreate the WAL file correctly before pulling
+        // as pull_wal() expects the file to exist
+        let (wal, _) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        *wal = WalFile::new(&wal_path)?;
+        wal.load_tree()?;
+
         // Pull the remote WAL
         self.pull_wal(summary).await?;
 
-        // TODO: apply any unsaved changes over the top of the new WAL
-        // TODO: and apply the changes to the remote server
+        let (_, patch_file) = self
+            .cache
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        let patch = patch_file.read()?;
+        let events = patch.0;
+
+        tracing::debug!(events = events.len(), "force_pull");
+
+        // Got some events which haven't been saved so try
+        // to apply them over the top of the new WAL
+        if !events.is_empty() {
+            self.patch_vault(summary, events).await?;
+            self.refresh_vault(summary)?;
+        }
 
         Ok(())
     }
@@ -625,13 +649,12 @@ impl Cache {
         summary: &Summary,
         events: Vec<SyncEvent<'async_recursion>>,
     ) -> Result<Response> {
-        let wal = self
+        let (wal, patch_file) = self
             .cache
             .get_mut(summary.id())
-            .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        let patch = Patch(events);
+        let patch = patch_file.append(events)?;
         let client_proof = wal.tree().head()?;
 
         let (response, server_proof) = self
@@ -657,6 +680,8 @@ impl Cache {
                 // Pass the expected root hash so changes are reverted
                 // if the root hashes do not match
                 wal.apply(changes, Some(CommitHash(server_proof.0)))?;
+
+                patch_file.truncate()?;
 
                 let client_proof = wal.tree().head()?;
                 assert_proofs_eq(client_proof, server_proof)?;
@@ -716,5 +741,32 @@ impl Cache {
             }
             _ => Err(Error::ResponseCode(response.status().into())),
         }
+    }
+
+    // Refresh the in-memory vault of the current selection
+    // from the contents of the current WAL file
+    fn refresh_vault(&mut self, summary: &Summary) -> Result<()> {
+        let wal = self
+            .cache
+            .get_mut(summary.id())
+            .map(|(w, _)| w)
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let vault = WalReducer::new().reduce(wal)?.build()?;
+        let mirror = self.mirror;
+        let vault_path = self.vault_path(summary);
+
+        if let Some(keeper) = self.current_mut() {
+            // Rewrite the on-disc version if we are mirroring
+            if mirror {
+                let buffer = encode(&vault)?;
+                let mut file = File::create(&vault_path)?;
+                file.write_all(&buffer)?;
+            }
+
+            // Update the in-memory version
+            let keeper_vault = keeper.vault_mut();
+            *keeper_vault = vault;
+        }
+        Ok(())
     }
 }
