@@ -13,7 +13,7 @@ use std::{borrow::Cow, collections::HashMap, fmt, path::Path};
 use uuid::Uuid;
 
 use crate::{
-    constants::VAULT_IDENTITY,
+    constants::{VAULT_EXT, VAULT_IDENTITY},
     crypto::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
         AeadPack,
@@ -641,7 +641,7 @@ impl Vault {
 
     /// The file extension for vault files.
     pub fn extension() -> &'static str {
-        "vault"
+        VAULT_EXT
     }
 
     /// Get the summary for this vault.

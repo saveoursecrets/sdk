@@ -17,14 +17,23 @@ mod identity {
 
 /// Constants for file extensions.
 mod extensions {
+    /// File extension used for WAL files.
+    pub const WAL_EXT: &str = "wal";
+
     /// File extension used when deleting WAL files.
     pub const WAL_DELETED_EXT: &str = "wal.deleted";
 
     /// File extension used when creating a WAL file backup.
     pub const WAL_BACKUP_EXT: &str = "wal.backup";
 
+    /// File extension used for vault files.
+    pub const VAULT_EXT: &str = "vault";
+
     /// File extension used when creating a vault file backup.
     pub const VAULT_BACKUP_EXT: &str = "vault.backup";
+
+    /// File extension used for patch files.
+    pub const PATCH_EXT: &str = "patch";
 }
 
 /// Constants for header names.

@@ -13,7 +13,7 @@ use sos_core::{
         VAULT_BACKUP_EXT, WAL_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY,
     },
     encode,
-    events::{Patch, SyncEvent, WalEvent},
+    events::{Patch, PatchFile, SyncEvent, WalEvent},
     generate_passphrase,
     secret::SecretRef,
     vault::{CommitHash, Summary, Vault},
@@ -138,7 +138,7 @@ pub struct Cache {
     /// Directory for the user cache.
     user_dir: PathBuf,
     /// Data for the cache.
-    cache: HashMap<Uuid, (PathBuf, WalFile)>,
+    cache: HashMap<Uuid, (WalFile, PatchFile)>,
     /// Mirror WAL files and in-memory contents to vault files
     mirror: bool,
 }
@@ -251,7 +251,7 @@ impl ClientCache for Cache {
         &self,
         summary: &Summary,
     ) -> Result<(CommitProof, CommitProof)> {
-        if let Some((_, wal)) = self.cache.get(summary.id()) {
+        if let Some((wal, _)) = self.cache.get(summary.id()) {
             let client_proof = wal.tree().head()?;
             let (_response, server_proof) =
                 self.client.head_wal(summary.id()).await?;
@@ -317,7 +317,7 @@ impl ClientCache for Cache {
     }
 
     fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree> {
-        self.cache.get(summary.id()).map(|(_, wal)| wal.tree())
+        self.cache.get(summary.id()).map(|(wal, _)| wal.tree())
     }
 
     async fn force_pull(&mut self, summary: &Summary) -> Result<()> {
@@ -459,13 +459,13 @@ impl Cache {
 
     fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
         for summary in summaries {
-            let cached_wal_path = self.wal_path(summary);
-            if cached_wal_path.exists() {
-                let mut wal_file = WalFile::new(&cached_wal_path)?;
-                wal_file.load_tree()?;
-                self.cache
-                    .insert(*summary.id(), (cached_wal_path, wal_file));
-            }
+            let patch_path = self.patch_path(summary);
+            let patch_file = PatchFile::new(patch_path)?;
+
+            let wal_path = self.wal_path(summary);
+            let mut wal_file = WalFile::new(&wal_path)?;
+            wal_file.load_tree()?;
+            self.cache.insert(*summary.id(), (wal_file, patch_file));
         }
         Ok(())
     }
@@ -480,28 +480,33 @@ impl Cache {
         self.user_dir.join(&wal_name)
     }
 
+    fn patch_path(&self, summary: &Summary) -> PathBuf {
+        let patch_name =
+            format!("{}.{}", summary.id(), PatchFile::extension());
+        self.user_dir.join(&patch_name)
+    }
+
     /// Fetch the remote WAL file.
     async fn pull_wal(&mut self, summary: &Summary) -> Result<()> {
         let cached_wal_path = self.wal_path(summary);
+        let wal = self
+            .cache
+            .get_mut(summary.id())
+            .map(|(w, _)| w)
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        // Cache already exists so attempt to get a diff of records
-        // to append
-        let cached = if cached_wal_path.exists() {
-            let mut wal_file = WalFile::new(&cached_wal_path)?;
-            wal_file.load_tree()?;
-            let proof = wal_file.tree().head()?;
+        let client_proof = if let Some(_) = wal.tree().root() {
+            let proof = wal.tree().head()?;
             tracing::debug!(root = %proof.root_hex(), "pull_wal wants diff");
-            (wal_file, Some(proof))
-        // Otherwise prepare a new WAL cache
+            Some(proof)
         } else {
-            let wal_file = WalFile::new(&cached_wal_path)?;
-            (wal_file, None)
+            None
         };
 
-        let expects_diff = cached.1.is_some();
-
-        let (response, server_proof) =
-            self.client.get_wal(summary.id(), cached.1.as_ref()).await?;
+        let (response, server_proof) = self
+            .client
+            .get_wal(summary.id(), client_proof.as_ref())
+            .await?;
 
         let status = response.status();
 
@@ -510,10 +515,10 @@ impl Cache {
         match status {
             StatusCode::OK => {
                 if let Some(server_proof) = server_proof {
-                    let (client_proof, wal_file) = match cached {
+                    let client_proof = match client_proof {
                         // If we sent a proof to the server then we
                         // are expecting a diff of records
-                        (mut wal_file, Some(_proof)) => {
+                        Some(_proof) => {
                             let buffer = response.bytes().await?;
 
                             // Check the identity looks good
@@ -534,13 +539,13 @@ impl Cache {
                             file.write_all(record_bytes)?;
 
                             // Update with the new commit tree
-                            wal_file.load_tree()?;
+                            wal.load_tree()?;
 
-                            (wal_file.tree().head()?, wal_file)
+                            wal.tree().head()?
                         }
                         // Otherwise the server should send us the entire
                         // WAL file
-                        (mut wal_file, None) => {
+                        None => {
                             // Read in the entire response buffer
                             let buffer = response.bytes().await?;
 
@@ -548,16 +553,13 @@ impl Cache {
                             FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
                             std::fs::write(&cached_wal_path, &buffer)?;
-                            wal_file.load_tree()?;
+                            wal.load_tree()?;
 
-                            (wal_file.tree().head()?, wal_file)
+                            wal.tree().head()?
                         }
                     };
 
                     assert_proofs_eq(client_proof, server_proof)?;
-
-                    self.cache
-                        .insert(*summary.id(), (cached_wal_path, wal_file));
 
                     Ok(())
                 } else {
@@ -566,7 +568,7 @@ impl Cache {
             }
             StatusCode::NOT_MODIFIED => {
                 // Verify that both proofs are equal
-                if let Some((_, wal)) = self.cache.get(summary.id()) {
+                if let Some((wal, _)) = self.cache.get(summary.id()) {
                     let server_proof =
                         server_proof.ok_or(Error::ServerProof)?;
                     let client_proof = wal.tree().head()?;
@@ -584,8 +586,7 @@ impl Cache {
                 // tree at this point so we can get back in sync
                 // however we need confirmation that this is allowed
                 // from the user.
-                if expects_diff {
-                    let client_proof = cached.1.unwrap();
+                if let Some(client_proof) = client_proof {
                     let server_proof =
                         server_proof.ok_or(Error::ServerProof)?;
                     Err(Error::Conflict(Conflict {
@@ -611,7 +612,7 @@ impl Cache {
         let wal = self
             .cache
             .get_mut(summary.id())
-            .map(|(_, w)| w)
+            .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let vault = WalReducer::new().reduce(wal)?.build()?;
         Ok(vault)
@@ -627,7 +628,7 @@ impl Cache {
         let wal = self
             .cache
             .get_mut(summary.id())
-            .map(|(_, w)| w)
+            .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         let patch = Patch(events);

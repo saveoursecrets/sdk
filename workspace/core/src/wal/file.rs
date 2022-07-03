@@ -14,7 +14,7 @@
 //!
 use crate::{
     commit_tree::{hash, CommitTree},
-    constants::WAL_IDENTITY,
+    constants::{WAL_EXT, WAL_IDENTITY},
     events::WalEvent,
     timestamp::Timestamp,
     vault::{encode, CommitHash},
@@ -110,8 +110,7 @@ impl WalFile {
         let exists = path.as_ref().exists();
 
         if !exists {
-            let file = File::create(path.as_ref())?;
-            drop(file);
+            File::create(path.as_ref())?;
         }
 
         let mut file = OpenOptions::new()
@@ -139,7 +138,7 @@ impl WalFile {
 
     /// The file extension for WAL files.
     pub fn extension() -> &'static str {
-        "wal"
+        WAL_EXT
     }
 }
 
