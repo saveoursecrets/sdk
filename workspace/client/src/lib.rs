@@ -65,7 +65,7 @@ impl ClientBuilder {
     }
 }
 
-pub use cache::Cache;
+pub use cache::{Cache, ClientCache};
 pub use client::{Client, VaultInfo};
 pub use create::vault as create_vault;
 pub use error::Error;

@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use sos_client::{
     create_vault, exec, monitor, run_blocking, signup, Cache, ClientBuilder,
-    Error, Result,
+    ClientCache, Error, Result,
 };
 use sos_core::Algorithm;
 use sos_readline::read_shell;
@@ -145,11 +145,11 @@ fn run() -> Result<()> {
             let cache = Arc::new(RwLock::new(Cache::new(client, cache_dir)?));
 
             let reader = cache.read().unwrap();
-            welcome(reader.client().server())?;
+            welcome(reader.server())?;
             drop(reader);
 
             let mut writer = cache.write().unwrap();
-            if let Err(e) = run_blocking(writer.load_summaries()) {
+            if let Err(e) = run_blocking(writer.load_vaults()) {
                 tracing::error!("failed to load vaults: {}", e);
             }
             drop(writer);

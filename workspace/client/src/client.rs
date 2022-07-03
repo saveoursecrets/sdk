@@ -106,15 +106,21 @@ impl Client {
         let url = self.server.join("api/auth")?;
         let (message, signature) = self.self_signed().await?;
 
-        let challenge: (Uuid, Challenge) = self
+        let response = self
             .http_client
             .get(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
             .header(X_SIGNED_MESSAGE, base64::encode(&message))
             .send()
-            .await?
-            .json()
             .await?;
+
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let challenge: (Uuid, Challenge) = response.json().await?;
 
         let (uuid, message) = challenge;
         let url = format!("api/auth/{}", uuid);
@@ -122,15 +128,21 @@ impl Client {
         let signature =
             self.encode_signature(self.signer.sign(&message).await?)?;
 
-        let summaries: Vec<Summary> = self
+        let response = self
             .http_client
             .get(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
             .header(X_SIGNED_MESSAGE, base64::encode(&message))
             .send()
-            .await?
-            .json()
             .await?;
+
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let summaries: Vec<Summary> = response.json().await?;
 
         Ok(summaries)
     }

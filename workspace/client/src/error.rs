@@ -39,29 +39,8 @@ pub enum Error {
     #[error(r#"secret "{0}" not found"#)]
     SecretNotAvailable(SecretRef),
 
-    #[error("failed to create vault, got status code {0}")]
-    VaultCreate(u16),
-
-    #[error("failed to delete vault, got status code {0}")]
-    VaultRemove(u16),
-
-    #[error("failed to set vault name, got status code {0}")]
-    SetVaultName(u16),
-
-    #[error("failed to add secret, got status code {0}")]
-    AddSecret(u16),
-
-    #[error("failed to read secret, got status code {0}")]
-    ReadSecret(u16),
-
-    #[error("failed to set secret, got status code {0}")]
-    SetSecret(u16),
-
-    #[error("failed to delete secret, got status code {0}")]
-    DelSecret(u16),
-
-    #[error("failed to rename secret, got status code {0}")]
-    MvSecret(u16),
+    #[error("unexpected response status code {0}")]
+    ResponseCode(u16),
 
     #[error("editor command did not exit successfully, status {0}")]
     EditorExit(i32),

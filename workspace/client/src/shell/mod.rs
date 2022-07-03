@@ -13,20 +13,17 @@ use url::Url;
 
 use human_bytes::human_bytes;
 use sos_core::{
-    diceware::generate,
-    gatekeeper::Gatekeeper,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
-    vault::{
-        encode, CommitHash, Vault, VaultAccess, VaultCommit, VaultEntry,
-    },
-    wal::WalProvider,
+    vault::{CommitHash, Vault, VaultAccess, VaultCommit, VaultEntry},
 };
 use sos_readline::{
     read_flag, read_line, read_line_allow_empty, read_multiline, read_option,
     read_password,
 };
 
-use crate::{display_passphrase, run_blocking, Cache, Error, Result};
+use crate::{
+    display_passphrase, run_blocking, Cache, ClientCache, Error, Result,
+};
 
 mod editor;
 mod print;
@@ -257,34 +254,20 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
     match program.cmd {
         ShellCommand::Vaults => {
             let mut writer = cache.write().unwrap();
-            let summaries = run_blocking(writer.load_summaries())?;
+            let summaries = run_blocking(writer.load_vaults())?;
             print::summaries_list(summaries);
             Ok(())
         }
         ShellCommand::Create { name } => {
             let mut writer = cache.write().unwrap();
-            let (passphrase, _) = generate()?;
-            let mut vault: Vault = Default::default();
-            vault.set_name(name);
-            vault.initialize(&passphrase)?;
-            let buffer = encode(&vault)?;
-
-            let response = run_blocking(writer.create_wal(buffer))?;
-
-            response
-                .status()
-                .is_success()
-                .then_some(())
-                .ok_or(Error::VaultCreate(response.status().into()))?;
-
+            let passphrase = run_blocking(writer.create_vault(name))?;
             display_passphrase("ENCRYPTION PASSPHRASE", &passphrase);
-
             Ok(())
         }
         ShellCommand::Remove { vault } => {
             let reader = cache.read().unwrap();
             let summary = reader
-                .find_summary(&vault)
+                .find_vault(&vault)
                 .ok_or(Error::VaultNotAvailable(vault.clone()))?
                 .clone();
             let prompt = format!(
@@ -296,35 +279,22 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
 
             if read_flag(Some(&prompt))? {
                 let mut writer = cache.write().unwrap();
-                let response = run_blocking(writer.delete_wal(&summary))?;
-
-                response
-                    .status()
-                    .is_success()
-                    .then_some(())
-                    .ok_or(Error::VaultRemove(response.status().into()))?;
+                run_blocking(writer.remove_vault(&summary))?;
             }
 
             Ok(())
         }
         ShellCommand::Use { vault } => {
             let reader = cache.read().unwrap();
-            let summary = reader.find_summary(&vault).cloned();
+            let summary = reader
+                .find_vault(&vault)
+                .cloned()
+                .ok_or(Error::VaultNotAvailable(vault))?;
             drop(reader);
-            if let Some(summary) = &summary {
-                let mut writer = cache.write().unwrap();
-                let vault = run_blocking(writer.load_vault(summary))?;
-                let mut keeper = Gatekeeper::new(vault);
-                let password = read_password(Some("Passphrase: "))?;
-                if let Ok(_) = keeper.unlock(&password) {
-                    writer.set_current(Some(keeper));
-                    Ok(())
-                } else {
-                    Err(Error::VaultUnlockFail)
-                }
-            } else {
-                Err(Error::VaultNotAvailable(vault))
-            }
+
+            let password = read_password(Some("Passphrase: "))?;
+            let mut writer = cache.write().unwrap();
+            run_blocking(writer.open_vault(&summary, &password))
         }
         ShellCommand::Info => {
             let reader = cache.read().unwrap();
@@ -373,13 +343,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 (false, keeper.summary().clone(), name.to_string())
             };
             if renamed {
-                let response =
-                    run_blocking(writer.set_vault_name(&summary, &name))?;
-                response
-                    .status()
-                    .is_success()
-                    .then_some(())
-                    .ok_or(Error::SetVaultName(response.status().into()))?;
+                run_blocking(writer.set_vault_name(&summary, &name))?;
             }
             Ok(())
         }
@@ -387,7 +351,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
             let reader = cache.read().unwrap();
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
             let (client_proof, server_proof) =
-                run_blocking(reader.head_wal(keeper.summary()))?;
+                run_blocking(reader.vault_status(keeper.summary()))?;
             println!("client = {}", CommitHash(client_proof.0));
             println!("server = {}", CommitHash(server_proof.0));
             Ok(())
@@ -396,14 +360,14 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
             let reader = cache.read().unwrap();
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary();
-            if let Some((_, wal)) = reader.wal_file(summary) {
-                if let Some(leaves) = wal.tree().leaves() {
+            if let Some(tree) = reader.wal_tree(summary) {
+                if let Some(leaves) = tree.leaves() {
                     for leaf in &leaves {
                         println!("{}", hex::encode(leaf));
                     }
                     println!("leaves = {}", leaves.len());
                 }
-                if let Some(root) = wal.tree().root() {
+                if let Some(root) = tree.root() {
                     println!("root = {}", hex::encode(root));
                 }
             }
@@ -431,13 +395,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
             };
 
             if let Some((summary, event)) = result {
-                let response =
-                    run_blocking(writer.patch_vault(&summary, vec![event]))?;
-                response
-                    .status()
-                    .is_success()
-                    .then_some(())
-                    .ok_or(Error::AddSecret(response.status().into()))
+                run_blocking(writer.patch_vault(&summary, vec![event]))
             } else {
                 Ok(())
             }
@@ -458,13 +416,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 let event = event.into_owned();
 
                 print::secret(&secret_meta, &secret_data);
-                let response =
-                    run_blocking(writer.patch_vault(&summary, vec![event]))?;
-                response
-                    .status()
-                    .is_success()
-                    .then_some(())
-                    .ok_or(Error::ReadSecret(response.status().into()))
+                run_blocking(writer.patch_vault(&summary, vec![event]))
             } else {
                 Err(Error::SecretNotAvailable(secret))
             }
@@ -519,20 +471,13 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     .ok_or(Error::SecretNotAvailable(secret))?;
 
                 let event = event.into_owned();
-                let response =
-                    run_blocking(writer.patch_vault(&summary, vec![event]))?;
-                response
-                    .status()
-                    .is_success()
-                    .then_some(())
-                    .ok_or(Error::SetSecret(response.status().into()))
+                run_blocking(writer.patch_vault(&summary, vec![event]))
             // If the edited result was borrowed
             // it indicates that no changes were made
             } else {
                 Ok(())
             }
         }
-
         ShellCommand::Del { secret } => {
             let (uuid, secret_meta) =
                 find_secret_meta(Arc::clone(&cache), &secret)?
@@ -549,15 +494,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     // Must call into_owned() on the event to prevent
                     // attempting to borrow mutably twice
                     let event = event.into_owned();
-
-                    let response = run_blocking(
-                        writer.patch_vault(&summary, vec![event]),
-                    )?;
-                    response
-                        .status()
-                        .is_success()
-                        .then_some(())
-                        .ok_or(Error::DelSecret(response.status().into()))
+                    run_blocking(writer.patch_vault(&summary, vec![event]))
                 } else {
                     Err(Error::SecretNotAvailable(secret))
                 }
@@ -565,7 +502,6 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 Ok(())
             }
         }
-
         ShellCommand::Mv { secret, label } => {
             let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret)?
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
@@ -604,28 +540,17 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let event = event.into_owned();
-            let response =
-                run_blocking(writer.patch_vault(&summary, vec![event]))?;
-
-            response
-                .status()
-                .is_success()
-                .then_some(())
-                .ok_or(Error::MvSecret(response.status().into()))
+            run_blocking(writer.patch_vault(&summary, vec![event]))
         }
-
         ShellCommand::Whoami => {
             let reader = cache.read().unwrap();
-            let address = reader.client().address()?;
+            let address = reader.address()?;
             println!("{}", address);
             Ok(())
         }
         ShellCommand::Close => {
             let mut writer = cache.write().unwrap();
-            if let Some(current) = writer.current_mut() {
-                current.lock();
-            }
-            writer.set_current(None);
+            writer.close_vault();
             Ok(())
         }
         ShellCommand::Quit => {
