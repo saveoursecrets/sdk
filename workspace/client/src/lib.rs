@@ -10,7 +10,6 @@ use web3_keystore::{decrypt, KeyStore};
 
 mod cache;
 mod client;
-mod create;
 mod error;
 mod monitor;
 mod shell;
@@ -67,7 +66,6 @@ impl ClientBuilder {
 
 pub use cache::{Cache, ClientCache};
 pub use client::{Client, VaultInfo};
-pub use create::vault as create_vault;
 pub use error::Error;
 pub use monitor::monitor;
 pub use shell::exec;
