@@ -1,6 +1,6 @@
 //! Cache of local WAL files.
 use crate::{
-    client::{decode_leaf_proof, Client},
+    client::{decode_match_proof, Client},
     Error, Result,
 };
 use async_recursion::async_recursion;
@@ -487,7 +487,7 @@ impl Cache {
 
                     // Server replied with a proof that they have a
                     // leaf node corresponding to our root hash
-                    if let Some(_) = decode_leaf_proof(response.headers())? {
+                    if let Some(_) = decode_match_proof(response.headers())? {
                         tracing::debug!(
                             client_root = %proof.root_hex(),
                             server_root = %server_proof.root_hex(),

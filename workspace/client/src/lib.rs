@@ -65,7 +65,7 @@ impl ClientBuilder {
 }
 
 pub use cache::{Cache, ClientCache};
-pub use client::{Client, VaultInfo};
+pub use client::Client;
 pub use error::Error;
 pub use monitor::monitor;
 pub use shell::exec;

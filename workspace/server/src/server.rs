@@ -8,7 +8,7 @@ use crate::{
         sse::{sse_handler, SseConnection},
         wal::WalHandler,
     },
-    headers::{X_COMMIT_PROOF, X_LEAF_PROOF, X_SIGNED_MESSAGE},
+    headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
     Backend, ServerConfig,
 };
 use axum::{
@@ -99,11 +99,11 @@ impl Server {
                 CONTENT_TYPE,
                 X_SIGNED_MESSAGE.clone(),
                 X_COMMIT_PROOF.clone(),
-                X_LEAF_PROOF.clone(),
+                X_MATCH_PROOF.clone(),
             ])
             .expose_headers(vec![
                 X_COMMIT_PROOF.clone(),
-                X_LEAF_PROOF.clone(),
+                X_MATCH_PROOF.clone(),
             ])
             .allow_origin(Origin::list(origins));
 

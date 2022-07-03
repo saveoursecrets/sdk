@@ -9,7 +9,7 @@ use sos_core::{
     commit_tree::CommitProof,
     decode,
     events::Patch,
-    headers::{X_COMMIT_PROOF, X_LEAF_PROOF, X_SIGNED_MESSAGE},
+    headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
     signer::Signer,
     vault::{encode, Summary, MIME_TYPE_VAULT},
 };
@@ -35,10 +35,10 @@ fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
     }
 }
 
-pub(crate) fn decode_leaf_proof(
+pub(crate) fn decode_match_proof(
     headers: &HeaderMap,
 ) -> Result<Option<Vec<u8>>> {
-    if let Some(leaf_proof) = headers.get(X_LEAF_PROOF) {
+    if let Some(leaf_proof) = headers.get(X_MATCH_PROOF) {
         let leaf_proof = base64::decode(leaf_proof)?;
         Ok(Some(leaf_proof))
     } else {
@@ -54,10 +54,6 @@ fn encode_headers_proof(
     builder = builder.header(X_COMMIT_PROOF, base64::encode(&value));
     Ok(builder)
 }
-
-/// Encapsulates the information returned
-/// by sending a HEAD request for a vault.
-pub struct VaultInfo {}
 
 pub struct Client {
     server: Url,

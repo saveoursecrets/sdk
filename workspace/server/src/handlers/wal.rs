@@ -30,7 +30,7 @@ use crate::{
 };
 
 use super::{
-    append_audit_logs, append_commit_headers, append_leaf_header,
+    append_audit_logs, append_commit_headers, append_match_header,
     send_notifications,
 };
 
@@ -341,11 +341,11 @@ impl WalHandler {
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                         // Prepare the proof that this WAL contains the
                         // matched leaf node
-                        let leaf_proof = wal
+                        let match_proof = wal
                             .tree()
                             .proof(&indices)
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                        Ok(PatchResult::Conflict(proof, Some(leaf_proof)))
+                        Ok(PatchResult::Conflict(proof, Some(match_proof)))
                     }
                     Comparison::Unknown => {
                         let proof = wal
@@ -397,7 +397,7 @@ impl WalHandler {
                 append_commit_headers(&mut headers, &proof)?;
                 Ok((StatusCode::OK, headers))
             }
-            PatchResult::Conflict(proof, leaf_proof) => {
+            PatchResult::Conflict(proof, match_proof) => {
                 let mut headers = HeaderMap::new();
                 append_commit_headers(&mut headers, &proof)?;
 
@@ -406,8 +406,8 @@ impl WalHandler {
                 //
                 // The client can use this to determine that it
                 // is safe to pull changes from the server.
-                if let Some(leaf_proof) = leaf_proof {
-                    append_leaf_header(&mut headers, &leaf_proof)?;
+                if let Some(match_proof) = match_proof {
+                    append_match_header(&mut headers, &match_proof)?;
                 }
 
                 Ok((StatusCode::CONFLICT, headers))

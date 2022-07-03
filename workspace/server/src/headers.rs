@@ -12,8 +12,8 @@ pub static X_SIGNED_MESSAGE: Lazy<HeaderName> = Lazy::new(|| {
 pub static X_COMMIT_PROOF: Lazy<HeaderName> =
     Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_PROOF));
 
-pub static X_LEAF_PROOF: Lazy<HeaderName> =
-    Lazy::new(|| HeaderName::from_static(sos_core::headers::X_LEAF_PROOF));
+pub static X_MATCH_PROOF: Lazy<HeaderName> =
+    Lazy::new(|| HeaderName::from_static(sos_core::headers::X_MATCH_PROOF));
 
 /// Represents the `x-signed-message` header.
 pub struct SignedMessage(Vec<u8>);
