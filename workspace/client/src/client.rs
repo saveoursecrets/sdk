@@ -9,7 +9,7 @@ use sos_core::{
     commit_tree::CommitProof,
     decode,
     events::Patch,
-    headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
+    constants::headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
     signer::Signer,
     vault::{encode, Summary, MIME_TYPE_VAULT},
 };

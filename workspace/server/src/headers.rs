@@ -6,14 +6,14 @@ use sos_core::{commit_tree::CommitProof, decode, encode};
 use once_cell::sync::Lazy;
 
 pub static X_SIGNED_MESSAGE: Lazy<HeaderName> = Lazy::new(|| {
-    HeaderName::from_static(sos_core::headers::X_SIGNED_MESSAGE)
+    HeaderName::from_static(sos_core::constants::headers::X_SIGNED_MESSAGE)
 });
 
 pub static X_COMMIT_PROOF: Lazy<HeaderName> =
-    Lazy::new(|| HeaderName::from_static(sos_core::headers::X_COMMIT_PROOF));
+    Lazy::new(|| HeaderName::from_static(sos_core::constants::headers::X_COMMIT_PROOF));
 
 pub static X_MATCH_PROOF: Lazy<HeaderName> =
-    Lazy::new(|| HeaderName::from_static(sos_core::headers::X_MATCH_PROOF));
+    Lazy::new(|| HeaderName::from_static(sos_core::constants::headers::X_MATCH_PROOF));
 
 /// Represents the `x-signed-message` header.
 pub struct SignedMessage(Vec<u8>);

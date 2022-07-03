@@ -3,6 +3,7 @@
 
 pub mod address;
 pub mod commit_tree;
+pub mod constants;
 pub mod crypto;
 pub mod diceware;
 mod error;
@@ -14,7 +15,6 @@ pub mod file_identity;
 pub mod file_locks;
 
 pub mod gatekeeper;
-pub mod headers;
 
 #[deprecated]
 pub mod passphrase;

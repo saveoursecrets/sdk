@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
     commit_tree::{integrity::wal_commit_tree, CommitProof},
+    constants::extensions::{WAL_DELETED_EXT, WAL_BACKUP_EXT},
     events::{SyncEvent, WalEvent},
     file_access::VaultFileAccess,
     file_locks::FileLocks,
@@ -21,9 +22,6 @@ use tokio::io;
 type WalStorage = Box<
     dyn WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync,
 >;
-
-const WAL_BACKUP_EXT: &str = "wal.backup";
-const WAL_DELETED_EXT: &str = "wal.deleted";
 
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]

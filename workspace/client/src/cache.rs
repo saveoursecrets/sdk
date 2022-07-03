@@ -9,6 +9,7 @@ use reqwest::{Response, StatusCode};
 use sos_core::{
     address::AddressStr,
     commit_tree::{CommitProof, CommitTree},
+    constants::extensions::WAL_DELETED_EXT,
     diceware::generate,
     encode,
     events::{Patch, SyncEvent, WalEvent},
@@ -28,8 +29,6 @@ use std::{
 };
 use url::Url;
 use uuid::Uuid;
-
-const WAL_DELETED_EXT: &str = "wal.deleted";
 
 fn assert_proofs_eq(
     client_proof: CommitProof,
