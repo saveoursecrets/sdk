@@ -4,6 +4,15 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
+/// Represents a conflict response that may be solved
+/// with the given action.
+#[derive(Debug)]
+pub enum ConflictAction {
+    /// Conflict that can be resolved by pulling
+    /// a fresh tree from the remote server.
+    ForcePull,
+}
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("path {0} is not a directory")]
@@ -53,6 +62,9 @@ pub enum Error {
 
     #[error("cache not available for {0}")]
     CacheNotAvailable(Uuid),
+
+    #[error("conflict detected that may be resolvable")]
+    Conflict(ConflictAction),
 
     #[error(transparent)]
     ParseInt(#[from] std::num::ParseIntError),

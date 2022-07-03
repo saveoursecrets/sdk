@@ -1,7 +1,7 @@
 //! Cache of local WAL files.
 use crate::{
     client::{decode_match_proof, Client},
-    Error, Result,
+    ConflictAction, Error, Result,
 };
 use async_recursion::async_recursion;
 use async_trait::async_trait;
@@ -259,7 +259,7 @@ impl ClientCache for Cache {
         summary: &Summary,
         password: &str,
     ) -> Result<()> {
-        let vault = self.load_vault(summary).await?;
+        let vault = self.get_wal_vault(summary).await?;
         let mut keeper = if self.mirror {
             let mirror =
                 Box::new(VaultFileAccess::new(self.vault_path(summary))?);
@@ -267,7 +267,6 @@ impl ClientCache for Cache {
         } else {
             Gatekeeper::new(vault)
         };
-
         keeper
             .unlock(password)
             .map_err(|_| Error::VaultUnlockFail)?;
@@ -435,10 +434,7 @@ impl Cache {
     }
 
     /// Fetch the remote WAL file.
-    async fn pull_wal<'a, 's>(
-        &'a mut self,
-        summary: &'s Summary,
-    ) -> Result<&'a mut WalFile> {
+    async fn pull_wal(&mut self, summary: &Summary) -> Result<()> {
         let cached_wal_path = self.wal_path(summary);
 
         // Cache already exists so attempt to get a diff of records
@@ -447,7 +443,7 @@ impl Cache {
             let mut wal_file = WalFile::new(&cached_wal_path)?;
             wal_file.load_tree()?;
             let proof = wal_file.tree().head()?;
-            tracing::debug!(root = %proof.root_hex(), "pull_wal root commit");
+            tracing::debug!(root = %proof.root_hex(), "pull_wal wants diff");
             (wal_file, Some(proof))
         // Otherwise prepare a new WAL cache
         } else {
@@ -455,12 +451,14 @@ impl Cache {
             (wal_file, None)
         };
 
+        let expects_diff = cached.1.is_some();
+
         let (response, server_proof) =
             self.client.get_wal(summary.id(), cached.1.as_ref()).await?;
 
         let status = response.status();
 
-        tracing::debug!(status = %status, "pull_wal status");
+        tracing::debug!(status = %status, "pull_wal");
 
         match status {
             StatusCode::OK => {
@@ -514,20 +512,18 @@ impl Cache {
                     self.cache
                         .insert(*summary.id(), (cached_wal_path, wal_file));
 
-                    let (_, wal) = self.cache.get_mut(summary.id()).unwrap();
-
-                    Ok(wal)
+                    Ok(())
                 } else {
                     Err(Error::ServerProof)
                 }
             }
             StatusCode::NOT_MODIFIED => {
-                // Build the vault from the cached WAL file
-                if let Some((_, wal)) = self.cache.get_mut(summary.id()) {
+                // Verify that both proofs are equal
+                if let Some((_, wal)) = self.cache.get(summary.id()) {
                     if let Some(server_proof) = server_proof {
                         let client_proof = wal.tree().head()?;
                         assert_proofs_eq(client_proof, server_proof)?;
-                        Ok(wal)
+                        Ok(())
                     } else {
                         Err(Error::ServerProof)
                     }
@@ -536,16 +532,34 @@ impl Cache {
                 }
             }
             StatusCode::CONFLICT => {
-                todo!("handle conflicts");
+                // If we are expecting a diff but got a conflict
+                // from the server then the trees have diverged.
+                //
+                // We should pull from the server a complete fresh
+                // tree at this point so we can get back in sync
+                // however we need confirmation that this is allowed
+                // from the user.
+                if expects_diff {
+                    Err(Error::Conflict(ConflictAction::ForcePull))
+                } else {
+                    Err(Error::ResponseCode(response.status().into()))
+                }
             }
             _ => Err(Error::ResponseCode(response.status().into())),
         }
     }
 
     /// Load a vault by attempting to fetch the WAL file and caching
-    /// the result on disc then building a vault from the WAL.
-    async fn load_vault(&mut self, summary: &Summary) -> Result<Vault> {
-        let wal = self.pull_wal(summary).await?;
+    /// the result on disc then building an in-memory vault from the WAL.
+    async fn get_wal_vault(&mut self, summary: &Summary) -> Result<Vault> {
+        // Fetch latest version of the WAL content
+        self.pull_wal(summary).await?;
+        // Reduce the WAL to a vault
+        let wal = self
+            .cache
+            .get_mut(summary.id())
+            .map(|(_, w)| w)
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let vault = WalReducer::new().reduce(wal)?.build()?;
         Ok(vault)
     }
@@ -557,106 +571,90 @@ impl Cache {
         summary: &Summary,
         events: Vec<SyncEvent<'async_recursion>>,
     ) -> Result<Response> {
-        if let Some((_, wal)) = self.cache.get_mut(summary.id()) {
-            let patch = Patch(events);
-            let proof = wal.tree().head()?;
+        let wal = self
+            .cache
+            .get_mut(summary.id())
+            .map(|(_, w)| w)
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-            let (response, server_proof) =
-                self.client.patch_wal(summary.id(), &proof, &patch).await?;
+        let patch = Patch(events);
+        let proof = wal.tree().head()?;
 
-            let status = response.status();
-            match status {
-                StatusCode::OK => {
-                    let server_proof =
-                        server_proof.ok_or(Error::ServerProof)?;
+        let (response, server_proof) =
+            self.client.patch_wal(summary.id(), &proof, &patch).await?;
 
-                    // Apply changes to the local WAL file
-                    let mut changes = Vec::new();
-                    for event in patch.0 {
-                        if let Ok::<WalEvent<'_>, sos_core::Error>(
-                            wal_event,
-                        ) = event.try_into()
-                        {
-                            changes.push(wal_event);
-                        }
+        let status = response.status();
+        match status {
+            StatusCode::OK => {
+                let server_proof = server_proof.ok_or(Error::ServerProof)?;
+
+                // Apply changes to the local WAL file
+                let mut changes = Vec::new();
+                for event in patch.0 {
+                    if let Ok::<WalEvent<'_>, sos_core::Error>(wal_event) =
+                        event.try_into()
+                    {
+                        changes.push(wal_event);
                     }
-
-                    // Pass the expected root hash so changes are reverted
-                    // if the root hashes do not match
-                    wal.apply(changes, Some(CommitHash(server_proof.0)))?;
-
-                    let client_proof = wal.tree().head()?;
-                    assert_proofs_eq(client_proof, server_proof)?;
-                    Ok(response)
                 }
-                StatusCode::CONFLICT => {
-                    let server_proof =
-                        server_proof.ok_or(Error::ServerProof)?;
 
-                    // Server replied with a proof that they have a
-                    // leaf node corresponding to our root hash
-                    if let Some(_) = decode_match_proof(response.headers())? {
-                        tracing::debug!(
-                            client_root = %proof.root_hex(),
-                            server_root = %server_proof.root_hex(),
-                            "conflict on patch, attempting sync");
+                // Pass the expected root hash so changes are reverted
+                // if the root hashes do not match
+                wal.apply(changes, Some(CommitHash(server_proof.0)))?;
 
-                        // Pull the WAL from the server that we
-                        // are behind
-                        self.pull_wal(summary).await?;
+                let client_proof = wal.tree().head()?;
+                assert_proofs_eq(client_proof, server_proof)?;
+                Ok(response)
+            }
+            StatusCode::CONFLICT => {
+                let server_proof = server_proof.ok_or(Error::ServerProof)?;
 
-                        tracing::debug!(vault_id = %summary.id(),
-                            "conflict on patch, pulled remote WAL");
+                // Server replied with a proof that they have a
+                // leaf node corresponding to our root hash which
+                // indicates that we are behind the remote so we
+                // can try to pull again and try to patch afterwards
+                if let Some(_) = decode_match_proof(response.headers())? {
+                    tracing::debug!(
+                        client_root = %proof.root_hex(),
+                        server_root = %server_proof.root_hex(),
+                        "conflict on patch, attempting sync");
 
-                        // Retry sending our local changes to
-                        // the remote WAL
-                        let response =
-                            self.patch_wal(summary, patch.0.clone()).await?;
+                    // Pull the WAL from the server that we
+                    // are behind
+                    self.pull_wal(summary).await?;
 
-                        tracing::debug!(status = %response.status(),
-                            "conflict on patch, retry patch status");
+                    tracing::debug!(vault_id = %summary.id(),
+                        "conflict on patch, pulled remote WAL");
 
-                        if response.status().is_success() {
-                            // If the retry was successful then
-                            // we should update the in-memory vault
-                            // so if reflects the pulled changes
-                            // with our patch applied over the top
-                            let updated_vault =
-                                self.load_vault(summary).await?;
+                    // Retry sending our local changes to
+                    // the remote WAL
+                    let response =
+                        self.patch_wal(summary, patch.0.clone()).await?;
 
-                            if let Some(keeper) = self.current_mut() {
-                                if keeper.id() == summary.id() {
-                                    let existing_vault = keeper.vault_mut();
-                                    *existing_vault = updated_vault;
-                                }
+                    tracing::debug!(status = %response.status(),
+                        "conflict on patch, retry patch status");
+
+                    if response.status().is_success() {
+                        // If the retry was successful then
+                        // we should update the in-memory vault
+                        // so if reflects the pulled changes
+                        // with our patch applied over the top
+                        let updated_vault =
+                            self.get_wal_vault(summary).await?;
+
+                        if let Some(keeper) = self.current_mut() {
+                            if keeper.id() == summary.id() {
+                                let existing_vault = keeper.vault_mut();
+                                *existing_vault = updated_vault;
                             }
                         }
-                        Ok(response)
-                    } else {
-                        self.conflict_pull_sync()?;
-                        Ok(response)
                     }
+                    Ok(response)
+                } else {
+                    Err(Error::Conflict(ConflictAction::ForcePull))
                 }
-                _ => Err(Error::ResponseCode(response.status().into())),
             }
-        } else {
-            Err(Error::CacheNotAvailable(*summary.id()))
+            _ => Err(Error::ResponseCode(response.status().into())),
         }
     }
-
-    fn conflict_pull_sync(&mut self) -> Result<()> {
-        todo!("handle patch conflict that requires complete sync");
-    }
-
-    /*
-    /// Create a new WAL file.
-    async fn create_wal(&mut self, vault: Vec<u8>) -> Result<Response> {
-        let summary = Header::read_summary_slice(&vault)?;
-        let (response, _) = self.client.create_wal(&vault).await?;
-        if response.status().is_success() {
-            self.summaries.push(summary);
-        }
-        Ok(response)
-    }
-    */
 }

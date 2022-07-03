@@ -66,7 +66,7 @@ impl ClientBuilder {
 
 pub use cache::{Cache, ClientCache};
 pub use client::Client;
-pub use error::Error;
+pub use error::{ConflictAction, Error};
 pub use monitor::monitor;
 pub use shell::exec;
 pub use signup::signup;

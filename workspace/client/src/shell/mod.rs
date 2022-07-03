@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
     ffi::OsString,
     path::PathBuf,
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock, RwLockWriteGuard},
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
@@ -249,6 +249,22 @@ fn read_file_secret(path: &str) -> Result<Secret> {
     Ok(Secret::File { name, mime, buffer })
 }
 
+fn maybe_conflict<F>(cache: Arc<RwLock<Cache>>, func: F) -> Result<()>
+where
+    F: FnOnce(RwLockWriteGuard<'_, Cache>) -> Result<()>,
+{
+    let writer = cache.write().unwrap();
+    match func(writer) {
+        Ok(_) => Ok(()),
+        Err(e) => match e {
+            Error::Conflict(action) => {
+                todo!("handle conflict situation!")
+            }
+            _ => Err(e),
+        },
+    }
+}
+
 /// Execute the program command.
 fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
     match program.cmd {
@@ -293,8 +309,9 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
             drop(reader);
 
             let password = read_password(Some("Passphrase: "))?;
-            let mut writer = cache.write().unwrap();
-            run_blocking(writer.open_vault(&summary, &password))
+            maybe_conflict(cache, |mut writer| {
+                run_blocking(writer.open_vault(&summary, &password))
+            })
         }
         ShellCommand::Info => {
             let reader = cache.read().unwrap();
@@ -342,18 +359,23 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 println!("{}", name);
                 (false, keeper.summary().clone(), name.to_string())
             };
+
+            drop(writer);
             if renamed {
-                run_blocking(writer.set_vault_name(&summary, &name))?;
+                maybe_conflict(cache, |mut writer| {
+                    run_blocking(writer.set_vault_name(&summary, &name))
+                })
+            } else {
+                Ok(())
             }
-            Ok(())
         }
         ShellCommand::Status => {
             let reader = cache.read().unwrap();
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
             let (client_proof, server_proof) =
                 run_blocking(reader.vault_status(keeper.summary()))?;
-            println!("client = {}", CommitHash(client_proof.0));
-            println!("server = {}", CommitHash(server_proof.0));
+            println!("local  = {}", CommitHash(client_proof.0));
+            println!("remote = {}", CommitHash(server_proof.0));
             Ok(())
         }
         ShellCommand::Tree => {
@@ -394,8 +416,12 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 None
             };
 
+            drop(writer);
+
             if let Some((summary, event)) = result {
-                run_blocking(writer.patch_vault(&summary, vec![event]))
+                maybe_conflict(cache, |mut writer| {
+                    run_blocking(writer.patch_vault(&summary, vec![event]))
+                })
             } else {
                 Ok(())
             }
@@ -471,7 +497,12 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     .ok_or(Error::SecretNotAvailable(secret))?;
 
                 let event = event.into_owned();
-                run_blocking(writer.patch_vault(&summary, vec![event]))
+                drop(writer);
+
+                maybe_conflict(cache, |mut writer| {
+                    run_blocking(writer.patch_vault(&summary, vec![event]))
+                })
+
             // If the edited result was borrowed
             // it indicates that no changes were made
             } else {
@@ -494,7 +525,13 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     // Must call into_owned() on the event to prevent
                     // attempting to borrow mutably twice
                     let event = event.into_owned();
-                    run_blocking(writer.patch_vault(&summary, vec![event]))
+
+                    drop(writer);
+                    maybe_conflict(cache, |mut writer| {
+                        run_blocking(
+                            writer.patch_vault(&summary, vec![event]),
+                        )
+                    })
                 } else {
                     Err(Error::SecretNotAvailable(secret))
                 }
@@ -540,7 +577,11 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let event = event.into_owned();
-            run_blocking(writer.patch_vault(&summary, vec![event]))
+
+            drop(writer);
+            maybe_conflict(cache, |mut writer| {
+                run_blocking(writer.patch_vault(&summary, vec![event]))
+            })
         }
         ShellCommand::Whoami => {
             let reader = cache.read().unwrap();
