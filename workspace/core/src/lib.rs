@@ -8,20 +8,20 @@ pub mod crypto;
 pub mod diceware;
 mod error;
 pub mod events;
-pub mod file_access;
-pub mod file_identity;
+mod file_access;
+mod file_identity;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod file_locks;
+mod file_locks;
 
-pub mod gatekeeper;
+mod gatekeeper;
 
 #[deprecated]
 pub mod passphrase;
 
 pub mod secret;
 pub mod signer;
-pub mod timestamp;
+mod timestamp;
 pub mod vault;
 pub mod wal;
 
@@ -37,6 +37,11 @@ pub use crypto::algorithms::Algorithm;
 pub use vault::{decode, encode};
 
 pub use error::Error;
+pub use file_access::VaultFileAccess;
+pub use file_identity::FileIdentity;
+pub use file_locks::FileLocks;
+pub use gatekeeper::Gatekeeper;
+pub use timestamp::Timestamp;
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;

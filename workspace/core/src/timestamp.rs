@@ -10,7 +10,7 @@ use std::fmt;
 
 use time::{Duration, OffsetDateTime};
 
-/// Timestamp for the log record.
+/// Timestamp for events and log records.
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Timestamp(OffsetDateTime);
 

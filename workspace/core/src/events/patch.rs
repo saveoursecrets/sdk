@@ -4,10 +4,7 @@ use serde_binary::{
     Result as BinaryResult, Serializer,
 };
 
-use crate::{
-    events::SyncEvent,
-    file_identity::{FileIdentity, PATCH_IDENTITY},
-};
+use crate::{constants::PATCH_IDENTITY, events::SyncEvent, FileIdentity};
 
 /// Patch wraps a changeset of events to be sent across the network.
 #[derive(Debug, Default)]

@@ -19,19 +19,18 @@ use serde_binary::{
 use uuid::Uuid;
 
 use crate::{
+    constants::VAULT_IDENTITY,
     crypto::AeadPack,
     events::SyncEvent,
-    file_identity::{FileIdentity, VAULT_IDENTITY},
     secret::SecretId,
     vault::{
         encode, CommitHash, Contents, Header, Summary, VaultAccess,
         VaultCommit, VaultEntry,
     },
-    Result,
+    FileIdentity, Result,
 };
 
-/// Wrapper type for accessing a vault file that manages
-/// an underlying file stream.
+/// Implements access to a encrypted vault backed by a file on disc.
 pub struct VaultFileAccess {
     file_path: PathBuf,
     stream: Mutex<FileStream>,

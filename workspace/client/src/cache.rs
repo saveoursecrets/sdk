@@ -9,16 +9,15 @@ use reqwest::{Response, StatusCode};
 use sos_core::{
     address::AddressStr,
     commit_tree::{CommitProof, CommitTree},
-    constants::extensions::WAL_DELETED_EXT,
+    constants::WAL_DELETED_EXT,
+    constants::WAL_IDENTITY,
     diceware::generate,
     encode,
     events::{Patch, SyncEvent, WalEvent},
-    file_access::VaultFileAccess,
-    file_identity::{FileIdentity, WAL_IDENTITY},
-    gatekeeper::Gatekeeper,
     secret::SecretRef,
     vault::{CommitHash, Summary, Vault},
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
+    FileIdentity, Gatekeeper, VaultFileAccess,
 };
 use std::{
     borrow::Cow,

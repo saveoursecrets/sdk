@@ -13,14 +13,14 @@ use std::{borrow::Cow, collections::HashMap, fmt, path::Path};
 use uuid::Uuid;
 
 use crate::{
+    constants::VAULT_IDENTITY,
     crypto::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
         AeadPack,
     },
     events::SyncEvent,
-    file_identity::{FileIdentity, VAULT_IDENTITY},
     secret::{SecretId, VaultMeta},
-    Error, Result,
+    Error, FileIdentity, Result,
 };
 
 /// Vault version identifier.
@@ -284,7 +284,6 @@ impl Decode for Summary {
 /// File header, identifier and version information
 #[derive(Debug, Eq, PartialEq)]
 pub struct Header {
-    identity: FileIdentity,
     summary: Summary,
     meta: Option<AeadPack>,
     auth: Auth,
@@ -294,7 +293,6 @@ impl Header {
     /// Create a new header.
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
-            identity: FileIdentity(VAULT_IDENTITY),
             summary: Summary::new(id, name, algorithm),
             meta: None,
             auth: Default::default(),
@@ -372,7 +370,6 @@ impl Header {
 impl Default for Header {
     fn default() -> Self {
         Self {
-            identity: FileIdentity(VAULT_IDENTITY),
             summary: Default::default(),
             meta: None,
             auth: Default::default(),
@@ -388,7 +385,8 @@ impl fmt::Display for Header {
 
 impl Encode for Header {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        self.identity.encode(&mut *ser)?;
+        FileIdentity::write_identity(&mut *ser, &VAULT_IDENTITY)
+            .map_err(Box::from)?;
 
         let size_pos = ser.writer.tell()?;
         ser.writer.write_u32(0)?;
@@ -415,7 +413,8 @@ impl Encode for Header {
 
 impl Decode for Header {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.identity.decode(&mut *de)?;
+        FileIdentity::read_identity(&mut *de, &VAULT_IDENTITY)
+            .map_err(Box::from)?;
 
         // Read in the header length
         let _ = de.reader.read_u32()?;

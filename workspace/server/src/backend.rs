@@ -3,15 +3,14 @@ use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
     commit_tree::{integrity::wal_commit_tree, CommitProof},
-    constants::extensions::{WAL_DELETED_EXT, WAL_BACKUP_EXT},
+    constants::{WAL_BACKUP_EXT, WAL_DELETED_EXT},
     events::{SyncEvent, WalEvent},
-    file_access::VaultFileAccess,
-    file_locks::FileLocks,
     vault::{Header, Summary, Vault, VaultAccess},
     wal::{
         file::{WalFile, WalFileRecord},
         WalProvider,
     },
+    FileLocks, VaultFileAccess,
 };
 use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 use tempfile::NamedTempFile;

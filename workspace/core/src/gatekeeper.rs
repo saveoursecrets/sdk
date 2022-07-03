@@ -1,19 +1,4 @@
 //! Gatekeeper manages access to a vault.
-//!
-//! It stores the private key in memory so should only be used on client
-//! implementations.
-//!
-//! Calling `lock()` will zeroize the private key in memory and prevent
-//! any access to the vault until `unlock()` is called successfully.
-//!
-//! To allow for meta data to be displayed before secret decryption
-//! certain parts of a vault are encrypted separately which means that
-//! technically it would be possible to use different private keys for
-//! different secrets and for the meta data however this would be
-//! a very poor user experience and would lead to confusion so the
-//! gatekeeper is also responsible for ensuring the same private key
-//! is used to encrypt the different chunks.
-//!
 use crate::{
     crypto::{secret_key::SecretKey, AeadPack},
     decode, encode,
@@ -26,7 +11,21 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use zeroize::Zeroize;
 
-/// Manage access to a vault's secrets.
+/// Access to an in-memory vault optionally mirroring changes to disc.
+///
+/// It stores the private key in memory so should only be used on client
+/// implementations.
+///
+/// Calling `lock()` will zeroize the private key in memory and prevent
+/// any access to the vault until `unlock()` is called successfully.
+///
+/// To allow for meta data to be displayed before secret decryption
+/// certain parts of a vault are encrypted separately which means that
+/// technically it would be possible to use different private keys for
+/// different secrets and for the meta data however this would be
+/// a very poor user experience and would lead to confusion so the
+/// gatekeeper is also responsible for ensuring the same private key
+/// is used to encrypt the different chunks.
 #[derive(Default)]
 pub struct Gatekeeper {
     /// The private key.

@@ -14,11 +14,11 @@
 //!
 use crate::{
     commit_tree::{hash, CommitTree},
+    constants::WAL_IDENTITY,
     events::WalEvent,
-    file_identity::{FileIdentity, WAL_IDENTITY},
     timestamp::Timestamp,
     vault::{encode, CommitHash},
-    Error, Result,
+    Error, FileIdentity, Result,
 };
 use std::{
     fs::{File, OpenOptions},
@@ -121,9 +121,7 @@ impl WalFile {
 
         let size = file.metadata()?.len();
         if size == 0 {
-            let identity = FileIdentity(WAL_IDENTITY);
-            let buffer = encode(&identity)?;
-            file.write_all(&buffer)?;
+            file.write_all(&WAL_IDENTITY)?;
         }
         Ok(file)
     }

@@ -1,7 +1,22 @@
 //! Constants shared between the client and server.
 
+/// Constants for file identity.
+mod identity {
+    /// Audit log identity magic bytes (SOSA).
+    pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
+
+    /// Write-ahead log identity magic bytes (SOSW).
+    pub const WAL_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+
+    /// Patch file identity magic bytes (SOSP).
+    pub const PATCH_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
+
+    /// Vault file identity magic bytes (SOSV).
+    pub const VAULT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
+}
+
 /// Constants for file extensions.
-pub mod extensions {
+mod extensions {
     /// File extension used when deleting WAL files.
     pub const WAL_DELETED_EXT: &str = "wal.deleted";
 
@@ -10,7 +25,7 @@ pub mod extensions {
 }
 
 /// Constants for header names.
-pub mod headers {
+mod headers {
     /// Constant for the signed message header.
     pub const X_SIGNED_MESSAGE: &str = "x-signed-message";
 
@@ -20,3 +35,7 @@ pub mod headers {
     /// Constant for the match proof header.
     pub const X_MATCH_PROOF: &str = "x-match-proof";
 }
+
+pub use extensions::*;
+pub use headers::*;
+pub use identity::*;

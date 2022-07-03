@@ -1,26 +1,10 @@
-//! Type that represents the magic identity bytes for file formats.
-use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError,
-    Result as BinaryResult, Serializer,
-};
+//! Helper that reads and writes the magic identity bytes for file formats.
+use serde_binary::{Deserializer, Serializer};
 
 use crate::{Error, Result};
 
-/// Aduit log identity magic bytes (SOSA).
-pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
-
-/// Write-ahead log identity magic bytes (SOSW).
-pub const WAL_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
-
-/// Patch file identity magic bytes (SOSP).
-pub const PATCH_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
-
-/// Vault file identity magic bytes (SOSV).
-pub const VAULT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
-
 /// Read and write the identity bytes for a file.
-#[derive(Debug, Eq, PartialEq)]
-pub struct FileIdentity(pub [u8; 4]);
+pub struct FileIdentity;
 
 impl FileIdentity {
     /// Read the identity magic bytes from a slice.
@@ -51,19 +35,13 @@ impl FileIdentity {
         }
         Ok(())
     }
-}
 
-impl Encode for FileIdentity {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_bytes(&self.0)?;
-        Ok(())
-    }
-}
-
-impl Decode for FileIdentity {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        FileIdentity::read_identity(de, &self.0)
-            .map_err(|e| BinaryError::Boxed(Box::from(e)))?;
+    /// Write the identity magic bytes.
+    pub fn write_identity(
+        ser: &mut Serializer,
+        identity: &[u8],
+    ) -> Result<()> {
+        ser.writer.write_bytes(identity)?;
         Ok(())
     }
 }

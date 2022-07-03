@@ -7,9 +7,9 @@ use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
     commit_tree::CommitProof,
+    constants::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
     decode,
     events::Patch,
-    constants::headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
     signer::Signer,
     vault::{encode, Summary, MIME_TYPE_VAULT},
 };

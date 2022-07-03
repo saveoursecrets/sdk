@@ -135,12 +135,6 @@ pub mod algorithms {
     }
 }
 
-/// Type identifiers for ECDSA keys.
-pub mod types {
-    /// Represents the k256 (secp256k1) single party key.
-    pub const K256: u8 = 0x01;
-}
-
 /// Enumeration of the sizes for nonces.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub enum Nonce {
