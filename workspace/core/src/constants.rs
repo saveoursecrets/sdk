@@ -22,6 +22,9 @@ mod extensions {
 
     /// File extension used when creating a WAL file backup.
     pub const WAL_BACKUP_EXT: &str = "wal.backup";
+
+    /// File extension used when creating a vault file backup.
+    pub const VAULT_BACKUP_EXT: &str = "vault.backup";
 }
 
 /// Constants for header names.

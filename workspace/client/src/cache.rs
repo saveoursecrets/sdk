@@ -1,7 +1,7 @@
 //! Cache of local WAL files.
 use crate::{
     client::{decode_match_proof, Client},
-    ConflictAction, Error, Result,
+    Conflict, Error, Result,
 };
 use async_recursion::async_recursion;
 use async_trait::async_trait;
@@ -9,8 +9,9 @@ use reqwest::{Response, StatusCode};
 use sos_core::{
     address::AddressStr,
     commit_tree::{CommitProof, CommitTree},
-    constants::WAL_DELETED_EXT,
-    constants::WAL_IDENTITY,
+    constants::{
+        VAULT_BACKUP_EXT, WAL_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY,
+    },
     encode,
     events::{Patch, SyncEvent, WalEvent},
     generate_passphrase,
@@ -116,6 +117,14 @@ pub trait ClientCache {
 
     /// Get a reference to the commit tree for a WAL file.
     fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree>;
+
+    /// Force a pull of the remote WAL regardless of the state of
+    /// the local WAL.
+    async fn force_pull(&mut self, summary: &Summary) -> Result<()>;
+
+    /// Force a push of the local WAL regardless of the state of
+    /// the remote WAL.
+    async fn force_push(&mut self, summary: &Summary) -> Result<()>;
 }
 
 /// Implements client-side caching of WAL files.
@@ -259,8 +268,14 @@ impl ClientCache for Cache {
     ) -> Result<()> {
         let vault = self.get_wal_vault(summary).await?;
         let mut keeper = if self.mirror {
-            let mirror =
-                Box::new(VaultFileAccess::new(self.vault_path(summary))?);
+            let vault_path = self.vault_path(summary);
+            if !vault_path.exists() {
+                let buffer = encode(&vault)?;
+                let mut file = File::create(&vault_path)?;
+                file.write_all(&buffer)?;
+            }
+
+            let mirror = Box::new(VaultFileAccess::new(vault_path)?);
             Gatekeeper::new_mirror(vault, mirror)
         } else {
             Gatekeeper::new(vault)
@@ -304,10 +319,44 @@ impl ClientCache for Cache {
     fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree> {
         self.cache.get(summary.id()).map(|(_, wal)| wal.tree())
     }
+
+    async fn force_pull(&mut self, summary: &Summary) -> Result<()> {
+        // Move our cached vault to a backup
+        let vault_path = self.vault_path(summary);
+        if vault_path.exists() {
+            let mut vault_backup = vault_path.clone();
+            vault_backup.set_extension(VAULT_BACKUP_EXT);
+            std::fs::rename(&vault_path, &vault_backup)?;
+            tracing::debug!(
+                vault = ?vault_path, backup = ?vault_backup, "vault backup");
+        }
+
+        // Move our cached WAL to a backup
+        let wal_path = self.wal_path(summary);
+        if wal_path.exists() {
+            let mut wal_backup = wal_path.clone();
+            wal_backup.set_extension(WAL_BACKUP_EXT);
+            std::fs::rename(&wal_path, &wal_backup)?;
+            tracing::debug!(
+                wal = ?wal_path, backup = ?wal_backup, "WAL backup");
+        }
+
+        // Pull the remote WAL
+        self.pull_wal(summary).await?;
+
+        // TODO: apply any unsaved changes over the top of the new WAL
+        // TODO: and apply the changes to the remote server
+
+        Ok(())
+    }
+
+    async fn force_push(&mut self, _summary: &Summary) -> Result<()> {
+        todo!("implement a force push")
+    }
 }
 
 impl Cache {
-    /// Create a new cache using the given client and root directory.
+    /// Create a new cache using the given client and cache directory.
     ///
     /// If the `mirror` option is given then the cache will mirror WAL files
     /// and in-memory content to disc as vault files providing an extra level
@@ -518,13 +567,11 @@ impl Cache {
             StatusCode::NOT_MODIFIED => {
                 // Verify that both proofs are equal
                 if let Some((_, wal)) = self.cache.get(summary.id()) {
-                    if let Some(server_proof) = server_proof {
-                        let client_proof = wal.tree().head()?;
-                        assert_proofs_eq(client_proof, server_proof)?;
-                        Ok(())
-                    } else {
-                        Err(Error::ServerProof)
-                    }
+                    let server_proof =
+                        server_proof.ok_or(Error::ServerProof)?;
+                    let client_proof = wal.tree().head()?;
+                    assert_proofs_eq(client_proof, server_proof)?;
+                    Ok(())
                 } else {
                     Err(Error::CacheNotAvailable(*summary.id()))
                 }
@@ -538,7 +585,14 @@ impl Cache {
                 // however we need confirmation that this is allowed
                 // from the user.
                 if expects_diff {
-                    Err(Error::Conflict(ConflictAction::ForcePull))
+                    let client_proof = cached.1.unwrap();
+                    let server_proof =
+                        server_proof.ok_or(Error::ServerProof)?;
+                    Err(Error::Conflict(Conflict {
+                        summary: summary.clone(),
+                        local: client_proof.reduce(),
+                        remote: server_proof.reduce(),
+                    }))
                 } else {
                     Err(Error::ResponseCode(response.status().into()))
                 }
@@ -552,6 +606,7 @@ impl Cache {
     async fn get_wal_vault(&mut self, summary: &Summary) -> Result<Vault> {
         // Fetch latest version of the WAL content
         self.pull_wal(summary).await?;
+
         // Reduce the WAL to a vault
         let wal = self
             .cache
@@ -576,10 +631,12 @@ impl Cache {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         let patch = Patch(events);
-        let proof = wal.tree().head()?;
+        let client_proof = wal.tree().head()?;
 
-        let (response, server_proof) =
-            self.client.patch_wal(summary.id(), &proof, &patch).await?;
+        let (response, server_proof) = self
+            .client
+            .patch_wal(summary.id(), &client_proof, &patch)
+            .await?;
 
         let status = response.status();
         match status {
@@ -613,7 +670,7 @@ impl Cache {
                 // can try to pull again and try to patch afterwards
                 if let Some(_) = decode_match_proof(response.headers())? {
                     tracing::debug!(
-                        client_root = %proof.root_hex(),
+                        client_root = %client_proof.root_hex(),
                         server_root = %server_proof.root_hex(),
                         "conflict on patch, attempting sync");
 
@@ -649,7 +706,11 @@ impl Cache {
                     }
                     Ok(response)
                 } else {
-                    Err(Error::Conflict(ConflictAction::ForcePull))
+                    Err(Error::Conflict(Conflict {
+                        summary: summary.clone(),
+                        local: client_proof.reduce(),
+                        remote: server_proof.reduce(),
+                    }))
                 }
             }
             _ => Err(Error::ResponseCode(response.status().into())),

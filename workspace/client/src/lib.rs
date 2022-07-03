@@ -49,6 +49,10 @@ impl ClientBuilder {
 
     /// Build a client implementation wrapping a signing key.
     pub fn build(self) -> Result<Client> {
+        if !self.keystore.exists() {
+            return Err(Error::NotFile(self.keystore));
+        }
+
         // Decrypt the keystore and create the client.
         let mut keystore_file = File::open(&self.keystore)?;
         let mut keystore_bytes = Vec::new();
@@ -66,7 +70,7 @@ impl ClientBuilder {
 
 pub use cache::{Cache, ClientCache};
 pub use client::Client;
-pub use error::{ConflictAction, Error};
+pub use error::{Conflict, Error};
 pub use monitor::monitor;
 pub use shell::exec;
 pub use signup::signup;

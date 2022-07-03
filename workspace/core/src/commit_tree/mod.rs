@@ -41,6 +41,11 @@ impl CommitProof {
     pub fn root_hex(&self) -> String {
         hex::encode(&self.0)
     }
+
+    /// Reduce this commit proof to it's root hash and leaves length.
+    pub fn reduce(self) -> ([u8; 32], usize) {
+        (self.0, self.2)
+    }
 }
 
 impl Default for CommitProof {

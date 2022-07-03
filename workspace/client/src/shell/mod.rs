@@ -251,14 +251,47 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 
 fn maybe_conflict<F>(cache: Arc<RwLock<Cache>>, func: F) -> Result<()>
 where
-    F: FnOnce(RwLockWriteGuard<'_, Cache>) -> Result<()>,
+    F: FnOnce(&mut RwLockWriteGuard<'_, Cache>) -> Result<()>,
 {
-    let writer = cache.write().unwrap();
-    match func(writer) {
+    let mut writer = cache.write().unwrap();
+    match func(&mut writer) {
         Ok(_) => Ok(()),
         Err(e) => match e {
-            Error::Conflict(action) => {
-                todo!("handle conflict situation!")
+            Error::Conflict(info) => {
+                let local_hex = hex::encode(info.local.0);
+                let remote_hex = hex::encode(info.remote.0);
+
+                let local_num = info.local.1;
+                let remote_num = info.remote.1;
+
+                let should_pull = remote_num >= local_num;
+                let sync_title = if should_pull { "pull" } else { "push" };
+
+                let banner = Banner::new()
+                    .padding(Padding::one())
+                    .text(Cow::Borrowed("!!! CONFLICT !!!"))
+                    .text(Cow::Owned(
+                        format!("A conflict was detected on {}, proceed with caution; to resolve this conflict sync with the server.", info.summary.name()),
+                    ))
+                    .text(Cow::Owned(format!("local  = {}\nremote = {}", local_hex, remote_hex)))
+                    .text(Cow::Owned(format!("local = #{}, remote = #{}", local_num, remote_num)))
+                    .render();
+                println!("{}", banner);
+
+                let prompt = format!(
+                    "Sync with the server using a {} (y/n)? ",
+                    sync_title
+                );
+
+                if read_flag(Some(&prompt))? {
+                    if should_pull {
+                        run_blocking(writer.force_pull(&info.summary))
+                    } else {
+                        run_blocking(writer.force_push(&info.summary))
+                    }
+                } else {
+                    Ok(())
+                }
             }
             _ => Err(e),
         },
@@ -309,7 +342,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
             drop(reader);
 
             let password = read_password(Some("Passphrase: "))?;
-            maybe_conflict(cache, |mut writer| {
+            maybe_conflict(cache, |writer| {
                 run_blocking(writer.open_vault(&summary, &password))
             })
         }
@@ -362,7 +395,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
 
             drop(writer);
             if renamed {
-                maybe_conflict(cache, |mut writer| {
+                maybe_conflict(cache, |writer| {
                     run_blocking(writer.set_vault_name(&summary, &name))
                 })
             } else {
@@ -419,7 +452,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
             drop(writer);
 
             if let Some((summary, event)) = result {
-                maybe_conflict(cache, |mut writer| {
+                maybe_conflict(cache, |writer| {
                     run_blocking(writer.patch_vault(&summary, vec![event]))
                 })
             } else {
@@ -499,7 +532,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 let event = event.into_owned();
                 drop(writer);
 
-                maybe_conflict(cache, |mut writer| {
+                maybe_conflict(cache, |writer| {
                     run_blocking(writer.patch_vault(&summary, vec![event]))
                 })
 
@@ -527,7 +560,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     let event = event.into_owned();
 
                     drop(writer);
-                    maybe_conflict(cache, |mut writer| {
+                    maybe_conflict(cache, |writer| {
                         run_blocking(
                             writer.patch_vault(&summary, vec![event]),
                         )
@@ -579,7 +612,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
             let event = event.into_owned();
 
             drop(writer);
-            maybe_conflict(cache, |mut writer| {
+            maybe_conflict(cache, |writer| {
                 run_blocking(writer.patch_vault(&summary, vec![event]))
             })
         }

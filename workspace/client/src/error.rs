@@ -1,16 +1,18 @@
-use sos_core::{secret::SecretRef, vault::CommitHash};
+use sos_core::{secret::SecretRef, vault::CommitHash, vault::Summary};
 use std::path::PathBuf;
 use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
-/// Represents a conflict response that may be solved
-/// with the given action.
+/// Represents a conflict response that may be resolved.
+///
+/// Includes the root hashes and the leaves length for
+/// each commit tree.
 #[derive(Debug)]
-pub enum ConflictAction {
-    /// Conflict that can be resolved by pulling
-    /// a fresh tree from the remote server.
-    ForcePull,
+pub struct Conflict {
+    pub summary: Summary,
+    pub local: ([u8; 32], usize),
+    pub remote: ([u8; 32], usize),
 }
 
 #[derive(Debug, Error)]
@@ -64,7 +66,7 @@ pub enum Error {
     CacheNotAvailable(Uuid),
 
     #[error("conflict detected that may be resolvable")]
-    Conflict(ConflictAction),
+    Conflict(Conflict),
 
     #[error(transparent)]
     ParseInt(#[from] std::num::ParseIntError),
