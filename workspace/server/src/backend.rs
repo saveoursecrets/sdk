@@ -3,16 +3,21 @@ use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
     commit_tree::{wal_commit_tree, CommitProof},
-    constants::{WAL_BACKUP_EXT, WAL_DELETED_EXT},
+    constants::WAL_DELETED_EXT,
     events::{SyncEvent, WalEvent},
     vault::{Header, Summary, Vault, VaultAccess},
     wal::{
         file::{WalFile, WalFileRecord},
+        snapshot::SnapShotManager,
         WalProvider,
     },
     FileLocks, VaultFileAccess,
 };
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 
@@ -132,7 +137,8 @@ pub struct FileSystemBackend {
 
 impl FileSystemBackend {
     /// Create a new file system backend.
-    pub fn new(directory: PathBuf) -> Self {
+    pub fn new<P: AsRef<Path>>(directory: P) -> Self {
+        let directory = directory.as_ref().to_path_buf();
         Self {
             directory,
             locks: Default::default(),
@@ -483,10 +489,15 @@ impl Backend for FileSystemBackend {
 
         let original_wal = self.wal_file_path(owner, vault_id);
 
-        let mut backup_wal = original_wal.clone();
-        backup_wal.set_extension(WAL_BACKUP_EXT);
+        // Create a snapshot for backup purposes
+        let account_dir = self.directory.join(owner.to_string());
+        let snapshots = SnapShotManager::new(account_dir)?;
+        snapshots.create(vault_id, &original_wal, root_hash)?;
 
-        std::fs::rename(&original_wal, &backup_wal)?;
+        // Remove the existing WAL
+        std::fs::remove_file(&original_wal)?;
+
+        // Move the temp file with the new contents into place
         std::fs::rename(&temp_path, &original_wal)?;
 
         Ok(())

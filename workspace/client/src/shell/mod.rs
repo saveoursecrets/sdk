@@ -42,11 +42,20 @@ enum ShellCommand {
     /// List vaults.
     Vaults,
     /// Create a new vault.
-    Create { name: String },
+    Create {
+        /// Name for the new vault.
+        name: String,
+    },
     /// Delete a vault.
-    Remove { vault: SecretRef },
+    Remove {
+        /// Vault reference, it's name or identifier.
+        vault: SecretRef,
+    },
     /// Select a vault.
-    Use { vault: SecretRef },
+    Use {
+        /// Vault reference, it's name or identifier.
+        vault: SecretRef,
+    },
     /// Print information about the selected vault.
     Info,
     /// Get or set the name of the selected vault.
@@ -80,6 +89,11 @@ enum ShellCommand {
         secret: SecretRef,
         label: Option<String>,
     },
+    /// Manage snapshots for the selected vault.
+    Snapshot {
+        #[clap(subcommand)]
+        cmd: SnapShot,
+    },
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -99,6 +113,19 @@ enum Add {
     Account { label: Option<String> },
     /// Add a file.
     File { path: String, label: Option<String> },
+}
+
+#[derive(Subcommand, Debug)]
+enum SnapShot {
+    /// Take a snapshot of the current WAL state.
+    Take,
+    /// List snapshots.
+    #[clap(alias = "ls")]
+    List {
+        /// Print more file path and size
+        #[clap(short, long)]
+        long: bool,
+    },
 }
 
 /// Attempt to read secret meta data for a reference.
@@ -617,6 +644,40 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 run_blocking(writer.patch_vault(&summary, vec![event]))
             })
         }
+        ShellCommand::Snapshot { cmd } => match cmd {
+            SnapShot::Take => {
+                let reader = cache.read().unwrap();
+                let keeper =
+                    reader.current().ok_or(Error::NoVaultSelected)?;
+                let (snapshot, _) = reader.take_snapshot(keeper.summary())?;
+                println!("Path: {}", snapshot.0.display());
+                println!("Time: {}", snapshot.1);
+                println!("Hash: {}", snapshot.2);
+                println!("Size: {}", human_bytes(snapshot.3 as f64));
+                Ok(())
+            }
+            SnapShot::List { long } => {
+                let reader = cache.read().unwrap();
+                let keeper =
+                    reader.current().ok_or(Error::NoVaultSelected)?;
+                let snapshots = reader.snapshots().list(keeper.id())?;
+                if !snapshots.is_empty() {
+                    for snapshot in snapshots.into_iter() {
+                        if long {
+                            print!(
+                                "{} {} ",
+                                snapshot.0.display(),
+                                human_bytes(snapshot.3 as f64)
+                            );
+                        }
+                        println!("{} {}", snapshot.1, snapshot.2);
+                    }
+                } else {
+                    println!("No snapshots yet!");
+                }
+                Ok(())
+            }
+        },
         ShellCommand::Whoami => {
             let reader = cache.read().unwrap();
             let address = reader.address()?;

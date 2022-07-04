@@ -16,7 +16,9 @@ use sos_core::{
     secret::SecretRef,
     vault::{Summary, Vault},
     wal::{
-        file::WalFile, reducer::WalReducer, snapshot::SnapShotManager,
+        file::WalFile,
+        reducer::WalReducer,
+        snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
     CommitHash, FileIdentity, Gatekeeper, VaultFileAccess,
@@ -57,6 +59,12 @@ pub trait ClientCache {
 
     /// Get the vault summaries for this cache.
     fn vaults(&self) -> &[Summary];
+
+    /// Get the snapshot manager for this cache.
+    fn snapshots(&self) -> &SnapShotManager;
+
+    /// Take a snapshot of the WAL for the given vault.
+    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
 
     /// Load the vault summaries from the remote server.
     async fn load_vaults(&mut self) -> Result<&[Summary]>;
@@ -158,6 +166,19 @@ impl ClientCache for Cache {
 
     fn vaults(&self) -> &[Summary] {
         self.summaries.as_slice()
+    }
+
+    fn snapshots(&self) -> &SnapShotManager {
+        &self.snapshots
+    }
+
+    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)> {
+        let (wal, _) = self
+            .cache
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(summary.id().clone()))?;
+        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
+        Ok(self.snapshots.create(summary.id(), wal.path(), root_hash)?)
     }
 
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
@@ -340,9 +361,11 @@ impl ClientCache for Cache {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         // Create a snapshot of the WAL before deleting it
-        let (snapshot_path, _) = self.snapshots.create(summary.id(), wal)?;
+        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
+        let (snapshot, _) =
+            self.snapshots.create(summary.id(), wal.path(), root_hash)?;
         tracing::debug!(
-            path = ?snapshot_path, "force_pull snapshot");
+            path = ?snapshot.0, "force_pull snapshot");
 
         // Remove the existing WAL file
         std::fs::remove_file(wal.path())?;

@@ -1,8 +1,5 @@
 //! Snapshot manager for creating WAL file snapshots.
-use crate::{
-    wal::{file::WalFile, WalProvider},
-    CommitHash, Error, Result,
-};
+use crate::{CommitHash, Error, Result, Timestamp};
 use filetime::FileTime;
 use std::{
     fs::File,
@@ -16,7 +13,7 @@ const SNAPSHOTS_DIR: &str = "snapshots";
 /// Snapshot represented by it's timestamp derived from
 /// the file modification time and the commit hash of the
 /// WAL root hash.
-pub struct SnapShot(pub PathBuf, pub FileTime, pub CommitHash);
+pub struct SnapShot(pub PathBuf, pub Timestamp, pub CommitHash, pub u64);
 
 /// Manages a collection of WAL snapshots.
 pub struct SnapShotManager {
@@ -47,12 +44,12 @@ impl SnapShotManager {
     /// If a snapshot already exists with the current root hash
     /// then this will return `false` to indicate no snapshot was
     /// created.
-    pub fn create(
+    pub fn create<P: AsRef<Path>>(
         &self,
         vault_id: &Uuid,
-        wal: &WalFile,
-    ) -> Result<(PathBuf, bool)> {
-        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
+        wal: P,
+        root_hash: [u8; 32],
+    ) -> Result<(SnapShot, bool)> {
         let root_id = hex::encode(root_hash);
         let snapshot_parent = self.snapshots_dir.join(vault_id.to_string());
 
@@ -68,18 +65,30 @@ impl SnapShotManager {
             "WAL snapshot id");
 
         // Assuming the integrity of any existing snapshot file
-        if !snapshot_path.exists() {
-            let mut wal_file = File::open(wal.path())?;
+        let created = if !snapshot_path.exists() {
+            let mut wal_file = File::open(wal.as_ref())?;
             let mut snapshot_file = File::create(&snapshot_path)?;
             tracing::debug!(
-                wal = ?wal.path(),
+                wal = ?wal.as_ref(),
                 snapshot = ?snapshot_path,
                 "WAL snapshot path");
             std::io::copy(&mut wal_file, &mut snapshot_file)?;
-            Ok((snapshot_path, true))
+            true
         } else {
-            Ok((snapshot_path, false))
-        }
+            false
+        };
+
+        let meta = snapshot_path.metadata()?;
+        let mtime = FileTime::from_last_modification_time(&meta);
+
+        let snapshot = SnapShot(
+            snapshot_path,
+            mtime.try_into()?,
+            CommitHash(root_hash),
+            meta.len(),
+        );
+
+        Ok((snapshot, created))
     }
 
     /// List snapshots sorted by file modification time.
@@ -101,8 +110,9 @@ impl SnapShotManager {
                     let mtime = FileTime::from_last_modification_time(&meta);
                     snapshots.push(SnapShot(
                         path,
-                        mtime,
+                        mtime.try_into()?,
                         CommitHash(root_hash),
+                        meta.len(),
                     ));
                 }
             }

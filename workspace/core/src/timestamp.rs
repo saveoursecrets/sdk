@@ -8,10 +8,12 @@ use serde_binary::{
 };
 use std::fmt;
 
-use time::{Duration, OffsetDateTime};
+use filetime::FileTime;
+
+use time::{Duration, OffsetDateTime, UtcOffset};
 
 /// Timestamp for events and log records.
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialOrd, Eq, PartialEq)]
 pub struct Timestamp(OffsetDateTime);
 
 impl Default for Timestamp {
@@ -22,7 +24,16 @@ impl Default for Timestamp {
 
 impl fmt::Display for Timestamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        match UtcOffset::current_local_offset() {
+            Ok(local_offset) => {
+                let datetime = self.0.clone();
+                datetime.to_offset(local_offset);
+                write!(f, "{}", datetime)
+            }
+            Err(e) => {
+                write!(f, "{}", self.0)
+            }
+        }
     }
 }
 
@@ -47,7 +58,6 @@ impl Decode for Timestamp {
     }
 }
 
-/*
 impl From<OffsetDateTime> for Timestamp {
     fn from(value: OffsetDateTime) -> Self {
         Self(value)
@@ -55,7 +65,7 @@ impl From<OffsetDateTime> for Timestamp {
 }
 
 impl TryFrom<FileTime> for Timestamp {
-    type Error = Error;
+    type Error = crate::Error;
 
     fn try_from(value: FileTime) -> std::result::Result<Self, Self::Error> {
         let time = OffsetDateTime::from_unix_timestamp(value.seconds())?
@@ -63,4 +73,3 @@ impl TryFrom<FileTime> for Timestamp {
         Ok(time.into())
     }
 }
-*/

@@ -23,9 +23,6 @@ mod extensions {
     /// File extension used when deleting WAL files.
     pub const WAL_DELETED_EXT: &str = "wal.deleted";
 
-    /// File extension used when creating a WAL file backup.
-    pub const WAL_BACKUP_EXT: &str = "wal.backup";
-
     /// File extension used for vault files.
     pub const VAULT_EXT: &str = "vault";
 

@@ -68,6 +68,10 @@ pub enum Error {
     #[error("conflict detected that may be resolvable")]
     Conflict(Conflict),
 
+    /// Error generated when a commit tree is expected to have a root.
+    #[error("commit tree does not have a root")]
+    NoRootCommit,
+
     #[error(transparent)]
     ParseInt(#[from] std::num::ParseIntError),
 
