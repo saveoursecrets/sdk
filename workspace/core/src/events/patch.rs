@@ -1,11 +1,12 @@
 //! Patch represents a changeset of events to apply to a vault.
 use serde_binary::{
+    binary_rw::{BinaryWriter, Endian, FileStream, OpenType, SeekStream},
     Decode, Deserializer, Encode, Error as BinaryError,
     Result as BinaryResult, Serializer,
 };
 use std::{
     fs::{File, OpenOptions},
-    io::Write,
+    io::{Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 
@@ -69,7 +70,9 @@ impl PatchFile {
 
         let size = file.metadata()?.len();
         if size == 0 {
-            file.write_all(&PATCH_IDENTITY)?;
+            let patch: Patch = Default::default();
+            let buffer = encode(&patch)?;
+            file.write_all(&buffer)?;
         }
 
         Ok(Self { file, file_path })
@@ -79,13 +82,6 @@ impl PatchFile {
     pub fn extension() -> &'static str {
         PATCH_EXT
     }
-
-    /*
-    /// Get the path of this patch file.
-    pub fn path(&self) -> &PathBuf {
-        &self.file_path
-    }
-    */
 
     /// Append some events to this patch file.
     ///
@@ -107,16 +103,30 @@ impl PatchFile {
             vec![]
         };
 
-        // Append the incoming events to the patch file
-        let patch = Patch(events.clone());
-        let patch_buffer = encode(&patch)?;
-        let patch_bytes = &patch_buffer[PATCH_IDENTITY.len()..];
-        self.file.write_all(patch_bytes)?;
+        // Append the incoming events to the file
+        let mut events_buffer = Vec::new();
+        for event in events.iter() {
+            let event_buffer = encode(event)?;
+            events_buffer.extend_from_slice(&event_buffer);
+        }
+        self.file.write_all(&events_buffer)?;
 
         // Append the given events on to any existing events
+        // so we can return a new patch to the caller
         all_events.append(&mut events);
 
+        // Write out the new length
+        self.write_events_len(all_events.len() as u32)?;
+
         Ok(Patch(all_events))
+    }
+
+    fn write_events_len(&self, length: u32) -> Result<()> {
+        let mut stream = FileStream::new(&self.file_path, OpenType::Open)?;
+        let mut writer = BinaryWriter::new(&mut stream, Endian::Big);
+        writer.seek(PATCH_IDENTITY.len())?;
+        writer.write_u32(length)?;
+        Ok(())
     }
 
     /// Read a patch from the file on disc.
@@ -126,13 +136,61 @@ impl PatchFile {
         Ok(patch)
     }
 
-    /// Truncate the file to the identity bytes only.
+    /// Truncate the file to an empty patch list.
     ///
     /// This should be called when a client has successfully
     /// applied a patch to the remote and local WAL files to
     /// remove any pending events.
     pub fn truncate(&mut self) -> Result<()> {
-        self.file.set_len(PATCH_IDENTITY.len() as u64)?;
+        self.file.set_len(0)?;
+        self.file.seek(SeekFrom::Start(0));
+
+        let patch: Patch = Default::default();
+        let buffer = encode(&patch)?;
+        self.file.write_all(&buffer)?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::*;
+    use anyhow::Result;
+    use tempfile::NamedTempFile;
+
+    fn patch_file() -> Result<()> {
+        let temp = NamedTempFile::new()?;
+        let mut patch_file = PatchFile::new(temp.path())?;
+
+        let mut vault = mock_vault();
+        let (encryption_key, _) = mock_encryption_key()?;
+        let (_, _, _, _, mock_event) =
+            mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
+
+        // Empty patch file is 8 bytes
+        assert_eq!(8, temp.path().metadata()?.len());
+
+        let events = vec![mock_event.clone()];
+
+        let patch = patch_file.append(events)?;
+        let new_len = temp.path().metadata()?.len();
+        assert!(new_len > 8);
+        assert_eq!(1, patch.0.len());
+
+        let more_events = vec![mock_event.clone()];
+        let next_patch = patch_file.append(more_events)?;
+        let more_len = temp.path().metadata()?.len();
+        assert!(more_len > new_len);
+        assert_eq!(2, next_patch.0.len());
+
+        let disc_patch = patch_file.read()?;
+        assert_eq!(2, disc_patch.0.len());
+
+        // Truncate the file
+        patch_file.truncate()?;
+        assert_eq!(8, temp.path().metadata()?.len());
+
         Ok(())
     }
 }
