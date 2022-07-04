@@ -16,7 +16,8 @@ use sos_core::{
         AuditData, AuditEvent, ChangeEvent, EventKind, Patch, SyncEvent,
         WalEvent,
     },
-    vault::{CommitHash, Header},
+    vault::Header,
+    CommitHash,
 };
 
 use std::sync::Arc;

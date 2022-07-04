@@ -14,7 +14,8 @@ use url::Url;
 use human_bytes::human_bytes;
 use sos_core::{
     secret::{Secret, SecretId, SecretMeta, SecretRef},
-    vault::{CommitHash, Vault, VaultAccess, VaultCommit, VaultEntry},
+    vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
+    CommitHash,
 };
 use sos_readline::{
     read_flag, read_line, read_line_allow_empty, read_multiline, read_option,

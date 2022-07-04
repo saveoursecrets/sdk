@@ -24,10 +24,10 @@ use crate::{
     events::SyncEvent,
     secret::SecretId,
     vault::{
-        encode, CommitHash, Contents, Header, Summary, VaultAccess,
-        VaultCommit, VaultEntry,
+        encode, Contents, Header, Summary, VaultAccess, VaultCommit,
+        VaultEntry,
     },
-    FileIdentity, Result,
+    CommitHash, FileIdentity, Result,
 };
 
 /// Implements access to an encrypted vault backed by a file on disc.

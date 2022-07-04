@@ -20,7 +20,7 @@ use crate::{
     },
     events::SyncEvent,
     secret::{SecretId, VaultMeta},
-    Error, FileIdentity, Result,
+    CommitHash, Error, FileIdentity, Result,
 };
 
 /// Vault version identifier.
@@ -31,37 +31,6 @@ pub const DEFAULT_VAULT_NAME: &str = "Login";
 
 /// Mime type for vaults.
 pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
-
-/// Type to represent the hash of the encrypted content for a secret.
-#[derive(
-    Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize,
-)]
-pub struct CommitHash(pub [u8; 32]);
-
-impl AsRef<[u8; 32]> for CommitHash {
-    fn as_ref(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl CommitHash {
-    /// Get a copy of the underlying bytes for the commit hash.
-    pub fn to_bytes(&self) -> [u8; 32] {
-        self.0
-    }
-}
-
-impl From<CommitHash> for [u8; 32] {
-    fn from(value: CommitHash) -> Self {
-        value.0
-    }
-}
-
-impl fmt::Display for CommitHash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::encode(&self.0))
-    }
-}
 
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
@@ -112,10 +81,14 @@ impl Decode for VaultCommit {
     }
 }
 
-/// Trait that defines the operations on a vault storage.
+/// Trait that defines the operations on an encrypted vault.
 ///
 /// The storage may be in-memory, backed by a file on disc or another
 /// destination for the encrypted bytes.
+///
+/// Use `Cow` smart pointers because when we are reading
+/// from an in-memory `Vault` we can return references whereas
+/// other containers such as file access would return owned data.
 pub trait VaultAccess {
     /// Get the vault summary.
     fn summary(&self) -> Result<Summary>;
@@ -140,6 +113,9 @@ pub trait VaultAccess {
     ) -> Result<SyncEvent<'_>>;
 
     /// Insert an encrypted secret to the vault with the given id.
+    ///
+    /// Used internally to support consistent identifiers when
+    /// mirroring in the `Gatekeeper` implementation.
     #[doc(hidden)]
     fn insert(
         &mut self,
@@ -149,10 +125,6 @@ pub trait VaultAccess {
     ) -> Result<SyncEvent<'_>>;
 
     /// Get an encrypted secret from the vault.
-    ///
-    /// Use a `Cow` smart pointer because when we are reading
-    /// from an in-memory `Vault` we can return references whereas
-    /// other containers such as file access would return owned data.
     fn read<'a>(
         &'a self,
         id: &SecretId,

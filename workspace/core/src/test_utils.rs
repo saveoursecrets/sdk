@@ -3,8 +3,9 @@ use crate::{
     events::{SyncEvent, WalEvent},
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta},
-    vault::{encode, CommitHash, Vault, VaultAccess, VaultEntry},
+    vault::{encode, Vault, VaultAccess, VaultEntry},
     wal::{file::WalFile, WalProvider},
+    CommitHash,
 };
 use std::{borrow::Cow, io::Write};
 use uuid::Uuid;

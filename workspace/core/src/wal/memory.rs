@@ -14,8 +14,7 @@ use crate::{
     decode, encode,
     events::WalEvent,
     timestamp::Timestamp,
-    vault::CommitHash,
-    Result,
+    CommitHash, Result,
 };
 use std::ops::Range;
 

@@ -26,7 +26,7 @@ fn generate_passphrase_config(
     Ok((scheme.generate(), scheme.entropy().bits()))
 }
 
-/// Generate a passphrase with the given number of words.
+/// Generate a diceware passphrase with the given number of words.
 ///
 /// The number of words must be at least six.
 pub fn generate_passphrase_words(words: u8) -> Result<(String, f64)> {
@@ -34,7 +34,7 @@ pub fn generate_passphrase_words(words: u8) -> Result<(String, f64)> {
     generate_passphrase_config(Some(config))
 }
 
-/// Generate a passphrase with six words which is ~171 bits of entropy.
+/// Generate a diceware passphrase with six words which is ~171 bits of entropy.
 pub fn generate_passphrase() -> Result<(String, f64)> {
     generate_passphrase_words(6)
 }

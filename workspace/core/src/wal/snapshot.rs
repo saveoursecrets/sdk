@@ -1,8 +1,7 @@
-//! Types for creating WAL file snapshots.
+//! Snapshot manager for creating WAL file snapshots.
 use crate::{
-    vault::CommitHash,
     wal::{file::WalFile, WalProvider},
-    Error, Result,
+    CommitHash, Error, Result,
 };
 use filetime::FileTime;
 use std::{
@@ -17,7 +16,7 @@ const SNAPSHOTS_DIR: &str = "snapshots";
 /// Snapshot represented by it's timestamp derived from
 /// the file modification time and the commit hash of the
 /// WAL root hash.
-pub struct SnapShot(PathBuf, FileTime, CommitHash);
+pub struct SnapShot(pub PathBuf, pub FileTime, pub CommitHash);
 
 /// Manages a collection of WAL snapshots.
 pub struct SnapShotManager {
@@ -44,6 +43,10 @@ impl SnapShotManager {
     }
 
     /// Create a snapshot from a WAL file.
+    ///
+    /// If a snapshot already exists with the current root hash
+    /// then this will return `false` to indicate no snapshot was
+    /// created.
     pub fn create(
         &self,
         vault_id: &Uuid,
@@ -96,7 +99,6 @@ impl SnapShotManager {
                     let path = entry.path().to_path_buf();
                     let meta = entry.metadata()?;
                     let mtime = FileTime::from_last_modification_time(&meta);
-                    //let timestamp: Timestamp = mtime.try_into()?;
                     snapshots.push(SnapShot(
                         path,
                         mtime,

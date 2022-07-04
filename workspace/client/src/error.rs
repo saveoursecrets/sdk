@@ -1,4 +1,4 @@
-use sos_core::{secret::SecretRef, vault::CommitHash, vault::Summary};
+use sos_core::{secret::SecretRef, vault::Summary, CommitHash};
 use std::path::PathBuf;
 use thiserror::Error;
 use url::Url;

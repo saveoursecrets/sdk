@@ -14,12 +14,12 @@ use sos_core::{
     events::{PatchFile, SyncEvent, WalEvent},
     generate_passphrase,
     secret::SecretRef,
-    vault::{CommitHash, Summary, Vault},
+    vault::{Summary, Vault},
     wal::{
         file::WalFile, reducer::WalReducer, snapshot::SnapShotManager,
         WalProvider,
     },
-    FileIdentity, Gatekeeper, VaultFileAccess,
+    CommitHash, FileIdentity, Gatekeeper, VaultFileAccess,
 };
 use std::{
     borrow::Cow,

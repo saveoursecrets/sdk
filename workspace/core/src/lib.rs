@@ -15,6 +15,7 @@ mod file_identity;
 mod file_locks;
 
 mod gatekeeper;
+mod hash;
 
 pub mod secret;
 pub mod signer;
@@ -40,6 +41,7 @@ pub use file_identity::FileIdentity;
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_locks::FileLocks;
 pub use gatekeeper::Gatekeeper;
+pub use hash::CommitHash;
 pub use timestamp::Timestamp;
 
 /// Result type for the core library.

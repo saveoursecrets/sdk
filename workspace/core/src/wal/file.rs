@@ -15,10 +15,10 @@
 use crate::{
     commit_tree::{hash, CommitTree},
     constants::{WAL_EXT, WAL_IDENTITY},
+    encode,
     events::WalEvent,
     timestamp::Timestamp,
-    vault::{encode, CommitHash},
-    Error, FileIdentity, Result,
+    CommitHash, Error, FileIdentity, Result,
 };
 use std::{
     fs::{File, OpenOptions},

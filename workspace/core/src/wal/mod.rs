@@ -1,7 +1,7 @@
 //! Write ahead log types and traits.
 use crate::{
     commit_tree::CommitTree, events::WalEvent, timestamp::Timestamp,
-    vault::CommitHash, Result,
+    CommitHash, Result,
 };
 use std::ops::Range;
 
@@ -160,7 +160,8 @@ mod test {
         commit_tree::{hash, Comparison},
         events::WalEvent,
         secret::SecretId,
-        vault::{encode, CommitHash, Vault, VaultCommit, VaultEntry},
+        vault::{encode, Vault, VaultCommit, VaultEntry},
+        CommitHash,
     };
 
     fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {

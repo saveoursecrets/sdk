@@ -154,8 +154,9 @@ mod test {
         crypto::secret_key::SecretKey,
         secret::{Secret, SecretId, SecretMeta},
         test_utils::*,
-        vault::{decode, CommitHash, VaultAccess, VaultCommit, VaultEntry},
+        vault::{decode, VaultAccess, VaultCommit, VaultEntry},
         wal::file::WalFile,
+        CommitHash,
     };
     use anyhow::Result;
     use tempfile::NamedTempFile;
