@@ -213,21 +213,10 @@ impl ClientCache for Cache {
         *wal = WalFile::new(wal.path())?;
         wal.load_tree()?;
 
-        // Client verifying the new WAL tree
-        println!("Verifying new WAL tree");
-        let tree = wal_commit_tree(wal.path(), true, |_| {})?;
-        println!("AFTER Verifying new WAL tree");
+        // Verify the new WAL tree
+        wal_commit_tree(wal.path(), true, |_| {})?;
 
-        // Update the server copy of the WAL
-        let proof = wal.tree().head()?;
-        let body = std::fs::read(wal.path())?;
-        let (response, _) =
-            self.client.post_wal(summary.id(), &proof, body).await?;
-        response
-            .status()
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
+        self.force_push(summary).await?;
 
         // Refresh in-memory vault and mirrored copy
         self.refresh_vault(summary)?;
@@ -454,8 +443,21 @@ impl ClientCache for Cache {
         Ok(())
     }
 
-    async fn force_push(&mut self, _summary: &Summary) -> Result<()> {
-        todo!("implement a force push")
+    async fn force_push(&mut self, summary: &Summary) -> Result<()> {
+        let (wal, _) = self
+            .cache
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let proof = wal.tree().head()?;
+        let body = std::fs::read(wal.path())?;
+        let (response, _) =
+            self.client.post_wal(summary.id(), &proof, body).await?;
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+        Ok(())
     }
 }
 
@@ -738,6 +740,7 @@ impl Cache {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         let patch = patch_file.append(events)?;
+
         let client_proof = wal.tree().head()?;
 
         let (response, server_proof) = self

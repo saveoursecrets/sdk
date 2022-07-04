@@ -157,6 +157,7 @@ fn main() -> Result<()> {
         Ok(_) => {}
         Err(e) => {
             tracing::error!("{}", e);
+            //panic!("{}", e);
         }
     }
     Ok(())

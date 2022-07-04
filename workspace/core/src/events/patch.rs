@@ -122,7 +122,8 @@ impl PatchFile {
     }
 
     fn write_events_len(&self, length: u32) -> Result<()> {
-        let mut stream = FileStream::new(&self.file_path, OpenType::Open)?;
+        let mut stream =
+            FileStream::new(&self.file_path, OpenType::ReadWrite)?;
         let mut writer = BinaryWriter::new(&mut stream, Endian::Big);
         writer.seek(PATCH_IDENTITY.len())?;
         writer.write_u32(length)?;
@@ -159,6 +160,7 @@ mod test {
     use anyhow::Result;
     use tempfile::NamedTempFile;
 
+    #[test]
     fn patch_file() -> Result<()> {
         let temp = NamedTempFile::new()?;
         let mut patch_file = PatchFile::new(temp.path())?;

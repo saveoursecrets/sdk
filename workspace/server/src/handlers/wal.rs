@@ -436,18 +436,12 @@ impl WalHandler {
         Path(vault_id): Path<Uuid>,
         body: Bytes,
     ) -> Result<StatusCode, StatusCode> {
-        println!("GOT POST_Wal");
-
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
                 let proof: CommitProof = proof.into();
-
-                println!("Replacing WAL {}", token.address);
-                println!("Replacing WAL {}", vault_id);
-                //println!("Replacing WAL {:#?}", proof);
 
                 // TODO: better error to status code mapping
                 writer
