@@ -30,6 +30,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+use tempfile::NamedTempFile;
 use url::Url;
 use uuid::Uuid;
 
@@ -65,6 +66,9 @@ pub trait ClientCache {
 
     /// Take a snapshot of the WAL for the given vault.
     fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
+
+    /// Compact a WAL file.
+    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
 
     /// Load the vault summaries from the remote server.
     async fn load_vaults(&mut self) -> Result<&[Summary]>;
@@ -179,6 +183,40 @@ impl ClientCache for Cache {
             .ok_or(Error::CacheNotAvailable(summary.id().clone()))?;
         let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
         Ok(self.snapshots.create(summary.id(), wal.path(), root_hash)?)
+    }
+
+    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+        let (wal, _) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(summary.id().clone()))?;
+
+        let old_size = wal.path().metadata()?.len();
+
+        // Get the reduced set of events
+        let events = WalReducer::new().reduce(wal)?.compact()?;
+        let temp = NamedTempFile::new()?;
+
+        // Apply them to a temporary WAL file
+        let mut temp_wal = WalFile::new(temp.path())?;
+        temp_wal.apply(events, None)?;
+
+        let new_size = temp_wal.path().metadata()?.len();
+
+        // Remove the existing WAL file
+        std::fs::remove_file(wal.path())?;
+        // Move the temp file into place
+        std::fs::rename(temp.path(), wal.path())?;
+
+        // Need to recreate the WAL file and load the updated
+        // commit tree
+        *wal = WalFile::new(wal.path())?;
+        wal.load_tree()?;
+
+        // Refresh in-memory vault and mirrored copy
+        self.refresh_vault(summary)?;
+
+        Ok((old_size, new_size))
     }
 
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
@@ -382,6 +420,8 @@ impl ClientCache for Cache {
             .cache
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        tracing::debug!("force_pull reading from patch file");
 
         let patch = patch_file.read()?;
         let events = patch.0;
@@ -771,7 +811,7 @@ impl Cache {
     }
 
     // Refresh the in-memory vault of the current selection
-    // from the contents of the current WAL file
+    // from the contents of the current WAL file.
     fn refresh_vault(&mut self, summary: &Summary) -> Result<()> {
         let wal = self
             .cache
@@ -783,16 +823,18 @@ impl Cache {
         let vault_path = self.vault_path(summary);
 
         if let Some(keeper) = self.current_mut() {
-            // Rewrite the on-disc version if we are mirroring
-            if mirror {
-                let buffer = encode(&vault)?;
-                let mut file = File::create(&vault_path)?;
-                file.write_all(&buffer)?;
-            }
+            if keeper.id() == summary.id() {
+                // Rewrite the on-disc version if we are mirroring
+                if mirror {
+                    let buffer = encode(&vault)?;
+                    let mut file = File::create(&vault_path)?;
+                    file.write_all(&buffer)?;
+                }
 
-            // Update the in-memory version
-            let keeper_vault = keeper.vault_mut();
-            *keeper_vault = vault;
+                // Update the in-memory version
+                let keeper_vault = keeper.vault_mut();
+                *keeper_vault = vault;
+            }
         }
         Ok(())
     }

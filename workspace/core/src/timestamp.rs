@@ -30,7 +30,7 @@ impl fmt::Display for Timestamp {
                 datetime.to_offset(local_offset);
                 write!(f, "{}", datetime)
             }
-            Err(e) => {
+            Err(_) => {
                 write!(f, "{}", self.0)
             }
         }

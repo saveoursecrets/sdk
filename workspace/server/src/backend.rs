@@ -175,7 +175,7 @@ impl FileSystemBackend {
                                     vault_path
                                         .set_extension(Vault::extension());
                                     if !vault_path.exists() {
-                                        return Err(Error::FileMissing(
+                                        return Err(Error::NotFile(
                                             vault_path,
                                         ));
                                     }

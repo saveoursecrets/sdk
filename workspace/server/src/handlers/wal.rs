@@ -552,6 +552,7 @@ impl WalHandler {
         }
     }
 
+    /*
     /// Compact a WAL file and send the new compact WAL to the client.
     pub(crate) async fn compact_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
@@ -581,4 +582,5 @@ impl WalHandler {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
+    */
 }

@@ -72,6 +72,10 @@ impl Default for StorageConfig {
 impl ServerConfig {
     /// Load a server config from a file path.
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+        if !path.as_ref().exists() {
+            return Err(Error::NotFile(path.as_ref().to_path_buf()));
+        }
+
         let contents = std::fs::read_to_string(path.as_ref())?;
         let mut config: ServerConfig = toml::from_str(&contents)?;
         config.file = Some(path.as_ref().canonicalize()?);

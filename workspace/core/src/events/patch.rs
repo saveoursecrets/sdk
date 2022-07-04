@@ -37,7 +37,7 @@ impl Decode for Patch<'_> {
             .map_err(|e| BinaryError::Boxed(Box::from(e)))?;
         let length = de.reader.read_u32()?;
         for _ in 0..length {
-            let mut event: SyncEvent = Default::default();
+            let mut event: SyncEvent<'static> = Default::default();
             event.decode(&mut *de)?;
             self.0.push(event);
         }
@@ -79,6 +79,13 @@ impl PatchFile {
     pub fn extension() -> &'static str {
         PATCH_EXT
     }
+
+    /*
+    /// Get the path of this patch file.
+    pub fn path(&self) -> &PathBuf {
+        &self.file_path
+    }
+    */
 
     /// Append some events to this patch file.
     ///

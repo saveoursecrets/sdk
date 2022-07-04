@@ -6,6 +6,9 @@ use uuid::Uuid;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("path {0} is not a file")]
+    NotFile(PathBuf),
+
     #[error("not a directory {0}")]
     NotDirectory(PathBuf),
 
@@ -14,9 +17,6 @@ pub enum Error {
 
     #[error("file {0} already exists")]
     FileExists(PathBuf),
-
-    #[error("file {0} does not exist")]
-    FileMissing(PathBuf),
 
     #[error("file stem was expected")]
     NoFileStem,

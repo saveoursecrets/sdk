@@ -94,6 +94,12 @@ enum ShellCommand {
         #[clap(subcommand)]
         cmd: SnapShot,
     },
+    /// Compact the currently selected vault removing history.
+    Compact {
+        /// Take a snapshot before compaction.
+        #[clap(short, long)]
+        snapshot: bool,
+    },
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -678,6 +684,22 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 Ok(())
             }
         },
+        ShellCommand::Compact { snapshot } => {
+            let reader = cache.read().unwrap();
+            let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
+            if snapshot {
+                reader.take_snapshot(&summary)?;
+            }
+            drop(reader);
+
+            let mut writer = cache.write().unwrap();
+            let (old_size, new_size) =
+                run_blocking(writer.compact(&summary))?;
+            println!("Old: {}", human_bytes(old_size as f64));
+            println!("New: {}", human_bytes(new_size as f64));
+            Ok(())
+        }
         ShellCommand::Whoami => {
             let reader = cache.read().unwrap();
             let address = reader.address()?;
