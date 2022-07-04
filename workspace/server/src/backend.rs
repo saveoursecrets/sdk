@@ -114,7 +114,7 @@ pub trait Backend {
 
     /// Replace a WAL file with a new buffer.
     async fn replace_wal(
-        &self,
+        &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
         root_hash: [u8; 32],
@@ -456,7 +456,7 @@ impl Backend for FileSystemBackend {
     }
 
     async fn replace_wal(
-        &self,
+        &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
         root_hash: [u8; 32],

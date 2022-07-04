@@ -6,6 +6,10 @@ use uuid::Uuid;
 /// Error thrown by the core library.
 #[derive(Debug, Error)]
 pub enum Error {
+    /// Error generated when a directory is expected.
+    #[error("path {0} is not a directory")]
+    NotDirectory(PathBuf),
+
     /// Error generated attempting acquire a lock on a file that is already locked.
     #[error("file {0} is already locked")]
     FileLocked(PathBuf),

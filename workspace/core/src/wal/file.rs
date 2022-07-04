@@ -105,6 +105,11 @@ impl WalFile {
         })
     }
 
+    /// Get the path to this WAL file.
+    pub fn path(&self) -> &PathBuf {
+        &self.file_path
+    }
+
     /// Create the write ahead log file.
     fn create<P: AsRef<Path>>(path: P) -> Result<File> {
         let exists = path.as_ref().exists();

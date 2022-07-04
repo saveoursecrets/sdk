@@ -13,6 +13,7 @@ use serde_binary::{
 pub mod file;
 pub mod memory;
 pub mod reducer;
+pub mod snapshot;
 
 /// Trait for implementations that provide access to a write-ahead log (WAL).
 pub trait WalProvider {

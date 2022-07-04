@@ -2858,6 +2858,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "time",
+ "tracing",
  "url",
  "uuid 1.1.0",
  "web3-signature",

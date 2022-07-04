@@ -9,15 +9,16 @@ use reqwest::{Response, StatusCode};
 use sos_core::{
     address::AddressStr,
     commit_tree::{CommitProof, CommitTree},
-    constants::{
-        VAULT_BACKUP_EXT, WAL_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY,
-    },
+    constants::{VAULT_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY},
     encode,
     events::{PatchFile, SyncEvent, WalEvent},
     generate_passphrase,
     secret::SecretRef,
     vault::{CommitHash, Summary, Vault},
-    wal::{file::WalFile, reducer::WalReducer, WalProvider},
+    wal::{
+        file::WalFile, reducer::WalReducer, snapshot::SnapshotManager,
+        WalProvider,
+    },
     FileIdentity, Gatekeeper, VaultFileAccess,
 };
 use std::{
@@ -141,6 +142,8 @@ pub struct Cache {
     cache: HashMap<Uuid, (WalFile, PatchFile)>,
     /// Mirror WAL files and in-memory contents to vault files
     mirror: bool,
+    /// Snapshots of the WAL files.
+    snapshots: SnapshotManager,
 }
 
 #[async_trait]
@@ -331,24 +334,22 @@ impl ClientCache for Cache {
                 vault = ?vault_path, backup = ?vault_backup, "vault backup");
         }
 
-        // Move our cached WAL to a backup
-        let wal_path = self.wal_path(summary);
-        if wal_path.exists() {
-            let mut wal_backup = wal_path.clone();
-            wal_backup.set_extension(WAL_BACKUP_EXT);
-            std::fs::rename(&wal_path, &wal_backup)?;
-
-            tracing::debug!(
-                wal = ?wal_path, backup = ?wal_backup, "WAL backup");
-        }
-
-        // Need to recreate the WAL file correctly before pulling
-        // as pull_wal() expects the file to exist
         let (wal, _) = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        *wal = WalFile::new(&wal_path)?;
+
+        // Create a snapshot of the WAL before deleting it
+        let (snapshot_path, _) = self.snapshots.create(summary.id(), wal)?;
+        tracing::debug!(
+            path = ?snapshot_path, "force_pull snapshot");
+
+        // Remove the existing WAL file
+        std::fs::remove_file(wal.path())?;
+
+        // Need to recreate the WAL file correctly before pulling
+        // as pull_wal() expects the file to exist
+        *wal = WalFile::new(wal.path())?;
         wal.load_tree()?;
 
         // Pull the remote WAL
@@ -400,6 +401,8 @@ impl Cache {
         let user_dir = cache_dir.join(&address);
         std::fs::create_dir_all(&user_dir)?;
 
+        let snapshots = SnapshotManager::new(&user_dir)?;
+
         Ok(Self {
             summaries: Default::default(),
             current: None,
@@ -407,6 +410,7 @@ impl Cache {
             user_dir,
             cache: Default::default(),
             mirror,
+            snapshots,
         })
     }
 
