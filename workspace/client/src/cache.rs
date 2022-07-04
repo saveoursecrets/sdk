@@ -16,7 +16,7 @@ use sos_core::{
     secret::SecretRef,
     vault::{CommitHash, Summary, Vault},
     wal::{
-        file::WalFile, reducer::WalReducer, snapshot::SnapshotManager,
+        file::WalFile, reducer::WalReducer, snapshot::SnapShotManager,
         WalProvider,
     },
     FileIdentity, Gatekeeper, VaultFileAccess,
@@ -143,7 +143,7 @@ pub struct Cache {
     /// Mirror WAL files and in-memory contents to vault files
     mirror: bool,
     /// Snapshots of the WAL files.
-    snapshots: SnapshotManager,
+    snapshots: SnapShotManager,
 }
 
 #[async_trait]
@@ -401,7 +401,7 @@ impl Cache {
         let user_dir = cache_dir.join(&address);
         std::fs::create_dir_all(&user_dir)?;
 
-        let snapshots = SnapshotManager::new(&user_dir)?;
+        let snapshots = SnapShotManager::new(&user_dir)?;
 
         Ok(Self {
             summaries: Default::default(),

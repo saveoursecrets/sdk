@@ -46,3 +46,21 @@ impl Decode for Timestamp {
         Ok(())
     }
 }
+
+/*
+impl From<OffsetDateTime> for Timestamp {
+    fn from(value: OffsetDateTime) -> Self {
+        Self(value)
+    }
+}
+
+impl TryFrom<FileTime> for Timestamp {
+    type Error = Error;
+
+    fn try_from(value: FileTime) -> std::result::Result<Self, Self::Error> {
+        let time = OffsetDateTime::from_unix_timestamp(value.seconds())?
+            + Duration::nanoseconds(value.nanoseconds() as i64);
+        Ok(time.into())
+    }
+}
+*/

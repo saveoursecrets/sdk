@@ -13,9 +13,6 @@ mod identity {
 
     /// Vault file identity magic bytes (SOSV).
     pub const VAULT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
-
-    /// Snapshot index identity magic bytes (SOSI).
-    pub const SNAPSHOT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x49];
 }
 
 /// Constants for file extensions.
