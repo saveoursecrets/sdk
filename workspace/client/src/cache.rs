@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use reqwest::{Response, StatusCode};
 use sos_core::{
     address::AddressStr,
-    commit_tree::{CommitProof, CommitTree},
+    commit_tree::{wal_commit_tree, CommitProof, CommitTree},
     constants::{VAULT_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY},
     encode,
     events::{PatchFile, SyncEvent, WalEvent},
@@ -212,6 +212,22 @@ impl ClientCache for Cache {
         // commit tree
         *wal = WalFile::new(wal.path())?;
         wal.load_tree()?;
+
+        // Client verifying the new WAL tree
+        println!("Verifying new WAL tree");
+        let tree = wal_commit_tree(wal.path(), true, |_| {})?;
+        println!("AFTER Verifying new WAL tree");
+
+        // Update the server copy of the WAL
+        let proof = wal.tree().head()?;
+        let body = std::fs::read(wal.path())?;
+        let (response, _) =
+            self.client.post_wal(summary.id(), &proof, body).await?;
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
 
         // Refresh in-memory vault and mirrored copy
         self.refresh_vault(summary)?;

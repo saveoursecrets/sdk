@@ -251,6 +251,31 @@ impl Client {
         Ok((response, server_proof))
     }
 
+    /// Replace a WAL file.
+    pub async fn post_wal(
+        &self,
+        vault_id: &Uuid,
+        proof: &CommitProof,
+        body: Vec<u8>,
+    ) -> Result<(Response, Option<CommitProof>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let signature =
+            self.encode_signature(self.signer.sign(&body).await?)?;
+        let mut builder = self
+            .http_client
+            .post(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(body);
+
+        builder = encode_headers_proof(builder, proof)?;
+
+        let response = builder.send().await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((response, server_proof))
+    }
+
     /// Get the commit proof for a remote WAL file.
     pub async fn head_wal(
         &self,

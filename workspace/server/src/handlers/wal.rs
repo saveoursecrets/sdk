@@ -426,7 +426,9 @@ impl WalHandler {
     /// This is the equivalent of a force push and should only be
     /// used by clients after they have created a completely different
     /// commit tree which can happen if they compact a locally cached
-    /// WAL to prune history and save disc space.
+    /// WAL (to prune history and save disc space) or if they change
+    /// the password for a vault which would require creating a new
+    /// commit tree.
     pub(crate) async fn post_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
@@ -434,12 +436,19 @@ impl WalHandler {
         Path(vault_id): Path<Uuid>,
         body: Bytes,
     ) -> Result<StatusCode, StatusCode> {
+        println!("GOT POST_Wal");
+
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &body)
         {
             if let (StatusCode::OK, Some(token)) = (status_code, token) {
                 let mut writer = state.write().await;
                 let proof: CommitProof = proof.into();
+
+                println!("Replacing WAL {}", token.address);
+                println!("Replacing WAL {}", vault_id);
+                //println!("Replacing WAL {:#?}", proof);
+
                 // TODO: better error to status code mapping
                 writer
                     .backend

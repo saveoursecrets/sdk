@@ -143,7 +143,7 @@ impl PatchFile {
     /// remove any pending events.
     pub fn truncate(&mut self) -> Result<()> {
         self.file.set_len(0)?;
-        self.file.seek(SeekFrom::Start(0));
+        self.file.seek(SeekFrom::Start(0))?;
 
         let patch: Patch = Default::default();
         let buffer = encode(&patch)?;

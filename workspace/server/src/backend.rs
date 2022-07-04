@@ -21,8 +21,6 @@ use std::{
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 
-use tokio::io;
-
 type WalStorage = Box<
     dyn WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync,
 >;
@@ -468,16 +466,17 @@ impl Backend for FileSystemBackend {
         root_hash: [u8; 32],
         mut buffer: &[u8],
     ) -> Result<()> {
-        let tempfile = NamedTempFile::new()?;
+        let mut tempfile = NamedTempFile::new()?;
         let temp_path = tempfile.path().to_path_buf();
-        let mut tempfile = tokio::fs::File::from_std(tempfile.into_file());
 
-        io::copy(&mut buffer, &mut tempfile).await?;
+        // NOTE: using tokio::io here would hang sometimes
+        std::io::copy(&mut buffer, &mut tempfile)?;
 
         // Compute the root hash of the submitted WAL file
         // and verify the integrity of each record event against
         // each leaf node hash
         let tree = wal_commit_tree(&temp_path, true, |_| {})?;
+
         let tree_root = tree.root().ok_or(sos_core::Error::NoRootCommit)?;
 
         // If the hash does not match the header then
@@ -499,6 +498,9 @@ impl Backend for FileSystemBackend {
 
         // Move the temp file with the new contents into place
         std::fs::rename(&temp_path, &original_wal)?;
+
+        let wal = self.wal_write(owner, vault_id).await?;
+        wal.load_tree()?;
 
         Ok(())
     }
