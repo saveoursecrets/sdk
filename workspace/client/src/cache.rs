@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use reqwest::{Response, StatusCode};
 use sos_core::{
     address::AddressStr,
-    commit_tree::{wal_commit_tree, CommitProof, CommitTree},
+    commit_tree::{wal_commit_tree, CommitProof, CommitTree, Comparison},
     constants::{VAULT_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY},
     encode,
     events::{PatchFile, SyncEvent, WalEvent},
@@ -47,6 +47,19 @@ fn assert_proofs_eq(
     }
 }
 
+/// The status of a synchronization attempt.
+pub enum SyncStatus {
+    /// Local and remote are equal.
+    Equal,
+    /// Safe synchronization was made.
+    Safe,
+    /// Forced synchronization was performed.
+    Force,
+    /// Synchronization is not safe and a
+    /// forceful attempt is required.
+    Unsafe,
+}
+
 /// Information yielded from a pull or a push.
 pub struct SyncInfo {
     /// Local and remote proofs before synchronization.
@@ -56,6 +69,9 @@ pub struct SyncInfo {
     /// If the root hashes for local and remote are up to
     /// date this will be `None`.
     pub after: Option<CommitProof>,
+
+    /// The status of the synchronization attempt.
+    pub status: SyncStatus,
 }
 
 /// Trait for types that cache vaults locally; support a *current* view
@@ -149,18 +165,18 @@ pub trait ClientCache {
     fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree>;
 
     /// Download changes from the remote server.
-    async fn pull(&mut self, summary: &Summary) -> Result<SyncInfo>;
+    async fn pull(
+        &mut self,
+        summary: &Summary,
+        force: bool,
+    ) -> Result<SyncInfo>;
 
     /// Upload changes to the remote server.
-    async fn push(&mut self, summary: &Summary) -> Result<SyncInfo>;
-
-    /// Force a pull of the remote WAL regardless of the state of
-    /// the local WAL.
-    async fn force_pull(&mut self, summary: &Summary) -> Result<CommitProof>;
-
-    /// Force a push of the local WAL regardless of the state of
-    /// the remote WAL.
-    async fn force_push(&mut self, summary: &Summary) -> Result<CommitProof>;
+    async fn push(
+        &mut self,
+        summary: &Summary,
+        force: bool,
+    ) -> Result<SyncInfo>;
 }
 
 /// Implements client-side caching of WAL files.
@@ -363,8 +379,10 @@ impl ClientCache for Cache {
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
-        let (response, server_proof, _) =
-            self.client.head_wal(summary.id()).await?;
+        let (response, server_proof, _) = self
+            .client
+            .head_wal(summary.id(), Some(&client_proof))
+            .await?;
         response
             .status()
             .is_success()
@@ -432,147 +450,112 @@ impl ClientCache for Cache {
         self.cache.get(summary.id()).map(|(wal, _)| wal.tree())
     }
 
-    async fn pull(&mut self, summary: &Summary) -> Result<SyncInfo> {
+    async fn pull(
+        &mut self,
+        summary: &Summary,
+        force: bool,
+    ) -> Result<SyncInfo> {
         let (wal, _) = self
             .cache
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (response, server_proof, match_proof) =
-            self.client.head_wal(summary.id()).await?;
-        response
-            .status()
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
-
-        let equals = client_proof.root() == server_proof.root();
-        let mut info = SyncInfo {
-            before: (client_proof, server_proof),
-            after: None,
-        };
-
-        if !equals {
-            // TODO: check it is safe to pull changes
-            let result_proof = self.force_pull(summary).await?;
-            info.after = Some(result_proof);
-            Ok(info)
-        } else {
-            Ok(info)
-        }
-    }
-
-    async fn push(&mut self, summary: &Summary) -> Result<SyncInfo> {
-        let (wal, _) = self
-            .cache
-            .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let client_proof = wal.tree().head()?;
-
-        let (response, server_proof, match_proof) =
-            self.client.head_wal(summary.id()).await?;
-        response
-            .status()
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
-
-        let equals = client_proof.root() == server_proof.root();
-        let mut info = SyncInfo {
-            before: (client_proof, server_proof),
-            after: None,
-        };
-
-        if !equals {
-            // TODO: check it is safe to push changes
-            let result_proof = self.force_push(summary).await?;
-            info.after = Some(result_proof);
-            Ok(info)
-        } else {
-            Ok(info)
-        }
-    }
-
-    async fn force_pull(&mut self, summary: &Summary) -> Result<CommitProof> {
-        // Move our cached vault to a backup
-        let vault_path = self.vault_path(summary);
-        if vault_path.exists() {
-            let mut vault_backup = vault_path.clone();
-            vault_backup.set_extension(VAULT_BACKUP_EXT);
-            std::fs::rename(&vault_path, &vault_backup)?;
-            tracing::debug!(
-                vault = ?vault_path, backup = ?vault_backup, "vault backup");
-        }
-
-        let (wal, _) = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-        // Create a snapshot of the WAL before deleting it
-        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
-        let (snapshot, _) =
-            self.snapshots.create(summary.id(), wal.path(), root_hash)?;
-        tracing::debug!(
-            path = ?snapshot.0, "force_pull snapshot");
-
-        // Remove the existing WAL file
-        std::fs::remove_file(wal.path())?;
-
-        // Need to recreate the WAL file correctly before pulling
-        // as pull_wal() expects the file to exist
-        *wal = WalFile::new(wal.path())?;
-        wal.load_tree()?;
-
-        // Pull the remote WAL
-        self.pull_wal(summary).await?;
-
-        let (wal, patch_file) = self
-            .cache
-            .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-        let proof = wal.tree().head()?;
-
-        tracing::debug!("force_pull reading from patch file");
-
-        let patch = patch_file.read()?;
-        let events = patch.0;
-
-        tracing::debug!(events = events.len(), "force_pull");
-
-        // Got some events which haven't been saved so try
-        // to apply them over the top of the new WAL
-        if !events.is_empty() {
-            self.patch_vault(summary, events).await?;
-            self.refresh_vault(summary)?;
-        }
-
-        Ok(proof)
-    }
-
-    async fn force_push(&mut self, summary: &Summary) -> Result<CommitProof> {
-        let (wal, _) = self
-            .cache
-            .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let client_proof = wal.tree().head()?;
-        let body = std::fs::read(wal.path())?;
-        let (response, server_proof) = self
+        let (response, server_proof, match_proof) = self
             .client
-            .post_wal(summary.id(), &client_proof, body)
+            .head_wal(summary.id(), Some(&client_proof))
             .await?;
-
-        let server_proof = server_proof.ok_or(Error::ServerProof)?;
         response
             .status()
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(response.status().into()))?;
 
-        assert_proofs_eq(&client_proof, &server_proof)?;
-        Ok(client_proof)
+        let equals = client_proof.root() == server_proof.root();
+        let can_pull_safely = match_proof.is_some();
+        let status = if equals {
+            SyncStatus::Equal
+        } else if force {
+            SyncStatus::Force
+        } else if can_pull_safely {
+            SyncStatus::Safe
+        } else {
+            SyncStatus::Unsafe
+        };
+
+        let mut info = SyncInfo {
+            before: (client_proof, server_proof),
+            after: None,
+            status,
+        };
+
+        if !equals {
+            if force || can_pull_safely {
+                let result_proof = self.force_pull(summary).await?;
+                info.after = Some(result_proof);
+                Ok(info)
+            } else {
+                Ok(info)
+            }
+        } else {
+            Ok(info)
+        }
+    }
+
+    async fn push(
+        &mut self,
+        summary: &Summary,
+        force: bool,
+    ) -> Result<SyncInfo> {
+        let (wal, _) = self
+            .cache
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let client_proof = wal.tree().head()?;
+
+        let (response, server_proof, match_proof) =
+            self.client.head_wal(summary.id(), None).await?;
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let equals = client_proof.root() == server_proof.root();
+
+        let comparison = wal.tree().compare(server_proof.clone())?;
+        let can_push_safely = match comparison {
+            Comparison::Contains(_, _) => true,
+            _ => false,
+        };
+
+        let status = if equals {
+            SyncStatus::Equal
+        } else if force {
+            SyncStatus::Force
+        } else if can_push_safely {
+            SyncStatus::Safe
+        } else {
+            SyncStatus::Unsafe
+        };
+
+        let mut info = SyncInfo {
+            before: (client_proof, server_proof),
+            after: None,
+            status,
+        };
+
+        if !equals {
+            if force || can_push_safely {
+                let result_proof = self.force_push(summary).await?;
+                info.after = Some(result_proof);
+                Ok(info)
+            } else {
+                Ok(info)
+            }
+        } else {
+            Ok(info)
+        }
     }
 }
 
@@ -974,5 +957,90 @@ impl Cache {
             }
         }
         Ok(())
+    }
+
+    async fn force_pull(&mut self, summary: &Summary) -> Result<CommitProof> {
+        // Move our cached vault to a backup
+        let vault_path = self.vault_path(summary);
+        if vault_path.exists() {
+            let mut vault_backup = vault_path.clone();
+            vault_backup.set_extension(VAULT_BACKUP_EXT);
+            std::fs::rename(&vault_path, &vault_backup)?;
+            tracing::debug!(
+                vault = ?vault_path, backup = ?vault_backup, "vault backup");
+        }
+
+        let (wal, _) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        // Create a snapshot of the WAL before deleting it
+        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
+        let (snapshot, _) =
+            self.snapshots.create(summary.id(), wal.path(), root_hash)?;
+        tracing::debug!(
+            path = ?snapshot.0, "force_pull snapshot");
+
+        // Remove the existing WAL file
+        std::fs::remove_file(wal.path())?;
+
+        // Need to recreate the WAL file correctly before pulling
+        // as pull_wal() expects the file to exist
+        *wal = WalFile::new(wal.path())?;
+        wal.load_tree()?;
+
+        // Pull the remote WAL
+        self.pull_wal(summary).await?;
+
+        let (wal, patch_file) = self
+            .cache
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        let proof = wal.tree().head()?;
+
+        tracing::debug!("force_pull reading from patch file");
+
+        let patch = patch_file.read()?;
+        let events = patch.0;
+
+        tracing::debug!(events = events.len(), "force_pull");
+
+        // Got some events which haven't been saved so try
+        // to apply them over the top of the new WAL
+        if !events.is_empty() {
+            self.patch_vault(summary, events).await?;
+        }
+
+        self.refresh_vault(summary)?;
+
+        Ok(proof)
+    }
+
+    async fn force_push(&mut self, summary: &Summary) -> Result<CommitProof> {
+        // TODO: load any unsaved events from the patch file and
+        // TODO: apply them to the WAL!
+
+        let (wal, _) = self
+            .cache
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let client_proof = wal.tree().head()?;
+        let body = std::fs::read(wal.path())?;
+        let (response, server_proof) = self
+            .client
+            .post_wal(summary.id(), &client_proof, body)
+            .await?;
+
+        let server_proof = server_proof.ok_or(Error::ServerProof)?;
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        assert_proofs_eq(&client_proof, &server_proof)?;
+        Ok(client_proof)
     }
 }

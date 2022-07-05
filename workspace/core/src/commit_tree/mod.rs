@@ -31,6 +31,23 @@ pub struct CommitProof(
     pub Range<usize>,
 );
 
+impl Clone for CommitProof {
+    fn clone(&self) -> Self {
+        let hashes = self
+            .1
+            .proof_hashes()
+            .into_iter()
+            .map(|h| *h)
+            .collect::<Vec<_>>();
+        CommitProof(
+            self.0,
+            MerkleProof::<Sha256>::new(hashes),
+            self.2,
+            self.3.clone(),
+        )
+    }
+}
+
 impl CommitProof {
     /// The root hash for the proof.
     pub fn root(&self) -> &<Sha256 as Hasher>::Hash {

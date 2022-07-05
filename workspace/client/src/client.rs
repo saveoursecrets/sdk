@@ -281,17 +281,23 @@ impl Client {
     pub async fn head_wal(
         &self,
         vault_id: &Uuid,
+        proof: Option<&CommitProof>,
     ) -> Result<(Response, CommitProof, Option<CommitProof>)> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let (message, signature) = self.self_signed().await?;
-        let response = self
+        let mut builder = self
             .http_client
             .head(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message))
-            .send()
-            .await?;
+            .header(X_SIGNED_MESSAGE, base64::encode(&message));
+
+        if let Some(proof) = proof {
+            builder = encode_headers_proof(builder, proof)?;
+        }
+
+        let response = builder.send().await?;
         let headers = response.headers();
+
         let server_proof =
             decode_headers_proof(headers)?.ok_or(Error::ServerProof)?;
         let match_proof = decode_match_proof(headers)?;

@@ -26,6 +26,7 @@ use sos_readline::{
 
 use crate::{
     display_passphrase, run_blocking, Cache, ClientCache, Error, Result,
+    SyncStatus,
 };
 
 mod editor;
@@ -87,14 +88,25 @@ enum ShellCommand {
         cmd: Add,
     },
     /// Print a secret.
-    Get { secret: SecretRef },
+    Get {
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Update a secret.
-    Set { secret: SecretRef },
+    Set {
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Delete a secret.
-    Del { secret: SecretRef },
+    Del {
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Rename a secret.
     Mv {
+        /// Secret name or identifier.
         secret: SecretRef,
+        /// New label for the secret.
         label: Option<String>,
     },
     /// Manage snapshots for the selected vault.
@@ -108,9 +120,17 @@ enum ShellCommand {
         cmd: History,
     },
     /// Download changes from the remote server.
-    Pull,
+    Pull {
+        /// Force a pull from the remote server.
+        #[clap(short, long)]
+        force: bool,
+    },
     /// Upload changes to the remote server.
-    Push,
+    Push {
+        /// Force a push to the remote server.
+        #[clap(short, long)]
+        force: bool,
+    },
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -357,11 +377,11 @@ where
                 match choose(prompt, &options)? {
                     Some(choice) => match choice {
                         ConflictChoice::Pull => {
-                            run_blocking(writer.force_pull(&info.summary))?;
+                            run_blocking(writer.pull(&info.summary, true))?;
                             Ok(())
                         }
                         ConflictChoice::Push => {
-                            run_blocking(writer.force_push(&info.summary))?;
+                            run_blocking(writer.push(&info.summary, true))?;
                             Ok(())
                         }
                         ConflictChoice::Noop => Ok(()),
@@ -779,29 +799,49 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 }
             }
         }
-        ShellCommand::Pull => {
+        ShellCommand::Pull { force } => {
             let mut writer = cache.write().unwrap();
             let keeper = writer.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
-            let result = run_blocking(writer.pull(&summary))?;
-            match result.after {
-                Some(proof) => {
-                    println!("Pull complete {}", proof.root_hex())
+            let result = run_blocking(writer.pull(&summary, force))?;
+            match result.status {
+                SyncStatus::Equal => println!("Up to date"),
+                SyncStatus::Safe => {
+                    if let Some(proof) = result.after {
+                        println!("Pull complete {}", proof.root_hex());
+                    }
                 }
-                None => println!("Up to date"),
+                SyncStatus::Force => {
+                    if let Some(proof) = result.after {
+                        println!("Force pull complete {}", proof.root_hex());
+                    }
+                }
+                SyncStatus::Unsafe => {
+                    println!("Cannot pull safely, use the --force option if you are sure.");
+                }
             }
             Ok(())
         }
-        ShellCommand::Push => {
+        ShellCommand::Push { force } => {
             let mut writer = cache.write().unwrap();
             let keeper = writer.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
-            let result = run_blocking(writer.push(&summary))?;
-            match result.after {
-                Some(proof) => {
-                    println!("Push complete {}", proof.root_hex())
+            let result = run_blocking(writer.push(&summary, force))?;
+            match result.status {
+                SyncStatus::Equal => println!("Up to date"),
+                SyncStatus::Safe => {
+                    if let Some(proof) = result.after {
+                        println!("Push complete {}", proof.root_hex());
+                    }
                 }
-                None => println!("Up to date"),
+                SyncStatus::Force => {
+                    if let Some(proof) = result.after {
+                        println!("Force push complete {}", proof.root_hex());
+                    }
+                }
+                SyncStatus::Unsafe => {
+                    println!("Cannot push safely, use the --force option if you are sure.");
+                }
             }
             Ok(())
         }
