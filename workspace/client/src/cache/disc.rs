@@ -1,4 +1,4 @@
-//! Cache of local WAL files.
+//! Caching implementation backed by files.
 use crate::{
     client::{decode_match_proof, Client},
     Conflict, Error, Result,
@@ -34,6 +34,8 @@ use tempfile::NamedTempFile;
 use url::Url;
 use uuid::Uuid;
 
+use super::{ClientCache, SyncStatus, SyncInfo};
+
 fn assert_proofs_eq(
     client_proof: &CommitProof,
     server_proof: &CommitProof,
@@ -47,143 +49,9 @@ fn assert_proofs_eq(
     }
 }
 
-/// The status of a synchronization attempt.
-pub enum SyncStatus {
-    /// Local and remote are equal.
-    Equal,
-    /// Safe synchronization was made.
-    Safe,
-    /// Forced synchronization was performed.
-    Force,
-    /// Synchronization is not safe and a
-    /// forceful attempt is required.
-    Unsafe,
-}
-
-/// Information yielded from a pull or a push.
-pub struct SyncInfo {
-    /// Local and remote proofs before synchronization.
-    pub before: (CommitProof, CommitProof),
-    /// Proof after synchronization.
-    ///
-    /// If the root hashes for local and remote are up to
-    /// date this will be `None`.
-    pub after: Option<CommitProof>,
-
-    /// The status of the synchronization attempt.
-    pub status: SyncStatus,
-}
-
-/// Trait for types that cache vaults locally; support a *current* view
-/// into a selected vault and allow making changes to the currently
-/// selected vault.
-#[async_trait]
-pub trait ClientCache {
-    /// Get the server URL.
-    fn server(&self) -> &Url;
-
-    /// Get the address of the current user.
-    fn address(&self) -> Result<AddressStr>;
-
-    /// Get the vault summaries for this cache.
-    fn vaults(&self) -> &[Summary];
-
-    /// Get the snapshot manager for this cache.
-    fn snapshots(&self) -> &SnapShotManager;
-
-    /// Take a snapshot of the WAL for the given vault.
-    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
-
-    /// Get the history for a WAL file.
-    fn history(
-        &self,
-        summary: &Summary,
-    ) -> Result<Vec<(WalFileRecord, WalEvent<'_>)>>;
-
-    /// Verify a WAL log.
-    fn verify(&self, summary: &Summary) -> Result<()>;
-
-    /// Compact a WAL file.
-    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
-
-    /// Load the vault summaries from the remote server.
-    async fn load_vaults(&mut self) -> Result<&[Summary]>;
-
-    /// Attempt to find a summary in this cache.
-    fn find_vault(&self, vault: &SecretRef) -> Option<&Summary>;
-
-    /// Create a new account and default login vault.
-    async fn create_account(
-        &mut self,
-        name: Option<String>,
-    ) -> Result<String>;
-
-    /// Create a new vault.
-    async fn create_vault(&mut self, name: String) -> Result<String>;
-
-    /// Remove a vault.
-    async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;
-
-    /// Attempt to set the vault name on the remote server.
-    async fn set_vault_name(
-        &mut self,
-        summary: &Summary,
-        name: &str,
-    ) -> Result<()>;
-
-    /// Get a comparison between a local WAL and remote WAL.
-    async fn vault_status(
-        &self,
-        summary: &Summary,
-    ) -> Result<(CommitProof, CommitProof)>;
-
-    /// Apply changes to a vault.
-    async fn patch_vault(
-        &mut self,
-        summary: &Summary,
-        events: Vec<SyncEvent<'_>>,
-    ) -> Result<()>;
-
-    /// Load a vault, unlock it and set it as the current vault.
-    async fn open_vault(
-        &mut self,
-        summary: &Summary,
-        password: &str,
-    ) -> Result<()>;
-
-    /// Get the current in-memory vault access.
-    fn current(&self) -> Option<&Gatekeeper>;
-
-    /// Get a mutable reference to the current in-memory vault access.
-    fn current_mut(&mut self) -> Option<&mut Gatekeeper>;
-
-    /// Close the currently open vault.
-    ///
-    /// When a vault is open it is locked before being closed.
-    ///
-    /// If no vault is open this is a noop.
-    fn close_vault(&mut self);
-
-    /// Get a reference to the commit tree for a WAL file.
-    fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree>;
-
-    /// Download changes from the remote server.
-    async fn pull(
-        &mut self,
-        summary: &Summary,
-        force: bool,
-    ) -> Result<SyncInfo>;
-
-    /// Upload changes to the remote server.
-    async fn push(
-        &mut self,
-        summary: &Summary,
-        force: bool,
-    ) -> Result<SyncInfo>;
-}
 
 /// Implements client-side caching of WAL files.
-pub struct Cache {
+pub struct FileCache {
     /// Vaults managed by this cache.
     summaries: Vec<Summary>,
     /// Currently selected in-memory vault.
@@ -201,7 +69,7 @@ pub struct Cache {
 }
 
 #[async_trait]
-impl ClientCache for Cache {
+impl ClientCache for FileCache {
     fn server(&self) -> &Url {
         self.client.server()
     }
@@ -568,7 +436,7 @@ impl ClientCache for Cache {
     }
 }
 
-impl Cache {
+impl FileCache {
     /// Create a new cache using the given client and cache directory.
     ///
     /// If the `mirror` option is given then the cache will mirror WAL files
