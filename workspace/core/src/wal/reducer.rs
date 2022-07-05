@@ -57,9 +57,6 @@ impl<'a> WalReducer<'a> {
                         WalEvent::CreateVault(_) => {
                             return Err(Error::WalCreateEventOnlyFirst)
                         }
-                        WalEvent::UpdateVault(vault) => {
-                            self.vault = Some(vault.clone());
-                        }
                         WalEvent::SetVaultName(name) => {
                             self.vault_name = Some(name.clone());
                         }

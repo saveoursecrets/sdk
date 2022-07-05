@@ -554,36 +554,4 @@ impl WalHandler {
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
-
-    /*
-    /// Compact a WAL file and send the new compact WAL to the client.
-    pub(crate) async fn compact_wal(
-        Extension(state): Extension<Arc<RwLock<State>>>,
-        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
-        TypedHeader(proof): TypedHeader<CommitProofHeader>,
-        Path(vault_id): Path<Uuid>,
-        body: Bytes,
-    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
-        if let Ok((status_code, token)) =
-            authenticate::bearer(authorization, &body)
-        {
-            if let (StatusCode::OK, Some(token)) = (status_code, token) {
-                let mut writer = state.write().await;
-                let wal = writer
-                    .backend
-                    .wal_write(&token.address, &vault_id)
-                    .await
-                    .map_err(|_| StatusCode::NOT_FOUND)?;
-
-                drop(writer);
-
-                todo!();
-            } else {
-                Err(status_code)
-            }
-        } else {
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
-    */
 }

@@ -123,7 +123,6 @@ impl AuditEvent {
             SyncEvent::CreateVault(_)
             | SyncEvent::ReadVault
             | SyncEvent::DeleteVault
-            | SyncEvent::UpdateVault(_)
             | SyncEvent::GetVaultName
             | SyncEvent::SetVaultName(_)
             | SyncEvent::SetVaultMeta(_) => AuditData::Vault(vault_id),

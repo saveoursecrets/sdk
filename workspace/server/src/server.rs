@@ -17,7 +17,7 @@ use axum::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
     },
-    routing::{get, post, put},
+    routing::{get, put},
     Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
@@ -123,12 +123,6 @@ impl Server {
                     .patch(WalHandler::patch_wal)
                     .delete(WalHandler::delete_wal),
             )
-            /*
-            .route(
-                "/api/vaults/:vault_id/compact",
-                post(WalHandler::compact_wal),
-            )
-            */
             .route("/api/changes", get(sse_handler))
             .layer(cors)
             .layer(Extension(shared_state));
