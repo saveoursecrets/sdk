@@ -24,9 +24,6 @@ pub enum WalEvent<'a> {
     /// Create a new vault.
     CreateVault(Cow<'a, [u8]>),
 
-    /// Update the vault buffer.
-    UpdateVault(Cow<'a, [u8]>),
-
     /// Set the vault name.
     SetVaultName(Cow<'a, str>),
 
@@ -45,11 +42,10 @@ pub enum WalEvent<'a> {
 
 impl WalEvent<'_> {
     /// Get the event kind for this event.
-    fn event_kind(&self) -> EventKind {
+    pub fn event_kind(&self) -> EventKind {
         match self {
             WalEvent::Noop => EventKind::Noop,
             WalEvent::CreateVault(_) => EventKind::CreateVault,
-            WalEvent::UpdateVault(_) => EventKind::UpdateVault,
             WalEvent::SetVaultName(_) => EventKind::SetVaultName,
             WalEvent::SetVaultMeta(_) => EventKind::SetVaultMeta,
             WalEvent::CreateSecret(_, _) => EventKind::CreateSecret,
@@ -66,7 +62,7 @@ impl<'a> Encode for WalEvent<'a> {
 
         match self {
             WalEvent::Noop => panic!("WalEvent: attempt to encode a noop"),
-            WalEvent::CreateVault(vault) | WalEvent::UpdateVault(vault) => {
+            WalEvent::CreateVault(vault) => {
                 ser.writer.write_u32(vault.as_ref().len() as u32)?;
                 ser.writer.write_bytes(vault.as_ref())?;
             }
@@ -106,12 +102,6 @@ impl<'a> Decode for WalEvent<'a> {
                 let buffer = de.reader.read_bytes(length as usize)?;
                 *self = WalEvent::CreateVault(Cow::Owned(buffer));
             }
-            EventKind::UpdateVault => {
-                let length = de.reader.read_u32()?;
-                let buffer = de.reader.read_bytes(length as usize)?;
-                *self = WalEvent::UpdateVault(Cow::Owned(buffer));
-            }
-
             EventKind::SetVaultName => {
                 let name = de.reader.read_string()?;
                 *self = WalEvent::SetVaultName(Cow::Owned(name));
@@ -159,9 +149,6 @@ impl<'a> TryFrom<SyncEvent<'a>> for WalEvent<'a> {
         match value {
             SyncEvent::CreateVault(value) => {
                 Ok(WalEvent::CreateVault(value.clone()))
-            }
-            SyncEvent::UpdateVault(value) => {
-                Ok(WalEvent::UpdateVault(value.clone()))
             }
             SyncEvent::SetVaultName(name) => {
                 Ok(WalEvent::SetVaultName(name.clone()))

@@ -13,14 +13,14 @@ use std::{borrow::Cow, collections::HashMap, fmt, path::Path};
 use uuid::Uuid;
 
 use crate::{
+    constants::{VAULT_EXT, VAULT_IDENTITY},
     crypto::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
         AeadPack,
     },
     events::SyncEvent,
-    file_identity::{FileIdentity, VAULT_IDENTITY},
     secret::{SecretId, VaultMeta},
-    Error, Result,
+    CommitHash, Error, FileIdentity, Result,
 };
 
 /// Vault version identifier.
@@ -31,37 +31,6 @@ pub const DEFAULT_VAULT_NAME: &str = "Login";
 
 /// Mime type for vaults.
 pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
-
-/// Type to represent the hash of the encrypted content for a secret.
-#[derive(
-    Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize,
-)]
-pub struct CommitHash(pub [u8; 32]);
-
-impl AsRef<[u8; 32]> for CommitHash {
-    fn as_ref(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl CommitHash {
-    /// Get a copy of the underlying bytes for the commit hash.
-    pub fn to_bytes(&self) -> [u8; 32] {
-        self.0
-    }
-}
-
-impl From<CommitHash> for [u8; 32] {
-    fn from(value: CommitHash) -> Self {
-        value.0
-    }
-}
-
-impl fmt::Display for CommitHash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::encode(&self.0))
-    }
-}
 
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
@@ -112,10 +81,14 @@ impl Decode for VaultCommit {
     }
 }
 
-/// Trait that defines the operations on a vault storage.
+/// Trait that defines the operations on an encrypted vault.
 ///
 /// The storage may be in-memory, backed by a file on disc or another
 /// destination for the encrypted bytes.
+///
+/// Use `Cow` smart pointers because when we are reading
+/// from an in-memory `Vault` we can return references whereas
+/// other containers such as file access would return owned data.
 pub trait VaultAccess {
     /// Get the vault summary.
     fn summary(&self) -> Result<Summary>;
@@ -126,6 +99,12 @@ pub trait VaultAccess {
     /// Set the name of a vault.
     fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>>;
 
+    /// Set the vault meta data.
+    fn set_vault_meta(
+        &mut self,
+        meta_data: Option<AeadPack>,
+    ) -> Result<SyncEvent<'_>>;
+
     /// Add an encrypted secret to the vault.
     fn create(
         &mut self,
@@ -133,11 +112,19 @@ pub trait VaultAccess {
         secret: VaultEntry,
     ) -> Result<SyncEvent<'_>>;
 
-    /// Get an encrypted secret from the vault.
+    /// Insert an encrypted secret to the vault with the given id.
     ///
-    /// Use a `Cow` smart pointer because when we are reading
-    /// from an in-memory `Vault` we can return references whereas
-    /// other containers such as file access would return owned data.
+    /// Used internally to support consistent identifiers when
+    /// mirroring in the `Gatekeeper` implementation.
+    #[doc(hidden)]
+    fn insert(
+        &mut self,
+        id: SecretId,
+        commit: CommitHash,
+        secret: VaultEntry,
+    ) -> Result<SyncEvent<'_>>;
+
+    /// Get an encrypted secret from the vault.
     fn read<'a>(
         &'a self,
         id: &SecretId,
@@ -278,7 +265,6 @@ impl Decode for Summary {
 /// File header, identifier and version information
 #[derive(Debug, Eq, PartialEq)]
 pub struct Header {
-    identity: FileIdentity,
     summary: Summary,
     meta: Option<AeadPack>,
     auth: Auth,
@@ -288,7 +274,6 @@ impl Header {
     /// Create a new header.
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
-            identity: FileIdentity(VAULT_IDENTITY),
             summary: Summary::new(id, name, algorithm),
             meta: None,
             auth: Default::default(),
@@ -366,7 +351,6 @@ impl Header {
 impl Default for Header {
     fn default() -> Self {
         Self {
-            identity: FileIdentity(VAULT_IDENTITY),
             summary: Default::default(),
             meta: None,
             auth: Default::default(),
@@ -382,7 +366,8 @@ impl fmt::Display for Header {
 
 impl Encode for Header {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        self.identity.encode(&mut *ser)?;
+        FileIdentity::write_identity(&mut *ser, &VAULT_IDENTITY)
+            .map_err(Box::from)?;
 
         let size_pos = ser.writer.tell()?;
         ser.writer.write_u32(0)?;
@@ -409,7 +394,8 @@ impl Encode for Header {
 
 impl Decode for Header {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.identity.decode(&mut *de)?;
+        FileIdentity::read_identity(&mut *de, &VAULT_IDENTITY)
+            .map_err(Box::from)?;
 
         // Read in the header length
         let _ = de.reader.read_u32()?;
@@ -571,7 +557,7 @@ impl Vault {
     }
 
     /// Insert a secret into this vault.
-    pub(crate) fn insert(&mut self, id: SecretId, entry: VaultCommit) {
+    pub(crate) fn insert_entry(&mut self, id: SecretId, entry: VaultCommit) {
         self.contents.data.insert(id, entry);
     }
 
@@ -636,7 +622,7 @@ impl Vault {
 
     /// The file extension for vault files.
     pub fn extension() -> &'static str {
-        "vault"
+        VAULT_EXT
     }
 
     /// Get the summary for this vault.
@@ -752,12 +738,30 @@ impl VaultAccess for Vault {
         Ok(SyncEvent::SetVaultName(Cow::Owned(name)))
     }
 
+    fn set_vault_meta(
+        &mut self,
+        meta_data: Option<AeadPack>,
+    ) -> Result<SyncEvent<'_>> {
+        self.header.set_meta(meta_data);
+        let meta = self.header.meta().map(|m| m.clone());
+        Ok(SyncEvent::SetVaultMeta(Cow::Owned(meta)))
+    }
+
     fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<SyncEvent<'_>> {
         let id = Uuid::new_v4();
+        self.insert(id, commit, secret)
+    }
+
+    fn insert(
+        &mut self,
+        id: SecretId,
+        commit: CommitHash,
+        secret: VaultEntry,
+    ) -> Result<SyncEvent<'_>> {
         let value = self
             .contents
             .data

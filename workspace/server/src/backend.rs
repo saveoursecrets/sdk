@@ -2,28 +2,28 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
-    commit_tree::{integrity::wal_commit_tree, CommitProof},
+    commit_tree::{wal_commit_tree, CommitProof},
+    constants::WAL_DELETED_EXT,
     events::{SyncEvent, WalEvent},
-    file_access::VaultFileAccess,
-    file_locks::FileLocks,
     vault::{Header, Summary, Vault, VaultAccess},
     wal::{
         file::{WalFile, WalFileRecord},
+        snapshot::SnapShotManager,
         WalProvider,
     },
+    FileLocks, VaultFileAccess,
 };
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use tempfile::NamedTempFile;
 use uuid::Uuid;
-
-use tokio::io;
 
 type WalStorage = Box<
     dyn WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync,
 >;
-
-const WAL_BACKUP_EXT: &str = "wal.backup";
-const WAL_DELETED_EXT: &str = "wal.deleted";
 
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]
@@ -117,7 +117,7 @@ pub trait Backend {
 
     /// Replace a WAL file with a new buffer.
     async fn replace_wal(
-        &self,
+        &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
         root_hash: [u8; 32],
@@ -135,7 +135,8 @@ pub struct FileSystemBackend {
 
 impl FileSystemBackend {
     /// Create a new file system backend.
-    pub fn new(directory: PathBuf) -> Self {
+    pub fn new<P: AsRef<Path>>(directory: P) -> Self {
+        let directory = directory.as_ref().to_path_buf();
         Self {
             directory,
             locks: Default::default(),
@@ -172,7 +173,7 @@ impl FileSystemBackend {
                                     vault_path
                                         .set_extension(Vault::extension());
                                     if !vault_path.exists() {
-                                        return Err(Error::FileMissing(
+                                        return Err(Error::NotFile(
                                             vault_path,
                                         ));
                                     }
@@ -459,22 +460,23 @@ impl Backend for FileSystemBackend {
     }
 
     async fn replace_wal(
-        &self,
+        &mut self,
         owner: &AddressStr,
         vault_id: &Uuid,
         root_hash: [u8; 32],
         mut buffer: &[u8],
     ) -> Result<()> {
-        let tempfile = NamedTempFile::new()?;
+        let mut tempfile = NamedTempFile::new()?;
         let temp_path = tempfile.path().to_path_buf();
-        let mut tempfile = tokio::fs::File::from_std(tempfile.into_file());
 
-        io::copy(&mut buffer, &mut tempfile).await?;
+        // NOTE: using tokio::io here would hang sometimes
+        std::io::copy(&mut buffer, &mut tempfile)?;
 
         // Compute the root hash of the submitted WAL file
         // and verify the integrity of each record event against
         // each leaf node hash
         let tree = wal_commit_tree(&temp_path, true, |_| {})?;
+
         let tree_root = tree.root().ok_or(sos_core::Error::NoRootCommit)?;
 
         // If the hash does not match the header then
@@ -486,11 +488,25 @@ impl Backend for FileSystemBackend {
 
         let original_wal = self.wal_file_path(owner, vault_id);
 
-        let mut backup_wal = original_wal.clone();
-        backup_wal.set_extension(WAL_BACKUP_EXT);
+        // Create a snapshot for backup purposes
+        let account_dir = self.directory.join(owner.to_string());
+        let snapshots = SnapShotManager::new(account_dir)?;
+        snapshots.create(vault_id, &original_wal, root_hash)?;
 
-        std::fs::rename(&original_wal, &backup_wal)?;
+        // Remove the existing WAL
+        std::fs::remove_file(&original_wal)?;
+
+        // Move the temp file with the new contents into place
         std::fs::rename(&temp_path, &original_wal)?;
+
+        let wal = self.wal_write(owner, vault_id).await?;
+        wal.load_tree()?;
+
+        let new_tree_root =
+            wal.tree().root().ok_or(sos_core::Error::NoRootCommit)?;
+        if root_hash != new_tree_root {
+            return Err(Error::WalValidateMismatch);
+        }
 
         Ok(())
     }

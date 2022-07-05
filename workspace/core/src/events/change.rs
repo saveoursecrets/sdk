@@ -125,10 +125,6 @@ impl ChangeEvent {
                 address: *address,
                 vault_id: *vault_id,
             }),
-            SyncEvent::UpdateVault(_) => Some(ChangeEvent::UpdateVault {
-                address: *address,
-                vault_id: *vault_id,
-            }),
             SyncEvent::DeleteVault => Some(ChangeEvent::DeleteVault {
                 address: *address,
                 vault_id: *vault_id,

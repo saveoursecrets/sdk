@@ -7,6 +7,8 @@ edition = "2021"
 async-trait = "0.1"
 aes-gcm = { version = "0.9", features = ["std"] }
 chacha20poly1305 = { version = "0.9", features = ["std"] }
+tracing = "0.1"
+filetime = "0.2"
 rand = "0.8"
 thiserror = "1"
 web3-signature = { version = "0.2.3", features = ["single-party"] }
@@ -24,9 +26,8 @@ sha3 = "0.9"
 bip39 = { version =  "1", features = ["std", "rand"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2.2", features = ["serde"] }
-time = { version = "0.3", features = ["serde"] }
+time = { version = "0.3", features = ["serde", "local-offset", "formatting"] }
 bitflags = "1"
-rs_merkle = "1.2"
 ouroboros = "0.15"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -35,6 +36,10 @@ file-guard = "0.1"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = {version = "0.2", features = ["js"]}
 uuid = { version = "1", features = ["serde", "v4", "js"] }
+
+[dependencies.rs_merkle]
+version = "1.2"
+#path = "../../../../forks/rs-merkle"
 
 [dependencies.serde-binary]
 version = "0.3.6"

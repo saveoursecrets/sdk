@@ -8,10 +8,17 @@ use serde_binary::{
 };
 use std::fmt;
 
-use time::{Duration, OffsetDateTime};
+use filetime::FileTime;
 
-/// Timestamp for the log record.
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+use time::{
+    format_description::well_known::{Rfc2822, Rfc3339},
+    Duration, OffsetDateTime, UtcOffset,
+};
+
+use crate::Result;
+
+/// Timestamp for events and log records.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialOrd, Eq, PartialEq)]
 pub struct Timestamp(OffsetDateTime);
 
 impl Default for Timestamp {
@@ -19,9 +26,53 @@ impl Default for Timestamp {
         Self(OffsetDateTime::now_utc())
     }
 }
+
+impl Timestamp {
+    /// Convert this timestamp to a RFC2822 formatted string.
+    pub fn to_rfc2822(&self) -> Result<String> {
+        Ok(Timestamp::rfc2822(&self.0)?)
+    }
+
+    /// Convert an offset date time to a RFC2822 formatted string.
+    fn rfc2822(datetime: &OffsetDateTime) -> Result<String> {
+        Ok(datetime.format(&Rfc2822)?)
+    }
+
+    /// Convert this timestamp to a RFC3339 formatted string.
+    pub fn to_rfc3339(&self) -> Result<String> {
+        Ok(Timestamp::rfc3339(&self.0)?)
+    }
+
+    /// Convert an offset date time to a RFC3339 formatted string.
+    fn rfc3339(datetime: &OffsetDateTime) -> Result<String> {
+        Ok(datetime.format(&Rfc3339)?)
+    }
+}
+
 impl fmt::Display for Timestamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        match UtcOffset::current_local_offset() {
+            Ok(local_offset) => {
+                let datetime = self.0.clone();
+                datetime.to_offset(local_offset);
+                match Timestamp::rfc2822(&datetime) {
+                    Ok(value) => {
+                        write!(f, "{}", value)
+                    }
+                    Err(_) => {
+                        write!(f, "{}", datetime)
+                    }
+                }
+            }
+            Err(_) => match self.to_rfc2822() {
+                Ok(value) => {
+                    write!(f, "{}", value)
+                }
+                Err(_) => {
+                    write!(f, "{}", self.0)
+                }
+            },
+        }
     }
 }
 
@@ -43,5 +94,21 @@ impl Decode for Timestamp {
             .map_err(Box::from)?
             + Duration::nanoseconds(nanos as i64);
         Ok(())
+    }
+}
+
+impl From<OffsetDateTime> for Timestamp {
+    fn from(value: OffsetDateTime) -> Self {
+        Self(value)
+    }
+}
+
+impl TryFrom<FileTime> for Timestamp {
+    type Error = crate::Error;
+
+    fn try_from(value: FileTime) -> std::result::Result<Self, Self::Error> {
+        let time = OffsetDateTime::from_unix_timestamp(value.seconds())?
+            + Duration::nanoseconds(value.nanoseconds() as i64);
+        Ok(time.into())
     }
 }

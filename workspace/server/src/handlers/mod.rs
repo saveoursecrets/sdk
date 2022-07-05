@@ -15,12 +15,13 @@ use tokio::sync::{RwLock, RwLockWriteGuard};
 
 use crate::{
     assets::Assets,
-    headers::{X_COMMIT_HASH, X_COMMIT_PROOF},
+    headers::{X_COMMIT_PROOF, X_MATCH_PROOF},
     State,
 };
 
 use sos_core::{
-    commit_tree::{encode_proof, CommitProof},
+    commit_tree::CommitProof,
+    encode,
     events::{AuditEvent, AuditProvider, ChangeEvent},
 };
 
@@ -33,30 +34,35 @@ fn append_commit_headers(
     headers: &mut HeaderMap,
     proof: &CommitProof,
 ) -> Result<(), StatusCode> {
-    let CommitProof(server_root, server_proof) = proof;
-    let x_commit_hash = HeaderValue::from_str(&base64::encode(server_root))
+    let value =
+        encode(proof).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let x_commit_proof = HeaderValue::from_str(&base64::encode(&value))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    headers.insert(X_COMMIT_HASH.clone(), x_commit_hash);
-
-    let x_commit_proof =
-        HeaderValue::from_str(&base64::encode(encode_proof(server_proof)))
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
     headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
+    Ok(())
+}
+
+fn append_match_header(
+    headers: &mut HeaderMap,
+    proof: &CommitProof,
+) -> Result<(), StatusCode> {
+    let value =
+        encode(proof).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let x_match_proof = HeaderValue::from_str(&base64::encode(&value))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    headers.insert(X_MATCH_PROOF.clone(), x_match_proof);
     Ok(())
 }
 
 async fn append_audit_logs<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
-    logs: Vec<AuditEvent>,
+    events: Vec<AuditEvent>,
 ) -> Result<(), StatusCode> {
-    for log in logs {
-        writer
-            .audit_log
-            .append_audit_event(log)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    }
+    writer
+        .audit_log
+        .append_audit_events(&events)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(())
 }
 

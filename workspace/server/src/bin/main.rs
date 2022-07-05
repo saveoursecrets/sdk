@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use sos_core::file_locks::FileLocks;
+use sos_core::FileLocks;
 use sos_server::{
     Authentication, Result, Server, ServerConfig, ServerInfo, State,
 };

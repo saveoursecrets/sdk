@@ -1,7 +1,7 @@
 //! Write ahead log types and traits.
 use crate::{
     commit_tree::CommitTree, events::WalEvent, timestamp::Timestamp,
-    vault::CommitHash, Result,
+    CommitHash, Result,
 };
 use std::ops::Range;
 
@@ -13,6 +13,7 @@ use serde_binary::{
 pub mod file;
 pub mod memory;
 pub mod reducer;
+pub mod snapshot;
 
 /// Trait for implementations that provide access to a write-ahead log (WAL).
 pub trait WalProvider {
@@ -54,7 +55,7 @@ pub trait WalProvider {
     fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash>;
 
     /// Read the event data from an item.
-    fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>>;
+    fn event_data(&self, item: &Self::Item) -> Result<WalEvent<'_>>;
 
     /// Get the commit tree for the log records.
     fn tree(&self) -> &CommitTree;
@@ -159,7 +160,8 @@ mod test {
         commit_tree::{hash, Comparison},
         events::WalEvent,
         secret::SecretId,
-        vault::{encode, CommitHash, Vault, VaultCommit, VaultEntry},
+        vault::{encode, Vault, VaultCommit, VaultEntry},
+        CommitHash,
     };
 
     fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {
@@ -211,7 +213,7 @@ mod test {
         let mut client = WalMemory::new();
         for record in server.iter()? {
             let record = record?;
-            let event = server.event_data(record)?;
+            let event = server.event_data(&record)?;
             client.append_event(event)?;
         }
 
@@ -230,12 +232,12 @@ mod test {
         // Add another event to the server from another client.
         server.append_event(WalEvent::DeleteSecret(id))?;
 
-        /// Check that the server contains the client proof
+        // Check that the server contains the client proof
         let proof = client.tree().head()?;
         let comparison = server.tree().compare(proof)?;
 
-        let matched = if let Comparison::Contains(index, _) = comparison {
-            index == 1
+        let matched = if let Comparison::Contains(indices, _) = comparison {
+            indices == vec![1]
         } else {
             false
         };
@@ -269,10 +271,25 @@ mod test {
         let record = server.iter()?.next_back().unwrap()?;
 
         let proof = client.tree().head()?;
+
+        /*
+        println!("client proof root {}", hex::encode(&proof.0));
+        for leaf in client.tree().leaves().unwrap() {
+            println!("client leaf: {}", hex::encode(&leaf));
+        }
+        println!("server proof root {}",
+            hex::encode(server.tree().root().unwrap()));
+        for leaf in server.tree().leaves().unwrap() {
+            println!("server leaf: {}", hex::encode(&leaf));
+        }
+        */
+
         let comparison = server.tree().compare(proof)?;
 
-        if let Comparison::Contains(_, leaf) = comparison {
-            if let Some(records) = server.diff(leaf)? {
+        if let Comparison::Contains(indices, leaves) = comparison {
+            assert_eq!(vec![1], indices);
+            let leaf = leaves.get(0).unwrap();
+            if let Some(records) = server.diff(*leaf)? {
                 assert_eq!(1, records.len());
                 assert_eq!(&record, records.get(0).unwrap());
             } else {

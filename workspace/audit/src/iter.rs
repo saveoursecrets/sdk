@@ -2,12 +2,13 @@
 use std::path::Path;
 
 use sos_core::{
+    constants::AUDIT_IDENTITY,
     events::AuditEvent,
-    file_identity::{FileIdentity, AUDIT_IDENTITY},
     serde_binary::{
         binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
         Decode, Deserializer,
     },
+    FileIdentity,
 };
 
 use crate::{Error, Result};

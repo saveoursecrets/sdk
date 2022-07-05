@@ -1,5 +1,8 @@
 //! Type for iterating and managing the commit trees for a vault.
-use serde_binary::binary_rw::{BinaryReader, Endian, ReadStream, SeekStream};
+use serde_binary::{
+    binary_rw::{BinaryReader, Endian, ReadStream, SeekStream},
+    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
+};
 use std::ops::Range;
 
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
@@ -9,19 +12,10 @@ use crate::{
     Error, Result,
 };
 
-pub mod integrity;
+mod integrity;
 
-/// Decode a merkle proof.
-pub fn decode_proof<B: AsRef<[u8]>>(
-    buffer: B,
-) -> Result<MerkleProof<Sha256>> {
-    Ok(MerkleProof::<Sha256>::from_bytes(buffer.as_ref())?)
-}
-
-/// Encode a merkle proof.
-pub fn encode_proof(proof: &MerkleProof<Sha256>) -> Vec<u8> {
-    proof.to_bytes()
-}
+pub use integrity::vault_commit_tree;
+pub use integrity::wal_commit_tree;
 
 /// Compute the Sha256 hash of some data.
 pub fn hash(data: &[u8]) -> [u8; 32] {
@@ -29,7 +23,72 @@ pub fn hash(data: &[u8]) -> [u8; 32] {
 }
 
 /// Represents a root hash and a proof of certain nodes.
-pub struct CommitProof(pub <Sha256 as Hasher>::Hash, pub MerkleProof<Sha256>);
+//#[derive(Debug, Eq, PartialEq)]
+pub struct CommitProof(
+    pub <Sha256 as Hasher>::Hash,
+    pub MerkleProof<Sha256>,
+    pub usize,
+    pub Range<usize>,
+);
+
+impl CommitProof {
+    /// The root hash for the proof.
+    pub fn root(&self) -> &<Sha256 as Hasher>::Hash {
+        &self.0
+    }
+
+    /// The root hash for the proof as hexadecimal.
+    pub fn root_hex(&self) -> String {
+        hex::encode(&self.0)
+    }
+
+    /// Reduce this commit proof to it's root hash and leaves length.
+    pub fn reduce(self) -> ([u8; 32], usize) {
+        (self.0, self.2)
+    }
+}
+
+impl Default for CommitProof {
+    fn default() -> Self {
+        Self([0; 32], MerkleProof::<Sha256>::new(vec![]), 0, 0..0)
+    }
+}
+
+impl Encode for CommitProof {
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        ser.writer.write_bytes(&self.0)?;
+        let proof_bytes = self.1.to_bytes();
+        ser.writer.write_u32(proof_bytes.len() as u32)?;
+        ser.writer.write_bytes(&proof_bytes)?;
+
+        ser.writer.write_u32(self.2 as u32)?;
+        ser.writer.write_u32(self.3.start as u32)?;
+        ser.writer.write_u32(self.3.end as u32)?;
+        Ok(())
+    }
+}
+
+impl Decode for CommitProof {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let root_hash: [u8; 32] =
+            de.reader.read_bytes(32)?.as_slice().try_into()?;
+        self.0 = root_hash;
+        let length = de.reader.read_u32()?;
+        let proof_bytes = de.reader.read_bytes(length as usize)?;
+        let proof = MerkleProof::<Sha256>::from_bytes(&proof_bytes)
+            .map_err(Box::from)?;
+
+        self.1 = proof;
+        self.2 = de.reader.read_u32()? as usize;
+        let start = de.reader.read_u32()?;
+        let end = de.reader.read_u32()?;
+
+        // TODO: validate range start is <= range end
+
+        self.3 = start as usize..end as usize;
+        Ok(())
+    }
+}
 
 /// The result of comparing two commit trees.
 ///
@@ -41,7 +100,7 @@ pub enum Comparison {
     /// Trees are equal as their root commits match.
     Equal,
     /// Tree contains the other proof.
-    Contains(usize, [u8; 32]),
+    Contains(Vec<usize>, Vec<[u8; 32]>),
     /// Unable to find a match against the proof.
     Unknown,
 }
@@ -120,41 +179,68 @@ impl CommitTree {
 
     /// Get the root hash and a proof of the last leaf node.
     pub fn head(&self) -> Result<CommitProof> {
+        let range = self.tree.leaves_len() - 1..self.tree.leaves_len();
+        self.proof_range(range)
+    }
+
+    /// Get a proof for the given range.
+    pub fn proof_range(&self, indices: Range<usize>) -> Result<CommitProof> {
+        let leaf_indices = indices.clone().map(|i| i).collect::<Vec<_>>();
+        self.proof(&leaf_indices)
+    }
+
+    /// Get a proof for the given indices.
+    pub fn proof(&self, leaf_indices: &[usize]) -> Result<CommitProof> {
         let root = self.root().ok_or(Error::NoRootCommit)?;
-        let leaf_indices = vec![self.tree.leaves_len() - 1];
         let proof = self.tree.proof(&leaf_indices);
-        Ok(CommitProof(root, proof))
+        // Map the usize array to a Range, implies all the elements
+        // are continuous, sparse indices are not supported
+        //
+        // Internally we use a range to represent the indices as these
+        // proofs are sent over the network.
+        let indices = if leaf_indices.len() == 0 {
+            0..0
+        } else {
+            if leaf_indices.len() > 1 {
+                leaf_indices[0]..leaf_indices[leaf_indices.len() - 1] + 1
+            } else {
+                leaf_indices[0]..leaf_indices[0] + 1
+            }
+        };
+        Ok(CommitProof(root, proof, self.len(), indices))
     }
 
     /// Compare this tree against another root hash and merkle proof.
     pub fn compare(&self, proof: CommitProof) -> Result<Comparison> {
-        let CommitProof(other_root, proof) = proof;
+        let CommitProof(other_root, proof, count, range) = proof;
         let root = self.root().ok_or(Error::NoRootCommit)?;
         if root == other_root {
             Ok(Comparison::Equal)
         } else {
-            let leaves = self.tree.leaves().unwrap_or_default();
-            let it = leaves.into_iter().enumerate().rev();
-            for (index, leaf) in it {
-                let indices = vec![index];
-                let leaves = vec![leaf];
-                let matched = proof.verify(
+            if range.start < self.len() && range.end < self.len() {
+                let leaves = self.tree.leaves().unwrap_or_default();
+                let indices_to_prove =
+                    range.clone().map(|i| i).collect::<Vec<_>>();
+                let leaves_to_prove = range
+                    .map(|i| *leaves.get(i).unwrap())
+                    .collect::<Vec<_>>();
+                if proof.verify(
                     other_root,
-                    &indices,
-                    leaves.as_slice(),
-                    leaves.len(),
-                );
-                if matched {
-                    return Ok(Comparison::Contains(index, leaf));
+                    indices_to_prove.as_slice(),
+                    leaves_to_prove.as_slice(),
+                    count,
+                ) {
+                    Ok(Comparison::Contains(
+                        indices_to_prove,
+                        leaves_to_prove,
+                    ))
+                } else {
+                    Ok(Comparison::Unknown)
                 }
+            } else {
+                Ok(Comparison::Unknown)
             }
-            Ok(Comparison::Unknown)
         }
-    }
-
-    /// Get a commit proof for the given leaf indices.
-    pub fn proof(&self, leaf_indices: &[usize]) -> MerkleProof<Sha256> {
-        self.tree.proof(leaf_indices)
     }
 
     /// Get the root hash of the underlying merkle tree.

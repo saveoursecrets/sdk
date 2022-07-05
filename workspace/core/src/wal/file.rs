@@ -14,11 +14,11 @@
 //!
 use crate::{
     commit_tree::{hash, CommitTree},
+    constants::{WAL_EXT, WAL_IDENTITY},
+    encode,
     events::WalEvent,
-    file_identity::{FileIdentity, WAL_IDENTITY},
     timestamp::Timestamp,
-    vault::{encode, CommitHash},
-    Error, Result,
+    CommitHash, Error, FileIdentity, Result,
 };
 use std::{
     fs::{File, OpenOptions},
@@ -105,13 +105,17 @@ impl WalFile {
         })
     }
 
+    /// Get the path to this WAL file.
+    pub fn path(&self) -> &PathBuf {
+        &self.file_path
+    }
+
     /// Create the write ahead log file.
     fn create<P: AsRef<Path>>(path: P) -> Result<File> {
         let exists = path.as_ref().exists();
 
         if !exists {
-            let file = File::create(path.as_ref())?;
-            drop(file);
+            File::create(path.as_ref())?;
         }
 
         let mut file = OpenOptions::new()
@@ -121,9 +125,7 @@ impl WalFile {
 
         let size = file.metadata()?.len();
         if size == 0 {
-            let identity = FileIdentity(WAL_IDENTITY);
-            let buffer = encode(&identity)?;
-            file.write_all(&buffer)?;
+            file.write_all(&WAL_IDENTITY)?;
         }
         Ok(file)
     }
@@ -141,7 +143,7 @@ impl WalFile {
 
     /// The file extension for WAL files.
     pub fn extension() -> &'static str {
-        "wal"
+        WAL_EXT
     }
 }
 
@@ -159,7 +161,7 @@ impl WalProvider for WalFile {
             file.seek(SeekFrom::Start(start as u64))?;
             let mut buffer = vec![0; end - start];
             file.read_exact(buffer.as_mut_slice())?;
-            partial.extend_from_slice(buffer.as_slice());
+            partial.append(&mut buffer);
             Ok(partial)
         } else {
             Ok(partial)
@@ -180,7 +182,7 @@ impl WalProvider for WalFile {
         for event in events {
             let (commit, record) = self.encode_event(event)?;
             commits.push(commit);
-            buffer.extend_from_slice(&encode(&record)?);
+            buffer.append(&mut encode(&record)?);
         }
 
         let mut hashes =
@@ -225,8 +227,8 @@ impl WalProvider for WalFile {
         Ok(commit)
     }
 
-    fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>> {
-        let value = item.value;
+    fn event_data(&self, item: &Self::Item) -> Result<WalEvent<'_>> {
+        let value = &item.value;
 
         // Use a different file handle as the owned `file` should
         // be used exclusively for appending
@@ -250,6 +252,7 @@ impl WalProvider for WalFile {
             let record = record?;
             commits.push(record.commit());
         }
+        self.tree = CommitTree::new();
         self.tree.append(&mut commits);
         self.tree.commit();
         Ok(())

@@ -3,25 +3,23 @@
 
 pub mod address;
 pub mod commit_tree;
+pub mod constants;
 pub mod crypto;
-pub mod diceware;
+mod diceware;
 mod error;
 pub mod events;
-pub mod file_access;
-pub mod file_identity;
+mod file_access;
+mod file_identity;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod file_locks;
+mod file_locks;
 
-pub mod gatekeeper;
-pub mod headers;
-
-#[deprecated]
-pub mod passphrase;
+mod gatekeeper;
+mod hash;
 
 pub mod secret;
 pub mod signer;
-pub mod timestamp;
+mod timestamp;
 pub mod vault;
 pub mod wal;
 
@@ -36,7 +34,15 @@ pub use web3_signature;
 pub use crypto::algorithms::Algorithm;
 pub use vault::{decode, encode};
 
+pub use diceware::{generate_passphrase, generate_passphrase_words};
 pub use error::Error;
+pub use file_access::VaultFileAccess;
+pub use file_identity::FileIdentity;
+#[cfg(not(target_arch = "wasm32"))]
+pub use file_locks::FileLocks;
+pub use gatekeeper::Gatekeeper;
+pub use hash::CommitHash;
+pub use timestamp::Timestamp;
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;

@@ -30,10 +30,10 @@ pub trait AuditProvider {
     /// Error type for this implementation.
     type Error;
 
-    /// Append an audit log record to a destination.
-    async fn append_audit_event(
+    /// Append audit log records to a destination.
+    async fn append_audit_events(
         &mut self,
-        logs: AuditEvent,
+        events: &[AuditEvent],
     ) -> std::result::Result<(), Self::Error>;
 }
 
@@ -123,7 +123,6 @@ impl AuditEvent {
             SyncEvent::CreateVault(_)
             | SyncEvent::ReadVault
             | SyncEvent::DeleteVault
-            | SyncEvent::UpdateVault(_)
             | SyncEvent::GetVaultName
             | SyncEvent::SetVaultName(_)
             | SyncEvent::SetVaultMeta(_) => AuditData::Vault(vault_id),

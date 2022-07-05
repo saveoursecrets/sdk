@@ -14,8 +14,7 @@ use crate::{
     decode, encode,
     events::WalEvent,
     timestamp::Timestamp,
-    vault::CommitHash,
-    Result,
+    CommitHash, Result,
 };
 use std::ops::Range;
 
@@ -129,7 +128,7 @@ impl WalProvider for WalMemory {
         Ok(commit)
     }
 
-    fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>> {
+    fn event_data(&self, item: &Self::Item) -> Result<WalEvent<'_>> {
         let event: WalEvent = decode(&item.1 .2)?;
         Ok(event)
     }
