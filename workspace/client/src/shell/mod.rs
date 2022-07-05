@@ -107,6 +107,10 @@ enum ShellCommand {
         #[clap(subcommand)]
         cmd: History,
     },
+    /// Download changes from the remote server.
+    Pull,
+    /// Upload changes to the remote server.
+    Push,
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -325,9 +329,6 @@ where
                 let local_num = info.local.1;
                 let remote_num = info.remote.1;
 
-                let should_pull = remote_num >= local_num;
-                //let sync_title = if should_pull { "pull" } else { "push" };
-
                 let banner = Banner::new()
                     .padding(Padding::one())
                     .text(Cow::Borrowed("!!! CONFLICT !!!"))
@@ -356,10 +357,12 @@ where
                 match choose(prompt, &options)? {
                     Some(choice) => match choice {
                         ConflictChoice::Pull => {
-                            run_blocking(writer.force_pull(&info.summary))
+                            run_blocking(writer.force_pull(&info.summary))?;
+                            Ok(())
                         }
                         ConflictChoice::Push => {
-                            run_blocking(writer.force_push(&info.summary))
+                            run_blocking(writer.force_push(&info.summary))?;
+                            Ok(())
                         }
                         ConflictChoice::Noop => Ok(()),
                     },
@@ -775,6 +778,32 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     Ok(())
                 }
             }
+        }
+        ShellCommand::Pull => {
+            let mut writer = cache.write().unwrap();
+            let keeper = writer.current().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
+            let result = run_blocking(writer.pull(&summary))?;
+            match result.after {
+                Some(proof) => {
+                    println!("Pull complete {}", proof.root_hex())
+                }
+                None => println!("Up to date"),
+            }
+            Ok(())
+        }
+        ShellCommand::Push => {
+            let mut writer = cache.write().unwrap();
+            let keeper = writer.current().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
+            let result = run_blocking(writer.push(&summary))?;
+            match result.after {
+                Some(proof) => {
+                    println!("Push complete {}", proof.root_hex())
+                }
+                None => println!("Up to date"),
+            }
+            Ok(())
         }
         ShellCommand::Whoami => {
             let reader = cache.read().unwrap();

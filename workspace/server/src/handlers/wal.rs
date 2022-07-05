@@ -486,14 +486,16 @@ impl WalHandler {
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
-                // Always send the `x-commit-hash` and `x-commit-proof`
-                // headers to the client
                 let mut headers = HeaderMap::new();
                 let proof = wal
                     .tree()
                     .head()
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
                 append_commit_headers(&mut headers, &proof)?;
+
+                // TODO: send the x-match-proof header when the
+                // TODO: client is contained in this commit tree
 
                 Ok((StatusCode::OK, headers))
             } else {

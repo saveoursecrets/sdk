@@ -37,10 +37,11 @@ fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
 
 pub(crate) fn decode_match_proof(
     headers: &HeaderMap,
-) -> Result<Option<Vec<u8>>> {
-    if let Some(leaf_proof) = headers.get(X_MATCH_PROOF) {
-        let leaf_proof = base64::decode(leaf_proof)?;
-        Ok(Some(leaf_proof))
+) -> Result<Option<CommitProof>> {
+    if let Some(commit_proof) = headers.get(X_MATCH_PROOF) {
+        let value = base64::decode(commit_proof)?;
+        let value: CommitProof = decode(&value)?;
+        Ok(Some(value))
     } else {
         Ok(None)
     }
@@ -280,7 +281,7 @@ impl Client {
     pub async fn head_wal(
         &self,
         vault_id: &Uuid,
-    ) -> Result<(Response, CommitProof)> {
+    ) -> Result<(Response, CommitProof, Option<CommitProof>)> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let (message, signature) = self.self_signed().await?;
         let response = self
@@ -293,7 +294,8 @@ impl Client {
         let headers = response.headers();
         let server_proof =
             decode_headers_proof(headers)?.ok_or(Error::ServerProof)?;
-        Ok((response, server_proof))
+        let match_proof = decode_match_proof(headers)?;
+        Ok((response, server_proof, match_proof))
     }
 
     /// Get an event source for the changes feed.
