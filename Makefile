@@ -6,7 +6,6 @@ browser-gui:
 	@rm -rf workspace/server/public
 	@cd ../browser && make dist
 	@cp -r ../browser/app/dist workspace/server/public
-	@rm -rf workspace/server/public/assets
 .PHONY: browser-gui
 
 dev-server:

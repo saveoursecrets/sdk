@@ -2,13 +2,13 @@
 
 > Save our Secrets (SOS) is a cross-platform, distributed, encrypted database with a focus on security, integrity and redundancy. It can be used to store private secrets such as account passwords, notes, certificates and encryption keys.
 
-This repository contains the core library code and several executables and command line tools.
+This repository contains the core library code and several command line interface (CLI) tools.
 
 * [sandbox](/sandbox) Configuration and storage location for local testing.
-* [workspace](/workspace) Libraries and command line interface (CLI) tools.
+* [workspace](/workspace) Libraries and command line interfaces.
     * [audit](/workspace/audit) The `sos-audit` tool for reading and monitoring audit logs.
     * [check](/workspace/check) The `sos-check` tool for verifying file integrity and inspecting files.
-    * [client](/workspace/client) Client library and terminal read-eval-print-loop (REPL) tool.
+    * [client](/workspace/client) Client library and the `sos-client` terminal read-eval-print-loop (REPL) tool.
     * [core](/workspace/core) Core library including types and traits common to the client and server implementations.
     * [readline](/workspace/readline) Utility functions for reading from stdin, used by the terminal REPL client.
     * [server](/workspace/server) Server command line interface.
