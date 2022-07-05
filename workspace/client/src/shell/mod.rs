@@ -13,8 +13,10 @@ use url::Url;
 
 use human_bytes::human_bytes;
 use sos_core::{
+    commit_tree::wal_commit_tree,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
+    wal::WalItem,
     CommitHash,
 };
 use sos_readline::{
@@ -94,11 +96,10 @@ enum ShellCommand {
         #[clap(subcommand)]
         cmd: SnapShot,
     },
-    /// Compact the currently selected vault removing history.
-    Compact {
-        /// Take a snapshot before compaction.
-        #[clap(short, long)]
-        snapshot: bool,
+    /// Inspect the history for the selected vault.
+    History {
+        #[clap(subcommand)]
+        cmd: History,
     },
     /// Print the current identity.
     Whoami,
@@ -128,7 +129,27 @@ enum SnapShot {
     /// List snapshots.
     #[clap(alias = "ls")]
     List {
-        /// Print more file path and size
+        /// Print more information; includes file path and size.
+        #[clap(short, long)]
+        long: bool,
+    },
+    // TODO: support removing all existing snapshots: `purge`?
+}
+
+#[derive(Subcommand, Debug)]
+enum History {
+    /// Compact the currently selected vault WAL file.
+    Compact {
+        /// Take a snapshot before compaction.
+        #[clap(short, long)]
+        snapshot: bool,
+    },
+    /// Verify the integrity of the WAL file.
+    Check,
+    /// List history events.
+    #[clap(alias = "ls")]
+    List {
+        /// Print more information.
         #[clap(short, long)]
         long: bool,
     },
@@ -684,21 +705,58 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 Ok(())
             }
         },
-        ShellCommand::Compact { snapshot } => {
-            let reader = cache.read().unwrap();
-            let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary().clone();
-            if snapshot {
-                reader.take_snapshot(&summary)?;
-            }
-            drop(reader);
+        ShellCommand::History { cmd } => {
+            match cmd {
+                History::Compact { snapshot } => {
+                    let reader = cache.read().unwrap();
+                    let keeper =
+                        reader.current().ok_or(Error::NoVaultSelected)?;
+                    let summary = keeper.summary().clone();
+                    if snapshot {
+                        reader.take_snapshot(&summary)?;
+                    }
+                    drop(reader);
 
-            let mut writer = cache.write().unwrap();
-            let (old_size, new_size) =
-                run_blocking(writer.compact(&summary))?;
-            println!("Old: {}", human_bytes(old_size as f64));
-            println!("New: {}", human_bytes(new_size as f64));
-            Ok(())
+                    let prompt = Some("Compaction will remove history, are you sure (y/n)? ");
+                    if read_flag(prompt)? {
+                        let mut writer = cache.write().unwrap();
+                        let (old_size, new_size) =
+                            run_blocking(writer.compact(&summary))?;
+                        println!("Old: {}", human_bytes(old_size as f64));
+                        println!("New: {}", human_bytes(new_size as f64));
+                    }
+                    Ok(())
+                }
+                History::Check => {
+                    let reader = cache.read().unwrap();
+                    let keeper =
+                        reader.current().ok_or(Error::NoVaultSelected)?;
+                    let wal_path = reader.wal_path(keeper.summary());
+
+                    // Verify checksums in the commit tree
+                    wal_commit_tree(&wal_path, true, |_| {})?;
+                    println!("Verified ✓");
+
+                    Ok(())
+                }
+                History::List { long } => {
+                    let reader = cache.read().unwrap();
+                    let keeper =
+                        reader.current().ok_or(Error::NoVaultSelected)?;
+
+                    let records = reader.history(keeper.summary())?;
+                    for (record, event) in records {
+                        let commit = CommitHash(record.commit());
+                        print!("{} {} ", event.event_kind(), record.time());
+                        if long {
+                            println!("{}", commit);
+                        } else {
+                            print!("\n");
+                        }
+                    }
+                    Ok(())
+                }
+            }
         }
         ShellCommand::Whoami => {
             let reader = cache.read().unwrap();

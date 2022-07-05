@@ -16,7 +16,7 @@ use sos_core::{
     secret::SecretRef,
     vault::{Summary, Vault},
     wal::{
-        file::WalFile,
+        file::{WalFile, WalFileRecord},
         reducer::WalReducer,
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
@@ -66,6 +66,12 @@ pub trait ClientCache {
 
     /// Take a snapshot of the WAL for the given vault.
     fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
+
+    /// Get the history for a WAL file.
+    fn history(
+        &self,
+        summary: &Summary,
+    ) -> Result<Vec<(WalFileRecord, WalEvent<'_>)>>;
 
     /// Compact a WAL file.
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
@@ -183,6 +189,23 @@ impl ClientCache for Cache {
             .ok_or(Error::CacheNotAvailable(summary.id().clone()))?;
         let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
         Ok(self.snapshots.create(summary.id(), wal.path(), root_hash)?)
+    }
+
+    fn history(
+        &self,
+        summary: &Summary,
+    ) -> Result<Vec<(WalFileRecord, WalEvent<'_>)>> {
+        let (wal, _) = self
+            .cache
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(summary.id().clone()))?;
+        let mut records = Vec::new();
+        for record in wal.iter()? {
+            let record = record?;
+            let event = wal.event_data(&record)?;
+            records.push((record, event));
+        }
+        Ok(records)
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
@@ -579,17 +602,17 @@ impl Cache {
         Ok(())
     }
 
-    fn wal_path(&self, summary: &Summary) -> PathBuf {
+    pub fn wal_path(&self, summary: &Summary) -> PathBuf {
         let wal_name = format!("{}.{}", summary.id(), WalFile::extension());
         self.user_dir.join(&wal_name)
     }
 
-    fn vault_path(&self, summary: &Summary) -> PathBuf {
+    pub fn vault_path(&self, summary: &Summary) -> PathBuf {
         let wal_name = format!("{}.{}", summary.id(), Vault::extension());
         self.user_dir.join(&wal_name)
     }
 
-    fn patch_path(&self, summary: &Summary) -> PathBuf {
+    pub fn patch_path(&self, summary: &Summary) -> PathBuf {
         let patch_name =
             format!("{}.{}", summary.id(), PatchFile::extension());
         self.user_dir.join(&patch_name)

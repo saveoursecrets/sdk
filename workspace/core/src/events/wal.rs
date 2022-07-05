@@ -42,7 +42,7 @@ pub enum WalEvent<'a> {
 
 impl WalEvent<'_> {
     /// Get the event kind for this event.
-    fn event_kind(&self) -> EventKind {
+    pub fn event_kind(&self) -> EventKind {
         match self {
             WalEvent::Noop => EventKind::Noop,
             WalEvent::CreateVault(_) => EventKind::CreateVault,

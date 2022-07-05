@@ -161,7 +161,7 @@ impl WalProvider for WalFile {
             file.seek(SeekFrom::Start(start as u64))?;
             let mut buffer = vec![0; end - start];
             file.read_exact(buffer.as_mut_slice())?;
-            partial.extend_from_slice(buffer.as_slice());
+            partial.append(&mut buffer);
             Ok(partial)
         } else {
             Ok(partial)
@@ -182,7 +182,7 @@ impl WalProvider for WalFile {
         for event in events {
             let (commit, record) = self.encode_event(event)?;
             commits.push(commit);
-            buffer.extend_from_slice(&encode(&record)?);
+            buffer.append(&mut encode(&record)?);
         }
 
         let mut hashes =
@@ -227,8 +227,8 @@ impl WalProvider for WalFile {
         Ok(commit)
     }
 
-    fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>> {
-        let value = item.value;
+    fn event_data(&self, item: &Self::Item) -> Result<WalEvent<'_>> {
+        let value = &item.value;
 
         // Use a different file handle as the owned `file` should
         // be used exclusively for appending

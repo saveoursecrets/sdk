@@ -194,4 +194,8 @@ pub enum Error {
     /// Error generated converting time types.
     #[error(transparent)]
     Time(#[from] time::error::ComponentRange),
+
+    /// Error generated formatting time.
+    #[error(transparent)]
+    TimeFormat(#[from] time::error::Format),
 }

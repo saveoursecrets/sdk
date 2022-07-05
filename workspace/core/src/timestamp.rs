@@ -10,7 +10,12 @@ use std::fmt;
 
 use filetime::FileTime;
 
-use time::{Duration, OffsetDateTime, UtcOffset};
+use time::{
+    format_description::well_known::{Rfc2822, Rfc3339},
+    Duration, OffsetDateTime, UtcOffset,
+};
+
+use crate::Result;
 
 /// Timestamp for events and log records.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialOrd, Eq, PartialEq)]
@@ -22,17 +27,51 @@ impl Default for Timestamp {
     }
 }
 
+impl Timestamp {
+    /// Convert this timestamp to a RFC2822 formatted string.
+    pub fn to_rfc2822(&self) -> Result<String> {
+        Ok(Timestamp::rfc2822(&self.0)?)
+    }
+
+    /// Convert an offset date time to a RFC2822 formatted string.
+    fn rfc2822(datetime: &OffsetDateTime) -> Result<String> {
+        Ok(datetime.format(&Rfc2822)?)
+    }
+
+    /// Convert this timestamp to a RFC3339 formatted string.
+    pub fn to_rfc3339(&self) -> Result<String> {
+        Ok(Timestamp::rfc3339(&self.0)?)
+    }
+
+    /// Convert an offset date time to a RFC3339 formatted string.
+    fn rfc3339(datetime: &OffsetDateTime) -> Result<String> {
+        Ok(datetime.format(&Rfc3339)?)
+    }
+}
+
 impl fmt::Display for Timestamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match UtcOffset::current_local_offset() {
             Ok(local_offset) => {
                 let datetime = self.0.clone();
                 datetime.to_offset(local_offset);
-                write!(f, "{}", datetime)
+                match Timestamp::rfc2822(&datetime) {
+                    Ok(value) => {
+                        write!(f, "{}", value)
+                    }
+                    Err(_) => {
+                        write!(f, "{}", datetime)
+                    }
+                }
             }
-            Err(_) => {
-                write!(f, "{}", self.0)
-            }
+            Err(_) => match self.to_rfc2822() {
+                Ok(value) => {
+                    write!(f, "{}", value)
+                }
+                Err(_) => {
+                    write!(f, "{}", self.0)
+                }
+            },
         }
     }
 }

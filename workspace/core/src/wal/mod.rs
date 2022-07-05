@@ -55,7 +55,7 @@ pub trait WalProvider {
     fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash>;
 
     /// Read the event data from an item.
-    fn event_data(&self, item: Self::Item) -> Result<WalEvent<'_>>;
+    fn event_data(&self, item: &Self::Item) -> Result<WalEvent<'_>>;
 
     /// Get the commit tree for the log records.
     fn tree(&self) -> &CommitTree;
@@ -213,7 +213,7 @@ mod test {
         let mut client = WalMemory::new();
         for record in server.iter()? {
             let record = record?;
-            let event = server.event_data(record)?;
+            let event = server.event_data(&record)?;
             client.append_event(event)?;
         }
 

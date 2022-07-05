@@ -45,13 +45,13 @@ impl<'a> WalReducer<'a> {
         let mut it = wal.iter()?;
         if let Some(first) = it.next() {
             let log = first?;
-            let event = wal.event_data(log)?;
+            let event = wal.event_data(&log)?;
 
             if let WalEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
                 for record in it {
                     let log = record?;
-                    let event = wal.event_data(log)?;
+                    let event = wal.event_data(&log)?;
                     match event {
                         WalEvent::Noop => unreachable!(),
                         WalEvent::CreateVault(_) => {
