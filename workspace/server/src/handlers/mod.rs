@@ -56,15 +56,13 @@ fn append_match_header(
 
 async fn append_audit_logs<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
-    logs: Vec<AuditEvent>,
+    events: Vec<AuditEvent>,
 ) -> Result<(), StatusCode> {
-    for log in logs {
-        writer
-            .audit_log
-            .append_audit_event(log)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    }
+    writer
+        .audit_log
+        .append_audit_events(&events)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(())
 }
 

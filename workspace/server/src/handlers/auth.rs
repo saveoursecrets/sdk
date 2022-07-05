@@ -22,6 +22,8 @@ use crate::{
     State,
 };
 
+use super::append_audit_logs;
+
 // Handlers for authentication.
 pub(crate) struct AuthHandler;
 impl AuthHandler {
@@ -53,12 +55,7 @@ impl AuthHandler {
                         token.address,
                         None,
                     );
-                    writer
-                        .audit_log
-                        .append_audit_event(log)
-                        .await
-                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
+                    append_audit_logs(&mut writer, vec![log]).await?;
                     let challenge = writer.authentication.new_challenge();
                     Ok(Json(challenge))
                 } else {
@@ -115,14 +112,7 @@ impl AuthHandler {
                                 token.address,
                                 None,
                             );
-                            writer
-                                .audit_log
-                                .append_audit_event(log)
-                                .await
-                                .map_err(|_| {
-                                    StatusCode::INTERNAL_SERVER_ERROR
-                                })?;
-
+                            append_audit_logs(&mut writer, vec![log]).await?;
                             Ok(Json(summaries))
                         } else {
                             Err(StatusCode::INTERNAL_SERVER_ERROR)

@@ -48,11 +48,15 @@ impl AuditLogFile {
 #[async_trait]
 impl AuditProvider for AuditLogFile {
     type Error = crate::Error;
-    async fn append_audit_event(
+    async fn append_audit_events(
         &mut self,
-        log: AuditEvent,
+        events: &[AuditEvent],
     ) -> std::result::Result<(), Self::Error> {
-        let buffer = encode(&log)?;
+        let mut buffer = Vec::new();
+        for event in events {
+            let mut event = encode(event)?;
+            buffer.append(&mut event);
+        }
         self.file.write_all(&buffer).await?;
         Ok(())
     }
