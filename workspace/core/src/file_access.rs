@@ -19,18 +19,18 @@ use serde_binary::{
 use uuid::Uuid;
 
 use crate::{
+    constants::VAULT_IDENTITY,
+    crypto::AeadPack,
     events::SyncEvent,
-    file_identity::{FileIdentity, VAULT_IDENTITY},
     secret::SecretId,
     vault::{
-        encode, CommitHash, Contents, Header, Summary, VaultAccess,
-        VaultCommit, VaultEntry,
+        encode, Contents, Header, Summary, VaultAccess, VaultCommit,
+        VaultEntry,
     },
-    Result,
+    CommitHash, FileIdentity, Result,
 };
 
-/// Wrapper type for accessing a vault file that manages
-/// an underlying file stream.
+/// Implements access to an encrypted vault backed by a file on disc.
 pub struct VaultFileAccess {
     file_path: PathBuf,
     stream: Mutex<FileStream>,
@@ -213,12 +213,32 @@ impl VaultAccess for VaultFileAccess {
         Ok(SyncEvent::SetVaultName(Cow::Owned(name)))
     }
 
+    fn set_vault_meta(
+        &mut self,
+        meta_data: Option<AeadPack>,
+    ) -> Result<SyncEvent<'_>> {
+        let content_offset = self.check_identity()?;
+        let mut header = Header::read_header_file(&self.file_path)?;
+        header.set_meta(meta_data.clone());
+        self.write_header(content_offset, &header)?;
+        Ok(SyncEvent::SetVaultMeta(Cow::Owned(meta_data)))
+    }
+
     fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<SyncEvent<'_>> {
         let id = Uuid::new_v4();
+        self.insert(id, commit, secret)
+    }
+
+    fn insert(
+        &mut self,
+        id: SecretId,
+        commit: CommitHash,
+        secret: VaultEntry,
+    ) -> Result<SyncEvent<'_>> {
         let content_offset = self.check_identity()?;
         let total_rows = self.rows(content_offset)?;
 

@@ -10,7 +10,6 @@ use web3_keystore::{decrypt, KeyStore};
 
 mod cache;
 mod client;
-mod create;
 mod error;
 mod monitor;
 mod shell;
@@ -21,7 +20,7 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 /// Runs a future blocking the current thread so we can
 /// merge the synchronous nature of the shell prompt with the
 /// asynchronous API exposed by the client.
-pub(crate) fn run_blocking<F, R>(func: F) -> Result<R>
+pub fn run_blocking<F, R>(func: F) -> Result<R>
 where
     F: Future<Output = Result<R>> + Send,
     R: Send,
@@ -50,6 +49,10 @@ impl ClientBuilder {
 
     /// Build a client implementation wrapping a signing key.
     pub fn build(self) -> Result<Client> {
+        if !self.keystore.exists() {
+            return Err(Error::NotFile(self.keystore));
+        }
+
         // Decrypt the keystore and create the client.
         let mut keystore_file = File::open(&self.keystore)?;
         let mut keystore_bytes = Vec::new();
@@ -65,10 +68,9 @@ impl ClientBuilder {
     }
 }
 
-pub use cache::Cache;
-pub use client::{Client, VaultInfo};
-pub use create::vault as create_vault;
-pub use error::Error;
+pub use cache::{Cache, ClientCache};
+pub use client::Client;
+pub use error::{Conflict, Error};
 pub use monitor::monitor;
 pub use shell::exec;
 pub use signup::signup;

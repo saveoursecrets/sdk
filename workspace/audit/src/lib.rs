@@ -27,7 +27,7 @@ pub fn logs(audit_log: PathBuf, json: bool) -> Result<()> {
                 AuditData::Vault(vault_id) => {
                     tracing::info!(
                         "{} {} by {} (vault = {})",
-                        log.time,
+                        log.time.to_rfc3339()?,
                         log.operation,
                         log.address,
                         vault_id,
@@ -36,7 +36,7 @@ pub fn logs(audit_log: PathBuf, json: bool) -> Result<()> {
                 AuditData::Secret(vault_id, secret_id) => {
                     tracing::info!(
                         "{} {} by {} (vault = {}, secret = {})",
-                        log.time,
+                        log.time.to_rfc3339()?,
                         log.operation,
                         log.address,
                         vault_id,
@@ -47,7 +47,7 @@ pub fn logs(audit_log: PathBuf, json: bool) -> Result<()> {
         } else {
             tracing::info!(
                 "{} {} by {}",
-                log.time,
+                log.time.to_rfc3339()?,
                 log.operation,
                 log.address,
             );

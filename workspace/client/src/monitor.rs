@@ -8,7 +8,7 @@ use sos_core::events::ChangeEvent;
 
 use crate::{run_blocking, Client, ClientBuilder, Result};
 
-async fn stream(client: Client) -> Result<()> {
+async fn stream(client: &Client) -> Result<()> {
     let mut es = client.changes().await?;
     while let Some(event) = es.next().await {
         match event {
@@ -68,7 +68,7 @@ async fn stream(client: Client) -> Result<()> {
 /// Start a monitor listening for events on the SSE stream.
 pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
     let client = ClientBuilder::new(server, keystore).build()?;
-    if let Err(e) = run_blocking(stream(client)) {
+    if let Err(e) = run_blocking(stream(&client)) {
         tracing::error!("{}", e);
         std::process::exit(1);
     }

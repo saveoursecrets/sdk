@@ -44,9 +44,6 @@ pub enum SyncEvent<'a> {
     /// SyncEvent used to indicate that a vault was read.
     ReadVault,
 
-    /// SyncEvent used to indicate that a vault was updated.
-    UpdateVault(Cow<'a, [u8]>),
-
     /// SyncEvent used to indicate a vault was deleted.
     DeleteVault,
 
@@ -107,7 +104,6 @@ impl SyncEvent<'_> {
             SyncEvent::Noop => EventKind::Noop,
             SyncEvent::CreateVault(_) => EventKind::CreateVault,
             SyncEvent::ReadVault => EventKind::ReadVault,
-            SyncEvent::UpdateVault(_) => EventKind::UpdateVault,
             SyncEvent::DeleteVault => EventKind::DeleteVault,
             SyncEvent::GetVaultName => EventKind::GetVaultName,
             SyncEvent::SetVaultName(_) => EventKind::SetVaultName,
@@ -131,9 +127,6 @@ impl SyncEvent<'_> {
                 SyncEvent::CreateVault(Cow::Owned(value.into_owned()))
             }
             SyncEvent::ReadVault => SyncEvent::ReadVault,
-            SyncEvent::UpdateVault(value) => {
-                SyncEvent::UpdateVault(Cow::Owned(value.into_owned()))
-            }
             SyncEvent::DeleteVault => SyncEvent::DeleteVault,
             SyncEvent::GetVaultName => SyncEvent::GetVaultName,
             SyncEvent::SetVaultName(value) => {
@@ -162,10 +155,6 @@ impl<'a> Encode for SyncEvent<'a> {
         match self {
             SyncEvent::Noop => panic!("SyncEvent: attempt to encode a noop"),
             SyncEvent::CreateVault(vault) => {
-                ser.writer.write_u32(vault.as_ref().len() as u32)?;
-                ser.writer.write_bytes(vault.as_ref())?;
-            }
-            SyncEvent::UpdateVault(vault) => {
                 ser.writer.write_u32(vault.as_ref().len() as u32)?;
                 ser.writer.write_bytes(vault.as_ref())?;
             }
@@ -213,11 +202,6 @@ impl<'a> Decode for SyncEvent<'a> {
             }
             EventKind::ReadVault => {
                 *self = SyncEvent::ReadVault;
-            }
-            EventKind::UpdateVault => {
-                let length = de.reader.read_u32()?;
-                let buffer = de.reader.read_bytes(length as usize)?;
-                *self = SyncEvent::UpdateVault(Cow::Owned(buffer));
             }
             EventKind::DeleteVault => {
                 *self = SyncEvent::DeleteVault;

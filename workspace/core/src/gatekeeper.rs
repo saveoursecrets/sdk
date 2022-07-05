@@ -1,19 +1,4 @@
 //! Gatekeeper manages access to a vault.
-//!
-//! It stores the private key in memory so should only be used on client
-//! implementations.
-//!
-//! Calling `lock()` will zeroize the private key in memory and prevent
-//! any access to the vault until `unlock()` is called successfully.
-//!
-//! To allow for meta data to be displayed before secret decryption
-//! certain parts of a vault are encrypted separately which means that
-//! technically it would be possible to use different private keys for
-//! different secrets and for the meta data however this would be
-//! a very poor user experience and would lead to confusion so the
-//! gatekeeper is also responsible for ensuring the same private key
-//! is used to encrypt the different chunks.
-//!
 use crate::{
     crypto::{secret_key::SecretKey, AeadPack},
     decode, encode,
@@ -26,13 +11,29 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use zeroize::Zeroize;
 
-/// Manage access to a vault's secrets.
+/// Access to an in-memory vault optionally mirroring changes to disc.
+///
+/// It stores the private key in memory so should only be used on client
+/// implementations.
+///
+/// Calling `lock()` will zeroize the private key in memory and prevent
+/// any access to the vault until `unlock()` is called successfully.
+///
+/// To allow for meta data to be displayed before secret decryption
+/// certain parts of a vault are encrypted separately which means that
+/// technically it would be possible to use different private keys for
+/// different secrets and for the meta data however this would be
+/// a very poor user experience and would lead to confusion so the
+/// gatekeeper is also responsible for ensuring the same private key
+/// is used to encrypt the different chunks.
 #[derive(Default)]
 pub struct Gatekeeper {
     /// The private key.
-    private_key: Option<Box<SecretKey>>,
+    private_key: Option<SecretKey>,
     /// The underlying vault.
     vault: Vault,
+    /// Mirror for in-memory vault changes.
+    mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
 }
 
 impl Gatekeeper {
@@ -41,6 +42,19 @@ impl Gatekeeper {
         Self {
             vault,
             private_key: None,
+            mirror: None,
+        }
+    }
+
+    /// Create a new gatekeeper with a mirror.
+    pub fn new_mirror(
+        vault: Vault,
+        mirror: Box<dyn VaultAccess + Send + Sync>,
+    ) -> Self {
+        Self {
+            vault,
+            private_key: None,
+            mirror: Some(mirror),
         }
     }
 
@@ -75,7 +89,10 @@ impl Gatekeeper {
     }
 
     /// Set the public name for the vault.
-    pub fn set_vault_name(&mut self, name: String) -> Result<SyncEvent> {
+    pub fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>> {
+        if let Some(mirror) = self.mirror.as_mut() {
+            mirror.set_vault_name(name.clone())?;
+        }
         self.vault.set_vault_name(name)
     }
 
@@ -88,7 +105,7 @@ impl Gatekeeper {
     ) -> Result<()> {
         // Initialize the private key and store the salt
         let private_key = self.vault.initialize(password.as_ref())?;
-        self.private_key = Some(Box::new(private_key));
+        self.private_key = Some(private_key);
 
         // Assign the label to the meta data
         let mut init_meta_data: VaultMeta = Default::default();
@@ -151,12 +168,15 @@ impl Gatekeeper {
     }
 
     /// Set the meta data for the vault.
-    fn set_meta(&mut self, meta_data: VaultMeta) -> Result<()> {
+    // TODO: rename to set_vault_meta() for consistency
+    fn set_meta(&mut self, meta_data: VaultMeta) -> Result<SyncEvent<'_>> {
         if let Some(private_key) = &self.private_key {
             let meta_blob = encode(&meta_data)?;
             let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
-            self.vault.header_mut().set_meta(Some(meta_aead));
-            Ok(())
+            if let Some(mirror) = self.mirror.as_mut() {
+                mirror.set_vault_meta(Some(meta_aead.clone()))?;
+            }
+            self.vault.set_vault_meta(Some(meta_aead))
         } else {
             Err(Error::VaultLocked)
         }
@@ -218,7 +238,7 @@ impl Gatekeeper {
         &mut self,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<SyncEvent> {
+    ) -> Result<SyncEvent<'_>> {
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
@@ -237,9 +257,22 @@ impl Gatekeeper {
                 self.vault.encrypt(private_key, &secret_blob)?;
 
             let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
-            Ok(self
-                .vault
-                .create(commit, VaultEntry(meta_aead, secret_aead))?)
+
+            let id = Uuid::new_v4();
+
+            if let Some(mirror) = self.mirror.as_mut() {
+                mirror.insert(
+                    id,
+                    commit.clone(),
+                    VaultEntry(meta_aead.clone(), secret_aead.clone()),
+                )?;
+            }
+
+            Ok(self.vault.insert(
+                id,
+                commit,
+                VaultEntry(meta_aead, secret_aead),
+            )?)
         } else {
             Err(Error::VaultLocked)
         }
@@ -249,7 +282,7 @@ impl Gatekeeper {
     pub fn read(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(SecretMeta, Secret, SyncEvent)>> {
+    ) -> Result<Option<(SecretMeta, Secret, SyncEvent<'_>)>> {
         let payload = SyncEvent::ReadSecret(*id);
         Ok(self
             .read_secret(id)?
@@ -262,7 +295,7 @@ impl Gatekeeper {
         id: &SecretId,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Option<SyncEvent>> {
+    ) -> Result<Option<SyncEvent<'_>>> {
         // TODO: use cached in-memory meta data
         let meta = self.meta_data()?;
 
@@ -292,6 +325,15 @@ impl Gatekeeper {
                 self.vault.encrypt(private_key, &secret_blob)?;
 
             let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+
+            if let Some(mirror) = self.mirror.as_mut() {
+                mirror.update(
+                    id,
+                    commit.clone(),
+                    VaultEntry(meta_aead.clone(), secret_aead.clone()),
+                )?;
+            }
+
             Ok(self.vault.update(
                 id,
                 commit,
@@ -303,7 +345,10 @@ impl Gatekeeper {
     }
 
     /// Delete a secret and it's meta data from the vault.
-    pub fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent>> {
+    pub fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent<'_>>> {
+        if let Some(mirror) = self.mirror.as_mut() {
+            mirror.delete(id)?;
+        }
         self.vault.delete(id)
     }
 
@@ -339,7 +384,7 @@ impl Gatekeeper {
         if let Some(salt) = self.vault.salt() {
             let salt = SecretKey::parse_salt(salt)?;
             let private_key = SecretKey::derive_32(passphrase, &salt)?;
-            self.private_key = Some(Box::new(private_key));
+            self.private_key = Some(private_key);
             self.vault_meta()
         } else {
             Err(Error::VaultNotInit)

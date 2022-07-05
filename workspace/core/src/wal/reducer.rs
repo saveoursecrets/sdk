@@ -45,20 +45,17 @@ impl<'a> WalReducer<'a> {
         let mut it = wal.iter()?;
         if let Some(first) = it.next() {
             let log = first?;
-            let event = wal.event_data(log)?;
+            let event = wal.event_data(&log)?;
 
             if let WalEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
                 for record in it {
                     let log = record?;
-                    let event = wal.event_data(log)?;
+                    let event = wal.event_data(&log)?;
                     match event {
                         WalEvent::Noop => unreachable!(),
                         WalEvent::CreateVault(_) => {
                             return Err(Error::WalCreateEventOnlyFirst)
-                        }
-                        WalEvent::UpdateVault(vault) => {
-                            self.vault = Some(vault.clone());
                         }
                         WalEvent::SetVaultName(name) => {
                             self.vault_name = Some(name.clone());
@@ -138,7 +135,7 @@ impl<'a> WalReducer<'a> {
 
             for (id, entry) in self.secrets {
                 let entry = entry.into_owned();
-                vault.insert(id, entry);
+                vault.insert_entry(id, entry);
             }
             Ok(vault)
         } else {
@@ -154,8 +151,9 @@ mod test {
         crypto::secret_key::SecretKey,
         secret::{Secret, SecretId, SecretMeta},
         test_utils::*,
-        vault::{decode, CommitHash, VaultAccess, VaultCommit, VaultEntry},
+        vault::{decode, VaultAccess, VaultCommit, VaultEntry},
         wal::file::WalFile,
+        CommitHash,
     };
     use anyhow::Result;
     use tempfile::NamedTempFile;

@@ -1,10 +1,11 @@
 use crate::{
     crypto::secret_key::SecretKey,
-    diceware::generate_passphrase,
     events::{SyncEvent, WalEvent},
+    generate_passphrase,
     secret::{Secret, SecretId, SecretMeta},
-    vault::{encode, CommitHash, Vault, VaultAccess, VaultEntry},
+    vault::{encode, Vault, VaultAccess, VaultEntry},
     wal::{file::WalFile, WalProvider},
+    CommitHash,
 };
 use std::{borrow::Cow, io::Write};
 use uuid::Uuid;
@@ -16,7 +17,7 @@ use argon2::password_hash::SaltString;
 
 pub fn mock_encryption_key() -> Result<(SecretKey, SaltString)> {
     let salt = SecretKey::generate_salt();
-    let (passphrase, _) = generate_passphrase(None)?;
+    let (passphrase, _) = generate_passphrase()?;
     let encryption_key = SecretKey::derive_32(&passphrase, &salt)?;
     Ok((encryption_key, salt))
 }

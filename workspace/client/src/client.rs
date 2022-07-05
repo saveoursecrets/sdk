@@ -6,9 +6,10 @@ use reqwest::{
 use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
-    commit_tree::{decode_proof, encode_proof, CommitProof},
+    commit_tree::CommitProof,
+    constants::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
+    decode,
     events::Patch,
-    headers::{X_COMMIT_HASH, X_COMMIT_PROOF, X_SIGNED_MESSAGE},
     signer::Signer,
     vault::{encode, Summary, MIME_TYPE_VAULT},
 };
@@ -25,14 +26,21 @@ const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
 
 fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
-    if let (Some(commit_hash), Some(commit_proof)) =
-        (headers.get(X_COMMIT_HASH), headers.get(X_COMMIT_PROOF))
-    {
-        let commit_hash = base64::decode(commit_hash)?;
-        let commit_proof = base64::decode(commit_proof)?;
-        let commit_hash: [u8; 32] = commit_hash.as_slice().try_into()?;
-        let commit_proof = decode_proof(&commit_proof)?;
-        Ok(Some(CommitProof(commit_hash, commit_proof)))
+    if let Some(commit_proof) = headers.get(X_COMMIT_PROOF) {
+        let value = base64::decode(commit_proof)?;
+        let value: CommitProof = decode(&value)?;
+        Ok(Some(value))
+    } else {
+        Ok(None)
+    }
+}
+
+pub(crate) fn decode_match_proof(
+    headers: &HeaderMap,
+) -> Result<Option<Vec<u8>>> {
+    if let Some(leaf_proof) = headers.get(X_MATCH_PROOF) {
+        let leaf_proof = base64::decode(leaf_proof)?;
+        Ok(Some(leaf_proof))
     } else {
         Ok(None)
     }
@@ -41,16 +49,11 @@ fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
 fn encode_headers_proof(
     mut builder: RequestBuilder,
     proof: &CommitProof,
-) -> RequestBuilder {
-    builder = builder.header(X_COMMIT_HASH, base64::encode(&proof.0));
-    builder = builder
-        .header(X_COMMIT_PROOF, base64::encode(encode_proof(&proof.1)));
-    builder
+) -> Result<RequestBuilder> {
+    let value = encode(proof)?;
+    builder = builder.header(X_COMMIT_PROOF, base64::encode(&value));
+    Ok(builder)
 }
-
-/// Encapsulates the information returned
-/// by sending a HEAD request for a vault.
-pub struct VaultInfo {}
 
 pub struct Client {
     server: Url,
@@ -99,15 +102,21 @@ impl Client {
         let url = self.server.join("api/auth")?;
         let (message, signature) = self.self_signed().await?;
 
-        let challenge: (Uuid, Challenge) = self
+        let response = self
             .http_client
             .get(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
             .header(X_SIGNED_MESSAGE, base64::encode(&message))
             .send()
-            .await?
-            .json()
             .await?;
+
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let challenge: (Uuid, Challenge) = response.json().await?;
 
         let (uuid, message) = challenge;
         let url = format!("api/auth/{}", uuid);
@@ -115,15 +124,21 @@ impl Client {
         let signature =
             self.encode_signature(self.signer.sign(&message).await?)?;
 
-        let summaries: Vec<Summary> = self
+        let response = self
             .http_client
             .get(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature))
             .header(X_SIGNED_MESSAGE, base64::encode(&message))
             .send()
-            .await?
-            .json()
             .await?;
+
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let summaries: Vec<Summary> = response.json().await?;
 
         Ok(summaries)
     }
@@ -199,7 +214,7 @@ impl Client {
             .header(X_SIGNED_MESSAGE, base64::encode(&message));
 
         if let Some(proof) = proof {
-            builder = encode_headers_proof(builder, proof);
+            builder = encode_headers_proof(builder, proof)?;
         }
 
         let response = builder.send().await?;
@@ -227,8 +242,33 @@ impl Client {
             .patch(url)
             .header(AUTHORIZATION, self.bearer_prefix(&signature));
 
-        builder = encode_headers_proof(builder, proof);
+        builder = encode_headers_proof(builder, proof)?;
         builder = builder.body(message);
+
+        let response = builder.send().await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((response, server_proof))
+    }
+
+    /// Replace a WAL file.
+    pub async fn post_wal(
+        &self,
+        vault_id: &Uuid,
+        proof: &CommitProof,
+        body: Vec<u8>,
+    ) -> Result<(Response, Option<CommitProof>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let signature =
+            self.encode_signature(self.signer.sign(&body).await?)?;
+        let mut builder = self
+            .http_client
+            .post(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(body);
+
+        builder = encode_headers_proof(builder, proof)?;
 
         let response = builder.send().await?;
         let headers = response.headers();
