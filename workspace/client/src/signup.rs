@@ -1,6 +1,6 @@
 //! Signup a new account.
 use crate::{
-    display_passphrase, run_blocking, FileCache, Client, ClientCache, Error,
+    display_passphrase, run_blocking, Client, ClientCache, Error, FileCache,
     Result,
 };
 use sos_core::{

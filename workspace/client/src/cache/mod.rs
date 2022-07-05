@@ -1,7 +1,5 @@
 //! Types and traits for caching and synchronization.
-use crate::{
-    Result,
-};
+use crate::Result;
 
 use async_trait::async_trait;
 
@@ -10,11 +8,12 @@ use sos_core::{
     commit_tree::{CommitProof, CommitTree},
     events::{SyncEvent, WalEvent},
     secret::SecretRef,
-    vault::{Summary},
+    vault::Summary,
     wal::{
-        file::{WalFileRecord},
+        file::WalFileRecord,
         snapshot::{SnapShot, SnapShotManager},
-    }, Gatekeeper,
+    },
+    Gatekeeper,
 };
 
 use url::Url;

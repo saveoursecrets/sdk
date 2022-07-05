@@ -53,10 +53,21 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - name: Check webassembly compilation for core library
-        run: cd workspace/core && cargo check --target=wasm32-unknown-unknown
       - name: Run cargo build
         run: cargo build --release --all
+
+  wasm:
+    name: wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          target: wasm32-unknown-unknown
+      - name: Check webassembly compilation for core library
+        run: cd workspace/core && cargo check --target=wasm32-unknown-unknown
 
   audit:
     name: audit

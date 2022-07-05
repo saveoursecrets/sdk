@@ -34,7 +34,7 @@ use tempfile::NamedTempFile;
 use url::Url;
 use uuid::Uuid;
 
-use super::{ClientCache, SyncStatus, SyncInfo};
+use super::{ClientCache, SyncInfo, SyncStatus};
 
 fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -48,7 +48,6 @@ fn assert_proofs_eq(
         Ok(())
     }
 }
-
 
 /// Implements client-side caching of WAL files.
 pub struct FileCache {

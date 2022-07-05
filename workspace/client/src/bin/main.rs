@@ -9,8 +9,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
 use sos_client::{
-    exec, monitor, run_blocking, signup, FileCache, ClientBuilder, ClientCache,
-    Error, Result,
+    exec, monitor, run_blocking, signup, ClientBuilder, ClientCache, Error,
+    FileCache, Result,
 };
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
@@ -107,8 +107,9 @@ fn run() -> Result<()> {
             ensure_https(&server)?;
             let cache_dir = FileCache::cache_dir()?;
             let client = ClientBuilder::new(server, keystore).build()?;
-            let cache =
-                Arc::new(RwLock::new(FileCache::new(client, cache_dir, true)?));
+            let cache = Arc::new(RwLock::new(FileCache::new(
+                client, cache_dir, true,
+            )?));
 
             let reader = cache.read().unwrap();
             welcome(reader.server())?;
