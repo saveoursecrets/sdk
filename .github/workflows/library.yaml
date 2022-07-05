@@ -53,8 +53,10 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+      - name: Check webassembly compilation for core library
+        run: cd workspace/core && cargo check --target=wasm32-unknown-unknown
       - name: Run cargo build
-        run: cargo build --release
+        run: cargo build --release --all
 
   audit:
     name: audit
