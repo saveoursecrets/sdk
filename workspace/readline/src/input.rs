@@ -167,3 +167,25 @@ pub fn read_flag(prompt: Option<&str>) -> Result<bool> {
         Err(e) => Err(Error::Readline(e)),
     }
 }
+
+/// Represents a choice message and associated type.
+pub struct Choice<'a, T>(pub &'a str, pub T);
+
+/// Choose from a list of options.
+pub fn choose<'a, T>(
+    prompt: Option<&str>,
+    options: &'a [Choice<T>],
+) -> Result<Option<&'a T>> {
+    for (index, option) in options.iter().enumerate() {
+        println!("{}) {}", index + 1, option.0);
+    }
+
+    let value = read_line(prompt)?;
+    match value.parse::<usize>() {
+        Ok(num) => {
+            let num = if num > 0 { num - 1 } else { num };
+            Ok(options.get(num).as_ref().map(|result| &result.1))
+        }
+        Err(_) => Ok(None),
+    }
+}

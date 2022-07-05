@@ -502,6 +502,12 @@ impl Backend for FileSystemBackend {
         let wal = self.wal_write(owner, vault_id).await?;
         wal.load_tree()?;
 
+        let new_tree_root =
+            wal.tree().root().ok_or(sos_core::Error::NoRootCommit)?;
+        if root_hash != new_tree_root {
+            return Err(Error::WalValidateMismatch);
+        }
+
         Ok(())
     }
 }

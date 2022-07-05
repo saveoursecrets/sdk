@@ -164,13 +164,18 @@ impl WalHandler {
                     .tree()
                     .head()
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                tracing::debug!(root = %proof.root_hex(),
+                    "get_wal server root");
+
                 append_commit_headers(&mut headers, &proof)?;
 
                 // Client is asking for data from a specific commit hash
                 let result = if let Some(TypedHeader(proof)) = commit_proof {
                     let proof: CommitProof = proof.into();
 
-                    tracing::debug!(root = %proof.root_hex(), "get_wal client root");
+                    tracing::debug!(root = %proof.root_hex(),
+                        "get_wal client root");
 
                     let comparison = wal
                         .tree()

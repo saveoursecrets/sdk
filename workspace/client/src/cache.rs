@@ -646,57 +646,61 @@ impl Cache {
 
         match status {
             StatusCode::OK => {
-                if let Some(server_proof) = server_proof {
-                    let client_proof = match client_proof {
-                        // If we sent a proof to the server then we
-                        // are expecting a diff of records
-                        Some(_proof) => {
-                            let buffer = response.bytes().await?;
+                let server_proof = server_proof.ok_or(Error::ServerProof)?;
+                tracing::debug!(
+                    server_root_hash = %server_proof.root_hex(), "pull_wal");
 
-                            // Check the identity looks good
-                            FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
+                let client_proof = match client_proof {
+                    // If we sent a proof to the server then we
+                    // are expecting a diff of records
+                    Some(_proof) => {
+                        let buffer = response.bytes().await?;
 
-                            // Get buffer of log records after the identity bytes
-                            let record_bytes = &buffer[WAL_IDENTITY.len()..];
+                        tracing::debug!(bytes = ?buffer.len(),
+                            "pull_wal write diff WAL records");
 
-                            debug_assert!(
-                                record_bytes.len() == buffer.len() - 4
-                            );
+                        // Check the identity looks good
+                        FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
-                            // Append the diff bytes without the identity
-                            let mut file = OpenOptions::new()
-                                .write(true)
-                                .append(true)
-                                .open(&cached_wal_path)?;
-                            file.write_all(record_bytes)?;
+                        // Get buffer of log records after the identity bytes
+                        let record_bytes = &buffer[WAL_IDENTITY.len()..];
 
-                            // Update with the new commit tree
-                            wal.load_tree()?;
+                        debug_assert!(record_bytes.len() == buffer.len() - 4);
 
-                            wal.tree().head()?
-                        }
-                        // Otherwise the server should send us the entire
-                        // WAL file
-                        None => {
-                            // Read in the entire response buffer
-                            let buffer = response.bytes().await?;
+                        // Append the diff bytes without the identity
+                        let mut file = OpenOptions::new()
+                            .write(true)
+                            .append(true)
+                            .open(&cached_wal_path)?;
+                        file.write_all(record_bytes)?;
 
-                            // Check the identity looks good
-                            FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
+                        // Update with the new commit tree
+                        wal.load_tree()?;
 
-                            std::fs::write(&cached_wal_path, &buffer)?;
-                            wal.load_tree()?;
+                        wal.tree().head()?
+                    }
+                    // Otherwise the server should send us the entire
+                    // WAL file
+                    None => {
+                        // Read in the entire response buffer
+                        let buffer = response.bytes().await?;
 
-                            wal.tree().head()?
-                        }
-                    };
+                        tracing::debug!(bytes = ?buffer.len(),
+                            "pull_wal write entire WAL");
 
-                    assert_proofs_eq(client_proof, server_proof)?;
+                        // Check the identity looks good
+                        FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
-                    Ok(())
-                } else {
-                    Err(Error::ServerProof)
-                }
+                        std::fs::write(&cached_wal_path, &buffer)?;
+                        wal.load_tree()?;
+
+                        wal.tree().head()?
+                    }
+                };
+
+                assert_proofs_eq(client_proof, server_proof)?;
+
+                Ok(())
             }
             StatusCode::NOT_MODIFIED => {
                 // Verify that both proofs are equal

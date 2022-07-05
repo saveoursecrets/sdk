@@ -56,7 +56,7 @@ pub enum Error {
     #[error("editor command did not exit successfully, status {0}")]
     EditorExit(i32),
 
-    #[error("client and server root hashes do not match; client = {0}, server = {1}")]
+    #[error("local and remote root hashes do not match; local = {0}, remote = {1}; you may need to pull or push to sync changes")]
     RootHashMismatch(CommitHash, CommitHash),
 
     #[error("server failed to send the expected commit proof headers")]

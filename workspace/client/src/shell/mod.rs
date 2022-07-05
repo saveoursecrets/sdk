@@ -20,8 +20,8 @@ use sos_core::{
     CommitHash,
 };
 use sos_readline::{
-    read_flag, read_line, read_line_allow_empty, read_multiline, read_option,
-    read_password,
+    choose, read_flag, read_line, read_line_allow_empty, read_multiline,
+    read_option, read_password, Choice,
 };
 
 use crate::{
@@ -30,6 +30,12 @@ use crate::{
 
 mod editor;
 mod print;
+
+enum ConflictChoice {
+    Push,
+    Pull,
+    Noop,
+}
 
 /// Secret storage shell.
 #[derive(Parser, Debug)]
@@ -320,7 +326,7 @@ where
                 let remote_num = info.remote.1;
 
                 let should_pull = remote_num >= local_num;
-                let sync_title = if should_pull { "pull" } else { "push" };
+                //let sync_title = if should_pull { "pull" } else { "push" };
 
                 let banner = Banner::new()
                     .padding(Padding::one())
@@ -333,19 +339,31 @@ where
                     .render();
                 println!("{}", banner);
 
-                let prompt = format!(
-                    "Sync with the server using a {} (y/n)? ",
-                    sync_title
-                );
+                let options = [
+                    Choice(
+                        "Pull remote changes from the server",
+                        ConflictChoice::Pull,
+                    ),
+                    Choice(
+                        "Push local changes to the server",
+                        ConflictChoice::Push,
+                    ),
+                    Choice("None of the above", ConflictChoice::Noop),
+                ];
 
-                if read_flag(Some(&prompt))? {
-                    if should_pull {
-                        run_blocking(writer.force_pull(&info.summary))
-                    } else {
-                        run_blocking(writer.force_push(&info.summary))
-                    }
-                } else {
-                    Ok(())
+                let prompt =
+                    Some("Choose an action to resolve the conflict: ");
+                match choose(prompt, &options)? {
+                    Some(choice) => match choice {
+                        ConflictChoice::Pull => {
+                            run_blocking(writer.force_pull(&info.summary))
+                        }
+                        ConflictChoice::Push => {
+                            run_blocking(writer.force_push(&info.summary))
+                        }
+                        ConflictChoice::Noop => Ok(()),
+                    },
+                    None => Ok(()),
                 }
             }
             _ => Err(e),
