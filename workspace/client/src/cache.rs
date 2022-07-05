@@ -100,6 +100,9 @@ pub trait ClientCache {
         summary: &Summary,
     ) -> Result<Vec<(WalFileRecord, WalEvent<'_>)>>;
 
+    /// Verify a WAL log.
+    fn verify(&self, summary: &Summary) -> Result<()>;
+
     /// Compact a WAL file.
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
 
@@ -239,6 +242,12 @@ impl ClientCache for Cache {
             records.push((record, event));
         }
         Ok(records)
+    }
+
+    fn verify(&self, summary: &Summary) -> Result<()> {
+        let wal_path = self.wal_path(summary);
+        wal_commit_tree(&wal_path, true, |_| {})?;
+        Ok(())
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
@@ -513,7 +522,7 @@ impl ClientCache for Cache {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (response, server_proof, match_proof) =
+        let (response, server_proof, _match_proof) =
             self.client.head_wal(summary.id(), None).await?;
         response
             .status()

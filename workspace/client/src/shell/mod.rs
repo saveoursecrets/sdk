@@ -13,7 +13,6 @@ use url::Url;
 
 use human_bytes::human_bytes;
 use sos_core::{
-    commit_tree::wal_commit_tree,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     wal::WalItem,
@@ -25,12 +24,13 @@ use sos_readline::{
 };
 
 use crate::{
-    display_passphrase, run_blocking, Cache, ClientCache, Error, Result,
-    SyncStatus,
+    display_passphrase, run_blocking, ClientCache, Error, Result, SyncStatus,
 };
 
 mod editor;
 mod print;
+
+type ReplCache = Arc<RwLock<dyn ClientCache>>;
 
 enum ConflictChoice {
     Push,
@@ -187,7 +187,7 @@ enum History {
 
 /// Attempt to read secret meta data for a reference.
 fn find_secret_meta(
-    cache: Arc<RwLock<Cache>>,
+    cache: ReplCache,
     secret: &SecretRef,
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let reader = cache.read().unwrap();
@@ -334,9 +334,11 @@ fn read_file_secret(path: &str) -> Result<Secret> {
     Ok(Secret::File { name, mime, buffer })
 }
 
-fn maybe_conflict<F>(cache: Arc<RwLock<Cache>>, func: F) -> Result<()>
+fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
-    F: FnOnce(&mut RwLockWriteGuard<'_, Cache>) -> Result<()>,
+    F: FnOnce(
+        &mut RwLockWriteGuard<'_, dyn ClientCache + 'static>,
+    ) -> Result<()>,
 {
     let mut writer = cache.write().unwrap();
     match func(&mut writer) {
@@ -395,7 +397,7 @@ where
 }
 
 /// Execute the program command.
-fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
+fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
     match program.cmd {
         ShellCommand::Vaults => {
             let mut writer = cache.write().unwrap();
@@ -772,12 +774,8 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     let reader = cache.read().unwrap();
                     let keeper =
                         reader.current().ok_or(Error::NoVaultSelected)?;
-                    let wal_path = reader.wal_path(keeper.summary());
-
-                    // Verify checksums in the commit tree
-                    wal_commit_tree(&wal_path, true, |_| {})?;
+                    reader.verify(keeper.summary())?;
                     println!("Verified ✓");
-
                     Ok(())
                 }
                 History::List { long } => {
@@ -863,7 +861,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
 }
 
 /// Intermediary to pretty print clap parse errors.
-fn exec_args<I, T>(it: I, cache: Arc<RwLock<Cache>>) -> Result<()>
+fn exec_args<I, T>(it: I, cache: ReplCache) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -876,7 +874,7 @@ where
 }
 
 /// Execute a line of input in the context of the shell program.
-pub fn exec(line: &str, cache: Arc<RwLock<Cache>>) -> Result<()> {
+pub fn exec(line: &str, cache: ReplCache) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));
