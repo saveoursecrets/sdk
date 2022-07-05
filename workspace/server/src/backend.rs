@@ -500,6 +500,7 @@ impl Backend for FileSystemBackend {
         std::fs::rename(&temp_path, &original_wal)?;
 
         let wal = self.wal_write(owner, vault_id).await?;
+        *wal = Box::new(WalFile::new(&original_wal)?);
         wal.load_tree()?;
 
         let new_tree_root =
