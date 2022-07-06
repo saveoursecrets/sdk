@@ -24,7 +24,7 @@ use sos_readline::{
 };
 
 use crate::{
-    display_passphrase, run_blocking, ClientCache, Error, Result, SyncStatus,
+    display_passphrase, run_blocking, ClientCache, Error, Result, SyncKind,
 };
 
 mod editor;
@@ -68,9 +68,16 @@ enum ShellCommand {
     /// Print information about the selected vault.
     Info,
     /// Get or set the name of the selected vault.
-    Name { name: Option<String> },
+    Name {
+        /// A new name for the vault.
+        name: Option<String>,
+    },
     /// Print commit status.
-    Status,
+    Status {
+        /// Print more information; include commit tree root hashes.
+        #[clap(short, long)]
+        verbose: bool,
+    },
     /// Print commit tree leaves for the WAL of the current vault.
     Tree,
     /// Print secret keys for the selected vault.
@@ -500,13 +507,16 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                 Ok(())
             }
         }
-        ShellCommand::Status => {
+        ShellCommand::Status { verbose } => {
             let reader = cache.read().unwrap();
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
-            let (client_proof, server_proof) =
-                run_blocking(reader.vault_status(keeper.summary()))?;
-            println!("local  = {}", CommitHash(client_proof.0));
-            println!("remote = {}", CommitHash(server_proof.0));
+            let status = run_blocking(reader.vault_status(keeper.summary()))?;
+            if verbose {
+                let pair = status.pair();
+                println!("local  = {}", pair.local.root_hex());
+                println!("remote = {}", pair.remote.root_hex());
+            }
+            println!("{}", status);
             Ok(())
         }
         ShellCommand::Tree => {
@@ -803,18 +813,18 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
             let summary = keeper.summary().clone();
             let result = run_blocking(writer.pull(&summary, force))?;
             match result.status {
-                SyncStatus::Equal => println!("Up to date"),
-                SyncStatus::Safe => {
+                SyncKind::Equal => println!("Up to date"),
+                SyncKind::Safe => {
                     if let Some(proof) = result.after {
                         println!("Pull complete {}", proof.root_hex());
                     }
                 }
-                SyncStatus::Force => {
+                SyncKind::Force => {
                     if let Some(proof) = result.after {
                         println!("Force pull complete {}", proof.root_hex());
                     }
                 }
-                SyncStatus::Unsafe => {
+                SyncKind::Unsafe => {
                     println!("Cannot pull safely, use the --force option if you are sure.");
                 }
             }
@@ -826,18 +836,18 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
             let summary = keeper.summary().clone();
             let result = run_blocking(writer.push(&summary, force))?;
             match result.status {
-                SyncStatus::Equal => println!("Up to date"),
-                SyncStatus::Safe => {
+                SyncKind::Equal => println!("Up to date"),
+                SyncKind::Safe => {
                     if let Some(proof) = result.after {
                         println!("Push complete {}", proof.root_hex());
                     }
                 }
-                SyncStatus::Force => {
+                SyncKind::Force => {
                     if let Some(proof) = result.after {
                         println!("Force push complete {}", proof.root_hex());
                     }
                 }
-                SyncStatus::Unsafe => {
+                SyncKind::Unsafe => {
                     println!("Cannot push safely, use the --force option if you are sure.");
                 }
             }

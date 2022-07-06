@@ -34,7 +34,7 @@ use tempfile::NamedTempFile;
 use url::Url;
 use uuid::Uuid;
 
-use super::{ClientCache, SyncInfo, SyncStatus};
+use super::{ClientCache, SyncInfo, SyncKind, SyncPair, SyncStatus};
 
 fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -246,16 +246,13 @@ impl ClientCache for FileCache {
         }
     }
 
-    async fn vault_status(
-        &self,
-        summary: &Summary,
-    ) -> Result<(CommitProof, CommitProof)> {
+    async fn vault_status(&self, summary: &Summary) -> Result<SyncStatus> {
         let (wal, _) = self
             .cache
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
-        let (response, server_proof, _) = self
+        let (response, server_proof, match_proof) = self
             .client
             .head_wal(summary.id(), Some(&client_proof))
             .await?;
@@ -264,7 +261,39 @@ impl ClientCache for FileCache {
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(response.status().into()))?;
-        Ok((client_proof, server_proof))
+
+        let equals = client_proof.root() == server_proof.root();
+
+        let pair = SyncPair {
+            local: client_proof,
+            remote: server_proof.clone(),
+        };
+
+        let status = if equals {
+            SyncStatus::Equal(pair)
+        } else {
+            if let Some(_) = match_proof {
+                let (diff, _) =
+                    pair.remote.len().overflowing_sub(pair.local.len());
+                SyncStatus::Behind(pair, diff)
+            } else {
+                let comparison = wal.tree().compare(server_proof)?;
+                let is_ahead = match comparison {
+                    Comparison::Contains(_, _) => true,
+                    _ => false,
+                };
+
+                if is_ahead {
+                    let (diff, _) =
+                        pair.local.len().overflowing_sub(pair.remote.len());
+                    SyncStatus::Ahead(pair, diff)
+                } else {
+                    SyncStatus::Diverged(pair)
+                }
+            }
+        };
+
+        Ok(status)
     }
 
     async fn open_vault(
@@ -350,13 +379,13 @@ impl ClientCache for FileCache {
         let equals = client_proof.root() == server_proof.root();
         let can_pull_safely = match_proof.is_some();
         let status = if equals {
-            SyncStatus::Equal
+            SyncKind::Equal
         } else if force {
-            SyncStatus::Force
+            SyncKind::Force
         } else if can_pull_safely {
-            SyncStatus::Safe
+            SyncKind::Safe
         } else {
-            SyncStatus::Unsafe
+            SyncKind::Unsafe
         };
 
         let mut info = SyncInfo {
@@ -410,13 +439,13 @@ impl ClientCache for FileCache {
         };
 
         let status = if equals {
-            SyncStatus::Equal
+            SyncKind::Equal
         } else if force {
-            SyncStatus::Force
+            SyncKind::Force
         } else if can_push_safely {
-            SyncStatus::Safe
+            SyncKind::Safe
         } else {
-            SyncStatus::Unsafe
+            SyncKind::Unsafe
         };
 
         let mut info = SyncInfo {

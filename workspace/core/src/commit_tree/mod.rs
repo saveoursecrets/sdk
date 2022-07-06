@@ -59,6 +59,11 @@ impl CommitProof {
         hex::encode(&self.0)
     }
 
+    /// Number of leaves in the commit tree.
+    pub fn len(&self) -> usize {
+        self.2
+    }
+
     /// Reduce this commit proof to it's root hash and leaves length.
     pub fn reduce(self) -> ([u8; 32], usize) {
         (self.0, self.2)

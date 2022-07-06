@@ -1,5 +1,6 @@
 //! Types and traits for caching and synchronization.
 use crate::Result;
+use std::fmt;
 
 use async_trait::async_trait;
 
@@ -18,8 +19,62 @@ use sos_core::{
 
 use url::Url;
 
-/// The status of a synchronization attempt.
+/// A pair of commit proofs.
+pub struct SyncPair {
+    /// Commit proof for a local commit tree.
+    pub local: CommitProof,
+    /// Commit proof for a remote commit tree.
+    pub remote: CommitProof,
+}
+
+/// The relationship between a local and remote WAL file.
 pub enum SyncStatus {
+    /// Local and remote are equal.
+    Equal(SyncPair),
+    /// Local WAL is ahead of the remote.
+    ///
+    /// A push operation should be successful.
+    Ahead(SyncPair, usize),
+    /// Local WAL is behind the remote.
+    ///
+    /// A pull operation should be successful.
+    Behind(SyncPair, usize),
+    /// Commit trees have diverged and either a force
+    /// push or force pull is required to synchronize.
+    Diverged(SyncPair),
+}
+
+impl fmt::Display for SyncStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Equal(_) => {
+                write!(f, "Up to date")
+            }
+            Self::Behind(_, diff) => {
+                write!(f, "{} change(s) behind remote: pull changes.", diff)
+            }
+            Self::Ahead(_, diff) => {
+                write!(f, "{} change(s) ahead of remote: push changes.", diff)
+            }
+            Self::Diverged(_) => {
+                write!(f, "local and remote have diverged: force push or force pull to synchronize trees.")
+            }
+        }
+    }
+}
+
+impl SyncStatus {
+    /// Get the pair of local and remote commit proofs.
+    pub fn pair(&self) -> &SyncPair {
+        match self {
+            Self::Equal(pair) | Self::Diverged(pair) => pair,
+            Self::Behind(pair, _) | Self::Ahead(pair, _) => pair,
+        }
+    }
+}
+
+/// The status of a synchronization attempt.
+pub enum SyncKind {
     /// Local and remote are equal.
     Equal,
     /// Safe synchronization was made.
@@ -42,7 +97,7 @@ pub struct SyncInfo {
     pub after: Option<CommitProof>,
 
     /// The status of the synchronization attempt.
-    pub status: SyncStatus,
+    pub status: SyncKind,
 }
 
 /// Trait for types that cache vaults locally; support a *current* view
@@ -103,10 +158,7 @@ pub trait ClientCache {
     ) -> Result<()>;
 
     /// Get a comparison between a local WAL and remote WAL.
-    async fn vault_status(
-        &self,
-        summary: &Summary,
-    ) -> Result<(CommitProof, CommitProof)>;
+    async fn vault_status(&self, summary: &Summary) -> Result<SyncStatus>;
 
     /// Apply changes to a vault.
     async fn patch_vault(
