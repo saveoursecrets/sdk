@@ -31,7 +31,7 @@ release:
 release-artifacts:
 	@echo $(BUILD_TARGET)
 	@for bin in $(BINARIES); do \
-		tar -czvf target/$${bin}-${BUILD_TARGET}.tar.gz target/release/$$bin; \
+		tar -czvf target/$${bin}-${BUILD_TARGET}.tar.gz target/${BUILD_TARGET}/release/$$bin; \
 	done
 .PHONY: release-artifacts
 
