@@ -20,7 +20,7 @@ use axum::{
     routing::{get, put},
     Router,
 };
-use axum_server::tls_rustls::RustlsConfig;
+use axum_server::{tls_rustls::RustlsConfig, Handle};
 use serde::Serialize;
 use sos_audit::AuditLogFile;
 use sos_core::address::AddressStr;
@@ -60,6 +60,7 @@ impl Server {
     pub async fn start(
         addr: SocketAddr,
         state: Arc<RwLock<State>>,
+        handle: Handle,
     ) -> crate::Result<()> {
         let shared_state = Arc::clone(&state);
 
@@ -71,14 +72,16 @@ impl Server {
             )?);
         }
 
-        tracing::debug!(certificate = ?reader.config.tls.cert);
-        tracing::debug!(key = ?reader.config.tls.cert);
+        let tls = if let Some(tls) = &reader.config.tls {
+            tracing::debug!(certificate = ?tls.cert);
+            tracing::debug!(key = ?tls.cert);
 
-        let tls = RustlsConfig::from_pem_file(
-            &reader.config.tls.cert,
-            &reader.config.tls.key,
-        )
-        .await?;
+            let tls =
+                RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
+            Some(tls)
+        } else {
+            None
+        };
 
         drop(reader);
 
@@ -128,9 +131,17 @@ impl Server {
             .layer(Extension(shared_state));
 
         tracing::info!("listening on {}", addr);
-        axum_server::bind_rustls(addr, tls)
-            .serve(app.into_make_service())
-            .await?;
+        if let Some(tls) = tls {
+            axum_server::bind_rustls(addr, tls)
+                .handle(handle)
+                .serve(app.into_make_service())
+                .await?;
+        } else {
+            axum_server::bind(addr)
+                .handle(handle)
+                .serve(app.into_make_service())
+                .await?;
+        }
         Ok(())
     }
 }

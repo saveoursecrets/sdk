@@ -32,8 +32,8 @@ jobs:
       - name: Run cargo clippy
         run: cargo clippy --all
 
-  test:
-    name: test
+  unit-test:
+    name: unit-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -41,11 +41,11 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - name: Run cargo test
-        run: cargo test --all
+      - name: Run unit tests
+        run: make unit-test
 
-  build:
-    name: build
+  integration-test:
+    name: integration-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -53,8 +53,20 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - name: Run cargo build
-        run: cargo build --release --all
+      - name: Run integration tests
+        run: make integration-test
+
+  #build:
+    #name: build
+    #runs-on: ubuntu-latest
+    #steps:
+      #- uses: actions/checkout@v2
+      #- name: Install Rust
+        #uses: actions-rs/toolchain@v1
+        #with:
+          #profile: minimal
+      #- name: Run cargo build
+        #run: cargo build --release --all
 
   wasm:
     name: wasm
