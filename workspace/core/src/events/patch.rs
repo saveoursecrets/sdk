@@ -131,9 +131,21 @@ impl PatchFile {
     }
 
     /// Read a patch from the file on disc.
-    pub fn read(&self) -> Result<Patch<'static>> {
+    fn read(&self) -> Result<Patch<'static>> {
         let buffer = std::fs::read(&self.file_path)?;
         let patch: Patch = decode(&buffer)?;
+        Ok(patch)
+    }
+
+    /// Determine if the patch file has some events data.
+    pub fn has_events(&self) -> Result<bool> {
+        Ok(self.file_path.metadata()?.len() > 8)
+    }
+
+    /// Drain all events from the patch file on disc.
+    pub fn drain(&mut self) -> Result<Patch<'static>> {
+        let patch = self.read()?;
+        self.truncate()?;
         Ok(patch)
     }
 
@@ -190,8 +202,10 @@ mod test {
         assert_eq!(2, disc_patch.0.len());
 
         // Truncate the file
-        patch_file.truncate()?;
+        let drain_patch = patch_file.drain()?;
         assert_eq!(8, temp.path().metadata()?.len());
+
+        assert_eq!(2, drain_patch.0.len());
 
         Ok(())
     }

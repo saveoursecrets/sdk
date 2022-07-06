@@ -369,6 +369,10 @@ impl ClientCache for FileCache {
             if force || can_pull_safely {
                 let result_proof = self.force_pull(summary).await?;
                 info.after = Some(result_proof);
+
+                // If we have unsaved staged events try to apply them
+                self.apply_patch_file(summary).await?;
+
                 Ok(info)
             } else {
                 Ok(info)
@@ -425,6 +429,10 @@ impl ClientCache for FileCache {
             if force || can_push_safely {
                 let result_proof = self.force_push(summary).await?;
                 info.after = Some(result_proof);
+
+                // If we have unsaved staged events try to apply them
+                self.apply_patch_file(summary).await?;
+
                 Ok(info)
             } else {
                 Ok(info)
@@ -869,25 +877,12 @@ impl FileCache {
         // Pull the remote WAL
         self.pull_wal(summary).await?;
 
-        let (wal, patch_file) = self
+        let (wal, _) = self
             .cache
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         let proof = wal.tree().head()?;
-
-        tracing::debug!("force_pull reading from patch file");
-
-        let patch = patch_file.read()?;
-        let events = patch.0;
-
-        tracing::debug!(events = events.len(), "force_pull");
-
-        // Got some events which haven't been saved so try
-        // to apply them over the top of the new WAL
-        if !events.is_empty() {
-            self.patch_vault(summary, events).await?;
-        }
 
         self.refresh_vault(summary)?;
 
@@ -918,5 +913,35 @@ impl FileCache {
 
         assert_proofs_eq(&client_proof, &server_proof)?;
         Ok(client_proof)
+    }
+
+    /// Attempt to drain the patch file and apply events to
+    /// the remote server.
+    async fn apply_patch_file(&mut self, summary: &Summary) -> Result<()> {
+        let (_, patch_file) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        let has_events = patch_file.has_events()?;
+
+        tracing::debug!(has_events, "apply patch file");
+
+        // Got some events which haven't been saved so try
+        // to apply them over the top of the new WAL
+        if has_events {
+            // Must drain() the patch file as calling
+            // patch_vault() will append them again in
+            // case of failure
+            let patch = patch_file.drain()?;
+            let events = patch.0;
+
+            tracing::debug!(events = events.len(), "apply patch file events");
+
+            self.patch_vault(summary, events).await?;
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
 }
