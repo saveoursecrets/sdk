@@ -389,10 +389,10 @@ impl ClientCache for FileCache {
 
         let equals = client_proof.root() == server_proof.root();
         let can_pull_safely = match_proof.is_some();
-        let status = if equals {
-            SyncKind::Equal
-        } else if force {
+        let status = if force {
             SyncKind::Force
+        } else if equals {
+            SyncKind::Equal
         } else if can_pull_safely {
             SyncKind::Safe
         } else {
@@ -405,7 +405,7 @@ impl ClientCache for FileCache {
             status,
         };
 
-        if !equals {
+        if force || !equals {
             if force || can_pull_safely {
                 let result_proof = self.force_pull(summary).await?;
                 info.after = Some(result_proof);
@@ -449,10 +449,10 @@ impl ClientCache for FileCache {
             _ => false,
         };
 
-        let status = if equals {
-            SyncKind::Equal
-        } else if force {
+        let status = if force {
             SyncKind::Force
+        } else if equals {
+            SyncKind::Equal
         } else if can_push_safely {
             SyncKind::Safe
         } else {
@@ -465,7 +465,7 @@ impl ClientCache for FileCache {
             status,
         };
 
-        if !equals {
+        if force || !equals {
             if force || can_push_safely {
                 let result_proof = self.force_push(summary).await?;
                 info.after = Some(result_proof);
