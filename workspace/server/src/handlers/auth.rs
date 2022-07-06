@@ -8,7 +8,7 @@ use axum::{
 //use axum_macros::debug_handler;
 
 use sos_core::{
-    events::{AuditEvent, AuditProvider, EventKind},
+    events::{AuditEvent, EventKind},
     vault::Summary,
 };
 

@@ -122,7 +122,7 @@ pub trait Backend {
         vault_id: &Uuid,
         root_hash: [u8; 32],
         buffer: &[u8],
-    ) -> Result<()>;
+    ) -> Result<CommitProof>;
 }
 
 /// Backend storage for vaults on the file system.
@@ -465,7 +465,7 @@ impl Backend for FileSystemBackend {
         vault_id: &Uuid,
         root_hash: [u8; 32],
         mut buffer: &[u8],
-    ) -> Result<()> {
+    ) -> Result<CommitProof> {
         let mut tempfile = NamedTempFile::new()?;
         let temp_path = tempfile.path().to_path_buf();
 
@@ -500,6 +500,7 @@ impl Backend for FileSystemBackend {
         std::fs::rename(&temp_path, &original_wal)?;
 
         let wal = self.wal_write(owner, vault_id).await?;
+        *wal = Box::new(WalFile::new(&original_wal)?);
         wal.load_tree()?;
 
         let new_tree_root =
@@ -507,7 +508,6 @@ impl Backend for FileSystemBackend {
         if root_hash != new_tree_root {
             return Err(Error::WalValidateMismatch);
         }
-
-        Ok(())
+        Ok(wal.tree().head()?)
     }
 }

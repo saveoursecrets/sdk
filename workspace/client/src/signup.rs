@@ -1,6 +1,6 @@
 //! Signup a new account.
 use crate::{
-    display_passphrase, run_blocking, Cache, Client, ClientCache, Error,
+    display_passphrase, run_blocking, Client, ClientCache, Error, FileCache,
     Result,
 };
 use sos_core::{
@@ -55,8 +55,8 @@ pub fn signup(
     if read_flag(prompt)? {
         let signer: SingleParty = (&signing_key).try_into()?;
         let client = Client::new(server, Arc::new(signer));
-        let cache_dir = Cache::cache_dir()?;
-        let mut cache = Cache::new(client, cache_dir, true)?;
+        let cache_dir = FileCache::cache_dir()?;
+        let mut cache = FileCache::new(client, cache_dir, true)?;
 
         let keystore = encrypt(
             &mut rand::thread_rng(),

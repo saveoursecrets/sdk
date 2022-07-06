@@ -9,7 +9,7 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 
 use crate::{
     vault::{Header, Vault},
-    Error, Result,
+    CommitHash, Error, Result,
 };
 
 mod integrity;
@@ -22,6 +22,14 @@ pub fn hash(data: &[u8]) -> [u8; 32] {
     Sha256::hash(data)
 }
 
+/// A pair of commit proofs.
+pub struct CommitPair {
+    /// Commit proof for a local commit tree.
+    pub local: CommitProof,
+    /// Commit proof for a remote commit tree.
+    pub remote: CommitProof,
+}
+
 /// Represents a root hash and a proof of certain nodes.
 //#[derive(Debug, Eq, PartialEq)]
 pub struct CommitProof(
@@ -30,6 +38,23 @@ pub struct CommitProof(
     pub usize,
     pub Range<usize>,
 );
+
+impl Clone for CommitProof {
+    fn clone(&self) -> Self {
+        let hashes = self
+            .1
+            .proof_hashes()
+            .into_iter()
+            .map(|h| *h)
+            .collect::<Vec<_>>();
+        CommitProof(
+            self.0,
+            MerkleProof::<Sha256>::new(hashes),
+            self.2,
+            self.3.clone(),
+        )
+    }
+}
 
 impl CommitProof {
     /// The root hash for the proof.
@@ -42,9 +67,18 @@ impl CommitProof {
         hex::encode(&self.0)
     }
 
+    /// Number of leaves in the commit tree.
+    pub fn len(&self) -> usize {
+        self.2
+    }
+
     /// Reduce this commit proof to it's root hash and leaves length.
-    pub fn reduce(self) -> ([u8; 32], usize) {
-        (self.0, self.2)
+    ///
+    /// Sometimes we want to put a commit proof into an `Error`
+    /// implementation but cannot due to the `MerkleProof` type so
+    /// this reduces the proof to simpler error-safe types.
+    pub fn reduce(self) -> (CommitHash, usize) {
+        (CommitHash(self.0), self.2)
     }
 }
 

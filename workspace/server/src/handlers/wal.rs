@@ -440,7 +440,7 @@ impl WalHandler {
         TypedHeader(proof): TypedHeader<CommitProofHeader>,
         Path(vault_id): Path<Uuid>,
         body: Bytes,
-    ) -> Result<StatusCode, StatusCode> {
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         if let Ok((status_code, token)) =
             authenticate::bearer(authorization, &body)
         {
@@ -449,7 +449,7 @@ impl WalHandler {
                 let proof: CommitProof = proof.into();
 
                 // TODO: better error to status code mapping
-                writer
+                let server_proof = writer
                     .backend
                     .replace_wal(
                         &token.address,
@@ -459,7 +459,11 @@ impl WalHandler {
                     )
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                Ok(StatusCode::OK)
+
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &server_proof)?;
+
+                Ok((StatusCode::OK, headers))
             } else {
                 Err(status_code)
             }
@@ -473,6 +477,7 @@ impl WalHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
         TypedHeader(message): TypedHeader<SignedMessage>,
+        commit_proof: Option<TypedHeader<CommitProofHeader>>,
         Path(vault_id): Path<Uuid>,
     ) -> Result<(StatusCode, HeaderMap), StatusCode> {
         if let Ok((status_code, token)) =
@@ -486,15 +491,31 @@ impl WalHandler {
                     .await
                     .map_err(|_| StatusCode::NOT_FOUND)?;
 
-                // Always send the `x-commit-hash` and `x-commit-proof`
-                // headers to the client
                 let mut headers = HeaderMap::new();
                 let proof = wal
                     .tree()
                     .head()
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
                 append_commit_headers(&mut headers, &proof)?;
 
+                if let Some(TypedHeader(client_proof)) = commit_proof {
+                    let comparison = wal
+                        .tree()
+                        .compare(client_proof.into())
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                    match comparison {
+                        Comparison::Contains(indices, _leaves) => {
+                            let match_proof =
+                                wal.tree().proof(&indices).map_err(|_| {
+                                    StatusCode::INTERNAL_SERVER_ERROR
+                                })?;
+                            append_match_header(&mut headers, &match_proof)?;
+                        }
+                        _ => {}
+                    }
+                }
                 Ok((StatusCode::OK, headers))
             } else {
                 Err(status_code)
