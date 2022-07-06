@@ -50,9 +50,9 @@ jobs:
             path: artifacts
       - name: Display structure of downloaded files
         run: ls -R artifacts
-      #- uses: ncipollo/release-action@v1
-        #with:
-          #artifactErrorsFailBuild: true
-          #artifacts: "artifacts/*.tar.gz"
-          ##bodyFile: "body.md"
-          #token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ncipollo/release-action@v1
+        with:
+          artifactErrorsFailBuild: true
+          artifacts: "artifacts/release-artifacts/*.tar.gz"
+          #bodyFile: "body.md"
+          token: ${{ secrets.GITHUB_TOKEN }}
