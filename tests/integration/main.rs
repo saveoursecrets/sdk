@@ -12,7 +12,11 @@ use sos_client::{create_account, create_signing_key, ClientKey};
 async fn account_signup() -> Result<()> {
     use web3_keystore::{decrypt, KeyStore};
 
-    let destination = setup()?;
+    let TestDirs {
+        target: destination,
+        client: cache_dir,
+        ..
+    } = setup()?;
 
     println!(
         "Using destination {:#?} ({})",
@@ -36,7 +40,8 @@ async fn account_signup() -> Result<()> {
 
     println!("Trying to create account");
 
-    let credentials = create_account(server, destination, name, key).await?;
+    let credentials =
+        create_account(server, destination, name, key, cache_dir).await?;
 
     println!("After creating account {}", expected_keystore.exists());
 

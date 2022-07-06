@@ -108,12 +108,23 @@ pub fn server() -> Url {
     Url::parse(SERVER).expect("failed to parse server URL")
 }
 
-pub fn setup() -> Result<PathBuf> {
+pub struct TestDirs {
+    pub target: PathBuf,
+    pub server: PathBuf,
+    pub client: PathBuf,
+}
+
+pub fn setup() -> Result<TestDirs> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test");
     if !target.exists() {
         std::fs::create_dir_all(&target)?;
+    }
+
+    let client = target.join("client");
+    if client.exists() {
+        std::fs::remove_dir_all(&client)?;
     }
 
     let server = target.join("server");
@@ -122,7 +133,12 @@ pub fn setup() -> Result<PathBuf> {
     }
 
     // Setup required sub-directories
-    std::fs::create_dir(server)?;
+    std::fs::create_dir(&server)?;
+    std::fs::create_dir(&client)?;
 
-    Ok(target)
+    Ok(TestDirs {
+        target,
+        server,
+        client,
+    })
 }

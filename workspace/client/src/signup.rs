@@ -37,6 +37,7 @@ pub async fn create_account(
     destination: PathBuf,
     name: Option<String>,
     key: ClientKey,
+    cache_dir: PathBuf,
 ) -> Result<ClientCredentials> {
     if !destination.is_dir() {
         return Err(Error::NotDirectory(destination));
@@ -51,7 +52,6 @@ pub async fn create_account(
     let (keystore_passphrase, _) = generate_passphrase()?;
     let signer: SingleParty = (signing_key).try_into()?;
     let client = Client::new(server, Arc::new(signer));
-    let cache_dir = FileCache::cache_dir()?;
     let mut cache = FileCache::new(client, cache_dir, true)?;
 
     let keystore = encrypt(
@@ -124,6 +124,7 @@ pub fn signup(
             destination,
             name,
             client_key,
+            FileCache::cache_dir()?,
         ))?;
 
         display_passphrase(

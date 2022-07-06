@@ -1,3 +1,12 @@
+BINARIES=sos-audit sos-check sos-client sos-server
+DEFAULT_TARGET=$(shell rustc -vV | sed -n 's|host: ||p')
+
+ifdef TARGET
+	BUILD_TARGET := $(TARGET)
+else
+	BUILD_TARGET := $(DEFAULT_TARGET)
+endif
+
 dev-certs:
 	@cd sandbox && mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1
 .PHONY: dev-certs
@@ -14,6 +23,17 @@ dev-server:
 server-release: browser-gui
 	@cd workspace/server && cargo build --release
 .PHONY: server-release
+
+release:
+	@cargo build --release --all
+.PHONY: release
+
+release-artifacts:
+	@echo $(BUILD_TARGET)
+	@for bin in $(BINARIES); do \
+		tar -czvf target/$${bin}-${BUILD_TARGET}.tar.gz target/release/$$bin; \
+	done
+.PHONY: release-artifacts
 
 fmt:
 	@cargo fmt --all
