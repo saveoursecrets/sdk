@@ -26,7 +26,7 @@ check:
 integration-test:
 	@rm -rf target/integration-test
 	@mkdir -p target/integration-test
-	@cargo test -- --nocapture
+	@RUST_BACKTRACE=1 cargo test -- --nocapture
 .PHONY: integration-test
 
 unit-test:
