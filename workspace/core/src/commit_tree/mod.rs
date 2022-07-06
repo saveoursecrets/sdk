@@ -9,7 +9,7 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 
 use crate::{
     vault::{Header, Vault},
-    Error, Result,
+    CommitHash, Error, Result,
 };
 
 mod integrity;
@@ -20,6 +20,14 @@ pub use integrity::wal_commit_tree;
 /// Compute the Sha256 hash of some data.
 pub fn hash(data: &[u8]) -> [u8; 32] {
     Sha256::hash(data)
+}
+
+/// A pair of commit proofs.
+pub struct CommitPair {
+    /// Commit proof for a local commit tree.
+    pub local: CommitProof,
+    /// Commit proof for a remote commit tree.
+    pub remote: CommitProof,
 }
 
 /// Represents a root hash and a proof of certain nodes.
@@ -65,8 +73,12 @@ impl CommitProof {
     }
 
     /// Reduce this commit proof to it's root hash and leaves length.
-    pub fn reduce(self) -> ([u8; 32], usize) {
-        (self.0, self.2)
+    ///
+    /// Sometimes we want to put a commit proof into an `Error`
+    /// implementation but cannot due to the `MerkleProof` type so
+    /// this reduces the proof to simpler error-safe types.
+    pub fn reduce(self) -> (CommitHash, usize) {
+        (CommitHash(self.0), self.2)
     }
 }
 

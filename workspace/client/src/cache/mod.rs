@@ -6,7 +6,7 @@ use async_trait::async_trait;
 
 use sos_core::{
     address::AddressStr,
-    commit_tree::{CommitProof, CommitTree},
+    commit_tree::{CommitPair, CommitProof, CommitTree},
     events::{SyncEvent, WalEvent},
     secret::SecretRef,
     vault::Summary,
@@ -19,29 +19,21 @@ use sos_core::{
 
 use url::Url;
 
-/// A pair of commit proofs.
-pub struct SyncPair {
-    /// Commit proof for a local commit tree.
-    pub local: CommitProof,
-    /// Commit proof for a remote commit tree.
-    pub remote: CommitProof,
-}
-
 /// The relationship between a local and remote WAL file.
 pub enum SyncStatus {
     /// Local and remote are equal.
-    Equal(SyncPair),
+    Equal(CommitPair),
     /// Local WAL is ahead of the remote.
     ///
     /// A push operation should be successful.
-    Ahead(SyncPair, usize),
+    Ahead(CommitPair, usize),
     /// Local WAL is behind the remote.
     ///
     /// A pull operation should be successful.
-    Behind(SyncPair, usize),
+    Behind(CommitPair, usize),
     /// Commit trees have diverged and either a force
     /// push or force pull is required to synchronize.
-    Diverged(SyncPair),
+    Diverged(CommitPair),
 }
 
 impl fmt::Display for SyncStatus {
@@ -65,7 +57,7 @@ impl fmt::Display for SyncStatus {
 
 impl SyncStatus {
     /// Get the pair of local and remote commit proofs.
-    pub fn pair(&self) -> &SyncPair {
+    pub fn pair(&self) -> &CommitPair {
         match self {
             Self::Equal(pair) | Self::Diverged(pair) => pair,
             Self::Behind(pair, _) | Self::Ahead(pair, _) => pair,
@@ -100,8 +92,8 @@ pub struct SyncInfo {
     pub status: SyncKind,
 }
 
-/// Trait for types that cache vaults locally; support a *current* view
-/// into a selected vault and allow making changes to the currently
+/// Trait for types that cache vaults locally; supports a *current* view
+/// into a selected vault and allows making changes to the currently
 /// selected vault.
 #[async_trait]
 pub trait ClientCache {
@@ -158,7 +150,13 @@ pub trait ClientCache {
     ) -> Result<()>;
 
     /// Get a comparison between a local WAL and remote WAL.
-    async fn vault_status(&self, summary: &Summary) -> Result<SyncStatus>;
+    ///
+    /// If a patch file has unsaved events then the number
+    /// of pending events is returned along with the `SyncStatus`.
+    async fn vault_status(
+        &self,
+        summary: &Summary,
+    ) -> Result<(SyncStatus, Option<usize>)>;
 
     /// Apply changes to a vault.
     async fn patch_vault(

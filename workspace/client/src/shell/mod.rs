@@ -78,7 +78,7 @@ enum ShellCommand {
         #[clap(short, long)]
         verbose: bool,
     },
-    /// Print commit tree leaves for the WAL of the current vault.
+    /// Print commit tree leaves for the current vault.
     Tree,
     /// Print secret keys for the selected vault.
     Keys,
@@ -175,13 +175,13 @@ enum SnapShot {
 
 #[derive(Subcommand, Debug)]
 enum History {
-    /// Compact the currently selected vault WAL file.
+    /// Compact the currently selected vault.
     Compact {
         /// Take a snapshot before compaction.
         #[clap(short, long)]
         snapshot: bool,
     },
-    /// Verify the integrity of the WAL file.
+    /// Verify the integrity of the vault history.
     Check,
     /// List history events.
     #[clap(alias = "ls")]
@@ -351,18 +351,21 @@ where
     match func(&mut writer) {
         Ok(_) => Ok(()),
         Err(e) => match e {
-            Error::Conflict(info) => {
-                let local_hex = hex::encode(info.local.0);
-                let remote_hex = hex::encode(info.remote.0);
-
-                let local_num = info.local.1;
-                let remote_num = info.remote.1;
+            Error::Conflict {
+                summary,
+                local,
+                remote,
+            } => {
+                let local_hex = local.0.to_string();
+                let remote_hex = remote.0.to_string();
+                let local_num = local.1;
+                let remote_num = remote.1;
 
                 let banner = Banner::new()
                     .padding(Padding::one())
                     .text(Cow::Borrowed("!!! CONFLICT !!!"))
                     .text(Cow::Owned(
-                        format!("A conflict was detected on {}, proceed with caution; to resolve this conflict sync with the server.", info.summary.name()),
+                        format!("A conflict was detected on {}, proceed with caution; to resolve this conflict sync with the server.", summary.name()),
                     ))
                     .text(Cow::Owned(format!("local  = {}\nremote = {}", local_hex, remote_hex)))
                     .text(Cow::Owned(format!("local = #{}, remote = #{}", local_num, remote_num)))
@@ -386,11 +389,11 @@ where
                 match choose(prompt, &options)? {
                     Some(choice) => match choice {
                         ConflictChoice::Pull => {
-                            run_blocking(writer.pull(&info.summary, true))?;
+                            run_blocking(writer.pull(&summary, true))?;
                             Ok(())
                         }
                         ConflictChoice::Push => {
-                            run_blocking(writer.push(&info.summary, true))?;
+                            run_blocking(writer.push(&summary, true))?;
                             Ok(())
                         }
                         ConflictChoice::Noop => Ok(()),
@@ -510,11 +513,15 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
         ShellCommand::Status { verbose } => {
             let reader = cache.read().unwrap();
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
-            let status = run_blocking(reader.vault_status(keeper.summary()))?;
+            let (status, pending_events) =
+                run_blocking(reader.vault_status(keeper.summary()))?;
             if verbose {
                 let pair = status.pair();
                 println!("local  = {}", pair.local.root_hex());
                 println!("remote = {}", pair.remote.root_hex());
+            }
+            if let Some(pending_events) = pending_events {
+                println!("{} event(s) have not been saved", pending_events);
             }
             println!("{}", status);
             Ok(())

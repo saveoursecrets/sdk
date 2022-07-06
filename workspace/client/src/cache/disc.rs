@@ -1,14 +1,16 @@
 //! Caching implementation backed by files.
 use crate::{
     client::{decode_match_proof, Client},
-    Conflict, Error, Result,
+    Error, Result,
 };
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use reqwest::{Response, StatusCode};
 use sos_core::{
     address::AddressStr,
-    commit_tree::{wal_commit_tree, CommitProof, CommitTree, Comparison},
+    commit_tree::{
+        wal_commit_tree, CommitPair, CommitProof, CommitTree, Comparison,
+    },
     constants::{VAULT_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY},
     encode,
     events::{PatchFile, SyncEvent, WalEvent},
@@ -34,7 +36,7 @@ use tempfile::NamedTempFile;
 use url::Url;
 use uuid::Uuid;
 
-use super::{ClientCache, SyncInfo, SyncKind, SyncPair, SyncStatus};
+use super::{ClientCache, SyncInfo, SyncKind, SyncStatus};
 
 fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -246,8 +248,11 @@ impl ClientCache for FileCache {
         }
     }
 
-    async fn vault_status(&self, summary: &Summary) -> Result<SyncStatus> {
-        let (wal, _) = self
+    async fn vault_status(
+        &self,
+        summary: &Summary,
+    ) -> Result<(SyncStatus, Option<usize>)> {
+        let (wal, patch_file) = self
             .cache
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
@@ -264,7 +269,7 @@ impl ClientCache for FileCache {
 
         let equals = client_proof.root() == server_proof.root();
 
-        let pair = SyncPair {
+        let pair = CommitPair {
             local: client_proof,
             remote: server_proof.clone(),
         };
@@ -293,7 +298,13 @@ impl ClientCache for FileCache {
             }
         };
 
-        Ok(status)
+        let pending_events = if patch_file.has_events()? {
+            Some(patch_file.count_events()?)
+        } else {
+            None
+        };
+
+        Ok((status, pending_events))
     }
 
     async fn open_vault(
@@ -712,11 +723,11 @@ impl FileCache {
                 if let Some(client_proof) = client_proof {
                     let server_proof =
                         server_proof.ok_or(Error::ServerProof)?;
-                    Err(Error::Conflict(Conflict {
+                    Err(Error::Conflict {
                         summary: summary.clone(),
                         local: client_proof.reduce(),
                         remote: server_proof.reduce(),
-                    }))
+                    })
                 } else {
                     Err(Error::ResponseCode(response.status().into()))
                 }
@@ -832,11 +843,11 @@ impl FileCache {
                     }
                     Ok(response)
                 } else {
-                    Err(Error::Conflict(Conflict {
+                    Err(Error::Conflict {
                         summary: summary.clone(),
                         local: client_proof.reduce(),
                         remote: server_proof.reduce(),
-                    }))
+                    })
                 }
             }
             _ => Err(Error::ResponseCode(response.status().into())),

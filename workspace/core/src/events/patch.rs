@@ -1,6 +1,8 @@
 //! Patch represents a changeset of events to apply to a vault.
 use serde_binary::{
-    binary_rw::{BinaryWriter, Endian, FileStream, OpenType, SeekStream},
+    binary_rw::{
+        BinaryReader, BinaryWriter, Endian, FileStream, OpenType, SeekStream,
+    },
     Decode, Deserializer, Encode, Error as BinaryError,
     Result as BinaryResult, Serializer,
 };
@@ -137,6 +139,15 @@ impl PatchFile {
         Ok(patch)
     }
 
+    /// Count the number of events in the patch file.
+    pub fn count_events(&self) -> Result<usize> {
+        let mut stream = FileStream::new(&self.file_path, OpenType::Open)?;
+        let mut writer = BinaryReader::new(&mut stream, Endian::Big);
+        writer.seek(PATCH_IDENTITY.len())?;
+        let count = writer.read_u32()?;
+        Ok(count as usize)
+    }
+
     /// Determine if the patch file has some events data.
     pub fn has_events(&self) -> Result<bool> {
         Ok(self.file_path.metadata()?.len() > 8)
@@ -191,6 +202,7 @@ mod test {
         let new_len = temp.path().metadata()?.len();
         assert!(new_len > 8);
         assert_eq!(1, patch.0.len());
+        assert!(patch_file.has_events()?);
 
         let more_events = vec![mock_event.clone()];
         let next_patch = patch_file.append(more_events)?;
@@ -206,6 +218,7 @@ mod test {
         assert_eq!(8, temp.path().metadata()?.len());
 
         assert_eq!(2, drain_patch.0.len());
+        assert!(patch_file.has_events()? == false);
 
         Ok(())
     }
