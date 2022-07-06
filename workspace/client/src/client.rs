@@ -149,6 +149,7 @@ impl Client {
         let url = self.server.join("api/accounts")?;
         let signature =
             self.encode_signature(self.signer.sign(&vault).await?)?;
+
         let response = self
             .http_client
             .put(url)
@@ -157,6 +158,7 @@ impl Client {
             .body(vault)
             .send()
             .await?;
+
         Ok(response)
     }
 

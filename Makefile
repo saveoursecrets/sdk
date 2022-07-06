@@ -29,7 +29,7 @@ check:
 integration-test:
 	@rm -rf target/integration-test
 	@mkdir -p target/integration-test
-	@cargo test integration
+	@cargo test
 .PHONY: integration-test
 
 unit-test:

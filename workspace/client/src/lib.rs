@@ -73,4 +73,6 @@ pub use client::Client;
 pub use error::Error;
 pub use monitor::monitor;
 pub use shell::exec;
-pub use signup::signup;
+pub use signup::{
+    create_account, create_signing_key, signup, ClientCredentials, ClientKey,
+};

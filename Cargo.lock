@@ -2916,12 +2916,16 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum-server",
+ "serde_json",
  "serial_test",
  "sos-audit",
  "sos-client",
  "sos-core",
  "sos-server",
  "tokio",
+ "tracing",
+ "url",
+ "web3-keystore",
 ]
 
 [[package]]

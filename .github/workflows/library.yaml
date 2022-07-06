@@ -32,8 +32,8 @@ jobs:
       - name: Run cargo clippy
         run: cargo clippy --all
 
-  test:
-    name: test
+  unit-test:
+    name: unit-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -41,8 +41,22 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - name: Run cargo test
-        run: cargo test --all
+      - name: Run cargo unit tests
+        run: cargo test --all --lib
+
+  integration-test:
+    name: integration-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+      - name: Prepare integration tests
+        run: rm -rf target/integration-test && mkdir -p target/integration-test
+      - name: Run cargo integration tests
+        run: cargo test
 
   build:
     name: build

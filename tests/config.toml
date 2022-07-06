@@ -13,4 +13,4 @@ cert = "../sandbox/cert.pem"
 key = "../sandbox/key.pem"
 
 [storage]
-url = "file://../target/integration-test"
+url = "file://../target/integration-test/server"

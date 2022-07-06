@@ -2,12 +2,14 @@ use anyhow::Result;
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, thread};
 use tokio::sync::{oneshot, RwLock};
+use url::Url;
 
 use sos_audit::AuditLogFile;
 use sos_core::FileLocks;
 use sos_server::{Authentication, Server, ServerConfig, ServerInfo, State};
 
 const ADDR: &str = "127.0.0.1:3505";
+const SERVER: &str = "https://localhost:3505";
 
 struct MockServer {
     handle: Handle,
@@ -23,7 +25,7 @@ impl MockServer {
     async fn start(&self) -> Result<()> {
         let addr: SocketAddr = ADDR.parse::<SocketAddr>()?;
 
-        println!("start mock server {:#?}", addr);
+        tracing::info!("start mock server {:#?}", addr);
 
         let config = ServerConfig::load("tests/config.toml")?;
 
@@ -65,7 +67,7 @@ impl MockServer {
             runtime.block_on(async move {
                 loop {
                     if let Some(addr) = listen_handle.listening().await {
-                        println!("server has started {:#?}", addr);
+                        tracing::info!("server has started {:#?}", addr);
                         tx.send(addr)
                             .expect("failed to send listening notification");
                         break;
@@ -91,7 +93,7 @@ pub struct ShutdownHandle(Handle);
 
 impl Drop for ShutdownHandle {
     fn drop(&mut self) {
-        println!("shutdown mock server");
+        tracing::info!("shutdown mock server");
         self.0.shutdown();
     }
 }
@@ -102,6 +104,25 @@ pub fn spawn() -> Result<(oneshot::Receiver<SocketAddr>, ShutdownHandle)> {
     Ok((rx, handle))
 }
 
-pub fn integration_test_dir() -> PathBuf {
-    PathBuf::from("target/integration-test")
+pub fn server() -> Url {
+    Url::parse(SERVER).expect("failed to parse server URL")
+}
+
+pub fn setup() -> Result<PathBuf> {
+    let current_dir = std::env::current_dir()
+        .expect("failed to get current working directory");
+    let target = current_dir.join("target/integration-test");
+    if !target.exists() {
+        std::fs::create_dir_all(&target)?;
+    }
+
+    let server = target.join("server");
+    if server.exists() {
+        std::fs::remove_dir_all(&server)?;
+    }
+
+    // Setup required sub-directories
+    std::fs::create_dir(server)?;
+
+    Ok(target)
 }
