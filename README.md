@@ -15,7 +15,7 @@ This repository contains the core library code and several command line interfac
 
 For webassembly bindings see the [browser][] repository.
 
-The minimum supported Rust version (MSRV) is 1.62.
+The minimum supported Rust version (MSRV) is 1.62; to view the API documentation for all crates run `make docs`.
 
 ## Server
 
