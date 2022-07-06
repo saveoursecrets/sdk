@@ -36,6 +36,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          target: ${{ matrix.settings.target }}
       - name: Run cargo build
         run: cargo build --release --all --target=${{ matrix.settings.target }}
       - name: Run release artifacts
