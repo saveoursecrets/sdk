@@ -1,0 +1,16 @@
+gui = false
+
+[audit]
+file = "../target/integration-test/audit.dat"
+
+[api]
+origins = [
+  "http://localhost:3505",
+]
+
+#[tls]
+#cert = "../sandbox/cert.pem"
+#key = "../sandbox/key.pem"
+
+[storage]
+url = "file://../target/integration-test/server"

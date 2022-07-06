@@ -7,6 +7,7 @@ use sos_server::{
 
 use sos_audit::AuditLogFile;
 
+use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -70,8 +71,10 @@ async fn run() -> Result<()> {
         sse: Default::default(),
     }));
 
+    let handle = Handle::new();
+
     let addr = SocketAddr::from_str(&args.bind)?;
-    Server::start(addr, state).await?;
+    Server::start(addr, state, handle).await?;
     Ok(())
 }
 

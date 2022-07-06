@@ -2,7 +2,7 @@
 name = "sos-library"
 version = "0.1.0"
 edition = "2021"
-description = "Core vault library and CLI tools for encryption, encoding and signing "
+description = "Libraries and command line interfaces for the save our secrets distributed, encrypted database."
 license = "GPL-3.0"
 
 [workspace]
@@ -14,3 +14,18 @@ members = [
   "workspace/readline",
   "workspace/server",
 ]
+
+[dev-dependencies]
+sos-audit = { path = "workspace/audit" }
+sos-client = { path = "workspace/client" }
+sos-core = { path = "workspace/core" }
+sos-server = { path = "workspace/server" }
+
+anyhow = "1"
+axum-server = "0.4" 
+serial_test = "0.8"
+tokio = { version = "1", features = ["full"] }
+url = "2"
+web3-keystore = "0.4"
+serde_json = "1"
+tracing = "0.1"
