@@ -53,10 +53,8 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - name: Prepare integration tests
-        run: rm -rf target/integration-test && mkdir -p target/integration-test
       - name: Run cargo integration tests
-        run: cargo test
+        run: make integration-test
 
   build:
     name: build

@@ -14,6 +14,7 @@ async fn account_signup() -> Result<()> {
 
     let destination = setup()?;
 
+    println!("Using destination {:#?} ({})", destination, destination.exists());
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 

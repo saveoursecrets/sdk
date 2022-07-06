@@ -26,11 +26,11 @@ check:
 integration-test:
 	@rm -rf target/integration-test
 	@mkdir -p target/integration-test
-	@cargo test
+	@cargo test -- --nocapture
 .PHONY: integration-test
 
 unit-test:
-	@cargo test --all --lib
+	@cargo test --all --lib -- --nocapture
 .PHONY: unit-test
 
 test: unit-test integration-test
