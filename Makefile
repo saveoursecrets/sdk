@@ -19,9 +19,6 @@ fmt:
 	@cargo fmt --all
 .PHONY: fmt
 
-dev: unit-test fmt
-.PHONY: dev
-
 check:
 	@cargo check --all
 .PHONY: check
@@ -38,6 +35,9 @@ unit-test:
 
 test: unit-test integration-test
 .PHONY: test
+
+dev: test fmt
+.PHONY: dev
 
 docs:
 	@cargo doc --all --open --no-deps
