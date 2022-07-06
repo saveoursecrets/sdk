@@ -20,7 +20,7 @@ use axum::{
     routing::{get, put},
     Router,
 };
-use axum_server::tls_rustls::RustlsConfig;
+use axum_server::{tls_rustls::RustlsConfig, Handle};
 use serde::Serialize;
 use sos_audit::AuditLogFile;
 use sos_core::address::AddressStr;
@@ -60,6 +60,7 @@ impl Server {
     pub async fn start(
         addr: SocketAddr,
         state: Arc<RwLock<State>>,
+        handle: Handle,
     ) -> crate::Result<()> {
         let shared_state = Arc::clone(&state);
 
@@ -129,6 +130,7 @@ impl Server {
 
         tracing::info!("listening on {}", addr);
         axum_server::bind_rustls(addr, tls)
+            .handle(handle)
             .serve(app.into_make_service())
             .await?;
         Ok(())

@@ -19,17 +19,24 @@ fmt:
 	@cargo fmt --all
 .PHONY: fmt
 
-dev:
-	@cargo test --all
-	@cargo fmt --all
+dev: unit-test fmt
 .PHONY: dev
 
 check:
 	@cargo check --all
 .PHONY: check
 
-test:
-	@cargo test --all
+integration-test:
+	@rm -rf target/integration-test
+	@mkdir -p target/integration-test
+	@cargo test integration
+.PHONY: integration-test
+
+unit-test:
+	@cargo test --all --lib
+.PHONY: unit-test
+
+test: unit-test integration-test
 .PHONY: test
 
 docs:

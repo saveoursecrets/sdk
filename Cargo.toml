@@ -14,3 +14,13 @@ members = [
   "workspace/readline",
   "workspace/server",
 ]
+
+[dev-dependencies]
+anyhow = "1"
+axum-server = "0.4" 
+serial_test = "0.8"
+tokio = { version = "1", features = ["full"] }
+sos-audit = { path = "workspace/audit" }
+sos-client = { path = "workspace/client" }
+sos-core = { path = "workspace/core" }
+sos-server = { path = "workspace/server" }

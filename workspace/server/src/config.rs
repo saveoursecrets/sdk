@@ -124,11 +124,17 @@ impl ServerConfig {
             "file" => {
                 let url = self.storage.url.clone();
                 let mut is_relative = false;
-                if let Some(Host::Domain(name)) = url.host() {
-                    if name == "." {
-                        is_relative = true;
-                    }
-                }
+                let relative_prefix =
+                    if let Some(Host::Domain(name)) = url.host() {
+                        if name == "." || name == ".." {
+                            is_relative = true;
+                            Some(name)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
                 let url = if is_relative {
                     let base_file = format!(
                         "file://{}",
@@ -142,7 +148,8 @@ impl ServerConfig {
                         base.set_path(&path);
                     }
 
-                    let path = format!(".{}", url.path());
+                    let rel_prefix = relative_prefix.unwrap_or(".");
+                    let path = format!("{}{}", rel_prefix, url.path());
                     base.join(&path)?
                 } else {
                     url
