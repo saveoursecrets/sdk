@@ -4,17 +4,6 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
-/// Represents a conflict response that may be resolved.
-///
-/// Includes the root hashes and the leaves length for
-/// each commit tree.
-#[derive(Debug)]
-pub struct Conflict {
-    pub summary: Summary,
-    pub local: ([u8; 32], usize),
-    pub remote: ([u8; 32], usize),
-}
-
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("path {0} is not a directory")]
@@ -66,7 +55,11 @@ pub enum Error {
     CacheNotAvailable(Uuid),
 
     #[error("conflict detected that may be resolvable")]
-    Conflict(Conflict),
+    Conflict {
+        summary: Summary,
+        local: (CommitHash, usize),
+        remote: (CommitHash, usize),
+    },
 
     /// Error generated when a commit tree is expected to have a root.
     #[error("commit tree does not have a root")]

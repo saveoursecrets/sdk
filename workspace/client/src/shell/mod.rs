@@ -13,7 +13,6 @@ use url::Url;
 
 use human_bytes::human_bytes;
 use sos_core::{
-    commit_tree::wal_commit_tree,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     wal::WalItem,
@@ -25,11 +24,13 @@ use sos_readline::{
 };
 
 use crate::{
-    display_passphrase, run_blocking, Cache, ClientCache, Error, Result,
+    display_passphrase, run_blocking, ClientCache, Error, Result, SyncKind,
 };
 
 mod editor;
 mod print;
+
+type ReplCache = Arc<RwLock<dyn ClientCache>>;
 
 enum ConflictChoice {
     Push,
@@ -67,10 +68,17 @@ enum ShellCommand {
     /// Print information about the selected vault.
     Info,
     /// Get or set the name of the selected vault.
-    Name { name: Option<String> },
+    Name {
+        /// A new name for the vault.
+        name: Option<String>,
+    },
     /// Print commit status.
-    Status,
-    /// Print commit tree leaves for the WAL of the current vault.
+    Status {
+        /// Print more information; include commit tree root hashes.
+        #[clap(short, long)]
+        verbose: bool,
+    },
+    /// Print commit tree leaves for the current vault.
     Tree,
     /// Print secret keys for the selected vault.
     Keys,
@@ -87,14 +95,25 @@ enum ShellCommand {
         cmd: Add,
     },
     /// Print a secret.
-    Get { secret: SecretRef },
+    Get {
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Update a secret.
-    Set { secret: SecretRef },
+    Set {
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Delete a secret.
-    Del { secret: SecretRef },
+    Del {
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Rename a secret.
     Mv {
+        /// Secret name or identifier.
         secret: SecretRef,
+        /// New label for the secret.
         label: Option<String>,
     },
     /// Manage snapshots for the selected vault.
@@ -106,6 +125,18 @@ enum ShellCommand {
     History {
         #[clap(subcommand)]
         cmd: History,
+    },
+    /// Download changes from the remote server.
+    Pull {
+        /// Force a pull from the remote server.
+        #[clap(short, long)]
+        force: bool,
+    },
+    /// Upload changes to the remote server.
+    Push {
+        /// Force a push to the remote server.
+        #[clap(short, long)]
+        force: bool,
     },
     /// Print the current identity.
     Whoami,
@@ -144,13 +175,13 @@ enum SnapShot {
 
 #[derive(Subcommand, Debug)]
 enum History {
-    /// Compact the currently selected vault WAL file.
+    /// Compact the currently selected vault.
     Compact {
         /// Take a snapshot before compaction.
         #[clap(short, long)]
         snapshot: bool,
     },
-    /// Verify the integrity of the WAL file.
+    /// Verify the integrity of the vault history.
     Check,
     /// List history events.
     #[clap(alias = "ls")]
@@ -163,7 +194,7 @@ enum History {
 
 /// Attempt to read secret meta data for a reference.
 fn find_secret_meta(
-    cache: Arc<RwLock<Cache>>,
+    cache: ReplCache,
     secret: &SecretRef,
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let reader = cache.read().unwrap();
@@ -310,29 +341,31 @@ fn read_file_secret(path: &str) -> Result<Secret> {
     Ok(Secret::File { name, mime, buffer })
 }
 
-fn maybe_conflict<F>(cache: Arc<RwLock<Cache>>, func: F) -> Result<()>
+fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
-    F: FnOnce(&mut RwLockWriteGuard<'_, Cache>) -> Result<()>,
+    F: FnOnce(
+        &mut RwLockWriteGuard<'_, dyn ClientCache + 'static>,
+    ) -> Result<()>,
 {
     let mut writer = cache.write().unwrap();
     match func(&mut writer) {
         Ok(_) => Ok(()),
         Err(e) => match e {
-            Error::Conflict(info) => {
-                let local_hex = hex::encode(info.local.0);
-                let remote_hex = hex::encode(info.remote.0);
-
-                let local_num = info.local.1;
-                let remote_num = info.remote.1;
-
-                let should_pull = remote_num >= local_num;
-                //let sync_title = if should_pull { "pull" } else { "push" };
+            Error::Conflict {
+                summary,
+                local,
+                remote,
+            } => {
+                let local_hex = local.0.to_string();
+                let remote_hex = remote.0.to_string();
+                let local_num = local.1;
+                let remote_num = remote.1;
 
                 let banner = Banner::new()
                     .padding(Padding::one())
                     .text(Cow::Borrowed("!!! CONFLICT !!!"))
                     .text(Cow::Owned(
-                        format!("A conflict was detected on {}, proceed with caution; to resolve this conflict sync with the server.", info.summary.name()),
+                        format!("A conflict was detected on {}, proceed with caution; to resolve this conflict sync with the server.", summary.name()),
                     ))
                     .text(Cow::Owned(format!("local  = {}\nremote = {}", local_hex, remote_hex)))
                     .text(Cow::Owned(format!("local = #{}, remote = #{}", local_num, remote_num)))
@@ -356,10 +389,12 @@ where
                 match choose(prompt, &options)? {
                     Some(choice) => match choice {
                         ConflictChoice::Pull => {
-                            run_blocking(writer.force_pull(&info.summary))
+                            run_blocking(writer.pull(&summary, true))?;
+                            Ok(())
                         }
                         ConflictChoice::Push => {
-                            run_blocking(writer.force_push(&info.summary))
+                            run_blocking(writer.push(&summary, true))?;
+                            Ok(())
                         }
                         ConflictChoice::Noop => Ok(()),
                     },
@@ -372,7 +407,7 @@ where
 }
 
 /// Execute the program command.
-fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
+fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
     match program.cmd {
         ShellCommand::Vaults => {
             let mut writer = cache.write().unwrap();
@@ -475,13 +510,20 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 Ok(())
             }
         }
-        ShellCommand::Status => {
+        ShellCommand::Status { verbose } => {
             let reader = cache.read().unwrap();
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
-            let (client_proof, server_proof) =
+            let (status, pending_events) =
                 run_blocking(reader.vault_status(keeper.summary()))?;
-            println!("local  = {}", CommitHash(client_proof.0));
-            println!("remote = {}", CommitHash(server_proof.0));
+            if verbose {
+                let pair = status.pair();
+                println!("local  = {}", pair.local.root_hex());
+                println!("remote = {}", pair.remote.root_hex());
+            }
+            if let Some(pending_events) = pending_events {
+                println!("{} event(s) have not been saved", pending_events);
+            }
+            println!("{}", status);
             Ok(())
         }
         ShellCommand::Tree => {
@@ -749,12 +791,8 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                     let reader = cache.read().unwrap();
                     let keeper =
                         reader.current().ok_or(Error::NoVaultSelected)?;
-                    let wal_path = reader.wal_path(keeper.summary());
-
-                    // Verify checksums in the commit tree
-                    wal_commit_tree(&wal_path, true, |_| {})?;
+                    reader.verify(keeper.summary())?;
                     println!("Verified ✓");
-
                     Ok(())
                 }
                 History::List { long } => {
@@ -776,6 +814,52 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
                 }
             }
         }
+        ShellCommand::Pull { force } => {
+            let mut writer = cache.write().unwrap();
+            let keeper = writer.current().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
+            let result = run_blocking(writer.pull(&summary, force))?;
+            match result.status {
+                SyncKind::Equal => println!("Up to date"),
+                SyncKind::Safe => {
+                    if let Some(proof) = result.after {
+                        println!("Pull complete {}", proof.root_hex());
+                    }
+                }
+                SyncKind::Force => {
+                    if let Some(proof) = result.after {
+                        println!("Force pull complete {}", proof.root_hex());
+                    }
+                }
+                SyncKind::Unsafe => {
+                    println!("Cannot pull safely, use the --force option if you are sure.");
+                }
+            }
+            Ok(())
+        }
+        ShellCommand::Push { force } => {
+            let mut writer = cache.write().unwrap();
+            let keeper = writer.current().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
+            let result = run_blocking(writer.push(&summary, force))?;
+            match result.status {
+                SyncKind::Equal => println!("Up to date"),
+                SyncKind::Safe => {
+                    if let Some(proof) = result.after {
+                        println!("Push complete {}", proof.root_hex());
+                    }
+                }
+                SyncKind::Force => {
+                    if let Some(proof) = result.after {
+                        println!("Force push complete {}", proof.root_hex());
+                    }
+                }
+                SyncKind::Unsafe => {
+                    println!("Cannot push safely, use the --force option if you are sure.");
+                }
+            }
+            Ok(())
+        }
         ShellCommand::Whoami => {
             let reader = cache.read().unwrap();
             let address = reader.address()?;
@@ -794,7 +878,7 @@ fn exec_program(program: Shell, cache: Arc<RwLock<Cache>>) -> Result<()> {
 }
 
 /// Intermediary to pretty print clap parse errors.
-fn exec_args<I, T>(it: I, cache: Arc<RwLock<Cache>>) -> Result<()>
+fn exec_args<I, T>(it: I, cache: ReplCache) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -807,7 +891,7 @@ where
 }
 
 /// Execute a line of input in the context of the shell program.
-pub fn exec(line: &str, cache: Arc<RwLock<Cache>>) -> Result<()> {
+pub fn exec(line: &str, cache: ReplCache) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));
