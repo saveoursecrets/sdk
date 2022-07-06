@@ -72,14 +72,19 @@ impl Server {
             )?);
         }
 
-        tracing::debug!(certificate = ?reader.config.tls.cert);
-        tracing::debug!(key = ?reader.config.tls.cert);
+        let tls = if let Some(tls) = &reader.config.tls {
+            tracing::debug!(certificate = ?tls.cert);
+            tracing::debug!(key = ?tls.cert);
 
-        let tls = RustlsConfig::from_pem_file(
-            &reader.config.tls.cert,
-            &reader.config.tls.key,
-        )
-        .await?;
+            let tls = RustlsConfig::from_pem_file(
+                &tls.cert,
+                &tls.key,
+            )
+            .await?;
+            Some(tls)
+        } else {
+            None
+        };
 
         drop(reader);
 
@@ -129,10 +134,17 @@ impl Server {
             .layer(Extension(shared_state));
 
         tracing::info!("listening on {}", addr);
-        axum_server::bind_rustls(addr, tls)
-            .handle(handle)
-            .serve(app.into_make_service())
-            .await?;
+        if let Some(tls) = tls {
+            axum_server::bind_rustls(addr, tls)
+                .handle(handle)
+                .serve(app.into_make_service())
+                .await?;
+        } else {
+            axum_server::bind(addr)
+                .handle(handle)
+                .serve(app.into_make_service())
+                .await?;
+        }
         Ok(())
     }
 }

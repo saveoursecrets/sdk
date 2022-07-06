@@ -1,4 +1,4 @@
-use anyhow::{Error, Result};
+use anyhow::Result;
 use serial_test::serial;
 
 mod test_utils;
@@ -14,7 +14,7 @@ async fn account_signup() -> Result<()> {
 
     let destination = setup()?;
 
-    let (rx, handle) = spawn()?;
+    let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
     let server = server();
@@ -39,7 +39,7 @@ async fn account_signup() -> Result<()> {
     let keystore: KeyStore = serde_json::from_slice(&keystore)?;
 
     let signing_key: [u8; 32] =
-        web3_keystore::decrypt(&keystore, &credentials.keystore_passphrase)?
+        decrypt(&keystore, &credentials.keystore_passphrase)?
             .as_slice()
             .try_into()?;
 
