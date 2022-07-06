@@ -17,8 +17,8 @@ jobs:
         settings:
           - host: macos-latest
             target: 'x86_64-apple-darwin'
-          - host: windows-latest
-            target: 'x86_64-pc-windows-msvc'
+          #- host: windows-latest
+            #target: 'x86_64-pc-windows-msvc'
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-gnu'
     runs-on: ${{ matrix.settings.host }}
@@ -38,16 +38,21 @@ jobs:
           name: release-artifacts
           path: target/*.tar.gz
 
-  #upload-release:
-    #name: upload-release
-    #runs-on: ubuntu-latest
-    #needs:
-      #- build
-    #steps:
-      #- uses: actions/checkout@v2
+  upload-release:
+    name: upload-release
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+            path: artifacts
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
       #- uses: ncipollo/release-action@v1
         #with:
           #artifactErrorsFailBuild: true
-          #artifacts: "target/*.tar.gz"
+          #artifacts: "artifacts/*.tar.gz"
           ##bodyFile: "body.md"
           #token: ${{ secrets.GITHUB_TOKEN }}
