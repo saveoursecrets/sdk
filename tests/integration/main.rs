@@ -29,10 +29,16 @@ async fn account_signup() -> Result<()> {
     let expected_keystore =
         destination.join(&format!("{}.json", key.address()));
 
+    println!("expected keystore {:#?}", expected_keystore);
+
     let ClientKey(signing_key, _, _) = &key;
     let expected_signing_key = *signing_key;
 
+    println!("Trying to create account");
+
     let credentials = create_account(server, destination, name, key).await?;
+
+    println!("After creating account {}", expected_keystore.exists());
 
     assert_eq!(expected_keystore, credentials.keystore_file);
     assert!(expected_keystore.is_file());
