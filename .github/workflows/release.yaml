@@ -61,18 +61,18 @@ jobs:
             path: artifacts
       - name: Display structure of downloaded files
         run: ls -R artifacts
-      - name: Tarball release artifacts
-        run: >-
-          mkdir tarballs;
-          for target in $(ls artifacts); do
-            echo $target;
-            for bin in $(ls $target); do
-              echo $bin;
-              tar -czvf tarballs/${bin}-${target}.tar.gz artifacts/${target}/${bin};
-            done
-          done
-      - name: Display structure of tarballs
-        run: ls -R tarballs
+      #- name: Tarball release artifacts
+        #run: >-
+          #mkdir tarballs;
+          #for target in $(ls artifacts); do
+            #echo $target;
+            #for bin in $(ls $target); do
+              #echo $bin;
+              #tar -czvf tarballs/${bin}-${target}.tar.gz artifacts/${target}/${bin};
+            #done
+          #done
+      #- name: Display structure of tarballs
+        #run: ls -R tarballs
       #- uses: ncipollo/release-action@v1
         #with:
           #artifactErrorsFailBuild: true
