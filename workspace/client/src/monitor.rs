@@ -4,7 +4,7 @@ use reqwest_eventsource::Event;
 use std::path::PathBuf;
 use url::Url;
 
-use sos_core::events::ChangeEvent;
+use sos_core::events::ChangeNotification;
 
 use crate::{run_blocking, Client, ClientBuilder, Result};
 
@@ -14,47 +14,16 @@ async fn stream(client: &Client) -> Result<()> {
         match event {
             Ok(Event::Open) => tracing::debug!("sse connection open"),
             Ok(Event::Message(message)) => {
-                let info: ChangeEvent = serde_json::from_str(&message.data)?;
-                match info {
-                    ChangeEvent::CreateVault { vault_id, .. } => {
-                        tracing::info!(
-                            event = %message.event,
-                            vault_id = %vault_id);
-                    }
-                    ChangeEvent::UpdateVault { vault_id, .. }
-                    | ChangeEvent::DeleteVault { vault_id, .. }
-                    | ChangeEvent::SetVaultMeta { vault_id, .. } => {
-                        tracing::info!(
-                            event = %message.event,
-                            vault_id = %vault_id);
-                    }
-                    ChangeEvent::SetVaultName { vault_id, name, .. } => {
-                        tracing::info!(
-                            event = %message.event,
-                            vault_id = %vault_id,
-                            name = %name);
-                    }
-                    ChangeEvent::CreateSecret {
-                        vault_id,
-                        secret_id,
-                        ..
-                    }
-                    | ChangeEvent::UpdateSecret {
-                        vault_id,
-                        secret_id,
-                        ..
-                    }
-                    | ChangeEvent::DeleteSecret {
-                        vault_id,
-                        secret_id,
-                        ..
-                    } => {
-                        tracing::info!(
-                            event = %message.event,
-                            vault_id = %vault_id,
-                            secret_id = %secret_id);
-                    }
-                }
+                let notification: ChangeNotification =
+                    serde_json::from_str(&message.data)?;
+                let changes = notification
+                    .changes()
+                    .iter()
+                    .map(|e| format!("{:?}", e))
+                    .collect::<Vec<_>>();
+                tracing::info!(
+                    changes = ?changes,
+                    vault_id = %notification.vault_id());
             }
             Err(e) => {
                 es.close();

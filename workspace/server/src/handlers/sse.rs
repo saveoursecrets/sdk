@@ -8,7 +8,7 @@ use futures::stream::Stream;
 
 //use axum_macros::debug_handler;
 
-use sos_core::{address::AddressStr, events::ChangeEvent};
+use sos_core::{address::AddressStr, events::ChangeNotification};
 
 use std::{convert::Infallible, sync::Arc, time::Duration};
 use tokio::sync::{
@@ -27,7 +27,7 @@ pub struct SseConnection {
     ///
     /// Handlers can send messages via this sender to broadcast
     /// to all the connected server sent events for the client.
-    pub(crate) tx: Sender<ChangeEvent>,
+    pub(crate) tx: Sender<ChangeNotification>,
 
     /// Number of connected clients, used to know when
     /// the connection state can be disposed of.
@@ -53,7 +53,7 @@ pub(crate) async fn sse_handler(
             {
                 conn
             } else {
-                let (tx, _) = broadcast::channel::<ChangeEvent>(256);
+                let (tx, _) = broadcast::channel::<ChangeNotification>(32);
                 writer
                     .sse
                     .entry(token.address)
@@ -110,9 +110,7 @@ pub(crate) async fn sse_handler(
                 let _guard = Guard { state: stream_state, address };
                 while let Ok(event) = rx.recv().await {
                     // Must be Infallible here
-                    let event_name = event.event_name();
                     let event = Event::default()
-                        .event(&event_name)
                         .json_data(event)
                         .unwrap();
                     tracing::trace!("{:#?}", event);

@@ -13,8 +13,8 @@ use sos_core::{
     commit_tree::{CommitProof, Comparison},
     decode,
     events::{
-        AuditData, AuditEvent, ChangeEvent, EventKind, Patch, SyncEvent,
-        WalEvent,
+        AuditData, AuditEvent, ChangeEvent, ChangeNotification, EventKind,
+        Patch, SyncEvent, WalEvent,
     },
     vault::Header,
     CommitHash,
@@ -32,17 +32,18 @@ use crate::{
 
 use super::{
     append_audit_logs, append_commit_headers, append_match_header,
-    send_notifications,
+    send_notification,
 };
 
 enum PatchResult {
     Conflict(CommitProof, Option<CommitProof>),
     Success(
+        AddressStr,
         Vec<AuditEvent>,
         Vec<ChangeEvent>,
         Vec<CommitHash>,
         CommitProof,
-        Option<(AddressStr, String)>,
+        Option<String>,
     ),
 }
 
@@ -86,10 +87,11 @@ impl WalHandler {
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                    let change_event = ChangeEvent::CreateVault {
-                        vault_id: *summary.id(),
-                        address: token.address,
-                    };
+                    let notification = ChangeNotification::new(
+                        &token.address,
+                        summary.id(),
+                        vec![ChangeEvent::CreateVault],
+                    );
 
                     let log = AuditEvent::from_sync_event(
                         &sync_event,
@@ -98,7 +100,7 @@ impl WalHandler {
                     );
 
                     append_audit_logs(&mut writer, vec![log]).await?;
-                    send_notifications(&mut writer, vec![change_event]);
+                    send_notification(&mut writer, notification);
 
                     let mut headers = HeaderMap::new();
                     append_commit_headers(&mut headers, &proof)?;
@@ -296,16 +298,10 @@ impl WalHandler {
                             })
                             .collect::<Vec<_>>();
 
-                        // Notifications for the SSE channel
-                        let notifications = change_set
+                        // Changes events for the SSE channel
+                        let change_events = change_set
                             .iter()
-                            .map(|event| {
-                                ChangeEvent::from_sync_event(
-                                    &vault_id,
-                                    &token.address,
-                                    event,
-                                )
-                            })
+                            .map(|event| ChangeEvent::from_sync_event(event))
                             .filter(|e| e.is_some())
                             .map(|e| e.unwrap())
                             .collect::<Vec<_>>();
@@ -333,11 +329,12 @@ impl WalHandler {
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                         Ok(PatchResult::Success(
+                            token.address,
                             audit_logs,
-                            notifications,
+                            change_events,
                             commits,
                             proof,
-                            vault_name.map(|name| (token.address, name)),
+                            vault_name,
                         ))
                     }
                     Comparison::Contains(indices, _leaves) => {
@@ -375,8 +372,9 @@ impl WalHandler {
 
         match result? {
             PatchResult::Success(
+                address,
                 logs,
-                notifications,
+                change_events,
                 _commits,
                 proof,
                 name,
@@ -384,7 +382,7 @@ impl WalHandler {
                 let mut writer = state.write().await;
 
                 // Must update the vault name in it's summary
-                if let Some((address, name)) = name {
+                if let Some(name) = name {
                     writer
                         .backend
                         .set_vault_name(&address, &vault_id, name)
@@ -395,8 +393,14 @@ impl WalHandler {
                 // Append audit logs
                 append_audit_logs(&mut writer, logs).await?;
 
+                let notification = ChangeNotification::new(
+                    &address,
+                    &vault_id,
+                    change_events,
+                );
+
                 // Send notifications on the SSE channel
-                send_notifications(&mut writer, notifications);
+                send_notification(&mut writer, notification);
 
                 // Always send the `x-commit-hash` and `x-commit-proof`
                 // headers to the client with the new updated commit
@@ -554,10 +558,11 @@ impl WalHandler {
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                let change_event = ChangeEvent::DeleteVault {
-                    vault_id: vault_id.clone(),
-                    address: token.address,
-                };
+                let notification = ChangeNotification::new(
+                    &token.address,
+                    &vault_id,
+                    vec![ChangeEvent::DeleteVault],
+                );
 
                 let log = AuditEvent::new(
                     EventKind::DeleteVault,
@@ -566,7 +571,7 @@ impl WalHandler {
                 );
 
                 append_audit_logs(&mut writer, vec![log]).await?;
-                send_notifications(&mut writer, vec![change_event]);
+                send_notification(&mut writer, notification);
 
                 let mut headers = HeaderMap::new();
                 if let Some(proof) = &proof {
