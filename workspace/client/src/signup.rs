@@ -38,7 +38,7 @@ pub async fn create_account(
     name: Option<String>,
     key: ClientKey,
     cache_dir: PathBuf,
-) -> Result<ClientCredentials> {
+) -> Result<(ClientCredentials, FileCache)> {
     if !destination.is_dir() {
         return Err(Error::NotDirectory(destination));
     }
@@ -72,7 +72,7 @@ pub async fn create_account(
         address,
     };
 
-    Ok(account)
+    Ok((account, cache))
 }
 
 /// Create a signing key pair and compute the address.
@@ -119,7 +119,7 @@ pub fn signup(
 
     let prompt = Some("Are you sure (y/n)? ");
     if read_flag(prompt)? {
-        let account = run_blocking(create_account(
+        let (account, _) = run_blocking(create_account(
             server,
             destination,
             name,

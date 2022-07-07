@@ -38,12 +38,8 @@ async fn account_signup() -> Result<()> {
     let ClientKey(signing_key, _, _) = &key;
     let expected_signing_key = *signing_key;
 
-    println!("Trying to create account");
-
-    let credentials =
+    let (credentials, _disc_cache) =
         create_account(server, destination, name, key, cache_dir).await?;
-
-    println!("After creating account {}", expected_keystore.exists());
 
     assert_eq!(expected_keystore, credentials.keystore_file);
     assert!(expected_keystore.is_file());

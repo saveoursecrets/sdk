@@ -22,7 +22,7 @@ use crate::{
 use sos_core::{
     commit_tree::CommitProof,
     encode,
-    events::{AuditEvent, AuditProvider, ChangeEvent},
+    events::{AuditEvent, AuditProvider, ChangeNotification},
 };
 
 pub(crate) mod account;
@@ -66,16 +66,14 @@ async fn append_audit_logs<'a>(
     Ok(())
 }
 
-fn send_notifications<'a>(
+fn send_notification<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
-    notifications: Vec<ChangeEvent>,
+    notification: ChangeNotification,
 ) {
-    // Send notifications on the SSE channel
-    for event in notifications {
-        if let Some(conn) = writer.sse.get(event.address()) {
-            if let Err(_) = conn.tx.send(event) {
-                tracing::debug!("server sent events channel dropped");
-            }
+    // Send notification on the SSE channel
+    if let Some(conn) = writer.sse.get(notification.address()) {
+        if let Err(_) = conn.tx.send(notification) {
+            tracing::debug!("server sent events channel dropped");
         }
     }
 }
