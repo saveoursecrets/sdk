@@ -20,8 +20,10 @@ IFS=$'\n\t'
 target=$1
 features=${2-}
 
+#--no-install-suggests --no-install-recommends 
+
 function install_packages {
-  sudo apt-get -yq --no-install-suggests --no-install-recommends install "$@"
+  sudo apt-get -yq install "$@"
 }
 
 use_clang=
