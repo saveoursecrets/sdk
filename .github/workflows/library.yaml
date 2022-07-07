@@ -14,13 +14,17 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install Rust
         uses: actions-rs/toolchain@v1
+        with:
+          components: clippy
       - name: Install cargo make
         run: cargo install cargo-make
+      - name: Install webassembly target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Check webassembly
+        run: cargo make check-wasm
       - name: Check cargo fmt
         run: cargo make format-check
       - name: Check cargo clippy
         run: cargo make clippy
       - name: Run tests
         run: cargo make test
-      - name: Check webassembly
-        run: cargo make check-wasm
