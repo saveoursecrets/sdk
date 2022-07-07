@@ -1,0 +1,7 @@
+[advisories]
+ignore = []
+
+[output]
+# FIXME: also deny "unmaintained" once we get rid of `failure` from `chbs`
+#deny = ["warnings", "yanked", "unsound", "unmaintained"]
+quiet = false
