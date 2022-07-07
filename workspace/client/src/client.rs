@@ -1,7 +1,8 @@
 //! HTTP client implementation.
 use rand::Rng;
 use reqwest::{
-    header::HeaderMap, Client as HttpClient, RequestBuilder, Response,
+    header::HeaderMap, Client as HttpClient,
+    ClientBuilder as HttpClientBuilder, RequestBuilder, Response,
 };
 use reqwest_eventsource::EventSource;
 use sos_core::{
@@ -65,7 +66,17 @@ pub struct Client {
 impl Client {
     /// Create a new client.
     pub fn new(server: Url, signer: Arc<dyn Signer + Send + Sync>) -> Self {
-        let http_client = HttpClient::new();
+        let mut builder = HttpClientBuilder::new();
+
+        // For integration tests we use a self-signed
+        // certificate, so this allows the client to connect
+        if cfg!(debug_assertions) {
+            builder = builder.danger_accept_invalid_certs(true);
+        }
+
+        let http_client =
+            builder.build().expect("failed to build HTTP client");
+
         Self {
             server,
             http_client,
