@@ -19,6 +19,7 @@ jobs:
           components:
             - rustfmt
             - clippy
+
       - name: Install cargo make
         run: cargo install cargo-make
       - name: Check cargo fmt
