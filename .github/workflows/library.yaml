@@ -6,8 +6,8 @@ env:
   RUST_LOG: "0"
 
 jobs:
-  fmt:
-    name: fmt
+  library:
+    name: library
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -15,92 +15,14 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          components: rustfmt
-      - name: Run cargo fmt
-        run: cargo fmt --all -- --check
-
-  clippy:
-    name: clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          components: clippy
-      - name: Run cargo clippy
-        run: cargo clippy --all
-
-  unit-test:
-    name: unit-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-      - name: Run unit tests
-        run: make unit-test
-
-  integration-test:
-    name: integration-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-      - name: Run integration tests
-        run: make integration-test
-
-  #build:
-    #name: build
-    #runs-on: ubuntu-latest
-    #steps:
-      #- uses: actions/checkout@v2
-      #- name: Install Rust
-        #uses: actions-rs/toolchain@v1
-        #with:
-          #profile: minimal
-      #- name: Run cargo build
-        #run: cargo build --release --all
-
-  wasm:
-    name: wasm
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          target: wasm32-unknown-unknown
-      - name: Check webassembly compilation for core library
-        run: cd workspace/core && cargo check --target=wasm32-unknown-unknown
-
-  audit:
-    name: audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-      - name: Run cargo audit
-        run: cargo install cargo-audit && cargo audit
-
-  doc:
-    name: doc
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-      - name: Run cargo doc
-        run: cargo doc --all --no-deps
+          components: rustfmt clippy
+      - name: Install cargo make
+        run: cargo install cargo-make
+      - name: Check cargo fmt
+        run: cargo make format-check
+      - name: Check cargo clippy
+        run: cargo make clippy
+      - name: Run tests
+        run: cargo make test
+      - name: Check webassembly
+        run: cargo make check-wasm

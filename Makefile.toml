@@ -13,14 +13,22 @@ BINARIES = "sos-audit sos-check sos-client sos-server"
 
 [tasks.format]
 workspace = true
-install_crate = "rustfmt"
 command = "cargo"
 args = ["fmt"]
+
+[tasks.format-check]
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
 
 [tasks.check]
 workspace = true
 command = "cargo"
 args = ["check"]
+
+[tasks.clippy]
+workspace = true
+command = "cargo"
+args = ["clippy"]
 
 [tasks.clean]
 workspace = true
@@ -51,6 +59,10 @@ dependencies = ["unit", "integration"]
 
 [tasks.dev]
 dependencies = ["test", "format"]
+
+[tasks.check-wasm]
+command = "cargo"
+args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-core"]
 
 [tasks.server-release]
 command = "cargo"
