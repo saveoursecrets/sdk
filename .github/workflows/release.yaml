@@ -65,9 +65,15 @@ jobs:
         with:
           profile: minimal
           target: ${{ matrix.target }}
-      - name: Run cargo build
+      - if: ${{ !contains(matrix.os, 'windows') }}
+        name: Run cargo build
         run: |
           export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc;
+          cargo build --release --all --bins --target=${{ matrix.target }}
+
+      - if: ${{ contains(matrix.os, 'windows') }}
+        name: Run cargo build
+        run: |
           cargo build --release --all --bins --target=${{ matrix.target }}
       - uses: actions/upload-artifact@v3
         with:
