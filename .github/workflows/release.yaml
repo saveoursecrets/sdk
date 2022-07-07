@@ -38,7 +38,7 @@ jobs:
           profile: minimal
           target: ${{ matrix.settings.target }}
       - name: Run cargo build
-        run: cargo build --release --all --target=${{ matrix.settings.target }}
+        run: cargo build --release --all --bins --target=${{ matrix.settings.target }}
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.settings.target }}
@@ -64,17 +64,17 @@ jobs:
         run: >-
           mkdir tarballs;
           for target in $(ls artifacts); do
-            echo $target;
-            for bin in $(ls $target); do
-              echo $bin;
+            #echo $target;
+            for bin in $(ls artifacts/${target}); do
+              #echo $bin;
               tar -czvf tarballs/${bin}-${target}.tar.gz artifacts/${target}/${bin};
             done
           done
       - name: Display structure of tarballs
         run: ls -R tarballs
-      #- uses: ncipollo/release-action@v1
-        #with:
-          #artifactErrorsFailBuild: true
-          #artifacts: "tarballs/*.tar.gz"
-          ##bodyFile: "body.md"
-          #token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ncipollo/release-action@v1
+        with:
+          artifactErrorsFailBuild: true
+          artifacts: "tarballs/*.tar.gz"
+          #bodyFile: "body.md"
+          token: ${{ secrets.GITHUB_TOKEN }}
