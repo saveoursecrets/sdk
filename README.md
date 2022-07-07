@@ -25,6 +25,28 @@ cargo install cargo-make
 
 The minimum supported Rust version (MSRV) is 1.62; to view the API documentation for all crates run `cargo make docs`.
 
+## Test
+
+* Run all tests: `cargo make test`
+* Unit tests: `cargo make unit`
+* Integration tests: `cargo make integration`
+
+### Coverage
+
+For code coverage install the `llvm-tools-preview`:
+
+```
+rustup component add llvm-tools-preview
+```
+
+And to generate the HTML from the `lcov.info` file install [lcov][]; then you can run:
+
+```
+cargo make coverage
+```
+
+The HTML coverage report is at `target/coverage/index.html`.
+
 ## Server
 
 ### Certificates
@@ -67,5 +89,6 @@ To create a release build with the bundled GUI assets run:
 cargo make server-release
 ```
 
+[lcov]: https://github.com/linux-test-project/lcov
 [mkcert]: https://github.com/FiloSottile/mkcert
 [browser]: https://github.com/saveoursecrets/browser
