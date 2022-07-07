@@ -20,10 +20,8 @@ IFS=$'\n\t'
 target=$1
 features=${2-}
 
-#--no-install-suggests --no-install-recommends 
-
 function install_packages {
-  sudo apt-get -yq install "$@"
+  sudo apt-get -yq --no-install-suggests --no-install-recommends install "$@"
 }
 
 use_clang=
@@ -49,6 +47,9 @@ case $target in
   install_packages \
     libssl-dev:arm64 \
     libssl1.1:arm64 \
+    libc6:arm64 \
+    dbus-session-bus \
+    openssl \
     qemu-user \
     gcc-aarch64-linux-gnu \
     libc6-dev-arm64-cross
