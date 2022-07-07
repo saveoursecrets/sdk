@@ -1,3 +1,7 @@
+extend= [
+  { path = "coverage_grcov.makefile.toml" }
+]
+
 [config]
 default_to_workspace = false
 
@@ -85,3 +89,20 @@ done
 
 [tasks.release]
 dependencies = ["dist", "artifacts"]
+
+[tasks.genhtml]
+script = '''
+genhtml -o ./target/coverage/ --dark-mode --show-details --highlight --ignore-errors source --legend ./target/lcov.info
+'''
+
+[tasks.clean-coverage]
+script = '''
+rm -rf ./target/cover
+rm -rf ./target/coverage
+rm ./target/lcov.info
+'''
+
+[tasks.coverage]
+alias="coverage_grcov"
+dependencies = ["clean-coverage"]
+run_task = "genhtml"
