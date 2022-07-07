@@ -16,7 +16,9 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          components: rustfmt clippy
+          components:
+            - rustfmt
+            - clippy
       - name: Install cargo make
         run: cargo install cargo-make
       - name: Check cargo fmt
