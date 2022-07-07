@@ -40,11 +40,11 @@ case $target in
 --target=aarch64-unknown-linux-gnu)
   # Clang is needed for code coverage.
   #use_clang=1
-  sudo echo "deb http://bg.ports.ubuntu.com/ xenial main restricted" >> /etc/apt/sources.lst
+  sudo echo "deb [arch=arm64] http://bg.ports.ubuntu.com/ bionic main restricted" >> /etc/apt/sources.list
   sudo apt-get update -y
-  sudo dpkg --add-architecture armhf
+  sudo dpkg --add-architecture arm64
   install_packages \
-    libssl-dev:armhf \
+    libssl-dev:arm64 \
     qemu-user \
     gcc-aarch64-linux-gnu \
     libc6-dev-arm64-cross
