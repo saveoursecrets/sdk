@@ -39,7 +39,7 @@ For code coverage install the `llvm-tools-preview`:
 rustup component add llvm-tools-preview
 ```
 
-And to generate the HTML from the `lcov.info` file install [lcov][]; then you can run:
+And to generate the HTML from the `lcov.info` file install [lcov][]; then you can run (this will install [grcov][] automatically if it is not installed):
 
 ```
 cargo make coverage
@@ -90,5 +90,6 @@ cargo make server-release
 ```
 
 [lcov]: https://github.com/linux-test-project/lcov
+[grcov]: https://github.com/mozilla/grcov
 [mkcert]: https://github.com/FiloSottile/mkcert
 [browser]: https://github.com/saveoursecrets/browser
