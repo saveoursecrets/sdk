@@ -1,6 +1,7 @@
 name: Library
 
-on: [pull_request]
+#on: [pull_request]
+on: push
 
 env:
   RUST_LOG: "0"
