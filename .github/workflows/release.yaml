@@ -15,15 +15,18 @@ jobs:
       fail-fast: true
       matrix:
         target:
-          #- x86_64-apple-darwin
-          #- aarch64-apple-darwin
-          #- x86_64-unknown-linux-gnu
-          #- aarch64-unknown-linux-gnu
-          #- x86_64-pc-windows-gnu
-          #- x86_64-pc-windows-msvc
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-pc-windows-gnu
+          - x86_64-pc-windows-msvc
 
-          - aarch64-pc-windows-msvc
+          # NOTE: Need ring:0.17.0
+          # SEE: https://github.com/briansmith/ring/issues/1461
+          #- aarch64-pc-windows-msvc
 
+          # TODO
           #- aarch64-apple-ios
           #- aarch64-linux-android
           #- x86_64-unknown-linux-musl
@@ -36,21 +39,21 @@ jobs:
           #- i686-unknown-linux-musl
         
         include:
-          #- target: x86_64-apple-darwin
-            #os: macos-latest
-          #- target: aarch64-apple-darwin
-            #os: macos-latest
-          #- target: x86_64-unknown-linux-gnu
-            #os: ubuntu-latest
-          #- target: aarch64-unknown-linux-gnu
-            #os: ubuntu-latest
-          #- target: x86_64-pc-windows-gnu
-            #os: windows-latest
-          #- target: x86_64-pc-windows-msvc
-            #os: windows-latest
-
-          - target: aarch64-pc-windows-msvc
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-pc-windows-gnu
             os: windows-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+
+          #- target: aarch64-pc-windows-msvc
+            #os: windows-latest
 
     runs-on: ${{ matrix.os }}
 
@@ -98,10 +101,7 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: |
-            target/${{ matrix.target }}/release/sos-audit.exe
-            target/${{ matrix.target }}/release/sos-check.exe
-            target/${{ matrix.target }}/release/sos-client.exe
-            target/${{ matrix.target }}/release/sos-server.exe
+            target/${{ matrix.target }}/release/sos-*.exe
 
   upload-release-artifacts:
     name: upload-release-artifacts
