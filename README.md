@@ -15,7 +15,15 @@ This repository contains the core library code and several command line interfac
 
 For webassembly bindings see the [browser][] repository.
 
-The minimum supported Rust version (MSRV) is 1.62; to view the API documentation for all crates run `make docs`.
+## Setup
+
+Tasks are run using `cargo make`, install it with:
+
+```
+cargo install cargo-make
+```
+
+The minimum supported Rust version (MSRV) is 1.62; to view the API documentation for all crates run `cargo make docs`.
 
 ## Server
 
@@ -32,7 +40,7 @@ mkcert -install
 Afterwards create certificates for local servers in the sandbox directory:
 
 ```
-make dev-certs
+cargo make dev-certs
 ```
 
 ### Web GUI
@@ -40,13 +48,13 @@ make dev-certs
 The server bundles a web-based GUI from the browser webapp code so to run the server CLI tool you must have the [browser][] repository as a sibling folder of this repository and then you can build the public folder containing the bundled assets:
 
 ```
-make browser-gui
+cargo make browser-gui
 ```
 
 Now you can start a development version of the server using the [sandbox configuration](/sandbox/config.toml):
 
 ```
-make dev-server
+cargo make dev-server
 ```
 
 Accounts and vaults will be created in the sandbox directory.
@@ -56,9 +64,8 @@ Accounts and vaults will be created in the sandbox directory.
 To create a release build with the bundled GUI assets run:
 
 ```
-make server-release
+cargo make server-release
 ```
 
 [mkcert]: https://github.com/FiloSottile/mkcert
-
 [browser]: https://github.com/saveoursecrets/browser

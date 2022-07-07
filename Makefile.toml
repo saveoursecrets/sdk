@@ -1,0 +1,87 @@
+[config]
+default_to_workspace = false
+
+[env]
+RUST_BACKTRACE = 0
+#RUST_LOG = 0
+BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
+BINARIES = "sos-audit sos-check sos-client sos-server"
+
+[tasks.format]
+workspace = true
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt"]
+
+[tasks.check]
+workspace = true
+command = "cargo"
+args = ["check"]
+
+[tasks.clean]
+workspace = true
+command = "cargo"
+args = ["clean"]
+
+[tasks.build]
+workspace = true
+command = "cargo"
+args = ["build"]
+dependencies = ["clean"]
+
+[tasks.docs]
+workspace = true
+command = "cargo"
+args = ["doc", "--open", "--no-deps"]
+
+[tasks.unit]
+command = "cargo"
+args = ["test", "--all", "--lib", "--", "--nocapture"]
+
+[tasks.integration]
+command = "cargo"
+args = ["test", "--", "--nocapture"]
+
+[tasks.test]
+dependencies = ["unit", "integration"]
+
+[tasks.dev]
+dependencies = ["test", "format"]
+
+[tasks.server-release]
+command = "cargo"
+args = ["build", "--release", "--target", "${BUILD_TARGET}", "-p", "sos-server"]
+dependencies = ["browser-gui"]
+
+[tasks.dist]
+command = "cargo"
+args = ["build", "--release", "--target", "${BUILD_TARGET}", "--workspace", "--exclude", "sos-server"]
+dependencies = ["clean", "server-release"]
+
+[tasks.dev-server]
+script = '''
+cd workspace/server && cargo run -- -c ../../sandbox/config.toml
+'''
+
+[tasks.dev-certs]
+script = '''
+cd sandbox && 
+  mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1
+'''
+
+[tasks.browser-gui]
+script = '''
+rm -rf workspace/server/public &&
+  (cd ../browser && make dist) && 
+  cp -r ../browser/app/dist workspace/server/public
+'''
+
+[tasks.artifacts]
+script = '''
+for bin in ${BINARIES}; do
+  tar -czvf target/${bin}-${BUILD_TARGET}.tar.gz target/${BUILD_TARGET}/release/${bin};
+done
+'''
+
+[tasks.release]
+dependencies = ["dist", "artifacts"]
