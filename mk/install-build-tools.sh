@@ -40,8 +40,9 @@ case $target in
 --target=aarch64-unknown-linux-gnu)
   # Clang is needed for code coverage.
   #use_clang=1
+  dpkg --add-architecture armhf
   install_packages \
-    libssl-dev \
+    libssl-dev:armhf \
     qemu-user \
     gcc-aarch64-linux-gnu \
     libc6-dev-arm64-cross
