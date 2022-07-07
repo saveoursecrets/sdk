@@ -71,6 +71,7 @@ jobs:
         run: |
           echo "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\Llvm\x64\bin" >> $GITHUB_PATH
           echo "RUSTFLAGS=-C target-feature=+crt-static" >> $GITHUB_ENV
+          echo "TARGET_CC=clang-cl" >> $GITHUB_ENV
         shell: bash
 
       - if: ${{ !contains(matrix.os, 'windows') }}
