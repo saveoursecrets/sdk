@@ -32,11 +32,11 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
 
     steps:
+      - uses: actions/checkout@v2
       - if: ${{ contains(matrix.host, 'ubuntu') }}
         run: sudo apt-get update -y
       - if: ${{ !contains(matrix.host, 'windows') }}
-        run: mk/install-build-tools.sh --target=${{ matrix.target }} ${{ matrix.features }}
-      - uses: actions/checkout@v2
+        run: mk/install-build-tools.sh --target=${{ matrix.target }}
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
