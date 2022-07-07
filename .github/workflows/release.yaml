@@ -21,16 +21,18 @@ jobs:
             target: 'aarch64-apple-darwin'
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-gnu'
-          - host: ubuntu-latest
+          - host: ubuntu-18.04
             target: 'aarch64-unknown-linux-gnu'
           - host: windows-latest
             target: 'x86_64-pc-windows-msvc'
-          - host: windows-latest
-            target: 'aarch64-pc-windows-msvc'
+          #- host: windows-latest
+            #target: 'aarch64-pc-windows-msvc'
 
     runs-on: ${{ matrix.settings.host }}
 
     steps:
+      - if: ${{ contains(matrix.host, 'ubuntu') }}
+        run: sudo apt-get update -y
       - uses: actions/checkout@v2
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -64,10 +66,8 @@ jobs:
         run: >-
           mkdir tarballs;
           for target in $(ls artifacts); do
-            #echo $target;
             for bin in $(ls artifacts/${target}); do
-              #echo $bin;
-              tar -czvf tarballs/${bin}-${target}.tar.gz artifacts/${target}/${bin};
+              tar -czvf tarballs/${target}.tar.gz artifacts/${target}/;
             done
           done
       - name: Display structure of tarballs
