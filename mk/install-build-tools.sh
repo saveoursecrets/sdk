@@ -48,6 +48,7 @@ case $target in
   sudo dpkg --add-architecture arm64
   install_packages \
     libssl-dev:arm64 \
+    libssl1.1:arm64 \
     qemu-user \
     gcc-aarch64-linux-gnu \
     libc6-dev-arm64-cross
