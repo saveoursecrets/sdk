@@ -44,6 +44,9 @@ case $target in
   echo 'deb [arch=arm64] http://bg.ports.ubuntu.com/ focal main restricted' | sudo tee -a /etc/apt/sources.list
   sudo dpkg --add-architecture arm64
   sudo apt-get update -y
+
+  sudo cat /etc/apt/sources.list
+
   install_packages \
     libssl-dev:arm64 \
     libc6:arm64 \
