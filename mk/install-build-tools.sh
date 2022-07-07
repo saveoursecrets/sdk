@@ -48,7 +48,7 @@ case $target in
     libssl-dev:arm64 \
     libssl1.1:arm64 \
     libc6:arm64 \
-    dbus-session-bus \
+    dbus-user-session:arm64 \
     openssl \
     qemu-user \
     gcc-aarch64-linux-gnu \
