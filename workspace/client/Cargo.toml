@@ -13,7 +13,7 @@ async-recursion = "1"
 clap = { version = "3", features = ["derive", "wrap_help"] }
 tokio = { version = "1", features = ["full"] }
 url = "2"
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 reqwest-eventsource = "0.4"
 futures = "0.3"
 k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }

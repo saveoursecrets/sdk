@@ -9,7 +9,7 @@ use sos_core::FileLocks;
 use sos_server::{Authentication, Server, ServerConfig, ServerInfo, State};
 
 const ADDR: &str = "127.0.0.1:3505";
-const SERVER: &str = "http://localhost:3505";
+const SERVER: &str = "https://localhost:3505";
 
 struct MockServer {
     handle: Handle,

@@ -16,7 +16,7 @@ pub struct ServerConfig {
     pub storage: StorageConfig,
 
     /// Configuration for TLS encryption.
-    pub tls: Option<TlsConfig>,
+    pub tls: TlsConfig,
 
     /// Configuration for the API.
     pub api: ApiConfig,
@@ -82,17 +82,16 @@ impl ServerConfig {
 
         let dir = config.directory();
 
-        if let Some(tls) = config.tls.as_mut() {
-            if tls.cert.is_relative() {
-                tls.cert = dir.join(&tls.cert);
-            }
-            if tls.key.is_relative() {
-                tls.key = dir.join(&tls.key);
-            }
-
-            tls.cert = tls.cert.canonicalize()?;
-            tls.key = tls.key.canonicalize()?;
+        let tls = &mut config.tls;
+        if tls.cert.is_relative() {
+            tls.cert = dir.join(&tls.cert);
         }
+        if tls.key.is_relative() {
+            tls.key = dir.join(&tls.key);
+        }
+
+        tls.cert = tls.cert.canonicalize()?;
+        tls.key = tls.key.canonicalize()?;
 
         Ok(config)
     }
