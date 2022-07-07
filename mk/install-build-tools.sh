@@ -39,7 +39,7 @@ esac
 case $target in
 --target=aarch64-unknown-linux-gnu)
   # Clang is needed for code coverage.
-  use_clang=1
+  #use_clang=1
   install_packages \
     qemu-user \
     gcc-aarch64-linux-gnu \
