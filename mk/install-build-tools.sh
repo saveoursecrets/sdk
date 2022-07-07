@@ -42,10 +42,11 @@ case $target in
   #use_clang=1
 
   echo 'deb [arch=arm64] http://bg.ports.ubuntu.com/ focal main restricted' | sudo tee -a /etc/apt/sources.list
-  sudo dpkg --add-architecture arm64
-  sudo apt-get update -y
 
   sudo cat /etc/apt/sources.list
+
+  sudo dpkg --add-architecture arm64
+  sudo apt-get update -y
 
   install_packages \
     libssl-dev:arm64 \
