@@ -1,6 +1,5 @@
 //! Events emitted over the server-sent events channel to
 //! notify connected clients that changes have been made.
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,154 +7,88 @@ use crate::{address::AddressStr, secret::SecretId};
 
 use super::SyncEvent;
 
+/// Encapsulates a collection of change events.
+///
+/// Used so that we can group multiple changes into a
+/// single notification to connected clients.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChangeNotification {
+    /// The owner address.
+    #[serde(skip)]
+    address: AddressStr,
+    /// The vault identifier.
+    vault_id: Uuid,
+    /// Collection of change events.
+    changes: Vec<ChangeEvent>,
+}
+
+impl ChangeNotification {
+    /// Create a new change notification.
+    pub fn new(
+        address: &AddressStr,
+        vault_id: &Uuid,
+        changes: Vec<ChangeEvent>,
+    ) -> Self {
+        Self {
+            address: *address,
+            vault_id: *vault_id,
+            changes,
+        }
+    }
+
+    /// Address of the owner that made the changes.
+    pub fn address(&self) -> &AddressStr {
+        &self.address
+    }
+
+    /// The identifier of the vault that was modified.
+    pub fn vault_id(&self) -> &Uuid {
+        &self.vault_id
+    }
+
+    /// The collection of change events.
+    pub fn changes(&self) -> &[ChangeEvent] {
+        &self.changes
+    }
+}
+
 /// Server notifications sent over the server sent events stream.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ChangeEvent {
     /// Event emitted when a vault is created.
-    CreateVault {
-        /// The owner address.
-        #[serde(skip)]
-        address: AddressStr,
-        /// The vault identifier.
-        vault_id: Uuid,
-    },
-    /// Event emitted when a vault is updated.
-    UpdateVault {
-        /// The owner address.
-        #[serde(skip)]
-        address: AddressStr,
-        /// The vault identifier.
-        vault_id: Uuid,
-    },
+    CreateVault,
     /// Event emitted when a vault is deleted.
-    DeleteVault {
-        /// The owner address.
-        #[serde(skip)]
-        address: AddressStr,
-        /// The vault identifier.
-        vault_id: Uuid,
-    },
+    DeleteVault,
     /// Event emitted when a vault name is set.
-    SetVaultName {
-        /// The owner address.
-        #[serde(skip)]
-        address: AddressStr,
-        /// The vault identifier.
-        vault_id: Uuid,
-        /// The vault name.
-        name: String,
-    },
+    SetVaultName(String),
     /// Event emitted when vault meta data is set.
-    SetVaultMeta {
-        /// The owner address.
-        #[serde(skip)]
-        address: AddressStr,
-        /// The vault identifier.
-        vault_id: Uuid,
-    },
+    SetVaultMeta,
     /// Event emitted when a secret is created.
-    CreateSecret {
-        #[serde(skip)]
-        /// The owner address.
-        address: AddressStr,
-        /// The vault identifier.
-        vault_id: Uuid,
-        /// The secret identifier.
-        secret_id: SecretId,
-    },
+    CreateSecret(SecretId),
     /// Event emitted when a secret is updated.
-    UpdateSecret {
-        /// The owner address.
-        #[serde(skip)]
-        address: AddressStr,
-        /// The vault identifier.
-        vault_id: Uuid,
-        /// The secret identifier.
-        secret_id: SecretId,
-    },
+    UpdateSecret(SecretId),
     /// Event emitted when a secret is deleted.
-    DeleteSecret {
-        /// The owner address.
-        #[serde(skip)]
-        address: AddressStr,
-        /// The vault identifier.
-        vault_id: Uuid,
-        /// The secret identifier.
-        secret_id: SecretId,
-    },
+    DeleteSecret(SecretId),
 }
 
 impl ChangeEvent {
-    /// Name for the server sent event.
-    pub fn event_name(&self) -> &str {
-        match self {
-            Self::CreateVault { .. } => "createVault",
-            Self::UpdateVault { .. } => "updateVault",
-            Self::DeleteVault { .. } => "deleteVault",
-            Self::SetVaultName { .. } => "setVaultName",
-            Self::SetVaultMeta { .. } => "setVaultMeta",
-            Self::CreateSecret { .. } => "createSecret",
-            Self::UpdateSecret { .. } => "updateSecret",
-            Self::DeleteSecret { .. } => "deleteSecret",
-        }
-    }
-
-    /// Address of the client that triggered the event.
-    pub fn address(&self) -> &AddressStr {
-        match self {
-            Self::CreateVault { address, .. } => address,
-            Self::UpdateVault { address, .. } => address,
-            Self::DeleteVault { address, .. } => address,
-            Self::SetVaultName { address, .. } => address,
-            Self::SetVaultMeta { address, .. } => address,
-            Self::CreateSecret { address, .. } => address,
-            Self::UpdateSecret { address, .. } => address,
-            Self::DeleteSecret { address, .. } => address,
-        }
-    }
-
     /// Convert from a sync event.
-    pub fn from_sync_event(
-        vault_id: &Uuid,
-        address: &AddressStr,
-        payload: &SyncEvent<'_>,
-    ) -> Option<Self> {
-        match payload {
-            SyncEvent::CreateVault(_) => Some(ChangeEvent::CreateVault {
-                address: *address,
-                vault_id: *vault_id,
-            }),
-            SyncEvent::DeleteVault => Some(ChangeEvent::DeleteVault {
-                address: *address,
-                vault_id: *vault_id,
-            }),
+    pub fn from_sync_event(event: &SyncEvent<'_>) -> Option<Self> {
+        match event {
+            SyncEvent::CreateVault(_) => Some(ChangeEvent::CreateVault),
+            SyncEvent::DeleteVault => Some(ChangeEvent::DeleteVault),
             SyncEvent::SetVaultName(name) => {
-                Some(ChangeEvent::SetVaultName {
-                    address: *address,
-                    vault_id: *vault_id,
-                    name: name.to_string(),
-                })
+                Some(ChangeEvent::SetVaultName(name.to_string()))
             }
+            SyncEvent::SetVaultMeta(_) => Some(ChangeEvent::SetVaultMeta),
             SyncEvent::CreateSecret(secret_id, _) => {
-                Some(ChangeEvent::CreateSecret {
-                    address: *address,
-                    vault_id: *vault_id,
-                    secret_id: *secret_id,
-                })
+                Some(ChangeEvent::CreateSecret(*secret_id))
             }
             SyncEvent::UpdateSecret(secret_id, _) => {
-                Some(ChangeEvent::UpdateSecret {
-                    address: *address,
-                    vault_id: *vault_id,
-                    secret_id: *secret_id,
-                })
+                Some(ChangeEvent::UpdateSecret(*secret_id))
             }
             SyncEvent::DeleteSecret(secret_id) => {
-                Some(ChangeEvent::DeleteSecret {
-                    address: *address,
-                    vault_id: *vault_id,
-                    secret_id: *secret_id,
-                })
+                Some(ChangeEvent::DeleteSecret(*secret_id))
             }
             _ => None,
         }

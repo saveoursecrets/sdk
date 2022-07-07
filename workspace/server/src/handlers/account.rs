@@ -8,7 +8,7 @@ use axum::{
 //use axum_macros::debug_handler;
 
 use sos_core::{
-    events::{AuditEvent, ChangeEvent},
+    events::{AuditEvent, ChangeEvent, ChangeNotification},
     vault::Header,
 };
 
@@ -20,7 +20,7 @@ use crate::{
     State,
 };
 
-use super::{append_audit_logs, append_commit_headers, send_notifications};
+use super::{append_audit_logs, append_commit_headers, send_notification};
 
 // Handlers for account events.
 pub(crate) struct AccountHandler;
@@ -49,10 +49,11 @@ impl AccountHandler {
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                let change_event = ChangeEvent::CreateVault {
-                    vault_id: *summary.id(),
-                    address: token.address,
-                };
+                let notification = ChangeNotification::new(
+                    &token.address,
+                    summary.id(),
+                    vec![ChangeEvent::CreateVault],
+                );
 
                 let log = AuditEvent::from_sync_event(
                     &sync_event,
@@ -61,7 +62,7 @@ impl AccountHandler {
                 );
 
                 append_audit_logs(&mut writer, vec![log]).await?;
-                send_notifications(&mut writer, vec![change_event]);
+                send_notification(&mut writer, notification);
 
                 let mut headers = HeaderMap::new();
                 append_commit_headers(&mut headers, &proof)?;
