@@ -41,28 +41,6 @@ case $target in
   # Clang is needed for code coverage.
   #use_clang=1
 
-  #SOURCES="deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ focal main restricted
-#deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ focal-updates main restricted
-#deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ focal universe
-#deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ focal-updates universe
-#deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ focal multiverse
-#deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ focal-updates multiverse
-#deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ focal-backports main restricted universe multiverse
-#deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ focal-security main restricted
-#deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ focal-security universe
-#deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ focal-security multiverse
-#deb [arch=arm64] http://bg.ports.ubuntu.com/ focal main restricted"
-
-  #echo "$SOURCES" | sudo tee /etc/apt/sources.list
-
-  #sudo cat /etc/apt/sources.list
-
-  #sudo dpkg --add-architecture arm64
-  #sudo apt-get update -y
-
-  #libssl-dev:arm64 \
-  #libc6:arm64 \
-
   install_packages \
     qemu-user \
     gcc-aarch64-linux-gnu \
