@@ -41,6 +41,7 @@ case $target in
   # Clang is needed for code coverage.
   #use_clang=1
   install_packages \
+    libssl-dev \
     qemu-user \
     gcc-aarch64-linux-gnu \
     libc6-dev-arm64-cross
