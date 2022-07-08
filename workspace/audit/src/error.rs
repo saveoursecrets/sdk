@@ -6,14 +6,6 @@ pub enum Error {
     #[error("{0} is not a file")]
     NotFile(PathBuf),
 
-    /// Error generated when a file is empty.
-    #[error("file {0} is empty")]
-    EmptyFile(PathBuf),
-
-    /// Error generated when a file is less than the size of the identity bytes.
-    #[error("file {0} is too small, need at least {1} bytes")]
-    FileTooSmall(PathBuf, usize),
-
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 

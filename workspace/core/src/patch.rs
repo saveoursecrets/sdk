@@ -1,13 +1,11 @@
 //! Patch represents a changeset of events to apply to a vault.
 use serde_binary::{
-    binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
-    Decode, Deserializer, Encode, Error as BinaryError,
-    Result as BinaryResult, Serializer,
+    binary_rw::SeekStream, Decode, Deserializer, Encode,
+    Error as BinaryError, Result as BinaryResult, Serializer,
 };
 use std::{
     fs::{File, OpenOptions},
     io::{Seek, SeekFrom, Write},
-    ops::Range,
     path::{Path, PathBuf},
 };
 
@@ -15,6 +13,7 @@ use crate::{
     constants::{PATCH_EXT, PATCH_IDENTITY},
     decode, encode,
     events::SyncEvent,
+    iter::{FileIterator, FileRecord},
     FileIdentity, Result,
 };
 
@@ -164,8 +163,8 @@ impl PatchFile {
     }
 
     /// Get an iterator for the patch file.
-    pub fn iter(&self) -> Result<PatchFileIterator> {
-        PatchFileIterator::new(&self.file_path)
+    pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
+        FileIterator::new(&self.file_path, &PATCH_IDENTITY)
     }
 
     /// Count the number of events in the patch file.
@@ -198,173 +197,6 @@ impl PatchFile {
         let buffer = encode(&patch)?;
         self.file.write_all(&buffer)?;
         Ok(())
-    }
-}
-
-/// Reference to a row in the patch file.
-#[derive(Default, Debug)]
-pub struct PatchFileRecord {
-    /// Byte offset for the record.
-    offset: Range<usize>,
-    /// The byte range for the value.
-    value: Range<usize>,
-}
-
-/// Iterator for patch files.
-pub struct PatchFileIterator {
-    /// The file read stream.
-    file_stream: FileStream,
-    /// Byte offset for forward iteration.
-    forward: Option<usize>,
-    /// Byte offset for backward iteration.
-    backward: Option<usize>,
-}
-
-impl PatchFileIterator {
-    /// Create a new patch file iterator.
-    fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let mut file_stream =
-            FileStream::new(file_path.as_ref(), OpenType::Open)?;
-        let reader = BinaryReader::new(&mut file_stream, Endian::Big);
-        let mut deserializer = Deserializer { reader };
-        FileIdentity::read_identity(&mut deserializer, &PATCH_IDENTITY)?;
-        Ok(Self {
-            file_stream,
-            forward: Some(4),
-            backward: None,
-        })
-    }
-
-    /// Helper to decode the row time, commit and byte range.
-    fn read_row(
-        de: &mut Deserializer,
-        offset: Range<usize>,
-    ) -> Result<PatchFileRecord> {
-        let mut row: PatchFileRecord = Default::default();
-        row.offset = offset;
-
-        // The byte range for the row value.
-        let value_len = de.reader.read_u32()?;
-        let begin = de.reader.tell()?;
-        let end = begin + value_len as usize;
-        row.value = begin..end;
-
-        Ok(row)
-    }
-
-    /// Attempt to read the next log row.
-    fn read_row_next(&mut self) -> Result<PatchFileRecord> {
-        let row_pos = self.forward.unwrap();
-
-        let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
-        let mut de = Deserializer { reader };
-        de.reader.seek(row_pos)?;
-        let row_len = de.reader.read_u32()?;
-
-        // Position of the end of the row
-        let row_end = row_pos + (row_len as usize + 8);
-
-        let row = PatchFileIterator::read_row(&mut de, row_pos..row_end)?;
-
-        // Prepare position for next iteration
-        self.forward = Some(row_end);
-
-        Ok(row)
-    }
-
-    /// Attempt to read the next log row for backward iteration.
-    fn read_row_next_back(&mut self) -> Result<PatchFileRecord> {
-        let row_pos = self.backward.unwrap();
-
-        let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
-        let mut de = Deserializer { reader };
-
-        // Read in the reverse iteration row length
-        de.reader.seek(row_pos - 4)?;
-        let row_len = de.reader.read_u32()?;
-
-        // Position of the beginning of the row
-        let row_start = row_pos - (row_len as usize + 8);
-        let row_end = row_start + (row_len as usize + 8);
-
-        // Seek to the beginning of the row after the initial
-        // row length so we can read in the row data
-        de.reader.seek(row_start + 4)?;
-        let row = PatchFileIterator::read_row(&mut de, row_start..row_end)?;
-
-        // Prepare position for next iteration.
-        self.backward = Some(row_start);
-
-        Ok(row)
-    }
-}
-
-impl Iterator for PatchFileIterator {
-    type Item = Result<PatchFileRecord>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        const OFFSET: usize = PATCH_IDENTITY.len();
-
-        if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
-            if lpos == rpos {
-                return None;
-            }
-        }
-
-        match self.file_stream.len() {
-            Ok(len) => {
-                if len > OFFSET {
-                    // Got to EOF
-                    if let Some(lpos) = self.forward {
-                        if lpos == len {
-                            return None;
-                        }
-                    }
-
-                    if self.forward.is_none() {
-                        self.forward = Some(OFFSET);
-                    }
-
-                    Some(self.read_row_next())
-                } else {
-                    None
-                }
-            }
-            Err(_) => None,
-        }
-    }
-}
-
-impl DoubleEndedIterator for PatchFileIterator {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        const OFFSET: usize = PATCH_IDENTITY.len();
-
-        if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
-            if lpos == rpos {
-                return None;
-            }
-        }
-
-        match self.file_stream.len() {
-            Ok(len) => {
-                if len > 4 {
-                    // Got to EOF
-                    if let Some(rpos) = self.backward {
-                        if rpos == OFFSET {
-                            return None;
-                        }
-                    }
-
-                    if self.backward.is_none() {
-                        self.backward = Some(len);
-                    }
-                    Some(self.read_row_next_back())
-                } else {
-                    None
-                }
-            }
-            Err(_) => None,
-        }
     }
 }
 
