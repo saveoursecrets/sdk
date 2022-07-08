@@ -1,8 +1,7 @@
-use clap::{Args, Parser, Subcommand, Command};
-use std::path::PathBuf;
+use clap::{Parser};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use sos::Result;
+use sos::{Error, Result};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -11,14 +10,32 @@ enum Sos {
     Command(Vec<String>),
 }
 
+// NOTE: Currently help output is not what we would like.
+// SEE:  https://github.com/clap-rs/clap/issues/3887
+
 fn run() -> Result<()> {
     let args = Sos::parse();
     match args {
-        Sos::Command(args) => {
-            println!("Got sos subcommand args {:#?}", args);
+        Sos::Command(mut args) => {
+            if let Some(_) = args.get(0) {
+                let command = args.remove(0);
+                match &command[..] {
+                    "audit" | "check" | "client" | "server" => {
+                        let cmd = format!("sos-{}", command);
+                        std::process::Command::new(&cmd)
+                            .args(args)
+                            .status()?;
+                        Ok(())
+                    }
+                    _ => {
+                        Err(Error::UnknownCommand(command))
+                    }
+                }
+            } else {
+                Err(Error::CommandRequired)
+            }
         }
     }
-    Ok(())
 }
 
 fn main() -> Result<()> {
