@@ -2,13 +2,14 @@
 use std::{ops::Range, path::Path};
 
 use serde_binary::{
-    binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream}, Deserializer,
+    binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
+    Decode, Deserializer, Result as BinaryResult,
 };
 
 use crate::{FileIdentity, Result};
 
 /// Trait for types yielded by the file iterator.
-pub trait FileItem: Default {
+pub trait FileItem: Default + Decode {
     /// Get the byte offset for the record.
     fn offset(&self) -> &Range<usize>;
 
@@ -49,6 +50,12 @@ impl FileItem for FileRecord {
     }
 }
 
+impl Decode for FileRecord {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        Ok(())
+    }
+}
+
 /// Generic iterator for files.
 pub struct FileIterator<T: FileItem> {
     identity: &'static [u8],
@@ -86,6 +93,8 @@ impl<T: FileItem> FileIterator<T> {
     fn read_row(de: &mut Deserializer, offset: Range<usize>) -> Result<T> {
         let mut row: T = Default::default();
         row.set_offset(offset);
+
+        row.decode(&mut *de)?;
 
         // The byte range for the row value.
         let value_len = de.reader.read_u32()?;

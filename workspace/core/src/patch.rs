@@ -1,8 +1,7 @@
 //! Patch represents a changeset of events to apply to a vault.
 use serde_binary::{
-    binary_rw::{SeekStream},
-    Decode, Deserializer, Encode, Error as BinaryError,
-    Result as BinaryResult, Serializer,
+    binary_rw::SeekStream, Decode, Deserializer, Encode,
+    Error as BinaryError, Result as BinaryResult, Serializer,
 };
 use std::{
     fs::{File, OpenOptions},
