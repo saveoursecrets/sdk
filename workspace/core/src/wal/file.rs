@@ -18,7 +18,7 @@ use crate::{
     encode,
     events::WalEvent,
     timestamp::Timestamp,
-    CommitHash, Error, FileIdentity, Result,
+    CommitHash, Error, Result,
 };
 use std::{
     fs::{File, OpenOptions},
@@ -28,9 +28,7 @@ use std::{
 };
 
 use serde_binary::{
-    binary_rw::{
-        BinaryReader, Endian, FileStream, OpenType, SeekStream, SliceStream,
-    },
+    binary_rw::{BinaryReader, Endian, SeekStream, SliceStream},
     Decode, Deserializer, Result as BinaryResult,
 };
 
@@ -285,6 +283,7 @@ impl WalProvider for WalFile {
         Ok(Box::new(FileIterator::<WalFileRecord>::new(
             &self.file_path,
             &WAL_IDENTITY,
+            true,
         )?))
     }
 }

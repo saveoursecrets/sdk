@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use sos_core::{
     constants::AUDIT_IDENTITY,
-    events::{AuditData, AuditEvent},
+    events::AuditData,
     serde_binary::{
         binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
         Deserializer,
@@ -22,14 +22,15 @@ pub fn logs(audit_log: PathBuf, json: bool) -> Result<()> {
         return Err(Error::NotFile(audit_log));
     }
 
+    let log_file = AuditLogFile::new(&audit_log)?;
+
     let mut stream = FileStream::new(&audit_log, OpenType::Open)?;
     let mut reader = BinaryReader::new(&mut stream, Endian::Big);
     reader.seek(AUDIT_IDENTITY.len())?;
 
     let mut deserializer = Deserializer { reader };
 
-    let log_file = AuditLogFile::new(audit_log)?;
-    for record in log_file.iter()? {
+    for _record in log_file.iter()? {
         //println!("record: {:#?}", record);
         let event = AuditLogFile::decode_row(&mut deserializer)?;
         if json {
@@ -38,21 +39,21 @@ pub fn logs(audit_log: PathBuf, json: bool) -> Result<()> {
             match data {
                 AuditData::Vault(vault_id) => {
                     tracing::info!(
-                        "{} {} by {} (vault = {})",
+                        vault = ?vault_id,
+                        "{} {} by {}",
                         event.time.to_rfc3339()?,
                         event.operation,
                         event.address,
-                        vault_id,
                     );
                 }
                 AuditData::Secret(vault_id, secret_id) => {
                     tracing::info!(
-                        "{} {} by {} (vault = {}, secret = {})",
+                        vault = ?vault_id,
+                        secret = ?secret_id,
+                        "{} {} by {}",
                         event.time.to_rfc3339()?,
                         event.operation,
                         event.address,
-                        vault_id,
-                        secret_id,
                     );
                 }
             }
