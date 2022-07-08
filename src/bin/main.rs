@@ -1,4 +1,4 @@
-use clap::{Parser};
+use clap::Parser;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use sos::{Error, Result};
@@ -27,9 +27,7 @@ fn run() -> Result<()> {
                             .status()?;
                         Ok(())
                     }
-                    _ => {
-                        Err(Error::UnknownCommand(command))
-                    }
+                    _ => Err(Error::UnknownCommand(command)),
                 }
             } else {
                 Err(Error::CommandRequired)
@@ -41,8 +39,7 @@ fn run() -> Result<()> {
 fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "sos=info".into()),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "sos=info".into()),
         ))
         .with(tracing_subscriber::fmt::layer().without_time())
         .init();
