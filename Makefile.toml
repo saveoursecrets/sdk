@@ -53,9 +53,8 @@ command = "cargo"
 args = ["build", "--bins", "--all", "--release", "--target", "x86_64-apple-darwin"]
 
 [tasks.docs]
-workspace = true
 command = "cargo"
-args = ["doc", "--open", "--no-deps"]
+args = ["doc", "--all", "--open", "--no-deps"]
 
 [tasks.unit]
 command = "cargo"

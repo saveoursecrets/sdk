@@ -47,6 +47,7 @@ pub enum SyncEvent<'a> {
     /// SyncEvent used to indicate a vault was deleted.
     DeleteVault,
 
+    #[deprecated]
     /// Get the vault name.
     GetVaultName,
 
