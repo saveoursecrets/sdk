@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{address::AddressStr, secret::SecretId};
+use crate::{address::AddressStr, secret::SecretId, vault::VaultId};
 
 use super::SyncEvent;
 
@@ -17,7 +17,7 @@ pub struct ChangeNotification {
     #[serde(skip)]
     address: AddressStr,
     /// The vault identifier.
-    vault_id: Uuid,
+    vault_id: VaultId,
     /// Collection of change events.
     changes: Vec<ChangeEvent>,
 }
@@ -26,7 +26,7 @@ impl ChangeNotification {
     /// Create a new change notification.
     pub fn new(
         address: &AddressStr,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         changes: Vec<ChangeEvent>,
     ) -> Self {
         Self {
@@ -42,7 +42,7 @@ impl ChangeNotification {
     }
 
     /// The identifier of the vault that was modified.
-    pub fn vault_id(&self) -> &Uuid {
+    pub fn vault_id(&self) -> &VaultId {
         &self.vault_id
     }
 

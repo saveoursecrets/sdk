@@ -170,7 +170,7 @@ impl Decode for Auth {
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct Summary {
     version: u16,
-    id: Uuid,
+    id: VaultId,
     name: String,
     #[serde(skip)]
     algorithm: Algorithm,
@@ -219,7 +219,7 @@ impl Summary {
     }
 
     /// Get the unique identifier.
-    pub fn id(&self) -> &Uuid {
+    pub fn id(&self) -> &VaultId {
         &self.id
     }
 
@@ -275,7 +275,7 @@ pub struct Header {
 
 impl Header {
     /// Create a new header.
-    pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
+    pub fn new(id: VaultId, name: String, algorithm: Algorithm) -> Self {
         Self {
             summary: Summary::new(id, name, algorithm),
             meta: None,
@@ -437,13 +437,6 @@ impl Contents {
         ser.writer.write_bytes(key.as_bytes())?;
         row.encode(&mut *ser)?;
 
-        /*
-        let (commit, group) = row;
-        ser.writer.write_bytes(commit.as_ref())?;
-        group.0.encode(&mut *ser)?;
-        group.1.encode(&mut *ser)?;
-        */
-
         // Backtrack to size_pos and write new length
         let row_pos = ser.writer.tell()?;
         let row_len = row_pos - (size_pos + 4);
@@ -467,17 +460,6 @@ impl Contents {
 
         let mut row: VaultCommit = Default::default();
         row.decode(&mut *de)?;
-
-        /*
-        let commit: [u8; 32] =
-            de.reader.read_bytes(32)?.as_slice().try_into()?;
-        let commit = CommitHash(commit);
-
-        let mut meta: AeadPack = Default::default();
-        meta.decode(&mut *de)?;
-        let mut secret: AeadPack = Default::default();
-        secret.decode(&mut *de)?;
-        */
 
         Ok((uuid, row))
     }
@@ -529,7 +511,7 @@ impl Decode for Vault {
 
 impl Vault {
     /// Create a new vault.
-    pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
+    pub fn new(id: VaultId, name: String, algorithm: Algorithm) -> Self {
         Self {
             header: Header::new(id, name, algorithm),
             contents: Default::default(),
@@ -634,7 +616,7 @@ impl Vault {
     }
 
     /// Get the unique identifier for this vault.
-    pub fn id(&self) -> &Uuid {
+    pub fn id(&self) -> &VaultId {
         &self.header.summary.id
     }
 

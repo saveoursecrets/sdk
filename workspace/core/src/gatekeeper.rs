@@ -4,7 +4,7 @@ use crate::{
     decode, encode,
     events::SyncEvent,
     secret::{Secret, SecretId, SecretMeta, SecretRef, VaultMeta},
-    vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry},
+    vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId},
     Error, Result,
 };
 use std::collections::HashMap;
@@ -79,7 +79,7 @@ impl Gatekeeper {
     }
 
     /// Get the identifier for the vault.
-    pub fn id(&self) -> &Uuid {
+    pub fn id(&self) -> &VaultId {
         self.vault.id()
     }
 
@@ -118,68 +118,62 @@ impl Gatekeeper {
 
     /// Attempt to decrypt the index meta data and extract the label.
     pub fn label(&self) -> Result<String> {
-        if let Some(private_key) = &self.private_key {
-            if let Some(meta_aead) = self.vault.header().meta() {
-                let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-                let meta_data: VaultMeta = decode(&meta_blob)?;
-                Ok(meta_data.label().to_string())
-            } else {
-                Err(Error::VaultNotInit)
-            }
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+        if let Some(meta_aead) = self.vault.header().meta() {
+            let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+            let meta_data: VaultMeta = decode(&meta_blob)?;
+            Ok(meta_data.label().to_string())
         } else {
-            Err(Error::VaultLocked)
+            Err(Error::VaultNotInit)
         }
     }
 
     /// Attempt to decrypt the secrets meta data.
     pub fn meta_data(&self) -> Result<HashMap<&SecretId, SecretMeta>> {
-        if let Some(private_key) = &self.private_key {
-            if self.vault.header().meta().is_some() {
-                let mut result = HashMap::new();
-                for (id, meta_aead) in self.vault.meta_data() {
-                    let meta_blob =
-                        self.vault.decrypt(private_key, meta_aead)?;
-                    let secret_meta: SecretMeta = decode(&meta_blob)?;
-                    result.insert(id, secret_meta);
-                }
-                Ok(result)
-            } else {
-                Err(Error::VaultNotInit)
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+
+        if self.vault.header().meta().is_some() {
+            let mut result = HashMap::new();
+            for (id, meta_aead) in self.vault.meta_data() {
+                let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+                let secret_meta: SecretMeta = decode(&meta_blob)?;
+                result.insert(id, secret_meta);
             }
+            Ok(result)
         } else {
-            Err(Error::VaultLocked)
+            Err(Error::VaultNotInit)
         }
     }
 
     /// Attempt to decrypt the index meta data for the vault
     /// using the passphrase assigned to this gatekeeper.
     pub fn vault_meta(&self) -> Result<VaultMeta> {
-        if let Some(private_key) = &self.private_key {
-            if let Some(meta_aead) = self.vault.header().meta() {
-                let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-                let meta_data: VaultMeta = decode(&meta_blob)?;
-                Ok(meta_data)
-            } else {
-                Err(Error::VaultNotInit)
-            }
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+
+        if let Some(meta_aead) = self.vault.header().meta() {
+            let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+            let meta_data: VaultMeta = decode(&meta_blob)?;
+            Ok(meta_data)
         } else {
-            Err(Error::VaultLocked)
+            Err(Error::VaultNotInit)
         }
     }
 
     /// Set the meta data for the vault.
     // TODO: rename to set_vault_meta() for consistency
     fn set_meta(&mut self, meta_data: VaultMeta) -> Result<SyncEvent<'_>> {
-        if let Some(private_key) = &self.private_key {
-            let meta_blob = encode(&meta_data)?;
-            let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
-            if let Some(mirror) = self.mirror.as_mut() {
-                mirror.set_vault_meta(Some(meta_aead.clone()))?;
-            }
-            self.vault.set_vault_meta(Some(meta_aead))
-        } else {
-            Err(Error::VaultLocked)
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+
+        let meta_blob = encode(&meta_data)?;
+        let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
+        if let Some(mirror) = self.mirror.as_mut() {
+            mirror.set_vault_meta(Some(meta_aead.clone()))?;
         }
+        self.vault.set_vault_meta(Some(meta_aead))
     }
 
     /// Get a secret from the vault.
@@ -187,22 +181,20 @@ impl Gatekeeper {
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret)>> {
-        if let Some(private_key) = &self.private_key {
-            if let (Some(value), _payload) = self.vault.read(id)? {
-                let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
-                    value.as_ref();
-                let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-                let secret_meta: SecretMeta = decode(&meta_blob)?;
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
-                let secret_blob =
-                    self.vault.decrypt(private_key, secret_aead)?;
-                let secret: Secret = decode(&secret_blob)?;
-                Ok(Some((secret_meta, secret)))
-            } else {
-                Ok(None)
-            }
+        if let (Some(value), _payload) = self.vault.read(id)? {
+            let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
+                value.as_ref();
+            let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+            let secret_meta: SecretMeta = decode(&meta_blob)?;
+
+            let secret_blob = self.vault.decrypt(private_key, secret_aead)?;
+            let secret: Secret = decode(&secret_blob)?;
+            Ok(Some((secret_meta, secret)))
         } else {
-            Err(Error::VaultLocked)
+            Ok(None)
         }
     }
 
@@ -248,34 +240,31 @@ impl Gatekeeper {
             ));
         }
 
-        if let Some(private_key) = &self.private_key {
-            let meta_blob = encode(&secret_meta)?;
-            let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
-            let secret_blob = encode(&secret)?;
-            let secret_aead =
-                self.vault.encrypt(private_key, &secret_blob)?;
+        let meta_blob = encode(&secret_meta)?;
+        let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
 
-            let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+        let secret_blob = encode(&secret)?;
+        let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
 
-            let id = Uuid::new_v4();
+        let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+        let id = Uuid::new_v4();
 
-            if let Some(mirror) = self.mirror.as_mut() {
-                mirror.insert(
-                    id,
-                    commit.clone(),
-                    VaultEntry(meta_aead.clone(), secret_aead.clone()),
-                )?;
-            }
-
-            Ok(self.vault.insert(
+        if let Some(mirror) = self.mirror.as_mut() {
+            mirror.insert(
                 id,
-                commit,
-                VaultEntry(meta_aead, secret_aead),
-            )?)
-        } else {
-            Err(Error::VaultLocked)
+                commit.clone(),
+                VaultEntry(meta_aead.clone(), secret_aead.clone()),
+            )?;
         }
+
+        Ok(self.vault.insert(
+            id,
+            commit,
+            VaultEntry(meta_aead, secret_aead),
+        )?)
     }
 
     /// Get a secret and it's meta data from the vault.
@@ -316,32 +305,30 @@ impl Gatekeeper {
             ));
         }
 
-        if let Some(private_key) = &self.private_key {
-            let meta_blob = encode(&secret_meta)?;
-            let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
-            let secret_blob = encode(&secret)?;
-            let secret_aead =
-                self.vault.encrypt(private_key, &secret_blob)?;
+        let meta_blob = encode(&secret_meta)?;
+        let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
 
-            let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+        let secret_blob = encode(&secret)?;
+        let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
 
-            if let Some(mirror) = self.mirror.as_mut() {
-                mirror.update(
-                    id,
-                    commit.clone(),
-                    VaultEntry(meta_aead.clone(), secret_aead.clone()),
-                )?;
-            }
+        let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
 
-            Ok(self.vault.update(
+        if let Some(mirror) = self.mirror.as_mut() {
+            mirror.update(
                 id,
-                commit,
-                VaultEntry(meta_aead, secret_aead),
-            )?)
-        } else {
-            Err(Error::VaultLocked)
+                commit.clone(),
+                VaultEntry(meta_aead.clone(), secret_aead.clone()),
+            )?;
         }
+
+        Ok(self.vault.update(
+            id,
+            commit,
+            VaultEntry(meta_aead, secret_aead),
+        )?)
     }
 
     /// Delete a secret and it's meta data from the vault.
@@ -354,24 +341,20 @@ impl Gatekeeper {
 
     /// Decrypt secret meta data.
     pub fn decrypt_meta(&self, meta_aead: &AeadPack) -> Result<SecretMeta> {
-        if let Some(private_key) = &self.private_key {
-            let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-            let secret_meta: SecretMeta = decode(&meta_blob)?;
-            Ok(secret_meta)
-        } else {
-            Err(Error::VaultLocked)
-        }
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+        let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+        let secret_meta: SecretMeta = decode(&meta_blob)?;
+        Ok(secret_meta)
     }
 
     /// Encrypt secret meta data.
     pub fn encrypt_meta(&self, secret_meta: &SecretMeta) -> Result<AeadPack> {
-        if let Some(private_key) = &self.private_key {
-            let meta_blob = encode(secret_meta)?;
-            let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
-            Ok(meta_aead)
-        } else {
-            Err(Error::VaultLocked)
-        }
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+        let meta_blob = encode(secret_meta)?;
+        let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
+        Ok(meta_aead)
     }
 
     /// Unlock the vault by setting the private key from a passphrase.
