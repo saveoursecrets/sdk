@@ -48,8 +48,9 @@ version = "0.3.6"
 
 [dependencies.chbs]
 version = "0.1"
-git = "https://gitlab.com/tmpfs/chbs.git"
-branch = "wasm32"
+git = "https://gitlab.com/timvisee/chbs.git"
+rev = "1bb19733ac66cebf58b726d14770a616faba85dd"
+#branch = "wasm32"
 
 [dev-dependencies]
 anyhow = "1"
