@@ -13,7 +13,7 @@ use sos_core::{
     },
     constants::{VAULT_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY},
     encode,
-    events::{PatchFile, SyncEvent, WalEvent},
+    events::{SyncEvent, WalEvent},
     generate_passphrase,
     secret::SecretRef,
     vault::{Summary, Vault},
@@ -23,7 +23,7 @@ use sos_core::{
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
-    CommitHash, FileIdentity, Gatekeeper, VaultFileAccess,
+    CommitHash, FileIdentity, Gatekeeper, PatchFile, VaultFileAccess,
 };
 use std::{
     borrow::Cow,

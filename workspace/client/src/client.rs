@@ -10,9 +10,9 @@ use sos_core::{
     commit_tree::CommitProof,
     constants::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
     decode,
-    events::Patch,
     signer::Signer,
     vault::{encode, Summary, MIME_TYPE_VAULT},
+    Patch,
 };
 use std::sync::Arc;
 use url::Url;

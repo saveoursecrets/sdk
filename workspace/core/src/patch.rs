@@ -131,7 +131,7 @@ impl PatchFile {
     /// events appended.
     pub fn append<'a>(
         &mut self,
-        mut events: Vec<SyncEvent<'a>>,
+        events: Vec<SyncEvent<'a>>,
     ) -> Result<Patch<'a>> {
         // Load any existing events in to memory
         let mut all_events = if self.has_events()? {
@@ -148,7 +148,8 @@ impl PatchFile {
         self.file.write_all(append_buffer)?;
 
         // Append the given events on to any existing events
-        // so we can return a new patch to the caller
+        // so we can return a new patch to the caller that contains
+        // all the outstanding events
         let mut events = append_patch.0;
         all_events.append(&mut events);
 
@@ -162,7 +163,8 @@ impl PatchFile {
         Ok(patch)
     }
 
-    fn iter(&self) -> Result<PatchFileIterator> {
+    /// Get an iterator for the patch file.
+    pub fn iter(&self) -> Result<PatchFileIterator> {
         PatchFileIterator::new(&self.file_path)
     }
 
@@ -208,6 +210,7 @@ pub struct PatchFileRecord {
     value: Range<usize>,
 }
 
+/// Iterator for patch files.
 pub struct PatchFileIterator {
     /// The file read stream.
     file_stream: FileStream,
@@ -218,6 +221,7 @@ pub struct PatchFileIterator {
 }
 
 impl PatchFileIterator {
+    /// Create a new patch file iterator.
     fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         let mut file_stream =
             FileStream::new(file_path.as_ref(), OpenType::Open)?;
