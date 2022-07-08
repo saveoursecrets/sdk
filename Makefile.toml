@@ -1,7 +1,6 @@
 extend= [
   { path = "coverage_grcov.makefile.toml" }
 ]
-
 [config]
 default_to_workspace = false
 
@@ -70,7 +69,7 @@ args = ["test", "--", "--nocapture"]
 dependencies = ["unit", "integration"]
 
 [tasks.dev]
-dependencies = ["test", "format"]
+dependencies = ["check-wasm", "test", "format"]
 
 [tasks.check-wasm]
 command = "cargo"

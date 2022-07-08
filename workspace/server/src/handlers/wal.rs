@@ -13,11 +13,10 @@ use sos_core::{
     commit_tree::{CommitProof, Comparison},
     decode,
     events::{
-        AuditData, AuditEvent, ChangeEvent, ChangeNotification, EventKind,
-        SyncEvent, WalEvent,
+        ChangeEvent, ChangeNotification, EventKind, SyncEvent, WalEvent,
     },
     vault::Header,
-    CommitHash, Patch,
+    AuditData, AuditEvent, CommitHash, Patch,
 };
 
 use std::sync::Arc;

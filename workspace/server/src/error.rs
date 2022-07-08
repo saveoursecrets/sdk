@@ -52,9 +52,6 @@ pub enum Error {
     Core(#[from] sos_core::Error),
 
     #[error(transparent)]
-    Audit(#[from] sos_audit::Error),
-
-    #[error(transparent)]
     Url(#[from] url::ParseError),
 
     #[error(transparent)]

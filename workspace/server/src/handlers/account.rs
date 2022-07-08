@@ -8,8 +8,9 @@ use axum::{
 //use axum_macros::debug_handler;
 
 use sos_core::{
-    events::{AuditEvent, ChangeEvent, ChangeNotification},
+    events::{ChangeEvent, ChangeNotification},
     vault::Header,
+    AuditEvent,
 };
 
 use std::sync::Arc;

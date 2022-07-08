@@ -7,7 +7,6 @@ default-run = "sos-server"
 [dependencies]
 thiserror = "1"
 sos-core = { path = "../core" }
-sos-audit = { path = "../audit" }
 clap = { version = "3", features = ["derive", "wrap_help"] }
 axum = { version = "0.5", features = ["headers"] }
 axum-macros = "0.2"
