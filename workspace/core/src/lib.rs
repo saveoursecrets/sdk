@@ -16,6 +16,7 @@ mod file_locks;
 
 mod gatekeeper;
 mod hash;
+mod patch;
 
 pub mod secret;
 pub mod signer;
@@ -42,6 +43,7 @@ pub use file_identity::FileIdentity;
 pub use file_locks::FileLocks;
 pub use gatekeeper::Gatekeeper;
 pub use hash::CommitHash;
+pub use patch::{Patch, PatchFile};
 pub use timestamp::Timestamp;
 
 /// Result type for the core library.

@@ -14,10 +14,10 @@ use sos_core::{
     decode,
     events::{
         AuditData, AuditEvent, ChangeEvent, ChangeNotification, EventKind,
-        Patch, SyncEvent, WalEvent,
+        SyncEvent, WalEvent,
     },
     vault::Header,
-    CommitHash,
+    CommitHash, Patch,
 };
 
 use std::sync::Arc;

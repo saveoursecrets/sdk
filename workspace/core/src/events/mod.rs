@@ -4,14 +4,12 @@
 
 mod audit;
 mod change;
-mod patch;
 mod sync;
 mod types;
 mod wal;
 
 pub use audit::{AuditData, AuditEvent, AuditProvider};
 pub use change::{ChangeEvent, ChangeNotification};
-pub use patch::{Patch, PatchFile};
 pub use sync::SyncEvent;
 pub use types::EventKind;
 pub use wal::WalEvent;
