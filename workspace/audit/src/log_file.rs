@@ -12,10 +12,8 @@ use sos_core::{
     iter::{FileIterator, FileRecord},
     serde_binary::{
         binary_rw::{BinaryWriter, Endian, MemoryStream, SeekStream},
-        Decode, Deserializer, Encode, Error as BinaryError,
-        Result as BinaryResult, Serializer,
+        Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
     },
-    vault::encode,
 };
 
 /// Represents an audit log file.
@@ -35,7 +33,7 @@ impl AuditLogFile {
 
     /// Get a log file iterator.
     pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
-        Ok(FileIterator::new(&self.file_path, &AUDIT_IDENTITY)?)
+        Ok(FileIterator::new(&self.file_path, &AUDIT_IDENTITY, false)?)
     }
 
     /// Create the file used to store audit logs.
