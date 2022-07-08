@@ -98,6 +98,7 @@ impl<T: FileItem> FileIterator<T> {
 
         // The byte range for the row value.
         let value_len = de.reader.read_u32()?;
+
         let begin = de.reader.tell()?;
         let end = begin + value_len as usize;
         row.set_value(begin..end);

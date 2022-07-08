@@ -16,7 +16,7 @@ mod file_locks;
 
 mod gatekeeper;
 mod hash;
-mod iter;
+pub mod iter;
 mod patch;
 
 pub mod secret;
