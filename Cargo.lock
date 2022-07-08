@@ -2693,6 +2693,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum-server",
+ "clap",
+ "serde_json",
+ "serial_test",
+ "sos-audit",
+ "sos-client",
+ "sos-core",
+ "sos-server",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "web3-keystore",
+]
+
+[[package]]
 name = "sos-audit"
 version = "0.1.0"
 dependencies = [
@@ -2786,24 +2807,6 @@ dependencies = [
  "uuid 1.1.0",
  "web3-signature",
  "zeroize",
-]
-
-[[package]]
-name = "sos-library"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum-server",
- "serde_json",
- "serial_test",
- "sos-audit",
- "sos-client",
- "sos-core",
- "sos-server",
- "tokio",
- "tracing",
- "url",
- "web3-keystore",
 ]
 
 [[package]]

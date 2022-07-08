@@ -1,9 +1,10 @@
 [package]
-name = "sos-library"
+name = "sos"
 version = "0.1.0"
 edition = "2021"
-description = "Libraries and command line interfaces for the save our secrets distributed, encrypted database."
+description = "Distributed, encrypted database for private secrets."
 license = "GPL-3.0"
+default-run = "sos"
 
 [workspace]
 members = [
@@ -15,11 +16,18 @@ members = [
   "workspace/server",
 ]
 
-[dev-dependencies]
+[dependencies]
 sos-audit = { path = "workspace/audit" }
 sos-client = { path = "workspace/client" }
 sos-core = { path = "workspace/core" }
 sos-server = { path = "workspace/server" }
+
+thiserror = "1"
+clap = { version = "3", features = ["derive", "wrap_help"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
 
 anyhow = "1"
 axum-server = "0.4" 
@@ -29,3 +37,7 @@ url = "2"
 web3-keystore = "0.4"
 serde_json = "1"
 tracing = "0.1"
+
+[[bin]]
+name = "sos"
+path = "src/bin/main.rs"
