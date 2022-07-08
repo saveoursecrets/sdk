@@ -41,6 +41,14 @@ command = "cargo"
 args = ["build"]
 dependencies = ["clean"]
 
+[tasks.release-macos-arm]
+command = "cargo"
+args = ["build", "--bins", "--all", "--release", "--target", "aarch64-apple-darwin"]
+
+[tasks.release-macos-x86]
+command = "cargo"
+args = ["build", "--bins", "--all", "--release", "--target", "x86_64-apple-darwin"]
+
 [tasks.docs]
 workspace = true
 command = "cargo"
@@ -118,3 +126,18 @@ rm ./target/lcov.info
 alias="coverage_grcov"
 dependencies = ["clean-coverage"]
 run_task = "genhtml"
+
+[tasks.brew]
+script = '''
+cd target && rm -rf homebrew && mkdir homebrew && cd homebrew
+mkdir -p arm x86
+for bin in ${BINARIES}; do
+  cp ../x86_64-apple-darwin/release/$bin ./x86
+  cp ../aarch64-apple-darwin/release/$bin ./arm
+done
+
+TARBALL=sos-tools-macos-release-${CARGO_MAKE_CRATE_VERSION}.tar.gz
+tar -czvf ../${TARBALL} ./x86 ./arm;
+shasum -a 256 ../${TARBALL}
+'''
+#dependencies = ["release-macos-arm", "release-macos-x86"]
