@@ -9,7 +9,7 @@ default_to_workspace = false
 RUST_BACKTRACE = 0
 #RUST_LOG = 0
 BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
-BINARIES = "sos-audit sos-check sos-client sos-server"
+BINARIES = "sos sos-audit sos-check sos-client sos-server"
 
 [tasks.format]
 workspace = true
@@ -40,6 +40,10 @@ workspace = true
 command = "cargo"
 args = ["build"]
 dependencies = ["clean"]
+
+[tasks.release]
+command = "cargo"
+args = ["build", "--bins", "--all", "--release"]
 
 [tasks.release-macos-arm]
 command = "cargo"
@@ -79,7 +83,7 @@ dependencies = ["browser-gui"]
 
 [tasks.dist]
 command = "cargo"
-args = ["build", "--release", "--target", "${BUILD_TARGET}", "--workspace", "--exclude", "sos-server"]
+args = ["build", "--bins", "--release", "--target", "${BUILD_TARGET}", "--workspace", "--exclude", "sos-server"]
 dependencies = ["clean", "server-release"]
 
 [tasks.dev-server]
@@ -89,7 +93,7 @@ cd workspace/server && cargo run -- -c ../../sandbox/config.toml
 
 [tasks.dev-certs]
 script = '''
-cd sandbox && 
+command -v mkcert && cd sandbox && 
   mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1
 '''
 
@@ -100,15 +104,15 @@ rm -rf workspace/server/public &&
   cp -r ../browser/app/dist workspace/server/public
 '''
 
-[tasks.artifacts]
-script = '''
-for bin in ${BINARIES}; do
-  tar -czvf target/${bin}-${BUILD_TARGET}.tar.gz target/${BUILD_TARGET}/release/${bin};
-done
-'''
+#[tasks.artifacts]
+#script = '''
+#for bin in ${BINARIES}; do
+  #tar -czvf target/${bin}-${BUILD_TARGET}.tar.gz target/${BUILD_TARGET}/release/${bin};
+#done
+#'''
 
-[tasks.release]
-dependencies = ["dist", "artifacts"]
+#[tasks.release]
+#dependencies = ["dist", "artifacts"]
 
 [tasks.genhtml]
 script = '''
@@ -140,4 +144,4 @@ TARBALL=sos-tools-macos-release-${CARGO_MAKE_CRATE_VERSION}.tar.gz
 tar -czvf ../${TARBALL} ./x86 ./arm;
 shasum -a 256 ../${TARBALL}
 '''
-#dependencies = ["release-macos-arm", "release-macos-x86"]
+dependencies = ["release-macos-arm", "release-macos-x86"]
