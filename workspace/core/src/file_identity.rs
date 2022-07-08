@@ -13,7 +13,7 @@ impl FileIdentity {
         let mut file = File::open(path.as_ref())?;
         let len = file.metadata()?.len();
         if len >= identity.len() as u64 {
-            let mut buffer: [u8; 4] = [0; 4];
+            let mut buffer = [0u8; 4];
             file.read_exact(&mut buffer)?;
             for (index, ident) in identity.iter().enumerate() {
                 let byte = buffer[index];

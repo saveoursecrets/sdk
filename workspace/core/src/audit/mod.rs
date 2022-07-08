@@ -8,9 +8,17 @@ use serde_binary::{
 };
 use uuid::Uuid;
 
-use crate::{address::AddressStr, events::EventKind, timestamp::Timestamp};
+use crate::{
+    address::AddressStr,
+    events::{EventKind, SyncEvent},
+    secret::SecretId,
+    timestamp::Timestamp,
+    vault::VaultId,
+};
 
-use super::SyncEvent;
+mod log_file;
+
+pub use log_file::AuditLogFile;
 
 bitflags! {
     /// Bit flags for associated data.
@@ -49,27 +57,27 @@ pub trait AuditProvider {
 /// * 2 bytes for bit flags.
 /// * 8 bytes for the timestamp seconds.
 /// * 4 bytes for the timestamp nanoseconds.
-/// * 2 bytes for the operation identifier.
+/// * 2 bytes for the event kind identifier.
 /// * 20 bytes for the public address.
 /// * 16 or 32 bytes for the context data (one or two UUIDs).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuditEvent {
     /// The time the log was created.
-    pub time: Timestamp,
-    /// The operation being performed.
-    pub operation: EventKind,
-    /// The address of the client performing the operation.
-    pub address: AddressStr,
-    /// Context data about the operation.
+    time: Timestamp,
+    /// The event_kind being performed.
+    event_kind: EventKind,
+    /// The address of the client performing the event_kind.
+    address: AddressStr,
+    /// Context data about the event_kind.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<AuditData>,
+    data: Option<AuditData>,
 }
 
 impl Default for AuditEvent {
     fn default() -> Self {
         Self {
             time: Default::default(),
-            operation: Default::default(),
+            event_kind: Default::default(),
             address: Default::default(),
             data: None,
         }
@@ -79,16 +87,36 @@ impl Default for AuditEvent {
 impl AuditEvent {
     /// Create a new audit log entry.
     pub fn new(
-        operation: EventKind,
+        event_kind: EventKind,
         address: AddressStr,
         data: Option<AuditData>,
     ) -> Self {
         Self {
             time: Default::default(),
-            operation,
+            event_kind,
             address,
             data,
         }
+    }
+
+    /// Get the address for this audit event.
+    pub fn address(&self) -> &AddressStr {
+        &self.address
+    }
+
+    /// Get the timestamp for this audit event.
+    pub fn time(&self) -> &Timestamp {
+        &self.time
+    }
+
+    /// Get the event kind for this audit event.
+    pub fn event_kind(&self) -> &EventKind {
+        &self.event_kind
+    }
+
+    /// Get the data for this audit event.
+    pub fn data(&self) -> Option<&AuditData> {
+        self.data.as_ref()
     }
 
     fn log_flags(&self) -> LogFlags {
@@ -151,7 +179,7 @@ impl Encode for AuditEvent {
         // Time - the when
         self.time.encode(&mut *ser)?;
         // EventKind - the what
-        self.operation.encode(&mut *ser)?;
+        self.event_kind.encode(&mut *ser)?;
         // Address - by whom
         ser.writer.write_bytes(self.address.as_ref())?;
         // Data - context
@@ -171,7 +199,7 @@ impl Decode for AuditEvent {
         let mut timestamp: Timestamp = Default::default();
         timestamp.decode(&mut *de)?;
         // EventKind - the what
-        self.operation.decode(&mut *de)?;
+        self.event_kind.decode(&mut *de)?;
         // Address - by whom
         let address = de.reader.read_bytes(20)?;
         let address: [u8; 20] = address.as_slice().try_into()?;
@@ -209,9 +237,9 @@ impl Decode for AuditEvent {
 #[serde(rename_all = "lowercase")]
 pub enum AuditData {
     /// Data for an associated vault.
-    Vault(Uuid),
+    Vault(VaultId),
     /// Data for an associated secret.
-    Secret(Uuid, Uuid),
+    Secret(VaultId, SecretId),
 }
 
 impl Default for AuditData {

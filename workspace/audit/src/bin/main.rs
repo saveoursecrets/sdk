@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use sos_audit::Result;
+use sos_core::address::AddressStr;
 
 /// Print and monitor audit logs.
 #[derive(Parser, Debug)]
@@ -21,6 +22,10 @@ enum Command {
         #[clap(short, long)]
         json: bool,
 
+        /// Filter to records that match the given address.
+        #[clap(short, long)]
+        address: Vec<AddressStr>,
+
         /// Audit log file
         #[clap(parse(from_os_str))]
         audit_log: PathBuf,
@@ -30,8 +35,12 @@ enum Command {
 fn run() -> Result<()> {
     let args = Cli::parse();
     match args.cmd {
-        Command::Logs { audit_log, json } => {
-            sos_audit::logs(audit_log, json)?;
+        Command::Logs {
+            audit_log,
+            json,
+            address,
+        } => {
+            sos_audit::logs(audit_log, json, address)?;
         }
     }
     Ok(())

@@ -1,11 +1,9 @@
 use clap::Parser;
 
-use sos_core::FileLocks;
+use sos_core::{AuditLogFile, FileLocks};
 use sos_server::{
     Authentication, Result, Server, ServerConfig, ServerInfo, State,
 };
-
-use sos_audit::AuditLogFile;
 
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};

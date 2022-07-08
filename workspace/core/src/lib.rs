@@ -2,6 +2,7 @@
 //! Secret storage manager.
 
 pub mod address;
+mod audit;
 pub mod commit_tree;
 pub mod constants;
 pub mod crypto;
@@ -33,9 +34,8 @@ pub use serde_binary;
 pub use serde_binary::binary_rw;
 pub use web3_signature;
 
+pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
 pub use crypto::algorithms::Algorithm;
-pub use vault::{decode, encode};
-
 pub use diceware::{generate_passphrase, generate_passphrase_words};
 pub use error::Error;
 pub use file_access::VaultFileAccess;
@@ -46,6 +46,7 @@ pub use gatekeeper::Gatekeeper;
 pub use hash::CommitHash;
 pub use patch::{Patch, PatchFile};
 pub use timestamp::Timestamp;
+pub use vault::{decode, encode};
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;

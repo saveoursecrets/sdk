@@ -20,9 +20,8 @@ use crate::{
 };
 
 use sos_core::{
-    commit_tree::CommitProof,
-    encode,
-    events::{AuditEvent, AuditProvider, ChangeNotification},
+    commit_tree::CommitProof, encode, events::ChangeNotification, AuditEvent,
+    AuditProvider,
 };
 
 pub(crate) mod account;

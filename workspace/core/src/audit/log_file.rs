@@ -5,15 +5,14 @@ use std::{
 };
 use tokio::{fs::File, io::AsyncWriteExt};
 
-use crate::Result;
-use sos_core::{
+use crate::{
     constants::AUDIT_IDENTITY,
-    events::{AuditEvent, AuditProvider},
     iter::{FileIterator, FileRecord},
     serde_binary::{
         binary_rw::{BinaryWriter, Endian, MemoryStream, SeekStream},
         Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
     },
+    AuditEvent, AuditProvider, Result,
 };
 
 /// Represents an audit log file.
@@ -60,6 +59,7 @@ impl AuditLogFile {
 }
 
 impl AuditLogFile {
+    /// Encode an audit log event record.
     pub fn encode_row(
         ser: &mut Serializer,
         event: &AuditEvent,
@@ -85,6 +85,7 @@ impl AuditLogFile {
         Ok(())
     }
 
+    /// Decode an audit log event record.
     pub fn decode_row(de: &mut Deserializer) -> BinaryResult<AuditEvent> {
         // Read in the row length
         let _ = de.reader.read_u32()?;
@@ -101,6 +102,7 @@ impl AuditLogFile {
 #[async_trait]
 impl AuditProvider for AuditLogFile {
     type Error = crate::Error;
+
     async fn append_audit_events(
         &mut self,
         events: &[AuditEvent],

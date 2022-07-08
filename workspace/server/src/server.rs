@@ -22,8 +22,7 @@ use axum::{
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use serde::Serialize;
-use sos_audit::AuditLogFile;
-use sos_core::address::AddressStr;
+use sos_core::{address::AddressStr, AuditLogFile};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
 use tower_http::cors::{CorsLayer, Origin};

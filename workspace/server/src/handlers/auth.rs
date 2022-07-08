@@ -7,10 +7,7 @@ use axum::{
 
 //use axum_macros::debug_handler;
 
-use sos_core::{
-    events::{AuditEvent, EventKind},
-    vault::Summary,
-};
+use sos_core::{events::EventKind, vault::Summary, AuditEvent};
 
 use std::sync::Arc;
 use tokio::sync::RwLock;

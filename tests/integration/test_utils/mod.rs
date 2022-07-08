@@ -4,8 +4,7 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, thread};
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
 
-use sos_audit::AuditLogFile;
-use sos_core::FileLocks;
+use sos_core::{AuditLogFile, FileLocks};
 use sos_server::{Authentication, Server, ServerConfig, ServerInfo, State};
 
 const ADDR: &str = "127.0.0.1:3505";

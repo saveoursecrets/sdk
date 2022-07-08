@@ -32,6 +32,9 @@ pub const DEFAULT_VAULT_NAME: &str = "Login";
 /// Mime type for vaults.
 pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
 
+/// Identifier for vaults.
+pub type VaultId = Uuid;
+
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
 #[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
