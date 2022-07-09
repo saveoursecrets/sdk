@@ -2471,6 +2471,7 @@ dependencies = [
  "clap",
  "serde_json",
  "sos-core",
+ "tempfile",
  "thiserror",
  "tracing",
  "tracing-subscriber",
