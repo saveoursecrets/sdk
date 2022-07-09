@@ -1,6 +1,8 @@
 //! Write ahead log types and traits.
 use crate::{
-    commit_tree::CommitTree, events::WalEvent, timestamp::Timestamp,
+    commit_tree::{hash, CommitTree},
+    events::WalEvent,
+    timestamp::Timestamp,
     CommitHash, Result,
 };
 
@@ -36,13 +38,20 @@ pub trait WalProvider {
     }
 
     /// Get the last commit hash.
-    fn last_commit(&self) -> Result<Option<[u8; 32]>> {
+    fn last_commit(&self) -> Result<Option<CommitHash>> {
         let mut it = self.iter()?;
         if let Some(record) = it.next_back() {
             let record = record?;
-            Ok(Some(record.commit()))
-        } else { Ok(None) }
+            let buffer = self.read_buffer(&record)?;
+            let last_record_hash = hash(&buffer);
+            Ok(Some(CommitHash(last_record_hash)))
+        } else {
+            Ok(None)
+        }
     }
+
+    /// Read or encode the bytes for the item.
+    fn read_buffer(&self, record: &Self::Item) -> Result<Vec<u8>>;
 
     /// Get the tail after the given item until the end of the log.
     fn tail(&self, item: Self::Item) -> Result<Self::Partial>;
@@ -79,6 +88,9 @@ pub trait WalProvider {
 
 /// Trait for items yielded by the iterator.
 pub trait WalItem: std::fmt::Debug {
+    /// Get the commit hash for the previous row.
+    fn last_commit(&self) -> [u8; 32];
+
     /// Get the commit hash for the item.
     fn commit(&self) -> [u8; 32];
 
@@ -88,7 +100,7 @@ pub trait WalItem: std::fmt::Debug {
 
 /// Record for a row in the write ahead log.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct WalRecord(Timestamp, CommitHash, pub Vec<u8>);
+pub struct WalRecord(Timestamp, CommitHash, CommitHash, pub Vec<u8>);
 
 impl Encode for WalRecord {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
@@ -99,14 +111,16 @@ impl Encode for WalRecord {
         // Encode the time component
         self.0.encode(&mut *ser)?;
 
-        // Write the commit hash bytes
+        // Write the previous commit hash bytes
         ser.writer.write_bytes(self.1.as_ref())?;
+        // Write the commit hash bytes
+        ser.writer.write_bytes(self.2.as_ref())?;
 
         // FIXME: ensure the buffer size does not exceed u32
 
         // Write the data bytes
-        ser.writer.write_u32(self.2.len() as u32)?;
-        ser.writer.write_bytes(&self.2)?;
+        ser.writer.write_u32(self.3.len() as u32)?;
+        ser.writer.write_bytes(&self.3)?;
 
         // Backtrack to size_pos and write new length
         let row_pos = ser.writer.tell()?;
@@ -133,7 +147,9 @@ impl Decode for WalRecord {
         time.decode(&mut *de)?;
 
         // Read the hash bytes
-        let hash_bytes: [u8; 32] =
+        let previous: [u8; 32] =
+            de.reader.read_bytes(32)?.as_slice().try_into()?;
+        let commit: [u8; 32] =
             de.reader.read_bytes(32)?.as_slice().try_into()?;
 
         // Read the data bytes
@@ -141,8 +157,9 @@ impl Decode for WalRecord {
         let buffer = de.reader.read_bytes(length as usize)?;
 
         self.0 = time;
-        self.1 = CommitHash(hash_bytes);
-        self.2 = buffer;
+        self.1 = CommitHash(previous);
+        self.2 = CommitHash(commit);
+        self.3 = buffer;
 
         // Read in the row length appended to the end of the record
         let _ = de.reader.read_u32()?;

@@ -24,8 +24,12 @@ use super::{WalItem, WalProvider, WalRecord};
 pub struct WalMemoryRecord(usize, WalRecord);
 
 impl WalItem for WalMemoryRecord {
-    fn commit(&self) -> [u8; 32] {
+    fn last_commit(&self) -> [u8; 32] {
         self.1 .1 .0
+    }
+
+    fn commit(&self) -> [u8; 32] {
+        self.1 .2 .0
     }
 
     fn time(&self) -> &Timestamp {
@@ -53,10 +57,15 @@ impl WalMemory {
     ) -> Result<(CommitHash, WalMemoryRecord)> {
         let time: Timestamp = Default::default();
         let bytes = encode(&event)?;
+        let last_commit =
+            self.last_commit()?.unwrap_or_else(|| CommitHash([0u8; 32]));
         let commit = CommitHash(hash(&bytes));
         Ok((
             commit,
-            WalMemoryRecord(offset, WalRecord(time, commit, bytes)),
+            WalMemoryRecord(
+                offset,
+                WalRecord(time, last_commit, commit, bytes),
+            ),
         ))
     }
 }
@@ -77,6 +86,11 @@ impl WalProvider for WalMemory {
 
     fn tree(&self) -> &CommitTree {
         &self.tree
+    }
+
+    fn read_buffer(&self, record: &Self::Item) -> Result<Vec<u8>> {
+        let buffer = encode(&record.1)?;
+        Ok(buffer)
     }
 
     fn apply(
@@ -124,7 +138,7 @@ impl WalProvider for WalMemory {
     }
 
     fn event_data(&self, item: &Self::Item) -> Result<WalEvent<'_>> {
-        let event: WalEvent = decode(&item.1 .2)?;
+        let event: WalEvent = decode(&item.1 .3)?;
         Ok(event)
     }
 
