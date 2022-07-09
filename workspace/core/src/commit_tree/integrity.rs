@@ -32,12 +32,12 @@ where
 
     let it = vault_iter(vault.as_ref())?;
 
-    for row_info in it {
-        let row_info = row_info?;
+    for record in it {
+        let record = record?;
 
         if verify {
-            let commit = row_info.commit();
-            let value = row_info.read_bytes(&mut reader)?;
+            let commit = record.commit();
+            let value = record.read_bytes(&mut reader)?;
             let checksum = hash(&value);
             if checksum != commit {
                 return Err(Error::HashMismatch {
@@ -47,8 +47,8 @@ where
             }
         }
 
-        func(&row_info);
-        tree.insert(row_info.commit());
+        func(&record);
+        tree.insert(record.commit());
     }
 
     tree.commit();
@@ -77,22 +77,40 @@ where
 
     let wal = WalFile::new(wal_file.as_ref())?;
 
-    for row_info in wal.iter()? {
-        let row_info = row_info?;
+    let mut last_checksum: Option<[u8; 32]> = None;
+
+    for record in wal.iter()? {
+        let record = record?;
 
         if verify {
-            let value = row_info.read_bytes(&mut reader)?;
+            // Verify the row last commit matches the checksum
+            // for the previous row
+            if let Some(last_checksum) = last_checksum {
+                let expected_last_commit = record.last_commit();
+                if last_checksum != expected_last_commit {
+                    return Err(Error::HashMismatch {
+                        commit: hex::encode(expected_last_commit),
+                        value: hex::encode(last_checksum),
+                    });
+                }
+            }
+
+            // Verify the commit hash for the data
+            let value = record.read_bytes(&mut reader)?;
             let checksum = hash(&value);
-            if checksum != row_info.commit() {
+            if checksum != record.commit() {
                 return Err(Error::HashMismatch {
-                    commit: hex::encode(row_info.commit()),
+                    commit: hex::encode(record.commit()),
                     value: hex::encode(checksum),
                 });
             }
+
+            let buffer = wal.read_buffer(&record)?;
+            last_checksum = Some(hash(&buffer));
         }
 
-        func(&row_info);
-        tree.insert(row_info.commit());
+        func(&record);
+        tree.insert(record.commit());
     }
 
     tree.commit();

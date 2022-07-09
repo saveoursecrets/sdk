@@ -9,8 +9,10 @@
 //! Row components with byte sizes:
 //!
 //! ```text
-//! | 4 row length | 12 timestamp | 32 hash | 4 data length | data | 4 row length |
+//! | 4 row length | 12 timestamp | 32 last commit hash | 32 commit hash | 4 data length | data | 4 row length |
 //! ```
+//!
+//! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
     commit_tree::{hash, CommitTree},
@@ -84,7 +86,9 @@ impl WalFile {
         let time: Timestamp = Default::default();
         let bytes = encode(&event)?;
         let commit = CommitHash(hash(&bytes));
-        let record = WalRecord(time, commit, bytes);
+        let last_commit =
+            self.last_commit()?.unwrap_or_else(|| CommitHash([0u8; 32]));
+        let record = WalRecord(time, last_commit, commit, bytes);
         Ok((commit, record))
     }
 
@@ -113,6 +117,19 @@ impl WalProvider for WalFile {
         } else {
             Ok(partial)
         }
+    }
+
+    fn read_buffer(&self, record: &Self::Item) -> Result<Vec<u8>> {
+        let mut file = File::open(&self.file_path)?;
+        let offset = record.offset();
+        let row_len = offset.end - offset.start;
+
+        file.seek(SeekFrom::Start(offset.start as u64))?;
+
+        let mut buf = vec![0u8; row_len];
+        file.read_exact(&mut buf)?;
+
+        Ok(buf)
     }
 
     fn tree(&self) -> &CommitTree {
