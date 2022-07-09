@@ -8,12 +8,10 @@ use sos_core::{
     address::AddressStr,
     commit_tree::{CommitPair, CommitProof, CommitTree},
     events::{SyncEvent, WalEvent},
+    iter::WalFileRecord,
     secret::SecretRef,
     vault::Summary,
-    wal::{
-        file::WalFileRecord,
-        snapshot::{SnapShot, SnapShotManager},
-    },
+    wal::snapshot::{SnapShot, SnapShotManager},
     Gatekeeper,
 };
 

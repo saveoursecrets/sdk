@@ -21,9 +21,6 @@ zeroize = { version = "1.4", features = ["zeroize_derive"] }
 argon2 = { version = "0.4", features = ["std"]}
 # matches the version in k256
 sha3 = "0.9"
-# Note using an old version of `rand` (0.6) due to bip39 dependency
-# SEE: https://github.com/rust-bitcoin/rust-bip39/issues/14
-bip39 = { version =  "1", features = ["std", "rand"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2.2", features = ["serde"] }
 time = { version = "0.3", features = ["serde", "local-offset", "formatting"] }

@@ -5,11 +5,8 @@ use serde_binary::binary_rw::{BinaryReader, Endian, FileStream, OpenType};
 
 use crate::{
     commit_tree::{hash, CommitTree},
-    iter::{vault_iter, FileItem, VaultRecord},
-    wal::{
-        file::{WalFile, WalFileRecord},
-        WalItem, WalProvider,
-    },
+    iter::{vault_iter, FileItem, VaultRecord, WalFileRecord},
+    wal::{file::WalFile, WalItem, WalProvider},
     Error, Result,
 };
 
@@ -54,29 +51,6 @@ where
         tree.insert(row_info.commit());
     }
 
-    //let mut stream = FileStream::new(&vault, OpenType::Open)?;
-
-    /*
-    let (iterator, _header) = RowIterator::new(&mut stream)?;
-    for row_info in iterator {
-        let row_info = row_info?;
-
-        if verify {
-            let value = row_info.read_value(&mut reader)?;
-            let checksum = hash(&value);
-            if checksum != row_info.commit {
-                return Err(Error::HashMismatch {
-                    commit: hex::encode(row_info.commit),
-                    value: hex::encode(checksum),
-                });
-            }
-        }
-
-        func(&row_info);
-        tree.insert(row_info.commit);
-    }
-    */
-
     tree.commit();
     Ok(tree)
 }
@@ -107,7 +81,7 @@ where
         let row_info = row_info?;
 
         if verify {
-            let value = row_info.read_value(&mut reader)?;
+            let value = row_info.read_bytes(&mut reader)?;
             let checksum = hash(&value);
             if checksum != row_info.commit() {
                 return Err(Error::HashMismatch {

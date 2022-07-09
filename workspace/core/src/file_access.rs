@@ -1,4 +1,4 @@
-//! Manages access to a single vault file on disc.
+//! Implements random access to a single vault file on disc.
 use std::{
     borrow::Cow,
     fs::OpenOptions,
@@ -19,7 +19,6 @@ use serde_binary::{
 use uuid::Uuid;
 
 use crate::{
-    constants::VAULT_IDENTITY,
     crypto::AeadPack,
     events::SyncEvent,
     secret::SecretId,
