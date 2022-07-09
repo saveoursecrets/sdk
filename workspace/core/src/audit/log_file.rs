@@ -1,15 +1,18 @@
 use async_trait::async_trait;
 use std::{
-    io::Write,
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::{
     constants::AUDIT_IDENTITY,
-    iter::{audit_iter, FileIterator, FileRecord},
+    iter::{audit_iter, FileItem, FileIterator, FileRecord},
     serde_binary::{
-        binary_rw::{BinaryWriter, Endian, MemoryStream, SeekStream},
+        binary_rw::{
+            BinaryReader, BinaryWriter, Endian, MemoryStream, SeekStream,
+            SliceStream,
+        },
         Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
     },
     AuditEvent, AuditProvider, Result,
@@ -56,11 +59,27 @@ impl AuditLogFile {
 
         Ok(file)
     }
-}
 
-impl AuditLogFile {
+    /// Read an event from a file.
+    pub fn read_event(
+        &self,
+        file: &mut std::fs::File,
+        record: &FileRecord,
+    ) -> Result<AuditEvent> {
+        let offset = record.offset();
+        let row_len = offset.end - offset.start;
+        file.seek(SeekFrom::Start(offset.start as u64))?;
+        let mut buf = vec![0u8; row_len];
+        file.read_exact(&mut buf)?;
+
+        let mut stream = SliceStream::new(&buf);
+        let reader = BinaryReader::new(&mut stream, Endian::Big);
+        let mut de = Deserializer { reader };
+        Ok(AuditLogFile::decode_row(&mut de)?)
+    }
+
     /// Encode an audit log event record.
-    pub fn encode_row(
+    fn encode_row(
         ser: &mut Serializer,
         event: &AuditEvent,
     ) -> BinaryResult<()> {
@@ -86,7 +105,7 @@ impl AuditLogFile {
     }
 
     /// Decode an audit log event record.
-    pub fn decode_row(de: &mut Deserializer) -> BinaryResult<AuditEvent> {
+    fn decode_row(de: &mut Deserializer) -> BinaryResult<AuditEvent> {
         // Read in the row length
         let _ = de.reader.read_u32()?;
 

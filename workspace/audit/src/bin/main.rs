@@ -5,7 +5,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use sos_audit::Result;
 use sos_core::address::AddressStr;
 
-/// Print and monitor audit logs.
+/// Print and monitor audit log events.
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
@@ -15,13 +15,21 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Print the log records in an audit log file
+    /// Print the events in an audit log file
     Logs {
-        /// Print each log record as a line of JSON
+        /// Print each event as a line of JSON
         #[clap(short, long)]
         json: bool,
 
-        /// Filter to records that match the given address.
+        /// Iterate from the end of the file
+        #[clap(short, long)]
+        reverse: bool,
+
+        /// Limit events to displayed to this count
+        #[clap(short, long)]
+        count: Option<usize>,
+
+        /// Filter to events that match the given address.
         #[clap(short, long)]
         address: Vec<AddressStr>,
 
@@ -29,17 +37,15 @@ enum Command {
         #[clap(parse(from_os_str))]
         audit_log: PathBuf,
     },
-    /// Monitor changes in an audit log file
+    /// Monitor changes to an audit log file
     Monitor {
-        /// Print each log record as a line of JSON
+        /// Print each event as a line of JSON
         #[clap(short, long)]
         json: bool,
 
-        /*
-        /// Filter to records that match the given address.
+        /// Filter to events that match the given address.
         #[clap(short, long)]
         address: Vec<AddressStr>,
-        */
 
         /// Audit log file
         #[clap(parse(from_os_str))]
@@ -54,15 +60,17 @@ fn run() -> Result<()> {
             audit_log,
             json,
             address,
+            reverse,
+            count,
         } => {
-            sos_audit::logs(audit_log, json, address)?;
+            sos_audit::logs(audit_log, json, address, reverse, count)?;
         }
         Command::Monitor {
             audit_log,
             json,
-            //address,
+            address,
         } => {
-            sos_audit::monitor(audit_log, json)?;
+            sos_audit::monitor(audit_log, json, address)?;
         }
     }
     Ok(())

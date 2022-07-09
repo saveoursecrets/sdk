@@ -1,17 +1,6 @@
-use std::{path::PathBuf, io::{Read, Write}, fs::{File, OpenOptions}};
+use std::{fs::File, path::PathBuf, thread, time};
 
-use sos_core::{
-    address::AddressStr,
-    constants::AUDIT_IDENTITY,
-    iter::FileItem,
-    serde_binary::{
-        binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
-        Deserializer,
-    },
-    AuditData, AuditLogFile, AuditEvent,
-};
-
-use tempfile::NamedTempFile;
+use sos_core::{address::AddressStr, AuditData, AuditEvent, AuditLogFile};
 
 mod error;
 
@@ -19,72 +8,89 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub use error::Error;
 
+/// Monitor changes in an audit log file.
 pub fn monitor(
     audit_log: PathBuf,
     json: bool,
-    //address: Vec<AddressStr>,
-    ) -> Result<()> {
+    address: Vec<AddressStr>,
+) -> Result<()> {
+    if !audit_log.is_file() {
+        return Err(Error::NotFile(audit_log));
+    }
 
-    use std::{thread, time};
-
-    /*
-    let mut stream = FileStream::new(&audit_log, OpenType::Open)?;
-    let mut reader = BinaryReader::new(&mut stream, Endian::Big);
-    reader.seek(AUDIT_IDENTITY.len())?;
-    let mut deserializer = Deserializer { reader };
-
+    // File for iterating
     let log_file = AuditLogFile::new(&audit_log)?;
-    let mut it = log_file.iter()?;
-    let mut count = it.count();
-    */
 
+    // File for reading event data
     let mut file = File::open(&audit_log)?;
 
+    let mut it = log_file.iter()?;
     let mut offset = audit_log.metadata()?.len();
+    // Push iteration constraint to the end of the file
+    it.set_offset(offset as usize);
 
     loop {
         let step = time::Duration::from_millis(100);
         thread::sleep(step);
 
-        /*
         let len = audit_log.metadata()?.len();
         if len > offset {
-            let mut temp = NamedTempFile::new()?;
-            let mut temp_file = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(temp.path())?;
-
-            let byte_len = len - offset;
-            let mut buffer = vec![0u8; byte_len as usize];
-            file.read_exact(&mut buffer)?;
-
-            temp.write_all(&AUDIT_IDENTITY)?;
-            std::io::copy(&mut buffer.as_slice(), &mut temp_file)?;
-
-            let changes = AuditLogFile::new(temp.path())?;
-            let it = changes.iter()?;
-
-            for record in it {
+            while let Some(record) = it.next() {
                 let record = record?;
-                println!("Got a new record {:#?}", record.value());
+                let event = log_file.read_event(&mut file, &record)?;
+                if !address.is_empty() && !is_address_match(&event, &address)
+                {
+                    continue;
+                }
+                print_event(event, json)?;
             }
 
-            offset = audit_log.metadata()?.len();
+            offset = len;
+
+            // Adjust the iterator constraint for the consumer records
+            it.set_offset(len as usize);
         }
-        */
+    }
+}
 
-        /*
-        let it = log_file.iter()?;
-        let it = it.skip(count);
+/// Print events in an audit log file.
+pub fn logs(
+    audit_log: PathBuf,
+    json: bool,
+    address: Vec<AddressStr>,
+    reverse: bool,
+    count: Option<usize>,
+) -> Result<()> {
+    if !audit_log.is_file() {
+        return Err(Error::NotFile(audit_log));
+    }
 
-        for record in it {
-            println!("Got a new record...");
-            let event = AuditLogFile::decode_row(&mut deserializer)?;
+    // File for iterating
+    let log_file = AuditLogFile::new(&audit_log)?;
+
+    // File for reading event data
+    let mut file = File::open(&audit_log)?;
+
+    let count = count.unwrap_or_else(|| usize::MAX);
+
+    if reverse {
+        for record in log_file.iter()?.rev().take(count) {
+            let record = record?;
+            let event = log_file.read_event(&mut file, &record)?;
+            if !address.is_empty() && !is_address_match(&event, &address) {
+                continue;
+            }
             print_event(event, json)?;
-            count += 1;
         }
-        */
+    } else {
+        for record in log_file.iter()?.take(count) {
+            let record = record?;
+            let event = log_file.read_event(&mut file, &record)?;
+            if !address.is_empty() && !is_address_match(&event, &address) {
+                continue;
+            }
+            print_event(event, json)?;
+        }
     }
 
     Ok(())
@@ -126,37 +132,9 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn logs(
-    audit_log: PathBuf,
-    json: bool,
-    address: Vec<AddressStr>,
-) -> Result<()> {
-    if !audit_log.is_file() {
-        return Err(Error::NotFile(audit_log));
-    }
-
-    let log_file = AuditLogFile::new(&audit_log)?;
-
-    let mut stream = FileStream::new(&audit_log, OpenType::Open)?;
-    let mut reader = BinaryReader::new(&mut stream, Endian::Big);
-    reader.seek(AUDIT_IDENTITY.len())?;
-    let mut deserializer = Deserializer { reader };
-
-    for _record in log_file.iter()? {
-        //println!("record: {:#?}", record);
-        let event = AuditLogFile::decode_row(&mut deserializer)?;
-
-        if !address.is_empty() {
-            if address
-                .iter()
-                .position(|addr| addr == event.address())
-                .is_none()
-            {
-                continue;
-            }
-        }
-        print_event(event, json)?;
-    }
-
-    Ok(())
+fn is_address_match(event: &AuditEvent, address: &[AddressStr]) -> bool {
+    address
+        .iter()
+        .position(|addr| addr == event.address())
+        .is_some()
 }
