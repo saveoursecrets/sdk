@@ -177,6 +177,8 @@ pub struct WalFileRecord {
     value: Range<usize>,
     /// The time the row was created.
     time: Timestamp,
+    /// The commit hash for the previous row.
+    last_commit: [u8; 32],
     /// The commit hash for the value.
     commit: [u8; 32],
 }
@@ -204,6 +206,10 @@ impl WalItem for WalFileRecord {
         self.commit
     }
 
+    fn last_commit(&self) -> [u8; 32] {
+        self.last_commit
+    }
+
     fn time(&self) -> &Timestamp {
         &self.time
     }
@@ -211,11 +217,9 @@ impl WalItem for WalFileRecord {
 
 impl Decode for WalFileRecord {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let mut time: Timestamp = Default::default();
-        time.decode(&mut *de)?;
-        let hash_bytes: [u8; 32] =
-            de.reader.read_bytes(32)?.as_slice().try_into()?;
-        self.commit = hash_bytes;
+        self.time.decode(&mut *de)?;
+        self.last_commit = de.reader.read_bytes(32)?.as_slice().try_into()?;
+        self.commit = de.reader.read_bytes(32)?.as_slice().try_into()?;
         Ok(())
     }
 }
