@@ -9,16 +9,24 @@ use serde_binary::{
     Decode, Deserializer, Encode, Error as BinaryError,
     Result as BinaryResult, Serializer,
 };
-use std::{borrow::Cow, collections::HashMap, fmt, path::Path};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    fmt,
+    io::{Read, Seek, SeekFrom},
+    path::Path,
+};
 use uuid::Uuid;
 
 use crate::{
+    commit_tree::CommitTree,
     constants::{VAULT_EXT, VAULT_IDENTITY},
     crypto::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
         AeadPack,
     },
     events::SyncEvent,
+    iter::vault_iter,
     secret::{SecretId, VaultMeta},
     CommitHash, Error, FileIdentity, Result,
 };
@@ -66,7 +74,19 @@ pub struct VaultCommit(pub CommitHash, pub VaultEntry);
 impl Encode for VaultCommit {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_bytes(self.0.as_ref())?;
+
+        let size_pos = ser.writer.tell()?;
+        ser.writer.write_u32(0)?;
+
         self.1.encode(&mut *ser)?;
+
+        // Encode the data length for lazy iteration
+        let row_pos = ser.writer.tell()?;
+        let row_len = row_pos - (size_pos + 4);
+        ser.writer.seek(size_pos)?;
+        ser.writer.write_u32(row_len as u32)?;
+        ser.writer.seek(row_pos)?;
+
         Ok(())
     }
 }
@@ -76,6 +96,10 @@ impl Decode for VaultCommit {
         let commit: [u8; 32] =
             de.reader.read_bytes(32)?.as_slice().try_into()?;
         let commit = CommitHash(commit);
+
+        // Read in the length of the data blob
+        let _ = de.reader.read_u32()?;
+
         let mut group: VaultEntry = Default::default();
         group.decode(&mut *de)?;
         self.0 = commit;
@@ -303,6 +327,20 @@ impl Header {
         self.meta = meta;
     }
 
+    /// Read the content offset for a vault verifying the identity bytes first.
+    pub fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<usize> {
+        let mut file =
+            FileIdentity::read_file(path.as_ref(), &VAULT_IDENTITY)?;
+        file.seek(SeekFrom::Start(VAULT_IDENTITY.len() as u64))?;
+
+        // Header length is immediately after the identity bytes
+        let mut buffer = [0; 4];
+        file.read_exact(&mut buffer)?;
+        let header_len = u32::from_be_bytes(buffer) as usize;
+        let content_offset = VAULT_IDENTITY.len() + 4 + header_len;
+        Ok(content_offset)
+    }
+
     /// Read the summary for a vault from a file.
     pub fn read_summary_file<P: AsRef<Path>>(file: P) -> Result<Summary> {
         let mut stream = FileStream::new(file.as_ref(), OpenType::Open)?;
@@ -387,6 +425,7 @@ impl Encode for Header {
         // Backtrack to size_pos and write new length
         let header_pos = ser.writer.tell()?;
         let header_len = header_pos - (size_pos + 4);
+
         ser.writer.seek(size_pos)?;
         ser.writer.write_u32(header_len as u32)?;
         ser.writer.seek(header_pos)?;
@@ -444,6 +483,10 @@ impl Contents {
         ser.writer.write_u32(row_len as u32)?;
         ser.writer.seek(row_pos)?;
 
+        // Write out the row len at the end of the record too
+        // so we can support double ended iteration
+        ser.writer.write_u32(row_len as u32)?;
+
         Ok(())
     }
 
@@ -461,13 +504,16 @@ impl Contents {
         let mut row: VaultCommit = Default::default();
         row.decode(&mut *de)?;
 
+        // Read in the row length suffix
+        let _ = de.reader.read_u32()?;
+
         Ok((uuid, row))
     }
 }
 
 impl Encode for Contents {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_u32(self.data.len() as u32)?;
+        //ser.writer.write_u32(self.data.len() as u32)?;
         for (key, row) in &self.data {
             Contents::encode_row(ser, key, row)?;
         }
@@ -477,11 +523,23 @@ impl Encode for Contents {
 
 impl Decode for Contents {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let length = de.reader.read_u32()?;
+        //let length = de.reader.read_u32()?;
+
+        /*
         for _ in 0..length {
             let (uuid, value) = Contents::decode_row(de)?;
             self.data.insert(uuid, value);
         }
+        */
+
+        let mut pos = de.reader.tell()?;
+        let len = de.reader.len()?;
+        while pos < len {
+            let (uuid, value) = Contents::decode_row(de)?;
+            self.data.insert(uuid, value);
+            pos = de.reader.tell()?;
+        }
+
         Ok(())
     }
 }
@@ -690,6 +748,18 @@ impl Vault {
     pub fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let mut stream = FileStream::new(path, OpenType::OpenAndCreate)?;
         Vault::encode(&mut stream, self)
+    }
+
+    /// Build a commit tree from the commit hashes in a vault file.
+    pub fn build_tree<P: AsRef<Path>>(path: P) -> Result<CommitTree> {
+        let mut commit_tree = CommitTree::new();
+        let it = vault_iter(path.as_ref())?;
+        for record in it {
+            let record = record?;
+            commit_tree.insert(record.commit());
+        }
+        commit_tree.commit();
+        Ok(commit_tree)
     }
 
     /// Compute the hash of the encoded encrypted buffer for the meta and secret data.

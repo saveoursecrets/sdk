@@ -32,7 +32,12 @@ impl AuditLogFile {
 
     /// Get a log file iterator.
     pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
-        Ok(FileIterator::new(&self.file_path, &AUDIT_IDENTITY, false)?)
+        Ok(FileIterator::new(
+            &self.file_path,
+            &AUDIT_IDENTITY,
+            false,
+            None,
+        )?)
     }
 
     /// Create the file used to store audit logs.

@@ -272,18 +272,6 @@ mod test {
 
         let proof = client.tree().head()?;
 
-        /*
-        println!("client proof root {}", hex::encode(&proof.0));
-        for leaf in client.tree().leaves().unwrap() {
-            println!("client leaf: {}", hex::encode(&leaf));
-        }
-        println!("server proof root {}",
-            hex::encode(server.tree().root().unwrap()));
-        for leaf in server.tree().leaves().unwrap() {
-            println!("server leaf: {}", hex::encode(&leaf));
-        }
-        */
-
         let comparison = server.tree().compare(proof)?;
 
         if let Comparison::Contains(indices, leaves) = comparison {

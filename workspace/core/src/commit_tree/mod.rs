@@ -164,6 +164,7 @@ impl CommitTree {
         commit_tree
     }
 
+    /*
     // TODO: move this to another module!
     /// Create a commit tree from a row iterator.
     pub fn from_iterator<'a>(it: &mut RowIterator<'a>) -> Result<Self> {
@@ -175,6 +176,7 @@ impl CommitTree {
         commit_tree.tree.commit();
         Ok(commit_tree)
     }
+    */
 
     /// Get the number of leaves in the tree.
     pub fn len(&self) -> usize {
@@ -281,6 +283,11 @@ impl CommitTree {
     pub fn root(&self) -> Option<<Sha256 as Hasher>::Hash> {
         self.tree.root()
     }
+
+    /// Get the root hash of the underlying merkle tree as hexadecimal.
+    pub fn root_hex(&self) -> Option<String> {
+        self.tree.root_hex()
+    }
 }
 
 /// Refrerence to the identifier and commit for a row.
@@ -317,79 +324,6 @@ impl RowInfo {
     /// Get the row identifier.
     pub fn id(&self) -> &[u8; 16] {
         &self.id
-    }
-}
-
-/// Iterates a stream and yields identifiers and commits.
-pub struct RowIterator<'a> {
-    reader: BinaryReader<'a>,
-    total_rows: u32,
-    index: u32,
-}
-
-impl<'a> RowIterator<'a> {
-    /// Create a new commit iterator that reads from the given stream.
-    ///
-    /// Expects a valid vault file and will return the vault header along
-    /// with the iterator so that callers can access the vault file header information.
-    pub fn new(stream: &'a mut impl ReadStream) -> Result<(Self, Header)> {
-        let header = Header::read_header_stream(stream)?;
-        let mut reader = BinaryReader::new(stream, Endian::Big);
-        let total_rows = reader.read_u32()?;
-        Ok((
-            Self {
-                reader,
-                total_rows,
-                index: 0,
-            },
-            header,
-        ))
-    }
-
-    /// Get the expected number of rows in the stream.
-    pub fn total_rows(&self) -> &u32 {
-        &self.total_rows
-    }
-
-    /// Get the current iteration index.
-    pub fn index(&self) -> &u32 {
-        &self.index
-    }
-
-    fn read_row(&mut self) -> Result<RowInfo> {
-        let position = self.reader.tell()?;
-        let length = self.reader.read_u32()?;
-        let id: [u8; 16] =
-            self.reader.read_bytes(16)?.as_slice().try_into()?;
-        let commit: [u8; 32] =
-            self.reader.read_bytes(32)?.as_slice().try_into()?;
-
-        let start = position + 52;
-        let end = start + (length as usize - 48);
-
-        let row_info = RowInfo {
-            position,
-            length,
-            id,
-            commit,
-            value: start..end,
-        };
-        self.reader.seek(position + 4 + (length as usize))?;
-        Ok(row_info)
-    }
-}
-
-impl<'a> Iterator for RowIterator<'a> {
-    type Item = Result<RowInfo>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.total_rows {
-            let row = self.read_row();
-            self.index += 1;
-            Some(row)
-        } else {
-            None
-        }
     }
 }
 
