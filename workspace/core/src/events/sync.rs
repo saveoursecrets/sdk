@@ -47,10 +47,6 @@ pub enum SyncEvent<'a> {
     /// SyncEvent used to indicate a vault was deleted.
     DeleteVault,
 
-    #[deprecated]
-    /// Get the vault name.
-    GetVaultName,
-
     /// Set the vault name.
     SetVaultName(Cow<'a, str>),
 
@@ -94,7 +90,6 @@ impl SyncEvent<'_> {
             Self::Noop => false,
             Self::ReadVault => false,
             Self::ReadSecret(_) => false,
-            Self::GetVaultName => false,
             _ => true,
         }
     }
@@ -106,7 +101,6 @@ impl SyncEvent<'_> {
             SyncEvent::CreateVault(_) => EventKind::CreateVault,
             SyncEvent::ReadVault => EventKind::ReadVault,
             SyncEvent::DeleteVault => EventKind::DeleteVault,
-            SyncEvent::GetVaultName => EventKind::GetVaultName,
             SyncEvent::SetVaultName(_) => EventKind::SetVaultName,
             SyncEvent::SetVaultMeta(_) => EventKind::SetVaultMeta,
             SyncEvent::CreateSecret(_, _) => EventKind::CreateSecret,
@@ -129,7 +123,6 @@ impl SyncEvent<'_> {
             }
             SyncEvent::ReadVault => SyncEvent::ReadVault,
             SyncEvent::DeleteVault => SyncEvent::DeleteVault,
-            SyncEvent::GetVaultName => SyncEvent::GetVaultName,
             SyncEvent::SetVaultName(value) => {
                 SyncEvent::SetVaultName(Cow::Owned(value.into_owned()))
             }
@@ -159,9 +152,7 @@ impl<'a> Encode for SyncEvent<'a> {
                 ser.writer.write_u32(vault.as_ref().len() as u32)?;
                 ser.writer.write_bytes(vault.as_ref())?;
             }
-            SyncEvent::ReadVault
-            | SyncEvent::DeleteVault
-            | SyncEvent::GetVaultName => {}
+            SyncEvent::ReadVault | SyncEvent::DeleteVault => {}
             SyncEvent::SetVaultName(name) => {
                 ser.writer.write_string(name)?;
             }
@@ -206,9 +197,6 @@ impl<'a> Decode for SyncEvent<'a> {
             }
             EventKind::DeleteVault => {
                 *self = SyncEvent::DeleteVault;
-            }
-            EventKind::GetVaultName => {
-                *self = SyncEvent::GetVaultName;
             }
             EventKind::SetVaultName => {
                 let name = de.reader.read_string()?;

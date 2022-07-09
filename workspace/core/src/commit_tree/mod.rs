@@ -1,16 +1,13 @@
 //! Type for iterating and managing the commit trees for a vault.
 use serde_binary::{
-    binary_rw::{BinaryReader, Endian, ReadStream, SeekStream},
+    binary_rw::{BinaryReader, SeekStream},
     Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
 use std::ops::Range;
 
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 
-use crate::{
-    vault::{Header, Vault},
-    CommitHash, Error, Result,
-};
+use crate::{vault::Vault, CommitHash, Error, Result};
 
 mod integrity;
 

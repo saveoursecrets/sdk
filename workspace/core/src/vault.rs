@@ -121,7 +121,7 @@ pub trait VaultAccess {
     fn summary(&self) -> Result<Summary>;
 
     /// Get the name of a vault.
-    fn vault_name(&self) -> Result<(String, SyncEvent<'_>)>;
+    fn vault_name<'a>(&'a self) -> Result<Cow<'a, str>>;
 
     /// Set the name of a vault.
     fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>>;
@@ -784,8 +784,8 @@ impl VaultAccess for Vault {
         Ok(self.header.summary.clone())
     }
 
-    fn vault_name(&self) -> Result<(String, SyncEvent<'_>)> {
-        Ok((self.name().to_string(), SyncEvent::GetVaultName))
+    fn vault_name<'a>(&'a self) -> Result<Cow<'a, str>> {
+        Ok(Cow::Borrowed(self.name()))
     }
 
     fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>> {

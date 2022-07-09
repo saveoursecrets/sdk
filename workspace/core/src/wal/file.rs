@@ -17,25 +17,22 @@ use crate::{
     constants::{WAL_EXT, WAL_IDENTITY},
     encode,
     events::WalEvent,
-    iter::{wal_iter, WalFileRecord},
+    iter::{wal_iter, FileItem, WalFileRecord},
     timestamp::Timestamp,
     CommitHash, Error, Result,
 };
 use std::{
     fs::{File, OpenOptions},
     io::{Read, Seek, SeekFrom, Write},
-    ops::Range,
     path::{Path, PathBuf},
 };
 
 use serde_binary::{
-    binary_rw::{BinaryReader, Endian, SeekStream, SliceStream},
-    Decode, Deserializer, Result as BinaryResult,
+    binary_rw::{BinaryReader, Endian, SliceStream},
+    Decode, Deserializer,
 };
 
 use super::{WalItem, WalProvider, WalRecord};
-
-use crate::iter::{FileItem, FileIterator};
 
 /// A write ahead log that appends to a file.
 pub struct WalFile {

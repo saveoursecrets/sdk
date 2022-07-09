@@ -151,7 +151,6 @@ impl AuditEvent {
             SyncEvent::CreateVault(_)
             | SyncEvent::ReadVault
             | SyncEvent::DeleteVault
-            | SyncEvent::GetVaultName
             | SyncEvent::SetVaultName(_)
             | SyncEvent::SetVaultMeta(_) => AuditData::Vault(vault_id),
             SyncEvent::CreateSecret(secret_id, _) => {
