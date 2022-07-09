@@ -5,12 +5,9 @@ use sos_core::{
     commit_tree::{wal_commit_tree, CommitProof},
     constants::WAL_DELETED_EXT,
     events::{SyncEvent, WalEvent},
+    iter::WalFileRecord,
     vault::{Header, Summary, Vault, VaultAccess},
-    wal::{
-        file::{WalFile, WalFileRecord},
-        snapshot::SnapShotManager,
-        WalProvider,
-    },
+    wal::{file::WalFile, snapshot::SnapShotManager, WalProvider},
     FileLocks, VaultFileAccess,
 };
 use std::{

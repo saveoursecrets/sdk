@@ -6,20 +6,52 @@ use serde_binary::{
     Decode, Deserializer, Result as BinaryResult,
 };
 
-use crate::{constants::VAULT_IDENTITY, vault::Header, FileIdentity, Result};
+use crate::{
+    constants::{
+        AUDIT_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY, WAL_IDENTITY,
+    },
+    vault::Header,
+    wal::WalItem,
+    FileIdentity, Result, Timestamp,
+};
 
 /// Get an iterator for a vault file.
 pub fn vault_iter<P: AsRef<Path>>(
     path: P,
 ) -> Result<FileIterator<VaultRecord>> {
     let content_offset = Header::read_content_offset(path.as_ref())?;
-
     FileIterator::<VaultRecord>::new(
         path.as_ref(),
         &VAULT_IDENTITY,
         true,
         Some(content_offset),
     )
+}
+
+/// Get an iterator for a WAL file.
+pub fn wal_iter<P: AsRef<Path>>(
+    path: P,
+) -> Result<FileIterator<WalFileRecord>> {
+    FileIterator::<WalFileRecord>::new(
+        path.as_ref(),
+        &WAL_IDENTITY,
+        true,
+        None,
+    )
+}
+
+/// Get an iterator for a patch file.
+pub fn patch_iter<P: AsRef<Path>>(
+    path: P,
+) -> Result<FileIterator<FileRecord>> {
+    FileIterator::new(path.as_ref(), &PATCH_IDENTITY, false, None)
+}
+
+/// Get an iterator for an audit file.
+pub fn audit_iter<P: AsRef<Path>>(
+    path: P,
+) -> Result<FileIterator<FileRecord>> {
+    FileIterator::new(path.as_ref(), &AUDIT_IDENTITY, false, None)
 }
 
 /// Trait for types yielded by the file iterator.
@@ -136,17 +168,69 @@ impl Decode for VaultRecord {
     }
 }
 
+/// Reference to a row in the write ahead log.
+#[derive(Default, Debug)]
+pub struct WalFileRecord {
+    /// Byte offset for the record.
+    offset: Range<usize>,
+    /// The byte range for the value.
+    value: Range<usize>,
+    /// The time the row was created.
+    time: Timestamp,
+    /// The commit hash for the value.
+    commit: [u8; 32],
+}
+
+impl FileItem for WalFileRecord {
+    fn offset(&self) -> &Range<usize> {
+        &self.offset
+    }
+
+    fn value(&self) -> &Range<usize> {
+        &self.value
+    }
+
+    fn set_offset(&mut self, offset: Range<usize>) {
+        self.offset = offset;
+    }
+
+    fn set_value(&mut self, value: Range<usize>) {
+        self.value = value;
+    }
+}
+
+impl WalItem for WalFileRecord {
+    fn commit(&self) -> [u8; 32] {
+        self.commit
+    }
+
+    fn time(&self) -> &Timestamp {
+        &self.time
+    }
+}
+
+impl Decode for WalFileRecord {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let mut time: Timestamp = Default::default();
+        time.decode(&mut *de)?;
+        let hash_bytes: [u8; 32] =
+            de.reader.read_bytes(32)?.as_slice().try_into()?;
+        self.commit = hash_bytes;
+        Ok(())
+    }
+}
+
 /// Generic iterator for files.
 pub struct FileIterator<T: FileItem> {
     /// Offset from the beginning of the file where
     /// iteration should start and reverse iteration
     /// should complete.
     ///
-    /// This is often for length of the identity magic
+    /// This is often the length of the identity magic
     /// bytes but in some cases may be specified when
     /// creating the iterator, for example, vault files
     /// have information in the file header so we need
-    /// to pass the offset where the secrets start.
+    /// to pass the offset where the content starts.
     header_offset: usize,
 
     /// After decoding the row record is there a u32

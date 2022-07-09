@@ -15,10 +15,11 @@ use sos_core::{
     encode,
     events::{SyncEvent, WalEvent},
     generate_passphrase,
+    iter::WalFileRecord,
     secret::SecretRef,
     vault::{Summary, Vault},
     wal::{
-        file::{WalFile, WalFileRecord},
+        file::WalFile,
         reducer::WalReducer,
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,

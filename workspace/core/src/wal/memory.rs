@@ -25,9 +25,11 @@ use super::{WalItem, WalProvider, WalRecord};
 pub struct WalMemoryRecord(Range<usize>, WalRecord);
 
 impl WalItem for WalMemoryRecord {
+    /*
     fn offset(&self) -> &Range<usize> {
         &self.0
     }
+    */
 
     fn commit(&self) -> [u8; 32] {
         self.1 .1 .0

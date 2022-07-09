@@ -7,7 +7,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::{
     constants::AUDIT_IDENTITY,
-    iter::{FileIterator, FileRecord},
+    iter::{audit_iter, FileIterator, FileRecord},
     serde_binary::{
         binary_rw::{BinaryWriter, Endian, MemoryStream, SeekStream},
         Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
@@ -30,14 +30,9 @@ impl AuditLogFile {
         Ok(Self { file, file_path })
     }
 
-    /// Get a log file iterator.
+    /// Get an audit log file iterator.
     pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
-        Ok(FileIterator::new(
-            &self.file_path,
-            &AUDIT_IDENTITY,
-            false,
-            None,
-        )?)
+        audit_iter(&self.file_path)
     }
 
     /// Create the file used to store audit logs.

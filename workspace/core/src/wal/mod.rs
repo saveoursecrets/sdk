@@ -71,11 +71,13 @@ pub trait WalProvider {
 
 /// Trait for items yielded by the iterator.
 pub trait WalItem: std::fmt::Debug {
+    /*
     /// Get an offset for the item.
     ///
     /// May be a byte offset or an index depending
     /// upon the implmentation.
     fn offset(&self) -> &Range<usize>;
+    */
 
     /// Get the commit hash for the item.
     fn commit(&self) -> [u8; 32];

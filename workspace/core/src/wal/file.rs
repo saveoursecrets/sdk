@@ -17,6 +17,7 @@ use crate::{
     constants::{WAL_EXT, WAL_IDENTITY},
     encode,
     events::WalEvent,
+    iter::{wal_iter, WalFileRecord},
     timestamp::Timestamp,
     CommitHash, Error, Result,
 };
@@ -35,75 +36,6 @@ use serde_binary::{
 use super::{WalItem, WalProvider, WalRecord};
 
 use crate::iter::{FileItem, FileIterator};
-
-/// Reference to a row in the write ahead log.
-#[derive(Default, Debug)]
-pub struct WalFileRecord {
-    /// Byte offset for the record.
-    offset: Range<usize>,
-    /// The time the row was created.
-    time: Timestamp,
-    /// The commit hash for the value.
-    commit: [u8; 32],
-    /// The byte range for the value.
-    value: Range<usize>,
-}
-
-impl FileItem for WalFileRecord {
-    fn offset(&self) -> &Range<usize> {
-        &self.offset
-    }
-
-    fn value(&self) -> &Range<usize> {
-        &self.value
-    }
-
-    fn set_offset(&mut self, offset: Range<usize>) {
-        self.offset = offset;
-    }
-
-    fn set_value(&mut self, value: Range<usize>) {
-        self.value = value;
-    }
-}
-
-impl WalFileRecord {
-    /// Read the bytes for the row value into an owned buffer.
-    pub fn read_value<'a>(
-        &self,
-        reader: &mut BinaryReader<'a>,
-    ) -> Result<Vec<u8>> {
-        let length = self.value.end - self.value.start;
-        reader.seek(self.value.start)?;
-        let value = reader.read_bytes(length)?;
-        Ok(value)
-    }
-}
-
-impl WalItem for WalFileRecord {
-    fn offset(&self) -> &Range<usize> {
-        &self.offset
-    }
-
-    fn commit(&self) -> [u8; 32] {
-        self.commit
-    }
-
-    fn time(&self) -> &Timestamp {
-        &self.time
-    }
-}
-
-impl Decode for WalFileRecord {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let mut time: Timestamp = Default::default();
-        time.decode(&mut *de)?;
-        let hash_bytes: [u8; 32] =
-            de.reader.read_bytes(32)?.as_slice().try_into()?;
-        self.commit = hash_bytes;
-        Ok(())
-    }
-}
 
 /// A write ahead log that appends to a file.
 pub struct WalFile {
@@ -171,7 +103,7 @@ impl WalProvider for WalFile {
 
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
         let mut partial = WAL_IDENTITY.to_vec();
-        let start = item.offset.end;
+        let start = item.offset().end;
         let mut file = File::open(&self.file_path)?;
         let end = file.metadata()?.len() as usize;
 
@@ -246,7 +178,7 @@ impl WalProvider for WalFile {
     }
 
     fn event_data(&self, item: &Self::Item) -> Result<WalEvent<'_>> {
-        let value = &item.value;
+        let value = item.value();
 
         // Use a different file handle as the owned `file` should
         // be used exclusively for appending
@@ -280,12 +212,7 @@ impl WalProvider for WalFile {
         &self,
     ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>
     {
-        Ok(Box::new(FileIterator::<WalFileRecord>::new(
-            &self.file_path,
-            &WAL_IDENTITY,
-            true,
-            None,
-        )?))
+        Ok(Box::new(wal_iter(&self.file_path)?))
     }
 }
 
@@ -343,9 +270,9 @@ mod test {
         let second_row = it.next().unwrap()?;
         let third_row = it.next().unwrap()?;
 
-        assert_eq!(commits.get(0).unwrap().as_ref(), &first_row.commit);
-        assert_eq!(commits.get(1).unwrap().as_ref(), &second_row.commit);
-        assert_eq!(commits.get(2).unwrap().as_ref(), &third_row.commit);
+        assert_eq!(commits.get(0).unwrap().as_ref(), &first_row.commit());
+        assert_eq!(commits.get(1).unwrap().as_ref(), &second_row.commit());
+        assert_eq!(commits.get(2).unwrap().as_ref(), &third_row.commit());
 
         assert!(it.next().is_none());
         temp.close()?;

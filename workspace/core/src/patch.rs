@@ -13,7 +13,7 @@ use crate::{
     constants::{PATCH_EXT, PATCH_IDENTITY},
     decode, encode,
     events::SyncEvent,
-    iter::{FileIterator, FileRecord},
+    iter::{patch_iter, FileIterator, FileRecord},
     FileIdentity, Result,
 };
 
@@ -164,7 +164,7 @@ impl PatchFile {
 
     /// Get an iterator for the patch file.
     pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
-        FileIterator::new(&self.file_path, &PATCH_IDENTITY, false, None)
+        patch_iter(&self.file_path)
     }
 
     /// Count the number of events in the patch file.
