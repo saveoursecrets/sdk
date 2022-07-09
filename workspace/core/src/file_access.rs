@@ -51,34 +51,7 @@ impl VaultFileAccess {
     /// Check the identity bytes and return the byte offset of the
     /// beginning of the vault content area.
     fn check_identity(&self) -> Result<usize> {
-        let mut stream = self.stream.lock().unwrap();
-        let reader = BinaryReader::new(&mut *stream, Endian::Big);
-        let mut de = Deserializer { reader };
-        // Must reset to beginning of the file
-        de.reader.seek(0)?;
-        FileIdentity::read_identity(&mut de, &VAULT_IDENTITY)?;
-        let header_len = de.reader.read_u32()? as usize;
-        Ok(VAULT_IDENTITY.len() + 4 + header_len)
-    }
-
-    /// Seek to the content offset and read the sequence number and
-    /// total number of rows.
-    fn rows(&self, content_offset: usize) -> Result<u32> {
-        let mut stream = self.stream.lock().unwrap();
-        let reader = BinaryReader::new(&mut *stream, Endian::Big);
-        let mut de = Deserializer { reader };
-        de.reader.seek(content_offset)?;
-        Ok(de.reader.read_u32()?)
-    }
-
-    /// Seek to the content offset and write the total number of rows.
-    fn set_rows(&self, content_offset: usize, rows: u32) -> Result<()> {
-        let mut stream = self.stream.lock().unwrap();
-        let writer = BinaryWriter::new(&mut *stream, Endian::Big);
-        let mut ser = Serializer { writer };
-        ser.writer.seek(content_offset)?;
-        ser.writer.write_u32(rows)?;
-        Ok(())
+        Header::read_content_offset(&self.file_path)
     }
 
     /// Write out the header preserving the existing content bytes.
@@ -154,11 +127,11 @@ impl VaultFileAccess {
 
     /// Find the byte offset of a row.
     ///
-    /// Returns the content offset, total rows and the byte offset and row length of the row if it exists.
+    /// Returns the content offset and the byte offset and row length of the row if it exists.
     fn find_row(
         &self,
         id: &SecretId,
-    ) -> Result<(usize, u32, Option<(usize, u32)>)> {
+    ) -> Result<(usize, Option<(usize, u32)>)> {
         let content_offset = self.check_identity()?;
 
         let mut stream = self.stream.lock().unwrap();
@@ -167,7 +140,6 @@ impl VaultFileAccess {
 
         de.reader.seek(content_offset)?;
 
-        let total_rows = de.reader.read_u32()?;
         // Scan all the rows
         let mut current_pos = de.reader.tell()?;
         while let Ok(row_len) = de.reader.read_u32() {
@@ -178,19 +150,15 @@ impl VaultFileAccess {
                 // Need to backtrack as we just read the row length and UUID;
                 // calling decode_row() will try to read the length and UUID.
                 de.reader.seek(current_pos)?;
-                return Ok((
-                    content_offset,
-                    total_rows,
-                    Some((current_pos, row_len)),
-                ));
+                return Ok((content_offset, Some((current_pos, row_len))));
             }
 
             // Move on to the next row
-            de.reader.seek(current_pos + 4 + (row_len as usize))?;
+            de.reader.seek(current_pos + 8 + (row_len as usize))?;
             current_pos = de.reader.tell()?;
         }
 
-        Ok((content_offset, total_rows, None))
+        Ok((content_offset, None))
     }
 }
 
@@ -239,9 +207,6 @@ impl VaultAccess for VaultFileAccess {
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<SyncEvent<'_>> {
-        let content_offset = self.check_identity()?;
-        let total_rows = self.rows(content_offset)?;
-
         let mut stream = self.stream.lock().unwrap();
         let length = stream.len()?;
         let writer = BinaryWriter::new(&mut *stream, Endian::Big);
@@ -255,10 +220,6 @@ impl VaultAccess for VaultFileAccess {
 
         drop(stream);
 
-        // Update the total rows count
-        self.set_rows(content_offset, total_rows + 1)?;
-
-        // Update the change sequence number
         Ok(SyncEvent::CreateSecret(id, Cow::Owned(row)))
     }
 
@@ -266,7 +227,7 @@ impl VaultAccess for VaultFileAccess {
         &'a self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, SyncEvent<'_>)> {
-        let (_, _, row) = self.find_row(id)?;
+        let (_, row) = self.find_row(id)?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().unwrap();
             let reader = BinaryReader::new(&mut *stream, Endian::Big);
@@ -285,7 +246,7 @@ impl VaultAccess for VaultFileAccess {
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<Option<SyncEvent<'_>>> {
-        let (_content_offset, _total_rows, row) = self.find_row(id)?;
+        let (_content_offset, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
             let mut stream = MemoryStream::new();
@@ -304,7 +265,7 @@ impl VaultAccess for VaultFileAccess {
             let head = 0..row_offset;
             // Row offset is before the row length u32 so we
             // need to account for that too
-            let tail = (row_offset + 4 + (row_len as usize))..length;
+            let tail = (row_offset + 8 + (row_len as usize))..length;
 
             self.splice(head, tail, Some(&encoded))?;
 
@@ -315,7 +276,7 @@ impl VaultAccess for VaultFileAccess {
     }
 
     fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent<'_>>> {
-        let (content_offset, total_rows, row) = self.find_row(id)?;
+        let (_content_offset, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             let stream = self.stream.lock().unwrap();
             let length = stream.len()?;
@@ -324,14 +285,10 @@ impl VaultAccess for VaultFileAccess {
             let head = 0..row_offset;
             // Row offset is before the row length u32 so we
             // need to account for that too
-            let tail = (row_offset + 4 + (row_len as usize))..length;
+            let tail = (row_offset + 8 + (row_len as usize))..length;
 
             self.splice(head, tail, None)?;
 
-            // Update the total rows count
-            self.set_rows(content_offset, total_rows - 1)?;
-
-            // Update the change sequence number
             Ok(Some(SyncEvent::DeleteSecret(*id)))
         } else {
             Ok(None)
@@ -389,8 +346,6 @@ mod tests {
         let (temp, vault, _) = mock_vault_file()?;
 
         let mut vault_access = VaultFileAccess::new(temp.path())?;
-        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
-        assert_eq!(0, total_rows);
 
         // Missing row should not exist
         let missing_id = Uuid::new_v4();
@@ -414,17 +369,12 @@ mod tests {
             secret_note,
         )?;
 
-        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
-        assert_eq!(1, total_rows);
-
         // Verify the secret exists
         let (row, _) = vault_access.read(&secret_id)?;
         assert!(row.is_some());
 
         // Delete the secret
         let _ = vault_access.delete(&secret_id)?;
-        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
-        assert_eq!(0, total_rows);
 
         // Verify it does not exist after deletion
         let (row, _) = vault_access.read(&secret_id)?;
@@ -444,8 +394,6 @@ mod tests {
             secret_label,
             secret_note,
         )?;
-        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
-        assert_eq!(1, total_rows);
 
         // Update the secret with new values
         let updated_label = "Updated test note";
@@ -461,13 +409,9 @@ mod tests {
             commit,
             VaultEntry(updated_meta, updated_secret),
         )?;
-        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
-        assert_eq!(1, total_rows);
 
         // Clean up the secret for next test execution
         let _ = vault_access.delete(&secret_id)?;
-        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
-        assert_eq!(0, total_rows);
 
         let (vault_name, _) = vault_access.vault_name()?;
         assert_eq!(DEFAULT_VAULT_NAME, vault_name);
@@ -517,14 +461,8 @@ mod tests {
             secret_ids.push(secret_id);
         }
 
-        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
-        assert_eq!(3, total_rows);
-
         let del_secret_id = secret_ids.get(1).unwrap();
         let _ = vault_access.delete(del_secret_id)?;
-
-        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
-        assert_eq!(2, total_rows);
 
         // Check the file identity is good after the deletion splice
         assert!(Header::read_header_file(temp.path()).is_ok());
@@ -533,9 +471,6 @@ mod tests {
         for secret_id in secret_ids {
             let _ = vault_access.delete(&secret_id)?;
         }
-
-        let total_rows = vault_access.rows(vault_access.check_identity()?)?;
-        assert_eq!(0, total_rows);
 
         // Verify again to finish up
         assert!(Header::read_header_file(temp.path()).is_ok());

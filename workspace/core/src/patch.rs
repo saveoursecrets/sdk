@@ -164,7 +164,7 @@ impl PatchFile {
 
     /// Get an iterator for the patch file.
     pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
-        FileIterator::new(&self.file_path, &PATCH_IDENTITY, false)
+        FileIterator::new(&self.file_path, &PATCH_IDENTITY, false, None)
     }
 
     /// Count the number of events in the patch file.
