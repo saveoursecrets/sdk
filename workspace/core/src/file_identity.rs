@@ -9,7 +9,10 @@ pub struct FileIdentity;
 
 impl FileIdentity {
     /// Read the identity magic bytes from a file.
-    pub fn read_file<P: AsRef<Path>>(path: P, identity: &[u8]) -> Result<()> {
+    pub fn read_file<P: AsRef<Path>>(
+        path: P,
+        identity: &[u8],
+    ) -> Result<File> {
         let mut file = File::open(path.as_ref())?;
         let len = file.metadata()?.len();
         if len >= identity.len() as u64 {
@@ -24,7 +27,7 @@ impl FileIdentity {
         } else {
             return Err(Error::IdentityLength);
         }
-        Ok(())
+        Ok(file)
     }
 
     /// Read the identity magic bytes from a slice.

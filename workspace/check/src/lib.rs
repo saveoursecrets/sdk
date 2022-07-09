@@ -7,10 +7,9 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 pub use error::Error;
 
 use sos_core::{
-    binary_rw::{FileStream, OpenType},
-    commit_tree::{
-        vault_commit_tree, wal_commit_tree, CommitTree, RowIterator,
-    },
+    commit_tree::{vault_commit_tree, wal_commit_tree},
+    iter::vault_iter,
+    vault::{Header, Vault},
     wal::WalItem,
 };
 
@@ -21,12 +20,12 @@ pub fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     }
     let tree = vault_commit_tree(&file, true, |row_info| {
         if commits {
-            println!("{}", hex::encode(&row_info.commit));
+            println!("{}", hex::encode(&row_info.commit()));
         }
     })?;
     if root {
-        if let Some(root) = tree.root() {
-            println!("{}", hex::encode(root));
+        if let Some(root) = tree.root_hex() {
+            println!("{}", root);
         }
     }
     println!("Verified ✓");
@@ -44,8 +43,8 @@ pub fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
         }
     })?;
     if root {
-        if let Some(root) = tree.root() {
-            println!("{}", hex::encode(root));
+        if let Some(root) = tree.root_hex() {
+            println!("{}", root);
         }
     }
     println!("Verified ✓");
@@ -58,15 +57,18 @@ pub fn status(vault: PathBuf) -> Result<()> {
         return Err(Error::NotFile(vault));
     }
 
-    let mut stream = FileStream::new(&vault, OpenType::Open)?;
-    let (mut iterator, header) = RowIterator::new(&mut stream)?;
-    let total = *iterator.total_rows();
-    let tree = CommitTree::from_iterator(&mut iterator)?;
+    //let mut stream = FileStream::new(&vault, OpenType::Open)?;
+    //let (mut iterator, header) = RowIterator::new(&mut stream)?;
+    //let total = *iterator.total_rows();
+    //let tree = CommitTree::from_iterator(&mut iterator)?;
+    //
+
+    let header = Header::read_header_file(&vault)?;
+    let tree = Vault::build_tree(&vault)?;
 
     println!("{}", header);
-    println!("Rows: {}", total);
-    if let Some(root) = tree.root() {
-        println!("Commit: {}", hex::encode(root));
+    if let Some(root) = tree.root_hex() {
+        println!("Commit: {}", root);
     }
     Ok(())
 }
@@ -77,11 +79,10 @@ pub fn keys(vault: PathBuf) -> Result<()> {
         return Err(Error::NotFile(vault));
     }
 
-    let mut stream = FileStream::new(&vault, OpenType::Open)?;
-    let (iterator, _header) = RowIterator::new(&mut stream)?;
-    for row_info in iterator {
-        let row_info = row_info?;
-        let id = Uuid::from_bytes(*row_info.id());
+    let it = vault_iter(&vault)?;
+    for record in it {
+        let record = record?;
+        let id = Uuid::from_bytes(record.id());
         println!("{}", id);
     }
     Ok(())

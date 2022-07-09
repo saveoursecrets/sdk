@@ -284,6 +284,7 @@ impl WalProvider for WalFile {
             &self.file_path,
             &WAL_IDENTITY,
             true,
+            None,
         )?))
     }
 }

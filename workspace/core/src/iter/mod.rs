@@ -6,7 +6,21 @@ use serde_binary::{
     Decode, Deserializer, Result as BinaryResult,
 };
 
-use crate::{FileIdentity, Result};
+use crate::{constants::VAULT_IDENTITY, vault::Header, FileIdentity, Result};
+
+/// Get an iterator for a vault file.
+pub fn vault_iter<P: AsRef<Path>>(
+    path: P,
+) -> Result<FileIterator<VaultRecord>> {
+    let content_offset = Header::read_content_offset(path.as_ref())?;
+
+    FileIterator::<VaultRecord>::new(
+        path.as_ref(),
+        &VAULT_IDENTITY,
+        true,
+        Some(content_offset),
+    )
+}
 
 /// Trait for types yielded by the file iterator.
 pub trait FileItem: Default + Decode {
@@ -21,9 +35,20 @@ pub trait FileItem: Default + Decode {
 
     /// Set the range for the record value.
     fn set_value(&mut self, value: Range<usize>);
+
+    /// Read the bytes for the value into an owned buffer.
+    fn read_bytes<'a>(
+        &self,
+        reader: &mut BinaryReader<'a>,
+    ) -> Result<Vec<u8>> {
+        let value = self.value();
+        let length = value.end - value.start;
+        reader.seek(value.start)?;
+        Ok(reader.read_bytes(length)?)
+    }
 }
 
-/// Reference to a row in a file.
+/// Generic reference to a row in a file.
 #[derive(Default, Debug)]
 pub struct FileRecord {
     /// Byte offset for the record.
@@ -56,10 +81,74 @@ impl Decode for FileRecord {
     }
 }
 
+/// Reference to a row in a vault.
+#[derive(Default, Debug)]
+pub struct VaultRecord {
+    /// Byte offset for the record.
+    offset: Range<usize>,
+    /// The byte range for the value.
+    value: Range<usize>,
+    /// The identifier for the secret.
+    id: [u8; 16],
+    /// The commit hash for the secret.
+    commit: [u8; 32],
+}
+
+impl FileItem for VaultRecord {
+    fn offset(&self) -> &Range<usize> {
+        &self.offset
+    }
+
+    fn value(&self) -> &Range<usize> {
+        &self.value
+    }
+
+    fn set_offset(&mut self, offset: Range<usize>) {
+        self.offset = offset;
+    }
+
+    fn set_value(&mut self, value: Range<usize>) {
+        self.value = value;
+    }
+}
+
+impl VaultRecord {
+    /// Get the identifier for the secret.
+    pub fn id(&self) -> [u8; 16] {
+        self.id
+    }
+
+    /// Get the commit hash for the secret.
+    pub fn commit(&self) -> [u8; 32] {
+        self.commit
+    }
+}
+
+impl Decode for VaultRecord {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let id: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
+        let commit: [u8; 32] =
+            de.reader.read_bytes(32)?.as_slice().try_into()?;
+
+        self.id = id;
+        self.commit = commit;
+        Ok(())
+    }
+}
+
 /// Generic iterator for files.
 pub struct FileIterator<T: FileItem> {
-    /// Identity magic bytes for the file.
-    identity: &'static [u8],
+    /// Offset from the beginning of the file where
+    /// iteration should start and reverse iteration
+    /// should complete.
+    ///
+    /// This is often for length of the identity magic
+    /// bytes but in some cases may be specified when
+    /// creating the iterator, for example, vault files
+    /// have information in the file header so we need
+    /// to pass the offset where the secrets start.
+    header_offset: usize,
+
     /// After decoding the row record is there a u32
     /// that is used to indicate the length of a a data
     /// blob for the row; if so then `value` will point
@@ -84,15 +173,20 @@ impl<T: FileItem> FileIterator<T> {
         file_path: P,
         identity: &'static [u8],
         data_length_prefix: bool,
+        header_offset: Option<usize>,
     ) -> Result<Self> {
         FileIdentity::read_file(file_path.as_ref(), identity)?;
-        let file_stream =
+        let mut file_stream =
             FileStream::new(file_path.as_ref(), OpenType::Open)?;
+
+        let header_offset = header_offset.unwrap_or_else(|| identity.len());
+        file_stream.seek(header_offset)?;
+
         Ok(Self {
-            identity,
+            header_offset,
             data_length_prefix,
             file_stream,
-            forward: Some(4),
+            forward: None,
             backward: None,
             marker: std::marker::PhantomData,
         })
@@ -183,7 +277,7 @@ impl<T: FileItem> Iterator for FileIterator<T> {
     type Item = Result<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let offset: usize = self.identity.len();
+        let offset: usize = self.header_offset;
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
             if lpos == rpos {
@@ -217,7 +311,7 @@ impl<T: FileItem> Iterator for FileIterator<T> {
 
 impl<T: FileItem> DoubleEndedIterator for FileIterator<T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let offset: usize = self.identity.len();
+        let offset: usize = self.header_offset;
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
             if lpos == rpos {

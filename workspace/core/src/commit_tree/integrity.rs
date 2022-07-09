@@ -4,7 +4,8 @@ use std::path::Path;
 use serde_binary::binary_rw::{BinaryReader, Endian, FileStream, OpenType};
 
 use crate::{
-    commit_tree::{hash, CommitTree, RowInfo, RowIterator},
+    commit_tree::{hash, CommitTree},
+    iter::{vault_iter, FileItem, VaultRecord},
     wal::{
         file::{WalFile, WalFileRecord},
         WalItem, WalProvider,
@@ -23,16 +24,39 @@ pub fn vault_commit_tree<P: AsRef<Path>, F>(
     func: F,
 ) -> Result<CommitTree>
 where
-    F: Fn(&RowInfo),
+    F: Fn(&VaultRecord),
 {
     let mut tree = CommitTree::new();
 
     // Need an additional reader as we may also read in the
     // values for the rows
-    let mut value = FileStream::new(&vault, OpenType::Open)?;
-    let mut reader = BinaryReader::new(&mut value, Endian::Big);
+    let mut stream = FileStream::new(vault.as_ref(), OpenType::Open)?;
+    let mut reader = BinaryReader::new(&mut stream, Endian::Big);
 
-    let mut stream = FileStream::new(&vault, OpenType::Open)?;
+    let it = vault_iter(vault.as_ref())?;
+
+    for row_info in it {
+        let row_info = row_info?;
+
+        if verify {
+            let commit = row_info.commit();
+            let value = row_info.read_bytes(&mut reader)?;
+            let checksum = hash(&value);
+            if checksum != commit {
+                return Err(Error::HashMismatch {
+                    commit: hex::encode(commit),
+                    value: hex::encode(checksum),
+                });
+            }
+        }
+
+        func(&row_info);
+        tree.insert(row_info.commit());
+    }
+
+    //let mut stream = FileStream::new(&vault, OpenType::Open)?;
+
+    /*
     let (iterator, _header) = RowIterator::new(&mut stream)?;
     for row_info in iterator {
         let row_info = row_info?;
@@ -51,6 +75,7 @@ where
         func(&row_info);
         tree.insert(row_info.commit);
     }
+    */
 
     tree.commit();
     Ok(tree)
