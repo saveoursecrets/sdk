@@ -280,6 +280,13 @@ impl<T: FileItem> FileIterator<T> {
         })
     }
 
+    /// Set the byte offset that constrains iteration.
+    ///
+    /// Useful when creating streams of log events.
+    pub fn set_offset(&mut self, offset: usize) {
+        self.header_offset = offset;
+    }
+
     /// Helper to decode the row file record.
     fn read_row(
         de: &mut Deserializer,
