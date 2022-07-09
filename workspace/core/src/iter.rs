@@ -55,7 +55,7 @@ pub fn audit_iter<P: AsRef<Path>>(
 }
 
 /// Trait for types yielded by the file iterator.
-pub trait FileItem: Default + Decode {
+pub trait FileItem: Default + std::fmt::Debug + Decode {
     /// Get the byte offset for the record.
     fn offset(&self) -> &Range<usize>;
 

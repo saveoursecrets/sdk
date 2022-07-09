@@ -26,7 +26,7 @@ use crate::{
         encode, Contents, Header, Summary, VaultAccess, VaultCommit,
         VaultEntry,
     },
-    CommitHash, FileIdentity, Result,
+    CommitHash, Result,
 };
 
 /// Implements access to an encrypted vault backed by a file on disc.
@@ -166,10 +166,10 @@ impl VaultAccess for VaultFileAccess {
         Header::read_summary_file(&self.file_path)
     }
 
-    fn vault_name(&self) -> Result<(String, SyncEvent<'_>)> {
+    fn vault_name<'a>(&'a self) -> Result<Cow<'a, str>> {
         let header = Header::read_header_file(&self.file_path)?;
         let name = header.name().to_string();
-        Ok((name, SyncEvent::GetVaultName))
+        Ok(Cow::Owned(name))
     }
 
     fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>> {
@@ -412,13 +412,13 @@ mod tests {
         // Clean up the secret for next test execution
         let _ = vault_access.delete(&secret_id)?;
 
-        let (vault_name, _) = vault_access.vault_name()?;
-        assert_eq!(DEFAULT_VAULT_NAME, vault_name);
+        let vault_name = vault_access.vault_name()?;
+        assert_eq!(DEFAULT_VAULT_NAME, &vault_name);
 
         let new_name = String::from("New vault name");
         let _ = vault_access.set_vault_name(new_name.clone());
 
-        let (vault_name, _) = vault_access.vault_name()?;
+        let vault_name = vault_access.vault_name()?;
         assert_eq!(&new_name, &vault_name);
 
         // Reset the fixture vault name
