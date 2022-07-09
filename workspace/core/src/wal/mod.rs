@@ -35,6 +35,15 @@ pub trait WalProvider {
         Ok(None)
     }
 
+    /// Get the last commit hash.
+    fn last_commit(&self) -> Result<Option<[u8; 32]>> {
+        let mut it = self.iter()?;
+        if let Some(record) = it.next_back() {
+            let record = record?;
+            Ok(Some(record.commit()))
+        } else { Ok(None) }
+    }
+
     /// Get the tail after the given item until the end of the log.
     fn tail(&self, item: Self::Item) -> Result<Self::Partial>;
 

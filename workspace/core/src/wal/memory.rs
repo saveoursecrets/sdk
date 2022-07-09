@@ -16,21 +16,14 @@ use crate::{
     timestamp::Timestamp,
     CommitHash, Result,
 };
-use std::ops::Range;
 
 use super::{WalItem, WalProvider, WalRecord};
 
 /// Wrapper for a WAL record that includes an index offset.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct WalMemoryRecord(Range<usize>, WalRecord);
+pub struct WalMemoryRecord(usize, WalRecord);
 
 impl WalItem for WalMemoryRecord {
-    /*
-    fn offset(&self) -> &Range<usize> {
-        &self.0
-    }
-    */
-
     fn commit(&self) -> [u8; 32] {
         self.1 .1 .0
     }
@@ -63,7 +56,7 @@ impl WalMemory {
         let commit = CommitHash(hash(&bytes));
         Ok((
             commit,
-            WalMemoryRecord(offset..offset, WalRecord(time, commit, bytes)),
+            WalMemoryRecord(offset, WalRecord(time, commit, bytes)),
         ))
     }
 }
@@ -74,7 +67,7 @@ impl WalProvider for WalMemory {
 
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
         let mut partial = Vec::new();
-        let index = item.0.start + 1;
+        let index = item.0 + 1;
         if index < self.records.len() {
             let items = &self.records[index..self.records.len()];
             partial.extend_from_slice(items);

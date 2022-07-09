@@ -92,6 +92,7 @@ impl WalFile {
     pub fn extension() -> &'static str {
         WAL_EXT
     }
+
 }
 
 impl WalProvider for WalFile {
