@@ -1,30 +1,56 @@
 use anyhow::Result;
-use serial_test::serial;
 
 mod test_utils;
 
 use test_utils::*;
 
-use sos_client::{create_account, create_signing_key, ClientKey};
+use sos_client::{
+    create_account, create_signing_key, ClientCache, ClientCredentials,
+    ClientKey, FileCache,
+};
+use sos_core::secret::SecretRef;
+use web3_keystore::{decrypt, KeyStore};
 
 #[tokio::test]
-#[serial]
-async fn account_signup() -> Result<()> {
-    use web3_keystore::{decrypt, KeyStore};
+async fn integration_tests() -> Result<()> {
+    let dirs = setup()?;
 
+    let (rx, _handle) = spawn()?;
+    let _ = rx.await?;
+
+    let (credentials, mut file_cache) = signup(&dirs).await?;
+
+    // Create a new vault
+    let new_vault_name = String::from("My Vault");
+    let new_passphrase =
+        file_cache.create_vault(new_vault_name.clone()).await?;
+
+    // Check our new vault is found in the local cache
+    let vault_ref = SecretRef::Name(new_vault_name.clone());
+    let new_vault_summary =
+        file_cache.find_vault(&vault_ref).unwrap().clone();
+    assert_eq!(&new_vault_name, new_vault_summary.name());
+
+    // Load vaults list
+    let vaults = file_cache.load_vaults().await?;
+    assert_eq!(2, vaults.len());
+
+    // Use the new vault
+    file_cache
+        .open_vault(&new_vault_summary, &new_passphrase)
+        .await?;
+
+    //file_cache.patch_vault(&summary, create_events).await?;
+
+    Ok(())
+}
+
+async fn signup(dirs: &TestDirs) -> Result<(ClientCredentials, FileCache)> {
     let TestDirs {
         target: destination,
         client: cache_dir,
         ..
-    } = setup()?;
-
-    println!(
-        "Using destination {:#?} ({})",
-        destination,
-        destination.exists()
-    );
-    let (rx, _handle) = spawn()?;
-    let _ = rx.await?;
+    } = dirs;
 
     let server = server();
     let name = None;
@@ -33,13 +59,17 @@ async fn account_signup() -> Result<()> {
     let expected_keystore =
         destination.join(&format!("{}.json", key.address()));
 
-    println!("expected keystore {:#?}", expected_keystore);
-
     let ClientKey(signing_key, _, _) = &key;
     let expected_signing_key = *signing_key;
 
-    let (credentials, _disc_cache) =
-        create_account(server, destination, name, key, cache_dir).await?;
+    let (credentials, disc_cache) = create_account(
+        server,
+        destination.to_path_buf(),
+        name,
+        key,
+        cache_dir.to_path_buf(),
+    )
+    .await?;
 
     assert_eq!(expected_keystore, credentials.keystore_file);
     assert!(expected_keystore.is_file());
@@ -57,19 +87,5 @@ async fn account_signup() -> Result<()> {
 
     assert_eq!(expected_signing_key, signing_key);
 
-    Ok(())
+    Ok((credentials, disc_cache))
 }
-
-/*
-#[tokio::test]
-#[serial]
-async fn another_test() -> Result<()> {
-    println!("another test!!");
-
-    let dir = integration_test_dir();
-    let (rx, handle) = spawn()?;
-    let _ = rx.await?;
-
-    Ok(())
-}
-*/
