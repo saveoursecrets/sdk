@@ -873,7 +873,10 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                 .padding(Padding::one())
                 .text(Cow::Borrowed("!!! CHANGE PASSWORD !!!"))
                 .text(Cow::Borrowed(
-                    "Changing your password is a dangerous operation, your data may be corrupted if the process is interrupted and your history will be destroyed.",
+                    "Changing your password is a dangerous operation, your data may be corrupted if the process is interrupted.",
+                ))
+                .text(Cow::Borrowed(
+                    "Vault change history will be deleted.",
                 ))
                 .render();
             println!("{}", banner);

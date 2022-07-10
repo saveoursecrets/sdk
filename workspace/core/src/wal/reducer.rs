@@ -13,7 +13,7 @@ use crate::{
     crypto::AeadPack,
     events::WalEvent,
     secret::SecretId,
-    vault::{encode, Vault, VaultCommit},
+    vault::{encode, Vault, VaultCommit, VaultEntry},
     wal::{WalItem, WalProvider},
     Error, Result,
 };
@@ -35,6 +35,25 @@ impl<'a> WalReducer<'a> {
     /// Create a new reducer.
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Convert a vault into a truncated vault and a collection
+    /// of WAL events that represent the vault.
+    ///
+    /// The truncated vault represents the header of the vault and
+    /// has no contents.
+    pub fn convert(vault: Vault) -> Result<(Vault, Vec<WalEvent<'static>>)> {
+        let mut events = Vec::with_capacity(vault.len() + 1);
+        let header = vault.header().clone();
+        let head = Vault::from(header);
+
+        let buffer = encode(&head)?;
+        events.push(WalEvent::CreateVault(Cow::Owned(buffer)));
+        for (id, entry) in vault {
+            let event = WalEvent::CreateSecret(id, Cow::Owned(entry));
+            events.push(event);
+        }
+        Ok((head, events))
     }
 
     /// Reduce the events in the given iterator.

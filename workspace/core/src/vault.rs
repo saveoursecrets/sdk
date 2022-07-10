@@ -808,6 +808,16 @@ impl From<Header> for Vault {
     }
 }
 
+impl IntoIterator for Vault {
+    type Item = (SecretId, VaultCommit);
+    type IntoIter =
+        std::collections::hash_map::IntoIter<SecretId, VaultCommit>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.contents.data.into_iter()
+    }
+}
+
 impl VaultAccess for Vault {
     fn summary(&self) -> Result<Summary> {
         Ok(self.header.summary.clone())
