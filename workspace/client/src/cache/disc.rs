@@ -163,6 +163,7 @@ impl ClientCache for FileCache {
         let summaries = self.client.list_vaults().await?;
         self.load_caches(&summaries)?;
         self.summaries = summaries;
+        self.summaries.sort();
         Ok(self.vaults())
     }
 
@@ -225,6 +226,7 @@ impl ClientCache for FileCache {
             self.summaries.iter().position(|s| s.id() == summary.id());
         if let Some(index) = index {
             self.summaries.remove(index);
+            self.summaries.sort();
         }
 
         Ok(())
@@ -608,6 +610,7 @@ impl FileCache {
             .then_some(())
             .ok_or(Error::ResponseCode(response.status().into()))?;
         self.summaries.push(summary);
+        self.summaries.sort();
 
         Ok(passphrase)
     }

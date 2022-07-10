@@ -8,7 +8,11 @@ use sos_client::{
     create_account, create_signing_key, ClientCache, ClientCredentials,
     ClientKey, FileCache,
 };
-use sos_core::secret::SecretRef;
+use sos_core::{
+    events::SyncEvent,
+    secret::{Secret, SecretMeta, SecretRef, SecretId},
+    vault::Summary,
+};
 use web3_keystore::{decrypt, KeyStore};
 
 #[tokio::test]
@@ -32,15 +36,22 @@ async fn integration_tests() -> Result<()> {
     assert_eq!(&new_vault_name, new_vault_summary.name());
 
     // Load vaults list
+    let cached_vaults = file_cache.vaults().to_vec();
     let vaults = file_cache.load_vaults().await?;
     assert_eq!(2, vaults.len());
+
+    assert_eq!(&cached_vaults, &vaults);
 
     // Use the new vault
     file_cache
         .open_vault(&new_vault_summary, &new_passphrase)
         .await?;
 
-    //file_cache.patch_vault(&summary, create_events).await?;
+    // Create some secrets
+    let notes = create_secrets(&mut file_cache, &new_vault_summary).await?;
+
+    let first_id = notes.get(0).unwrap().0;
+    delete_secret(&mut file_cache, &new_vault_summary, &first_id).await?;
 
     Ok(())
 }
@@ -88,4 +99,65 @@ async fn signup(dirs: &TestDirs) -> Result<(ClientCredentials, FileCache)> {
     assert_eq!(expected_signing_key, signing_key);
 
     Ok((credentials, disc_cache))
+}
+
+async fn create_secrets(
+    file_cache: &mut FileCache,
+    summary: &Summary,
+) -> Result<Vec<(SecretId, &'static str)>> {
+    let notes = vec![
+        ("note1", "secret1"),
+        ("note2", "secret2"),
+        ("note3", "secret3"),
+    ];
+
+    let keeper = file_cache.current_mut().unwrap();
+
+    let mut results = Vec::new();
+
+    // Create some notes locally and get the events
+    // to send in a patch.
+    let mut create_events = Vec::new();
+    for item in notes.iter() {
+        let (meta, secret) = mock_note(item.0, item.1);
+        let event = keeper.create(meta, secret)?;
+
+        let id = if let SyncEvent::CreateSecret(secret_id, _) = &event {
+            *secret_id
+        } else {
+            unreachable!()
+        };
+    
+        let event = event.into_owned();
+        create_events.push(event);
+
+        results.push((id, item.0));
+    }
+
+    assert_eq!(3, keeper.vault().len());
+
+    // Send the patch to the remote server
+    file_cache.patch_vault(summary, create_events).await?;
+
+    Ok(results)
+}
+
+async fn delete_secret(
+    file_cache: &mut FileCache,
+    summary: &Summary,
+    id: &SecretId,
+) -> Result<()> {
+    let keeper = file_cache.current_mut().unwrap();
+    let event = keeper.delete(id)?.unwrap();
+    let event = event.into_owned();
+
+    // Send the patch to the remote server
+    file_cache.patch_vault(summary, vec![event]).await?;
+    Ok(())
+}
+
+fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
+    let secret_value = Secret::Note(text.to_string());
+    let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
+    (secret_meta, secret_value)
 }

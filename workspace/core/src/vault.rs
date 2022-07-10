@@ -11,6 +11,7 @@ use serde_binary::{
 };
 use std::{
     borrow::Cow,
+    cmp::Ordering,
     collections::HashMap,
     fmt,
     io::{Read, Seek, SeekFrom},
@@ -198,6 +199,18 @@ pub struct Summary {
     name: String,
     #[serde(skip)]
     algorithm: Algorithm,
+}
+
+impl Ord for Summary {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl PartialOrd for Summary {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl fmt::Display for Summary {
