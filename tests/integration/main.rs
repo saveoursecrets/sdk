@@ -86,6 +86,12 @@ async fn integration_tests() -> Result<()> {
     // Verify local WAL ingegrity
     file_cache.verify(&new_vault_summary)?;
 
+    // Compact the vault history
+    let _ = file_cache.compact(&new_vault_summary).await?;
+
+    // Close the vault
+    file_cache.close_vault();
+
     Ok(())
 }
 
