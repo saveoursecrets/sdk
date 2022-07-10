@@ -65,6 +65,10 @@ pub enum Error {
     #[error("commit tree does not have a root")]
     NoRootCommit,
 
+    /// Error generated when a passphrase is not valid.
+    #[error("passphrase is not valid")]
+    InvalidPassphrase,
+
     #[error(transparent)]
     ParseInt(#[from] std::num::ParseIntError),
 

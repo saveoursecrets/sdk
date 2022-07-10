@@ -13,10 +13,11 @@ use url::Url;
 
 use human_bytes::human_bytes;
 use sos_core::{
+    generate_passphrase,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     wal::WalItem,
-    CommitHash,
+    ChangePassword, CommitHash,
 };
 use sos_readline::{
     choose, read_flag, read_line, read_line_allow_empty, read_multiline,
@@ -138,6 +139,9 @@ enum ShellCommand {
         #[clap(short, long)]
         force: bool,
     },
+    /// Change encrpytion password for the selected vault.
+    #[clap(alias = "passwd")]
+    Password,
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -858,6 +862,40 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                     println!("Cannot push safely, use the --force option if you are sure.");
                 }
             }
+            Ok(())
+        }
+        ShellCommand::Password => {
+            let mut writer = cache.write().unwrap();
+            let keeper =
+                writer.current_mut().ok_or(Error::NoVaultSelected)?;
+
+            let banner = Banner::new()
+                .padding(Padding::one())
+                .text(Cow::Borrowed("!!! CHANGE PASSWORD !!!"))
+                .text(Cow::Borrowed(
+                    "Changing your password is a dangerous operation, your data may be corrupted if the process is interrupted and your history will be destroyed.",
+                ))
+                .render();
+            println!("{}", banner);
+
+            let prompt = Some("Are you sure (y/n)? ");
+            if read_flag(prompt)? {
+                let passphrase = read_password(Some("Current passphrase: "))?;
+                let (new_passphrase, _) = generate_passphrase()?;
+
+                // Basic quick verification
+                keeper
+                    .verify(&passphrase)
+                    .map_err(|_| Error::InvalidPassphrase)?;
+
+                let (new_passphrase, new_vault, wal_events) = ChangePassword::new(
+                    keeper.vault_mut(),
+                    passphrase,
+                    new_passphrase,
+                )
+                .build()?;
+            }
+
             Ok(())
         }
         ShellCommand::Whoami => {

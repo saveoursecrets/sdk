@@ -170,7 +170,7 @@ pub trait VaultAccess {
 }
 
 /// Authentication information.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Auth {
     salt: Option<String>,
 }
@@ -290,7 +290,7 @@ impl Decode for Summary {
 }
 
 /// File header, identifier and version information
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Header {
     summary: Summary,
     meta: Option<AeadPack>,
@@ -638,9 +638,21 @@ impl Vault {
         }
     }
 
+    /// Iterator for the secret keys and values.
+    pub fn iter<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (&'a Uuid, &'a VaultCommit)> {
+        self.contents.data.iter()
+    }
+
     /// Iterator for the secret keys.
     pub fn keys<'a>(&'a self) -> impl Iterator<Item = &'a Uuid> {
         self.contents.data.keys()
+    }
+
+    /// Iterator for the secret values.
+    pub fn values<'a>(&'a self) -> impl Iterator<Item = &'a VaultCommit> {
+        self.contents.data.values()
     }
 
     /// Number of secrets in this vault.
@@ -776,6 +788,15 @@ impl Vault {
         hash_bytes.extend_from_slice(&encoded_data);
         let commit = CommitHash(Sha256::hash(hash_bytes.as_slice()));
         Ok((commit, hash_bytes))
+    }
+}
+
+impl From<Header> for Vault {
+    fn from(header: Header) -> Self {
+        Vault {
+            header,
+            contents: Default::default(),
+        }
     }
 }
 
