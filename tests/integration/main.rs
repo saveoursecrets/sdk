@@ -6,9 +6,10 @@ use test_utils::*;
 
 use sos_client::{
     create_account, create_signing_key, ClientCache, ClientCredentials,
-    ClientKey, FileCache,
+    ClientKey, FileCache, SyncStatus,
 };
 use sos_core::{
+    address::AddressStr,
     constants::DEFAULT_VAULT_NAME,
     events::SyncEvent,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
@@ -23,7 +24,12 @@ async fn integration_tests() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (credentials, mut file_cache) = signup(&dirs).await?;
+    let server_url = server();
+
+    let (address, _, mut file_cache) = signup(&dirs).await?;
+
+    assert_eq!(&server_url, file_cache.server());
+    assert_eq!(address, file_cache.address()?);
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
@@ -59,6 +65,10 @@ async fn integration_tests() -> Result<()> {
     // Create some secrets
     let notes = create_secrets(&mut file_cache, &new_vault_summary).await?;
 
+    let (status, _) = file_cache.vault_status(&new_vault_summary).await?;
+    let equals = if let SyncStatus::Equal(_) = status { true } else { false };
+    assert!(equals);
+
     // Delete a secret
     let first_id = notes.get(0).unwrap().0;
     delete_secret(&mut file_cache, &new_vault_summary, &first_id).await?;
@@ -69,10 +79,17 @@ async fn integration_tests() -> Result<()> {
     assert_eq!(2, meta.len());
     drop(keeper);
 
+    // Take a snapshot
+    let (_snapshot, created) = file_cache.take_snapshot(&new_vault_summary)?;
+    assert!(created);
+
+    // Verify local WAL ingegrity
+    file_cache.verify(&new_vault_summary)?;
+
     Ok(())
 }
 
-async fn signup(dirs: &TestDirs) -> Result<(ClientCredentials, FileCache)> {
+async fn signup(dirs: &TestDirs) -> Result<(AddressStr, ClientCredentials, FileCache)> {
     let TestDirs {
         target: destination,
         client: cache_dir,
@@ -82,6 +99,8 @@ async fn signup(dirs: &TestDirs) -> Result<(ClientCredentials, FileCache)> {
     let server = server();
     let name = None;
     let key = create_signing_key()?;
+
+    let address = key.address().to_owned();
 
     let expected_keystore =
         destination.join(&format!("{}.json", key.address()));
@@ -114,7 +133,7 @@ async fn signup(dirs: &TestDirs) -> Result<(ClientCredentials, FileCache)> {
 
     assert_eq!(expected_signing_key, signing_key);
 
-    Ok((credentials, disc_cache))
+    Ok((address, credentials, disc_cache))
 }
 
 async fn create_secrets(
