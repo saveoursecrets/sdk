@@ -8,10 +8,12 @@ use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
     commit_tree::CommitProof,
-    constants::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
+    constants::{
+        MIME_TYPE_VAULT, X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE,
+    },
     decode,
     signer::Signer,
-    vault::{encode, Summary, MIME_TYPE_VAULT},
+    vault::{encode, Summary},
     Patch,
 };
 use std::sync::Arc;

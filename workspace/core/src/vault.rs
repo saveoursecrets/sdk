@@ -21,7 +21,9 @@ use uuid::Uuid;
 
 use crate::{
     commit_tree::CommitTree,
-    constants::{VAULT_EXT, VAULT_IDENTITY},
+    constants::{
+        DEFAULT_VAULT_NAME, VAULT_EXT, VAULT_IDENTITY, VAULT_VERSION,
+    },
     crypto::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
         AeadPack,
@@ -31,15 +33,6 @@ use crate::{
     secret::{SecretId, VaultMeta},
     CommitHash, Error, FileIdentity, Result,
 };
-
-/// Vault version identifier.
-pub const VERSION: u16 = 0;
-
-/// Default public name for a vault.
-pub const DEFAULT_VAULT_NAME: &str = "Login";
-
-/// Mime type for vaults.
-pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
 
 /// Identifier for vaults.
 pub type VaultId = Uuid;
@@ -226,7 +219,7 @@ impl fmt::Display for Summary {
 impl Default for Summary {
     fn default() -> Self {
         Self {
-            version: VERSION,
+            version: VAULT_VERSION,
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -238,7 +231,7 @@ impl Summary {
     /// Create a new summary.
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
-            version: VERSION,
+            version: VAULT_VERSION,
             algorithm,
             id,
             name,

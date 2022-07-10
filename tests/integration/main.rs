@@ -9,8 +9,9 @@ use sos_client::{
     ClientKey, FileCache,
 };
 use sos_core::{
+    constants::DEFAULT_VAULT_NAME,
     events::SyncEvent,
-    secret::{Secret, SecretMeta, SecretRef, SecretId},
+    secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::Summary,
 };
 use web3_keystore::{decrypt, KeyStore};
@@ -39,8 +40,16 @@ async fn integration_tests() -> Result<()> {
     let cached_vaults = file_cache.vaults().to_vec();
     let vaults = file_cache.load_vaults().await?;
     assert_eq!(2, vaults.len());
-
     assert_eq!(&cached_vaults, &vaults);
+
+    // Remove the default vault
+    let default_ref = SecretRef::Name(DEFAULT_VAULT_NAME.to_owned());
+    let default_vault_summary =
+        file_cache.find_vault(&default_ref).unwrap().clone();
+    file_cache.remove_vault(&default_vault_summary).await?;
+    let vaults = file_cache.load_vaults().await?;
+    assert_eq!(1, vaults.len());
+    assert_eq!(1, file_cache.vaults().len());
 
     // Use the new vault
     file_cache
@@ -50,8 +59,15 @@ async fn integration_tests() -> Result<()> {
     // Create some secrets
     let notes = create_secrets(&mut file_cache, &new_vault_summary).await?;
 
+    // Delete a secret
     let first_id = notes.get(0).unwrap().0;
     delete_secret(&mut file_cache, &new_vault_summary, &first_id).await?;
+
+    // Check our new list of secrets has the right length
+    let keeper = file_cache.current().unwrap();
+    let meta = keeper.meta_data()?;
+    assert_eq!(2, meta.len());
+    drop(keeper);
 
     Ok(())
 }
@@ -127,7 +143,7 @@ async fn create_secrets(
         } else {
             unreachable!()
         };
-    
+
         let event = event.into_owned();
         create_events.push(event);
 

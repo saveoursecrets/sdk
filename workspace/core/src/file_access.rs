@@ -300,10 +300,11 @@ mod tests {
     use super::VaultFileAccess;
     use crate::test_utils::*;
     use crate::{
+        constants::DEFAULT_VAULT_NAME,
         crypto::secret_key::SecretKey,
         events::SyncEvent,
         secret::*,
-        vault::{Header, Vault, VaultAccess, VaultEntry, DEFAULT_VAULT_NAME},
+        vault::{Header, Vault, VaultAccess, VaultEntry},
     };
     use anyhow::Result;
 

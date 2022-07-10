@@ -403,8 +403,7 @@ impl Gatekeeper {
 mod tests {
     use super::*;
     use crate::{
-        secret::Secret,
-        vault::{Vault, DEFAULT_VAULT_NAME},
+        constants::DEFAULT_VAULT_NAME, secret::Secret, vault::Vault,
     };
     use anyhow::Result;
 
