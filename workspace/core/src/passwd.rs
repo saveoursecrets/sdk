@@ -122,6 +122,8 @@ impl<'a> ChangePassword<'a> {
         // We are done with the old passphrase now
         self.current_passphrase.zeroize();
 
+        debug_assert!(new_vault.header().salt().is_some());
+
         Ok((self.new_passphrase, new_vault, wal_events))
     }
 }

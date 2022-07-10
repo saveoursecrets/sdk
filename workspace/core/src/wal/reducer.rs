@@ -37,12 +37,12 @@ impl<'a> WalReducer<'a> {
         Default::default()
     }
 
-    /// Convert a vault into a truncated vault and a collection
+    /// Split a vault into a truncated vault and a collection
     /// of WAL events that represent the vault.
     ///
     /// The truncated vault represents the header of the vault and
     /// has no contents.
-    pub fn convert(vault: Vault) -> Result<(Vault, Vec<WalEvent<'static>>)> {
+    pub fn split(vault: Vault) -> Result<(Vault, Vec<WalEvent<'static>>)> {
         let mut events = Vec::with_capacity(vault.len() + 1);
         let header = vault.header().clone();
         let head = Vault::from(header);

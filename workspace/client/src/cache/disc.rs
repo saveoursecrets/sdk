@@ -331,9 +331,13 @@ impl ClientCache for FileCache {
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
 
+        println!("Applying change password events {}", events.len());
+
         // Apply the new WAL events to our local WAL log
         wal.clear()?;
         wal.apply(events, Some(CommitHash(*server_proof.root())))?;
+
+        println!("Got new commit hash {}", wal.tree().root_hex().unwrap());
 
         // Refresh the in-memory and disc-based mirror
         self.refresh_vault(summary)?;
@@ -897,18 +901,21 @@ impl FileCache {
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let vault = WalReducer::new().reduce(wal)?.build()?;
+
+        debug_assert!(vault.header().salt().is_some());
+
         let mirror = self.mirror;
         let vault_path = self.vault_path(summary);
 
+        // Rewrite the on-disc version if we are mirroring
+        if mirror {
+            let buffer = encode(&vault)?;
+            let mut file = File::create(&vault_path)?;
+            file.write_all(&buffer)?;
+        }
+
         if let Some(keeper) = self.current_mut() {
             if keeper.id() == summary.id() {
-                // Rewrite the on-disc version if we are mirroring
-                if mirror {
-                    let buffer = encode(&vault)?;
-                    let mut file = File::create(&vault_path)?;
-                    file.write_all(&buffer)?;
-                }
-
                 // Update the in-memory version
                 let keeper_vault = keeper.vault_mut();
                 *keeper_vault = vault;

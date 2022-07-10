@@ -315,6 +315,13 @@ impl Header {
         self.auth.salt = None;
     }
 
+    #[deprecated]
+    #[doc(hidden)]
+    /// Exposed for debug assertions.
+    pub fn salt(&self) -> Option<&str> {
+        self.auth.salt.as_ref().map(|s| &s[..])
+    }
+
     /// Get the public name for this vault.
     pub fn name(&self) -> &str {
         &self.summary.name

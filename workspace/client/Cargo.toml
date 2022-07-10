@@ -33,6 +33,7 @@ sha3 = "0.10"
 shell-words = "1"
 terminal-banner = "0.1"
 dirs = "4"
+zeroize = "1.4" 
 
 [[bin]]
 name = "sos-client"

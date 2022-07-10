@@ -131,6 +131,8 @@ impl WalHandler {
                 let summary = Header::read_summary_slice(&body)
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
+                println!("Got put_vault request {:#?}", summary);
+
                 if &vault_id != summary.id() {
                     return Err(StatusCode::BAD_REQUEST);
                 }

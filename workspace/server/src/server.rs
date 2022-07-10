@@ -73,7 +73,7 @@ impl Server {
 
         let tls = &reader.config.tls;
         tracing::debug!(certificate = ?tls.cert);
-        tracing::debug!(key = ?tls.cert);
+        tracing::debug!(key = ?tls.key);
 
         let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
 

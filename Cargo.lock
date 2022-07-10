@@ -2521,6 +2521,7 @@ dependencies = [
  "uuid 1.1.2",
  "web3-keystore",
  "web3-signature",
+ "zeroize",
 ]
 
 [[package]]

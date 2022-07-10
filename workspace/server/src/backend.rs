@@ -424,7 +424,7 @@ impl Backend for FileSystemBackend {
             .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
         let vault = Vault::read_buffer(vault)?;
-        let (vault, events) = WalReducer::convert(vault)?;
+        let (vault, events) = WalReducer::split(vault)?;
 
         // Prepare a temp file with the new WAL records
         let temp = NamedTempFile::new()?;
@@ -438,6 +438,7 @@ impl Backend for FileSystemBackend {
 
         // Prepare the buffer for the vault file
         let vault_path = self.vault_file_path(owner, vault.id());
+        // Re-encode with the new header-only vault
         let vault_buffer = encode(&vault)?;
 
         // Read in the buffer of the WAL data so we can replace
@@ -538,8 +539,16 @@ impl Backend for FileSystemBackend {
         let mut tempfile = NamedTempFile::new()?;
         let temp_path = tempfile.path().to_path_buf();
 
+        tracing::debug!(len = ?buffer.len(),
+            "replace_wal got buffer length");
+
+        tracing::debug!(expected_root = ?hex::encode(&root_hash),
+            "replace_wal expects root hash");
+
         // NOTE: using tokio::io here would hang sometimes
         std::io::copy(&mut buffer, &mut tempfile)?;
+
+        tracing::debug!("replace_wal copied to temp file");
 
         // Compute the root hash of the submitted WAL file
         // and verify the integrity of each record event against
@@ -547,6 +556,9 @@ impl Backend for FileSystemBackend {
         let tree = wal_commit_tree(&temp_path, true, |_| {})?;
 
         let tree_root = tree.root().ok_or(sos_core::Error::NoRootCommit)?;
+
+        tracing::debug!(root = ?hex::encode(tree_root),
+            "replace_wal computed a new tree root");
 
         // If the hash does not match the header then
         // something went wrong with the client POST
@@ -574,6 +586,10 @@ impl Backend for FileSystemBackend {
 
         let new_tree_root =
             wal.tree().root().ok_or(sos_core::Error::NoRootCommit)?;
+
+        tracing::debug!(root = ?hex::encode(new_tree_root),
+            "replace_wal loaded a new tree root");
+
         if root_hash != new_tree_root {
             return Err(Error::WalValidateMismatch);
         }

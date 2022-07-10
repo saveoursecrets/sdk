@@ -24,6 +24,8 @@ use sos_readline::{
     read_option, read_password, Choice,
 };
 
+use zeroize::Zeroize;
+
 use crate::{
     display_passphrase, run_blocking, ClientCache, Error, Result, SyncKind,
 };
@@ -879,6 +881,9 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                 .text(Cow::Borrowed(
                     "Vault change history will be deleted.",
                 ))
+                .text(Cow::Borrowed(
+                    "A new encryption passphrase will be generated and shown on success; you must remember this new passphrase to access this vault.",
+                ))
                 .render();
             println!("{}", banner);
 
@@ -892,7 +897,7 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                     .verify(&passphrase)
                     .map_err(|_| Error::InvalidPassphrase)?;
 
-                let (new_passphrase, new_vault, wal_events) =
+                let (mut new_passphrase, new_vault, wal_events) =
                     ChangePassword::new(
                         keeper.vault_mut(),
                         passphrase,
@@ -903,6 +908,35 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                 run_blocking(
                     writer.update_vault(&summary, &new_vault, wal_events),
                 )?;
+
+                drop(writer);
+
+                let mut writer = cache.write().unwrap();
+                let keeper =
+                    writer.current_mut().ok_or(Error::NoVaultSelected)?;
+                keeper.unlock(&new_passphrase)?;
+
+                let banner = Banner::new()
+                    .padding(Padding::one())
+                    .text(Cow::Borrowed("SUCCESS"))
+                    .text(Cow::Borrowed(
+                        "Your passphrase was changed successfully, your new passphrase is shown below.",
+                    ))
+                    .text(Cow::Borrowed(
+                        "Ensure you remember this passphrase to access your vault.",
+                    ))
+                    .render();
+                println!("{}", banner);
+
+                let banner = Banner::new()
+                    .padding(Padding::one())
+                    .text(Cow::Borrowed("NEW ENCRYPTION PASSPHRASE"))
+                    .text(Cow::Borrowed(&new_passphrase))
+                    .render();
+                println!("{}", banner);
+
+                // Clean up
+                new_passphrase.zeroize();
             }
 
             Ok(())
