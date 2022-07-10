@@ -28,6 +28,8 @@ async fn integration_tests() -> Result<()> {
 
     let (address, _, mut file_cache) = signup(&dirs).await?;
 
+    let _ = FileCache::cache_dir()?;
+
     assert_eq!(&server_url, file_cache.server());
     assert_eq!(address, file_cache.address()?);
 
@@ -41,6 +43,11 @@ async fn integration_tests() -> Result<()> {
     let new_vault_summary =
         file_cache.find_vault(&vault_ref).unwrap().clone();
     assert_eq!(&new_vault_name, new_vault_summary.name());
+
+    let id_ref = SecretRef::Id(*new_vault_summary.id());
+    let new_vault_summary_by_id =
+        file_cache.find_vault(&id_ref).unwrap().clone();
+    assert_eq!(new_vault_summary_by_id, new_vault_summary);
 
     // Load vaults list
     let cached_vaults = file_cache.vaults().to_vec();
@@ -65,6 +72,14 @@ async fn integration_tests() -> Result<()> {
     // Create some secrets
     let notes = create_secrets(&mut file_cache, &new_vault_summary).await?;
 
+    // Ensure we have a commit tree
+    assert!(file_cache.wal_tree(&new_vault_summary).is_some());
+
+    // Check the WAL history has the right length
+    let history = file_cache.history(&new_vault_summary)?;
+    assert_eq!(4, history.len());
+
+    // Check the vault status
     let (status, _) = file_cache.vault_status(&new_vault_summary).await?;
     let equals = if let SyncStatus::Equal(_) = status { true } else { false };
     assert!(equals);
@@ -79,9 +94,24 @@ async fn integration_tests() -> Result<()> {
     assert_eq!(2, meta.len());
     drop(keeper);
 
-    // Take a snapshot
+    // Set the vault name
+    file_cache.set_vault_name(&new_vault_summary, DEFAULT_VAULT_NAME).await?;
+
+    // Take a snapshot - need to do these assertions before pull/push
     let (_snapshot, created) = file_cache.take_snapshot(&new_vault_summary)?;
     assert!(created);
+    let snapshots = file_cache.snapshots().list(new_vault_summary.id())?;
+    assert!(!snapshots.is_empty());
+
+    // Try to pull whilst up to date
+    let _ = file_cache.pull(&new_vault_summary, false).await?;
+    // Now force a pull
+    let _ = file_cache.pull(&new_vault_summary, true).await?;
+
+    // Try to push whilst up to date
+    let _ = file_cache.push(&new_vault_summary, false).await?;
+    // Now force a push
+    let _ = file_cache.push(&new_vault_summary, true).await?;
 
     // Verify local WAL ingegrity
     file_cache.verify(&new_vault_summary)?;
