@@ -10,7 +10,7 @@ use sos_core::{
     events::{SyncEvent, WalEvent},
     iter::WalFileRecord,
     secret::SecretRef,
-    vault::Summary,
+    vault::{Summary, Vault},
     wal::snapshot::{SnapShot, SnapShotManager},
     Gatekeeper,
 };
@@ -155,6 +155,14 @@ pub trait ClientCache {
         &self,
         summary: &Summary,
     ) -> Result<(SyncStatus, Option<usize>)>;
+
+    /// Update an existing vault.
+    async fn update_vault(
+        &mut self,
+        summary: &Summary,
+        vault: &Vault,
+        events: Vec<WalEvent<'static>>,
+    ) -> Result<()>;
 
     /// Apply changes to a vault.
     async fn patch_vault(

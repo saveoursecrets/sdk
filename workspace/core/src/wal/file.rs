@@ -222,6 +222,13 @@ impl WalProvider for WalFile {
         Ok(())
     }
 
+    fn clear(&mut self) -> Result<()> {
+        self.file = File::create(&self.file_path)?;
+        self.file.write_all(&WAL_IDENTITY)?;
+        self.tree = CommitTree::new();
+        Ok(())
+    }
+
     fn iter(
         &self,
     ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>

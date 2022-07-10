@@ -80,6 +80,9 @@ pub trait WalProvider {
     /// Load any cached data into the WAL implementation to build a commit tree in memory.
     fn load_tree(&mut self) -> Result<()>;
 
+    /// Clear all events from this WAL.
+    fn clear(&mut self) -> Result<()>;
+
     /// Get an iterator of the log records.
     fn iter(
         &self,

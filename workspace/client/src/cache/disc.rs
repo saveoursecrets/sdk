@@ -308,6 +308,39 @@ impl ClientCache for FileCache {
         Ok((status, pending_events))
     }
 
+    async fn update_vault(
+        &mut self,
+        summary: &Summary,
+        vault: &Vault,
+        events: Vec<WalEvent<'static>>,
+    ) -> Result<()> {
+        let (wal, _) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        // Send the new vault to the server
+        let buffer = encode(vault)?;
+        let (response, server_proof) =
+            self.client.put_vault(summary.id(), buffer).await?;
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let server_proof = server_proof.ok_or(Error::ServerProof)?;
+
+        // Apply the new WAL events to our local WAL log
+        wal.clear()?;
+        wal.apply(events, Some(CommitHash(*server_proof.root())))?;
+
+        // Refresh the in-memory and disc-based mirror
+        self.refresh_vault(summary)?;
+
+        Ok(())
+    }
+
     async fn open_vault(
         &mut self,
         summary: &Summary,

@@ -194,6 +194,30 @@ impl Client {
         Ok((response, server_proof))
     }
 
+    /// Update an existing vault.
+    pub async fn put_vault(
+        &self,
+        vault_id: &Uuid,
+        vault: Vec<u8>,
+    ) -> Result<(Response, Option<CommitProof>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let signature =
+            self.encode_signature(self.signer.sign(&vault).await?)?;
+
+        let response = self
+            .http_client
+            .put(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(vault)
+            .send()
+            .await?;
+
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((response, server_proof))
+    }
+
     /// Delete a WAL file.
     pub async fn delete_wal(
         &self,

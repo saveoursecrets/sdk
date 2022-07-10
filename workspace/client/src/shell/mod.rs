@@ -868,6 +868,7 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
             let mut writer = cache.write().unwrap();
             let keeper =
                 writer.current_mut().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
 
             let banner = Banner::new()
                 .padding(Padding::one())
@@ -898,6 +899,10 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                         new_passphrase,
                     )
                     .build()?;
+
+                run_blocking(
+                    writer.update_vault(&summary, &new_vault, wal_events),
+                )?;
             }
 
             Ok(())
