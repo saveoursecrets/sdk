@@ -12,13 +12,7 @@ use serde_binary::{
 };
 use std::borrow::Cow;
 
-use crate::{
-    crypto::AeadPack,
-    secret::SecretId,
-    signer::Signer,
-    vault::{encode, VaultCommit},
-    Error, Result,
-};
+use crate::{crypto::AeadPack, secret::SecretId, vault::VaultCommit, Error};
 
 use super::EventKind;
 
@@ -38,41 +32,49 @@ pub enum SyncEvent<'a> {
     #[default]
     Noop,
 
-    /// SyncEvent used to indicate a vault was created.
+    /// Event used to indicate a vault was created.
     CreateVault(Cow<'a, [u8]>),
 
-    /// SyncEvent used to indicate that a vault was read.
+    /// Event used to indicate a vault was updated.
+    ///
+    /// This occurs when the passphrase for a vault
+    /// has been changed.
+    UpdateVault(Cow<'a, [u8]>),
+
+    /// Event used to indicate that a vault was read.
     ReadVault,
 
-    /// SyncEvent used to indicate a vault was deleted.
+    /// Event used to indicate a vault was deleted.
     DeleteVault,
 
-    /// Set the vault name.
+    /// Event used to indicate the vault name was set.
     SetVaultName(Cow<'a, str>),
 
-    /// Set the vault meta data.
+    /// Event used to indicate the vault meta data was set.
     SetVaultMeta(Cow<'a, Option<AeadPack>>),
 
-    /// SyncEvent used to indicate that a secret should be
+    /// Event used to indicate a secret should be
     /// created in a remote destination.
     CreateSecret(SecretId, Cow<'a, VaultCommit>),
 
-    /// SyncEvent used to determine that a secret has been read,
+    /// Event used to determine that a secret has been read,
     /// defined for audit log purposes.
     ReadSecret(SecretId),
 
-    /// SyncEvent used to indicate that a secret should be
-    /// updated in a remote destination.
+    /// Event used to indicate a secret was updated.
     UpdateSecret(SecretId, Cow<'a, VaultCommit>),
 
-    /// Delete a secret.
+    /// Event used to indicate a secret was deleted.
     DeleteSecret(SecretId),
 }
 
+/*
 /// SyncEvent with an attached signature.
 pub struct SignedSyncEvent([u8; 65], Vec<u8>);
+*/
 
 impl SyncEvent<'_> {
+    /*
     /// Append a signature to a payload.
     pub async fn sign(&self, signer: impl Signer) -> Result<SignedSyncEvent> {
         let encoded = encode(self)?;
@@ -80,6 +82,7 @@ impl SyncEvent<'_> {
         let signature_bytes: [u8; 65] = signature.to_bytes();
         Ok(SignedSyncEvent(signature_bytes, encoded))
     }
+    */
 
     /// Determine if this payload would mutate state.
     ///
@@ -99,6 +102,7 @@ impl SyncEvent<'_> {
         match self {
             SyncEvent::Noop => EventKind::Noop,
             SyncEvent::CreateVault(_) => EventKind::CreateVault,
+            SyncEvent::UpdateVault(_) => EventKind::UpdateVault,
             SyncEvent::ReadVault => EventKind::ReadVault,
             SyncEvent::DeleteVault => EventKind::DeleteVault,
             SyncEvent::SetVaultName(_) => EventKind::SetVaultName,
@@ -120,6 +124,9 @@ impl SyncEvent<'_> {
             SyncEvent::Noop => SyncEvent::Noop,
             SyncEvent::CreateVault(value) => {
                 SyncEvent::CreateVault(Cow::Owned(value.into_owned()))
+            }
+            SyncEvent::UpdateVault(value) => {
+                SyncEvent::UpdateVault(Cow::Owned(value.into_owned()))
             }
             SyncEvent::ReadVault => SyncEvent::ReadVault,
             SyncEvent::DeleteVault => SyncEvent::DeleteVault,
@@ -148,7 +155,7 @@ impl<'a> Encode for SyncEvent<'a> {
 
         match self {
             SyncEvent::Noop => panic!("SyncEvent: attempt to encode a noop"),
-            SyncEvent::CreateVault(vault) => {
+            SyncEvent::CreateVault(vault) | SyncEvent::UpdateVault(vault) => {
                 ser.writer.write_u32(vault.as_ref().len() as u32)?;
                 ser.writer.write_bytes(vault.as_ref())?;
             }
@@ -191,6 +198,11 @@ impl<'a> Decode for SyncEvent<'a> {
                 let length = de.reader.read_u32()?;
                 let buffer = de.reader.read_bytes(length as usize)?;
                 *self = SyncEvent::CreateVault(Cow::Owned(buffer))
+            }
+            EventKind::UpdateVault => {
+                let length = de.reader.read_u32()?;
+                let buffer = de.reader.read_bytes(length as usize)?;
+                *self = SyncEvent::UpdateVault(Cow::Owned(buffer))
             }
             EventKind::ReadVault => {
                 *self = SyncEvent::ReadVault;

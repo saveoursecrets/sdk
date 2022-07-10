@@ -56,6 +56,11 @@ impl ChangeNotification {
 pub enum ChangeEvent {
     /// Event emitted when a vault is created.
     CreateVault,
+    /// Event emitted when a vault is updated.
+    ///
+    /// This occurs when the passphrase for a vault
+    /// has been changed.
+    UpdateVault,
     /// Event emitted when a vault is deleted.
     DeleteVault,
     /// Event emitted when a vault name is set.

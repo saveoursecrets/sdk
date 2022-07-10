@@ -13,7 +13,7 @@ use crate::{
     crypto::AeadPack,
     events::WalEvent,
     secret::SecretId,
-    vault::{encode, Vault, VaultCommit, VaultEntry},
+    vault::{encode, Vault, VaultCommit},
     wal::{WalItem, WalProvider},
     Error, Result,
 };

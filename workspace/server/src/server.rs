@@ -117,6 +117,7 @@ impl Server {
                 get(WalHandler::get_wal)
                     .head(WalHandler::head_wal)
                     .post(WalHandler::post_wal)
+                    .put(WalHandler::put_vault)
                     .patch(WalHandler::patch_wal)
                     .delete(WalHandler::delete_wal),
             )

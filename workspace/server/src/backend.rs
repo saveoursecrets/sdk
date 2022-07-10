@@ -455,7 +455,7 @@ impl Backend for FileSystemBackend {
         // Write out the vault file (header only)
         tokio::fs::write(&vault_path, &vault_buffer).await?;
 
-        let event = SyncEvent::CreateVault(Cow::Owned(vault_buffer));
+        let event = SyncEvent::UpdateVault(Cow::Owned(vault_buffer));
         Ok((event, commit_proof))
     }
 
