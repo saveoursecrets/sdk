@@ -240,7 +240,7 @@ mod test {
     use crate::{events::WalEvent, test_utils::*};
 
     fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
-        let (encryption_key, _) = mock_encryption_key()?;
+        let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;

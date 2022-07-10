@@ -888,12 +888,13 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                     .verify(&passphrase)
                     .map_err(|_| Error::InvalidPassphrase)?;
 
-                let (new_passphrase, new_vault, wal_events) = ChangePassword::new(
-                    keeper.vault_mut(),
-                    passphrase,
-                    new_passphrase,
-                )
-                .build()?;
+                let (new_passphrase, new_vault, wal_events) =
+                    ChangePassword::new(
+                        keeper.vault_mut(),
+                        passphrase,
+                        new_passphrase,
+                    )
+                    .build()?;
             }
 
             Ok(())

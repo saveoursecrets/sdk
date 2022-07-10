@@ -307,6 +307,14 @@ impl Header {
         }
     }
 
+    /// Clear an existing salt.
+    ///
+    /// Required when changing passwords so we can initialize
+    /// a vault that is already initialized.
+    pub(crate) fn clear_salt(&mut self) {
+        self.auth.salt = None;
+    }
+
     /// Get the public name for this vault.
     pub fn name(&self) -> &str {
         &self.summary.name
@@ -913,7 +921,7 @@ mod tests {
 
     #[test]
     fn encode_decode_secret_note() -> Result<()> {
-        let (encryption_key, _) = mock_encryption_key()?;
+        let (encryption_key, _, _) = mock_encryption_key()?;
         let mut vault = mock_vault();
 
         // TODO: encode the salt into the header meta data

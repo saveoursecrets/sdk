@@ -1,13 +1,13 @@
 //! Flow for changing a vault password.
 
-use std::borrow::Cow;
 use crate::{
     crypto::secret_key::SecretKey,
-    events::WalEvent,
-    vault::{Vault, VaultCommit, VaultEntry, VaultAccess},
     encode,
+    events::WalEvent,
+    vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
+use std::borrow::Cow;
 use zeroize::Zeroize;
 
 /// Builder that changes a password.
@@ -51,7 +51,9 @@ impl<'a> ChangePassword<'a> {
     }
 
     /// Build a new vault.
-    pub fn build(mut self) -> Result<(String, Vault, Vec<WalEvent<'static>>)> {
+    pub fn build(
+        mut self,
+    ) -> Result<(String, Vault, Vec<WalEvent<'static>>)> {
         // Decrypt current vault meta data blob
         let current_private_key = self.current_private_key()?;
         let vault_meta_aead =
@@ -66,7 +68,10 @@ impl<'a> ChangePassword<'a> {
         let mut new_vault: Vault = new_header.into();
 
         // Initialize the new vault with the new passphrase
-        // so that we create a new salt for the new passphrase
+        // so that we create a new salt for the new passphrase.
+        //
+        // Must clear the existing salt so we can re-initialize.
+        new_vault.header_mut().clear_salt();
         new_vault.initialize(&self.new_passphrase)?;
 
         // Get a new secret key after we have initialized the new salt
@@ -84,7 +89,7 @@ impl<'a> ChangePassword<'a> {
         let create_vault = WalEvent::CreateVault(Cow::Owned(buffer));
         wal_events.push(create_vault);
 
-        // Iterate the current vault and decrypt the secrets 
+        // Iterate the current vault and decrypt the secrets
         // inserting freshly encrypted content into the new vault
         for (id, VaultCommit(_, VaultEntry(meta_aead, secret_aead))) in
             self.vault.iter()
@@ -118,5 +123,65 @@ impl<'a> ChangePassword<'a> {
         self.current_passphrase.zeroize();
 
         Ok((self.new_passphrase, new_vault, wal_events))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::ChangePassword;
+    use crate::{test_utils::*, Gatekeeper};
+    use anyhow::Result;
+
+    #[test]
+    fn change_password() -> Result<()> {
+        let (_, _, current_passphrase) = mock_encryption_key()?;
+        let mut mock_vault = mock_vault();
+        mock_vault.initialize(&current_passphrase)?;
+
+        let mut keeper = Gatekeeper::new(mock_vault);
+        keeper.unlock(&current_passphrase)?;
+
+        // Propagate some secrets
+        let notes = vec![
+            ("label1", "note1"),
+            ("label2", "note2"),
+            ("label3", "note3"),
+        ];
+        for item in notes {
+            let (secret_meta, secret_value, _, _) =
+                mock_secret_note(item.0, item.1)?;
+            keeper.create(secret_meta, secret_value)?;
+        }
+
+        let expected_len = keeper.vault().len();
+        assert_eq!(3, expected_len);
+
+        let (_, _, new_passphrase) = mock_encryption_key()?;
+
+        let expected_passphrase = new_passphrase.clone();
+
+        // Using an incorrect current passphrase should fail
+        let bad_passphrase = String::from("oops");
+        assert!(ChangePassword::new(
+            keeper.vault_mut(),
+            bad_passphrase,
+            new_passphrase.clone()
+        )
+        .build()
+        .is_err());
+
+        // Using a valid current passphrase should succeed
+        let (new_passphrase, new_vault, wal_events) = ChangePassword::new(
+            keeper.vault_mut(),
+            current_passphrase,
+            new_passphrase,
+        )
+        .build()?;
+
+        assert_eq!(expected_passphrase, new_passphrase);
+        assert_eq!(expected_len, new_vault.len());
+        assert_eq!(expected_len + 1, wal_events.len());
+
+        Ok(())
     }
 }
