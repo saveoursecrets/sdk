@@ -80,6 +80,10 @@ impl ClientCache for FileCache {
         self.client.address()
     }
 
+    fn client(&self) -> &Client {
+        &self.client
+    }
+
     fn vaults(&self) -> &[Summary] {
         self.summaries.as_slice()
     }
@@ -163,6 +167,7 @@ impl ClientCache for FileCache {
         let summaries = self.client.list_vaults().await?;
         self.load_caches(&summaries)?;
         self.summaries = summaries;
+        self.summaries.sort();
         Ok(self.vaults())
     }
 
@@ -178,11 +183,14 @@ impl ClientCache for FileCache {
     async fn create_account(
         &mut self,
         name: Option<String>,
-    ) -> Result<String> {
+    ) -> Result<(String, Summary)> {
         self.create(name, true).await
     }
 
-    async fn create_vault(&mut self, name: String) -> Result<String> {
+    async fn create_vault(
+        &mut self,
+        name: String,
+    ) -> Result<(String, Summary)> {
         self.create(Some(name), false).await
     }
 
@@ -225,6 +233,7 @@ impl ClientCache for FileCache {
             self.summaries.iter().position(|s| s.id() == summary.id());
         if let Some(index) = index {
             self.summaries.remove(index);
+            self.summaries.sort();
         }
 
         Ok(())
@@ -306,6 +315,39 @@ impl ClientCache for FileCache {
         };
 
         Ok((status, pending_events))
+    }
+
+    async fn update_vault(
+        &mut self,
+        summary: &Summary,
+        vault: &Vault,
+        events: Vec<WalEvent<'static>>,
+    ) -> Result<()> {
+        let (wal, _) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        // Send the new vault to the server
+        let buffer = encode(vault)?;
+        let (response, server_proof) =
+            self.client.put_vault(summary.id(), buffer).await?;
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let server_proof = server_proof.ok_or(Error::ServerProof)?;
+
+        // Apply the new WAL events to our local WAL log
+        wal.clear()?;
+        wal.apply(events, Some(CommitHash(*server_proof.root())))?;
+
+        // Refresh the in-memory and disc-based mirror
+        self.refresh_vault(summary)?;
+
+        Ok(())
     }
 
     async fn open_vault(
@@ -548,7 +590,7 @@ impl FileCache {
         &mut self,
         name: Option<String>,
         is_account: bool,
-    ) -> Result<String> {
+    ) -> Result<(String, Summary)> {
         let (passphrase, vault, buffer) = self.new_vault(name)?;
         let summary = vault.summary().clone();
 
@@ -570,9 +612,10 @@ impl FileCache {
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(response.status().into()))?;
-        self.summaries.push(summary);
+        self.summaries.push(summary.clone());
+        self.summaries.sort();
 
-        Ok(passphrase)
+        Ok((passphrase, summary))
     }
 
     fn new_vault(
@@ -864,18 +907,21 @@ impl FileCache {
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let vault = WalReducer::new().reduce(wal)?.build()?;
+
+        debug_assert!(vault.header().salt().is_some());
+
         let mirror = self.mirror;
         let vault_path = self.vault_path(summary);
 
+        // Rewrite the on-disc version if we are mirroring
+        if mirror {
+            let buffer = encode(&vault)?;
+            let mut file = File::create(&vault_path)?;
+            file.write_all(&buffer)?;
+        }
+
         if let Some(keeper) = self.current_mut() {
             if keeper.id() == summary.id() {
-                // Rewrite the on-disc version if we are mirroring
-                if mirror {
-                    let buffer = encode(&vault)?;
-                    let mut file = File::create(&vault_path)?;
-                    file.write_all(&buffer)?;
-                }
-
                 // Update the in-memory version
                 let keeper_vault = keeper.vault_mut();
                 *keeper_vault = vault;

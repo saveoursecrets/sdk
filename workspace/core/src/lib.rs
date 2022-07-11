@@ -18,6 +18,7 @@ mod file_locks;
 mod gatekeeper;
 mod hash;
 pub mod iter;
+mod passwd;
 mod patch;
 
 pub mod secret;
@@ -44,6 +45,7 @@ pub use file_identity::FileIdentity;
 pub use file_locks::FileLocks;
 pub use gatekeeper::Gatekeeper;
 pub use hash::CommitHash;
+pub use passwd::ChangePassword;
 pub use patch::{Patch, PatchFile};
 pub use timestamp::Timestamp;
 pub use vault::{decode, encode};

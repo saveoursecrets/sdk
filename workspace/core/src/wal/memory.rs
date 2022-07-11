@@ -146,6 +146,12 @@ impl WalProvider for WalMemory {
         Ok(())
     }
 
+    fn clear(&mut self) -> Result<()> {
+        self.records = Vec::new();
+        self.tree = CommitTree::new();
+        Ok(())
+    }
+
     fn iter(
         &self,
     ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>

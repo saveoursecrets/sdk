@@ -138,7 +138,7 @@ mod test {
 
     #[test]
     fn integrity_vault() -> Result<()> {
-        let (encryption_key, _) = mock_encryption_key()?;
+        let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, _) = mock_vault_file()?;
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";

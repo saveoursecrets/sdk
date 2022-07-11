@@ -213,7 +213,7 @@ mod test {
         let mut patch_file = PatchFile::new(temp.path())?;
 
         let mut vault = mock_vault();
-        let (encryption_key, _) = mock_encryption_key()?;
+        let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, _, _, _, mock_event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
 

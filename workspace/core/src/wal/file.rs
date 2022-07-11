@@ -82,12 +82,18 @@ impl WalFile {
     fn encode_event(
         &self,
         event: WalEvent<'_>,
+        last_commit: Option<CommitHash>,
     ) -> Result<(CommitHash, WalRecord)> {
         let time: Timestamp = Default::default();
         let bytes = encode(&event)?;
         let commit = CommitHash(hash(&bytes));
-        let last_commit =
-            self.last_commit()?.unwrap_or_else(|| CommitHash([0u8; 32]));
+
+        let last_commit = if let Some(last_commit) = last_commit {
+            last_commit
+        } else {
+            self.last_commit()?.unwrap_or_else(|| CommitHash([0u8; 32]))
+        };
+
         let record = WalRecord(time, last_commit, commit, bytes);
         Ok((commit, record))
     }
@@ -143,16 +149,20 @@ impl WalProvider for WalFile {
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
+        let mut last_commit_hash = None;
         for event in events {
-            let (commit, record) = self.encode_event(event)?;
+            let (commit, record) = self.encode_event(event, last_commit_hash)?;
             commits.push(commit);
-            buffer.append(&mut encode(&record)?);
+            let mut buf = encode(&record)?;
+            last_commit_hash = Some(CommitHash(hash(&buf)));
+            buffer.append(&mut buf);
         }
 
         let mut hashes =
             commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
 
         let len = self.file_path.metadata()?.len();
+
         match self.file.write_all(&buffer) {
             Ok(_) => {
                 self.tree.append(&mut hashes);
@@ -165,6 +175,7 @@ impl WalProvider for WalFile {
                 {
                     let other_root: [u8; 32] = expected.into();
                     if other_root != root {
+                        tracing::debug!(length = len, "WAL rollback on expected root hash mismatch");
                         self.file.set_len(len)?;
                         self.tree.rollback();
                     }
@@ -173,6 +184,7 @@ impl WalProvider for WalFile {
                 Ok(commits)
             }
             Err(e) => {
+                tracing::debug!(length = len, "WAL rollback on buffer write error");
                 // In case of partial write attempt to truncate
                 // to the previous file length restoring to the
                 // previous state of the WAL log
@@ -183,7 +195,7 @@ impl WalProvider for WalFile {
     }
 
     fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash> {
-        let (commit, record) = self.encode_event(event)?;
+        let (commit, record) = self.encode_event(event, None)?;
         let buffer = encode(&record)?;
         self.file.write_all(&buffer)?;
         self.tree.insert(*commit.as_ref());
@@ -222,6 +234,13 @@ impl WalProvider for WalFile {
         Ok(())
     }
 
+    fn clear(&mut self) -> Result<()> {
+        self.file = File::create(&self.file_path)?;
+        self.file.write_all(&WAL_IDENTITY)?;
+        self.tree = CommitTree::new();
+        Ok(())
+    }
+
     fn iter(
         &self,
     ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>
@@ -240,7 +259,7 @@ mod test {
     use crate::{events::WalEvent, test_utils::*};
 
     fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
-        let (encryption_key, _) = mock_encryption_key()?;
+        let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;

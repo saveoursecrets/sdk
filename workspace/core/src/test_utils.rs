@@ -15,11 +15,11 @@ use tempfile::NamedTempFile;
 
 use argon2::password_hash::SaltString;
 
-pub fn mock_encryption_key() -> Result<(SecretKey, SaltString)> {
+pub fn mock_encryption_key() -> Result<(SecretKey, SaltString, String)> {
     let salt = SecretKey::generate_salt();
     let (passphrase, _) = generate_passphrase()?;
     let encryption_key = SecretKey::derive_32(&passphrase, &salt)?;
-    Ok((encryption_key, salt))
+    Ok((encryption_key, salt, passphrase))
 }
 
 pub fn mock_vault() -> Vault {
@@ -89,7 +89,7 @@ pub fn mock_vault_note_update<'a>(
 
 pub fn mock_wal_file(
 ) -> Result<(NamedTempFile, WalFile, Vec<CommitHash>, SecretKey)> {
-    let (encryption_key, _) = mock_encryption_key()?;
+    let (encryption_key, _, _) = mock_encryption_key()?;
     let (_, mut vault, buffer) = mock_vault_file()?;
 
     let temp = NamedTempFile::new()?;

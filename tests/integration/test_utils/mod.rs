@@ -4,11 +4,21 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, thread};
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
 
-use sos_core::{AuditLogFile, FileLocks};
+use sos_client::{ClientCache, FileCache};
+use sos_core::{
+    events::SyncEvent,
+    secret::{Secret, SecretId, SecretMeta},
+    vault::Summary,
+    AuditLogFile, FileLocks,
+};
 use sos_server::{Authentication, Server, ServerConfig, ServerInfo, State};
 
 const ADDR: &str = "127.0.0.1:3505";
-const SERVER: &str = "https://localhost:3505";
+const SERVER: &str = "http://localhost:3505";
+
+mod signup;
+
+pub use signup::signup;
 
 struct MockServer {
     handle: Handle,
@@ -51,7 +61,7 @@ impl MockServer {
             sse: Default::default(),
         }));
 
-        Server::start(addr, state, self.handle.clone()).await?;
+        Server::start_insecure(addr, state, self.handle.clone()).await?;
         Ok(())
     }
 
@@ -110,20 +120,15 @@ pub fn server() -> Url {
 pub struct TestDirs {
     pub target: PathBuf,
     pub server: PathBuf,
-    pub client: PathBuf,
+    pub clients: Vec<PathBuf>,
 }
 
-pub fn setup() -> Result<TestDirs> {
+pub fn setup(num_clients: usize) -> Result<TestDirs> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test");
     if !target.exists() {
         std::fs::create_dir_all(&target)?;
-    }
-
-    let client = target.join("client");
-    if client.exists() {
-        std::fs::remove_dir_all(&client)?;
     }
 
     let server = target.join("server");
@@ -133,11 +138,81 @@ pub fn setup() -> Result<TestDirs> {
 
     // Setup required sub-directories
     std::fs::create_dir(&server)?;
-    std::fs::create_dir(&client)?;
+
+    let mut clients = Vec::new();
+    for index in 0..num_clients {
+        let client = target.join(&format!("client{}", index + 1));
+        if client.exists() {
+            std::fs::remove_dir_all(&client)?;
+        }
+        std::fs::create_dir(&client)?;
+        clients.push(client);
+    }
 
     Ok(TestDirs {
         target,
         server,
-        client,
+        clients,
     })
+}
+
+pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
+    let secret_value = Secret::Note(text.to_string());
+    let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
+    (secret_meta, secret_value)
+}
+
+pub async fn create_secrets(
+    file_cache: &mut FileCache,
+    summary: &Summary,
+) -> Result<Vec<(SecretId, &'static str)>> {
+    let notes = vec![
+        ("note1", "secret1"),
+        ("note2", "secret2"),
+        ("note3", "secret3"),
+    ];
+
+    let keeper = file_cache.current_mut().unwrap();
+
+    let mut results = Vec::new();
+
+    // Create some notes locally and get the events
+    // to send in a patch.
+    let mut create_events = Vec::new();
+    for item in notes.iter() {
+        let (meta, secret) = mock_note(item.0, item.1);
+        let event = keeper.create(meta, secret)?;
+
+        let id = if let SyncEvent::CreateSecret(secret_id, _) = &event {
+            *secret_id
+        } else {
+            unreachable!()
+        };
+
+        let event = event.into_owned();
+        create_events.push(event);
+
+        results.push((id, item.0));
+    }
+
+    assert_eq!(3, keeper.vault().len());
+
+    // Send the patch to the remote server
+    file_cache.patch_vault(summary, create_events).await?;
+
+    Ok(results)
+}
+
+pub async fn delete_secret(
+    file_cache: &mut FileCache,
+    summary: &Summary,
+    id: &SecretId,
+) -> Result<()> {
+    let keeper = file_cache.current_mut().unwrap();
+    let event = keeper.delete(id)?.unwrap();
+    let event = event.into_owned();
+
+    // Send the patch to the remote server
+    file_cache.patch_vault(summary, vec![event]).await?;
+    Ok(())
 }

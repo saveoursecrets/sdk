@@ -45,6 +45,23 @@ mod headers {
     pub const X_MATCH_PROOF: &str = "x-match-proof";
 }
 
+/// Constants for vaults.
+mod vault {
+    /// Vault version identifier.
+    pub const VAULT_VERSION: u16 = 0;
+
+    /// Default public name for a vault.
+    pub const DEFAULT_VAULT_NAME: &str = "Login";
+}
+
+/// Constants for MIME types.
+mod mime {
+    /// Mime type for vaults.
+    pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
+}
+
 pub use extensions::*;
 pub use headers::*;
 pub use identity::*;
+pub use mime::*;
+pub use vault::*;

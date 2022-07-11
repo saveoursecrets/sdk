@@ -92,6 +92,7 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: |
+            target/${{ matrix.target }}/release/sos
             target/${{ matrix.target }}/release/sos-audit
             target/${{ matrix.target }}/release/sos-check
             target/${{ matrix.target }}/release/sos-client
@@ -101,6 +102,7 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: |
+            target/${{ matrix.target }}/release/sos.exe
             target/${{ matrix.target }}/release/sos-*.exe
 
   upload-release-artifacts:

@@ -1,5 +1,5 @@
 //! Types and traits for caching and synchronization.
-use crate::Result;
+use crate::{Client, Result};
 use std::fmt;
 
 use async_trait::async_trait;
@@ -10,7 +10,7 @@ use sos_core::{
     events::{SyncEvent, WalEvent},
     iter::WalFileRecord,
     secret::SecretRef,
-    vault::Summary,
+    vault::{Summary, Vault},
     wal::snapshot::{SnapShot, SnapShotManager},
     Gatekeeper,
 };
@@ -101,6 +101,9 @@ pub trait ClientCache {
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;
 
+    /// Get the underlying client.
+    fn client(&self) -> &Client;
+
     /// Get the vault summaries for this cache.
     fn vaults(&self) -> &[Summary];
 
@@ -132,10 +135,13 @@ pub trait ClientCache {
     async fn create_account(
         &mut self,
         name: Option<String>,
-    ) -> Result<String>;
+    ) -> Result<(String, Summary)>;
 
     /// Create a new vault.
-    async fn create_vault(&mut self, name: String) -> Result<String>;
+    async fn create_vault(
+        &mut self,
+        name: String,
+    ) -> Result<(String, Summary)>;
 
     /// Remove a vault.
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;
@@ -155,6 +161,14 @@ pub trait ClientCache {
         &self,
         summary: &Summary,
     ) -> Result<(SyncStatus, Option<usize>)>;
+
+    /// Update an existing vault.
+    async fn update_vault(
+        &mut self,
+        summary: &Summary,
+        vault: &Vault,
+        events: Vec<WalEvent<'static>>,
+    ) -> Result<()>;
 
     /// Apply changes to a vault.
     async fn patch_vault(

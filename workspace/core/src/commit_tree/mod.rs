@@ -336,7 +336,7 @@ mod test {
 
     #[test]
     fn commit_tree_from_vault() -> Result<()> {
-        let (encryption_key, _) = mock_encryption_key()?;
+        let (encryption_key, _, _) = mock_encryption_key()?;
         let mut vault = mock_vault();
         let secrets = [
             ("Note one", "First note"),

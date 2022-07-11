@@ -11,6 +11,7 @@ use serde_binary::{
 };
 use std::{
     borrow::Cow,
+    cmp::Ordering,
     collections::HashMap,
     fmt,
     io::{Read, Seek, SeekFrom},
@@ -20,7 +21,9 @@ use uuid::Uuid;
 
 use crate::{
     commit_tree::CommitTree,
-    constants::{VAULT_EXT, VAULT_IDENTITY},
+    constants::{
+        DEFAULT_VAULT_NAME, VAULT_EXT, VAULT_IDENTITY, VAULT_VERSION,
+    },
     crypto::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
         AeadPack,
@@ -30,15 +33,6 @@ use crate::{
     secret::{SecretId, VaultMeta},
     CommitHash, Error, FileIdentity, Result,
 };
-
-/// Vault version identifier.
-pub const VERSION: u16 = 0;
-
-/// Default public name for a vault.
-pub const DEFAULT_VAULT_NAME: &str = "Login";
-
-/// Mime type for vaults.
-pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
 
 /// Identifier for vaults.
 pub type VaultId = Uuid;
@@ -170,7 +164,7 @@ pub trait VaultAccess {
 }
 
 /// Authentication information.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Auth {
     salt: Option<String>,
 }
@@ -200,6 +194,18 @@ pub struct Summary {
     algorithm: Algorithm,
 }
 
+impl Ord for Summary {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl PartialOrd for Summary {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl fmt::Display for Summary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -213,7 +219,7 @@ impl fmt::Display for Summary {
 impl Default for Summary {
     fn default() -> Self {
         Self {
-            version: VERSION,
+            version: VAULT_VERSION,
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -225,7 +231,7 @@ impl Summary {
     /// Create a new summary.
     pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
         Self {
-            version: VERSION,
+            version: VAULT_VERSION,
             algorithm,
             id,
             name,
@@ -290,7 +296,7 @@ impl Decode for Summary {
 }
 
 /// File header, identifier and version information
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Header {
     summary: Summary,
     meta: Option<AeadPack>,
@@ -305,6 +311,21 @@ impl Header {
             meta: None,
             auth: Default::default(),
         }
+    }
+
+    /// Clear an existing salt.
+    ///
+    /// Required when changing passwords so we can initialize
+    /// a vault that is already initialized.
+    pub(crate) fn clear_salt(&mut self) {
+        self.auth.salt = None;
+    }
+
+    #[deprecated]
+    #[doc(hidden)]
+    /// Exposed for debug assertions.
+    pub fn salt(&self) -> Option<&str> {
+        self.auth.salt.as_ref().map(|s| &s[..])
     }
 
     /// Get the public name for this vault.
@@ -638,9 +659,21 @@ impl Vault {
         }
     }
 
+    /// Iterator for the secret keys and values.
+    pub fn iter<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (&'a Uuid, &'a VaultCommit)> {
+        self.contents.data.iter()
+    }
+
     /// Iterator for the secret keys.
     pub fn keys<'a>(&'a self) -> impl Iterator<Item = &'a Uuid> {
         self.contents.data.keys()
+    }
+
+    /// Iterator for the secret values.
+    pub fn values<'a>(&'a self) -> impl Iterator<Item = &'a VaultCommit> {
+        self.contents.data.values()
     }
 
     /// Number of secrets in this vault.
@@ -779,6 +812,25 @@ impl Vault {
     }
 }
 
+impl From<Header> for Vault {
+    fn from(header: Header) -> Self {
+        Vault {
+            header,
+            contents: Default::default(),
+        }
+    }
+}
+
+impl IntoIterator for Vault {
+    type Item = (SecretId, VaultCommit);
+    type IntoIter =
+        std::collections::hash_map::IntoIter<SecretId, VaultCommit>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.contents.data.into_iter()
+    }
+}
+
 impl VaultAccess for Vault {
     fn summary(&self) -> Result<Summary> {
         Ok(self.header.summary.clone())
@@ -892,7 +944,7 @@ mod tests {
 
     #[test]
     fn encode_decode_secret_note() -> Result<()> {
-        let (encryption_key, _) = mock_encryption_key()?;
+        let (encryption_key, _, _) = mock_encryption_key()?;
         let mut vault = mock_vault();
 
         // TODO: encode the salt into the header meta data

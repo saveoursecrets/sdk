@@ -33,13 +33,13 @@ The minimum supported Rust version (MSRV) is 1.62; to view the API documentation
 
 ### Coverage
 
-For code coverage install the `llvm-tools-preview`:
+For code coverage install the `llvm-tools-preview` and `grcov`:
 
 ```
-rustup component add llvm-tools-preview
+rustup component add llvm-tools-preview && cargo install grcov
 ```
 
-And to generate the HTML from the `lcov.info` file install [lcov][]; then you can run (this will install [grcov][] automatically if it is not installed):
+And to generate the HTML from the `lcov.info` file install [lcov][]; then you can run:
 
 ```
 cargo make coverage

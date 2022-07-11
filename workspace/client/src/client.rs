@@ -8,10 +8,12 @@ use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
     commit_tree::CommitProof,
-    constants::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
+    constants::{
+        MIME_TYPE_VAULT, X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE,
+    },
     decode,
     signer::Signer,
-    vault::{encode, Summary, MIME_TYPE_VAULT},
+    vault::{encode, Summary},
     Patch,
 };
 use std::sync::Arc;
@@ -69,7 +71,11 @@ impl Client {
         let mut builder = HttpClientBuilder::new();
 
         // For integration tests we use a self-signed
-        // certificate, so this allows the client to connect
+        // certificate, so this allows the client to connect.
+        //
+        // Except it fails for the changes feed so now tests
+        // use a plain HTTP server, preserving this in case we
+        // can fix the issue with the changes feed over HTTPS.
         if cfg!(debug_assertions) {
             builder = builder.danger_accept_invalid_certs(true);
         }
@@ -107,6 +113,18 @@ impl Client {
         let signature =
             self.encode_signature(self.signer.sign(&message).await?)?;
         Ok((message.to_vec(), signature))
+    }
+
+    /// Generic GET function.
+    pub async fn get(&self, url: Url) -> Result<Response> {
+        Ok(self.http_client.get(url).send().await?)
+    }
+
+    /// Get the server information.
+    pub async fn server_info(&self) -> Result<Response> {
+        let url = self.server.join("api")?;
+        let response = self.http_client.get(url).send().await?;
+        Ok(response)
     }
 
     /// List the vaults accessible by this signer.
@@ -189,6 +207,30 @@ impl Client {
             .body(vault)
             .send()
             .await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((response, server_proof))
+    }
+
+    /// Update an existing vault.
+    pub async fn put_vault(
+        &self,
+        vault_id: &Uuid,
+        vault: Vec<u8>,
+    ) -> Result<(Response, Option<CommitProof>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let signature =
+            self.encode_signature(self.signer.sign(&vault).await?)?;
+
+        let response = self
+            .http_client
+            .put(url)
+            .header(AUTHORIZATION, self.bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(vault)
+            .send()
+            .await?;
+
         let headers = response.headers();
         let server_proof = decode_headers_proof(headers)?;
         Ok((response, server_proof))

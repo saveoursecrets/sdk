@@ -53,6 +53,7 @@ fn append_match_header(
     Ok(())
 }
 
+/// Append to the audit log.
 async fn append_audit_logs<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
     events: Vec<AuditEvent>,
@@ -65,19 +66,24 @@ async fn append_audit_logs<'a>(
     Ok(())
 }
 
+/// Send change notifications to connected clients.
 fn send_notification<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
     notification: ChangeNotification,
 ) {
-    // Send notification on the SSE channel
-    if let Some(conn) = writer.sse.get(notification.address()) {
-        if let Err(_) = conn.tx.send(notification) {
-            tracing::debug!("server sent events channel dropped");
+    // Changes can be empty for non-mutating sync events
+    // that correspond to audit logs; for example, reading secrets
+    if !notification.changes().is_empty() {
+        // Send notification on the SSE channel
+        if let Some(conn) = writer.sse.get(notification.address()) {
+            if let Err(_) = conn.tx.send(notification) {
+                tracing::debug!("server sent events channel dropped");
+            }
         }
     }
 }
 
-// Serve the home page.
+/// Serve the home page.
 pub(crate) async fn home(
     Extension(state): Extension<Arc<RwLock<State>>>,
 ) -> impl IntoResponse {
@@ -89,7 +95,7 @@ pub(crate) async fn home(
     }
 }
 
-// Serve bundled static assets.
+/// Serve bundled static assets.
 pub(crate) async fn assets(
     Extension(state): Extension<Arc<RwLock<State>>>,
     request: Request<Body>,
@@ -130,7 +136,7 @@ pub(crate) async fn assets(
     }
 }
 
-// Serve the API identity page.
+/// Serve the API identity page.
 pub(crate) async fn api(
     Extension(state): Extension<Arc<RwLock<State>>>,
 ) -> impl IntoResponse {

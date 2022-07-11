@@ -5,7 +5,7 @@ use crate::{
 };
 use sos_core::{
     address::AddressStr, crypto::generate_random_ecdsa_signing_key,
-    generate_passphrase, signer::SingleParty,
+    generate_passphrase, signer::SingleParty, vault::Summary,
 };
 use sos_readline::read_flag;
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
@@ -29,6 +29,7 @@ pub struct ClientCredentials {
     pub encryption_passphrase: String,
     pub keystore_file: PathBuf,
     pub address: AddressStr,
+    pub summary: Summary,
 }
 
 /// Create a new account.
@@ -61,7 +62,7 @@ pub async fn create_account(
         Some(key.address().to_string()),
     )?;
 
-    let encryption_passphrase = cache.create_account(name).await?;
+    let (encryption_passphrase, summary) = cache.create_account(name).await?;
     std::fs::write(&keystore_file, serde_json::to_string(&keystore)?)?;
 
     let ClientKey(_, _, address) = key;
@@ -70,6 +71,7 @@ pub async fn create_account(
         encryption_passphrase,
         keystore_file,
         address,
+        summary,
     };
 
     Ok((account, cache))
