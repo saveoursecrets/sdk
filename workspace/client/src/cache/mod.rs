@@ -1,5 +1,5 @@
 //! Types and traits for caching and synchronization.
-use crate::Result;
+use crate::{Client, Result};
 use std::fmt;
 
 use async_trait::async_trait;
@@ -100,6 +100,9 @@ pub trait ClientCache {
 
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;
+
+    /// Get the underlying client.
+    fn client(&self) -> &Client;
 
     /// Get the vault summaries for this cache.
     fn vaults(&self) -> &[Summary];

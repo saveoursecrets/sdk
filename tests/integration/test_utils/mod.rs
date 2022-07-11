@@ -8,7 +8,7 @@ use sos_core::{AuditLogFile, FileLocks};
 use sos_server::{Authentication, Server, ServerConfig, ServerInfo, State};
 
 const ADDR: &str = "127.0.0.1:3505";
-const SERVER: &str = "https://localhost:3505";
+const SERVER: &str = "http://localhost:3505";
 
 struct MockServer {
     handle: Handle,
@@ -51,7 +51,7 @@ impl MockServer {
             sse: Default::default(),
         }));
 
-        Server::start(addr, state, self.handle.clone()).await?;
+        Server::start_insecure(addr, state, self.handle.clone()).await?;
         Ok(())
     }
 

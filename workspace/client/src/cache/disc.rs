@@ -80,6 +80,10 @@ impl ClientCache for FileCache {
         self.client.address()
     }
 
+    fn client(&self) -> &Client {
+        &self.client
+    }
+
     fn vaults(&self) -> &[Summary] {
         self.summaries.as_slice()
     }

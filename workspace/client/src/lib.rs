@@ -71,7 +71,7 @@ impl ClientBuilder {
 pub use cache::{ClientCache, FileCache, SyncInfo, SyncKind, SyncStatus};
 pub use client::Client;
 pub use error::Error;
-pub use monitor::{monitor, changes_stream};
+pub use monitor::monitor;
 pub use shell::exec;
 pub use signup::{
     create_account, create_signing_key, signup, ClientCredentials, ClientKey,

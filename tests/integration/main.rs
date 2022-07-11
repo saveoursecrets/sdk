@@ -4,6 +4,10 @@ mod test_utils;
 
 use test_utils::*;
 
+use futures::stream::StreamExt;
+use reqwest_eventsource::Event;
+use std::sync::{Arc, RwLock};
+
 use sos_client::{
     create_account, create_signing_key, ClientCache, ClientCredentials,
     ClientKey, FileCache, SyncStatus,
@@ -11,7 +15,7 @@ use sos_client::{
 use sos_core::{
     address::AddressStr,
     constants::DEFAULT_VAULT_NAME,
-    events::SyncEvent,
+    events::{ChangeNotification, SyncEvent},
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::Summary,
 };
@@ -27,6 +31,35 @@ async fn integration_tests() -> Result<()> {
     let server_url = server();
 
     let (address, _, mut file_cache) = signup(&dirs).await?;
+
+    let mut es = file_cache.client().changes().await?;
+    let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
+        Arc::new(RwLock::new(Vec::new()));
+    let changed = Arc::clone(&notifications);
+
+    tokio::task::spawn(async move {
+        while let Some(event) = es.next().await {
+            match event {
+                Ok(Event::Open) => tracing::debug!("sse connection open"),
+                Ok(Event::Message(message)) => {
+                    let notification: ChangeNotification =
+                        serde_json::from_str(&message.data)?;
+
+                    // Store change notifications so we can
+                    // assert at the end
+                    let mut writer = changed.write().unwrap();
+                    println!("{:#?}", notification);
+                    writer.push(notification);
+                }
+                Err(e) => {
+                    es.close();
+                    return Err(e.into());
+                }
+            }
+        }
+
+        Ok::<(), sos_client::Error>(())
+    });
 
     let _ = FileCache::cache_dir()?;
 
@@ -81,7 +114,11 @@ async fn integration_tests() -> Result<()> {
 
     // Check the vault status
     let (status, _) = file_cache.vault_status(&new_vault_summary).await?;
-    let equals = if let SyncStatus::Equal(_) = status { true } else { false };
+    let equals = if let SyncStatus::Equal(_) = status {
+        true
+    } else {
+        false
+    };
     assert!(equals);
 
     // Delete a secret
@@ -95,10 +132,13 @@ async fn integration_tests() -> Result<()> {
     drop(keeper);
 
     // Set the vault name
-    file_cache.set_vault_name(&new_vault_summary, DEFAULT_VAULT_NAME).await?;
+    file_cache
+        .set_vault_name(&new_vault_summary, DEFAULT_VAULT_NAME)
+        .await?;
 
     // Take a snapshot - need to do these assertions before pull/push
-    let (_snapshot, created) = file_cache.take_snapshot(&new_vault_summary)?;
+    let (_snapshot, created) =
+        file_cache.take_snapshot(&new_vault_summary)?;
     assert!(created);
     let snapshots = file_cache.snapshots().list(new_vault_summary.id())?;
     assert!(!snapshots.is_empty());
@@ -122,10 +162,17 @@ async fn integration_tests() -> Result<()> {
     // Close the vault
     file_cache.close_vault();
 
+    // Assert on all the change notifications
+    let reader = notifications.read().unwrap();
+
+    println!("Got changes {}", reader.len());
+
     Ok(())
 }
 
-async fn signup(dirs: &TestDirs) -> Result<(AddressStr, ClientCredentials, FileCache)> {
+async fn signup(
+    dirs: &TestDirs,
+) -> Result<(AddressStr, ClientCredentials, FileCache)> {
     let TestDirs {
         target: destination,
         client: cache_dir,

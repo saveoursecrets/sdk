@@ -13,7 +13,6 @@ use super::SyncEvent;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChangeNotification {
     /// The owner address.
-    #[serde(skip)]
     address: AddressStr,
     /// The vault identifier.
     vault_id: VaultId,

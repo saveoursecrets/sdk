@@ -8,7 +8,10 @@ use sos_core::events::ChangeNotification;
 
 use crate::{run_blocking, Client, ClientBuilder, Result};
 
-pub async fn changes_stream<F>(client: &Client, handler: F) -> Result<()> where F: Fn(ChangeNotification) -> () {
+async fn changes_stream<F>(client: Client, handler: F) -> Result<()>
+where
+    F: Fn(ChangeNotification) -> (),
+{
     let mut es = client.changes().await?;
     while let Some(event) = es.next().await {
         match event {
@@ -17,16 +20,6 @@ pub async fn changes_stream<F>(client: &Client, handler: F) -> Result<()> where 
                 let notification: ChangeNotification =
                     serde_json::from_str(&message.data)?;
                 handler(notification);
-                /*
-                let changes = notification
-                    .changes()
-                    .iter()
-                    .map(|e| format!("{:?}", e))
-                    .collect::<Vec<_>>();
-                tracing::info!(
-                    changes = ?changes,
-                    vault_id = %notification.vault_id());
-                */
             }
             Err(e) => {
                 es.close();
@@ -52,7 +45,7 @@ pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
             vault_id = %notification.vault_id());
     };
 
-    if let Err(e) = run_blocking(changes_stream(&client, handler)) {
+    if let Err(e) = run_blocking(changes_stream(client, handler)) {
         tracing::error!("{}", e);
         std::process::exit(1);
     }

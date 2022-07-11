@@ -69,7 +69,7 @@ fn send_notification<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
     notification: ChangeNotification,
 ) {
-    // Changes can be empty for non-mutating sync events 
+    // Changes can be empty for non-mutating sync events
     // that correspond to audit logs; for example, reading secrets
     if !notification.changes().is_empty() {
         // Send notification on the SSE channel

@@ -71,7 +71,11 @@ impl Client {
         let mut builder = HttpClientBuilder::new();
 
         // For integration tests we use a self-signed
-        // certificate, so this allows the client to connect
+        // certificate, so this allows the client to connect.
+        //
+        // Except it fails for the changes feed so now tests
+        // use a plain HTTP server, preserving this in case we
+        // can fix the issue with the changes feed over HTTPS.
         if cfg!(debug_assertions) {
             builder = builder.danger_accept_invalid_certs(true);
         }
