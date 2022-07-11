@@ -300,10 +300,11 @@ mod tests {
     use super::VaultFileAccess;
     use crate::test_utils::*;
     use crate::{
+        constants::DEFAULT_VAULT_NAME,
         crypto::secret_key::SecretKey,
         events::SyncEvent,
         secret::*,
-        vault::{Header, Vault, VaultAccess, VaultEntry, DEFAULT_VAULT_NAME},
+        vault::{Header, Vault, VaultAccess, VaultEntry},
     };
     use anyhow::Result;
 
@@ -341,7 +342,7 @@ mod tests {
 
     #[test]
     fn vault_file_access() -> Result<()> {
-        let (encryption_key, _) = mock_encryption_key()?;
+        let (encryption_key, _, _) = mock_encryption_key()?;
         let (temp, vault, _) = mock_vault_file()?;
 
         let mut vault_access = VaultFileAccess::new(temp.path())?;
@@ -431,7 +432,7 @@ mod tests {
 
     #[test]
     fn vault_file_del_splice() -> Result<()> {
-        let (encryption_key, _) = mock_encryption_key()?;
+        let (encryption_key, _, _) = mock_encryption_key()?;
         let (temp, vault, _) = mock_vault_file()?;
 
         let mut vault_access = VaultFileAccess::new(temp.path())?;

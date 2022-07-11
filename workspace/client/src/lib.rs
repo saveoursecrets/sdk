@@ -68,7 +68,7 @@ impl ClientBuilder {
     }
 }
 
-pub use cache::{ClientCache, FileCache, SyncInfo, SyncKind};
+pub use cache::{ClientCache, FileCache, SyncInfo, SyncKind, SyncStatus};
 pub use client::Client;
 pub use error::Error;
 pub use monitor::monitor;

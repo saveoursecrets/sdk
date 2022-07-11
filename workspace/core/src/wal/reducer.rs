@@ -37,6 +37,28 @@ impl<'a> WalReducer<'a> {
         Default::default()
     }
 
+    /// Split a vault into a truncated vault and a collection
+    /// of WAL events that represent the vault.
+    ///
+    /// The truncated vault represents the header of the vault and
+    /// has no contents.
+    pub fn split(vault: Vault) -> Result<(Vault, Vec<WalEvent<'static>>)> {
+        let mut events = Vec::with_capacity(vault.len() + 1);
+        let header = vault.header().clone();
+        let head = Vault::from(header);
+
+        let buffer = encode(&head)?;
+        events.push(WalEvent::CreateVault(Cow::Owned(buffer)));
+        for (id, entry) in vault {
+            let event = WalEvent::CreateSecret(id, Cow::Owned(entry));
+            events.push(event);
+        }
+
+        events.sort();
+
+        Ok((head, events))
+    }
+
     /// Reduce the events in the given iterator.
     pub fn reduce<T: WalItem>(
         mut self,
@@ -161,7 +183,7 @@ mod test {
     fn mock_wal_file(
     ) -> Result<(NamedTempFile, WalFile, Vec<CommitHash>, SecretKey, SecretId)>
     {
-        let (encryption_key, _) = mock_encryption_key()?;
+        let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;

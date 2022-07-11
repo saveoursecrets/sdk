@@ -8,14 +8,14 @@ use serde_binary::{
     Decode, Deserializer, Encode, Error as BinaryError,
     Result as BinaryResult, Serializer,
 };
-use std::borrow::Cow;
+use std::{borrow::Cow, cmp::Ordering};
 
 use crate::{crypto::AeadPack, secret::SecretId, vault::VaultCommit, Error};
 
 use super::{EventKind, SyncEvent};
 
 /// Write ahead log event.
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum WalEvent<'a> {
     /// Variant used for the Default implementation.
     #[default]
@@ -38,6 +38,32 @@ pub enum WalEvent<'a> {
 
     /// Delete a secret.
     DeleteSecret(SecretId),
+}
+
+impl Ord for WalEvent<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, &other) {
+            // NOTE: This sorting is important when we send a vault 
+            // NOTE: to the server and it is split into a header-only 
+            // NOTE: vault and WAL event records the sort order must 
+            // NOTE: match the client order otherwise the root hashes
+            // NOTE: will be different.
+            //
+            // NOTE: We only care about the `CreateSecret` variant as 
+            // NOTE: we know in this scenario that it is the only variant
+            // NOTE: in addition to the `CreateVault` start record.
+            (WalEvent::CreateSecret(a, _), WalEvent::CreateSecret(b, _)) => {
+                a.cmp(b)
+            }
+            _ => Ordering::Greater,
+        }
+    }
+}
+
+impl PartialOrd for WalEvent<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl WalEvent<'_> {

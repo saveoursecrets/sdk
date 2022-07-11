@@ -4,10 +4,14 @@ use sos_core::{
     address::AddressStr,
     commit_tree::{wal_commit_tree, CommitProof},
     constants::WAL_DELETED_EXT,
+    encode,
     events::{SyncEvent, WalEvent},
     iter::WalFileRecord,
     vault::{Header, Summary, Vault, VaultAccess},
-    wal::{file::WalFile, snapshot::SnapShotManager, WalProvider},
+    wal::{
+        file::WalFile, reducer::WalReducer, snapshot::SnapShotManager,
+        WalProvider,
+    },
     FileLocks, VaultFileAccess,
 };
 use std::{
@@ -63,6 +67,16 @@ pub trait Backend {
         vault_id: &Uuid,
         name: String,
     ) -> Result<()>;
+
+    /// Overwrite the vault and WAL file from a buffer
+    /// containing a new vault.
+    ///
+    /// This is used when a vault password has been changed.
+    async fn set_vault<'a>(
+        &mut self,
+        owner: &AddressStr,
+        vault: &'a [u8],
+    ) -> Result<(SyncEvent<'a>, CommitProof)>;
 
     /// WAL ///
 
@@ -242,6 +256,16 @@ impl FileSystemBackend {
         wal_file
     }
 
+    fn vault_file_path(
+        &self,
+        owner: &AddressStr,
+        vault_id: &Uuid,
+    ) -> PathBuf {
+        let mut vault_path = self.wal_file_path(owner, vault_id);
+        vault_path.set_extension(Vault::extension());
+        vault_path
+    }
+
     /// Add a WAL file path to the in-memory account.
     async fn add_wal_path(
         &mut self,
@@ -370,8 +394,7 @@ impl Backend for FileSystemBackend {
         vault_id: &Uuid,
         name: String,
     ) -> Result<()> {
-        let mut vault_path = self.wal_file_path(owner, vault_id);
-        vault_path.set_extension(Vault::extension());
+        let vault_path = self.vault_file_path(owner, vault_id);
         let mut access = VaultFileAccess::new(&vault_path)?;
         let _ = access.set_vault_name(name)?;
         Ok(())
@@ -388,6 +411,53 @@ impl Backend for FileSystemBackend {
             }
         }
         Ok(summaries)
+    }
+
+    async fn set_vault<'a>(
+        &mut self,
+        owner: &AddressStr,
+        vault: &'a [u8],
+    ) -> Result<(SyncEvent<'a>, CommitProof)> {
+        let _ = self
+            .accounts
+            .get(owner)
+            .ok_or_else(|| Error::AccountNotExist(*owner))?;
+
+        let vault = Vault::read_buffer(vault)?;
+        let (vault, events) = WalReducer::split(vault)?;
+
+        // Prepare a temp file with the new WAL records
+        let temp = NamedTempFile::new()?;
+        let mut temp_wal = WalFile::new(temp.path())?;
+        temp_wal.apply(events, None)?;
+
+        let expected_root = temp_wal
+            .tree()
+            .root()
+            .ok_or_else(|| sos_core::Error::NoRootCommit)?;
+
+        // Prepare the buffer for the vault file
+        let vault_path = self.vault_file_path(owner, vault.id());
+        // Re-encode with the new header-only vault
+        let vault_buffer = encode(&vault)?;
+
+        // Read in the buffer of the WAL data so we can replace
+        // the existing WAL using the standard logic
+        let wal_buffer = tokio::fs::read(temp.path()).await?;
+
+        // FIXME: make this transactional so we revert to the
+        // FIXME: last WAL and vault file(s) on failure
+
+        // Replace the WAL with the new buffer
+        let commit_proof = self
+            .replace_wal(owner, vault.id(), expected_root.into(), &wal_buffer)
+            .await?;
+
+        // Write out the vault file (header only)
+        tokio::fs::write(&vault_path, &vault_buffer).await?;
+
+        let event = SyncEvent::UpdateVault(Cow::Owned(vault_buffer));
+        Ok((event, commit_proof))
     }
 
     async fn wal_exists(
@@ -411,17 +481,18 @@ impl Backend for FileSystemBackend {
         owner: &AddressStr,
         vault_id: &Uuid,
     ) -> Result<Vec<u8>> {
-        if let Some(account) = self.accounts.get(owner) {
-            if account.get(vault_id).is_some() {
-                let wal_file = self.wal_file_path(owner, vault_id);
-                let buffer = tokio::fs::read(wal_file).await?;
-                Ok(buffer)
-            } else {
-                Err(Error::VaultNotExist(*vault_id))
-            }
-        } else {
-            Err(Error::AccountNotExist(*owner))
-        }
+        let account = self
+            .accounts
+            .get(owner)
+            .ok_or_else(|| Error::AccountNotExist(*owner))?;
+
+        let _ = account
+            .get(vault_id)
+            .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
+
+        let wal_file = self.wal_file_path(owner, vault_id);
+        let buffer = tokio::fs::read(wal_file).await?;
+        Ok(buffer)
     }
 
     async fn wal_read(
@@ -429,15 +500,16 @@ impl Backend for FileSystemBackend {
         owner: &AddressStr,
         vault_id: &Uuid,
     ) -> Result<&WalStorage> {
-        if let Some(account) = self.accounts.get(owner) {
-            if let Some(storage) = account.get(vault_id) {
-                Ok(storage)
-            } else {
-                Err(Error::VaultNotExist(*vault_id))
-            }
-        } else {
-            Err(Error::AccountNotExist(*owner))
-        }
+        let account = self
+            .accounts
+            .get(owner)
+            .ok_or_else(|| Error::AccountNotExist(*owner))?;
+
+        let storage = account
+            .get(vault_id)
+            .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
+
+        Ok(storage)
     }
 
     async fn wal_write(
@@ -445,15 +517,16 @@ impl Backend for FileSystemBackend {
         owner: &AddressStr,
         vault_id: &Uuid,
     ) -> Result<&mut WalStorage> {
-        if let Some(account) = self.accounts.get_mut(owner) {
-            if let Some(storage) = account.get_mut(vault_id) {
-                Ok(storage)
-            } else {
-                Err(Error::VaultNotExist(*vault_id))
-            }
-        } else {
-            Err(Error::AccountNotExist(*owner))
-        }
+        let account = self
+            .accounts
+            .get_mut(owner)
+            .ok_or_else(|| Error::AccountNotExist(*owner))?;
+
+        let storage = account
+            .get_mut(vault_id)
+            .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
+
+        Ok(storage)
     }
 
     async fn replace_wal(
@@ -466,8 +539,16 @@ impl Backend for FileSystemBackend {
         let mut tempfile = NamedTempFile::new()?;
         let temp_path = tempfile.path().to_path_buf();
 
+        tracing::debug!(len = ?buffer.len(),
+            "replace_wal got buffer length");
+
+        tracing::debug!(expected_root = ?hex::encode(&root_hash),
+            "replace_wal expects root hash");
+
         // NOTE: using tokio::io here would hang sometimes
         std::io::copy(&mut buffer, &mut tempfile)?;
+
+        tracing::debug!("replace_wal copied to temp file");
 
         // Compute the root hash of the submitted WAL file
         // and verify the integrity of each record event against
@@ -475,6 +556,9 @@ impl Backend for FileSystemBackend {
         let tree = wal_commit_tree(&temp_path, true, |_| {})?;
 
         let tree_root = tree.root().ok_or(sos_core::Error::NoRootCommit)?;
+
+        tracing::debug!(root = ?hex::encode(tree_root),
+            "replace_wal computed a new tree root");
 
         // If the hash does not match the header then
         // something went wrong with the client POST
@@ -502,6 +586,10 @@ impl Backend for FileSystemBackend {
 
         let new_tree_root =
             wal.tree().root().ok_or(sos_core::Error::NoRootCommit)?;
+
+        tracing::debug!(root = ?hex::encode(new_tree_root),
+            "replace_wal loaded a new tree root");
+
         if root_hash != new_tree_root {
             return Err(Error::WalValidateMismatch);
         }

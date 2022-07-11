@@ -113,6 +113,74 @@ impl WalHandler {
         }
     }
 
+    /// Replace an exising vault by writing out a new WAL
+    /// and the header-only vault file.
+    ///
+    /// Expects the body to be a valid vault.
+    pub(crate) async fn put_vault(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
+        Path(vault_id): Path<Uuid>,
+        body: Bytes,
+    ) -> Result<(StatusCode, HeaderMap), StatusCode> {
+        if let Ok((status_code, token)) =
+            authenticate::bearer(authorization, &body)
+        {
+            if let (StatusCode::OK, Some(token)) = (status_code, token) {
+                // Check it looks like a vault payload
+                let summary = Header::read_summary_slice(&body)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                if &vault_id != summary.id() {
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+
+                let reader = state.read().await;
+                let (exists, _) = reader
+                    .backend
+                    .wal_exists(&token.address, summary.id())
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                drop(reader);
+
+                if !exists {
+                    return Err(StatusCode::NOT_FOUND);
+                }
+
+                let mut writer = state.write().await;
+                let (sync_event, proof) = writer
+                    .backend
+                    .set_vault(&token.address, &body)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                let notification = ChangeNotification::new(
+                    &token.address,
+                    summary.id(),
+                    vec![ChangeEvent::UpdateVault],
+                );
+
+                let log = AuditEvent::from_sync_event(
+                    &sync_event,
+                    token.address,
+                    *summary.id(),
+                );
+
+                append_audit_logs(&mut writer, vec![log]).await?;
+                send_notification(&mut writer, notification);
+
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &proof)?;
+                Ok((StatusCode::OK, headers))
+            } else {
+                Err(status_code)
+            }
+        } else {
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+
     /// Read the buffer of a WAL file.
     ///
     /// If an `x-commit-hash` header is present then we attempt to

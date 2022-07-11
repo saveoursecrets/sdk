@@ -149,6 +149,7 @@ impl AuditEvent {
                 panic!("noop variant cannot be an audit event")
             }
             SyncEvent::CreateVault(_)
+            | SyncEvent::UpdateVault(_)
             | SyncEvent::ReadVault
             | SyncEvent::DeleteVault
             | SyncEvent::SetVaultName(_)

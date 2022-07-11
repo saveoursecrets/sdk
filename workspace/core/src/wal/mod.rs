@@ -80,6 +80,9 @@ pub trait WalProvider {
     /// Load any cached data into the WAL implementation to build a commit tree in memory.
     fn load_tree(&mut self) -> Result<()>;
 
+    /// Clear all events from this WAL.
+    fn clear(&mut self) -> Result<()>;
+
     /// Get an iterator of the log records.
     fn iter(
         &self,
@@ -113,6 +116,7 @@ impl Encode for WalRecord {
 
         // Write the previous commit hash bytes
         ser.writer.write_bytes(self.1.as_ref())?;
+
         // Write the commit hash bytes
         ser.writer.write_bytes(self.2.as_ref())?;
 

@@ -13,15 +13,18 @@ use url::Url;
 
 use human_bytes::human_bytes;
 use sos_core::{
+    generate_passphrase,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     wal::WalItem,
-    CommitHash,
+    ChangePassword, CommitHash,
 };
 use sos_readline::{
     choose, read_flag, read_line, read_line_allow_empty, read_multiline,
     read_option, read_password, Choice,
 };
+
+use zeroize::Zeroize;
 
 use crate::{
     display_passphrase, run_blocking, ClientCache, Error, Result, SyncKind,
@@ -138,6 +141,9 @@ enum ShellCommand {
         #[clap(short, long)]
         force: bool,
     },
+    /// Change encrpytion password for the selected vault.
+    #[clap(alias = "passwd")]
+    Password,
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -417,7 +423,8 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
         }
         ShellCommand::Create { name } => {
             let mut writer = cache.write().unwrap();
-            let passphrase = run_blocking(writer.create_vault(name))?;
+            let (passphrase, _summary) =
+                run_blocking(writer.create_vault(name))?;
             display_passphrase("ENCRYPTION PASSPHRASE", &passphrase);
             Ok(())
         }
@@ -858,6 +865,81 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                     println!("Cannot push safely, use the --force option if you are sure.");
                 }
             }
+            Ok(())
+        }
+        ShellCommand::Password => {
+            let mut writer = cache.write().unwrap();
+            let keeper =
+                writer.current_mut().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
+
+            let banner = Banner::new()
+                .padding(Padding::one())
+                .text(Cow::Borrowed("!!! CHANGE PASSWORD !!!"))
+                .text(Cow::Borrowed(
+                    "Changing your password is a dangerous operation, your data may be corrupted if the process is interrupted.",
+                ))
+                .text(Cow::Borrowed(
+                    "Vault change history will be deleted.",
+                ))
+                .text(Cow::Borrowed(
+                    "A new encryption passphrase will be generated and shown on success; you must remember this new passphrase to access this vault.",
+                ))
+                .render();
+            println!("{}", banner);
+
+            let prompt = Some("Are you sure (y/n)? ");
+            if read_flag(prompt)? {
+                let passphrase = read_password(Some("Current passphrase: "))?;
+                let (new_passphrase, _) = generate_passphrase()?;
+
+                // Basic quick verification
+                keeper
+                    .verify(&passphrase)
+                    .map_err(|_| Error::InvalidPassphrase)?;
+
+                let (mut new_passphrase, new_vault, wal_events) =
+                    ChangePassword::new(
+                        keeper.vault_mut(),
+                        passphrase,
+                        new_passphrase,
+                    )
+                    .build()?;
+
+                run_blocking(
+                    writer.update_vault(&summary, &new_vault, wal_events),
+                )?;
+
+                drop(writer);
+
+                let mut writer = cache.write().unwrap();
+                let keeper =
+                    writer.current_mut().ok_or(Error::NoVaultSelected)?;
+                keeper.unlock(&new_passphrase)?;
+
+                let banner = Banner::new()
+                    .padding(Padding::one())
+                    .text(Cow::Borrowed("SUCCESS"))
+                    .text(Cow::Borrowed(
+                        "Your passphrase was changed successfully, your new passphrase is shown below.",
+                    ))
+                    .text(Cow::Borrowed(
+                        "Ensure you remember this passphrase to access your vault.",
+                    ))
+                    .render();
+                println!("{}", banner);
+
+                let banner = Banner::new()
+                    .padding(Padding::one())
+                    .text(Cow::Borrowed("NEW ENCRYPTION PASSPHRASE"))
+                    .text(Cow::Borrowed(&new_passphrase))
+                    .render();
+                println!("{}", banner);
+
+                // Clean up
+                new_passphrase.zeroize();
+            }
+
             Ok(())
         }
         ShellCommand::Whoami => {
