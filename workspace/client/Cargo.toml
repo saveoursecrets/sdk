@@ -13,8 +13,6 @@ async-recursion = "1"
 clap = { version = "3", features = ["derive", "wrap_help"] }
 tokio = { version = "1", features = ["full"] }
 url = "2"
-reqwest = { version = "0.11", default-features = true, features = ["json", "rustls-tls"] }
-
 reqwest-eventsource = "0.4"
 futures = "0.3"
 k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
@@ -43,6 +41,10 @@ zeroize = "1.4"
 # NOTE: development then attempting to connect to 
 # NOTE: the changes feed using the locally issued mkcert
 # NOTE: certificate yields an "Unknown Issuer" error.
+
+[target.'cfg(any(not(target_arch="aarch64"),not(target_os="linux")))'.dependencies]
+reqwest = { version = "0.11", default-features = true, features = ["json", "rustls-tls"] }
+
 [target.'cfg(all(target_arch="aarch64",target_os="linux"))'.dependencies]
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 
