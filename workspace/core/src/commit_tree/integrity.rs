@@ -83,6 +83,8 @@ where
         let record = record?;
 
         if verify {
+            // FIXME: restore this verification
+        
             /*
             // Verify the row last commit matches the checksum
             // for the previous row

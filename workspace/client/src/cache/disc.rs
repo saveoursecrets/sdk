@@ -345,6 +345,7 @@ impl ClientCache for FileCache {
         // Apply the new WAL events to our local WAL log
         wal.clear()?;
         wal.apply(events, Some(CommitHash(*server_proof.root())))?;
+        wal.load_tree()?;
 
         println!("Got new commit hash {}", wal.tree().root_hex().unwrap());
 
