@@ -53,6 +53,9 @@ impl<'a> WalReducer<'a> {
             let event = WalEvent::CreateSecret(id, Cow::Owned(entry));
             events.push(event);
         }
+
+        events.sort();
+
         Ok((head, events))
     }
 

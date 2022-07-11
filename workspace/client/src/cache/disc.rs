@@ -340,14 +340,9 @@ impl ClientCache for FileCache {
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
 
-        println!("Applying change password events {}", events.len());
-
         // Apply the new WAL events to our local WAL log
         wal.clear()?;
         wal.apply(events, Some(CommitHash(*server_proof.root())))?;
-        wal.load_tree()?;
-
-        println!("Got new commit hash {}", wal.tree().root_hex().unwrap());
 
         // Refresh the in-memory and disc-based mirror
         self.refresh_vault(summary)?;

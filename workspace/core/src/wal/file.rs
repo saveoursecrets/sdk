@@ -153,6 +153,7 @@ impl WalProvider for WalFile {
             commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
 
         let len = self.file_path.metadata()?.len();
+
         match self.file.write_all(&buffer) {
             Ok(_) => {
                 self.tree.append(&mut hashes);
@@ -165,6 +166,7 @@ impl WalProvider for WalFile {
                 {
                     let other_root: [u8; 32] = expected.into();
                     if other_root != root {
+                        tracing::debug!(length = len, "WAL rollback on expected root hash mismatch");
                         self.file.set_len(len)?;
                         self.tree.rollback();
                     }
@@ -173,6 +175,7 @@ impl WalProvider for WalFile {
                 Ok(commits)
             }
             Err(e) => {
+                tracing::debug!(length = len, "WAL rollback on buffer write error");
                 // In case of partial write attempt to truncate
                 // to the previous file length restoring to the
                 // previous state of the WAL log
