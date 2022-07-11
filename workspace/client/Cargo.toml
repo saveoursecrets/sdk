@@ -34,17 +34,19 @@ terminal-banner = "0.1"
 dirs = "4"
 zeroize = "1.4" 
 
+[target.'cfg(any(not(target_arch="aarch64"),not(target_os="linux")))'.dependencies]
+reqwest = { version = "0.11", default-features = true, features = ["json", "rustls-tls"] }
+
 # NOTE: Must disable default-features so that openssl
-# NOTE: is not compiled.
+# NOTE: is not compiled when cross-compiling in CI.
 #
 # NOTE: If we disable `default-features` during
 # NOTE: development then attempting to connect to 
 # NOTE: the changes feed using the locally issued mkcert
 # NOTE: certificate yields an "Unknown Issuer" error.
-
-[target.'cfg(any(not(target_arch="aarch64"),not(target_os="linux")))'.dependencies]
-reqwest = { version = "0.11", default-features = true, features = ["json", "rustls-tls"] }
-
+# NOTE: Which is related to the `security-framework` not 
+# NOTE: being compiled on macos when `default-features` is 
+# NOTE: disabled.
 [target.'cfg(all(target_arch="aarch64",target_os="linux"))'.dependencies]
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 
