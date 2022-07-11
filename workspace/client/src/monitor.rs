@@ -8,7 +8,7 @@ use sos_core::events::ChangeNotification;
 
 use crate::{run_blocking, Client, ClientBuilder, Result};
 
-async fn stream(client: &Client) -> Result<()> {
+pub async fn changes_stream<F>(client: &Client, handler: F) -> Result<()> where F: Fn(ChangeNotification) -> () {
     let mut es = client.changes().await?;
     while let Some(event) = es.next().await {
         match event {
@@ -16,6 +16,8 @@ async fn stream(client: &Client) -> Result<()> {
             Ok(Event::Message(message)) => {
                 let notification: ChangeNotification =
                     serde_json::from_str(&message.data)?;
+                handler(notification);
+                /*
                 let changes = notification
                     .changes()
                     .iter()
@@ -24,6 +26,7 @@ async fn stream(client: &Client) -> Result<()> {
                 tracing::info!(
                     changes = ?changes,
                     vault_id = %notification.vault_id());
+                */
             }
             Err(e) => {
                 es.close();
@@ -37,7 +40,19 @@ async fn stream(client: &Client) -> Result<()> {
 /// Start a monitor listening for events on the SSE stream.
 pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
     let client = ClientBuilder::new(server, keystore).build()?;
-    if let Err(e) = run_blocking(stream(&client)) {
+
+    let handler = |notification: ChangeNotification| {
+        let changes = notification
+            .changes()
+            .iter()
+            .map(|e| format!("{:?}", e))
+            .collect::<Vec<_>>();
+        tracing::info!(
+            changes = ?changes,
+            vault_id = %notification.vault_id());
+    };
+
+    if let Err(e) = run_blocking(changes_stream(&client, handler)) {
         tracing::error!("{}", e);
         std::process::exit(1);
     }

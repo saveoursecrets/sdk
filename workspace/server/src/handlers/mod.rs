@@ -69,10 +69,14 @@ fn send_notification<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
     notification: ChangeNotification,
 ) {
-    // Send notification on the SSE channel
-    if let Some(conn) = writer.sse.get(notification.address()) {
-        if let Err(_) = conn.tx.send(notification) {
-            tracing::debug!("server sent events channel dropped");
+    // Changes can be empty for non-mutating sync events 
+    // that correspond to audit logs; for example, reading secrets
+    if !notification.changes().is_empty() {
+        // Send notification on the SSE channel
+        if let Some(conn) = writer.sse.get(notification.address()) {
+            if let Err(_) = conn.tx.send(notification) {
+                tracing::debug!("server sent events channel dropped");
+            }
         }
     }
 }

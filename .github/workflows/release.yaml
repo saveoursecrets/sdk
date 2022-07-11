@@ -15,12 +15,12 @@ jobs:
       fail-fast: true
       matrix:
         target:
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
-          - x86_64-unknown-linux-gnu
+          #- x86_64-apple-darwin
+          #- aarch64-apple-darwin
+          #- x86_64-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
-          - x86_64-pc-windows-gnu
-          - x86_64-pc-windows-msvc
+          #- x86_64-pc-windows-gnu
+          #- x86_64-pc-windows-msvc
 
           # NOTE: Need ring:0.17.0
           # SEE: https://github.com/briansmith/ring/issues/1461
@@ -39,18 +39,18 @@ jobs:
           #- i686-unknown-linux-musl
         
         include:
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
+          #- target: x86_64-apple-darwin
+            #os: macos-latest
+          #- target: aarch64-apple-darwin
+            #os: macos-latest
+          #- target: x86_64-unknown-linux-gnu
+            #os: ubuntu-latest
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-          - target: x86_64-pc-windows-gnu
-            os: windows-latest
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
+          #- target: x86_64-pc-windows-gnu
+            #os: windows-latest
+          #- target: x86_64-pc-windows-msvc
+            #os: windows-latest
 
           #- target: aarch64-pc-windows-msvc
             #os: windows-latest
@@ -92,6 +92,7 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: |
+            target/${{ matrix.target }}/release/sos
             target/${{ matrix.target }}/release/sos-audit
             target/${{ matrix.target }}/release/sos-check
             target/${{ matrix.target }}/release/sos-client
@@ -101,6 +102,7 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: |
+            target/${{ matrix.target }}/release/sos.exe
             target/${{ matrix.target }}/release/sos-*.exe
 
   upload-release-artifacts:

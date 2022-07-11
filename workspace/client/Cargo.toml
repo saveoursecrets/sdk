@@ -13,7 +13,8 @@ async-recursion = "1"
 clap = { version = "3", features = ["derive", "wrap_help"] }
 tokio = { version = "1", features = ["full"] }
 url = "2"
-reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.11", default-features = true, features = ["json", "rustls-tls"] }
+
 reqwest-eventsource = "0.4"
 futures = "0.3"
 k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
@@ -34,6 +35,16 @@ shell-words = "1"
 terminal-banner = "0.1"
 dirs = "4"
 zeroize = "1.4" 
+
+# NOTE: Must disable default-features so that openssl
+# NOTE: is not compiled.
+#
+# NOTE: If we disable `default-features` during
+# NOTE: development then attempting to connect to 
+# NOTE: the changes feed using the locally issued mkcert
+# NOTE: certificate yields an "Unknown Issuer" error.
+[target.'cfg(all(target_arch="aarch64",target_os="linux"))'.dependencies]
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 
 [[bin]]
 name = "sos-client"
