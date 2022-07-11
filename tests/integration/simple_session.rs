@@ -1,4 +1,5 @@
 use anyhow::Result;
+use serial_test::serial;
 
 use crate::test_utils::*;
 
@@ -8,17 +9,16 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
 
 use sos_client::{
-    ClientCache, ClientCredentials,
-    FileCache, SyncStatus, Client,
+    Client, ClientCache, ClientCredentials, FileCache, SyncStatus,
 };
 use sos_core::{
     constants::DEFAULT_VAULT_NAME,
-    events::{ChangeEvent, ChangeNotification, SyncEvent},
-    secret::{Secret, SecretId, SecretMeta, SecretRef},
-    vault::Summary,
+    events::{ChangeEvent, ChangeNotification},
+    secret::SecretRef,
 };
 
 #[tokio::test]
+#[serial]
 async fn integration_simple_session() -> Result<()> {
     let dirs = setup(1)?;
 
@@ -243,61 +243,6 @@ async fn integration_simple_session() -> Result<()> {
     Ok(())
 }
 
-async fn create_secrets(
-    file_cache: &mut FileCache,
-    summary: &Summary,
-) -> Result<Vec<(SecretId, &'static str)>> {
-    let notes = vec![
-        ("note1", "secret1"),
-        ("note2", "secret2"),
-        ("note3", "secret3"),
-    ];
-
-    let keeper = file_cache.current_mut().unwrap();
-
-    let mut results = Vec::new();
-
-    // Create some notes locally and get the events
-    // to send in a patch.
-    let mut create_events = Vec::new();
-    for item in notes.iter() {
-        let (meta, secret) = mock_note(item.0, item.1);
-        let event = keeper.create(meta, secret)?;
-
-        let id = if let SyncEvent::CreateSecret(secret_id, _) = &event {
-            *secret_id
-        } else {
-            unreachable!()
-        };
-
-        let event = event.into_owned();
-        create_events.push(event);
-
-        results.push((id, item.0));
-    }
-
-    assert_eq!(3, keeper.vault().len());
-
-    // Send the patch to the remote server
-    file_cache.patch_vault(summary, create_events).await?;
-
-    Ok(results)
-}
-
-async fn delete_secret(
-    file_cache: &mut FileCache,
-    summary: &Summary,
-    id: &SecretId,
-) -> Result<()> {
-    let keeper = file_cache.current_mut().unwrap();
-    let event = keeper.delete(id)?.unwrap();
-    let event = event.into_owned();
-
-    // Send the patch to the remote server
-    file_cache.patch_vault(summary, vec![event]).await?;
-    Ok(())
-}
-
 async fn home(client: &Client) -> Result<()> {
     let url = client.server().clone();
     let response = client.get(url).await?;
@@ -310,10 +255,4 @@ async fn gui(client: &Client) -> Result<()> {
     let response = client.get(url).await?;
     assert!(response.status().is_success());
     Ok(())
-}
-
-fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
-    let secret_value = Secret::Note(text.to_string());
-    let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
-    (secret_meta, secret_value)
 }

@@ -1,14 +1,12 @@
 use anyhow::Result;
 
-use super::{TestDirs, server};
+use super::{server, TestDirs};
 
-use sos_core::{
-    address::AddressStr,
-};
+use sos_core::address::AddressStr;
 
 use sos_client::{
-    create_account, create_signing_key, ClientCredentials,
-    ClientKey, FileCache, 
+    create_account, create_signing_key, ClientCache, ClientCredentials,
+    ClientKey, FileCache,
 };
 use web3_keystore::{decrypt, KeyStore};
 
@@ -36,7 +34,7 @@ pub async fn signup(
     let ClientKey(signing_key, _, _) = &key;
     let expected_signing_key = *signing_key;
 
-    let (credentials, disc_cache) = create_account(
+    let (credentials, mut disc_cache) = create_account(
         server,
         destination.to_path_buf(),
         name,
@@ -60,6 +58,8 @@ pub async fn signup(
             .try_into()?;
 
     assert_eq!(expected_signing_key, signing_key);
+
+    let _ = disc_cache.load_vaults().await?;
 
     Ok((address, credentials, disc_cache))
 }
