@@ -116,6 +116,7 @@ impl Encode for WalRecord {
 
         // Write the previous commit hash bytes
         ser.writer.write_bytes(self.1.as_ref())?;
+
         // Write the commit hash bytes
         ser.writer.write_bytes(self.2.as_ref())?;
 

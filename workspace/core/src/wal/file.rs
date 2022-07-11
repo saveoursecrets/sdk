@@ -82,12 +82,18 @@ impl WalFile {
     fn encode_event(
         &self,
         event: WalEvent<'_>,
+        last_commit: Option<CommitHash>,
     ) -> Result<(CommitHash, WalRecord)> {
         let time: Timestamp = Default::default();
         let bytes = encode(&event)?;
         let commit = CommitHash(hash(&bytes));
-        let last_commit =
-            self.last_commit()?.unwrap_or_else(|| CommitHash([0u8; 32]));
+
+        let last_commit = if let Some(last_commit) = last_commit {
+            last_commit
+        } else {
+            self.last_commit()?.unwrap_or_else(|| CommitHash([0u8; 32]))
+        };
+
         let record = WalRecord(time, last_commit, commit, bytes);
         Ok((commit, record))
     }
@@ -143,10 +149,13 @@ impl WalProvider for WalFile {
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
+        let mut last_commit_hash = None;
         for event in events {
-            let (commit, record) = self.encode_event(event)?;
+            let (commit, record) = self.encode_event(event, last_commit_hash)?;
             commits.push(commit);
-            buffer.append(&mut encode(&record)?);
+            let mut buf = encode(&record)?;
+            last_commit_hash = Some(CommitHash(hash(&buf)));
+            buffer.append(&mut buf);
         }
 
         let mut hashes =
@@ -186,7 +195,7 @@ impl WalProvider for WalFile {
     }
 
     fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash> {
-        let (commit, record) = self.encode_event(event)?;
+        let (commit, record) = self.encode_event(event, None)?;
         let buffer = encode(&record)?;
         self.file.write_all(&buffer)?;
         self.tree.insert(*commit.as_ref());

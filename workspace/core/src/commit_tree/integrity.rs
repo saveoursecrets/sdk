@@ -83,19 +83,10 @@ where
         let record = record?;
 
         if verify {
-            // FIXME: restore this verification
-        
-            /*
             // Verify the row last commit matches the checksum
             // for the previous row
             if let Some(last_checksum) = last_checksum {
                 let expected_last_commit = record.last_commit();
-                println!("Got expected last commit {}",
-                    hex::encode(expected_last_commit));
-
-                println!("Got last checksum {}",
-                    hex::encode(last_checksum));
-
                 if last_checksum != expected_last_commit {
                     return Err(Error::HashMismatch {
                         commit: hex::encode(expected_last_commit),
@@ -103,7 +94,6 @@ where
                     });
                 }
             }
-            */
 
             // Verify the commit hash for the data
             let value = record.read_bytes(&mut reader)?;
