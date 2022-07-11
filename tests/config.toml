@@ -1,4 +1,4 @@
-gui = false
+gui = true
 
 [audit]
 file = "../target/integration-test/audit.dat"

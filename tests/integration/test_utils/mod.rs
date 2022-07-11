@@ -10,6 +10,10 @@ use sos_server::{Authentication, Server, ServerConfig, ServerInfo, State};
 const ADDR: &str = "127.0.0.1:3505";
 const SERVER: &str = "http://localhost:3505";
 
+mod signup;
+
+pub use signup::signup;
+
 struct MockServer {
     handle: Handle,
 }
@@ -110,20 +114,15 @@ pub fn server() -> Url {
 pub struct TestDirs {
     pub target: PathBuf,
     pub server: PathBuf,
-    pub client: PathBuf,
+    pub clients: Vec<PathBuf>,
 }
 
-pub fn setup() -> Result<TestDirs> {
+pub fn setup(num_clients: usize) -> Result<TestDirs> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test");
     if !target.exists() {
         std::fs::create_dir_all(&target)?;
-    }
-
-    let client = target.join("client");
-    if client.exists() {
-        std::fs::remove_dir_all(&client)?;
     }
 
     let server = target.join("server");
@@ -133,11 +132,20 @@ pub fn setup() -> Result<TestDirs> {
 
     // Setup required sub-directories
     std::fs::create_dir(&server)?;
-    std::fs::create_dir(&client)?;
+
+    let mut clients = Vec::new();
+    for index in 0..num_clients {
+        let client = target.join(&format!("client{}", index + 1));
+        if client.exists() {
+            std::fs::remove_dir_all(&client)?;
+        }
+        std::fs::create_dir(&client)?;
+        clients.push(client);
+    }
 
     Ok(TestDirs {
         target,
         server,
-        client,
+        clients,
     })
 }

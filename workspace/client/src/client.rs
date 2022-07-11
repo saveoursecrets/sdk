@@ -115,6 +115,26 @@ impl Client {
         Ok((message.to_vec(), signature))
     }
 
+    /// Generic GET function.
+    pub async fn get(&self, url: Url) -> Result<Response> {
+        Ok(self
+            .http_client
+            .get(url)
+            .send()
+            .await?)
+    }
+
+    /// Get the server information.
+    pub async fn server_info(&self) -> Result<Response> {
+        let url = self.server.join("api")?;
+        let response = self
+            .http_client
+            .get(url)
+            .send()
+            .await?;
+        Ok(response)
+    }
+
     /// List the vaults accessible by this signer.
     pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
         let url = self.server.join("api/auth")?;
