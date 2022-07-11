@@ -51,7 +51,7 @@ impl ChangeNotification {
 }
 
 /// Server notifications sent over the server sent events stream.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum ChangeEvent {
     /// Event emitted when a vault is created.
     CreateVault,

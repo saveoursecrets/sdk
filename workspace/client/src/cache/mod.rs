@@ -135,10 +135,13 @@ pub trait ClientCache {
     async fn create_account(
         &mut self,
         name: Option<String>,
-    ) -> Result<String>;
+    ) -> Result<(String, Summary)>;
 
     /// Create a new vault.
-    async fn create_vault(&mut self, name: String) -> Result<String>;
+    async fn create_vault(
+        &mut self,
+        name: String,
+    ) -> Result<(String, Summary)>;
 
     /// Remove a vault.
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;

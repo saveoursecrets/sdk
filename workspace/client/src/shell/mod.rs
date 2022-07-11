@@ -423,7 +423,8 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
         }
         ShellCommand::Create { name } => {
             let mut writer = cache.write().unwrap();
-            let passphrase = run_blocking(writer.create_vault(name))?;
+            let (passphrase, _summary) =
+                run_blocking(writer.create_vault(name))?;
             display_passphrase("ENCRYPTION PASSPHRASE", &passphrase);
             Ok(())
         }

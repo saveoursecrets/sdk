@@ -7,6 +7,7 @@ use test_utils::*;
 use futures::stream::StreamExt;
 use reqwest_eventsource::Event;
 use std::sync::{Arc, RwLock};
+use tokio::sync::mpsc;
 
 use sos_client::{
     create_account, create_signing_key, ClientCache, ClientCredentials,
@@ -15,7 +16,7 @@ use sos_client::{
 use sos_core::{
     address::AddressStr,
     constants::DEFAULT_VAULT_NAME,
-    events::{ChangeNotification, SyncEvent},
+    events::{ChangeEvent, ChangeNotification, SyncEvent},
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::Summary,
 };
@@ -30,7 +31,11 @@ async fn integration_tests() -> Result<()> {
 
     let server_url = server();
 
-    let (address, _, mut file_cache) = signup(&dirs).await?;
+    let (address, credentials, mut file_cache) = signup(&dirs).await?;
+    let ClientCredentials { summary, .. } = credentials;
+    let login_vault_id = *summary.id();
+
+    let (tx, mut rx) = mpsc::channel(1);
 
     let mut es = file_cache.client().changes().await?;
     let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
@@ -40,7 +45,10 @@ async fn integration_tests() -> Result<()> {
     tokio::task::spawn(async move {
         while let Some(event) = es.next().await {
             match event {
-                Ok(Event::Open) => tracing::debug!("sse connection open"),
+                Ok(Event::Open) => tx
+                    .send(())
+                    .await
+                    .expect("failed to send changes feed open message"),
                 Ok(Event::Message(message)) => {
                     let notification: ChangeNotification =
                         serde_json::from_str(&message.data)?;
@@ -48,7 +56,7 @@ async fn integration_tests() -> Result<()> {
                     // Store change notifications so we can
                     // assert at the end
                     let mut writer = changed.write().unwrap();
-                    println!("{:#?}", notification);
+                    //println!("{:#?}", notification);
                     writer.push(notification);
                 }
                 Err(e) => {
@@ -61,6 +69,13 @@ async fn integration_tests() -> Result<()> {
         Ok::<(), sos_client::Error>(())
     });
 
+    // Wait for the changes feed to connect before
+    // we start to make changes
+    let _ = rx
+        .recv()
+        .await
+        .expect("failed to receive changes feed open message");
+
     let _ = FileCache::cache_dir()?;
 
     assert_eq!(&server_url, file_cache.server());
@@ -68,7 +83,7 @@ async fn integration_tests() -> Result<()> {
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
-    let new_passphrase =
+    let (new_passphrase, _) =
         file_cache.create_vault(new_vault_name.clone()).await?;
 
     // Check our new vault is found in the local cache
@@ -77,6 +92,10 @@ async fn integration_tests() -> Result<()> {
         file_cache.find_vault(&vault_ref).unwrap().clone();
     assert_eq!(&new_vault_name, new_vault_summary.name());
 
+    // Need this for some assertions later
+    let new_vault_id = *new_vault_summary.id();
+
+    // Trigger code path for finding by id
     let id_ref = SecretRef::Id(*new_vault_summary.id());
     let new_vault_summary_by_id =
         file_cache.find_vault(&id_ref).unwrap().clone();
@@ -122,8 +141,9 @@ async fn integration_tests() -> Result<()> {
     assert!(equals);
 
     // Delete a secret
-    let first_id = notes.get(0).unwrap().0;
-    delete_secret(&mut file_cache, &new_vault_summary, &first_id).await?;
+    let delete_secret_id = notes.get(0).unwrap().0;
+    delete_secret(&mut file_cache, &new_vault_summary, &delete_secret_id)
+        .await?;
 
     // Check our new list of secrets has the right length
     let keeper = file_cache.current().unwrap();
@@ -162,10 +182,57 @@ async fn integration_tests() -> Result<()> {
     // Close the vault
     file_cache.close_vault();
 
-    // Assert on all the change notifications
-    let reader = notifications.read().unwrap();
+    /* CHANGE NOTIFICATIONS */
 
-    println!("Got changes {}", reader.len());
+    // Assert on all the change notifications
+    let mut changes = notifications.write().unwrap();
+    assert_eq!(5, changes.len());
+
+    // Created a new vault
+    let create_vault = changes.remove(0);
+    assert_eq!(&address, create_vault.address());
+    assert_eq!(&new_vault_id, create_vault.vault_id());
+    assert_eq!(1, create_vault.changes().len());
+    assert_eq!(
+        &ChangeEvent::CreateVault,
+        create_vault.changes().get(0).unwrap()
+    );
+
+    // Deleted the login vault
+    let delete_vault = changes.remove(0);
+    assert_eq!(&address, delete_vault.address());
+    assert_eq!(&login_vault_id, delete_vault.vault_id());
+    assert_eq!(1, delete_vault.changes().len());
+    assert_eq!(
+        &ChangeEvent::DeleteVault,
+        delete_vault.changes().get(0).unwrap()
+    );
+
+    // Created 3 secrets
+    let create_secrets = changes.remove(0);
+    assert_eq!(&address, create_secrets.address());
+    assert_eq!(&new_vault_id, create_secrets.vault_id());
+    assert_eq!(3, create_secrets.changes().len());
+
+    // Deleted a secret
+    let delete_secret = changes.remove(0);
+    assert_eq!(&address, delete_secret.address());
+    assert_eq!(&new_vault_id, delete_secret.vault_id());
+    assert_eq!(1, delete_secret.changes().len());
+    assert_eq!(
+        &ChangeEvent::DeleteSecret(delete_secret_id),
+        delete_secret.changes().get(0).unwrap()
+    );
+
+    // Set vault name
+    let set_vault_name = changes.remove(0);
+    assert_eq!(&address, set_vault_name.address());
+    assert_eq!(&new_vault_id, set_vault_name.vault_id());
+    assert_eq!(1, set_vault_name.changes().len());
+    assert_eq!(
+        &ChangeEvent::SetVaultName(String::from(DEFAULT_VAULT_NAME)),
+        set_vault_name.changes().get(0).unwrap()
+    );
 
     Ok(())
 }

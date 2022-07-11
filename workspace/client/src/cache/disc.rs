@@ -183,11 +183,14 @@ impl ClientCache for FileCache {
     async fn create_account(
         &mut self,
         name: Option<String>,
-    ) -> Result<String> {
+    ) -> Result<(String, Summary)> {
         self.create(name, true).await
     }
 
-    async fn create_vault(&mut self, name: String) -> Result<String> {
+    async fn create_vault(
+        &mut self,
+        name: String,
+    ) -> Result<(String, Summary)> {
         self.create(Some(name), false).await
     }
 
@@ -591,7 +594,7 @@ impl FileCache {
         &mut self,
         name: Option<String>,
         is_account: bool,
-    ) -> Result<String> {
+    ) -> Result<(String, Summary)> {
         let (passphrase, vault, buffer) = self.new_vault(name)?;
         let summary = vault.summary().clone();
 
@@ -613,10 +616,10 @@ impl FileCache {
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(response.status().into()))?;
-        self.summaries.push(summary);
+        self.summaries.push(summary.clone());
         self.summaries.sort();
 
-        Ok(passphrase)
+        Ok((passphrase, summary))
     }
 
     fn new_vault(
