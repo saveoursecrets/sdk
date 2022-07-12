@@ -358,6 +358,7 @@ impl CommitTree {
     }
 }
 
+/*
 /// Refrerence to the identifier and commit for a row.
 #[derive(Debug)]
 pub struct RowInfo {
@@ -394,6 +395,7 @@ impl RowInfo {
         &self.id
     }
 }
+*/
 
 #[cfg(test)]
 mod test {

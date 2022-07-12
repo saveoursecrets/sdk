@@ -5,7 +5,7 @@ use serde_binary::{
 };
 
 use pem::Pem;
-use serde::{Deserialize, Serialize, ser::SerializeStruct};
+use serde::{Deserialize, Serialize, ser::SerializeStruct, de::{self, Visitor, EnumAccess, VariantAccess}};
 use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
@@ -147,7 +147,8 @@ impl Decode for SecretMeta {
 }
 
 /// Encapsulates a secret.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Secret {
     /// A UTF-8 encoded note.
     Note(String),
@@ -379,6 +380,7 @@ impl Decode for Secret {
     }
 }
 
+/*
 impl serde::Serialize for Secret {
     fn serialize<S>(
         &self,
@@ -389,31 +391,88 @@ impl serde::Serialize for Secret {
     {
         match self {
             Secret::Note(value) => serializer
-                .serialize_newtype_variant("Secret", 0, "Note", value),
+                .serialize_newtype_variant("Secret", 0, "note", value),
             Secret::File { name, mime, buffer } => {
-                let mut s = serializer.serialize_struct("File", 3)?;
+                let mut s = serializer.serialize_struct("file", 3)?;
                 s.serialize_field("name", name)?;
                 s.serialize_field("mime", mime)?;
                 s.serialize_field("buffer", buffer)?;
                 s.end()
             }
             Secret::Account { account, url, password } => {
-                let mut s = serializer.serialize_struct("Account", 3)?;
+                let mut s = serializer.serialize_struct("account", 3)?;
                 s.serialize_field("account", account)?;
                 s.serialize_field("url", url)?;
                 s.serialize_field("password", password)?;
                 s.end()
             }
             Secret::List(value) => serializer
-                .serialize_newtype_variant("Secret", 3, "List", value),
+                .serialize_newtype_variant("Secret", 3, "list", value),
             Secret::Pem(pems) => {
                 let value = pem::encode_many(pems);
                 serializer
-                    .serialize_newtype_variant("Secret", 4, "Pem", &value)
+                    .serialize_newtype_variant("Secret", 4, "pem", &value)
             },
         }
     }
 }
+
+struct SecretVisitor;
+
+impl<'de> Visitor<'de> for SecretVisitor {
+    type Value = Secret;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
+    }
+
+    fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error> where
+        A: EnumAccess<'de> {
+
+        let (key, access) = data.variant::<String>()?;
+
+        println!("key {}", &key[..]);
+        //println!("{:#?}", value);
+
+        match &key[..] {
+            "note" => {
+                //self.visit_string()
+                //todo!()
+                //access.newtype_variant()
+            }
+            "file" => {
+                todo!()
+            }
+            "account" => {
+                todo!()
+            }
+            "list" => {
+                //access.newtype_variant()
+                todo!()
+            }
+            "pem" => {
+                //access.newtype_variant()
+                todo!()
+            }
+            _ => Err(de::Error::custom("unknown secret type tag"))
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Secret {
+    fn deserialize<D>(
+        deserializer: D,
+    ) -> std::result::Result<Secret, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_enum(
+            "Secret",
+            &["note", "file", "account", "list", "pem"], SecretVisitor)
+    }
+}
+*/
+
 
 #[cfg(test)]
 mod test {
@@ -424,9 +483,9 @@ mod test {
     fn secret_serde() -> Result<()> {
         let secret = Secret::Note(String::from("foo"));
         let value = serde_json::to_string_pretty(&secret)?;
-
-        println!("{}", value);
-
+        let result: Secret = serde_json::from_str(&value)?;
+        assert_eq!(secret, result);
         Ok(())
     }
 }
+

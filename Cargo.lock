@@ -1817,11 +1817,10 @@ dependencies = [
 
 [[package]]
 name = "pem"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9a3b09a20e374558580a4914d3b7d89bd61b954a5a5e1dcbea98753addb1947"
+version = "1.0.3-alpha.0"
 dependencies = [
  "base64",
+ "serde",
 ]
 
 [[package]]
