@@ -27,6 +27,7 @@ time = { version = "0.3", features = ["serde", "local-offset", "formatting"] }
 bitflags = "1"
 ouroboros = "0.15"
 tokio = { version = "1", default-features = false, features = ["fs", "io-util"] }
+pem = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 file-guard = "0.1"
