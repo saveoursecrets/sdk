@@ -2,7 +2,7 @@
 //! notify connected clients that changes have been made.
 use serde::{Deserialize, Serialize};
 
-use crate::{address::AddressStr, secret::SecretId, vault::VaultId};
+use crate::{address::AddressStr, secret::SecretId, vault::VaultId, commit_tree::CommitProof};
 
 use super::SyncEvent;
 
@@ -16,6 +16,8 @@ pub struct ChangeNotification {
     address: AddressStr,
     /// The vault identifier.
     vault_id: VaultId,
+    /// The commit proof.
+    proof: CommitProof,
     /// Collection of change events.
     changes: Vec<ChangeEvent>,
 }
@@ -25,11 +27,13 @@ impl ChangeNotification {
     pub fn new(
         address: &AddressStr,
         vault_id: &VaultId,
+        proof: CommitProof,
         changes: Vec<ChangeEvent>,
     ) -> Self {
         Self {
             address: *address,
             vault_id: *vault_id,
+            proof,
             changes,
         }
     }
