@@ -14,7 +14,9 @@ use sos_client::{
 use sos_core::{
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
-    secret::SecretRef, generate_passphrase, ChangePassword,
+    generate_passphrase,
+    secret::SecretRef,
+    ChangePassword,
 };
 
 #[tokio::test]
@@ -93,14 +95,15 @@ async fn integration_change_password() -> Result<()> {
     let (new_passphrase, _) = generate_passphrase()?;
 
     // Get a new vault for the new passphrase
-    let (mut new_passphrase, new_vault, wal_events) =
-        ChangePassword::new(
-            keeper.vault_mut(),
-            encryption_passphrase,
-            new_passphrase,
-        )
-        .build()?;
-    file_cache.update_vault(&summary, &new_vault, wal_events).await?;
+    let (mut new_passphrase, new_vault, wal_events) = ChangePassword::new(
+        keeper.vault_mut(),
+        encryption_passphrase,
+        new_passphrase,
+    )
+    .build()?;
+    file_cache
+        .update_vault(&summary, &new_vault, wal_events)
+        .await?;
 
     // Close the vault
     file_cache.close_vault();

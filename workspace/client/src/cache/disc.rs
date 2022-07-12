@@ -189,8 +189,6 @@ impl ClientCache for FileCache {
             // Looks like the change was made elsewhere
             // and we should attempt to sync with the server
             if change.proof().root() != head.root() {
-                println!("roots do not match, attempting a pull to update");
-
                 let (status, _) = self.vault_status(summary).await?;
                 match status {
                     SyncStatus::Behind(_, _) => {

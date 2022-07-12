@@ -147,6 +147,13 @@ impl Gatekeeper {
         }
     }
 
+    /// Get a sorted list of the secrets meta data.
+    pub fn meta_data_list(&self) -> Result<Vec<(&SecretId, SecretMeta)>> {
+        let mut list = self.meta_data()?.into_iter().collect::<Vec<_>>();
+        list.sort_by(|a, b| a.1.cmp(&b.1));
+        Ok(list)
+    }
+
     /// Attempt to decrypt the index meta data for the vault
     /// using the passphrase assigned to this gatekeeper.
     pub fn vault_meta(&self) -> Result<VaultMeta> {

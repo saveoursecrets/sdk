@@ -2,7 +2,10 @@
 //! notify connected clients that changes have been made.
 use serde::{Deserialize, Serialize};
 
-use crate::{address::AddressStr, secret::SecretId, vault::VaultId, commit_tree::CommitProof};
+use crate::{
+    address::AddressStr, commit_tree::CommitProof, secret::SecretId,
+    vault::VaultId,
+};
 
 use super::SyncEvent;
 

@@ -127,11 +127,11 @@ impl Decode for CommitProof {
 impl fmt::Debug for CommitProof {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CommitProof")
-         .field("root", &hex::encode(&self.0))
-         //.field("proofs", self.1.proof_hashes())
-         .field("size", &self.2)
-         .field("leaves", &self.3)
-         .finish()
+            .field("root", &hex::encode(&self.0))
+            //.field("proofs", self.1.proof_hashes())
+            .field("size", &self.2)
+            .field("leaves", &self.3)
+            .finish()
     }
 }
 

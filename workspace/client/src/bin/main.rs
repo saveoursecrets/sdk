@@ -137,7 +137,7 @@ fn run() -> Result<()> {
                         while let Some(event) = es.next().await {
                             match event {
                                 Ok(Event::Open) => {
-                                    tracing::debug!("sse connection open")
+                                    //tracing::debug!("sse connection open")
                                 }
                                 Ok(Event::Message(message)) => {
                                     let notification: ChangeNotification =

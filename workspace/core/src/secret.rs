@@ -77,7 +77,17 @@ impl Decode for VaultMeta {
 }
 
 /// Encapsulates the meta data for a secret.
-#[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Default,
+    Clone,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+)]
 pub struct SecretMeta {
     /// Human-friendly label for the secret.
     label: String,
