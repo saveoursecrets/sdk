@@ -13,7 +13,7 @@ use sos_core::{
     },
     constants::{VAULT_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY},
     encode,
-    events::{SyncEvent, WalEvent},
+    events::{ChangeNotification, SyncEvent, WalEvent},
     generate_passphrase,
     iter::WalFileRecord,
     secret::SecretRef,
@@ -161,6 +161,14 @@ impl ClientCache for FileCache {
         self.refresh_vault(summary)?;
 
         Ok((old_size, new_size))
+    }
+
+    async fn handle_change(
+        &mut self,
+        change: ChangeNotification,
+    ) -> Result<()> {
+        println!("{:#?}", change);
+        Ok(())
     }
 
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
