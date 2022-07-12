@@ -151,7 +151,8 @@ impl WalProvider for WalFile {
         let mut commits = Vec::new();
         let mut last_commit_hash = None;
         for event in events {
-            let (commit, record) = self.encode_event(event, last_commit_hash)?;
+            let (commit, record) =
+                self.encode_event(event, last_commit_hash)?;
             commits.push(commit);
             let mut buf = encode(&record)?;
             last_commit_hash = Some(CommitHash(hash(&buf)));
@@ -175,7 +176,10 @@ impl WalProvider for WalFile {
                 {
                     let other_root: [u8; 32] = expected.into();
                     if other_root != root {
-                        tracing::debug!(length = len, "WAL rollback on expected root hash mismatch");
+                        tracing::debug!(
+                            length = len,
+                            "WAL rollback on expected root hash mismatch"
+                        );
                         self.file.set_len(len)?;
                         self.tree.rollback();
                     }
@@ -184,7 +188,10 @@ impl WalProvider for WalFile {
                 Ok(commits)
             }
             Err(e) => {
-                tracing::debug!(length = len, "WAL rollback on buffer write error");
+                tracing::debug!(
+                    length = len,
+                    "WAL rollback on buffer write error"
+                );
                 // In case of partial write attempt to truncate
                 // to the previous file length restoring to the
                 // previous state of the WAL log
