@@ -167,7 +167,39 @@ impl ClientCache for FileCache {
         &mut self,
         change: ChangeNotification,
     ) -> Result<()> {
-        println!("{:#?}", change);
+        //println!("{:#?}", change);
+
+        let summary = self
+            .summaries
+            .iter()
+            .find(|s| s.id() == change.vault_id())
+            .cloned();
+        if let Some(summary) = &summary {
+            let tree = self
+                .wal_tree(summary)
+                .ok_or(sos_core::Error::NoRootCommit)?;
+            let head = tree.head()?;
+
+            tracing::debug!(
+                vault_id = ?summary.id(),
+                change_root = ?change.proof().root_hex(),
+                root = ?head.root_hex(),
+                "handle_change");
+
+            // Looks like the change was made elsewhere
+            // and we should attempt to sync with the server
+            if change.proof().root() != head.root() {
+                println!("roots do not match, attempting a pull to update");
+
+                let (status, _) = self.vault_status(summary).await?;
+                match status {
+                    SyncStatus::Behind(_, _) => {
+                        self.pull(summary, false).await?;
+                    }
+                    _ => {}
+                }
+            }
+        }
         Ok(())
     }
 

@@ -48,6 +48,11 @@ impl ChangeNotification {
         &self.vault_id
     }
 
+    /// The commit proof after the change.
+    pub fn proof(&self) -> &CommitProof {
+        &self.proof
+    }
+
     /// The collection of change events.
     pub fn changes(&self) -> &[ChangeEvent] {
         &self.changes
