@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
     commit_tree::{CommitPair, CommitProof, CommitTree},
-    events::{SyncEvent, WalEvent},
+    events::{ChangeNotification, SyncEvent, WalEvent},
     iter::WalFileRecord,
     secret::SecretRef,
     vault::{Summary, Vault},
@@ -124,6 +124,12 @@ pub trait ClientCache {
 
     /// Compact a WAL file.
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
+
+    /// Respond to a change notification.
+    async fn handle_change(
+        &mut self,
+        change: ChangeNotification,
+    ) -> Result<()>;
 
     /// Load the vault summaries from the remote server.
     async fn load_vaults(&mut self) -> Result<&[Summary]>;

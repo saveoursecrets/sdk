@@ -479,7 +479,7 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
         ShellCommand::List { long } => {
             let reader = cache.read().unwrap();
             if let Some(keeper) = reader.current() {
-                let meta = keeper.meta_data()?;
+                let meta = keeper.meta_data_list()?;
                 for (uuid, secret_meta) in meta {
                     let label = secret_meta.label();
                     let short_name = secret_meta.short_name();

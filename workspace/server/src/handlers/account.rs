@@ -50,9 +50,13 @@ impl AccountHandler {
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &proof)?;
+
                 let notification = ChangeNotification::new(
                     &token.address,
                     summary.id(),
+                    proof,
                     vec![ChangeEvent::CreateVault],
                 );
 
@@ -65,8 +69,6 @@ impl AccountHandler {
                 append_audit_logs(&mut writer, vec![log]).await?;
                 send_notification(&mut writer, notification);
 
-                let mut headers = HeaderMap::new();
-                append_commit_headers(&mut headers, &proof)?;
                 Ok((StatusCode::OK, headers))
             } else {
                 Err(status_code)

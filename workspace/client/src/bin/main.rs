@@ -2,16 +2,20 @@ use std::{
     borrow::Cow,
     path::PathBuf,
     sync::{Arc, RwLock},
+    thread,
 };
 
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
+use futures::stream::StreamExt;
+use reqwest_eventsource::Event;
 use sos_client::{
     exec, monitor, run_blocking, signup, ClientBuilder, ClientCache, Error,
     FileCache, Result,
 };
+use sos_core::events::ChangeNotification;
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
@@ -120,6 +124,40 @@ fn run() -> Result<()> {
                 tracing::error!("failed to load vaults: {}", e);
             }
             drop(writer);
+
+            // Hook up to change notifications
+            let change_cache = Arc::clone(&cache);
+            thread::spawn(move || {
+                let runtime = tokio::runtime::Runtime::new().unwrap();
+                runtime
+                    .block_on(async move {
+                        let reader = change_cache.read().unwrap();
+                        let mut es = reader.client().changes().await?;
+                        drop(reader);
+                        while let Some(event) = es.next().await {
+                            match event {
+                                Ok(Event::Open) => {
+                                    //tracing::debug!("sse connection open")
+                                }
+                                Ok(Event::Message(message)) => {
+                                    let notification: ChangeNotification =
+                                        serde_json::from_str(&message.data)?;
+                                    let mut writer =
+                                        change_cache.write().unwrap();
+                                    writer
+                                        .handle_change(notification)
+                                        .await?;
+                                }
+                                Err(e) => {
+                                    es.close();
+                                    return Err(e.into());
+                                }
+                            }
+                        }
+                        Ok::<(), crate::Error>(())
+                    })
+                    .expect("changes feed error");
+            });
 
             let prompt_cache = Arc::clone(&cache);
             let prompt = || -> String {

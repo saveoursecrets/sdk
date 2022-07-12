@@ -13,7 +13,7 @@ use sos_core::{
     },
     constants::{VAULT_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY},
     encode,
-    events::{SyncEvent, WalEvent},
+    events::{ChangeNotification, SyncEvent, WalEvent},
     generate_passphrase,
     iter::WalFileRecord,
     secret::SecretRef,
@@ -161,6 +161,44 @@ impl ClientCache for FileCache {
         self.refresh_vault(summary)?;
 
         Ok((old_size, new_size))
+    }
+
+    async fn handle_change(
+        &mut self,
+        change: ChangeNotification,
+    ) -> Result<()> {
+        //println!("{:#?}", change);
+
+        let summary = self
+            .summaries
+            .iter()
+            .find(|s| s.id() == change.vault_id())
+            .cloned();
+        if let Some(summary) = &summary {
+            let tree = self
+                .wal_tree(summary)
+                .ok_or(sos_core::Error::NoRootCommit)?;
+            let head = tree.head()?;
+
+            tracing::debug!(
+                vault_id = ?summary.id(),
+                change_root = ?change.proof().root_hex(),
+                root = ?head.root_hex(),
+                "handle_change");
+
+            // Looks like the change was made elsewhere
+            // and we should attempt to sync with the server
+            if change.proof().root() != head.root() {
+                let (status, _) = self.vault_status(summary).await?;
+                match status {
+                    SyncStatus::Behind(_, _) => {
+                        self.pull(summary, false).await?;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
     }
 
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
