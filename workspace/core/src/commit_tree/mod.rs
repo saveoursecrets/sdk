@@ -1,9 +1,13 @@
 //! Type for iterating and managing the commit trees for a vault.
+use serde::{
+    de::{self, SeqAccess, Visitor},
+    ser::SerializeTuple,
+};
 use serde_binary::{
     binary_rw::{BinaryReader, SeekStream},
     Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
-use std::ops::Range;
+use std::{fmt, ops::Range};
 
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 
@@ -28,7 +32,6 @@ pub struct CommitPair {
 }
 
 /// Represents a root hash and a proof of certain nodes.
-//#[derive(Debug, Eq, PartialEq)]
 pub struct CommitProof(
     pub <Sha256 as Hasher>::Hash,
     pub MerkleProof<Sha256>,
@@ -121,6 +124,88 @@ impl Decode for CommitProof {
     }
 }
 
+impl fmt::Debug for CommitProof {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CommitProof")
+            .field("root", &hex::encode(&self.0))
+            //.field("proofs", self.1.proof_hashes())
+            .field("size", &self.2)
+            .field("leaves", &self.3)
+            .finish()
+    }
+}
+
+impl serde::Serialize for CommitProof {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // 4-element tuple
+        let mut tup = serializer.serialize_tuple(4)?;
+        let root_hash = hex::encode(&self.0);
+        tup.serialize_element(&root_hash)?;
+        let hashes = self.1.proof_hashes();
+        tup.serialize_element(hashes)?;
+        tup.serialize_element(&self.2)?;
+        tup.serialize_element(&self.3)?;
+        tup.end()
+    }
+}
+
+struct CommitProofVisitor;
+
+impl<'de> Visitor<'de> for CommitProofVisitor {
+    type Value = CommitProof;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
+    }
+
+    fn visit_seq<A>(
+        self,
+        mut seq: A,
+    ) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let root_hash: String = seq.next_element()?.ok_or_else(|| {
+            de::Error::custom("expecting a root hash for commit proof")
+        })?;
+        let root_hash = hex::decode(&root_hash).map_err(de::Error::custom)?;
+        let root_hash: [u8; 32] =
+            root_hash.as_slice().try_into().map_err(de::Error::custom)?;
+        let hashes: Vec<[u8; 32]> = seq.next_element()?.ok_or_else(|| {
+            de::Error::custom("expecting sequence of proof hashes")
+        })?;
+        let size: usize = seq.next_element()?.ok_or_else(|| {
+            de::Error::custom("expecting tree length usize")
+        })?;
+        let range: Range<usize> = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::custom("expecting leaf node range"))?;
+        Ok(CommitProof(
+            root_hash,
+            MerkleProof::new(hashes),
+            size,
+            range,
+        ))
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CommitProof {
+    fn deserialize<D>(
+        deserializer: D,
+    ) -> std::result::Result<CommitProof, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_tuple(4, CommitProofVisitor)
+    }
+}
+
 /// The result of comparing two commit trees.
 ///
 /// Either the trees are equal, the other tree
@@ -160,20 +245,6 @@ impl CommitTree {
         commit_tree.tree.commit();
         commit_tree
     }
-
-    /*
-    // TODO: move this to another module!
-    /// Create a commit tree from a row iterator.
-    pub fn from_iterator<'a>(it: &mut RowIterator<'a>) -> Result<Self> {
-        let mut commit_tree = Self::new();
-        for row_info in it {
-            let row_info = row_info?;
-            commit_tree.tree.insert(row_info.commit);
-        }
-        commit_tree.tree.commit();
-        Ok(commit_tree)
-    }
-    */
 
     /// Get the number of leaves in the tree.
     pub fn len(&self) -> usize {
@@ -334,8 +405,7 @@ mod test {
     };
     use anyhow::Result;
 
-    #[test]
-    fn commit_tree_from_vault() -> Result<()> {
+    fn mock_commit_tree() -> Result<CommitTree> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let mut vault = mock_vault();
         let secrets = [
@@ -359,8 +429,31 @@ mod test {
             };
         }
 
-        let commit_tree = CommitTree::from_vault(&vault);
+        Ok(CommitTree::from_vault(&vault))
+    }
+
+    #[test]
+    fn commit_tree_from_vault() -> Result<()> {
+        let commit_tree = mock_commit_tree()?;
         assert!(commit_tree.root().is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn commit_proof_serde() -> Result<()> {
+        let commit_tree = mock_commit_tree()?;
+        let proof = commit_tree.head()?;
+
+        let json = serde_json::to_string_pretty(&proof)?;
+
+        //println!("{}", json);
+
+        let commit_proof: CommitProof = serde_json::from_str(&json)?;
+
+        assert_eq!(proof.0, commit_proof.0);
+        assert_eq!(proof.1.proof_hashes(), commit_proof.1.proof_hashes());
+        assert_eq!(proof.2, commit_proof.2);
+        assert_eq!(proof.3, commit_proof.3);
 
         Ok(())
     }

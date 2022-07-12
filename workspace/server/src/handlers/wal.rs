@@ -86,9 +86,13 @@ impl WalHandler {
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+                    let mut headers = HeaderMap::new();
+                    append_commit_headers(&mut headers, &proof)?;
+
                     let notification = ChangeNotification::new(
                         &token.address,
                         summary.id(),
+                        proof,
                         vec![ChangeEvent::CreateVault],
                     );
 
@@ -101,8 +105,6 @@ impl WalHandler {
                     append_audit_logs(&mut writer, vec![log]).await?;
                     send_notification(&mut writer, notification);
 
-                    let mut headers = HeaderMap::new();
-                    append_commit_headers(&mut headers, &proof)?;
                     Ok((StatusCode::OK, headers))
                 }
             } else {
@@ -155,9 +157,13 @@ impl WalHandler {
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &proof)?;
+
                 let notification = ChangeNotification::new(
                     &token.address,
                     summary.id(),
+                    proof,
                     vec![ChangeEvent::UpdateVault],
                 );
 
@@ -170,8 +176,6 @@ impl WalHandler {
                 append_audit_logs(&mut writer, vec![log]).await?;
                 send_notification(&mut writer, notification);
 
-                let mut headers = HeaderMap::new();
-                append_commit_headers(&mut headers, &proof)?;
                 Ok((StatusCode::OK, headers))
             } else {
                 Err(status_code)
@@ -446,6 +450,15 @@ impl WalHandler {
                 proof,
                 name,
             ) => {
+                // Always send the `x-commit-hash` and `x-commit-proof`
+                // headers to the client with the new updated commit
+                // after applying the patch events.
+                //
+                // Clients can use this to verify the integrity when moving
+                // staged events to their cached WAL
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &proof)?;
+
                 let mut writer = state.write().await;
 
                 // Must update the vault name in it's summary
@@ -463,20 +476,13 @@ impl WalHandler {
                 let notification = ChangeNotification::new(
                     &address,
                     &vault_id,
+                    proof,
                     change_events,
                 );
 
                 // Send notifications on the SSE channel
                 send_notification(&mut writer, notification);
 
-                // Always send the `x-commit-hash` and `x-commit-proof`
-                // headers to the client with the new updated commit
-                // after applying the patch events.
-                //
-                // Clients can use this to verify the integrity when moving
-                // staged events to their cached WAL
-                let mut headers = HeaderMap::new();
-                append_commit_headers(&mut headers, &proof)?;
                 Ok((StatusCode::OK, headers))
             }
             PatchResult::Conflict(proof, match_proof) => {
@@ -619,6 +625,11 @@ impl WalHandler {
                     return Err(StatusCode::NOT_FOUND);
                 }
 
+                let proof = proof.ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &proof)?;
+
                 writer
                     .backend
                     .delete_wal(&token.address, &vault_id)
@@ -628,6 +639,7 @@ impl WalHandler {
                 let notification = ChangeNotification::new(
                     &token.address,
                     &vault_id,
+                    proof,
                     vec![ChangeEvent::DeleteVault],
                 );
 
@@ -640,10 +652,6 @@ impl WalHandler {
                 append_audit_logs(&mut writer, vec![log]).await?;
                 send_notification(&mut writer, notification);
 
-                let mut headers = HeaderMap::new();
-                if let Some(proof) = &proof {
-                    append_commit_headers(&mut headers, proof)?;
-                }
                 Ok((StatusCode::OK, headers))
             } else {
                 Err(status_code)
