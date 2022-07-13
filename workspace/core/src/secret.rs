@@ -4,7 +4,8 @@ use serde_binary::{
     Result as BinaryResult, Serializer,
 };
 
-use serde::{Deserialize, Serialize};
+use pem::Pem;
+use serde::{Deserialize, Serialize, ser::SerializeStruct, de::{self, Visitor, EnumAccess, VariantAccess}};
 use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
@@ -146,8 +147,8 @@ impl Decode for SecretMeta {
 }
 
 /// Encapsulates a secret.
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Clone)]
-#[serde(untagged)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Secret {
     /// A UTF-8 encoded note.
     Note(String),
@@ -173,6 +174,8 @@ pub enum Secret {
     },
     /// Collection of credentials as key/value pairs.
     List(HashMap<String, String>),
+    /// PEM encoded binary data.
+    Pem(Vec<Pem>),
 }
 
 impl Secret {
@@ -194,9 +197,53 @@ impl Secret {
             Secret::File { .. } => kind::FILE,
             Secret::Account { .. } => kind::ACCOUNT,
             Secret::List(_) => kind::LIST,
+            Secret::Pem(_) => kind::PEM,
         }
     }
 }
+
+impl PartialEq for Secret {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Note(a), Self::Note(b)) => a == b,
+            (
+                Self::Account {
+                    account: account_a,
+                    url: url_a,
+                    password: password_a,
+                },
+                Self::Account {
+                    account: account_b,
+                    url: url_b,
+                    password: password_b,
+                },
+            ) => {
+                account_a == account_b
+                    && url_a == url_b
+                    && password_a == password_b
+            }
+            (
+                Self::File {
+                    name: name_a,
+                    mime: mime_a,
+                    buffer: buffer_a,
+                },
+                Self::File {
+                    name: name_b,
+                    mime: mime_b,
+                    buffer: buffer_b,
+                },
+            ) => name_a == name_b && mime_a == mime_b && buffer_a == buffer_b,
+            (Self::List(a), Self::List(b)) => a == b,
+            (Self::Pem(a), Self::Pem(b)) => a
+                .iter()
+                .zip(b.iter())
+                .all(|(a, b)| a.tag == b.tag && a.contents == b.contents),
+            _ => false,
+        }
+    }
+}
+impl Eq for Secret {}
 
 impl Default for Secret {
     fn default() -> Self {
@@ -218,6 +265,8 @@ pub mod kind {
     pub const LIST: u8 = 0x03;
     /// Binary blob, may be file content.
     pub const FILE: u8 = 0x04;
+    /// List of PEM encoded binary blobs.
+    pub const PEM: u8 = 0x05;
 }
 
 impl Encode for Secret {
@@ -227,6 +276,7 @@ impl Encode for Secret {
             Self::File { .. } => kind::FILE,
             Self::Account { .. } => kind::ACCOUNT,
             Self::List { .. } => kind::LIST,
+            Self::Pem(_) => kind::PEM,
         };
         ser.writer.write_u8(kind)?;
 
@@ -258,6 +308,10 @@ impl Encode for Secret {
                     ser.writer.write_string(k)?;
                     ser.writer.write_string(v)?;
                 }
+            }
+            Self::Pem(pems) => {
+                let value = pem::encode_many(pems);
+                ser.writer.write_string(value)?;
             }
         }
 
@@ -312,6 +366,10 @@ impl Decode for Secret {
 
                 *self = Self::List(list);
             }
+            kind::PEM => {
+                let value = de.reader.read_string()?;
+                *self = Self::Pem(pem::parse_many(&value).map_err(Box::from)?);
+            }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
                     Error::UnknownSecretKind(kind),
@@ -321,3 +379,113 @@ impl Decode for Secret {
         Ok(())
     }
 }
+
+/*
+impl serde::Serialize for Secret {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Secret::Note(value) => serializer
+                .serialize_newtype_variant("Secret", 0, "note", value),
+            Secret::File { name, mime, buffer } => {
+                let mut s = serializer.serialize_struct("file", 3)?;
+                s.serialize_field("name", name)?;
+                s.serialize_field("mime", mime)?;
+                s.serialize_field("buffer", buffer)?;
+                s.end()
+            }
+            Secret::Account { account, url, password } => {
+                let mut s = serializer.serialize_struct("account", 3)?;
+                s.serialize_field("account", account)?;
+                s.serialize_field("url", url)?;
+                s.serialize_field("password", password)?;
+                s.end()
+            }
+            Secret::List(value) => serializer
+                .serialize_newtype_variant("Secret", 3, "list", value),
+            Secret::Pem(pems) => {
+                let value = pem::encode_many(pems);
+                serializer
+                    .serialize_newtype_variant("Secret", 4, "pem", &value)
+            },
+        }
+    }
+}
+
+struct SecretVisitor;
+
+impl<'de> Visitor<'de> for SecretVisitor {
+    type Value = Secret;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
+    }
+
+    fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error> where
+        A: EnumAccess<'de> {
+
+        let (key, access) = data.variant::<String>()?;
+
+        println!("key {}", &key[..]);
+        //println!("{:#?}", value);
+
+        match &key[..] {
+            "note" => {
+                //self.visit_string()
+                //todo!()
+                //access.newtype_variant()
+            }
+            "file" => {
+                todo!()
+            }
+            "account" => {
+                todo!()
+            }
+            "list" => {
+                //access.newtype_variant()
+                todo!()
+            }
+            "pem" => {
+                //access.newtype_variant()
+                todo!()
+            }
+            _ => Err(de::Error::custom("unknown secret type tag"))
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Secret {
+    fn deserialize<D>(
+        deserializer: D,
+    ) -> std::result::Result<Secret, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_enum(
+            "Secret",
+            &["note", "file", "account", "list", "pem"], SecretVisitor)
+    }
+}
+*/
+
+
+#[cfg(test)]
+mod test {
+    use anyhow::Result;
+    use super::*;
+
+    #[test]
+    fn secret_serde() -> Result<()> {
+        let secret = Secret::Note(String::from("foo"));
+        let value = serde_json::to_string_pretty(&secret)?;
+        let result: Secret = serde_json::from_str(&value)?;
+        assert_eq!(secret, result);
+        Ok(())
+    }
+}
+

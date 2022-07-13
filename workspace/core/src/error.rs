@@ -190,4 +190,8 @@ pub enum Error {
     /// Error generated formatting time.
     #[error(transparent)]
     TimeFormat(#[from] time::error::Format),
+
+    /// Error generated parsing PEM files.
+    #[error(transparent)]
+    Pem(#[from] pem::PemError),
 }
