@@ -5,7 +5,11 @@ use serde_binary::{
 };
 
 use pem::Pem;
-use serde::{Deserialize, Serialize, ser::SerializeStruct, de::{self, Visitor, EnumAccess, VariantAccess}};
+use serde::{
+    de::{self, EnumAccess, VariantAccess, Visitor},
+    ser::SerializeStruct,
+    Deserialize, Serialize,
+};
 use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
@@ -368,7 +372,8 @@ impl Decode for Secret {
             }
             kind::PEM => {
                 let value = de.reader.read_string()?;
-                *self = Self::Pem(pem::parse_many(&value).map_err(Box::from)?);
+                *self =
+                    Self::Pem(pem::parse_many(&value).map_err(Box::from)?);
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
@@ -473,11 +478,10 @@ impl<'de> serde::Deserialize<'de> for Secret {
 }
 */
 
-
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
     use super::*;
+    use anyhow::Result;
 
     #[test]
     fn secret_serde() -> Result<()> {
@@ -488,4 +492,3 @@ mod test {
         Ok(())
     }
 }
-

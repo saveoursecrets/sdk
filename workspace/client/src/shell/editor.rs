@@ -33,7 +33,7 @@ fn spawn_editor<P: AsRef<Path>>(cmd: String, file: P) -> Result<ExitStatus> {
 fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
     Ok(match secret {
         Secret::Note(text) => (text.as_bytes().to_vec(), ".txt".to_string()),
-        Secret::List(_) | Secret::Account { .. } => {
+        Secret::List(_) | Secret::Account { .. } | Secret::Pem(_) => {
             (serde_json::to_vec_pretty(secret)?, ".json".to_string())
         }
         Secret::File { name, buffer, .. } => {
@@ -56,7 +56,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
                 .trim_end_matches('\n')
                 .to_string(),
         ),
-        Secret::List(_) | Secret::Account { .. } => {
+        Secret::List(_) | Secret::Account { .. } | Secret::Pem(_) => {
             serde_json::from_slice::<Secret>(content)?
         }
         Secret::File { name, mime, .. } => Secret::File {

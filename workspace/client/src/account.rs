@@ -1,6 +1,6 @@
 //! Signup a new account.
 use crate::{
-    display_passphrase, run_blocking, Client, ClientCache, Error, FileCache,
+    display_passphrase, run_blocking, Client, ClientCache, Error, FileCache, ClientBuilder,
     Result,
 };
 use sos_core::{
@@ -30,6 +30,22 @@ pub struct ClientCredentials {
     pub keystore_file: PathBuf,
     pub address: AddressStr,
     pub summary: Summary,
+}
+
+/// Login to an account.
+pub fn login(
+    server: Url,
+    cache_dir: PathBuf,
+    keystore_file: PathBuf,
+    keystore_passphrase: String,
+) -> Result<FileCache> {
+    if !keystore_file.exists() {
+        return Err(Error::NotFile(keystore_file));
+    }
+    let client = ClientBuilder::new(server, keystore_file)
+        .with_keystore_passphrase(keystore_passphrase)
+        .build()?;
+    Ok(FileCache::new(client, cache_dir, true)?)
 }
 
 /// Create a new account.

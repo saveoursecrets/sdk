@@ -596,7 +596,7 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                 // attempting to borrow mutably twice
                 let event = event.into_owned();
 
-                print::secret(&secret_meta, &secret_data);
+                print::secret(&secret_meta, &secret_data)?;
                 run_blocking(writer.patch_vault(&summary, vec![event]))
             } else {
                 Err(Error::SecretNotAvailable(secret))
