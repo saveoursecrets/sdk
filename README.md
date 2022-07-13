@@ -15,6 +15,14 @@ This repository contains the core library code and several command line interfac
 
 For webassembly bindings see the [browser][] repository.
 
+## Design
+
+A vault is a collection of encrypted secrets and their associated meta data. Vaults can be represented as both an append-only log file for synchronization and a compact binary file for archiving and portability. Bi-directional conversion between the append-only log and compact binary file is straightforward; the library provides methods to *reduce* the append-only log to a vault and *split* a vault into it's header and a collection of events that can be appended to a log.
+
+Synchronization between nodes is done using the append-only log file (which we refer to as a write-ahead log or WAL); a Merkle tree is computed for each log file using the hash of the data for each record. By comparing Merkle proofs we can easily determine which tree is ahead or whether the trees have diverged; much in the same way that [git][] synchronizes source code.
+
+Secrets are *always encrypted on the client* using a random nonce and one of the supported algorithms, either XChaCha20Poly1305 or AES-GCM 256. The default algorithm is XChaCha20Poly1305 for it's extended 24 byte nonce and because it does not required special AES instructions on the CPU to be implemented safely.
+
 ## Setup
 
 Tasks are run using `cargo make`, install it with:
@@ -89,6 +97,7 @@ To create a release build with the bundled GUI assets run:
 cargo make server-release
 ```
 
+[git]: https://git-scm.com/
 [lcov]: https://github.com/linux-test-project/lcov
 [grcov]: https://github.com/mozilla/grcov
 [mkcert]: https://github.com/FiloSottile/mkcert
