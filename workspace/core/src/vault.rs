@@ -166,19 +166,26 @@ pub trait VaultAccess {
 /// Authentication information.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Auth {
+    /// Salt used to derive a secret key from the passphrase.
     salt: Option<String>,
 }
 
 impl Encode for Auth {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        self.salt.serialize(&mut *ser)?;
+        ser.writer.write_bool(self.salt.is_some())?;
+        if let Some(salt) = &self.salt {
+            ser.writer.write_string(salt)?;
+        }
         Ok(())
     }
 }
 
 impl Decode for Auth {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.salt = Deserialize::deserialize(&mut *de)?;
+        let has_salt = de.reader.read_bool()?;
+        if has_salt {
+            self.salt = Some(de.reader.read_string()?);
+        }
         Ok(())
     }
 }
