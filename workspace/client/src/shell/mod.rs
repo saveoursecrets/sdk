@@ -27,13 +27,14 @@ use sos_readline::{
 use zeroize::Zeroize;
 
 use crate::{
-    display_passphrase, run_blocking, ClientCache, Error, Result, SyncKind,
+    display_passphrase, run_blocking, switch, ClientCache, Error, FileCache,
+    Result, SyncKind,
 };
 
 mod editor;
 mod print;
 
-type ReplCache = Arc<RwLock<dyn ClientCache>>;
+type ReplCache = Arc<RwLock<FileCache>>;
 
 enum ConflictChoice {
     Push,
@@ -144,6 +145,13 @@ enum ShellCommand {
     /// Change encrpytion password for the selected vault.
     #[clap(alias = "passwd")]
     Password,
+    /// Switch identity.
+    #[clap(alias = "su")]
+    Switch {
+        /// Keystore file for the identity.
+        #[clap(parse(from_os_str))]
+        keystore: PathBuf,
+    },
     /// Print the current identity.
     Whoami,
     /// Close the selected vault.
@@ -349,9 +357,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 
 fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
-    F: FnOnce(
-        &mut RwLockWriteGuard<'_, dyn ClientCache + 'static>,
-    ) -> Result<()>,
+    F: FnOnce(&mut RwLockWriteGuard<'_, FileCache>) -> Result<()>,
 {
     let mut writer = cache.write().unwrap();
     match func(&mut writer) {
@@ -940,6 +946,22 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                 new_passphrase.zeroize();
             }
 
+            Ok(())
+        }
+        ShellCommand::Switch { keystore } => {
+            let reader = cache.read().unwrap();
+            let server = reader.server().clone();
+            drop(reader);
+
+            let cache_dir = FileCache::cache_dir()?;
+            let mut file_cache = switch(server, cache_dir, keystore)?;
+
+            // Ensure the vault summaries are loaded
+            // so that "use" is effective immediately
+            run_blocking(file_cache.load_vaults())?;
+
+            let mut writer = cache.write().unwrap();
+            *writer = file_cache;
             Ok(())
         }
         ShellCommand::Whoami => {

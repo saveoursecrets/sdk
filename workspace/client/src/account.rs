@@ -48,6 +48,19 @@ pub fn login(
     Ok(FileCache::new(client, cache_dir, true)?)
 }
 
+/// Switch to an account.
+pub fn switch(
+    server: Url,
+    cache_dir: PathBuf,
+    keystore_file: PathBuf,
+) -> Result<FileCache> {
+    if !keystore_file.exists() {
+        return Err(Error::NotFile(keystore_file));
+    }
+    let client = ClientBuilder::new(server, keystore_file).build()?;
+    Ok(FileCache::new(client, cache_dir, true)?)
+}
+
 /// Create a new account.
 pub async fn create_account(
     server: Url,
