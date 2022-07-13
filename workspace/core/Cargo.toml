@@ -28,6 +28,13 @@ bitflags = "1"
 ouroboros = "0.15"
 tokio = { version = "1", default-features = false, features = ["fs", "io-util"] }
 
+[dependencies.pem]
+version = "1.0.3-alpha.0"
+git = "https://github.com/tmpfs/pem-rs"
+#branch = "serde-feature"
+rev = "6381ef4f29d74182461c17b82ea9a8e6370cf050"
+features = ["serde"]
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 file-guard = "0.1"
 

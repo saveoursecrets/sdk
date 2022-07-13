@@ -1816,6 +1816,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pem"
+version = "1.0.3-alpha.0"
+source = "git+https://github.com/tmpfs/pem-rs?rev=6381ef4f29d74182461c17b82ea9a8e6370cf050#6381ef4f29d74182461c17b82ea9a8e6370cf050"
+dependencies = [
+ "base64",
+ "serde",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2692,6 +2701,7 @@ dependencies = [
  "hex",
  "k256",
  "ouroboros",
+ "pem",
  "rand",
  "rs_merkle",
  "serde",
