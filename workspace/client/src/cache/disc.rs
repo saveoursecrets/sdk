@@ -946,8 +946,6 @@ impl FileCache {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let vault = WalReducer::new().reduce(wal)?.build()?;
 
-        debug_assert!(vault.header().salt().is_some());
-
         let mirror = self.mirror;
         let vault_path = self.vault_path(summary);
 

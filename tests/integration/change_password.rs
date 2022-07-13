@@ -11,15 +11,10 @@ use std::{
 };
 use tokio::sync::mpsc;
 
-use sos_client::{
-    Client, ClientCache, ClientCredentials, FileCache, SyncStatus,
-};
+use sos_client::{ClientCache, ClientCredentials};
 use sos_core::{
-    constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
-    generate_passphrase,
-    secret::SecretRef,
-    ChangePassword,
+    generate_passphrase, ChangePassword,
 };
 
 #[tokio::test]
@@ -29,8 +24,6 @@ async fn integration_change_password() -> Result<()> {
 
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
-
-    let server_url = server();
 
     let (address, credentials, mut file_cache) = signup(&dirs, 0).await?;
     let ClientCredentials {
@@ -86,7 +79,7 @@ async fn integration_change_password() -> Result<()> {
         .await?;
 
     // Create some secrets
-    let notes = create_secrets(&mut file_cache, &summary).await?;
+    let _notes = create_secrets(&mut file_cache, &summary).await?;
 
     // Check our new list of secrets has the right length
     let keeper = file_cache.current().unwrap();
