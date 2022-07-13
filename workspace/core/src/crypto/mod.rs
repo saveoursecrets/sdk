@@ -1,5 +1,6 @@
 //! Cryptographic routines and types.
 use crate::Error;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_binary::{
     Decode, Deserializer, Encode, Error as BinaryError,
@@ -144,9 +145,32 @@ pub enum Nonce {
     Nonce24([u8; 24]),
 }
 
+impl Nonce {
+    /// Generate a new random 12 byte nonce.
+    pub fn new_random_12() -> Nonce {
+        let val: [u8; 12] = rand::thread_rng().gen();
+        Nonce::Nonce12(val)
+    }
+
+    /// Generate a new random 24 byte nonce.
+    pub fn new_random_24() -> Nonce {
+        let val: [u8; 24] = rand::thread_rng().gen();
+        Nonce::Nonce24(val)
+    }
+}
+
 impl Default for Nonce {
     fn default() -> Self {
         Nonce::Nonce24([0; 24])
+    }
+}
+
+impl AsRef<[u8]> for Nonce {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            Nonce::Nonce12(ref val) => val,
+            Nonce::Nonce24(ref val) => val,
+        }
     }
 }
 
@@ -210,7 +234,7 @@ mod tests {
     fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
         let key = SecretKey::new_random_32();
         let value = b"plaintext message";
-        let aead = encrypt(&key, value)?;
+        let aead = encrypt(&key, value, None)?;
         let plaintext = decrypt(&key, &aead)?;
         assert_eq!(&plaintext, value);
         Ok(())
@@ -220,7 +244,7 @@ mod tests {
     fn xchacha20poly1305_encrypt_decrypt_tamper() {
         let key = SecretKey::new_random_32();
         let value = b"plaintext message";
-        let mut aead = encrypt(&key, value).unwrap();
+        let mut aead = encrypt(&key, value, None).unwrap();
 
         // Flip all the bits
         aead.ciphertext = aead.ciphertext.iter().map(|b| !*b).collect();
