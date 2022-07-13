@@ -83,8 +83,8 @@ impl ClientBuilder {
 }
 
 pub use account::{
-    create_account, create_signing_key, login, signup,
-    ClientCredentials, ClientKey,
+    create_account, create_signing_key, login, signup, ClientCredentials,
+    ClientKey,
 };
 pub use cache::{ClientCache, FileCache, SyncInfo, SyncKind, SyncStatus};
 pub use client::Client;

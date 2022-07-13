@@ -5,7 +5,10 @@ use crate::test_utils::*;
 
 use futures::stream::StreamExt;
 use reqwest_eventsource::Event;
-use std::{sync::{Arc, RwLock}, time::Duration};
+use std::{
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 use tokio::sync::mpsc;
 
 use sos_client::{
@@ -118,7 +121,7 @@ async fn integration_change_password() -> Result<()> {
     let mut changes = notifications.write().unwrap();
     assert_eq!(2, changes.len());
 
-    // Ignore the create secrets change event as it 
+    // Ignore the create secrets change event as it
     // does not interest us for these assertions
     let _create_secrets = changes.remove(0);
 
