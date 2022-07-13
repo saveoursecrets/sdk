@@ -5,7 +5,7 @@ use crate::test_utils::*;
 
 use futures::stream::StreamExt;
 use reqwest_eventsource::Event;
-use std::sync::{Arc, RwLock};
+use std::{sync::{Arc, RwLock}, time::Duration};
 use tokio::sync::mpsc;
 
 use sos_client::{
@@ -95,7 +95,7 @@ async fn integration_change_password() -> Result<()> {
     let (new_passphrase, _) = generate_passphrase()?;
 
     // Get a new vault for the new passphrase
-    let (mut new_passphrase, new_vault, wal_events) = ChangePassword::new(
+    let (_new_passphrase, new_vault, wal_events) = ChangePassword::new(
         keeper.vault_mut(),
         encryption_passphrase,
         new_passphrase,
@@ -110,58 +110,26 @@ async fn integration_change_password() -> Result<()> {
 
     /* CHANGE NOTIFICATIONS */
 
+    // Delay a little to ensure all the change notifications
+    // have been received
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
     // Assert on all the change notifications
     let mut changes = notifications.write().unwrap();
+    assert_eq!(2, changes.len());
 
-    /*
-    assert_eq!(5, changes.len());
+    // Ignore the create secrets change event as it 
+    // does not interest us for these assertions
+    let _create_secrets = changes.remove(0);
 
-    // Created a new vault
-    let create_vault = changes.remove(0);
-    assert_eq!(&address, create_vault.address());
-    assert_eq!(&new_vault_id, create_vault.vault_id());
-    assert_eq!(1, create_vault.changes().len());
+    // Updated vault event when we changed the password
+    let update_vault = changes.remove(0);
+    assert_eq!(&address, update_vault.address());
+    assert_eq!(summary.id(), update_vault.vault_id());
+    assert_eq!(1, update_vault.changes().len());
     assert_eq!(
-        &ChangeEvent::CreateVault,
-        create_vault.changes().get(0).unwrap()
+        &ChangeEvent::UpdateVault,
+        update_vault.changes().get(0).unwrap()
     );
-
-    // Deleted the login vault
-    let delete_vault = changes.remove(0);
-    assert_eq!(&address, delete_vault.address());
-    assert_eq!(&login_vault_id, delete_vault.vault_id());
-    assert_eq!(1, delete_vault.changes().len());
-    assert_eq!(
-        &ChangeEvent::DeleteVault,
-        delete_vault.changes().get(0).unwrap()
-    );
-
-    // Created 3 secrets
-    let create_secrets = changes.remove(0);
-    assert_eq!(&address, create_secrets.address());
-    assert_eq!(&new_vault_id, create_secrets.vault_id());
-    assert_eq!(3, create_secrets.changes().len());
-
-    // Deleted a secret
-    let delete_secret = changes.remove(0);
-    assert_eq!(&address, delete_secret.address());
-    assert_eq!(&new_vault_id, delete_secret.vault_id());
-    assert_eq!(1, delete_secret.changes().len());
-    assert_eq!(
-        &ChangeEvent::DeleteSecret(delete_secret_id),
-        delete_secret.changes().get(0).unwrap()
-    );
-
-    // Set vault name
-    let set_vault_name = changes.remove(0);
-    assert_eq!(&address, set_vault_name.address());
-    assert_eq!(&new_vault_id, set_vault_name.vault_id());
-    assert_eq!(1, set_vault_name.changes().len());
-    assert_eq!(
-        &ChangeEvent::SetVaultName(String::from(DEFAULT_VAULT_NAME)),
-        set_vault_name.changes().get(0).unwrap()
-    );
-    */
-
     Ok(())
 }

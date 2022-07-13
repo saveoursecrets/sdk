@@ -4,6 +4,8 @@ use sos_core::{
     secret::{Secret, SecretMeta},
     vault::Summary,
 };
+
+use crate::Result;
 use std::borrow::Cow;
 
 use human_bytes::human_bytes;
@@ -15,7 +17,10 @@ pub(super) fn summaries_list(summaries: &[Summary]) {
     }
 }
 
-pub(super) fn secret(secret_meta: &SecretMeta, secret_data: &Secret) {
+pub(super) fn secret(
+    secret_meta: &SecretMeta,
+    secret_data: &Secret,
+) -> Result<()> {
     let heading =
         format!("[{}] {}", secret_meta.short_name(), secret_meta.label());
 
@@ -53,8 +58,13 @@ pub(super) fn secret(secret_meta: &SecretMeta, secret_data: &Secret) {
             file.push_str(mime);
             banner.text(Cow::Owned(file))
         }
+        Secret::Pem(pem) => {
+            banner.text(Cow::Owned(serde_json::to_string(pem)?))
+        }
     };
 
     let result = banner.render();
     println!("{}", result);
+
+    Ok(())
 }

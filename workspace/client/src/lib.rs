@@ -8,12 +8,12 @@ use tokio::runtime::Runtime;
 use url::Url;
 use web3_keystore::{decrypt, KeyStore};
 
+mod account;
 mod cache;
 mod client;
 mod error;
 mod monitor;
 mod shell;
-mod signup;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 
@@ -40,11 +40,21 @@ pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {
 pub struct ClientBuilder {
     server: Url,
     keystore: PathBuf,
+    keystore_passphrase: Option<String>,
 }
 
 impl ClientBuilder {
     pub fn new(server: Url, keystore: PathBuf) -> Self {
-        Self { server, keystore }
+        Self {
+            server,
+            keystore,
+            keystore_passphrase: None,
+        }
+    }
+
+    pub fn with_keystore_passphrase(mut self, passphrase: String) -> Self {
+        self.keystore_passphrase = Some(passphrase);
+        self
     }
 
     /// Build a client implementation wrapping a signing key.
@@ -59,8 +69,12 @@ impl ClientBuilder {
         keystore_file.read_to_end(&mut keystore_bytes)?;
         let keystore: KeyStore = serde_json::from_slice(&keystore_bytes)?;
 
-        let password = read_password(Some("Passphrase: "))?;
-        let signing_bytes = decrypt(&keystore, &password)?;
+        let passphrase = if let Some(passphrase) = self.keystore_passphrase {
+            passphrase
+        } else {
+            read_password(Some("Passphrase: "))?
+        };
+        let signing_bytes = decrypt(&keystore, &passphrase)?;
 
         let signing_key: [u8; 32] = signing_bytes.as_slice().try_into()?;
         let signer: SingleParty = (&signing_key).try_into()?;
@@ -68,11 +82,12 @@ impl ClientBuilder {
     }
 }
 
+pub use account::{
+    create_account, create_signing_key, login, signup,
+    ClientCredentials, ClientKey,
+};
 pub use cache::{ClientCache, FileCache, SyncInfo, SyncKind, SyncStatus};
 pub use client::Client;
 pub use error::Error;
 pub use monitor::monitor;
 pub use shell::exec;
-pub use signup::{
-    create_account, create_signing_key, signup, ClientCredentials, ClientKey,
-};
