@@ -9,7 +9,7 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
 
 use sos_client::{
-    Client, ClientCache, ClientCredentials, FileCache, SyncStatus, login,
+    login, Client, ClientCache, ClientCredentials, FileCache, SyncStatus,
 };
 use sos_core::{
     constants::DEFAULT_VAULT_NAME,
@@ -39,32 +39,24 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
         ..
     } = credentials;
 
-    // Set up another connected client using a different 
+    // Set up another connected client using a different
     // cache directory but sharing the same credentials
     let cache_dir = dirs.clients.get(1).unwrap().to_path_buf();
-    let mut client2 = login(
-        server_url,
-        cache_dir,
-        keystore_file,
-        keystore_passphrase,
-    )?;
+    let mut client2 =
+        login(server_url, cache_dir, keystore_file, keystore_passphrase)?;
     let _ = client2.load_vaults().await?;
 
     // Both client use the login vault
-    client1
-        .open_vault(&summary, &encryption_passphrase)
-        .await?;
-    client2
-        .open_vault(&summary, &encryption_passphrase)
-        .await?;
+    client1.open_vault(&summary, &encryption_passphrase).await?;
+    client2.open_vault(&summary, &encryption_passphrase).await?;
 
     // Create some secrets in client 1
     let _notes = create_secrets(&mut client1, &summary).await?;
 
     // Create some secrets in client 2
     //
-    // This triggers the code path where an attempted patch 
-    // will return a CONFLICT which can be resolved with a pull 
+    // This triggers the code path where an attempted patch
+    // will return a CONFLICT which can be resolved with a pull
     // and then this node can try the patch again.
     let _notes = create_secrets(&mut client2, &summary).await?;
 

@@ -1,7 +1,7 @@
 //! Signup a new account.
 use crate::{
-    display_passphrase, run_blocking, Client, ClientCache, Error, FileCache, ClientBuilder,
-    Result,
+    display_passphrase, run_blocking, Client, ClientBuilder, ClientCache,
+    Error, FileCache, Result,
 };
 use sos_core::{
     address::AddressStr, crypto::generate_random_ecdsa_signing_key,
