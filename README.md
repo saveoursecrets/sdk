@@ -29,7 +29,9 @@ When a node wants to make changes to another node it sends a commit proof of it'
 
 If the remote node has the same HEAD commit then the patch can be applied safely and a success response is returned to the node that made the request; when the calling node gets a success response it applies the patch to it's local copy of the append-only log.
 
-If the remote node *contains* the HEAD commit then it will send a CONFLICT response and a proof that it contains the calling node's HEAD. The calling node can then synchronize by pulling changes from the remote node and try to apply the patch again afterwards.
+If the remote node *contains* the HEAD commit then it will send a CONFLICT response and a proof that it contains the calling node's HEAD. The calling node can then synchronize by pulling changes from the remote node and try to apply the patch again.
+
+If a calling node gets a CONFLICT response and no match proof then it a *hard conflict* will need to be resolved, see [Conflicts](#conflicts).
 
 ### Networking
 
@@ -41,7 +43,15 @@ For the networking layer we plan to support three different modes of operation:
 
 ### Conflicts
 
-The system is eventually consistent except in the case of two events; when a WAL is compacted to prune history or when the encryption password for a vault is changed. Either of these events will completely rewrite the append-only log and therefore the vault commit trees will have diverged. If all nodes are connected when these events occur then it is possible to synchronize automatically but if a node is offline (or an error occurs) then we have a conflict that must be resolved.
+Conflicts are categorised into *soft conflicts* which can be automatically resolved via synchronization and *hard conflicts* which may require user approval to be resolved.
+
+#### Soft Conflict
+
+Soft conflicts occur when a node tries to make changes to another node but cannot as their commit trees are out of sync but have not diverged. These sorts of conflicts can be resolved by pushing local changes or pulling remote changes to synchronize; if the synchronization is successful the calling node can try again.
+
+#### Hard Conflict
+
+The system is eventually consistent except in the case of two events; when a WAL is compacted to prune history or when the encryption password for a vault is changed. Either of these events will completely rewrite the append-only log and therefore the vault commit trees will have diverged. If all nodes are connected when these events occur then it is possible to synchronize automatically but if a node is offline (or an error occurs) then we have a conflict that must be resolved; we call this a *hard conflict*.
 
 ## Setup
 
