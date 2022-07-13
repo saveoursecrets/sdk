@@ -65,14 +65,14 @@ impl VaultMeta {
 
 impl Encode for VaultMeta {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        self.label.serialize(&mut *ser)?;
+        ser.writer.write_string(&self.label)?;
         Ok(())
     }
 }
 
 impl Decode for VaultMeta {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.label = Deserialize::deserialize(&mut *de)?;
+        self.label = de.reader.read_string()?;
         Ok(())
     }
 }
@@ -133,7 +133,7 @@ impl SecretMeta {
 impl Encode for SecretMeta {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
         ser.writer.write_u8(self.kind)?;
-        self.label.serialize(&mut *ser)?;
+        ser.writer.write_string(&self.label)?;
         Ok(())
     }
 }
@@ -141,7 +141,7 @@ impl Encode for SecretMeta {
 impl Decode for SecretMeta {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
         self.kind = de.reader.read_u8()?;
-        self.label = Deserialize::deserialize(&mut *de)?;
+        self.label = de.reader.read_string()?;
         Ok(())
     }
 }

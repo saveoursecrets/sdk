@@ -2,21 +2,20 @@
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 
-use rand::Rng;
-
 use super::{secret_key::SecretKey, AeadPack, Nonce};
 use crate::{Error, Result};
 
 /// Encrypt plaintext as XChaCha20Poly1305 to an AeadPack.
-pub fn encrypt(key: &SecretKey, plaintext: &[u8]) -> Result<AeadPack> {
-    let nonce: [u8; 24] = rand::thread_rng().gen();
-    let cipher_nonce = XNonce::from_slice(&nonce);
+pub fn encrypt(
+    key: &SecretKey,
+    plaintext: &[u8],
+    nonce: Option<Nonce>,
+) -> Result<AeadPack> {
+    let nonce = nonce.unwrap_or_else(|| Nonce::new_random_24());
+    let cipher_nonce = XNonce::from_slice(nonce.as_ref());
     let cipher = XChaCha20Poly1305::new(Key::from_slice(key.as_slice()));
     let ciphertext = cipher.encrypt(cipher_nonce, plaintext)?;
-    Ok(AeadPack {
-        ciphertext,
-        nonce: Nonce::Nonce24(nonce),
-    })
+    Ok(AeadPack { ciphertext, nonce })
 }
 
 /// Decrypt ciphertext using XChaCha20Poly1305.
@@ -40,7 +39,7 @@ mod tests {
     fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
         let key = SecretKey::new_random_32();
         let plaintext = b"super secret value";
-        let aead_pack = encrypt(&key, plaintext)?;
+        let aead_pack = encrypt(&key, plaintext, None)?;
         let decrypted = decrypt(&key, &aead_pack)?;
         assert_eq!(plaintext.to_vec(), decrypted);
         Ok(())

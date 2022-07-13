@@ -26,7 +26,7 @@ use crate::{
     },
     crypto::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
-        AeadPack,
+        AeadPack, Nonce,
     },
     events::SyncEvent,
     iter::vault_iter,
@@ -166,19 +166,26 @@ pub trait VaultAccess {
 /// Authentication information.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Auth {
+    /// Salt used to derive a secret key from the passphrase.
     salt: Option<String>,
 }
 
 impl Encode for Auth {
     fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        self.salt.serialize(&mut *ser)?;
+        ser.writer.write_bool(self.salt.is_some())?;
+        if let Some(salt) = &self.salt {
+            ser.writer.write_string(salt)?;
+        }
         Ok(())
     }
 }
 
 impl Decode for Auth {
     fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.salt = Deserialize::deserialize(&mut *de)?;
+        let has_salt = de.reader.read_bool()?;
+        if has_salt {
+            self.salt = Some(de.reader.read_string()?);
+        }
         Ok(())
     }
 }
@@ -624,7 +631,35 @@ impl Vault {
         self.contents.data.get(id)
     }
 
-    /// Encrypt a plaintext value using the algorithm assigned to this vault.
+    /// Implements nonce-reuse protection by scanning all
+    /// existing nonces and recursing if a collision is found.
+    fn generate_safe_nonce(&self) -> Nonce {
+        let nonce = match self.algorithm() {
+            Algorithm::AesGcm256(_) => Nonce::new_random_12(),
+            Algorithm::XChaCha20Poly1305(_) => Nonce::new_random_24(),
+        };
+
+        if let Some(vault_meta) = self.header().meta() {
+            // Got collision, try again
+            if nonce == vault_meta.nonce {
+                return self.generate_safe_nonce();
+            }
+        }
+
+        for VaultCommit(_, VaultEntry(meta, data)) in self.values() {
+            if nonce == meta.nonce {
+                // Got collision, try again
+                return self.generate_safe_nonce();
+            }
+            if nonce == data.nonce {
+                // Got collision, try again
+                return self.generate_safe_nonce();
+            }
+        }
+        nonce
+    }
+
+    /// Encrypt plaintext using the algorithm assigned to this vault.
     pub fn encrypt(
         &self,
         key: &SecretKey,
@@ -632,13 +667,17 @@ impl Vault {
     ) -> Result<AeadPack> {
         match self.algorithm() {
             Algorithm::XChaCha20Poly1305(_) => {
-                xchacha20poly1305::encrypt(key, plaintext)
+                let nonce = self.generate_safe_nonce();
+                xchacha20poly1305::encrypt(key, plaintext, Some(nonce))
             }
-            Algorithm::AesGcm256(_) => aesgcm256::encrypt(key, plaintext),
+            Algorithm::AesGcm256(_) => {
+                let nonce = self.generate_safe_nonce();
+                aesgcm256::encrypt(key, plaintext, Some(nonce))
+            }
         }
     }
 
-    /// Decrypt a ciphertext value using the algorithm assigned to this vault.
+    /// Decrypt ciphertext using the algorithm assigned to this vault.
     pub fn decrypt(
         &self,
         key: &SecretKey,
