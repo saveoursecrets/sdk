@@ -1818,7 +1818,7 @@ dependencies = [
 [[package]]
 name = "pem"
 version = "1.0.3-alpha.0"
-source = "git+https://github.com/tmpfs/pem-rs?branch=serde-feature#79cf854fcabc047c9747f8ec37a01d7645a01c71"
+source = "git+https://github.com/tmpfs/pem-rs?rev=6381ef4f29d74182461c17b82ea9a8e6370cf050#6381ef4f29d74182461c17b82ea9a8e6370cf050"
 dependencies = [
  "base64",
  "serde",
