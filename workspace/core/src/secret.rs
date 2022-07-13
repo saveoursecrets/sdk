@@ -5,11 +5,7 @@ use serde_binary::{
 };
 
 use pem::Pem;
-use serde::{
-    de::{self, EnumAccess, VariantAccess, Visitor},
-    ser::SerializeStruct,
-    Deserialize, Serialize,
-};
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;

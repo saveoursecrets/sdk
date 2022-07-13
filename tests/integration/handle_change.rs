@@ -8,16 +8,8 @@ use reqwest_eventsource::Event;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::{mpsc, RwLock};
 
-use sos_client::{
-    login, Client, ClientCache, ClientCredentials, FileCache, SyncStatus,
-};
-use sos_core::{
-    constants::DEFAULT_VAULT_NAME,
-    events::{ChangeEvent, ChangeNotification},
-    generate_passphrase,
-    secret::SecretRef,
-    ChangePassword,
-};
+use sos_client::{login, ClientCache, ClientCredentials};
+use sos_core::{commit_tree::CommitProof, events::ChangeNotification};
 
 #[tokio::test]
 #[serial]
@@ -50,10 +42,6 @@ async fn integration_handle_change() -> Result<()> {
     let (tx, mut rx) = mpsc::channel(1);
 
     let mut es = listener.client().changes().await?;
-    let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
-        Arc::new(RwLock::new(Vec::new()));
-    let changed = Arc::clone(&notifications);
-
     tokio::task::spawn(async move {
         while let Some(event) = es.next().await {
             match event {
@@ -95,8 +83,9 @@ async fn integration_handle_change() -> Result<()> {
     let listener_cache = Arc::new(RwLock::new(listener));
     let listener_summary = summary.clone();
 
-    let change_flag = Arc::new(RwLock::new(false));
-    let listener_changed = Arc::clone(&change_flag);
+    let listener_change: Arc<RwLock<Option<CommitProof>>> =
+        Arc::new(RwLock::new(None));
+    let listener_head = Arc::clone(&listener_change);
 
     // Spawn a task to handle change notifications
     tokio::task::spawn(async move {
@@ -110,24 +99,31 @@ async fn integration_handle_change() -> Result<()> {
             .handle_change(notification)
             .await
             .expect("failed to handle change");
+
+        let head =
+            writer.wal_tree(&listener_summary).unwrap().head().unwrap();
+
         // Close the listener vault
         writer.close_vault();
+        drop(writer);
 
-        let mut changed_flag = listener_changed.write().await;
-        *changed_flag = true;
+        let mut writer = listener_head.write().await;
+        *writer = Some(head);
     });
 
     // Create some secrets in the creator
     // to trigger a change notification
     let _notes = create_secrets(&mut creator, &summary).await?;
 
+    let creator_head = creator.wal_tree(&summary).unwrap().head()?;
+
     // Delay a while so the change notification SSE events
     // can be received
-    tokio::time::sleep(Duration::from_millis(250)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Verify our spawned task handled the notification
-    let was_changed = change_flag.read().await;
-    assert!(*was_changed);
+    let updated_head = listener_change.read().await;
+    assert_eq!(&creator_head, updated_head.as_ref().unwrap());
 
     // Close the creator vault
     creator.close_vault();

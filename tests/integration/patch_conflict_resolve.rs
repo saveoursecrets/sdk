@@ -3,21 +3,7 @@ use serial_test::serial;
 
 use crate::test_utils::*;
 
-use futures::stream::StreamExt;
-use reqwest_eventsource::Event;
-use std::sync::{Arc, RwLock};
-use tokio::sync::mpsc;
-
-use sos_client::{
-    login, Client, ClientCache, ClientCredentials, FileCache, SyncStatus,
-};
-use sos_core::{
-    constants::DEFAULT_VAULT_NAME,
-    events::{ChangeEvent, ChangeNotification},
-    generate_passphrase,
-    secret::SecretRef,
-    ChangePassword,
-};
+use sos_client::{login, ClientCache, ClientCredentials};
 
 #[tokio::test]
 #[serial]

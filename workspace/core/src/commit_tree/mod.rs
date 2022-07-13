@@ -4,7 +4,6 @@ use serde::{
     ser::SerializeTuple,
 };
 use serde_binary::{
-    binary_rw::{BinaryReader, SeekStream},
     Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
 use std::{fmt, ops::Range};
@@ -38,6 +37,17 @@ pub struct CommitProof(
     pub usize,
     pub Range<usize>,
 );
+
+impl PartialEq for CommitProof {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+            && self.1.proof_hashes() == other.1.proof_hashes()
+            && self.2 == other.2
+            && self.3 == other.3
+    }
+}
+
+impl Eq for CommitProof {}
 
 impl Clone for CommitProof {
     fn clone(&self) -> Self {
@@ -160,7 +170,7 @@ struct CommitProofVisitor;
 impl<'de> Visitor<'de> for CommitProofVisitor {
     type Value = CommitProof;
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn expecting(&self, _formatter: &mut fmt::Formatter) -> fmt::Result {
         Ok(())
     }
 

@@ -124,8 +124,6 @@ impl<'a> ChangePassword<'a> {
 
         wal_events.sort();
 
-        debug_assert!(new_vault.header().salt().is_some());
-
         Ok((self.new_passphrase, new_vault, wal_events))
     }
 }
