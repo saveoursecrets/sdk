@@ -21,7 +21,19 @@ A vault is a collection of encrypted secrets and their associated meta data. Vau
 
 Synchronization between nodes is done using the append-only log file (which we refer to as a write-ahead log or WAL); a Merkle tree is computed for each log file using the hash of the data for each record. By comparing Merkle proofs we can easily determine which tree is ahead or whether the trees have diverged; much in the same way that [git][] synchronizes source code.
 
-Secrets are *always encrypted on the client* using a random nonce and one of the supported algorithms, either XChaCha20Poly1305 or AES-GCM 256. The default algorithm is XChaCha20Poly1305 for it's extended 24 byte nonce and because it does not required special AES instructions on the CPU to be implemented safely.
+Secrets are *always encrypted on the client* using a random nonce and one of the supported algorithms, either XChaCha20Poly1305 or AES-GCM 256. The default algorithm is XChaCha20Poly1305 for it's extended 24 byte nonce and because it does not require AES-specific CPU instructions to be implemented safely.
+
+### Networking
+
+For the networking layer we plan to support three different modes of operation:
+
+* [x] `SPOT`: Single Point of Truth using a standard client/server architecture.
+* [ ] `PEER`: Synchronization of nodes on a trusted LAN using mDNS for discovery.
+* [ ] `VPN`: Synchronization of nodes over a WAN using the [wireguard][] VPN.
+
+### Conflicts
+
+The system is eventually consistent except in the case of two events; when a WAL is compacted to prune history or when the encryption password for a vault is changed. Either of these events will completely rewrite the append-only log and therefore the vault commit trees will have diverged. If all nodes are connected when these events occur then it is possible to synchronize automatically but if a node is offline (or an error occurs) then we have a conflict that must be resolved.
 
 ## Setup
 
@@ -98,6 +110,7 @@ cargo make server-release
 ```
 
 [git]: https://git-scm.com/
+[wireguard]: https://www.wireguard.com/
 [lcov]: https://github.com/linux-test-project/lcov
 [grcov]: https://github.com/mozilla/grcov
 [mkcert]: https://github.com/FiloSottile/mkcert
