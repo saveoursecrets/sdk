@@ -17,11 +17,19 @@ For webassembly bindings see the [browser][] repository.
 
 ## Design
 
-A vault is a collection of encrypted secrets and their associated meta data. Vaults can be represented as both an append-only log file for synchronization and a compact binary file for archiving and portability. Bi-directional conversion between the append-only log and compact binary file is straightforward; the library provides methods to *reduce* the append-only log to a vault and *split* a vault into it's header and a collection of events that can be appended to a log.
+A vault is a collection of encrypted secrets. Vaults can be represented as both an append-only log file for synchronization and a compact binary file for archiving and portability. Bi-directional conversion between the append-only log and compact binary file is straightforward; the library provides methods to *reduce* the append-only log to a vault and *split* a vault into it's header and a collection of events that can be appended to a log.
 
 Synchronization between nodes is done using the append-only log file (which we refer to as a write-ahead log or WAL); a Merkle tree is computed for each log file using the hash of the data for each record. By comparing Merkle proofs we can easily determine which tree is ahead or whether the trees have diverged; much in the same way that [git][] synchronizes source code.
 
 Secrets are *always encrypted on the client* using a random nonce and one of the supported algorithms, either XChaCha20Poly1305 or AES-GCM 256. The default algorithm is XChaCha20Poly1305 for it's extended 24 byte nonce and because it does not require AES-specific CPU instructions to be implemented safely.
+
+### Changes
+
+When a node wants to make changes to another node it sends a commit proof of it's current HEAD node and a patch file containing the events to apply to the remote node.
+
+If the remote node has the same HEAD commit then the patch can be applied safely and a success response is returned to the node that made the request; when the calling node gets a success response it applies the patch to it's local copy of the append-only log.
+
+If the remote node *contains* the HEAD commit then it will send a CONFLICT response and a proof that it contains the calling node's HEAD. The calling node can then synchronize by pulling changes from the remote node and try to apply the patch again afterwards.
 
 ### Networking
 
