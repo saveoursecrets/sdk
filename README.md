@@ -17,7 +17,7 @@ For webassembly bindings see the [browser][] repository.
 
 ## Design
 
-A vault is a collection of encrypted secrets. Vaults can be represented as both an append-only log file for synchronization and a compact binary file for archiving and portability. Bi-directional conversion between the append-only log and compact binary file is straightforward; the library provides methods to *reduce* the append-only log to a vault and *split* a vault into it's header and a collection of events that can be appended to a log.
+A vault is a collection of encrypted secrets. Vaults can be represented as both an append-only log file for synchronization and a compact binary file for archiving and portability. Bi-directional conversion between the append-only log and compact binary file is straightforward; the library provides functions to *reduce* the append-only log to a vault and *split* a vault into it's header and a collection of events that can be appended to a log.
 
 Synchronization between nodes is done using the append-only log file (which we refer to as a write-ahead log or WAL); a Merkle tree is computed for each log file using the hash of the data for each record. By comparing Merkle proofs we can easily determine which tree is ahead or whether the trees have diverged; much in the same way that [git][] synchronizes source code.
 
@@ -31,7 +31,9 @@ If the remote node has the same HEAD commit then the patch can be applied safely
 
 If the remote node *contains* the HEAD commit then it will send a CONFLICT response and a proof that it contains the calling node's HEAD. The calling node can then synchronize by pulling changes from the remote node and try to apply the patch again.
 
-If a calling node gets a CONFLICT response and no match proof then it a *hard conflict* will need to be resolved, see [Conflicts](#conflicts).
+If a calling node gets a CONFLICT response and no match proof but it contains the HEAD proof returned by the remote node then it can push it's local changes to the remote node and try again.
+
+If a calling node gets a CONFLICT response and no match proof and it does not contain the HEAD proof send by the remote node then it is a *hard conflict* and will need to be resolved, see [Conflicts](#conflicts).
 
 ### Networking
 
