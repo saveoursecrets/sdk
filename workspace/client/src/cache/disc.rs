@@ -13,7 +13,7 @@ use sos_core::{
     },
     constants::{VAULT_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY},
     encode,
-    events::{ChangeNotification, SyncEvent, WalEvent},
+    events::{ChangeEvent, ChangeNotification, SyncEvent, WalEvent},
     generate_passphrase,
     iter::WalFileRecord,
     secret::SecretRef,
@@ -193,6 +193,19 @@ impl ClientCache for FileCache {
                 match status {
                     SyncStatus::Behind(_, _) => {
                         self.pull(summary, false).await?;
+                    }
+                    SyncStatus::Diverged(_) => {
+                        if let Some(_) = change
+                            .changes()
+                            .into_iter()
+                            .find(|c| *c == &ChangeEvent::UpdateVault)
+                        {
+                            // If the trees have diverged and the other
+                            // node indicated it did an update to the
+                            // entire vault then we need a force pull to
+                            // stay in sync
+                            self.pull(summary, true).await?;
+                        }
                     }
                     _ => {}
                 }
