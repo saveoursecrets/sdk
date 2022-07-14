@@ -30,7 +30,7 @@ zeroize = "1.4"
 
 [[bin]]
 name = "sos-client"
-path = "src/bin/main.rs"
+path = "src/main.rs"
 
 [package.metadata.release]
 release = false

@@ -67,10 +67,6 @@ pub struct RequestClient {
 
 #[async_trait]
 impl HttpClient for RequestClient {
-    fn server(&self) -> &Url {
-        &self.server
-    }
-
     fn address(&self) -> Result<AddressStr> {
         Ok(self.signer.address()?)
     }

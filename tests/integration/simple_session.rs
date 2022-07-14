@@ -7,6 +7,7 @@ use futures::stream::StreamExt;
 use reqwest_eventsource::Event;
 use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
+use url::Url;
 
 use sos_core::{
     constants::DEFAULT_VAULT_NAME,
@@ -15,10 +16,8 @@ use sos_core::{
 };
 use sos_node::{
     client::{
-        account::AccountCredentials,
-        file_cache::FileCache,
-        http_client::{HttpClient, RequestClient},
-        ClientCache,
+        account::AccountCredentials, file_cache::FileCache,
+        http_client::RequestClient, ClientCache,
     },
     SyncStatus,
 };
@@ -80,7 +79,6 @@ async fn integration_simple_session() -> Result<()> {
 
     let _ = FileCache::cache_dir()?;
 
-    assert_eq!(&server_url, file_cache.server());
     assert_eq!(address, file_cache.address()?);
 
     // Check the /api route
@@ -88,10 +86,10 @@ async fn integration_simple_session() -> Result<()> {
     assert!(server_info.status().is_success());
 
     // Trigger server code path for the / URL
-    home(file_cache.client()).await?;
+    home(&server_url, file_cache.client()).await?;
 
     // Trigger server code path for the /gui assets
-    gui(file_cache.client()).await?;
+    gui(&server_url, file_cache.client()).await?;
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
@@ -246,15 +244,15 @@ async fn integration_simple_session() -> Result<()> {
     Ok(())
 }
 
-async fn home(client: &RequestClient) -> Result<()> {
-    let url = client.server().clone();
+async fn home(server: &Url, client: &RequestClient) -> Result<()> {
+    let url = server.clone();
     let response = client.get(url).await?;
     assert!(response.status().is_success());
     Ok(())
 }
 
-async fn gui(client: &RequestClient) -> Result<()> {
-    let url = client.server().join("gui")?;
+async fn gui(server: &Url, client: &RequestClient) -> Result<()> {
+    let url = server.join("gui")?;
     let response = client.get(url).await?;
     assert!(response.status().is_success());
     Ok(())

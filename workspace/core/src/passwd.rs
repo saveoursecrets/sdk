@@ -12,8 +12,8 @@ use zeroize::Zeroize;
 
 /// Builder that changes a vault password.
 ///
-/// Generates a new vault derived from the original vault so 
-/// it is possible for callers to rollback to the original if 
+/// Generates a new vault derived from the original vault so
+/// it is possible for callers to rollback to the original if
 /// necessary.
 pub struct ChangePassword<'a> {
     /// The in-memory vault.
@@ -56,8 +56,8 @@ impl<'a> ChangePassword<'a> {
 
     /// Build a new vault.
     ///
-    /// Yields the encrpytion passphrase for the new vault, the 
-    /// new computed vault and a collection of events that can 
+    /// Yields the encrpytion passphrase for the new vault, the
+    /// new computed vault and a collection of events that can
     /// be used to generate a fresh write-ahead log file.
     pub fn build(
         mut self,

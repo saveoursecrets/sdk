@@ -152,9 +152,6 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
 /// selected vault.
 #[async_trait]
 pub trait ClientCache {
-    /// Get the server URL.
-    fn server(&self) -> &Url;
-
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;
 
