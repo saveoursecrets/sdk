@@ -16,7 +16,7 @@ uuid = "1"
 
 [[bin]]
 name = "sos-check"
-path = "src/bin/main.rs"
+path = "src/main.rs"
 
 [package.metadata.release]
 release = false

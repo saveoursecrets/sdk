@@ -3,8 +3,8 @@ use async_trait::async_trait;
 use http::StatusCode;
 use rand::Rng;
 use reqwest::{
-    header::HeaderMap, 
-    ClientBuilder as HttpClientBuilder, RequestBuilder, Response,
+    header::HeaderMap, ClientBuilder as HttpClientBuilder, RequestBuilder,
+    Response,
 };
 use reqwest_eventsource::EventSource;
 use sos_core::{
@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use crate::client::{Error, Result};
 
-use super::{HttpClient, Challenge, encode_signature, bearer_prefix};
+use super::{bearer_prefix, encode_signature, Challenge, HttpClient};
 
 const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
@@ -77,8 +77,7 @@ impl HttpClient for RequestClient {
 
     async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
         let url = self.server.join("api/accounts")?;
-        let signature =
-            encode_signature(self.signer.sign(&vault).await?)?;
+        let signature = encode_signature(self.signer.sign(&vault).await?)?;
 
         let response = self
             .http_client
@@ -115,8 +114,7 @@ impl HttpClient for RequestClient {
         let (uuid, message) = challenge;
         let url = format!("api/auth/{}", uuid);
         let url = self.server.join(&url)?;
-        let signature =
-            encode_signature(self.signer.sign(&message).await?)?;
+        let signature = encode_signature(self.signer.sign(&message).await?)?;
 
         let response = self
             .http_client
@@ -141,8 +139,7 @@ impl HttpClient for RequestClient {
         vault: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join("api/vaults")?;
-        let signature =
-            encode_signature(self.signer.sign(&vault).await?)?;
+        let signature = encode_signature(self.signer.sign(&vault).await?)?;
         let response = self
             .http_client
             .put(url)
@@ -197,8 +194,7 @@ impl HttpClient for RequestClient {
         body: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
-        let signature =
-            encode_signature(self.signer.sign(&body).await?)?;
+        let signature = encode_signature(self.signer.sign(&body).await?)?;
         let mut builder = self
             .http_client
             .post(url)
@@ -226,8 +222,7 @@ impl HttpClient for RequestClient {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let message = encode(&*patch)?;
 
-        let signature =
-            encode_signature(self.signer.sign(&message).await?)?;
+        let signature = encode_signature(self.signer.sign(&message).await?)?;
 
         let mut builder = self
             .http_client
@@ -306,8 +301,7 @@ impl HttpClient for RequestClient {
         vault: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
-        let signature =
-            encode_signature(self.signer.sign(&vault).await?)?;
+        let signature = encode_signature(self.signer.sign(&vault).await?)?;
 
         let response = self
             .http_client
@@ -354,8 +348,7 @@ impl RequestClient {
 
     async fn self_signed(&self) -> Result<(Vec<u8>, String)> {
         let message: [u8; 32] = rand::thread_rng().gen();
-        let signature =
-            encode_signature(self.signer.sign(&message).await?)?;
+        let signature = encode_signature(self.signer.sign(&message).await?)?;
         Ok((message.to_vec(), signature))
     }
 
