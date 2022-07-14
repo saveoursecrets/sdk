@@ -5,7 +5,7 @@ use url::Url;
 use std::future::Future;
 use tokio::runtime::Runtime;
 
-use http_client::RequestClient;
+use net::RequestClient;
 
 use futures::StreamExt;
 use reqwest_eventsource::Event;
@@ -26,11 +26,11 @@ use sos_core::{
     Gatekeeper,
 };
 
-use crate::{SyncInfo, SyncStatus};
+use crate::sync::{SyncInfo, SyncStatus};
 
 pub mod account;
 pub mod file_cache;
-pub mod http_client;
+pub mod net;
 
 mod error;
 pub use error::Error;

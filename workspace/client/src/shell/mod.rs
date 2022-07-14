@@ -21,7 +21,7 @@ use sos_core::{
 };
 use sos_node::{
     client::{file_cache::FileCache, run_blocking, ClientCache},
-    SyncKind,
+    sync::SyncKind,
 };
 use sos_readline::{
     choose, read_flag, read_line, read_line_allow_empty, read_multiline,
