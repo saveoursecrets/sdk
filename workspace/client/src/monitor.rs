@@ -4,7 +4,7 @@ use url::Url;
 
 use crate::{Result, StdinPassphraseReader};
 use sos_core::events::ChangeNotification;
-use sos_node::{client::changes_stream, run_blocking, ClientBuilder};
+use sos_node::client::{changes_stream, run_blocking, ClientBuilder};
 
 /// Start a monitor listening for events on the SSE stream.
 pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {

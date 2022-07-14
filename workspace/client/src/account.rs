@@ -1,11 +1,9 @@
 //! Signup a new account.
 use crate::{display_passphrase, Error, Result};
 
-use sos_node::{
-    client::{
-        account::{create_account, create_signing_key},
-        file_cache::FileCache,
-    },
+use sos_node::client::{
+    account::{create_account, create_signing_key},
+    file_cache::FileCache,
     run_blocking, ClientBuilder, PassphraseReader,
 };
 use sos_readline::{read_flag, read_password};
