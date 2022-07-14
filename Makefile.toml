@@ -62,7 +62,7 @@ args = ["test", "--all", "--lib", "--", "--nocapture"]
 
 [tasks.integration]
 command = "cargo"
-args = ["test", "integration", "--", "--nocapture"]
+args = ["test", "integration"]
 
 [tasks.test]
 dependencies = ["unit", "integration"]

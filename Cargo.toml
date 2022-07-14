@@ -21,6 +21,7 @@ members = [
 
 [dependencies]
 sos-audit = { path = "workspace/audit", version = "0.1.0" }
+sos-check = { path = "workspace/check", version = "0.1.0" }
 sos-client = { path = "workspace/client", version = "0.1.0" }
 sos-node = { path = "workspace/node", version = "0.1.0" }
 sos-core = { path = "workspace/core", version = "0.1.0" }
