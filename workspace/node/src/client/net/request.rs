@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use crate::client::{Error, Result};
 
-use super::{bearer_prefix, encode_signature, Challenge, HttpClient};
+use super::{bearer_prefix, encode_signature, Challenge, NetworkClient};
 
 const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
@@ -66,7 +66,7 @@ pub struct RequestClient {
 }
 
 #[async_trait]
-impl HttpClient for RequestClient {
+impl NetworkClient for RequestClient {
     fn address(&self) -> Result<AddressStr> {
         Ok(self.signer.address()?)
     }

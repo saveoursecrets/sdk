@@ -1,6 +1,6 @@
 //! Caching implementation backed by files.
 use super::{Error, Result};
-use crate::client::http_client::{HttpClient, RequestClient};
+use crate::client::net::{NetworkClient, RequestClient};
 
 use async_recursion::async_recursion;
 use async_trait::async_trait;
@@ -36,7 +36,7 @@ use tempfile::NamedTempFile;
 use uuid::Uuid;
 
 use super::ClientCache;
-use crate::{SyncInfo, SyncKind, SyncStatus};
+use crate::sync::{SyncInfo, SyncKind, SyncStatus};
 
 fn assert_proofs_eq(
     client_proof: &CommitProof,

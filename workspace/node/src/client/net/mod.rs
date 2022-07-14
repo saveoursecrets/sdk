@@ -22,9 +22,9 @@ pub(crate) fn bearer_prefix(signature: &str) -> String {
     format!("Bearer {}", signature)
 }
 
-/// Trait for HTTP client implementations.
+/// Trait for network client implementations.
 #[async_trait]
-pub trait HttpClient {
+pub trait NetworkClient {
     /// Compute the address of the current signer.
     fn address(&self) -> Result<AddressStr>;
 
@@ -77,6 +77,10 @@ pub trait HttpClient {
     ) -> Result<(StatusCode, Option<CommitProof>)>;
 
     /// Update an existing vault.
+    ///
+    /// This should be used when the commit tree has been
+    /// rewritten, for example if the history was compacted
+    /// or the password for a vault was changed.
     async fn put_vault(
         &self,
         vault_id: &Uuid,
