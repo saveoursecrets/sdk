@@ -4,14 +4,17 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, thread};
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
 
-use sos_client::{ClientCache, FileCache};
 use sos_core::{
     events::SyncEvent,
     secret::{Secret, SecretId, SecretMeta},
     vault::Summary,
     AuditLogFile, FileLocks,
 };
-use sos_server::{Authentication, Server, ServerConfig, ServerInfo, State};
+
+use sos_node::{
+    client::{file_cache::FileCache, ClientCache},
+    server::{Authentication, Server, ServerConfig, ServerInfo, State},
+};
 
 const ADDR: &str = "127.0.0.1:3505";
 const SERVER: &str = "http://localhost:3505";

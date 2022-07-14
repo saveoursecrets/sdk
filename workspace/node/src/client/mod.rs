@@ -1,93 +1,147 @@
-//! Types and traits for caching and synchronization.
-use crate::{Client, Result};
-use std::fmt;
+//! Traits and implementations for clients.
+use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
+use url::Url;
+
+use std::future::Future;
+use tokio::runtime::Runtime;
+
+use http_client::Client;
+
+use futures::StreamExt;
+use reqwest_eventsource::Event;
+
+use web3_keystore::{decrypt, KeyStore};
 
 use async_trait::async_trait;
 
 use sos_core::{
     address::AddressStr,
-    commit_tree::{CommitPair, CommitProof, CommitTree},
+    commit_tree::CommitTree,
     events::{ChangeNotification, SyncEvent, WalEvent},
     iter::WalFileRecord,
     secret::SecretRef,
+    signer::SingleParty,
     vault::{Summary, Vault},
     wal::snapshot::{SnapShot, SnapShotManager},
     Gatekeeper,
 };
 
-use url::Url;
+use crate::{SyncInfo, SyncStatus};
 
-/// The relationship between a local and remote WAL file.
-pub enum SyncStatus {
-    /// Local and remote are equal.
-    Equal(CommitPair),
-    /// Local WAL is ahead of the remote.
-    ///
-    /// A push operation should be successful.
-    Ahead(CommitPair, usize),
-    /// Local WAL is behind the remote.
-    ///
-    /// A pull operation should be successful.
-    Behind(CommitPair, usize),
-    /// Commit trees have diverged and either a force
-    /// push or force pull is required to synchronize.
-    Diverged(CommitPair),
+pub mod account;
+pub mod file_cache;
+pub mod http_client;
+
+mod error;
+pub use error::Error;
+
+/// Result type for the client module.
+pub type Result<T> = std::result::Result<T, error::Error>;
+
+/// Runs a future blocking the current thread.
+///
+/// Exposed so we can merge the synchronous nature
+/// of the shell REPL prompt with the asynchronous API
+/// exposed by the HTTP client.
+pub fn run_blocking<F, R>(func: F) -> Result<R>
+where
+    F: Future<Output = Result<R>> + Send,
+    R: Send,
+{
+    Runtime::new().unwrap().block_on(func)
 }
 
-impl fmt::Display for SyncStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Equal(_) => {
-                write!(f, "Up to date")
+/// Creates a changes stream and calls handler for every change notification.
+pub async fn changes_stream<F>(client: &Client, handler: F) -> Result<()>
+where
+    F: Fn(ChangeNotification) -> (),
+{
+    let mut es = client.changes().await?;
+    while let Some(event) = es.next().await {
+        match event {
+            Ok(Event::Open) => tracing::debug!("sse connection open"),
+            Ok(Event::Message(message)) => {
+                let notification: ChangeNotification =
+                    serde_json::from_str(&message.data)?;
+                handler(notification);
             }
-            Self::Behind(_, diff) => {
-                write!(f, "{} change(s) behind remote: pull changes.", diff)
-            }
-            Self::Ahead(_, diff) => {
-                write!(f, "{} change(s) ahead of remote: push changes.", diff)
-            }
-            Self::Diverged(_) => {
-                write!(f, "local and remote have diverged: force push or force pull to synchronize trees.")
+            Err(e) => {
+                es.close();
+                return Err(e.into());
             }
         }
     }
+    Ok(())
 }
 
-impl SyncStatus {
-    /// Get the pair of local and remote commit proofs.
-    pub fn pair(&self) -> &CommitPair {
-        match self {
-            Self::Equal(pair) | Self::Diverged(pair) => pair,
-            Self::Behind(pair, _) | Self::Ahead(pair, _) => pair,
+/// Trait for implementations that can read a passphrase.
+pub trait PassphraseReader {
+    /// Error generated attempting to read a passphrase.
+    type Error: std::error::Error + Send + Sync + 'static;
+
+    /// Read a passphrase.
+    fn read(&self) -> std::result::Result<String, Self::Error>;
+}
+
+/// Builds a client implementation.
+pub struct ClientBuilder<E> {
+    server: Url,
+    keystore: PathBuf,
+    keystore_passphrase: Option<String>,
+    passphrase_reader: Option<Box<dyn PassphraseReader<Error = E>>>,
+}
+
+impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
+    /// Create a new client builder.
+    pub fn new(server: Url, keystore: PathBuf) -> Self {
+        Self {
+            server,
+            keystore,
+            keystore_passphrase: None,
+            passphrase_reader: None,
         }
     }
-}
 
-/// The status of a synchronization attempt.
-pub enum SyncKind {
-    /// Local and remote are equal.
-    Equal,
-    /// Safe synchronization was made.
-    Safe,
-    /// Forced synchronization was performed.
-    Force,
-    /// Synchronization is not safe and a
-    /// forceful attempt is required.
-    Unsafe,
-}
+    /// Set a specific passphrase for the keystore.
+    pub fn with_keystore_passphrase(mut self, passphrase: String) -> Self {
+        self.keystore_passphrase = Some(passphrase);
+        self
+    }
 
-/// Information yielded from a pull or a push.
-pub struct SyncInfo {
-    /// Local and remote proofs before synchronization.
-    pub before: (CommitProof, CommitProof),
-    /// Proof after synchronization.
-    ///
-    /// If the root hashes for local and remote are up to
-    /// date this will be `None`.
-    pub after: Option<CommitProof>,
+    /// Set a passphrase reader implementation.
+    pub fn with_passphrase_reader(
+        mut self,
+        reader: Box<dyn PassphraseReader<Error = E>>,
+    ) -> Self {
+        self.passphrase_reader = Some(reader);
+        self
+    }
 
-    /// The status of the synchronization attempt.
-    pub status: SyncKind,
+    /// Build a client implementation wrapping a signing key.
+    pub fn build(self) -> Result<Client> {
+        if !self.keystore.exists() {
+            return Err(Error::NotFile(self.keystore));
+        }
+
+        // Decrypt the keystore and create the client.
+        let mut keystore_file = File::open(&self.keystore)?;
+        let mut keystore_bytes = Vec::new();
+        keystore_file.read_to_end(&mut keystore_bytes)?;
+        let keystore: KeyStore = serde_json::from_slice(&keystore_bytes)?;
+
+        let passphrase = if let Some(passphrase) = self.keystore_passphrase {
+            passphrase
+        } else if let Some(reader) = self.passphrase_reader {
+            reader.read().map_err(Box::from)?
+        } else {
+            panic!("client builder requires either a passphrase or passphrase reader");
+        };
+        let signing_bytes = decrypt(&keystore, &passphrase)?;
+
+        let signing_key: [u8; 32] = signing_bytes.as_slice().try_into()?;
+        let signer: SingleParty = (&signing_key).try_into()?;
+        Ok(Client::new(self.server, Arc::new(signer)))
+    }
 }
 
 /// Trait for types that cache vaults locally; supports a *current* view
@@ -220,7 +274,3 @@ pub trait ClientCache {
         force: bool,
     ) -> Result<SyncInfo>;
 }
-
-mod disc;
-
-pub use disc::FileCache;

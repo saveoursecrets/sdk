@@ -4,9 +4,12 @@ use super::{server, TestDirs};
 
 use sos_core::address::AddressStr;
 
-use sos_client::{
-    create_account, create_signing_key, ClientCache, ClientCredentials,
-    ClientKey, FileCache,
+use sos_node::client::{
+    account::{
+        create_account, create_signing_key, ClientCredentials, ClientKey,
+    },
+    file_cache::FileCache,
+    ClientCache,
 };
 use web3_keystore::{decrypt, KeyStore};
 

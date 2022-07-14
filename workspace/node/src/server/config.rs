@@ -1,9 +1,12 @@
+//! Server configuration.
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use url::{Host, Url};
 
-use crate::{Backend, Error, FileSystemBackend, Result};
+use super::backend::{Backend, FileSystemBackend};
+use super::{Error, Result};
 
+/// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct ServerConfig {
     /// Whether to serve the web GUI.

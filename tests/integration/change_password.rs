@@ -11,11 +11,11 @@ use std::{
 };
 use tokio::sync::mpsc;
 
-use sos_client::{ClientCache, ClientCredentials};
 use sos_core::{
     events::{ChangeEvent, ChangeNotification},
     generate_passphrase, ChangePassword,
 };
+use sos_node::client::{account::ClientCredentials, ClientCache};
 
 #[tokio::test]
 #[serial]

@@ -97,9 +97,9 @@ command -v mkcert && cd sandbox &&
 
 [tasks.browser-gui]
 script = '''
-rm -rf workspace/server/public &&
+rm -rf workspace/node/public &&
   (cd ../browser && make dist) && 
-  cp -r ../browser/app/dist workspace/server/public
+  cp -r ../browser/app/dist workspace/node/public
 '''
 
 #[tasks.artifacts]

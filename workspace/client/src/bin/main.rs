@@ -12,12 +12,16 @@ use url::Url;
 use futures::stream::StreamExt;
 use reqwest_eventsource::Event;
 use sos_client::{
-    exec, monitor, run_blocking, signup, ClientBuilder, ClientCache, Error,
-    FileCache, Result,
+    exec, monitor, signup, Error, Result, StdinPassphraseReader,
 };
 use sos_core::events::ChangeNotification;
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
+
+use sos_node::{
+    client::{file_cache::FileCache, ClientCache},
+    run_blocking, ClientBuilder,
+};
 
 const WELCOME: &str = include_str!("welcome.txt");
 
@@ -110,7 +114,11 @@ fn run() -> Result<()> {
         Command::Shell { server, keystore } => {
             ensure_https(&server)?;
             let cache_dir = FileCache::cache_dir()?;
-            let client = ClientBuilder::new(server, keystore).build()?;
+
+            let reader = StdinPassphraseReader {};
+            let client = ClientBuilder::new(server, keystore)
+                .with_passphrase_reader(Box::new(reader))
+                .build()?;
             let cache = Arc::new(RwLock::new(FileCache::new(
                 client, cache_dir, true,
             )?));
@@ -187,7 +195,7 @@ fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "sos_client=info".into()),
+                .unwrap_or_else(|_| "sos_node::client=info".into()),
         ))
         .with(tracing_subscriber::fmt::layer().without_time())
         .init();

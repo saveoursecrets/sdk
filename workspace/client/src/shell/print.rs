@@ -1,4 +1,4 @@
-//! Infallible functions for printing private data.
+//! Functions for printing private data.
 
 use sos_core::{
     secret::{Secret, SecretMeta},
