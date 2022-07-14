@@ -10,7 +10,7 @@ use tokio::sync::{mpsc, RwLock};
 
 use sos_core::{commit_tree::CommitProof, events::ChangeNotification};
 use sos_node::client::{
-    account::{login, ClientCredentials},
+    account::{login, AccountCredentials},
     ClientCache,
 };
 
@@ -26,7 +26,7 @@ async fn integration_handle_change() -> Result<()> {
 
     // Signup a new account
     let (_, credentials, mut creator) = signup(&dirs, 0).await?;
-    let ClientCredentials {
+    let AccountCredentials {
         summary,
         encryption_passphrase,
         keystore_file,

@@ -5,7 +5,7 @@ use url::Url;
 use std::future::Future;
 use tokio::runtime::Runtime;
 
-use http_client::Client;
+use http_client::RequestClient;
 
 use futures::StreamExt;
 use reqwest_eventsource::Event;
@@ -52,7 +52,10 @@ where
 }
 
 /// Creates a changes stream and calls handler for every change notification.
-pub async fn changes_stream<F>(client: &Client, handler: F) -> Result<()>
+pub async fn changes_stream<F>(
+    client: &RequestClient,
+    handler: F,
+) -> Result<()>
 where
     F: Fn(ChangeNotification) -> (),
 {
@@ -118,7 +121,7 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
     }
 
     /// Build a client implementation wrapping a signing key.
-    pub fn build(self) -> Result<Client> {
+    pub fn build(self) -> Result<RequestClient> {
         if !self.keystore.exists() {
             return Err(Error::NotFile(self.keystore));
         }
@@ -140,7 +143,7 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
 
         let signing_key: [u8; 32] = signing_bytes.as_slice().try_into()?;
         let signer: SingleParty = (&signing_key).try_into()?;
-        Ok(Client::new(self.server, Arc::new(signer)))
+        Ok(RequestClient::new(self.server, Arc::new(signer)))
     }
 }
 
@@ -156,7 +159,7 @@ pub trait ClientCache {
     fn address(&self) -> Result<AddressStr>;
 
     /// Get the underlying client.
-    fn client(&self) -> &Client;
+    fn client(&self) -> &RequestClient;
 
     /// Get the vault summaries for this cache.
     fn vaults(&self) -> &[Summary];

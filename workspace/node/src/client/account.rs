@@ -7,13 +7,15 @@ use std::{convert::Infallible, path::PathBuf, sync::Arc};
 use url::Url;
 use web3_keystore::encrypt;
 
-use super::{file_cache::FileCache, Client, ClientBuilder, ClientCache};
+use super::{
+    file_cache::FileCache, ClientBuilder, ClientCache, RequestClient,
+};
 use super::{Error, Result};
 
 /// Signing, public key and computed address for a new account.
-pub struct ClientKey(pub [u8; 32], pub [u8; 33], pub AddressStr);
+pub struct AccountKey(pub [u8; 32], pub [u8; 33], pub AddressStr);
 
-impl ClientKey {
+impl AccountKey {
     /// Get the address of the client key.
     pub fn address(&self) -> &AddressStr {
         &self.2
@@ -21,7 +23,7 @@ impl ClientKey {
 }
 
 /// Encapsulates the credentials for a new account signup.
-pub struct ClientCredentials {
+pub struct AccountCredentials {
     /// Passphrase for the keystore.
     pub keystore_passphrase: String,
     /// Passphrase for the vault encryption.
@@ -56,9 +58,9 @@ pub async fn create_account(
     server: Url,
     destination: PathBuf,
     name: Option<String>,
-    key: ClientKey,
+    key: AccountKey,
     cache_dir: PathBuf,
-) -> Result<(ClientCredentials, FileCache)> {
+) -> Result<(AccountCredentials, FileCache)> {
     if !destination.is_dir() {
         return Err(Error::NotDirectory(destination));
     }
@@ -68,10 +70,10 @@ pub async fn create_account(
         return Err(Error::FileExists(keystore_file));
     }
 
-    let ClientKey(signing_key, _, _) = &key;
+    let AccountKey(signing_key, _, _) = &key;
     let (keystore_passphrase, _) = generate_passphrase()?;
     let signer: SingleParty = (signing_key).try_into()?;
-    let client = Client::new(server, Arc::new(signer));
+    let client = RequestClient::new(server, Arc::new(signer));
     let mut cache = FileCache::new(client, cache_dir, true)?;
 
     let keystore = encrypt(
@@ -84,8 +86,8 @@ pub async fn create_account(
     let (encryption_passphrase, summary) = cache.create_account(name).await?;
     std::fs::write(&keystore_file, serde_json::to_string(&keystore)?)?;
 
-    let ClientKey(_, _, address) = key;
-    let account = ClientCredentials {
+    let AccountKey(_, _, address) = key;
+    let account = AccountCredentials {
         keystore_passphrase,
         encryption_passphrase,
         keystore_file,
@@ -97,8 +99,8 @@ pub async fn create_account(
 }
 
 /// Create a signing key pair and compute the address.
-pub fn create_signing_key() -> Result<ClientKey> {
+pub fn create_signing_key() -> Result<AccountKey> {
     let (signing_key, public_key) = generate_random_ecdsa_signing_key();
     let address: AddressStr = (&public_key).try_into()?;
-    Ok(ClientKey(signing_key, public_key, address))
+    Ok(AccountKey(signing_key, public_key, address))
 }

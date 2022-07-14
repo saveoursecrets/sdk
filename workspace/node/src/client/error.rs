@@ -111,4 +111,8 @@ pub enum Error {
     /// Error generated decoding a base64 string.
     #[error(transparent)]
     Base64Decode(#[from] base64::DecodeError),
+
+    /// Error generated converting an HTTP status code.
+    #[error(transparent)]
+    HttpStatus(#[from] http::status::InvalidStatusCode),
 }

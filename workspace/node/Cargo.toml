@@ -18,7 +18,7 @@ web3-signature = { version = "0.2.3", features = ["single-party"] }
 serde = "1"
 serde_json = "1"
 rand = "0.8"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
 url = "2"
 futures = "0.3"
 uuid = { version = "1", features = ["serde", "v4"] }
@@ -26,6 +26,7 @@ base64 = "0.13"
 hex = "0.4"
 tempfile = "3"
 dirs = "4"
+http = "0.2"
 
 # client
 reqwest-eventsource = { version = "0.4", optional = true }

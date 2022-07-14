@@ -1,10 +1,11 @@
 //! Caching implementation backed by files.
 use super::{Error, Result};
-use crate::client::http_client::{decode_match_proof, Client};
+use crate::client::http_client::{HttpClient, RequestClient};
 
 use async_recursion::async_recursion;
 use async_trait::async_trait;
-use reqwest::{Response, StatusCode};
+use http::StatusCode;
+//use reqwest::{Response, StatusCode};
 use sos_core::{
     address::AddressStr,
     commit_tree::{
@@ -59,7 +60,7 @@ pub struct FileCache {
     /// Currently selected in-memory vault.
     current: Option<Gatekeeper>,
     /// Client to use for server communication.
-    client: Client,
+    client: RequestClient,
     /// Directory for the user cache.
     user_dir: PathBuf,
     /// Data for the cache.
@@ -80,7 +81,7 @@ impl ClientCache for FileCache {
         self.client.address()
     }
 
-    fn client(&self) -> &Client {
+    fn client(&self) -> &RequestClient {
         &self.client
     }
 
@@ -249,12 +250,11 @@ impl ClientCache for FileCache {
         let current_id = self.current().map(|c| c.id().clone());
 
         // Attempt to delete on the remote server
-        let (response, _) = self.client.delete_wal(summary.id()).await?;
-        response
-            .status()
+        let (status, _) = self.client.delete_wal(summary.id()).await?;
+        status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
+            .ok_or(Error::ResponseCode(status.into()))?;
 
         // If the deleted vault is the currently selected
         // vault we must close it
@@ -296,8 +296,8 @@ impl ClientCache for FileCache {
         name: &str,
     ) -> Result<()> {
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
-        let response = self.patch_wal(summary, vec![event]).await?;
-        if response.status().is_success() {
+        let status = self.patch_wal(summary, vec![event]).await?;
+        if status.is_success() {
             for item in self.summaries.iter_mut() {
                 if item.id() == summary.id() {
                     item.set_name(name.to_string());
@@ -305,7 +305,7 @@ impl ClientCache for FileCache {
             }
             Ok(())
         } else {
-            Err(Error::ResponseCode(response.status().into()))
+            Err(Error::ResponseCode(status.into()))
         }
     }
 
@@ -318,15 +318,14 @@ impl ClientCache for FileCache {
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
-        let (response, server_proof, match_proof) = self
+        let (status, server_proof, match_proof) = self
             .client
             .head_wal(summary.id(), Some(&client_proof))
             .await?;
-        response
-            .status()
+        status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
+            .ok_or(Error::ResponseCode(status.into()))?;
 
         let equals = client_proof.root() == server_proof.root();
 
@@ -381,13 +380,12 @@ impl ClientCache for FileCache {
 
         // Send the new vault to the server
         let buffer = encode(vault)?;
-        let (response, server_proof) =
+        let (status, server_proof) =
             self.client.put_vault(summary.id(), buffer).await?;
-        response
-            .status()
+        status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
+            .ok_or(Error::ResponseCode(status.into()))?;
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
 
@@ -440,12 +438,11 @@ impl ClientCache for FileCache {
         summary: &Summary,
         events: Vec<SyncEvent<'_>>,
     ) -> Result<()> {
-        let response = self.patch_wal(summary, events).await?;
-        response
-            .status()
+        let status = self.patch_wal(summary, events).await?;
+        status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
+            .ok_or(Error::ResponseCode(status.into()))?;
         Ok(())
     }
 
@@ -471,15 +468,14 @@ impl ClientCache for FileCache {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (response, server_proof, match_proof) = self
+        let (status, server_proof, match_proof) = self
             .client
             .head_wal(summary.id(), Some(&client_proof))
             .await?;
-        response
-            .status()
+        status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
+            .ok_or(Error::ResponseCode(status.into()))?;
 
         let equals = client_proof.root() == server_proof.root();
         let can_pull_safely = match_proof.is_some();
@@ -527,13 +523,12 @@ impl ClientCache for FileCache {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (response, server_proof, _match_proof) =
+        let (status, server_proof, _match_proof) =
             self.client.head_wal(summary.id(), None).await?;
-        response
-            .status()
+        status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
+            .ok_or(Error::ResponseCode(status.into()))?;
 
         let equals = client_proof.root() == server_proof.root();
 
@@ -584,7 +579,7 @@ impl FileCache {
     /// and in-memory content to disc as vault files providing an extra level
     /// if redundancy in case of failure.
     pub fn new<D: AsRef<Path>>(
-        client: Client,
+        client: RequestClient,
         cache_dir: D,
         mirror: bool,
     ) -> Result<Self> {
@@ -651,18 +646,17 @@ impl FileCache {
             file.write_all(&buffer)?;
         }
 
-        let response = if is_account {
+        let status = if is_account {
             self.client.create_account(buffer).await?
         } else {
-            let (response, _) = self.client.create_wal(buffer).await?;
-            response
+            let (status, _) = self.client.create_wal(buffer).await?;
+            status
         };
 
-        response
-            .status()
+        status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
+            .ok_or(Error::ResponseCode(status.into()))?;
         self.summaries.push(summary.clone());
         self.summaries.sort();
 
@@ -729,17 +723,16 @@ impl FileCache {
             None
         };
 
-        let (response, server_proof) = self
+        let (status, server_proof, buffer) = self
             .client
             .get_wal(summary.id(), client_proof.as_ref())
             .await?;
-
-        let status = response.status();
 
         tracing::debug!(status = %status, "pull_wal");
 
         match status {
             StatusCode::OK => {
+                let buffer = buffer.unwrap();
                 let server_proof = server_proof.ok_or(Error::ServerProof)?;
                 tracing::debug!(
                     server_root_hash = %server_proof.root_hex(), "pull_wal");
@@ -748,8 +741,6 @@ impl FileCache {
                     // If we sent a proof to the server then we
                     // are expecting a diff of records
                     Some(_proof) => {
-                        let buffer = response.bytes().await?;
-
                         tracing::debug!(bytes = ?buffer.len(),
                             "pull_wal write diff WAL records");
 
@@ -776,9 +767,6 @@ impl FileCache {
                     // Otherwise the server should send us the entire
                     // WAL file
                     None => {
-                        // Read in the entire response buffer
-                        let buffer = response.bytes().await?;
-
                         tracing::debug!(bytes = ?buffer.len(),
                             "pull_wal write entire WAL");
 
@@ -824,10 +812,10 @@ impl FileCache {
                         remote: server_proof.reduce(),
                     })
                 } else {
-                    Err(Error::ResponseCode(response.status().into()))
+                    Err(Error::ResponseCode(status.into()))
                 }
             }
-            _ => Err(Error::ResponseCode(response.status().into())),
+            _ => Err(Error::ResponseCode(status.into())),
         }
     }
 
@@ -853,7 +841,7 @@ impl FileCache {
         &mut self,
         summary: &Summary,
         events: Vec<SyncEvent<'async_recursion>>,
-    ) -> Result<Response> {
+    ) -> Result<StatusCode> {
         let (wal, patch_file) = self
             .cache
             .get_mut(summary.id())
@@ -863,12 +851,11 @@ impl FileCache {
 
         let client_proof = wal.tree().head()?;
 
-        let (response, server_proof) = self
+        let (status, server_proof, match_proof) = self
             .client
             .patch_wal(summary.id(), &client_proof, &patch)
             .await?;
 
-        let status = response.status();
         match status {
             StatusCode::OK => {
                 let server_proof = server_proof.ok_or(Error::ServerProof)?;
@@ -891,7 +878,7 @@ impl FileCache {
 
                 let client_proof = wal.tree().head()?;
                 assert_proofs_eq(&client_proof, &server_proof)?;
-                Ok(response)
+                Ok(status)
             }
             StatusCode::CONFLICT => {
                 let server_proof = server_proof.ok_or(Error::ServerProof)?;
@@ -900,7 +887,7 @@ impl FileCache {
                 // leaf node corresponding to our root hash which
                 // indicates that we are behind the remote so we
                 // can try to pull again and try to patch afterwards
-                if let Some(_) = decode_match_proof(response.headers())? {
+                if let Some(_) = match_proof {
                     tracing::debug!(
                         client_root = %client_proof.root_hex(),
                         server_root = %server_proof.root_hex(),
@@ -915,13 +902,13 @@ impl FileCache {
 
                     // Retry sending our local changes to
                     // the remote WAL
-                    let response =
+                    let status =
                         self.patch_wal(summary, patch.0.clone()).await?;
 
-                    tracing::debug!(status = %response.status(),
+                    tracing::debug!(status = %status,
                         "conflict on patch, retry patch status");
 
-                    if response.status().is_success() {
+                    if status.is_success() {
                         // If the retry was successful then
                         // we should update the in-memory vault
                         // so if reflects the pulled changes
@@ -936,7 +923,7 @@ impl FileCache {
                             }
                         }
                     }
-                    Ok(response)
+                    Ok(status)
                 } else {
                     Err(Error::Conflict {
                         summary: summary.clone(),
@@ -945,7 +932,7 @@ impl FileCache {
                     })
                 }
             }
-            _ => Err(Error::ResponseCode(response.status().into())),
+            _ => Err(Error::ResponseCode(status.into())),
         }
     }
 
@@ -1035,17 +1022,16 @@ impl FileCache {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
         let body = std::fs::read(wal.path())?;
-        let (response, server_proof) = self
+        let (status, server_proof) = self
             .client
             .post_wal(summary.id(), &client_proof, body)
             .await?;
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
-        response
-            .status()
+        status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
+            .ok_or(Error::ResponseCode(status.into()))?;
 
         assert_proofs_eq(&client_proof, &server_proof)?;
         Ok(client_proof)
