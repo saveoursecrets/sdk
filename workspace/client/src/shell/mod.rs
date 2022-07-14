@@ -19,7 +19,7 @@ use sos_core::{
     wal::WalItem,
     ChangePassword, CommitHash,
 };
-use sos_node::{ClientCache, FileCache, SyncKind};
+use sos_node::{run_blocking, ClientCache, FileCache, SyncKind};
 use sos_readline::{
     choose, read_flag, read_line, read_line_allow_empty, read_multiline,
     read_option, read_password, Choice,
@@ -27,7 +27,7 @@ use sos_readline::{
 
 use zeroize::Zeroize;
 
-use crate::{display_passphrase, run_blocking, switch, Error, Result};
+use crate::{display_passphrase, switch, Error, Result};
 
 mod editor;
 mod print;
@@ -411,8 +411,7 @@ where
                     None => Ok(()),
                 }
             }
-            _ => todo!()
-            //_ => Err(sos_node::Error::Boxed(Box::from(e))),
+            _ => todo!(), //_ => Err(sos_node::Error::Boxed(Box::from(e))),
         },
     }
 }

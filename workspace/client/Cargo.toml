@@ -10,20 +10,13 @@ thiserror = "1"
 sos-core = { path = "../core", version = "0.1.0" }
 sos-node = { path = "../node", version = "0.1.0" }
 sos-readline = { path = "../readline", version = "0.1.0" }
-async-trait = "0.1"
-async-recursion = "1"
 clap = { version = "3", features = ["derive", "wrap_help"] }
 tokio = { version = "1", features = ["full"] }
 url = "2"
 reqwest-eventsource = "0.4"
 futures = "0.3"
-k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
-web3-keystore = "0.4"
-web3-signature = { version = "0.2.3", features = ["single-party"] }
 serde_json = "1"
 uuid = { version = "1", features = ["serde", "v4"] }
-base64 = "0.13"
-rand = "0.8"
 hex = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -33,24 +26,7 @@ tempfile = "3"
 sha3 = "0.10"
 shell-words = "1"
 terminal-banner = "0.1"
-dirs = "4"
 zeroize = "1.4" 
-
-[target.'cfg(any(not(target_arch="aarch64"),not(target_os="linux")))'.dependencies]
-reqwest = { version = "0.11", default-features = true, features = ["json", "rustls-tls"] }
-
-# NOTE: Must disable default-features so that openssl
-# NOTE: is not compiled when cross-compiling in CI.
-#
-# NOTE: If we disable `default-features` during
-# NOTE: development then attempting to connect to 
-# NOTE: the changes feed using the locally issued mkcert
-# NOTE: certificate yields an "Unknown Issuer" error.
-# NOTE: Which is related to the `security-framework` not 
-# NOTE: being compiled on macos when `default-features` is 
-# NOTE: disabled.
-[target.'cfg(all(target_arch="aarch64",target_os="linux"))'.dependencies]
-reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 
 [[bin]]
 name = "sos-client"

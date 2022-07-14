@@ -1,4 +1,4 @@
-use sos_core::{secret::SecretRef};
+use sos_core::secret::SecretRef;
 use std::path::PathBuf;
 use thiserror::Error;
 use url::Url;
@@ -26,9 +26,6 @@ pub enum Error {
     #[error(r#"vault "{0}" not found, run "vaults" to load the vault list"#)]
     VaultNotAvailable(SecretRef),
 
-    #[error("failed to unlock vault")]
-    VaultUnlockFail,
-
     #[error(r#"no vault selected, run "use" to select a vault"#)]
     NoVaultSelected,
 
@@ -43,19 +40,10 @@ pub enum Error {
     InvalidPassphrase,
 
     #[error(transparent)]
-    ParseInt(#[from] std::num::ParseIntError),
-
-    #[error(transparent)]
     Io(#[from] std::io::Error),
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
-
-    #[error(transparent)]
-    Keystore(#[from] web3_keystore::KeyStoreError),
-
-    #[error(transparent)]
-    TryFromSlice(#[from] std::array::TryFromSliceError),
 
     #[error(transparent)]
     Core(#[from] sos_core::Error),
@@ -80,7 +68,4 @@ pub enum Error {
 
     #[error(transparent)]
     ShellWords(#[from] shell_words::ParseError),
-
-    #[error(transparent)]
-    Base64Decode(#[from] base64::DecodeError),
 }

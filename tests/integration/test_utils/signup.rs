@@ -4,7 +4,7 @@ use super::{server, TestDirs};
 
 use sos_core::address::AddressStr;
 
-use sos_client::{
+use sos_node::{
     create_account, create_signing_key, ClientCache, ClientCredentials,
     ClientKey, FileCache,
 };

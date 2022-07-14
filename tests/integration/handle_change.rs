@@ -8,8 +8,8 @@ use reqwest_eventsource::Event;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::{mpsc, RwLock};
 
-use sos_client::{login, ClientCache, ClientCredentials};
 use sos_core::{commit_tree::CommitProof, events::ChangeNotification};
+use sos_node::{login, ClientCache, ClientCredentials};
 
 #[tokio::test]
 #[serial]

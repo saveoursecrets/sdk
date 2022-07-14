@@ -1,18 +1,14 @@
 //! Signup a new account.
-use crate::{display_passphrase, run_blocking, Error, Result};
-use sos_core::{
-    address::AddressStr, crypto::generate_random_ecdsa_signing_key,
-    generate_passphrase, signer::SingleParty, vault::Summary,
-};
+use crate::{display_passphrase, Error, Result};
+
 use sos_node::{
-    create_account, create_signing_key, ClientBuilder, FileCache,
-    PassphraseReader,
+    create_account, create_signing_key, run_blocking, ClientBuilder,
+    FileCache, PassphraseReader,
 };
 use sos_readline::{read_flag, read_password};
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, path::PathBuf};
 use terminal_banner::{Banner, Padding};
 use url::Url;
-use web3_keystore::encrypt;
 
 pub struct StdinPassphraseReader {}
 
@@ -34,10 +30,9 @@ pub fn switch(
         return Err(Error::NotFile(keystore_file));
     }
     let reader = StdinPassphraseReader {};
-    let client =
-        ClientBuilder::new(server, keystore_file)
-            .with_passphrase_reader(Box::new(reader))
-            .build()?;
+    let client = ClientBuilder::new(server, keystore_file)
+        .with_passphrase_reader(Box::new(reader))
+        .build()?;
     Ok(FileCache::new(client, cache_dir, true)?)
 }
 

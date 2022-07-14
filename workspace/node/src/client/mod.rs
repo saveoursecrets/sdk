@@ -3,7 +3,9 @@ use url::Url;
 
 use http_client::Client;
 
-use sos_core::signer::SingleParty;
+use futures::StreamExt;
+use reqwest_eventsource::Event;
+use sos_core::{events::ChangeNotification, signer::SingleParty};
 use web3_keystore::{decrypt, KeyStore};
 
 use crate::{Error, Result};
@@ -11,6 +13,28 @@ use crate::{Error, Result};
 pub mod account;
 pub mod cache;
 pub mod http_client;
+
+pub async fn changes_stream<F>(client: &Client, handler: F) -> Result<()>
+where
+    F: Fn(ChangeNotification) -> (),
+{
+    let mut es = client.changes().await?;
+    while let Some(event) = es.next().await {
+        match event {
+            Ok(Event::Open) => tracing::debug!("sse connection open"),
+            Ok(Event::Message(message)) => {
+                let notification: ChangeNotification =
+                    serde_json::from_str(&message.data)?;
+                handler(notification);
+            }
+            Err(e) => {
+                es.close();
+                return Err(e.into());
+            }
+        }
+    }
+    Ok(())
+}
 
 /// Trait for implementations that can read a passphrase.
 pub trait PassphraseReader {

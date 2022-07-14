@@ -12,14 +12,13 @@ use url::Url;
 use futures::stream::StreamExt;
 use reqwest_eventsource::Event;
 use sos_client::{
-    exec, monitor, run_blocking, signup, Error,
-    Result, StdinPassphraseReader,
+    exec, monitor, signup, Error, Result, StdinPassphraseReader,
 };
 use sos_core::events::ChangeNotification;
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
-use sos_node::{ClientBuilder, ClientCache, FileCache};
+use sos_node::{run_blocking, ClientBuilder, ClientCache, FileCache};
 
 const WELCOME: &str = include_str!("welcome.txt");
 

@@ -3,7 +3,7 @@ use serial_test::serial;
 
 use crate::test_utils::*;
 
-use sos_client::{login, ClientCache, ClientCredentials};
+use sos_node::{login, ClientCache, ClientCredentials};
 
 #[tokio::test]
 #[serial]

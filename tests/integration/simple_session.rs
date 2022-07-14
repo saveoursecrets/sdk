@@ -8,13 +8,13 @@ use reqwest_eventsource::Event;
 use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
 
-use sos_client::{
-    Client, ClientCache, ClientCredentials, FileCache, SyncStatus,
-};
 use sos_core::{
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
     secret::SecretRef,
+};
+use sos_node::{
+    Client, ClientCache, ClientCredentials, FileCache, SyncStatus,
 };
 
 #[tokio::test]
