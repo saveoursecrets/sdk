@@ -10,10 +10,14 @@ use crate::{
 use std::borrow::Cow;
 use zeroize::Zeroize;
 
-/// Builder that changes a password.
+/// Builder that changes a vault password.
+///
+/// Generates a new vault derived from the original vault so 
+/// it is possible for callers to rollback to the original if 
+/// necessary.
 pub struct ChangePassword<'a> {
     /// The in-memory vault.
-    vault: &'a mut Vault,
+    vault: &'a Vault,
     /// Existing encryption passphrase.
     current_passphrase: String,
     /// New encryption passphrase.
@@ -23,7 +27,7 @@ pub struct ChangePassword<'a> {
 impl<'a> ChangePassword<'a> {
     /// Create a new change password builder.
     pub fn new(
-        vault: &'a mut Vault,
+        vault: &'a Vault,
         current_passphrase: String,
         new_passphrase: String,
     ) -> Self {
@@ -51,6 +55,10 @@ impl<'a> ChangePassword<'a> {
     }
 
     /// Build a new vault.
+    ///
+    /// Yields the encrpytion passphrase for the new vault, the 
+    /// new computed vault and a collection of events that can 
+    /// be used to generate a fresh write-ahead log file.
     pub fn build(
         mut self,
     ) -> Result<(String, Vault, Vec<WalEvent<'static>>)> {
@@ -165,7 +173,7 @@ mod test {
         // Using an incorrect current passphrase should fail
         let bad_passphrase = String::from("oops");
         assert!(ChangePassword::new(
-            keeper.vault_mut(),
+            keeper.vault(),
             bad_passphrase,
             new_passphrase.clone()
         )
@@ -174,7 +182,7 @@ mod test {
 
         // Using a valid current passphrase should succeed
         let (new_passphrase, new_vault, wal_events) = ChangePassword::new(
-            keeper.vault_mut(),
+            keeper.vault(),
             current_passphrase,
             new_passphrase,
         )

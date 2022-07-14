@@ -909,7 +909,7 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
 
                 let (mut new_passphrase, new_vault, wal_events) =
                     ChangePassword::new(
-                        keeper.vault_mut(),
+                        keeper.vault(),
                         passphrase,
                         new_passphrase,
                     )
