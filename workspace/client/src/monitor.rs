@@ -6,9 +6,11 @@ use url::Url;
 
 use sos_core::events::ChangeNotification;
 
-use crate::{run_blocking, Client, ClientBuilder, Result};
+use crate::{run_blocking, Result, StdinPassphraseReader};
 
-async fn changes_stream<F>(client: Client, handler: F) -> Result<()>
+use sos_node::{Client, ClientBuilder};
+
+async fn changes_stream<F>(client: Client, handler: F) -> sos_node::Result<()>
 where
     F: Fn(ChangeNotification) -> (),
 {
@@ -32,7 +34,10 @@ where
 
 /// Start a monitor listening for events on the SSE stream.
 pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
-    let client = ClientBuilder::new(server, keystore).build()?;
+    let reader = StdinPassphraseReader {};
+    let client = ClientBuilder::new(server, keystore)
+        .with_passphrase_reader(Box::new(reader))
+        .build()?;
 
     let handler = |notification: ChangeNotification| {
         let changes = notification

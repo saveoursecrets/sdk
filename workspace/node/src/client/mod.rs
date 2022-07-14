@@ -1,60 +1,53 @@
-use sos_core::signer::SingleParty;
-use sos_readline::read_password;
-use std::{
-    borrow::Cow, fs::File, future::Future, io::Read, path::PathBuf, sync::Arc,
-};
-use terminal_banner::{Banner, Padding};
-use tokio::runtime::Runtime;
+use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
 use url::Url;
+
+use http_client::Client;
+
+use sos_core::signer::SingleParty;
 use web3_keystore::{decrypt, KeyStore};
 
-mod account;
-//mod cache;
-//mod client;
-mod error;
-mod monitor;
-mod shell;
+use crate::{Error, Result};
 
-pub type Result<T> = std::result::Result<T, error::Error>;
+pub mod account;
+pub mod cache;
+pub mod http_client;
 
-/// Runs a future blocking the current thread so we can
-/// merge the synchronous nature of the shell prompt with the
-/// asynchronous API exposed by the client.
-pub fn run_blocking<F, R>(func: F) -> sos_node::Result<R>
-where
-    F: Future<Output = sos_node::Result<R>> + Send,
-    R: Send,
-{
-    Runtime::new().unwrap().block_on(func)
+/// Trait for implementations that can read a passphrase.
+pub trait PassphraseReader {
+    /// Error generated attempting to read a passphrase.
+    type Error: std::error::Error + Send + Sync + 'static;
+
+    /// Read a passphrase.
+    fn read(&self) -> std::result::Result<String, Self::Error>;
 }
 
-pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {
-    let banner = Banner::new()
-        .padding(Padding::one())
-        .text(Cow::from(heading))
-        .text(Cow::from(passphrase))
-        .render();
-    println!("{}", banner);
-}
-
-/*
-pub struct ClientBuilder {
+pub struct ClientBuilder<E> {
     server: Url,
     keystore: PathBuf,
     keystore_passphrase: Option<String>,
+    passphrase_reader: Option<Box<dyn PassphraseReader<Error = E>>>,
 }
 
-impl ClientBuilder {
+impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
     pub fn new(server: Url, keystore: PathBuf) -> Self {
         Self {
             server,
             keystore,
             keystore_passphrase: None,
+            passphrase_reader: None,
         }
     }
 
     pub fn with_keystore_passphrase(mut self, passphrase: String) -> Self {
         self.keystore_passphrase = Some(passphrase);
+        self
+    }
+
+    pub fn with_passphrase_reader(
+        mut self,
+        reader: Box<dyn PassphraseReader<Error = E>>,
+    ) -> Self {
+        self.passphrase_reader = Some(reader);
         self
     }
 
@@ -72,8 +65,10 @@ impl ClientBuilder {
 
         let passphrase = if let Some(passphrase) = self.keystore_passphrase {
             passphrase
+        } else if let Some(reader) = self.passphrase_reader {
+            reader.read().map_err(Box::from)?
         } else {
-            read_password(Some("Passphrase: "))?
+            panic!("client builder requires either a passphrase or passphrase reader");
         };
         let signing_bytes = decrypt(&keystore, &passphrase)?;
 
@@ -82,12 +77,3 @@ impl ClientBuilder {
         Ok(Client::new(self.server, Arc::new(signer)))
     }
 }
-*/
-
-pub use account::{signup, switch, StdinPassphraseReader};
-
-//pub use cache::{ClientCache, FileCache, SyncInfo, SyncKind, SyncStatus};
-//pub use client::Client;
-pub use error::Error;
-pub use monitor::monitor;
-pub use shell::exec;

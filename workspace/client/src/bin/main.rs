@@ -12,12 +12,14 @@ use url::Url;
 use futures::stream::StreamExt;
 use reqwest_eventsource::Event;
 use sos_client::{
-    exec, monitor, run_blocking, signup, ClientBuilder, ClientCache, Error,
-    FileCache, Result,
+    exec, monitor, run_blocking, signup, Error,
+    Result, StdinPassphraseReader,
 };
 use sos_core::events::ChangeNotification;
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
+
+use sos_node::{ClientBuilder, ClientCache, FileCache};
 
 const WELCOME: &str = include_str!("welcome.txt");
 
@@ -110,7 +112,11 @@ fn run() -> Result<()> {
         Command::Shell { server, keystore } => {
             ensure_https(&server)?;
             let cache_dir = FileCache::cache_dir()?;
-            let client = ClientBuilder::new(server, keystore).build()?;
+
+            let reader = StdinPassphraseReader {};
+            let client = ClientBuilder::new(server, keystore)
+                .with_passphrase_reader(Box::new(reader))
+                .build()?;
             let cache = Arc::new(RwLock::new(FileCache::new(
                 client, cache_dir, true,
             )?));

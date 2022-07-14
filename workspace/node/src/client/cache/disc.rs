@@ -1,6 +1,6 @@
 //! Caching implementation backed by files.
 use crate::{
-    client::{decode_match_proof, Client},
+    client::http_client::{decode_match_proof, Client},
     Error, Result,
 };
 use async_recursion::async_recursion;
