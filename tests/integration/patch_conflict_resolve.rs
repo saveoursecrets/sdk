@@ -4,7 +4,7 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use sos_node::client::{
-    account::{login, ClientCredentials},
+    account::{login, AccountCredentials},
     ClientCache,
 };
 
@@ -20,7 +20,7 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
 
     // Signup a new account
     let (_, credentials, mut client1) = signup(&dirs, 0).await?;
-    let ClientCredentials {
+    let AccountCredentials {
         summary,
         encryption_passphrase,
         keystore_file,

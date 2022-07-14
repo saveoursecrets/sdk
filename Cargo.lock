@@ -2728,6 +2728,7 @@ dependencies = [
  "dirs",
  "futures",
  "hex",
+ "http",
  "hyper",
  "mime_guess",
  "once_cell",

@@ -15,7 +15,7 @@ use sos_core::{
     events::{ChangeEvent, ChangeNotification},
     generate_passphrase, ChangePassword,
 };
-use sos_node::client::{account::ClientCredentials, ClientCache};
+use sos_node::client::{account::AccountCredentials, ClientCache};
 
 #[tokio::test]
 #[serial]
@@ -26,7 +26,7 @@ async fn integration_change_password() -> Result<()> {
     let _ = rx.await?;
 
     let (address, credentials, mut file_cache) = signup(&dirs, 0).await?;
-    let ClientCredentials {
+    let AccountCredentials {
         summary,
         encryption_passphrase,
         ..

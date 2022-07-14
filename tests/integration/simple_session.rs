@@ -15,8 +15,10 @@ use sos_core::{
 };
 use sos_node::{
     client::{
-        account::ClientCredentials, file_cache::FileCache,
-        http_client::Client, ClientCache,
+        account::AccountCredentials,
+        file_cache::FileCache,
+        http_client::{HttpClient, RequestClient},
+        ClientCache,
     },
     SyncStatus,
 };
@@ -32,7 +34,7 @@ async fn integration_simple_session() -> Result<()> {
     let server_url = server();
 
     let (address, credentials, mut file_cache) = signup(&dirs, 0).await?;
-    let ClientCredentials { summary, .. } = credentials;
+    let AccountCredentials { summary, .. } = credentials;
     let login_vault_id = *summary.id();
 
     let (tx, mut rx) = mpsc::channel(1);
@@ -244,14 +246,14 @@ async fn integration_simple_session() -> Result<()> {
     Ok(())
 }
 
-async fn home(client: &Client) -> Result<()> {
+async fn home(client: &RequestClient) -> Result<()> {
     let url = client.server().clone();
     let response = client.get(url).await?;
     assert!(response.status().is_success());
     Ok(())
 }
 
-async fn gui(client: &Client) -> Result<()> {
+async fn gui(client: &RequestClient) -> Result<()> {
     let url = client.server().join("gui")?;
     let response = client.get(url).await?;
     assert!(response.status().is_success());

@@ -6,7 +6,7 @@ use sos_core::address::AddressStr;
 
 use sos_node::client::{
     account::{
-        create_account, create_signing_key, ClientCredentials, ClientKey,
+        create_account, create_signing_key, AccountCredentials, AccountKey,
     },
     file_cache::FileCache,
     ClientCache,
@@ -16,7 +16,7 @@ use web3_keystore::{decrypt, KeyStore};
 pub async fn signup(
     dirs: &TestDirs,
     client_index: usize,
-) -> Result<(AddressStr, ClientCredentials, FileCache)> {
+) -> Result<(AddressStr, AccountCredentials, FileCache)> {
     let TestDirs {
         target: destination,
         clients,
@@ -34,7 +34,7 @@ pub async fn signup(
     let expected_keystore =
         destination.join(&format!("{}.json", key.address()));
 
-    let ClientKey(signing_key, _, _) = &key;
+    let AccountKey(signing_key, _, _) = &key;
     let expected_signing_key = *signing_key;
 
     let (credentials, mut disc_cache) = create_account(
