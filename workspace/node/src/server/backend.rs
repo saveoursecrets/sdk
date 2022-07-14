@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use super::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,

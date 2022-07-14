@@ -1,8 +1,8 @@
-use crate::{
+use super::{
     authenticate::Authentication,
     handlers::{
         account::AccountHandler,
-        api, assets,
+        api,
         auth::AuthHandler,
         home,
         sse::{sse_handler, SseConnection},
@@ -44,6 +44,7 @@ pub struct State {
     pub sse: HashMap<AddressStr, SseConnection>,
 }
 
+/// Server information.
 #[derive(Serialize)]
 pub struct ServerInfo {
     /// Name of the crate.
@@ -52,7 +53,7 @@ pub struct ServerInfo {
     pub version: String,
 }
 
-// Server implementation.
+/// Web server implementation.
 pub struct Server;
 
 impl Server {
@@ -145,9 +146,14 @@ impl Server {
             ])
             .allow_origin(Origin::list(origins));
 
-        let app = Router::new()
+        let mut app = Router::new();
+
+        if cfg!(feature = "gui") {
+            app = app.route("/gui/*path", get(super::handlers::assets))
+        }
+
+        app = app
             .route("/", get(home))
-            .route("/gui/*path", get(assets))
             .route("/api", get(api))
             .route("/api/auth", get(AuthHandler::challenge))
             .route("/api/auth/:uuid", get(AuthHandler::response))

@@ -19,6 +19,10 @@ use sos_core::{
     wal::WalItem,
     ChangePassword, CommitHash,
 };
+use sos_node::{
+    client::{file_cache::FileCache, ClientCache},
+    run_blocking, SyncKind,
+};
 use sos_readline::{
     choose, read_flag, read_line, read_line_allow_empty, read_multiline,
     read_option, read_password, Choice,
@@ -26,10 +30,7 @@ use sos_readline::{
 
 use zeroize::Zeroize;
 
-use crate::{
-    display_passphrase, run_blocking, switch, ClientCache, Error, FileCache,
-    Result, SyncKind,
-};
+use crate::{display_passphrase, switch, Error, Result};
 
 mod editor;
 mod print;
@@ -357,13 +358,15 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 
 fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
-    F: FnOnce(&mut RwLockWriteGuard<'_, FileCache>) -> Result<()>,
+    F: FnOnce(
+        &mut RwLockWriteGuard<'_, FileCache>,
+    ) -> sos_node::client::Result<()>,
 {
     let mut writer = cache.write().unwrap();
     match func(&mut writer) {
         Ok(_) => Ok(()),
         Err(e) => match e {
-            Error::Conflict {
+            sos_node::client::Error::Conflict {
                 summary,
                 local,
                 remote,
@@ -413,7 +416,7 @@ where
                     None => Ok(()),
                 }
             }
-            _ => Err(e),
+            _ => todo!(), //_ => Err(sos_node::Error::Boxed(Box::from(e))),
         },
     }
 }
@@ -603,7 +606,7 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
                 let event = event.into_owned();
 
                 print::secret(&secret_meta, &secret_data)?;
-                run_blocking(writer.patch_vault(&summary, vec![event]))
+                Ok(run_blocking(writer.patch_vault(&summary, vec![event]))?)
             } else {
                 Err(Error::SecretNotAvailable(secret))
             }

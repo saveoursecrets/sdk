@@ -21,7 +21,7 @@ use url::Url;
 use uuid::Uuid;
 use web3_signature::Signature;
 
-use crate::{Error, Result};
+use super::{Error, Result};
 
 type Challenge = [u8; 32];
 
@@ -59,6 +59,7 @@ fn encode_headers_proof(
     Ok(builder)
 }
 
+/// HTTP client implementation.
 pub struct Client {
     server: Url,
     http_client: HttpClient,

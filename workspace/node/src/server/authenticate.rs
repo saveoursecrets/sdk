@@ -17,7 +17,7 @@ use sos_core::{
     address::AddressStr, k256::ecdsa::recoverable, web3_signature::Signature,
 };
 
-use crate::Result;
+use super::Result;
 
 #[derive(Debug, Deserialize)]
 pub struct SignedQuery {

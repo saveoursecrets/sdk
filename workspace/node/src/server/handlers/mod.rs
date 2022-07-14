@@ -13,7 +13,7 @@ use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 
-use crate::{
+use super::{
     assets::Assets,
     headers::{X_COMMIT_PROOF, X_MATCH_PROOF},
     State,
@@ -88,14 +88,19 @@ pub(crate) async fn home(
     Extension(state): Extension<Arc<RwLock<State>>>,
 ) -> impl IntoResponse {
     let reader = state.read().await;
-    if reader.config.gui {
-        Redirect::temporary("/gui")
+    if cfg!(feature = "gui") {
+        if reader.config.gui {
+            Redirect::temporary("/gui")
+        } else {
+            Redirect::temporary("/api")
+        }
     } else {
         Redirect::temporary("/api")
     }
 }
 
 /// Serve bundled static assets.
+#[cfg(feature = "gui")]
 pub(crate) async fn assets(
     Extension(state): Extension<Arc<RwLock<State>>>,
     request: Request<Body>,

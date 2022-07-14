@@ -1,8 +1,7 @@
 //! Caching implementation backed by files.
-use crate::{
-    client::{decode_match_proof, Client},
-    Error, Result,
-};
+use super::{Error, Result};
+use crate::client::http_client::{decode_match_proof, Client};
+
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use reqwest::{Response, StatusCode};
@@ -37,7 +36,8 @@ use tempfile::NamedTempFile;
 use url::Url;
 use uuid::Uuid;
 
-use super::{ClientCache, SyncInfo, SyncKind, SyncStatus};
+use super::ClientCache;
+use crate::{SyncInfo, SyncKind, SyncStatus};
 
 fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -696,17 +696,17 @@ impl FileCache {
         Ok(())
     }
 
-    pub fn wal_path(&self, summary: &Summary) -> PathBuf {
+    fn wal_path(&self, summary: &Summary) -> PathBuf {
         let wal_name = format!("{}.{}", summary.id(), WalFile::extension());
         self.user_dir.join(&wal_name)
     }
 
-    pub fn vault_path(&self, summary: &Summary) -> PathBuf {
+    fn vault_path(&self, summary: &Summary) -> PathBuf {
         let wal_name = format!("{}.{}", summary.id(), Vault::extension());
         self.user_dir.join(&wal_name)
     }
 
-    pub fn patch_path(&self, summary: &Summary) -> PathBuf {
+    fn patch_path(&self, summary: &Summary) -> PathBuf {
         let patch_name =
             format!("{}.{}", summary.id(), PatchFile::extension());
         self.user_dir.join(&patch_name)

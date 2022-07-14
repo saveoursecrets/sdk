@@ -16,7 +16,7 @@ use tokio::sync::{
     RwLock,
 };
 
-use crate::{authenticate::SignedQuery, State};
+use crate::server::{authenticate::SignedQuery, State};
 
 const MAX_SSE_CONNECTIONS_PER_CLIENT: u8 = 6;
 
