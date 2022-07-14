@@ -19,7 +19,7 @@ use sos_node::{
         account::AccountCredentials, file_cache::FileCache,
         net::RequestClient, ClientCache,
     },
-    SyncStatus,
+    sync::SyncStatus,
 };
 
 #[tokio::test]
