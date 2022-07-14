@@ -11,9 +11,10 @@ use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     crypto::AeadPack,
+    encode,
     events::WalEvent,
     secret::SecretId,
-    vault::{encode, Vault, VaultCommit},
+    vault::{Vault, VaultCommit},
     wal::{WalItem, WalProvider},
     Error, Result,
 };
@@ -171,9 +172,10 @@ mod test {
     use super::*;
     use crate::{
         crypto::secret_key::SecretKey,
+        decode,
         secret::{Secret, SecretId, SecretMeta},
         test_utils::*,
-        vault::{decode, VaultAccess, VaultCommit, VaultEntry},
+        vault::{VaultAccess, VaultCommit, VaultEntry},
         wal::file::WalFile,
         CommitHash,
     };

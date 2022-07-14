@@ -28,6 +28,7 @@ use crate::{
         aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
         AeadPack, Nonce,
     },
+    decode, encode,
     events::SyncEvent,
     iter::vault_iter,
     secret::{SecretId, VaultMeta},
@@ -940,16 +941,6 @@ impl VaultAccess for Vault {
             Ok(None)
         }
     }
-}
-
-/// Encode into a binary buffer.
-pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
-    Ok(serde_binary::encode(encodable, Endian::Big)?)
-}
-
-/// Decode from a binary buffer.
-pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
-    Ok(serde_binary::decode::<T>(buffer, Endian::Big)?)
 }
 
 #[cfg(test)]

@@ -1,9 +1,10 @@
 use crate::{
     crypto::secret_key::SecretKey,
+    encode,
     events::{SyncEvent, WalEvent},
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta},
-    vault::{encode, Vault, VaultAccess, VaultEntry},
+    vault::{Vault, VaultAccess, VaultEntry},
     wal::{file::WalFile, WalProvider},
     CommitHash,
 };

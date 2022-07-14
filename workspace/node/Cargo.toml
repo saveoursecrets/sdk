@@ -14,6 +14,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
 async-recursion = "1"
+k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
 web3-signature = { version = "0.2.3", features = ["single-party"] }
 serde = "1"
 serde_json = "1"

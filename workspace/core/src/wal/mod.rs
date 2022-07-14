@@ -181,9 +181,10 @@ mod test {
     use super::{memory::*, *};
     use crate::{
         commit_tree::{hash, Comparison},
+        encode,
         events::WalEvent,
         secret::SecretId,
-        vault::{encode, Vault, VaultCommit, VaultEntry},
+        vault::{Vault, VaultCommit, VaultEntry},
         CommitHash,
     };
 

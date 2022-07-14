@@ -13,9 +13,10 @@ use axum::{
     http::StatusCode,
 };
 
-use sos_core::{
-    address::AddressStr, k256::ecdsa::recoverable, web3_signature::Signature,
-};
+use sos_core::address::AddressStr;
+
+use k256::ecdsa::recoverable;
+use web3_signature::Signature;
 
 use super::Result;
 
