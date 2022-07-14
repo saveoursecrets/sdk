@@ -112,6 +112,7 @@ fn run() -> Result<()> {
         }
         Command::Shell { server, keystore } => {
             ensure_https(&server)?;
+            let server_url = server.clone();
             let cache_dir = FileCache::cache_dir()?;
 
             let reader = StdinPassphraseReader {};
@@ -123,7 +124,7 @@ fn run() -> Result<()> {
             )?));
 
             let reader = cache.read().unwrap();
-            welcome(reader.server())?;
+            welcome(&server_url)?;
             drop(reader);
 
             let mut writer = cache.write().unwrap();
@@ -178,7 +179,7 @@ fn run() -> Result<()> {
             read_shell(
                 |line: String| {
                     let shell_cache = Arc::clone(&cache);
-                    if let Err(e) = exec(&line, shell_cache) {
+                    if let Err(e) = exec(&line, &server_url, shell_cache) {
                         tracing::error!("{}", e);
                     }
                 },
@@ -203,7 +204,6 @@ fn main() -> Result<()> {
         Ok(_) => {}
         Err(e) => {
             tracing::error!("{}", e);
-            //panic!("{}", e);
         }
     }
     Ok(())

@@ -422,7 +422,11 @@ where
 }
 
 /// Execute the program command.
-fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
+fn exec_program(
+    program: Shell,
+    server: &Url,
+    cache: ReplCache,
+) -> Result<()> {
     match program.cmd {
         ShellCommand::Vaults => {
             let mut writer = cache.write().unwrap();
@@ -952,12 +956,8 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
             Ok(())
         }
         ShellCommand::Switch { keystore } => {
-            let reader = cache.read().unwrap();
-            let server = reader.server().clone();
-            drop(reader);
-
             let cache_dir = FileCache::cache_dir()?;
-            let mut file_cache = switch(server, cache_dir, keystore)?;
+            let mut file_cache = switch(server.clone(), cache_dir, keystore)?;
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
@@ -985,20 +985,20 @@ fn exec_program(program: Shell, cache: ReplCache) -> Result<()> {
 }
 
 /// Intermediary to pretty print clap parse errors.
-fn exec_args<I, T>(it: I, cache: ReplCache) -> Result<()>
+fn exec_args<I, T>(it: I, server: &Url, cache: ReplCache) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
     match Shell::try_parse_from(it) {
-        Ok(program) => exec_program(program, cache)?,
+        Ok(program) => exec_program(program, server, cache)?,
         Err(e) => e.print().expect("unable to write error output"),
     }
     Ok(())
 }
 
 /// Execute a line of input in the context of the shell program.
-pub fn exec(line: &str, cache: ReplCache) -> Result<()> {
+pub fn exec(line: &str, server: &Url, cache: ReplCache) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));
@@ -1015,7 +1015,7 @@ pub fn exec(line: &str, cache: ReplCache) -> Result<()> {
         } else if line == "help" || line == "--help" {
             cmd.print_long_help()?;
         } else {
-            exec_args(it, cache)?;
+            exec_args(it, server, cache)?;
         }
     }
     Ok(())

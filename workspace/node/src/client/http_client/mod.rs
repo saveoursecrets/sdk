@@ -1,4 +1,4 @@
-//! HTTP client trait and implementations.
+//! HTTP transport trait and implementations.
 use async_trait::async_trait;
 use http::StatusCode;
 use sos_core::{
@@ -6,7 +6,6 @@ use sos_core::{
 };
 
 use super::Result;
-use url::Url;
 use uuid::Uuid;
 use web3_signature::Signature;
 
@@ -23,47 +22,9 @@ pub(crate) fn bearer_prefix(signature: &str) -> String {
     format!("Bearer {}", signature)
 }
 
-/*
-
-const AUTHORIZATION: &str = "authorization";
-const CONTENT_TYPE: &str = "content-type";
-
-fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
-    if let Some(commit_proof) = headers.get(X_COMMIT_PROOF) {
-        let value = base64::decode(commit_proof)?;
-        let value: CommitProof = decode(&value)?;
-        Ok(Some(value))
-    } else {
-        Ok(None)
-    }
-}
-
-fn decode_match_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
-    if let Some(commit_proof) = headers.get(X_MATCH_PROOF) {
-        let value = base64::decode(commit_proof)?;
-        let value: CommitProof = decode(&value)?;
-        Ok(Some(value))
-    } else {
-        Ok(None)
-    }
-}
-
-fn encode_headers_proof(
-    mut builder: RequestBuilder,
-    proof: &CommitProof,
-) -> Result<RequestBuilder> {
-    let value = encode(proof)?;
-    builder = builder.header(X_COMMIT_PROOF, base64::encode(&value));
-    Ok(builder)
-}
-*/
-
 /// Trait for HTTP client implementations.
 #[async_trait]
 pub trait HttpClient {
-    /// Get the server URL.
-    fn server(&self) -> &Url;
-
     /// Compute the address of the current signer.
     fn address(&self) -> Result<AddressStr>;
 

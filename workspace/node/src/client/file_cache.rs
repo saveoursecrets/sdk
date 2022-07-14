@@ -5,7 +5,6 @@ use crate::client::http_client::{HttpClient, RequestClient};
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use http::StatusCode;
-//use reqwest::{Response, StatusCode};
 use sos_core::{
     address::AddressStr,
     commit_tree::{
@@ -34,7 +33,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use tempfile::NamedTempFile;
-use url::Url;
 use uuid::Uuid;
 
 use super::ClientCache;
@@ -73,10 +71,6 @@ pub struct FileCache {
 
 #[async_trait]
 impl ClientCache for FileCache {
-    fn server(&self) -> &Url {
-        self.client.server()
-    }
-
     fn address(&self) -> Result<AddressStr> {
         self.client.address()
     }
