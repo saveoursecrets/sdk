@@ -123,10 +123,30 @@ Accounts and vaults will be created in the sandbox directory.
 
 ### Release
 
-To create a release build with the bundled GUI assets run:
+Before making a release install the [cargo-release][] tool:
 
 ```
-cargo make server-release
+cargo install cargo-release
+```
+
+Perform a release dry run:
+
+```
+cargo release --workspace
+```
+
+Then to cut a new release which will publish the libraries as crates and create a new git tag for the release run:
+
+```
+cargo release --workspace -x
+```
+
+The new git tag will trigger a github workflow that will build all the artifacts across the supported platform matrix.
+
+To skip publishing the crates use:
+
+```
+cargo release --workspace -x --no-publish
 ```
 
 [git]: https://git-scm.com/
@@ -135,3 +155,4 @@ cargo make server-release
 [grcov]: https://github.com/mozilla/grcov
 [mkcert]: https://github.com/FiloSottile/mkcert
 [browser]: https://github.com/saveoursecrets/browser
+[cargo-release]: https://github.com/crate-ci/cargo-release

@@ -1817,8 +1817,9 @@ dependencies = [
 
 [[package]]
 name = "pem"
-version = "1.0.3-alpha.0"
-source = "git+https://github.com/tmpfs/pem-rs?rev=6381ef4f29d74182461c17b82ea9a8e6370cf050#6381ef4f29d74182461c17b82ea9a8e6370cf050"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03c64931a1a212348ec4f3b4362585eca7159d0d09cbdf4a7f74f02173596fd4"
 dependencies = [
  "base64",
  "serde",
@@ -2603,7 +2604,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.1.0-alpha1"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum-server",

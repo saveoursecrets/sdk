@@ -3,10 +3,11 @@ name = "sos-check"
 version = "0.1.0"
 edition = "2021"
 default-run = "sos-check"
+publish = false
 
 [dependencies]
 thiserror = "1"
-sos-core = { path = "../core" }
+sos-core = { path = "../core", version = "0.1.0" }
 clap = { version = "3", features = ["derive", "wrap_help"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -16,3 +17,7 @@ uuid = "1"
 [[bin]]
 name = "sos-check"
 path = "src/bin/main.rs"
+
+[package.metadata.release]
+release = false
+shared-version = true
