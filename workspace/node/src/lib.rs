@@ -6,7 +6,4 @@ pub mod client;
 pub mod server;
 mod sync;
 
-#[cfg(feature = "client")]
-pub use client::{run_blocking, ClientBuilder, PassphraseReader};
-
 pub use sync::*;
