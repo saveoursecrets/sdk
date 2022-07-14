@@ -92,7 +92,7 @@ async fn integration_change_password() -> Result<()> {
 
     // Get a new vault for the new passphrase
     let (_new_passphrase, new_vault, wal_events) = ChangePassword::new(
-        keeper.vault_mut(),
+        keeper.vault(),
         encryption_passphrase,
         new_passphrase,
     )
