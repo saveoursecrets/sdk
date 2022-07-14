@@ -13,9 +13,9 @@ use sos_core::{
     constants::{
         MIME_TYPE_VAULT, X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE,
     },
-    decode,
+    decode, encode,
     signer::Signer,
-    vault::{encode, Summary},
+    vault::Summary,
     Patch,
 };
 use std::sync::Arc;

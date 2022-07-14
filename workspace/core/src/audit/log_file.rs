@@ -8,14 +8,15 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use crate::{
     constants::AUDIT_IDENTITY,
     iter::{audit_iter, FileItem, FileIterator, FileRecord},
-    serde_binary::{
-        binary_rw::{
-            BinaryReader, BinaryWriter, Endian, MemoryStream, SeekStream,
-            SliceStream,
-        },
-        Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
-    },
     AuditEvent, AuditProvider, Result,
+};
+
+use serde_binary::{
+    binary_rw::{
+        BinaryReader, BinaryWriter, Endian, MemoryStream, SeekStream,
+        SliceStream,
+    },
+    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
 
 /// Represents an audit log file.

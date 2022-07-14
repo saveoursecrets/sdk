@@ -14,10 +14,4 @@ pub enum Error {
 
     #[error(transparent)]
     Io(#[from] std::io::Error),
-
-    #[error(transparent)]
-    SerdeBinary(#[from] sos_core::serde_binary::Error),
-
-    #[error(transparent)]
-    Binary(#[from] sos_core::serde_binary::binary_rw::BinaryError),
 }

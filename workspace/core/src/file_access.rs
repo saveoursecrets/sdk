@@ -20,11 +20,11 @@ use uuid::Uuid;
 
 use crate::{
     crypto::AeadPack,
+    encode,
     events::SyncEvent,
     secret::SecretId,
     vault::{
-        encode, Contents, Header, Summary, VaultAccess, VaultCommit,
-        VaultEntry,
+        Contents, Header, Summary, VaultAccess, VaultCommit, VaultEntry,
     },
     CommitHash, Result,
 };

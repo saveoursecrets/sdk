@@ -90,11 +90,11 @@ pub enum Error {
 
     /// Error generate by the signature library.
     #[error(transparent)]
-    Signature(#[from] sos_core::web3_signature::SignatureError),
+    Signature(#[from] web3_signature::SignatureError),
 
     /// Error generate by the ECDSA library.
     #[error(transparent)]
-    Ecdsa(#[from] sos_core::k256::ecdsa::Error),
+    Ecdsa(#[from] k256::ecdsa::Error),
 
     /// Error generate by the JSON library.
     #[error(transparent)]

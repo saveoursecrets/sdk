@@ -2730,6 +2730,7 @@ dependencies = [
  "hex",
  "http",
  "hyper",
+ "k256",
  "mime_guess",
  "once_cell",
  "rand",

@@ -124,7 +124,7 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{test_utils::*, vault::encode};
+    use crate::{encode, test_utils::*};
 
     // TODO: test for corrupt vault / WAL
 

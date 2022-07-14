@@ -8,7 +8,4 @@ pub enum Error {
 
     #[error(transparent)]
     Core(#[from] sos_core::Error),
-
-    #[error(transparent)]
-    Binary(#[from] sos_core::binary_rw::BinaryError),
 }

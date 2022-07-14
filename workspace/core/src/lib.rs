@@ -1,5 +1,7 @@
 #![deny(missing_docs)]
-//! Secret storage manager.
+//! Core library for the distributed, encrypted database.
+
+use serde_binary::{binary_rw::Endian, Decode, Encode};
 
 pub mod address;
 mod audit;
@@ -30,13 +32,7 @@ pub mod wal;
 #[cfg(test)]
 pub mod test_utils;
 
-pub use k256;
-pub use serde_binary;
-pub use serde_binary::binary_rw;
-pub use web3_signature;
-
 pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
-pub use crypto::algorithms::Algorithm;
 pub use diceware::{generate_passphrase, generate_passphrase_words};
 pub use error::Error;
 pub use file_access::VaultFileAccess;
@@ -48,7 +44,16 @@ pub use hash::CommitHash;
 pub use passwd::ChangePassword;
 pub use patch::{Patch, PatchFile};
 pub use timestamp::Timestamp;
-pub use vault::{decode, encode};
+
+/// Encode into a binary buffer.
+pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
+    Ok(serde_binary::encode(encodable, Endian::Big)?)
+}
+
+/// Decode from a binary buffer.
+pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
+    Ok(serde_binary::decode::<T>(buffer, Endian::Big)?)
+}
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;
