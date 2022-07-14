@@ -10,7 +10,7 @@ use sos_core::{
     vault::Summary,
     AuditLogFile, FileLocks,
 };
-use sos_node::{ClientCache, FileCache};
+use sos_node::client::{file_cache::FileCache, ClientCache};
 use sos_server::{Authentication, Server, ServerConfig, ServerInfo, State};
 
 const ADDR: &str = "127.0.0.1:3505";

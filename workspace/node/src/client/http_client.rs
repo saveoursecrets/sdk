@@ -59,6 +59,7 @@ fn encode_headers_proof(
     Ok(builder)
 }
 
+/// HTTP client implementation.
 pub struct Client {
     server: Url,
     http_client: HttpClient,

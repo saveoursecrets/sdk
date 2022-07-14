@@ -19,7 +19,10 @@ use sos_core::{
     wal::WalItem,
     ChangePassword, CommitHash,
 };
-use sos_node::{run_blocking, ClientCache, FileCache, SyncKind};
+use sos_node::{
+    client::{file_cache::FileCache, ClientCache},
+    run_blocking, SyncKind,
+};
 use sos_readline::{
     choose, read_flag, read_line, read_line_allow_empty, read_multiline,
     read_option, read_password, Choice,

@@ -18,7 +18,10 @@ use sos_core::events::ChangeNotification;
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
-use sos_node::{run_blocking, ClientBuilder, ClientCache, FileCache};
+use sos_node::{
+    client::{file_cache::FileCache, ClientCache},
+    run_blocking, ClientBuilder,
+};
 
 const WELCOME: &str = include_str!("welcome.txt");
 

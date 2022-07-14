@@ -2,8 +2,11 @@
 use crate::{display_passphrase, Error, Result};
 
 use sos_node::{
-    create_account, create_signing_key, run_blocking, ClientBuilder,
-    FileCache, PassphraseReader,
+    client::{
+        account::{create_account, create_signing_key},
+        file_cache::FileCache,
+    },
+    run_blocking, ClientBuilder, PassphraseReader,
 };
 use sos_readline::{read_flag, read_password};
 use std::{borrow::Cow, path::PathBuf};

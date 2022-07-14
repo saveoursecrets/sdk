@@ -1,5 +1,4 @@
-//! Signup a new account.
-use crate::{Client, ClientCache, Error, FileCache, Result};
+//! Functions and types for creating accounts.
 use sos_core::{
     address::AddressStr, crypto::generate_random_ecdsa_signing_key,
     generate_passphrase, signer::SingleParty, vault::Summary,
@@ -8,9 +7,10 @@ use std::{convert::Infallible, path::PathBuf, sync::Arc};
 use url::Url;
 use web3_keystore::encrypt;
 
-use super::ClientBuilder;
+use super::{file_cache::FileCache, Client, ClientBuilder, ClientCache};
+use crate::{Error, Result};
 
-/// Signing, public key and computed address for a new client account.
+/// Signing, public key and computed address for a new account.
 pub struct ClientKey(pub [u8; 32], pub [u8; 33], pub AddressStr);
 
 impl ClientKey {
@@ -22,10 +22,16 @@ impl ClientKey {
 
 /// Encapsulates the credentials for a new account signup.
 pub struct ClientCredentials {
+    /// Passphrase for the keystore.
     pub keystore_passphrase: String,
+    /// Passphrase for the vault encryption.
     pub encryption_passphrase: String,
+    /// File for the keystore.
     pub keystore_file: PathBuf,
+    /// Address of the signing key.
     pub address: AddressStr,
+    /// Summary that represents the login vault
+    /// created when the account was created.
     pub summary: Summary,
 }
 

@@ -14,7 +14,11 @@ use sos_core::{
     secret::SecretRef,
 };
 use sos_node::{
-    Client, ClientCache, ClientCredentials, FileCache, SyncStatus,
+    client::{
+        account::ClientCredentials, file_cache::FileCache,
+        http_client::Client, ClientCache,
+    },
+    SyncStatus,
 };
 
 #[tokio::test]
