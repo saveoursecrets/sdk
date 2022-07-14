@@ -3,11 +3,12 @@ name = "sos-client"
 version = "0.1.0"
 edition = "2021"
 default-run = "sos-client"
+publish = false
 
 [dependencies]
 thiserror = "1"
-sos-core = { path = "../core" }
-sos-readline = { path = "../readline" }
+sos-core = { path = "../core", version = "0.1.0" }
+sos-readline = { path = "../readline", version = "0.1.0" }
 async-trait = "0.1"
 async-recursion = "1"
 clap = { version = "3", features = ["derive", "wrap_help"] }
@@ -53,3 +54,7 @@ reqwest = { version = "0.11", default-features = false, features = ["json", "rus
 [[bin]]
 name = "sos-client"
 path = "src/bin/main.rs"
+
+[package.metadata.release]
+release = false
+shared-version = true

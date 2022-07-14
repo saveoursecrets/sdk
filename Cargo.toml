@@ -1,10 +1,12 @@
 [package]
 name = "sos"
-version = "0.1.0-alpha1"
+version = "0.1.0"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
+homepage = "https://saveoursecrets.org"
 license = "GPL-3.0"
 default-run = "sos"
+publish = false
 
 [workspace]
 members = [
@@ -17,10 +19,10 @@ members = [
 ]
 
 [dependencies]
-sos-audit = { path = "workspace/audit" }
-sos-client = { path = "workspace/client" }
-sos-core = { path = "workspace/core" }
-sos-server = { path = "workspace/server" }
+sos-audit = { path = "workspace/audit", version = "0.1.0" }
+sos-client = { path = "workspace/client", version = "0.1.0" }
+sos-core = { path = "workspace/core", version = "0.1.0" }
+sos-server = { path = "workspace/server", version = "0.1.0" }
 
 thiserror = "1"
 clap = { version = "3", features = ["derive", "wrap_help"] }
@@ -42,3 +44,10 @@ serial_test = "0.8"
 [[bin]]
 name = "sos"
 path = "src/bin/main.rs"
+
+[workspace.metadata.release]
+sign-tag = true
+sign-commit = true
+pre-release-hook = ["cargo", "audit"]
+pre-release-commit-message = "Release {{version}}"
+post-release-commit-message = "Start next version {{next_version}}"

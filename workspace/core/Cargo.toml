@@ -2,6 +2,9 @@
 name = "sos-core"
 version = "0.1.0"
 edition = "2021"
+description = "Distributed, encrypted database for private secrets."
+homepage = "https://saveoursecrets.org"
+license = "GPL-3.0"
 
 [dependencies]
 async-trait = "0.1"
@@ -27,13 +30,7 @@ time = { version = "0.3", features = ["serde", "local-offset", "formatting"] }
 bitflags = "1"
 ouroboros = "0.15"
 tokio = { version = "1", default-features = false, features = ["fs", "io-util"] }
-
-[dependencies.pem]
-version = "1.0.3-alpha.0"
-git = "https://github.com/tmpfs/pem-rs"
-#branch = "serde-feature"
-rev = "6381ef4f29d74182461c17b82ea9a8e6370cf050"
-features = ["serde"]
+pem = { version = "1.1.0", features = ["serde"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 file-guard = "0.1"
@@ -60,3 +57,7 @@ rev = "1bb19733ac66cebf58b726d14770a616faba85dd"
 [dev-dependencies]
 anyhow = "1"
 tempfile = "3"
+
+[package.metadata.release]
+tag = false
+shared-version = true
