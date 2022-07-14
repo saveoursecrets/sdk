@@ -17,7 +17,6 @@ use crate::{
 };
 
 mod log_file;
-
 pub use log_file::AuditLogFile;
 
 bitflags! {

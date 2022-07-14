@@ -57,12 +57,6 @@ pub fn status(vault: PathBuf) -> Result<()> {
         return Err(Error::NotFile(vault));
     }
 
-    //let mut stream = FileStream::new(&vault, OpenType::Open)?;
-    //let (mut iterator, header) = RowIterator::new(&mut stream)?;
-    //let total = *iterator.total_rows();
-    //let tree = CommitTree::from_iterator(&mut iterator)?;
-    //
-
     let header = Header::read_header_file(&vault)?;
     let tree = Vault::build_tree(&vault)?;
 

@@ -2,16 +2,13 @@
 use async_trait::async_trait;
 use http::StatusCode;
 use sos_core::{
-    address::AddressStr,
-    commit_tree::CommitProof,
-    vault::{Summary},
-    Patch,
+    address::AddressStr, commit_tree::CommitProof, vault::Summary, Patch,
 };
 
-use web3_signature::Signature;
+use super::Result;
 use url::Url;
 use uuid::Uuid;
-use super::{Result};
+use web3_signature::Signature;
 
 pub mod request;
 pub use request::RequestClient;
