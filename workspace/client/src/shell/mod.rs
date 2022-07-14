@@ -358,13 +358,15 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 
 fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
-    F: FnOnce(&mut RwLockWriteGuard<'_, FileCache>) -> sos_node::Result<()>,
+    F: FnOnce(
+        &mut RwLockWriteGuard<'_, FileCache>,
+    ) -> sos_node::client::Result<()>,
 {
     let mut writer = cache.write().unwrap();
     match func(&mut writer) {
         Ok(_) => Ok(()),
         Err(e) => match e {
-            sos_node::Error::Conflict {
+            sos_node::client::Error::Conflict {
                 summary,
                 local,
                 remote,

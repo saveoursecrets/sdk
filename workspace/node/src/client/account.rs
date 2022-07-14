@@ -8,7 +8,7 @@ use url::Url;
 use web3_keystore::encrypt;
 
 use super::{file_cache::FileCache, Client, ClientBuilder, ClientCache};
-use crate::{Error, Result};
+use super::{Error, Result};
 
 /// Signing, public key and computed address for a new account.
 pub struct ClientKey(pub [u8; 32], pub [u8; 33], pub AddressStr);

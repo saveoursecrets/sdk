@@ -2,6 +2,9 @@
 use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
 use url::Url;
 
+use std::future::Future;
+use tokio::runtime::Runtime;
+
 use http_client::Client;
 
 use futures::StreamExt;
@@ -23,11 +26,30 @@ use sos_core::{
     Gatekeeper,
 };
 
-use crate::{Error, Result, SyncInfo, SyncStatus};
+use crate::{SyncInfo, SyncStatus};
 
 pub mod account;
 pub mod file_cache;
 pub mod http_client;
+
+mod error;
+pub use error::Error;
+
+/// Result type for the client module.
+pub type Result<T> = std::result::Result<T, error::Error>;
+
+/// Runs a future blocking the current thread.
+///
+/// Exposed so we can merge the synchronous nature
+/// of the shell REPL prompt with the asynchronous API
+/// exposed by the HTTP client.
+pub fn run_blocking<F, R>(func: F) -> Result<R>
+where
+    F: Future<Output = Result<R>> + Send,
+    R: Send,
+{
+    Runtime::new().unwrap().block_on(func)
+}
 
 /// Creates a changes stream and calls handler for every change notification.
 pub async fn changes_stream<F>(client: &Client, handler: F) -> Result<()>

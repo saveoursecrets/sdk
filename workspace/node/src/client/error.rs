@@ -1,4 +1,4 @@
-//! Error type for the node library.
+//! Error type for the client module.
 use sos_core::{vault::Summary, CommitHash};
 use std::path::PathBuf;
 use thiserror::Error;

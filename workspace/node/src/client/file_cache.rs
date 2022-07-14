@@ -1,8 +1,7 @@
 //! Caching implementation backed by files.
-use crate::{
-    client::http_client::{decode_match_proof, Client},
-    Error, Result,
-};
+use super::{Error, Result};
+use crate::client::http_client::{decode_match_proof, Client};
+
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use reqwest::{Response, StatusCode};

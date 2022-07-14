@@ -16,7 +16,7 @@ use sos_core::{
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::{
+use crate::server::{
     authenticate::{self},
     State,
 };

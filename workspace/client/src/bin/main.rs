@@ -195,7 +195,7 @@ fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "sos_client=info".into()),
+                .unwrap_or_else(|_| "sos_node::client=info".into()),
         ))
         .with(tracing_subscriber::fmt::layer().without_time())
         .init();

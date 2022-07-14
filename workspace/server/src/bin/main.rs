@@ -1,7 +1,7 @@
 use clap::Parser;
 
 use sos_core::{AuditLogFile, FileLocks};
-use sos_server::{
+use sos_node::server::{
     Authentication, Result, Server, ServerConfig, ServerInfo, State,
 };
 
@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "sos_server=info".into()),
+                .unwrap_or_else(|_| "sos_node::server=info".into()),
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
