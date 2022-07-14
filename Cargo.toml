@@ -46,6 +46,7 @@ name = "sos"
 path = "src/bin/main.rs"
 
 [workspace.metadata.release]
+allow-branch = ["main"]
 sign-tag = true
 sign-commit = true
 pre-release-hook = ["cargo", "audit"]
