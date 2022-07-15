@@ -19,7 +19,7 @@ This repository contains the core library code and several command line interfac
     * [client](/workspace/client) The `sos-client` terminal read-eval-print-loop (REPL) tool.
     * [core](/workspace/core) Core library types and traits.
     * [node](/workspace/node) Networking library.
-    * [readline](/workspace/readline) Utility functions for reading from stdin, used by the terminal REPL client.
+    * [readline](/workspace/readline) Utility functions for reading from stdin.
     * [server](/workspace/server) The `sos-server` server command line interface.
 
 For webassembly bindings see the [browser][] repository.
@@ -192,9 +192,9 @@ You will be prompted to enter the keystore passphrase, if the signing keystore i
 
 The default vault created when you signed up a new account is called *Login* so you can use it; type `use Login` to select the login vault.
 
-Now enter your encryption passphrase to unlock he vault.
+Now enter your encryption passphrase to unlock the vault.
 
-Once the vault is unlocked you can create, update, read and delete secrets and perform other actions such as creating snapshots or changing the vault encryption passphrase.
+Once the vault is unlocked you can list, create, update, read and delete secrets and perform other actions such as creating snapshots or changing the vault encryption passphrase.
 
 To see the list of available commands type `help` at the prompt.
 
