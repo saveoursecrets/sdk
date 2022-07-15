@@ -9,6 +9,7 @@ use super::Result;
 use uuid::Uuid;
 use web3_signature::Signature;
 
+pub mod changes;
 pub mod request;
 pub use request::RequestClient;
 

@@ -2782,6 +2782,7 @@ dependencies = [
  "k256",
  "mime_guess",
  "once_cell",
+ "pin-project-lite",
  "rand",
  "reqwest 0.11.11",
  "reqwest-eventsource 0.4.0",
