@@ -2118,41 +2118,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "reqwest"
-version = "0.11.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b75aa69a3f06bbcc66ede33af2af253c6f7a86b1ca0033f60c580a27074fbf92"
-dependencies = [
- "base64",
- "bytes",
- "encoding_rs",
- "futures-core",
- "futures-util",
- "h2",
- "http",
- "http-body",
- "hyper",
- "ipnet",
- "js-sys",
- "lazy_static",
- "log",
- "mime",
- "percent-encoding",
- "pin-project-lite",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "tokio",
- "tokio-util",
- "tower-service",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "winreg",
-]
-
-[[package]]
 name = "reqwest-eventsource"
 version = "0.4.0"
 dependencies = [
@@ -2162,23 +2127,7 @@ dependencies = [
  "mime",
  "nom",
  "pin-project-lite",
- "reqwest 0.11.11",
- "thiserror",
-]
-
-[[package]]
-name = "reqwest-eventsource"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f03f570355882dd8d15acc3a313841e6e90eddbc76a93c748fd82cc13ba9f51"
-dependencies = [
- "eventsource-stream",
- "futures-core",
- "futures-timer",
- "mime",
- "nom",
- "pin-project-lite",
- "reqwest 0.11.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "reqwest",
  "thiserror",
 ]
 
@@ -2658,7 +2607,7 @@ dependencies = [
  "axum-server",
  "clap",
  "futures",
- "reqwest-eventsource 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "reqwest-eventsource",
  "serde_json",
  "serial_test",
  "sos-audit",
@@ -2709,7 +2658,7 @@ dependencies = [
  "hex",
  "human_bytes",
  "mime_guess",
- "reqwest-eventsource 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "reqwest-eventsource",
  "serde_json",
  "sha3 0.10.1",
  "shell-words",
@@ -2782,9 +2731,10 @@ dependencies = [
  "k256",
  "mime_guess",
  "once_cell",
+ "pin-project-lite",
  "rand",
- "reqwest 0.11.11",
- "reqwest-eventsource 0.4.0",
+ "reqwest",
+ "reqwest-eventsource",
  "rust-embed",
  "serde",
  "serde_json",

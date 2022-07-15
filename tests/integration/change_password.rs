@@ -34,7 +34,7 @@ async fn integration_change_password() -> Result<()> {
 
     let (tx, mut rx) = mpsc::channel(1);
 
-    let mut es = file_cache.client().changes().await?;
+    let mut es = file_cache.client().events().await?;
     let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
         Arc::new(RwLock::new(Vec::new()));
     let changed = Arc::clone(&notifications);

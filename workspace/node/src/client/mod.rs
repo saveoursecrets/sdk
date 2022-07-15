@@ -5,14 +5,9 @@ use url::Url;
 use std::future::Future;
 use tokio::runtime::Runtime;
 
-use net::RequestClient;
-
-use futures::StreamExt;
-use reqwest_eventsource::Event;
-
-use web3_keystore::{decrypt, KeyStore};
-
 use async_trait::async_trait;
+use net::RequestClient;
+use web3_keystore::{decrypt, KeyStore};
 
 use sos_core::{
     address::AddressStr,
@@ -49,32 +44,6 @@ where
     R: Send,
 {
     Runtime::new().unwrap().block_on(func)
-}
-
-/// Creates a changes stream and calls handler for every change notification.
-pub async fn changes_stream<F>(
-    client: &RequestClient,
-    handler: F,
-) -> Result<()>
-where
-    F: Fn(ChangeNotification) -> (),
-{
-    let mut es = client.changes().await?;
-    while let Some(event) = es.next().await {
-        match event {
-            Ok(Event::Open) => tracing::debug!("sse connection open"),
-            Ok(Event::Message(message)) => {
-                let notification: ChangeNotification =
-                    serde_json::from_str(&message.data)?;
-                handler(notification);
-            }
-            Err(e) => {
-                es.close();
-                return Err(e.into());
-            }
-        }
-    }
-    Ok(())
 }
 
 /// Trait for implementations that can read a passphrase.
@@ -151,7 +120,7 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
 /// into a selected vault and allows making changes to the currently
 /// selected vault.
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch="wasm32"), async_trait)]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientCache {
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;
