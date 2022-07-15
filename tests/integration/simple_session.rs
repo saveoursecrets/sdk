@@ -38,7 +38,7 @@ async fn integration_simple_session() -> Result<()> {
 
     let (tx, mut rx) = mpsc::channel(1);
 
-    let mut es = file_cache.client().changes().await?;
+    let mut es = file_cache.client().events().await?;
     let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
         Arc::new(RwLock::new(Vec::new()));
     let changed = Arc::clone(&notifications);
@@ -53,7 +53,6 @@ async fn integration_simple_session() -> Result<()> {
                 Ok(Event::Message(message)) => {
                     let notification: ChangeNotification =
                         serde_json::from_str(&message.data)?;
-
                     // Store change notifications so we can
                     // assert at the end
                     let mut writer = changed.write().unwrap();
@@ -66,7 +65,6 @@ async fn integration_simple_session() -> Result<()> {
                 }
             }
         }
-
         Ok::<(), sos_client::Error>(())
     });
 

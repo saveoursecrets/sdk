@@ -2,10 +2,7 @@
 use async_trait::async_trait;
 use http::StatusCode;
 use rand::Rng;
-use reqwest::{
-    header::HeaderMap, RequestBuilder,
-    Response,
-};
+use reqwest::{header::HeaderMap, RequestBuilder, Response};
 
 use reqwest_eventsource::EventSource;
 use sos_core::{
@@ -25,7 +22,10 @@ use uuid::Uuid;
 
 use crate::client::{Error, Result};
 
-use super::{bearer_prefix, encode_signature, Challenge, NetworkClient};
+use super::{
+    bearer_prefix, changes::ChangeStream, encode_signature, Challenge,
+    NetworkClient,
+};
 
 const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
@@ -67,7 +67,7 @@ pub struct RequestClient {
 }
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch="wasm32"), async_trait)]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl NetworkClient for RequestClient {
     fn address(&self) -> Result<AddressStr> {
         Ok(self.signer.address()?)
@@ -349,7 +349,7 @@ impl RequestClient {
     }
 
     /// Get an event source for the changes feed.
-    pub async fn changes(&self) -> Result<EventSource> {
+    pub async fn events(&self) -> Result<EventSource> {
         let message: [u8; 32] = rand::thread_rng().gen();
         let token = base64::encode(serde_json::to_vec(
             &self.signer.sign(&message).await?,
@@ -360,5 +360,10 @@ impl RequestClient {
             .append_pair("message", &message)
             .append_pair("token", &token);
         Ok(EventSource::get(url))
+    }
+
+    /// Get a stream of change notifications.
+    pub async fn changes(&self) -> Result<ChangeStream> {
+        Ok(ChangeStream::new(self.events().await?))
     }
 }

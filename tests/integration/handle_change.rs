@@ -44,7 +44,7 @@ async fn integration_handle_change() -> Result<()> {
 
     let (tx, mut rx) = mpsc::channel(1);
 
-    let mut es = listener.client().changes().await?;
+    let mut es = listener.client().events().await?;
     tokio::task::spawn(async move {
         while let Some(event) = es.next().await {
             match event {
