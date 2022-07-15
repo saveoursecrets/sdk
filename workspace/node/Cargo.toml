@@ -15,7 +15,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
 async-recursion = "1"
 k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
-web3-signature = { version = "0.2.3", features = ["single-party"] }
+web3-signature = { version = "0.2", features = ["single-party"] }
 serde = "1"
 serde_json = "1"
 rand = "0.8"
@@ -24,11 +24,11 @@ url = "2"
 futures = "0.3"
 pin-project-lite = "0.2"
 uuid = { version = "1", features = ["serde", "v4"] }
-base64 = "0.13"
 hex = "0.4"
 tempfile = "3"
 dirs = "4"
 http = "0.2"
+bs58 = "0.4"
 
 # client
 reqwest-eventsource = { version = "0.4", path = "../../../../forks/reqwest-eventsource", optional = true }

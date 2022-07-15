@@ -108,9 +108,9 @@ pub enum Error {
     #[error(transparent)]
     Utf8(#[from] std::str::Utf8Error),
 
-    /// Error generated decoding a base64 string.
+    /// Error generated decoding a base58 string.
     #[error(transparent)]
-    Base64Decode(#[from] base64::DecodeError),
+    Base58Decode(#[from] bs58::decode::Error),
 
     /// Error generated converting an HTTP status code.
     #[error(transparent)]

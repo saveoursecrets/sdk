@@ -2,7 +2,8 @@
 use async_trait::async_trait;
 use http::StatusCode;
 use sos_core::{
-    address::AddressStr, commit_tree::CommitProof, vault::Summary, Patch,
+    address::AddressStr, commit_tree::CommitProof, encode,
+    signer::BinarySignature, vault::Summary, Patch,
 };
 
 use super::Result;
@@ -16,7 +17,9 @@ pub use request::RequestClient;
 pub(crate) type Challenge = [u8; 32];
 
 pub(crate) fn encode_signature(signature: Signature) -> Result<String> {
-    Ok(base64::encode(serde_json::to_string(&signature)?))
+    let signature: BinarySignature = signature.into();
+    let value = bs58::encode(encode(&signature)?).into_string();
+    Ok(value)
 }
 
 pub(crate) fn bearer_prefix(signature: &str) -> String {
