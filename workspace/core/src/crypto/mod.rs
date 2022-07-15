@@ -1,11 +1,10 @@
 //! Cryptographic routines and types.
 use crate::Error;
+use binary_stream::{
+    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
+};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError,
-    Result as BinaryResult, Serializer,
-};
 
 pub mod aesgcm256;
 pub mod secret_key;
@@ -34,9 +33,8 @@ pub fn generate_random_ecdsa_signing_key() -> ([u8; 32], [u8; 33]) {
 /// Constants for supported symmetric ciphers.
 pub mod algorithms {
     use crate::Error;
-    use serde_binary::{
-        Decode, Deserializer, Encode, Error as BinaryError,
-        Result as BinaryResult, Serializer,
+    use binary_stream::{
+        BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
     };
     use std::{convert::AsRef, fmt, str::FromStr};
 
@@ -113,15 +111,15 @@ pub mod algorithms {
     }
 
     impl Encode for Algorithm {
-        fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-            ser.writer.write_u8(*self.as_ref())?;
+        fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+            writer.write_u8(*self.as_ref())?;
             Ok(())
         }
     }
 
     impl Decode for Algorithm {
-        fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-            let id = de.reader.read_u8()?;
+        fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+            let id = reader.read_u8()?;
             *self = match id {
                 X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305(id),
                 AES_GCM_256 => Algorithm::AesGcm256(id),
@@ -184,26 +182,27 @@ pub struct AeadPack {
 }
 
 impl Encode for AeadPack {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         match &self.nonce {
             Nonce::Nonce12(ref bytes) => {
-                ser.writer.write_u8(12)?;
-                ser.writer.write_bytes(bytes)?;
+                writer.write_u8(12)?;
+                writer.write_bytes(bytes)?;
             }
             Nonce::Nonce24(ref bytes) => {
-                ser.writer.write_u8(24)?;
-                ser.writer.write_bytes(bytes)?;
+                writer.write_u8(24)?;
+                writer.write_bytes(bytes)?;
             }
         }
-        self.ciphertext.serialize(ser)?;
+        writer.write_u32(self.ciphertext.len() as u32)?;
+        writer.write_bytes(&self.ciphertext)?;
         Ok(())
     }
 }
 
 impl Decode for AeadPack {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let nonce_size = de.reader.read_u8()?;
-        let nonce_buffer = de.reader.read_bytes(nonce_size as usize)?;
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let nonce_size = reader.read_u8()?;
+        let nonce_buffer = reader.read_bytes(nonce_size as usize)?;
         match nonce_size {
             12 => {
                 self.nonce =
@@ -219,7 +218,8 @@ impl Decode for AeadPack {
                 )));
             }
         }
-        self.ciphertext = Deserialize::deserialize(de)?;
+        let len = reader.read_u32()?;
+        self.ciphertext = reader.read_bytes(len as usize)?;
         Ok(())
     }
 }

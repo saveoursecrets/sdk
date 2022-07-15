@@ -1,11 +1,10 @@
 //! Event for audit log records.
 use async_trait::async_trait;
+use binary_stream::{
+    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
+};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
-use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError,
-    Result as BinaryResult, Serializer,
-};
 use uuid::Uuid;
 
 use crate::{
@@ -171,36 +170,36 @@ impl AuditEvent {
 }
 
 impl Encode for AuditEvent {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         // Context bit flags
         let flags = self.log_flags();
-        ser.writer.write_u16(flags.bits())?;
+        writer.write_u16(flags.bits())?;
         // Time - the when
-        self.time.encode(&mut *ser)?;
+        self.time.encode(&mut *writer)?;
         // EventKind - the what
-        self.event_kind.encode(&mut *ser)?;
+        self.event_kind.encode(&mut *writer)?;
         // Address - by whom
-        ser.writer.write_bytes(self.address.as_ref())?;
+        writer.write_bytes(self.address.as_ref())?;
         // Data - context
         if flags.contains(LogFlags::DATA) {
             let data = self.data.as_ref().unwrap();
-            data.encode(&mut *ser)?;
+            data.encode(&mut *writer)?;
         }
         Ok(())
     }
 }
 
 impl Decode for AuditEvent {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         // Context bit flags
-        let bits = de.reader.read_u16()?;
+        let bits = reader.read_u16()?;
         // Time - the when
         let mut timestamp: Timestamp = Default::default();
-        timestamp.decode(&mut *de)?;
+        timestamp.decode(&mut *reader)?;
         // EventKind - the what
-        self.event_kind.decode(&mut *de)?;
+        self.event_kind.decode(&mut *reader)?;
         // Address - by whom
-        let address = de.reader.read_bytes(20)?;
+        let address = reader.read_bytes(20)?;
         let address: [u8; 20] = address.as_slice().try_into()?;
         self.address = address.into();
         // Data - context
@@ -209,13 +208,13 @@ impl Decode for AuditEvent {
                 && flags.contains(LogFlags::DATA_VAULT)
             {
                 let vault_id: [u8; 16] =
-                    de.reader.read_bytes(16)?.as_slice().try_into()?;
+                    reader.read_bytes(16)?.as_slice().try_into()?;
                 if !flags.contains(LogFlags::DATA_SECRET) {
                     self.data =
                         Some(AuditData::Vault(Uuid::from_bytes(vault_id)));
                 } else {
                     let secret_id: [u8; 16] =
-                        de.reader.read_bytes(16)?.as_slice().try_into()?;
+                        reader.read_bytes(16)?.as_slice().try_into()?;
                     self.data = Some(AuditData::Secret(
                         Uuid::from_bytes(vault_id),
                         Uuid::from_bytes(secret_id),
@@ -223,7 +222,7 @@ impl Decode for AuditEvent {
                 }
             }
         } else {
-            return Err(BinaryError::Message(
+            return Err(BinaryError::Custom(
                 "log data flags has bad bits".to_string(),
             ));
         }
@@ -249,14 +248,14 @@ impl Default for AuditData {
 }
 
 impl Encode for AuditData {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         match self {
             AuditData::Vault(vault_id) => {
-                ser.writer.write_bytes(vault_id.as_bytes())?;
+                writer.write_bytes(vault_id.as_bytes())?;
             }
             AuditData::Secret(vault_id, secret_id) => {
-                ser.writer.write_bytes(vault_id.as_bytes())?;
-                ser.writer.write_bytes(secret_id.as_bytes())?;
+                writer.write_bytes(vault_id.as_bytes())?;
+                writer.write_bytes(secret_id.as_bytes())?;
             }
         }
         Ok(())

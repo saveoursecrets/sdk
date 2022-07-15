@@ -300,10 +300,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a32fd6af2b5827bce66c29053ba0e7c42b9dcab01835835058558c10851a46b"
 
 [[package]]
-name = "binary_rw"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cf424430d1cb1829080746d3bac4e7566af9d0b1753ec9d249a7aadd565f14f"
+name = "binary-stream"
+version = "3.0.1"
 dependencies = [
  "thiserror",
 ]
@@ -2401,17 +2399,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde-binary"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41643e62a35edcd08c9f1f1847f90e904212aed8bed6a10650a1c88582ab94d8"
-dependencies = [
- "binary_rw",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "serde_derive"
 version = "1.0.139"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2675,6 +2662,7 @@ dependencies = [
  "anyhow",
  "argon2",
  "async-trait",
+ "binary-stream",
  "bitflags",
  "chacha20poly1305",
  "chbs",
@@ -2688,7 +2676,6 @@ dependencies = [
  "rand",
  "rs_merkle",
  "serde",
- "serde-binary",
  "serde_json",
  "sha3 0.9.1",
  "subtle",

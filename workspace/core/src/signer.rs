@@ -1,10 +1,10 @@
 //! Traits and types for signing messages.
 use async_trait::async_trait;
+use binary_stream::{
+    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
+};
 use k256::ecdsa::{
     recoverable, signature::Signer as EcdsaSigner, SigningKey,
-};
-use serde_binary::{
-    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
 use web3_signature::Signature;
 
@@ -15,18 +15,18 @@ use crate::{address::AddressStr, Result};
 pub struct BinarySignature(Signature);
 
 impl Encode for BinarySignature {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         // 65 byte signature
         let buffer = self.0.to_bytes();
-        ser.writer.write_bytes(&buffer)?;
+        writer.write_bytes(&buffer)?;
         Ok(())
     }
 }
 
 impl Decode for BinarySignature {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let buffer: [u8; 65] =
-            de.reader.read_bytes(65)?.as_slice().try_into()?;
+            reader.read_bytes(65)?.as_slice().try_into()?;
         self.0 = buffer.into();
         Ok(())
     }

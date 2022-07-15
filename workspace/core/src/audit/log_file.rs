@@ -11,12 +11,9 @@ use crate::{
     AuditEvent, AuditProvider, Result,
 };
 
-use serde_binary::{
-    binary_rw::{
-        BinaryReader, BinaryWriter, Endian, MemoryStream, SeekStream,
-        SliceStream,
-    },
-    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
+use binary_stream::{
+    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, Endian,
+    MemoryStream, SeekStream, SliceStream,
 };
 
 /// Represents an audit log file.
@@ -74,47 +71,46 @@ impl AuditLogFile {
         file.read_exact(&mut buf)?;
 
         let mut stream = SliceStream::new(&buf);
-        let reader = BinaryReader::new(&mut stream, Endian::Big);
-        let mut de = Deserializer { reader };
-        Ok(AuditLogFile::decode_row(&mut de)?)
+        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+        Ok(AuditLogFile::decode_row(&mut reader)?)
     }
 
     /// Encode an audit log event record.
     fn encode_row(
-        ser: &mut Serializer,
+        writer: &mut BinaryWriter,
         event: &AuditEvent,
     ) -> BinaryResult<()> {
         // Set up the leading row length
-        let size_pos = ser.writer.tell()?;
-        ser.writer.write_u32(0)?;
+        let size_pos = writer.tell()?;
+        writer.write_u32(0)?;
 
         // Encode the event data for the row
-        event.encode(&mut *ser)?;
+        event.encode(&mut *writer)?;
 
         // Backtrack to size_pos and write new length
-        let row_pos = ser.writer.tell()?;
+        let row_pos = writer.tell()?;
         let row_len = row_pos - (size_pos + 4);
-        ser.writer.seek(size_pos)?;
-        ser.writer.write_u32(row_len as u32)?;
-        ser.writer.seek(row_pos)?;
+        writer.seek(size_pos)?;
+        writer.write_u32(row_len as u32)?;
+        writer.seek(row_pos)?;
 
         // Write out the row len at the end of the record too
         // so we can support double ended iteration
-        ser.writer.write_u32(row_len as u32)?;
+        writer.write_u32(row_len as u32)?;
 
         Ok(())
     }
 
     /// Decode an audit log event record.
-    fn decode_row(de: &mut Deserializer) -> BinaryResult<AuditEvent> {
+    fn decode_row(reader: &mut BinaryReader) -> BinaryResult<AuditEvent> {
         // Read in the row length
-        let _ = de.reader.read_u32()?;
+        let _ = reader.read_u32()?;
 
         let mut event: AuditEvent = Default::default();
-        event.decode(&mut *de)?;
+        event.decode(&mut *reader)?;
 
         // Read in the row length appended to the end of the record
-        let _ = de.reader.read_u32()?;
+        let _ = reader.read_u32()?;
         Ok(event)
     }
 }
@@ -129,10 +125,9 @@ impl AuditProvider for AuditLogFile {
     ) -> std::result::Result<(), Self::Error> {
         let buffer: Vec<u8> = {
             let mut stream = MemoryStream::new();
-            let writer = BinaryWriter::new(&mut stream, Endian::Big);
-            let mut serializer = Serializer { writer };
+            let mut writer = BinaryWriter::new(&mut stream, Endian::Big);
             for event in events {
-                AuditLogFile::encode_row(&mut serializer, event)?;
+                AuditLogFile::encode_row(&mut writer, event)?;
             }
             stream.into()
         };

@@ -159,13 +159,14 @@ pub enum Error {
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
 
+    /*
     /// Error generated from the binary serializer / deserializer.
     #[error(transparent)]
     Binary(#[from] serde_binary::Error),
-
+    */
     /// Error generated from the binary reader / writer.
     #[error(transparent)]
-    BinaryRw(#[from] serde_binary::binary_rw::BinaryError),
+    BinaryStream(#[from] binary_stream::BinaryError),
 
     /// Error generated during AES encryption and decryption.
     #[error(transparent)]

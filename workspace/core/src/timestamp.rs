@@ -2,10 +2,10 @@
 //!
 //! Encoded as an i64 of the seconds since the UNIX epoch and
 //! a u32 nanosecond offset from the second.
-use serde::{Deserialize, Serialize};
-use serde_binary::{
-    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
+use binary_stream::{
+    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use filetime::FileTime;
@@ -77,19 +77,19 @@ impl fmt::Display for Timestamp {
 }
 
 impl Encode for Timestamp {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         let seconds = self.0.unix_timestamp();
         let nanos = self.0.nanosecond();
-        ser.writer.write_i64(seconds)?;
-        ser.writer.write_u32(nanos)?;
+        writer.write_i64(seconds)?;
+        writer.write_u32(nanos)?;
         Ok(())
     }
 }
 
 impl Decode for Timestamp {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let seconds = de.reader.read_i64()?;
-        let nanos = de.reader.read_u32()?;
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let seconds = reader.read_i64()?;
+        let nanos = reader.read_u32()?;
         self.0 = OffsetDateTime::from_unix_timestamp(seconds)
             .map_err(Box::from)?
             + Duration::nanoseconds(nanos as i64);

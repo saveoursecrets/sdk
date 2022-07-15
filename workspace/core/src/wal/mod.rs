@@ -6,9 +6,8 @@ use crate::{
     CommitHash, Result,
 };
 
-use serde_binary::{
-    binary_rw::SeekStream, Decode, Deserializer, Encode,
-    Result as BinaryResult, Serializer,
+use binary_stream::{
+    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, SeekStream,
 };
 
 pub mod file;
@@ -106,59 +105,59 @@ pub trait WalItem: std::fmt::Debug {
 pub struct WalRecord(Timestamp, CommitHash, CommitHash, pub Vec<u8>);
 
 impl Encode for WalRecord {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         // Prepare the bytes for the row length
-        let size_pos = ser.writer.tell()?;
-        ser.writer.write_u32(0)?;
+        let size_pos = writer.tell()?;
+        writer.write_u32(0)?;
 
         // Encode the time component
-        self.0.encode(&mut *ser)?;
+        self.0.encode(&mut *writer)?;
 
         // Write the previous commit hash bytes
-        ser.writer.write_bytes(self.1.as_ref())?;
+        writer.write_bytes(self.1.as_ref())?;
 
         // Write the commit hash bytes
-        ser.writer.write_bytes(self.2.as_ref())?;
+        writer.write_bytes(self.2.as_ref())?;
 
         // FIXME: ensure the buffer size does not exceed u32
 
         // Write the data bytes
-        ser.writer.write_u32(self.3.len() as u32)?;
-        ser.writer.write_bytes(&self.3)?;
+        writer.write_u32(self.3.len() as u32)?;
+        writer.write_bytes(&self.3)?;
 
         // Backtrack to size_pos and write new length
-        let row_pos = ser.writer.tell()?;
+        let row_pos = writer.tell()?;
         let row_len = row_pos - (size_pos + 4);
-        ser.writer.seek(size_pos)?;
-        ser.writer.write_u32(row_len as u32)?;
-        ser.writer.seek(row_pos)?;
+        writer.seek(size_pos)?;
+        writer.write_u32(row_len as u32)?;
+        writer.seek(row_pos)?;
 
         // Write out the row len at the end of the record too
         // so we can support double ended iteration
-        ser.writer.write_u32(row_len as u32)?;
+        writer.write_u32(row_len as u32)?;
 
         Ok(())
     }
 }
 
 impl Decode for WalRecord {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         // Read in the row length
-        let _ = de.reader.read_u32()?;
+        let _ = reader.read_u32()?;
 
         // Decode the time component
         let mut time: Timestamp = Default::default();
-        time.decode(&mut *de)?;
+        time.decode(&mut *reader)?;
 
         // Read the hash bytes
         let previous: [u8; 32] =
-            de.reader.read_bytes(32)?.as_slice().try_into()?;
+            reader.read_bytes(32)?.as_slice().try_into()?;
         let commit: [u8; 32] =
-            de.reader.read_bytes(32)?.as_slice().try_into()?;
+            reader.read_bytes(32)?.as_slice().try_into()?;
 
         // Read the data bytes
-        let length = de.reader.read_u32()?;
-        let buffer = de.reader.read_bytes(length as usize)?;
+        let length = reader.read_u32()?;
+        let buffer = reader.read_bytes(length as usize)?;
 
         self.0 = time;
         self.1 = CommitHash(previous);
@@ -166,7 +165,7 @@ impl Decode for WalRecord {
         self.3 = buffer;
 
         // Read in the row length appended to the end of the record
-        let _ = de.reader.read_u32()?;
+        let _ = reader.read_u32()?;
 
         Ok(())
     }
