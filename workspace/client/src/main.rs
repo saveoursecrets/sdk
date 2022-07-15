@@ -10,11 +10,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
 use futures::stream::StreamExt;
-use reqwest_eventsource::Event;
 use sos_client::{
     exec, monitor, signup, Error, Result, StdinPassphraseReader,
 };
-use sos_core::events::ChangeNotification;
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
@@ -142,25 +140,11 @@ fn run() -> Result<()> {
                         let reader = change_cache.read().unwrap();
                         let mut es = reader.client().changes().await?;
                         drop(reader);
-                        while let Some(event) = es.next().await {
-                            match event {
-                                Ok(Event::Open) => {
-                                    //tracing::debug!("sse connection open")
-                                }
-                                Ok(Event::Message(message)) => {
-                                    let notification: ChangeNotification =
-                                        serde_json::from_str(&message.data)?;
-                                    let mut writer =
-                                        change_cache.write().unwrap();
-                                    writer
-                                        .handle_change(notification)
-                                        .await?;
-                                }
-                                Err(e) => {
-                                    es.close();
-                                    return Err(e.into());
-                                }
-                            }
+
+                        while let Some(notification) = es.next().await {
+                            let notification = notification?;
+                            let mut writer = change_cache.write().unwrap();
+                            writer.handle_change(notification).await?;
                         }
                         Ok::<(), crate::Error>(())
                     })

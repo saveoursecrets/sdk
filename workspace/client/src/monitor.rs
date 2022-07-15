@@ -3,8 +3,22 @@ use std::path::PathBuf;
 use url::Url;
 
 use crate::{Result, StdinPassphraseReader};
-use sos_core::events::ChangeNotification;
-use sos_node::client::{changes_stream, run_blocking, ClientBuilder};
+use futures::stream::StreamExt;
+use sos_node::client::{net::RequestClient, run_blocking, ClientBuilder};
+
+/// Creates a changes stream and calls handler for every change notification.
+async fn changes_stream(
+    client: &RequestClient,
+) -> sos_node::client::Result<()> {
+    let mut es = client.changes().await?;
+    while let Some(notification) = es.next().await {
+        let notification = notification?;
+        tracing::info!(
+            changes = ?notification.changes(),
+            vault_id = %notification.vault_id());
+    }
+    Ok(())
+}
 
 /// Start a monitor listening for events on the SSE stream.
 pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
@@ -13,18 +27,7 @@ pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
         .with_passphrase_reader(Box::new(reader))
         .build()?;
 
-    let handler = |notification: ChangeNotification| {
-        let changes = notification
-            .changes()
-            .iter()
-            .map(|e| format!("{:?}", e))
-            .collect::<Vec<_>>();
-        tracing::info!(
-            changes = ?changes,
-            vault_id = %notification.vault_id());
-    };
-
-    if let Err(e) = run_blocking(changes_stream(&client, handler)) {
+    if let Err(e) = run_blocking(changes_stream(&client)) {
         tracing::error!("{}", e);
         std::process::exit(1);
     }
