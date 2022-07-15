@@ -3,9 +3,46 @@ use async_trait::async_trait;
 use k256::ecdsa::{
     recoverable, signature::Signer as EcdsaSigner, SigningKey,
 };
+use serde_binary::{
+    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
+};
 use web3_signature::Signature;
 
 use crate::{address::AddressStr, Result};
+
+/// Signature that can be encoded and decoded to binary.
+#[derive(Default)]
+pub struct BinarySignature(Signature);
+
+impl Encode for BinarySignature {
+    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+        // 65 byte signature
+        let buffer = self.0.to_bytes();
+        ser.writer.write_bytes(&buffer)?;
+        Ok(())
+    }
+}
+
+impl Decode for BinarySignature {
+    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+        let buffer: [u8; 65] =
+            de.reader.read_bytes(65)?.as_slice().try_into()?;
+        self.0 = buffer.into();
+        Ok(())
+    }
+}
+
+impl From<Signature> for BinarySignature {
+    fn from(value: Signature) -> Self {
+        BinarySignature(value)
+    }
+}
+
+impl From<BinarySignature> for Signature {
+    fn from(value: BinarySignature) -> Self {
+        value.0
+    }
+}
 
 /// Trait for implementations that can sign a message.
 #[async_trait]

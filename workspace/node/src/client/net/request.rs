@@ -32,7 +32,7 @@ const CONTENT_TYPE: &str = "content-type";
 
 fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
     if let Some(commit_proof) = headers.get(X_COMMIT_PROOF) {
-        let value = base64::decode(commit_proof)?;
+        let value = bs58::decode(commit_proof).into_vec()?;
         let value: CommitProof = decode(&value)?;
         Ok(Some(value))
     } else {
@@ -42,7 +42,7 @@ fn decode_headers_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
 
 fn decode_match_proof(headers: &HeaderMap) -> Result<Option<CommitProof>> {
     if let Some(commit_proof) = headers.get(X_MATCH_PROOF) {
-        let value = base64::decode(commit_proof)?;
+        let value = bs58::decode(commit_proof).into_vec()?;
         let value: CommitProof = decode(&value)?;
         Ok(Some(value))
     } else {
@@ -55,7 +55,8 @@ fn encode_headers_proof(
     proof: &CommitProof,
 ) -> Result<RequestBuilder> {
     let value = encode(proof)?;
-    builder = builder.header(X_COMMIT_PROOF, base64::encode(&value));
+    builder =
+        builder.header(X_COMMIT_PROOF, bs58::encode(&value).into_string());
     Ok(builder)
 }
 
@@ -97,7 +98,7 @@ impl NetworkClient for RequestClient {
             .http_client
             .get(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message))
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
             .send()
             .await?;
 
@@ -118,7 +119,7 @@ impl NetworkClient for RequestClient {
             .http_client
             .get(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message))
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
             .send()
             .await?;
 
@@ -166,7 +167,7 @@ impl NetworkClient for RequestClient {
             .http_client
             .get(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message));
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string());
 
         if let Some(proof) = proof {
             builder = encode_headers_proof(builder, proof)?;
@@ -253,7 +254,7 @@ impl NetworkClient for RequestClient {
             .http_client
             .head(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message));
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string());
 
         if let Some(proof) = proof {
             builder = encode_headers_proof(builder, proof)?;
@@ -282,7 +283,7 @@ impl NetworkClient for RequestClient {
             .http_client
             .delete(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, base64::encode(&message))
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
             .send()
             .await?;
         let headers = response.headers();
@@ -351,9 +352,7 @@ impl RequestClient {
     /// Get an event source for the changes feed.
     pub async fn events(&self) -> Result<EventSource> {
         let message: [u8; 32] = rand::thread_rng().gen();
-        let token = base64::encode(serde_json::to_vec(
-            &self.signer.sign(&message).await?,
-        )?);
+        let token = encode_signature(self.signer.sign(&message).await?)?;
         let message = hex::encode(&message);
         let mut url = self.server.join("/api/changes")?;
         url.query_pairs_mut()

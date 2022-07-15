@@ -35,8 +35,9 @@ impl Header for SignedMessage {
         I: Iterator<Item = &'i HeaderValue>,
     {
         let value = values.next().ok_or_else(headers::Error::invalid)?;
-        let value =
-            base64::decode(&value).map_err(|_| headers::Error::invalid())?;
+        let value = bs58::decode(&value)
+            .into_vec()
+            .map_err(|_| headers::Error::invalid())?;
         Ok(SignedMessage(value))
     }
 
@@ -44,7 +45,7 @@ impl Header for SignedMessage {
     where
         E: Extend<HeaderValue>,
     {
-        let s = base64::encode(&self.0);
+        let s = bs58::encode(&self.0).into_string();
         let value = HeaderValue::from_str(&s)
             .expect("failed to create signed message header");
         values.extend(std::iter::once(value));
@@ -66,8 +67,9 @@ impl Header for CommitProofHeader {
         let value = values.next().ok_or_else(headers::Error::invalid)?;
         let value: &str =
             value.to_str().map_err(|_| headers::Error::invalid())?;
-        let value =
-            base64::decode(value).map_err(|_| headers::Error::invalid())?;
+        let value = bs58::decode(value)
+            .into_vec()
+            .map_err(|_| headers::Error::invalid())?;
         let value: CommitProof =
             decode(&value).map_err(|_| headers::Error::invalid())?;
         Ok(CommitProofHeader(value))
@@ -79,7 +81,7 @@ impl Header for CommitProofHeader {
     {
         let v =
             encode(&self.0).expect("failed to encode commit proof header");
-        let s = base64::encode(&v);
+        let s = bs58::encode(&v).into_string();
         let value = HeaderValue::from_str(&s)
             .expect("failed to create commit proof header");
         values.extend(std::iter::once(value));

@@ -42,8 +42,9 @@ fn append_commit_headers(
 ) -> Result<(), StatusCode> {
     let value =
         encode(proof).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let x_commit_proof = HeaderValue::from_str(&base64::encode(&value))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let x_commit_proof =
+        HeaderValue::from_str(&bs58::encode(&value).into_string())
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
     Ok(())
 }
@@ -54,8 +55,9 @@ fn append_match_header(
 ) -> Result<(), StatusCode> {
     let value =
         encode(proof).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let x_match_proof = HeaderValue::from_str(&base64::encode(&value))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let x_match_proof =
+        HeaderValue::from_str(&bs58::encode(&value).into_string())
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     headers.insert(X_MATCH_PROOF.clone(), x_match_proof);
     Ok(())
 }
