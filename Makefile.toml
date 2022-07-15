@@ -70,9 +70,14 @@ dependencies = ["unit", "integration"]
 [tasks.dev]
 dependencies = ["check-wasm", "test", "format"]
 
+[tasks.check-wasm-node-client]
+command = "cargo"
+args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-node", "--no-default-features", "--features", "client"]
+
 [tasks.check-wasm]
 command = "cargo"
 args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-core"]
+dependencies = ["check-wasm-node-client"]
 
 [tasks.server-release]
 command = "cargo"
