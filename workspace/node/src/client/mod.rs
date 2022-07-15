@@ -150,7 +150,8 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
 /// Trait for types that cache vaults locally; supports a *current* view
 /// into a selected vault and allows making changes to the currently
 /// selected vault.
-#[async_trait]
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch="wasm32"), async_trait)]
 pub trait ClientCache {
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;

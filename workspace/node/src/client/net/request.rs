@@ -3,9 +3,10 @@ use async_trait::async_trait;
 use http::StatusCode;
 use rand::Rng;
 use reqwest::{
-    header::HeaderMap, ClientBuilder as HttpClientBuilder, RequestBuilder,
+    header::HeaderMap, RequestBuilder,
     Response,
 };
+
 use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
@@ -65,7 +66,8 @@ pub struct RequestClient {
     signer: Arc<dyn Signer + Send + Sync>,
 }
 
-#[async_trait]
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch="wasm32"), async_trait)]
 impl NetworkClient for RequestClient {
     fn address(&self) -> Result<AddressStr> {
         Ok(self.signer.address()?)
@@ -320,21 +322,7 @@ impl NetworkClient for RequestClient {
 impl RequestClient {
     /// Create a new client.
     pub fn new(server: Url, signer: Arc<dyn Signer + Send + Sync>) -> Self {
-        let mut builder = HttpClientBuilder::new();
-
-        // For integration tests we use a self-signed
-        // certificate, so this allows the client to connect.
-        //
-        // Except it fails for the changes feed so now tests
-        // use a plain HTTP server, preserving this in case we
-        // can fix the issue with the changes feed over HTTPS.
-        if cfg!(debug_assertions) {
-            builder = builder.danger_accept_invalid_certs(true);
-        }
-
-        let http_client =
-            builder.build().expect("failed to build HTTP client");
-
+        let http_client = reqwest::Client::new();
         Self {
             server,
             http_client,
