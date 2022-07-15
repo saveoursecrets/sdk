@@ -14,7 +14,7 @@ tracing = "0.1"
 filetime = "0.2"
 rand = "0.8"
 thiserror = "1"
-web3-signature = { version = "0.2.3", features = ["single-party"] }
+web3-signature = { version = "0.2", features = ["single-party"] }
 serde = { version = "1", features = ["derive"] }
 hex = { version = "0.4", features = ["serde"] }
 serde_json = "1"

@@ -13,7 +13,7 @@ use axum::{
     http::StatusCode,
 };
 
-use sos_core::address::AddressStr;
+use sos_core::{address::AddressStr, decode, signer::BinarySignature};
 
 use k256::ecdsa::recoverable;
 use web3_signature::Signature;
@@ -47,8 +47,8 @@ impl BearerToken {
         message: &[u8],
     ) -> Result<(StatusCode, Option<BearerToken>)> {
         let result = if let Ok(value) = base64::decode(token) {
-            if let Ok(signature) = serde_json::from_slice::<Signature>(&value)
-            {
+            if let Ok(binary_sig) = decode::<BinarySignature>(&value) {
+                let signature: Signature = binary_sig.into();
                 let recoverable: recoverable::Signature =
                     signature.try_into()?;
                 let public_key = recoverable.recover_verify_key(message)?;

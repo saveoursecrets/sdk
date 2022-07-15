@@ -351,9 +351,7 @@ impl RequestClient {
     /// Get an event source for the changes feed.
     pub async fn events(&self) -> Result<EventSource> {
         let message: [u8; 32] = rand::thread_rng().gen();
-        let token = base64::encode(serde_json::to_vec(
-            &self.signer.sign(&message).await?,
-        )?);
+        let token = encode_signature(self.signer.sign(&message).await?)?;
         let message = hex::encode(&message);
         let mut url = self.server.join("/api/changes")?;
         url.query_pairs_mut()
