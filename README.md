@@ -4,14 +4,23 @@
 
 This repository contains the core library code and several command line interface (CLI) tools.
 
+* [Layout](#repository-layout) Guide to the repository layout
+* [Design](#design) Brief overview of the design
+* [Development](#development) Set up a development environment
+* [Getting Started](#getting-started) Getting started guide for developers 
+
+## Repository Layout
+
 * [sandbox](/sandbox) Configuration and storage location for local testing.
+* [tests](/tests) Integration tests.
 * [workspace](/workspace) Libraries and command line interfaces.
     * [audit](/workspace/audit) The `sos-audit` tool for reading and monitoring audit logs.
     * [check](/workspace/check) The `sos-check` tool for verifying file integrity and inspecting files.
-    * [client](/workspace/client) Client library and the `sos-client` terminal read-eval-print-loop (REPL) tool.
-    * [core](/workspace/core) Core library including types and traits common to the client and server implementations.
+    * [client](/workspace/client) The `sos-client` terminal read-eval-print-loop (REPL) tool.
+    * [core](/workspace/core) Core library types and traits.
+    * [node](/workspace/node) Networking library.
     * [readline](/workspace/readline) Utility functions for reading from stdin, used by the terminal REPL client.
-    * [server](/workspace/server) Server command line interface.
+    * [server](/workspace/server) The `sos-server` server command line interface.
 
 For webassembly bindings see the [browser][] repository.
 
@@ -55,7 +64,9 @@ Soft conflicts occur when a node tries to make changes to another node but canno
 
 The system is eventually consistent except in the case of two events; when a WAL is compacted to prune history or when the encryption password for a vault is changed. Either of these events will completely rewrite the append-only log and therefore the vault commit trees will have diverged. If all nodes are connected when these events occur then it is possible to synchronize automatically but if a node is offline (or an error occurs) then we have a conflict that must be resolved; we call this a *hard conflict*.
 
-## Setup
+## Development
+
+### Setup
 
 Tasks are run using `cargo make`, install it with:
 
@@ -65,13 +76,13 @@ cargo install cargo-make
 
 The minimum supported Rust version (MSRV) is 1.62; to view the API documentation for all crates run `cargo make docs`.
 
-## Test
+### Test
 
 * Run all tests: `cargo make test`
 * Unit tests: `cargo make unit`
 * Integration tests: `cargo make integration`
 
-### Coverage
+#### Coverage
 
 For code coverage install the `llvm-tools-preview` and `grcov`:
 
@@ -79,7 +90,7 @@ For code coverage install the `llvm-tools-preview` and `grcov`:
 rustup component add llvm-tools-preview && cargo install grcov
 ```
 
-And to generate the HTML from the `lcov.info` file install [lcov][]; then you can run:
+Then you can run:
 
 ```
 cargo make coverage
@@ -87,9 +98,9 @@ cargo make coverage
 
 The HTML coverage report is at `target/coverage/index.html`.
 
-## Server
+### Server
 
-### Certificates
+#### Certificates
 
 The server requires TLS so a certificate and key file must be configured.
 
@@ -105,7 +116,7 @@ Afterwards create certificates for local servers in the sandbox directory:
 cargo make dev-certs
 ```
 
-### Web GUI
+#### Web GUI
 
 The server bundles a web-based GUI from the browser webapp code so to run the server CLI tool you must have the [browser][] repository as a sibling folder of this repository and then you can build the public folder containing the bundled assets:
 
@@ -121,7 +132,7 @@ cargo make dev-server
 
 Accounts and vaults will be created in the sandbox directory.
 
-### Release
+#### Release
 
 Before making a release install the [cargo-release][] tool:
 
@@ -148,6 +159,44 @@ To skip publishing the crates use:
 ```
 cargo release --workspace -x --no-publish
 ```
+
+## Getting Started
+
+If you have setup a development environment or installed the command line tools then you can start a server and connect a client.
+
+We will show commands using the executable names but you can also use `cargo run` in the program directory.
+
+To begin start a server, for example:
+
+```
+sos-server -c sandbox/config.toml
+```
+
+Then in a separate terminal create a new signing key and login vault:
+
+```
+sos-client signup -s https://localhost:5053 ./sandbox
+```
+
+This will write the signing key to the `sandbox` directory and create a new account on the server. It will also print the *keystore passhrase* for the signing key and the *encryption passphrase* for the login vault. For testing you may want to make a note of these, in the real world these passphrases need to be memorized.
+
+Now create a shell session:
+
+```
+sos-client shell -s https://localhost:5053 -k ./sandbox/<addr>.json
+```
+
+Where `<addr>` should be changed with the public address of the signing key created during signup.
+
+You will be prompted to enter the keystore passphrase, if the signing keystore is decrypted successfully using the passphrase you entered you will be presented with a shell prompt.
+
+The default vault created when you signed up a new account is called *Login* so you can use it; type `use Login` to select the login vault.
+
+Now enter your encryption passphrase to unlock he vault.
+
+Once the vault is unlocked you can create, update, read and delete secrets and perform other actions such as creating snapshots or changing the vault encryption passphrase.
+
+To see the list of available commands type `help` at the prompt.
 
 [git]: https://git-scm.com/
 [wireguard]: https://www.wireguard.com/
