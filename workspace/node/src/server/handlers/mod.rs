@@ -1,9 +1,14 @@
 use axum::{
-    body::{Body, Bytes},
     extract::Extension,
-    http::{header::HeaderMap, HeaderValue, Request, Response, StatusCode},
+    http::{header::HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Redirect},
     Json,
+};
+
+#[cfg(feature = "gui")]
+use axum::{
+    body::{Body, Bytes},
+    http::{Request, Response},
 };
 
 //use axum_macros::debug_handler;
@@ -14,10 +19,12 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 
 use super::{
-    assets::Assets,
     headers::{X_COMMIT_PROOF, X_MATCH_PROOF},
     State,
 };
+
+#[cfg(feature = "gui")]
+use super::assets::Assets;
 
 use sos_core::{
     commit_tree::CommitProof, encode, events::ChangeNotification, AuditEvent,

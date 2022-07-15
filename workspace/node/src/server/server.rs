@@ -146,13 +146,7 @@ impl Server {
             ])
             .allow_origin(Origin::list(origins));
 
-        let mut app = Router::new();
-
-        if cfg!(feature = "gui") {
-            app = app.route("/gui/*path", get(super::handlers::assets))
-        }
-
-        app = app
+        let mut app = Router::new()
             .route("/", get(home))
             .route("/api", get(api))
             .route("/api/auth", get(AuthHandler::challenge))
@@ -168,10 +162,25 @@ impl Server {
                     .patch(WalHandler::patch_wal)
                     .delete(WalHandler::delete_wal),
             )
-            .route("/api/changes", get(sse_handler))
+            .route("/api/changes", get(sse_handler));
+
+        app = feature_routes(app);
+
+        app = app
             .layer(cors)
             .layer(Extension(state));
 
         Ok(app)
     }
 }
+
+#[cfg(not(feature = "gui"))]
+fn feature_routes(app: Router) -> Router {
+    app
+}
+
+#[cfg(feature = "gui")]
+fn feature_routes(app: Router) -> Router {
+    app.route("/gui/*path", get(super::handlers::assets))
+}
+
