@@ -170,18 +170,18 @@ impl<'a> Encode for SyncEvent<'a> {
                 }
             }
             SyncEvent::CreateSecret(uuid, value) => {
-                uuid.serialize(&mut *ser)?;
+                ser.writer.write_bytes(uuid.as_bytes())?;
                 value.as_ref().encode(&mut *ser)?;
             }
             SyncEvent::ReadSecret(uuid) => {
-                uuid.serialize(&mut *ser)?;
+                ser.writer.write_bytes(uuid.as_bytes())?;
             }
             SyncEvent::UpdateSecret(uuid, value) => {
-                uuid.serialize(&mut *ser)?;
+                ser.writer.write_bytes(uuid.as_bytes())?;
                 value.as_ref().encode(&mut *ser)?;
             }
             SyncEvent::DeleteSecret(uuid) => {
-                uuid.serialize(&mut *ser)?;
+                ser.writer.write_bytes(uuid.as_bytes())?;
             }
         }
         Ok(())
@@ -226,7 +226,9 @@ impl<'a> Decode for SyncEvent<'a> {
                 *self = SyncEvent::SetVaultMeta(Cow::Owned(aead_pack));
             }
             EventKind::CreateSecret => {
-                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let id = SecretId::from_bytes(
+                    de.reader.read_bytes(16)?.as_slice().try_into()?);
+
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *de)?;
                 //let mut meta_aead: AeadPack = Default::default();
@@ -236,11 +238,13 @@ impl<'a> Decode for SyncEvent<'a> {
                 *self = SyncEvent::CreateSecret(id, Cow::Owned(commit));
             }
             EventKind::ReadSecret => {
-                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let id = SecretId::from_bytes(
+                    de.reader.read_bytes(16)?.as_slice().try_into()?);
                 *self = SyncEvent::ReadSecret(id);
             }
             EventKind::UpdateSecret => {
-                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let id = SecretId::from_bytes(
+                    de.reader.read_bytes(16)?.as_slice().try_into()?);
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *de)?;
 
@@ -251,7 +255,8 @@ impl<'a> Decode for SyncEvent<'a> {
                 *self = SyncEvent::UpdateSecret(id, Cow::Owned(commit));
             }
             EventKind::DeleteSecret => {
-                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let id = SecretId::from_bytes(
+                    de.reader.read_bytes(16)?.as_slice().try_into()?);
                 *self = SyncEvent::DeleteSecret(id);
             }
             _ => {

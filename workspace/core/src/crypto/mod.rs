@@ -195,7 +195,8 @@ impl Encode for AeadPack {
                 ser.writer.write_bytes(bytes)?;
             }
         }
-        self.ciphertext.serialize(ser)?;
+        ser.writer.write_u32(self.ciphertext.len() as u32)?;
+        ser.writer.write_bytes(&self.ciphertext)?;
         Ok(())
     }
 }
@@ -219,7 +220,8 @@ impl Decode for AeadPack {
                 )));
             }
         }
-        self.ciphertext = Deserialize::deserialize(de)?;
+        let len = de.reader.read_u32()?;
+        self.ciphertext = de.reader.read_bytes(len as usize)?;
         Ok(())
     }
 }

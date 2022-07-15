@@ -102,15 +102,15 @@ impl<'a> Encode for WalEvent<'a> {
                 }
             }
             WalEvent::CreateSecret(uuid, value) => {
-                uuid.serialize(&mut *ser)?;
+                ser.writer.write_bytes(uuid.as_bytes())?;
                 value.as_ref().encode(&mut *ser)?;
             }
             WalEvent::UpdateSecret(uuid, value) => {
-                uuid.serialize(&mut *ser)?;
+                ser.writer.write_bytes(uuid.as_bytes())?;
                 value.as_ref().encode(&mut *ser)?;
             }
             WalEvent::DeleteSecret(uuid) => {
-                uuid.serialize(&mut *ser)?;
+                ser.writer.write_bytes(uuid.as_bytes())?;
             }
         }
         Ok(())
@@ -144,19 +144,23 @@ impl<'a> Decode for WalEvent<'a> {
                 *self = WalEvent::SetVaultMeta(Cow::Owned(aead_pack));
             }
             EventKind::CreateSecret => {
-                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let id = SecretId::from_bytes(
+                    de.reader.read_bytes(16)?.as_slice().try_into()?);
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *de)?;
                 *self = WalEvent::CreateSecret(id, Cow::Owned(commit));
             }
             EventKind::UpdateSecret => {
-                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let id = SecretId::from_bytes(
+                    de.reader.read_bytes(16)?.as_slice().try_into()?);
+
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *de)?;
                 *self = WalEvent::UpdateSecret(id, Cow::Owned(commit));
             }
             EventKind::DeleteSecret => {
-                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let id = SecretId::from_bytes(
+                    de.reader.read_bytes(16)?.as_slice().try_into()?);
                 *self = WalEvent::DeleteSecret(id);
             }
             _ => {
