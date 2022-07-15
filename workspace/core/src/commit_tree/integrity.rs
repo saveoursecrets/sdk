@@ -1,7 +1,7 @@
 //! Functions to build commit trees and run integrity checks.
-use std::path::Path;
+use std::{fs::File, path::Path};
 
-use serde_binary::binary_rw::{BinaryReader, Endian, FileStream, OpenType};
+use binary_stream::{BinaryReader, Endian, FileStream};
 
 use crate::{
     commit_tree::{hash, CommitTree},
@@ -27,7 +27,7 @@ where
 
     // Need an additional reader as we may also read in the
     // values for the rows
-    let mut stream = FileStream::new(vault.as_ref(), OpenType::Open)?;
+    let mut stream = FileStream(File::open(vault.as_ref())?);
     let mut reader = BinaryReader::new(&mut stream, Endian::Big);
 
     let it = vault_iter(vault.as_ref())?;
@@ -72,7 +72,7 @@ where
 
     // Need an additional reader as we may also read in the
     // values for the rows
-    let mut value = FileStream::new(wal_file.as_ref(), OpenType::Open)?;
+    let mut value = FileStream(File::open(wal_file.as_ref())?);
     let mut reader = BinaryReader::new(&mut value, Endian::Big);
 
     let wal = WalFile::new(wal_file.as_ref())?;

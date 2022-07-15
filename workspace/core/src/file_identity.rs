@@ -1,5 +1,5 @@
 //! Helper that reads and writes the magic identity bytes for file formats.
-use serde_binary::{Deserializer, Serializer};
+use binary_stream::{BinaryReader, BinaryWriter};
 use std::{fs::File, io::Read, path::Path};
 
 use crate::{Error, Result};
@@ -47,11 +47,11 @@ impl FileIdentity {
 
     /// Read the identity magic bytes.
     pub fn read_identity(
-        de: &mut Deserializer,
+        reader: &mut BinaryReader,
         identity: &[u8],
     ) -> Result<()> {
         for ident in identity {
-            let byte = de.reader.read_u8()?;
+            let byte = reader.read_u8()?;
             if byte != *ident {
                 return Err(Error::BadIdentity(byte));
             }
@@ -61,10 +61,10 @@ impl FileIdentity {
 
     /// Write the identity magic bytes.
     pub fn write_identity(
-        ser: &mut Serializer,
+        writer: &mut BinaryWriter,
         identity: &[u8],
     ) -> Result<()> {
-        ser.writer.write_bytes(identity)?;
+        writer.write_bytes(identity)?;
         Ok(())
     }
 }

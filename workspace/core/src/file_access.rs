@@ -9,13 +9,10 @@ use std::{
     sync::Mutex,
 };
 
-use serde_binary::{
-    binary_rw::{
-        BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream,
-        OpenType, SeekStream,
-    },
-    Deserializer, Serializer,
+use binary_stream::{
+    BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream, SeekStream,
 };
+
 use uuid::Uuid;
 
 use crate::{
@@ -41,9 +38,10 @@ impl VaultFileAccess {
     /// The underlying file should already exist and be a valid vault.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        let file = std::fs::File::open(path.as_ref())?;
+        let file =
+            OpenOptions::new().read(true).write(true).open(&file_path)?;
         let _metadata = file.metadata()?;
-        let stream = Mutex::new(FileStream::new(path, OpenType::ReadWrite)?);
+        let stream = Mutex::new(FileStream(file));
         Ok(Self { file_path, stream })
     }
 
@@ -134,27 +132,26 @@ impl VaultFileAccess {
         let content_offset = self.check_identity()?;
 
         let mut stream = self.stream.lock().unwrap();
-        let reader = BinaryReader::new(&mut *stream, Endian::Big);
-        let mut de = Deserializer { reader };
+        let mut reader = BinaryReader::new(&mut *stream, Endian::Big);
 
-        de.reader.seek(content_offset)?;
+        reader.seek(content_offset)?;
 
         // Scan all the rows
-        let mut current_pos = de.reader.tell()?;
-        while let Ok(row_len) = de.reader.read_u32() {
+        let mut current_pos = reader.tell()?;
+        while let Ok(row_len) = reader.read_u32() {
             let row_id: [u8; 16] =
-                de.reader.read_bytes(16)?.as_slice().try_into()?;
+                reader.read_bytes(16)?.as_slice().try_into()?;
             let row_id = Uuid::from_bytes(row_id);
             if id == &row_id {
                 // Need to backtrack as we just read the row length and UUID;
                 // calling decode_row() will try to read the length and UUID.
-                de.reader.seek(current_pos)?;
+                reader.seek(current_pos)?;
                 return Ok((content_offset, Some((current_pos, row_len))));
             }
 
             // Move on to the next row
-            de.reader.seek(current_pos + 8 + (row_len as usize))?;
-            current_pos = de.reader.tell()?;
+            reader.seek(current_pos + 8 + (row_len as usize))?;
+            current_pos = reader.tell()?;
         }
 
         Ok((content_offset, None))
@@ -208,14 +205,12 @@ impl VaultAccess for VaultFileAccess {
     ) -> Result<SyncEvent<'_>> {
         let mut stream = self.stream.lock().unwrap();
         let length = stream.len()?;
-        let writer = BinaryWriter::new(&mut *stream, Endian::Big);
-        let mut ser = Serializer { writer };
-
+        let mut writer = BinaryWriter::new(&mut *stream, Endian::Big);
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
-        ser.writer.seek(length)?;
-        Contents::encode_row(&mut ser, &id, &row)?;
+        writer.seek(length)?;
+        Contents::encode_row(&mut writer, &id, &row)?;
 
         drop(stream);
 
@@ -229,10 +224,9 @@ impl VaultAccess for VaultFileAccess {
         let (_, row) = self.find_row(id)?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().unwrap();
-            let reader = BinaryReader::new(&mut *stream, Endian::Big);
-            let mut de = Deserializer { reader };
-            de.reader.seek(row_offset)?;
-            let (_, value) = Contents::decode_row(&mut de)?;
+            let mut reader = BinaryReader::new(&mut *stream, Endian::Big);
+            reader.seek(row_offset)?;
+            let (_, value) = Contents::decode_row(&mut reader)?;
             Ok((Some(Cow::Owned(value)), SyncEvent::ReadSecret(*id)))
         } else {
             Ok((None, SyncEvent::ReadSecret(*id)))
@@ -249,11 +243,10 @@ impl VaultAccess for VaultFileAccess {
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
             let mut stream = MemoryStream::new();
-            let writer = BinaryWriter::new(&mut stream, Endian::Big);
-            let mut ser = Serializer { writer };
+            let mut writer = BinaryWriter::new(&mut stream, Endian::Big);
 
             let row = VaultCommit(commit, secret);
-            Contents::encode_row(&mut ser, id, &row)?;
+            Contents::encode_row(&mut writer, id, &row)?;
             let encoded: Vec<u8> = stream.into();
 
             // Splice the row into the file

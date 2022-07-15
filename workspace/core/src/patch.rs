@@ -1,8 +1,9 @@
 //! Patch represents a changeset of events to apply to a vault.
-use serde_binary::{
-    binary_rw::SeekStream, Decode, Deserializer, Encode,
-    Error as BinaryError, Result as BinaryResult, Serializer,
+use binary_stream::{
+    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
+    SeekStream,
 };
+
 use std::{
     fs::{File, OpenOptions},
     io::{Seek, SeekFrom, Write},
@@ -23,63 +24,65 @@ pub struct Patch<'a>(pub Vec<SyncEvent<'a>>);
 
 impl Patch<'_> {
     fn encode_row(
-        ser: &mut Serializer,
+        writer: &mut BinaryWriter,
         event: &SyncEvent<'_>,
     ) -> BinaryResult<()> {
         // Set up the leading row length
-        let size_pos = ser.writer.tell()?;
-        ser.writer.write_u32(0)?;
+        let size_pos = writer.tell()?;
+        writer.write_u32(0)?;
 
         // Encode the event data for the row
-        event.encode(&mut *ser)?;
+        event.encode(&mut *writer)?;
 
         // Backtrack to size_pos and write new length
-        let row_pos = ser.writer.tell()?;
+        let row_pos = writer.tell()?;
         let row_len = row_pos - (size_pos + 4);
-        ser.writer.seek(size_pos)?;
-        ser.writer.write_u32(row_len as u32)?;
-        ser.writer.seek(row_pos)?;
+        writer.seek(size_pos)?;
+        writer.write_u32(row_len as u32)?;
+        writer.seek(row_pos)?;
 
         // Write out the row len at the end of the record too
         // so we can support double ended iteration
-        ser.writer.write_u32(row_len as u32)?;
+        writer.write_u32(row_len as u32)?;
 
         Ok(())
     }
 
-    fn decode_row<'a>(de: &mut Deserializer) -> BinaryResult<SyncEvent<'a>> {
+    fn decode_row<'a>(
+        reader: &mut BinaryReader,
+    ) -> BinaryResult<SyncEvent<'a>> {
         // Read in the row length
-        let _ = de.reader.read_u32()?;
+        let _ = reader.read_u32()?;
 
         let mut event: SyncEvent<'_> = Default::default();
-        event.decode(&mut *de)?;
+        event.decode(&mut *reader)?;
 
         // Read in the row length appended to the end of the record
-        let _ = de.reader.read_u32()?;
+        let _ = reader.read_u32()?;
         Ok(event)
     }
 }
 
 impl Encode for Patch<'_> {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_bytes(&PATCH_IDENTITY)?;
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        writer.write_bytes(&PATCH_IDENTITY)?;
         for event in self.0.iter() {
-            Patch::encode_row(ser, event)?;
+            Patch::encode_row(writer, event)?;
         }
         Ok(())
     }
 }
 
 impl Decode for Patch<'_> {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        FileIdentity::read_identity(de, &PATCH_IDENTITY)
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        FileIdentity::read_identity(reader, &PATCH_IDENTITY)
             .map_err(|e| BinaryError::Boxed(Box::from(e)))?;
-        let mut pos = de.reader.tell()?;
-        let len = de.reader.len()?;
+        let mut pos = reader.tell()?;
+        let len = reader.len()?;
         while pos < len {
-            let event = Patch::decode_row(de)?;
+            let event = Patch::decode_row(reader)?;
             self.0.push(event);
-            pos = de.reader.tell()?;
+            pos = reader.tell()?;
         }
         Ok(())
     }

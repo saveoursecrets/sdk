@@ -1,10 +1,10 @@
 //! Type for iterating and managing the commit trees for a vault.
+use binary_stream::{
+    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
+};
 use serde::{
     de::{self, SeqAccess, Visitor},
     ser::SerializeTuple,
-};
-use serde_binary::{
-    Decode, Deserializer, Encode, Result as BinaryResult, Serializer,
 };
 use std::{fmt, ops::Range};
 
@@ -99,33 +99,33 @@ impl Default for CommitProof {
 }
 
 impl Encode for CommitProof {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_bytes(&self.0)?;
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        writer.write_bytes(&self.0)?;
         let proof_bytes = self.1.to_bytes();
-        ser.writer.write_u32(proof_bytes.len() as u32)?;
-        ser.writer.write_bytes(&proof_bytes)?;
+        writer.write_u32(proof_bytes.len() as u32)?;
+        writer.write_bytes(&proof_bytes)?;
 
-        ser.writer.write_u32(self.2 as u32)?;
-        ser.writer.write_u32(self.3.start as u32)?;
-        ser.writer.write_u32(self.3.end as u32)?;
+        writer.write_u32(self.2 as u32)?;
+        writer.write_u32(self.3.start as u32)?;
+        writer.write_u32(self.3.end as u32)?;
         Ok(())
     }
 }
 
 impl Decode for CommitProof {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let root_hash: [u8; 32] =
-            de.reader.read_bytes(32)?.as_slice().try_into()?;
+            reader.read_bytes(32)?.as_slice().try_into()?;
         self.0 = root_hash;
-        let length = de.reader.read_u32()?;
-        let proof_bytes = de.reader.read_bytes(length as usize)?;
+        let length = reader.read_u32()?;
+        let proof_bytes = reader.read_bytes(length as usize)?;
         let proof = MerkleProof::<Sha256>::from_bytes(&proof_bytes)
             .map_err(Box::from)?;
 
         self.1 = proof;
-        self.2 = de.reader.read_u32()? as usize;
-        let start = de.reader.read_u32()?;
-        let end = de.reader.read_u32()?;
+        self.2 = reader.read_u32()? as usize;
+        let start = reader.read_u32()?;
+        let end = reader.read_u32()?;
 
         // TODO: validate range start is <= range end
 

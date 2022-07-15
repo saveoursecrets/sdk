@@ -43,8 +43,13 @@ uuid = { version = "1", features = ["serde", "v4", "js"] }
 version = "1.2"
 #path = "../../../../forks/rs-merkle"
 
-[dependencies.serde-binary]
-version = "0.3.6"
+[dependencies.binary-stream]
+version = "3.0.0"
+features = ["wasm32"]
+path = "../../../../binary-stream"
+
+#[dependencies.serde-binary]
+#version = "0.3.6"
 #path = "../../../serde-binary"
 #features = ["wasm32"]
 

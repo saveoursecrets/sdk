@@ -3,11 +3,10 @@
 //! The variants in this type represent a subset of
 //! the SyncEvent that are allowed in a write-ahead log.
 
-use serde::{Deserialize, Serialize};
-use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError,
-    Result as BinaryResult, Serializer,
+use binary_stream::{
+    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
+use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, cmp::Ordering};
 
 use crate::{crypto::AeadPack, secret::SecretId, vault::VaultCommit, Error};
@@ -82,35 +81,35 @@ impl WalEvent<'_> {
 }
 
 impl<'a> Encode for WalEvent<'a> {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         let op = self.event_kind();
-        op.encode(&mut *ser)?;
+        op.encode(&mut *writer)?;
 
         match self {
             WalEvent::Noop => panic!("WalEvent: attempt to encode a noop"),
             WalEvent::CreateVault(vault) => {
-                ser.writer.write_u32(vault.as_ref().len() as u32)?;
-                ser.writer.write_bytes(vault.as_ref())?;
+                writer.write_u32(vault.as_ref().len() as u32)?;
+                writer.write_bytes(vault.as_ref())?;
             }
             WalEvent::SetVaultName(name) => {
-                ser.writer.write_string(name)?;
+                writer.write_string(name)?;
             }
             WalEvent::SetVaultMeta(meta) => {
-                ser.writer.write_bool(meta.is_some())?;
+                writer.write_bool(meta.is_some())?;
                 if let Some(meta) = meta.as_ref() {
-                    meta.encode(&mut *ser)?;
+                    meta.encode(&mut *writer)?;
                 }
             }
             WalEvent::CreateSecret(uuid, value) => {
-                uuid.serialize(&mut *ser)?;
-                value.as_ref().encode(&mut *ser)?;
+                writer.write_bytes(uuid.as_bytes())?;
+                value.as_ref().encode(&mut *writer)?;
             }
             WalEvent::UpdateSecret(uuid, value) => {
-                uuid.serialize(&mut *ser)?;
-                value.as_ref().encode(&mut *ser)?;
+                writer.write_bytes(uuid.as_bytes())?;
+                value.as_ref().encode(&mut *writer)?;
             }
             WalEvent::DeleteSecret(uuid) => {
-                uuid.serialize(&mut *ser)?;
+                writer.write_bytes(uuid.as_bytes())?;
             }
         }
         Ok(())
@@ -118,25 +117,25 @@ impl<'a> Encode for WalEvent<'a> {
 }
 
 impl<'a> Decode for WalEvent<'a> {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let mut op: EventKind = Default::default();
-        op.decode(&mut *de)?;
+        op.decode(&mut *reader)?;
         match op {
             EventKind::Noop => panic!("WalEvent: attempt to decode a noop"),
             EventKind::CreateVault => {
-                let length = de.reader.read_u32()?;
-                let buffer = de.reader.read_bytes(length as usize)?;
+                let length = reader.read_u32()?;
+                let buffer = reader.read_bytes(length as usize)?;
                 *self = WalEvent::CreateVault(Cow::Owned(buffer));
             }
             EventKind::SetVaultName => {
-                let name = de.reader.read_string()?;
+                let name = reader.read_string()?;
                 *self = WalEvent::SetVaultName(Cow::Owned(name));
             }
             EventKind::SetVaultMeta => {
-                let has_meta = de.reader.read_bool()?;
+                let has_meta = reader.read_bool()?;
                 let aead_pack = if has_meta {
                     let mut aead_pack: AeadPack = Default::default();
-                    aead_pack.decode(&mut *de)?;
+                    aead_pack.decode(&mut *reader)?;
                     Some(aead_pack)
                 } else {
                     None
@@ -144,19 +143,26 @@ impl<'a> Decode for WalEvent<'a> {
                 *self = WalEvent::SetVaultMeta(Cow::Owned(aead_pack));
             }
             EventKind::CreateSecret => {
-                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let id = SecretId::from_bytes(
+                    reader.read_bytes(16)?.as_slice().try_into()?,
+                );
                 let mut commit: VaultCommit = Default::default();
-                commit.decode(&mut *de)?;
+                commit.decode(&mut *reader)?;
                 *self = WalEvent::CreateSecret(id, Cow::Owned(commit));
             }
             EventKind::UpdateSecret => {
-                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let id = SecretId::from_bytes(
+                    reader.read_bytes(16)?.as_slice().try_into()?,
+                );
+
                 let mut commit: VaultCommit = Default::default();
-                commit.decode(&mut *de)?;
+                commit.decode(&mut *reader)?;
                 *self = WalEvent::UpdateSecret(id, Cow::Owned(commit));
             }
             EventKind::DeleteSecret => {
-                let id: SecretId = Deserialize::deserialize(&mut *de)?;
+                let id = SecretId::from_bytes(
+                    reader.read_bytes(16)?.as_slice().try_into()?,
+                );
                 *self = WalEvent::DeleteSecret(id);
             }
             _ => {
