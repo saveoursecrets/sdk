@@ -382,6 +382,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bs58"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
+
+[[package]]
 name = "bumpalo"
 version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2708,6 +2714,7 @@ dependencies = [
  "axum-macros",
  "axum-server",
  "base64",
+ "bs58",
  "dirs",
  "futures",
  "hex",

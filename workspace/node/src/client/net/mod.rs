@@ -18,7 +18,8 @@ pub(crate) type Challenge = [u8; 32];
 
 pub(crate) fn encode_signature(signature: Signature) -> Result<String> {
     let signature: BinarySignature = signature.into();
-    Ok(base64::encode(encode(&signature)?))
+    let value = bs58::encode(encode(&signature)?).into_string();
+    Ok(value)
 }
 
 pub(crate) fn bearer_prefix(signature: &str) -> String {

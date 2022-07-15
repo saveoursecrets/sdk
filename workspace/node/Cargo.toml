@@ -29,6 +29,7 @@ hex = "0.4"
 tempfile = "3"
 dirs = "4"
 http = "0.2"
+bs58 = "0.4"
 
 # client
 reqwest-eventsource = { version = "0.4", path = "../../../../forks/reqwest-eventsource", optional = true }

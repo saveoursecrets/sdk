@@ -46,7 +46,7 @@ impl BearerToken {
         token: &str,
         message: &[u8],
     ) -> Result<(StatusCode, Option<BearerToken>)> {
-        let result = if let Ok(value) = base64::decode(token) {
+        let result = if let Ok(value) = bs58::decode(token).into_vec() {
             if let Ok(binary_sig) = decode::<BinarySignature>(&value) {
                 let signature: Signature = binary_sig.into();
                 let recoverable: recoverable::Signature =
@@ -76,8 +76,8 @@ impl BearerToken {
 /// Extract a public key and address from the ECDSA signature
 /// in the authorization header.
 ///
-/// Decodes the token from base64 and then parses as a JSON representation
-/// of a Signature with r, s and v values.
+/// Decodes the token from base58 and then parses a 65-bytes binary
+/// representation of a signature with r, s and v values.
 ///
 /// The signature is then converted to a recoverable signature and the public
 /// key is extracted using the body bytes as the message that has been signed.
