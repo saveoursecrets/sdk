@@ -2713,7 +2713,6 @@ dependencies = [
  "axum",
  "axum-macros",
  "axum-server",
- "base64",
  "bs58",
  "dirs",
  "futures",
