@@ -72,7 +72,8 @@ async fn run() -> Result<()> {
     let handle = Handle::new();
 
     let addr = SocketAddr::from_str(&args.bind)?;
-    Server::start(addr, state, handle).await?;
+    let server = Server::new();
+    server.start(addr, state, handle).await?;
     Ok(())
 }
 

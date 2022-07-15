@@ -20,7 +20,7 @@ use sos_core::{
     ChangePassword, CommitHash,
 };
 use sos_node::{
-    client::{file_cache::FileCache, run_blocking, ClientCache},
+    client::{file_cache::FileCache, run_blocking, LocalCache},
     sync::SyncKind,
 };
 use sos_readline::{

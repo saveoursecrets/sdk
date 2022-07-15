@@ -11,7 +11,7 @@ use tokio::sync::{mpsc, RwLock};
 use sos_core::{commit_tree::CommitProof, events::ChangeNotification};
 use sos_node::client::{
     account::{login, AccountCredentials},
-    ClientCache,
+    LocalCache,
 };
 
 #[tokio::test]

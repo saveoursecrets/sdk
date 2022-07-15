@@ -8,7 +8,7 @@ use url::Url;
 use web3_keystore::encrypt;
 
 use super::{
-    file_cache::FileCache, ClientBuilder, ClientCache, RequestClient,
+    file_cache::FileCache, ClientBuilder, LocalCache, RequestClient,
 };
 use super::{Error, Result};
 
