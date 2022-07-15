@@ -1,7 +1,10 @@
 #![deny(missing_docs)]
 //! Core library for the distributed, encrypted database.
 
-use serde_binary::{binary_rw::Endian, Decode, Encode};
+use binary_stream::{
+    BinaryReader, BinaryWriter, Decode, Encode, Endian, MemoryStream,
+    SliceStream,
+};
 
 pub mod address;
 mod audit;
@@ -45,14 +48,32 @@ pub use passwd::ChangePassword;
 pub use patch::{Patch, PatchFile};
 pub use timestamp::Timestamp;
 
-/// Encode into a binary buffer.
+/// Encode to a binary buffer.
 pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
-    Ok(serde_binary::encode(encodable, Endian::Big)?)
+    Ok(encode_endian(encodable, Endian::Big)?)
 }
 
 /// Decode from a binary buffer.
 pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
-    Ok(serde_binary::decode::<T>(buffer, Endian::Big)?)
+    Ok(decode_endian::<T>(buffer, Endian::Big)?)
+}
+
+fn encode_endian(encodable: &impl Encode, endian: Endian) -> Result<Vec<u8>> {
+    let mut stream = MemoryStream::new();
+    let mut writer = BinaryWriter::new(&mut stream, endian);
+    encodable.encode(&mut writer)?;
+    Ok(stream.into())
+}
+
+fn decode_endian<T: Decode + Default>(
+    buffer: &[u8],
+    endian: Endian,
+) -> Result<T> {
+    let mut stream = SliceStream::new(buffer);
+    let mut reader = BinaryReader::new(&mut stream, endian);
+    let mut decoded: T = T::default();
+    decoded.decode(&mut reader)?;
+    Ok(decoded)
 }
 
 /// Result type for the core library.

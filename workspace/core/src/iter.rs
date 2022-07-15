@@ -1,9 +1,8 @@
 //! Traits and types for a generic file iterator.
-use std::{ops::Range, path::Path};
+use std::{fs::File, ops::Range, path::Path};
 
-use serde_binary::{
-    binary_rw::{BinaryReader, Endian, FileStream, OpenType, SeekStream},
-    Decode, Deserializer, Result as BinaryResult,
+use binary_stream::{
+    BinaryReader, BinaryResult, Decode, Endian, FileStream, SeekStream,
 };
 
 use crate::{
@@ -108,7 +107,7 @@ impl FileItem for FileRecord {
 }
 
 impl Decode for FileRecord {
-    fn decode(&mut self, _de: &mut Deserializer) -> BinaryResult<()> {
+    fn decode(&mut self, _reader: &mut BinaryReader) -> BinaryResult<()> {
         Ok(())
     }
 }
@@ -157,10 +156,10 @@ impl VaultRecord {
 }
 
 impl Decode for VaultRecord {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let id: [u8; 16] = de.reader.read_bytes(16)?.as_slice().try_into()?;
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let id: [u8; 16] = reader.read_bytes(16)?.as_slice().try_into()?;
         let commit: [u8; 32] =
-            de.reader.read_bytes(32)?.as_slice().try_into()?;
+            reader.read_bytes(32)?.as_slice().try_into()?;
 
         self.id = id;
         self.commit = commit;
@@ -216,10 +215,10 @@ impl WalItem for WalFileRecord {
 }
 
 impl Decode for WalFileRecord {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.time.decode(&mut *de)?;
-        self.last_commit = de.reader.read_bytes(32)?.as_slice().try_into()?;
-        self.commit = de.reader.read_bytes(32)?.as_slice().try_into()?;
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        self.time.decode(&mut *reader)?;
+        self.last_commit = reader.read_bytes(32)?.as_slice().try_into()?;
+        self.commit = reader.read_bytes(32)?.as_slice().try_into()?;
         Ok(())
     }
 }
@@ -264,8 +263,7 @@ impl<T: FileItem> FileIterator<T> {
         header_offset: Option<usize>,
     ) -> Result<Self> {
         FileIdentity::read_file(file_path.as_ref(), identity)?;
-        let mut file_stream =
-            FileStream::new(file_path.as_ref(), OpenType::Open)?;
+        let mut file_stream = FileStream(File::open(file_path.as_ref())?);
 
         let header_offset = header_offset.unwrap_or_else(|| identity.len());
         file_stream.seek(header_offset)?;
@@ -289,19 +287,19 @@ impl<T: FileItem> FileIterator<T> {
 
     /// Helper to decode the row file record.
     fn read_row(
-        de: &mut Deserializer,
+        reader: &mut BinaryReader,
         offset: Range<usize>,
         is_prefix: bool,
     ) -> Result<T> {
         let mut row: T = Default::default();
 
-        row.decode(&mut *de)?;
+        row.decode(&mut *reader)?;
 
         if is_prefix {
             // The byte range for the row value.
-            let value_len = de.reader.read_u32()?;
+            let value_len = reader.read_u32()?;
 
-            let begin = de.reader.tell()?;
+            let begin = reader.tell()?;
             let end = begin + value_len as usize;
             row.set_value(begin..end);
         } else {
@@ -317,16 +315,16 @@ impl<T: FileItem> FileIterator<T> {
     fn read_row_next(&mut self) -> Result<T> {
         let row_pos = self.forward.unwrap();
 
-        let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
-        let mut de = Deserializer { reader };
-        de.reader.seek(row_pos)?;
-        let row_len = de.reader.read_u32()?;
+        let mut reader =
+            BinaryReader::new(&mut self.file_stream, Endian::Big);
+        reader.seek(row_pos)?;
+        let row_len = reader.read_u32()?;
 
         // Position of the end of the row
         let row_end = row_pos + (row_len as usize + 8);
 
         let row = FileIterator::read_row(
-            &mut de,
+            &mut reader,
             row_pos..row_end,
             self.data_length_prefix,
         )?;
@@ -341,12 +339,12 @@ impl<T: FileItem> FileIterator<T> {
     fn read_row_next_back(&mut self) -> Result<T> {
         let row_pos = self.backward.unwrap();
 
-        let reader = BinaryReader::new(&mut self.file_stream, Endian::Big);
-        let mut de = Deserializer { reader };
+        let mut reader =
+            BinaryReader::new(&mut self.file_stream, Endian::Big);
 
         // Read in the reverse iteration row length
-        de.reader.seek(row_pos - 4)?;
-        let row_len = de.reader.read_u32()?;
+        reader.seek(row_pos - 4)?;
+        let row_len = reader.read_u32()?;
 
         // Position of the beginning of the row
         let row_start = row_pos - (row_len as usize + 8);
@@ -354,9 +352,9 @@ impl<T: FileItem> FileIterator<T> {
 
         // Seek to the beginning of the row after the initial
         // row length so we can read in the row data
-        de.reader.seek(row_start + 4)?;
+        reader.seek(row_start + 4)?;
         let row = FileIterator::read_row(
-            &mut de,
+            &mut reader,
             row_start..row_end,
             self.data_length_prefix,
         )?;

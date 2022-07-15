@@ -29,10 +29,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use serde_binary::{
-    binary_rw::{BinaryReader, Endian, SliceStream},
-    Decode, Deserializer,
-};
+use binary_stream::{BinaryReader, Decode, Endian, SliceStream};
 
 use super::{WalItem, WalProvider, WalRecord};
 
@@ -222,10 +219,9 @@ impl WalProvider for WalFile {
         file.read_exact(buffer.as_mut_slice())?;
 
         let mut stream = SliceStream::new(&buffer);
-        let reader = BinaryReader::new(&mut stream, Endian::Big);
-        let mut de = Deserializer { reader };
+        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
         let mut event: WalEvent = Default::default();
-        event.decode(&mut de)?;
+        event.decode(&mut reader)?;
         Ok(event)
     }
 

@@ -1,7 +1,6 @@
 //! Types used to represent vault meta data and secrets.
-use serde_binary::{
-    Decode, Deserializer, Encode, Error as BinaryError,
-    Result as BinaryResult, Serializer,
+use binary_stream::{
+    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 
 use pem::Pem;
@@ -64,15 +63,15 @@ impl VaultMeta {
 }
 
 impl Encode for VaultMeta {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_string(&self.label)?;
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        writer.write_string(&self.label)?;
         Ok(())
     }
 }
 
 impl Decode for VaultMeta {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.label = de.reader.read_string()?;
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        self.label = reader.read_string()?;
         Ok(())
     }
 }
@@ -131,17 +130,17 @@ impl SecretMeta {
 }
 
 impl Encode for SecretMeta {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
-        ser.writer.write_u8(self.kind)?;
-        ser.writer.write_string(&self.label)?;
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        writer.write_u8(self.kind)?;
+        writer.write_string(&self.label)?;
         Ok(())
     }
 }
 
 impl Decode for SecretMeta {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        self.kind = de.reader.read_u8()?;
-        self.label = de.reader.read_string()?;
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        self.kind = reader.read_u8()?;
+        self.label = reader.read_string()?;
         Ok(())
     }
 }
@@ -270,7 +269,7 @@ pub mod kind {
 }
 
 impl Encode for Secret {
-    fn encode(&self, ser: &mut Serializer) -> BinaryResult<()> {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         let kind = match self {
             Self::Note(_) => kind::NOTE,
             Self::File { .. } => kind::FILE,
@@ -278,40 +277,40 @@ impl Encode for Secret {
             Self::List { .. } => kind::LIST,
             Self::Pem(_) => kind::PEM,
         };
-        ser.writer.write_u8(kind)?;
+        writer.write_u8(kind)?;
 
         match self {
             Self::Note(text) => {
-                ser.writer.write_string(text)?;
+                writer.write_string(text)?;
             }
             Self::File { name, mime, buffer } => {
-                ser.writer.write_string(name)?;
-                ser.writer.write_string(mime)?;
-                ser.writer.write_u32(buffer.len() as u32)?;
-                ser.writer.write_bytes(buffer)?;
+                writer.write_string(name)?;
+                writer.write_string(mime)?;
+                writer.write_u32(buffer.len() as u32)?;
+                writer.write_bytes(buffer)?;
             }
             Self::Account {
                 account,
                 password,
                 url,
             } => {
-                ser.writer.write_string(account)?;
-                ser.writer.write_string(password)?;
-                ser.writer.write_bool(url.is_some())?;
+                writer.write_string(account)?;
+                writer.write_string(password)?;
+                writer.write_bool(url.is_some())?;
                 if let Some(url) = url {
-                    ser.writer.write_string(url)?;
+                    writer.write_string(url)?;
                 }
             }
             Self::List(list) => {
-                ser.writer.write_u32(list.len() as u32)?;
+                writer.write_u32(list.len() as u32)?;
                 for (k, v) in list {
-                    ser.writer.write_string(k)?;
-                    ser.writer.write_string(v)?;
+                    writer.write_string(k)?;
+                    writer.write_string(v)?;
                 }
             }
             Self::Pem(pems) => {
                 let value = pem::encode_many(pems);
-                ser.writer.write_string(value)?;
+                writer.write_string(value)?;
             }
         }
 
@@ -320,28 +319,28 @@ impl Encode for Secret {
 }
 
 impl Decode for Secret {
-    fn decode(&mut self, de: &mut Deserializer) -> BinaryResult<()> {
-        let kind = de.reader.read_u8()?;
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let kind = reader.read_u8()?;
         match kind {
             kind::NOTE => {
-                *self = Self::Note(de.reader.read_string()?);
+                *self = Self::Note(reader.read_string()?);
             }
             kind::FILE => {
-                let name = de.reader.read_string()?;
-                let mime = de.reader.read_string()?;
-                let buffer_len = de.reader.read_u32()?;
-                let buffer = de.reader.read_bytes(buffer_len as usize)?;
+                let name = reader.read_string()?;
+                let mime = reader.read_string()?;
+                let buffer_len = reader.read_u32()?;
+                let buffer = reader.read_bytes(buffer_len as usize)?;
 
                 // FIXME: ensure name is handled correctly
                 *self = Self::File { name, mime, buffer };
             }
             kind::ACCOUNT => {
-                let account = de.reader.read_string()?;
-                let password = de.reader.read_string()?;
-                let has_url = de.reader.read_bool()?;
+                let account = reader.read_string()?;
+                let password = reader.read_string()?;
+                let has_url = reader.read_bool()?;
                 let url = if has_url {
                     Some(
-                        Url::parse(&de.reader.read_string()?)
+                        Url::parse(&reader.read_string()?)
                             .map_err(Box::from)?,
                     )
                 } else {
@@ -355,19 +354,19 @@ impl Decode for Secret {
                 };
             }
             kind::LIST => {
-                let list_len = de.reader.read_u32()?;
+                let list_len = reader.read_u32()?;
                 let mut list: HashMap<String, String> =
                     HashMap::with_capacity(list_len as usize);
                 for _ in 0..list_len {
-                    let key = de.reader.read_string()?;
-                    let value = de.reader.read_string()?;
+                    let key = reader.read_string()?;
+                    let value = reader.read_string()?;
                     list.insert(key, value);
                 }
 
                 *self = Self::List(list);
             }
             kind::PEM => {
-                let value = de.reader.read_string()?;
+                let value = reader.read_string()?;
                 *self =
                     Self::Pem(pem::parse_many(&value).map_err(Box::from)?);
             }
@@ -380,99 +379,6 @@ impl Decode for Secret {
         Ok(())
     }
 }
-
-/*
-impl serde::Serialize for Secret {
-    fn serialize<S>(
-        &self,
-        serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            Secret::Note(value) => serializer
-                .serialize_newtype_variant("Secret", 0, "note", value),
-            Secret::File { name, mime, buffer } => {
-                let mut s = serializer.serialize_struct("file", 3)?;
-                s.serialize_field("name", name)?;
-                s.serialize_field("mime", mime)?;
-                s.serialize_field("buffer", buffer)?;
-                s.end()
-            }
-            Secret::Account { account, url, password } => {
-                let mut s = serializer.serialize_struct("account", 3)?;
-                s.serialize_field("account", account)?;
-                s.serialize_field("url", url)?;
-                s.serialize_field("password", password)?;
-                s.end()
-            }
-            Secret::List(value) => serializer
-                .serialize_newtype_variant("Secret", 3, "list", value),
-            Secret::Pem(pems) => {
-                let value = pem::encode_many(pems);
-                serializer
-                    .serialize_newtype_variant("Secret", 4, "pem", &value)
-            },
-        }
-    }
-}
-
-struct SecretVisitor;
-
-impl<'de> Visitor<'de> for SecretVisitor {
-    type Value = Secret;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        Ok(())
-    }
-
-    fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error> where
-        A: EnumAccess<'de> {
-
-        let (key, access) = data.variant::<String>()?;
-
-        println!("key {}", &key[..]);
-        //println!("{:#?}", value);
-
-        match &key[..] {
-            "note" => {
-                //self.visit_string()
-                //todo!()
-                //access.newtype_variant()
-            }
-            "file" => {
-                todo!()
-            }
-            "account" => {
-                todo!()
-            }
-            "list" => {
-                //access.newtype_variant()
-                todo!()
-            }
-            "pem" => {
-                //access.newtype_variant()
-                todo!()
-            }
-            _ => Err(de::Error::custom("unknown secret type tag"))
-        }
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for Secret {
-    fn deserialize<D>(
-        deserializer: D,
-    ) -> std::result::Result<Secret, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_enum(
-            "Secret",
-            &["note", "file", "account", "list", "pem"], SecretVisitor)
-    }
-}
-*/
 
 #[cfg(test)]
 mod test {
