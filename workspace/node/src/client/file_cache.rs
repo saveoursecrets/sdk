@@ -69,7 +69,8 @@ pub struct FileCache {
     snapshots: SnapShotManager,
 }
 
-#[async_trait]
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch="wasm32"), async_trait)]
 impl ClientCache for FileCache {
     fn address(&self) -> Result<AddressStr> {
         self.client.address()
@@ -830,7 +831,8 @@ impl FileCache {
     }
 
     /// Attempt to patch a remote WAL file.
-    #[async_recursion]
+    #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
+    #[cfg_attr(not(target_arch="wasm32"), async_recursion)]
     async fn patch_wal(
         &mut self,
         summary: &Summary,
