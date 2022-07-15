@@ -15,7 +15,7 @@ use sos_core::{
     events::{ChangeEvent, ChangeNotification},
     generate_passphrase, ChangePassword,
 };
-use sos_node::client::{account::AccountCredentials, ClientCache};
+use sos_node::client::{account::AccountCredentials, LocalCache};
 
 #[tokio::test]
 #[serial]

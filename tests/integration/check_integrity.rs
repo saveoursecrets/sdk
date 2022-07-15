@@ -5,7 +5,7 @@ use crate::test_utils::*;
 
 use sos_check::{keys, status, verify_vault, verify_wal};
 use sos_core::{vault::Vault, wal::file::WalFile};
-use sos_node::client::{account::AccountCredentials, ClientCache};
+use sos_node::client::{account::AccountCredentials, LocalCache};
 
 #[tokio::test]
 #[serial]

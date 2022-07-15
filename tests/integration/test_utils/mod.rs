@@ -12,7 +12,7 @@ use sos_core::{
 };
 
 use sos_node::{
-    client::{file_cache::FileCache, ClientCache},
+    client::{file_cache::FileCache, LocalCache},
     server::{Authentication, Server, ServerConfig, ServerInfo, State},
 };
 
@@ -64,7 +64,10 @@ impl MockServer {
             sse: Default::default(),
         }));
 
-        Server::start_insecure(addr, state, self.handle.clone()).await?;
+        let server = Server::new();
+        server
+            .start_insecure(addr, state, self.handle.clone())
+            .await?;
         Ok(())
     }
 

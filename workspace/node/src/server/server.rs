@@ -57,8 +57,14 @@ pub struct ServerInfo {
 pub struct Server;
 
 impl Server {
+    /// Create a new server.
+    pub fn new() -> Self {
+        Self
+    }
+
     /// Start the server running on HTTPS.
     pub async fn start(
+        &self,
         addr: SocketAddr,
         state: Arc<RwLock<State>>,
         handle: Handle,
@@ -88,6 +94,7 @@ impl Server {
     #[cfg(debug_assertions)]
     /// Start the server running on HTTP.
     pub async fn start_insecure(
+        &self,
         addr: SocketAddr,
         state: Arc<RwLock<State>>,
         handle: Handle,
@@ -166,9 +173,7 @@ impl Server {
 
         app = feature_routes(app);
 
-        app = app
-            .layer(cors)
-            .layer(Extension(state));
+        app = app.layer(cors).layer(Extension(state));
 
         Ok(app)
     }
@@ -183,4 +188,3 @@ fn feature_routes(app: Router) -> Router {
 fn feature_routes(app: Router) -> Router {
     app.route("/gui/*path", get(super::handlers::assets))
 }
-

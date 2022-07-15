@@ -121,7 +121,7 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
 /// selected vault.
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait ClientCache {
+pub trait LocalCache {
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;
 

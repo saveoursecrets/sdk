@@ -17,7 +17,7 @@ use sos_core::{
 use sos_node::{
     client::{
         account::AccountCredentials, file_cache::FileCache,
-        net::RequestClient, ClientCache,
+        net::RequestClient, LocalCache,
     },
     sync::SyncStatus,
 };

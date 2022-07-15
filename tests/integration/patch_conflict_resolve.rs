@@ -5,7 +5,7 @@ use crate::test_utils::*;
 
 use sos_node::client::{
     account::{login, AccountCredentials},
-    ClientCache,
+    LocalCache,
 };
 
 #[tokio::test]

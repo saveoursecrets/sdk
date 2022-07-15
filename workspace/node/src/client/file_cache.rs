@@ -35,7 +35,7 @@ use std::{
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 
-use super::ClientCache;
+use super::LocalCache;
 use crate::sync::{SyncInfo, SyncKind, SyncStatus};
 
 fn assert_proofs_eq(
@@ -71,7 +71,7 @@ pub struct FileCache {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ClientCache for FileCache {
+impl LocalCache for FileCache {
     fn address(&self) -> Result<AddressStr> {
         self.client.address()
     }
