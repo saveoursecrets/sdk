@@ -4,12 +4,7 @@ use http::StatusCode;
 use rand::Rng;
 use reqwest::{header::HeaderMap, RequestBuilder, Response};
 
-use futures::{
-    future::{self, Future, FutureExt},
-    stream::FilterMap,
-    StreamExt,
-};
-use reqwest_eventsource::{Event, EventSource};
+use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
     commit_tree::CommitProof,
@@ -17,7 +12,6 @@ use sos_core::{
         MIME_TYPE_VAULT, X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE,
     },
     decode, encode,
-    events::ChangeNotification,
     signer::Signer,
     vault::Summary,
     Patch,
