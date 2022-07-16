@@ -5,6 +5,7 @@ use crate::client::net::{NetworkClient, RequestClient};
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use http::StatusCode;
+use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     address::AddressStr,
     commit_tree::{
@@ -230,14 +231,14 @@ impl LocalCache for FileCache {
     async fn create_account(
         &mut self,
         name: Option<String>,
-    ) -> Result<(String, Summary)> {
+    ) -> Result<(SecretString, Summary)> {
         self.create(name, true).await
     }
 
     async fn create_vault(
         &mut self,
         name: String,
-    ) -> Result<(String, Summary)> {
+    ) -> Result<(SecretString, Summary)> {
         self.create(Some(name), false).await
     }
 
@@ -631,7 +632,7 @@ impl FileCache {
         &mut self,
         name: Option<String>,
         is_account: bool,
-    ) -> Result<(String, Summary)> {
+    ) -> Result<(SecretString, Summary)> {
         let (passphrase, vault, buffer) = self.new_vault(name)?;
         let summary = vault.summary().clone();
 
@@ -661,13 +662,13 @@ impl FileCache {
     fn new_vault(
         &self,
         name: Option<String>,
-    ) -> Result<(String, Vault, Vec<u8>)> {
+    ) -> Result<(SecretString, Vault, Vec<u8>)> {
         let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
         if let Some(name) = name {
             vault.set_name(name);
         }
-        vault.initialize(&passphrase)?;
+        vault.initialize(passphrase.expose_secret())?;
         let buffer = encode(&vault)?;
         Ok((passphrase, vault, buffer))
     }

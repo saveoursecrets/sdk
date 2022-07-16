@@ -25,13 +25,15 @@ pub struct Channel {
 pub struct Node {
     /// Other nodes this node is connected to.
     channels: Vec<Channel>,
-
     /*
     /// This nodes local cache of data.
     cache: Box<dyn LocalCache>,
     */
+
+    /*
     /// Server for responding to requests from other nodes.
     server: Server,
+    */
 }
 
 impl Node {
@@ -39,14 +41,17 @@ impl Node {
     pub fn new() -> Self {
         Self {
             channels: Default::default(),
-            server: Server::new(),
+            //server: Server::new(),
         }
     }
 
+    /*
     /// Start listening for new connections.
-    pub fn listen(&self) -> Result<()> {
+    pub async fn listen(&self) -> Result<()> {
+        let server = Server::new();
         Ok(())
     }
+    */
 }
 
 #[cfg(test)]

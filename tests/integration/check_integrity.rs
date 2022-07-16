@@ -3,6 +3,7 @@ use serial_test::serial;
 
 use crate::test_utils::*;
 
+use secrecy::ExposeSecret;
 use sos_check::{keys, status, verify_vault, verify_wal};
 use sos_core::{vault::Vault, wal::file::WalFile};
 use sos_node::client::{account::AccountCredentials, LocalCache};
@@ -24,7 +25,7 @@ async fn integration_check_integrity() -> Result<()> {
 
     // Use the new vault
     file_cache
-        .open_vault(&summary, &encryption_passphrase)
+        .open_vault(&summary, encryption_passphrase.expose_secret())
         .await?;
 
     // Create some secrets
