@@ -200,8 +200,19 @@ To see the list of available commands type `help` at the prompt.
 
 ### Audit Logs
 
-Now that you can make changes to a vault take a look at the audit logs:
+While you make changes to a vault take a look at the audit logs:
 
+```
+sos-audit monitor sandbox/audit.dat
+```
+
+### Monitor Changes
+
+Clients emit a stream of change events so that other clients can keep in sync; you can monitor this change stream with:
+
+```
+sos-client monitor -s https://localhost:5053 -k sandbox/<addr>.json
+```
 
 [git]: https://git-scm.com/
 [wireguard]: https://www.wireguard.com/

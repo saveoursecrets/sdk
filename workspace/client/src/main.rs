@@ -17,7 +17,8 @@ use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
 use sos_node::client::{
-    file_cache::FileCache, run_blocking, ClientBuilder, LocalCache,
+    file_cache::FileCache, net::changes::ChangeStreamEvent, run_blocking,
+    ClientBuilder, LocalCache,
 };
 
 const WELCOME: &str = include_str!("welcome.txt");
@@ -141,10 +142,18 @@ fn run() -> Result<()> {
                         let mut es = reader.client().changes().await?;
                         drop(reader);
 
-                        while let Some(notification) = es.next().await {
-                            let notification = notification?;
-                            let mut writer = change_cache.write().unwrap();
-                            writer.handle_change(notification).await?;
+                        while let Some(event) = es.next().await {
+                            let event = event?;
+                            match event {
+                                ChangeStreamEvent::Message(notification) => {
+                                    let mut writer =
+                                        change_cache.write().unwrap();
+                                    writer
+                                        .handle_change(notification)
+                                        .await?;
+                                }
+                                _ => {}
+                            }
                         }
                         Ok::<(), crate::Error>(())
                     })

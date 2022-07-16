@@ -4,18 +4,26 @@ use url::Url;
 
 use crate::{Result, StdinPassphraseReader};
 use futures::stream::StreamExt;
-use sos_node::client::{net::RequestClient, run_blocking, ClientBuilder};
+use sos_node::client::{
+    net::{changes::ChangeStreamEvent, RequestClient},
+    run_blocking, ClientBuilder,
+};
 
 /// Creates a changes stream and calls handler for every change notification.
 async fn changes_stream(
     client: &RequestClient,
 ) -> sos_node::client::Result<()> {
     let mut es = client.changes().await?;
-    while let Some(notification) = es.next().await {
-        let notification = notification?;
-        tracing::info!(
-            changes = ?notification.changes(),
-            vault_id = %notification.vault_id());
+    while let Some(event) = es.next().await {
+        let event = event?;
+        match event {
+            ChangeStreamEvent::Message(notification) => {
+                tracing::info!(
+                    changes = ?notification.changes(),
+                    vault_id = %notification.vault_id());
+            }
+            _ => {}
+        }
     }
     Ok(())
 }
