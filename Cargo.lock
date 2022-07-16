@@ -2585,7 +2585,6 @@ dependencies = [
  "axum-server",
  "clap",
  "futures",
- "reqwest-eventsource",
  "serde_json",
  "serial_test",
  "sos-audit",

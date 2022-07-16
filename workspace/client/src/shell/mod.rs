@@ -416,9 +416,7 @@ where
                     None => Ok(()),
                 }
             }
-            _ => {
-                Err(Error::from(e))
-            },
+            _ => Err(Error::from(e)),
         },
     }
 }

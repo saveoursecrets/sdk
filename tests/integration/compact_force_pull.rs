@@ -4,13 +4,13 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use futures::stream::StreamExt;
-use reqwest_eventsource::Event;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::{mpsc, RwLock};
 
-use sos_core::{commit_tree::CommitProof, events::ChangeNotification};
+use sos_core::commit_tree::CommitProof;
 use sos_node::client::{
     account::{login, AccountCredentials},
+    net::changes::ChangeStreamEvent,
     LocalCache,
 };
 
@@ -44,26 +44,19 @@ async fn integration_compact_force_pull() -> Result<()> {
 
     let (tx, mut rx) = mpsc::channel(1);
 
-    let mut es = listener.client().events().await?;
+    let mut es = listener.client().changes().await?;
     tokio::task::spawn(async move {
         while let Some(event) = es.next().await {
+            let event = event?;
             match event {
-                Ok(Event::Open) => tx
+                ChangeStreamEvent::Open => tx
                     .send(())
                     .await
                     .expect("failed to send changes feed open message"),
-                Ok(Event::Message(message)) => {
-                    let notification: ChangeNotification =
-                        serde_json::from_str(&message.data)?;
-                    change_tx
-                        .send(notification)
-                        .await
-                        .expect("failed to relay change notification")
-                }
-                Err(e) => {
-                    es.close();
-                    return Err(e.into());
-                }
+                ChangeStreamEvent::Message(notification) => change_tx
+                    .send(notification)
+                    .await
+                    .expect("failed to relay change notification"),
             }
         }
 

@@ -4,7 +4,6 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use futures::stream::StreamExt;
-use reqwest_eventsource::Event;
 use std::{
     sync::{Arc, RwLock},
     time::Duration,
@@ -15,7 +14,9 @@ use sos_core::{
     events::{ChangeEvent, ChangeNotification},
     generate_passphrase, ChangePassword,
 };
-use sos_node::client::{account::AccountCredentials, LocalCache};
+use sos_node::client::{
+    account::AccountCredentials, net::changes::ChangeStreamEvent, LocalCache,
+};
 
 #[tokio::test]
 #[serial]
@@ -34,31 +35,25 @@ async fn integration_change_password() -> Result<()> {
 
     let (tx, mut rx) = mpsc::channel(1);
 
-    let mut es = file_cache.client().events().await?;
+    let mut es = file_cache.client().changes().await?;
     let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
         Arc::new(RwLock::new(Vec::new()));
     let changed = Arc::clone(&notifications);
 
     tokio::task::spawn(async move {
         while let Some(event) = es.next().await {
+            let event = event?;
             match event {
-                Ok(Event::Open) => tx
+                ChangeStreamEvent::Open => tx
                     .send(())
                     .await
                     .expect("failed to send changes feed open message"),
-                Ok(Event::Message(message)) => {
-                    let notification: ChangeNotification =
-                        serde_json::from_str(&message.data)?;
-
+                ChangeStreamEvent::Message(notification) => {
                     // Store change notifications so we can
                     // assert at the end
                     let mut writer = changed.write().unwrap();
                     //println!("{:#?}", notification);
                     writer.push(notification);
-                }
-                Err(e) => {
-                    es.close();
-                    return Err(e.into());
                 }
             }
         }

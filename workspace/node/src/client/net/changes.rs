@@ -9,6 +9,14 @@ use sos_core::events::ChangeNotification;
 
 use crate::client::{Error, Result};
 
+/// Enumeration yielded by the changes stream.
+pub enum ChangeStreamEvent {
+    /// Emitted when the server sent events stream is opened.
+    Open,
+    /// Emitted when a change notification is received.
+    Message(ChangeNotification),
+}
+
 pin_project! {
     /// Change stream emits change notifications.
     pub struct ChangeStream {
@@ -25,24 +33,27 @@ impl ChangeStream {
 }
 
 impl Stream for ChangeStream {
-    type Item = Result<ChangeNotification>;
+    type Item = Result<ChangeStreamEvent>;
 
     fn poll_next(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         let mut this = self.project();
+
         match this.event_source.as_mut().poll_next(cx) {
             Poll::Ready(Some(Err(err))) => {
                 this.event_source.close();
                 Poll::Ready(Some(Err(Error::from(err))))
             }
             Poll::Ready(Some(Ok(event))) => match event {
-                Event::Open => Poll::Pending,
+                Event::Open => Poll::Ready(Some(Ok(ChangeStreamEvent::Open))),
                 Event::Message(message) => {
                     let notification: ChangeNotification =
                         serde_json::from_str(&message.data)?;
-                    Poll::Ready(Some(Ok(notification)))
+                    Poll::Ready(Some(Ok(ChangeStreamEvent::Message(
+                        notification,
+                    ))))
                 }
             },
             Poll::Ready(None) => Poll::Ready(None),
