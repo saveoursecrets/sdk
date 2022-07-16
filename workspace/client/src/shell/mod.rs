@@ -416,7 +416,9 @@ where
                     None => Ok(()),
                 }
             }
-            _ => todo!(), //_ => Err(sos_node::Error::Boxed(Box::from(e))),
+            _ => {
+                Err(Error::from(e))
+            },
         },
     }
 }
@@ -469,9 +471,9 @@ fn exec_program(
                 .ok_or(Error::VaultNotAvailable(vault))?;
             drop(reader);
 
-            let password = read_password(Some("Passphrase: "))?;
+            let passphrase = read_password(Some("Passphrase: "))?;
             maybe_conflict(cache, |writer| {
-                run_blocking(writer.open_vault(&summary, &password))
+                run_blocking(writer.open_vault(&summary, &passphrase))
             })
         }
         ShellCommand::Info => {

@@ -178,7 +178,7 @@ Then in a separate terminal create a new signing key and login vault:
 sos-client signup -s https://localhost:5053 ./sandbox
 ```
 
-This will write the signing key to the `sandbox` directory and create a new account on the server. It will also print the *keystore passhrase* for the signing key and the *encryption passphrase* for the login vault. For testing you may want to make a note of these, in the real world these passphrases need to be memorized.
+This will write the signing key to the `sandbox` directory and create a new account on the server. It will also print the *keystore passphrase* for the signing key and the *encryption passphrase* for the login vault. For testing you may want to make a note of these, in the real world these passphrases need to be memorized.
 
 Now create a shell session:
 
@@ -197,6 +197,11 @@ Now enter your encryption passphrase to unlock the vault.
 Once the vault is unlocked you can list, create, update, read and delete secrets and perform other actions such as creating snapshots or changing the vault encryption passphrase.
 
 To see the list of available commands type `help` at the prompt.
+
+### Audit Logs
+
+Now that you can make changes to a vault take a look at the audit logs:
+
 
 [git]: https://git-scm.com/
 [wireguard]: https://www.wireguard.com/
