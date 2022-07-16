@@ -214,6 +214,10 @@ Clients emit a stream of change events so that other clients can keep in sync; y
 sos-client monitor -s https://localhost:5053 -k sandbox/<addr>.json
 ```
 
+Enter your keystore passphrase so that you can connect to the changes feed and then in a shell session make some changes like creating or removing secrets and you should see the changes printed in the monitor terminal.
+
+This is the feed that networked clients can use to react to changes on other nodes.
+
 [git]: https://git-scm.com/
 [wireguard]: https://www.wireguard.com/
 [lcov]: https://github.com/linux-test-project/lcov
