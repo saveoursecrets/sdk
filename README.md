@@ -4,25 +4,10 @@
 
 This repository contains the core library code and several command line interface (CLI) tools.
 
-* [Layout](#repository-layout) Guide to the repository layout
 * [Design](#design) Brief overview of the design
+* [Layout](#repository-layout) Guide to the repository layout
 * [Development](#development) Set up a development environment
 * [Getting Started](#getting-started) Getting started guide for developers 
-
-## Repository Layout
-
-* [sandbox](/sandbox) Configuration and storage location for local testing.
-* [tests](/tests) Integration tests.
-* [workspace](/workspace) Libraries and command line interfaces.
-    * [audit](/workspace/audit) The `sos-audit` tool for reading and monitoring audit logs.
-    * [check](/workspace/check) The `sos-check` tool for verifying file integrity and inspecting files.
-    * [client](/workspace/client) The `sos-client` terminal read-eval-print-loop (REPL) tool.
-    * [core](/workspace/core) Core library types and traits.
-    * [node](/workspace/node) Networking library.
-    * [readline](/workspace/readline) Utility functions for reading from stdin.
-    * [server](/workspace/server) The `sos-server` server command line interface.
-
-For webassembly bindings see the [browser][] repository.
 
 ## Design
 
@@ -63,6 +48,21 @@ Soft conflicts occur when a node tries to make changes to another node but canno
 #### Hard Conflict
 
 The system is eventually consistent except in the case of two events; when a WAL is compacted to prune history or when the encryption password for a vault is changed. Either of these events will completely rewrite the append-only log and therefore the vault commit trees will have diverged. If all nodes are connected when these events occur then it is possible to synchronize automatically but if a node is offline (or an error occurs) then we have a conflict that must be resolved; we call this a *hard conflict*.
+
+## Repository Layout
+
+* [sandbox](/sandbox) Configuration and storage location for local testing.
+* [tests](/tests) Integration tests.
+* [workspace](/workspace) Libraries and command line interfaces.
+    * [audit](/workspace/audit) The `sos-audit` tool for reading and monitoring audit logs.
+    * [check](/workspace/check) The `sos-check` tool for verifying file integrity and inspecting files.
+    * [client](/workspace/client) The `sos-client` terminal read-eval-print-loop (REPL) tool.
+    * [core](/workspace/core) Core library types and traits.
+    * [node](/workspace/node) Networking library.
+    * [readline](/workspace/readline) Utility functions for reading from stdin.
+    * [server](/workspace/server) The `sos-server` server command line interface.
+
+For webassembly bindings see the [browser][] repository.
 
 ## Development
 
@@ -188,7 +188,7 @@ sos-client shell -s https://localhost:5053 -k ./sandbox/<addr>.json
 
 Where `<addr>` should be changed with the public address of the signing key created during signup.
 
-You will be prompted to enter the keystore passphrase, if the signing keystore is decrypted successfully using the passphrase you entered you will be presented with a shell prompt.
+You will be prompted to enter the keystore passphrase, if the signing keystore is decrypted successfully you will be presented with a shell prompt.
 
 The default vault created when you signed up a new account is called *Login* so you can use it; type `use Login` to select the login vault.
 
@@ -198,25 +198,82 @@ Once the vault is unlocked you can list, create, update, read and delete secrets
 
 To see the list of available commands type `help` at the prompt.
 
+### Basic Commands
+
+This section describes the basic commands for managing secrets in a shell session; remember you can run `help <cmd>` to learn more about each command.
+
+#### Create Secret
+
+To create a secure note use the `add note` command and pass a name for the secret; once you have finished typing the contents of the note enter `Ctrl+D` on a newline to save the note. Example output:
+
+```
+sos@Login> add note Example
+┌───────────────────────────────────────┐
+│                                       │
+│ [NOTE] Example                        │
+│                                       │
+│ To abort the note enter Ctrl+C        │
+│ To save the note enter Ctrl+D on      │
+│ a newline                             │
+│                                       │
+└───────────────────────────────────────┘
+>> This is an example.
+>>
+```
+
+To learn how to create other kinds of secrets run `help add`.
+
+#### Read Secret
+
+To read the content of a secret use the `get` command:
+
+```
+sos@Login> get Example
+┌───────────────────────────────────────┐
+│                                       │
+│ [NOTE] Example                        │
+│                                       │
+│ This is an example.                   │
+│                                       │
+└───────────────────────────────────────┘
+```
+
+#### Update Secret
+
+Use the `set` command to update the value of the secret; this will launch the editor defined by the `$EDITOR` environment variable.
+
+Save your changes to update the secret.
+
+#### Delete Secret
+
+The delete a secret use the `del` command and confirm deletion:
+
+```
+sos@Login> del Example
+Delete "Example" (y/n)? y
+```
+
 ### Audit Logs
 
-While you make changes to a vault take a look at the audit logs:
+A server writes audit logs which can be viewed using the `sos-audit` tool.
+
+While you make changes to a vault monitor the audit logs:
 
 ```
 sos-audit monitor sandbox/audit.dat
 ```
 
-### Monitor Changes
+### Changes Feed
 
-Clients emit a stream of change events so that other clients can keep in sync; you can monitor this change stream with:
+The changes feed is a stream that networked clients can use to react to changes on other nodes.
+
+You can monitor this stream with:
 
 ```
 sos-client monitor -s https://localhost:5053 -k sandbox/<addr>.json
 ```
 
-Enter your keystore passphrase so that you can connect to the changes feed and then in a shell session make some changes like creating or removing secrets and you should see the changes printed in the monitor terminal.
-
-This is the feed that networked clients can use to react to changes on other nodes.
+Enter your keystore passphrase and then in a shell session make some changes like creating or removing secrets and you should see the events printed to the terminal.
 
 [git]: https://git-scm.com/
 [wireguard]: https://www.wireguard.com/
