@@ -2,14 +2,12 @@ use std::{
     borrow::Cow,
     path::PathBuf,
     sync::{Arc, RwLock},
-    thread,
 };
 
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
-use futures::stream::StreamExt;
 use sos_client::{
     exec, monitor, signup, Error, Result, StdinPassphraseReader,
 };
@@ -17,8 +15,8 @@ use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
 use sos_node::client::{
-    file_cache::FileCache, net::changes::ChangeStreamEvent, run_blocking,
-    ClientBuilder, LocalCache,
+    file_cache::FileCache, run_blocking, ChangesListener, ClientBuilder,
+    LocalCache,
 };
 
 const WELCOME: &str = include_str!("welcome.txt");
@@ -133,32 +131,8 @@ fn run() -> Result<()> {
             drop(writer);
 
             // Hook up to change notifications
-            let change_cache = Arc::clone(&cache);
-            thread::spawn(move || {
-                let runtime = tokio::runtime::Runtime::new().unwrap();
-                runtime
-                    .block_on(async move {
-                        let reader = change_cache.read().unwrap();
-                        let mut es = reader.client().changes().await?;
-                        drop(reader);
-
-                        while let Some(event) = es.next().await {
-                            let event = event?;
-                            match event {
-                                ChangeStreamEvent::Message(notification) => {
-                                    let mut writer =
-                                        change_cache.write().unwrap();
-                                    writer
-                                        .handle_change(notification)
-                                        .await?;
-                                }
-                                _ => {}
-                            }
-                        }
-                        Ok::<(), crate::Error>(())
-                    })
-                    .expect("changes feed error");
-            });
+            let listener = ChangesListener::new(Arc::clone(&cache));
+            listener.spawn();
 
             let prompt_cache = Arc::clone(&cache);
             let prompt = || -> String {

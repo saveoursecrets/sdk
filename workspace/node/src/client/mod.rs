@@ -24,10 +24,12 @@ use sos_core::{
 use crate::sync::{SyncInfo, SyncStatus};
 
 pub mod account;
+mod changes_listener;
 pub mod file_cache;
 pub mod net;
 
 mod error;
+pub use changes_listener::ChangesListener;
 pub use error::Error;
 
 /// Result type for the client module.
