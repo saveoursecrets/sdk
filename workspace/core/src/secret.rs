@@ -187,9 +187,13 @@ impl Decode for SecretMeta {
     }
 }
 
-/// Encapsulates a secret.
+/// Represents the various types of secret.
+///
+/// This implements the serde traits for the webassembly bindings
+/// and so that the shell edit command can present a JSON representation
+/// when a user wants to edit a secret.
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(untagged, rename_all = "lowercase")]
 pub enum Secret {
     /// A UTF-8 encoded note.
     #[serde(serialize_with = "serialize_secret_string")]
