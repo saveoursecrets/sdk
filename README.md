@@ -190,11 +190,13 @@ Where `<addr>` should be changed with the public address of the signing key crea
 
 You will be prompted to enter the keystore passphrase, if the signing keystore is decrypted successfully you will be presented with a shell prompt.
 
-The default vault created when you signed up a new account is called *Login* so you can use it; type `use Login` to select the login vault.
+To view the list of vaults run the `vaults` command; the default vault created when you signed up for a new account is called *Login* so you can use it; type `use Login` to select the login vault.
 
 Now enter your encryption passphrase to unlock the vault.
 
 Once the vault is unlocked you can list, create, update, read and delete secrets and perform other actions such as creating snapshots or changing the vault encryption passphrase.
+
+When you have finished making changes remember to lock the vault again with the `close` command.
 
 To see the list of available commands type `help` at the prompt.
 
