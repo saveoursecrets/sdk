@@ -7,8 +7,8 @@ use crate::{
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
+use secrecy::{ExposeSecret, SecretString};
 use std::borrow::Cow;
-use zeroize::Zeroize;
 
 /// Builder that changes a vault password.
 ///
@@ -19,17 +19,17 @@ pub struct ChangePassword<'a> {
     /// The in-memory vault.
     vault: &'a Vault,
     /// Existing encryption passphrase.
-    current_passphrase: String,
+    current_passphrase: SecretString,
     /// New encryption passphrase.
-    new_passphrase: String,
+    new_passphrase: SecretString,
 }
 
 impl<'a> ChangePassword<'a> {
     /// Create a new change password builder.
     pub fn new(
         vault: &'a Vault,
-        current_passphrase: String,
-        new_passphrase: String,
+        current_passphrase: SecretString,
+        new_passphrase: SecretString,
     ) -> Self {
         Self {
             vault,
@@ -39,7 +39,7 @@ impl<'a> ChangePassword<'a> {
     }
 
     fn current_private_key(&self) -> Result<SecretKey> {
-        let passphrase = &self.current_passphrase;
+        let passphrase = self.current_passphrase.expose_secret();
         let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = SecretKey::parse_salt(salt)?;
         let private_key = SecretKey::derive_32(passphrase, &salt)?;
@@ -47,7 +47,7 @@ impl<'a> ChangePassword<'a> {
     }
 
     fn new_private_key(&self, vault: &Vault) -> Result<SecretKey> {
-        let passphrase = &self.new_passphrase;
+        let passphrase = self.new_passphrase.expose_secret();
         let salt = vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = SecretKey::parse_salt(salt)?;
         let private_key = SecretKey::derive_32(passphrase, &salt)?;
@@ -60,8 +60,8 @@ impl<'a> ChangePassword<'a> {
     /// new computed vault and a collection of events that can
     /// be used to generate a fresh write-ahead log file.
     pub fn build(
-        mut self,
-    ) -> Result<(String, Vault, Vec<WalEvent<'static>>)> {
+        self,
+    ) -> Result<(SecretString, Vault, Vec<WalEvent<'static>>)> {
         // Decrypt current vault meta data blob
         let current_private_key = self.current_private_key()?;
         let vault_meta_aead =
@@ -80,7 +80,7 @@ impl<'a> ChangePassword<'a> {
         //
         // Must clear the existing salt so we can re-initialize.
         new_vault.header_mut().clear_salt();
-        new_vault.initialize(&self.new_passphrase)?;
+        new_vault.initialize(self.new_passphrase.expose_secret())?;
 
         // Get a new secret key after we have initialized the new salt
         let new_private_key = self.new_private_key(&new_vault)?;
@@ -127,9 +127,6 @@ impl<'a> ChangePassword<'a> {
             wal_events.push(wal_event);
         }
 
-        // We are done with the old passphrase now
-        self.current_passphrase.zeroize();
-
         wal_events.sort();
 
         Ok((self.new_passphrase, new_vault, wal_events))
@@ -141,15 +138,16 @@ mod test {
     use super::ChangePassword;
     use crate::{test_utils::*, Gatekeeper};
     use anyhow::Result;
+    use secrecy::ExposeSecret;
 
     #[test]
     fn change_password() -> Result<()> {
         let (_, _, current_passphrase) = mock_encryption_key()?;
         let mut mock_vault = mock_vault();
-        mock_vault.initialize(&current_passphrase)?;
+        mock_vault.initialize(current_passphrase.expose_secret())?;
 
         let mut keeper = Gatekeeper::new(mock_vault);
-        keeper.unlock(&current_passphrase)?;
+        keeper.unlock(current_passphrase.expose_secret())?;
 
         // Propagate some secrets
         let notes = vec![
@@ -171,7 +169,7 @@ mod test {
         let expected_passphrase = new_passphrase.clone();
 
         // Using an incorrect current passphrase should fail
-        let bad_passphrase = String::from("oops");
+        let bad_passphrase = secrecy::Secret::new(String::from("oops"));
         assert!(ChangePassword::new(
             keeper.vault(),
             bad_passphrase,
@@ -188,7 +186,10 @@ mod test {
         )
         .build()?;
 
-        assert_eq!(expected_passphrase, new_passphrase);
+        assert_eq!(
+            expected_passphrase.expose_secret(),
+            new_passphrase.expose_secret()
+        );
         assert_eq!(expected_len, new_vault.len());
         assert_eq!(expected_len + 1, wal_events.len());
 

@@ -9,6 +9,7 @@ use crate::Result;
 use std::borrow::Cow;
 
 use human_bytes::human_bytes;
+use secrecy::ExposeSecret;
 use terminal_banner::{Banner, Padding};
 
 pub(super) fn summaries_list(summaries: &[Summary]) {
@@ -29,7 +30,9 @@ pub(super) fn secret(
         .text(Cow::Owned(heading));
 
     let banner = match secret_data {
-        Secret::Note(text) => banner.text(Cow::Borrowed(text)),
+        Secret::Note(text) => {
+            banner.text(Cow::Borrowed(text.expose_secret()))
+        }
         Secret::Account {
             account,
             url,
@@ -39,13 +42,18 @@ pub(super) fn secret(
             if let Some(url) = url {
                 account.push_str(&format!("Website:  {}\n", url));
             }
-            account.push_str(&format!("Password: {}", password));
+            account
+                .push_str(&format!("Password: {}", password.expose_secret()));
             banner.text(Cow::Owned(account))
         }
         Secret::List(list) => {
             let mut credentials = String::new();
             for (index, (name, value)) in list.iter().enumerate() {
-                credentials.push_str(&format!("{} = {}", name, value));
+                credentials.push_str(&format!(
+                    "{} = {}",
+                    name,
+                    value.expose_secret()
+                ));
                 if index < list.len() - 1 {
                     credentials.push('\n');
                 }

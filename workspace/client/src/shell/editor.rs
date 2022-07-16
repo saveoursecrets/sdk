@@ -9,6 +9,7 @@ use std::{
     process::{Command, ExitStatus},
 };
 
+use secrecy::ExposeSecret;
 use sha3::{Digest, Keccak256};
 use sos_core::secret::Secret;
 use tempfile::Builder;
@@ -32,7 +33,9 @@ fn spawn_editor<P: AsRef<Path>>(cmd: String, file: P) -> Result<ExitStatus> {
 /// Convert the secret to bytes to be written to the tempfile.
 fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
     Ok(match secret {
-        Secret::Note(text) => (text.as_bytes().to_vec(), ".txt".to_string()),
+        Secret::Note(text) => {
+            (text.expose_secret().as_bytes().to_vec(), ".txt".to_string())
+        }
         Secret::List(_) | Secret::Account { .. } | Secret::Pem(_) => {
             (serde_json::to_vec_pretty(secret)?, ".json".to_string())
         }
@@ -51,11 +54,11 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
 /// Convert back from the tempfile bytes to a secret.
 fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
     Ok(match secret {
-        Secret::Note(_) => Secret::Note(
+        Secret::Note(_) => Secret::Note(secrecy::Secret::new(
             std::str::from_utf8(content)?
                 .trim_end_matches('\n')
                 .to_string(),
-        ),
+        )),
         Secret::List(_) | Secret::Account { .. } | Secret::Pem(_) => {
             serde_json::from_slice::<Secret>(content)?
         }

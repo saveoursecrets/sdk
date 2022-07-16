@@ -943,6 +943,7 @@ mod tests {
 
     use anyhow::Result;
     use binary_stream::MemoryStream;
+    use secrecy::ExposeSecret;
 
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
@@ -996,7 +997,7 @@ mod tests {
 
         match &row_secret {
             Secret::Note(value) => {
-                assert_eq!(secret_note, value);
+                assert_eq!(secret_note, value.expose_secret());
             }
             _ => panic!("unexpected secret type"),
         }

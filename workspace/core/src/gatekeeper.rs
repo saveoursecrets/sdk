@@ -431,7 +431,7 @@ mod tests {
 
         let secret_label = String::from("Mock Secret");
         let secret_value = String::from("Super Secret Note");
-        let secret = Secret::Note(secret_value);
+        let secret = Secret::Note(secrecy::Secret::new(secret_value));
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
         if let SyncEvent::CreateSecret(secret_uuid, _) =

@@ -10,6 +10,7 @@ use std::{
 };
 use tokio::sync::mpsc;
 
+use secrecy::ExposeSecret;
 use sos_core::{
     events::{ChangeEvent, ChangeNotification},
     generate_passphrase, ChangePassword,
@@ -70,7 +71,7 @@ async fn integration_change_password() -> Result<()> {
 
     // Use the new vault
     file_cache
-        .open_vault(&summary, &encryption_passphrase)
+        .open_vault(&summary, encryption_passphrase.expose_secret())
         .await?;
 
     // Create some secrets

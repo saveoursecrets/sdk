@@ -6,11 +6,12 @@ use chbs::{
     probability::Probability,
     word::{WordList, WordSampler},
 };
+use secrecy::{Secret, SecretString};
 
 /// Generate a passphrase using the given config.
 fn generate_passphrase_config(
     config: Option<BasicConfig<WordSampler>>,
-) -> Result<(String, f64)> {
+) -> Result<(SecretString, f64)> {
     let config = if let Some(config) = config {
         config
     } else {
@@ -23,19 +24,19 @@ fn generate_passphrase_config(
     }
 
     let scheme = config.to_scheme();
-    Ok((scheme.generate(), scheme.entropy().bits()))
+    Ok((Secret::new(scheme.generate()), scheme.entropy().bits()))
 }
 
 /// Generate a diceware passphrase with the given number of words.
 ///
 /// The number of words must be at least six.
-pub fn generate_passphrase_words(words: u8) -> Result<(String, f64)> {
+pub fn generate_passphrase_words(words: u8) -> Result<(SecretString, f64)> {
     let config = default_config(words as usize);
     generate_passphrase_config(Some(config))
 }
 
 /// Generate a diceware passphrase with six words which is ~171 bits of entropy.
-pub fn generate_passphrase() -> Result<(String, f64)> {
+pub fn generate_passphrase() -> Result<(SecretString, f64)> {
     generate_passphrase_words(6)
 }
 
