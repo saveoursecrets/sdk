@@ -46,7 +46,7 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
             } else {
                 ".txt".to_string()
             };
-            (buffer.to_vec(), suffix)
+            (buffer.expose_secret().to_vec(), suffix)
         }
     })
 }
@@ -65,7 +65,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         Secret::File { name, mime, .. } => Secret::File {
             name: name.clone(),
             mime: mime.clone(),
-            buffer: content.to_vec(),
+            buffer: secrecy::Secret::new(content.to_vec()),
         },
     })
 }

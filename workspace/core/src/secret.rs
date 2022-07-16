@@ -4,8 +4,11 @@ use binary_stream::{
 };
 
 use pem::Pem;
-use secrecy::{ExposeSecret, SecretString};
-use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
+use secrecy::{ExposeSecret, SecretString, SecretVec};
+use serde::{
+    ser::{SerializeMap, SerializeSeq},
+    Deserialize, Serialize, Serializer,
+};
 use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
@@ -34,6 +37,20 @@ where
         map.serialize_entry(k, v.expose_secret())?;
     }
     map.end()
+}
+
+fn serialize_secret_buffer<S>(
+    secret: &SecretVec<u8>,
+    ser: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut seq = ser.serialize_seq(Some(secret.expose_secret().len()))?;
+    for element in secret.expose_secret() {
+        seq.serialize_element(element)?;
+    }
+    seq.end()
 }
 
 /// Identifier for secrets.
@@ -171,7 +188,7 @@ impl Decode for SecretMeta {
 }
 
 /// Encapsulates a secret.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Secret {
     /// A UTF-8 encoded note.
@@ -186,7 +203,8 @@ pub enum Secret {
         /// Use application/octet-stream if no mime-type is available.
         mime: String,
         /// The binary data.
-        buffer: Vec<u8>,
+        #[serde(serialize_with = "serialize_secret_buffer")]
+        buffer: SecretVec<u8>,
     },
     /// Account with login password.
     Account {
@@ -205,7 +223,71 @@ pub enum Secret {
     Pem(Vec<Pem>),
 }
 
-//impl SerializableSecret for Secret {}
+impl Clone for Secret {
+    fn clone(&self) -> Self {
+        match self {
+            Secret::Note(value) => Secret::Note(secrecy::Secret::new(
+                value.expose_secret().to_owned(),
+            )),
+            Secret::File { name, mime, buffer } => Secret::File {
+                name: name.to_owned(),
+                mime: mime.to_owned(),
+                buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
+            },
+            Secret::Account {
+                account,
+                url,
+                password,
+            } => Secret::Account {
+                account: account.to_owned(),
+                url: url.clone(),
+                password: secrecy::Secret::new(
+                    password.expose_secret().to_owned(),
+                ),
+            },
+            Secret::List(map) => {
+                let copy = map
+                    .into_iter()
+                    .map(|(k, v)| {
+                        (
+                            k.to_owned(),
+                            secrecy::Secret::new(
+                                v.expose_secret().to_owned(),
+                            ),
+                        )
+                    })
+                    .collect::<HashMap<_, _>>();
+                Secret::List(copy)
+            }
+            Secret::Pem(pems) => Secret::Pem(pems.clone()),
+        }
+    }
+}
+
+impl fmt::Debug for Secret {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Secret::Note(_) => f.debug_struct("Note").finish(),
+            Secret::File { name, mime, .. } => f
+                .debug_struct("File")
+                .field("name", name)
+                .field("mime", mime)
+                .finish(),
+            Secret::Account { account, url, .. } => f
+                .debug_struct("Account")
+                .field("account", account)
+                .field("url", url)
+                .finish(),
+            Secret::List(map) => {
+                let keys = map.keys().collect::<Vec<_>>();
+                f.debug_struct("List").field("keys", &keys).finish()
+            }
+            Secret::Pem(pems) => {
+                f.debug_struct("Pem").field("size", &pems.len()).finish()
+            }
+        }
+    }
+}
 
 impl Secret {
     /// Get a human readable name for the type of secret.
@@ -265,7 +347,11 @@ impl PartialEq for Secret {
                     mime: mime_b,
                     buffer: buffer_b,
                 },
-            ) => name_a == name_b && mime_a == mime_b && buffer_a == buffer_b,
+            ) => {
+                name_a == name_b
+                    && mime_a == mime_b
+                    && buffer_a.expose_secret() == buffer_b.expose_secret()
+            }
             (Self::List(a), Self::List(b)) => {
                 a.iter().zip(b.iter()).all(|(a, b)| {
                     a.0 == b.0 && a.1.expose_secret() == b.1.expose_secret()
@@ -323,8 +409,8 @@ impl Encode for Secret {
             Self::File { name, mime, buffer } => {
                 writer.write_string(name)?;
                 writer.write_string(mime)?;
-                writer.write_u32(buffer.len() as u32)?;
-                writer.write_bytes(buffer)?;
+                writer.write_u32(buffer.expose_secret().len() as u32)?;
+                writer.write_bytes(buffer.expose_secret())?;
             }
             Self::Account {
                 account,
@@ -367,7 +453,9 @@ impl Decode for Secret {
                 let name = reader.read_string()?;
                 let mime = reader.read_string()?;
                 let buffer_len = reader.read_u32()?;
-                let buffer = reader.read_bytes(buffer_len as usize)?;
+                let buffer = secrecy::Secret::new(
+                    reader.read_bytes(buffer_len as usize)?,
+                );
 
                 // FIXME: ensure name is handled correctly
                 *self = Self::File { name, mime, buffer };

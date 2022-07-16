@@ -61,8 +61,11 @@ pub(super) fn secret(
             banner.text(Cow::Owned(credentials))
         }
         Secret::File { name, buffer, mime } => {
-            let mut file =
-                format!("{} {}\n", name, human_bytes(buffer.len() as f64));
+            let mut file = format!(
+                "{} {}\n",
+                name,
+                human_bytes(buffer.expose_secret().len() as f64)
+            );
             file.push_str(mime);
             banner.text(Cow::Owned(file))
         }

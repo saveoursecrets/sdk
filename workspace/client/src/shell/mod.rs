@@ -353,7 +353,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
         .map(|m| m.to_string())
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
-    let buffer = std::fs::read(file)?;
+    let buffer = secrecy::Secret::new(std::fs::read(file)?);
     Ok(Secret::File { name, mime, buffer })
 }
 
@@ -650,7 +650,7 @@ fn exec_program(
                             "Binary {} {} {}",
                             name,
                             mime,
-                            human_bytes(buffer.len() as f64)
+                            human_bytes(buffer.expose_secret().len() as f64)
                         );
                         let file_path = read_line(Some("File path: "))?;
                         Cow::Owned(read_file_secret(&file_path)?)
