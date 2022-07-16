@@ -9,6 +9,7 @@ use rustyline::highlight::Highlighter;
 use rustyline::{ColorMode, Editor};
 
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
+use secrecy::{Secret, SecretString};
 
 use crate::{Error, Result};
 
@@ -35,7 +36,7 @@ impl Highlighter for MaskingHighlighter {
 }
 
 /// Read a passphrase from stdin prompt.
-pub fn read_password(prompt: Option<&str>) -> Result<String> {
+pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {
     let h = MaskingHighlighter { masking: true };
     let mut rl = Editor::new();
     rl.set_helper(Some(h));
@@ -49,7 +50,7 @@ pub fn read_password(prompt: Option<&str>) -> Result<String> {
         .trim_end_matches('\n')
         .to_string();
 
-    Ok(passwd)
+    Ok(Secret::new(passwd))
 }
 
 /// Read a passphrase from stdin passed into the program.

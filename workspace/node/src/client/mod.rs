@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use net::RequestClient;
 use web3_keystore::{decrypt, KeyStore};
 
+use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     address::AddressStr,
     commit_tree::CommitTree,
@@ -54,14 +55,14 @@ pub trait PassphraseReader {
     type Error: std::error::Error + Send + Sync + 'static;
 
     /// Read a passphrase.
-    fn read(&self) -> std::result::Result<String, Self::Error>;
+    fn read(&self) -> std::result::Result<SecretString, Self::Error>;
 }
 
 /// Builds a client implementation.
 pub struct ClientBuilder<E> {
     server: Url,
     keystore: PathBuf,
-    keystore_passphrase: Option<String>,
+    keystore_passphrase: Option<SecretString>,
     passphrase_reader: Option<Box<dyn PassphraseReader<Error = E>>>,
 }
 
@@ -77,7 +78,10 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
     }
 
     /// Set a specific passphrase for the keystore.
-    pub fn with_keystore_passphrase(mut self, passphrase: String) -> Self {
+    pub fn with_keystore_passphrase(
+        mut self,
+        passphrase: SecretString,
+    ) -> Self {
         self.keystore_passphrase = Some(passphrase);
         self
     }
@@ -110,7 +114,7 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
         } else {
             panic!("client builder requires either a passphrase or passphrase reader");
         };
-        let signing_bytes = decrypt(&keystore, &passphrase)?;
+        let signing_bytes = decrypt(&keystore, passphrase.expose_secret())?;
 
         let signing_key: [u8; 32] = signing_bytes.as_slice().try_into()?;
         let signer: SingleParty = (&signing_key).try_into()?;
@@ -167,13 +171,13 @@ pub trait LocalCache {
     async fn create_account(
         &mut self,
         name: Option<String>,
-    ) -> Result<(String, Summary)>;
+    ) -> Result<(SecretString, Summary)>;
 
     /// Create a new vault.
     async fn create_vault(
         &mut self,
         name: String,
-    ) -> Result<(String, Summary)>;
+    ) -> Result<(SecretString, Summary)>;
 
     /// Remove a vault.
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;

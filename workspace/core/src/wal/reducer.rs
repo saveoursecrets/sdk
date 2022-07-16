@@ -180,6 +180,7 @@ mod test {
         CommitHash,
     };
     use anyhow::Result;
+    use secrecy::ExposeSecret;
     use tempfile::NamedTempFile;
 
     fn mock_wal_file(
@@ -251,7 +252,7 @@ mod test {
             assert_eq!("bar", meta.label());
             assert_eq!("qux", {
                 match &secret {
-                    Secret::Note(text) => text,
+                    Secret::Note(text) => text.expose_secret(),
                     _ => panic!("unexpected secret type"),
                 }
             });

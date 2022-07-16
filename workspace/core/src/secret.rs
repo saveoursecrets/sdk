@@ -4,12 +4,54 @@ use binary_stream::{
 };
 
 use pem::Pem;
-use serde::{Deserialize, Serialize};
+use secrecy::{ExposeSecret, SecretString, SecretVec};
+use serde::{
+    ser::{SerializeMap, SerializeSeq},
+    Deserialize, Serialize, Serializer,
+};
 use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
 
 use crate::Error;
+
+fn serialize_secret_string<S>(
+    secret: &SecretString,
+    ser: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    ser.serialize_str(secret.expose_secret())
+}
+
+fn serialize_secret_string_map<S>(
+    secret: &HashMap<String, SecretString>,
+    ser: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut map = ser.serialize_map(Some(secret.len()))?;
+    for (k, v) in secret {
+        map.serialize_entry(k, v.expose_secret())?;
+    }
+    map.end()
+}
+
+fn serialize_secret_buffer<S>(
+    secret: &SecretVec<u8>,
+    ser: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut seq = ser.serialize_seq(Some(secret.expose_secret().len()))?;
+    for element in secret.expose_secret() {
+        seq.serialize_element(element)?;
+    }
+    seq.end()
+}
 
 /// Identifier for secrets.
 pub type SecretId = Uuid;
@@ -146,11 +188,12 @@ impl Decode for SecretMeta {
 }
 
 /// Encapsulates a secret.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Secret {
     /// A UTF-8 encoded note.
-    Note(String),
+    #[serde(serialize_with = "serialize_secret_string")]
+    Note(SecretString),
     /// A binary blob.
     File {
         /// File name.
@@ -160,7 +203,8 @@ pub enum Secret {
         /// Use application/octet-stream if no mime-type is available.
         mime: String,
         /// The binary data.
-        buffer: Vec<u8>,
+        #[serde(serialize_with = "serialize_secret_buffer")]
+        buffer: SecretVec<u8>,
     },
     /// Account with login password.
     Account {
@@ -169,12 +213,80 @@ pub enum Secret {
         /// Optional URL associated with the account.
         url: Option<Url>,
         /// The account password.
-        password: String,
+        #[serde(serialize_with = "serialize_secret_string")]
+        password: SecretString,
     },
     /// Collection of credentials as key/value pairs.
-    List(HashMap<String, String>),
+    #[serde(serialize_with = "serialize_secret_string_map")]
+    List(HashMap<String, SecretString>),
     /// PEM encoded binary data.
     Pem(Vec<Pem>),
+}
+
+impl Clone for Secret {
+    fn clone(&self) -> Self {
+        match self {
+            Secret::Note(value) => Secret::Note(secrecy::Secret::new(
+                value.expose_secret().to_owned(),
+            )),
+            Secret::File { name, mime, buffer } => Secret::File {
+                name: name.to_owned(),
+                mime: mime.to_owned(),
+                buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
+            },
+            Secret::Account {
+                account,
+                url,
+                password,
+            } => Secret::Account {
+                account: account.to_owned(),
+                url: url.clone(),
+                password: secrecy::Secret::new(
+                    password.expose_secret().to_owned(),
+                ),
+            },
+            Secret::List(map) => {
+                let copy = map
+                    .into_iter()
+                    .map(|(k, v)| {
+                        (
+                            k.to_owned(),
+                            secrecy::Secret::new(
+                                v.expose_secret().to_owned(),
+                            ),
+                        )
+                    })
+                    .collect::<HashMap<_, _>>();
+                Secret::List(copy)
+            }
+            Secret::Pem(pems) => Secret::Pem(pems.clone()),
+        }
+    }
+}
+
+impl fmt::Debug for Secret {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Secret::Note(_) => f.debug_struct("Note").finish(),
+            Secret::File { name, mime, .. } => f
+                .debug_struct("File")
+                .field("name", name)
+                .field("mime", mime)
+                .finish(),
+            Secret::Account { account, url, .. } => f
+                .debug_struct("Account")
+                .field("account", account)
+                .field("url", url)
+                .finish(),
+            Secret::List(map) => {
+                let keys = map.keys().collect::<Vec<_>>();
+                f.debug_struct("List").field("keys", &keys).finish()
+            }
+            Secret::Pem(pems) => {
+                f.debug_struct("Pem").field("size", &pems.len()).finish()
+            }
+        }
+    }
 }
 
 impl Secret {
@@ -204,7 +316,9 @@ impl Secret {
 impl PartialEq for Secret {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Note(a), Self::Note(b)) => a == b,
+            (Self::Note(a), Self::Note(b)) => {
+                a.expose_secret() == b.expose_secret()
+            }
             (
                 Self::Account {
                     account: account_a,
@@ -219,7 +333,8 @@ impl PartialEq for Secret {
             ) => {
                 account_a == account_b
                     && url_a == url_b
-                    && password_a == password_b
+                    && password_a.expose_secret()
+                        == password_b.expose_secret()
             }
             (
                 Self::File {
@@ -232,8 +347,16 @@ impl PartialEq for Secret {
                     mime: mime_b,
                     buffer: buffer_b,
                 },
-            ) => name_a == name_b && mime_a == mime_b && buffer_a == buffer_b,
-            (Self::List(a), Self::List(b)) => a == b,
+            ) => {
+                name_a == name_b
+                    && mime_a == mime_b
+                    && buffer_a.expose_secret() == buffer_b.expose_secret()
+            }
+            (Self::List(a), Self::List(b)) => {
+                a.iter().zip(b.iter()).all(|(a, b)| {
+                    a.0 == b.0 && a.1.expose_secret() == b.1.expose_secret()
+                })
+            }
             (Self::Pem(a), Self::Pem(b)) => a
                 .iter()
                 .zip(b.iter())
@@ -246,7 +369,7 @@ impl Eq for Secret {}
 
 impl Default for Secret {
     fn default() -> Self {
-        Self::Note(String::new())
+        Self::Note(secrecy::Secret::new(String::new()))
     }
 }
 
@@ -281,13 +404,13 @@ impl Encode for Secret {
 
         match self {
             Self::Note(text) => {
-                writer.write_string(text)?;
+                writer.write_string(text.expose_secret())?;
             }
             Self::File { name, mime, buffer } => {
                 writer.write_string(name)?;
                 writer.write_string(mime)?;
-                writer.write_u32(buffer.len() as u32)?;
-                writer.write_bytes(buffer)?;
+                writer.write_u32(buffer.expose_secret().len() as u32)?;
+                writer.write_bytes(buffer.expose_secret())?;
             }
             Self::Account {
                 account,
@@ -295,7 +418,7 @@ impl Encode for Secret {
                 url,
             } => {
                 writer.write_string(account)?;
-                writer.write_string(password)?;
+                writer.write_string(password.expose_secret())?;
                 writer.write_bool(url.is_some())?;
                 if let Some(url) = url {
                     writer.write_string(url)?;
@@ -305,7 +428,7 @@ impl Encode for Secret {
                 writer.write_u32(list.len() as u32)?;
                 for (k, v) in list {
                     writer.write_string(k)?;
-                    writer.write_string(v)?;
+                    writer.write_string(v.expose_secret())?;
                 }
             }
             Self::Pem(pems) => {
@@ -323,20 +446,23 @@ impl Decode for Secret {
         let kind = reader.read_u8()?;
         match kind {
             kind::NOTE => {
-                *self = Self::Note(reader.read_string()?);
+                *self =
+                    Self::Note(secrecy::Secret::new(reader.read_string()?));
             }
             kind::FILE => {
                 let name = reader.read_string()?;
                 let mime = reader.read_string()?;
                 let buffer_len = reader.read_u32()?;
-                let buffer = reader.read_bytes(buffer_len as usize)?;
+                let buffer = secrecy::Secret::new(
+                    reader.read_bytes(buffer_len as usize)?,
+                );
 
                 // FIXME: ensure name is handled correctly
                 *self = Self::File { name, mime, buffer };
             }
             kind::ACCOUNT => {
                 let account = reader.read_string()?;
-                let password = reader.read_string()?;
+                let password = secrecy::Secret::new(reader.read_string()?);
                 let has_url = reader.read_bool()?;
                 let url = if has_url {
                     Some(
@@ -355,11 +481,10 @@ impl Decode for Secret {
             }
             kind::LIST => {
                 let list_len = reader.read_u32()?;
-                let mut list: HashMap<String, String> =
-                    HashMap::with_capacity(list_len as usize);
+                let mut list = HashMap::with_capacity(list_len as usize);
                 for _ in 0..list_len {
                     let key = reader.read_string()?;
-                    let value = reader.read_string()?;
+                    let value = secrecy::Secret::new(reader.read_string()?);
                     list.insert(key, value);
                 }
 
@@ -387,7 +512,7 @@ mod test {
 
     #[test]
     fn secret_serde() -> Result<()> {
-        let secret = Secret::Note(String::from("foo"));
+        let secret = Secret::Note(secrecy::Secret::new(String::from("foo")));
         let value = serde_json::to_string_pretty(&secret)?;
         let result: Secret = serde_json::from_str(&value)?;
         assert_eq!(secret, result);

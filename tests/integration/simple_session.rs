@@ -8,6 +8,7 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
 use url::Url;
 
+use secrecy::ExposeSecret;
 use sos_core::{
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
@@ -122,7 +123,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Use the new vault
     file_cache
-        .open_vault(&new_vault_summary, &new_passphrase)
+        .open_vault(&new_vault_summary, new_passphrase.expose_secret())
         .await?;
 
     // Create some secrets

@@ -28,7 +28,7 @@ use sos_readline::{
     read_option, read_password, Choice,
 };
 
-use zeroize::Zeroize;
+use secrecy::{ExposeSecret, SecretString};
 
 use crate::{display_passphrase, switch, Error, Result};
 
@@ -245,7 +245,8 @@ To save the note enter Ctrl+D on a newline"#,
     println!("{}", banner);
 
     if let Some(note) = read_multiline(None)? {
-        let note = note.trim_end_matches('\n').to_string();
+        let note =
+            secrecy::Secret::new(note.trim_end_matches('\n').to_string());
         let secret = Secret::Note(note);
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
@@ -259,7 +260,7 @@ fn add_credentials(
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let label = get_label(label)?;
 
-    let mut credentials: HashMap<String, String> = HashMap::new();
+    let mut credentials: HashMap<String, SecretString> = HashMap::new();
     loop {
         let mut name = read_line(Some("Name: "))?;
         while credentials.get(&name).is_some() {
@@ -352,7 +353,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
         .map(|m| m.to_string())
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
-    let buffer = std::fs::read(file)?;
+    let buffer = secrecy::Secret::new(std::fs::read(file)?);
     Ok(Secret::File { name, mime, buffer })
 }
 
@@ -438,7 +439,10 @@ fn exec_program(
             let mut writer = cache.write().unwrap();
             let (passphrase, _summary) =
                 run_blocking(writer.create_vault(name))?;
-            display_passphrase("ENCRYPTION PASSPHRASE", &passphrase);
+            display_passphrase(
+                "ENCRYPTION PASSPHRASE",
+                passphrase.expose_secret(),
+            );
             Ok(())
         }
         ShellCommand::Remove { vault } => {
@@ -471,7 +475,9 @@ fn exec_program(
 
             let passphrase = read_password(Some("Passphrase: "))?;
             maybe_conflict(cache, |writer| {
-                run_blocking(writer.open_vault(&summary, &passphrase))
+                run_blocking(
+                    writer.open_vault(&summary, passphrase.expose_secret()),
+                )
             })
         }
         ShellCommand::Info => {
@@ -644,7 +650,7 @@ fn exec_program(
                             "Binary {} {} {}",
                             name,
                             mime,
-                            human_bytes(buffer.len() as f64)
+                            human_bytes(buffer.expose_secret().len() as f64)
                         );
                         let file_path = read_line(Some("File path: "))?;
                         Cow::Owned(read_file_secret(&file_path)?)
@@ -908,10 +914,10 @@ fn exec_program(
 
                 // Basic quick verification
                 keeper
-                    .verify(&passphrase)
+                    .verify(passphrase.expose_secret())
                     .map_err(|_| Error::InvalidPassphrase)?;
 
-                let (mut new_passphrase, new_vault, wal_events) =
+                let (new_passphrase, new_vault, wal_events) =
                     ChangePassword::new(
                         keeper.vault(),
                         passphrase,
@@ -928,7 +934,7 @@ fn exec_program(
                 let mut writer = cache.write().unwrap();
                 let keeper =
                     writer.current_mut().ok_or(Error::NoVaultSelected)?;
-                keeper.unlock(&new_passphrase)?;
+                keeper.unlock(new_passphrase.expose_secret())?;
 
                 let banner = Banner::new()
                     .padding(Padding::one())
@@ -945,12 +951,9 @@ fn exec_program(
                 let banner = Banner::new()
                     .padding(Padding::one())
                     .text(Cow::Borrowed("NEW ENCRYPTION PASSPHRASE"))
-                    .text(Cow::Borrowed(&new_passphrase))
+                    .text(Cow::Borrowed(new_passphrase.expose_secret()))
                     .render();
                 println!("{}", banner);
-
-                // Clean up
-                new_passphrase.zeroize();
             }
 
             Ok(())

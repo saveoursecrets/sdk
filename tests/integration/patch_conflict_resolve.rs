@@ -3,6 +3,7 @@ use serial_test::serial;
 
 use crate::test_utils::*;
 
+use secrecy::ExposeSecret;
 use sos_node::client::{
     account::{login, AccountCredentials},
     LocalCache,
@@ -36,8 +37,12 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
     let _ = client2.load_vaults().await?;
 
     // Both client use the login vault
-    client1.open_vault(&summary, &encryption_passphrase).await?;
-    client2.open_vault(&summary, &encryption_passphrase).await?;
+    client1
+        .open_vault(&summary, encryption_passphrase.expose_secret())
+        .await?;
+    client2
+        .open_vault(&summary, encryption_passphrase.expose_secret())
+        .await?;
 
     // Create some secrets in client 1
     let _notes = create_secrets(&mut client1, &summary).await?;

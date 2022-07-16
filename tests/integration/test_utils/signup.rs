@@ -4,6 +4,7 @@ use super::{server, TestDirs};
 
 use sos_core::address::AddressStr;
 
+use secrecy::ExposeSecret;
 use sos_node::client::{
     account::{
         create_account, create_signing_key, AccountCredentials, AccountKey,
@@ -49,14 +50,14 @@ pub async fn signup(
     assert_eq!(expected_keystore, credentials.keystore_file);
     assert!(expected_keystore.is_file());
 
-    assert!(!credentials.encryption_passphrase.is_empty());
-    assert!(!credentials.keystore_passphrase.is_empty());
+    assert!(!credentials.encryption_passphrase.expose_secret().is_empty());
+    assert!(!credentials.keystore_passphrase.expose_secret().is_empty());
 
     let keystore = std::fs::read(&expected_keystore)?;
     let keystore: KeyStore = serde_json::from_slice(&keystore)?;
 
     let signing_key: [u8; 32] =
-        decrypt(&keystore, &credentials.keystore_passphrase)?
+        decrypt(&keystore, credentials.keystore_passphrase.expose_secret())?
             .as_slice()
             .try_into()?;
 

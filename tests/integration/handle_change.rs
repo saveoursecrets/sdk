@@ -7,6 +7,7 @@ use futures::stream::StreamExt;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::{mpsc, RwLock};
 
+use secrecy::ExposeSecret;
 use sos_core::commit_tree::CommitProof;
 use sos_node::client::{
     account::{login, AccountCredentials},
@@ -71,9 +72,11 @@ async fn integration_handle_change() -> Result<()> {
         .expect("failed to receive changes feed open message");
 
     // Both clients use the login vault
-    creator.open_vault(&summary, &encryption_passphrase).await?;
+    creator
+        .open_vault(&summary, encryption_passphrase.expose_secret())
+        .await?;
     listener
-        .open_vault(&summary, &encryption_passphrase)
+        .open_vault(&summary, encryption_passphrase.expose_secret())
         .await?;
 
     let listener_cache = Arc::new(RwLock::new(listener));

@@ -11,6 +11,7 @@ rustyline = "9"
 rustyline-derive = "0.6"
 unicode-width = "0.1"
 atty = "0.2"
+secrecy = "0.8"
 
 [package.metadata.release]
 release = false

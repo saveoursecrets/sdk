@@ -2367,6 +2367,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "secrecy"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bd1c54ea06cfd2f6b63219704de0b9b4f72dcc2b8fdef820be6cd799780e91e"
+dependencies = [
+ "serde",
+ "zeroize",
+]
+
+[[package]]
 name = "security-framework"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2585,6 +2595,7 @@ dependencies = [
  "axum-server",
  "clap",
  "futures",
+ "secrecy",
  "serde_json",
  "serial_test",
  "sos-audit",
@@ -2636,6 +2647,7 @@ dependencies = [
  "human_bytes",
  "mime_guess",
  "reqwest-eventsource",
+ "secrecy",
  "serde_json",
  "sha3 0.10.1",
  "shell-words",
@@ -2674,6 +2686,7 @@ dependencies = [
  "pem",
  "rand",
  "rs_merkle",
+ "secrecy",
  "serde",
  "serde_json",
  "sha3 0.9.1",
@@ -2714,6 +2727,7 @@ dependencies = [
  "reqwest",
  "reqwest-eventsource",
  "rust-embed",
+ "secrecy",
  "serde",
  "serde_json",
  "sha3 0.10.1",
@@ -2739,6 +2753,7 @@ dependencies = [
  "atty",
  "rustyline",
  "rustyline-derive",
+ "secrecy",
  "thiserror",
  "unicode-width",
 ]

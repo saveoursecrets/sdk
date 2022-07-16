@@ -1,6 +1,7 @@
 //! Signup a new account.
 use crate::{display_passphrase, Error, Result};
 
+use secrecy::{ExposeSecret, SecretString};
 use sos_node::client::{
     account::{create_account, create_signing_key},
     file_cache::FileCache,
@@ -16,7 +17,7 @@ pub struct StdinPassphraseReader {}
 impl PassphraseReader for StdinPassphraseReader {
     type Error = sos_readline::Error;
 
-    fn read(&self) -> std::result::Result<String, Self::Error> {
+    fn read(&self) -> std::result::Result<SecretString, Self::Error> {
         read_password(Some("Passphrase: "))
     }
 }
@@ -84,11 +85,11 @@ pub fn signup(
 
         display_passphrase(
             "KEYSTORE PASSPHRASE",
-            &account.keystore_passphrase,
+            account.keystore_passphrase.expose_secret(),
         );
         display_passphrase(
             "ENCRYPTION PASSPHRASE",
-            &account.encryption_passphrase,
+            account.encryption_passphrase.expose_secret(),
         );
     }
     Ok(())

@@ -11,6 +11,7 @@ use super::{
     file_cache::FileCache, ClientBuilder, LocalCache, RequestClient,
 };
 use super::{Error, Result};
+use secrecy::{ExposeSecret, SecretString};
 
 /// Signing, public key and computed address for a new account.
 pub struct AccountKey(pub [u8; 32], pub [u8; 33], pub AddressStr);
@@ -25,9 +26,9 @@ impl AccountKey {
 /// Encapsulates the credentials for a new account signup.
 pub struct AccountCredentials {
     /// Passphrase for the keystore.
-    pub keystore_passphrase: String,
+    pub keystore_passphrase: SecretString,
     /// Passphrase for the vault encryption.
-    pub encryption_passphrase: String,
+    pub encryption_passphrase: SecretString,
     /// File for the keystore.
     pub keystore_file: PathBuf,
     /// Address of the signing key.
@@ -42,7 +43,7 @@ pub fn login(
     server: Url,
     cache_dir: PathBuf,
     keystore_file: PathBuf,
-    keystore_passphrase: String,
+    keystore_passphrase: SecretString,
 ) -> Result<FileCache> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
@@ -79,7 +80,7 @@ pub async fn create_account(
     let keystore = encrypt(
         &mut rand::thread_rng(),
         signing_key,
-        &keystore_passphrase,
+        keystore_passphrase.expose_secret(),
         Some(key.address().to_string()),
     )?;
 
