@@ -48,7 +48,7 @@ secrecy = "0.8"
 
 [[bin]]
 name = "sos"
-path = "src/bin/main.rs"
+path = "src/main.rs"
 
 [workspace.metadata.release]
 allow-branch = ["main"]
