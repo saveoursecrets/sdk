@@ -2,7 +2,7 @@
 //! Library for network communication.
 use std::path::PathBuf;
 
-#[cfg(feature = "agent")]
+#[cfg(any(feature = "agent-client", feature = "agent-server"))]
 pub mod agent;
 #[cfg(feature = "client")]
 pub mod client;

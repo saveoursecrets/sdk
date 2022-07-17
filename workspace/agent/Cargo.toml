@@ -1,0 +1,22 @@
+[package]
+name = "sos-agent"
+version = "0.1.0"
+edition = "2021"
+default-run = "sos-agent"
+publish = false
+
+[dependencies]
+thiserror = "1"
+clap = { version = "3", features = ["derive", "wrap_help"] }
+sos-node = { path = "../node", version = "0.1.0", default-features = false, features = ["agent-server"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { version = "1", default-features = false, features = ["rt", "macros"] }
+
+[[bin]]
+name = "sos-agent"
+path = "src/main.rs"
+
+[package.metadata.release]
+release = false
+shared-version = true

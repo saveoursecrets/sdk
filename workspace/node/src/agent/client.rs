@@ -23,7 +23,7 @@ impl KeyAgentClient {
         }
     }
 
-    /// Attempt to get a key from the agent server.
+    /// Attempt to get a key from the agent service.
     pub async fn get(key: Key) -> Option<Value> {
         if let Some(path) = default_path() {
             let mut client =
@@ -33,6 +33,30 @@ impl KeyAgentClient {
                     Ok(response) => {
                         if let AgentResponse::Get(value) = response {
                             value
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Attempt to set a key and value on the agent service.
+    pub async fn set(key: Key, value: Value) -> Option<()> {
+        if let Some(path) = default_path() {
+            let mut client =
+                KeyAgentClient::new(path.to_string_lossy().as_ref());
+            if let Ok(_) = client.connect().await {
+                match client.send(AgentRequest::Set(key, value)).await {
+                    Ok(response) => {
+                        if let AgentResponse::Set = response {
+                            Some(())
                         } else {
                             None
                         }

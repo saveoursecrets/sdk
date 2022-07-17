@@ -4,7 +4,7 @@ use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
     Endian, MemoryStream,
 };
-use sos_core::{constants::AGENT_IDENTITY, FileIdentity};
+use sos_core::constants::AGENT_IDENTITY;
 
 use super::{Error, Result};
 

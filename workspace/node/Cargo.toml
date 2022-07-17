@@ -19,7 +19,7 @@ web3-signature = { version = "0.2", features = ["single-party"] }
 serde = "1"
 serde_json = "1"
 rand = "0.8"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 url = "2"
 futures = "0.3"
 pin-project-lite = "0.2"
@@ -95,7 +95,6 @@ server = [
   "async-stream",
 ]
 gui = []
-agent = ["agent-client", "agent-server"]
 agent-client = ["parity-tokio-ipc", "binary-stream"]
 agent-server = ["parity-tokio-ipc", "binary-stream"]
 

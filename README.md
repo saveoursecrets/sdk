@@ -54,6 +54,7 @@ The system is eventually consistent except in the case of two events; when a WAL
 * [sandbox](/sandbox) Configuration and storage location for local testing.
 * [tests](/tests) Integration tests.
 * [workspace](/workspace) Libraries and command line interfaces.
+    * [agent](/workspace/agent) The `sos-agent` service for caching identity keys.
     * [audit](/workspace/audit) The `sos-audit` tool for reading and monitoring audit logs.
     * [check](/workspace/check) The `sos-check` tool for verifying file integrity and inspecting files.
     * [client](/workspace/client) The `sos-client` terminal read-eval-print-loop (REPL) tool.

@@ -2666,6 +2666,7 @@ dependencies = [
  "secrecy",
  "serde_json",
  "serial_test",
+ "sos-agent",
  "sos-audit",
  "sos-check",
  "sos-client",
@@ -2678,6 +2679,18 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "web3-keystore",
+]
+
+[[package]]
+name = "sos-agent"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "sos-node",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
