@@ -1,11 +1,12 @@
 //! Key agent client.
 
-use binary_stream::{BinaryWriter, Encode, Endian, MemoryStream};
 use parity_tokio_ipc::{Connection, Endpoint};
 use sos_core::{constants::AGENT_IDENTITY, FileIdentity};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use super::{AgentRequest, AgentResponse, Error, Result};
+use super::{
+    default_path, AgentRequest, AgentResponse, Error, Key, Result, Value,
+};
 
 /// Client for the key agent server.
 pub struct KeyAgentClient {
@@ -19,6 +20,30 @@ impl KeyAgentClient {
         Self {
             path: path.as_ref().to_owned(),
             connection: None,
+        }
+    }
+
+    /// Attempt to get a key from the agent server.
+    pub async fn get(key: Key) -> Option<Value> {
+        if let Some(path) = default_path() {
+            let mut client =
+                KeyAgentClient::new(path.to_string_lossy().as_ref());
+            if let Ok(_) = client.connect().await {
+                match client.send(AgentRequest::Get(key)).await {
+                    Ok(response) => {
+                        if let AgentResponse::Get(value) = response {
+                            value
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 
@@ -63,9 +88,6 @@ impl KeyAgentClient {
         connection.read_exact(&mut buffer).await?;
         let response = AgentResponse::decode(buffer)?;
 
-        println!("{:#?}", response);
-
-        //todo!("read server response");
         Ok(response)
     }
 }

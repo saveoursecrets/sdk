@@ -2,10 +2,13 @@
 use crate::{display_passphrase, Error, Result};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_node::client::{
-    account::{create_account, create_signing_key},
-    file_cache::FileCache,
-    run_blocking, ClientBuilder, PassphraseReader,
+use sos_node::{
+    cache_dir,
+    client::{
+        account::{create_account, create_signing_key},
+        file_cache::FileCache,
+        run_blocking, ClientBuilder, PassphraseReader,
+    },
 };
 use sos_readline::{read_flag, read_password};
 use std::{borrow::Cow, path::PathBuf};
@@ -75,12 +78,17 @@ pub fn signup(
 
     let prompt = Some("Are you sure (y/n)? ");
     if read_flag(prompt)? {
+        let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
+        if !cache_dir.is_dir() {
+            return Err(Error::NotDirectory(cache_dir));
+        }
+
         let (account, _) = run_blocking(create_account(
             server,
             destination,
             name,
             client_key,
-            FileCache::cache_dir()?,
+            cache_dir,
         ))?;
 
         display_passphrase(

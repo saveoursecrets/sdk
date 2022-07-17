@@ -4,6 +4,8 @@
 //! does not have to keep entering the keystore passphrase
 //! when a key agent is active.
 
+use std::path::PathBuf;
+
 mod error;
 
 #[cfg(feature = "agent-client")]
@@ -14,28 +16,34 @@ mod message;
 pub mod server;
 
 #[cfg(any(feature = "agent-client", feature = "agent-server"))]
-pub use message::{AgentRequest, AgentResponse};
+pub use message::{AgentRequest, AgentResponse, Key, Value};
 
 pub use error::Error;
 
 /// Result type for the agent module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 
+/// Default socket path.
+pub fn default_path() -> Option<PathBuf> {
+    crate::cache_dir().map(|d| d.join("agent.sock"))
+}
+
 #[cfg(all(feature = "agent-client", feature = "agent-server"))]
 #[cfg(test)]
 mod test {
     use super::{
         client::KeyAgentClient, server::KeyAgentServer, AgentRequest,
-        AgentResponse,
+        AgentResponse, Key, Value,
     };
     use anyhow::Result;
     use futures::{
         future::{ready, select, Either},
         FutureExt,
     };
-    use parity_tokio_ipc::{dummy_endpoint, Endpoint};
+    use parity_tokio_ipc::dummy_endpoint;
+    use rand::Rng;
     use std::{path::Path, time::Duration};
-    use tokio::{io::AsyncWriteExt, sync::oneshot};
+    use tokio::sync::oneshot;
 
     async fn run_server(path: String) {
         let server =
@@ -65,14 +73,27 @@ mod test {
         let mut client_0 = KeyAgentClient::new(&path);
         client_0.connect().await?;
 
-        let msg = "hello".as_bytes().to_vec();
-        let message = AgentRequest(msg);
-        let response = client_0.send(message).await;
+        let mut client_1 = KeyAgentClient::new(&path);
+        client_1.connect().await?;
+
+        let key: Key =
+            hex::decode("7bac27741f270cf71fbf1fb20f598f910766ad3c")?
+                .as_slice()
+                .try_into()?;
+        let value: Value = rand::thread_rng().gen();
+
+        let message = AgentRequest::Set(key.clone(), value.clone());
+        let response = client_0.send(message).await?;
+        assert_eq!(AgentResponse::Set, response);
+
+        let message = AgentRequest::Get(key);
+        let response = client_1.send(message).await?;
+        assert_eq!(AgentResponse::Get(Some(value)), response);
 
         // Delay so that messages can be processed
         tokio::time::sleep(Duration::from_secs(2)).await;
 
-        // shutdown server
+        // Shutdown server
         if let Ok(()) = shutdown_tx.send(()) {
             tokio::time::sleep(Duration::from_secs(1)).await;
             let path = Path::new(&path);

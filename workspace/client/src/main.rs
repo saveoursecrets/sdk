@@ -14,9 +14,12 @@ use sos_client::{
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
-use sos_node::client::{
-    file_cache::FileCache, run_blocking, ChangesListener, ClientBuilder,
-    LocalCache,
+use sos_node::{
+    cache_dir,
+    client::{
+        file_cache::FileCache, run_blocking, ChangesListener, ClientBuilder,
+        LocalCache,
+    },
 };
 
 const WELCOME: &str = include_str!("welcome.txt");
@@ -110,7 +113,10 @@ fn run() -> Result<()> {
         Command::Shell { server, keystore } => {
             ensure_https(&server)?;
             let server_url = server.clone();
-            let cache_dir = FileCache::cache_dir()?;
+            let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
+            if !cache_dir.is_dir() {
+                return Err(Error::NotDirectory(cache_dir));
+            }
 
             let reader = StdinPassphraseReader {};
             let client = ClientBuilder::new(server, keystore)
