@@ -1,11 +1,8 @@
 //! Functions and types for creating accounts.
 use sos_core::{
-    address::AddressStr,
-    crypto::generate_random_ecdsa_signing_key,
-    generate_passphrase,
-    signer::SingleParty,
-    vault::Summary,
-    wal::{file::WalFile, WalProvider},
+    address::AddressStr, crypto::generate_random_ecdsa_signing_key,
+    generate_passphrase, signer::SingleParty, vault::Summary,
+    wal::file::WalFile,
 };
 use std::{convert::Infallible, path::PathBuf, sync::Arc};
 use url::Url;

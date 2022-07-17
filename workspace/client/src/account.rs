@@ -38,6 +38,7 @@ pub fn switch(
     let reader = StdinPassphraseReader {};
     let client = ClientBuilder::new(server, keystore_file)
         .with_passphrase_reader(Box::new(reader))
+        .with_use_agent(true)
         .build()?;
     Ok(FileCache::new(client, cache_dir, true)?)
 }

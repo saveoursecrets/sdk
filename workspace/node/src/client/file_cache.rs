@@ -15,7 +15,6 @@ use sos_core::{
     encode,
     events::{ChangeEvent, ChangeNotification, SyncEvent, WalEvent},
     generate_passphrase,
-    iter::WalFileRecord,
     secret::SecretRef,
     vault::{Summary, Vault},
     wal::{

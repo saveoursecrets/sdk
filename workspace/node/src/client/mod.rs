@@ -14,7 +14,6 @@ use sos_core::{
     address::AddressStr,
     commit_tree::CommitTree,
     events::{ChangeNotification, SyncEvent, WalEvent},
-    iter::WalFileRecord,
     secret::SecretRef,
     signer::SingleParty,
     vault::{Summary, Vault},
@@ -80,6 +79,7 @@ pub struct ClientBuilder<E> {
     keystore: PathBuf,
     keystore_passphrase: Option<SecretString>,
     passphrase_reader: Option<Box<dyn PassphraseReader<Error = E>>>,
+    use_agent: bool,
 }
 
 impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
@@ -90,6 +90,7 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
             keystore,
             keystore_passphrase: None,
             passphrase_reader: None,
+            use_agent: false,
         }
     }
 
@@ -108,6 +109,12 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
         reader: Box<dyn PassphraseReader<Error = E>>,
     ) -> Self {
         self.passphrase_reader = Some(reader);
+        self
+    }
+
+    /// Set whether to use the key agent integration.
+    pub fn with_use_agent(mut self, use_agent: bool) -> Self {
+        self.use_agent = use_agent;
         self
     }
 
@@ -130,8 +137,12 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
             None
         };
 
-        let agent_key = if let Some(address) = &address {
-            run_blocking(get_agent_key(address))?
+        let agent_key = if self.use_agent {
+            if let Some(address) = &address {
+                run_blocking(get_agent_key(address))?
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -154,13 +165,13 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
             let signing_key: [u8; 32] =
                 signing_bytes.as_slice().try_into()?;
 
-            if let Some(address) = address {
-                //if read_flag(Some("Save signing key in agent (y/n)? ")) {
-                run_blocking(set_agent_key(
-                    address.into(),
-                    signing_key.clone(),
-                ))?;
-                //}
+            if self.use_agent {
+                if let Some(address) = address {
+                    run_blocking(set_agent_key(
+                        address.into(),
+                        signing_key.clone(),
+                    ))?;
+                }
             }
 
             signing_key

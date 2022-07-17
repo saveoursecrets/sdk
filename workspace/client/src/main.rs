@@ -121,6 +121,7 @@ fn run() -> Result<()> {
             let reader = StdinPassphraseReader {};
             let client = ClientBuilder::new(server, keystore)
                 .with_passphrase_reader(Box::new(reader))
+                .with_use_agent(true)
                 .build()?;
             let cache = Arc::new(RwLock::new(FileCache::new(
                 client, cache_dir, true,
