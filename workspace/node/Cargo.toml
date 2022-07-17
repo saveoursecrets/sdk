@@ -19,7 +19,7 @@ web3-signature = { version = "0.2", features = ["single-party"] }
 serde = "1"
 serde_json = "1"
 rand = "0.8"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 url = "2"
 futures = "0.3"
 pin-project-lite = "0.2"
@@ -49,6 +49,10 @@ rust-embed = { version = "6", optional = true }
 mime_guess = { version = "2", optional = true }
 async-stream = { version = "0.3", optional = true }
 
+# agent
+parity-tokio-ipc = { version = "0.9", optional = true }
+binary-stream = { version = "3", features = ["wasm32"], optional = true }
+
 [target.'cfg(any(not(target_arch="aarch64"),not(target_os="linux")))'.dependencies]
 reqwest = { version = "0.11", path = "../../../../forks/reqwest", default-features = true, features = ["json", "rustls-tls"], optional = true }
 
@@ -74,6 +78,7 @@ client = [
   "reqwest",
   "reqwest-eventsource",
   "web3-keystore",
+  "agent-client",
 ]
 node = ["client", "server"]
 server = [
@@ -91,6 +96,8 @@ server = [
   "async-stream",
 ]
 gui = []
+agent-client = ["parity-tokio-ipc", "binary-stream"]
+agent-server = ["parity-tokio-ipc", "binary-stream"]
 
 [package.metadata.release]
 tag = false

@@ -45,9 +45,9 @@ version = "1.2"
 #path = "../../../../forks/rs-merkle"
 
 [dependencies.binary-stream]
-version = "3.0.0"
+version = "3"
 features = ["wasm32"]
-path = "../../../../binary-stream"
+#path = "../../../../binary-stream"
 
 #[dependencies.serde-binary]
 #version = "0.3.6"

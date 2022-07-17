@@ -602,31 +602,6 @@ impl FileCache {
         })
     }
 
-    /// Get the default root directory used for caching client data.
-    ///
-    /// If the `CACHE_DIR` environment variable is set it is used
-    /// instead of the default location.
-    pub fn cache_dir() -> Result<PathBuf> {
-        let cache_dir = if let Ok(env_cache_dir) = std::env::var("CACHE_DIR")
-        {
-            let cache_dir = PathBuf::from(env_cache_dir);
-            if !cache_dir.is_dir() {
-                return Err(Error::NotDirectory(cache_dir));
-            }
-            cache_dir
-        } else {
-            let data_local_dir =
-                dirs::data_local_dir().ok_or(Error::NoDataLocalDir)?;
-            let cache_dir = data_local_dir.join("sos");
-            if !cache_dir.exists() {
-                std::fs::create_dir(&cache_dir)?;
-            }
-            cache_dir
-        };
-        tracing::debug!(cache_dir = ?cache_dir, "cache_dir");
-        Ok(cache_dir)
-    }
-
     /// Create a new account or vault.
     async fn create(
         &mut self,

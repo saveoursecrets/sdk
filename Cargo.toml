@@ -10,6 +10,7 @@ publish = false
 
 [workspace]
 members = [
+  "workspace/agent",
   "workspace/audit",
   "workspace/check",
   "workspace/client",
@@ -20,6 +21,7 @@ members = [
 ]
 
 [dependencies]
+sos-agent = { path = "workspace/agent", version = "0.1.0" }
 sos-audit = { path = "workspace/audit", version = "0.1.0" }
 sos-check = { path = "workspace/check", version = "0.1.0" }
 sos-client = { path = "workspace/client", version = "0.1.0" }

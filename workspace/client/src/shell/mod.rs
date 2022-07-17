@@ -20,6 +20,7 @@ use sos_core::{
     ChangePassword, CommitHash,
 };
 use sos_node::{
+    cache_dir,
     client::{file_cache::FileCache, run_blocking, LocalCache},
     sync::SyncKind,
 };
@@ -959,7 +960,10 @@ fn exec_program(
             Ok(())
         }
         ShellCommand::Switch { keystore } => {
-            let cache_dir = FileCache::cache_dir()?;
+            let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
+            if !cache_dir.is_dir() {
+                return Err(Error::NotDirectory(cache_dir));
+            }
             let mut file_cache = switch(server.clone(), cache_dir, keystore)?;
 
             // Ensure the vault summaries are loaded

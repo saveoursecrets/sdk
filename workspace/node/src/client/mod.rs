@@ -58,6 +58,16 @@ pub trait PassphraseReader {
     fn read(&self) -> std::result::Result<SecretString, Self::Error>;
 }
 
+use crate::agent::{client::KeyAgentClient, Value};
+
+async fn get_agent_key(address: &AddressStr) -> Result<Option<Value>> {
+    Ok(KeyAgentClient::get(address.clone().into()).await)
+}
+
+async fn set_agent_key(address: AddressStr, value: Value) -> Result<Option<()>> {
+    Ok(KeyAgentClient::set(address.into(), value).await)
+}
+
 /// Builds a client implementation.
 pub struct ClientBuilder<E> {
     server: Url,
@@ -107,16 +117,43 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
         keystore_file.read_to_end(&mut keystore_bytes)?;
         let keystore: KeyStore = serde_json::from_slice(&keystore_bytes)?;
 
-        let passphrase = if let Some(passphrase) = self.keystore_passphrase {
-            passphrase
-        } else if let Some(reader) = self.passphrase_reader {
-            reader.read().map_err(Box::from)?
+        let address = if let Some(address) = &keystore.address {
+           let address: AddressStr = address.parse()?;
+           Some(address)
         } else {
-            panic!("client builder requires either a passphrase or passphrase reader");
+            None
         };
-        let signing_bytes = decrypt(&keystore, passphrase.expose_secret())?;
 
-        let signing_key: [u8; 32] = signing_bytes.as_slice().try_into()?;
+        let agent_key = if let Some(address) = &address {
+           run_blocking(get_agent_key(address))?
+        } else {
+            None
+        };
+
+        let signing_key: [u8; 32] = if let Some(signing_key) = agent_key {
+            signing_key
+        } else {
+
+            let passphrase = if let Some(passphrase) = self.keystore_passphrase {
+                passphrase
+            } else if let Some(reader) = self.passphrase_reader {
+                reader.read().map_err(Box::from)?
+            } else {
+                panic!("client builder requires either a passphrase or passphrase reader");
+            };
+
+            let signing_bytes = decrypt(&keystore, passphrase.expose_secret())?;
+            let signing_key: [u8; 32] = signing_bytes.as_slice().try_into()?;
+
+            if let Some(address) = address {
+                //if read_flag(Some("Save signing key in agent (y/n)? ")) {
+                run_blocking(
+                    set_agent_key(address.into(), signing_key.clone()))?;
+                //}
+            }
+
+            signing_key
+        };
         let signer: SingleParty = (&signing_key).try_into()?;
         Ok(RequestClient::new(self.server, Arc::new(signer)))
     }

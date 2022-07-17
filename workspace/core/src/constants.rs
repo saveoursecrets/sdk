@@ -13,6 +13,9 @@ mod identity {
 
     /// Vault file identity magic bytes (SOSV).
     pub const VAULT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
+
+    /// Agent file identity magic bytes (SOSG).
+    pub const AGENT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x47];
 }
 
 /// Constants for file extensions.
