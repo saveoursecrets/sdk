@@ -9,7 +9,6 @@ use crate::{
 };
 use std::collections::HashMap;
 use uuid::Uuid;
-use zeroize::Zeroize;
 
 /// Access to an in-memory vault optionally mirroring changes to disc.
 ///
@@ -399,9 +398,6 @@ impl Gatekeeper {
     /// associated with the vault, securely zeroing the
     /// underlying memory.
     pub fn lock(&mut self) {
-        if let Some(private_key) = self.private_key.as_mut() {
-            private_key.zeroize();
-        }
         self.private_key = None;
     }
 }

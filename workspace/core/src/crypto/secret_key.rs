@@ -2,28 +2,28 @@
 use crate::Result;
 use rand::Rng;
 use sha3::{Digest, Keccak256};
-use zeroize::Zeroize;
 
 use argon2::{
     password_hash::{PasswordHash, PasswordHasher, SaltString},
     Argon2,
 };
 
+use secrecy::ExposeSecret;
+
 /// Encapsulates the bytes for a symmetric secret key.
 ///
 /// Currently there is only a single variant but this type exists
 /// if we need to use different key sizes in the future.
-#[derive(Zeroize)]
 pub enum SecretKey {
     /// Key of 32 bytes (256 bits).
-    Key32([u8; 32]),
+    Key32(secrecy::Secret<[u8; 32]>),
 }
 
 impl SecretKey {
     /// Create a new random 32 byte secret key.
     pub fn new_random_32() -> Self {
         let bytes: [u8; 32] = rand::thread_rng().gen();
-        SecretKey::Key32(bytes)
+        SecretKey::Key32(secrecy::Secret::new(bytes))
     }
 
     /// Generate a new salt string.
@@ -48,7 +48,7 @@ impl SecretKey {
         let password_hash = hash_password(password, salt)?;
         let hash = Keccak256::digest(password_hash.to_string().as_bytes());
         let hash: [u8; 32] = hash.as_slice().try_into()?;
-        Ok(SecretKey::Key32(hash))
+        Ok(SecretKey::Key32(secrecy::Secret::new(hash)))
     }
 }
 
@@ -56,7 +56,7 @@ impl SecretKey {
     /// Get a slice of the private key byte array.
     pub fn as_slice(&self) -> &[u8] {
         match self {
-            Self::Key32(ref bytes) => bytes,
+            Self::Key32(ref bytes) => bytes.expose_secret(),
         }
     }
 }
