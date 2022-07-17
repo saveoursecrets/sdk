@@ -50,6 +50,7 @@ mime_guess = { version = "2", optional = true }
 async-stream = { version = "0.3", optional = true }
 
 # agent
+[target.'cfg(not(target_arch="wasm32"))'.dependencies]
 parity-tokio-ipc = { version = "0.9", optional = true }
 binary-stream = { version = "3", features = ["wasm32"], optional = true }
 
@@ -78,7 +79,6 @@ client = [
   "reqwest",
   "reqwest-eventsource",
   "web3-keystore",
-  "agent-client",
 ]
 node = ["client", "server"]
 server = [

@@ -60,17 +60,32 @@ pub trait PassphraseReader {
     fn read(&self) -> std::result::Result<SecretString, Self::Error>;
 }
 
-use crate::agent::{client::KeyAgentClient, Value};
-
-async fn get_agent_key(address: &AddressStr) -> Result<Option<Value>> {
+#[cfg(feature = "agent-client")]
+async fn get_agent_key(address: &AddressStr) -> Result<Option<[u8; 32]>> {
+    use crate::agent::client::KeyAgentClient;
     Ok(KeyAgentClient::get(address.clone().into()).await)
 }
 
+#[cfg(feature = "agent-client")]
 async fn set_agent_key(
     address: AddressStr,
-    value: Value,
+    value: [u8; 32],
 ) -> Result<Option<()>> {
+    use crate::agent::client::KeyAgentClient;
     Ok(KeyAgentClient::set(address.into(), value).await)
+}
+
+#[cfg(not(feature = "agent-client"))]
+async fn get_agent_key(address: &AddressStr) -> Result<Option<[u8; 32]>> {
+    Ok(None)
+}
+
+#[cfg(not(feature = "agent-client"))]
+async fn set_agent_key(
+    address: AddressStr,
+    value: [u8; 32],
+) -> Result<Option<()>> {
+    Ok(None)
 }
 
 /// Builds a client implementation.

@@ -1,4 +1,4 @@
-//! Caching implementation backed by files.
+//! Caching implementation.
 use super::{Error, Result};
 use crate::client::net::{NetworkClient, RequestClient};
 
@@ -89,6 +89,10 @@ impl<W: WalProvider + Send + Sync> LocalCache<W> for FileCache<W> {
     }
 
     fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)> {
+        if cfg!(target_arch = "wasm32") {
+            panic!("snapshots not available in webassembly");
+        }
+
         let (wal, _) = self
             .cache
             .get(summary.id())
