@@ -278,6 +278,16 @@ sos-client monitor -s https://localhost:5053 -k sandbox/<addr>.json
 
 Enter your keystore passphrase and then in a shell session make some changes like creating or removing secrets and you should see the events printed to the terminal.
 
+### Key Agent
+
+For convenience the `sos-agent` program can cache identity signing keys in memory. To launch it run:
+
+```
+sos-agent
+```
+
+Now when you enter a keystore passphrase in the shell client it will be cached by the agent and used the next time you select the same identity. Be aware this reduces your identity key security and should only be used if you are certain the processes on your machine can be trusted.
+
 [git]: https://git-scm.com/
 [wireguard]: https://www.wireguard.com/
 [lcov]: https://github.com/linux-test-project/lcov

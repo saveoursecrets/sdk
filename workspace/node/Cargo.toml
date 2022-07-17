@@ -78,6 +78,7 @@ client = [
   "reqwest",
   "reqwest-eventsource",
   "web3-keystore",
+  "agent-client",
 ]
 node = ["client", "server"]
 server = [
