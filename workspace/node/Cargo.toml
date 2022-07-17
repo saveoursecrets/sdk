@@ -49,6 +49,10 @@ rust-embed = { version = "6", optional = true }
 mime_guess = { version = "2", optional = true }
 async-stream = { version = "0.3", optional = true }
 
+# agent
+parity-tokio-ipc = { version = "0.9", optional = true }
+binary-stream = { version = "3", features = ["wasm32"], optional = true }
+
 [target.'cfg(any(not(target_arch="aarch64"),not(target_os="linux")))'.dependencies]
 reqwest = { version = "0.11", path = "../../../../forks/reqwest", default-features = true, features = ["json", "rustls-tls"], optional = true }
 
@@ -91,6 +95,9 @@ server = [
   "async-stream",
 ]
 gui = []
+agent = ["agent-client", "agent-server"]
+agent-client = ["parity-tokio-ipc", "binary-stream"]
+agent-server = ["parity-tokio-ipc", "binary-stream"]
 
 [package.metadata.release]
 tag = false
