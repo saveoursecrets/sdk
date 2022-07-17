@@ -65,6 +65,14 @@ The system is eventually consistent except in the case of two events; when a WAL
 
 For webassembly bindings see the [browser][] repository.
 
+### Storage Location
+
+All program data is stored in this directory:
+
+* MacOS: `$HOME/Library/Application Support/SaveOurSecrets`
+* Linux: `$XDG_DATA_HOME` or `$HOME/.local/share/SaveOurSecrets`
+* Windows: `C:\Users\UserName\AppData\Local\SaveOurSecrets` (`{FOLDERID_LocalAppData}`)
+
 ## Development
 
 ### Setup
@@ -287,6 +295,8 @@ sos-agent
 ```
 
 Now when you enter a keystore passphrase in the shell client it will be cached by the agent and used the next time you select the same identity. Be aware this reduces your identity key security and should only be used if you are certain the processes on your machine can be trusted.
+
+If the `sos-agent` process is killed then you may need to manually delete the `agent.sock` file in the [storage location](#storage-location) to launch the agent again.
 
 [git]: https://git-scm.com/
 [wireguard]: https://www.wireguard.com/
