@@ -15,9 +15,9 @@ use sos_core::{
     secret::SecretRef,
 };
 use sos_node::{
+    cache_dir,
     client::{
         account::AccountCredentials,
-        file_cache::FileCache,
         net::{changes::ChangeStreamEvent, RequestClient},
         LocalCache,
     },
@@ -72,7 +72,7 @@ async fn integration_simple_session() -> Result<()> {
         .await
         .expect("failed to receive changes feed open message");
 
-    let _ = FileCache::cache_dir()?;
+    let _ = cache_dir().unwrap();
 
     assert_eq!(address, file_cache.address()?);
 

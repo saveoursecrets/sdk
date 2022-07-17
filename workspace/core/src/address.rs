@@ -60,6 +60,12 @@ impl From<AddressStr> for String {
     }
 }
 
+impl From<AddressStr> for [u8; 20] {
+    fn from(value: AddressStr) -> [u8; 20] {
+        value.0
+    }
+}
+
 impl TryFrom<String> for AddressStr {
     type Error = Error;
     fn try_from(value: String) -> std::result::Result<Self, Self::Error> {

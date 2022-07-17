@@ -5,6 +5,9 @@ use url::Url;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("could not determine cache directory")]
+    NoCache,
+
     #[error("path {0} is not a directory")]
     NotDirectory(PathBuf),
 
