@@ -16,7 +16,7 @@ use sos_core::{
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
-    wal::WalItem,
+    wal::{file::WalFile, WalItem},
     ChangePassword, CommitHash,
 };
 use sos_node::{
@@ -36,7 +36,7 @@ use crate::{display_passphrase, switch, Error, Result};
 mod editor;
 mod print;
 
-type ReplCache = Arc<RwLock<FileCache>>;
+type ReplCache = Arc<RwLock<FileCache<WalFile>>>;
 
 enum ConflictChoice {
     Push,
@@ -361,7 +361,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, FileCache>,
+        &mut RwLockWriteGuard<'_, FileCache<WalFile>>,
     ) -> sos_node::client::Result<()>,
 {
     let mut writer = cache.write().unwrap();

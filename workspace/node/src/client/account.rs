@@ -1,7 +1,11 @@
 //! Functions and types for creating accounts.
 use sos_core::{
-    address::AddressStr, crypto::generate_random_ecdsa_signing_key,
-    generate_passphrase, signer::SingleParty, vault::Summary,
+    address::AddressStr,
+    crypto::generate_random_ecdsa_signing_key,
+    generate_passphrase,
+    signer::SingleParty,
+    vault::Summary,
+    wal::{file::WalFile, WalProvider},
 };
 use std::{convert::Infallible, path::PathBuf, sync::Arc};
 use url::Url;
@@ -44,14 +48,14 @@ pub fn login(
     cache_dir: PathBuf,
     keystore_file: PathBuf,
     keystore_passphrase: SecretString,
-) -> Result<FileCache> {
+) -> Result<FileCache<WalFile>> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
     let client = ClientBuilder::<Infallible>::new(server, keystore_file)
         .with_keystore_passphrase(keystore_passphrase)
         .build()?;
-    Ok(FileCache::new(client, cache_dir, true)?)
+    Ok(FileCache::<WalFile>::new(client, cache_dir, true)?)
 }
 
 /// Create a new account.
@@ -61,7 +65,7 @@ pub async fn create_account(
     name: Option<String>,
     key: AccountKey,
     cache_dir: PathBuf,
-) -> Result<(AccountCredentials, FileCache)> {
+) -> Result<(AccountCredentials, FileCache<WalFile>)> {
     if !destination.is_dir() {
         return Err(Error::NotDirectory(destination));
     }
@@ -75,7 +79,7 @@ pub async fn create_account(
     let (keystore_passphrase, _) = generate_passphrase()?;
     let signer: SingleParty = (signing_key).try_into()?;
     let client = RequestClient::new(server, Arc::new(signer));
-    let mut cache = FileCache::new(client, cache_dir, true)?;
+    let mut cache = FileCache::<WalFile>::new(client, cache_dir, true)?;
 
     let keystore = encrypt(
         &mut rand::thread_rng(),

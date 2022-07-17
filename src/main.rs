@@ -20,7 +20,7 @@ fn run() -> Result<()> {
             if let Some(_) = args.get(0) {
                 let command = args.remove(0);
                 match &command[..] {
-                    "agent" |  "audit" | "check" | "client" | "server" => {
+                    "agent" | "audit" | "check" | "client" | "server" => {
                         let cmd = format!("sos-{}", command);
                         std::process::Command::new(&cmd)
                             .args(args)

@@ -8,6 +8,7 @@ use sos_core::{
     events::SyncEvent,
     secret::{Secret, SecretId, SecretMeta},
     vault::Summary,
+    wal::file::WalFile,
     AuditLogFile, FileLocks,
 };
 
@@ -169,7 +170,7 @@ pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
 }
 
 pub async fn create_secrets(
-    file_cache: &mut FileCache,
+    file_cache: &mut FileCache<WalFile>,
     summary: &Summary,
 ) -> Result<Vec<(SecretId, &'static str)>> {
     let notes = vec![
@@ -210,7 +211,7 @@ pub async fn create_secrets(
 }
 
 pub async fn delete_secret(
-    file_cache: &mut FileCache,
+    file_cache: &mut FileCache<WalFile>,
     summary: &Summary,
     id: &SecretId,
 ) -> Result<()> {

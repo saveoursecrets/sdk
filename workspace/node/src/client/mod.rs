@@ -18,7 +18,10 @@ use sos_core::{
     secret::SecretRef,
     signer::SingleParty,
     vault::{Summary, Vault},
-    wal::snapshot::{SnapShot, SnapShotManager},
+    wal::{
+        snapshot::{SnapShot, SnapShotManager},
+        WalProvider,
+    },
     Gatekeeper,
 };
 
@@ -64,7 +67,10 @@ async fn get_agent_key(address: &AddressStr) -> Result<Option<Value>> {
     Ok(KeyAgentClient::get(address.clone().into()).await)
 }
 
-async fn set_agent_key(address: AddressStr, value: Value) -> Result<Option<()>> {
+async fn set_agent_key(
+    address: AddressStr,
+    value: Value,
+) -> Result<Option<()>> {
     Ok(KeyAgentClient::set(address.into(), value).await)
 }
 
@@ -118,14 +124,14 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
         let keystore: KeyStore = serde_json::from_slice(&keystore_bytes)?;
 
         let address = if let Some(address) = &keystore.address {
-           let address: AddressStr = address.parse()?;
-           Some(address)
+            let address: AddressStr = address.parse()?;
+            Some(address)
         } else {
             None
         };
 
         let agent_key = if let Some(address) = &address {
-           run_blocking(get_agent_key(address))?
+            run_blocking(get_agent_key(address))?
         } else {
             None
         };
@@ -133,8 +139,9 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
         let signing_key: [u8; 32] = if let Some(signing_key) = agent_key {
             signing_key
         } else {
-
-            let passphrase = if let Some(passphrase) = self.keystore_passphrase {
+            let passphrase = if let Some(passphrase) =
+                self.keystore_passphrase
+            {
                 passphrase
             } else if let Some(reader) = self.passphrase_reader {
                 reader.read().map_err(Box::from)?
@@ -142,13 +149,17 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
                 panic!("client builder requires either a passphrase or passphrase reader");
             };
 
-            let signing_bytes = decrypt(&keystore, passphrase.expose_secret())?;
-            let signing_key: [u8; 32] = signing_bytes.as_slice().try_into()?;
+            let signing_bytes =
+                decrypt(&keystore, passphrase.expose_secret())?;
+            let signing_key: [u8; 32] =
+                signing_bytes.as_slice().try_into()?;
 
             if let Some(address) = address {
                 //if read_flag(Some("Save signing key in agent (y/n)? ")) {
-                run_blocking(
-                    set_agent_key(address.into(), signing_key.clone()))?;
+                run_blocking(set_agent_key(
+                    address.into(),
+                    signing_key.clone(),
+                ))?;
                 //}
             }
 
@@ -164,7 +175,7 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
 /// selected vault.
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait LocalCache {
+pub trait LocalCache<W: WalProvider + Send + Sync> {
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;
 
@@ -184,7 +195,7 @@ pub trait LocalCache {
     fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(WalFileRecord, WalEvent<'_>)>>;
+    ) -> Result<Vec<(W::Item, WalEvent<'_>)>>;
 
     /// Verify a WAL log.
     fn verify(&self, summary: &Summary) -> Result<()>;

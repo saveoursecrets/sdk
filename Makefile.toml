@@ -68,7 +68,8 @@ args = ["test", "integration"]
 dependencies = ["unit", "integration"]
 
 [tasks.dev]
-dependencies = ["check-wasm", "test", "format"]
+#dependencies = ["check-wasm", "test", "format"]
+dependencies = ["test", "format"]
 
 [tasks.check-wasm-node-client]
 command = "cargo"

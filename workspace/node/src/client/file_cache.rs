@@ -53,7 +53,7 @@ fn assert_proofs_eq(
 }
 
 /// Implements client-side caching of WAL files.
-pub struct FileCache {
+pub struct FileCache<W> {
     /// Vaults managed by this cache.
     summaries: Vec<Summary>,
     /// Currently selected in-memory vault.
@@ -63,7 +63,7 @@ pub struct FileCache {
     /// Directory for the user cache.
     user_dir: PathBuf,
     /// Data for the cache.
-    cache: HashMap<Uuid, (WalFile, PatchFile)>,
+    cache: HashMap<Uuid, (W, PatchFile)>,
     /// Mirror WAL files and in-memory contents to vault files
     mirror: bool,
     /// Snapshots of the WAL files.
@@ -72,7 +72,7 @@ pub struct FileCache {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl LocalCache for FileCache {
+impl<W: WalProvider + Send + Sync> LocalCache<W> for FileCache<W> {
     fn address(&self) -> Result<AddressStr> {
         self.client.address()
     }
@@ -101,7 +101,7 @@ impl LocalCache for FileCache {
     fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(WalFileRecord, WalEvent<'_>)>> {
+    ) -> Result<Vec<(W::Item, WalEvent<'_>)>> {
         let (wal, _) = self
             .cache
             .get(summary.id())
@@ -146,7 +146,7 @@ impl LocalCache for FileCache {
 
         // Need to recreate the WAL file and load the updated
         // commit tree
-        *wal = WalFile::new(wal.path())?;
+        *wal = W::new(wal.path())?;
         wal.load_tree()?;
 
         // Verify the new WAL tree
@@ -568,7 +568,7 @@ impl LocalCache for FileCache {
     }
 }
 
-impl FileCache {
+impl<W: WalProvider + Send + Sync> FileCache<W> {
     /// Create a new cache using the given client and cache directory.
     ///
     /// If the `mirror` option is given then the cache will mirror WAL files
@@ -654,7 +654,7 @@ impl FileCache {
             let patch_file = PatchFile::new(patch_path)?;
 
             let wal_path = self.wal_path(summary);
-            let mut wal_file = WalFile::new(&wal_path)?;
+            let mut wal_file = W::new(&wal_path)?;
             wal_file.load_tree()?;
             self.cache.insert(*summary.id(), (wal_file, patch_file));
         }
@@ -966,7 +966,7 @@ impl FileCache {
 
         // Need to recreate the WAL file correctly before pulling
         // as pull_wal() expects the file to exist
-        *wal = WalFile::new(wal.path())?;
+        *wal = W::new(wal.path())?;
         wal.load_tree()?;
 
         // Pull the remote WAL

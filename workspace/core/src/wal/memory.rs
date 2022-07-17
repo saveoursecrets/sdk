@@ -16,6 +16,7 @@ use crate::{
     timestamp::Timestamp,
     CommitHash, Result,
 };
+use std::path::{Path, PathBuf};
 
 use super::{WalItem, WalProvider, WalRecord};
 
@@ -38,18 +39,23 @@ impl WalItem for WalMemoryRecord {
 }
 
 /// A write ahead log that stores records in memory.
-#[derive(Default)]
 pub struct WalMemory {
     records: Vec<WalMemoryRecord>,
     tree: CommitTree,
+    path: PathBuf,
+}
+
+impl Default for WalMemory {
+    fn default() -> Self {
+        Self {
+            records: Default::default(),
+            tree: Default::default(),
+            path: PathBuf::from("/dev/memory"),
+        }
+    }
 }
 
 impl WalMemory {
-    /// Create a new write ahead log memory store.
-    pub fn new() -> Self {
-        Default::default()
-    }
-
     fn encode_event(
         &self,
         event: WalEvent<'_>,
@@ -74,6 +80,13 @@ impl WalProvider for WalMemory {
     type Item = WalMemoryRecord;
     type Partial = Vec<WalMemoryRecord>;
 
+    fn new<P: AsRef<Path>>(_path: P) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(Default::default())
+    }
+
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
         let mut partial = Vec::new();
         let index = item.0 + 1;
@@ -82,6 +95,10 @@ impl WalProvider for WalMemory {
             partial.extend_from_slice(items);
         }
         Ok(partial)
+    }
+
+    fn path(&self) -> &PathBuf {
+        &self.path
     }
 
     fn tree(&self) -> &CommitTree {
