@@ -52,7 +52,7 @@ pub fn login(
     let client = ClientBuilder::<Infallible>::new(server, keystore_file)
         .with_keystore_passphrase(keystore_passphrase)
         .build()?;
-    Ok(NodeCache::<WalFile>::new(client, cache_dir, true, true)?)
+    Ok(NodeCache::new_file_cache(client, cache_dir)?)
 }
 
 /// Create a new account.

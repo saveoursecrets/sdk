@@ -573,6 +573,16 @@ where
     }
 }
 
+impl NodeCache<WalFile> {
+    /// Create new node cache backed by files on disc.
+    pub fn new_file_cache<D: AsRef<Path>>(
+        client: RequestClient,
+        cache_dir: D,
+    ) -> Result<NodeCache<WalFile>> {
+        NodeCache::<WalFile>::new(client, cache_dir, true, true)
+    }
+}
+
 impl<W> NodeCache<W>
 where
     W: WalProvider + Send + Sync + 'static,
@@ -582,7 +592,7 @@ where
     /// If the `mirror` option is given then the cache will mirror WAL files
     /// and in-memory content to disc as vault files providing an extra level
     /// if redundancy in case of failure.
-    pub fn new<D: AsRef<Path>>(
+    pub(super) fn new<D: AsRef<Path>>(
         client: RequestClient,
         cache_dir: D,
         mirror: bool,
