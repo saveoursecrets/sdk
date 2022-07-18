@@ -30,7 +30,7 @@ use sos_core::{
 use std::{
     borrow::Cow,
     collections::HashMap,
-    fs::{File, OpenOptions},
+    fs::OpenOptions,
     io::Write,
     path::{Path, PathBuf},
 };
@@ -141,26 +141,11 @@ where
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        let old_size = wal.path().metadata()?.len();
-
-        // Get the reduced set of events
-        let events = WalReducer::new().reduce(wal)?.compact()?;
-        let temp = NamedTempFile::new()?;
-
-        // Apply them to a temporary WAL file
-        let mut temp_wal = WalFile::new(temp.path())?;
-        temp_wal.apply(events, None)?;
-
-        let new_size = temp_wal.path().metadata()?.len();
-
-        // Remove the existing WAL file
-        std::fs::remove_file(wal.path())?;
-        // Move the temp file into place
-        std::fs::rename(temp.path(), wal.path())?;
+        let (compact_wal, old_size, new_size) = wal.compact()?;
 
         // Need to recreate the WAL file and load the updated
         // commit tree
-        *wal = W::new(wal.path())?;
+        *wal = compact_wal;
         wal.load_tree()?;
 
         // Verify the new WAL tree
@@ -419,7 +404,7 @@ where
             let vault_path = self.vault_path(summary);
             if !vault_path.exists() {
                 let buffer = encode(&vault)?;
-                let mut file = File::create(&vault_path)?;
+                let mut file = std::fs::File::create(&vault_path)?;
                 file.write_all(&buffer)?;
             }
 
@@ -616,8 +601,8 @@ impl NodeCache<WalMemory, PatchMemory<'static>> {
     /// Create new node cache backed by memory.
     pub fn new_memory_cache(
         client: RequestClient,
-    ) -> Result<NodeCache<WalMemory, PatchMemory<'static>>> {
-        Ok(Self {
+    ) -> NodeCache<WalMemory, PatchMemory<'static>> {
+        Self {
             summaries: Default::default(),
             current: None,
             client,
@@ -625,7 +610,7 @@ impl NodeCache<WalMemory, PatchMemory<'static>> {
             cache: Default::default(),
             mirror: false,
             snapshots: None,
-        })
+        }
     }
 }
 
@@ -645,7 +630,7 @@ where
 
         if self.mirror {
             let vault_path = self.vault_path(&summary);
-            let mut file = File::create(vault_path)?;
+            let mut file = std::fs::File::create(vault_path)?;
             file.write_all(&buffer)?;
         }
 
@@ -969,7 +954,7 @@ where
         // Rewrite the on-disc version if we are mirroring
         if mirror {
             let buffer = encode(&vault)?;
-            let mut file = File::create(&vault_path)?;
+            let mut file = std::fs::File::create(&vault_path)?;
             file.write_all(&buffer)?;
         }
 

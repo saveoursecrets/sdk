@@ -55,6 +55,11 @@ pub trait WalProvider {
     where
         Self: Sized;
 
+    /// Get a copy of this WAL compacted.
+    fn compact(&self) -> Result<(Self, u64, u64)>
+    where
+        Self: Sized;
+
     /// Get the path for this provider.
     fn path(&self) -> &PathBuf;
 

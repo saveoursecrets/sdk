@@ -18,7 +18,7 @@ use crate::{
 };
 use std::path::{Path, PathBuf};
 
-use super::{WalItem, WalProvider, WalRecord};
+use super::{reducer::WalReducer, WalItem, WalProvider, WalRecord};
 
 /// Wrapper for a WAL record that includes an index offset.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -85,6 +85,25 @@ impl WalProvider for WalMemory {
         Self: Sized,
     {
         Ok(Default::default())
+    }
+
+    fn compact(&self) -> Result<(Self, u64, u64)> {
+        let old_size = self.records.len() as u64;
+
+        let path = self.path().clone();
+
+        // Get the reduced set of events
+        let events = WalReducer::new().reduce(self)?.compact()?;
+
+        // Apply them to a temporary WAL file
+        let mut temp_wal = WalMemory::new(&path)?;
+        temp_wal.apply(events, None)?;
+
+        let new_size = temp_wal.records.len() as u64;
+
+        // Need to recreate the WAL file and load the updated
+        // commit tree
+        Ok((temp_wal, old_size, new_size))
     }
 
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
