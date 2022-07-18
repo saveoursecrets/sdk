@@ -18,6 +18,25 @@ use crate::{
     FileIdentity, Result,
 };
 
+/// Trait for types that cache events in a patch.
+pub trait PatchCache {
+    /// Count the number of events in the patch cache.
+    fn count_events(&self) -> Result<usize>;
+
+    /// Determine if the patch cache has any events.
+    fn has_events(&self) -> Result<bool>;
+
+    /// Drain all events from the patch backing storage.
+    fn drain(&mut self) -> Result<Patch<'static>>;
+
+    /// Truncate the patch backing storage to an empty list.
+    ///
+    /// This should be called when a client has successfully
+    /// applied a patch to the remote and local WAL files to
+    /// remove any pending events.
+    fn truncate(&mut self) -> Result<()>;
+}
+
 /// Patch wraps a changeset of events to be sent across the network.
 #[derive(Debug, Default)]
 pub struct Patch<'a>(pub Vec<SyncEvent<'a>>);
@@ -169,30 +188,24 @@ impl PatchFile {
     pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
         patch_iter(&self.file_path)
     }
+}
 
-    /// Count the number of events in the patch file.
-    pub fn count_events(&self) -> Result<usize> {
+impl PatchCache for PatchFile {
+    fn count_events(&self) -> Result<usize> {
         Ok(self.iter()?.count())
     }
 
-    /// Determine if the patch file has some events data.
-    pub fn has_events(&self) -> Result<bool> {
+    fn has_events(&self) -> Result<bool> {
         Ok(self.file_path.metadata()?.len() as usize > PATCH_IDENTITY.len())
     }
 
-    /// Drain all events from the patch file on disc.
-    pub fn drain(&mut self) -> Result<Patch<'static>> {
+    fn drain(&mut self) -> Result<Patch<'static>> {
         let patch = self.read()?;
         self.truncate()?;
         Ok(patch)
     }
 
-    /// Truncate the file to an empty patch list.
-    ///
-    /// This should be called when a client has successfully
-    /// applied a patch to the remote and local WAL files to
-    /// remove any pending events.
-    pub fn truncate(&mut self) -> Result<()> {
+    fn truncate(&mut self) -> Result<()> {
         self.file.set_len(0)?;
         self.file.seek(SeekFrom::Start(0))?;
 

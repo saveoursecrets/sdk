@@ -23,7 +23,8 @@ use sos_core::{
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
-    CommitHash, FileIdentity, Gatekeeper, PatchFile, VaultFileAccess,
+    CommitHash, FileIdentity, Gatekeeper, PatchCache, PatchFile,
+    VaultFileAccess,
 };
 use std::{
     borrow::Cow,
