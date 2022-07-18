@@ -1,8 +1,11 @@
 //! Types that describe networked nodes and their relationships.
 
+use sos_core::{wal::WalProvider, PatchProvider};
+
 use crate::{
     client::{
         net::{changes::ChangeStream, NetworkClient},
+        node_cache::NodeCache,
         LocalCache,
     },
     server::Server,
@@ -22,13 +25,16 @@ pub struct Channel {
 }
 
 /// Node in a network of clients.
-pub struct Node {
+pub struct Node<W, P>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
     /// Other nodes this node is connected to.
     channels: Vec<Channel>,
-    /*
+
     /// This nodes local cache of data.
-    cache: Box<dyn LocalCache>,
-    */
+    cache: NodeCache<W, P>,
 
     /*
     /// Server for responding to requests from other nodes.
@@ -36,11 +42,16 @@ pub struct Node {
     */
 }
 
-impl Node {
+impl<W, P> Node<W, P>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
     /// Create a new node.
-    pub fn new() -> Self {
+    pub fn new(cache: NodeCache<W, P>) -> Self {
         Self {
             channels: Default::default(),
+            cache,
             //server: Server::new(),
         }
     }
