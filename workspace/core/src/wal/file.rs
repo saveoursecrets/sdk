@@ -41,21 +41,6 @@ pub struct WalFile {
 }
 
 impl WalFile {
-    /// Create a new write ahead log file.
-    pub fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let file = WalFile::create(file_path.as_ref())?;
-        Ok(Self {
-            file,
-            file_path: file_path.as_ref().to_path_buf(),
-            tree: Default::default(),
-        })
-    }
-
-    /// Get the path to this WAL file.
-    pub fn path(&self) -> &PathBuf {
-        &self.file_path
-    }
-
     /// Create the write ahead log file.
     fn create<P: AsRef<Path>>(path: P) -> Result<File> {
         let exists = path.as_ref().exists();
@@ -105,6 +90,15 @@ impl WalProvider for WalFile {
     type Item = WalFileRecord;
     type Partial = Vec<u8>;
 
+    fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        let file = WalFile::create(file_path.as_ref())?;
+        Ok(Self {
+            file,
+            file_path: file_path.as_ref().to_path_buf(),
+            tree: Default::default(),
+        })
+    }
+
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
         let mut partial = WAL_IDENTITY.to_vec();
         let start = item.offset().end;
@@ -133,6 +127,10 @@ impl WalProvider for WalFile {
         file.read_exact(&mut buf)?;
 
         Ok(buf)
+    }
+
+    fn path(&self) -> &PathBuf {
+        &self.file_path
     }
 
     fn tree(&self) -> &CommitTree {

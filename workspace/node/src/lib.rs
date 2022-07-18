@@ -2,7 +2,10 @@
 //! Library for network communication.
 use std::path::PathBuf;
 
-#[cfg(any(feature = "agent-client", feature = "agent-server"))]
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    any(feature = "agent-client", feature = "agent-server")
+))]
 pub mod agent;
 #[cfg(feature = "client")]
 pub mod client;

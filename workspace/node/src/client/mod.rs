@@ -14,11 +14,13 @@ use sos_core::{
     address::AddressStr,
     commit_tree::CommitTree,
     events::{ChangeNotification, SyncEvent, WalEvent},
-    iter::WalFileRecord,
     secret::SecretRef,
     signer::SingleParty,
     vault::{Summary, Vault},
-    wal::snapshot::{SnapShot, SnapShotManager},
+    wal::{
+        snapshot::{SnapShot, SnapShotManager},
+        WalProvider,
+    },
     Gatekeeper,
 };
 
@@ -26,8 +28,8 @@ use crate::sync::{SyncInfo, SyncStatus};
 
 pub mod account;
 mod changes_listener;
-pub mod file_cache;
 pub mod net;
+pub mod node_cache;
 
 mod error;
 pub use changes_listener::ChangesListener;
@@ -58,14 +60,32 @@ pub trait PassphraseReader {
     fn read(&self) -> std::result::Result<SecretString, Self::Error>;
 }
 
-use crate::agent::{client::KeyAgentClient, Value};
-
-async fn get_agent_key(address: &AddressStr) -> Result<Option<Value>> {
+#[cfg(feature = "agent-client")]
+async fn get_agent_key(address: &AddressStr) -> Result<Option<[u8; 32]>> {
+    use crate::agent::client::KeyAgentClient;
     Ok(KeyAgentClient::get(address.clone().into()).await)
 }
 
-async fn set_agent_key(address: AddressStr, value: Value) -> Result<Option<()>> {
+#[cfg(feature = "agent-client")]
+async fn set_agent_key(
+    address: AddressStr,
+    value: [u8; 32],
+) -> Result<Option<()>> {
+    use crate::agent::client::KeyAgentClient;
     Ok(KeyAgentClient::set(address.into(), value).await)
+}
+
+#[cfg(not(feature = "agent-client"))]
+async fn get_agent_key(address: &AddressStr) -> Result<Option<[u8; 32]>> {
+    Ok(None)
+}
+
+#[cfg(not(feature = "agent-client"))]
+async fn set_agent_key(
+    address: AddressStr,
+    value: [u8; 32],
+) -> Result<Option<()>> {
+    Ok(None)
 }
 
 /// Builds a client implementation.
@@ -74,9 +94,13 @@ pub struct ClientBuilder<E> {
     keystore: PathBuf,
     keystore_passphrase: Option<SecretString>,
     passphrase_reader: Option<Box<dyn PassphraseReader<Error = E>>>,
+    use_agent: bool,
 }
 
-impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
+impl<E> ClientBuilder<E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
     /// Create a new client builder.
     pub fn new(server: Url, keystore: PathBuf) -> Self {
         Self {
@@ -84,6 +108,7 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
             keystore,
             keystore_passphrase: None,
             passphrase_reader: None,
+            use_agent: false,
         }
     }
 
@@ -105,6 +130,12 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
         self
     }
 
+    /// Set whether to use the key agent integration.
+    pub fn with_use_agent(mut self, use_agent: bool) -> Self {
+        self.use_agent = use_agent;
+        self
+    }
+
     /// Build a client implementation wrapping a signing key.
     pub fn build(self) -> Result<RequestClient> {
         if !self.keystore.exists() {
@@ -118,14 +149,18 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
         let keystore: KeyStore = serde_json::from_slice(&keystore_bytes)?;
 
         let address = if let Some(address) = &keystore.address {
-           let address: AddressStr = address.parse()?;
-           Some(address)
+            let address: AddressStr = address.parse()?;
+            Some(address)
         } else {
             None
         };
 
-        let agent_key = if let Some(address) = &address {
-           run_blocking(get_agent_key(address))?
+        let agent_key = if self.use_agent {
+            if let Some(address) = &address {
+                run_blocking(get_agent_key(address))?
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -133,8 +168,9 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
         let signing_key: [u8; 32] = if let Some(signing_key) = agent_key {
             signing_key
         } else {
-
-            let passphrase = if let Some(passphrase) = self.keystore_passphrase {
+            let passphrase = if let Some(passphrase) =
+                self.keystore_passphrase
+            {
                 passphrase
             } else if let Some(reader) = self.passphrase_reader {
                 reader.read().map_err(Box::from)?
@@ -142,14 +178,18 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
                 panic!("client builder requires either a passphrase or passphrase reader");
             };
 
-            let signing_bytes = decrypt(&keystore, passphrase.expose_secret())?;
-            let signing_key: [u8; 32] = signing_bytes.as_slice().try_into()?;
+            let signing_bytes =
+                decrypt(&keystore, passphrase.expose_secret())?;
+            let signing_key: [u8; 32] =
+                signing_bytes.as_slice().try_into()?;
 
-            if let Some(address) = address {
-                //if read_flag(Some("Save signing key in agent (y/n)? ")) {
-                run_blocking(
-                    set_agent_key(address.into(), signing_key.clone()))?;
-                //}
+            if self.use_agent {
+                if let Some(address) = address {
+                    run_blocking(set_agent_key(
+                        address.into(),
+                        signing_key.clone(),
+                    ))?;
+                }
             }
 
             signing_key
@@ -164,7 +204,7 @@ impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
 /// selected vault.
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait LocalCache {
+pub trait LocalCache<W: WalProvider + Send + Sync> {
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;
 
@@ -175,21 +215,23 @@ pub trait LocalCache {
     fn vaults(&self) -> &[Summary];
 
     /// Get the snapshot manager for this cache.
-    fn snapshots(&self) -> &SnapShotManager;
+    fn snapshots(&self) -> Option<&SnapShotManager>;
 
     /// Take a snapshot of the WAL for the given vault.
+    ///
+    /// Snapshots must be enabled.
     fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
 
-    /// Get the history for a WAL file.
+    /// Get the history for a WAL provider.
     fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(WalFileRecord, WalEvent<'_>)>>;
+    ) -> Result<Vec<(W::Item, WalEvent<'_>)>>;
 
     /// Verify a WAL log.
     fn verify(&self, summary: &Summary) -> Result<()>;
 
-    /// Compact a WAL file.
+    /// Compact a WAL provider.
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
 
     /// Respond to a change notification.
@@ -198,7 +240,7 @@ pub trait LocalCache {
         change: ChangeNotification,
     ) -> Result<()>;
 
-    /// Load the vault summaries from the remote server.
+    /// Load the vault summaries from a remote node.
     async fn load_vaults(&mut self) -> Result<&[Summary]>;
 
     /// Attempt to find a summary in this cache.
@@ -219,7 +261,7 @@ pub trait LocalCache {
     /// Remove a vault.
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;
 
-    /// Attempt to set the vault name on the remote server.
+    /// Attempt to set the vault name on the remote node.
     async fn set_vault_name(
         &mut self,
         summary: &Summary,

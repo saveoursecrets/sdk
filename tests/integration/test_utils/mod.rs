@@ -8,11 +8,12 @@ use sos_core::{
     events::SyncEvent,
     secret::{Secret, SecretId, SecretMeta},
     vault::Summary,
+    wal::file::WalFile,
     AuditLogFile, FileLocks,
 };
 
 use sos_node::{
-    client::{file_cache::FileCache, LocalCache},
+    client::{node_cache::NodeCache, LocalCache},
     server::{Authentication, Server, ServerConfig, ServerInfo, State},
 };
 
@@ -169,7 +170,7 @@ pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
 }
 
 pub async fn create_secrets(
-    file_cache: &mut FileCache,
+    node_cache: &mut NodeCache<WalFile>,
     summary: &Summary,
 ) -> Result<Vec<(SecretId, &'static str)>> {
     let notes = vec![
@@ -178,7 +179,7 @@ pub async fn create_secrets(
         ("note3", "secret3"),
     ];
 
-    let keeper = file_cache.current_mut().unwrap();
+    let keeper = node_cache.current_mut().unwrap();
 
     let mut results = Vec::new();
 
@@ -204,21 +205,21 @@ pub async fn create_secrets(
     assert_eq!(3, keeper.vault().len());
 
     // Send the patch to the remote server
-    file_cache.patch_vault(summary, create_events).await?;
+    node_cache.patch_vault(summary, create_events).await?;
 
     Ok(results)
 }
 
 pub async fn delete_secret(
-    file_cache: &mut FileCache,
+    node_cache: &mut NodeCache<WalFile>,
     summary: &Summary,
     id: &SecretId,
 ) -> Result<()> {
-    let keeper = file_cache.current_mut().unwrap();
+    let keeper = node_cache.current_mut().unwrap();
     let event = keeper.delete(id)?.unwrap();
     let event = event.into_owned();
 
     // Send the patch to the remote server
-    file_cache.patch_vault(summary, vec![event]).await?;
+    node_cache.patch_vault(summary, vec![event]).await?;
     Ok(())
 }
