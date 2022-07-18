@@ -223,6 +223,55 @@ impl PatchProvider for PatchFile {
     }
 }
 
+/// Memory based collection of patch events.
+pub struct PatchMemory<'e> {
+    records: Vec<SyncEvent<'e>>
+}
+
+impl PatchMemory<'_> {
+    fn read(&self) -> Result<Patch<'static>> {
+        let events = self.records.iter()
+            .map(|e| e.clone().into_owned()).collect::<Vec<_>>();
+        Ok(Patch(events))
+    }
+
+}
+
+impl PatchProvider for PatchMemory<'_> {
+    fn new<P: AsRef<Path>>(_path: P) -> Result<Self> {
+        Ok(Self { records: Vec::new() })
+    }
+
+    fn append<'a>(
+        &mut self,
+        events: Vec<SyncEvent<'a>>,
+    ) -> Result<Patch<'a>> {
+        let mut events = events.into_iter()
+            .map(|e| e.into_owned()).collect::<Vec<_>>();
+        self.records.append(&mut events);
+        Ok(self.read()?)
+    }
+
+    fn count_events(&self) -> Result<usize> {
+        Ok(self.records.iter().count())
+    }
+
+    fn has_events(&self) -> Result<bool> {
+        Ok(!self.records.is_empty())
+    }
+
+    fn drain(&mut self) -> Result<Patch<'static>> {
+        let patch = self.read()?;
+        self.truncate()?;
+        Ok(patch)
+    }
+
+    fn truncate(&mut self) -> Result<()> {
+        self.records = Vec::new();
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

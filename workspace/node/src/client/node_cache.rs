@@ -19,12 +19,13 @@ use sos_core::{
     vault::{Summary, Vault},
     wal::{
         file::WalFile,
+        memory::WalMemory,
         reducer::WalReducer,
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
     CommitHash, FileIdentity, Gatekeeper, PatchFile, PatchProvider,
-    VaultFileAccess,
+    VaultFileAccess, PatchMemory,
 };
 use std::{
     borrow::Cow,
@@ -580,7 +581,19 @@ impl NodeCache<WalFile, PatchFile> {
         client: RequestClient,
         cache_dir: D,
     ) -> Result<NodeCache<WalFile, PatchFile>> {
-        NodeCache::<WalFile, PatchFile>::new(client, cache_dir, true, true)
+        NodeCache::<WalFile, PatchFile>::new(
+            client, cache_dir, true, true)
+    }
+}
+
+impl NodeCache<WalMemory, PatchMemory<'static>> {
+    /// Create new node cache backed by memory.
+    pub fn new_memory_cache<D: AsRef<Path>>(
+        client: RequestClient,
+        cache_dir: D,
+    ) -> Result<NodeCache<WalMemory, PatchMemory<'static>>> {
+        NodeCache::<WalMemory, PatchMemory>::new(
+            client, cache_dir, false, false)
     }
 }
 
