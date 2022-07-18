@@ -17,7 +17,7 @@ use terminal_banner::{Banner, Padding};
 use sos_node::{
     cache_dir,
     client::{
-        file_cache::FileCache, run_blocking, ChangesListener, ClientBuilder,
+        node_cache::NodeCache, run_blocking, ChangesListener, ClientBuilder,
         LocalCache,
     },
 };
@@ -121,9 +121,10 @@ fn run() -> Result<()> {
             let reader = StdinPassphraseReader {};
             let client = ClientBuilder::new(server, keystore)
                 .with_passphrase_reader(Box::new(reader))
+                .with_use_agent(true)
                 .build()?;
-            let cache = Arc::new(RwLock::new(FileCache::new(
-                client, cache_dir, true,
+            let cache = Arc::new(RwLock::new(NodeCache::new(
+                client, cache_dir, true, true,
             )?));
 
             let reader = cache.read().unwrap();

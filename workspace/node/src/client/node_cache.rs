@@ -1,4 +1,4 @@
-//! Caching implementation backed by files.
+//! Caching implementation.
 use super::{Error, Result};
 use crate::client::net::{NetworkClient, RequestClient};
 
@@ -15,7 +15,6 @@ use sos_core::{
     encode,
     events::{ChangeEvent, ChangeNotification, SyncEvent, WalEvent},
     generate_passphrase,
-    iter::WalFileRecord,
     secret::SecretRef,
     vault::{Summary, Vault},
     wal::{
@@ -53,7 +52,7 @@ fn assert_proofs_eq(
 }
 
 /// Implements client-side caching of WAL files.
-pub struct FileCache {
+pub struct NodeCache<W> {
     /// Vaults managed by this cache.
     summaries: Vec<Summary>,
     /// Currently selected in-memory vault.
@@ -63,16 +62,19 @@ pub struct FileCache {
     /// Directory for the user cache.
     user_dir: PathBuf,
     /// Data for the cache.
-    cache: HashMap<Uuid, (WalFile, PatchFile)>,
+    cache: HashMap<Uuid, (W, PatchFile)>,
     /// Mirror WAL files and in-memory contents to vault files
     mirror: bool,
     /// Snapshots of the WAL files.
-    snapshots: SnapShotManager,
+    snapshots: Option<SnapShotManager>,
 }
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl LocalCache for FileCache {
+impl<W> LocalCache<W> for NodeCache<W>
+where
+    W: WalProvider + Send + Sync + 'static,
+{
     fn address(&self) -> Result<AddressStr> {
         self.client.address()
     }
@@ -85,23 +87,25 @@ impl LocalCache for FileCache {
         self.summaries.as_slice()
     }
 
-    fn snapshots(&self) -> &SnapShotManager {
-        &self.snapshots
+    fn snapshots(&self) -> Option<&SnapShotManager> {
+        self.snapshots.as_ref()
     }
 
     fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)> {
+        let snapshots =
+            self.snapshots.as_ref().ok_or(Error::SnapshotsNotEnabled)?;
         let (wal, _) = self
             .cache
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
-        Ok(self.snapshots.create(summary.id(), wal.path(), root_hash)?)
+        Ok(snapshots.create(summary.id(), wal.path(), root_hash)?)
     }
 
     fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(WalFileRecord, WalEvent<'_>)>> {
+    ) -> Result<Vec<(W::Item, WalEvent<'_>)>> {
         let (wal, _) = self
             .cache
             .get(summary.id())
@@ -146,7 +150,7 @@ impl LocalCache for FileCache {
 
         // Need to recreate the WAL file and load the updated
         // commit tree
-        *wal = WalFile::new(wal.path())?;
+        *wal = W::new(wal.path())?;
         wal.load_tree()?;
 
         // Verify the new WAL tree
@@ -568,7 +572,10 @@ impl LocalCache for FileCache {
     }
 }
 
-impl FileCache {
+impl<W> NodeCache<W>
+where
+    W: WalProvider + Send + Sync + 'static,
+{
     /// Create a new cache using the given client and cache directory.
     ///
     /// If the `mirror` option is given then the cache will mirror WAL files
@@ -578,6 +585,7 @@ impl FileCache {
         client: RequestClient,
         cache_dir: D,
         mirror: bool,
+        use_snapshots: bool,
     ) -> Result<Self> {
         let cache_dir = cache_dir.as_ref().to_path_buf();
         if !cache_dir.is_dir() {
@@ -589,7 +597,11 @@ impl FileCache {
         let user_dir = cache_dir.join(&address);
         std::fs::create_dir_all(&user_dir)?;
 
-        let snapshots = SnapShotManager::new(&user_dir)?;
+        let snapshots = if use_snapshots {
+            Some(SnapShotManager::new(&user_dir)?)
+        } else {
+            None
+        };
 
         Ok(Self {
             summaries: Default::default(),
@@ -654,7 +666,7 @@ impl FileCache {
             let patch_file = PatchFile::new(patch_path)?;
 
             let wal_path = self.wal_path(summary);
-            let mut wal_file = WalFile::new(&wal_path)?;
+            let mut wal_file = W::new(&wal_path)?;
             wal_file.load_tree()?;
             self.cache.insert(*summary.id(), (wal_file, patch_file));
         }
@@ -955,18 +967,20 @@ impl FileCache {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         // Create a snapshot of the WAL before deleting it
-        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
-        let (snapshot, _) =
-            self.snapshots.create(summary.id(), wal.path(), root_hash)?;
-        tracing::debug!(
-            path = ?snapshot.0, "force_pull snapshot");
+        if let Some(snapshots) = &self.snapshots {
+            let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
+            let (snapshot, _) =
+                snapshots.create(summary.id(), wal.path(), root_hash)?;
+            tracing::debug!(
+                path = ?snapshot.0, "force_pull snapshot");
+        }
 
         // Remove the existing WAL file
         std::fs::remove_file(wal.path())?;
 
         // Need to recreate the WAL file correctly before pulling
         // as pull_wal() expects the file to exist
-        *wal = WalFile::new(wal.path())?;
+        *wal = W::new(wal.path())?;
         wal.load_tree()?;
 
         // Pull the remote WAL

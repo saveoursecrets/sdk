@@ -11,21 +11,23 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use super::{
-    file_cache::FileCache,
     net::changes::{ChangeStream, ChangeStreamEvent},
+    node_cache::NodeCache,
     Error, LocalCache, Result,
 };
+
+use sos_core::wal::WalProvider;
 
 const INTERVAL_MS: u64 = 15000;
 
 /// Listen for changes and update a local cache.
-pub struct ChangesListener {
-    cache: Arc<RwLock<FileCache>>,
+pub struct ChangesListener<W> {
+    cache: Arc<RwLock<NodeCache<W>>>,
 }
 
-impl ChangesListener {
+impl<W: WalProvider + Send + Sync + 'static> ChangesListener<W> {
     /// Create a new changes listener.
-    pub fn new(cache: Arc<RwLock<FileCache>>) -> Self {
+    pub fn new(cache: Arc<RwLock<NodeCache<W>>>) -> Self {
         Self { cache }
     }
 
@@ -44,7 +46,7 @@ impl ChangesListener {
 
     #[async_recursion(?Send)]
     async fn listen(
-        cache: Arc<RwLock<FileCache>>,
+        cache: Arc<RwLock<NodeCache<W>>>,
         mut stream: ChangeStream,
     ) -> Result<()> {
         while let Some(event) = stream.next().await {
@@ -69,13 +71,15 @@ impl ChangesListener {
         Ok(())
     }
 
-    async fn stream(cache: Arc<RwLock<FileCache>>) -> Result<ChangeStream> {
+    async fn stream(
+        cache: Arc<RwLock<NodeCache<W>>>,
+    ) -> Result<ChangeStream> {
         let reader = cache.read().unwrap();
         let stream = reader.client().changes().await?;
         Ok(stream)
     }
 
-    async fn connect(cache: Arc<RwLock<FileCache>>) -> Result<()> {
+    async fn connect(cache: Arc<RwLock<NodeCache<W>>>) -> Result<()> {
         match ChangesListener::stream(Arc::clone(&cache)).await {
             Ok(stream) => ChangesListener::listen(cache, stream).await,
             Err(_) => ChangesListener::delay_connect(cache).await,
@@ -83,7 +87,7 @@ impl ChangesListener {
     }
 
     #[async_recursion(?Send)]
-    async fn delay_connect(cache: Arc<RwLock<FileCache>>) -> Result<()> {
+    async fn delay_connect(cache: Arc<RwLock<NodeCache<W>>>) -> Result<()> {
         loop {
             sleep(Duration::from_millis(INTERVAL_MS)).await;
             ChangesListener::connect(Arc::clone(&cache)).await?;

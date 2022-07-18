@@ -5,6 +5,7 @@ use crate::{
     timestamp::Timestamp,
     CommitHash, Result,
 };
+use std::path::{Path, PathBuf};
 
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, SeekStream,
@@ -48,6 +49,14 @@ pub trait WalProvider {
             Ok(None)
         }
     }
+
+    /// Create a new WAL provider.
+    fn new<P: AsRef<Path>>(path: P) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Get the path for this provider.
+    fn path(&self) -> &PathBuf;
 
     /// Read or encode the bytes for the item.
     fn read_buffer(&self, record: &Self::Item) -> Result<Vec<u8>>;
@@ -204,7 +213,7 @@ mod test {
         let (id, data) = mock_secret()?;
 
         // Create a simple WAL
-        let mut server = WalMemory::new();
+        let mut server: WalMemory = Default::default();
         server.apply(
             vec![
                 WalEvent::CreateVault(Cow::Owned(vault_buffer)),
@@ -223,7 +232,7 @@ mod test {
         let (id, data) = mock_secret()?;
 
         // Create a simple WAL
-        let mut server = WalMemory::new();
+        let mut server: WalMemory = Default::default();
         server.apply(
             vec![
                 WalEvent::CreateVault(Cow::Owned(vault_buffer)),
@@ -233,7 +242,7 @@ mod test {
         )?;
 
         // Duplicate the server events on the client
-        let mut client = WalMemory::new();
+        let mut client: WalMemory = Default::default();
         for record in server.iter()? {
             let record = record?;
             let event = server.event_data(&record)?;

@@ -60,6 +60,10 @@ pub enum Error {
     #[error("commit tree does not have a root")]
     NoRootCommit,
 
+    /// Error generated attempting to take a snapshot when snapshots are disabled.
+    #[error("snapshots must be enabled")]
+    SnapshotsNotEnabled,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

@@ -16,12 +16,12 @@ use sos_core::{
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
-    wal::WalItem,
+    wal::{file::WalFile, WalItem},
     ChangePassword, CommitHash,
 };
 use sos_node::{
     cache_dir,
-    client::{file_cache::FileCache, run_blocking, LocalCache},
+    client::{node_cache::NodeCache, run_blocking, LocalCache},
     sync::SyncKind,
 };
 use sos_readline::{
@@ -36,7 +36,7 @@ use crate::{display_passphrase, switch, Error, Result};
 mod editor;
 mod print;
 
-type ReplCache = Arc<RwLock<FileCache>>;
+type ReplCache = Arc<RwLock<NodeCache<WalFile>>>;
 
 enum ConflictChoice {
     Push,
@@ -361,7 +361,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, FileCache>,
+        &mut RwLockWriteGuard<'_, NodeCache<WalFile>>,
     ) -> sos_node::client::Result<()>,
 {
     let mut writer = cache.write().unwrap();
@@ -422,6 +422,29 @@ where
         },
     }
 }
+
+/*
+
+    let snapshots = SnapShotManager::new(&user_dir)?;
+
+
+    fn snapshots(&self) -> &SnapShotManager {
+        &self.snapshots
+    }
+
+    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)> {
+        if cfg!(target_arch = "wasm32") {
+            panic!("snapshots not available in webassembly");
+        }
+
+        let (wal, _) = self
+            .cache
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
+        Ok(self.snapshots.create(summary.id(), wal.path(), root_hash)?)
+    }
+*/
 
 /// Execute the program command.
 fn exec_program(
@@ -774,7 +797,10 @@ fn exec_program(
                 let reader = cache.read().unwrap();
                 let keeper =
                     reader.current().ok_or(Error::NoVaultSelected)?;
-                let snapshots = reader.snapshots().list(keeper.id())?;
+                let snapshots = reader
+                    .snapshots()
+                    .ok_or(sos_node::client::Error::SnapshotsNotEnabled)?;
+                let snapshots = snapshots.list(keeper.id())?;
                 if !snapshots.is_empty() {
                     for snapshot in snapshots.into_iter() {
                         if long {
@@ -964,14 +990,14 @@ fn exec_program(
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
             }
-            let mut file_cache = switch(server.clone(), cache_dir, keystore)?;
+            let mut node_cache = switch(server.clone(), cache_dir, keystore)?;
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
-            run_blocking(file_cache.load_vaults())?;
+            run_blocking(node_cache.load_vaults())?;
 
             let mut writer = cache.write().unwrap();
-            *writer = file_cache;
+            *writer = node_cache;
             Ok(())
         }
         ShellCommand::Whoami => {

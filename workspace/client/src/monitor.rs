@@ -33,6 +33,7 @@ pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
     let reader = StdinPassphraseReader {};
     let client = ClientBuilder::new(server, keystore)
         .with_passphrase_reader(Box::new(reader))
+        .with_use_agent(true)
         .build()?;
 
     if let Err(e) = run_blocking(changes_stream(&client)) {
