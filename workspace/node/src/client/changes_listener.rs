@@ -16,18 +16,22 @@ use super::{
     Error, LocalCache, Result,
 };
 
-use sos_core::wal::WalProvider;
+use sos_core::{wal::WalProvider, PatchProvider};
 
 const INTERVAL_MS: u64 = 15000;
 
 /// Listen for changes and update a local cache.
-pub struct ChangesListener<W> {
-    cache: Arc<RwLock<NodeCache<W>>>,
+pub struct ChangesListener<W, P> {
+    cache: Arc<RwLock<NodeCache<W, P>>>,
 }
 
-impl<W: WalProvider + Send + Sync + 'static> ChangesListener<W> {
+impl<W, P> ChangesListener<W, P>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
     /// Create a new changes listener.
-    pub fn new(cache: Arc<RwLock<NodeCache<W>>>) -> Self {
+    pub fn new(cache: Arc<RwLock<NodeCache<W, P>>>) -> Self {
         Self { cache }
     }
 
@@ -46,7 +50,7 @@ impl<W: WalProvider + Send + Sync + 'static> ChangesListener<W> {
 
     #[async_recursion(?Send)]
     async fn listen(
-        cache: Arc<RwLock<NodeCache<W>>>,
+        cache: Arc<RwLock<NodeCache<W, P>>>,
         mut stream: ChangeStream,
     ) -> Result<()> {
         while let Some(event) = stream.next().await {
@@ -72,14 +76,14 @@ impl<W: WalProvider + Send + Sync + 'static> ChangesListener<W> {
     }
 
     async fn stream(
-        cache: Arc<RwLock<NodeCache<W>>>,
+        cache: Arc<RwLock<NodeCache<W, P>>>,
     ) -> Result<ChangeStream> {
         let reader = cache.read().unwrap();
         let stream = reader.client().changes().await?;
         Ok(stream)
     }
 
-    async fn connect(cache: Arc<RwLock<NodeCache<W>>>) -> Result<()> {
+    async fn connect(cache: Arc<RwLock<NodeCache<W, P>>>) -> Result<()> {
         match ChangesListener::stream(Arc::clone(&cache)).await {
             Ok(stream) => ChangesListener::listen(cache, stream).await,
             Err(_) => ChangesListener::delay_connect(cache).await,
@@ -87,7 +91,9 @@ impl<W: WalProvider + Send + Sync + 'static> ChangesListener<W> {
     }
 
     #[async_recursion(?Send)]
-    async fn delay_connect(cache: Arc<RwLock<NodeCache<W>>>) -> Result<()> {
+    async fn delay_connect(
+        cache: Arc<RwLock<NodeCache<W, P>>>,
+    ) -> Result<()> {
         loop {
             sleep(Duration::from_millis(INTERVAL_MS)).await;
             ChangesListener::connect(Arc::clone(&cache)).await?;

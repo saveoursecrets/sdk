@@ -19,7 +19,21 @@ use crate::{
 };
 
 /// Trait for types that cache events in a patch.
-pub trait PatchCache {
+pub trait PatchProvider {
+    /// Create a new patch cache provider.
+    fn new<P: AsRef<Path>>(path: P) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Append some events to this patch cache.
+    ///
+    /// Returns a collection of events; if this patch cache was empty
+    /// beforehand the collection equals the passed events otherwise
+    /// it will be any existing events loaded from disc with the given
+    /// events appended.
+    fn append<'a>(&mut self, events: Vec<SyncEvent<'a>>)
+        -> Result<Patch<'a>>;
+
     /// Count the number of events in the patch cache.
     fn count_events(&self) -> Result<usize>;
 
@@ -116,8 +130,26 @@ pub struct PatchFile {
 }
 
 impl PatchFile {
-    /// Create a new patch file.
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+    /// The file extension for patch files.
+    pub fn extension() -> &'static str {
+        PATCH_EXT
+    }
+
+    /// Read a patch from the file on disc.
+    fn read(&self) -> Result<Patch<'static>> {
+        let buffer = std::fs::read(&self.file_path)?;
+        let patch: Patch = decode(&buffer)?;
+        Ok(patch)
+    }
+
+    /// Get an iterator for the patch file.
+    pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
+        patch_iter(&self.file_path)
+    }
+}
+
+impl PatchProvider for PatchFile {
+    fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
 
         if !file_path.exists() {
@@ -139,18 +171,7 @@ impl PatchFile {
         Ok(Self { file, file_path })
     }
 
-    /// The file extension for patch files.
-    pub fn extension() -> &'static str {
-        PATCH_EXT
-    }
-
-    /// Append some events to this patch file.
-    ///
-    /// Returns a collection of events; if this patch file was empty
-    /// beforehand the collection equals the passed events otherwise
-    /// it will be any existing events loaded from disc with the given
-    /// events appended.
-    pub fn append<'a>(
+    fn append<'a>(
         &mut self,
         events: Vec<SyncEvent<'a>>,
     ) -> Result<Patch<'a>> {
@@ -177,20 +198,6 @@ impl PatchFile {
         Ok(Patch(all_events))
     }
 
-    /// Read a patch from the file on disc.
-    fn read(&self) -> Result<Patch<'static>> {
-        let buffer = std::fs::read(&self.file_path)?;
-        let patch: Patch = decode(&buffer)?;
-        Ok(patch)
-    }
-
-    /// Get an iterator for the patch file.
-    pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
-        patch_iter(&self.file_path)
-    }
-}
-
-impl PatchCache for PatchFile {
     fn count_events(&self) -> Result<usize> {
         Ok(self.iter()?.count())
     }

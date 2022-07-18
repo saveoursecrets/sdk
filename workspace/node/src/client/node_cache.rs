@@ -23,7 +23,7 @@ use sos_core::{
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
-    CommitHash, FileIdentity, Gatekeeper, PatchCache, PatchFile,
+    CommitHash, FileIdentity, Gatekeeper, PatchFile, PatchProvider,
     VaultFileAccess,
 };
 use std::{
@@ -53,7 +53,7 @@ fn assert_proofs_eq(
 }
 
 /// Implements client-side caching of WAL files.
-pub struct NodeCache<W> {
+pub struct NodeCache<W, P> {
     /// Vaults managed by this cache.
     summaries: Vec<Summary>,
     /// Currently selected in-memory vault.
@@ -63,7 +63,7 @@ pub struct NodeCache<W> {
     /// Directory for the user cache.
     user_dir: PathBuf,
     /// Data for the cache.
-    cache: HashMap<Uuid, (W, PatchFile)>,
+    cache: HashMap<Uuid, (W, P)>,
     /// Mirror WAL files and in-memory contents to vault files
     mirror: bool,
     /// Snapshots of the WAL files.
@@ -72,9 +72,10 @@ pub struct NodeCache<W> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<W> LocalCache<W> for NodeCache<W>
+impl<W, P> LocalCache<W, P> for NodeCache<W, P>
 where
     W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
 {
     fn address(&self) -> Result<AddressStr> {
         self.client.address()
@@ -573,19 +574,20 @@ where
     }
 }
 
-impl NodeCache<WalFile> {
+impl NodeCache<WalFile, PatchFile> {
     /// Create new node cache backed by files on disc.
     pub fn new_file_cache<D: AsRef<Path>>(
         client: RequestClient,
         cache_dir: D,
-    ) -> Result<NodeCache<WalFile>> {
-        NodeCache::<WalFile>::new(client, cache_dir, true, true)
+    ) -> Result<NodeCache<WalFile, PatchFile>> {
+        NodeCache::<WalFile, PatchFile>::new(client, cache_dir, true, true)
     }
 }
 
-impl<W> NodeCache<W>
+impl<W, P> NodeCache<W, P>
 where
     W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
 {
     /// Create a new cache using the given client and cache directory.
     ///
@@ -674,7 +676,7 @@ where
     fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
         for summary in summaries {
             let patch_path = self.patch_path(summary);
-            let patch_file = PatchFile::new(patch_path)?;
+            let patch_file = P::new(patch_path)?;
 
             let wal_path = self.wal_path(summary);
             let mut wal_file = W::new(&wal_path)?;
