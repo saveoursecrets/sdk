@@ -45,7 +45,7 @@ pub use file_locks::FileLocks;
 pub use gatekeeper::Gatekeeper;
 pub use hash::CommitHash;
 pub use passwd::ChangePassword;
-pub use patch::{Patch, PatchFile, PatchProvider, PatchMemory};
+pub use patch::{Patch, PatchFile, PatchMemory, PatchProvider};
 pub use timestamp::Timestamp;
 
 /// Encode to a binary buffer.

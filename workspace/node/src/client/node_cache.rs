@@ -24,8 +24,8 @@ use sos_core::{
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
-    CommitHash, FileIdentity, Gatekeeper, PatchFile, PatchProvider,
-    VaultFileAccess, PatchMemory,
+    CommitHash, FileIdentity, Gatekeeper, PatchFile, PatchMemory,
+    PatchProvider, VaultFileAccess,
 };
 use std::{
     borrow::Cow,
@@ -53,7 +53,10 @@ fn assert_proofs_eq(
     }
 }
 
-/// Implements client-side caching of WAL files.
+/// Local data cache for a node.
+///
+/// May be backed by files on disc or in-memory implementations
+/// for use in webassembly.
 pub struct NodeCache<W, P> {
     /// Vaults managed by this cache.
     summaries: Vec<Summary>,
@@ -62,12 +65,16 @@ pub struct NodeCache<W, P> {
     /// Client to use for server communication.
     client: RequestClient,
     /// Directory for the user cache.
-    user_dir: PathBuf,
+    ///
+    /// Only available when using disc backing storage.
+    user_dir: Option<PathBuf>,
     /// Data for the cache.
     cache: HashMap<Uuid, (W, P)>,
     /// Mirror WAL files and in-memory contents to vault files
     mirror: bool,
-    /// Snapshots of the WAL files.
+    /// Snapshots manager for WAL files.
+    ///
+    /// Only available when using disc backing storage.
     snapshots: Option<SnapShotManager>,
 }
 
@@ -581,38 +588,6 @@ impl NodeCache<WalFile, PatchFile> {
         client: RequestClient,
         cache_dir: D,
     ) -> Result<NodeCache<WalFile, PatchFile>> {
-        NodeCache::<WalFile, PatchFile>::new(
-            client, cache_dir, true, true)
-    }
-}
-
-impl NodeCache<WalMemory, PatchMemory<'static>> {
-    /// Create new node cache backed by memory.
-    pub fn new_memory_cache<D: AsRef<Path>>(
-        client: RequestClient,
-        cache_dir: D,
-    ) -> Result<NodeCache<WalMemory, PatchMemory<'static>>> {
-        NodeCache::<WalMemory, PatchMemory>::new(
-            client, cache_dir, false, false)
-    }
-}
-
-impl<W, P> NodeCache<W, P>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
-    /// Create a new cache using the given client and cache directory.
-    ///
-    /// If the `mirror` option is given then the cache will mirror WAL files
-    /// and in-memory content to disc as vault files providing an extra level
-    /// if redundancy in case of failure.
-    pub(super) fn new<D: AsRef<Path>>(
-        client: RequestClient,
-        cache_dir: D,
-        mirror: bool,
-        use_snapshots: bool,
-    ) -> Result<Self> {
         let cache_dir = cache_dir.as_ref().to_path_buf();
         if !cache_dir.is_dir() {
             return Err(Error::NotDirectory(cache_dir));
@@ -623,23 +598,42 @@ where
         let user_dir = cache_dir.join(&address);
         std::fs::create_dir_all(&user_dir)?;
 
-        let snapshots = if use_snapshots {
-            Some(SnapShotManager::new(&user_dir)?)
-        } else {
-            None
-        };
+        let snapshots = Some(SnapShotManager::new(&user_dir)?);
 
         Ok(Self {
             summaries: Default::default(),
             current: None,
             client,
-            user_dir,
+            user_dir: Some(user_dir),
             cache: Default::default(),
-            mirror,
+            mirror: true,
             snapshots,
         })
     }
+}
 
+impl NodeCache<WalMemory, PatchMemory<'static>> {
+    /// Create new node cache backed by memory.
+    pub fn new_memory_cache(
+        client: RequestClient,
+    ) -> Result<NodeCache<WalMemory, PatchMemory<'static>>> {
+        Ok(Self {
+            summaries: Default::default(),
+            current: None,
+            client,
+            user_dir: None,
+            cache: Default::default(),
+            mirror: false,
+            snapshots: None,
+        })
+    }
+}
+
+impl<W, P> NodeCache<W, P>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
     /// Create a new account or vault.
     async fn create(
         &mut self,
@@ -700,19 +694,32 @@ where
     }
 
     fn wal_path(&self, summary: &Summary) -> PathBuf {
-        let wal_name = format!("{}.{}", summary.id(), WalFile::extension());
-        self.user_dir.join(&wal_name)
+        if let Some(user_dir) = &self.user_dir {
+            let wal_name =
+                format!("{}.{}", summary.id(), WalFile::extension());
+            user_dir.join(&wal_name)
+        } else {
+            PathBuf::from("/dev/memory/wal")
+        }
     }
 
     fn vault_path(&self, summary: &Summary) -> PathBuf {
-        let wal_name = format!("{}.{}", summary.id(), Vault::extension());
-        self.user_dir.join(&wal_name)
+        if let Some(user_dir) = &self.user_dir {
+            let wal_name = format!("{}.{}", summary.id(), Vault::extension());
+            user_dir.join(&wal_name)
+        } else {
+            PathBuf::from("/dev/memory/vault")
+        }
     }
 
     fn patch_path(&self, summary: &Summary) -> PathBuf {
-        let patch_name =
-            format!("{}.{}", summary.id(), PatchFile::extension());
-        self.user_dir.join(&patch_name)
+        if let Some(user_dir) = &self.user_dir {
+            let patch_name =
+                format!("{}.{}", summary.id(), PatchFile::extension());
+            user_dir.join(&patch_name)
+        } else {
+            PathBuf::from("/dev/memory/patch")
+        }
     }
 
     /// Fetch the remote WAL file.

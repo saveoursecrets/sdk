@@ -35,7 +35,6 @@ where
 
     /// This nodes local cache of data.
     cache: NodeCache<W, P>,
-
     /*
     /// Server for responding to requests from other nodes.
     server: Server,

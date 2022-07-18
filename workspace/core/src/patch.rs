@@ -225,29 +225,35 @@ impl PatchProvider for PatchFile {
 
 /// Memory based collection of patch events.
 pub struct PatchMemory<'e> {
-    records: Vec<SyncEvent<'e>>
+    records: Vec<SyncEvent<'e>>,
 }
 
 impl PatchMemory<'_> {
     fn read(&self) -> Result<Patch<'static>> {
-        let events = self.records.iter()
-            .map(|e| e.clone().into_owned()).collect::<Vec<_>>();
+        let events = self
+            .records
+            .iter()
+            .map(|e| e.clone().into_owned())
+            .collect::<Vec<_>>();
         Ok(Patch(events))
     }
-
 }
 
 impl PatchProvider for PatchMemory<'_> {
     fn new<P: AsRef<Path>>(_path: P) -> Result<Self> {
-        Ok(Self { records: Vec::new() })
+        Ok(Self {
+            records: Vec::new(),
+        })
     }
 
     fn append<'a>(
         &mut self,
         events: Vec<SyncEvent<'a>>,
     ) -> Result<Patch<'a>> {
-        let mut events = events.into_iter()
-            .map(|e| e.into_owned()).collect::<Vec<_>>();
+        let mut events = events
+            .into_iter()
+            .map(|e| e.into_owned())
+            .collect::<Vec<_>>();
         self.records.append(&mut events);
         Ok(self.read()?)
     }
