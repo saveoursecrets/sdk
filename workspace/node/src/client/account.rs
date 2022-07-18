@@ -2,7 +2,7 @@
 use sos_core::{
     address::AddressStr, crypto::generate_random_ecdsa_signing_key,
     generate_passphrase, signer::SingleParty, vault::Summary,
-    wal::file::WalFile,
+    wal::file::WalFile, PatchFile,
 };
 use std::{convert::Infallible, path::PathBuf, sync::Arc};
 use url::Url;
@@ -45,14 +45,14 @@ pub fn login(
     cache_dir: PathBuf,
     keystore_file: PathBuf,
     keystore_passphrase: SecretString,
-) -> Result<NodeCache<WalFile>> {
+) -> Result<NodeCache<WalFile, PatchFile>> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
     let client = ClientBuilder::<Infallible>::new(server, keystore_file)
         .with_keystore_passphrase(keystore_passphrase)
         .build()?;
-    Ok(NodeCache::<WalFile>::new(client, cache_dir, true, true)?)
+    Ok(NodeCache::new_file_cache(client, cache_dir)?)
 }
 
 /// Create a new account.
@@ -62,7 +62,7 @@ pub async fn create_account(
     name: Option<String>,
     key: AccountKey,
     cache_dir: PathBuf,
-) -> Result<(AccountCredentials, NodeCache<WalFile>)> {
+) -> Result<(AccountCredentials, NodeCache<WalFile, PatchFile>)> {
     if !destination.is_dir() {
         return Err(Error::NotDirectory(destination));
     }
@@ -76,7 +76,7 @@ pub async fn create_account(
     let (keystore_passphrase, _) = generate_passphrase()?;
     let signer: SingleParty = (signing_key).try_into()?;
     let client = RequestClient::new(server, Arc::new(signer));
-    let mut cache = NodeCache::<WalFile>::new(client, cache_dir, true, true)?;
+    let mut cache = NodeCache::new_file_cache(client, cache_dir)?;
 
     let keystore = encrypt(
         &mut rand::thread_rng(),

@@ -21,7 +21,7 @@ use sos_core::{
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
-    Gatekeeper,
+    Gatekeeper, PatchProvider,
 };
 
 use crate::sync::{SyncInfo, SyncStatus};
@@ -204,7 +204,11 @@ where
 /// selected vault.
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait LocalCache<W: WalProvider + Send + Sync> {
+pub trait LocalCache<W, P>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;
 
