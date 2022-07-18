@@ -52,7 +52,7 @@ pub fn login(
     let client = ClientBuilder::<Infallible>::new(server, keystore_file)
         .with_keystore_passphrase(keystore_passphrase)
         .build()?;
-    Ok(FileCache::<WalFile>::new(client, cache_dir, true)?)
+    Ok(FileCache::<WalFile>::new(client, cache_dir, true, true)?)
 }
 
 /// Create a new account.
@@ -76,7 +76,7 @@ pub async fn create_account(
     let (keystore_passphrase, _) = generate_passphrase()?;
     let signer: SingleParty = (signing_key).try_into()?;
     let client = RequestClient::new(server, Arc::new(signer));
-    let mut cache = FileCache::<WalFile>::new(client, cache_dir, true)?;
+    let mut cache = FileCache::<WalFile>::new(client, cache_dir, true, true)?;
 
     let keystore = encrypt(
         &mut rand::thread_rng(),

@@ -212,9 +212,11 @@ pub trait LocalCache<W: WalProvider + Send + Sync> {
     fn vaults(&self) -> &[Summary];
 
     /// Get the snapshot manager for this cache.
-    fn snapshots(&self) -> &SnapShotManager;
+    fn snapshots(&self) -> Option<&SnapShotManager>;
 
     /// Take a snapshot of the WAL for the given vault.
+    ///
+    /// Snapshots must be enabled.
     fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
 
     /// Get the history for a WAL file.

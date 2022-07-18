@@ -124,7 +124,7 @@ fn run() -> Result<()> {
                 .with_use_agent(true)
                 .build()?;
             let cache = Arc::new(RwLock::new(FileCache::new(
-                client, cache_dir, true,
+                client, cache_dir, true, true,
             )?));
 
             let reader = cache.read().unwrap();

@@ -423,6 +423,29 @@ where
     }
 }
 
+/*
+
+    let snapshots = SnapShotManager::new(&user_dir)?;
+
+
+    fn snapshots(&self) -> &SnapShotManager {
+        &self.snapshots
+    }
+
+    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)> {
+        if cfg!(target_arch = "wasm32") {
+            panic!("snapshots not available in webassembly");
+        }
+
+        let (wal, _) = self
+            .cache
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
+        Ok(self.snapshots.create(summary.id(), wal.path(), root_hash)?)
+    }
+*/
+
 /// Execute the program command.
 fn exec_program(
     program: Shell,
@@ -774,7 +797,10 @@ fn exec_program(
                 let reader = cache.read().unwrap();
                 let keeper =
                     reader.current().ok_or(Error::NoVaultSelected)?;
-                let snapshots = reader.snapshots().list(keeper.id())?;
+                let snapshots = reader
+                    .snapshots()
+                    .ok_or(sos_node::client::Error::SnapshotsNotEnabled)?;
+                let snapshots = snapshots.list(keeper.id())?;
                 if !snapshots.is_empty() {
                     for snapshot in snapshots.into_iter() {
                         if long {

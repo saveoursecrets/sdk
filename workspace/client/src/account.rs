@@ -40,7 +40,7 @@ pub fn switch(
         .with_passphrase_reader(Box::new(reader))
         .with_use_agent(true)
         .build()?;
-    Ok(FileCache::new(client, cache_dir, true)?)
+    Ok(FileCache::new(client, cache_dir, true, true)?)
 }
 
 pub fn signup(

@@ -165,7 +165,10 @@ async fn integration_simple_session() -> Result<()> {
     let (_snapshot, created) =
         file_cache.take_snapshot(&new_vault_summary)?;
     assert!(created);
-    let snapshots = file_cache.snapshots().list(new_vault_summary.id())?;
+    let snapshots = file_cache
+        .snapshots()
+        .unwrap()
+        .list(new_vault_summary.id())?;
     assert!(!snapshots.is_empty());
 
     // Try to pull whilst up to date
