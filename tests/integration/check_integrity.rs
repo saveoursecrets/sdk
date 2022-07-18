@@ -16,7 +16,7 @@ async fn integration_check_integrity() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (address, credentials, mut file_cache) = signup(&dirs, 0).await?;
+    let (address, credentials, mut node_cache) = signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,
@@ -24,12 +24,12 @@ async fn integration_check_integrity() -> Result<()> {
     } = credentials;
 
     // Use the new vault
-    file_cache
+    node_cache
         .open_vault(&summary, encryption_passphrase.expose_secret())
         .await?;
 
     // Create some secrets
-    let _notes = create_secrets(&mut file_cache, &summary).await?;
+    let _notes = create_secrets(&mut node_cache, &summary).await?;
 
     let expected_dir = dirs.clients.get(0).unwrap().join(address.to_string());
     let expected_vault =
@@ -48,7 +48,7 @@ async fn integration_check_integrity() -> Result<()> {
     assert!(verify_wal(expected_wal.clone(), true, true).is_ok());
 
     // Close the vault
-    file_cache.close_vault();
+    node_cache.close_vault();
 
     Ok(())
 }

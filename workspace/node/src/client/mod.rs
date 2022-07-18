@@ -28,8 +28,8 @@ use crate::sync::{SyncInfo, SyncStatus};
 
 pub mod account;
 mod changes_listener;
-pub mod file_cache;
 pub mod net;
+pub mod node_cache;
 
 mod error;
 pub use changes_listener::ChangesListener;
@@ -97,7 +97,10 @@ pub struct ClientBuilder<E> {
     use_agent: bool,
 }
 
-impl<E: std::error::Error + Send + Sync + 'static> ClientBuilder<E> {
+impl<E> ClientBuilder<E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
     /// Create a new client builder.
     pub fn new(server: Url, keystore: PathBuf) -> Self {
         Self {
@@ -219,7 +222,7 @@ pub trait LocalCache<W: WalProvider + Send + Sync> {
     /// Snapshots must be enabled.
     fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
 
-    /// Get the history for a WAL file.
+    /// Get the history for a WAL provider.
     fn history(
         &self,
         summary: &Summary,
@@ -228,7 +231,7 @@ pub trait LocalCache<W: WalProvider + Send + Sync> {
     /// Verify a WAL log.
     fn verify(&self, summary: &Summary) -> Result<()>;
 
-    /// Compact a WAL file.
+    /// Compact a WAL provider.
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
 
     /// Respond to a change notification.
@@ -237,7 +240,7 @@ pub trait LocalCache<W: WalProvider + Send + Sync> {
         change: ChangeNotification,
     ) -> Result<()>;
 
-    /// Load the vault summaries from the remote server.
+    /// Load the vault summaries from a remote node.
     async fn load_vaults(&mut self) -> Result<&[Summary]>;
 
     /// Attempt to find a summary in this cache.
@@ -258,7 +261,7 @@ pub trait LocalCache<W: WalProvider + Send + Sync> {
     /// Remove a vault.
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;
 
-    /// Attempt to set the vault name on the remote server.
+    /// Attempt to set the vault name on the remote node.
     async fn set_vault_name(
         &mut self,
         summary: &Summary,

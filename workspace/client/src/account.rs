@@ -7,7 +7,7 @@ use sos_node::{
     cache_dir,
     client::{
         account::{create_account, create_signing_key},
-        file_cache::FileCache,
+        node_cache::NodeCache,
         run_blocking, ClientBuilder, PassphraseReader,
     },
 };
@@ -31,7 +31,7 @@ pub fn switch(
     server: Url,
     cache_dir: PathBuf,
     keystore_file: PathBuf,
-) -> Result<FileCache<WalFile>> {
+) -> Result<NodeCache<WalFile>> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
@@ -40,7 +40,7 @@ pub fn switch(
         .with_passphrase_reader(Box::new(reader))
         .with_use_agent(true)
         .build()?;
-    Ok(FileCache::new(client, cache_dir, true, true)?)
+    Ok(NodeCache::new(client, cache_dir, true, true)?)
 }
 
 pub fn signup(

@@ -52,7 +52,7 @@ fn assert_proofs_eq(
 }
 
 /// Implements client-side caching of WAL files.
-pub struct FileCache<W> {
+pub struct NodeCache<W> {
     /// Vaults managed by this cache.
     summaries: Vec<Summary>,
     /// Currently selected in-memory vault.
@@ -71,7 +71,10 @@ pub struct FileCache<W> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<W: WalProvider + Send + Sync> LocalCache<W> for FileCache<W> {
+impl<W> LocalCache<W> for NodeCache<W>
+where
+    W: WalProvider + Send + Sync + 'static,
+{
     fn address(&self) -> Result<AddressStr> {
         self.client.address()
     }
@@ -569,7 +572,10 @@ impl<W: WalProvider + Send + Sync> LocalCache<W> for FileCache<W> {
     }
 }
 
-impl<W: WalProvider + Send + Sync> FileCache<W> {
+impl<W> NodeCache<W>
+where
+    W: WalProvider + Send + Sync + 'static,
+{
     /// Create a new cache using the given client and cache directory.
     ///
     /// If the `mirror` option is given then the cache will mirror WAL files

@@ -21,7 +21,7 @@ use sos_core::{
 };
 use sos_node::{
     cache_dir,
-    client::{file_cache::FileCache, run_blocking, LocalCache},
+    client::{node_cache::NodeCache, run_blocking, LocalCache},
     sync::SyncKind,
 };
 use sos_readline::{
@@ -36,7 +36,7 @@ use crate::{display_passphrase, switch, Error, Result};
 mod editor;
 mod print;
 
-type ReplCache = Arc<RwLock<FileCache<WalFile>>>;
+type ReplCache = Arc<RwLock<NodeCache<WalFile>>>;
 
 enum ConflictChoice {
     Push,
@@ -361,7 +361,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, FileCache<WalFile>>,
+        &mut RwLockWriteGuard<'_, NodeCache<WalFile>>,
     ) -> sos_node::client::Result<()>,
 {
     let mut writer = cache.write().unwrap();
@@ -990,14 +990,14 @@ fn exec_program(
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
             }
-            let mut file_cache = switch(server.clone(), cache_dir, keystore)?;
+            let mut node_cache = switch(server.clone(), cache_dir, keystore)?;
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
-            run_blocking(file_cache.load_vaults())?;
+            run_blocking(node_cache.load_vaults())?;
 
             let mut writer = cache.write().unwrap();
-            *writer = file_cache;
+            *writer = node_cache;
             Ok(())
         }
         ShellCommand::Whoami => {

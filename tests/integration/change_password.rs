@@ -27,7 +27,7 @@ async fn integration_change_password() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (address, credentials, mut file_cache) = signup(&dirs, 0).await?;
+    let (address, credentials, mut node_cache) = signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,
@@ -36,7 +36,7 @@ async fn integration_change_password() -> Result<()> {
 
     let (tx, mut rx) = mpsc::channel(1);
 
-    let mut es = file_cache.client().changes().await?;
+    let mut es = node_cache.client().changes().await?;
     let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
         Arc::new(RwLock::new(Vec::new()));
     let changed = Arc::clone(&notifications);
@@ -70,20 +70,20 @@ async fn integration_change_password() -> Result<()> {
         .expect("failed to receive changes feed open message");
 
     // Use the new vault
-    file_cache
+    node_cache
         .open_vault(&summary, encryption_passphrase.expose_secret())
         .await?;
 
     // Create some secrets
-    let _notes = create_secrets(&mut file_cache, &summary).await?;
+    let _notes = create_secrets(&mut node_cache, &summary).await?;
 
     // Check our new list of secrets has the right length
-    let keeper = file_cache.current().unwrap();
+    let keeper = node_cache.current().unwrap();
     let meta = keeper.meta_data()?;
     assert_eq!(3, meta.len());
     drop(keeper);
 
-    let keeper = file_cache.current_mut().unwrap();
+    let keeper = node_cache.current_mut().unwrap();
     let (new_passphrase, _) = generate_passphrase()?;
 
     // Get a new vault for the new passphrase
@@ -93,12 +93,12 @@ async fn integration_change_password() -> Result<()> {
         new_passphrase,
     )
     .build()?;
-    file_cache
+    node_cache
         .update_vault(&summary, &new_vault, wal_events)
         .await?;
 
     // Close the vault
-    file_cache.close_vault();
+    node_cache.close_vault();
 
     /* CHANGE NOTIFICATIONS */
 

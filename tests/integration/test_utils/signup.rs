@@ -9,7 +9,7 @@ use sos_node::client::{
     account::{
         create_account, create_signing_key, AccountCredentials, AccountKey,
     },
-    file_cache::FileCache,
+    node_cache::NodeCache,
     LocalCache,
 };
 use web3_keystore::{decrypt, KeyStore};
@@ -17,7 +17,7 @@ use web3_keystore::{decrypt, KeyStore};
 pub async fn signup(
     dirs: &TestDirs,
     client_index: usize,
-) -> Result<(AddressStr, AccountCredentials, FileCache<WalFile>)> {
+) -> Result<(AddressStr, AccountCredentials, NodeCache<WalFile>)> {
     let TestDirs {
         target: destination,
         clients,
