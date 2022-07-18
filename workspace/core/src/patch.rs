@@ -18,6 +18,39 @@ use crate::{
     FileIdentity, Result,
 };
 
+/// Trait for types that cache events in a patch.
+pub trait PatchProvider {
+    /// Create a new patch cache provider.
+    fn new<P: AsRef<Path>>(path: P) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Append some events to this patch cache.
+    ///
+    /// Returns a collection of events; if this patch cache was empty
+    /// beforehand the collection equals the passed events otherwise
+    /// it will be any existing events loaded from disc with the given
+    /// events appended.
+    fn append<'a>(&mut self, events: Vec<SyncEvent<'a>>)
+        -> Result<Patch<'a>>;
+
+    /// Count the number of events in the patch cache.
+    fn count_events(&self) -> Result<usize>;
+
+    /// Determine if the patch cache has any events.
+    fn has_events(&self) -> Result<bool>;
+
+    /// Drain all events from the patch backing storage.
+    fn drain(&mut self) -> Result<Patch<'static>>;
+
+    /// Truncate the patch backing storage to an empty list.
+    ///
+    /// This should be called when a client has successfully
+    /// applied a patch to the remote and local WAL files to
+    /// remove any pending events.
+    fn truncate(&mut self) -> Result<()>;
+}
+
 /// Patch wraps a changeset of events to be sent across the network.
 #[derive(Debug, Default)]
 pub struct Patch<'a>(pub Vec<SyncEvent<'a>>);
@@ -97,8 +130,26 @@ pub struct PatchFile {
 }
 
 impl PatchFile {
-    /// Create a new patch file.
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+    /// The file extension for patch files.
+    pub fn extension() -> &'static str {
+        PATCH_EXT
+    }
+
+    /// Read a patch from the file on disc.
+    fn read(&self) -> Result<Patch<'static>> {
+        let buffer = std::fs::read(&self.file_path)?;
+        let patch: Patch = decode(&buffer)?;
+        Ok(patch)
+    }
+
+    /// Get an iterator for the patch file.
+    pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
+        patch_iter(&self.file_path)
+    }
+}
+
+impl PatchProvider for PatchFile {
+    fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
 
         if !file_path.exists() {
@@ -120,18 +171,7 @@ impl PatchFile {
         Ok(Self { file, file_path })
     }
 
-    /// The file extension for patch files.
-    pub fn extension() -> &'static str {
-        PATCH_EXT
-    }
-
-    /// Append some events to this patch file.
-    ///
-    /// Returns a collection of events; if this patch file was empty
-    /// beforehand the collection equals the passed events otherwise
-    /// it will be any existing events loaded from disc with the given
-    /// events appended.
-    pub fn append<'a>(
+    fn append<'a>(
         &mut self,
         events: Vec<SyncEvent<'a>>,
     ) -> Result<Patch<'a>> {
@@ -158,47 +198,82 @@ impl PatchFile {
         Ok(Patch(all_events))
     }
 
-    /// Read a patch from the file on disc.
-    fn read(&self) -> Result<Patch<'static>> {
-        let buffer = std::fs::read(&self.file_path)?;
-        let patch: Patch = decode(&buffer)?;
-        Ok(patch)
-    }
-
-    /// Get an iterator for the patch file.
-    pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
-        patch_iter(&self.file_path)
-    }
-
-    /// Count the number of events in the patch file.
-    pub fn count_events(&self) -> Result<usize> {
+    fn count_events(&self) -> Result<usize> {
         Ok(self.iter()?.count())
     }
 
-    /// Determine if the patch file has some events data.
-    pub fn has_events(&self) -> Result<bool> {
+    fn has_events(&self) -> Result<bool> {
         Ok(self.file_path.metadata()?.len() as usize > PATCH_IDENTITY.len())
     }
 
-    /// Drain all events from the patch file on disc.
-    pub fn drain(&mut self) -> Result<Patch<'static>> {
+    fn drain(&mut self) -> Result<Patch<'static>> {
         let patch = self.read()?;
         self.truncate()?;
         Ok(patch)
     }
 
-    /// Truncate the file to an empty patch list.
-    ///
-    /// This should be called when a client has successfully
-    /// applied a patch to the remote and local WAL files to
-    /// remove any pending events.
-    pub fn truncate(&mut self) -> Result<()> {
+    fn truncate(&mut self) -> Result<()> {
         self.file.set_len(0)?;
         self.file.seek(SeekFrom::Start(0))?;
 
         let patch: Patch = Default::default();
         let buffer = encode(&patch)?;
         self.file.write_all(&buffer)?;
+        Ok(())
+    }
+}
+
+/// Memory based collection of patch events.
+pub struct PatchMemory<'e> {
+    records: Vec<SyncEvent<'e>>,
+}
+
+impl PatchMemory<'_> {
+    fn read(&self) -> Result<Patch<'static>> {
+        let events = self
+            .records
+            .iter()
+            .map(|e| e.clone().into_owned())
+            .collect::<Vec<_>>();
+        Ok(Patch(events))
+    }
+}
+
+impl PatchProvider for PatchMemory<'_> {
+    fn new<P: AsRef<Path>>(_path: P) -> Result<Self> {
+        Ok(Self {
+            records: Vec::new(),
+        })
+    }
+
+    fn append<'a>(
+        &mut self,
+        events: Vec<SyncEvent<'a>>,
+    ) -> Result<Patch<'a>> {
+        let mut events = events
+            .into_iter()
+            .map(|e| e.into_owned())
+            .collect::<Vec<_>>();
+        self.records.append(&mut events);
+        Ok(self.read()?)
+    }
+
+    fn count_events(&self) -> Result<usize> {
+        Ok(self.records.iter().count())
+    }
+
+    fn has_events(&self) -> Result<bool> {
+        Ok(!self.records.is_empty())
+    }
+
+    fn drain(&mut self) -> Result<Patch<'static>> {
+        let patch = self.read()?;
+        self.truncate()?;
+        Ok(patch)
+    }
+
+    fn truncate(&mut self) -> Result<()> {
+        self.records = Vec::new();
         Ok(())
     }
 }

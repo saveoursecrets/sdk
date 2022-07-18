@@ -123,8 +123,8 @@ fn run() -> Result<()> {
                 .with_passphrase_reader(Box::new(reader))
                 .with_use_agent(true)
                 .build()?;
-            let cache = Arc::new(RwLock::new(NodeCache::new(
-                client, cache_dir, true, true,
+            let cache = Arc::new(RwLock::new(NodeCache::new_file_cache(
+                client, cache_dir,
             )?));
 
             let reader = cache.read().unwrap();

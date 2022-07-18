@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use super::{server, TestDirs};
 
-use sos_core::{address::AddressStr, wal::file::WalFile};
+use sos_core::{address::AddressStr, wal::file::WalFile, PatchFile};
 
 use secrecy::ExposeSecret;
 use sos_node::client::{
@@ -17,7 +17,11 @@ use web3_keystore::{decrypt, KeyStore};
 pub async fn signup(
     dirs: &TestDirs,
     client_index: usize,
-) -> Result<(AddressStr, AccountCredentials, NodeCache<WalFile>)> {
+) -> Result<(
+    AddressStr,
+    AccountCredentials,
+    NodeCache<WalFile, PatchFile>,
+)> {
     let TestDirs {
         target: destination,
         clients,

@@ -9,7 +9,7 @@ use sos_core::{
     secret::{Secret, SecretId, SecretMeta},
     vault::Summary,
     wal::file::WalFile,
-    AuditLogFile, FileLocks,
+    AuditLogFile, FileLocks, PatchFile,
 };
 
 use sos_node::{
@@ -170,7 +170,7 @@ pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
 }
 
 pub async fn create_secrets(
-    node_cache: &mut NodeCache<WalFile>,
+    node_cache: &mut NodeCache<WalFile, PatchFile>,
     summary: &Summary,
 ) -> Result<Vec<(SecretId, &'static str)>> {
     let notes = vec![
@@ -211,7 +211,7 @@ pub async fn create_secrets(
 }
 
 pub async fn delete_secret(
-    node_cache: &mut NodeCache<WalFile>,
+    node_cache: &mut NodeCache<WalFile, PatchFile>,
     summary: &Summary,
     id: &SecretId,
 ) -> Result<()> {
