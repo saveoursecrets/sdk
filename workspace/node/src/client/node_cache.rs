@@ -130,16 +130,19 @@ where
         Ok(records)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn verify(&self, summary: &Summary) -> Result<()> {
-        //wal_commit_tree,
-        /*
+        use sos_core::commit_tree::wal_commit_tree_file;
         let wal_path = self.wal_path(summary);
-        wal_commit_tree(&wal_path, true, |_| {})?;
-
+        wal_commit_tree_file(&wal_path, true, |_| {})?;
         Ok(())
-        */
+    }
 
-        todo!("restore node cache verify");
+    #[cfg(target_arch = "wasm32")]
+    fn verify(&self, summary: &Summary) -> Result<()> {
+        // NOTE: verify is a noop in WASM when the records
+        // NOTE: are stored in memory
+        Ok(())
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {

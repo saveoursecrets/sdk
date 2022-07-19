@@ -15,7 +15,7 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit_tree::{hash, wal_commit_tree, CommitTree},
+    commit_tree::{hash, wal_commit_tree_file, CommitTree},
     constants::{WAL_EXT, WAL_IDENTITY},
     encode,
     events::WalEvent,
@@ -122,7 +122,7 @@ impl WalProvider for WalFile {
         new_wal.load_tree()?;
 
         // Verify the new WAL tree
-        wal_commit_tree(new_wal.path(), true, |_| {})?;
+        wal_commit_tree_file(new_wal.path(), true, |_| {})?;
 
         // Need to recreate the WAL file and load the updated
         // commit tree

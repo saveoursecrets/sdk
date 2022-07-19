@@ -7,7 +7,7 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 pub use error::Error;
 
 use sos_core::{
-    commit_tree::{vault_commit_tree, wal_commit_tree},
+    commit_tree::{vault_commit_tree_file, wal_commit_tree_file},
     iter::vault_iter,
     vault::{Header, Vault},
     wal::WalItem,
@@ -18,7 +18,7 @@ pub fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
-    let tree = vault_commit_tree(&file, true, |row_info| {
+    let tree = vault_commit_tree_file(&file, true, |row_info| {
         if commits {
             println!("{}", hex::encode(&row_info.commit()));
         }
@@ -37,7 +37,7 @@ pub fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
-    let tree = wal_commit_tree(&file, true, |row_info| {
+    let tree = wal_commit_tree_file(&file, true, |row_info| {
         if commits {
             println!("{}", hex::encode(&row_info.commit()));
         }

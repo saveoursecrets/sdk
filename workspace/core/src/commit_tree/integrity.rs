@@ -1,17 +1,26 @@
 //! Functions to build commit trees and run integrity checks.
-use std::{fs::File, path::Path};
 
-use binary_stream::{BinaryReader, Endian, FileStream};
+use binary_stream::{
+    BinaryReader, Endian, FileStream, MemoryStream, SliceStream,
+};
 
 use crate::{
     commit_tree::{hash, CommitTree},
-    iter::{FileItem, WalFileRecord},
-    wal::{file::WalFile, WalItem, WalProvider},
+    iter::{
+        vault_iter, FileItem, ReadStreamIterator, VaultRecord, WalFileRecord,
+    },
+    wal::{
+        memory::{WalMemory, WalMemoryRecord},
+        WalItem, WalProvider,
+    },
     Error, Result,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::iter::{vault_iter, VaultRecord};
+use crate::wal::file::WalFile;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::{fs::File, path::Path};
 
 /// Build a commit tree from a vault file optionally
 /// verifying all the row checksums.
@@ -19,7 +28,7 @@ use crate::iter::{vault_iter, VaultRecord};
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn vault_commit_tree<P: AsRef<Path>, F>(
+pub fn vault_commit_tree_file<P: AsRef<Path>, F>(
     vault: P,
     verify: bool,
     func: F,
@@ -28,14 +37,47 @@ where
     F: Fn(&VaultRecord),
 {
     let mut tree = CommitTree::new();
-
     // Need an additional reader as we may also read in the
     // values for the rows
     let mut stream = FileStream(File::open(vault.as_ref())?);
-    let mut reader = BinaryReader::new(&mut stream, Endian::Big);
-
+    let reader = BinaryReader::new(&mut stream, Endian::Big);
     let it = vault_iter(vault.as_ref())?;
 
+    iterate_vault(tree, it, reader, verify, func)
+}
+
+/*
+/// Build a commit tree from a vault slice optionally
+/// verifying all the row checksums.
+#[cfg(target_arch = "wasm32")]
+pub fn vault_commit_tree_slice<F>(
+    vault: &[u8],
+    verify: bool,
+    func: F,
+) -> Result<CommitTree>
+where
+    F: Fn(&VaultRecord),
+{
+    let mut tree = CommitTree::new();
+    // Need an additional reader as we may also read in the
+    // values for the rows
+    let mut stream = SliceStream::new(vault);
+    let reader = BinaryReader::new(&mut stream, Endian::Big);
+    let it = vault_iter(vault.to_vec())?;
+    iterate_vault(tree, it, reader, verify, func)
+}
+*/
+
+fn iterate_vault<F>(
+    mut tree: CommitTree,
+    mut it: ReadStreamIterator<VaultRecord>,
+    mut reader: BinaryReader,
+    verify: bool,
+    func: F,
+) -> Result<CommitTree>
+where
+    F: Fn(&VaultRecord),
+{
     for record in it {
         let record = record?;
 
@@ -64,7 +106,8 @@ where
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
-pub fn wal_commit_tree<P: AsRef<Path>, F>(
+#[cfg(not(target_arch = "wasm32"))]
+pub fn wal_commit_tree_file<P: AsRef<Path>, F>(
     wal_file: P,
     verify: bool,
     func: F,
@@ -80,10 +123,10 @@ where
     let mut reader = BinaryReader::new(&mut value, Endian::Big);
 
     let wal = WalFile::new(wal_file.as_ref())?;
-
+    let mut it = wal.iter()?;
     let mut last_checksum: Option<[u8; 32]> = None;
 
-    for record in wal.iter()? {
+    for record in it {
         let record = record?;
 
         if verify {
@@ -135,7 +178,7 @@ mod test {
     #[test]
     fn integrity_empty_vault() -> Result<()> {
         let (temp, _, _) = mock_vault_file()?;
-        let commit_tree = vault_commit_tree(temp.path(), true, |_| {})?;
+        let commit_tree = vault_commit_tree_file(temp.path(), true, |_| {})?;
         assert!(commit_tree.root().is_none());
         Ok(())
     }
@@ -157,7 +200,7 @@ mod test {
         let mut temp = NamedTempFile::new()?;
         temp.write_all(&buffer)?;
 
-        let commit_tree = vault_commit_tree(temp.path(), true, |_| {})?;
+        let commit_tree = vault_commit_tree_file(temp.path(), true, |_| {})?;
         assert!(commit_tree.root().is_some());
         Ok(())
     }
@@ -165,7 +208,7 @@ mod test {
     #[test]
     fn integrity_wal() -> Result<()> {
         let (temp, _, _, _) = mock_wal_file()?;
-        let commit_tree = wal_commit_tree(temp.path(), true, |_| {})?;
+        let commit_tree = wal_commit_tree_file(temp.path(), true, |_| {})?;
         assert!(commit_tree.root().is_some());
         Ok(())
     }

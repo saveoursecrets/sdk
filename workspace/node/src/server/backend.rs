@@ -2,7 +2,7 @@ use super::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     address::AddressStr,
-    commit_tree::{wal_commit_tree, CommitProof},
+    commit_tree::{wal_commit_tree_file, CommitProof},
     constants::WAL_DELETED_EXT,
     encode,
     events::{SyncEvent, WalEvent},
@@ -553,7 +553,7 @@ impl Backend for FileSystemBackend {
         // Compute the root hash of the submitted WAL file
         // and verify the integrity of each record event against
         // each leaf node hash
-        let tree = wal_commit_tree(&temp_path, true, |_| {})?;
+        let tree = wal_commit_tree_file(&temp_path, true, |_| {})?;
 
         let tree_root = tree.root().ok_or(sos_core::Error::NoRootCommit)?;
 
