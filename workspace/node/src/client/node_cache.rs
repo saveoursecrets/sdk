@@ -135,7 +135,7 @@ where
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn verify(&self, summary: &Summary) -> Result<()> {
+    fn verify(&self, _summary: &Summary) -> Result<()> {
         // NOTE: verify is a noop in WASM when the records
         // NOTE: are stored in memory
         Ok(())
@@ -653,8 +653,8 @@ where
     #[cfg(target_arch = "wasm32")]
     fn write_vault_mirror(
         &self,
-        summary: &Summary,
-        buffer: &[u8],
+        _summary: &Summary,
+        _buffer: &[u8],
     ) -> Result<()> {
         Ok(())
     }
@@ -1081,7 +1081,7 @@ where
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
+    fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
         Ok(())
     }
 }

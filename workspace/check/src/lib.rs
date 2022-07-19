@@ -1,17 +1,17 @@
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use uuid::Uuid;
+
+use sos_core::{
+    commit_tree::{vault_commit_tree_file, wal_commit_tree_file, CommitTree},
+    iter::vault_iter,
+    vault::Header,
+    wal::WalItem,
+};
 
 mod error;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub use error::Error;
-
-use sos_core::{
-    commit_tree::{vault_commit_tree_file, wal_commit_tree_file},
-    iter::vault_iter,
-    vault::{Header, Vault},
-    wal::WalItem,
-};
 
 /// Verify the integrity of a vault.
 pub fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
@@ -58,7 +58,7 @@ pub fn status(vault: PathBuf) -> Result<()> {
     }
 
     let header = Header::read_header_file(&vault)?;
-    let tree = Vault::build_tree(&vault)?;
+    let tree = build_tree(&vault)?;
 
     println!("{}", header);
     if let Some(root) = tree.root_hex() {
@@ -81,3 +81,16 @@ pub fn keys(vault: PathBuf) -> Result<()> {
     }
     Ok(())
 }
+
+/// Build a commit tree from the commit hashes in a vault file.
+fn build_tree<P: AsRef<Path>>(path: P) -> Result<CommitTree> {
+    let mut commit_tree = CommitTree::new();
+    let it = vault_iter(path.as_ref())?;
+    for record in it {
+        let record = record?;
+        commit_tree.insert(record.commit());
+    }
+    commit_tree.commit();
+    Ok(commit_tree)
+}
+

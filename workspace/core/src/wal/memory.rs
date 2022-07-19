@@ -13,10 +13,14 @@ use crate::{
     commit_tree::{hash, CommitTree},
     constants::WAL_IDENTITY,
     decode, encode,
+    iter::{ReadStreamIterator, WalFileRecord, FileItem},
     events::WalEvent,
     timestamp::Timestamp,
-    CommitHash, FileIdentity, Result,
+    CommitHash, Result,
 };
+
+use binary_stream::{MemoryStream, BinaryReader, Endian};
+
 use std::path::{Path, PathBuf};
 
 use super::{reducer::WalReducer, WalItem, WalProvider, WalRecord};
@@ -75,6 +79,22 @@ impl WalMemory {
             ),
         ))
     }
+
+    fn decode_file_records(&self, buffer: Vec<u8>, start: usize) -> Result<Vec<WalMemoryRecord>> {
+        let mut stream: MemoryStream = buffer.clone().into();
+        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+        let it = ReadStreamIterator::<WalFileRecord>::new_memory(
+            buffer, &WAL_IDENTITY, true, None)?;
+
+        let mut records = Vec::new();
+        for (index, record) in it.into_iter().enumerate() {
+            let record = record?;
+            let value = record.read_bytes(&mut reader)?;
+            let record: WalRecord = decode(&value)?;
+            records.push(WalMemoryRecord(start + index, record));
+        }
+        Ok(records)
+    }
 }
 
 impl WalProvider for WalMemory {
@@ -108,28 +128,17 @@ impl WalProvider for WalMemory {
     }
 
     fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
-        // Check the identity looks good
-        FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
-
-        todo!("Implement write buffer for memory WAL provider");
-        /*
+        let records = self.decode_file_records(buffer, 0)?;
+        self.records = records;
         self.load_tree()?;
         Ok(())
-        */
     }
 
     fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
-        // Check the identity looks good
-        FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
-
-        // Get buffer of log records after the identity bytes
-        let _buffer = &buffer[WAL_IDENTITY.len()..];
-
-        todo!("Implement append buffer for memory WAL provider");
-        /*
+        let records = self.decode_file_records(buffer, self.records.len())?;
+        self.records = records;
         self.load_tree()?;
         Ok(())
-        */
     }
 
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {

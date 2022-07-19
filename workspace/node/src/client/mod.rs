@@ -77,14 +77,14 @@ async fn set_agent_key(
 }
 
 #[cfg(not(feature = "agent-client"))]
-async fn get_agent_key(address: &AddressStr) -> Result<Option<[u8; 32]>> {
+async fn get_agent_key(_address: &AddressStr) -> Result<Option<[u8; 32]>> {
     Ok(None)
 }
 
 #[cfg(not(feature = "agent-client"))]
 async fn set_agent_key(
-    address: AddressStr,
-    value: [u8; 32],
+    _address: AddressStr,
+    _value: [u8; 32],
 ) -> Result<Option<()>> {
     Ok(None)
 }

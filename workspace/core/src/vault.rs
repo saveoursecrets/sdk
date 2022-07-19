@@ -14,7 +14,6 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
-    commit_tree::CommitTree,
     constants::{
         DEFAULT_VAULT_NAME, VAULT_EXT, VAULT_IDENTITY, VAULT_VERSION,
     },
@@ -24,7 +23,6 @@ use crate::{
     },
     decode, encode,
     events::SyncEvent,
-    iter::vault_iter,
     secret::{SecretId, VaultMeta},
     CommitHash, Error, FileIdentity, Result,
 };
@@ -813,19 +811,6 @@ impl Vault {
     pub fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let mut stream = FileStream(File::create(path)?);
         Vault::encode(&mut stream, self)
-    }
-
-    /// Build a commit tree from the commit hashes in a vault file.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn build_tree<P: AsRef<Path>>(path: P) -> Result<CommitTree> {
-        let mut commit_tree = CommitTree::new();
-        let it = vault_iter(path.as_ref())?;
-        for record in it {
-            let record = record?;
-            commit_tree.insert(record.commit());
-        }
-        commit_tree.commit();
-        Ok(commit_tree)
     }
 
     /// Compute the hash of the encoded encrypted buffer for the meta and secret data.

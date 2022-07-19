@@ -127,7 +127,7 @@ pub trait WalItem: std::fmt::Debug {
 }
 
 /// Record for a row in the write ahead log.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct WalRecord(Timestamp, CommitHash, CommitHash, pub Vec<u8>);
 
 impl Encode for WalRecord {

@@ -330,8 +330,7 @@ impl<T: FileItem> ReadStreamIterator<T> {
     }
 
     /// Create a new memory iterator.
-    #[cfg(target_arch = "wasm32")]
-    fn new_memory(
+    pub fn new_memory(
         buffer: Vec<u8>,
         identity: &'static [u8],
         data_length_prefix: bool,
