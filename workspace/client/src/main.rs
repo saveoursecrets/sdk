@@ -127,9 +127,7 @@ fn run() -> Result<()> {
                 client, cache_dir,
             )?));
 
-            let reader = cache.read().unwrap();
             welcome(&server_url)?;
-            drop(reader);
 
             let mut writer = cache.write().unwrap();
             if let Err(e) = run_blocking(writer.load_vaults()) {
@@ -138,8 +136,17 @@ fn run() -> Result<()> {
             drop(writer);
 
             // Hook up to change notifications
-            let listener = ChangesListener::new(Arc::clone(&cache));
-            listener.spawn();
+            let changes_cache = Arc::clone(&cache);
+            let listener = ChangesListener::new();
+            listener.spawn(move |notification| {
+                //println!("{:#?}", notification);
+                let mut writer = changes_cache.write().unwrap();
+                if let Err(e) =
+                    run_blocking(writer.handle_change(notification))
+                {
+                    tracing::error!("{}", e);
+                }
+            });
 
             let prompt_cache = Arc::clone(&cache);
             let prompt = || -> String {

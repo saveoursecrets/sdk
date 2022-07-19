@@ -45,7 +45,7 @@ pub fn login(
     cache_dir: PathBuf,
     keystore_file: PathBuf,
     keystore_passphrase: SecretString,
-) -> Result<NodeCache<WalFile, PatchFile>> {
+) -> Result<NodeCache<SingleParty, WalFile, PatchFile>> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
@@ -62,7 +62,10 @@ pub async fn create_account(
     name: Option<String>,
     key: AccountKey,
     cache_dir: PathBuf,
-) -> Result<(AccountCredentials, NodeCache<WalFile, PatchFile>)> {
+) -> Result<(
+    AccountCredentials,
+    NodeCache<SingleParty, WalFile, PatchFile>,
+)> {
     if !destination.is_dir() {
         return Err(Error::NotDirectory(destination));
     }

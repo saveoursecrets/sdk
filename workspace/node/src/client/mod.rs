@@ -15,7 +15,7 @@ use sos_core::{
     commit_tree::CommitTree,
     events::{ChangeNotification, SyncEvent, WalEvent},
     secret::SecretRef,
-    signer::SingleParty,
+    signer::{Signer, SingleParty},
     vault::{Summary, Vault},
     wal::{
         snapshot::{SnapShot, SnapShotManager},
@@ -31,6 +31,7 @@ pub mod account;
 mod changes_listener;
 pub mod net;
 pub mod node_cache;
+//pub mod spot;
 
 mod error;
 pub use changes_listener::ChangesListener;
@@ -138,7 +139,7 @@ where
     }
 
     /// Build a client implementation wrapping a signing key.
-    pub fn build(self) -> Result<RequestClient> {
+    pub fn build(self) -> Result<RequestClient<SingleParty>> {
         if !self.keystore.exists() {
             return Err(Error::NotFile(self.keystore));
         }
@@ -205,8 +206,9 @@ where
 /// selected vault.
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait LocalCache<W, P>
+pub trait LocalCache<S, W, P>
 where
+    S: Signer + Send + Sync + 'static,
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
@@ -214,7 +216,7 @@ where
     fn address(&self) -> Result<AddressStr>;
 
     /// Get the underlying client.
-    fn client(&self) -> &RequestClient;
+    fn client(&self) -> &RequestClient<S>;
 
     /// Get the vault summaries for this cache.
     fn vaults(&self) -> &[Summary];

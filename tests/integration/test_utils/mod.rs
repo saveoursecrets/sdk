@@ -7,6 +7,7 @@ use url::Url;
 use sos_core::{
     events::SyncEvent,
     secret::{Secret, SecretId, SecretMeta},
+    signer::SingleParty,
     vault::Summary,
     wal::file::WalFile,
     AuditLogFile, FileLocks, PatchFile,
@@ -170,7 +171,7 @@ pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
 }
 
 pub async fn create_secrets(
-    node_cache: &mut NodeCache<WalFile, PatchFile>,
+    node_cache: &mut NodeCache<SingleParty, WalFile, PatchFile>,
     summary: &Summary,
 ) -> Result<Vec<(SecretId, &'static str)>> {
     let notes = vec![
@@ -211,7 +212,7 @@ pub async fn create_secrets(
 }
 
 pub async fn delete_secret(
-    node_cache: &mut NodeCache<WalFile, PatchFile>,
+    node_cache: &mut NodeCache<SingleParty, WalFile, PatchFile>,
     summary: &Summary,
     id: &SecretId,
 ) -> Result<()> {

@@ -13,6 +13,7 @@ use sos_core::{
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
     secret::SecretRef,
+    signer::SingleParty,
 };
 use sos_node::{
     cache_dir,
@@ -242,14 +243,20 @@ async fn integration_simple_session() -> Result<()> {
     Ok(())
 }
 
-async fn home(server: &Url, client: &RequestClient) -> Result<()> {
+async fn home(
+    server: &Url,
+    client: &RequestClient<SingleParty>,
+) -> Result<()> {
     let url = server.clone();
     let response = client.get(url).await?;
     assert!(response.status().is_success());
     Ok(())
 }
 
-async fn gui(server: &Url, client: &RequestClient) -> Result<()> {
+async fn gui(
+    server: &Url,
+    client: &RequestClient<SingleParty>,
+) -> Result<()> {
     let url = server.join("gui")?;
     let response = client.get(url).await?;
     assert!(response.status().is_success());

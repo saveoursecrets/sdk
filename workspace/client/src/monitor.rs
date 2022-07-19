@@ -4,15 +4,19 @@ use url::Url;
 
 use crate::{Result, StdinPassphraseReader};
 use futures::stream::StreamExt;
+use sos_core::signer::Signer;
 use sos_node::client::{
     net::{changes::ChangeStreamEvent, RequestClient},
     run_blocking, ClientBuilder,
 };
 
 /// Creates a changes stream and calls handler for every change notification.
-async fn changes_stream(
-    client: &RequestClient,
-) -> sos_node::client::Result<()> {
+async fn changes_stream<S>(
+    client: &RequestClient<S>,
+) -> sos_node::client::Result<()>
+where
+    S: Signer + Send + Sync + 'static,
+{
     let mut es = client.changes().await?;
     while let Some(event) = es.next().await {
         let event = event?;
