@@ -63,7 +63,7 @@ impl<'a> WalReducer<'a> {
     /// Reduce the events in the given iterator.
     pub fn reduce<T: WalItem>(
         mut self,
-        wal: &'a mut (impl WalProvider<Item = T> + 'a),
+        wal: &'a (impl WalProvider<Item = T> + 'a),
     ) -> Result<Self> {
         let mut it = wal.iter()?;
         if let Some(first) = it.next() {

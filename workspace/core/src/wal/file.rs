@@ -15,7 +15,7 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit_tree::{hash, CommitTree},
+    commit_tree::{hash, wal_commit_tree_file, CommitTree},
     constants::{WAL_EXT, WAL_IDENTITY},
     encode,
     events::WalEvent,
@@ -30,8 +30,9 @@ use std::{
 };
 
 use binary_stream::{BinaryReader, Decode, Endian, SliceStream};
+use tempfile::NamedTempFile;
 
-use super::{WalItem, WalProvider, WalRecord};
+use super::{reducer::WalReducer, WalItem, WalProvider, WalRecord};
 
 /// A write ahead log that appends to a file.
 pub struct WalFile {
@@ -97,6 +98,56 @@ impl WalProvider for WalFile {
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
         })
+    }
+
+    fn compact(&self) -> Result<(Self, u64, u64)> {
+        let old_size = self.path().metadata()?.len();
+
+        // Get the reduced set of events
+        let events = WalReducer::new().reduce(self)?.compact()?;
+        let temp = NamedTempFile::new()?;
+
+        // Apply them to a temporary WAL file
+        let mut temp_wal = WalFile::new(temp.path())?;
+        temp_wal.apply(events, None)?;
+
+        let new_size = temp_wal.path().metadata()?.len();
+
+        // Remove the existing WAL file
+        std::fs::remove_file(self.path())?;
+        // Move the temp file into place
+        std::fs::rename(temp.path(), self.path())?;
+
+        let mut new_wal = Self::new(self.path())?;
+        new_wal.load_tree()?;
+
+        // Verify the new WAL tree
+        wal_commit_tree_file(new_wal.path(), true, |_| {})?;
+
+        // Need to recreate the WAL file and load the updated
+        // commit tree
+        Ok((new_wal, old_size, new_size))
+    }
+
+    fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
+        std::fs::write(self.path(), &buffer)?;
+        self.load_tree()?;
+        Ok(())
+    }
+
+    fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
+        // Get buffer of log records after the identity bytes
+        let buffer = &buffer[WAL_IDENTITY.len()..];
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .append(true)
+            .open(self.path())?;
+        file.write_all(buffer)?;
+
+        // Update with the new commit tree
+        self.load_tree()?;
+        Ok(())
     }
 
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {

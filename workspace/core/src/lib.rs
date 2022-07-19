@@ -7,7 +7,10 @@ use binary_stream::{
 };
 
 pub mod address;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod audit;
+
 pub mod commit_tree;
 pub mod constants;
 pub mod crypto;
@@ -35,7 +38,9 @@ pub mod wal;
 #[cfg(test)]
 pub mod test_utils;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
+
 pub use diceware::{generate_passphrase, generate_passphrase_words};
 pub use error::Error;
 pub use file_access::VaultFileAccess;
@@ -45,7 +50,9 @@ pub use file_locks::FileLocks;
 pub use gatekeeper::Gatekeeper;
 pub use hash::CommitHash;
 pub use passwd::ChangePassword;
-pub use patch::{Patch, PatchFile, PatchMemory, PatchProvider};
+#[cfg(not(target_arch = "wasm32"))]
+pub use patch::PatchFile;
+pub use patch::{Patch, PatchMemory, PatchProvider};
 pub use timestamp::Timestamp;
 
 /// Encode to a binary buffer.

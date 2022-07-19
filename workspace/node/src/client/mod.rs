@@ -26,6 +26,7 @@ use sos_core::{
 
 use crate::sync::{SyncInfo, SyncStatus};
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod account;
 mod changes_listener;
 pub mod net;
@@ -76,14 +77,14 @@ async fn set_agent_key(
 }
 
 #[cfg(not(feature = "agent-client"))]
-async fn get_agent_key(address: &AddressStr) -> Result<Option<[u8; 32]>> {
+async fn get_agent_key(_address: &AddressStr) -> Result<Option<[u8; 32]>> {
     Ok(None)
 }
 
 #[cfg(not(feature = "agent-client"))]
 async fn set_agent_key(
-    address: AddressStr,
-    value: [u8; 32],
+    _address: AddressStr,
+    _value: [u8; 32],
 ) -> Result<Option<()>> {
     Ok(None)
 }

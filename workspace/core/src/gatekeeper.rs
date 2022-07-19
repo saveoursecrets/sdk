@@ -31,7 +31,7 @@ pub struct Gatekeeper {
     private_key: Option<SecretKey>,
     /// The underlying vault.
     vault: Vault,
-    /// Mirror for in-memory vault changes.
+    /// Mirror in-memory vault changes to this destination.
     mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
 }
 

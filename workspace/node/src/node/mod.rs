@@ -2,13 +2,9 @@
 
 use sos_core::{wal::WalProvider, PatchProvider};
 
-use crate::{
-    client::{
-        net::{changes::ChangeStream, NetworkClient},
-        node_cache::NodeCache,
-        LocalCache,
-    },
-    server::Server,
+use crate::client::{
+    net::{changes::ChangeStream, NetworkClient},
+    node_cache::NodeCache,
 };
 
 mod error;
@@ -66,7 +62,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::*;
+
     use anyhow::Result;
 
     #[test]

@@ -11,7 +11,9 @@ use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, SeekStream,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod file;
+
 pub mod memory;
 pub mod reducer;
 pub mod snapshot;
@@ -54,6 +56,21 @@ pub trait WalProvider {
     fn new<P: AsRef<Path>>(path: P) -> Result<Self>
     where
         Self: Sized;
+
+    /// Get a copy of this WAL compacted.
+    fn compact(&self) -> Result<(Self, u64, u64)>
+    where
+        Self: Sized;
+
+    /// Replace this WAL with the contents of the buffer.
+    ///
+    /// The buffer should start with the WAL identity bytes.
+    fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()>;
+
+    /// Append the buffer to the contents of this WAL.
+    ///
+    /// The buffer should start with the WAL identity bytes.
+    fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()>;
 
     /// Get the path for this provider.
     fn path(&self) -> &PathBuf;
@@ -110,7 +127,7 @@ pub trait WalItem: std::fmt::Debug {
 }
 
 /// Record for a row in the write ahead log.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct WalRecord(Timestamp, CommitHash, CommitHash, pub Vec<u8>);
 
 impl Encode for WalRecord {
