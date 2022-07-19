@@ -123,6 +123,7 @@ fn run() -> Result<()> {
                 .with_passphrase_reader(Box::new(reader))
                 .with_use_agent(true)
                 .build()?;
+            let listener = ChangesListener::new(client.clone());
             let cache = Arc::new(RwLock::new(NodeCache::new_file_cache(
                 client, cache_dir,
             )?));
@@ -137,7 +138,6 @@ fn run() -> Result<()> {
 
             // Hook up to change notifications
             let changes_cache = Arc::clone(&cache);
-            let listener = ChangesListener::new();
             listener.spawn(move |notification| {
                 //println!("{:#?}", notification);
                 let mut writer = changes_cache.write().unwrap();

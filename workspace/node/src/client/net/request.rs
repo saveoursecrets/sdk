@@ -65,12 +65,12 @@ fn encode_headers_proof(
 pub struct RequestClient<T: Signer + Send + Sync + 'static> {
     server: Url,
     http_client: reqwest::Client,
-    signer: Arc<T>,
+    signer: T,
 }
 
 impl<T: Signer + Send + Sync + 'static> RequestClient<T> {
     /// Create a new client.
-    pub fn new(server: Url, signer: Arc<T>) -> Self {
+    pub fn new(server: Url, signer: T) -> Self {
         let http_client = reqwest::Client::new();
         Self {
             server,

@@ -78,7 +78,7 @@ pub async fn create_account(
     let AccountKey(signing_key, _, _) = &key;
     let (keystore_passphrase, _) = generate_passphrase()?;
     let signer: SingleParty = (signing_key).try_into()?;
-    let client = RequestClient::new(server, Arc::new(signer));
+    let client = RequestClient::new(server, signer);
     let mut cache = NodeCache::new_file_cache(client, cache_dir)?;
 
     let keystore = encrypt(

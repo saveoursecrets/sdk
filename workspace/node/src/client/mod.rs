@@ -197,7 +197,7 @@ where
             signing_key
         };
         let signer: SingleParty = (&signing_key).try_into()?;
-        Ok(RequestClient::new(self.server, Arc::new(signer)))
+        Ok(RequestClient::new(self.server, signer))
     }
 }
 
