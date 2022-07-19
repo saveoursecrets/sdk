@@ -15,6 +15,7 @@ use human_bytes::human_bytes;
 use sos_core::{
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
+    signer::SingleParty,
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     wal::{file::WalFile, WalItem},
     ChangePassword, CommitHash, PatchFile,
@@ -36,7 +37,7 @@ use crate::{display_passphrase, switch, Error, Result};
 mod editor;
 mod print;
 
-type ReplCache = Arc<RwLock<NodeCache<WalFile, PatchFile>>>;
+type ReplCache = Arc<RwLock<NodeCache<SingleParty, WalFile, PatchFile>>>;
 
 enum ConflictChoice {
     Push,
@@ -361,7 +362,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, NodeCache<WalFile, PatchFile>>,
+        &mut RwLockWriteGuard<'_, NodeCache<SingleParty, WalFile, PatchFile>>,
     ) -> sos_node::client::Result<()>,
 {
     let mut writer = cache.write().unwrap();

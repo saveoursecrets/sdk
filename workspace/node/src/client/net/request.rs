@@ -4,7 +4,6 @@ use http::StatusCode;
 use rand::Rng;
 use reqwest::{header::HeaderMap, RequestBuilder, Response};
 
-use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
     commit_tree::CommitProof,
@@ -16,16 +15,21 @@ use sos_core::{
     vault::Summary,
     Patch,
 };
-use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
 
 use crate::client::{Error, Result};
 
 use super::{
-    bearer_prefix, changes::ChangeStream, encode_signature, Challenge,
+    bearer_prefix, encode_signature, Challenge,
     NetworkClient,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use reqwest_eventsource::EventSource;
+
+#[cfg(not(target_arch = "wasm32"))]
+use super::changes::ChangeStream;
 
 const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
@@ -61,15 +65,65 @@ fn encode_headers_proof(
 }
 
 /// HTTP client implementation using the `reqwest` library.
-pub struct RequestClient {
+#[derive(Clone)]
+pub struct RequestClient<T: Signer + Send + Sync + 'static> {
     server: Url,
     http_client: reqwest::Client,
-    signer: Arc<dyn Signer + Send + Sync>,
+    signer: T,
+}
+
+impl<T: Signer + Send + Sync + 'static> RequestClient<T> {
+    /// Create a new client.
+    pub fn new(server: Url, signer: T) -> Self {
+        let http_client = reqwest::Client::new();
+        Self {
+            server,
+            http_client,
+            signer,
+        }
+    }
+
+    async fn self_signed(&self) -> Result<(Vec<u8>, String)> {
+        let message: [u8; 32] = rand::thread_rng().gen();
+        let signature = encode_signature(self.signer.sign(&message).await?)?;
+        Ok((message.to_vec(), signature))
+    }
+
+    /// Generic GET function.
+    pub async fn get(&self, url: Url) -> Result<Response> {
+        Ok(self.http_client.get(url).send().await?)
+    }
+
+    /// Get the server information.
+    pub async fn server_info(&self) -> Result<Response> {
+        let url = self.server.join("api")?;
+        let response = self.http_client.get(url).send().await?;
+        Ok(response)
+    }
+
+    /// Get an event source for the changes feed.
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn events(&self) -> Result<EventSource> {
+        let message: [u8; 32] = rand::thread_rng().gen();
+        let token = encode_signature(self.signer.sign(&message).await?)?;
+        let message = hex::encode(&message);
+        let mut url = self.server.join("/api/changes")?;
+        url.query_pairs_mut()
+            .append_pair("message", &message)
+            .append_pair("token", &token);
+        Ok(EventSource::get(url))
+    }
+
+    /// Get a stream of change notifications.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn changes(&self) -> Result<ChangeStream> {
+        Ok(ChangeStream::new(self.events().await?))
+    }
 }
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl NetworkClient for RequestClient {
+impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
     fn address(&self) -> Result<AddressStr> {
         Ok(self.signer.address()?)
     }
@@ -317,52 +371,5 @@ impl NetworkClient for RequestClient {
             StatusCode::from_u16(response.status().into())?,
             server_proof,
         ))
-    }
-}
-
-impl RequestClient {
-    /// Create a new client.
-    pub fn new(server: Url, signer: Arc<dyn Signer + Send + Sync>) -> Self {
-        let http_client = reqwest::Client::new();
-        Self {
-            server,
-            http_client,
-            signer,
-        }
-    }
-
-    async fn self_signed(&self) -> Result<(Vec<u8>, String)> {
-        let message: [u8; 32] = rand::thread_rng().gen();
-        let signature = encode_signature(self.signer.sign(&message).await?)?;
-        Ok((message.to_vec(), signature))
-    }
-
-    /// Generic GET function.
-    pub async fn get(&self, url: Url) -> Result<Response> {
-        Ok(self.http_client.get(url).send().await?)
-    }
-
-    /// Get the server information.
-    pub async fn server_info(&self) -> Result<Response> {
-        let url = self.server.join("api")?;
-        let response = self.http_client.get(url).send().await?;
-        Ok(response)
-    }
-
-    /// Get an event source for the changes feed.
-    async fn events(&self) -> Result<EventSource> {
-        let message: [u8; 32] = rand::thread_rng().gen();
-        let token = encode_signature(self.signer.sign(&message).await?)?;
-        let message = hex::encode(&message);
-        let mut url = self.server.join("/api/changes")?;
-        url.query_pairs_mut()
-            .append_pair("message", &message)
-            .append_pair("token", &token);
-        Ok(EventSource::get(url))
-    }
-
-    /// Get a stream of change notifications.
-    pub async fn changes(&self) -> Result<ChangeStream> {
-        Ok(ChangeStream::new(self.events().await?))
     }
 }

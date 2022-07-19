@@ -2,7 +2,7 @@
 use crate::{display_passphrase, Error, Result};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{wal::file::WalFile, PatchFile};
+use sos_core::{signer::SingleParty, wal::file::WalFile, PatchFile};
 use sos_node::{
     cache_dir,
     client::{
@@ -31,7 +31,7 @@ pub fn switch(
     server: Url,
     cache_dir: PathBuf,
     keystore_file: PathBuf,
-) -> Result<NodeCache<WalFile, PatchFile>> {
+) -> Result<NodeCache<SingleParty, WalFile, PatchFile>> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }

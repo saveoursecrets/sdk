@@ -1,9 +1,6 @@
 //! Listen for changes and instruct a cache implementation to
 //! handle the change.
-use std::{
-    sync::{Arc, RwLock},
-    thread,
-};
+use std::{future::Future, thread};
 
 use async_recursion::async_recursion;
 use futures::StreamExt;
@@ -11,54 +8,68 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use super::{
-    net::changes::{ChangeStream, ChangeStreamEvent},
-    node_cache::NodeCache,
-    Error, LocalCache, Result,
+    net::{
+        changes::{ChangeStream, ChangeStreamEvent},
+        RequestClient,
+    },
+    Error, Result,
 };
 
-use sos_core::{wal::WalProvider, PatchProvider};
+use sos_core::{events::ChangeNotification, signer::Signer};
 
 const INTERVAL_MS: u64 = 15000;
 
 /// Listen for changes and update a local cache.
-pub struct ChangesListener<W, P> {
-    cache: Arc<RwLock<NodeCache<W, P>>>,
+#[derive(Clone)]
+pub struct ChangesListener<S>
+where
+    S: Signer + Send + Sync + 'static,
+{
+    client: RequestClient<S>,
 }
 
-impl<W, P> ChangesListener<W, P>
+impl<S> ChangesListener<S>
 where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
+    S: Signer + Send + Sync + 'static,
 {
     /// Create a new changes listener.
-    pub fn new(cache: Arc<RwLock<NodeCache<W, P>>>) -> Self {
-        Self { cache }
+    pub fn new(client: RequestClient<S>) -> Self {
+        Self { client }
     }
 
     /// Spawn a thread to listen for changes and apply incoming
     /// changes to the local cache.
-    pub fn spawn(&self) -> thread::JoinHandle<()> {
-        let change_cache = Arc::clone(&self.cache);
+    pub fn spawn<F>(
+        self,
+        handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
+    ) -> thread::JoinHandle<()>
+    where
+        F: Future<Output = ()> + 'static,
+    {
         thread::spawn(move || {
             let runtime = tokio::runtime::Runtime::new().unwrap();
             let _ = runtime.block_on(async move {
-                let _ = ChangesListener::connect(change_cache).await;
+                let _ = self.connect(&handler).await;
                 Ok::<(), Error>(())
             });
         })
     }
 
     #[async_recursion(?Send)]
-    async fn listen(
-        cache: Arc<RwLock<NodeCache<W, P>>>,
+    async fn listen<F>(
+        &self,
         mut stream: ChangeStream,
-    ) -> Result<()> {
+        handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
+    ) -> Result<()>
+    where
+        F: Future<Output = ()> + 'static,
+    {
         while let Some(event) = stream.next().await {
             match event {
                 Ok(event) => match event {
                     ChangeStreamEvent::Message(notification) => {
-                        let mut writer = cache.write().unwrap();
-                        writer.handle_change(notification).await?;
+                        let future = handler(notification);
+                        future.await;
                     }
                     ChangeStreamEvent::Open => {
                         tracing::info!("changes stream open");
@@ -66,37 +77,42 @@ where
                 },
                 Err(e) => {
                     tracing::error!(error = %e, "changes feed");
-                    let _ =
-                        ChangesListener::delay_connect(Arc::clone(&cache))
-                            .await;
+                    let _ = self.delay_connect(handler).await;
                 }
             }
         }
         Ok(())
     }
 
-    async fn stream(
-        cache: Arc<RwLock<NodeCache<W, P>>>,
-    ) -> Result<ChangeStream> {
-        let reader = cache.read().unwrap();
-        let stream = reader.client().changes().await?;
+    async fn stream(&self) -> Result<ChangeStream> {
+        let stream = self.client.changes().await?;
         Ok(stream)
     }
 
-    async fn connect(cache: Arc<RwLock<NodeCache<W, P>>>) -> Result<()> {
-        match ChangesListener::stream(Arc::clone(&cache)).await {
-            Ok(stream) => ChangesListener::listen(cache, stream).await,
-            Err(_) => ChangesListener::delay_connect(cache).await,
+    async fn connect<F>(
+        &self,
+        handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
+    ) -> Result<()>
+    where
+        F: Future<Output = ()> + 'static,
+    {
+        match self.stream().await {
+            Ok(stream) => self.listen(stream, handler).await,
+            Err(_) => self.delay_connect(handler).await,
         }
     }
 
     #[async_recursion(?Send)]
-    async fn delay_connect(
-        cache: Arc<RwLock<NodeCache<W, P>>>,
-    ) -> Result<()> {
+    async fn delay_connect<F>(
+        &self,
+        handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
+    ) -> Result<()>
+    where
+        F: Future<Output = ()> + 'static,
+    {
         loop {
             sleep(Duration::from_millis(INTERVAL_MS)).await;
-            ChangesListener::connect(Arc::clone(&cache)).await?;
+            self.connect(handler).await?;
         }
     }
 }

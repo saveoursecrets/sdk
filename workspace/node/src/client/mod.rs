@@ -1,5 +1,5 @@
 //! Traits and implementations for clients.
-use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
+use std::{fs::File, io::Read, path::PathBuf};
 use url::Url;
 
 use std::future::Future;
@@ -15,7 +15,7 @@ use sos_core::{
     commit_tree::CommitTree,
     events::{ChangeNotification, SyncEvent, WalEvent},
     secret::SecretRef,
-    signer::SingleParty,
+    signer::{Signer, SingleParty},
     vault::{Summary, Vault},
     wal::{
         snapshot::{SnapShot, SnapShotManager},
@@ -28,11 +28,16 @@ use crate::sync::{SyncInfo, SyncStatus};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod account;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod changes_listener;
 pub mod net;
 pub mod node_cache;
+pub mod spot;
 
 mod error;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub use changes_listener::ChangesListener;
 pub use error::Error;
 
@@ -138,7 +143,7 @@ where
     }
 
     /// Build a client implementation wrapping a signing key.
-    pub fn build(self) -> Result<RequestClient> {
+    pub fn build(self) -> Result<RequestClient<SingleParty>> {
         if !self.keystore.exists() {
             return Err(Error::NotFile(self.keystore));
         }
@@ -196,7 +201,7 @@ where
             signing_key
         };
         let signer: SingleParty = (&signing_key).try_into()?;
-        Ok(RequestClient::new(self.server, Arc::new(signer)))
+        Ok(RequestClient::new(self.server, signer))
     }
 }
 
@@ -205,8 +210,9 @@ where
 /// selected vault.
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait LocalCache<W, P>
+pub trait LocalCache<S, W, P>
 where
+    S: Signer + Send + Sync + 'static,
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
@@ -214,7 +220,7 @@ where
     fn address(&self) -> Result<AddressStr>;
 
     /// Get the underlying client.
-    fn client(&self) -> &RequestClient;
+    fn client(&self) -> &RequestClient<S>;
 
     /// Get the vault summaries for this cache.
     fn vaults(&self) -> &[Summary];

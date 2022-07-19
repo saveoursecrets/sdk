@@ -32,7 +32,6 @@ bs58 = "0.4"
 secrecy = "0.8"
 
 # client
-reqwest-eventsource = { version = "0.4", path = "../../../../forks/reqwest-eventsource", optional = true }
 web3-keystore = { version = "0.4", optional = true }
 
 # server
@@ -53,9 +52,10 @@ async-stream = { version = "0.3", optional = true }
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 parity-tokio-ipc = { version = "0.9", optional = true }
 binary-stream = { version = "3", features = ["wasm32"], optional = true }
+reqwest-eventsource = { version = "0.4", optional = true }
 
 [target.'cfg(any(not(target_arch="aarch64"),not(target_os="linux")))'.dependencies]
-reqwest = { version = "0.11", path = "../../../../forks/reqwest", default-features = true, features = ["json", "rustls-tls"], optional = true }
+reqwest = { version = "0.11", default-features = true, features = ["json", "rustls-tls"], optional = true }
 
 # NOTE: Must disable default-features so that openssl
 # NOTE: is not compiled when cross-compiling in CI.
@@ -68,7 +68,7 @@ reqwest = { version = "0.11", path = "../../../../forks/reqwest", default-featur
 # NOTE: being compiled on macos when `default-features` is 
 # NOTE: disabled.
 [target.'cfg(all(target_arch="aarch64",target_os="linux"))'.dependencies]
-reqwest = { version = "0.11", path = "../../../../forks/reqwest", default-features = false, features = ["json", "rustls-tls"], optional = true }
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
 
 [dev-dependencies]
 anyhow = "1"

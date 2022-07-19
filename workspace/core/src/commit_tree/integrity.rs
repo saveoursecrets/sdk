@@ -4,9 +4,7 @@ use binary_stream::{BinaryReader, Endian, FileStream};
 
 use crate::{
     commit_tree::{hash, CommitTree},
-    iter::{
-        vault_iter, FileItem, VaultRecord, WalFileRecord,
-    },
+    iter::{vault_iter, FileItem, VaultRecord, WalFileRecord},
     wal::{WalItem, WalProvider},
     Error, Result,
 };

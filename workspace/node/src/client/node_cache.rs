@@ -14,6 +14,7 @@ use sos_core::{
     events::{ChangeEvent, ChangeNotification, SyncEvent, WalEvent},
     generate_passphrase,
     secret::SecretRef,
+    signer::Signer,
     vault::{Summary, Vault},
     wal::{
         memory::WalMemory,
@@ -54,13 +55,16 @@ fn assert_proofs_eq(
 ///
 /// May be backed by files on disc or in-memory implementations
 /// for use in webassembly.
-pub struct NodeCache<W, P> {
+pub struct NodeCache<S, W, P>
+where
+    S: Signer + Send + Sync + 'static,
+{
     /// Vaults managed by this cache.
     summaries: Vec<Summary>,
     /// Currently selected in-memory vault.
     current: Option<Gatekeeper>,
     /// Client to use for server communication.
-    client: RequestClient,
+    client: RequestClient<S>,
     /// Directory for the user cache.
     ///
     /// Only available when using disc backing storage.
@@ -77,8 +81,9 @@ pub struct NodeCache<W, P> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<W, P> LocalCache<W, P> for NodeCache<W, P>
+impl<S, W, P> LocalCache<S, W, P> for NodeCache<S, W, P>
 where
+    S: Signer + Send + Sync + 'static,
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
@@ -86,7 +91,7 @@ where
         self.client.address()
     }
 
-    fn client(&self) -> &RequestClient {
+    fn client(&self) -> &RequestClient<S> {
         &self.client
     }
 
@@ -556,12 +561,15 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl NodeCache<WalFile, PatchFile> {
+impl<S> NodeCache<S, WalFile, PatchFile>
+where
+    S: Signer + Send + Sync + 'static,
+{
     /// Create new node cache backed by files on disc.
     pub fn new_file_cache<D: AsRef<Path>>(
-        client: RequestClient,
+        client: RequestClient<S>,
         cache_dir: D,
-    ) -> Result<NodeCache<WalFile, PatchFile>> {
+    ) -> Result<NodeCache<S, WalFile, PatchFile>> {
         let cache_dir = cache_dir.as_ref().to_path_buf();
         if !cache_dir.is_dir() {
             return Err(Error::NotDirectory(cache_dir));
@@ -586,11 +594,14 @@ impl NodeCache<WalFile, PatchFile> {
     }
 }
 
-impl NodeCache<WalMemory, PatchMemory<'static>> {
+impl<S> NodeCache<S, WalMemory, PatchMemory<'static>>
+where
+    S: Signer + Send + Sync + 'static,
+{
     /// Create new node cache backed by memory.
     pub fn new_memory_cache(
-        client: RequestClient,
-    ) -> NodeCache<WalMemory, PatchMemory<'static>> {
+        client: RequestClient<S>,
+    ) -> NodeCache<S, WalMemory, PatchMemory<'static>> {
         Self {
             summaries: Default::default(),
             current: None,
@@ -603,8 +614,9 @@ impl NodeCache<WalMemory, PatchMemory<'static>> {
     }
 }
 
-impl<W, P> NodeCache<W, P>
+impl<S, W, P> NodeCache<S, W, P>
 where
+    S: Signer + Send + Sync + 'static,
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
