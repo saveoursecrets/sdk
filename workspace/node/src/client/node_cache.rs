@@ -8,12 +8,8 @@ use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     address::AddressStr,
-    commit_tree::{
-        wal_commit_tree, CommitPair, CommitProof, CommitTree, Comparison,
-    },
-    constants::{
-        PATCH_EXT, VAULT_BACKUP_EXT, WAL_EXT, WAL_IDENTITY,
-    },
+    commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
+    constants::{PATCH_EXT, VAULT_BACKUP_EXT, WAL_EXT, WAL_IDENTITY},
     encode,
     events::{ChangeEvent, ChangeNotification, SyncEvent, WalEvent},
     generate_passphrase,
@@ -30,16 +26,16 @@ use sos_core::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use sos_core::{wal::file::WalFile, PatchFile, constants::WAL_DELETED_EXT};
+use sos_core::{constants::WAL_DELETED_EXT, wal::file::WalFile, PatchFile};
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::{fs::{File, OpenOptions}, io::Write, path::Path};
-
 use std::{
-    borrow::Cow,
-    collections::HashMap,
-    path::PathBuf,
+    fs::{File, OpenOptions},
+    io::Write,
+    path::Path,
 };
+
+use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 use uuid::Uuid;
 
 use super::LocalCache;
@@ -135,9 +131,15 @@ where
     }
 
     fn verify(&self, summary: &Summary) -> Result<()> {
+        //wal_commit_tree,
+        /*
         let wal_path = self.wal_path(summary);
         wal_commit_tree(&wal_path, true, |_| {})?;
+
         Ok(())
+        */
+
+        todo!("restore node cache verify");
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
@@ -151,10 +153,6 @@ where
         // Need to recreate the WAL file and load the updated
         // commit tree
         *wal = compact_wal;
-        wal.load_tree()?;
-
-        // Verify the new WAL tree
-        wal_commit_tree(wal.path(), true, |_| {})?;
 
         self.force_push(summary).await?;
 
@@ -758,7 +756,7 @@ where
                         FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
                         // Append the diff bytes
-                        wal.append_buffer(&buffer)?;
+                        wal.append_buffer(buffer)?;
 
                         wal.tree().head()?
                     }
@@ -771,7 +769,7 @@ where
                         // Check the identity looks good
                         FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
-                        wal.write_buffer(&buffer)?;
+                        wal.write_buffer(buffer)?;
                         wal.tree().head()?
                     }
                 };

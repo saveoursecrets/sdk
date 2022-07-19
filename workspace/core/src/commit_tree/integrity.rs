@@ -5,16 +5,20 @@ use binary_stream::{BinaryReader, Endian, FileStream};
 
 use crate::{
     commit_tree::{hash, CommitTree},
-    iter::{vault_iter, FileItem, VaultRecord, WalFileRecord},
+    iter::{FileItem, WalFileRecord},
     wal::{file::WalFile, WalItem, WalProvider},
     Error, Result,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::iter::{vault_iter, VaultRecord};
 
 /// Build a commit tree from a vault file optionally
 /// verifying all the row checksums.
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn vault_commit_tree<P: AsRef<Path>, F>(
     vault: P,
     verify: bool,

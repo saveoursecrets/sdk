@@ -15,7 +15,7 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit_tree::{hash, CommitTree},
+    commit_tree::{hash, wal_commit_tree, CommitTree},
     constants::{WAL_EXT, WAL_IDENTITY},
     encode,
     events::WalEvent,
@@ -118,18 +118,24 @@ impl WalProvider for WalFile {
         // Move the temp file into place
         std::fs::rename(temp.path(), self.path())?;
 
+        let mut new_wal = Self::new(self.path())?;
+        new_wal.load_tree()?;
+
+        // Verify the new WAL tree
+        wal_commit_tree(new_wal.path(), true, |_| {})?;
+
         // Need to recreate the WAL file and load the updated
         // commit tree
-        Ok((Self::new(self.path())?, old_size, new_size))
+        Ok((new_wal, old_size, new_size))
     }
 
-    fn write_buffer(&mut self, buffer: &[u8]) -> Result<()> {
-        std::fs::write(self.path(), buffer)?;
+    fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
+        std::fs::write(self.path(), &buffer)?;
         self.load_tree()?;
         Ok(())
     }
 
-    fn append_buffer(&mut self, buffer: &[u8]) -> Result<()> {
+    fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
         // Get buffer of log records after the identity bytes
         let buffer = &buffer[WAL_IDENTITY.len()..];
 

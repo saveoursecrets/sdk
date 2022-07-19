@@ -12,9 +12,12 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 
 use crate::{vault::Vault, CommitHash, Error, Result};
 
+#[cfg(not(target_arch = "wasm32"))]
 mod integrity;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub use integrity::vault_commit_tree;
+#[cfg(not(target_arch = "wasm32"))]
 pub use integrity::wal_commit_tree;
 
 /// Compute the Sha256 hash of some data.

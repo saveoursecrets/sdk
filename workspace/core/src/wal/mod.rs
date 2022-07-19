@@ -11,7 +11,9 @@ use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, SeekStream,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod file;
+
 pub mod memory;
 pub mod reducer;
 pub mod snapshot;
@@ -63,12 +65,12 @@ pub trait WalProvider {
     /// Replace this WAL with the contents of the buffer.
     ///
     /// The buffer should start with the WAL identity bytes.
-    fn write_buffer(&mut self, buffer: &[u8]) -> Result<()>;
+    fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()>;
 
     /// Append the buffer to the contents of this WAL.
     ///
     /// The buffer should start with the WAL identity bytes.
-    fn append_buffer(&mut self, buffer: &[u8]) -> Result<()>;
+    fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()>;
 
     /// Get the path for this provider.
     fn path(&self) -> &PathBuf;

@@ -1,8 +1,9 @@
 //! Traits and types for a generic file iterator.
-use std::{fs::File, ops::Range, path::Path};
+use std::ops::Range;
 
 use binary_stream::{
-    BinaryReader, BinaryResult, Decode, Endian, FileStream, SeekStream,
+    BinaryReader, BinaryResult, Decode, Endian, MemoryStream, ReadStream,
+    SeekStream,
 };
 
 use crate::{
@@ -14,12 +15,19 @@ use crate::{
     FileIdentity, Result, Timestamp,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::{fs::File, path::Path};
+
+#[cfg(not(target_arch = "wasm32"))]
+use binary_stream::FileStream;
+
 /// Get an iterator for a vault file.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn vault_iter<P: AsRef<Path>>(
     path: P,
-) -> Result<FileIterator<VaultRecord>> {
+) -> Result<ReadStreamIterator<VaultRecord>> {
     let content_offset = Header::read_content_offset(path.as_ref())?;
-    FileIterator::<VaultRecord>::new(
+    ReadStreamIterator::<VaultRecord>::new_file(
         path.as_ref(),
         &VAULT_IDENTITY,
         true,
@@ -27,11 +35,26 @@ pub fn vault_iter<P: AsRef<Path>>(
     )
 }
 
+/// Get an iterator for a vault buffer.
+#[cfg(target_arch = "wasm32")]
+pub fn vault_iter(
+    buffer: Vec<u8>,
+) -> Result<ReadStreamIterator<VaultRecord>> {
+    let content_offset = Header::read_content_offset_slice(&buffer)?;
+    ReadStreamIterator::<VaultRecord>::new_memory(
+        buffer,
+        &VAULT_IDENTITY,
+        true,
+        Some(content_offset),
+    )
+}
+
 /// Get an iterator for a WAL file.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn wal_iter<P: AsRef<Path>>(
     path: P,
-) -> Result<FileIterator<WalFileRecord>> {
-    FileIterator::<WalFileRecord>::new(
+) -> Result<ReadStreamIterator<WalFileRecord>> {
+    ReadStreamIterator::<WalFileRecord>::new_file(
         path.as_ref(),
         &WAL_IDENTITY,
         true,
@@ -39,18 +62,45 @@ pub fn wal_iter<P: AsRef<Path>>(
     )
 }
 
+/// Get an iterator for a WAL file.
+#[cfg(target_arch = "wasm32")]
+pub fn wal_iter(
+    buffer: Vec<u8>,
+) -> Result<ReadStreamIterator<WalFileRecord>> {
+    ReadStreamIterator::<WalFileRecord>::new_memory(
+        buffer,
+        &WAL_IDENTITY,
+        true,
+        None,
+    )
+}
+
 /// Get an iterator for a patch file.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn patch_iter<P: AsRef<Path>>(
     path: P,
-) -> Result<FileIterator<FileRecord>> {
-    FileIterator::new(path.as_ref(), &PATCH_IDENTITY, false, None)
+) -> Result<ReadStreamIterator<FileRecord>> {
+    ReadStreamIterator::new_file(path.as_ref(), &PATCH_IDENTITY, false, None)
+}
+
+/// Get an iterator for a patch file.
+#[cfg(target_arch = "wasm32")]
+pub fn patch_iter(buffer: Vec<u8>) -> Result<ReadStreamIterator<FileRecord>> {
+    ReadStreamIterator::new_memory(buffer, &PATCH_IDENTITY, false, None)
 }
 
 /// Get an iterator for an audit file.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn audit_iter<P: AsRef<Path>>(
     path: P,
-) -> Result<FileIterator<FileRecord>> {
-    FileIterator::new(path.as_ref(), &AUDIT_IDENTITY, false, None)
+) -> Result<ReadStreamIterator<FileRecord>> {
+    ReadStreamIterator::new_file(path.as_ref(), &AUDIT_IDENTITY, false, None)
+}
+
+/// Get an iterator for an audit file.
+#[cfg(target_arch = "wasm32")]
+pub fn audit_iter(buffer: Vec<u8>) -> Result<ReadStreamIterator<FileRecord>> {
+    ReadStreamIterator::new_memory(buffer, &AUDIT_IDENTITY, false, None)
 }
 
 /// Trait for types yielded by the file iterator.
@@ -224,8 +274,8 @@ impl Decode for WalFileRecord {
 }
 
 /// Generic iterator for files.
-pub struct FileIterator<T: FileItem> {
-    /// Offset from the beginning of the file where
+pub struct ReadStreamIterator<T: FileItem> {
+    /// Offset from the beginning of the stream where
     /// iteration should start and reverse iteration
     /// should complete.
     ///
@@ -244,8 +294,8 @@ pub struct FileIterator<T: FileItem> {
     /// the commit hash(es) and timestamp most of the time
     /// but sometimes need to read the row data too.
     data_length_prefix: bool,
-    /// The file read stream.
-    file_stream: FileStream,
+    /// The read stream.
+    read_stream: Box<dyn ReadStream>,
     /// Byte offset for forward iteration.
     forward: Option<usize>,
     /// Byte offset for backward iteration.
@@ -254,24 +304,50 @@ pub struct FileIterator<T: FileItem> {
     marker: std::marker::PhantomData<T>,
 }
 
-impl<T: FileItem> FileIterator<T> {
+impl<T: FileItem> ReadStreamIterator<T> {
     /// Create a new file iterator.
-    pub fn new<P: AsRef<Path>>(
+    #[cfg(not(target_arch = "wasm32"))]
+    fn new_file<P: AsRef<Path>>(
         file_path: P,
         identity: &'static [u8],
         data_length_prefix: bool,
         header_offset: Option<usize>,
     ) -> Result<Self> {
         FileIdentity::read_file(file_path.as_ref(), identity)?;
-        let mut file_stream = FileStream(File::open(file_path.as_ref())?);
+        let mut read_stream: Box<dyn ReadStream> =
+            Box::new(FileStream(File::open(file_path.as_ref())?));
 
         let header_offset = header_offset.unwrap_or_else(|| identity.len());
-        file_stream.seek(header_offset)?;
+        read_stream.seek(header_offset)?;
 
         Ok(Self {
             header_offset,
             data_length_prefix,
-            file_stream,
+            read_stream,
+            forward: None,
+            backward: None,
+            marker: std::marker::PhantomData,
+        })
+    }
+
+    /// Create a new memory iterator.
+    fn new_memory(
+        buffer: Vec<u8>,
+        identity: &'static [u8],
+        data_length_prefix: bool,
+        header_offset: Option<usize>,
+    ) -> Result<Self> {
+        FileIdentity::read_slice(&buffer, identity)?;
+        let stream: MemoryStream = buffer.into();
+        let mut read_stream: Box<dyn ReadStream> = Box::new(stream);
+
+        let header_offset = header_offset.unwrap_or_else(|| identity.len());
+        read_stream.seek(header_offset)?;
+
+        Ok(Self {
+            header_offset,
+            data_length_prefix,
+            read_stream,
             forward: None,
             backward: None,
             marker: std::marker::PhantomData,
@@ -316,14 +392,14 @@ impl<T: FileItem> FileIterator<T> {
         let row_pos = self.forward.unwrap();
 
         let mut reader =
-            BinaryReader::new(&mut self.file_stream, Endian::Big);
+            BinaryReader::new(&mut *self.read_stream, Endian::Big);
         reader.seek(row_pos)?;
         let row_len = reader.read_u32()?;
 
         // Position of the end of the row
         let row_end = row_pos + (row_len as usize + 8);
 
-        let row = FileIterator::read_row(
+        let row = ReadStreamIterator::read_row(
             &mut reader,
             row_pos..row_end,
             self.data_length_prefix,
@@ -340,7 +416,7 @@ impl<T: FileItem> FileIterator<T> {
         let row_pos = self.backward.unwrap();
 
         let mut reader =
-            BinaryReader::new(&mut self.file_stream, Endian::Big);
+            BinaryReader::new(&mut *self.read_stream, Endian::Big);
 
         // Read in the reverse iteration row length
         reader.seek(row_pos - 4)?;
@@ -353,7 +429,7 @@ impl<T: FileItem> FileIterator<T> {
         // Seek to the beginning of the row after the initial
         // row length so we can read in the row data
         reader.seek(row_start + 4)?;
-        let row = FileIterator::read_row(
+        let row = ReadStreamIterator::read_row(
             &mut reader,
             row_start..row_end,
             self.data_length_prefix,
@@ -366,7 +442,7 @@ impl<T: FileItem> FileIterator<T> {
     }
 }
 
-impl<T: FileItem> Iterator for FileIterator<T> {
+impl<T: FileItem> Iterator for ReadStreamIterator<T> {
     type Item = Result<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -378,7 +454,7 @@ impl<T: FileItem> Iterator for FileIterator<T> {
             }
         }
 
-        match self.file_stream.len() {
+        match self.read_stream.len() {
             Ok(len) => {
                 if len > offset {
                     // Got to EOF
@@ -402,7 +478,7 @@ impl<T: FileItem> Iterator for FileIterator<T> {
     }
 }
 
-impl<T: FileItem> DoubleEndedIterator for FileIterator<T> {
+impl<T: FileItem> DoubleEndedIterator for ReadStreamIterator<T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let offset: usize = self.header_offset;
 
@@ -412,7 +488,7 @@ impl<T: FileItem> DoubleEndedIterator for FileIterator<T> {
             }
         }
 
-        match self.file_stream.len() {
+        match self.read_stream.len() {
             Ok(len) => {
                 if len > 4 {
                     // Got to EOF

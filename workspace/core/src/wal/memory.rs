@@ -12,11 +12,10 @@
 use crate::{
     commit_tree::{hash, CommitTree},
     constants::WAL_IDENTITY,
-    FileIdentity,
     decode, encode,
     events::WalEvent,
     timestamp::Timestamp,
-    CommitHash, Result,
+    CommitHash, FileIdentity, Result,
 };
 use std::path::{Path, PathBuf};
 
@@ -108,9 +107,9 @@ impl WalProvider for WalMemory {
         Ok((temp_wal, old_size, new_size))
     }
 
-    fn write_buffer(&mut self, buffer: &[u8]) -> Result<()> {
+    fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
         // Check the identity looks good
-        FileIdentity::read_slice(buffer, &WAL_IDENTITY)?;
+        FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
         todo!("Implement write buffer for memory WAL provider");
         /*
@@ -119,9 +118,9 @@ impl WalProvider for WalMemory {
         */
     }
 
-    fn append_buffer(&mut self, buffer: &[u8]) -> Result<()> {
+    fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
         // Check the identity looks good
-        FileIdentity::read_slice(buffer, &WAL_IDENTITY)?;
+        FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
         // Get buffer of log records after the identity bytes
         let buffer = &buffer[WAL_IDENTITY.len()..];
