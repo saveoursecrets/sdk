@@ -10,6 +10,7 @@ use super::Result;
 use uuid::Uuid;
 use web3_signature::Signature;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod changes;
 pub mod request;
 pub use request::RequestClient;

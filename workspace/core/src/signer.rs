@@ -71,6 +71,7 @@ pub trait SignSync {
 }
 
 /// Signer for a single party key.
+#[derive(Clone)]
 pub struct SingleParty(SigningKey);
 
 #[async_trait]

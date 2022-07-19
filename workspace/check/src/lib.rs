@@ -1,4 +1,4 @@
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use sos_core::{
@@ -93,4 +93,3 @@ fn build_tree<P: AsRef<Path>>(path: P) -> Result<CommitTree> {
     commit_tree.commit();
     Ok(commit_tree)
 }
-

@@ -4,7 +4,7 @@ use binary_stream::{
     SeekStream,
 };
 
-use std::{path::Path};
+use std::path::Path;
 
 use crate::{
     constants::PATCH_IDENTITY, events::SyncEvent, FileIdentity, Result,

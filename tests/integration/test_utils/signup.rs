@@ -2,7 +2,9 @@ use anyhow::Result;
 
 use super::{server, TestDirs};
 
-use sos_core::{address::AddressStr, wal::file::WalFile, PatchFile};
+use sos_core::{
+    address::AddressStr, signer::SingleParty, wal::file::WalFile, PatchFile,
+};
 
 use secrecy::ExposeSecret;
 use sos_node::client::{
@@ -20,7 +22,7 @@ pub async fn signup(
 ) -> Result<(
     AddressStr,
     AccountCredentials,
-    NodeCache<WalFile, PatchFile>,
+    NodeCache<SingleParty, WalFile, PatchFile>,
 )> {
     let TestDirs {
         target: destination,
