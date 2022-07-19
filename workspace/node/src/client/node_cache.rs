@@ -8,33 +8,30 @@ use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     address::AddressStr,
-    commit_tree::{
-        wal_commit_tree, CommitPair, CommitProof, CommitTree, Comparison,
-    },
-    constants::{VAULT_BACKUP_EXT, WAL_DELETED_EXT, WAL_IDENTITY},
+    commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
+    constants::{PATCH_EXT, VAULT_BACKUP_EXT, WAL_EXT, WAL_IDENTITY},
     encode,
     events::{ChangeEvent, ChangeNotification, SyncEvent, WalEvent},
     generate_passphrase,
     secret::SecretRef,
     vault::{Summary, Vault},
     wal::{
-        file::WalFile,
         memory::WalMemory,
         reducer::WalReducer,
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
-    CommitHash, FileIdentity, Gatekeeper, PatchFile, PatchMemory,
-    PatchProvider, VaultFileAccess,
+    CommitHash, FileIdentity, Gatekeeper, PatchMemory, PatchProvider,
+    VaultFileAccess,
 };
-use std::{
-    borrow::Cow,
-    collections::HashMap,
-    fs::{File, OpenOptions},
-    io::Write,
-    path::{Path, PathBuf},
-};
-use tempfile::NamedTempFile;
+
+#[cfg(not(target_arch = "wasm32"))]
+use sos_core::{constants::WAL_DELETED_EXT, wal::file::WalFile, PatchFile};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::{io::Write, path::Path};
+
+use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 use uuid::Uuid;
 
 use super::LocalCache;
@@ -129,9 +126,18 @@ where
         Ok(records)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn verify(&self, summary: &Summary) -> Result<()> {
+        use sos_core::commit_tree::wal_commit_tree_file;
         let wal_path = self.wal_path(summary);
-        wal_commit_tree(&wal_path, true, |_| {})?;
+        wal_commit_tree_file(&wal_path, true, |_| {})?;
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn verify(&self, _summary: &Summary) -> Result<()> {
+        // NOTE: verify is a noop in WASM when the records
+        // NOTE: are stored in memory
         Ok(())
     }
 
@@ -141,30 +147,11 @@ where
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        let old_size = wal.path().metadata()?.len();
-
-        // Get the reduced set of events
-        let events = WalReducer::new().reduce(wal)?.compact()?;
-        let temp = NamedTempFile::new()?;
-
-        // Apply them to a temporary WAL file
-        let mut temp_wal = WalFile::new(temp.path())?;
-        temp_wal.apply(events, None)?;
-
-        let new_size = temp_wal.path().metadata()?.len();
-
-        // Remove the existing WAL file
-        std::fs::remove_file(wal.path())?;
-        // Move the temp file into place
-        std::fs::rename(temp.path(), wal.path())?;
+        let (compact_wal, old_size, new_size) = wal.compact()?;
 
         // Need to recreate the WAL file and load the updated
         // commit tree
-        *wal = W::new(wal.path())?;
-        wal.load_tree()?;
-
-        // Verify the new WAL tree
-        wal_commit_tree(wal.path(), true, |_| {})?;
+        *wal = compact_wal;
 
         self.force_push(summary).await?;
 
@@ -274,19 +261,7 @@ where
             }
         }
 
-        // Remove local vault mirror if it exists
-        let vault_path = self.vault_path(summary);
-        if vault_path.exists() {
-            std::fs::remove_file(vault_path)?;
-        }
-
-        // Rename the local WAL file so recovery is still possible
-        let wal_path = self.vault_path(summary);
-        if wal_path.exists() {
-            let mut wal_path_backup = wal_path.clone();
-            wal_path_backup.set_extension(WAL_DELETED_EXT);
-            std::fs::rename(wal_path, wal_path_backup)?;
-        }
+        self.remove_vault_file(summary)?;
 
         // Remove from our cache of managed vaults
         self.cache.remove(summary.id());
@@ -419,10 +394,8 @@ where
             let vault_path = self.vault_path(summary);
             if !vault_path.exists() {
                 let buffer = encode(&vault)?;
-                let mut file = File::create(&vault_path)?;
-                file.write_all(&buffer)?;
+                self.write_vault_mirror(summary, &buffer)?;
             }
-
             let mirror = Box::new(VaultFileAccess::new(vault_path)?);
             Gatekeeper::new_mirror(vault, mirror)
         } else {
@@ -582,6 +555,7 @@ where
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl NodeCache<WalFile, PatchFile> {
     /// Create new node cache backed by files on disc.
     pub fn new_file_cache<D: AsRef<Path>>(
@@ -616,8 +590,8 @@ impl NodeCache<WalMemory, PatchMemory<'static>> {
     /// Create new node cache backed by memory.
     pub fn new_memory_cache(
         client: RequestClient,
-    ) -> Result<NodeCache<WalMemory, PatchMemory<'static>>> {
-        Ok(Self {
+    ) -> NodeCache<WalMemory, PatchMemory<'static>> {
+        Self {
             summaries: Default::default(),
             current: None,
             client,
@@ -625,7 +599,7 @@ impl NodeCache<WalMemory, PatchMemory<'static>> {
             cache: Default::default(),
             mirror: false,
             snapshots: None,
-        })
+        }
     }
 }
 
@@ -644,9 +618,7 @@ where
         let summary = vault.summary().clone();
 
         if self.mirror {
-            let vault_path = self.vault_path(&summary);
-            let mut file = File::create(vault_path)?;
-            file.write_all(&buffer)?;
+            self.write_vault_mirror(&summary, &buffer)?;
         }
 
         let status = if is_account {
@@ -664,6 +636,27 @@ where
         self.summaries.sort();
 
         Ok((passphrase, summary))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn write_vault_mirror(
+        &self,
+        summary: &Summary,
+        buffer: &[u8],
+    ) -> Result<()> {
+        let vault_path = self.vault_path(&summary);
+        let mut file = std::fs::File::create(vault_path)?;
+        file.write_all(buffer)?;
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn write_vault_mirror(
+        &self,
+        _summary: &Summary,
+        _buffer: &[u8],
+    ) -> Result<()> {
+        Ok(())
     }
 
     fn new_vault(
@@ -695,8 +688,7 @@ where
 
     fn wal_path(&self, summary: &Summary) -> PathBuf {
         if let Some(user_dir) = &self.user_dir {
-            let wal_name =
-                format!("{}.{}", summary.id(), WalFile::extension());
+            let wal_name = format!("{}.{}", summary.id(), WAL_EXT);
             user_dir.join(&wal_name)
         } else {
             PathBuf::from("/dev/memory/wal")
@@ -714,8 +706,7 @@ where
 
     fn patch_path(&self, summary: &Summary) -> PathBuf {
         if let Some(user_dir) = &self.user_dir {
-            let patch_name =
-                format!("{}.{}", summary.id(), PatchFile::extension());
+            let patch_name = format!("{}.{}", summary.id(), PATCH_EXT);
             user_dir.join(&patch_name)
         } else {
             PathBuf::from("/dev/memory/patch")
@@ -724,7 +715,7 @@ where
 
     /// Fetch the remote WAL file.
     async fn pull_wal(&mut self, summary: &Summary) -> Result<CommitProof> {
-        let cached_wal_path = self.wal_path(summary);
+        let _cached_wal_path = self.wal_path(summary);
         let wal = self
             .cache
             .get_mut(summary.id())
@@ -763,20 +754,8 @@ where
                         // Check the identity looks good
                         FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
-                        // Get buffer of log records after the identity bytes
-                        let record_bytes = &buffer[WAL_IDENTITY.len()..];
-
-                        debug_assert!(record_bytes.len() == buffer.len() - 4);
-
-                        // Append the diff bytes without the identity
-                        let mut file = OpenOptions::new()
-                            .write(true)
-                            .append(true)
-                            .open(&cached_wal_path)?;
-                        file.write_all(record_bytes)?;
-
-                        // Update with the new commit tree
-                        wal.load_tree()?;
+                        // Append the diff bytes
+                        wal.append_buffer(buffer)?;
 
                         wal.tree().head()?
                     }
@@ -789,9 +768,7 @@ where
                         // Check the identity looks good
                         FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
-                        std::fs::write(&cached_wal_path, &buffer)?;
-                        wal.load_tree()?;
-
+                        wal.write_buffer(buffer)?;
                         wal.tree().head()?
                     }
                 };
@@ -964,13 +941,12 @@ where
         let vault = WalReducer::new().reduce(wal)?.build()?;
 
         let mirror = self.mirror;
-        let vault_path = self.vault_path(summary);
+        let _vault_path = self.vault_path(summary);
 
         // Rewrite the on-disc version if we are mirroring
         if mirror {
             let buffer = encode(&vault)?;
-            let mut file = File::create(&vault_path)?;
-            file.write_all(&buffer)?;
+            self.write_vault_mirror(summary, &buffer)?;
         }
 
         if let Some(keeper) = self.current_mut() {
@@ -1084,5 +1060,28 @@ where
         } else {
             Ok(())
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
+        // Remove local vault mirror if it exists
+        let vault_path = self.vault_path(summary);
+        if vault_path.exists() {
+            std::fs::remove_file(vault_path)?;
+        }
+
+        // Rename the local WAL file so recovery is still possible
+        let wal_path = self.vault_path(summary);
+        if wal_path.exists() {
+            let mut wal_path_backup = wal_path.clone();
+            wal_path_backup.set_extension(WAL_DELETED_EXT);
+            std::fs::rename(wal_path, wal_path_backup)?;
+        }
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
+        Ok(())
     }
 }

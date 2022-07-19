@@ -7,7 +7,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::{
     constants::AUDIT_IDENTITY,
-    iter::{audit_iter, FileItem, FileIterator, FileRecord},
+    iter::{audit_iter, FileItem, FileRecord, ReadStreamIterator},
     AuditEvent, AuditProvider, Result,
 };
 
@@ -32,7 +32,7 @@ impl AuditLogFile {
     }
 
     /// Get an audit log file iterator.
-    pub fn iter(&self) -> Result<FileIterator<FileRecord>> {
+    pub fn iter(&self) -> Result<ReadStreamIterator<FileRecord>> {
         audit_iter(&self.file_path)
     }
 

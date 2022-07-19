@@ -8,18 +8,12 @@ use binary_stream::{
 };
 
 use std::{
-    borrow::Cow,
-    cmp::Ordering,
-    collections::HashMap,
-    fmt,
-    fs::File,
-    io::{Read, Seek, SeekFrom},
+    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, fs::File,
     path::Path,
 };
 use uuid::Uuid;
 
 use crate::{
-    commit_tree::CommitTree,
     constants::{
         DEFAULT_VAULT_NAME, VAULT_EXT, VAULT_IDENTITY, VAULT_VERSION,
     },
@@ -29,7 +23,6 @@ use crate::{
     },
     decode, encode,
     events::SyncEvent,
-    iter::vault_iter,
     secret::{SecretId, VaultMeta},
     CommitHash, Error, FileIdentity, Result,
 };
@@ -345,16 +338,29 @@ impl Header {
         self.meta = meta;
     }
 
-    /// Read the content offset for a vault verifying the identity bytes first.
+    /// Read the content offset for a vault file verifying
+    /// the identity bytes first.
     pub fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<usize> {
-        let mut file =
-            FileIdentity::read_file(path.as_ref(), &VAULT_IDENTITY)?;
-        file.seek(SeekFrom::Start(VAULT_IDENTITY.len() as u64))?;
+        let mut stream = FileStream(File::open(path.as_ref())?);
+        Header::read_content_offset_stream(&mut stream)
+    }
 
-        // Header length is immediately after the identity bytes
-        let mut buffer = [0; 4];
-        file.read_exact(&mut buffer)?;
-        let header_len = u32::from_be_bytes(buffer) as usize;
+    /// Read the content offset for a vault slice verifying
+    /// the identity bytes first.
+    pub fn read_content_offset_slice(buffer: &[u8]) -> Result<usize> {
+        let mut stream = SliceStream::new(buffer);
+        Header::read_content_offset_stream(&mut stream)
+    }
+
+    /// Read the content offset for a stream verifying
+    /// the identity bytes first.
+    pub fn read_content_offset_stream(
+        stream: &mut dyn ReadStream,
+    ) -> Result<usize> {
+        let mut reader = BinaryReader::new(stream, Endian::Big);
+        let identity = reader.read_bytes(VAULT_IDENTITY.len())?;
+        FileIdentity::read_slice(&identity, &VAULT_IDENTITY)?;
+        let header_len = reader.read_u32()? as usize;
         let content_offset = VAULT_IDENTITY.len() + 4 + header_len;
         Ok(content_offset)
     }
@@ -805,18 +811,6 @@ impl Vault {
     pub fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let mut stream = FileStream(File::create(path)?);
         Vault::encode(&mut stream, self)
-    }
-
-    /// Build a commit tree from the commit hashes in a vault file.
-    pub fn build_tree<P: AsRef<Path>>(path: P) -> Result<CommitTree> {
-        let mut commit_tree = CommitTree::new();
-        let it = vault_iter(path.as_ref())?;
-        for record in it {
-            let record = record?;
-            commit_tree.insert(record.commit());
-        }
-        commit_tree.commit();
-        Ok(commit_tree)
     }
 
     /// Compute the hash of the encoded encrypted buffer for the meta and secret data.

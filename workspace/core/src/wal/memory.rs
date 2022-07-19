@@ -11,14 +11,19 @@
 //! the moment we just clone the records during iteration.
 use crate::{
     commit_tree::{hash, CommitTree},
+    constants::WAL_IDENTITY,
     decode, encode,
+    iter::{ReadStreamIterator, WalFileRecord, FileItem},
     events::WalEvent,
     timestamp::Timestamp,
     CommitHash, Result,
 };
+
+use binary_stream::{MemoryStream, BinaryReader, Endian};
+
 use std::path::{Path, PathBuf};
 
-use super::{WalItem, WalProvider, WalRecord};
+use super::{reducer::WalReducer, WalItem, WalProvider, WalRecord};
 
 /// Wrapper for a WAL record that includes an index offset.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -74,6 +79,22 @@ impl WalMemory {
             ),
         ))
     }
+
+    fn decode_file_records(&self, buffer: Vec<u8>, start: usize) -> Result<Vec<WalMemoryRecord>> {
+        let mut stream: MemoryStream = buffer.clone().into();
+        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+        let it = ReadStreamIterator::<WalFileRecord>::new_memory(
+            buffer, &WAL_IDENTITY, true, None)?;
+
+        let mut records = Vec::new();
+        for (index, record) in it.into_iter().enumerate() {
+            let record = record?;
+            let value = record.read_bytes(&mut reader)?;
+            let record: WalRecord = decode(&value)?;
+            records.push(WalMemoryRecord(start + index, record));
+        }
+        Ok(records)
+    }
 }
 
 impl WalProvider for WalMemory {
@@ -85,6 +106,39 @@ impl WalProvider for WalMemory {
         Self: Sized,
     {
         Ok(Default::default())
+    }
+
+    fn compact(&self) -> Result<(Self, u64, u64)> {
+        let old_size = self.records.len() as u64;
+
+        let path = self.path().clone();
+
+        // Get the reduced set of events
+        let events = WalReducer::new().reduce(self)?.compact()?;
+
+        // Apply them to a temporary WAL file
+        let mut temp_wal = WalMemory::new(&path)?;
+        temp_wal.apply(events, None)?;
+
+        let new_size = temp_wal.records.len() as u64;
+
+        // Need to recreate the WAL file and load the updated
+        // commit tree
+        Ok((temp_wal, old_size, new_size))
+    }
+
+    fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
+        let records = self.decode_file_records(buffer, 0)?;
+        self.records = records;
+        self.load_tree()?;
+        Ok(())
+    }
+
+    fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
+        let records = self.decode_file_records(buffer, self.records.len())?;
+        self.records = records;
+        self.load_tree()?;
+        Ok(())
     }
 
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
