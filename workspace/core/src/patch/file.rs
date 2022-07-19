@@ -1,8 +1,5 @@
 //! Patch represents a changeset of events to apply to a vault.
-use binary_stream::{
-    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-    SeekStream,
-};
+use binary_stream::SeekStream;
 
 use std::{
     fs::{File, OpenOptions},
@@ -15,7 +12,7 @@ use crate::{
     decode, encode,
     events::SyncEvent,
     iter::{patch_iter, FileRecord, ReadStreamIterator},
-    FileIdentity, Result,
+    Result,
 };
 
 use super::{Patch, PatchProvider};

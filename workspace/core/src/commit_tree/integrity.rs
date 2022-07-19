@@ -1,18 +1,13 @@
 //! Functions to build commit trees and run integrity checks.
 
-use binary_stream::{
-    BinaryReader, Endian, FileStream, MemoryStream, SliceStream,
-};
+use binary_stream::{BinaryReader, Endian, FileStream};
 
 use crate::{
     commit_tree::{hash, CommitTree},
     iter::{
         vault_iter, FileItem, ReadStreamIterator, VaultRecord, WalFileRecord,
     },
-    wal::{
-        memory::{WalMemory, WalMemoryRecord},
-        WalItem, WalProvider,
-    },
+    wal::{WalItem, WalProvider},
     Error, Result,
 };
 
@@ -40,44 +35,9 @@ where
     // Need an additional reader as we may also read in the
     // values for the rows
     let mut stream = FileStream(File::open(vault.as_ref())?);
-    let reader = BinaryReader::new(&mut stream, Endian::Big);
-    let it = vault_iter(vault.as_ref())?;
+    let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+    let mut it = vault_iter(vault.as_ref())?;
 
-    iterate_vault(tree, it, reader, verify, func)
-}
-
-/*
-/// Build a commit tree from a vault slice optionally
-/// verifying all the row checksums.
-#[cfg(target_arch = "wasm32")]
-pub fn vault_commit_tree_slice<F>(
-    vault: &[u8],
-    verify: bool,
-    func: F,
-) -> Result<CommitTree>
-where
-    F: Fn(&VaultRecord),
-{
-    let mut tree = CommitTree::new();
-    // Need an additional reader as we may also read in the
-    // values for the rows
-    let mut stream = SliceStream::new(vault);
-    let reader = BinaryReader::new(&mut stream, Endian::Big);
-    let it = vault_iter(vault.to_vec())?;
-    iterate_vault(tree, it, reader, verify, func)
-}
-*/
-
-fn iterate_vault<F>(
-    mut tree: CommitTree,
-    mut it: ReadStreamIterator<VaultRecord>,
-    mut reader: BinaryReader,
-    verify: bool,
-    func: F,
-) -> Result<CommitTree>
-where
-    F: Fn(&VaultRecord),
-{
     for record in it {
         let record = record?;
 
@@ -123,7 +83,7 @@ where
     let mut reader = BinaryReader::new(&mut value, Endian::Big);
 
     let wal = WalFile::new(wal_file.as_ref())?;
-    let mut it = wal.iter()?;
+    let it = wal.iter()?;
     let mut last_checksum: Option<[u8; 32]> = None;
 
     for record in it {

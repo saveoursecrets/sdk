@@ -2,8 +2,7 @@
 use std::ops::Range;
 
 use binary_stream::{
-    BinaryReader, BinaryResult, Decode, Endian, MemoryStream, ReadStream,
-    SeekStream,
+    BinaryReader, BinaryResult, Decode, Endian, ReadStream, SeekStream,
 };
 
 use crate::{
@@ -338,6 +337,8 @@ impl<T: FileItem> ReadStreamIterator<T> {
         data_length_prefix: bool,
         header_offset: Option<usize>,
     ) -> Result<Self> {
+        use binary_stream::MemoryStream;
+
         FileIdentity::read_slice(&buffer, identity)?;
         let stream: MemoryStream = buffer.into();
         let mut read_stream: Box<dyn ReadStream> = Box::new(stream);

@@ -4,18 +4,10 @@ use binary_stream::{
     SeekStream,
 };
 
-use std::{
-    fs::{File, OpenOptions},
-    io::{Seek, SeekFrom, Write},
-    path::{Path, PathBuf},
-};
+use std::{io::Seek, path::Path};
 
 use crate::{
-    constants::{PATCH_EXT, PATCH_IDENTITY},
-    decode, encode,
-    events::SyncEvent,
-    iter::{patch_iter, FileRecord, ReadStreamIterator},
-    FileIdentity, Result,
+    constants::PATCH_IDENTITY, events::SyncEvent, FileIdentity, Result,
 };
 
 #[cfg(not(target_arch = "wasm32"))]

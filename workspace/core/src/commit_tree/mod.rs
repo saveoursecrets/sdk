@@ -12,6 +12,7 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 
 use crate::{vault::Vault, CommitHash, Error, Result};
 
+#[cfg(not(target_arch = "wasm32"))]
 mod integrity;
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -123,7 +123,7 @@ impl WalProvider for WalMemory {
         FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
         // Get buffer of log records after the identity bytes
-        let buffer = &buffer[WAL_IDENTITY.len()..];
+        let _buffer = &buffer[WAL_IDENTITY.len()..];
 
         todo!("Implement append buffer for memory WAL provider");
         /*

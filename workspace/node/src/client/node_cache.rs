@@ -29,11 +29,7 @@ use sos_core::{
 use sos_core::{constants::WAL_DELETED_EXT, wal::file::WalFile, PatchFile};
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::{
-    fs::{File, OpenOptions},
-    io::Write,
-    path::Path,
-};
+use std::{io::Write, path::Path};
 
 use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 use uuid::Uuid;
@@ -719,7 +715,7 @@ where
 
     /// Fetch the remote WAL file.
     async fn pull_wal(&mut self, summary: &Summary) -> Result<CommitProof> {
-        let cached_wal_path = self.wal_path(summary);
+        let _cached_wal_path = self.wal_path(summary);
         let wal = self
             .cache
             .get_mut(summary.id())
@@ -945,7 +941,7 @@ where
         let vault = WalReducer::new().reduce(wal)?.build()?;
 
         let mirror = self.mirror;
-        let vault_path = self.vault_path(summary);
+        let _vault_path = self.vault_path(summary);
 
         // Rewrite the on-disc version if we are mirroring
         if mirror {
