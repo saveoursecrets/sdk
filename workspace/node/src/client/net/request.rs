@@ -16,7 +16,6 @@ use sos_core::{
     vault::Summary,
     Patch,
 };
-use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
 

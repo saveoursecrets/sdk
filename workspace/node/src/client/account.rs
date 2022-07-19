@@ -4,7 +4,7 @@ use sos_core::{
     generate_passphrase, signer::SingleParty, vault::Summary,
     wal::file::WalFile, PatchFile,
 };
-use std::{convert::Infallible, path::PathBuf, sync::Arc};
+use std::{convert::Infallible, path::PathBuf};
 use url::Url;
 use web3_keystore::encrypt;
 

@@ -1,6 +1,6 @@
 //! Listen for changes and instruct a cache implementation to
 //! handle the change.
-use std::thread;
+use std::{future::Future, thread};
 
 use async_recursion::async_recursion;
 use futures::StreamExt;
@@ -12,18 +12,15 @@ use super::{
         changes::{ChangeStream, ChangeStreamEvent},
         RequestClient,
     },
-    node_cache::NodeCache,
-    Error, LocalCache, Result,
+    Error, Result,
 };
 
-use sos_core::{
-    events::ChangeNotification, signer::Signer, wal::WalProvider,
-    PatchProvider,
-};
+use sos_core::{events::ChangeNotification, signer::Signer};
 
 const INTERVAL_MS: u64 = 15000;
 
 /// Listen for changes and update a local cache.
+#[derive(Clone)]
 pub struct ChangesListener<S>
 where
     S: Signer + Send + Sync + 'static,
@@ -42,15 +39,17 @@ where
 
     /// Spawn a thread to listen for changes and apply incoming
     /// changes to the local cache.
-    pub fn spawn<F>(self, mut handler: F) -> thread::JoinHandle<()>
+    pub fn spawn<F>(
+        self,
+        handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
+    ) -> thread::JoinHandle<()>
     where
-        F: FnMut(ChangeNotification) + Send + Sync + 'static,
+        F: Future<Output = ()> + 'static,
     {
-        //let change_cache = Arc::clone(&self.cache);
         thread::spawn(move || {
             let runtime = tokio::runtime::Runtime::new().unwrap();
             let _ = runtime.block_on(async move {
-                let _ = self.connect(&mut handler).await;
+                let _ = self.connect(&handler).await;
                 Ok::<(), Error>(())
             });
         })
@@ -60,16 +59,17 @@ where
     async fn listen<F>(
         &self,
         mut stream: ChangeStream,
-        handler: &mut F,
+        handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
-        F: FnMut(ChangeNotification) + Send + Sync + 'static,
+        F: Future<Output = ()> + 'static,
     {
         while let Some(event) = stream.next().await {
             match event {
                 Ok(event) => match event {
                     ChangeStreamEvent::Message(notification) => {
-                        handler(notification)
+                        let future = handler(notification);
+                        future.await;
                     }
                     ChangeStreamEvent::Open => {
                         tracing::info!("changes stream open");
@@ -89,9 +89,12 @@ where
         Ok(stream)
     }
 
-    async fn connect<F>(&self, handler: &mut F) -> Result<()>
+    async fn connect<F>(
+        &self,
+        handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
+    ) -> Result<()>
     where
-        F: FnMut(ChangeNotification) + Send + Sync + 'static,
+        F: Future<Output = ()> + 'static,
     {
         match self.stream().await {
             Ok(stream) => self.listen(stream, handler).await,
@@ -100,9 +103,12 @@ where
     }
 
     #[async_recursion(?Send)]
-    async fn delay_connect<F>(&self, handler: &mut F) -> Result<()>
+    async fn delay_connect<F>(
+        &self,
+        handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
+    ) -> Result<()>
     where
-        F: FnMut(ChangeNotification) + Send + Sync + 'static,
+        F: Future<Output = ()> + 'static,
     {
         loop {
             sleep(Duration::from_millis(INTERVAL_MS)).await;

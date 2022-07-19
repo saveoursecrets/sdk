@@ -1,8 +1,4 @@
-use std::{
-    borrow::Cow,
-    path::PathBuf,
-    sync::{Arc, RwLock},
-};
+use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -17,8 +13,7 @@ use terminal_banner::{Banner, Padding};
 use sos_node::{
     cache_dir,
     client::{
-        node_cache::NodeCache, run_blocking, ChangesListener, ClientBuilder,
-        LocalCache,
+        run_blocking, spot::file::SpotFileClient, ClientBuilder, LocalCache,
     },
 };
 
@@ -123,34 +118,25 @@ fn run() -> Result<()> {
                 .with_passphrase_reader(Box::new(reader))
                 .with_use_agent(true)
                 .build()?;
-            let listener = ChangesListener::new(client.clone());
-            let cache = Arc::new(RwLock::new(NodeCache::new_file_cache(
-                client, cache_dir,
-            )?));
+
+            // Set up the client implementation
+            let spot_client = SpotFileClient::new(cache_dir, client)?;
+            // Hook up a change stream to call into the node cache
+            spot_client.spawn_changes();
 
             welcome(&server_url)?;
 
+            let cache = spot_client.cache();
+
+            // Load initial vaults
             let mut writer = cache.write().unwrap();
             if let Err(e) = run_blocking(writer.load_vaults()) {
                 tracing::error!("failed to load vaults: {}", e);
             }
             drop(writer);
 
-            // Hook up to change notifications
-            let changes_cache = Arc::clone(&cache);
-            listener.spawn(move |notification| {
-                //println!("{:#?}", notification);
-                let mut writer = changes_cache.write().unwrap();
-                if let Err(e) =
-                    run_blocking(writer.handle_change(notification))
-                {
-                    tracing::error!("{}", e);
-                }
-            });
-
-            let prompt_cache = Arc::clone(&cache);
             let prompt = || -> String {
-                let cache = prompt_cache.read().unwrap();
+                let cache = cache.read().unwrap();
                 if let Some(current) = cache.current() {
                     return format!("sos@{}> ", current.name());
                 }

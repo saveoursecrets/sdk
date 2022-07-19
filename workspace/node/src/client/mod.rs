@@ -1,5 +1,5 @@
 //! Traits and implementations for clients.
-use std::{fs::File, io::Read, path::PathBuf, sync::Arc};
+use std::{fs::File, io::Read, path::PathBuf};
 use url::Url;
 
 use std::future::Future;
@@ -31,7 +31,7 @@ pub mod account;
 mod changes_listener;
 pub mod net;
 pub mod node_cache;
-//pub mod spot;
+pub mod spot;
 
 mod error;
 pub use changes_listener::ChangesListener;
