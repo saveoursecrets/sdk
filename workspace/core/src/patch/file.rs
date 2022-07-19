@@ -1,6 +1,4 @@
 //! Patch represents a changeset of events to apply to a vault.
-use binary_stream::SeekStream;
-
 use std::{
     fs::{File, OpenOptions},
     io::{Seek, SeekFrom, Write},

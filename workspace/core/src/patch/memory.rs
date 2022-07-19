@@ -7,6 +7,7 @@ use crate::{events::SyncEvent, Result};
 use super::{Patch, PatchProvider};
 
 /// Memory based collection of patch events.
+#[derive(Default)]
 pub struct PatchMemory<'e> {
     records: Vec<SyncEvent<'e>>,
 }
@@ -61,54 +62,41 @@ impl PatchProvider for PatchMemory<'_> {
     }
 }
 
-/*
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::test_utils::*;
     use anyhow::Result;
-    use tempfile::NamedTempFile;
 
     #[test]
-    fn patch_file() -> Result<()> {
-        let temp = NamedTempFile::new()?;
-        let mut patch_file = PatchFile::new(temp.path())?;
+    fn patch_memory() -> Result<()> {
+        let mut patch_mem: PatchMemory = Default::default();
 
         let mut vault = mock_vault();
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, _, _, _, mock_event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
 
-        // Empty patch file is 4 bytes
-        assert_eq!(4, temp.path().metadata()?.len());
-
         let events = vec![mock_event.clone()];
 
-        let patch = patch_file.append(events)?;
-        let new_len = temp.path().metadata()?.len();
-        assert!(new_len > 4);
+        let patch = patch_mem.append(events)?;
         assert_eq!(1, patch.0.len());
-        assert!(patch_file.has_events()?);
+        assert!(patch_mem.has_events()?);
 
         let more_events = vec![mock_event.clone()];
-        let next_patch = patch_file.append(more_events)?;
-        let more_len = temp.path().metadata()?.len();
-        assert!(more_len > new_len);
+        let next_patch = patch_mem.append(more_events)?;
         assert_eq!(2, next_patch.0.len());
-        assert_eq!(2, patch_file.count_events()?);
+        assert_eq!(2, patch_mem.count_events()?);
 
-        let disc_patch = patch_file.read()?;
+        let disc_patch = patch_mem.read()?;
         assert_eq!(2, disc_patch.0.len());
 
         // Truncate the file
-        let drain_patch = patch_file.drain()?;
-        assert_eq!(4, temp.path().metadata()?.len());
-
+        let drain_patch = patch_mem.drain()?;
         assert_eq!(2, drain_patch.0.len());
-        assert!(!patch_file.has_events()?);
-        assert_eq!(0, patch_file.count_events()?);
+        assert!(!patch_mem.has_events()?);
+        assert_eq!(0, patch_mem.count_events()?);
 
         Ok(())
     }
 }
-*/

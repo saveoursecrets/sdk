@@ -5,7 +5,7 @@ use binary_stream::{BinaryReader, Endian, FileStream};
 use crate::{
     commit_tree::{hash, CommitTree},
     iter::{
-        vault_iter, FileItem, ReadStreamIterator, VaultRecord, WalFileRecord,
+        vault_iter, FileItem, VaultRecord, WalFileRecord,
     },
     wal::{WalItem, WalProvider},
     Error, Result,
@@ -36,7 +36,7 @@ where
     // values for the rows
     let mut stream = FileStream(File::open(vault.as_ref())?);
     let mut reader = BinaryReader::new(&mut stream, Endian::Big);
-    let mut it = vault_iter(vault.as_ref())?;
+    let it = vault_iter(vault.as_ref())?;
 
     for record in it {
         let record = record?;
