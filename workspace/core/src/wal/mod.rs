@@ -60,6 +60,16 @@ pub trait WalProvider {
     where
         Self: Sized;
 
+    /// Replace this WAL with the contents of the buffer.
+    ///
+    /// The buffer should start with the WAL identity bytes.
+    fn write_buffer(&mut self, buffer: &[u8]) -> Result<()>;
+
+    /// Append the buffer to the contents of this WAL.
+    ///
+    /// The buffer should start with the WAL identity bytes.
+    fn append_buffer(&mut self, buffer: &[u8]) -> Result<()>;
+
     /// Get the path for this provider.
     fn path(&self) -> &PathBuf;
 

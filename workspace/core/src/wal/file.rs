@@ -123,6 +123,27 @@ impl WalProvider for WalFile {
         Ok((Self::new(self.path())?, old_size, new_size))
     }
 
+    fn write_buffer(&mut self, buffer: &[u8]) -> Result<()> {
+        std::fs::write(self.path(), buffer)?;
+        self.load_tree()?;
+        Ok(())
+    }
+
+    fn append_buffer(&mut self, buffer: &[u8]) -> Result<()> {
+        // Get buffer of log records after the identity bytes
+        let buffer = &buffer[WAL_IDENTITY.len()..];
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .append(true)
+            .open(self.path())?;
+        file.write_all(buffer)?;
+
+        // Update with the new commit tree
+        self.load_tree()?;
+        Ok(())
+    }
+
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
         let mut partial = WAL_IDENTITY.to_vec();
         let start = item.offset().end;

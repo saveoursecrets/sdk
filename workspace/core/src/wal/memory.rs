@@ -11,6 +11,8 @@
 //! the moment we just clone the records during iteration.
 use crate::{
     commit_tree::{hash, CommitTree},
+    constants::WAL_IDENTITY,
+    FileIdentity,
     decode, encode,
     events::WalEvent,
     timestamp::Timestamp,
@@ -104,6 +106,31 @@ impl WalProvider for WalMemory {
         // Need to recreate the WAL file and load the updated
         // commit tree
         Ok((temp_wal, old_size, new_size))
+    }
+
+    fn write_buffer(&mut self, buffer: &[u8]) -> Result<()> {
+        // Check the identity looks good
+        FileIdentity::read_slice(buffer, &WAL_IDENTITY)?;
+
+        todo!("Implement write buffer for memory WAL provider");
+        /*
+        self.load_tree()?;
+        Ok(())
+        */
+    }
+
+    fn append_buffer(&mut self, buffer: &[u8]) -> Result<()> {
+        // Check the identity looks good
+        FileIdentity::read_slice(buffer, &WAL_IDENTITY)?;
+
+        // Get buffer of log records after the identity bytes
+        let buffer = &buffer[WAL_IDENTITY.len()..];
+
+        todo!("Implement append buffer for memory WAL provider");
+        /*
+        self.load_tree()?;
+        Ok(())
+        */
     }
 
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {

@@ -26,6 +26,7 @@ use sos_core::{
 
 use crate::sync::{SyncInfo, SyncStatus};
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod account;
 mod changes_listener;
 pub mod net;
