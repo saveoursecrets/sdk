@@ -57,17 +57,3 @@ pub mod file {
         }
     }
 }
-
-/// Client implementations that write to memory.
-pub mod memory {
-    use crate::client::node_cache::NodeCache;
-    use sos_core::{
-        signer::SingleParty, wal::memory::WalMemory, PatchMemory,
-    };
-
-    /// Client that communicates with a single server and
-    /// writes it's cache to memory.
-    pub struct SpotMemoryClient {
-        cache: NodeCache<SingleParty, WalMemory, PatchMemory<'static>>,
-    }
-}
