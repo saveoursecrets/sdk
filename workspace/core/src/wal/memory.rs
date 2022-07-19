@@ -13,13 +13,13 @@ use crate::{
     commit_tree::{hash, CommitTree},
     constants::WAL_IDENTITY,
     decode, encode,
-    iter::{ReadStreamIterator, WalFileRecord, FileItem},
     events::WalEvent,
+    iter::{FileItem, ReadStreamIterator, WalFileRecord},
     timestamp::Timestamp,
     CommitHash, Result,
 };
 
-use binary_stream::{MemoryStream, BinaryReader, Endian};
+use binary_stream::{BinaryReader, Endian, MemoryStream};
 
 use std::path::{Path, PathBuf};
 
@@ -80,11 +80,19 @@ impl WalMemory {
         ))
     }
 
-    fn decode_file_records(&self, buffer: Vec<u8>, start: usize) -> Result<Vec<WalMemoryRecord>> {
+    fn decode_file_records(
+        &self,
+        buffer: Vec<u8>,
+        start: usize,
+    ) -> Result<Vec<WalMemoryRecord>> {
         let mut stream: MemoryStream = buffer.clone().into();
         let mut reader = BinaryReader::new(&mut stream, Endian::Big);
         let it = ReadStreamIterator::<WalFileRecord>::new_memory(
-            buffer, &WAL_IDENTITY, true, None)?;
+            buffer,
+            &WAL_IDENTITY,
+            true,
+            None,
+        )?;
 
         let mut records = Vec::new();
         for (index, record) in it.into_iter().enumerate() {
