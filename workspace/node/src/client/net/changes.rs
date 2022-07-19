@@ -2,6 +2,7 @@
 use futures::stream::Stream;
 use futures::task::{Context, Poll};
 use pin_project_lite::pin_project;
+
 use reqwest_eventsource::{Event, EventSource};
 use std::pin::Pin;
 

@@ -4,7 +4,6 @@ use http::StatusCode;
 use rand::Rng;
 use reqwest::{header::HeaderMap, RequestBuilder, Response};
 
-use reqwest_eventsource::EventSource;
 use sos_core::{
     address::AddressStr,
     commit_tree::CommitProof,
@@ -22,9 +21,15 @@ use uuid::Uuid;
 use crate::client::{Error, Result};
 
 use super::{
-    bearer_prefix, changes::ChangeStream, encode_signature, Challenge,
+    bearer_prefix, encode_signature, Challenge,
     NetworkClient,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use reqwest_eventsource::EventSource;
+
+#[cfg(not(target_arch = "wasm32"))]
+use super::changes::ChangeStream;
 
 const AUTHORIZATION: &str = "authorization";
 const CONTENT_TYPE: &str = "content-type";
@@ -97,6 +102,7 @@ impl<T: Signer + Send + Sync + 'static> RequestClient<T> {
     }
 
     /// Get an event source for the changes feed.
+    #[cfg(not(target_arch = "wasm32"))]
     async fn events(&self) -> Result<EventSource> {
         let message: [u8; 32] = rand::thread_rng().gen();
         let token = encode_signature(self.signer.sign(&message).await?)?;
@@ -109,6 +115,7 @@ impl<T: Signer + Send + Sync + 'static> RequestClient<T> {
     }
 
     /// Get a stream of change notifications.
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn changes(&self) -> Result<ChangeStream> {
         Ok(ChangeStream::new(self.events().await?))
     }

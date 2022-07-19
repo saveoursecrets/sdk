@@ -61,9 +61,6 @@ pub enum Error {
     UrlParse(#[from] url::ParseError),
 
     #[error(transparent)]
-    EventSource(#[from] reqwest_eventsource::Error),
-
-    #[error(transparent)]
     Clap(#[from] clap::Error),
 
     #[error(transparent)]

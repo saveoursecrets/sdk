@@ -28,12 +28,16 @@ use crate::sync::{SyncInfo, SyncStatus};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod account;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod changes_listener;
 pub mod net;
 pub mod node_cache;
 pub mod spot;
 
 mod error;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub use changes_listener::ChangesListener;
 pub use error::Error;
 
