@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
+use sos_core::FileLocks;
 use sos_client::{
     exec, monitor, signup, Error, Result, StdinPassphraseReader,
 };
@@ -113,6 +114,10 @@ fn run() -> Result<()> {
                 return Err(Error::NotDirectory(cache_dir));
             }
 
+            let cache_lock = cache_dir.join("client.lock");
+            let mut locks = FileLocks::new();
+            let _ = locks.add(&cache_lock)?;
+
             let reader = StdinPassphraseReader {};
             let client = ClientBuilder::new(server, keystore)
                 .with_passphrase_reader(Box::new(reader))
@@ -162,7 +167,9 @@ fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "sos_client=info".into()),
+                .unwrap_or_else(|_| {
+                    "sos_node::client=info,sos_client=info".into()
+                }),
         ))
         .with(tracing_subscriber::fmt::layer().without_time())
         .init();

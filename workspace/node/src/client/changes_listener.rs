@@ -72,7 +72,7 @@ where
                         future.await;
                     }
                     ChangeStreamEvent::Open => {
-                        tracing::info!("changes stream open");
+                        tracing::debug!("changes stream open");
                     }
                 },
                 Err(e) => {
