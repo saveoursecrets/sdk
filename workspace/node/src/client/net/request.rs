@@ -20,10 +20,7 @@ use uuid::Uuid;
 
 use crate::client::{Error, Result};
 
-use super::{
-    bearer_prefix, encode_signature, Challenge,
-    NetworkClient,
-};
+use super::{bearer_prefix, encode_signature, Challenge, NetworkClient};
 
 #[cfg(not(target_arch = "wasm32"))]
 use reqwest_eventsource::EventSource;

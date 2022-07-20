@@ -174,6 +174,8 @@ enum Add {
     Account { label: Option<String> },
     /// Add a file.
     File { path: String, label: Option<String> },
+    /// Add a page.
+    Page { label: Option<String> },
 }
 
 #[derive(Subcommand, Debug)]
@@ -234,22 +236,45 @@ fn get_label(label: Option<String>) -> Result<String> {
     }
 }
 
-fn add_note(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = get_label(label)?;
+fn multiline_banner(kind: &str, label: &str) {
     let banner = Banner::new()
         .padding(Padding::one())
-        .text(Cow::Owned(format!("[NOTE] {}", label)))
+        .text(Cow::Owned(format!("[{}] {}", kind, label)))
         .text(Cow::Borrowed(
-            r#"To abort the note enter Ctrl+C
-To save the note enter Ctrl+D on a newline"#,
+            r#"To abort enter Ctrl+C
+To save enter Ctrl+D on a newline"#,
         ))
         .render();
     println!("{}", banner);
+}
+
+fn add_note(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
+    let label = get_label(label)?;
+    multiline_banner("NOTE", &label);
 
     if let Some(note) = read_multiline(None)? {
         let note =
             secrecy::Secret::new(note.trim_end_matches('\n').to_string());
         let secret = Secret::Note(note);
+        let secret_meta = SecretMeta::new(label, secret.kind());
+        Ok(Some((secret_meta, secret)))
+    } else {
+        Ok(None)
+    }
+}
+
+fn add_page(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
+    let label = get_label(label)?;
+    let title = read_line(Some("Page title: "))?;
+    let mime = "text/markdown".to_string();
+
+    multiline_banner("PAGE", &label);
+
+    if let Some(document) = read_multiline(None)? {
+        let document =
+            secrecy::Secret::new(
+                document.trim_end_matches('\n').to_string());
+        let secret = Secret::Page { title, mime, document };
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
     } else {
@@ -604,6 +629,7 @@ fn exec_program(
                 Add::List { label } => add_credentials(label)?,
                 Add::Account { label } => add_account(label)?,
                 Add::File { path, label } => add_file(path, label)?,
+                Add::Page { label } => add_page(label)?,
             };
 
             let result = if let Some((secret_meta, secret)) = result {
