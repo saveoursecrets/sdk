@@ -82,7 +82,9 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "sos_node::server=info".into()),
+                .unwrap_or_else(|_| {
+                    "sos_node::server=info,sos_server=info".into()
+                }),
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
