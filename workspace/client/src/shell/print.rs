@@ -72,6 +72,11 @@ pub(super) fn secret(
         Secret::Pem(pem) => {
             banner.text(Cow::Owned(serde_json::to_string(pem)?))
         }
+        Secret::Page {
+            title, document, ..
+        } => banner
+            .text(Cow::Borrowed(title))
+            .text(Cow::Borrowed(document.expose_secret())),
     };
 
     let result = banner.render();
