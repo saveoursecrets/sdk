@@ -48,6 +48,10 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
             };
             (buffer.expose_secret().to_vec(), suffix)
         }
+        Secret::Page { document, .. } => (
+            document.expose_secret().as_bytes().to_vec(),
+            ".md".to_string(),
+        ),
     })
 }
 
@@ -56,8 +60,8 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
     Ok(match secret {
         Secret::Note(_) => Secret::Note(secrecy::Secret::new(
             std::str::from_utf8(content)?
-                .trim_end_matches('\n')
-                .to_string(),
+                //.trim_end_matches('\n')
+                .to_owned(),
         )),
         Secret::List(_) | Secret::Account { .. } | Secret::Pem(_) => {
             serde_json::from_slice::<Secret>(content)?
@@ -66,6 +70,13 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
             name: name.clone(),
             mime: mime.clone(),
             buffer: secrecy::Secret::new(content.to_vec()),
+        },
+        Secret::Page { title, mime, .. } => Secret::Page {
+            title: title.clone(),
+            mime: mime.clone(),
+            document: secrecy::Secret::new(
+                std::str::from_utf8(content)?.to_owned(),
+            ),
         },
     })
 }

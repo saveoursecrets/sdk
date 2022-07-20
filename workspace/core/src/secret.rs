@@ -225,6 +225,16 @@ pub enum Secret {
     List(HashMap<String, SecretString>),
     /// PEM encoded binary data.
     Pem(Vec<Pem>),
+    /// A UTF-8 text document.
+    Page {
+        /// Title of the page.
+        title: String,
+        /// Mime type for the text, default is `text/markdown`.
+        mime: String,
+        /// The binary data.
+        #[serde(serialize_with = "serialize_secret_string")]
+        document: SecretString,
+    },
 }
 
 impl Clone for Secret {
@@ -264,6 +274,17 @@ impl Clone for Secret {
                 Secret::List(copy)
             }
             Secret::Pem(pems) => Secret::Pem(pems.clone()),
+            Secret::Page {
+                title,
+                mime,
+                document,
+            } => Secret::Page {
+                title: title.to_owned(),
+                mime: mime.to_owned(),
+                document: secrecy::Secret::new(
+                    document.expose_secret().to_owned(),
+                ),
+            },
         }
     }
 }
@@ -289,6 +310,11 @@ impl fmt::Debug for Secret {
             Secret::Pem(pems) => {
                 f.debug_struct("Pem").field("size", &pems.len()).finish()
             }
+            Secret::Page { title, mime, .. } => f
+                .debug_struct("Page")
+                .field("title", title)
+                .field("mime", mime)
+                .finish(),
         }
     }
 }
@@ -301,6 +327,8 @@ impl Secret {
             kind::FILE => "File",
             kind::ACCOUNT => "Account",
             kind::LIST => "List",
+            kind::PEM => "Certificate",
+            kind::PAGE => "Page",
             _ => unreachable!(),
         }
     }
@@ -313,6 +341,7 @@ impl Secret {
             Secret::Account { .. } => kind::ACCOUNT,
             Secret::List(_) => kind::LIST,
             Secret::Pem(_) => kind::PEM,
+            Secret::Page { .. } => kind::PAGE,
         }
     }
 }
@@ -365,6 +394,23 @@ impl PartialEq for Secret {
                 .iter()
                 .zip(b.iter())
                 .all(|(a, b)| a.tag == b.tag && a.contents == b.contents),
+            (
+                Self::Page {
+                    title: title_a,
+                    mime: mime_a,
+                    document: document_a,
+                },
+                Self::Page {
+                    title: title_b,
+                    mime: mime_b,
+                    document: document_b,
+                },
+            ) => {
+                title_a == title_b
+                    && mime_a == mime_b
+                    && document_a.expose_secret()
+                        == document_b.expose_secret()
+            }
             _ => false,
         }
     }
@@ -393,6 +439,8 @@ pub mod kind {
     pub const FILE: u8 = 0x04;
     /// List of PEM encoded binary blobs.
     pub const PEM: u8 = 0x05;
+    /// UTF-8 page that can be rendered to HTML.
+    pub const PAGE: u8 = 0x06;
 }
 
 impl Encode for Secret {
@@ -403,6 +451,7 @@ impl Encode for Secret {
             Self::Account { .. } => kind::ACCOUNT,
             Self::List { .. } => kind::LIST,
             Self::Pem(_) => kind::PEM,
+            Self::Page { .. } => kind::PAGE,
         };
         writer.write_u8(kind)?;
 
@@ -439,8 +488,16 @@ impl Encode for Secret {
                 let value = pem::encode_many(pems);
                 writer.write_string(value)?;
             }
+            Self::Page {
+                title,
+                mime,
+                document,
+            } => {
+                writer.write_string(title)?;
+                writer.write_string(mime)?;
+                writer.write_string(document.expose_secret())?;
+            }
         }
-
         Ok(())
     }
 }
@@ -460,8 +517,6 @@ impl Decode for Secret {
                 let buffer = secrecy::Secret::new(
                     reader.read_bytes(buffer_len as usize)?,
                 );
-
-                // FIXME: ensure name is handled correctly
                 *self = Self::File { name, mime, buffer };
             }
             kind::ACCOUNT => {
@@ -499,6 +554,16 @@ impl Decode for Secret {
                 *self =
                     Self::Pem(pem::parse_many(&value).map_err(Box::from)?);
             }
+            kind::PAGE => {
+                let title = reader.read_string()?;
+                let mime = reader.read_string()?;
+                let document = secrecy::Secret::new(reader.read_string()?);
+                *self = Self::Page {
+                    title,
+                    mime,
+                    document,
+                };
+            }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
                     Error::UnknownSecretKind(kind),
@@ -512,7 +577,10 @@ impl Decode for Secret {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::{decode, encode};
     use anyhow::Result;
+    use secrecy::ExposeSecret;
+    use std::collections::HashMap;
 
     #[test]
     fn secret_serde() -> Result<()> {
@@ -520,6 +588,132 @@ mod test {
         let value = serde_json::to_string_pretty(&secret)?;
         let result: Secret = serde_json::from_str(&value)?;
         assert_eq!(secret, result);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_note() -> Result<()> {
+        let secret =
+            Secret::Note(secrecy::Secret::new(String::from("My Note")));
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_file() -> Result<()> {
+        let secret = Secret::File {
+            name: "hello.txt".to_string(),
+            mime: "text/plain".to_string(),
+            buffer: secrecy::Secret::new("hello".as_bytes().to_vec()),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_account() -> Result<()> {
+        let secret = Secret::Account {
+            account: "Email".to_string(),
+            url: Some("https://webmail.example.com".parse().unwrap()),
+            password: secrecy::Secret::new("mock-password".to_string()),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+
+        let secret_no_url = Secret::Account {
+            account: "Email".to_string(),
+            url: None,
+            password: secrecy::Secret::new("mock-password".to_string()),
+        };
+        let encoded = encode(&secret_no_url)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret_no_url, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_list() -> Result<()> {
+        let mut credentials = HashMap::new();
+        credentials.insert(
+            "API_KEY".to_owned(),
+            secrecy::Secret::new("mock-access-key".to_owned()),
+        );
+        credentials.insert(
+            "PROVIDER_KEY".to_owned(),
+            secrecy::Secret::new("mock-provider-key".to_owned()),
+        );
+        let secret = Secret::List(credentials);
+
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+
+        // To assert consistently we must sort and to sort
+        // we need to expose the underlying secret string
+        // so we get an Ord implementation
+        let (secret_a, secret_b) =
+            if let (Secret::List(a), Secret::List(b)) = (secret, decoded) {
+                let mut a = a
+                    .into_iter()
+                    .map(|(k, v)| (k, v.expose_secret().to_owned()))
+                    .collect::<Vec<_>>();
+                a.sort();
+                let mut b = b
+                    .into_iter()
+                    .map(|(k, v)| (k, v.expose_secret().to_owned()))
+                    .collect::<Vec<_>>();
+                b.sort();
+                (a, b)
+            } else {
+                unreachable!()
+            };
+
+        assert_eq!(secret_a, secret_b);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_pem() -> Result<()> {
+        let certificate = r#"-----BEGIN CERTIFICATE-----
+MIICpDCCAYwCCQCpeuNjpIxkaDANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAls
+b2NhbGhvc3QwHhcVMjIwNzA3MDUxODIyWhcNMjMwNzA3MDUxODIyWjAUMRIwEAYD
+VQQDDAlsb2NhbGhvc3ZwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCa
+wvVkThyiguYjcz6SRBjC3b9rqAVG7K7plwAFP9Cd6LDJv1DVjJMmBh5jHJJGatIi
+/1dyvMwgj+KXGRFKM27/ZboU7qGbzfJSzASabwjemoCrWbAo5eHxlpOAFFQi06KC
+Gs0h9SPE5QjbAYqM1fCHAlvgQFNA2kutIpHq1M9QFthiofG3l7ZKqr695/DlHkcI
+BSYIPDQK5MbuiDr7FlSPvB+Eq3fV92GOocsdew/mXsqQQvO4qHAoFIxtzDXjZWTV
+P/iP5ybrE+zwofHouODQgs71snnR+bErbNeUezw5Ajl4+MgA9/OuTKXc84PLnflV
+6W3f3FEumjgZlafasiTzAgMBAAEwDQYJKoZIhvcNAQELBQADggEBAFLBPYNqOZ7y
+XJ+kEcg4f9SADAaSaDWAzg5xm0/BWxI5md4axyBV90BuGilJxJQ13U2nAHHWNxEl
+ub55VNuiLBHSbvigI1p/JZKB42PC+zcvy6Nj5BZnDnhmHgYcaRlnNhiPMaO8ymwb
+y4lCg3P6cW1TcZLrA4H9vI+KR3sfV0KvlaQHqG330Rlud8zqIHnQShmb/eag+5eA
+8jqTdL8LdVrc/Loykje1Jm733vvxjblWIVsUshNUq4F26lc6d3CbRDUnL5O+3YbU
+L0sFErdHZ5BdOJJ1LS9zztUHvb1jaOJQBwaD+H+fbjUleLkKmELQODDiFekLAjRD
+i1KQYQNRTzo=
+-----END CERTIFICATE-----"#;
+
+        let pems = pem::parse_many(&certificate).unwrap();
+        let secret = Secret::Pem(pems);
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_page() -> Result<()> {
+        let secret = Secret::Page {
+            title: "Welcome".to_string(),
+            mime: "text/markdown".to_string(),
+            document: secrecy::Secret::new("# Mock Page".to_owned()),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
         Ok(())
     }
 }
