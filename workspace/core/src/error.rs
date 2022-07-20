@@ -192,6 +192,10 @@ pub enum Error {
     #[error(transparent)]
     TimeFormat(#[from] time::error::Format),
 
+    /// Error generated creating format descriptions for date formatting.
+    #[error(transparent)]
+    InvalidFormat(#[from] time::error::InvalidFormatDescription),
+
     /// Error generated parsing PEM files.
     #[error(transparent)]
     Pem(#[from] pem::PemError),
