@@ -23,11 +23,12 @@ pub(super) fn secret(
     secret_data: &Secret,
 ) -> Result<()> {
     let heading =
-        format!("[{}] {}", secret_meta.short_name(), secret_meta.label());
+        format!("[{}] {}", secret_meta.short_name(), secret_meta.last_updated().to_date_time()?);
 
     let banner = Banner::new()
         .padding(Padding::one())
-        .text(Cow::Owned(heading));
+        .text(Cow::Owned(heading))
+        .text(Cow::Borrowed(secret_meta.label()));
 
     let banner = match secret_data {
         Secret::Note(text) => {
