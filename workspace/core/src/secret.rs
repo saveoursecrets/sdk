@@ -13,7 +13,7 @@ use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
 
-use crate::Error;
+use crate::{Error, Timestamp};
 
 fn serialize_secret_string<S>(
     secret: &SecretString,
@@ -135,12 +135,14 @@ pub struct SecretMeta {
     label: String,
     /// Kind of the secret.
     kind: u8,
+    /// Last updated timestamp.
+    last_updated: Timestamp,
 }
 
 impl SecretMeta {
     /// Create new meta data for a secret.
     pub fn new(label: String, kind: u8) -> Self {
-        Self { label, kind }
+        Self { label, kind, last_updated: Default::default() }
     }
 
     /// The label for the secret.
@@ -156,6 +158,16 @@ impl SecretMeta {
     /// The kind of the secret.
     pub fn kind(&self) -> &u8 {
         &self.kind
+    }
+
+    /// Update the last updated timestamp to now.
+    pub fn touch(&mut self) {
+        self.last_updated = Default::default();
+    }
+
+    /// The last updated date and time.
+    pub fn last_updated(&self) -> &Timestamp {
+        &self.last_updated
     }
 
     /// Get an abbreviated short name based
@@ -176,6 +188,7 @@ impl SecretMeta {
 impl Encode for SecretMeta {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         writer.write_u8(self.kind)?;
+        self.last_updated.encode(&mut *writer)?;
         writer.write_string(&self.label)?;
         Ok(())
     }
@@ -184,6 +197,9 @@ impl Encode for SecretMeta {
 impl Decode for SecretMeta {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         self.kind = reader.read_u8()?;
+        let mut last_updated: Timestamp = Default::default();
+        last_updated.decode(&mut *reader)?;
+        self.last_updated = last_updated;
         self.label = reader.read_string()?;
         Ok(())
     }

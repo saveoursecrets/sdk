@@ -689,7 +689,7 @@ fn exec_program(
 
             drop(reader);
 
-            let (uuid, secret_meta, secret_data) =
+            let (uuid, mut secret_meta, secret_data) =
                 result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let result =
@@ -716,6 +716,8 @@ fn exec_program(
                     writer.current_mut().ok_or(Error::NoVaultSelected)?;
 
                 let summary = keeper.summary().clone();
+
+                secret_meta.touch();
 
                 let event = keeper
                     .update(&uuid, secret_meta, edited_secret)?
@@ -792,6 +794,7 @@ fn exec_program(
 
             let mut secret_meta = keeper.decrypt_meta(&meta_aead)?;
             secret_meta.set_label(label);
+            secret_meta.touch();
             let meta_aead = keeper.encrypt_meta(&secret_meta)?;
 
             let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
