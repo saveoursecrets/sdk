@@ -166,6 +166,8 @@ impl SecretMeta {
             kind::NOTE => "NOTE",
             kind::LIST => "LIST",
             kind::FILE => "FILE",
+            kind::PEM => "CERT",
+            kind::PAGE => "PAGE",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }
