@@ -3,7 +3,6 @@ use std::{fs::File, io::Read, path::PathBuf};
 use url::Url;
 
 use std::future::Future;
-use tokio::runtime::Runtime;
 
 use async_trait::async_trait;
 use net::RequestClient;
@@ -55,6 +54,7 @@ where
     F: Future<Output = Result<R>> + Send,
     R: Send,
 {
+    use tokio::runtime::Runtime;
     Runtime::new().unwrap().block_on(func)
 }
 
@@ -64,7 +64,8 @@ pub fn run_blocking<F, R>(func: F) -> Result<R>
 where
     F: Future<Output = Result<R>>,
 {
-    Runtime::new().unwrap().block_on(func)
+    use tokio::runtime::Builder;
+    Builder::new_current_thread().build().unwrap().block_on(func)
 }
 
 /// Trait for implementations that can read a passphrase.

@@ -7,7 +7,7 @@
 mod time;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use time::Timestamp;
+pub use self::time::Timestamp;
 
 #[cfg(target_arch = "wasm32")]
 mod chrono;

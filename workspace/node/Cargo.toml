@@ -19,7 +19,6 @@ web3-signature = { version = "0.2", features = ["single-party"] }
 serde = "1"
 serde_json = "1"
 rand = "0.8"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 url = "2"
 futures = "0.3"
 pin-project-lite = "0.2"
@@ -30,6 +29,7 @@ dirs = "4"
 http = "0.2"
 bs58 = "0.4"
 secrecy = "0.8"
+
 
 # client
 web3-keystore = { version = "0.4", optional = true }
@@ -53,6 +53,10 @@ async-stream = { version = "0.3", optional = true }
 parity-tokio-ipc = { version = "0.9", optional = true }
 binary-stream = { version = "3", features = ["wasm32"], optional = true }
 reqwest-eventsource = { version = "0.4", optional = true }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tokio = { version = "1", features = ["rt", "sync"] }
 
 [target.'cfg(any(not(target_arch="aarch64"),not(target_os="linux")))'.dependencies]
 reqwest = { version = "0.11", default-features = true, features = ["json", "rustls-tls"], optional = true }
