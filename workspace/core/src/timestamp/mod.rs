@@ -13,4 +13,4 @@ pub use time::Timestamp;
 mod chrono;
 
 #[cfg(target_arch = "wasm32")]
-pub use chrono::Timestamp;
+pub use self::chrono::Timestamp;
