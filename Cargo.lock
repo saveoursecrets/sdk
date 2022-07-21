@@ -450,8 +450,9 @@ dependencies = [
 
 [[package]]
 name = "chbs"
-version = "0.1.0"
-source = "git+https://gitlab.com/timvisee/chbs.git?rev=1bb19733ac66cebf58b726d14770a616faba85dd#1bb19733ac66cebf58b726d14770a616faba85dd"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45a7298287f1443f422d3f46e8ce9f855e75f0e43c06605adb4c52a262faeabd"
 dependencies = [
  "derive_builder",
  "getrandom 0.2.7",
