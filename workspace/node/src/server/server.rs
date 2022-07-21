@@ -130,6 +130,7 @@ impl Server {
         state: Arc<RwLock<State>>,
         origins: Vec<HeaderValue>,
     ) -> Result<Router> {
+
         let cors = CorsLayer::new()
             .allow_methods(vec![
                 Method::PUT,
@@ -172,7 +173,6 @@ impl Server {
             .route("/api/changes", get(sse_handler));
 
         app = feature_routes(app);
-
         app = app.layer(cors).layer(Extension(state));
 
         Ok(app)

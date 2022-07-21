@@ -272,9 +272,12 @@ fn add_page(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
 
     if let Some(document) = read_multiline(None)? {
         let document =
-            secrecy::Secret::new(
-                document.trim_end_matches('\n').to_string());
-        let secret = Secret::Page { title, mime, document };
+            secrecy::Secret::new(document.trim_end_matches('\n').to_string());
+        let secret = Secret::Page {
+            title,
+            mime,
+            document,
+        };
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
     } else {

@@ -4,10 +4,10 @@ use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
-use sos_core::FileLocks;
 use sos_client::{
     exec, monitor, signup, Error, Result, StdinPassphraseReader,
 };
+use sos_core::FileLocks;
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
@@ -166,10 +166,9 @@ fn run() -> Result<()> {
 fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| {
-                    "sos_node::client=info,sos_client=info".into()
-                }),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| {
+                "sos_node::client=info,sos_client=info".into()
+            }),
         ))
         .with(tracing_subscriber::fmt::layer().without_time())
         .init();

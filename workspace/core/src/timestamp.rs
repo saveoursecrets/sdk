@@ -11,14 +11,19 @@ use std::fmt;
 use filetime::FileTime;
 
 use time::{
-    format_description::{self, well_known::{Rfc2822, Rfc3339}},
+    format_description::{
+        self,
+        well_known::{Rfc2822, Rfc3339},
+    },
     Duration, OffsetDateTime, UtcOffset,
 };
 
 use crate::Result;
 
 /// Timestamp for events and log records.
-#[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq,
+)]
 pub struct Timestamp(OffsetDateTime);
 
 impl Default for Timestamp {
@@ -28,8 +33,7 @@ impl Default for Timestamp {
 }
 
 impl Timestamp {
-
-    /// Convert to a short human-readable date and time without 
+    /// Convert to a short human-readable date and time without
     /// the timezone offset.
     pub fn to_date_time(&self) -> Result<String> {
         let format = format_description::parse(

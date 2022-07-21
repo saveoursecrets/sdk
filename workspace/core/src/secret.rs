@@ -142,7 +142,11 @@ pub struct SecretMeta {
 impl SecretMeta {
     /// Create new meta data for a secret.
     pub fn new(label: String, kind: u8) -> Self {
-        Self { label, kind, last_updated: Default::default() }
+        Self {
+            label,
+            kind,
+            last_updated: Default::default(),
+        }
     }
 
     /// The label for the secret.
