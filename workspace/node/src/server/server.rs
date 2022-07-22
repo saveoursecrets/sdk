@@ -130,7 +130,6 @@ impl Server {
         state: Arc<RwLock<State>>,
         origins: Vec<HeaderValue>,
     ) -> Result<Router> {
-
         let cors = CorsLayer::new()
             .allow_methods(vec![
                 Method::PUT,

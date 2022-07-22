@@ -65,7 +65,10 @@ where
     F: Future<Output = Result<R>>,
 {
     use tokio::runtime::Builder;
-    Builder::new_current_thread().build().unwrap().block_on(func)
+    Builder::new_current_thread()
+        .build()
+        .unwrap()
+        .block_on(func)
 }
 
 /// Trait for implementations that can read a passphrase.

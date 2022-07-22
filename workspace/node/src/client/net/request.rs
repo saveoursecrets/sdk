@@ -61,6 +61,128 @@ fn encode_headers_proof(
     Ok(builder)
 }
 
+async fn self_signed(
+    signer: &(impl Signer + Send + Sync + 'static),
+) -> Result<(Vec<u8>, String)> {
+    let message: [u8; 32] = rand::thread_rng().gen();
+    let signature = encode_signature(signer.sign(&message).await?)?;
+    Ok((message.to_vec(), signature))
+}
+
+macro_rules! create_account {
+    ($server:expr, $http_client:expr, $signer:expr, $vault:expr, $result:expr) => {
+        let url = $server.join("api/accounts")?;
+        let signature = encode_signature($signer.sign(&$vault).await?)?;
+        let response = $http_client
+            .put(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body($vault)
+            .send()
+            .await?;
+
+        *$result = StatusCode::from_u16(response.status().into())?;
+    }
+}
+
+macro_rules! list_vaults {
+    ($server:expr, $http_client:expr, $signer:expr, $summaries:expr) => {
+        let url = $server.join("api/auth")?;
+        let (message, signature) = self_signed($signer).await?;
+
+        let response = $http_client
+            .get(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
+            .send()
+            .await?;
+
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let challenge: (Uuid, Challenge) = response.json().await?;
+
+        let (uuid, message) = challenge;
+        let url = format!("api/auth/{}", uuid);
+        let url = $server.join(&url)?;
+        let signature = encode_signature($signer.sign(&message).await?)?;
+
+        let response = $http_client
+            .get(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
+            .send()
+            .await?;
+
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let mut summaries: Vec<Summary> = response.json().await?;
+        $summaries.append(&mut summaries);
+        //Ok(summaries)
+    };
+}
+
+//use sos_core::signer::SingleParty;
+
+/*
+/// ....
+pub fn list_vaults(
+    server: Url,
+    http_client: reqwest::Client,
+    signer: SingleParty) -> impl std::future::Future<Output = Result<Vec<Summary>>> + 'static {
+
+    async move {
+
+        let url = server.join("api/auth")?;
+        let (message, signature) = self_signed(signer.clone()).await?;
+
+        let response = http_client
+            .get(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
+            .send()
+            .await?;
+
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let challenge: (Uuid, Challenge) = response.json().await?;
+
+        let (uuid, message) = challenge;
+        let url = format!("api/auth/{}", uuid);
+        let url = server.join(&url)?;
+        let signature = encode_signature(signer.sign(&message).await?)?;
+
+        let response = http_client
+            .get(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
+            .send()
+            .await?;
+
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
+
+        let summaries: Vec<Summary> = response.json().await?;
+        Ok(summaries)
+    }
+
+}
+*/
+
 /// HTTP client implementation using the `reqwest` library.
 #[derive(Clone)]
 pub struct RequestClient<T: Signer + Send + Sync + 'static> {
@@ -126,6 +248,18 @@ impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
     }
 
     async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
+        let mut result = StatusCode::INTERNAL_SERVER_ERROR;
+
+        create_account!(
+            &self.server,
+            &self.http_client,
+            &self.signer,
+            vault,
+            &mut result);
+
+        Ok(result)
+
+        /*
         let url = self.server.join("api/accounts")?;
         let signature = encode_signature(self.signer.sign(&vault).await?)?;
 
@@ -139,48 +273,17 @@ impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
             .await?;
 
         Ok(StatusCode::from_u16(response.status().into())?)
+        */
     }
 
     async fn list_vaults(&self) -> Result<Vec<Summary>> {
-        let url = self.server.join("api/auth")?;
-        let (message, signature) = self.self_signed().await?;
-
-        let response = self
-            .http_client
-            .get(url)
-            .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
-            .send()
-            .await?;
-
-        response
-            .status()
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
-
-        let challenge: (Uuid, Challenge) = response.json().await?;
-
-        let (uuid, message) = challenge;
-        let url = format!("api/auth/{}", uuid);
-        let url = self.server.join(&url)?;
-        let signature = encode_signature(self.signer.sign(&message).await?)?;
-
-        let response = self
-            .http_client
-            .get(url)
-            .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
-            .send()
-            .await?;
-
-        response
-            .status()
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
-
-        let summaries: Vec<Summary> = response.json().await?;
+        let mut summaries: Vec<Summary> = Vec::new();
+        list_vaults!(
+            &self.server,
+            &self.http_client,
+            &self.signer,
+            &mut summaries
+        );
         Ok(summaries)
     }
 
@@ -368,5 +471,41 @@ impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
             StatusCode::from_u16(response.status().into())?,
             server_proof,
         ))
+    }
+}
+
+/// Client implementation that yields static
+/// futures for use in webassembly.
+pub struct StaticClient;
+
+impl StaticClient {
+
+    /// Create an account.
+    pub fn create_account(
+        server: Url,
+        signer: impl Signer + Send + Sync + 'static,
+        vault: Vec<u8>,
+    ) -> impl std::future::Future<Output = Result<StatusCode>> + 'static
+    {
+        async move {
+            let client = reqwest::Client::new();
+            let mut result = StatusCode::INTERNAL_SERVER_ERROR;
+            create_account!(server, client, &signer, vault, &mut result);
+            Ok(result)
+        }
+    }
+
+    /// List vaults.
+    pub fn list_vaults(
+        server: Url,
+        signer: impl Signer + Send + Sync + 'static,
+    ) -> impl std::future::Future<Output = Result<Vec<Summary>>> + 'static
+    {
+        async move {
+            let client = reqwest::Client::new();
+            let mut summaries: Vec<Summary> = Vec::new();
+            list_vaults!(server, client, &signer, &mut summaries);
+            Ok(summaries)
+        }
     }
 }

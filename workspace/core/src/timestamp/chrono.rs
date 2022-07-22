@@ -10,7 +10,7 @@ use std::fmt;
 
 use filetime::FileTime;
 
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
 
 use crate::Result;
 
@@ -94,7 +94,9 @@ impl TryFrom<FileTime> for Timestamp {
 
     fn try_from(value: FileTime) -> std::result::Result<Self, Self::Error> {
         let date_time = NaiveDateTime::from_timestamp(
-            value.seconds(), value.nanoseconds());
+            value.seconds(),
+            value.nanoseconds(),
+        );
         let date_time = DateTime::from_utc(date_time, Utc);
         Ok(date_time.into())
     }
