@@ -3,7 +3,6 @@ use std::{fs::File, io::Read, path::PathBuf};
 use url::Url;
 
 use std::future::Future;
-use tokio::runtime::Runtime;
 
 use async_trait::async_trait;
 use net::RequestClient;
@@ -49,12 +48,27 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 /// Exposed so we can merge the synchronous nature
 /// of the shell REPL prompt with the asynchronous API
 /// exposed by the HTTP client.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn run_blocking<F, R>(func: F) -> Result<R>
 where
     F: Future<Output = Result<R>> + Send,
     R: Send,
 {
+    use tokio::runtime::Runtime;
     Runtime::new().unwrap().block_on(func)
+}
+
+/// Runs a future blocking the current thread.
+#[cfg(target_arch = "wasm32")]
+pub fn run_blocking<F, R>(func: F) -> Result<R>
+where
+    F: Future<Output = Result<R>>,
+{
+    use tokio::runtime::Builder;
+    Builder::new_current_thread()
+        .build()
+        .unwrap()
+        .block_on(func)
 }
 
 /// Trait for implementations that can read a passphrase.
