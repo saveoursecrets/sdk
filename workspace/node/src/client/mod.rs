@@ -215,7 +215,8 @@ where
             signing_key
         };
         let signer: SingleParty = (&signing_key).try_into()?;
-        Ok(RequestClient::new(self.server, signer))
+        let address = signer.address()?;
+        Ok((RequestClient::new(self.server, signer), address))
     }
 }
 
@@ -230,8 +231,10 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
+    /*
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;
+    */
 
     /// Get the underlying client.
     fn client(&self) -> &RequestClient<S>;

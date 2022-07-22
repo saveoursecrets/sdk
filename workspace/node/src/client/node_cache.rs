@@ -1,6 +1,6 @@
 //! Caching implementation.
 use super::{Error, Result};
-use crate::client::net::{NetworkClient, RequestClient};
+use crate::client::net::RequestClient;
 
 use async_recursion::async_recursion;
 use async_trait::async_trait;
@@ -87,9 +87,12 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
+
+    /*
     fn address(&self) -> Result<AddressStr> {
         self.client.address()
     }
+    */
 
     fn client(&self) -> &RequestClient<S> {
         &self.client

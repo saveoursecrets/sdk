@@ -3,7 +3,7 @@
 use sos_core::{signer::Signer, wal::WalProvider, PatchProvider};
 
 use crate::client::{
-    net::{changes::ChangeStream, NetworkClient},
+    net::changes::ChangeStream,
     node_cache::NodeCache,
 };
 
@@ -17,7 +17,7 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 /// Bi-directional communication channel between nodes.
 pub struct Channel {
     stream: ChangeStream,
-    client: Box<dyn NetworkClient>,
+    //client: ,
 }
 
 /// Node in a network of clients.

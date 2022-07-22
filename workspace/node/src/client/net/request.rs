@@ -1,5 +1,4 @@
 //! HTTP client implementations.
-use async_trait::async_trait;
 use http::StatusCode;
 use rand::Rng;
 use reqwest::{header::HeaderMap, RequestBuilder, Response};
@@ -20,7 +19,7 @@ use uuid::Uuid;
 
 use crate::client::{Error, Result};
 
-use super::{bearer_prefix, encode_signature, Challenge, NetworkClient};
+use super::{bearer_prefix, encode_signature, Challenge};
 
 #[cfg(not(target_arch = "wasm32"))]
 use reqwest_eventsource::EventSource;
@@ -340,16 +339,9 @@ impl<T: Signer + Send + Sync + 'static> RequestClient<T> {
     pub async fn changes(&self) -> Result<ChangeStream> {
         Ok(ChangeStream::new(self.events().await?))
     }
-}
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
-    fn address(&self) -> Result<AddressStr> {
-        Ok(self.signer.address()?)
-    }
-
-    async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
+    /// Create a new account.
+    pub async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
         let result = create_account!(
             &self.server,
             &self.http_client,
@@ -359,13 +351,15 @@ impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
         result
     }
 
-    async fn list_vaults(&self) -> Result<Vec<Summary>> {
+    /// List the vaults accessible by this signer.
+    pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
         let result =
             list_vaults!(&self.server, &self.http_client, &self.signer);
         result
     }
 
-    async fn create_wal(
+    /// Create a new WAL file on a remote node.
+    pub async fn create_wal(
         &self,
         vault: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
@@ -375,7 +369,7 @@ impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
     }
 
     /// Get the WAL bytes for a vault.
-    async fn get_wal(
+    pub async fn get_wal(
         &self,
         vault_id: &Uuid,
         proof: Option<&CommitProof>,
@@ -390,7 +384,8 @@ impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
         result
     }
 
-    async fn post_wal(
+    /// Replace a WAL file on a remote node.
+    pub async fn post_wal(
         &self,
         vault_id: &Uuid,
         proof: &CommitProof,
@@ -407,7 +402,8 @@ impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
         result
     }
 
-    async fn patch_wal(
+    /// Apply events to the WAL file on a remote node.
+    pub async fn patch_wal(
         &self,
         vault_id: &Uuid,
         proof: &CommitProof,
@@ -424,7 +420,8 @@ impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
         result
     }
 
-    async fn head_wal(
+    /// Get the commit proof for the WAL file on a remote node.
+    pub async fn head_wal(
         &self,
         vault_id: &Uuid,
         proof: Option<&CommitProof>,
@@ -439,7 +436,8 @@ impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
         result
     }
 
-    async fn delete_wal(
+    /// Delete a WAL file on a remote node.
+    pub async fn delete_wal(
         &self,
         vault_id: &Uuid,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
@@ -452,7 +450,12 @@ impl<S: Signer + Send + Sync + 'static> NetworkClient for RequestClient<S> {
         result
     }
 
-    async fn put_vault(
+    /// Update an existing vault.
+    ///
+    /// This should be used when the commit tree has been
+    /// rewritten, for example if the history was compacted
+    /// or the password for a vault was changed.
+    pub async fn put_vault(
         &self,
         vault_id: &Uuid,
         vault: Vec<u8>,
