@@ -2,7 +2,7 @@
 use crate::{display_passphrase, Error, Result};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{signer::SingleParty, wal::file::WalFile, PatchFile};
+use sos_core::{wal::file::WalFile, PatchFile};
 use sos_node::{
     cache_dir,
     client::{
@@ -31,16 +31,16 @@ pub fn switch(
     server: Url,
     cache_dir: PathBuf,
     keystore_file: PathBuf,
-) -> Result<NodeCache<SingleParty, WalFile, PatchFile>> {
+) -> Result<NodeCache<WalFile, PatchFile>> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
     let reader = StdinPassphraseReader {};
-    let client = ClientBuilder::new(server, keystore_file)
+    let signer = ClientBuilder::new(keystore_file)
         .with_passphrase_reader(Box::new(reader))
         .with_use_agent(true)
         .build()?;
-    Ok(NodeCache::new_file_cache(client, cache_dir)?)
+    Ok(NodeCache::new_file_cache(server, cache_dir, signer)?)
 }
 
 pub fn signup(

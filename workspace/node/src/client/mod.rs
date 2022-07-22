@@ -1,11 +1,10 @@
 //! Traits and implementations for clients.
 use std::{fs::File, io::Read, path::PathBuf};
-use url::Url;
 
 use std::future::Future;
 
 use async_trait::async_trait;
-use net::RequestClient;
+
 use web3_keystore::{decrypt, KeyStore};
 
 use secrecy::{ExposeSecret, SecretString};
@@ -14,7 +13,7 @@ use sos_core::{
     commit_tree::CommitTree,
     events::{ChangeNotification, SyncEvent, WalEvent},
     secret::SecretRef,
-    signer::{Signer, SingleParty},
+    signer::{BoxedSigner, Signer, SingleParty},
     vault::{Summary, Vault},
     wal::{
         snapshot::{SnapShot, SnapShotManager},
@@ -110,7 +109,6 @@ async fn set_agent_key(
 
 /// Builds a client implementation.
 pub struct ClientBuilder<E> {
-    server: Url,
     keystore: PathBuf,
     keystore_passphrase: Option<SecretString>,
     passphrase_reader: Option<Box<dyn PassphraseReader<Error = E>>>,
@@ -122,9 +120,8 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     /// Create a new client builder.
-    pub fn new(server: Url, keystore: PathBuf) -> Self {
+    pub fn new(keystore: PathBuf) -> Self {
         Self {
-            server,
             keystore,
             keystore_passphrase: None,
             passphrase_reader: None,
@@ -157,7 +154,7 @@ where
     }
 
     /// Build a client implementation wrapping a signing key.
-    pub fn build(self) -> Result<RequestClient<SingleParty>> {
+    pub fn build(self) -> Result<BoxedSigner> {
         if !self.keystore.exists() {
             return Err(Error::NotFile(self.keystore));
         }
@@ -215,8 +212,9 @@ where
             signing_key
         };
         let signer: SingleParty = (&signing_key).try_into()?;
-        let address = signer.address()?;
-        Ok((RequestClient::new(self.server, signer), address))
+        let signer: Box<dyn Signer + Send + Sync + 'static> =
+            Box::new(signer);
+        Ok(signer)
     }
 }
 
@@ -225,9 +223,8 @@ where
 /// selected vault.
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait LocalCache<S, W, P>
+pub trait LocalCache<W, P>
 where
-    S: Signer + Send + Sync + 'static,
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
@@ -235,9 +232,6 @@ where
     /// Get the address of the current user.
     fn address(&self) -> Result<AddressStr>;
     */
-
-    /// Get the underlying client.
-    fn client(&self) -> &RequestClient<S>;
 
     /// Get the vault summaries for this cache.
     fn vaults(&self) -> &[Summary];

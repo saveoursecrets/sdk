@@ -1,12 +1,8 @@
 //! HTTP transport trait and implementations.
-use http::StatusCode;
-use sos_core::{
-    address::AddressStr, commit_tree::CommitProof, encode,
-    signer::BinarySignature, vault::Summary, Patch,
-};
+
+use sos_core::{encode, signer::BinarySignature};
 
 use super::Result;
-use uuid::Uuid;
 use web3_signature::Signature;
 
 #[cfg(not(target_arch = "wasm32"))]

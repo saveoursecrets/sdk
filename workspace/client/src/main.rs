@@ -119,13 +119,13 @@ fn run() -> Result<()> {
             let _ = locks.add(&cache_lock)?;
 
             let reader = StdinPassphraseReader {};
-            let client = ClientBuilder::new(server, keystore)
+            let signer = ClientBuilder::new(keystore)
                 .with_passphrase_reader(Box::new(reader))
                 .with_use_agent(true)
                 .build()?;
 
             // Set up the client implementation
-            let spot_client = SpotFileClient::new(cache_dir, client)?;
+            let spot_client = SpotFileClient::new(server, cache_dir, signer)?;
             // Hook up a change stream to call into the node cache
             spot_client.spawn_changes();
 

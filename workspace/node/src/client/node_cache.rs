@@ -7,14 +7,13 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    address::AddressStr,
     commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
     constants::{PATCH_EXT, VAULT_BACKUP_EXT, WAL_EXT, WAL_IDENTITY},
     encode,
     events::{ChangeEvent, ChangeNotification, SyncEvent, WalEvent},
     generate_passphrase,
     secret::SecretRef,
-    signer::Signer,
+    signer::BoxedSigner,
     vault::{Summary, Vault},
     wal::{
         memory::WalMemory,
@@ -25,6 +24,8 @@ use sos_core::{
     CommitHash, FileIdentity, Gatekeeper, PatchMemory, PatchProvider,
     VaultFileAccess,
 };
+
+use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
 use sos_core::{constants::WAL_DELETED_EXT, wal::file::WalFile, PatchFile};
@@ -55,16 +56,15 @@ fn assert_proofs_eq(
 ///
 /// May be backed by files on disc or in-memory implementations
 /// for use in webassembly.
-pub struct NodeCache<S, W, P>
-where
-    S: Signer + Send + Sync + 'static,
-{
+pub struct NodeCache<W, P> {
     /// Vaults managed by this cache.
     summaries: Vec<Summary>,
     /// Currently selected in-memory vault.
     current: Option<Gatekeeper>,
+    /// The URL for a remote node.
+    server: Url,
     /// Client to use for server communication.
-    client: RequestClient<S>,
+    signer: BoxedSigner,
     /// Directory for the user cache.
     ///
     /// Only available when using disc backing storage.
@@ -81,23 +81,11 @@ where
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<S, W, P> LocalCache<S, W, P> for NodeCache<S, W, P>
+impl<W, P> LocalCache<W, P> for NodeCache<W, P>
 where
-    S: Signer + Send + Sync + 'static,
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-
-    /*
-    fn address(&self) -> Result<AddressStr> {
-        self.client.address()
-    }
-    */
-
-    fn client(&self) -> &RequestClient<S> {
-        &self.client
-    }
-
     fn vaults(&self) -> &[Summary] {
         self.summaries.as_slice()
     }
@@ -221,7 +209,11 @@ where
     }
 
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
-        let summaries = self.client.list_vaults().await?;
+        let summaries = RequestClient::list_vaults(
+            self.server.clone(),
+            self.signer.clone(),
+        )
+        .await?;
         self.load_caches(&summaries)?;
         self.summaries = summaries;
         self.summaries.sort();
@@ -255,7 +247,12 @@ where
         let current_id = self.current().map(|c| c.id().clone());
 
         // Attempt to delete on the remote server
-        let (status, _) = self.client.delete_wal(summary.id()).await?;
+        let (status, _) = RequestClient::delete_wal(
+            self.server.clone(),
+            self.signer.clone(),
+            *summary.id(),
+        )
+        .await?;
         status
             .is_success()
             .then_some(())
@@ -311,10 +308,13 @@ where
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
-        let (status, server_proof, match_proof) = self
-            .client
-            .head_wal(summary.id(), Some(&client_proof))
-            .await?;
+        let (status, server_proof, match_proof) = RequestClient::head_wal(
+            self.server.clone(),
+            self.signer.clone(),
+            *summary.id(),
+            Some(client_proof.clone()),
+        )
+        .await?;
         status
             .is_success()
             .then_some(())
@@ -373,8 +373,13 @@ where
 
         // Send the new vault to the server
         let buffer = encode(vault)?;
-        let (status, server_proof) =
-            self.client.put_vault(summary.id(), buffer).await?;
+        let (status, server_proof) = RequestClient::put_vault(
+            self.server.clone(),
+            self.signer.clone(),
+            *summary.id(),
+            buffer,
+        )
+        .await?;
         status
             .is_success()
             .then_some(())
@@ -459,10 +464,13 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, match_proof) = self
-            .client
-            .head_wal(summary.id(), Some(&client_proof))
-            .await?;
+        let (status, server_proof, match_proof) = RequestClient::head_wal(
+            self.server.clone(),
+            self.signer.clone(),
+            *summary.id(),
+            Some(client_proof.clone()),
+        )
+        .await?;
         status
             .is_success()
             .then_some(())
@@ -514,8 +522,13 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, _match_proof) =
-            self.client.head_wal(summary.id(), None).await?;
+        let (status, server_proof, _match_proof) = RequestClient::head_wal(
+            self.server.clone(),
+            self.signer.clone(),
+            *summary.id(),
+            None,
+        )
+        .await?;
         status
             .is_success()
             .then_some(())
@@ -564,21 +577,19 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl<S> NodeCache<S, WalFile, PatchFile>
-where
-    S: Signer + Send + Sync + 'static,
-{
+impl NodeCache<WalFile, PatchFile> {
     /// Create new node cache backed by files on disc.
     pub fn new_file_cache<D: AsRef<Path>>(
-        client: RequestClient<S>,
+        server: Url,
         cache_dir: D,
-    ) -> Result<NodeCache<S, WalFile, PatchFile>> {
+        signer: BoxedSigner,
+    ) -> Result<NodeCache<WalFile, PatchFile>> {
         let cache_dir = cache_dir.as_ref().to_path_buf();
         if !cache_dir.is_dir() {
             return Err(Error::NotDirectory(cache_dir));
         }
 
-        let address = client.address()?;
+        let address = signer.address()?;
         let address = format!("{}", address);
         let user_dir = cache_dir.join(&address);
         std::fs::create_dir_all(&user_dir)?;
@@ -588,7 +599,9 @@ where
         Ok(Self {
             summaries: Default::default(),
             current: None,
-            client,
+            server,
+            signer,
+            //client,
             user_dir: Some(user_dir),
             cache: Default::default(),
             mirror: true,
@@ -597,18 +610,18 @@ where
     }
 }
 
-impl<S> NodeCache<S, WalMemory, PatchMemory<'static>>
-where
-    S: Signer + Send + Sync + 'static,
-{
+impl NodeCache<WalMemory, PatchMemory<'static>> {
     /// Create new node cache backed by memory.
     pub fn new_memory_cache(
-        client: RequestClient<S>,
-    ) -> NodeCache<S, WalMemory, PatchMemory<'static>> {
+        //client: RequestClient<S>,
+        server: Url,
+        signer: BoxedSigner,
+    ) -> NodeCache<WalMemory, PatchMemory<'static>> {
         Self {
             summaries: Default::default(),
             current: None,
-            client,
+            server,
+            signer,
             user_dir: None,
             cache: Default::default(),
             mirror: false,
@@ -617,9 +630,8 @@ where
     }
 }
 
-impl<S, W, P> NodeCache<S, W, P>
+impl<W, P> NodeCache<W, P>
 where
-    S: Signer + Send + Sync + 'static,
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
@@ -637,9 +649,19 @@ where
         }
 
         let status = if is_account {
-            self.client.create_account(buffer).await?
+            RequestClient::create_account(
+                self.server.clone(),
+                self.signer.clone(),
+                buffer,
+            )
+            .await?
         } else {
-            let (status, _) = self.client.create_wal(buffer).await?;
+            let (status, _) = RequestClient::create_wal(
+                self.server.clone(),
+                self.signer.clone(),
+                buffer,
+            )
+            .await?;
             status
         };
 
@@ -745,10 +767,13 @@ where
             None
         };
 
-        let (status, server_proof, buffer) = self
-            .client
-            .get_wal(summary.id(), client_proof.as_ref())
-            .await?;
+        let (status, server_proof, buffer) = RequestClient::get_wal(
+            self.server.clone(),
+            self.signer.clone(),
+            *summary.id(),
+            client_proof.clone(),
+        )
+        .await?;
 
         tracing::debug!(status = %status, "pull_wal");
 
@@ -860,10 +885,14 @@ where
 
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, match_proof) = self
-            .client
-            .patch_wal(summary.id(), &client_proof, &patch)
-            .await?;
+        let (status, server_proof, match_proof) = RequestClient::patch_wal(
+            self.server.clone(),
+            self.signer.clone(),
+            *summary.id(),
+            client_proof.clone(),
+            patch.clone().into_owned(),
+        )
+        .await?;
 
         match status {
             StatusCode::OK => {
@@ -1032,10 +1061,14 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
         let body = std::fs::read(wal.path())?;
-        let (status, server_proof) = self
-            .client
-            .post_wal(summary.id(), &client_proof, body)
-            .await?;
+        let (status, server_proof) = RequestClient::post_wal(
+            self.server.clone(),
+            self.signer.clone(),
+            *summary.id(),
+            client_proof.clone(),
+            body,
+        )
+        .await?;
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
         status

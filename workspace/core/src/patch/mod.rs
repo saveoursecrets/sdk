@@ -52,10 +52,20 @@ pub trait PatchProvider {
 }
 
 /// Patch wraps a changeset of events to be sent across the network.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Patch<'a>(pub Vec<SyncEvent<'a>>);
 
 impl Patch<'_> {
+    /// Convert all events encapsulated by this patch into owned variants.
+    pub fn into_owned(self) -> Patch<'static> {
+        let events = self
+            .0
+            .into_iter()
+            .map(|e| e.into_owned())
+            .collect::<Vec<_>>();
+        Patch(events)
+    }
+
     fn encode_row(
         writer: &mut BinaryWriter,
         event: &SyncEvent<'_>,

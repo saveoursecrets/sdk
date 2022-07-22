@@ -57,6 +57,9 @@ pub trait Signer {
 
     /// Compute the public address for this signer.
     fn address(&self) -> Result<AddressStr>;
+
+    /// Clone a boxed version of this signer.
+    fn clone_boxed<'a>(&self) -> BoxedSigner;
 }
 
 /// Trait for implementations that can sign a message synchronously.
@@ -70,12 +73,25 @@ pub trait SignSync {
     fn sign_sync(&self, message: &[u8]) -> Result<Signature>;
 }
 
+/// Boxed signer.
+pub type BoxedSigner = Box<dyn Signer + Send + Sync + 'static>;
+
+impl Clone for BoxedSigner {
+    fn clone(&self) -> Self {
+        self.clone_boxed()
+    }
+}
+
 /// Signer for a single party key.
 #[derive(Clone)]
 pub struct SingleParty(SigningKey);
 
 #[async_trait]
 impl Signer for SingleParty {
+    fn clone_boxed(&self) -> BoxedSigner {
+        Box::new(self.clone())
+    }
+
     async fn sign(&self, message: &[u8]) -> Result<Signature> {
         let recoverable: recoverable::Signature = self.0.sign(message);
         let sig: Signature = recoverable.into();

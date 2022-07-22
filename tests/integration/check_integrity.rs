@@ -16,7 +16,8 @@ async fn integration_check_integrity() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (address, credentials, mut node_cache) = signup(&dirs, 0).await?;
+    let (address, credentials, mut node_cache, _signer) =
+        signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,

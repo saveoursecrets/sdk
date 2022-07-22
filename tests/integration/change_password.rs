@@ -16,7 +16,9 @@ use sos_core::{
     generate_passphrase, ChangePassword,
 };
 use sos_node::client::{
-    account::AccountCredentials, net::changes::ChangeStreamEvent, LocalCache,
+    account::AccountCredentials,
+    net::{changes::ChangeStreamEvent, RequestClient},
+    LocalCache,
 };
 
 #[tokio::test]
@@ -27,7 +29,10 @@ async fn integration_change_password() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (address, credentials, mut node_cache) = signup(&dirs, 0).await?;
+    let server_url = server();
+
+    let (address, credentials, mut node_cache, signer) =
+        signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,
@@ -36,7 +41,7 @@ async fn integration_change_password() -> Result<()> {
 
     let (tx, mut rx) = mpsc::channel(1);
 
-    let mut es = node_cache.client().changes().await?;
+    let mut es = RequestClient::changes(server_url, signer).await?;
     let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
         Arc::new(RwLock::new(Vec::new()));
     let changed = Arc::clone(&notifications);

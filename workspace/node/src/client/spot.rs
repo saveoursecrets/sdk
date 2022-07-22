@@ -6,38 +6,39 @@
 pub mod file {
     use crate::client::{
         changes_listener::ChangesListener, node_cache::NodeCache, LocalCache,
-        RequestClient, Result,
+        Result,
     };
-    use sos_core::{signer::SingleParty, wal::file::WalFile, PatchFile};
+    use sos_core::{signer::BoxedSigner, wal::file::WalFile, PatchFile};
     use std::{
         path::PathBuf,
         sync::{Arc, RwLock},
     };
+    use url::Url;
 
     /// Client that communicates with a single server and
     /// writes it's cache to disc.
     pub struct SpotFileClient {
-        cache: Arc<RwLock<NodeCache<SingleParty, WalFile, PatchFile>>>,
-        changes: ChangesListener<SingleParty>,
+        cache: Arc<RwLock<NodeCache<WalFile, PatchFile>>>,
+        changes: ChangesListener,
     }
 
     impl SpotFileClient {
         /// Create a new SPOT file client.
         pub fn new(
+            server: Url,
             cache_dir: PathBuf,
-            client: RequestClient<SingleParty>,
+            signer: BoxedSigner,
         ) -> Result<Self> {
-            let changes = ChangesListener::new(client.clone());
+            let changes =
+                ChangesListener::new(server.clone(), signer.clone());
             let cache = Arc::new(RwLock::new(NodeCache::new_file_cache(
-                client, cache_dir,
+                server, cache_dir, signer,
             )?));
             Ok(Self { cache, changes })
         }
 
         /// Get a clone of the underlying node cache.
-        pub fn cache(
-            &self,
-        ) -> Arc<RwLock<NodeCache<SingleParty, WalFile, PatchFile>>> {
+        pub fn cache(&self) -> Arc<RwLock<NodeCache<WalFile, PatchFile>>> {
             Arc::clone(&self.cache)
         }
 

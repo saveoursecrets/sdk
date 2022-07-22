@@ -11,7 +11,7 @@ use secrecy::ExposeSecret;
 use sos_core::commit_tree::CommitProof;
 use sos_node::client::{
     account::{login, AccountCredentials},
-    net::changes::ChangeStreamEvent,
+    net::{changes::ChangeStreamEvent, RequestClient},
     LocalCache,
 };
 
@@ -26,7 +26,7 @@ async fn integration_compact_force_pull() -> Result<()> {
     let server_url = server();
 
     // Signup a new account
-    let (_, credentials, mut creator) = signup(&dirs, 0).await?;
+    let (_, credentials, mut creator, signer) = signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,
@@ -37,15 +37,19 @@ async fn integration_compact_force_pull() -> Result<()> {
 
     // Set up another connected client to listen for changes
     let cache_dir = dirs.clients.get(1).unwrap().to_path_buf();
-    let mut listener =
-        login(server_url, cache_dir, keystore_file, keystore_passphrase)?;
+    let mut listener = login(
+        server_url.clone(),
+        cache_dir,
+        keystore_file,
+        keystore_passphrase,
+    )?;
     let _ = listener.load_vaults().await?;
 
     let (change_tx, mut change_rx) = mpsc::channel(16);
 
     let (tx, mut rx) = mpsc::channel(1);
 
-    let mut es = listener.client().changes().await?;
+    let mut es = RequestClient::changes(server_url, signer).await?;
     tokio::task::spawn(async move {
         while let Some(event) = es.next().await {
             let event = event?;
