@@ -12,7 +12,6 @@ use sos_core::commit_tree::CommitProof;
 use sos_node::client::{
     account::{login, AccountCredentials},
     net::{changes::ChangeStreamEvent, RequestClient},
-    LocalCache,
 };
 
 #[tokio::test]

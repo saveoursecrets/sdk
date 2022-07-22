@@ -15,7 +15,6 @@ use sos_node::client::{
         create_account, create_signing_key, AccountCredentials, AccountKey,
     },
     node_cache::NodeCache,
-    LocalCache,
 };
 use web3_keystore::{decrypt, KeyStore};
 

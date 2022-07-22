@@ -4,10 +4,7 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use secrecy::ExposeSecret;
-use sos_node::client::{
-    account::{login, AccountCredentials},
-    LocalCache,
-};
+use sos_node::client::account::{login, AccountCredentials};
 
 #[tokio::test]
 #[serial]

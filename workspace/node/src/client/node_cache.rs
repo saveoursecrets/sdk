@@ -3,7 +3,6 @@ use super::{Error, Result};
 use crate::client::net::RequestClient;
 
 use async_recursion::async_recursion;
-use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
@@ -36,7 +35,6 @@ use std::{io::Write, path::Path};
 use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 use uuid::Uuid;
 
-use super::LocalCache;
 use crate::sync::{SyncInfo, SyncKind, SyncStatus};
 
 fn assert_proofs_eq(
@@ -79,22 +77,28 @@ pub struct NodeCache<W, P> {
     snapshots: Option<SnapShotManager>,
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<W, P> LocalCache<W, P> for NodeCache<W, P>
+impl<W, P> NodeCache<W, P>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-    fn vaults(&self) -> &[Summary] {
+    /// Get the vault summaries for this cache.
+    pub fn vaults(&self) -> &[Summary] {
         self.summaries.as_slice()
     }
 
-    fn snapshots(&self) -> Option<&SnapShotManager> {
+    /// Get the snapshot manager for this cache.
+    pub fn snapshots(&self) -> Option<&SnapShotManager> {
         self.snapshots.as_ref()
     }
 
-    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)> {
+    /// Take a snapshot of the WAL for the given vault.
+    ///
+    /// Snapshots must be enabled.
+    pub fn take_snapshot(
+        &self,
+        summary: &Summary,
+    ) -> Result<(SnapShot, bool)> {
         let snapshots =
             self.snapshots.as_ref().ok_or(Error::SnapshotsNotEnabled)?;
         let (wal, _) = self
@@ -105,7 +109,8 @@ where
         Ok(snapshots.create(summary.id(), wal.path(), root_hash)?)
     }
 
-    fn history(
+    /// Get the history for a WAL provider.
+    pub fn history(
         &self,
         summary: &Summary,
     ) -> Result<Vec<(W::Item, WalEvent<'_>)>> {
@@ -122,22 +127,25 @@ where
         Ok(records)
     }
 
+    /// Verify a WAL log.
     #[cfg(not(target_arch = "wasm32"))]
-    fn verify(&self, summary: &Summary) -> Result<()> {
+    pub fn verify(&self, summary: &Summary) -> Result<()> {
         use sos_core::commit_tree::wal_commit_tree_file;
         let wal_path = self.wal_path(summary);
         wal_commit_tree_file(&wal_path, true, |_| {})?;
         Ok(())
     }
 
+    /// Verify a WAL log.
     #[cfg(target_arch = "wasm32")]
-    fn verify(&self, _summary: &Summary) -> Result<()> {
+    pub fn verify(&self, _summary: &Summary) -> Result<()> {
         // NOTE: verify is a noop in WASM when the records
         // NOTE: are stored in memory
         Ok(())
     }
 
-    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+    /// Compact a WAL provider.
+    pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
         let (wal, _) = self
             .cache
             .get_mut(summary.id())
@@ -157,7 +165,8 @@ where
         Ok((old_size, new_size))
     }
 
-    async fn handle_change(
+    /// Respond to a change notification.
+    pub async fn handle_change(
         &mut self,
         change: ChangeNotification,
     ) -> Result<()> {
@@ -208,7 +217,8 @@ where
         Ok(())
     }
 
-    async fn load_vaults(&mut self) -> Result<&[Summary]> {
+    /// Load the vault summaries from a remote node.
+    pub async fn load_vaults(&mut self) -> Result<&[Summary]> {
         let summaries = RequestClient::list_vaults(
             self.server.clone(),
             self.signer.clone(),
@@ -220,7 +230,8 @@ where
         Ok(self.vaults())
     }
 
-    fn find_vault(&self, vault: &SecretRef) -> Option<&Summary> {
+    /// Attempt to find a summary in this cache.
+    pub fn find_vault(&self, vault: &SecretRef) -> Option<&Summary> {
         match vault {
             SecretRef::Name(name) => {
                 self.summaries.iter().find(|s| s.name() == name)
@@ -229,21 +240,24 @@ where
         }
     }
 
-    async fn create_account(
+    /// Create a new account and default login vault.
+    pub async fn create_account(
         &mut self,
         name: Option<String>,
     ) -> Result<(SecretString, Summary)> {
         self.create(name, true).await
     }
 
-    async fn create_vault(
+    /// Create a new vault.
+    pub async fn create_vault(
         &mut self,
         name: String,
     ) -> Result<(SecretString, Summary)> {
         self.create(Some(name), false).await
     }
 
-    async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
+    /// Remove a vault.
+    pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         let current_id = self.current().map(|c| c.id().clone());
 
         // Attempt to delete on the remote server
@@ -280,7 +294,8 @@ where
         Ok(())
     }
 
-    async fn set_vault_name(
+    /// Attempt to set the vault name on the remote node.
+    pub async fn set_vault_name(
         &mut self,
         summary: &Summary,
         name: &str,
@@ -299,7 +314,11 @@ where
         }
     }
 
-    async fn vault_status(
+    /// Get a comparison between a local WAL and remote WAL.
+    ///
+    /// If a patch file has unsaved events then the number
+    /// of pending events is returned along with the `SyncStatus`.
+    pub async fn vault_status(
         &self,
         summary: &Summary,
     ) -> Result<(SyncStatus, Option<usize>)> {
@@ -360,11 +379,12 @@ where
         Ok((status, pending_events))
     }
 
-    async fn update_vault(
+    /// Update an existing vault.
+    pub async fn update_vault<'a>(
         &mut self,
         summary: &Summary,
         vault: &Vault,
-        events: Vec<WalEvent<'static>>,
+        events: Vec<WalEvent<'a>>,
     ) -> Result<()> {
         let (wal, _) = self
             .cache
@@ -397,7 +417,8 @@ where
         Ok(())
     }
 
-    async fn open_vault(
+    /// Load a vault, unlock it and set it as the current vault.
+    pub async fn open_vault(
         &mut self,
         summary: &Summary,
         password: &str,
@@ -421,15 +442,18 @@ where
         Ok(())
     }
 
-    fn current(&self) -> Option<&Gatekeeper> {
+    /// Get the current in-memory vault access.
+    pub fn current(&self) -> Option<&Gatekeeper> {
         self.current.as_ref()
     }
 
-    fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
+    /// Get a mutable reference to the current in-memory vault access.
+    pub fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
         self.current.as_mut()
     }
 
-    async fn patch_vault(
+    /// Apply changes to a vault.
+    pub async fn patch_vault(
         &mut self,
         summary: &Summary,
         events: Vec<SyncEvent<'_>>,
@@ -442,18 +466,25 @@ where
         Ok(())
     }
 
-    fn close_vault(&mut self) {
+    /// Close the currently open vault.
+    ///
+    /// When a vault is open it is locked before being closed.
+    ///
+    /// If no vault is open this is a noop.
+    pub fn close_vault(&mut self) {
         if let Some(current) = self.current_mut() {
             current.lock();
         }
         self.current = None;
     }
 
-    fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree> {
+    /// Get a reference to the commit tree for a WAL file.
+    pub fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree> {
         self.cache.get(summary.id()).map(|(wal, _)| wal.tree())
     }
 
-    async fn pull(
+    /// Download changes from the remote server.
+    pub async fn pull(
         &mut self,
         summary: &Summary,
         force: bool,
@@ -511,7 +542,8 @@ where
         }
     }
 
-    async fn push(
+    /// Upload changes to the remote server.
+    pub async fn push(
         &mut self,
         summary: &Summary,
         force: bool,

@@ -13,9 +13,7 @@ use terminal_banner::{Banner, Padding};
 
 use sos_node::{
     cache_dir,
-    client::{
-        run_blocking, spot::file::SpotFileClient, ClientBuilder, LocalCache,
-    },
+    client::{run_blocking, spot::file::SpotFileClient, ClientBuilder},
 };
 
 const WELCOME: &str = include_str!("welcome.txt");

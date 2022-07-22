@@ -5,8 +5,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file {
     use crate::client::{
-        changes_listener::ChangesListener, node_cache::NodeCache, LocalCache,
-        Result,
+        changes_listener::ChangesListener, node_cache::NodeCache, Result,
     };
     use sos_core::{signer::BoxedSigner, wal::file::WalFile, PatchFile};
     use std::{

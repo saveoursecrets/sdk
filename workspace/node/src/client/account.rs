@@ -8,7 +8,7 @@ use std::{convert::Infallible, path::PathBuf};
 use url::Url;
 use web3_keystore::encrypt;
 
-use super::{node_cache::NodeCache, ClientBuilder, LocalCache};
+use super::{node_cache::NodeCache, ClientBuilder};
 use super::{Error, Result};
 use secrecy::{ExposeSecret, SecretString};
 

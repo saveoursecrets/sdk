@@ -21,7 +21,7 @@ use sos_core::{
 };
 use sos_node::{
     cache_dir,
-    client::{node_cache::NodeCache, run_blocking, LocalCache},
+    client::{node_cache::NodeCache, run_blocking},
     sync::SyncKind,
 };
 use sos_readline::{

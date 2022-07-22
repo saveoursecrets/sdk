@@ -13,7 +13,7 @@ use sos_core::{
 };
 
 use sos_node::{
-    client::{node_cache::NodeCache, LocalCache},
+    client::node_cache::NodeCache,
     server::{Authentication, Server, ServerConfig, ServerInfo, State},
 };
 

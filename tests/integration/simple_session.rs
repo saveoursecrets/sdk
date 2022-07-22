@@ -19,7 +19,6 @@ use sos_node::{
     client::{
         account::AccountCredentials,
         net::{changes::ChangeStreamEvent, RequestClient},
-        LocalCache,
     },
     sync::SyncStatus,
 };
