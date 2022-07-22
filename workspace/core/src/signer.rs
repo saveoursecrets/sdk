@@ -59,7 +59,7 @@ pub trait Signer {
     fn address(&self) -> Result<AddressStr>;
 
     /// Clone a boxed version of this signer.
-    fn clone_boxed<'a>(&self) -> BoxedSigner;
+    fn clone_boxed(&self) -> BoxedSigner;
 }
 
 /// Trait for implementations that can sign a message synchronously.
