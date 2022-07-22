@@ -8,7 +8,7 @@ use std::{convert::Infallible, path::PathBuf};
 use url::Url;
 use web3_keystore::encrypt;
 
-use super::{node_cache::NodeCache, ClientBuilder};
+use super::{node_cache::NodeCache, SignerBuilder};
 use super::{Error, Result};
 use secrecy::{ExposeSecret, SecretString};
 
@@ -47,7 +47,7 @@ pub fn login(
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
-    let signer = ClientBuilder::<Infallible>::new(keystore_file)
+    let signer = SignerBuilder::<Infallible>::new(keystore_file)
         .with_keystore_passphrase(keystore_passphrase)
         .build()?;
     Ok(NodeCache::new_file_cache(server, cache_dir, signer)?)

@@ -3,26 +3,20 @@ use std::{fs::File, io::Read, path::PathBuf};
 
 use std::future::Future;
 
-use async_trait::async_trait;
+
 
 use web3_keystore::{decrypt, KeyStore};
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     address::AddressStr,
-    commit_tree::CommitTree,
-    events::{ChangeNotification, SyncEvent, WalEvent},
-    secret::SecretRef,
     signer::{BoxedSigner, Signer, SingleParty},
-    vault::{Summary, Vault},
     wal::{
-        snapshot::{SnapShot, SnapShotManager},
         WalProvider,
-    },
-    Gatekeeper, PatchProvider,
+    }, PatchProvider,
 };
 
-use crate::sync::{SyncInfo, SyncStatus};
+
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod account;
@@ -108,14 +102,14 @@ async fn set_agent_key(
 }
 
 /// Builds a client implementation.
-pub struct ClientBuilder<E> {
+pub struct SignerBuilder<E> {
     keystore: PathBuf,
     keystore_passphrase: Option<SecretString>,
     passphrase_reader: Option<Box<dyn PassphraseReader<Error = E>>>,
     use_agent: bool,
 }
 
-impl<E> ClientBuilder<E>
+impl<E> SignerBuilder<E>
 where
     E: std::error::Error + Send + Sync + 'static,
 {

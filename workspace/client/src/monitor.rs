@@ -7,7 +7,7 @@ use futures::stream::StreamExt;
 use sos_core::signer::BoxedSigner;
 use sos_node::client::{
     net::{changes::ChangeStreamEvent, RequestClient},
-    run_blocking, ClientBuilder,
+    run_blocking, SignerBuilder,
 };
 
 /// Creates a changes stream and calls handler for every change notification.
@@ -33,7 +33,7 @@ async fn changes_stream(
 /// Start a monitor listening for events on the SSE stream.
 pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
     let reader = StdinPassphraseReader {};
-    let signer = ClientBuilder::new(keystore)
+    let signer = SignerBuilder::new(keystore)
         .with_passphrase_reader(Box::new(reader))
         .with_use_agent(true)
         .build()?;

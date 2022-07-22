@@ -13,7 +13,7 @@ use terminal_banner::{Banner, Padding};
 
 use sos_node::{
     cache_dir,
-    client::{run_blocking, spot::file::SpotFileClient, ClientBuilder},
+    client::{run_blocking, spot::file::SpotFileClient, SignerBuilder},
 };
 
 const WELCOME: &str = include_str!("welcome.txt");
@@ -117,7 +117,7 @@ fn run() -> Result<()> {
             let _ = locks.add(&cache_lock)?;
 
             let reader = StdinPassphraseReader {};
-            let signer = ClientBuilder::new(keystore)
+            let signer = SignerBuilder::new(keystore)
                 .with_passphrase_reader(Box::new(reader))
                 .with_use_agent(true)
                 .build()?;

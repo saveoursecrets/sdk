@@ -8,7 +8,7 @@ use sos_node::{
     client::{
         account::{create_account, create_signing_key},
         node_cache::NodeCache,
-        run_blocking, ClientBuilder, PassphraseReader,
+        run_blocking, PassphraseReader, SignerBuilder,
     },
 };
 use sos_readline::{read_flag, read_password};
@@ -36,7 +36,7 @@ pub fn switch(
         return Err(Error::NotFile(keystore_file));
     }
     let reader = StdinPassphraseReader {};
-    let signer = ClientBuilder::new(keystore_file)
+    let signer = SignerBuilder::new(keystore_file)
         .with_passphrase_reader(Box::new(reader))
         .with_use_agent(true)
         .build()?;
