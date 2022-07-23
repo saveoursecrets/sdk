@@ -5,9 +5,12 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file {
     use crate::client::{
-        changes_listener::ChangesListener, node_cache::NodeCache, Result,
+        changes_listener::ChangesListener, node_cache::NodeCache, Error,
+        Result,
     };
-    use sos_core::{signer::BoxedSigner, wal::file::WalFile, PatchFile};
+    use sos_core::{
+        signer::BoxedSigner, vault::Summary, wal::file::WalFile, PatchFile,
+    };
     use std::{
         path::PathBuf,
         sync::{Arc, RwLock},
@@ -54,6 +57,58 @@ pub mod file {
                     let _ = writer.handle_change(notification).await;
                 }
             });
+        }
+    }
+}
+
+/// Client implementation that stores data in memory.
+#[cfg(target_arch = "wasm32")]
+pub mod memory {
+    use crate::client::{node_cache::NodeCache, Error, Result};
+    use sos_core::{
+        signer::BoxedSigner, vault::Summary, wal::memory::WalMemory,
+        PatchMemory,
+    };
+    use std::{
+        future::Future,
+        path::PathBuf,
+        sync::{Arc, RwLock},
+    };
+    use url::Url;
+
+    /// Type alias for an in-memory node cache.
+    pub type MemoryCache =
+        Arc<RwLock<NodeCache<WalMemory, PatchMemory<'static>>>>;
+
+    /// Client that communicates with a single server and
+    /// writes it's cache to memory.
+    pub struct SpotMemoryClient {
+        cache: MemoryCache,
+    }
+
+    impl SpotMemoryClient {
+        /// Create a new SPOT memory client.
+        pub fn new(server: Url, signer: BoxedSigner) -> Self {
+            let cache = Arc::new(RwLock::new(NodeCache::new_memory_cache(
+                server, signer,
+            )));
+            Self { cache }
+        }
+
+        /// Get a clone of the underlying node cache.
+        pub fn cache(&self) -> MemoryCache {
+            Arc::clone(&self.cache)
+        }
+
+        /// Load the vaults.
+        pub fn load_vaults(
+            cache: MemoryCache,
+        ) -> impl Future<Output = Result<Vec<Summary>>> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                let vaults = writer.load_vaults().await?;
+                Ok::<Vec<Summary>, Error>(vaults.to_vec())
+            }
         }
     }
 }

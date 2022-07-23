@@ -2,10 +2,11 @@
 //!
 //! Uses futures with a `'static` lifetime so it may also be
 //! used in webassembly.
-//!
+
 use http::StatusCode;
 use rand::Rng;
 use reqwest::{header::HeaderMap, RequestBuilder, Response};
+use std::future::Future;
 
 use sos_core::{
     commit_tree::CommitProof,
@@ -117,7 +118,7 @@ impl RequestClient {
         server: Url,
         signer: BoxedSigner,
         vault: Vec<u8>,
-    ) -> impl std::future::Future<Output = Result<StatusCode>> + 'static {
+    ) -> impl Future<Output = Result<StatusCode>> + 'static {
         async move {
             let client = reqwest::Client::new();
             let url = server.join("api/accounts")?;
@@ -137,8 +138,7 @@ impl RequestClient {
     pub fn list_vaults(
         server: Url,
         signer: BoxedSigner,
-    ) -> impl std::future::Future<Output = Result<Vec<Summary>>> + 'static
-    {
+    ) -> impl Future<Output = Result<Vec<Summary>>> + 'static {
         async move {
             let client = reqwest::Client::new();
 
@@ -194,9 +194,8 @@ impl RequestClient {
         server: Url,
         signer: BoxedSigner,
         vault: Vec<u8>,
-    ) -> impl std::future::Future<
-        Output = Result<(StatusCode, Option<CommitProof>)>,
-    > + 'static {
+    ) -> impl Future<Output = Result<(StatusCode, Option<CommitProof>)>> + 'static
+    {
         async move {
             let client = reqwest::Client::new();
             let url = server.join("api/vaults")?;
@@ -223,7 +222,7 @@ impl RequestClient {
         signer: BoxedSigner,
         vault_id: Uuid,
         proof: Option<CommitProof>,
-    ) -> impl std::future::Future<
+    ) -> impl Future<
         Output = Result<(StatusCode, Option<CommitProof>, Option<Vec<u8>>)>,
     > + 'static {
         async move {
@@ -263,9 +262,8 @@ impl RequestClient {
         vault_id: Uuid,
         proof: CommitProof,
         body: Vec<u8>,
-    ) -> impl std::future::Future<
-        Output = Result<(StatusCode, Option<CommitProof>)>,
-    > + 'static {
+    ) -> impl Future<Output = Result<(StatusCode, Option<CommitProof>)>> + 'static
+    {
         async move {
             let client = reqwest::Client::new();
             let url = server.join(&format!("api/vaults/{}", vault_id))?;
@@ -295,7 +293,7 @@ impl RequestClient {
         vault_id: Uuid,
         proof: CommitProof,
         patch: Patch<'static>,
-    ) -> impl std::future::Future<
+    ) -> impl Future<
         Output = Result<(
             StatusCode,
             Option<CommitProof>,
@@ -335,7 +333,7 @@ impl RequestClient {
         signer: BoxedSigner,
         vault_id: Uuid,
         proof: Option<CommitProof>,
-    ) -> impl std::future::Future<
+    ) -> impl Future<
         Output = Result<(StatusCode, CommitProof, Option<CommitProof>)>,
     > + 'static {
         async move {
@@ -373,9 +371,8 @@ impl RequestClient {
         server: Url,
         signer: BoxedSigner,
         vault_id: Uuid,
-    ) -> impl std::future::Future<
-        Output = Result<(StatusCode, Option<CommitProof>)>,
-    > + 'static {
+    ) -> impl Future<Output = Result<(StatusCode, Option<CommitProof>)>> + 'static
+    {
         async move {
             let client = reqwest::Client::new();
             let url = server.join(&format!("api/vaults/{}", vault_id))?;
@@ -408,9 +405,8 @@ impl RequestClient {
         signer: BoxedSigner,
         vault_id: Uuid,
         vault: Vec<u8>,
-    ) -> impl std::future::Future<
-        Output = Result<(StatusCode, Option<CommitProof>)>,
-    > + 'static {
+    ) -> impl Future<Output = Result<(StatusCode, Option<CommitProof>)>> + 'static
+    {
         async move {
             let client = reqwest::Client::new();
             let url = server.join(&format!("api/vaults/{}", vault_id))?;
