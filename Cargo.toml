@@ -21,20 +21,21 @@ members = [
 ]
 
 [dependencies]
-sos-agent = { path = "workspace/agent", version = "0.1.0" }
-sos-audit = { path = "workspace/audit", version = "0.1.0" }
-sos-check = { path = "workspace/check", version = "0.1.0" }
-sos-client = { path = "workspace/client", version = "0.1.0" }
-sos-node = { path = "workspace/node", version = "0.1.0" }
-sos-core = { path = "workspace/core", version = "0.1.0" }
-sos-server = { path = "workspace/server", version = "0.1.0" }
-
 thiserror = "1"
 clap = { version = "3", features = ["derive", "wrap_help"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+sos-core = { path = "../library/workspace/core" }
 
-[dev-dependencies]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+sos-node = { path = "workspace/node", version = "0.1.0" }
+sos-agent = { path = "workspace/agent", version = "0.1.0" }
+sos-audit = { path = "workspace/audit", version = "0.1.0" }
+sos-check = { path = "workspace/check", version = "0.1.0" }
+sos-client = { path = "workspace/client", version = "0.1.0" }
+sos-server = { path = "workspace/server", version = "0.1.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow = "1"
 axum-server = "0.4" 
 tokio = { version = "1", features = ["full"] }
@@ -45,6 +46,12 @@ tracing = "0.1"
 futures = "0.3"
 serial_test = "0.8"
 secrecy = "0.8"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+sos-node = { path = "../library/workspace/node", default-features = false, features = ["client"] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3"
 
 [[bin]]
 name = "sos"

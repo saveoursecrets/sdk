@@ -5,7 +5,7 @@ use crate::{
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta},
     vault::{Vault, VaultAccess, VaultEntry},
-    wal::{WalProvider},
+    wal::WalProvider,
     CommitHash,
 };
 use std::{borrow::Cow, io::Write};
@@ -29,7 +29,6 @@ pub fn mock_vault() -> Vault {
     let vault: Vault = Default::default();
     vault
 }
-
 
 pub fn mock_secret_note(
     label: &str,

@@ -998,14 +998,13 @@ mod tests {
 
         Ok(())
     }
-
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod file_tests {
-    use anyhow::Result;
     use super::*;
     use crate::test_utils::*;
+    use anyhow::Result;
 
     #[test]
     fn decode_file() -> Result<()> {

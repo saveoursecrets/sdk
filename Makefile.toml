@@ -65,9 +65,8 @@ command = "cargo"
 args = ["test", "integration"]
 
 [tasks.test-wasm]
-script = '''
-cd workspace/core && wasm-pack test --node
-'''
+command = "wasm-pack"
+args = ["test", "--node"]
 
 [tasks.test]
 dependencies = ["unit", "integration"]

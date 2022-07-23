@@ -2733,6 +2733,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "wasm-bindgen-test",
  "web3-keystore",
 ]
 
@@ -2834,7 +2835,6 @@ dependencies = [
  "tracing",
  "url",
  "uuid 1.1.2",
- "wasm-bindgen-test",
  "web3-signature",
  "zeroize",
 ]

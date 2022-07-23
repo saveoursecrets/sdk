@@ -17,9 +17,9 @@ pub use self::chrono::Timestamp;
 
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
-    use crate::{encode, decode};
     use super::Timestamp;
+    use crate::{decode, encode};
+    use anyhow::Result;
 
     #[test]
     fn timestamp_encode() -> Result<()> {
