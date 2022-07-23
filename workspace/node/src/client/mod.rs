@@ -3,20 +3,15 @@ use std::{fs::File, io::Read, path::PathBuf};
 
 use std::future::Future;
 
-
-
 use web3_keystore::{decrypt, KeyStore};
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     address::AddressStr,
     signer::{BoxedSigner, Signer, SingleParty},
-    wal::{
-        WalProvider,
-    }, PatchProvider,
+    wal::WalProvider,
+    PatchProvider,
 };
-
-
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod account;

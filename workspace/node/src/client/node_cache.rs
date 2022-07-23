@@ -50,19 +50,123 @@ fn assert_proofs_eq(
     }
 }
 
+/// Manages the state of a node.
+#[derive(Default)]
+pub struct NodeState {
+    /// Vaults managed by this state.
+    summaries: Vec<Summary>,
+    /// Currently selected in-memory vault.
+    current: Option<Gatekeeper>,
+}
+
+impl NodeState {
+    /// Get the current in-memory vault access.
+    pub fn current(&self) -> Option<&Gatekeeper> {
+        self.current.as_ref()
+    }
+
+    /// Get a mutable reference to the current in-memory vault access.
+    pub fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
+        self.current.as_mut()
+    }
+
+    /// Get the vault summaries this state is managing.
+    pub fn summaries(&self) -> &[Summary] {
+        self.summaries.as_slice()
+    }
+
+    /// Get the vault summaries this state is managing.
+    pub fn summaries_mut(&mut self) -> &mut [Summary] {
+        self.summaries.as_mut_slice()
+    }
+
+    /// Set the summaries for this state.
+    pub fn set_summaries(&mut self, summaries: Vec<Summary>) {
+        self.summaries = summaries;
+        self.summaries.sort();
+    }
+
+    /// Add a summary to this state.
+    pub fn add_summary(&mut self, summary: Summary) {
+        self.summaries.push(summary);
+        self.summaries.sort();
+    }
+
+    /// Remove a summary from this state.
+    pub fn remove_summary(&mut self, summary: &Summary) {
+        let index =
+            self.summaries.iter().position(|s| s.id() == summary.id());
+        if let Some(index) = index {
+            self.summaries.remove(index);
+            self.summaries.sort();
+        }
+    }
+
+    /// Attempt to find a summary in this state.
+    pub fn find_vault(&self, vault: &SecretRef) -> Option<&Summary> {
+        match vault {
+            SecretRef::Name(name) => {
+                self.summaries.iter().find(|s| s.name() == name)
+            }
+            SecretRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
+        }
+    }
+
+    /// Set the current vault and unlock it.
+    fn open_vault(
+        &mut self,
+        summary: &Summary,
+        password: &str,
+        vault: Vault,
+        vault_path: Option<PathBuf>,
+    ) -> Result<()> {
+        //let vault = self.get_wal_vault(summary).await?;
+        let mut keeper = if let Some(vault_path) = vault_path {
+            //let vault_path = self.vault_path(summary);
+            /*
+            if !vault_path.exists() {
+                let buffer = encode(&vault)?;
+                self.write_vault_mirror(summary, &buffer)?;
+            }
+            */
+            let mirror = Box::new(VaultFileAccess::new(vault_path)?);
+            Gatekeeper::new_mirror(vault, mirror)
+        } else {
+            Gatekeeper::new(vault)
+        };
+        keeper
+            .unlock(password)
+            .map_err(|_| Error::VaultUnlockFail)?;
+        self.current = Some(keeper);
+        Ok(())
+    }
+
+    /// Close the currently open vault.
+    ///
+    /// When a vault is open it is locked before being closed.
+    ///
+    /// If no vault is open this is a noop.
+    fn close_vault(&mut self) {
+        if let Some(current) = self.current_mut() {
+            current.lock();
+        }
+        self.current = None;
+    }
+}
+
 /// Local data cache for a node.
 ///
 /// May be backed by files on disc or in-memory implementations
 /// for use in webassembly.
 pub struct NodeCache<W, P> {
-    /// Vaults managed by this cache.
-    summaries: Vec<Summary>,
-    /// Currently selected in-memory vault.
-    current: Option<Gatekeeper>,
+    /// State of this node.
+    state: NodeState,
+
     /// The URL for a remote node.
     server: Url,
     /// Client to use for server communication.
     signer: BoxedSigner,
+
     /// Directory for the user cache.
     ///
     /// Only available when using disc backing storage.
@@ -84,7 +188,7 @@ where
 {
     /// Get the vault summaries for this cache.
     pub fn vaults(&self) -> &[Summary] {
-        self.summaries.as_slice()
+        self.state.summaries()
     }
 
     /// Get the snapshot manager for this cache.
@@ -170,13 +274,11 @@ where
         &mut self,
         change: ChangeNotification,
     ) -> Result<()> {
-        //println!("{:#?}", change);
-
         let summary = self
-            .summaries
-            .iter()
-            .find(|s| s.id() == change.vault_id())
+            .state
+            .find_vault(&SecretRef::Id(*change.vault_id()))
             .cloned();
+
         if let Some(summary) = &summary {
             let tree = self
                 .wal_tree(summary)
@@ -225,19 +327,16 @@ where
         )
         .await?;
         self.load_caches(&summaries)?;
-        self.summaries = summaries;
-        self.summaries.sort();
+
+        self.state.set_summaries(summaries);
+
         Ok(self.vaults())
     }
 
     /// Attempt to find a summary in this cache.
+    #[deprecated]
     pub fn find_vault(&self, vault: &SecretRef) -> Option<&Summary> {
-        match vault {
-            SecretRef::Name(name) => {
-                self.summaries.iter().find(|s| s.name() == name)
-            }
-            SecretRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
-        }
+        self.state.find_vault(vault)
     }
 
     /// Create a new account and default login vault.
@@ -284,12 +383,8 @@ where
 
         // Remove from our cache of managed vaults
         self.cache.remove(summary.id());
-        let index =
-            self.summaries.iter().position(|s| s.id() == summary.id());
-        if let Some(index) = index {
-            self.summaries.remove(index);
-            self.summaries.sort();
-        }
+
+        self.state.remove_summary(summary);
 
         Ok(())
     }
@@ -303,7 +398,7 @@ where
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
         let status = self.patch_wal(summary, vec![event]).await?;
         if status.is_success() {
-            for item in self.summaries.iter_mut() {
+            for item in self.state.summaries_mut().iter_mut() {
                 if item.id() == summary.id() {
                     item.set_name(name.to_string());
                 }
@@ -424,32 +519,44 @@ where
         password: &str,
     ) -> Result<()> {
         let vault = self.get_wal_vault(summary).await?;
-        let mut keeper = if self.mirror {
+        let vault_path = if self.mirror {
             let vault_path = self.vault_path(summary);
             if !vault_path.exists() {
                 let buffer = encode(&vault)?;
                 self.write_vault_mirror(summary, &buffer)?;
             }
-            let mirror = Box::new(VaultFileAccess::new(vault_path)?);
-            Gatekeeper::new_mirror(vault, mirror)
+            //let mirror = Box::new(VaultFileAccess::new(vault_path)?);
+            //Gatekeeper::new_mirror(vault, mirror)
+            Some(vault_path)
         } else {
-            Gatekeeper::new(vault)
+            //Gatekeeper::new(vault)
+            None
         };
-        keeper
-            .unlock(password)
-            .map_err(|_| Error::VaultUnlockFail)?;
-        self.current = Some(keeper);
+        //keeper
+        //.unlock(password)
+        //.map_err(|_| Error::VaultUnlockFail)?;
+        //self.current = Some(keeper);
+
+        self.state
+            .open_vault(summary, password, vault, vault_path)?;
         Ok(())
     }
 
+    /// Close the currently selected vault.
+    pub fn close_vault(&mut self) {
+        self.state.close_vault();
+    }
+
     /// Get the current in-memory vault access.
+    #[deprecated]
     pub fn current(&self) -> Option<&Gatekeeper> {
-        self.current.as_ref()
+        self.state.current()
     }
 
     /// Get a mutable reference to the current in-memory vault access.
+    #[deprecated]
     pub fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
-        self.current.as_mut()
+        self.state.current_mut()
     }
 
     /// Apply changes to a vault.
@@ -464,18 +571,6 @@ where
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
         Ok(())
-    }
-
-    /// Close the currently open vault.
-    ///
-    /// When a vault is open it is locked before being closed.
-    ///
-    /// If no vault is open this is a noop.
-    pub fn close_vault(&mut self) {
-        if let Some(current) = self.current_mut() {
-            current.lock();
-        }
-        self.current = None;
     }
 
     /// Get a reference to the commit tree for a WAL file.
@@ -629,8 +724,7 @@ impl NodeCache<WalFile, PatchFile> {
         let snapshots = Some(SnapShotManager::new(&user_dir)?);
 
         Ok(Self {
-            summaries: Default::default(),
-            current: None,
+            state: Default::default(),
             server,
             signer,
             //client,
@@ -645,13 +739,11 @@ impl NodeCache<WalFile, PatchFile> {
 impl NodeCache<WalMemory, PatchMemory<'static>> {
     /// Create new node cache backed by memory.
     pub fn new_memory_cache(
-        //client: RequestClient<S>,
         server: Url,
         signer: BoxedSigner,
     ) -> NodeCache<WalMemory, PatchMemory<'static>> {
         Self {
-            summaries: Default::default(),
-            current: None,
+            state: Default::default(),
             server,
             signer,
             user_dir: None,
@@ -701,8 +793,8 @@ where
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
-        self.summaries.push(summary.clone());
-        self.summaries.sort();
+
+        self.state.add_summary(summary.clone());
 
         Ok((passphrase, summary))
     }

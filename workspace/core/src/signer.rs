@@ -74,7 +74,7 @@ pub trait SignSync {
 }
 
 /// Boxed signer.
-pub type BoxedSigner = Box<dyn Signer + Send + Sync + 'static>;
+pub type BoxedSigner = Box<dyn Signer + Sync + Send + 'static>;
 
 impl Clone for BoxedSigner {
     fn clone(&self) -> Self {
