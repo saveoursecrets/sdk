@@ -14,3 +14,19 @@ mod chrono;
 
 #[cfg(target_arch = "wasm32")]
 pub use self::chrono::Timestamp;
+
+#[cfg(test)]
+mod test {
+    use anyhow::Result;
+    use crate::{encode, decode};
+    use super::Timestamp;
+
+    #[test]
+    fn timestamp_encode() -> Result<()> {
+        let timestamp: Timestamp = Default::default();
+
+        let buffer = encode(&timestamp)?;
+        let timestamp: Timestamp = decode(&buffer)?;
+        Ok(())
+    }
+}

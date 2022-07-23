@@ -110,5 +110,18 @@ pub mod memory {
                 Ok::<Vec<Summary>, Error>(vaults.to_vec())
             }
         }
+
+        /// Open a vault.
+        pub fn open_vault(
+            cache: MemoryCache,
+            summary: Summary,
+            passphrase: String,
+        ) -> impl Future<Output = Result<()>> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                writer.open_vault(&summary, &passphrase).await?;
+                Ok::<(), Error>(())
+            }
+        }
     }
 }

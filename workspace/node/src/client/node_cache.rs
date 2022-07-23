@@ -116,26 +116,18 @@ impl NodeState {
     fn open_vault(
         &mut self,
         summary: &Summary,
-        password: &str,
+        passphrase: &str,
         vault: Vault,
         vault_path: Option<PathBuf>,
     ) -> Result<()> {
-        //let vault = self.get_wal_vault(summary).await?;
         let mut keeper = if let Some(vault_path) = vault_path {
-            //let vault_path = self.vault_path(summary);
-            /*
-            if !vault_path.exists() {
-                let buffer = encode(&vault)?;
-                self.write_vault_mirror(summary, &buffer)?;
-            }
-            */
             let mirror = Box::new(VaultFileAccess::new(vault_path)?);
             Gatekeeper::new_mirror(vault, mirror)
         } else {
             Gatekeeper::new(vault)
         };
         keeper
-            .unlock(password)
+            .unlock(passphrase)
             .map_err(|_| Error::VaultUnlockFail)?;
         self.current = Some(keeper);
         Ok(())
@@ -516,7 +508,7 @@ where
     pub async fn open_vault(
         &mut self,
         summary: &Summary,
-        password: &str,
+        passphrase: &str,
     ) -> Result<()> {
         let vault = self.get_wal_vault(summary).await?;
         let vault_path = if self.mirror {
@@ -538,7 +530,7 @@ where
         //self.current = Some(keeper);
 
         self.state
-            .open_vault(summary, password, vault, vault_path)?;
+            .open_vault(summary, passphrase, vault, vault_path)?;
         Ok(())
     }
 
