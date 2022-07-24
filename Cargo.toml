@@ -27,6 +27,10 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sos-core = { path = "../library/workspace/core" }
 
+[dev-dependencies]
+web3-keystore = "0.4"
+serde_json = "1"
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sos-node = { path = "workspace/node", version = "0.1.0" }
 sos-agent = { path = "workspace/agent", version = "0.1.0" }
@@ -40,8 +44,6 @@ anyhow = "1"
 axum-server = "0.4" 
 tokio = { version = "1", features = ["full"] }
 url = "2"
-web3-keystore = "0.4"
-serde_json = "1"
 tracing = "0.1"
 futures = "0.3"
 serial_test = "0.8"
@@ -52,6 +54,7 @@ sos-node = { path = "../library/workspace/node", default-features = false, featu
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3"
+wasm-bindgen = { version = "0.2.80", features = ["serde-serialize"] }
 
 [[bin]]
 name = "sos"

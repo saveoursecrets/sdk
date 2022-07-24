@@ -104,6 +104,7 @@ impl Decode for Timestamp {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let seconds = reader.read_i64()?;
         let nanos = reader.read_u32()?;
+
         self.0 = OffsetDateTime::from_unix_timestamp(seconds)
             .map_err(Box::from)?
             + Duration::nanoseconds(nanos as i64);

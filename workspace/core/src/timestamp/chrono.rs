@@ -27,6 +27,12 @@ impl Default for Timestamp {
 }
 
 impl Timestamp {
+    /// Convert to a short human-readable date and time without
+    /// the timezone offset.
+    pub fn to_date_time(&self) -> Result<String> {
+        todo!("implement for chrono")
+    }
+
     /// Convert this timestamp to a RFC2822 formatted string.
     pub fn to_rfc2822(&self) -> Result<String> {
         Ok(Timestamp::rfc2822(&self.0)?)
