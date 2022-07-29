@@ -3,10 +3,9 @@
 use binary_stream::{BinaryReader, Endian, FileStream};
 
 use crate::{
-    decode,
     commit_tree::{hash, CommitTree},
     iter::{vault_iter, FileItem, VaultRecord, WalFileRecord},
-    wal::{WalItem, WalProvider, WalRecord},
+    wal::{WalItem, WalProvider},
     Error, Result,
 };
 
@@ -104,9 +103,6 @@ where
 
             // Verify the commit hash for the data
             let value = record.read_bytes(&mut reader)?;
-
-            let wal_row: WalRecord = decode(&value)?;
-            println!("Got record {:#?}", wal_row);
 
             let checksum = hash(&value);
             if checksum != record.commit() {

@@ -105,8 +105,6 @@ impl Decode for Timestamp {
         let seconds = reader.read_i64()?;
         let nanos = reader.read_u32()?;
 
-        println!("Timestamp read seconds {}", seconds);
-
         self.0 = OffsetDateTime::from_unix_timestamp(seconds)
             .map_err(Box::from)?
             + Duration::nanoseconds(nanos as i64);

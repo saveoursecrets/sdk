@@ -2,6 +2,7 @@
 use crate::{
     commit_tree::{hash, CommitTree},
     events::WalEvent,
+    iter::WalFileRecord,
     timestamp::Timestamp,
     CommitHash, Result,
 };
@@ -130,6 +131,15 @@ pub trait WalItem: std::fmt::Debug {
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct WalRecord(Timestamp, CommitHash, CommitHash, pub Vec<u8>);
 
+impl From<(WalFileRecord, Vec<u8>)> for WalRecord {
+    fn from(value: (WalFileRecord, Vec<u8>)) -> Self {
+        Self(
+            value.0.time,
+            CommitHash(value.0.last_commit),
+            CommitHash(value.0.commit), value.1)
+    }
+}
+
 impl Encode for WalRecord {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         // Prepare the bytes for the row length
@@ -171,8 +181,6 @@ impl Decode for WalRecord {
         // Read in the row length
         let _ = reader.read_u32()?;
 
-        println!("Read row length....");
-
         // Decode the time component
         let mut time: Timestamp = Default::default();
         time.decode(&mut *reader)?;
@@ -211,7 +219,7 @@ mod test {
         commit_tree::{hash, Comparison},
         encode,
         decode,
-        iter::FileItem,
+        iter::{FileItem, WalFileRecord},
         events::WalEvent,
         secret::SecretId,
         vault::{Vault, VaultCommit, VaultEntry},
@@ -355,8 +363,7 @@ mod test {
 
         for record in it {
             let record = record?;
-            let value = record.read_bytes(&mut reader)?;
-            let record: WalRecord = decode(&value)?;
+            let _event = wal.event_data(&record)?;
         }
 
         Ok(())

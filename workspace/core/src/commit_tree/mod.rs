@@ -458,9 +458,6 @@ mod test {
         let proof = commit_tree.head()?;
 
         let json = serde_json::to_string_pretty(&proof)?;
-
-        //println!("{}", json);
-
         let commit_proof: CommitProof = serde_json::from_str(&json)?;
 
         assert_eq!(proof.0, commit_proof.0);
