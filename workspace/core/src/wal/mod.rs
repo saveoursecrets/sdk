@@ -200,7 +200,7 @@ impl Decode for WalRecord {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use std::borrow::Cow;
+    use std::{borrow::Cow, path::PathBuf};
     use uuid::Uuid;
 
     use super::{memory::*, *};
@@ -337,5 +337,12 @@ mod test {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn wal_memory_parse() {
+        let buffer = include_bytes!("../../../../tests/fixtures/simple-vault.wal");
+        let mut wal = WalMemory::new(PathBuf::from("")).unwrap();
+        wal.write_buffer(buffer.to_vec()).unwrap();
     }
 }
