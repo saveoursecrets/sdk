@@ -36,6 +36,8 @@ mod wasm_tests {
         assert_eq!(timestamp, decoded);
     }
 
+    // FIXME: restore this test with a new fixture
+    /*
     #[wasm_bindgen_test]
     fn wal_memory_parse() {
         use std::path::PathBuf;
@@ -43,4 +45,5 @@ mod wasm_tests {
         let mut wal = WalMemory::new(PathBuf::from("")).unwrap();
         wal.write_buffer(buffer.to_vec()).unwrap();
     }
+    */
 }

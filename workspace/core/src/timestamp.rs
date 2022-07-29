@@ -127,3 +127,19 @@ impl TryFrom<FileTime> for Timestamp {
         Ok(time.into())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::Timestamp;
+    use crate::{decode, encode};
+    use anyhow::Result;
+
+    #[test]
+    fn timestamp_encode() -> Result<()> {
+        let timestamp: Timestamp = Default::default();
+
+        let buffer = encode(&timestamp)?;
+        let timestamp: Timestamp = decode(&buffer)?;
+        Ok(())
+    }
+}
