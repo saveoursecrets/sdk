@@ -171,6 +171,8 @@ impl Decode for WalRecord {
         // Read in the row length
         let _ = reader.read_u32()?;
 
+        println!("Read row length....");
+
         // Decode the time component
         let mut time: Timestamp = Default::default();
         time.decode(&mut *reader)?;
@@ -202,11 +204,14 @@ mod test {
     use anyhow::Result;
     use std::{borrow::Cow, path::PathBuf};
     use uuid::Uuid;
+    use binary_stream::{BinaryReader, Endian, FileStream};
 
-    use super::{memory::*, *};
+    use super::{memory::*, file::*, *};
     use crate::{
         commit_tree::{hash, Comparison},
         encode,
+        decode,
+        iter::FileItem,
         events::WalEvent,
         secret::SecretId,
         vault::{Vault, VaultCommit, VaultEntry},
@@ -340,8 +345,27 @@ mod test {
     }
 
     #[test]
+    fn wal_file_load() -> Result<()> {
+        let path = PathBuf::from("../../tests/fixtures/simple-vault.wal");
+        let mut stream = FileStream(std::fs::File::open(&path)?);
+        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+
+        let mut wal = WalFile::new(path)?;
+        let it = wal.iter()?;
+
+        for record in it {
+            let record = record?;
+            let value = record.read_bytes(&mut reader)?;
+            let record: WalRecord = decode(&value)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
     fn wal_memory_parse() {
-        let buffer = include_bytes!("../../../../tests/fixtures/simple-vault.wal");
+        let buffer = include_bytes!(
+            "../../../../tests/fixtures/simple-vault.wal");
         let mut wal = WalMemory::new(PathBuf::from("")).unwrap();
         wal.write_buffer(buffer.to_vec()).unwrap();
     }

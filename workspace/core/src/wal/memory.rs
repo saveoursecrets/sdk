@@ -96,8 +96,12 @@ impl WalMemory {
 
         let mut records = Vec::new();
         for (index, record) in it.into_iter().enumerate() {
+
+            println!("Decoding {} {:#?}", index, record);
+
             let record = record?;
             let value = record.read_bytes(&mut reader)?;
+
             let record: WalRecord = decode(&value)?;
             records.push(WalMemoryRecord(start + index, record));
         }
