@@ -115,7 +115,6 @@ impl NodeState {
     /// Set the current vault and unlock it.
     fn open_vault(
         &mut self,
-        summary: &Summary,
         passphrase: &str,
         vault: Vault,
         vault_path: Option<PathBuf>,
@@ -530,7 +529,7 @@ where
         //self.current = Some(keeper);
 
         self.state
-            .open_vault(summary, passphrase, vault, vault_path)?;
+            .open_vault(passphrase, vault, vault_path)?;
         Ok(())
     }
 
@@ -540,13 +539,11 @@ where
     }
 
     /// Get the current in-memory vault access.
-    #[deprecated]
     pub fn current(&self) -> Option<&Gatekeeper> {
         self.state.current()
     }
 
     /// Get a mutable reference to the current in-memory vault access.
-    #[deprecated]
     pub fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
         self.state.current_mut()
     }

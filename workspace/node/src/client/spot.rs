@@ -72,7 +72,6 @@ pub mod memory {
     };
     use std::{
         future::Future,
-        path::PathBuf,
         sync::{Arc, RwLock},
     };
     use url::Url;
@@ -83,6 +82,8 @@ pub mod memory {
 
     /// Client that communicates with a single server and
     /// writes it's cache to memory.
+    ///
+    /// Uses static futures so that it can be used in webassembly.
     pub struct SpotMemoryClient {
         cache: MemoryCache,
     }

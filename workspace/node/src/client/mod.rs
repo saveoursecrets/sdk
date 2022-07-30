@@ -9,8 +9,6 @@ use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     address::AddressStr,
     signer::{BoxedSigner, Signer, SingleParty},
-    wal::WalProvider,
-    PatchProvider,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
