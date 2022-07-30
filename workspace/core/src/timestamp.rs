@@ -137,9 +137,9 @@ mod test {
     #[test]
     fn timestamp_encode() -> Result<()> {
         let timestamp: Timestamp = Default::default();
-
         let buffer = encode(&timestamp)?;
-        let timestamp: Timestamp = decode(&buffer)?;
+        let decoded: Timestamp = decode(&buffer)?;
+        assert_eq!(timestamp, decoded);
         Ok(())
     }
 }

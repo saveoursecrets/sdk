@@ -5,7 +5,6 @@ use crate::{
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta},
     vault::{Vault, VaultAccess, VaultEntry},
-    wal::WalProvider,
     CommitHash,
 };
 use std::{borrow::Cow, io::Write};
@@ -87,10 +86,8 @@ mod file {
     use crate::{
         crypto::secret_key::SecretKey,
         encode,
-        events::{SyncEvent, WalEvent},
-        generate_passphrase,
-        secret::{Secret, SecretId, SecretMeta},
-        vault::{Vault, VaultAccess, VaultEntry},
+        events::WalEvent,
+        vault::Vault,
         wal::{file::WalFile, WalProvider},
         CommitHash,
     };

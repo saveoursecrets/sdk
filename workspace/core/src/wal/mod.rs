@@ -234,7 +234,6 @@ mod test {
     use anyhow::Result;
     use std::{borrow::Cow, path::PathBuf};
     use uuid::Uuid;
-    use binary_stream::{BinaryReader, Endian, FileStream};
 
     use super::{memory::*, file::*, *};
     use crate::{
@@ -377,12 +376,8 @@ mod test {
     #[test]
     fn wal_file_load() -> Result<()> {
         let path = PathBuf::from("../../tests/fixtures/simple-vault.wal");
-        let mut stream = FileStream(std::fs::File::open(&path)?);
-        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
-
-        let mut wal = WalFile::new(path)?;
+        let wal = WalFile::new(path)?;
         let it = wal.iter()?;
-
         for record in it {
             let record = record?;
             let _event = wal.event_data(&record)?;

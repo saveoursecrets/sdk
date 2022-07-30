@@ -5,11 +5,11 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file {
     use crate::client::{
-        changes_listener::ChangesListener, node_cache::NodeCache, Error,
+        changes_listener::ChangesListener, node_cache::NodeCache,
         Result,
     };
     use sos_core::{
-        signer::BoxedSigner, vault::Summary, wal::file::WalFile, PatchFile,
+        signer::BoxedSigner, wal::file::WalFile, PatchFile,
     };
     use std::{
         path::PathBuf,
@@ -167,5 +167,18 @@ pub mod memory {
                 let _ = writer.patch_vault(&summary, events).await;
             }
         }
+
+        /// Handle a change notification.
+        pub fn handle_change(
+            cache: MemoryCache,
+            change: ChangeNotification,
+        ) -> impl Future<Output = ()> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                writer.handle_change(&summary, events).await?;
+                Ok::<(), Error>(())
+            }
+        }
+
     }
 }
