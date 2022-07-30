@@ -2,9 +2,14 @@
 mod wasm_tests {
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-    use wasm_bindgen_test::*;
+    use sos_core::{
+        decode, encode,
+        vault::{Summary, Vault},
+        wal::{memory::WalMemory, WalProvider},
+        Timestamp,
+    };
     use wasm_bindgen::prelude::*;
-    use sos_core::{decode, encode, Timestamp, vault::{Vault, Summary}, wal::{memory::WalMemory, WalProvider}};
+    use wasm_bindgen_test::*;
 
     /*
     #[wasm_bindgen]

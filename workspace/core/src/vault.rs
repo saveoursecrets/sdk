@@ -694,8 +694,7 @@ impl Vault {
     /// Verify an encryption passphrase.
     pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
-        let meta_aead =
-            self.header().meta().ok_or(Error::VaultNotInit)?;
+        let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
         let salt = SecretKey::parse_salt(salt)?;
         let secret_key = SecretKey::derive_32(passphrase.as_ref(), &salt)?;
         let _ = self.decrypt(&secret_key, &meta_aead)?;

@@ -528,8 +528,7 @@ where
         //.map_err(|_| Error::VaultUnlockFail)?;
         //self.current = Some(keeper);
 
-        self.state
-            .open_vault(passphrase, vault, vault_path)?;
+        self.state.open_vault(passphrase, vault, vault_path)?;
         Ok(())
     }
 

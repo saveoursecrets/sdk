@@ -90,9 +90,10 @@ impl RequestClient {
     }
 
     /// Get the URL for a changes event source feed.
-    pub fn changes_feed_url(server: Url, signer: BoxedSigner) ->
-        impl Future<Output = Result<Url>> + 'static
-    {
+    pub fn changes_feed_url(
+        server: Url,
+        signer: BoxedSigner,
+    ) -> impl Future<Output = Result<Url>> + 'static {
         async move {
             let message: [u8; 32] = rand::thread_rng().gen();
             let token = encode_signature(signer.sign(&message).await?)?;

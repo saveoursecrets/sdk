@@ -146,7 +146,7 @@ impl WalProvider for WalFile {
         file.write_all(buffer)?;
 
         // FIXME: don't rebuild the entire commit tree from scratch
-        // FIXME: but iterate the new commits in the buffer and 
+        // FIXME: but iterate the new commits in the buffer and
         // FIXME: append them to the existing tree
 
         // Update with the new commit tree

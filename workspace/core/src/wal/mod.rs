@@ -158,7 +158,9 @@ impl From<(WalFileRecord, Vec<u8>)> for WalRecord {
         Self(
             value.0.time,
             CommitHash(value.0.last_commit),
-            CommitHash(value.0.commit), value.1)
+            CommitHash(value.0.commit),
+            value.1,
+        )
     }
 }
 
@@ -235,13 +237,12 @@ mod test {
     use std::{borrow::Cow, path::PathBuf};
     use uuid::Uuid;
 
-    use super::{memory::*, file::*, *};
+    use super::{file::*, memory::*, *};
     use crate::{
         commit_tree::{hash, Comparison},
-        encode,
-        decode,
-        iter::{FileItem, WalFileRecord},
+        decode, encode,
         events::WalEvent,
+        iter::{FileItem, WalFileRecord},
         secret::SecretId,
         vault::{Vault, VaultCommit, VaultEntry},
         CommitHash,
@@ -388,8 +389,8 @@ mod test {
 
     #[test]
     fn wal_memory_parse() {
-        let buffer = include_bytes!(
-            "../../../../tests/fixtures/simple-vault.wal");
+        let buffer =
+            include_bytes!("../../../../tests/fixtures/simple-vault.wal");
         let mut wal = WalMemory::new(PathBuf::from("")).unwrap();
         wal.write_buffer(buffer.to_vec()).unwrap();
     }

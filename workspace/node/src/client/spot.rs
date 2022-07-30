@@ -5,12 +5,9 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file {
     use crate::client::{
-        changes_listener::ChangesListener, node_cache::NodeCache,
-        Result,
+        changes_listener::ChangesListener, node_cache::NodeCache, Result,
     };
-    use sos_core::{
-        signer::BoxedSigner, wal::file::WalFile, PatchFile,
-    };
+    use sos_core::{signer::BoxedSigner, wal::file::WalFile, PatchFile};
     use std::{
         path::PathBuf,
         sync::{Arc, RwLock},
@@ -66,9 +63,8 @@ pub mod file {
 pub mod memory {
     use crate::client::{node_cache::NodeCache, Error, Result};
     use sos_core::{
-        events::SyncEvent,
-        signer::BoxedSigner, vault::Summary, wal::memory::WalMemory,
-        PatchMemory,
+        events::SyncEvent, signer::BoxedSigner, vault::Summary,
+        wal::memory::WalMemory, PatchMemory,
     };
     use std::{
         future::Future,
@@ -98,7 +94,11 @@ pub mod memory {
             let cache = Arc::new(RwLock::new(NodeCache::new_memory_cache(
                 server, signer,
             )));
-            Self { cache, url, signer: client_signer }
+            Self {
+                cache,
+                url,
+                signer: client_signer,
+            }
         }
 
         /// Get the URL of the remote node.
@@ -155,7 +155,7 @@ pub mod memory {
 
         /// Send a patch of events infallibly.
         ///
-        /// This is used to send read secret events for 
+        /// This is used to send read secret events for
         /// audit logging.
         pub fn send_events(
             cache: MemoryCache,
@@ -179,6 +179,5 @@ pub mod memory {
                 Ok::<(), Error>(())
             }
         }
-
     }
 }
