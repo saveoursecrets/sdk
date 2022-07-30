@@ -86,15 +86,29 @@ pub mod memory {
     /// Uses static futures so that it can be used in webassembly.
     pub struct SpotMemoryClient {
         cache: MemoryCache,
+        url: Url,
+        signer: BoxedSigner,
     }
 
     impl SpotMemoryClient {
         /// Create a new SPOT memory client.
         pub fn new(server: Url, signer: BoxedSigner) -> Self {
+            let url = server.clone();
+            let client_signer = signer.clone();
             let cache = Arc::new(RwLock::new(NodeCache::new_memory_cache(
                 server, signer,
             )));
-            Self { cache }
+            Self { cache, url, signer: client_signer }
+        }
+
+        /// Get the URL of the remote node.
+        pub fn url(&self) -> &Url {
+            &self.url
+        }
+
+        /// Get the signer.
+        pub fn signer(&self) -> &BoxedSigner {
+            &self.signer
         }
 
         /// Get a clone of the underlying node cache.
