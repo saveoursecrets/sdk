@@ -63,7 +63,7 @@ pub mod file {
 pub mod memory {
     use crate::client::{node_cache::NodeCache, Error, Result};
     use sos_core::{
-        events::SyncEvent, signer::BoxedSigner, vault::Summary,
+        events::{SyncEvent, ChangeNotification}, signer::BoxedSigner, vault::Summary,
         wal::memory::WalMemory, PatchMemory,
     };
     use std::{
@@ -172,10 +172,10 @@ pub mod memory {
         pub fn handle_change(
             cache: MemoryCache,
             change: ChangeNotification,
-        ) -> impl Future<Output = ()> + 'static {
+        ) -> impl Future<Output = Result<()>> + 'static {
             async move {
                 let mut writer = cache.write().unwrap();
-                writer.handle_change(&summary, events).await?;
+                writer.handle_change(change).await?;
                 Ok::<(), Error>(())
             }
         }
