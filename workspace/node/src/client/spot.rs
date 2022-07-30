@@ -125,6 +125,19 @@ pub mod memory {
             }
         }
 
+        /// Patch a vault.
+        pub fn patch_vault(
+            cache: MemoryCache,
+            summary: Summary,
+            events: Vec<SyncEvent<'static>>,
+        ) -> impl Future<Output = Result<()>> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                writer.patch_vault(&summary, events).await?;
+                Ok::<(), Error>(())
+            }
+        }
+
         /// Send a patch of events infallibly.
         ///
         /// This is used to send read secret events for 

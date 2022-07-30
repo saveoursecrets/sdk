@@ -136,6 +136,7 @@ pub struct SecretMeta {
     /// Kind of the secret.
     kind: u8,
     /// Last updated timestamp.
+    #[serde(skip_deserializing)]
     last_updated: Timestamp,
 }
 
