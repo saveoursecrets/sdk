@@ -66,6 +66,7 @@ pub mod file {
 pub mod memory {
     use crate::client::{node_cache::NodeCache, Error, Result};
     use sos_core::{
+        events::SyncEvent,
         signer::BoxedSigner, vault::Summary, wal::memory::WalMemory,
         PatchMemory,
     };
@@ -121,6 +122,21 @@ pub mod memory {
                 let mut writer = cache.write().unwrap();
                 writer.open_vault(&summary, &passphrase).await?;
                 Ok::<(), Error>(())
+            }
+        }
+
+        /// Send a patch of events infallibly.
+        ///
+        /// This is used to send read secret events for 
+        /// audit logging.
+        pub fn send_events(
+            cache: MemoryCache,
+            summary: Summary,
+            events: Vec<SyncEvent<'static>>,
+        ) -> impl Future<Output = ()> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                let _ = writer.patch_vault(&summary, events).await;
             }
         }
     }

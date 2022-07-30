@@ -923,7 +923,6 @@ where
 
                         // Check the identity looks good
                         FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
-
                         wal.write_buffer(buffer)?;
                         wal.tree().head()?
                     }

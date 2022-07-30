@@ -143,8 +143,8 @@ impl WalProvider for WalMemory {
     }
 
     fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
-        let records = self.decode_file_records(buffer, self.records.len())?;
-        self.records = records;
+        let mut records = self.decode_file_records(buffer, self.records.len())?;
+        self.records.append(&mut records);
         self.load_tree()?;
         Ok(())
     }
@@ -222,6 +222,16 @@ impl WalProvider for WalMemory {
     }
 
     fn load_tree(&mut self) -> Result<()> {
+        self.tree = CommitTree::new();
+        let mut commits: Vec<[u8; 32]> = self.records.iter()
+            .map(|v| {
+                let commit = *v.1.commit();
+                let commit: [u8; 32] = commit.into();
+                commit
+            }).collect();
+
+        self.tree.append(&mut commits);
+        self.tree.commit();
         Ok(())
     }
 

@@ -31,6 +31,7 @@ ouroboros = "0.15"
 pem = { version = "1.1.0", features = ["serde"] }
 secrecy = { version = "0.8", features = ["serde"] }
 tempfile = "3"
+log = "0.4"
 
 time = { git = "https://github.com/time-rs/time", version = "0.3", features = ["serde", "local-offset", "formatting"] }
 

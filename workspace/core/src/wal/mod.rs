@@ -131,6 +131,28 @@ pub trait WalItem: std::fmt::Debug {
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct WalRecord(Timestamp, CommitHash, CommitHash, pub Vec<u8>);
 
+impl WalRecord {
+    /// Get the time for the record.
+    pub fn time(&self) -> &Timestamp {
+        &self.0
+    }
+
+    /// Get the last commit hash for the record.
+    pub fn last_commit(&self) -> &CommitHash {
+        &self.1
+    }
+
+    /// Get the commit hash for the record.
+    pub fn commit(&self) -> &CommitHash {
+        &self.2
+    }
+
+    /// Get the event bytes the record.
+    pub fn event_bytes(&self) -> &[u8] {
+        self.3.as_slice()
+    }
+}
+
 impl From<(WalFileRecord, Vec<u8>)> for WalRecord {
     fn from(value: (WalFileRecord, Vec<u8>)) -> Self {
         Self(
