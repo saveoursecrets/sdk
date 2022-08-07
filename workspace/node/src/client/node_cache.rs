@@ -274,6 +274,7 @@ where
             let tree = self
                 .wal_tree(summary)
                 .ok_or(sos_core::Error::NoRootCommit)?;
+
             let head = tree.head()?;
 
             tracing::debug!(
@@ -824,13 +825,16 @@ where
 
     fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
         for summary in summaries {
-            let patch_path = self.patch_path(summary);
-            let patch_file = P::new(patch_path)?;
+            // Ensure we don't overwrite existing data 
+            if self.cache.get(summary.id()).is_none() {
+                let patch_path = self.patch_path(summary);
+                let patch_file = P::new(patch_path)?;
 
-            let wal_path = self.wal_path(summary);
-            let mut wal_file = W::new(&wal_path)?;
-            wal_file.load_tree()?;
-            self.cache.insert(*summary.id(), (wal_file, patch_file));
+                let wal_path = self.wal_path(summary);
+                let mut wal_file = W::new(&wal_path)?;
+                wal_file.load_tree()?;
+                self.cache.insert(*summary.id(), (wal_file, patch_file));
+            }
         }
         Ok(())
     }
@@ -987,6 +991,7 @@ where
         summary: &Summary,
         events: Vec<SyncEvent<'async_recursion>>,
     ) -> Result<StatusCode> {
+
         let (wal, patch_file) = self
             .cache
             .get_mut(summary.id())

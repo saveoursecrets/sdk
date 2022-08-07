@@ -140,6 +140,31 @@ pub mod memory {
             }
         }
 
+        /// Remove a vault.
+        pub fn remove_vault(
+            cache: MemoryCache,
+            summary: Summary,
+        ) -> impl Future<Output = Result<()>> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                writer.remove_vault(&summary).await?;
+                Ok::<(), Error>(())
+            }
+        }
+
+        /// Rename a vault.
+        pub fn rename_vault(
+            cache: MemoryCache,
+            summary: Summary,
+            name: String,
+        ) -> impl Future<Output = Result<()>> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                writer.set_vault_name(&summary, &name).await?;
+                Ok::<(), Error>(())
+            }
+        }
+
         /// Patch a vault.
         pub fn patch_vault(
             cache: MemoryCache,
