@@ -518,17 +518,10 @@ where
                 let buffer = encode(&vault)?;
                 self.write_vault_mirror(summary, &buffer)?;
             }
-            //let mirror = Box::new(VaultFileAccess::new(vault_path)?);
-            //Gatekeeper::new_mirror(vault, mirror)
             Some(vault_path)
         } else {
-            //Gatekeeper::new(vault)
             None
         };
-        //keeper
-        //.unlock(password)
-        //.map_err(|_| Error::VaultUnlockFail)?;
-        //self.current = Some(keeper);
 
         self.state.open_vault(passphrase, vault, vault_path)?;
         Ok(())
@@ -833,7 +826,7 @@ where
 
     fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
         for summary in summaries {
-            // Ensure we don't overwrite existing data
+            // Ensure we don't overwrite existing data 
             if self.cache.get(summary.id()).is_none() {
                 let patch_path = self.patch_path(summary);
                 let patch_file = P::new(patch_path)?;
@@ -999,6 +992,7 @@ where
         summary: &Summary,
         events: Vec<SyncEvent<'async_recursion>>,
     ) -> Result<StatusCode> {
+
         let (wal, patch_file) = self
             .cache
             .get_mut(summary.id())
