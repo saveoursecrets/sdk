@@ -490,7 +490,7 @@ fn exec_program(
         ShellCommand::Create { name } => {
             let mut writer = cache.write().unwrap();
             let (passphrase, _summary) =
-                run_blocking(writer.create_vault(name))?;
+                run_blocking(writer.create_vault(name, None))?;
             display_passphrase(
                 "ENCRYPTION PASSPHRASE",
                 passphrase.expose_secret(),

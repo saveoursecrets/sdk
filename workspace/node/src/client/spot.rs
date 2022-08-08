@@ -63,8 +63,11 @@ pub mod file {
 pub mod memory {
     use crate::client::{node_cache::NodeCache, Error, Result};
     use sos_core::{
-        events::{SyncEvent, ChangeNotification}, signer::BoxedSigner, vault::Summary,
-        wal::memory::WalMemory, PatchMemory,
+        events::{ChangeNotification, SyncEvent},
+        signer::BoxedSigner,
+        vault::Summary,
+        wal::memory::WalMemory,
+        PatchMemory,
     };
     use std::{
         future::Future,
@@ -124,6 +127,20 @@ pub mod memory {
                 let mut writer = cache.write().unwrap();
                 let vaults = writer.load_vaults().await?;
                 Ok::<Vec<Summary>, Error>(vaults.to_vec())
+            }
+        }
+
+        /// Create a vault.
+        pub fn create_vault(
+            cache: MemoryCache,
+            name: String,
+            passphrase: String,
+        ) -> impl Future<Output = Result<Summary>> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                let (_, summary) =
+                    writer.create_vault(name, Some(passphrase)).await?;
+                Ok::<Summary, Error>(summary)
             }
         }
 

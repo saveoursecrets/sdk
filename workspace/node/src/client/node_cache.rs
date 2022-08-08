@@ -336,15 +336,16 @@ where
         &mut self,
         name: Option<String>,
     ) -> Result<(SecretString, Summary)> {
-        self.create(name, true).await
+        self.create(name, None, true).await
     }
 
     /// Create a new vault.
     pub async fn create_vault(
         &mut self,
         name: String,
+        passphrase: Option<String>,
     ) -> Result<(SecretString, Summary)> {
-        self.create(Some(name), false).await
+        self.create(Some(name), passphrase, false).await
     }
 
     /// Remove a vault.
@@ -752,9 +753,10 @@ where
     async fn create(
         &mut self,
         name: Option<String>,
+        passphrase: Option<String>,
         is_account: bool,
     ) -> Result<(SecretString, Summary)> {
-        let (passphrase, vault, buffer) = self.new_vault(name)?;
+        let (passphrase, vault, buffer) = self.new_vault(name, passphrase)?;
         let summary = vault.summary().clone();
 
         if self.mirror {
@@ -812,8 +814,14 @@ where
     fn new_vault(
         &self,
         name: Option<String>,
+        passphrase: Option<String>,
     ) -> Result<(SecretString, Vault, Vec<u8>)> {
-        let (passphrase, _) = generate_passphrase()?;
+        let passphrase = if let Some(passphrase) = passphrase {
+            secrecy::Secret::new(passphrase)
+        } else {
+            let (passphrase, _) = generate_passphrase()?;
+            passphrase
+        };
         let mut vault: Vault = Default::default();
         if let Some(name) = name {
             vault.set_name(name);
@@ -825,7 +833,7 @@ where
 
     fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
         for summary in summaries {
-            // Ensure we don't overwrite existing data 
+            // Ensure we don't overwrite existing data
             if self.cache.get(summary.id()).is_none() {
                 let patch_path = self.patch_path(summary);
                 let patch_file = P::new(patch_path)?;
@@ -991,7 +999,6 @@ where
         summary: &Summary,
         events: Vec<SyncEvent<'async_recursion>>,
     ) -> Result<StatusCode> {
-
         let (wal, patch_file) = self
             .cache
             .get_mut(summary.id())

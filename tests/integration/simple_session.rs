@@ -88,8 +88,9 @@ async fn integration_simple_session() -> Result<()> {
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
-    let (new_passphrase, _) =
-        node_cache.create_vault(new_vault_name.clone()).await?;
+    let (new_passphrase, _) = node_cache
+        .create_vault(new_vault_name.clone(), None)
+        .await?;
 
     // Check our new vault is found in the local cache
     let vault_ref = SecretRef::Name(new_vault_name.clone());
