@@ -104,31 +104,18 @@ command -v mkcert && cd sandbox &&
   mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1
 '''
 
-#rm -rf workspace/node/public &&
-  #(cd ../browser && make dist) && 
-  #cp -r ../browser/app/dist workspace/node/public
-
 [tasks.browser-gui]
 script = '''
+rm -rf target/browser
 rm -rf workspace/node/public
 cd target
 git clone git@github.com:saveoursecrets/browser.git
 cd browser
-(cd app && yarn install)
 cargo make wasm
+(cd app && yarn install --frozen-lockfile)
 cargo make dist
-cp -r app/dist workspace/node/public
+cp -rv app/dist ../../workspace/node/public
 '''
-
-#[tasks.artifacts]
-#script = '''
-#for bin in ${BINARIES}; do
-  #tar -czvf target/${bin}-${BUILD_TARGET}.tar.gz target/${BUILD_TARGET}/release/${bin};
-#done
-#'''
-
-#[tasks.release]
-#dependencies = ["dist", "artifacts"]
 
 [tasks.clean-coverage]
 script = '''
