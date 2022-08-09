@@ -359,7 +359,7 @@ where
     /// Get the state for this node cache.
     pub fn state(&self) -> &NodeState {
         &self.state
-    } 
+    }
 
     /// Create a new account and default login vault.
     pub async fn create_account(
