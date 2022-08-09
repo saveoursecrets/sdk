@@ -7,7 +7,7 @@ mod sync;
 mod types;
 mod wal;
 
-pub use change::{ChangeEvent, ChangeNotification};
+pub use change::{ChangeEvent, ChangeNotification, ChangeAction};
 pub use sync::SyncEvent;
 pub use types::EventKind;
 pub use wal::WalEvent;

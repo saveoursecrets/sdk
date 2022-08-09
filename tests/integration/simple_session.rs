@@ -95,7 +95,7 @@ async fn integration_simple_session() -> Result<()> {
     // Check our new vault is found in the local cache
     let vault_ref = SecretRef::Name(new_vault_name.clone());
     let new_vault_summary =
-        node_cache.find_vault(&vault_ref).unwrap().clone();
+        node_cache.state().find_vault(&vault_ref).unwrap().clone();
     assert_eq!(&new_vault_name, new_vault_summary.name());
 
     // Need this for some assertions later
@@ -104,7 +104,7 @@ async fn integration_simple_session() -> Result<()> {
     // Trigger code path for finding by id
     let id_ref = SecretRef::Id(*new_vault_summary.id());
     let new_vault_summary_by_id =
-        node_cache.find_vault(&id_ref).unwrap().clone();
+        node_cache.state().find_vault(&id_ref).unwrap().clone();
     assert_eq!(new_vault_summary_by_id, new_vault_summary);
 
     // Load vaults list
@@ -116,7 +116,7 @@ async fn integration_simple_session() -> Result<()> {
     // Remove the default vault
     let default_ref = SecretRef::Name(DEFAULT_VAULT_NAME.to_owned());
     let default_vault_summary =
-        node_cache.find_vault(&default_ref).unwrap().clone();
+        node_cache.state().find_vault(&default_ref).unwrap().clone();
     node_cache.remove_vault(&default_vault_summary).await?;
     let vaults = node_cache.load_vaults().await?;
     assert_eq!(1, vaults.len());

@@ -500,6 +500,7 @@ fn exec_program(
         ShellCommand::Remove { vault } => {
             let reader = cache.read().unwrap();
             let summary = reader
+                .state()
                 .find_vault(&vault)
                 .ok_or(Error::VaultNotAvailable(vault.clone()))?
                 .clone();
@@ -520,6 +521,7 @@ fn exec_program(
         ShellCommand::Use { vault } => {
             let reader = cache.read().unwrap();
             let summary = reader
+                .state()
                 .find_vault(&vault)
                 .cloned()
                 .ok_or(Error::VaultNotAvailable(vault))?;

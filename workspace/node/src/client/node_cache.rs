@@ -9,7 +9,9 @@ use sos_core::{
     commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
     constants::{PATCH_EXT, VAULT_BACKUP_EXT, WAL_EXT, WAL_IDENTITY},
     encode,
-    events::{ChangeEvent, ChangeNotification, SyncEvent, WalEvent},
+    events::{
+        ChangeAction, ChangeEvent, ChangeNotification, SyncEvent, WalEvent,
+    },
     generate_passphrase,
     secret::SecretRef,
     signer::BoxedSigner,
@@ -32,7 +34,11 @@ use sos_core::{constants::WAL_DELETED_EXT, wal::file::WalFile, PatchFile};
 #[cfg(not(target_arch = "wasm32"))]
 use std::{io::Write, path::Path};
 
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 use uuid::Uuid;
 
 use crate::sync::{SyncInfo, SyncKind, SyncStatus};
@@ -265,49 +271,73 @@ where
         &mut self,
         change: ChangeNotification,
     ) -> Result<()> {
-        let summary = self
-            .state
-            .find_vault(&SecretRef::Id(*change.vault_id()))
-            .cloned();
+        // Gather actions corresponding to the events
+        let mut actions = HashSet::new();
+        for event in change.changes() {
+            let action = match event {
+                ChangeEvent::DeleteVault => ChangeAction::Remove,
+                _ => ChangeAction::Pull,
+            };
+            actions.insert(action);
+        }
 
-        if let Some(summary) = &summary {
-            let tree = self
-                .wal_tree(summary)
-                .ok_or(sos_core::Error::NoRootCommit)?;
+        // Consume and react to the actions
+        for action in actions {
+            let summary = self
+                .state
+                .find_vault(&SecretRef::Id(*change.vault_id()))
+                .cloned();
 
-            let head = tree.head()?;
+            if let Some(summary) = &summary {
+                match action {
+                    ChangeAction::Pull => {
+                        let tree = self
+                            .wal_tree(summary)
+                            .ok_or(sos_core::Error::NoRootCommit)?;
 
-            tracing::debug!(
-                vault_id = ?summary.id(),
-                change_root = ?change.proof().root_hex(),
-                root = ?head.root_hex(),
-                "handle_change");
+                        let head = tree.head()?;
 
-            // Looks like the change was made elsewhere
-            // and we should attempt to sync with the server
-            if change.proof().root() != head.root() {
-                let (status, _) = self.vault_status(summary).await?;
-                match status {
-                    SyncStatus::Behind(_, _) => {
-                        self.pull(summary, false).await?;
-                    }
-                    SyncStatus::Diverged(_) => {
-                        if let Some(_) = change
-                            .changes()
-                            .into_iter()
-                            .find(|c| *c == &ChangeEvent::UpdateVault)
-                        {
-                            // If the trees have diverged and the other
-                            // node indicated it did an update to the
-                            // entire vault then we need a force pull to
-                            // stay in sync
-                            self.pull(summary, true).await?;
+                        tracing::debug!(
+                            vault_id = ?summary.id(),
+                            change_root = ?change.proof().root_hex(),
+                            root = ?head.root_hex(),
+                            "handle_change");
+
+                        // Looks like the change was made elsewhere
+                        // and we should attempt to sync with the server
+                        if change.proof().root() != head.root() {
+                            let (status, _) =
+                                self.vault_status(summary).await?;
+                            match status {
+                                SyncStatus::Behind(_, _) => {
+                                    self.pull(summary, false).await?;
+                                }
+                                SyncStatus::Diverged(_) => {
+                                    if let Some(_) = change
+                                        .changes()
+                                        .into_iter()
+                                        .find(|c| {
+                                            *c == &ChangeEvent::UpdateVault
+                                        })
+                                    {
+                                        // If the trees have diverged and the other
+                                        // node indicated it did an update to the
+                                        // entire vault then we need a force pull to
+                                        // stay in sync
+                                        self.pull(summary, true).await?;
+                                    }
+                                }
+                                _ => {}
+                            }
                         }
                     }
-                    _ => {}
+                    ChangeAction::Remove => {
+                        self.remove_local_cache(summary)?;
+                    }
                 }
             }
         }
+
         Ok(())
     }
 
@@ -326,11 +356,10 @@ where
         Ok(self.vaults())
     }
 
-    /// Attempt to find a summary in this cache.
-    #[deprecated]
-    pub fn find_vault(&self, vault: &SecretRef) -> Option<&Summary> {
-        self.state.find_vault(vault)
-    }
+    /// Get the state for this node cache.
+    pub fn state(&self) -> &NodeState {
+        &self.state
+    } 
 
     /// Create a new account and default login vault.
     pub async fn create_account(
@@ -351,8 +380,6 @@ where
 
     /// Remove a vault.
     pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
-        let current_id = self.current().map(|c| c.id().clone());
-
         // Attempt to delete on the remote server
         let (status, _) = RequestClient::delete_wal(
             self.server.clone(),
@@ -365,6 +392,16 @@ where
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
 
+        // Remove local state
+        self.remove_local_cache(summary)?;
+
+        Ok(())
+    }
+
+    /// Remove the local cache for a vault.
+    fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
+        let current_id = self.current().map(|c| c.id().clone());
+
         // If the deleted vault is the currently selected
         // vault we must close it
         if let Some(id) = &current_id {
@@ -373,11 +410,13 @@ where
             }
         }
 
+        // Remove a mirrored vault file if it exists
         self.remove_vault_file(summary)?;
 
         // Remove from our cache of managed vaults
         self.cache.remove(summary.id());
 
+        // Remove from the state of managed vaults
         self.state.remove_summary(summary);
 
         Ok(())
@@ -831,7 +870,7 @@ where
 
     fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
         for summary in summaries {
-            // Ensure we don't overwrite existing data 
+            // Ensure we don't overwrite existing data
             if self.cache.get(summary.id()).is_none() {
                 self.init_local_cache(summary, None)?;
             }
@@ -839,7 +878,11 @@ where
         Ok(())
     }
 
-    fn init_local_cache(&mut self, summary: &Summary, vault: Option<Vault>) -> Result<()> {
+    fn init_local_cache(
+        &mut self,
+        summary: &Summary,
+        vault: Option<Vault>,
+    ) -> Result<()> {
         let patch_path = self.patch_path(summary);
         let patch_file = P::new(patch_path)?;
 
@@ -1009,7 +1052,6 @@ where
         summary: &Summary,
         events: Vec<SyncEvent<'async_recursion>>,
     ) -> Result<StatusCode> {
-
         let (wal, patch_file) = self
             .cache
             .get_mut(summary.id())

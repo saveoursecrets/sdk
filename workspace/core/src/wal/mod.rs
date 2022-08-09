@@ -240,9 +240,8 @@ mod test {
     use super::{file::*, memory::*, *};
     use crate::{
         commit_tree::{hash, Comparison},
-        decode, encode,
+        encode,
         events::WalEvent,
-        iter::{FileItem, WalFileRecord},
         secret::SecretId,
         vault::{Vault, VaultCommit, VaultEntry},
         CommitHash,
