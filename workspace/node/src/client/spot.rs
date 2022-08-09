@@ -65,15 +65,17 @@ pub mod memory {
     use sos_core::{
         events::{ChangeNotification, SyncEvent},
         signer::BoxedSigner,
-        vault::Summary,
+        vault::{Vault, Summary},
         wal::memory::WalMemory,
         PatchMemory,
+        ChangePassword,
     };
     use std::{
         future::Future,
         sync::{Arc, RwLock},
     };
     use url::Url;
+    use secrecy::SecretString;
 
     /// Type alias for an in-memory node cache.
     pub type MemoryCache =
@@ -165,6 +167,28 @@ pub mod memory {
             async move {
                 let mut writer = cache.write().unwrap();
                 writer.remove_vault(&summary).await?;
+                Ok::<(), Error>(())
+            }
+        }
+
+        /// Change the password for a vault.
+        pub fn change_password(
+            cache: MemoryCache,
+            summary: Summary,
+            vault: Vault,
+            current_passphrase: SecretString,
+            new_passphrase: SecretString,
+        ) -> impl Future<Output = Result<()>> + 'static {
+            async move {
+                let (_, new_vault, wal_events) =
+                    ChangePassword::new(
+                        &vault,
+                        current_passphrase,
+                        new_passphrase,
+                    )
+                    .build()?;
+                let mut writer = cache.write().unwrap();
+                writer.update_vault(&summary, &new_vault, wal_events).await?;
                 Ok::<(), Error>(())
             }
         }
