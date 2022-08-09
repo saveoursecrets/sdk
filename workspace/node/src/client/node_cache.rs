@@ -318,6 +318,7 @@ where
             self.signer.clone(),
         )
         .await?;
+
         self.load_caches(&summaries)?;
 
         self.state.set_summaries(summaries);
@@ -778,7 +779,11 @@ where
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
 
+        // Add the summary to the vaults we are managing
         self.state.add_summary(summary.clone());
+
+        // Initialize the local cache for WAL and Patch
+        self.init_local_cache(&summary, Some(vault))?;
 
         Ok((passphrase, summary))
     }
@@ -828,15 +833,27 @@ where
         for summary in summaries {
             // Ensure we don't overwrite existing data 
             if self.cache.get(summary.id()).is_none() {
-                let patch_path = self.patch_path(summary);
-                let patch_file = P::new(patch_path)?;
-
-                let wal_path = self.wal_path(summary);
-                let mut wal_file = W::new(&wal_path)?;
-                wal_file.load_tree()?;
-                self.cache.insert(*summary.id(), (wal_file, patch_file));
+                self.init_local_cache(summary, None)?;
             }
         }
+        Ok(())
+    }
+
+    fn init_local_cache(&mut self, summary: &Summary, vault: Option<Vault>) -> Result<()> {
+        let patch_path = self.patch_path(summary);
+        let patch_file = P::new(patch_path)?;
+
+        let wal_path = self.wal_path(summary);
+        let mut wal = W::new(&wal_path)?;
+
+        if let Some(vault) = &vault {
+            let encoded = encode(vault)?;
+            let event = WalEvent::CreateVault(Cow::Owned(encoded));
+            wal.append_event(event)?;
+        }
+
+        wal.load_tree()?;
+        self.cache.insert(*summary.id(), (wal, patch_file));
         Ok(())
     }
 
