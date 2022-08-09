@@ -13,7 +13,7 @@ use tokio::sync::mpsc;
 use secrecy::ExposeSecret;
 use sos_core::{
     events::{ChangeEvent, ChangeNotification},
-    generate_passphrase, ChangePassword,
+    generate_passphrase,
 };
 use sos_node::client::{
     account::AccountCredentials,
@@ -90,15 +90,11 @@ async fn integration_change_password() -> Result<()> {
     let keeper = node_cache.current_mut().unwrap();
     let (new_passphrase, _) = generate_passphrase()?;
 
-    // Get a new vault for the new passphrase
-    let (_new_passphrase, new_vault, wal_events) = ChangePassword::new(
-        keeper.vault(),
-        encryption_passphrase,
-        new_passphrase,
-    )
-    .build()?;
+    let vault = keeper.vault().clone();
+    drop(keeper);
+
     node_cache
-        .update_vault(&summary, &new_vault, wal_events)
+        .change_password(&vault, encryption_passphrase, new_passphrase)
         .await?;
 
     // Close the vault

@@ -17,7 +17,7 @@ use sos_core::{
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     wal::{file::WalFile, WalItem},
-    ChangePassword, CommitHash, PatchFile,
+    CommitHash, PatchFile,
 };
 use sos_node::{
     cache_dir,
@@ -951,7 +951,6 @@ fn exec_program(
             let mut writer = cache.write().unwrap();
             let keeper =
                 writer.current_mut().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary().clone();
 
             let banner = Banner::new()
                 .padding(Padding::one())
@@ -978,24 +977,23 @@ fn exec_program(
                     .verify(passphrase.expose_secret())
                     .map_err(|_| Error::InvalidPassphrase)?;
 
-                let (new_passphrase, new_vault, wal_events) =
-                    ChangePassword::new(
-                        keeper.vault(),
-                        passphrase,
-                        new_passphrase,
-                    )
-                    .build()?;
+                // We need a clone of the vault to avoid borrowing whilst
+                // already mutably borrowed
+                let vault: Vault = keeper.vault().clone();
+                drop(keeper);
 
-                run_blocking(
-                    writer.update_vault(&summary, &new_vault, wal_events),
-                )?;
+                let new_passphrase = run_blocking(writer.change_password(
+                    &vault,
+                    passphrase,
+                    new_passphrase,
+                ))?;
 
                 drop(writer);
 
-                let mut writer = cache.write().unwrap();
-                let keeper =
-                    writer.current_mut().ok_or(Error::NoVaultSelected)?;
-                keeper.unlock(new_passphrase.expose_secret())?;
+                //let mut writer = cache.write().unwrap();
+                //let keeper =
+                //writer.current_mut().ok_or(Error::NoVaultSelected)?;
+                //keeper.unlock(new_passphrase.expose_secret())?;
 
                 let banner = Banner::new()
                     .padding(Padding::one())

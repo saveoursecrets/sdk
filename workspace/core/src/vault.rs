@@ -480,7 +480,7 @@ impl Decode for Header {
 }
 
 /// The vault contents
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Contents {
     data: HashMap<SecretId, VaultCommit>,
 }
@@ -566,7 +566,7 @@ impl Decode for Contents {
 }
 
 /// Vault file storage.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Vault {
     header: Header,
     contents: Contents,

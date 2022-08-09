@@ -22,8 +22,8 @@ use sos_core::{
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
-    CommitHash, FileIdentity, Gatekeeper, PatchMemory, PatchProvider,
-    VaultFileAccess,
+    ChangePassword, CommitHash, FileIdentity, Gatekeeper, PatchMemory,
+    PatchProvider, VaultFileAccess,
 };
 
 use url::Url;
@@ -226,6 +226,32 @@ where
             records.push((record, event));
         }
         Ok(records)
+    }
+
+    /// Change the password for a vault.
+    ///
+    /// If the target vault is the currently selected vault
+    /// the currently selected vault is unlocked with the new
+    /// passphrase on success.
+    pub async fn change_password(
+        &mut self,
+        vault: &Vault,
+        current_passphrase: SecretString,
+        new_passphrase: SecretString,
+    ) -> Result<SecretString> {
+        let (new_passphrase, new_vault, wal_events) =
+            ChangePassword::new(vault, current_passphrase, new_passphrase)
+                .build()?;
+        self.update_vault(vault.summary(), &new_vault, wal_events)
+            .await?;
+
+        if let Some(keeper) = self.current_mut() {
+            if keeper.summary().id() == vault.summary().id() {
+                keeper.unlock(new_passphrase.expose_secret())?;
+            }
+        }
+
+        Ok(new_passphrase)
     }
 
     /// Verify a WAL log.

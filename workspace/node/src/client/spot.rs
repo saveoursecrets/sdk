@@ -62,13 +62,13 @@ pub mod file {
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
     use crate::client::{node_cache::NodeCache, Error, Result};
-    use secrecy::{SecretString, ExposeSecret};
+    use secrecy::SecretString;
     use sos_core::{
         events::{ChangeNotification, SyncEvent},
         signer::BoxedSigner,
         vault::{Summary, Vault},
         wal::memory::WalMemory,
-        ChangePassword, PatchMemory,
+        PatchMemory,
     };
     use std::{
         future::Future,
@@ -178,23 +178,14 @@ pub mod memory {
             new_passphrase: SecretString,
         ) -> impl Future<Output = Result<()>> + 'static {
             async move {
-                let (new_passphrase, new_vault, wal_events) = ChangePassword::new(
-                    &vault,
-                    current_passphrase,
-                    new_passphrase,
-                )
-                .build()?;
                 let mut writer = cache.write().unwrap();
                 writer
-                    .update_vault(vault.summary(), &new_vault, wal_events)
+                    .change_password(
+                        &vault,
+                        current_passphrase,
+                        new_passphrase,
+                    )
                     .await?;
-
-                if let Some(keeper) = writer.current_mut() {
-                    if keeper.summary().id() == vault.summary().id() {
-                        keeper.unlock(new_passphrase.expose_secret())?;
-                    }
-                }
-
                 Ok::<(), Error>(())
             }
         }
