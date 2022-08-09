@@ -224,11 +224,11 @@ pub struct WalFileRecord {
     /// The byte range for the value.
     value: Range<usize>,
     /// The time the row was created.
-    time: Timestamp,
+    pub(crate) time: Timestamp,
     /// The commit hash for the previous row.
-    last_commit: [u8; 32],
+    pub(crate) last_commit: [u8; 32],
     /// The commit hash for the value.
-    commit: [u8; 32],
+    pub(crate) commit: [u8; 32],
 }
 
 impl FileItem for WalFileRecord {

@@ -13,14 +13,12 @@ use sos_core::{
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
     secret::SecretRef,
-    signer::SingleParty,
 };
 use sos_node::{
     cache_dir,
     client::{
         account::AccountCredentials,
         net::{changes::ChangeStreamEvent, RequestClient},
-        LocalCache,
     },
     sync::SyncStatus,
 };
@@ -35,13 +33,14 @@ async fn integration_simple_session() -> Result<()> {
 
     let server_url = server();
 
-    let (address, credentials, mut node_cache) = signup(&dirs, 0).await?;
+    let (address, credentials, mut node_cache, signer) =
+        signup(&dirs, 0).await?;
     let AccountCredentials { summary, .. } = credentials;
     let login_vault_id = *summary.id();
 
     let (tx, mut rx) = mpsc::channel(1);
 
-    let mut es = node_cache.client().changes().await?;
+    let mut es = RequestClient::changes(server_url.clone(), signer).await?;
     let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
         Arc::new(RwLock::new(Vec::new()));
     let changed = Arc::clone(&notifications);
@@ -75,27 +74,28 @@ async fn integration_simple_session() -> Result<()> {
 
     let _ = cache_dir().unwrap();
 
-    assert_eq!(address, node_cache.address()?);
+    //assert_eq!(address, node_cache.address()?);
 
     // Check the /api route
-    let server_info = node_cache.client().server_info().await?;
+    let server_info = RequestClient::server_info(server_url.clone()).await?;
     assert!(server_info.status().is_success());
 
     // Trigger server code path for the / URL
-    home(&server_url, node_cache.client()).await?;
+    home(&server_url).await?;
 
     // Trigger server code path for the /gui assets
-    gui(&server_url, node_cache.client()).await?;
+    gui(&server_url).await?;
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
-    let (new_passphrase, _) =
-        node_cache.create_vault(new_vault_name.clone()).await?;
+    let (new_passphrase, _) = node_cache
+        .create_vault(new_vault_name.clone(), None)
+        .await?;
 
     // Check our new vault is found in the local cache
     let vault_ref = SecretRef::Name(new_vault_name.clone());
     let new_vault_summary =
-        node_cache.find_vault(&vault_ref).unwrap().clone();
+        node_cache.state().find_vault(&vault_ref).unwrap().clone();
     assert_eq!(&new_vault_name, new_vault_summary.name());
 
     // Need this for some assertions later
@@ -104,7 +104,7 @@ async fn integration_simple_session() -> Result<()> {
     // Trigger code path for finding by id
     let id_ref = SecretRef::Id(*new_vault_summary.id());
     let new_vault_summary_by_id =
-        node_cache.find_vault(&id_ref).unwrap().clone();
+        node_cache.state().find_vault(&id_ref).unwrap().clone();
     assert_eq!(new_vault_summary_by_id, new_vault_summary);
 
     // Load vaults list
@@ -116,7 +116,7 @@ async fn integration_simple_session() -> Result<()> {
     // Remove the default vault
     let default_ref = SecretRef::Name(DEFAULT_VAULT_NAME.to_owned());
     let default_vault_summary =
-        node_cache.find_vault(&default_ref).unwrap().clone();
+        node_cache.state().find_vault(&default_ref).unwrap().clone();
     node_cache.remove_vault(&default_vault_summary).await?;
     let vaults = node_cache.load_vaults().await?;
     assert_eq!(1, vaults.len());
@@ -243,22 +243,16 @@ async fn integration_simple_session() -> Result<()> {
     Ok(())
 }
 
-async fn home(
-    server: &Url,
-    client: &RequestClient<SingleParty>,
-) -> Result<()> {
+async fn home(server: &Url) -> Result<()> {
     let url = server.clone();
-    let response = client.get(url).await?;
+    let response = RequestClient::get(url).await?;
     assert!(response.status().is_success());
     Ok(())
 }
 
-async fn gui(
-    server: &Url,
-    client: &RequestClient<SingleParty>,
-) -> Result<()> {
+async fn gui(server: &Url) -> Result<()> {
     let url = server.join("gui")?;
-    let response = client.get(url).await?;
+    let response = RequestClient::get(url).await?;
     assert!(response.status().is_success());
     Ok(())
 }

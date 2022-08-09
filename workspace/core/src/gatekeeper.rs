@@ -363,18 +363,9 @@ impl Gatekeeper {
         Ok(meta_aead)
     }
 
-    /// Verify a passphrase can decrypt the vault meta data.
-    ///
-    /// Use this to provide additional verification that a user
-    /// knows the decryption passphrase without modifying any state.
+    /// Verify an encryption passphrase.
     pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
-        let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
-        let salt = SecretKey::parse_salt(salt)?;
-        let private_key = SecretKey::derive_32(passphrase, &salt)?;
-        let meta_aead =
-            self.vault.header().meta().ok_or(Error::VaultNotInit)?;
-        let _ = self.vault.decrypt(&private_key, meta_aead)?;
-        Ok(())
+        self.vault.verify(passphrase)
     }
 
     /// Unlock the vault by setting the private key from a passphrase.

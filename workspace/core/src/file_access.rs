@@ -288,7 +288,7 @@ impl VaultAccess for VaultFileAccess {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::VaultFileAccess;
     use crate::test_utils::*;

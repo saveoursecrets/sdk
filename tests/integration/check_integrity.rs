@@ -6,7 +6,7 @@ use crate::test_utils::*;
 use secrecy::ExposeSecret;
 use sos_check::{keys, status, verify_vault, verify_wal};
 use sos_core::{vault::Vault, wal::file::WalFile};
-use sos_node::client::{account::AccountCredentials, LocalCache};
+use sos_node::client::account::AccountCredentials;
 
 #[tokio::test]
 #[serial]
@@ -16,7 +16,8 @@ async fn integration_check_integrity() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (address, credentials, mut node_cache) = signup(&dirs, 0).await?;
+    let (address, credentials, mut node_cache, _signer) =
+        signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,

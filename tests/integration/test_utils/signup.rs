@@ -3,7 +3,10 @@ use anyhow::Result;
 use super::{server, TestDirs};
 
 use sos_core::{
-    address::AddressStr, signer::SingleParty, wal::file::WalFile, PatchFile,
+    address::AddressStr,
+    signer::{BoxedSigner, SingleParty},
+    wal::file::WalFile,
+    PatchFile,
 };
 
 use secrecy::ExposeSecret;
@@ -12,7 +15,6 @@ use sos_node::client::{
         create_account, create_signing_key, AccountCredentials, AccountKey,
     },
     node_cache::NodeCache,
-    LocalCache,
 };
 use web3_keystore::{decrypt, KeyStore};
 
@@ -22,7 +24,8 @@ pub async fn signup(
 ) -> Result<(
     AddressStr,
     AccountCredentials,
-    NodeCache<SingleParty, WalFile, PatchFile>,
+    NodeCache<WalFile, PatchFile>,
+    BoxedSigner,
 )> {
     let TestDirs {
         target: destination,
@@ -67,9 +70,12 @@ pub async fn signup(
             .as_slice()
             .try_into()?;
 
+    let signer: SingleParty = (&signing_key).try_into()?;
+    let signer: BoxedSigner = Box::new(signer);
+
     assert_eq!(expected_signing_key, signing_key);
 
     let _ = disc_cache.load_vaults().await?;
 
-    Ok((address, credentials, disc_cache))
+    Ok((address, credentials, disc_cache, signer))
 }

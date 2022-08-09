@@ -109,3 +109,12 @@ impl ChangeEvent {
         }
     }
 }
+
+/// Action corresponding to a change event.
+#[derive(Debug, Hash, Eq, PartialEq)]
+pub enum ChangeAction {
+    /// Pull updates from a remote node.
+    Pull,
+    /// Remove from the local cache.
+    Remove,
+}

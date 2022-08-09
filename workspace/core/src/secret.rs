@@ -130,12 +130,14 @@ impl Decode for VaultMeta {
     Ord,
     PartialOrd,
 )]
+#[serde(rename_all = "camelCase")]
 pub struct SecretMeta {
     /// Human-friendly label for the secret.
     label: String,
     /// Kind of the secret.
     kind: u8,
     /// Last updated timestamp.
+    #[serde(skip_deserializing)]
     last_updated: Timestamp,
 }
 

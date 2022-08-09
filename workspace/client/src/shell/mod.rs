@@ -15,14 +15,13 @@ use human_bytes::human_bytes;
 use sos_core::{
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
-    signer::SingleParty,
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     wal::{file::WalFile, WalItem},
-    ChangePassword, CommitHash, PatchFile,
+    CommitHash, PatchFile,
 };
 use sos_node::{
     cache_dir,
-    client::{node_cache::NodeCache, run_blocking, LocalCache},
+    client::{node_cache::NodeCache, run_blocking},
     sync::SyncKind,
 };
 use sos_readline::{
@@ -37,7 +36,7 @@ use crate::{display_passphrase, switch, Error, Result};
 mod editor;
 mod print;
 
-type ReplCache = Arc<RwLock<NodeCache<SingleParty, WalFile, PatchFile>>>;
+type ReplCache = Arc<RwLock<NodeCache<WalFile, PatchFile>>>;
 
 enum ConflictChoice {
     Push,
@@ -390,7 +389,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, NodeCache<SingleParty, WalFile, PatchFile>>,
+        &mut RwLockWriteGuard<'_, NodeCache<WalFile, PatchFile>>,
     ) -> sos_node::client::Result<()>,
 {
     let mut writer = cache.write().unwrap();
@@ -491,7 +490,7 @@ fn exec_program(
         ShellCommand::Create { name } => {
             let mut writer = cache.write().unwrap();
             let (passphrase, _summary) =
-                run_blocking(writer.create_vault(name))?;
+                run_blocking(writer.create_vault(name, None))?;
             display_passphrase(
                 "ENCRYPTION PASSPHRASE",
                 passphrase.expose_secret(),
@@ -501,6 +500,7 @@ fn exec_program(
         ShellCommand::Remove { vault } => {
             let reader = cache.read().unwrap();
             let summary = reader
+                .state()
                 .find_vault(&vault)
                 .ok_or(Error::VaultNotAvailable(vault.clone()))?
                 .clone();
@@ -521,6 +521,7 @@ fn exec_program(
         ShellCommand::Use { vault } => {
             let reader = cache.read().unwrap();
             let summary = reader
+                .state()
                 .find_vault(&vault)
                 .cloned()
                 .ok_or(Error::VaultNotAvailable(vault))?;
@@ -950,7 +951,6 @@ fn exec_program(
             let mut writer = cache.write().unwrap();
             let keeper =
                 writer.current_mut().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary().clone();
 
             let banner = Banner::new()
                 .padding(Padding::one())
@@ -977,24 +977,23 @@ fn exec_program(
                     .verify(passphrase.expose_secret())
                     .map_err(|_| Error::InvalidPassphrase)?;
 
-                let (new_passphrase, new_vault, wal_events) =
-                    ChangePassword::new(
-                        keeper.vault(),
-                        passphrase,
-                        new_passphrase,
-                    )
-                    .build()?;
+                // We need a clone of the vault to avoid borrowing whilst
+                // already mutably borrowed
+                let vault: Vault = keeper.vault().clone();
+                drop(keeper);
 
-                run_blocking(
-                    writer.update_vault(&summary, &new_vault, wal_events),
-                )?;
+                let new_passphrase = run_blocking(writer.change_password(
+                    &vault,
+                    passphrase,
+                    new_passphrase,
+                ))?;
 
                 drop(writer);
 
-                let mut writer = cache.write().unwrap();
-                let keeper =
-                    writer.current_mut().ok_or(Error::NoVaultSelected)?;
-                keeper.unlock(new_passphrase.expose_secret())?;
+                //let mut writer = cache.write().unwrap();
+                //let keeper =
+                //writer.current_mut().ok_or(Error::NoVaultSelected)?;
+                //keeper.unlock(new_passphrase.expose_secret())?;
 
                 let banner = Banner::new()
                     .padding(Padding::one())
@@ -1034,10 +1033,11 @@ fn exec_program(
             Ok(())
         }
         ShellCommand::Whoami => {
-            let reader = cache.read().unwrap();
-            let address = reader.address()?;
-            println!("{}", address);
-            Ok(())
+            let _reader = cache.read().unwrap();
+            todo!("restore address in whoami");
+            //let address = reader.address()?;
+            //println!("{}", address);
+            //Ok(())
         }
         ShellCommand::Close => {
             let mut writer = cache.write().unwrap();

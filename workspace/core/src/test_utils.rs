@@ -5,7 +5,6 @@ use crate::{
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta},
     vault::{Vault, VaultAccess, VaultEntry},
-    wal::{file::WalFile, WalProvider},
     CommitHash,
 };
 use std::{borrow::Cow, io::Write};
@@ -13,7 +12,6 @@ use uuid::Uuid;
 
 use anyhow::Result;
 use secrecy::{ExposeSecret, SecretString};
-use tempfile::NamedTempFile;
 
 use argon2::password_hash::SaltString;
 
@@ -29,14 +27,6 @@ pub fn mock_encryption_key() -> Result<(SecretKey, SaltString, SecretString)>
 pub fn mock_vault() -> Vault {
     let vault: Vault = Default::default();
     vault
-}
-
-pub fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
-    let mut temp = NamedTempFile::new()?;
-    let vault = mock_vault();
-    let buffer = encode(&vault)?;
-    temp.write_all(&buffer)?;
-    Ok((temp, vault, buffer))
 }
 
 pub fn mock_secret_note(
@@ -91,40 +81,66 @@ pub fn mock_vault_note_update<'a>(
     Ok((commit, secret_meta, secret_value, event))
 }
 
-pub fn mock_wal_file(
-) -> Result<(NamedTempFile, WalFile, Vec<CommitHash>, SecretKey)> {
-    let (encryption_key, _, _) = mock_encryption_key()?;
-    let (_, mut vault, buffer) = mock_vault_file()?;
+#[cfg(not(target_arch = "wasm32"))]
+mod file {
+    use crate::{
+        crypto::secret_key::SecretKey,
+        encode,
+        events::WalEvent,
+        vault::Vault,
+        wal::{file::WalFile, WalProvider},
+        CommitHash,
+    };
+    use tempfile::NamedTempFile;
 
-    let temp = NamedTempFile::new()?;
-    let mut wal = WalFile::new(temp.path())?;
+    use super::*;
 
-    let mut commits = Vec::new();
-
-    // Create the vault
-    let event = WalEvent::CreateVault(Cow::Owned(buffer));
-    commits.push(wal.append_event(event)?);
-
-    // Create a secret
-    let (secret_id, _, _, _, event) = mock_vault_note(
-        &mut vault,
-        &encryption_key,
-        "WAL Note",
-        "This a WAL note secret.",
-    )?;
-    commits.push(wal.append_event(event.try_into()?)?);
-
-    // Update the secret
-    let (_, _, _, event) = mock_vault_note_update(
-        &mut vault,
-        &encryption_key,
-        &secret_id,
-        "WAL Note Edited",
-        "This a WAL note secret that was edited.",
-    )?;
-    if let Some(event) = event {
-        commits.push(wal.append_event(event.try_into()?)?);
+    pub fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
+        let mut temp = NamedTempFile::new()?;
+        let vault = mock_vault();
+        let buffer = encode(&vault)?;
+        temp.write_all(&buffer)?;
+        Ok((temp, vault, buffer))
     }
 
-    Ok((temp, wal, commits, encryption_key))
+    pub fn mock_wal_file(
+    ) -> Result<(NamedTempFile, WalFile, Vec<CommitHash>, SecretKey)> {
+        let (encryption_key, _, _) = mock_encryption_key()?;
+        let (_, mut vault, buffer) = mock_vault_file()?;
+
+        let temp = NamedTempFile::new()?;
+        let mut wal = WalFile::new(temp.path())?;
+
+        let mut commits = Vec::new();
+
+        // Create the vault
+        let event = WalEvent::CreateVault(Cow::Owned(buffer));
+        commits.push(wal.append_event(event)?);
+
+        // Create a secret
+        let (secret_id, _, _, _, event) = mock_vault_note(
+            &mut vault,
+            &encryption_key,
+            "WAL Note",
+            "This a WAL note secret.",
+        )?;
+        commits.push(wal.append_event(event.try_into()?)?);
+
+        // Update the secret
+        let (_, _, _, event) = mock_vault_note_update(
+            &mut vault,
+            &encryption_key,
+            &secret_id,
+            "WAL Note Edited",
+            "This a WAL note secret that was edited.",
+        )?;
+        if let Some(event) = event {
+            commits.push(wal.append_event(event.try_into()?)?);
+        }
+
+        Ok((temp, wal, commits, encryption_key))
+    }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::file::*;

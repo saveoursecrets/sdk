@@ -2,6 +2,7 @@
 use crate::{
     commit_tree::{hash, CommitTree},
     events::WalEvent,
+    iter::WalFileRecord,
     timestamp::Timestamp,
     CommitHash, Result,
 };
@@ -130,6 +131,39 @@ pub trait WalItem: std::fmt::Debug {
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct WalRecord(Timestamp, CommitHash, CommitHash, pub Vec<u8>);
 
+impl WalRecord {
+    /// Get the time for the record.
+    pub fn time(&self) -> &Timestamp {
+        &self.0
+    }
+
+    /// Get the last commit hash for the record.
+    pub fn last_commit(&self) -> &CommitHash {
+        &self.1
+    }
+
+    /// Get the commit hash for the record.
+    pub fn commit(&self) -> &CommitHash {
+        &self.2
+    }
+
+    /// Get the event bytes the record.
+    pub fn event_bytes(&self) -> &[u8] {
+        self.3.as_slice()
+    }
+}
+
+impl From<(WalFileRecord, Vec<u8>)> for WalRecord {
+    fn from(value: (WalFileRecord, Vec<u8>)) -> Self {
+        Self(
+            value.0.time,
+            CommitHash(value.0.last_commit),
+            CommitHash(value.0.commit),
+            value.1,
+        )
+    }
+}
+
 impl Encode for WalRecord {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         // Prepare the bytes for the row length
@@ -200,10 +234,10 @@ impl Decode for WalRecord {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use std::borrow::Cow;
+    use std::{borrow::Cow, path::PathBuf};
     use uuid::Uuid;
 
-    use super::{memory::*, *};
+    use super::{file::*, memory::*, *};
     use crate::{
         commit_tree::{hash, Comparison},
         encode,
@@ -337,5 +371,26 @@ mod test {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn wal_file_load() -> Result<()> {
+        let path = PathBuf::from("../../tests/fixtures/simple-vault.wal");
+        let wal = WalFile::new(path)?;
+        let it = wal.iter()?;
+        for record in it {
+            let record = record?;
+            let _event = wal.event_data(&record)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn wal_memory_parse() {
+        let buffer =
+            include_bytes!("../../../../tests/fixtures/simple-vault.wal");
+        let mut wal = WalMemory::new(PathBuf::from("")).unwrap();
+        wal.write_buffer(buffer.to_vec()).unwrap();
     }
 }
