@@ -19,6 +19,9 @@ members = [
   "workspace/readline",
   "workspace/server",
 ]
+exclude = [
+  "target/browser"
+]
 
 [dependencies]
 thiserror = "1"
