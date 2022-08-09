@@ -13,10 +13,11 @@ use tokio::sync::mpsc;
 use secrecy::ExposeSecret;
 use sos_core::{
     events::{ChangeEvent, ChangeNotification},
-    generate_passphrase, ChangePassword,
+    generate_passphrase,
 };
 use sos_node::client::{
-    account::AccountCredentials, net::changes::ChangeStreamEvent, LocalCache,
+    account::AccountCredentials,
+    net::{changes::ChangeStreamEvent, RequestClient},
 };
 
 #[tokio::test]
@@ -27,7 +28,10 @@ async fn integration_change_password() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (address, credentials, mut node_cache) = signup(&dirs, 0).await?;
+    let server_url = server();
+
+    let (address, credentials, mut node_cache, signer) =
+        signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,
@@ -36,7 +40,7 @@ async fn integration_change_password() -> Result<()> {
 
     let (tx, mut rx) = mpsc::channel(1);
 
-    let mut es = node_cache.client().changes().await?;
+    let mut es = RequestClient::changes(server_url, signer).await?;
     let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
         Arc::new(RwLock::new(Vec::new()));
     let changed = Arc::clone(&notifications);
@@ -86,15 +90,11 @@ async fn integration_change_password() -> Result<()> {
     let keeper = node_cache.current_mut().unwrap();
     let (new_passphrase, _) = generate_passphrase()?;
 
-    // Get a new vault for the new passphrase
-    let (_new_passphrase, new_vault, wal_events) = ChangePassword::new(
-        keeper.vault(),
-        encryption_passphrase,
-        new_passphrase,
-    )
-    .build()?;
+    let vault = keeper.vault().clone();
+    drop(keeper);
+
     node_cache
-        .update_vault(&summary, &new_vault, wal_events)
+        .change_password(&vault, encryption_passphrase, new_passphrase)
         .await?;
 
     // Close the vault

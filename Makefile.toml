@@ -64,6 +64,10 @@ args = ["test", "--all", "--lib", "--", "--nocapture"]
 command = "cargo"
 args = ["test", "integration"]
 
+[tasks.test-wasm]
+command = "wasm-pack"
+args = ["test", "--firefox"]
+
 [tasks.test]
 dependencies = ["unit", "integration"]
 
@@ -100,11 +104,20 @@ command -v mkcert && cd sandbox &&
   mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1
 '''
 
+#rm -rf workspace/node/public &&
+  #(cd ../browser && make dist) && 
+  #cp -r ../browser/app/dist workspace/node/public
+
 [tasks.browser-gui]
 script = '''
-rm -rf workspace/node/public &&
-  (cd ../browser && make dist) && 
-  cp -r ../browser/app/dist workspace/node/public
+rm -rf workspace/node/public
+cd target
+git clone git@github.com:saveoursecrets/browser.git
+cd browser
+(cd app && yarn install)
+cargo make wasm
+cargo make dist
+cp -r app/dist workspace/node/public
 '''
 
 #[tasks.artifacts]

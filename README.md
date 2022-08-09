@@ -83,6 +83,8 @@ Tasks are run using `cargo make`, install it with:
 cargo install cargo-make
 ```
 
+For webassembly support in the test runner [install wasm-pack](https://rustwasm.github.io/wasm-pack/installer/).
+
 The minimum supported Rust version (MSRV) is 1.62; to view the API documentation for all crates run `cargo make docs`.
 
 ### Test

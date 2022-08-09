@@ -480,7 +480,7 @@ impl Decode for Header {
 }
 
 /// The vault contents
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Contents {
     data: HashMap<SecretId, VaultCommit>,
 }
@@ -566,7 +566,7 @@ impl Decode for Contents {
 }
 
 /// Vault file storage.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Vault {
     header: Header,
     contents: Contents,
@@ -689,6 +689,16 @@ impl Vault {
             }
             Algorithm::AesGcm256(_) => aesgcm256::decrypt(key, aead),
         }
+    }
+
+    /// Verify an encryption passphrase.
+    pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
+        let salt = self.salt().ok_or(Error::VaultNotInit)?;
+        let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
+        let salt = SecretKey::parse_salt(salt)?;
+        let secret_key = SecretKey::derive_32(passphrase.as_ref(), &salt)?;
+        let _ = self.decrypt(&secret_key, &meta_aead)?;
+        Ok(())
     }
 
     /// Iterator for the secret keys and values.
@@ -998,6 +1008,13 @@ mod tests {
 
         Ok(())
     }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod file_tests {
+    use super::*;
+    use crate::test_utils::*;
+    use anyhow::Result;
 
     #[test]
     fn decode_file() -> Result<()> {

@@ -4,10 +4,7 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use secrecy::ExposeSecret;
-use sos_node::client::{
-    account::{login, AccountCredentials},
-    LocalCache,
-};
+use sos_node::client::account::{login, AccountCredentials};
 
 #[tokio::test]
 #[serial]
@@ -20,7 +17,7 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
     let server_url = server();
 
     // Signup a new account
-    let (_, credentials, mut client1) = signup(&dirs, 0).await?;
+    let (_, credentials, mut client1, _signer) = signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,

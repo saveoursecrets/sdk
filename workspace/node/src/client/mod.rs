@@ -1,29 +1,15 @@
 //! Traits and implementations for clients.
 use std::{fs::File, io::Read, path::PathBuf};
-use url::Url;
 
 use std::future::Future;
 
-use async_trait::async_trait;
-use net::RequestClient;
 use web3_keystore::{decrypt, KeyStore};
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     address::AddressStr,
-    commit_tree::CommitTree,
-    events::{ChangeNotification, SyncEvent, WalEvent},
-    secret::SecretRef,
-    signer::{Signer, SingleParty},
-    vault::{Summary, Vault},
-    wal::{
-        snapshot::{SnapShot, SnapShotManager},
-        WalProvider,
-    },
-    Gatekeeper, PatchProvider,
+    signer::{BoxedSigner, Signer, SingleParty},
 };
-
-use crate::sync::{SyncInfo, SyncStatus};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod account;
@@ -109,22 +95,20 @@ async fn set_agent_key(
 }
 
 /// Builds a client implementation.
-pub struct ClientBuilder<E> {
-    server: Url,
+pub struct SignerBuilder<E> {
     keystore: PathBuf,
     keystore_passphrase: Option<SecretString>,
     passphrase_reader: Option<Box<dyn PassphraseReader<Error = E>>>,
     use_agent: bool,
 }
 
-impl<E> ClientBuilder<E>
+impl<E> SignerBuilder<E>
 where
     E: std::error::Error + Send + Sync + 'static,
 {
     /// Create a new client builder.
-    pub fn new(server: Url, keystore: PathBuf) -> Self {
+    pub fn new(keystore: PathBuf) -> Self {
         Self {
-            server,
             keystore,
             keystore_passphrase: None,
             passphrase_reader: None,
@@ -157,7 +141,7 @@ where
     }
 
     /// Build a client implementation wrapping a signing key.
-    pub fn build(self) -> Result<RequestClient<SingleParty>> {
+    pub fn build(self) -> Result<BoxedSigner> {
         if !self.keystore.exists() {
             return Err(Error::NotFile(self.keystore));
         }
@@ -215,142 +199,8 @@ where
             signing_key
         };
         let signer: SingleParty = (&signing_key).try_into()?;
-        Ok(RequestClient::new(self.server, signer))
+        let signer: Box<dyn Signer + Send + Sync + 'static> =
+            Box::new(signer);
+        Ok(signer)
     }
-}
-
-/// Trait for types that cache vaults locally; supports a *current* view
-/// into a selected vault and allows making changes to the currently
-/// selected vault.
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait LocalCache<S, W, P>
-where
-    S: Signer + Send + Sync + 'static,
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
-    /// Get the address of the current user.
-    fn address(&self) -> Result<AddressStr>;
-
-    /// Get the underlying client.
-    fn client(&self) -> &RequestClient<S>;
-
-    /// Get the vault summaries for this cache.
-    fn vaults(&self) -> &[Summary];
-
-    /// Get the snapshot manager for this cache.
-    fn snapshots(&self) -> Option<&SnapShotManager>;
-
-    /// Take a snapshot of the WAL for the given vault.
-    ///
-    /// Snapshots must be enabled.
-    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
-
-    /// Get the history for a WAL provider.
-    fn history(
-        &self,
-        summary: &Summary,
-    ) -> Result<Vec<(W::Item, WalEvent<'_>)>>;
-
-    /// Verify a WAL log.
-    fn verify(&self, summary: &Summary) -> Result<()>;
-
-    /// Compact a WAL provider.
-    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
-
-    /// Respond to a change notification.
-    async fn handle_change(
-        &mut self,
-        change: ChangeNotification,
-    ) -> Result<()>;
-
-    /// Load the vault summaries from a remote node.
-    async fn load_vaults(&mut self) -> Result<&[Summary]>;
-
-    /// Attempt to find a summary in this cache.
-    fn find_vault(&self, vault: &SecretRef) -> Option<&Summary>;
-
-    /// Create a new account and default login vault.
-    async fn create_account(
-        &mut self,
-        name: Option<String>,
-    ) -> Result<(SecretString, Summary)>;
-
-    /// Create a new vault.
-    async fn create_vault(
-        &mut self,
-        name: String,
-    ) -> Result<(SecretString, Summary)>;
-
-    /// Remove a vault.
-    async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;
-
-    /// Attempt to set the vault name on the remote node.
-    async fn set_vault_name(
-        &mut self,
-        summary: &Summary,
-        name: &str,
-    ) -> Result<()>;
-
-    /// Get a comparison between a local WAL and remote WAL.
-    ///
-    /// If a patch file has unsaved events then the number
-    /// of pending events is returned along with the `SyncStatus`.
-    async fn vault_status(
-        &self,
-        summary: &Summary,
-    ) -> Result<(SyncStatus, Option<usize>)>;
-
-    /// Update an existing vault.
-    async fn update_vault(
-        &mut self,
-        summary: &Summary,
-        vault: &Vault,
-        events: Vec<WalEvent<'static>>,
-    ) -> Result<()>;
-
-    /// Apply changes to a vault.
-    async fn patch_vault(
-        &mut self,
-        summary: &Summary,
-        events: Vec<SyncEvent<'_>>,
-    ) -> Result<()>;
-
-    /// Load a vault, unlock it and set it as the current vault.
-    async fn open_vault(
-        &mut self,
-        summary: &Summary,
-        password: &str,
-    ) -> Result<()>;
-
-    /// Get the current in-memory vault access.
-    fn current(&self) -> Option<&Gatekeeper>;
-
-    /// Get a mutable reference to the current in-memory vault access.
-    fn current_mut(&mut self) -> Option<&mut Gatekeeper>;
-
-    /// Close the currently open vault.
-    ///
-    /// When a vault is open it is locked before being closed.
-    ///
-    /// If no vault is open this is a noop.
-    fn close_vault(&mut self);
-
-    /// Get a reference to the commit tree for a WAL file.
-    fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree>;
-
-    /// Download changes from the remote server.
-    async fn pull(
-        &mut self,
-        summary: &Summary,
-        force: bool,
-    ) -> Result<SyncInfo>;
-
-    /// Upload changes to the remote server.
-    async fn push(
-        &mut self,
-        summary: &Summary,
-        force: bool,
-    ) -> Result<SyncInfo>;
 }

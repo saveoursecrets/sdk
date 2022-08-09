@@ -104,6 +104,7 @@ impl Decode for Timestamp {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let seconds = reader.read_i64()?;
         let nanos = reader.read_u32()?;
+
         self.0 = OffsetDateTime::from_unix_timestamp(seconds)
             .map_err(Box::from)?
             + Duration::nanoseconds(nanos as i64);
@@ -124,5 +125,21 @@ impl TryFrom<FileTime> for Timestamp {
         let time = OffsetDateTime::from_unix_timestamp(value.seconds())?
             + Duration::nanoseconds(value.nanoseconds() as i64);
         Ok(time.into())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Timestamp;
+    use crate::{decode, encode};
+    use anyhow::Result;
+
+    #[test]
+    fn timestamp_encode() -> Result<()> {
+        let timestamp: Timestamp = Default::default();
+        let buffer = encode(&timestamp)?;
+        let decoded: Timestamp = decode(&buffer)?;
+        assert_eq!(timestamp, decoded);
+        Ok(())
     }
 }

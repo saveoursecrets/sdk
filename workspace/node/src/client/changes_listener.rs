@@ -6,6 +6,7 @@ use async_recursion::async_recursion;
 use futures::StreamExt;
 use std::time::Duration;
 use tokio::time::sleep;
+use url::Url;
 
 use super::{
     net::{
@@ -15,26 +16,21 @@ use super::{
     Error, Result,
 };
 
-use sos_core::{events::ChangeNotification, signer::Signer};
+use sos_core::{events::ChangeNotification, signer::BoxedSigner};
 
 const INTERVAL_MS: u64 = 15000;
 
 /// Listen for changes and update a local cache.
 #[derive(Clone)]
-pub struct ChangesListener<S>
-where
-    S: Signer + Send + Sync + 'static,
-{
-    client: RequestClient<S>,
+pub struct ChangesListener {
+    server: Url,
+    signer: BoxedSigner,
 }
 
-impl<S> ChangesListener<S>
-where
-    S: Signer + Send + Sync + 'static,
-{
+impl ChangesListener {
     /// Create a new changes listener.
-    pub fn new(client: RequestClient<S>) -> Self {
-        Self { client }
+    pub fn new(server: Url, signer: BoxedSigner) -> Self {
+        Self { server, signer }
     }
 
     /// Spawn a thread to listen for changes and apply incoming
@@ -85,7 +81,9 @@ where
     }
 
     async fn stream(&self) -> Result<ChangeStream> {
-        let stream = self.client.changes().await?;
+        let stream =
+            RequestClient::changes(self.server.clone(), self.signer.clone())
+                .await?;
         Ok(stream)
     }
 

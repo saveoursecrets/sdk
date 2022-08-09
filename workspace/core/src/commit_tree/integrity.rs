@@ -42,6 +42,7 @@ where
         if verify {
             let commit = record.commit();
             let value = record.read_bytes(&mut reader)?;
+
             let checksum = hash(&value);
             if checksum != commit {
                 return Err(Error::HashMismatch {
@@ -102,6 +103,7 @@ where
 
             // Verify the commit hash for the data
             let value = record.read_bytes(&mut reader)?;
+
             let checksum = hash(&value);
             if checksum != record.commit() {
                 return Err(Error::HashMismatch {

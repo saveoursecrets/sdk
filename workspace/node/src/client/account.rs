@@ -8,9 +8,7 @@ use std::{convert::Infallible, path::PathBuf};
 use url::Url;
 use web3_keystore::encrypt;
 
-use super::{
-    node_cache::NodeCache, ClientBuilder, LocalCache, RequestClient,
-};
+use super::{node_cache::NodeCache, SignerBuilder};
 use super::{Error, Result};
 use secrecy::{ExposeSecret, SecretString};
 
@@ -45,14 +43,14 @@ pub fn login(
     cache_dir: PathBuf,
     keystore_file: PathBuf,
     keystore_passphrase: SecretString,
-) -> Result<NodeCache<SingleParty, WalFile, PatchFile>> {
+) -> Result<NodeCache<WalFile, PatchFile>> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
-    let client = ClientBuilder::<Infallible>::new(server, keystore_file)
+    let signer = SignerBuilder::<Infallible>::new(keystore_file)
         .with_keystore_passphrase(keystore_passphrase)
         .build()?;
-    Ok(NodeCache::new_file_cache(client, cache_dir)?)
+    Ok(NodeCache::new_file_cache(server, cache_dir, signer)?)
 }
 
 /// Create a new account.
@@ -62,10 +60,7 @@ pub async fn create_account(
     name: Option<String>,
     key: AccountKey,
     cache_dir: PathBuf,
-) -> Result<(
-    AccountCredentials,
-    NodeCache<SingleParty, WalFile, PatchFile>,
-)> {
+) -> Result<(AccountCredentials, NodeCache<WalFile, PatchFile>)> {
     if !destination.is_dir() {
         return Err(Error::NotDirectory(destination));
     }
@@ -78,8 +73,8 @@ pub async fn create_account(
     let AccountKey(signing_key, _, _) = &key;
     let (keystore_passphrase, _) = generate_passphrase()?;
     let signer: SingleParty = (signing_key).try_into()?;
-    let client = RequestClient::new(server, signer);
-    let mut cache = NodeCache::new_file_cache(client, cache_dir)?;
+    let mut cache =
+        NodeCache::new_file_cache(server, cache_dir, Box::new(signer))?;
 
     let keystore = encrypt(
         &mut rand::thread_rng(),
