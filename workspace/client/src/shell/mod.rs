@@ -14,6 +14,7 @@ use url::Url;
 use human_bytes::human_bytes;
 use sos_core::{
     generate_passphrase,
+    search::Document,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     wal::{file::WalFile, WalItem},
@@ -217,9 +218,9 @@ fn find_secret_meta(
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let reader = cache.read().unwrap();
     let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
-    let meta_data = keeper.meta_data()?;
-    if let Some((uuid, secret_meta)) =
-        keeper.find_by_uuid_or_label(&meta_data, secret)
+    //let meta_data = keeper.meta_data()?;
+    if let Some(Document(uuid, secret_meta)) =
+        keeper.index().find_by_uuid_or_label(secret)
     {
         Ok(Some((*uuid, secret_meta.clone())))
     } else {
@@ -552,8 +553,9 @@ fn exec_program(
         ShellCommand::List { long } => {
             let reader = cache.read().unwrap();
             if let Some(keeper) = reader.current() {
-                let meta = keeper.meta_data_list()?;
-                for (uuid, secret_meta) in meta {
+                let meta = keeper.index().values();
+                for doc in meta {
+                    let Document(uuid, secret_meta) = doc;
                     let label = secret_meta.label();
                     let short_name = secret_meta.short_name();
                     print!("[{}] ", short_name);

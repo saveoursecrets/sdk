@@ -29,7 +29,7 @@ pub mod iter;
 mod passwd;
 mod patch;
 
-mod search;
+pub mod search;
 pub mod secret;
 pub mod signer;
 mod timestamp;

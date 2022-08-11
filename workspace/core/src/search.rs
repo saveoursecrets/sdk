@@ -1,6 +1,5 @@
 //! Search provides a search index for the meta data
 //! of an open vault.
-
 use probly_search::{
     index::{
         add_document_to_index, create_index, remove_document_from_index,
@@ -10,7 +9,7 @@ use probly_search::{
 };
 use std::collections::{BTreeMap, HashSet};
 
-use crate::secret::{SecretId, SecretMeta};
+use crate::secret::{SecretId, SecretMeta, SecretRef};
 
 /// Key for meta data documents.
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
@@ -25,7 +24,7 @@ fn tokenizer(s: &str) -> Vec<String> {
 
 // Label
 fn label_extract<'a>(d: &'a Document) -> Option<&'a str> {
-    Some(d.meta.label())
+    Some(d.1.label())
 }
 
 // A no-op filter
@@ -37,52 +36,77 @@ fn filter(s: &str) -> String {
 
 /// Document that can be indexed.
 #[derive(Debug, Clone)]
-pub struct Document {
-    id: SecretId,
-    meta: SecretMeta,
-}
+pub struct Document(pub SecretId, pub SecretMeta);
 
-impl From<(SecretId, SecretMeta)> for Document {
-    fn from(value: (SecretId, SecretMeta)) -> Self {
-        Self {
-            id: value.0,
-            meta: value.1,
-        }
+impl Document {
+    /// Get the secret identifier.
+    pub fn id(&self) -> &SecretId {
+        &self.0
+    }
+
+    /// Get the secret meta data.
+    pub fn meta(&self) -> &SecretMeta {
+        &self.1
     }
 }
 
 /// Exposes access to a search index of meta data.
 pub struct SearchIndex {
     index: Index<SecretId>,
-    items: BTreeMap<DocumentKey, Document>,
+    documents: BTreeMap<DocumentKey, Document>,
 }
 
 impl SearchIndex {
     /// Create a new search index.
     pub fn new() -> Self {
         // Create index with N fields
-        let mut index = create_index::<SecretId>(1);
+        let index = create_index::<SecretId>(1);
         Self {
             index,
-            items: Default::default(),
+            documents: Default::default(),
         }
     }
 
     /// Get the collection of documents.
-    pub fn documents(
-        &self,
-    ) -> &BTreeMap<DocumentKey, Document> {
-        &self.items
+    pub fn documents(&self) -> &BTreeMap<DocumentKey, Document> {
+        &self.documents
+    }
+
+    /// Get a list of the document values.
+    pub fn values(&self) -> Vec<&Document> {
+        self.documents.values().collect::<Vec<_>>()
+    }
+
+    /// Find document by label.
+    pub fn find_by_label<'a>(&'a self, label: &str) -> Option<&'a Document> {
+        self.documents.values().find(|d| d.meta().label() == label)
+    }
+
+    /// Find document by id.
+    pub fn find_by_id<'a>(&'a self, id: &SecretId) -> Option<&'a Document> {
+        self.documents.values().find(|d| d.id() == id)
+    }
+
+    /// Find secret meta by uuid or label.
+    pub fn find_by_uuid_or_label<'a>(
+        &'a self,
+        target: &SecretRef,
+    ) -> Option<&'a Document> {
+        match target {
+            SecretRef::Id(id) => self.find_by_id(id),
+            SecretRef::Name(name) => self.find_by_label(name),
+        }
     }
 
     /// Add a document to the index.
     pub fn add(&mut self, id: &SecretId, meta: SecretMeta) {
-        let doc: Document = (*id, meta).into();
+        let doc = Document(*id, meta);
 
         // Listing key includes the identifier so that
         // secrets with the same label do not overwrite each other
-        let key = DocumentKey(doc.meta.label().to_lowercase().to_owned(), *id);
-        let doc = self.items.entry(key).or_insert(doc);
+        let key =
+            DocumentKey(doc.meta().label().to_lowercase().to_owned(), *id);
+        let doc = self.documents.entry(key).or_insert(doc);
 
         add_document_to_index(
             &mut self.index,
@@ -92,19 +116,25 @@ impl SearchIndex {
             *id,
             // FIXME: remove clone() here
             // SEE: https://github.com/quantleaf/probly-search/pull/11
-            doc.clone(), 
+            doc.clone(),
         );
+    }
+
+    /// Update a document in the index.
+    pub fn update(&mut self, id: &SecretId, meta: SecretMeta) {
+        self.remove(id);
+        self.add(id, meta);
     }
 
     /// Remove and vacuum a document from the index.
     pub fn remove(&mut self, id: &SecretId) {
         let key = self
-            .items
+            .documents
             .keys()
             .find(|key| &key.1 == id)
             .map(|k| k.clone());
         if let Some(key) = &key {
-            self.items.remove(key);
+            self.documents.remove(key);
         }
 
         let mut removed_docs = HashSet::new();
