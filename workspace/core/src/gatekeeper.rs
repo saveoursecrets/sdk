@@ -4,7 +4,7 @@ use crate::{
     decode, encode,
     events::SyncEvent,
     search::SearchIndex,
-    secret::{Secret, SecretId, SecretMeta, SecretRef, VaultMeta},
+    secret::{Secret, SecretId, SecretMeta, VaultMeta},
     vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId},
     Error, Result,
 };

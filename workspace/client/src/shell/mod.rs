@@ -1035,11 +1035,10 @@ fn exec_program(
             Ok(())
         }
         ShellCommand::Whoami => {
-            let _reader = cache.read().unwrap();
-            todo!("restore address in whoami");
-            //let address = reader.address()?;
-            //println!("{}", address);
-            //Ok(())
+            let reader = cache.read().unwrap();
+            let address = reader.signer().address()?;
+            println!("{}", address);
+            Ok(())
         }
         ShellCommand::Close => {
             let mut writer = cache.write().unwrap();
