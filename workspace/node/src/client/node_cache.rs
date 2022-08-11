@@ -194,6 +194,11 @@ where
         self.snapshots.as_ref()
     }
 
+    /// Get the signer for this node cache.
+    pub fn signer(&self) -> &BoxedSigner {
+        &self.signer
+    }
+
     /// Take a snapshot of the WAL for the given vault.
     ///
     /// Snapshots must be enabled.
