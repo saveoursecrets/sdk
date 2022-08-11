@@ -7,12 +7,13 @@ use probly_search::{
     },
     query::{query, score::default::bm25, QueryResult},
 };
+use serde::Serialize;
 use std::collections::{BTreeMap, HashSet};
 
 use crate::secret::{SecretId, SecretMeta, SecretRef};
 
 /// Key for meta data documents.
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct DocumentKey(String, SecretId);
 
 // A white space tokenizer
@@ -35,7 +36,7 @@ fn filter(s: &str) -> String {
 // FIXME: remove Clone here
 
 /// Document that can be indexed.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Document(pub SecretId, pub SecretMeta);
 
 impl Document {

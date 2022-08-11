@@ -328,6 +328,19 @@ impl Gatekeeper {
         self.vault.verify(passphrase)
     }
 
+    /// Create the initial search index.
+    pub fn create_index(&mut self) -> Result<()> {
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+        for (id, value) in self.vault.iter() {
+            let VaultCommit(_commit, VaultEntry(meta_aead, _)) = value;
+            let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+            let secret_meta: SecretMeta = decode(&meta_blob)?;
+            self.index.add(id, secret_meta);
+        }
+        Ok(())
+    }
+
     /// Unlock the vault by setting the private key from a passphrase.
     ///
     /// The private key is stored in memory by this gatekeeper.
