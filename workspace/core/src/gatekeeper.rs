@@ -3,11 +3,11 @@ use crate::{
     crypto::{secret_key::SecretKey, AeadPack},
     decode, encode,
     events::SyncEvent,
+    search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta, SecretRef, VaultMeta},
     vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId},
     Error, Result,
 };
-use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Access to an in-memory vault optionally mirroring changes to disc.
@@ -25,7 +25,6 @@ use uuid::Uuid;
 /// a very poor user experience and would lead to confusion so the
 /// gatekeeper is also responsible for ensuring the same private key
 /// is used to encrypt the different chunks.
-#[derive(Default)]
 pub struct Gatekeeper {
     /// The private key.
     private_key: Option<SecretKey>,
@@ -33,6 +32,8 @@ pub struct Gatekeeper {
     vault: Vault,
     /// Mirror in-memory vault changes to this destination.
     mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
+    /// Search index.
+    index: SearchIndex,
 }
 
 impl Gatekeeper {
@@ -42,6 +43,7 @@ impl Gatekeeper {
             vault,
             private_key: None,
             mirror: None,
+            index: SearchIndex::new(),
         }
     }
 
@@ -54,6 +56,7 @@ impl Gatekeeper {
             vault,
             private_key: None,
             mirror: Some(mirror),
+            index: SearchIndex::new(),
         }
     }
 
@@ -70,6 +73,11 @@ impl Gatekeeper {
     /// Set the vault.
     pub fn set_vault(&mut self, vault: Vault) {
         self.vault = vault;
+    }
+
+    /// Get the search index.
+    pub fn index(&self) -> &SearchIndex {
+        &self.index
     }
 
     /// Get the summary for the vault.
@@ -128,31 +136,6 @@ impl Gatekeeper {
         }
     }
 
-    /// Attempt to decrypt the secrets meta data.
-    pub fn meta_data(&self) -> Result<HashMap<&SecretId, SecretMeta>> {
-        let private_key =
-            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-
-        if self.vault.header().meta().is_some() {
-            let mut result = HashMap::new();
-            for (id, meta_aead) in self.vault.meta_data() {
-                let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-                let secret_meta: SecretMeta = decode(&meta_blob)?;
-                result.insert(id, secret_meta);
-            }
-            Ok(result)
-        } else {
-            Err(Error::VaultNotInit)
-        }
-    }
-
-    /// Get a sorted list of the secrets meta data.
-    pub fn meta_data_list(&self) -> Result<Vec<(&SecretId, SecretMeta)>> {
-        let mut list = self.meta_data()?.into_iter().collect::<Vec<_>>();
-        list.sort_by(|a, b| a.1.cmp(&b.1));
-        Ok(list)
-    }
-
     /// Attempt to decrypt the index meta data for the vault
     /// using the passphrase assigned to this gatekeeper.
     pub fn vault_meta(&self) -> Result<VaultMeta> {
@@ -204,33 +187,6 @@ impl Gatekeeper {
         }
     }
 
-    /// Find secret meta by label.
-    pub fn find_by_label<'a>(
-        &self,
-        meta_data: &'a HashMap<&'a SecretId, SecretMeta>,
-        label: &str,
-    ) -> Option<&'a SecretMeta> {
-        meta_data.values().find(|m| m.label() == label)
-    }
-
-    /// Find secret meta by uuid or label.
-    pub fn find_by_uuid_or_label<'a>(
-        &self,
-        meta_data: &'a HashMap<&'a SecretId, SecretMeta>,
-        target: &'a SecretRef,
-    ) -> Option<(&'a SecretId, &'a SecretMeta)> {
-        match target {
-            SecretRef::Id(id) => meta_data.get(id).map(|v| (id, v)),
-            SecretRef::Name(name) => meta_data.iter().find_map(|(k, v)| {
-                if v.label() == name {
-                    Some((*k, v))
-                } else {
-                    None
-                }
-            }),
-        }
-    }
-
     /// Add a secret to the vault.
     pub fn create(
         &mut self,
@@ -238,9 +194,9 @@ impl Gatekeeper {
         secret: Secret,
     ) -> Result<SyncEvent<'_>> {
         // TODO: use cached in-memory meta data
-        let meta = self.meta_data()?;
+        //let meta = self.meta_data()?;
 
-        if self.find_by_label(&meta, secret_meta.label()).is_some() {
+        if self.index.find_by_label(secret_meta.label()).is_some() {
             return Err(Error::SecretAlreadyExists(
                 secret_meta.label().to_string(),
             ));
@@ -266,11 +222,15 @@ impl Gatekeeper {
             )?;
         }
 
-        Ok(self.vault.insert(
+        let result = self.vault.insert(
             id,
             commit,
             VaultEntry(meta_aead, secret_aead),
-        )?)
+        )?;
+
+        self.index.add(&id, secret_meta);
+
+        Ok(result)
     }
 
     /// Get a secret and it's meta data from the vault.
@@ -291,20 +251,14 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<Option<SyncEvent<'_>>> {
-        // TODO: use cached in-memory meta data
-        let meta = self.meta_data()?;
-
-        let existing_meta = meta.get(id);
-
-        if existing_meta.is_none() {
-            return Err(Error::SecretDoesNotExist(*id));
-        }
-
-        let existing_meta = existing_meta.unwrap();
+        let doc = self
+            .index
+            .find_by_id(id)
+            .ok_or(Error::SecretDoesNotExist(*id))?;
 
         // Label has changed, so ensure uniqueness
-        if existing_meta.label() != secret_meta.label()
-            && self.find_by_label(&meta, secret_meta.label()).is_some()
+        if doc.meta().label() != secret_meta.label()
+            && self.index.find_by_label(secret_meta.label()).is_some()
         {
             return Err(Error::SecretAlreadyExists(
                 secret_meta.label().to_string(),
@@ -330,11 +284,15 @@ impl Gatekeeper {
             )?;
         }
 
-        Ok(self.vault.update(
+        let result = self.vault.update(
             id,
             commit,
             VaultEntry(meta_aead, secret_aead),
-        )?)
+        )?;
+
+        self.index.update(&id, secret_meta);
+
+        Ok(result)
     }
 
     /// Delete a secret and it's meta data from the vault.
@@ -342,7 +300,9 @@ impl Gatekeeper {
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.delete(id)?;
         }
-        self.vault.delete(id)
+        let result = self.vault.delete(id)?;
+        self.index.remove(id);
+        Ok(result)
     }
 
     /// Decrypt secret meta data.
@@ -366,6 +326,19 @@ impl Gatekeeper {
     /// Verify an encryption passphrase.
     pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
         self.vault.verify(passphrase)
+    }
+
+    /// Create the initial search index.
+    pub fn create_index(&mut self) -> Result<()> {
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+        for (id, value) in self.vault.iter() {
+            let VaultCommit(_commit, VaultEntry(meta_aead, _)) = value;
+            let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+            let secret_meta: SecretMeta = decode(&meta_blob)?;
+            self.index.add(id, secret_meta);
+        }
+        Ok(())
     }
 
     /// Unlock the vault by setting the private key from a passphrase.

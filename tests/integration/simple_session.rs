@@ -153,7 +153,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Check our new list of secrets has the right length
     let keeper = node_cache.current().unwrap();
-    let meta = keeper.meta_data()?;
+    let meta = keeper.index().values();
     assert_eq!(2, meta.len());
     drop(keeper);
 
