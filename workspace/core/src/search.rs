@@ -12,8 +12,9 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::secret::{SecretId, SecretMeta};
 
+/// Key for meta data documents.
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-struct ListingKey(String, SecretId);
+pub struct DocumentKey(String, SecretId);
 
 // A white space tokenizer
 fn tokenizer(s: &str) -> Vec<String> {
@@ -32,16 +33,19 @@ fn filter(s: &str) -> String {
     s.to_owned()
 }
 
+// FIXME: remove Clone here
+
 /// Document that can be indexed.
+#[derive(Debug, Clone)]
 pub struct Document<'a> {
-    id: SecretId,
-    meta: &'a SecretMeta,
+    id: &'a SecretId,
+    meta: SecretMeta,
 }
 
-impl<'a> From<(&SecretId, &'a SecretMeta)> for Document<'a> {
-    fn from(value: (&SecretId, &'a SecretMeta)) -> Self {
+impl<'a> From<(&'a SecretId, SecretMeta)> for Document<'a> {
+    fn from(value: (&'a SecretId, SecretMeta)) -> Self {
         Self {
-            id: *value.0,
+            id: value.0,
             meta: value.1,
         }
     }
@@ -50,24 +54,8 @@ impl<'a> From<(&SecretId, &'a SecretMeta)> for Document<'a> {
 /// Exposes access to a search index of meta data.
 pub struct SearchIndex<'a> {
     index: Index<SecretId>,
-    list: BTreeMap<ListingKey, (&'a SecretId, SecretMeta)>,
+    items: BTreeMap<DocumentKey, Document<'a>>,
 }
-
-/*
-    fn sort_meta_data(
-        &self,
-        keeper: &Gatekeeper,
-    ) -> Result<BTreeMap<String, (SecretId, SecretMeta)>, JsError> {
-        Ok(keeper
-            .meta_data()?
-            .into_iter()
-            .map(|(k, v)| {
-                let key = format!("{} {}", v.label().to_lowercase(), k);
-                (key, (*k, v))
-            })
-            .collect())
-    }
-*/
 
 impl<'a> SearchIndex<'a> {
     /// Create a new search index.
@@ -76,17 +64,25 @@ impl<'a> SearchIndex<'a> {
         let mut index = create_index::<SecretId>(1);
         Self {
             index,
-            list: Default::default(),
+            items: Default::default(),
         }
+    }
+
+    /// Get the collection of documents.
+    pub fn documents(
+        &self,
+    ) -> &BTreeMap<DocumentKey, Document<'a>> {
+        &self.items
     }
 
     /// Add a document to the index.
     pub fn add(&mut self, id: &'a SecretId, meta: SecretMeta) {
+        let doc: Document = (id, meta).into();
+
         // Listing key includes the identifier so that
         // secrets with the same label do not overwrite each other
-        let key = ListingKey(meta.label().to_lowercase().to_owned(), *id);
-        let (_, meta) = self.list.entry(key).or_insert((id, meta));
-        let doc: Document = (id, &*meta).into();
+        let key = DocumentKey(doc.meta.label().to_lowercase().to_owned(), *id);
+        let doc = self.items.entry(key).or_insert(doc);
 
         add_document_to_index(
             &mut self.index,
@@ -94,16 +90,21 @@ impl<'a> SearchIndex<'a> {
             tokenizer,
             filter,
             *id,
-            doc,
+            // FIXME: remove clone() here
+            // SEE: https://github.com/quantleaf/probly-search/pull/11
+            doc.clone(), 
         );
     }
 
     /// Remove and vacuum a document from the index.
     pub fn remove(&mut self, id: &SecretId) {
-        let key =
-            self.list.keys().find(|key| &key.1 == id).map(|k| k.clone());
+        let key = self
+            .items
+            .keys()
+            .find(|key| &key.1 == id)
+            .map(|k| k.clone());
         if let Some(key) = &key {
-            self.list.remove(key);
+            self.items.remove(key);
         }
 
         let mut removed_docs = HashSet::new();
@@ -123,5 +124,42 @@ impl<'a> SearchIndex<'a> {
             &[1., 1.],
             None,
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::secret::SecretMeta;
+    use uuid::Uuid;
+
+    #[test]
+    fn search_index() {
+        let mut idx = SearchIndex::new();
+
+        let id1 = Uuid::new_v4();
+        let meta1 = SecretMeta::new("mock secret".to_owned(), 1);
+
+        let id2 = Uuid::new_v4();
+        let meta2 = SecretMeta::new("foo bar baz secret".to_owned(), 1);
+
+        idx.add(&id1, meta1);
+        assert_eq!(1, idx.documents().len());
+        idx.add(&id2, meta2);
+        assert_eq!(2, idx.documents().len());
+
+        let docs = idx.query("mock");
+        assert_eq!(1, docs.len());
+
+        let docs = idx.query("secret");
+        assert_eq!(2, docs.len());
+
+        idx.remove(&id1);
+
+        let docs = idx.query("mock");
+        assert_eq!(0, docs.len());
+
+        let docs = idx.query("secret");
+        assert_eq!(1, docs.len());
     }
 }
