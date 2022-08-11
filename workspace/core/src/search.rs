@@ -37,13 +37,13 @@ fn filter(s: &str) -> String {
 
 /// Document that can be indexed.
 #[derive(Debug, Clone)]
-pub struct Document<'a> {
-    id: &'a SecretId,
+pub struct Document {
+    id: SecretId,
     meta: SecretMeta,
 }
 
-impl<'a> From<(&'a SecretId, SecretMeta)> for Document<'a> {
-    fn from(value: (&'a SecretId, SecretMeta)) -> Self {
+impl From<(SecretId, SecretMeta)> for Document {
+    fn from(value: (SecretId, SecretMeta)) -> Self {
         Self {
             id: value.0,
             meta: value.1,
@@ -52,12 +52,12 @@ impl<'a> From<(&'a SecretId, SecretMeta)> for Document<'a> {
 }
 
 /// Exposes access to a search index of meta data.
-pub struct SearchIndex<'a> {
+pub struct SearchIndex {
     index: Index<SecretId>,
-    items: BTreeMap<DocumentKey, Document<'a>>,
+    items: BTreeMap<DocumentKey, Document>,
 }
 
-impl<'a> SearchIndex<'a> {
+impl SearchIndex {
     /// Create a new search index.
     pub fn new() -> Self {
         // Create index with N fields
@@ -71,13 +71,13 @@ impl<'a> SearchIndex<'a> {
     /// Get the collection of documents.
     pub fn documents(
         &self,
-    ) -> &BTreeMap<DocumentKey, Document<'a>> {
+    ) -> &BTreeMap<DocumentKey, Document> {
         &self.items
     }
 
     /// Add a document to the index.
-    pub fn add(&mut self, id: &'a SecretId, meta: SecretMeta) {
-        let doc: Document = (id, meta).into();
+    pub fn add(&mut self, id: &SecretId, meta: SecretMeta) {
+        let doc: Document = (*id, meta).into();
 
         // Listing key includes the identifier so that
         // secrets with the same label do not overwrite each other
