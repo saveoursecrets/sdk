@@ -83,7 +83,7 @@ async fn integration_change_password() -> Result<()> {
 
     // Check our new list of secrets has the right length
     let keeper = node_cache.current().unwrap();
-    let meta = keeper.meta_data()?;
+    let meta = keeper.index().values();
     assert_eq!(3, meta.len());
     drop(keeper);
 
