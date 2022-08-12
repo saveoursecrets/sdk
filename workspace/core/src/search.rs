@@ -156,6 +156,24 @@ impl SearchIndex {
             None,
         )
     }
+
+    /// Query the index and map each result to the corresponding document.
+    ///
+    /// If a corresponding document could not be located the search result
+    /// will be ignored.
+    pub fn query_map(&mut self, needle: &str) -> Vec<&Document> {
+        let results = self.query(needle);
+        results
+            .into_iter()
+            .filter_map(|r| {
+                if let Some(doc) = self.find_by_id(&r.key) {
+                    Some(doc)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+    }
 }
 
 #[cfg(test)]
@@ -192,5 +210,9 @@ mod test {
 
         let docs = idx.query("secret");
         assert_eq!(1, docs.len());
+
+        let docs = idx.query_map("secret");
+        assert_eq!(1, docs.len());
+        assert_eq!(&id2, docs.get(0).unwrap().id());
     }
 }
