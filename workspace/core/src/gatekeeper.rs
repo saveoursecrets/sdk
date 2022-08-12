@@ -80,6 +80,11 @@ impl Gatekeeper {
         &self.index
     }
 
+    /// Get a mutable reference to the search index.
+    pub fn index_mut(&mut self) -> &mut SearchIndex {
+        &mut self.index
+    }
+
     /// Get the summary for the vault.
     pub fn summary(&self) -> &Summary {
         self.vault.summary()
