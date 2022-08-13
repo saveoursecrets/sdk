@@ -164,7 +164,6 @@ pub struct NodeCache<W, P> {
     /// The URL for a remote node.
     server: Url,
     */
-
     /// Client to use for server communication.
     client: RequestClient,
     /// Directory for the user cache.
@@ -411,10 +410,7 @@ where
     /// Remove a vault.
     pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Attempt to delete on the remote server
-        let (status, _) = self.client.delete_wal(
-            *summary.id(),
-        )
-        .await?;
+        let (status, _) = self.client.delete_wal(*summary.id()).await?;
         status
             .is_success()
             .then_some(())
@@ -483,11 +479,10 @@ where
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
-        let (status, server_proof, match_proof) = self.client.head_wal(
-            *summary.id(),
-            Some(client_proof.clone()),
-        )
-        .await?;
+        let (status, server_proof, match_proof) = self
+            .client
+            .head_wal(*summary.id(), Some(client_proof.clone()))
+            .await?;
         status
             .is_success()
             .then_some(())
@@ -547,11 +542,8 @@ where
 
         // Send the new vault to the server
         let buffer = encode(vault)?;
-        let (status, server_proof) = self.client.put_vault(
-            *summary.id(),
-            buffer,
-        )
-        .await?;
+        let (status, server_proof) =
+            self.client.put_vault(*summary.id(), buffer).await?;
         status
             .is_success()
             .then_some(())
@@ -637,11 +629,10 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, match_proof) = self.client.head_wal(
-            *summary.id(),
-            Some(client_proof.clone()),
-        )
-        .await?;
+        let (status, server_proof, match_proof) = self
+            .client
+            .head_wal(*summary.id(), Some(client_proof.clone()))
+            .await?;
         status
             .is_success()
             .then_some(())
@@ -694,11 +685,8 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, _match_proof) = self.client.head_wal(
-            *summary.id(),
-            None,
-        )
-        .await?;
+        let (status, server_proof, _match_proof) =
+            self.client.head_wal(*summary.id(), None).await?;
         status
             .is_success()
             .then_some(())
@@ -816,15 +804,9 @@ where
         }
 
         let status = if is_account {
-            self.client.create_account(
-                buffer,
-            )
-            .await?
+            self.client.create_account(buffer).await?
         } else {
-            let (status, _) = self.client.create_wal(
-                buffer,
-            )
-            .await?;
+            let (status, _) = self.client.create_wal(buffer).await?;
             status
         };
 
@@ -959,11 +941,10 @@ where
             None
         };
 
-        let (status, server_proof, buffer) = self.client.get_wal(
-            *summary.id(),
-            client_proof.clone(),
-        )
-        .await?;
+        let (status, server_proof, buffer) = self
+            .client
+            .get_wal(*summary.id(), client_proof.clone())
+            .await?;
 
         tracing::debug!(status = %status, "pull_wal");
 
@@ -1074,12 +1055,14 @@ where
 
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, match_proof) = self.client.patch_wal(
-            *summary.id(),
-            client_proof.clone(),
-            patch.clone().into_owned(),
-        )
-        .await?;
+        let (status, server_proof, match_proof) = self
+            .client
+            .patch_wal(
+                *summary.id(),
+                client_proof.clone(),
+                patch.clone().into_owned(),
+            )
+            .await?;
 
         match status {
             StatusCode::OK => {
@@ -1248,12 +1231,10 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
         let body = std::fs::read(wal.path())?;
-        let (status, server_proof) = self.client.post_wal(
-            *summary.id(),
-            client_proof.clone(),
-            body,
-        )
-        .await?;
+        let (status, server_proof) = self
+            .client
+            .post_wal(*summary.id(), client_proof.clone(), body)
+            .await?;
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
         status

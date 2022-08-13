@@ -84,7 +84,7 @@ impl Clone for BoxedSigner {
 
 /// Signer for a single party key.
 #[derive(Clone)]
-pub struct SingleParty(SigningKey);
+pub struct SingleParty(pub SigningKey);
 
 #[async_trait]
 impl Signer for SingleParty {

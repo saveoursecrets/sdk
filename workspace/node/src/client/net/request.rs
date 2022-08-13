@@ -79,11 +79,14 @@ pub struct RequestClient {
 }
 
 impl RequestClient {
-
     /// Create a new request client.
     pub fn new(server: Url, signer: BoxedSigner) -> Self {
         let client = reqwest::Client::new();
-        Self { server, signer, client }
+        Self {
+            server,
+            signer,
+            client,
+        }
     }
 
     /// Get the signer for this client.
@@ -141,13 +144,11 @@ impl RequestClient {
     }
 
     /// Create a new account.
-    pub async fn create_account(
-        &self,
-        vault: Vec<u8>,
-    ) -> Result<StatusCode> {
+    pub async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
         let url = self.server.join("api/accounts")?;
         let signature = encode_signature(self.signer.sign(&vault).await?)?;
-        let response = self.client
+        let response = self
+            .client
             .put(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
             .header(CONTENT_TYPE, MIME_TYPE_VAULT)
@@ -158,19 +159,15 @@ impl RequestClient {
     }
 
     /// List the vaults accessible by this signer.
-    pub async fn list_vaults(
-        &self,
-    ) -> Result<Vec<Summary>> {
+    pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
         let url = self.server.join("api/auth")?;
         let (message, signature) = self_signed(&self.signer).await?;
 
-        let response = self.client
+        let response = self
+            .client
             .get(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(
-                X_SIGNED_MESSAGE,
-                bs58::encode(&message).into_string(),
-            )
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
             .send()
             .await?;
 
@@ -187,13 +184,11 @@ impl RequestClient {
         let url = self.server.join(&url)?;
         let signature = encode_signature(self.signer.sign(&message).await?)?;
 
-        let response = self.client
+        let response = self
+            .client
             .get(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(
-                X_SIGNED_MESSAGE,
-                bs58::encode(&message).into_string(),
-            )
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
             .send()
             .await?;
 
@@ -211,11 +206,11 @@ impl RequestClient {
     pub async fn create_wal(
         &self,
         vault: Vec<u8>,
-    ) -> Result<(StatusCode, Option<CommitProof>)>
-    {
+    ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join("api/vaults")?;
         let signature = encode_signature(self.signer.sign(&vault).await?)?;
-        let response = self.client
+        let response = self
+            .client
             .put(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
             .header(CONTENT_TYPE, MIME_TYPE_VAULT)
@@ -238,13 +233,11 @@ impl RequestClient {
     ) -> Result<(StatusCode, Option<CommitProof>, Option<Vec<u8>>)> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let (message, signature) = self_signed(&self.signer).await?;
-        let mut builder = self.client
+        let mut builder = self
+            .client
             .get(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(
-                X_SIGNED_MESSAGE,
-                bs58::encode(&message).into_string(),
-            );
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string());
 
         if let Some(proof) = &proof {
             builder = encode_headers_proof(builder, proof)?;
@@ -269,11 +262,11 @@ impl RequestClient {
         vault_id: Uuid,
         proof: CommitProof,
         body: Vec<u8>,
-    ) -> Result<(StatusCode, Option<CommitProof>)>
-    {
+    ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let signature = encode_signature(self.signer.sign(&body).await?)?;
-        let mut builder = self.client
+        let mut builder = self
+            .client
             .post(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
             .header(CONTENT_TYPE, MIME_TYPE_VAULT)
@@ -297,13 +290,13 @@ impl RequestClient {
         proof: CommitProof,
         patch: Patch<'static>,
     ) -> Result<(StatusCode, Option<CommitProof>, Option<CommitProof>)> {
-
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let message = encode(&patch)?;
 
         let signature = encode_signature(self.signer.sign(&message).await?)?;
 
-        let mut builder = self.client
+        let mut builder = self
+            .client
             .patch(url)
             .header(AUTHORIZATION, bearer_prefix(&signature));
 
@@ -330,13 +323,11 @@ impl RequestClient {
     ) -> Result<(StatusCode, CommitProof, Option<CommitProof>)> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let (message, signature) = self_signed(&self.signer).await?;
-        let mut builder = self.client
+        let mut builder = self
+            .client
             .head(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(
-                X_SIGNED_MESSAGE,
-                bs58::encode(&message).into_string(),
-            );
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string());
 
         if let Some(proof) = &proof {
             builder = encode_headers_proof(builder, proof)?;
@@ -359,17 +350,14 @@ impl RequestClient {
     pub async fn delete_wal(
         &self,
         vault_id: Uuid,
-    ) -> Result<(StatusCode, Option<CommitProof>)>
-    {
+    ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let (message, signature) = self_signed(&self.signer).await?;
-        let response = self.client
+        let response = self
+            .client
             .delete(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(
-                X_SIGNED_MESSAGE,
-                bs58::encode(&message).into_string(),
-            )
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string())
             .send()
             .await?;
         let headers = response.headers();
@@ -389,12 +377,12 @@ impl RequestClient {
         &self,
         vault_id: Uuid,
         vault: Vec<u8>,
-    ) -> Result<(StatusCode, Option<CommitProof>)>
-    {
+    ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
         let signature = encode_signature(self.signer.sign(&vault).await?)?;
 
-        let response = self.client
+        let response = self
+            .client
             .put(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
             .header(CONTENT_TYPE, MIME_TYPE_VAULT)

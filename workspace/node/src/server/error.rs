@@ -60,6 +60,20 @@ pub enum Error {
     #[error("failed to remove in-memory vault, files still exist on disc")]
     VaultRemove,
 
+    /// Error generated when a session does not exist.
+    #[error("session does not exist")]
+    NoSession,
+
+    /// Error generated when a session identity signature does not 
+    /// match the initial address.
+    #[error("bad session identity signature")]
+    BadSessionIdentity,
+
+    /// Error generated when attempting to compute a shared secret
+    /// before a session identity has been proven.
+    #[error("session identity has not been proven")]
+    NoSessionIdentity,
+
     /// Error generated converting from a slice.
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
@@ -103,4 +117,8 @@ pub enum Error {
     /// Error generate by the UUID library.
     #[error(transparent)]
     Uuid(#[from] uuid::Error),
+
+    /// Error generate by the elliptic curve library.
+    #[error(transparent)]
+    Elliptic(#[from] k256::elliptic_curve::Error),
 }

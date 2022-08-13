@@ -61,7 +61,9 @@ pub mod file {
 /// Client implementation that stores data in memory.
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
-    use crate::client::{node_cache::NodeCache, net::RequestClient, Error, Result};
+    use crate::client::{
+        net::RequestClient, node_cache::NodeCache, Error, Result,
+    };
     use secrecy::SecretString;
     use sos_core::{
         events::{ChangeNotification, SyncEvent},
