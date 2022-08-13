@@ -74,6 +74,15 @@ pub enum Error {
     #[error("session identity has not been proven")]
     NoSessionIdentity,
 
+    /// Error generated when a session does not yet have a salt.
+    #[error("session salt has not been set")]
+    NoSessionSalt,
+
+    /// Error generated when a session shared secret has not yet been
+    /// created.
+    #[error("session shared secret has not been set")]
+    NoSessionSharedSecret,
+
     /// Error generated converting from a slice.
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),

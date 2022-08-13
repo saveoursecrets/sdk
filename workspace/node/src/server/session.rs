@@ -9,7 +9,7 @@ use k256::{
     EncodedPoint, PublicKey, Secp256k1,
 };
 use rand::Rng;
-use sos_core::{address::AddressStr, signer::BoxedSigner};
+use sos_core::{address::AddressStr, signer::BoxedSigner, crypto::secret_key::SecretKey};
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
@@ -62,7 +62,7 @@ impl SessionManager {
         let session = self.get_mut(id).ok_or(Error::NoSession)?;
         let message = session.challenge();
         let recoverable: recoverable::Signature = signature.try_into()?;
-        let public_key = recoverable.recover_verifying_key(message)?;
+        let public_key = recoverable.recover_verifying_key(&message)?;
         let public_key: [u8; 33] =
             public_key.to_bytes().as_slice().try_into()?;
         let address: AddressStr = (&public_key).try_into()?;
@@ -107,8 +107,8 @@ impl Session {
     }
 
     /// Get the challenge bytes.
-    pub fn challenge(&self) -> &[u8] {
-        &self.challenge
+    pub fn challenge(&self) -> [u8; 16] {
+        self.challenge
     }
 
     /// Get the public key bytes.
@@ -132,6 +132,16 @@ impl Session {
         self.shared = Some(shared);
         Ok(())
     }
+
+    /// Generate a secret key suitable for symmetric encryption.
+    fn secret_key(&self) -> Result<SecretKey> {
+        let shared = self.shared.as_ref().ok_or(Error::NoSessionSharedSecret)?;
+        let hkdf = shared.extract::<Keccak256>(Some(self.challenge.as_ref()));
+        let mut okm = [0u8; 32];
+        hkdf.expand(&[], &mut okm)
+            .expect("HKDF length is invalid");
+        Ok(SecretKey::Key32(secrecy::Secret::new(okm)))
+    }
 }
 
 /// Client side session implementation.
@@ -139,6 +149,9 @@ pub struct ClientSession {
     signer: BoxedSigner,
     /// Session identifier.
     id: Uuid,
+    /// Challenge that was signed is also used as the salt 
+    /// for key derivation.
+    challenge: Option<[u8; 16]>,
     /// Session secret.
     secret: EphemeralSecret,
     /// Shared session secret.
@@ -157,22 +170,22 @@ impl ClientSession {
             PublicKey::from_sec1_bytes(public_key_bytes.as_ref())?;
         let shared = secret.diffie_hellman(&server_public);
 
-        let hkdf = shared.extract::<Keccak256>(None);
-
         Ok(Self {
             signer,
             id,
+            challenge: None,
             secret,
             shared,
         })
     }
 
     /// Sign the server challenge to prove our identity.
-    pub async fn sign<B: AsRef<[u8]>>(
-        &self,
-        challenge: B,
+    pub async fn sign(
+        &mut self,
+        challenge: [u8; 16],
     ) -> Result<Signature> {
-        let signature = self.signer.sign(challenge.as_ref()).await?;
+        let signature = self.signer.sign(&challenge).await?;
+        self.challenge = Some(challenge);
         Ok(signature)
     }
 
@@ -180,6 +193,17 @@ impl ClientSession {
     pub fn public_key(&self) -> Vec<u8> {
         let public_key_bytes = EncodedPoint::from(self.secret.public_key());
         public_key_bytes.as_ref().to_vec()
+    }
+
+    /// Generate a secret key suitable for symmetric encryption.
+    fn secret_key(&self) -> Result<SecretKey> {
+        let challenge = self.challenge.as_ref()
+            .ok_or(Error::NoSessionSalt)?;
+        let hkdf = self.shared.extract::<Keccak256>(Some(challenge.as_ref()));
+        let mut okm = [0u8; 32];
+        hkdf.expand(&[], &mut okm)
+            .expect("HKDF length is invalid");
+        Ok(SecretKey::Key32(secrecy::Secret::new(okm)))
     }
 }
 
@@ -225,6 +249,9 @@ mod test {
             server_session.shared.as_ref().unwrap().raw_secret_bytes(),
             client_session.shared.raw_secret_bytes()
         );
+
+        let client_secret_key = client_session.secret_key()?;
+        let server_secret_key = server_session.secret_key()?;
 
         Ok(())
     }
