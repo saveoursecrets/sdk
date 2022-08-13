@@ -72,9 +72,25 @@ async fn self_signed(signer: &BoxedSigner) -> Result<(Vec<u8>, String)> {
 
 /// HTTP client implementation using the `reqwest` library.
 #[derive(Clone)]
-pub struct RequestClient;
+pub struct RequestClient {
+    server: Url,
+    signer: BoxedSigner,
+    client: reqwest::Client,
+}
 
 impl RequestClient {
+
+    /// Create a new request client.
+    pub fn new(server: Url, signer: BoxedSigner) -> Self {
+        let client = reqwest::Client::new();
+        Self { server, signer, client }
+    }
+
+    /// Get the signer for this client.
+    pub fn signer(&self) -> &BoxedSigner {
+        &self.signer
+    }
+
     /// Generic GET function.
     pub async fn get(url: Url) -> Result<Response> {
         let client = reqwest::Client::new();
@@ -125,285 +141,243 @@ impl RequestClient {
     }
 
     /// Create a new account.
-    pub fn create_account(
-        server: Url,
-        signer: BoxedSigner,
+    pub async fn create_account(
+        &self,
         vault: Vec<u8>,
-    ) -> impl Future<Output = Result<StatusCode>> + 'static {
-        async move {
-            let client = reqwest::Client::new();
-            let url = server.join("api/accounts")?;
-            let signature = encode_signature(signer.sign(&vault).await?)?;
-            let response = client
-                .put(url)
-                .header(AUTHORIZATION, bearer_prefix(&signature))
-                .header(CONTENT_TYPE, MIME_TYPE_VAULT)
-                .body(vault)
-                .send()
-                .await?;
-            Ok(StatusCode::from_u16(response.status().into())?)
-        }
+    ) -> Result<StatusCode> {
+        let url = self.server.join("api/accounts")?;
+        let signature = encode_signature(self.signer.sign(&vault).await?)?;
+        let response = self.client
+            .put(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(vault)
+            .send()
+            .await?;
+        Ok(StatusCode::from_u16(response.status().into())?)
     }
 
     /// List the vaults accessible by this signer.
-    pub fn list_vaults(
-        server: Url,
-        signer: BoxedSigner,
-    ) -> impl Future<Output = Result<Vec<Summary>>> + 'static {
-        async move {
-            let client = reqwest::Client::new();
+    pub async fn list_vaults(
+        &self,
+    ) -> Result<Vec<Summary>> {
+        let url = self.server.join("api/auth")?;
+        let (message, signature) = self_signed(&self.signer).await?;
 
-            let url = server.join("api/auth")?;
-            let (message, signature) = self_signed(&signer).await?;
+        let response = self.client
+            .get(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(
+                X_SIGNED_MESSAGE,
+                bs58::encode(&message).into_string(),
+            )
+            .send()
+            .await?;
 
-            let response = client
-                .get(url)
-                .header(AUTHORIZATION, bearer_prefix(&signature))
-                .header(
-                    X_SIGNED_MESSAGE,
-                    bs58::encode(&message).into_string(),
-                )
-                .send()
-                .await?;
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
 
-            response
-                .status()
-                .is_success()
-                .then_some(())
-                .ok_or(Error::ResponseCode(response.status().into()))?;
+        let challenge: (Uuid, Challenge) = response.json().await?;
 
-            let challenge: (Uuid, Challenge) = response.json().await?;
+        let (uuid, message) = challenge;
+        let url = format!("api/auth/{}", uuid);
+        let url = self.server.join(&url)?;
+        let signature = encode_signature(self.signer.sign(&message).await?)?;
 
-            let (uuid, message) = challenge;
-            let url = format!("api/auth/{}", uuid);
-            let url = server.join(&url)?;
-            let signature = encode_signature(signer.sign(&message).await?)?;
+        let response = self.client
+            .get(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(
+                X_SIGNED_MESSAGE,
+                bs58::encode(&message).into_string(),
+            )
+            .send()
+            .await?;
 
-            let response = client
-                .get(url)
-                .header(AUTHORIZATION, bearer_prefix(&signature))
-                .header(
-                    X_SIGNED_MESSAGE,
-                    bs58::encode(&message).into_string(),
-                )
-                .send()
-                .await?;
+        response
+            .status()
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(response.status().into()))?;
 
-            response
-                .status()
-                .is_success()
-                .then_some(())
-                .ok_or(Error::ResponseCode(response.status().into()))?;
-
-            let summaries: Vec<Summary> = response.json().await?;
-            Ok(summaries)
-        }
+        let summaries: Vec<Summary> = response.json().await?;
+        Ok(summaries)
     }
 
     /// Create a new WAL file on a remote node.
-    pub fn create_wal(
-        server: Url,
-        signer: BoxedSigner,
+    pub async fn create_wal(
+        &self,
         vault: Vec<u8>,
-    ) -> impl Future<Output = Result<(StatusCode, Option<CommitProof>)>> + 'static
+    ) -> Result<(StatusCode, Option<CommitProof>)>
     {
-        async move {
-            let client = reqwest::Client::new();
-            let url = server.join("api/vaults")?;
-            let signature = encode_signature(signer.sign(&vault).await?)?;
-            let response = client
-                .put(url)
-                .header(AUTHORIZATION, bearer_prefix(&signature))
-                .header(CONTENT_TYPE, MIME_TYPE_VAULT)
-                .body(vault)
-                .send()
-                .await?;
-            let headers = response.headers();
-            let server_proof = decode_headers_proof(headers)?;
-            Ok((
-                StatusCode::from_u16(response.status().into())?,
-                server_proof,
-            ))
-        }
+        let url = self.server.join("api/vaults")?;
+        let signature = encode_signature(self.signer.sign(&vault).await?)?;
+        let response = self.client
+            .put(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(vault)
+            .send()
+            .await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((
+            StatusCode::from_u16(response.status().into())?,
+            server_proof,
+        ))
     }
 
     /// Get the WAL bytes for a vault.
-    pub fn get_wal(
-        server: Url,
-        signer: BoxedSigner,
+    pub async fn get_wal(
+        &self,
         vault_id: Uuid,
         proof: Option<CommitProof>,
-    ) -> impl Future<
-        Output = Result<(StatusCode, Option<CommitProof>, Option<Vec<u8>>)>,
-    > + 'static {
-        async move {
-            let client = reqwest::Client::new();
-            let url = server.join(&format!("api/vaults/{}", vault_id))?;
-            let (message, signature) = self_signed(&signer).await?;
-            let mut builder = client
-                .get(url)
-                .header(AUTHORIZATION, bearer_prefix(&signature))
-                .header(
-                    X_SIGNED_MESSAGE,
-                    bs58::encode(&message).into_string(),
-                );
+    ) -> Result<(StatusCode, Option<CommitProof>, Option<Vec<u8>>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self_signed(&self.signer).await?;
+        let mut builder = self.client
+            .get(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(
+                X_SIGNED_MESSAGE,
+                bs58::encode(&message).into_string(),
+            );
 
-            if let Some(proof) = &proof {
-                builder = encode_headers_proof(builder, proof)?;
-            }
-
-            let response = builder.send().await?;
-            let headers = response.headers();
-            let server_proof = decode_headers_proof(headers)?;
-            let status_code: u16 = response.status().into();
-            let buffer = if response.status().is_success() {
-                Some(response.bytes().await?.to_vec())
-            } else {
-                None
-            };
-
-            Ok((StatusCode::from_u16(status_code)?, server_proof, buffer))
+        if let Some(proof) = &proof {
+            builder = encode_headers_proof(builder, proof)?;
         }
+
+        let response = builder.send().await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        let status_code: u16 = response.status().into();
+        let buffer = if response.status().is_success() {
+            Some(response.bytes().await?.to_vec())
+        } else {
+            None
+        };
+
+        Ok((StatusCode::from_u16(status_code)?, server_proof, buffer))
     }
 
     /// Replace a WAL file on a remote node.
-    pub fn post_wal(
-        server: Url,
-        signer: BoxedSigner,
+    pub async fn post_wal(
+        &self,
         vault_id: Uuid,
         proof: CommitProof,
         body: Vec<u8>,
-    ) -> impl Future<Output = Result<(StatusCode, Option<CommitProof>)>> + 'static
+    ) -> Result<(StatusCode, Option<CommitProof>)>
     {
-        async move {
-            let client = reqwest::Client::new();
-            let url = server.join(&format!("api/vaults/{}", vault_id))?;
-            let signature = encode_signature(signer.sign(&body).await?)?;
-            let mut builder = client
-                .post(url)
-                .header(AUTHORIZATION, bearer_prefix(&signature))
-                .header(CONTENT_TYPE, MIME_TYPE_VAULT)
-                .body(body);
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let signature = encode_signature(self.signer.sign(&body).await?)?;
+        let mut builder = self.client
+            .post(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(body);
 
-            builder = encode_headers_proof(builder, &proof)?;
+        builder = encode_headers_proof(builder, &proof)?;
 
-            let response = builder.send().await?;
-            let headers = response.headers();
-            let server_proof = decode_headers_proof(headers)?;
-            Ok((
-                StatusCode::from_u16(response.status().into())?,
-                server_proof,
-            ))
-        }
+        let response = builder.send().await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((
+            StatusCode::from_u16(response.status().into())?,
+            server_proof,
+        ))
     }
 
     /// Apply events to the WAL file on a remote node.
-    pub fn patch_wal(
-        server: Url,
-        signer: BoxedSigner,
+    pub async fn patch_wal(
+        &self,
         vault_id: Uuid,
         proof: CommitProof,
         patch: Patch<'static>,
-    ) -> impl Future<
-        Output = Result<(
-            StatusCode,
-            Option<CommitProof>,
-            Option<CommitProof>,
-        )>,
-    > + 'static {
-        async move {
-            let client = reqwest::Client::new();
-            let url = server.join(&format!("api/vaults/{}", vault_id))?;
-            let message = encode(&patch)?;
+    ) -> Result<(StatusCode, Option<CommitProof>, Option<CommitProof>)> {
 
-            let signature = encode_signature(signer.sign(&message).await?)?;
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let message = encode(&patch)?;
 
-            let mut builder = client
-                .patch(url)
-                .header(AUTHORIZATION, bearer_prefix(&signature));
+        let signature = encode_signature(self.signer.sign(&message).await?)?;
 
-            builder = encode_headers_proof(builder, &proof)?;
-            builder = builder.body(message);
+        let mut builder = self.client
+            .patch(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature));
 
-            let response = builder.send().await?;
-            let headers = response.headers();
-            let server_proof = decode_headers_proof(headers)?;
-            let match_proof = decode_match_proof(headers)?;
+        builder = encode_headers_proof(builder, &proof)?;
+        builder = builder.body(message);
 
-            Ok((
-                StatusCode::from_u16(response.status().into())?,
-                server_proof,
-                match_proof,
-            ))
-        }
+        let response = builder.send().await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        let match_proof = decode_match_proof(headers)?;
+
+        Ok((
+            StatusCode::from_u16(response.status().into())?,
+            server_proof,
+            match_proof,
+        ))
     }
 
     /// Get the commit proof for the WAL file on a remote node.
-    pub fn head_wal(
-        server: Url,
-        signer: BoxedSigner,
+    pub async fn head_wal(
+        &self,
         vault_id: Uuid,
         proof: Option<CommitProof>,
-    ) -> impl Future<
-        Output = Result<(StatusCode, CommitProof, Option<CommitProof>)>,
-    > + 'static {
-        async move {
-            let client = reqwest::Client::new();
-            let url = server.join(&format!("api/vaults/{}", vault_id))?;
-            let (message, signature) = self_signed(&signer).await?;
-            let mut builder = client
-                .head(url)
-                .header(AUTHORIZATION, bearer_prefix(&signature))
-                .header(
-                    X_SIGNED_MESSAGE,
-                    bs58::encode(&message).into_string(),
-                );
+    ) -> Result<(StatusCode, CommitProof, Option<CommitProof>)> {
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self_signed(&self.signer).await?;
+        let mut builder = self.client
+            .head(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(
+                X_SIGNED_MESSAGE,
+                bs58::encode(&message).into_string(),
+            );
 
-            if let Some(proof) = &proof {
-                builder = encode_headers_proof(builder, proof)?;
-            }
-
-            let response = builder.send().await?;
-            let headers = response.headers();
-
-            let server_proof =
-                decode_headers_proof(headers)?.ok_or(Error::ServerProof)?;
-            let match_proof = decode_match_proof(headers)?;
-            Ok((
-                StatusCode::from_u16(response.status().into())?,
-                server_proof,
-                match_proof,
-            ))
+        if let Some(proof) = &proof {
+            builder = encode_headers_proof(builder, proof)?;
         }
+
+        let response = builder.send().await?;
+        let headers = response.headers();
+
+        let server_proof =
+            decode_headers_proof(headers)?.ok_or(Error::ServerProof)?;
+        let match_proof = decode_match_proof(headers)?;
+        Ok((
+            StatusCode::from_u16(response.status().into())?,
+            server_proof,
+            match_proof,
+        ))
     }
 
     /// Delete a WAL file on a remote node.
-    pub fn delete_wal(
-        server: Url,
-        signer: BoxedSigner,
+    pub async fn delete_wal(
+        &self,
         vault_id: Uuid,
-    ) -> impl Future<Output = Result<(StatusCode, Option<CommitProof>)>> + 'static
+    ) -> Result<(StatusCode, Option<CommitProof>)>
     {
-        async move {
-            let client = reqwest::Client::new();
-            let url = server.join(&format!("api/vaults/{}", vault_id))?;
-            let (message, signature) = self_signed(&signer).await?;
-            let response = client
-                .delete(url)
-                .header(AUTHORIZATION, bearer_prefix(&signature))
-                .header(
-                    X_SIGNED_MESSAGE,
-                    bs58::encode(&message).into_string(),
-                )
-                .send()
-                .await?;
-            let headers = response.headers();
-            let server_proof = decode_headers_proof(headers)?;
-            Ok((
-                StatusCode::from_u16(response.status().into())?,
-                server_proof,
-            ))
-        }
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self_signed(&self.signer).await?;
+        let response = self.client
+            .delete(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(
+                X_SIGNED_MESSAGE,
+                bs58::encode(&message).into_string(),
+            )
+            .send()
+            .await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((
+            StatusCode::from_u16(response.status().into())?,
+            server_proof,
+        ))
     }
 
     /// Update an existing vault.
@@ -411,32 +385,28 @@ impl RequestClient {
     /// This should be used when the commit tree has been
     /// rewritten, for example if the history was compacted
     /// or the password for a vault was changed.
-    pub fn put_vault(
-        server: Url,
-        signer: BoxedSigner,
+    pub async fn put_vault(
+        &self,
         vault_id: Uuid,
         vault: Vec<u8>,
-    ) -> impl Future<Output = Result<(StatusCode, Option<CommitProof>)>> + 'static
+    ) -> Result<(StatusCode, Option<CommitProof>)>
     {
-        async move {
-            let client = reqwest::Client::new();
-            let url = server.join(&format!("api/vaults/{}", vault_id))?;
-            let signature = encode_signature(signer.sign(&vault).await?)?;
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let signature = encode_signature(self.signer.sign(&vault).await?)?;
 
-            let response = client
-                .put(url)
-                .header(AUTHORIZATION, bearer_prefix(&signature))
-                .header(CONTENT_TYPE, MIME_TYPE_VAULT)
-                .body(vault)
-                .send()
-                .await?;
+        let response = self.client
+            .put(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(vault)
+            .send()
+            .await?;
 
-            let headers = response.headers();
-            let server_proof = decode_headers_proof(headers)?;
-            Ok((
-                StatusCode::from_u16(response.status().into())?,
-                server_proof,
-            ))
-        }
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        Ok((
+            StatusCode::from_u16(response.status().into())?,
+            server_proof,
+        ))
     }
 }
