@@ -282,7 +282,7 @@ mod tests {
 
         // Recovery
         let recovered_key = signature
-            .recover_verify_key(message)
+            .recover_verifying_key(message)
             .expect("couldn't recover pubkey");
         assert_eq!(&verify_key, &recovered_key);
     }

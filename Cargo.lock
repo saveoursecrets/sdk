@@ -2873,6 +2873,7 @@ dependencies = [
  "axum-server",
  "binary-stream",
  "bs58",
+ "crypto-bigint",
  "dirs",
  "futures",
  "hex",

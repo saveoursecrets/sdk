@@ -31,6 +31,7 @@ http = "0.2"
 bs58 = "0.4"
 secrecy = "0.8"
 log = "0.4"
+crypto-bigint = "0.4.8"
 
 # client
 web3-keystore = { version = "0.4", optional = true }

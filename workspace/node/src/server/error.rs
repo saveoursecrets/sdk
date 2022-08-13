@@ -64,7 +64,7 @@ pub enum Error {
     #[error("session does not exist")]
     NoSession,
 
-    /// Error generated when a session identity signature does not 
+    /// Error generated when a session identity signature does not
     /// match the initial address.
     #[error("bad session identity signature")]
     BadSessionIdentity,
@@ -82,6 +82,10 @@ pub enum Error {
     /// created.
     #[error("session shared secret has not been set")]
     NoSessionSharedSecret,
+
+    /// Error generated when a session key does not exist.
+    #[error("session key does not exist")]
+    NoSessionKey,
 
     /// Error generated converting from a slice.
     #[error(transparent)]

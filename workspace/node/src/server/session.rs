@@ -1,31 +1,42 @@
 //! Manages network sessions.
-//!
-//! To create a session a client makes a request and the server
-//! will issue a session offer with the server's public key bytes.
+use crypto_bigint::{CheckedAdd, Encoding, U192};
 use k256::{
-    ecdh::{EphemeralSecret},
-    ecdsa::recoverable,
-    elliptic_curve::ecdh::SharedSecret,
-    EncodedPoint, PublicKey, Secp256k1,
+    ecdh::EphemeralSecret, ecdsa::recoverable,
+    elliptic_curve::ecdh::SharedSecret, EncodedPoint, PublicKey, Secp256k1,
 };
 use rand::Rng;
-use sos_core::{address::AddressStr, signer::BoxedSigner, crypto::secret_key::SecretKey};
+use sha3::Keccak256;
+use sos_core::{
+    address::AddressStr,
+    crypto::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce},
+    signer::BoxedSigner,
+};
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
 };
 use uuid::Uuid;
 use web3_signature::Signature;
-use sha3::Keccak256;
 
 use crate::server::{Error, Result};
 
 /// Default session length in seconds.
 const SESSION_LENGTH: u64 = 900;
 
+/// Generate a secret key suitable for symmetric encryption.
+fn derive_secret_key(
+    shared: &SharedSecret<Secp256k1>,
+    salt: &[u8],
+) -> Result<SecretKey> {
+    let hkdf = shared.extract::<Keccak256>(Some(salt));
+    let mut okm = [0u8; 32];
+    hkdf.expand(&[], &mut okm).expect("HKDF length is invalid");
+    Ok(SecretKey::Key32(secrecy::Secret::new(okm)))
+}
+
 /// Manages a collection of sessions.
 pub struct SessionManager {
-    sessions: HashMap<Uuid, Session>,
+    sessions: HashMap<Uuid, ServerSession>,
 }
 
 impl SessionManager {
@@ -37,7 +48,7 @@ impl SessionManager {
     }
 
     /// Attempt to get a mutable reference to a session.
-    pub fn get_mut(&mut self, id: &Uuid) -> Option<&mut Session> {
+    pub fn get_mut(&mut self, id: &Uuid) -> Option<&mut ServerSession> {
         self.sessions.get_mut(id)
     }
 
@@ -46,9 +57,9 @@ impl SessionManager {
     ///
     /// Callers can ensure the identity is known to the service before
     /// offering a session.
-    pub fn offer(&mut self, identity: AddressStr) -> (Uuid, &Session) {
+    pub fn offer(&mut self, identity: AddressStr) -> (Uuid, &ServerSession) {
         let id = Uuid::new_v4();
-        let session = Session::new(identity);
+        let session = ServerSession::new(identity);
         let session = self.sessions.entry(id.clone()).or_insert(session);
         (id, session)
     }
@@ -69,14 +80,14 @@ impl SessionManager {
         if address == session.identity {
             session.identity_proof = Some(signature.to_bytes());
         } else {
-            return Err(Error::BadSessionIdentity)
+            return Err(Error::BadSessionIdentity);
         }
         Ok(())
     }
 }
 
 /// Represents a session.
-pub struct Session {
+pub struct ServerSession {
     /// Client identity.
     identity: AddressStr,
     /// Expiry time.
@@ -87,11 +98,13 @@ pub struct Session {
     identity_proof: Option<[u8; 65]>,
     /// Session secret.
     secret: EphemeralSecret,
-    /// Shared session secret.
-    shared: Option<SharedSecret<Secp256k1>>,
+    /// Derived private key for symmetric encryption.
+    private: Option<SecretKey>,
+    /// Number once for session messages.
+    nonce: U192,
 }
 
-impl Session {
+impl ServerSession {
     /// Create a new server session.
     pub fn new(identity: AddressStr) -> Self {
         let mut rng = &mut rand::thread_rng();
@@ -102,7 +115,8 @@ impl Session {
             identity_proof: None,
             expires: Instant::now() + Duration::from_secs(SESSION_LENGTH),
             secret: EphemeralSecret::random(&mut rand::thread_rng()),
-            shared: None,
+            private: None,
+            nonce: U192::ZERO,
         }
     }
 
@@ -123,24 +137,28 @@ impl Session {
         public_key_bytes: B,
     ) -> Result<()> {
         if self.identity_proof.is_none() {
-            return Err(Error::NoSessionIdentity)
+            return Err(Error::NoSessionIdentity);
         }
 
         let client_public =
             PublicKey::from_sec1_bytes(public_key_bytes.as_ref())?;
         let shared = self.secret.diffie_hellman(&client_public);
-        self.shared = Some(shared);
+        let key = derive_secret_key(&shared, self.challenge.as_ref())?;
+        self.private = Some(key);
         Ok(())
     }
+}
 
-    /// Generate a secret key suitable for symmetric encryption.
-    fn secret_key(&self) -> Result<SecretKey> {
-        let shared = self.shared.as_ref().ok_or(Error::NoSessionSharedSecret)?;
-        let hkdf = shared.extract::<Keccak256>(Some(self.challenge.as_ref()));
-        let mut okm = [0u8; 32];
-        hkdf.expand(&[], &mut okm)
-            .expect("HKDF length is invalid");
-        Ok(SecretKey::Key32(secrecy::Secret::new(okm)))
+impl EncryptedChannel for ServerSession {
+    fn private_key(&self) -> Result<&SecretKey> {
+        Ok(self.private.as_ref().ok_or(Error::NoSessionKey)?)
+    }
+
+    fn next_nonce(&mut self) -> Result<Nonce> {
+        let one = U192::from(1u8);
+        self.nonce = self.nonce.checked_add(&one).unwrap();
+        let nonce = Nonce::Nonce24(self.nonce.to_le_bytes());
+        Ok(nonce)
     }
 }
 
@@ -149,43 +167,40 @@ pub struct ClientSession {
     signer: BoxedSigner,
     /// Session identifier.
     id: Uuid,
-    /// Challenge that was signed is also used as the salt 
-    /// for key derivation.
-    challenge: Option<[u8; 16]>,
     /// Session secret.
     secret: EphemeralSecret,
-    /// Shared session secret.
-    shared: SharedSecret<Secp256k1>,
+    /// Derived private key for symmetric encryption.
+    private: Option<SecretKey>,
+    /// Number once for session messages.
+    nonce: U192,
 }
 
 impl ClientSession {
     /// Create a new client session.
-    pub fn new<B: AsRef<[u8]>>(
-        signer: BoxedSigner,
-        id: Uuid,
-        public_key_bytes: B,
-    ) -> Result<Self> {
+    pub fn new(signer: BoxedSigner, id: Uuid) -> Result<Self> {
         let secret = EphemeralSecret::random(&mut rand::thread_rng());
-        let server_public =
-            PublicKey::from_sec1_bytes(public_key_bytes.as_ref())?;
-        let shared = secret.diffie_hellman(&server_public);
-
         Ok(Self {
             signer,
             id,
-            challenge: None,
             secret,
-            shared,
+            private: None,
+            nonce: U192::ZERO,
         })
     }
 
-    /// Sign the server challenge to prove our identity.
+    /// Sign the server challenge to prove our identity
+    /// and generate the private key for symmetric encryption.
     pub async fn sign(
         &mut self,
+        public_key_bytes: &[u8],
         challenge: [u8; 16],
     ) -> Result<Signature> {
+        let server_public =
+            PublicKey::from_sec1_bytes(public_key_bytes.as_ref())?;
+        let shared = self.secret.diffie_hellman(&server_public);
         let signature = self.signer.sign(&challenge).await?;
-        self.challenge = Some(challenge);
+        let key = derive_secret_key(&shared, challenge.as_ref())?;
+        self.private = Some(key);
         Ok(signature)
     }
 
@@ -194,16 +209,40 @@ impl ClientSession {
         let public_key_bytes = EncodedPoint::from(self.secret.public_key());
         public_key_bytes.as_ref().to_vec()
     }
+}
 
-    /// Generate a secret key suitable for symmetric encryption.
-    fn secret_key(&self) -> Result<SecretKey> {
-        let challenge = self.challenge.as_ref()
-            .ok_or(Error::NoSessionSalt)?;
-        let hkdf = self.shared.extract::<Keccak256>(Some(challenge.as_ref()));
-        let mut okm = [0u8; 32];
-        hkdf.expand(&[], &mut okm)
-            .expect("HKDF length is invalid");
-        Ok(SecretKey::Key32(secrecy::Secret::new(okm)))
+impl EncryptedChannel for ClientSession {
+    fn private_key(&self) -> Result<&SecretKey> {
+        Ok(self.private.as_ref().ok_or(Error::NoSessionKey)?)
+    }
+
+    fn next_nonce(&mut self) -> Result<Nonce> {
+        let one = U192::from(1u8);
+        self.nonce = self.nonce.checked_add(&one).unwrap();
+        let nonce = Nonce::Nonce24(self.nonce.to_le_bytes());
+        Ok(nonce)
+    }
+}
+
+/// Cryptographic operations for both sides of session communication.
+pub trait EncryptedChannel {
+    /// Get the private key for the session.
+    fn private_key(&self) -> Result<&SecretKey>;
+
+    /// Increment and return the next sequential nonce.
+    fn next_nonce(&mut self) -> Result<Nonce>;
+
+    /// Encrypt a message.
+    fn encrypt(&mut self, message: &[u8]) -> Result<AeadPack> {
+        let nonce = self.next_nonce()?;
+        let key = self.private_key()?;
+        Ok(xchacha20poly1305::encrypt(key, message, Some(nonce))?)
+    }
+
+    /// Decrypt a message.
+    fn decrypt(&self, aead: &AeadPack) -> Result<Vec<u8>> {
+        let key = self.private_key()?;
+        Ok(xchacha20poly1305::decrypt(key, aead)?)
     }
 }
 
@@ -212,10 +251,7 @@ mod test {
     use super::*;
     use anyhow::Result;
     use k256::ecdsa::SigningKey;
-    use sos_core::{
-        address::AddressStr,
-        signer::{Signer, SingleParty},
-    };
+    use sos_core::signer::{Signer, SingleParty};
 
     #[tokio::test]
     async fn session_negotiate() -> Result<()> {
@@ -231,11 +267,11 @@ mod test {
         // Send the session id, challenge and server public key bytes to the client
         // which will create it's session state
         // ...
-        let mut client_session =
-            ClientSession::new(signer, session_id, &server_public_key)?;
+        let mut client_session = ClientSession::new(signer, session_id)?;
 
-        let signature =
-            client_session.sign(server_session.challenge()).await?;
+        let signature = client_session
+            .sign(&server_public_key, server_session.challenge())
+            .await?;
 
         // Send the signature to the server to prove our identity
         manager.verify_identity(&session_id, signature)?;
@@ -245,13 +281,41 @@ mod test {
         let server_session = manager.get_mut(&session_id).unwrap();
         server_session.compute_ecdh(client_session.public_key())?;
 
-        assert_eq!(
-            server_session.shared.as_ref().unwrap().raw_secret_bytes(),
-            client_session.shared.raw_secret_bytes()
-        );
+        // Encrypt on the client, send to the server and
+        // decrypt on the server
+        let message = b"client sent message";
+        let aead = client_session.encrypt(message)?;
+        let bytes = server_session.decrypt(&aead)?;
 
-        let client_secret_key = client_session.secret_key()?;
-        let server_secret_key = server_session.secret_key()?;
+        assert_eq!(message.as_ref(), &bytes);
+        assert_eq!(U192::from(1u8), client_session.nonce);
+
+        // Encrypt on the server, send to the client and
+        // decrypt on the client
+        let message = b"server sent message";
+        let aead = server_session.encrypt(message)?;
+        let bytes = client_session.decrypt(&aead)?;
+
+        assert_eq!(message.as_ref(), &bytes);
+        assert_eq!(U192::from(1u8), server_session.nonce);
+
+        // Encrypt on the client, send to the server and
+        // decrypt on the server
+        let message = b"client sent message with another nonce";
+        let aead = client_session.encrypt(message)?;
+        let bytes = server_session.decrypt(&aead)?;
+
+        assert_eq!(message.as_ref(), &bytes);
+        assert_eq!(U192::from(2u8), client_session.nonce);
+
+        // Encrypt on the server, send to the client and
+        // decrypt on the client
+        let message = b"server sent message with another nonce";
+        let aead = server_session.encrypt(message)?;
+        let bytes = client_session.decrypt(&aead)?;
+
+        assert_eq!(message.as_ref(), &bytes);
+        assert_eq!(U192::from(2u8), server_session.nonce);
 
         Ok(())
     }
