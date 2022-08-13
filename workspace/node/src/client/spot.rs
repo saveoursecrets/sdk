@@ -125,11 +125,11 @@ pub mod memory {
             server: Url,
             signer: BoxedSigner,
             buffer: Vec<u8>,
-        ) -> impl Future<Output = u16> + 'static {
+        ) -> impl Future<Output = Result<u16>> + 'static {
             async move {
                 let client = RequestClient::new(server, signer);
                 let status = client.create_account(buffer).await?;
-                status.into()
+                Ok(status.into())
             }
         }
 
