@@ -3,9 +3,10 @@
 //! To create a session a client makes a request and the server
 //! will issue a session offer with the server's public key bytes.
 use k256::{
-    ecdh::{EphemeralSecret, SharedSecret},
+    ecdh::{EphemeralSecret},
     ecdsa::recoverable,
-    EncodedPoint, PublicKey,
+    elliptic_curve::ecdh::SharedSecret,
+    EncodedPoint, PublicKey, Secp256k1,
 };
 use rand::Rng;
 use sos_core::{address::AddressStr, signer::BoxedSigner};
@@ -15,6 +16,7 @@ use std::{
 };
 use uuid::Uuid;
 use web3_signature::Signature;
+use sha3::Keccak256;
 
 use crate::server::{Error, Result};
 
@@ -60,12 +62,12 @@ impl SessionManager {
         let session = self.get_mut(id).ok_or(Error::NoSession)?;
         let message = session.challenge();
         let recoverable: recoverable::Signature = signature.try_into()?;
-        let public_key = recoverable.recover_verify_key(message)?;
+        let public_key = recoverable.recover_verifying_key(message)?;
         let public_key: [u8; 33] =
             public_key.to_bytes().as_slice().try_into()?;
         let address: AddressStr = (&public_key).try_into()?;
         if address == session.identity {
-            session.identity_proof = Some(signature);
+            session.identity_proof = Some(signature.to_bytes());
         } else {
             return Err(Error::BadSessionIdentity)
         }
@@ -82,11 +84,11 @@ pub struct Session {
     /// Challenge that the client must sign to prove their identity.
     challenge: [u8; 16],
     /// Signature that proves the client's identity.
-    identity_proof: Option<Signature>,
+    identity_proof: Option<[u8; 65]>,
     /// Session secret.
     secret: EphemeralSecret,
     /// Shared session secret.
-    shared: Option<SharedSecret>,
+    shared: Option<SharedSecret<Secp256k1>>,
 }
 
 impl Session {
@@ -140,7 +142,7 @@ pub struct ClientSession {
     /// Session secret.
     secret: EphemeralSecret,
     /// Shared session secret.
-    shared: SharedSecret,
+    shared: SharedSecret<Secp256k1>,
 }
 
 impl ClientSession {
@@ -154,6 +156,9 @@ impl ClientSession {
         let server_public =
             PublicKey::from_sec1_bytes(public_key_bytes.as_ref())?;
         let shared = secret.diffie_hellman(&server_public);
+
+        let hkdf = shared.extract::<Keccak256>(None);
+
         Ok(Self {
             signer,
             id,
@@ -217,8 +222,8 @@ mod test {
         server_session.compute_ecdh(client_session.public_key())?;
 
         assert_eq!(
-            server_session.shared.as_ref().unwrap().as_bytes(),
-            client_session.shared.as_bytes()
+            server_session.shared.as_ref().unwrap().raw_secret_bytes(),
+            client_session.shared.raw_secret_bytes()
         );
 
         Ok(())

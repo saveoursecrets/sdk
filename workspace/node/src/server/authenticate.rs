@@ -51,7 +51,7 @@ impl BearerToken {
                 let signature: Signature = binary_sig.into();
                 let recoverable: recoverable::Signature =
                     signature.try_into()?;
-                let public_key = recoverable.recover_verify_key(message)?;
+                let public_key = recoverable.recover_verifying_key(message)?;
                 let public_key: [u8; 33] =
                     public_key.to_bytes().as_slice().try_into()?;
                 let address: AddressStr = (&public_key).try_into()?;
