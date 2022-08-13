@@ -120,6 +120,19 @@ pub mod memory {
             Arc::clone(&self.cache)
         }
 
+        /// Create an account.
+        pub fn create_account(
+            server: Url,
+            signer: BoxedSigner,
+            buffer: Vec<u8>,
+        ) -> impl Future<Output = u16> + 'static {
+            async move {
+                let client = RequestClient::new(server, signer);
+                let status = client.create_account(buffer).await?;
+                status.into()
+            }
+        }
+
         /// Load the vaults.
         pub fn load_vaults(
             cache: MemoryCache,
