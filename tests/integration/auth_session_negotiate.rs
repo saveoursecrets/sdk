@@ -3,10 +3,9 @@ use serial_test::serial;
 
 use crate::test_utils::*;
 
-use secrecy::ExposeSecret;
-use sos_node::{
-    client::net::RpcClient, session::EncryptedChannel,
-};
+use http::StatusCode;
+use sos_core::{encode, vault::Vault};
+use sos_node::{client::net::RpcClient, session::EncryptedChannel};
 
 #[tokio::test]
 #[serial]
@@ -18,7 +17,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     let server_url = server();
 
-    let (address, credentials, _, signer) = signup(&dirs, 0).await?;
+    let (_address, _credentials, _, signer) = signup(&dirs, 0).await?;
 
     let mut client = RpcClient::new(server_url, signer);
 
@@ -27,6 +26,13 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     // Should have a valid session now
     assert!(client.session().is_some());
     assert!(client.session().unwrap().ready());
+
+    let vault: Vault = Default::default();
+    let body = encode(&vault)?;
+
+    // Try to create a new account
+    let status = client.create_account(body).await?;
+    assert_eq!(StatusCode::CONFLICT, status);
 
     Ok(())
 }

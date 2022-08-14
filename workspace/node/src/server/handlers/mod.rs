@@ -77,6 +77,15 @@ async fn append_audit_logs<'a>(
     Ok(())
 }
 
+/// Append to the audit log.
+async fn append_audit_logs_rpc<'a>(
+    writer: &mut RwLockWriteGuard<'a, State>,
+    events: Vec<AuditEvent>,
+) -> super::Result<()> {
+    writer.audit_log.append_audit_events(&events).await?;
+    Ok(())
+}
+
 /// Send change notifications to connected clients.
 fn send_notification<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,

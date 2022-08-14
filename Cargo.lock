@@ -2737,6 +2737,7 @@ dependencies = [
  "axum-server",
  "clap",
  "futures",
+ "http",
  "secrecy",
  "serde_json",
  "serial_test",

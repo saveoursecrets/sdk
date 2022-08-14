@@ -1,22 +1,71 @@
 //! Remote procedure call (RPC) client implementation.
+use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use sos_core::{
     commit_tree::CommitProof,
-    constants::{SESSION_OFFER, SESSION_VERIFY},
+    constants::{ACCOUNT_CREATE, SESSION_OFFER, SESSION_VERIFY, X_SESSION},
+    crypto::AeadPack,
     decode, encode,
     rpc::{Packet, RequestMessage, ResponseMessage},
     signer::BoxedSigner,
     vault::Summary,
     Patch,
 };
+use std::borrow::Cow;
 use url::Url;
 use uuid::Uuid;
-use http::StatusCode;
 
 use crate::{
     client::{Error, Result},
-    session::ClientSession,
+    session::{ClientSession, EncryptedChannel},
 };
+
+/// Create an RPC call without a body.
+fn new_rpc_call<T: Serialize>(
+    id: u64,
+    method: &str,
+    params: T,
+) -> Result<Vec<u8>> {
+    let request = RequestMessage::new_call(Some(id), method, params)?;
+    let packet = Packet::new_request(request);
+    let body = encode(&packet)?;
+    Ok(body)
+}
+
+/// Create an RPC call with a body.
+fn new_rpc_body<T: Serialize>(
+    id: u64,
+    method: &str,
+    params: T,
+    body: Vec<u8>,
+) -> Result<Vec<u8>> {
+    let request =
+        RequestMessage::new(Some(id), method, params, Cow::Owned(body))?;
+    let packet = Packet::new_request(request);
+    let body = encode(&packet)?;
+    Ok(body)
+}
+
+/// Read a response to an RPC call.
+async fn read_rpc_call<T: DeserializeOwned>(
+    response: reqwest::Response,
+    session: Option<&mut ClientSession>,
+) -> Result<(StatusCode, Option<sos_core::Result<T>>)> {
+    let buffer = response.bytes().await?;
+
+    let buffer = if let Some(session) = session {
+        let aead: AeadPack = decode(&buffer)?;
+        session.decrypt(&aead)?
+    } else {
+        buffer.to_vec()
+    };
+
+    let reply: Packet<'static> = decode(&buffer)?;
+    let response: ResponseMessage<'static> = reply.try_into()?;
+    let (_, status, result, _) = response.take::<T>()?;
+
+    Ok((status, result))
+}
 
 /// Client implementation for RPC requests.
 pub struct RpcClient {
@@ -56,32 +105,6 @@ impl RpcClient {
         self.id
     }
 
-    /// Create an RPC call without a body.
-    fn new_rpc_call<T: Serialize>(
-        &mut self,
-        method: &str,
-        params: T,
-    ) -> Result<Vec<u8>> {
-        let id = self.next_id();
-        let request = RequestMessage::new_call(Some(id), method, params)?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet)?;
-        Ok(body)
-    }
-
-    /// Read a response to an RPC call.
-    async fn read_rpc_call<T: DeserializeOwned>(
-        &self,
-        response: reqwest::Response,
-    ) -> Result<(StatusCode, T)> {
-        let buffer = response.bytes().await?;
-        let reply: Packet<'static> = decode(&buffer)?;
-        let response: ResponseMessage<'static> = reply.try_into()?;
-        let (_, status, result, _) = response.take::<T>()?;
-        let result = result.ok_or(Error::NoReturnValue)?;
-        Ok((status, result?))
-    }
-
     /// Attempt to authenticate to the remote node and store
     /// the client session.
     pub async fn authenticate(&mut self) -> Result<()> {
@@ -89,7 +112,7 @@ impl RpcClient {
 
         // Offer
         let address = self.signer.address()?;
-        let body = self.new_rpc_call(SESSION_OFFER, address)?;
+        let body = new_rpc_call(self.next_id(), SESSION_OFFER, address)?;
 
         let response =
             self.client.post(url.clone()).body(body).send().await?;
@@ -100,9 +123,12 @@ impl RpcClient {
             .then_some(())
             .ok_or(Error::ResponseCode(response.status().into()))?;
 
-        let (_status, result) = self
-            .read_rpc_call::<(Uuid, [u8; 16], Vec<u8>)>(response)
-            .await?;
+        let (_status, result) =
+            read_rpc_call::<(Uuid, [u8; 16], Vec<u8>)>(response, None)
+                .await?;
+        let result = result.ok_or(Error::NoReturnValue)?;
+        let result = result?;
+
         let (session_id, challenge, public_key) = result;
 
         // Verify
@@ -111,7 +137,8 @@ impl RpcClient {
         let (signature, client_key) =
             session.sign(&public_key, challenge).await?;
 
-        let body = self.new_rpc_call(
+        let body = new_rpc_call(
+            self.next_id(),
             SESSION_VERIFY,
             (session_id, signature, session.public_key()),
         )?;
@@ -124,7 +151,9 @@ impl RpcClient {
             .ok_or(Error::ResponseCode(response.status().into()))?;
 
         // Check we got a success response; no error indicates success
-        self.read_rpc_call::<()>(response).await?;
+        let (_status, result) = read_rpc_call::<()>(response, None).await?;
+        let result = result.ok_or(Error::NoReturnValue)?;
+        let result = result?;
 
         // Store the session for later requests
         session.finish(client_key);
@@ -134,21 +163,32 @@ impl RpcClient {
     }
 
     /// Create a new account.
-    pub async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
-        
+    pub async fn create_account(
+        &mut self,
+        vault: Vec<u8>,
+    ) -> Result<StatusCode> {
+        let id = self.next_id();
+        let session = self.session.as_mut().ok_or(Error::NoSession)?;
+        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
 
-        /*
-        let url = self.server.join("api/accounts")?;
-        let signature = encode_signature(self.signer.sign(&vault).await?)?;
+        let url = self.server.join("api/account")?;
+        let session_id = session.id().clone();
+
+        let request = new_rpc_body(id, ACCOUNT_CREATE, (), vault)?;
+        let aead = session.encrypt(&request)?;
+        let body = encode(&aead)?;
+
         let response = self
             .client
-            .put(url)
-            .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
-            .body(vault)
+            .post(url)
+            .header(X_SESSION, session_id.to_string())
+            .body(body)
             .send()
             .await?;
-        Ok(StatusCode::from_u16(response.status().into())?)
-        */
+
+        let (status, _) =
+            read_rpc_call::<()>(response, Some(session)).await?;
+
+        Ok(status)
     }
 }

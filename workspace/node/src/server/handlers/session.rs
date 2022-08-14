@@ -26,8 +26,7 @@ use crate::server::State;
 /// * `Session.offer`: Create a session offer.
 /// * `Session.verify`: Verify client identity.
 ///
-struct SessionService {
-}
+struct SessionService;
 
 #[async_trait]
 impl Service for SessionService {
@@ -35,7 +34,7 @@ impl Service for SessionService {
 
     async fn handle<'a>(
         &self,
-        state: &Self::State,
+        state: Self::State,
         request: RequestMessage<'a>,
     ) -> sos_core::Result<ResponseMessage<'a>> {
         match request.method() {
@@ -52,7 +51,7 @@ impl Service for SessionService {
                 );
 
                 let reply: ResponseMessage<'_> =
-                    (request, value).try_into()?;
+                    (request.id(), value).try_into()?;
                 Ok(reply)
             }
             SESSION_VERIFY => {
@@ -66,13 +65,13 @@ impl Service for SessionService {
                     .map_err(Box::from)?;
                 session.compute_ecdh(&public_key).map_err(Box::from)?;
 
-                let reply: ResponseMessage<'_> = (request, ()).try_into()?;
+                let reply: ResponseMessage<'_> =
+                    (request.id(), ()).try_into()?;
                 Ok(reply)
             }
             _ => Err(sos_core::Error::Message("unknown method".to_owned())),
         }
     }
-
 }
 
 pub(crate) struct SessionHandler;
@@ -91,9 +90,7 @@ impl SessionHandler {
 
         let service = SessionService {};
 
-        let reply = service
-            .serve(&state, request)
-            .await;
+        let reply = service.serve(Arc::clone(&state), request).await;
 
         let body = if let Some(reply) = reply {
             let response = Packet::new_response(reply);

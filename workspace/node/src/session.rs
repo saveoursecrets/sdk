@@ -41,6 +41,11 @@ pub struct SessionManager {
 }
 
 impl SessionManager {
+    /// Attempt to get a session.
+    pub fn get(&self, id: &Uuid) -> Option<&ServerSession> {
+        self.sessions.get(id)
+    }
+
     /// Attempt to get a mutable reference to a session.
     pub fn get_mut(&mut self, id: &Uuid) -> Option<&mut ServerSession> {
         self.sessions.get_mut(id)
@@ -120,6 +125,11 @@ impl ServerSession {
         }
     }
 
+    /// Get the client identity.
+    pub fn identity(&self) -> &AddressStr {
+        &self.identity
+    }
+
     /// Get the challenge bytes.
     pub fn challenge(&self) -> [u8; 16] {
         self.challenge
@@ -146,6 +156,11 @@ impl ServerSession {
         let key = derive_secret_key(&shared, self.challenge.as_ref())?;
         self.private = Some(key);
         Ok(())
+    }
+
+    /// Determine if this session is still valid.
+    pub fn valid(&self) -> bool {
+        self.ready() && (Instant::now() < self.expires)
     }
 }
 
@@ -186,6 +201,11 @@ impl ClientSession {
             private: None,
             nonce: U192::ZERO,
         })
+    }
+
+    /// Get the session identifier.
+    pub fn id(&self) -> &Uuid {
+        &self.id
     }
 
     /// Sign the server challenge to prove our identity

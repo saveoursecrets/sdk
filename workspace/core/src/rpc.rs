@@ -317,12 +317,13 @@ impl Encode for ResponseMessage<'_> {
         // Result
         writer.write_bool(self.result.is_some())?;
         if let Some(result) = &self.result {
+            let status: u16 = self.status.into();
+            writer.write_u16(status)?;
             match result {
                 Ok(value) => {
                     writer.write_bool(false)?;
                     let result =
                         serde_json::to_vec(value).map_err(Box::from)?;
-
                     writer.write_u32(result.len() as u32)?;
                     writer.write_bytes(&result)?;
                 }
@@ -353,6 +354,8 @@ impl Decode for ResponseMessage<'_> {
         let has_result = reader.read_bool()?;
 
         if has_result {
+            self.status = StatusCode::from_u16(reader.read_u16()?)
+                .map_err(Box::from)?;
             let has_error = reader.read_bool()?;
 
             if has_error {
@@ -377,22 +380,6 @@ impl Decode for ResponseMessage<'_> {
     }
 }
 
-impl<'a, T: Serialize> TryFrom<(RequestMessage<'a>, T)>
-    for ResponseMessage<'a>
-{
-    type Error = Error;
-
-    fn try_from(value: (RequestMessage<'a>, T)) -> Result<Self> {
-        let id = value.0.id();
-        let reply = ResponseMessage::new_reply(
-            id,
-            StatusCode::OK,
-            Some(Ok(value.1)),
-        )?;
-        Ok(reply)
-    }
-}
-
 impl From<Error> for ResponseMessage<'_> {
     fn from(value: Error) -> Self {
         ResponseMessage::new_reply::<()>(
@@ -401,6 +388,36 @@ impl From<Error> for ResponseMessage<'_> {
             Some(Err(value)),
         )
         .expect("failed to encode error response message")
+    }
+}
+
+impl From<(StatusCode, Option<u64>)> for ResponseMessage<'_> {
+    fn from(value: (StatusCode, Option<u64>)) -> Self {
+        let message = value
+            .0
+            .canonical_reason()
+            .map(|s| s.to_owned())
+            .unwrap_or("unexpected status code".to_owned());
+
+        ResponseMessage::new_reply::<()>(
+            value.1,
+            value.0,
+            Some(Err(Error::Message(message))),
+        )
+        .expect("failed to encode error response message")
+    }
+}
+
+impl<'a, T: Serialize> TryFrom<(Option<u64>, T)> for ResponseMessage<'a> {
+    type Error = Error;
+
+    fn try_from(value: (Option<u64>, T)) -> Result<Self> {
+        let reply = ResponseMessage::new_reply(
+            value.0,
+            StatusCode::OK,
+            Some(Ok(value.1)),
+        )?;
+        Ok(reply)
     }
 }
 
@@ -413,14 +430,14 @@ pub trait Service {
     /// Handle an incoming message.
     async fn handle<'a>(
         &self,
-        state: &Self::State,
+        state: Self::State,
         request: RequestMessage<'a>,
     ) -> Result<ResponseMessage<'a>>;
 
     /// Serve an incoming request.
     async fn serve<'a>(
         &self,
-        state: &Self::State,
+        state: Self::State,
         request: RequestMessage<'a>,
     ) -> Option<ResponseMessage<'a>> {
         match self.handle(state, request).await {

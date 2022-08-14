@@ -69,6 +69,14 @@ pub enum Error {
     #[error("method did not return a value")]
     NoReturnValue,
 
+    /// Error generated when a session has no been set.
+    #[error("session not set, authentication is required")]
+    NoSession,
+
+    /// Error generated when a session has no been set.
+    #[error("session is invalid, authentication is required")]
+    InvalidSession,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

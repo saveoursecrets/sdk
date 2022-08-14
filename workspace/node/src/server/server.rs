@@ -175,6 +175,8 @@ impl Server {
                     .delete(WalHandler::delete_wal),
             )
             .route("/api/changes", get(sse_handler))
+            // v2 RPC style
+            .route("/api/account", post(AccountHandler::post))
             .route("/api/session", post(SessionHandler::post));
 
         app = feature_routes(app);
