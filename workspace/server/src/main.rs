@@ -67,6 +67,7 @@ async fn run() -> Result<()> {
         authentication,
         audit_log,
         sse: Default::default(),
+        sessions: Default::default(),
     }));
 
     let handle = Handle::new();

@@ -8,6 +8,7 @@ use super::{
         sse::{sse_handler, SseConnection},
         wal::WalHandler,
     },
+    session::SessionManager,
     headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
     Backend, Result, ServerConfig,
 };
@@ -42,6 +43,8 @@ pub struct State {
     /// Map of server sent event channels by authenticated
     /// client address.
     pub sse: HashMap<AddressStr, SseConnection>,
+    /// Session manager.
+    pub sessions: SessionManager,
 }
 
 /// Server information.

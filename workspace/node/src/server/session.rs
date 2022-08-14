@@ -35,18 +35,12 @@ fn derive_secret_key(
 }
 
 /// Manages a collection of sessions.
+#[derive(Default)]
 pub struct SessionManager {
     sessions: HashMap<Uuid, ServerSession>,
 }
 
 impl SessionManager {
-    /// Create a new session manager.
-    pub fn new() -> Self {
-        Self {
-            sessions: Default::default(),
-        }
-    }
-
     /// Attempt to get a mutable reference to a session.
     pub fn get_mut(&mut self, id: &Uuid) -> Option<&mut ServerSession> {
         self.sessions.get_mut(id)
@@ -255,8 +249,11 @@ mod test {
 
     #[tokio::test]
     async fn session_negotiate() -> Result<()> {
-        let mut manager = SessionManager::new();
+        let mut manager: SessionManager = Default::default();
 
+        // Client sends a request to generate an authenticated 
+        // session by sending it's signing address
+        // ...
         let client_identity = SigningKey::random(&mut rand::thread_rng());
         let signer = Box::new(SingleParty(client_identity));
         let address = signer.address()?;
@@ -264,20 +261,18 @@ mod test {
         let (session_id, server_session) = manager.offer(address);
         let server_public_key = server_session.public_key();
 
-        // Send the session id, challenge and server public key bytes to the client
-        // which will create it's session state
+        // Send the session id, challenge and server public key 
+        // bytes to the client which will create it's session state
         // ...
         let mut client_session = ClientSession::new(signer, session_id)?;
-
         let signature = client_session
             .sign(&server_public_key, server_session.challenge())
             .await?;
 
-        // Send the signature to the server to prove our identity
+        // Send the session id, signature and client public key
+        // bytes to the server which computes it's shared secret
+        // ...
         manager.verify_identity(&session_id, signature)?;
-
-        // Send the session id and client public key bytes to the server
-        // which computes it's shared secret
         let server_session = manager.get_mut(&session_id).unwrap();
         server_session.compute_ecdh(client_session.public_key())?;
 

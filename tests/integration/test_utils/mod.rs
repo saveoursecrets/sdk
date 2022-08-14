@@ -63,6 +63,7 @@ impl MockServer {
             authentication,
             audit_log,
             sse: Default::default(),
+            sessions: Default::default(),
         }));
 
         let server = Server::new();
