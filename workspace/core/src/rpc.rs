@@ -1,196 +1,277 @@
-//! Types for remote procedure calls.
+//! Types for binary remote procedure calls.
+//!
+//! Message identifiers have the same semantics as JSON-RPC;
+//! if a request does not have an `id` than no reply is expected
+//! otherwise a service must reply.
+use crate::{Error, Result};
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
-use std::collections::HashMap;
-use crate::Error;
+use serde::{de::DeserializeOwned, Serialize};
+use serde_json::Value;
+use std::borrow::Cow;
 
-mod kinds {
-    pub(super) const NOOP: u16 = 0;
-    pub(super) const GET_WAL: u16 = 1;
-}
-
-/// Enumeration of available methods.
-#[derive(Default, Debug, Eq, PartialEq)]
-pub enum RequestMethod {
-    #[default]
-    Noop,
-    /// Get the WAL log file.
-    GetWal,
-}
-
-impl RequestMethod {
-    /// Get the kind identifier for this request method.
-    pub fn kind(&self) -> u16 {
-        match self {
-            RequestMethod::Noop => kinds::NOOP,
-            RequestMethod::GetWal => kinds::GET_WAL,
-        }
-    }
-}
-
-impl TryFrom<u16> for RequestMethod {
-    type Error = Error;
-    fn try_from(value: u16) -> std::result::Result<Self, Self::Error> {
-        match value {
-            kinds::GET_WAL => Ok(RequestMethod::GetWal),
-            _ => {
-                Err(Error::InvalidMethod(value))
-            }
-        }
-    }
-}
-
-impl Encode for RequestMethod {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        writer.write_u16(self.kind())?;
-        Ok(())
-    }
-}
-
-impl Decode for RequestMethod {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let kind = reader.read_u16()?;
-        *self = kind.try_into().map_err(Box::from)?;
-        Ok(())
-    }
-}
+use async_trait::async_trait;
 
 /// An RPC request message.
-#[derive(Default, Debug, Eq, PartialEq)]
-pub struct RequestMessage {
-    method: RequestMethod,
-    headers: HashMap<String, String>,
-    body: Vec<u8>,
+#[derive(Default, Debug)]
+pub struct RequestMessage<'a> {
+    id: Option<u64>,
+    method: Cow<'a, str>,
+    parameters: Value,
+    body: Cow<'a, [u8]>,
 }
 
-impl RequestMessage {
+impl<'a> RequestMessage<'a> {
     /// Create a new request message.
-    pub fn new(
-        method: RequestMethod,
-        headers: HashMap<String, String>,
-        body: Vec<u8>,
-    ) -> Self {
-        Self {
-            method,
-            headers,
-            body,
-        }
+    pub fn new<T>(
+        id: Option<u64>,
+        method: &'a str,
+        parameters: T,
+        body: &'a [u8],
+    ) -> Result<Self>
+    where
+        T: Serialize,
+    {
+        Ok(Self {
+            id,
+            method: Cow::Borrowed(method),
+            parameters: serde_json::to_value(parameters)?,
+            body: Cow::Borrowed(body),
+        })
+    }
+
+    /// Get the message identifier.
+    pub fn id(&self) -> Option<&u64> {
+        self.id.as_ref()
+    }
+
+    /// Get the method name.
+    pub fn method(&self) -> &str {
+        self.method.as_ref()
+    }
+
+    /// Get the method parameters as type `T`.
+    pub fn parameters<T: DeserializeOwned>(&self) -> Result<T> {
+        Ok(serde_json::from_value::<T>(self.parameters.clone())?)
+    }
+
+    /// Get a slice of the message body.
+    pub fn body(&self) -> &[u8] {
+        self.body.as_ref()
     }
 }
 
-impl Encode for RequestMessage {
+impl Encode for RequestMessage<'_> {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        self.method.encode(&mut *writer)?;
-
-        // Write headers
-        writer.write_u32(self.headers.len() as u32)?;
-        for (k, v) in self.headers.iter() {
-            writer.write_string(k)?;
-            writer.write_string(v)?;
+        // Id
+        writer.write_bool(self.id.is_some())?;
+        if let Some(id) = &self.id {
+            writer.write_u64(id)?;
         }
 
-        // Write the body
+        // Method
+        writer.write_string(self.method.as_ref())?;
+
+        // Parameters
+        let params =
+            serde_json::to_vec(&self.parameters).map_err(Box::from)?;
+        writer.write_u32(params.len() as u32)?;
+        writer.write_bytes(&params)?;
+
+        // Body
         writer.write_u64(self.body.len() as u64)?;
-        writer.write_bytes(&self.body)?;
+        writer.write_bytes(self.body.as_ref())?;
 
         Ok(())
     }
 }
 
-impl Decode for RequestMessage {
+impl Decode for RequestMessage<'_> {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let mut method: RequestMethod = Default::default();
-        method.decode(&mut *reader)?;
-        self.method = method;
-
-        let mut headers = HashMap::new();
-        let headers_len = reader.read_u32()?;
-        for _ in 0..headers_len {
-            let key = reader.read_string()?;
-            let val = reader.read_string()?;
-            headers.insert(key, val);
+        // Id
+        let has_id = reader.read_bool()?;
+        if has_id {
+            self.id = Some(reader.read_u64()?);
         }
-        self.headers = headers;
 
+        // Method
+        self.method = Cow::Owned(reader.read_string()?);
+
+        // Parameters
+        let params_len = reader.read_u32()?;
+        let params = reader.read_bytes(params_len as usize)?;
+        self.parameters =
+            serde_json::from_slice(&params).map_err(Box::from)?;
+
+        // Body
         let body_len = reader.read_u64()?;
         let body = reader.read_bytes(body_len as usize)?;
-        self.body = body;
+        self.body = Cow::Owned(body);
 
         Ok(())
     }
 }
-
 
 /// An RPC response message.
-#[derive(Default, Debug, Eq, PartialEq)]
-pub struct ResponseMessage {
-    headers: HashMap<String, String>,
-    body: Vec<u8>,
+#[derive(Default, Debug)]
+pub struct ResponseMessage<'a> {
+    id: u64,
+    result: Option<Result<Value>>,
+    body: Cow<'a, [u8]>,
 }
 
-impl ResponseMessage {
+impl<'a> ResponseMessage<'a> {
     /// Create a new response message.
-    pub fn new(headers: HashMap<String, String>, body: Vec<u8>) -> Self {
-        Self { headers, body }
+    pub fn new<T>(
+        id: u64,
+        result: Option<Result<T>>,
+        body: &'a [u8],
+    ) -> Result<Self>
+    where
+        T: Serialize,
+    {
+        let result = match result {
+            Some(value) => match value {
+                Ok(value) => Some(Ok(serde_json::to_value(value)?)),
+                Err(e) => Some(Err(e)),
+            },
+            None => None,
+        };
+
+        Ok(Self {
+            id,
+            result,
+            body: Cow::Borrowed(body),
+        })
+    }
+
+    /// Get the message identifier.
+    pub fn id(&self) -> &u64 {
+        &self.id
+    }
+
+    /// Take the result.
+    pub fn take<T: DeserializeOwned>(
+        self,
+    ) -> Result<(u64, Option<Result<T>>, Vec<u8>)> {
+        let value = if let Some(result) = self.result {
+            match result {
+                Ok(value) => Some(Ok(serde_json::from_value::<T>(value)?)),
+                Err(e) => Some(Err(e)),
+            }
+        } else {
+            None
+        };
+        Ok((self.id, value, self.body.to_vec()))
     }
 }
 
-impl Encode for ResponseMessage {
+impl Encode for ResponseMessage<'_> {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        // Write headers
-        writer.write_u32(self.headers.len() as u32)?;
-        for (k, v) in self.headers.iter() {
-            writer.write_string(k)?;
-            writer.write_string(v)?;
+        // Id
+        writer.write_u64(&self.id)?;
+
+        // Result
+        writer.write_bool(self.result.is_some())?;
+        if let Some(result) = &self.result {
+            match result {
+                Ok(value) => {
+                    writer.write_bool(false)?;
+                    let result =
+                        serde_json::to_vec(value).map_err(Box::from)?;
+
+                    writer.write_u32(result.len() as u32)?;
+                    writer.write_bytes(&result)?;
+                }
+                Err(e) => {
+                    writer.write_bool(true)?;
+                    writer.write_string(e.to_string())?;
+                }
+            }
         }
 
-        // Write the body
+        // Body
         writer.write_u64(self.body.len() as u64)?;
-        writer.write_bytes(&self.body)?;
+        writer.write_bytes(self.body.as_ref())?;
 
         Ok(())
     }
 }
 
-impl Decode for ResponseMessage {
+impl Decode for ResponseMessage<'_> {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let mut headers = HashMap::new();
-        let headers_len = reader.read_u32()?;
-        for _ in 0..headers_len {
-            let key = reader.read_string()?;
-            let val = reader.read_string()?;
-            headers.insert(key, val);
-        }
-        self.headers = headers;
+        // Id
+        self.id = reader.read_u64()?;
 
+        // Result
+        let has_result = reader.read_bool()?;
+
+        if has_result {
+            let has_error = reader.read_bool()?;
+
+            if has_error {
+                let err_msg = reader.read_string()?;
+                self.result = Some(Err(Error::Message(err_msg)))
+            } else {
+                let value_len = reader.read_u32()?;
+
+                let value = reader.read_bytes(value_len as usize)?;
+                let value: Value =
+                    serde_json::from_slice(&value).map_err(Box::from)?;
+                self.result = Some(Ok(value))
+            }
+        }
+
+        // Body
         let body_len = reader.read_u64()?;
         let body = reader.read_bytes(body_len as usize)?;
-        self.body = body;
+        self.body = Cow::Owned(body);
 
         Ok(())
     }
+}
+
+/// Trait for implementations that process incoming requests.
+#[async_trait]
+pub trait Service {
+    /// Handle an incoming message.
+    fn handle<'a>(
+        &self,
+        request: RequestMessage<'a>,
+    ) -> Result<Option<ResponseMessage<'a>>>;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{decode, encode};
     use anyhow::Result;
-    use crate::{encode, decode};
-    
+
     #[test]
     fn rpc_encode() -> Result<()> {
-        let mut headers = HashMap::new();
-        headers.insert("X-Foo".to_owned(), "Bar".to_owned());
-        let message = RequestMessage::new(
-            RequestMethod::GetWal, headers, vec![0x0A, 0xFF]);
+        let body = vec![0x0A, 0xFF];
+        let message = RequestMessage::new(None, "GetWal", (), &body)?;
 
         let request = encode(&message)?;
-        let decoded = decode(&request)?;
+        let decoded: RequestMessage = decode(&request)?;
 
-        assert_eq!(message, decoded);
-        assert_eq!("Bar", decoded.headers.get("X-Foo").unwrap());
-        assert_eq!(2, decoded.body.len());
+        assert_eq!(message.method(), decoded.method());
+        assert_eq!((), decoded.parameters::<()>()?);
+        assert_eq!(message.body(), decoded.body());
+
+        let result = Some(Ok("Foo".to_owned()));
+        let reply = ResponseMessage::new(1, result, &body)?;
+
+        let response = encode(&reply)?;
+        let decoded: ResponseMessage = decode(&response)?;
+
+        let result = decoded.take::<String>()?;
+        let value = result.1.unwrap().unwrap();
+
+        assert_eq!(1, result.0);
+        assert_eq!("Foo", &value);
+        assert_eq!(body, result.2);
 
         Ok(())
     }
