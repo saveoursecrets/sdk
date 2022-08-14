@@ -36,6 +36,8 @@ pub(crate) mod auth;
 pub(crate) mod sse;
 pub(crate) mod wal;
 
+pub(crate) mod session;
+
 fn append_commit_headers(
     headers: &mut HeaderMap,
     proof: &CommitProof,

@@ -3,7 +3,9 @@
 //! Message identifiers have the same semantics as JSON-RPC;
 //! if a request does not have an `id` than no reply is expected
 //! otherwise a service must reply.
-use crate::{Error, Result};
+use crate::{
+    constants::RPC_IDENTITY, file_identity::FileIdentity, Error, Result,
+};
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
@@ -12,6 +14,114 @@ use serde_json::Value;
 use std::borrow::Cow;
 
 use async_trait::async_trait;
+
+/// Packet including identity bytes.
+#[derive(Default)]
+pub struct Packet<'a> {
+    payload: Payload<'a>,
+}
+
+impl<'a> Packet<'a> {
+    /// Create a new request packet.
+    pub fn new_request(message: RequestMessage<'a>) -> Self {
+        Self {
+            payload: Payload::Request(message),
+        }
+    }
+
+    /// Create a new response packet.
+    pub fn new_response(message: ResponseMessage<'a>) -> Self {
+        Self {
+            payload: Payload::Response(message),
+        }
+    }
+}
+
+impl<'a> TryFrom<Packet<'a>> for RequestMessage<'a> {
+    type Error = Error;
+    fn try_from(packet: Packet<'a>) -> Result<Self> {
+        match packet.payload {
+            Payload::Request(val) => Ok(val),
+            _ => Err(Error::Message("expected a request payload".to_owned())),
+        }
+    }
+}
+
+impl<'a> TryFrom<Packet<'a>> for ResponseMessage<'a> {
+    type Error = Error;
+    fn try_from(packet: Packet<'a>) -> Result<Self> {
+        match packet.payload {
+            Payload::Response(val) => Ok(val),
+            _ => {
+                Err(Error::Message("expected a response payload".to_owned()))
+            }
+        }
+    }
+}
+
+impl Encode for Packet<'_> {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        writer.write_bytes(&RPC_IDENTITY)?;
+        self.payload.encode(writer)?;
+        Ok(())
+    }
+}
+
+impl Decode for Packet<'_> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        FileIdentity::read_identity(reader, &RPC_IDENTITY)
+            .map_err(Box::from)?;
+        let mut payload: Payload<'_> = Default::default();
+        payload.decode(reader)?;
+        self.payload = payload;
+        Ok(())
+    }
+}
+
+/// Payload for a packet; either a request or response.
+#[derive(Default)]
+pub enum Payload<'a> {
+    /// Default variant.
+    #[default]
+    Noop,
+    /// Request payload.
+    Request(RequestMessage<'a>),
+    /// Response payload.
+    Response(ResponseMessage<'a>),
+}
+
+impl Encode for Payload<'_> {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        let is_response = if let Payload::Response(_) = self {
+            true
+        } else {
+            false
+        };
+        writer.write_bool(is_response)?;
+        match self {
+            Payload::Request(val) => val.encode(writer)?,
+            Payload::Response(val) => val.encode(writer)?,
+            _ => panic!("attempt to encode noop RPC payload"),
+        }
+        Ok(())
+    }
+}
+
+impl Decode for Payload<'_> {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let is_response = reader.read_bool()?;
+        *self = if is_response {
+            let mut response: ResponseMessage<'_> = Default::default();
+            response.decode(reader)?;
+            Payload::Response(response)
+        } else {
+            let mut request: RequestMessage<'_> = Default::default();
+            request.decode(reader)?;
+            Payload::Request(request)
+        };
+        Ok(())
+    }
+}
 
 /// An RPC request message.
 #[derive(Default, Debug)]
@@ -235,9 +345,13 @@ impl Decode for ResponseMessage<'_> {
 /// Trait for implementations that process incoming requests.
 #[async_trait]
 pub trait Service {
+    /// State for this service.
+    type State;
+
     /// Handle an incoming message.
     fn handle<'a>(
         &self,
+        state: &Self::State,
         request: RequestMessage<'a>,
     ) -> Result<Option<ResponseMessage<'a>>>;
 }
@@ -251,14 +365,14 @@ mod tests {
     #[test]
     fn rpc_encode() -> Result<()> {
         let body = vec![0x0A, 0xFF];
-        let message = RequestMessage::new(None, "GetWal", (), &body)?;
+        let message = RequestMessage::new(Some(1), "GetWal", (), &body)?;
 
         let request = encode(&message)?;
         let decoded: RequestMessage = decode(&request)?;
 
         assert_eq!(message.method(), decoded.method());
         assert_eq!((), decoded.parameters::<()>()?);
-        assert_eq!(message.body(), decoded.body());
+        assert_eq!(&body, decoded.body());
 
         let result = Some(Ok("Foo".to_owned()));
         let reply = ResponseMessage::new(1, result, &body)?;
@@ -269,6 +383,29 @@ mod tests {
         let result = decoded.take::<String>()?;
         let value = result.1.unwrap().unwrap();
 
+        assert_eq!(1, result.0);
+        assert_eq!("Foo", &value);
+        assert_eq!(body, result.2);
+
+        // Check the packet request encoding
+        let req = Packet::new_request(message);
+        let enc = encode(&req)?;
+        let pkt: Packet<'_> = decode(&enc)?;
+
+        let incoming: RequestMessage<'_> = pkt.try_into()?;
+        assert_eq!(Some(&1u64), incoming.id());
+        assert_eq!("GetWal", incoming.method());
+        assert_eq!((), incoming.parameters::<()>()?);
+        assert_eq!(&body, incoming.body());
+
+        // Check the packet response encoding
+        let res = Packet::new_response(reply);
+        let enc = encode(&res)?;
+        let pkt: Packet<'_> = decode(&enc)?;
+
+        let incoming: ResponseMessage<'_> = pkt.try_into()?;
+        let result = incoming.take::<String>()?;
+        let value = result.1.unwrap().unwrap();
         assert_eq!(1, result.0);
         assert_eq!("Foo", &value);
         assert_eq!(body, result.2);

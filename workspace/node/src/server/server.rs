@@ -8,8 +8,8 @@ use super::{
         sse::{sse_handler, SseConnection},
         wal::WalHandler,
     },
-    session::SessionManager,
     headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
+    session::SessionManager,
     Backend, Result, ServerConfig,
 };
 use axum::{

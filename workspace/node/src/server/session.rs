@@ -86,7 +86,10 @@ pub struct ServerSession {
     identity: AddressStr,
     /// Expiry time.
     expires: Instant,
-    /// Challenge that the client must sign to prove their identity.
+    /// Random challenge that the client must sign to
+    /// prove their identity.
+    ///
+    /// This is also used as the salt for key derivation.
     challenge: [u8; 16],
     /// Signature that proves the client's identity.
     identity_proof: Option<[u8; 65]>,
@@ -251,7 +254,7 @@ mod test {
     async fn session_negotiate() -> Result<()> {
         let mut manager: SessionManager = Default::default();
 
-        // Client sends a request to generate an authenticated 
+        // Client sends a request to generate an authenticated
         // session by sending it's signing address
         // ...
         let client_identity = SigningKey::random(&mut rand::thread_rng());
@@ -261,7 +264,7 @@ mod test {
         let (session_id, server_session) = manager.offer(address);
         let server_public_key = server_session.public_key();
 
-        // Send the session id, challenge and server public key 
+        // Send the session id, challenge and server public key
         // bytes to the client which will create it's session state
         // ...
         let mut client_session = ClientSession::new(signer, session_id)?;
