@@ -5,6 +5,7 @@ use super::{
         api,
         auth::AuthHandler,
         home,
+        session::SessionHandler,
         sse::{sse_handler, SseConnection},
         wal::WalHandler,
     },
@@ -18,7 +19,7 @@ use axum::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
     },
-    routing::{get, put},
+    routing::{get, post, put},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
@@ -159,6 +160,7 @@ impl Server {
         let mut app = Router::new()
             .route("/", get(home))
             .route("/api", get(api))
+            .route("/api/session", post(SessionHandler::post))
             .route("/api/auth", get(AuthHandler::challenge))
             .route("/api/auth/:uuid", get(AuthHandler::response))
             .route("/api/accounts", put(AccountHandler::put_account))

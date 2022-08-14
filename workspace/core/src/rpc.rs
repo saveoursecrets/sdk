@@ -223,6 +223,21 @@ impl Decode for RequestMessage<'_> {
     }
 }
 
+impl<'a, T: Serialize> TryFrom<(RequestMessage<'a>, T)>
+    for ResponseMessage<'a>
+{
+    type Error = Error;
+
+    fn try_from(value: (RequestMessage<'a>, T)) -> Result<Self> {
+        let id = *value
+            .0
+            .id()
+            .ok_or(Error::Message("request id expected".to_owned()))?;
+        let reply = ResponseMessage::new_reply(id, Some(Ok(value.1)))?;
+        Ok(reply)
+    }
+}
+
 /// An RPC response message.
 #[derive(Default, Debug)]
 pub struct ResponseMessage<'a> {
@@ -236,7 +251,7 @@ impl<'a> ResponseMessage<'a> {
     pub fn new<T>(
         id: u64,
         result: Option<Result<T>>,
-        body: &'a [u8],
+        body: Cow<'a, [u8]>,
     ) -> Result<Self>
     where
         T: Serialize,
@@ -249,11 +264,15 @@ impl<'a> ResponseMessage<'a> {
             None => None,
         };
 
-        Ok(Self {
-            id,
-            result,
-            body: Cow::Borrowed(body),
-        })
+        Ok(Self { id, result, body })
+    }
+
+    /// Create a new response message with an empty body.
+    pub fn new_reply<T>(id: u64, result: Option<Result<T>>) -> Result<Self>
+    where
+        T: Serialize,
+    {
+        ResponseMessage::new(id, result, Cow::Owned(vec![]))
     }
 
     /// Get the message identifier.
@@ -375,7 +394,7 @@ mod tests {
         assert_eq!(&body, decoded.body());
 
         let result = Some(Ok("Foo".to_owned()));
-        let reply = ResponseMessage::new(1, result, &body)?;
+        let reply = ResponseMessage::new(1, result, Cow::Borrowed(&body))?;
 
         let response = encode(&reply)?;
         let decoded: ResponseMessage = decode(&response)?;

@@ -63,7 +63,7 @@ impl SessionManager {
         &mut self,
         id: &Uuid,
         signature: Signature,
-    ) -> Result<()> {
+    ) -> Result<&mut ServerSession> {
         let session = self.get_mut(id).ok_or(Error::NoSession)?;
         let message = session.challenge();
         let recoverable: recoverable::Signature = signature.try_into()?;
@@ -76,7 +76,10 @@ impl SessionManager {
         } else {
             return Err(Error::BadSessionIdentity);
         }
-        Ok(())
+
+        session.compute_ecdh(public_key)?;
+
+        Ok(session)
     }
 }
 
@@ -275,8 +278,8 @@ mod test {
         // Send the session id, signature and client public key
         // bytes to the server which computes it's shared secret
         // ...
-        manager.verify_identity(&session_id, signature)?;
-        let server_session = manager.get_mut(&session_id).unwrap();
+        let server_session =
+            manager.verify_identity(&session_id, signature)?;
         server_session.compute_ecdh(client_session.public_key())?;
 
         // Encrypt on the client, send to the server and
