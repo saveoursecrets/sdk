@@ -112,7 +112,7 @@ pub struct ServerSession {
 impl ServerSession {
     /// Create a new server session.
     pub fn new(identity: AddressStr) -> Self {
-        let mut rng = &mut rand::thread_rng();
+        let rng = &mut rand::thread_rng();
         let challenge: [u8; 16] = rng.gen();
         Self {
             identity,

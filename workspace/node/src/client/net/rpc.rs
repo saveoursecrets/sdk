@@ -2,14 +2,11 @@
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use sos_core::{
-    commit_tree::CommitProof,
     constants::{ACCOUNT_CREATE, SESSION_OFFER, SESSION_VERIFY, X_SESSION},
     crypto::AeadPack,
     decode, encode,
     rpc::{Packet, RequestMessage, ResponseMessage},
     signer::BoxedSigner,
-    vault::Summary,
-    Patch,
 };
 use std::borrow::Cow;
 use url::Url;
@@ -153,7 +150,7 @@ impl RpcClient {
         // Check we got a success response; no error indicates success
         let (_status, result) = read_rpc_call::<()>(response, None).await?;
         let result = result.ok_or(Error::NoReturnValue)?;
-        let result = result?;
+        let _result = result?;
 
         // Store the session for later requests
         session.finish(client_key);
