@@ -2837,6 +2837,7 @@ dependencies = [
  "filetime",
  "getrandom 0.2.7",
  "hex",
+ "http",
  "k256",
  "log",
  "ouroboros",

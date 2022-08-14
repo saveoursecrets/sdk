@@ -4,7 +4,7 @@ use sos_core::{
     commit_tree::CommitProof,
     constants::{SESSION_OFFER, SESSION_VERIFY},
     decode, encode,
-    rpc::{Packet, RequestMessage, ResponseMessage},
+    rpc::{Packet, RequestMessage, ResponseMessage, Status},
     signer::BoxedSigner,
     vault::Summary,
     Patch,
@@ -72,13 +72,13 @@ impl RpcClient {
     async fn read_rpc_call<T: DeserializeOwned>(
         &self,
         response: reqwest::Response,
-    ) -> Result<T> {
+    ) -> Result<(Status, T)> {
         let buffer = response.bytes().await?;
         let reply: Packet<'static> = decode(&buffer)?;
         let response: ResponseMessage<'static> = reply.try_into()?;
-        let (_, result, _) = response.take::<T>()?;
+        let (_, status, result, _) = response.take::<T>()?;
         let result = result.ok_or(Error::NoReturnValue)?;
-        Ok(result?)
+        Ok((status, result?))
     }
 
     /// Attempt to authenticate to the remote node and store
@@ -99,7 +99,7 @@ impl RpcClient {
             .then_some(())
             .ok_or(Error::ResponseCode(response.status().into()))?;
 
-        let result = self
+        let (_status, result) = self
             .read_rpc_call::<(Uuid, [u8; 16], Vec<u8>)>(response)
             .await?;
         let (session_id, challenge, public_key) = result;

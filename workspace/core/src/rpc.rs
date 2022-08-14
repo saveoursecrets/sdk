@@ -12,6 +12,7 @@ use binary_stream::{
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use std::borrow::Cow;
+use http::StatusCode;
 
 use async_trait::async_trait;
 
@@ -82,6 +83,7 @@ impl Decode for Packet<'_> {
 #[derive(Default)]
 pub enum Payload<'a> {
     /// Default variant.
+    #[doc(hidden)]
     #[default]
     Noop,
     /// Request payload.
@@ -235,25 +237,11 @@ impl Decode for RequestMessage<'_> {
     }
 }
 
-impl<'a, T: Serialize> TryFrom<(RequestMessage<'a>, T)>
-    for ResponseMessage<'a>
-{
-    type Error = Error;
-
-    fn try_from(value: (RequestMessage<'a>, T)) -> Result<Self> {
-        let id = *value
-            .0
-            .id()
-            .ok_or(Error::Message("request id expected".to_owned()))?;
-        let reply = ResponseMessage::new_reply(id, Some(Ok(value.1)))?;
-        Ok(reply)
-    }
-}
-
 /// An RPC response message.
 #[derive(Default, Debug)]
 pub struct ResponseMessage<'a> {
     id: u64,
+    status: StatusCode,
     result: Option<Result<Value>>,
     body: Cow<'a, [u8]>,
 }
@@ -262,6 +250,7 @@ impl<'a> ResponseMessage<'a> {
     /// Create a new response message.
     pub fn new<T>(
         id: u64,
+        status: StatusCode,
         result: Option<Result<T>>,
         body: Cow<'a, [u8]>,
     ) -> Result<Self>
@@ -276,15 +265,15 @@ impl<'a> ResponseMessage<'a> {
             None => None,
         };
 
-        Ok(Self { id, result, body })
+        Ok(Self { id, status, result, body })
     }
 
     /// Create a new response message with an empty body.
-    pub fn new_reply<T>(id: u64, result: Option<Result<T>>) -> Result<Self>
+    pub fn new_reply<T>(id: u64, status: StatusCode, result: Option<Result<T>>) -> Result<Self>
     where
         T: Serialize,
     {
-        ResponseMessage::new(id, result, Cow::Owned(vec![]))
+        ResponseMessage::new(id, status, result, Cow::Owned(vec![]))
     }
 
     /// Get the message identifier.
@@ -295,7 +284,7 @@ impl<'a> ResponseMessage<'a> {
     /// Take the result.
     pub fn take<T: DeserializeOwned>(
         self,
-    ) -> Result<(u64, Option<Result<T>>, Vec<u8>)> {
+    ) -> Result<(u64, StatusCode, Option<Result<T>>, Vec<u8>)> {
         let value = if let Some(result) = self.result {
             match result {
                 Ok(value) => Some(Ok(serde_json::from_value::<T>(value)?)),
@@ -304,7 +293,7 @@ impl<'a> ResponseMessage<'a> {
         } else {
             None
         };
-        Ok((self.id, value, self.body.to_vec()))
+        Ok((self.id, self.status, value, self.body.to_vec()))
     }
 }
 
@@ -373,6 +362,21 @@ impl Decode for ResponseMessage<'_> {
     }
 }
 
+impl<'a, T: Serialize> TryFrom<(RequestMessage<'a>, T)>
+    for ResponseMessage<'a>
+{
+    type Error = Error;
+
+    fn try_from(value: (RequestMessage<'a>, T)) -> Result<Self> {
+        let id = *value
+            .0
+            .id()
+            .ok_or(Error::Message("request id expected".to_owned()))?;
+        let reply = ResponseMessage::new_reply(id, StatusCode::OK, Some(Ok(value.1)))?;
+        Ok(reply)
+    }
+}
+
 /// Trait for implementations that process incoming requests.
 #[async_trait]
 pub trait Service {
@@ -392,6 +396,7 @@ mod tests {
     use super::*;
     use crate::{decode, encode};
     use anyhow::Result;
+    use http::StatusCode;
 
     #[test]
     fn rpc_encode() -> Result<()> {
@@ -407,17 +412,17 @@ mod tests {
         assert_eq!(&body, decoded.body());
 
         let result = Some(Ok("Foo".to_owned()));
-        let reply = ResponseMessage::new(1, result, Cow::Borrowed(&body))?;
+        let reply = ResponseMessage::new(1, StatusCode::OK, result, Cow::Borrowed(&body))?;
 
         let response = encode(&reply)?;
         let decoded: ResponseMessage = decode(&response)?;
 
         let result = decoded.take::<String>()?;
-        let value = result.1.unwrap().unwrap();
+        let value = result.2.unwrap().unwrap();
 
         assert_eq!(1, result.0);
         assert_eq!("Foo", &value);
-        assert_eq!(body, result.2);
+        assert_eq!(body, result.3);
 
         // Check the packet request encoding
         let req = Packet::new_request(message);
@@ -437,10 +442,10 @@ mod tests {
 
         let incoming: ResponseMessage<'_> = pkt.try_into()?;
         let result = incoming.take::<String>()?;
-        let value = result.1.unwrap().unwrap();
+        let value = result.2.unwrap().unwrap();
         assert_eq!(1, result.0);
         assert_eq!("Foo", &value);
-        assert_eq!(body, result.2);
+        assert_eq!(body, result.3);
 
         Ok(())
     }

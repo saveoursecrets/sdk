@@ -33,6 +33,7 @@ secrecy = { version = "0.8", features = ["serde"] }
 tempfile = "3"
 log = "0.4"
 probly-search = "1.2"
+http = "0.2"
 
 time = { version = "0.3.13", features = ["serde", "local-offset", "formatting", "wasm-bindgen"] }
 
