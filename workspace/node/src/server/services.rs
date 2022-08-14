@@ -2,10 +2,12 @@ use axum::{body::Bytes, http::StatusCode};
 
 use sos_core::{
     address::AddressStr,
-    constants::{ACCOUNT_CREATE, SESSION_OFFER, SESSION_VERIFY},
+    constants::{
+        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
+    },
     crypto::AeadPack,
     decode, encode,
-    events::{ChangeEvent, ChangeNotification},
+    events::{ChangeEvent, ChangeNotification, EventKind},
     rpc::{Packet, RequestMessage, ResponseMessage, Service},
     vault::Header,
     AuditEvent, AuditProvider,
@@ -101,6 +103,7 @@ impl Service for SessionService {
 /// Account management service.
 ///
 /// * `Account.create`: Create a new account.
+/// * `Account.list_vaults`: List vault summaries for an account.
 ///
 pub struct AccountService;
 
@@ -115,9 +118,10 @@ impl Service for AccountService {
     ) -> sos_core::Result<ResponseMessage<'a>> {
         let (address, state) = state;
 
+        let mut writer = state.write().await;
+
         match request.method() {
             ACCOUNT_CREATE => {
-                let mut writer = state.write().await;
                 if writer.backend.account_exists(&address).await {
                     return Ok((StatusCode::CONFLICT, request.id()).into());
                 }
@@ -150,6 +154,25 @@ impl Service for AccountService {
                     .await
                     .map_err(Box::from)?;
                 send_notification(&mut writer, notification);
+
+                Ok(reply)
+            }
+            ACCOUNT_LIST_VAULTS => {
+                if !writer.backend.account_exists(&address).await {
+                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                }
+
+                let summaries =
+                    writer.backend.list(&address).await.map_err(Box::from)?;
+
+                let reply: ResponseMessage<'_> =
+                    (request.id(), summaries).try_into()?;
+
+                let log =
+                    AuditEvent::new(EventKind::LoginResponse, address, None);
+                append_audit_logs(&mut writer, vec![log])
+                    .await
+                    .map_err(Box::from)?;
 
                 Ok(reply)
             }
@@ -207,6 +230,9 @@ pub(crate) async fn private_service(
 
     let aead: AeadPack =
         decode(&body).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // FIXME: check nonce is not equal to or behind last used nonce
+
     let body = session
         .decrypt(&aead)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

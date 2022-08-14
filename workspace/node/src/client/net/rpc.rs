@@ -2,11 +2,15 @@
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use sos_core::{
-    constants::{ACCOUNT_CREATE, SESSION_OFFER, SESSION_VERIFY, X_SESSION},
+    constants::{
+        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
+        X_SESSION,
+    },
     crypto::AeadPack,
     decode, encode,
     rpc::{Packet, RequestMessage, ResponseMessage},
     signer::BoxedSigner,
+    vault::Summary,
 };
 use std::borrow::Cow;
 use url::Url;
@@ -47,7 +51,7 @@ fn new_rpc_body<T: Serialize>(
 async fn read_rpc_call<T: DeserializeOwned>(
     response: reqwest::Response,
     session: Option<&mut ClientSession>,
-) -> Result<(StatusCode, Option<sos_core::Result<T>>)> {
+) -> Result<(StatusCode, sos_core::Result<T>)> {
     let buffer = response.bytes().await?;
 
     let buffer = if let Some(session) = session {
@@ -60,8 +64,28 @@ async fn read_rpc_call<T: DeserializeOwned>(
     let reply: Packet<'static> = decode(&buffer)?;
     let response: ResponseMessage<'static> = reply.try_into()?;
     let (_, status, result, _) = response.take::<T>()?;
+    let result = result.ok_or(Error::NoReturnValue)?;
 
     Ok((status, result))
+}
+
+/// Make an encrypted session request.
+async fn session_request(
+    client: &reqwest::Client,
+    url: Url,
+    session_id: Uuid,
+    session: &mut ClientSession,
+    request: Vec<u8>,
+) -> Result<reqwest::Response> {
+    let aead = session.encrypt(&request)?;
+    let body = encode(&aead)?;
+    let response = client
+        .post(url)
+        .header(X_SESSION, session_id.to_string())
+        .body(body)
+        .send()
+        .await?;
+    Ok(response)
 }
 
 /// Client implementation for RPC requests.
@@ -123,7 +147,6 @@ impl RpcClient {
         let (_status, result) =
             read_rpc_call::<(Uuid, [u8; 16], Vec<u8>)>(response, None)
                 .await?;
-        let result = result.ok_or(Error::NoReturnValue)?;
         let result = result?;
 
         let (session_id, challenge, public_key) = result;
@@ -149,7 +172,6 @@ impl RpcClient {
 
         // Check we got a success response; no error indicates success
         let (_status, result) = read_rpc_call::<()>(response, None).await?;
-        let result = result.ok_or(Error::NoReturnValue)?;
         let _result = result?;
 
         // Store the session for later requests
@@ -172,20 +194,46 @@ impl RpcClient {
         let session_id = session.id().clone();
 
         let request = new_rpc_body(id, ACCOUNT_CREATE, (), vault)?;
-        let aead = session.encrypt(&request)?;
-        let body = encode(&aead)?;
 
-        let response = self
-            .client
-            .post(url)
-            .header(X_SESSION, session_id.to_string())
-            .body(body)
-            .send()
-            .await?;
+        let response =
+            session_request(&self.client, url, session_id, session, request)
+                .await?;
 
         let (status, _) =
             read_rpc_call::<()>(response, Some(session)).await?;
 
+        // Note we need to pass the 409 conflict response back
+        // to the caller
+        if status.is_server_error() {
+            return Err(Error::ResponseCode(status.into()));
+        }
+
         Ok(status)
+    }
+
+    /// List vaults for an account.
+    pub async fn list_vaults(&mut self) -> Result<Vec<Summary>> {
+        let id = self.next_id();
+        let session = self.session.as_mut().ok_or(Error::NoSession)?;
+        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
+
+        let url = self.server.join("api/account")?;
+        let session_id = session.id().clone();
+
+        let request = new_rpc_call(id, ACCOUNT_LIST_VAULTS, ())?;
+
+        let response =
+            session_request(&self.client, url, session_id, session, request)
+                .await?;
+
+        let (status, result) =
+            read_rpc_call::<Vec<Summary>>(response, Some(session)).await?;
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
+        Ok(result?)
     }
 }

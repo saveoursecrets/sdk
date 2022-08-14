@@ -34,5 +34,10 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     let status = client.create_account(body).await?;
     assert_eq!(StatusCode::CONFLICT, status);
 
+    // List vaults for the account
+    let summaries = client.list_vaults().await?;
+    // New account with a single vault
+    assert_eq!(1, summaries.len());
+
     Ok(())
 }

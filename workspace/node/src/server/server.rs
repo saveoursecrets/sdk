@@ -161,11 +161,9 @@ impl Server {
         let mut app = Router::new()
             .route("/", get(home))
             .route("/api", get(api))
-
             .route("/api/auth", get(AuthHandler::challenge))
             .route("/api/auth/:uuid", get(AuthHandler::response))
             .route("/api/accounts", put(AccountHandler::put_account))
-
             .route("/api/vaults", put(WalHandler::put_wal))
             .route(
                 "/api/vaults/:vault_id",
@@ -177,7 +175,6 @@ impl Server {
                     .delete(WalHandler::delete_wal),
             )
             .route("/api/changes", get(sse_handler))
-
             // v2 RPC style
             .route("/api/account", post(AccountHandler::post))
             .route("/api/session", post(SessionHandler::post));

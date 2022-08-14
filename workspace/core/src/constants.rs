@@ -76,6 +76,9 @@ mod rpc {
     /// Account create method call.
     pub const ACCOUNT_CREATE: &str = "Account.create";
 
+    /// Account list vaults method call.
+    pub const ACCOUNT_LIST_VAULTS: &str = "Account.list_vaults";
+
     /// Session offer method call.
     pub const SESSION_OFFER: &str = "Session.offer";
 
