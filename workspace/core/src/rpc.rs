@@ -9,10 +9,10 @@ use crate::{
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
+use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use std::borrow::Cow;
-use http::StatusCode;
 
 use async_trait::async_trait;
 
@@ -166,8 +166,8 @@ impl<'a> RequestMessage<'a> {
     }
 
     /// Get the message identifier.
-    pub fn id(&self) -> Option<&u64> {
-        self.id.as_ref()
+    pub fn id(&self) -> Option<u64> {
+        self.id
     }
 
     /// Get the method name.
@@ -240,7 +240,7 @@ impl Decode for RequestMessage<'_> {
 /// An RPC response message.
 #[derive(Default, Debug)]
 pub struct ResponseMessage<'a> {
-    id: u64,
+    id: Option<u64>,
     status: StatusCode,
     result: Option<Result<Value>>,
     body: Cow<'a, [u8]>,
@@ -249,7 +249,7 @@ pub struct ResponseMessage<'a> {
 impl<'a> ResponseMessage<'a> {
     /// Create a new response message.
     pub fn new<T>(
-        id: u64,
+        id: Option<u64>,
         status: StatusCode,
         result: Option<Result<T>>,
         body: Cow<'a, [u8]>,
@@ -265,11 +265,20 @@ impl<'a> ResponseMessage<'a> {
             None => None,
         };
 
-        Ok(Self { id, status, result, body })
+        Ok(Self {
+            id,
+            status,
+            result,
+            body,
+        })
     }
 
     /// Create a new response message with an empty body.
-    pub fn new_reply<T>(id: u64, status: StatusCode, result: Option<Result<T>>) -> Result<Self>
+    pub fn new_reply<T>(
+        id: Option<u64>,
+        status: StatusCode,
+        result: Option<Result<T>>,
+    ) -> Result<Self>
     where
         T: Serialize,
     {
@@ -277,14 +286,14 @@ impl<'a> ResponseMessage<'a> {
     }
 
     /// Get the message identifier.
-    pub fn id(&self) -> &u64 {
-        &self.id
+    pub fn id(&self) -> Option<u64> {
+        self.id
     }
 
     /// Take the result.
     pub fn take<T: DeserializeOwned>(
         self,
-    ) -> Result<(u64, StatusCode, Option<Result<T>>, Vec<u8>)> {
+    ) -> Result<(Option<u64>, StatusCode, Option<Result<T>>, Vec<u8>)> {
         let value = if let Some(result) = self.result {
             match result {
                 Ok(value) => Some(Ok(serde_json::from_value::<T>(value)?)),
@@ -300,7 +309,10 @@ impl<'a> ResponseMessage<'a> {
 impl Encode for ResponseMessage<'_> {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         // Id
-        writer.write_u64(&self.id)?;
+        writer.write_bool(self.id.is_some())?;
+        if let Some(id) = &self.id {
+            writer.write_u64(id)?;
+        }
 
         // Result
         writer.write_bool(self.result.is_some())?;
@@ -332,7 +344,10 @@ impl Encode for ResponseMessage<'_> {
 impl Decode for ResponseMessage<'_> {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         // Id
-        self.id = reader.read_u64()?;
+        let has_id = reader.read_bool()?;
+        if has_id {
+            self.id = Some(reader.read_u64()?);
+        }
 
         // Result
         let has_result = reader.read_bool()?;
@@ -368,12 +383,24 @@ impl<'a, T: Serialize> TryFrom<(RequestMessage<'a>, T)>
     type Error = Error;
 
     fn try_from(value: (RequestMessage<'a>, T)) -> Result<Self> {
-        let id = *value
-            .0
-            .id()
-            .ok_or(Error::Message("request id expected".to_owned()))?;
-        let reply = ResponseMessage::new_reply(id, StatusCode::OK, Some(Ok(value.1)))?;
+        let id = value.0.id();
+        let reply = ResponseMessage::new_reply(
+            id,
+            StatusCode::OK,
+            Some(Ok(value.1)),
+        )?;
         Ok(reply)
+    }
+}
+
+impl From<Error> for ResponseMessage<'_> {
+    fn from(value: Error) -> Self {
+        ResponseMessage::new_reply::<()>(
+            None,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Some(Err(value)),
+        )
+        .expect("failed to encode error response message")
     }
 }
 
@@ -381,14 +408,35 @@ impl<'a, T: Serialize> TryFrom<(RequestMessage<'a>, T)>
 #[async_trait]
 pub trait Service {
     /// State for this service.
-    type State;
+    type State: Send + Sync;
 
     /// Handle an incoming message.
     async fn handle<'a>(
         &self,
         state: &Self::State,
         request: RequestMessage<'a>,
-    ) -> Result<Option<ResponseMessage<'a>>>;
+    ) -> Result<ResponseMessage<'a>>;
+
+    /// Serve an incoming request.
+    async fn serve<'a>(
+        &self,
+        state: &Self::State,
+        request: RequestMessage<'a>,
+    ) -> Option<ResponseMessage<'a>> {
+        match self.handle(state, request).await {
+            Ok(res) => {
+                if let Some(_) = res.id() {
+                    Some(res)
+                } else {
+                    None
+                }
+            }
+            Err(e) => {
+                let reply: ResponseMessage<'_> = e.into();
+                Some(reply)
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -412,7 +460,12 @@ mod tests {
         assert_eq!(&body, decoded.body());
 
         let result = Some(Ok("Foo".to_owned()));
-        let reply = ResponseMessage::new(1, StatusCode::OK, result, Cow::Borrowed(&body))?;
+        let reply = ResponseMessage::new(
+            Some(1),
+            StatusCode::OK,
+            result,
+            Cow::Borrowed(&body),
+        )?;
 
         let response = encode(&reply)?;
         let decoded: ResponseMessage = decode(&response)?;
@@ -420,7 +473,7 @@ mod tests {
         let result = decoded.take::<String>()?;
         let value = result.2.unwrap().unwrap();
 
-        assert_eq!(1, result.0);
+        assert_eq!(Some(1), result.0);
         assert_eq!("Foo", &value);
         assert_eq!(body, result.3);
 
@@ -430,7 +483,7 @@ mod tests {
         let pkt: Packet<'_> = decode(&enc)?;
 
         let incoming: RequestMessage<'_> = pkt.try_into()?;
-        assert_eq!(Some(&1u64), incoming.id());
+        assert_eq!(Some(1u64), incoming.id());
         assert_eq!("GetWal", incoming.method());
         assert_eq!((), incoming.parameters::<()>()?);
         assert_eq!(&body, incoming.body());
@@ -443,7 +496,7 @@ mod tests {
         let incoming: ResponseMessage<'_> = pkt.try_into()?;
         let result = incoming.take::<String>()?;
         let value = result.2.unwrap().unwrap();
-        assert_eq!(1, result.0);
+        assert_eq!(Some(1), result.0);
         assert_eq!("Foo", &value);
         assert_eq!(body, result.3);
 

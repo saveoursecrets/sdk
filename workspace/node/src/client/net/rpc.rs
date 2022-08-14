@@ -4,13 +4,14 @@ use sos_core::{
     commit_tree::CommitProof,
     constants::{SESSION_OFFER, SESSION_VERIFY},
     decode, encode,
-    rpc::{Packet, RequestMessage, ResponseMessage, Status},
+    rpc::{Packet, RequestMessage, ResponseMessage},
     signer::BoxedSigner,
     vault::Summary,
     Patch,
 };
 use url::Url;
 use uuid::Uuid;
+use http::StatusCode;
 
 use crate::{
     client::{Error, Result},
@@ -72,7 +73,7 @@ impl RpcClient {
     async fn read_rpc_call<T: DeserializeOwned>(
         &self,
         response: reqwest::Response,
-    ) -> Result<(Status, T)> {
+    ) -> Result<(StatusCode, T)> {
         let buffer = response.bytes().await?;
         let reply: Packet<'static> = decode(&buffer)?;
         let response: ResponseMessage<'static> = reply.try_into()?;
@@ -130,5 +131,24 @@ impl RpcClient {
         self.session = Some(session);
 
         Ok(())
+    }
+
+    /// Create a new account.
+    pub async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
+        
+
+        /*
+        let url = self.server.join("api/accounts")?;
+        let signature = encode_signature(self.signer.sign(&vault).await?)?;
+        let response = self
+            .client
+            .put(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(CONTENT_TYPE, MIME_TYPE_VAULT)
+            .body(vault)
+            .send()
+            .await?;
+        Ok(StatusCode::from_u16(response.status().into())?)
+        */
     }
 }
