@@ -18,7 +18,7 @@ use std::{
 use uuid::Uuid;
 use web3_signature::Signature;
 
-use crate::server::{Error, Result};
+use crate::{Error, Result};
 
 /// Default session length in seconds.
 const SESSION_LENGTH: u64 = 900;
@@ -194,20 +194,24 @@ impl ClientSession {
         &mut self,
         public_key_bytes: &[u8],
         challenge: [u8; 16],
-    ) -> Result<Signature> {
+    ) -> Result<(Signature, SecretKey)> {
         let server_public =
             PublicKey::from_sec1_bytes(public_key_bytes.as_ref())?;
         let shared = self.secret.diffie_hellman(&server_public);
         let signature = self.signer.sign(&challenge).await?;
         let key = derive_secret_key(&shared, challenge.as_ref())?;
-        self.private = Some(key);
-        Ok(signature)
+        Ok((signature, key))
     }
 
     /// Get the public key bytes.
     pub fn public_key(&self) -> Vec<u8> {
         let public_key_bytes = EncodedPoint::from(self.secret.public_key());
         public_key_bytes.as_ref().to_vec()
+    }
+
+    /// Complete the session negotiation.
+    pub fn finish(&mut self, key: SecretKey) {
+        self.private = Some(key);
     }
 }
 
@@ -244,6 +248,11 @@ pub trait EncryptedChannel {
         let key = self.private_key()?;
         Ok(xchacha20poly1305::decrypt(key, aead)?)
     }
+
+    /// Determine if this session is ready.
+    fn ready(&self) -> bool {
+        self.private_key().ok().is_some()
+    }
 }
 
 #[cfg(test)]
@@ -271,7 +280,7 @@ mod test {
         // bytes to the client which will create it's session state
         // ...
         let mut client_session = ClientSession::new(signer, session_id)?;
-        let signature = client_session
+        let (signature, client_key) = client_session
             .sign(&server_public_key, server_session.challenge())
             .await?;
 
@@ -281,6 +290,8 @@ mod test {
         let server_session =
             manager.verify_identity(&session_id, signature)?;
         server_session.compute_ecdh(client_session.public_key())?;
+
+        client_session.finish(client_key);
 
         // Encrypt on the client, send to the server and
         // decrypt on the server

@@ -8,7 +8,6 @@ mod error;
 mod handlers;
 mod headers;
 mod server;
-mod session;
 
 pub use error::Error;
 /// Result type for the server module.

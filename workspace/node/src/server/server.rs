@@ -10,7 +10,6 @@ use super::{
         wal::WalHandler,
     },
     headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
-    session::SessionManager,
     Backend, Result, ServerConfig,
 };
 use axum::{
@@ -28,6 +27,8 @@ use sos_core::{address::AddressStr, AuditLogFile};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tower_http::cors::{CorsLayer, Origin};
+
+use crate::session::SessionManager;
 
 /// Server state.
 pub struct State {
@@ -160,7 +161,6 @@ impl Server {
         let mut app = Router::new()
             .route("/", get(home))
             .route("/api", get(api))
-            .route("/api/session", post(SessionHandler::post))
             .route("/api/auth", get(AuthHandler::challenge))
             .route("/api/auth/:uuid", get(AuthHandler::response))
             .route("/api/accounts", put(AccountHandler::put_account))
@@ -174,7 +174,8 @@ impl Server {
                     .patch(WalHandler::patch_wal)
                     .delete(WalHandler::delete_wal),
             )
-            .route("/api/changes", get(sse_handler));
+            .route("/api/changes", get(sse_handler))
+            .route("/api/session", post(SessionHandler::post));
 
         app = feature_routes(app);
         app = app.layer(cors).layer(Extension(state));

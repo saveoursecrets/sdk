@@ -133,12 +133,12 @@ pub struct RequestMessage<'a> {
 }
 
 impl<'a> RequestMessage<'a> {
-    /// Create a new request message.
+    /// Create a new request message with a body.
     pub fn new<T>(
         id: Option<u64>,
         method: &'a str,
         parameters: T,
-        body: &'a [u8],
+        body: Cow<'a, [u8]>,
     ) -> Result<Self>
     where
         T: Serialize,
@@ -147,8 +147,20 @@ impl<'a> RequestMessage<'a> {
             id,
             method: Cow::Borrowed(method),
             parameters: serde_json::to_value(parameters)?,
-            body: Cow::Borrowed(body),
+            body,
         })
+    }
+
+    /// Create a new request message without a body.
+    pub fn new_call<T>(
+        id: Option<u64>,
+        method: &'a str,
+        parameters: T,
+    ) -> Result<Self>
+    where
+        T: Serialize,
+    {
+        RequestMessage::new(id, method, parameters, Cow::Owned(vec![]))
     }
 
     /// Get the message identifier.
@@ -368,7 +380,7 @@ pub trait Service {
     type State;
 
     /// Handle an incoming message.
-    fn handle<'a>(
+    async fn handle<'a>(
         &self,
         state: &Self::State,
         request: RequestMessage<'a>,
@@ -384,7 +396,8 @@ mod tests {
     #[test]
     fn rpc_encode() -> Result<()> {
         let body = vec![0x0A, 0xFF];
-        let message = RequestMessage::new(Some(1), "GetWal", (), &body)?;
+        let message =
+            RequestMessage::new(Some(1), "GetWal", (), Cow::Borrowed(&body))?;
 
         let request = encode(&message)?;
         let decoded: RequestMessage = decode(&request)?;

@@ -66,8 +66,17 @@ mod mime {
     pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
 }
 
+mod rpc {
+    /// Session offer method call.
+    pub const SESSION_OFFER: &str = "Session.offer";
+
+    /// Session verify method call.
+    pub const SESSION_VERIFY: &str = "Session.verify";
+}
+
 pub use extensions::*;
 pub use headers::*;
 pub use identity::*;
 pub use mime::*;
+pub use rpc::*;
 pub use vault::*;

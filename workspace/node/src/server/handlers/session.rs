@@ -7,10 +7,12 @@ use axum::{
 };
 
 use async_trait::async_trait;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use sos_core::{
     address::AddressStr,
+    constants::{SESSION_OFFER, SESSION_VERIFY},
     decode, encode,
     rpc::{Packet, RequestMessage, ResponseMessage, Service},
 };
@@ -30,14 +32,14 @@ struct SessionService {}
 impl Service for SessionService {
     type State = Arc<RwLock<State>>;
 
-    fn handle<'a>(
+    async fn handle<'a>(
         &self,
         state: &Self::State,
         request: RequestMessage<'a>,
     ) -> sos_core::Result<Option<ResponseMessage<'a>>> {
         match request.method() {
-            "Session.offer" => {
-                let mut writer = state.write().unwrap();
+            SESSION_OFFER => {
+                let mut writer = state.write().await;
                 let address = request.parameters::<AddressStr>()?;
                 let (session_id, server_session) =
                     writer.sessions.offer(address);
@@ -52,11 +54,11 @@ impl Service for SessionService {
                     (request, value).try_into()?;
                 Ok(Some(reply))
             }
-            "Session.verify" => {
+            SESSION_VERIFY => {
                 let (session_id, signature, public_key) =
                     request.parameters::<(Uuid, Signature, Vec<u8>)>()?;
 
-                let mut writer = state.write().unwrap();
+                let mut writer = state.write().await;
                 let session = writer
                     .sessions
                     .verify_identity(&session_id, signature)
@@ -89,6 +91,7 @@ impl SessionHandler {
 
         let reply = service
             .handle(&state, request)
+            .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let body = if let Some(reply) = reply {
