@@ -29,6 +29,7 @@ pub mod iter;
 mod passwd;
 mod patch;
 
+pub mod rpc;
 pub mod search;
 pub mod secret;
 pub mod signer;

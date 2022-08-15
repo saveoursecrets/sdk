@@ -18,6 +18,8 @@ use tokio::sync::RwLock;
 
 use crate::server::{
     authenticate::{self},
+    headers::Session,
+    services::{private_service, AccountService},
     State,
 };
 
@@ -26,6 +28,16 @@ use super::{append_audit_logs, append_commit_headers, send_notification};
 // Handlers for account events.
 pub(crate) struct AccountHandler;
 impl AccountHandler {
+    pub(crate) async fn post(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        TypedHeader(session_id): TypedHeader<Session>,
+        body: Bytes,
+    ) -> Result<(StatusCode, Bytes), StatusCode> {
+        let service = AccountService {};
+        Ok(private_service(service, state, session_id.id(), body).await?)
+    }
+
+    #[deprecated]
     /// Create a new user account.
     pub(crate) async fn put_account(
         Extension(state): Extension<Arc<RwLock<State>>>,

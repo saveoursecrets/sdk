@@ -8,8 +8,12 @@ use web3_signature::Signature;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod changes;
 pub mod request;
-pub use request::RequestClient;
+pub mod rpc;
 
+pub use request::RequestClient;
+pub use rpc::RpcClient;
+
+#[deprecated]
 pub(crate) type Challenge = [u8; 32];
 
 pub(crate) fn encode_signature(signature: Signature) -> Result<String> {

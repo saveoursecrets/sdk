@@ -2,6 +2,8 @@
 //! Library for network communication.
 use std::path::PathBuf;
 
+extern crate sha3;
+
 #[cfg(all(
     not(target_arch = "wasm32"),
     any(feature = "agent-client", feature = "agent-server")
@@ -13,7 +15,14 @@ pub mod client;
 pub mod node;
 #[cfg(feature = "server")]
 pub mod server;
+
+mod error;
+pub mod session;
 pub mod sync;
+
+/// Result type for the node module.
+pub type Result<T> = std::result::Result<T, error::Error>;
+pub use error::Error;
 
 const DIR: &str = "SaveOurSecrets";
 

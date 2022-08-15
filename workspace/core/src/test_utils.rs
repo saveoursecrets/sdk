@@ -1,7 +1,7 @@
 use crate::{
     crypto::secret_key::SecretKey,
     encode,
-    events::{SyncEvent, WalEvent},
+    events::SyncEvent,
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta},
     vault::{Vault, VaultAccess, VaultEntry},

@@ -14,8 +14,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
 async-recursion = "1"
-k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
-web3-signature = { version = "0.2", features = ["single-party"] }
+k256 = { version = "0.11", features = ["ecdsa", "sha256", "keccak256"] }
+web3-signature = { version = "0.2.5", features = ["single-party"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 serde = "1"
 serde_json = "1"
@@ -31,6 +31,8 @@ http = "0.2"
 bs58 = "0.4"
 secrecy = "0.8"
 log = "0.4"
+crypto-bigint = "0.4.8"
+sha3 = "0.10"
 
 # client
 web3-keystore = { version = "0.4", optional = true }
@@ -44,7 +46,6 @@ hyper = { version = "0.14", features = ["full"], optional = true }
 tower = { version = "0.4", optional = true }
 tower-http = { version = "0.2", features = ["full"], optional = true }
 once_cell = { version = "1.10", optional = true }
-sha3 = { version = "0.10", optional = true }
 rust-embed = { version = "6", optional = true }
 mime_guess = { version = "2", optional = true }
 async-stream = { version = "0.3", optional = true }
@@ -91,7 +92,6 @@ server = [
   "tower",
   "tower-http",
   "once_cell",
-  "sha3",
   "rust-embed",
   "mime_guess",
   "async-stream",
