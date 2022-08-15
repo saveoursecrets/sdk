@@ -61,7 +61,9 @@ pub mod file {
 /// Client implementation that stores data in memory.
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
-    use crate::client::{node_cache::NodeCache, Error, Result};
+    use crate::client::{
+        net::RequestClient, node_cache::NodeCache, Error, Result,
+    };
     use secrecy::SecretString;
     use sos_core::{
         events::{ChangeNotification, SyncEvent},
@@ -118,6 +120,19 @@ pub mod memory {
         /// Get a clone of the underlying node cache.
         pub fn cache(&self) -> MemoryCache {
             Arc::clone(&self.cache)
+        }
+
+        /// Create an account.
+        pub fn create_account(
+            server: Url,
+            signer: BoxedSigner,
+            buffer: Vec<u8>,
+        ) -> impl Future<Output = Result<u16>> + 'static {
+            async move {
+                let client = RequestClient::new(server, signer);
+                let status = client.create_account(buffer).await?;
+                Ok(status.into())
+            }
         }
 
         /// Load the vaults.

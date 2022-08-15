@@ -33,8 +33,10 @@ impl SignedQuery {
     }
 }
 
+#[deprecated]
 type Challenge = [u8; 32];
 
+#[deprecated]
 #[derive(Debug)]
 pub struct BearerToken {
     //public_key: [u8; 33],
@@ -51,7 +53,8 @@ impl BearerToken {
                 let signature: Signature = binary_sig.into();
                 let recoverable: recoverable::Signature =
                     signature.try_into()?;
-                let public_key = recoverable.recover_verify_key(message)?;
+                let public_key =
+                    recoverable.recover_verifying_key(message)?;
                 let public_key: [u8; 33] =
                     public_key.to_bytes().as_slice().try_into()?;
                 let address: AddressStr = (&public_key).try_into()?;
@@ -81,6 +84,7 @@ impl BearerToken {
 ///
 /// The signature is then converted to a recoverable signature and the public
 /// key is extracted using the body bytes as the message that has been signed.
+#[deprecated]
 pub fn bearer<B>(
     authorization: Authorization<Bearer>,
     body: B,
@@ -92,6 +96,7 @@ where
 }
 
 /// Encapsulates a collection of authentication challenges.
+#[deprecated]
 #[derive(Debug)]
 pub struct Authentication {
     challenges: Arc<RwLock<HashMap<Uuid, (Challenge, SystemTime)>>>,

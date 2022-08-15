@@ -369,45 +369,6 @@ impl CommitTree {
     }
 }
 
-/*
-/// Refrerence to the identifier and commit for a row.
-#[derive(Debug)]
-pub struct RowInfo {
-    /// Byte offset of the row.
-    pub position: usize,
-    /// The length of the row in bytes.
-    pub length: u32,
-    /// The bytes for the secret identifier.
-    pub id: [u8; 16],
-    /// The bytes for the commit hash.
-    pub commit: [u8; 32],
-    /// The byte range for the secret data.
-    ///
-    /// This is the absolute position in the underlying stream
-    /// and gives the caller a chance to read in the secret value
-    /// if it needs to.
-    pub value: Range<usize>,
-}
-
-impl RowInfo {
-    /// Read the bytes for the secret value into an owned buffer.
-    pub fn read_value<'a>(
-        &self,
-        reader: &mut BinaryReader<'a>,
-    ) -> Result<Vec<u8>> {
-        let length = self.value.end - self.value.start;
-        reader.seek(self.value.start)?;
-        let value = reader.read_bytes(length)?;
-        Ok(value)
-    }
-
-    /// Get the row identifier.
-    pub fn id(&self) -> &[u8; 16] {
-        &self.id
-    }
-}
-*/
-
 #[cfg(test)]
 mod test {
     use super::*;

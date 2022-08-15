@@ -5,6 +5,7 @@ use super::{
         api,
         auth::AuthHandler,
         home,
+        service::ServiceHandler,
         sse::{sse_handler, SseConnection},
         wal::WalHandler,
     },
@@ -17,7 +18,7 @@ use axum::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
     },
-    routing::{get, put},
+    routing::{get, post, put},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
@@ -26,6 +27,8 @@ use sos_core::{address::AddressStr, AuditLogFile};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tower_http::cors::{CorsLayer, Origin};
+
+use crate::session::SessionManager;
 
 /// Server state.
 pub struct State {
@@ -42,6 +45,8 @@ pub struct State {
     /// Map of server sent event channels by authenticated
     /// client address.
     pub sse: HashMap<AddressStr, SseConnection>,
+    /// Session manager.
+    pub sessions: SessionManager,
 }
 
 /// Server information.
@@ -169,7 +174,12 @@ impl Server {
                     .patch(WalHandler::patch_wal)
                     .delete(WalHandler::delete_wal),
             )
-            .route("/api/changes", get(sse_handler));
+            .route("/api/changes", get(sse_handler))
+            // v2 RPC style
+            .route("/api/account", post(ServiceHandler::account))
+            .route("/api/session", post(ServiceHandler::session))
+            .route("/api/vault", post(ServiceHandler::vault))
+            .route("/api/wal", post(ServiceHandler::wal));
 
         app = feature_routes(app);
         app = app.layer(cors).layer(Extension(state));

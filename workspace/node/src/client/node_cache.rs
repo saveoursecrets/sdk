@@ -160,11 +160,12 @@ pub struct NodeCache<W, P> {
     /// State of this node.
     state: NodeState,
 
+    /*
     /// The URL for a remote node.
     server: Url,
+    */
     /// Client to use for server communication.
-    signer: BoxedSigner,
-
+    client: RequestClient,
     /// Directory for the user cache.
     ///
     /// Only available when using disc backing storage.
@@ -196,7 +197,7 @@ where
 
     /// Get the signer for this node cache.
     pub fn signer(&self) -> &BoxedSigner {
-        &self.signer
+        self.client.signer()
     }
 
     /// Take a snapshot of the WAL for the given vault.
@@ -375,11 +376,7 @@ where
 
     /// Load the vault summaries from a remote node.
     pub async fn load_vaults(&mut self) -> Result<&[Summary]> {
-        let summaries = RequestClient::list_vaults(
-            self.server.clone(),
-            self.signer.clone(),
-        )
-        .await?;
+        let summaries = self.client.list_vaults().await?;
 
         self.load_caches(&summaries)?;
 
@@ -413,12 +410,7 @@ where
     /// Remove a vault.
     pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Attempt to delete on the remote server
-        let (status, _) = RequestClient::delete_wal(
-            self.server.clone(),
-            self.signer.clone(),
-            *summary.id(),
-        )
-        .await?;
+        let (status, _) = self.client.delete_wal(*summary.id()).await?;
         status
             .is_success()
             .then_some(())
@@ -487,13 +479,10 @@ where
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
-        let (status, server_proof, match_proof) = RequestClient::head_wal(
-            self.server.clone(),
-            self.signer.clone(),
-            *summary.id(),
-            Some(client_proof.clone()),
-        )
-        .await?;
+        let (status, server_proof, match_proof) = self
+            .client
+            .head_wal(*summary.id(), Some(client_proof.clone()))
+            .await?;
         status
             .is_success()
             .then_some(())
@@ -553,13 +542,8 @@ where
 
         // Send the new vault to the server
         let buffer = encode(vault)?;
-        let (status, server_proof) = RequestClient::put_vault(
-            self.server.clone(),
-            self.signer.clone(),
-            *summary.id(),
-            buffer,
-        )
-        .await?;
+        let (status, server_proof) =
+            self.client.put_vault(*summary.id(), buffer).await?;
         status
             .is_success()
             .then_some(())
@@ -645,13 +629,10 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, match_proof) = RequestClient::head_wal(
-            self.server.clone(),
-            self.signer.clone(),
-            *summary.id(),
-            Some(client_proof.clone()),
-        )
-        .await?;
+        let (status, server_proof, match_proof) = self
+            .client
+            .head_wal(*summary.id(), Some(client_proof.clone()))
+            .await?;
         status
             .is_success()
             .then_some(())
@@ -704,13 +685,8 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, _match_proof) = RequestClient::head_wal(
-            self.server.clone(),
-            self.signer.clone(),
-            *summary.id(),
-            None,
-        )
-        .await?;
+        let (status, server_proof, _match_proof) =
+            self.client.head_wal(*summary.id(), None).await?;
         status
             .is_success()
             .then_some(())
@@ -777,12 +753,11 @@ impl NodeCache<WalFile, PatchFile> {
         std::fs::create_dir_all(&user_dir)?;
 
         let snapshots = Some(SnapShotManager::new(&user_dir)?);
+        let client = RequestClient::new(server, signer);
 
         Ok(Self {
             state: Default::default(),
-            server,
-            signer,
-            //client,
+            client,
             user_dir: Some(user_dir),
             cache: Default::default(),
             mirror: true,
@@ -797,10 +772,10 @@ impl NodeCache<WalMemory, PatchMemory<'static>> {
         server: Url,
         signer: BoxedSigner,
     ) -> NodeCache<WalMemory, PatchMemory<'static>> {
+        let client = RequestClient::new(server, signer);
         Self {
             state: Default::default(),
-            server,
-            signer,
+            client,
             user_dir: None,
             cache: Default::default(),
             mirror: false,
@@ -829,19 +804,9 @@ where
         }
 
         let status = if is_account {
-            RequestClient::create_account(
-                self.server.clone(),
-                self.signer.clone(),
-                buffer,
-            )
-            .await?
+            self.client.create_account(buffer).await?
         } else {
-            let (status, _) = RequestClient::create_wal(
-                self.server.clone(),
-                self.signer.clone(),
-                buffer,
-            )
-            .await?;
+            let (status, _) = self.client.create_wal(buffer).await?;
             status
         };
 
@@ -976,13 +941,10 @@ where
             None
         };
 
-        let (status, server_proof, buffer) = RequestClient::get_wal(
-            self.server.clone(),
-            self.signer.clone(),
-            *summary.id(),
-            client_proof.clone(),
-        )
-        .await?;
+        let (status, server_proof, buffer) = self
+            .client
+            .get_wal(*summary.id(), client_proof.clone())
+            .await?;
 
         tracing::debug!(status = %status, "pull_wal");
 
@@ -1093,14 +1055,14 @@ where
 
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, match_proof) = RequestClient::patch_wal(
-            self.server.clone(),
-            self.signer.clone(),
-            *summary.id(),
-            client_proof.clone(),
-            patch.clone().into_owned(),
-        )
-        .await?;
+        let (status, server_proof, match_proof) = self
+            .client
+            .patch_wal(
+                *summary.id(),
+                client_proof.clone(),
+                patch.clone().into_owned(),
+            )
+            .await?;
 
         match status {
             StatusCode::OK => {
@@ -1269,14 +1231,10 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
         let body = std::fs::read(wal.path())?;
-        let (status, server_proof) = RequestClient::post_wal(
-            self.server.clone(),
-            self.signer.clone(),
-            *summary.id(),
-            client_proof.clone(),
-            body,
-        )
-        .await?;
+        let (status, server_proof) = self
+            .client
+            .post_wal(*summary.id(), client_proof.clone(), body)
+            .await?;
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
         status

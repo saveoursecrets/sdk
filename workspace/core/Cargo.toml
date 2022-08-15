@@ -14,11 +14,11 @@ tracing = "0.1"
 filetime = "0.2"
 rand = "0.8"
 thiserror = "1"
-web3-signature = { version = "0.2", features = ["single-party"] }
+web3-signature = { version = "0.2.5", features = ["single-party"] }
 serde = { version = "1", features = ["derive"] }
 hex = { version = "0.4", features = ["serde"] }
 serde_json = "1"
-k256 = { version = "0.10", features = ["ecdsa", "sha256", "keccak256"] }
+k256 = { version = "0.11", features = ["ecdsa", "ecdh", "sha256", "keccak256"] }
 subtle = "2.4"
 zeroize = { version = "1.4", features = ["zeroize_derive"] }
 argon2 = { version = "0.4", features = ["std"]}
@@ -33,6 +33,7 @@ secrecy = { version = "0.8", features = ["serde"] }
 tempfile = "3"
 log = "0.4"
 probly-search = "1.2"
+http = "0.2"
 
 time = { version = "0.3.13", features = ["serde", "local-offset", "formatting", "wasm-bindgen"] }
 

@@ -36,6 +36,8 @@ pub(crate) mod auth;
 pub(crate) mod sse;
 pub(crate) mod wal;
 
+pub(crate) mod service;
+
 fn append_commit_headers(
     headers: &mut HeaderMap,
     proof: &CommitProof,
@@ -62,6 +64,7 @@ fn append_match_header(
     Ok(())
 }
 
+#[deprecated]
 /// Append to the audit log.
 async fn append_audit_logs<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
@@ -75,6 +78,7 @@ async fn append_audit_logs<'a>(
     Ok(())
 }
 
+#[deprecated]
 /// Send change notifications to connected clients.
 fn send_notification<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,

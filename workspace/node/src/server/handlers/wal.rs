@@ -49,6 +49,7 @@ enum PatchResult {
 // Handlers for WAL log events.
 pub(crate) struct WalHandler;
 impl WalHandler {
+    #[deprecated]
     /// Create a WAL file.
     pub(crate) async fn put_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
@@ -115,6 +116,7 @@ impl WalHandler {
         }
     }
 
+    #[deprecated]
     /// Replace an exising vault by writing out a new WAL
     /// and the header-only vault file.
     ///
@@ -211,6 +213,7 @@ impl WalHandler {
     /// should always be the case) then it returns it's root hash in
     /// the `x-commit-hash` and a proof of the last leaf node in the
     /// `x-commit-proof` header.
+    #[deprecated]
     pub(crate) async fn get_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
@@ -315,6 +318,7 @@ impl WalHandler {
     }
 
     /// Attempt to append a series of events to a WAL file.
+    #[deprecated]
     pub(crate) async fn patch_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
@@ -511,6 +515,7 @@ impl WalHandler {
     /// WAL (to prune history and save disc space) or if they change
     /// the password for a vault which would require creating a new
     /// commit tree.
+    #[deprecated]
     pub(crate) async fn post_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
@@ -550,6 +555,7 @@ impl WalHandler {
     }
 
     /// Get the root commit and merkle proof for the WAL file.
+    #[deprecated]
     pub(crate) async fn head_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
@@ -602,6 +608,7 @@ impl WalHandler {
         }
     }
 
+    #[deprecated]
     /// Delete a WAL file.
     pub(crate) async fn delete_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
