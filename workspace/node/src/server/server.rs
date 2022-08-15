@@ -9,7 +9,7 @@ use super::{
         sse::{sse_handler, SseConnection},
         wal::WalHandler,
     },
-    headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE},
+    headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SESSION, X_SIGNED_MESSAGE},
     Backend, Result, ServerConfig,
 };
 use axum::{
@@ -148,6 +148,7 @@ impl Server {
             .allow_headers(vec![
                 AUTHORIZATION,
                 CONTENT_TYPE,
+                X_SESSION.clone(),
                 X_SIGNED_MESSAGE.clone(),
                 X_COMMIT_PROOF.clone(),
                 X_MATCH_PROOF.clone(),
