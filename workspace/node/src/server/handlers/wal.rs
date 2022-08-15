@@ -49,6 +49,7 @@ enum PatchResult {
 // Handlers for WAL log events.
 pub(crate) struct WalHandler;
 impl WalHandler {
+    #[deprecated]
     /// Create a WAL file.
     pub(crate) async fn put_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
@@ -602,6 +603,7 @@ impl WalHandler {
         }
     }
 
+    #[deprecated]
     /// Delete a WAL file.
     pub(crate) async fn delete_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,

@@ -24,8 +24,8 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     client.authenticate().await?;
 
     // Should have a valid session now
-    assert!(client.session().is_some());
-    assert!(client.session().unwrap().ready());
+    assert!(client.has_session());
+    assert!(client.is_ready()?);
 
     let vault: Vault = Default::default();
     let body = encode(&vault)?;
@@ -47,6 +47,17 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
+
+    // Verify new summaries length
+    let summaries = client.list_vaults().await?;
+    assert_eq!(2, summaries.len());
+
+    // Delete a vault
+    client.delete_vault(vault.id()).await?;
+
+    // Verify summaries length after deletion
+    let summaries = client.list_vaults().await?;
+    assert_eq!(1, summaries.len());
 
     Ok(())
 }

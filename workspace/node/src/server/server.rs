@@ -175,6 +175,7 @@ impl Server {
                     .delete(WalHandler::delete_wal),
             )
             .route("/api/changes", get(sse_handler))
+
             // v2 RPC style
             .route("/api/account", post(ServiceHandler::account))
             .route("/api/session", post(ServiceHandler::session))

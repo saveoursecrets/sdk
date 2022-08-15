@@ -87,6 +87,9 @@ mod rpc {
 
     /// Vault create method call.
     pub const VAULT_CREATE: &str = "Vault.create";
+
+    /// Vault delete method call.
+    pub const VAULT_DELETE: &str = "Vault.delete";
 }
 
 pub use extensions::*;

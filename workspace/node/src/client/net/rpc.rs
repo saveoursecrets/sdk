@@ -5,7 +5,7 @@ use sos_core::{
     commit_tree::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, X_SESSION,
+        VAULT_CREATE, VAULT_DELETE, X_SESSION,
     },
     crypto::AeadPack,
     decode, encode,
@@ -13,7 +13,13 @@ use sos_core::{
     signer::BoxedSigner,
     vault::Summary,
 };
-use std::borrow::Cow;
+use std::{
+    borrow::Cow,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        RwLock,
+    },
+};
 use url::Url;
 use uuid::Uuid;
 
@@ -94,8 +100,8 @@ pub struct RpcClient {
     server: Url,
     signer: BoxedSigner,
     client: reqwest::Client,
-    session: Option<ClientSession>,
-    id: u64,
+    session: Option<RwLock<ClientSession>>,
+    id: AtomicU64,
 }
 
 impl RpcClient {
@@ -107,7 +113,7 @@ impl RpcClient {
             signer,
             client,
             session: None,
-            id: 0,
+            id: AtomicU64::from(1),
         }
     }
 
@@ -116,15 +122,21 @@ impl RpcClient {
         &self.signer
     }
 
-    /// Get the session.
-    pub fn session(&self) -> Option<&ClientSession> {
-        self.session.as_ref()
+    /// Determine if this client has a session set.
+    pub fn has_session(&self) -> bool {
+        self.session.is_some()
+    }
+
+    /// Determine if this client's session is ready for use.
+    pub fn is_ready(&self) -> Result<bool> {
+        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+        let session = lock.read().unwrap();
+        Ok(session.ready())
     }
 
     /// Get the next request identifier.
-    fn next_id(&mut self) -> u64 {
-        self.id += 1;
-        self.id
+    fn next_id(&self) -> u64 {
+        self.id.fetch_add(1, Ordering::SeqCst)
     }
 
     /// Attempt to authenticate to the remote node and store
@@ -177,18 +189,16 @@ impl RpcClient {
 
         // Store the session for later requests
         session.finish(client_key);
-        self.session = Some(session);
+        self.session = Some(RwLock::new(session));
 
         Ok(())
     }
 
     /// Create a new account.
-    pub async fn create_account(
-        &mut self,
-        vault: Vec<u8>,
-    ) -> Result<StatusCode> {
+    pub async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
         let id = self.next_id();
-        let session = self.session.as_mut().ok_or(Error::NoSession)?;
+        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+        let mut session = lock.write().unwrap();
         session.ready().then_some(()).ok_or(Error::InvalidSession)?;
 
         let url = self.server.join("api/account")?;
@@ -196,12 +206,17 @@ impl RpcClient {
 
         let request = new_rpc_body(id, ACCOUNT_CREATE, (), vault)?;
 
-        let response =
-            session_request(&self.client, url, session_id, session, request)
-                .await?;
+        let response = session_request(
+            &self.client,
+            url,
+            session_id,
+            &mut *session,
+            request,
+        )
+        .await?;
 
         let (status, _) =
-            read_rpc_call::<()>(response, Some(session)).await?;
+            read_rpc_call::<()>(response, Some(&mut *session)).await?;
 
         // Note we need to pass the 409 conflict response back
         // to the caller
@@ -213,9 +228,10 @@ impl RpcClient {
     }
 
     /// List vaults for an account.
-    pub async fn list_vaults(&mut self) -> Result<Vec<Summary>> {
+    pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
         let id = self.next_id();
-        let session = self.session.as_mut().ok_or(Error::NoSession)?;
+        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+        let mut session = lock.write().unwrap();
         session.ready().then_some(()).ok_or(Error::InvalidSession)?;
 
         let url = self.server.join("api/account")?;
@@ -223,12 +239,18 @@ impl RpcClient {
 
         let request = new_rpc_call(id, ACCOUNT_LIST_VAULTS, ())?;
 
-        let response =
-            session_request(&self.client, url, session_id, session, request)
-                .await?;
+        let response = session_request(
+            &self.client,
+            url,
+            session_id,
+            &mut *session,
+            request,
+        )
+        .await?;
 
         let (status, result) =
-            read_rpc_call::<Vec<Summary>>(response, Some(session)).await?;
+            read_rpc_call::<Vec<Summary>>(response, Some(&mut *session))
+                .await?;
 
         status
             .is_success()
@@ -240,11 +262,12 @@ impl RpcClient {
 
     /// Create a new vault on a remote node.
     pub async fn create_vault(
-        &mut self,
+        &self,
         vault: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
         let id = self.next_id();
-        let session = self.session.as_mut().ok_or(Error::NoSession)?;
+        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+        let mut session = lock.write().unwrap();
         session.ready().then_some(()).ok_or(Error::InvalidSession)?;
 
         let url = self.server.join("api/vault")?;
@@ -252,19 +275,64 @@ impl RpcClient {
 
         let request = new_rpc_body(id, VAULT_CREATE, (), vault)?;
 
-        let response =
-            session_request(&self.client, url, session_id, session, request)
-                .await?;
+        let response = session_request(
+            &self.client,
+            url,
+            session_id,
+            &mut *session,
+            request,
+        )
+        .await?;
 
-        let (status, result) =
-            read_rpc_call::<Option<CommitProof>>(response, Some(session))
-                .await?;
+        let (status, result) = read_rpc_call::<Option<CommitProof>>(
+            response,
+            Some(&mut *session),
+        )
+        .await?;
 
         // We need to pass the 409 conflict response back
         // to the caller
         if status.is_server_error() {
             return Err(Error::ResponseCode(status.into()));
         }
+
+        Ok((status, result?))
+    }
+
+    /// Delete a vault on a remote node.
+    pub async fn delete_vault(
+        &self,
+        vault_id: &Uuid,
+    ) -> Result<(StatusCode, Option<CommitProof>)> {
+        let id = self.next_id();
+        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+        let mut session = lock.write().unwrap();
+        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
+
+        let url = self.server.join("api/vault")?;
+        let session_id = session.id().clone();
+
+        let request = new_rpc_call(id, VAULT_DELETE, vault_id)?;
+
+        let response = session_request(
+            &self.client,
+            url,
+            session_id,
+            &mut *session,
+            request,
+        )
+        .await?;
+
+        let (status, result) = read_rpc_call::<Option<CommitProof>>(
+            response,
+            Some(&mut *session),
+        )
+        .await?;
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
 
         Ok((status, result?))
     }

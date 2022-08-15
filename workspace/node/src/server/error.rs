@@ -32,6 +32,10 @@ pub enum Error {
     #[error("no vaults found")]
     NoVaults,
 
+    /// Error generated when a commit proof is expected.
+    #[error("no commit proof")]
+    NoCommitProof,
+
     /// Error generated when an account does not exist.
     #[error("account {0} does not exist")]
     AccountNotExist(AddressStr),

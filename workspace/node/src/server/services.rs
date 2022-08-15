@@ -4,13 +4,14 @@ use sos_core::{
     address::AddressStr,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
+        VAULT_CREATE, VAULT_DELETE,
     },
     crypto::AeadPack,
     decode, encode,
     events::{ChangeEvent, ChangeNotification, EventKind},
     rpc::{Packet, RequestMessage, ResponseMessage, Service},
     vault::Header,
-    AuditEvent, AuditProvider,
+    AuditData, AuditEvent, AuditProvider,
 };
 
 use async_trait::async_trait;
@@ -19,7 +20,10 @@ use tokio::sync::{RwLock, RwLockWriteGuard};
 use uuid::Uuid;
 use web3_signature::Signature;
 
-use crate::{server::State, session::EncryptedChannel};
+use crate::{
+    server::{Error, State},
+    session::EncryptedChannel,
+};
 
 /// Append to the audit log.
 async fn append_audit_logs<'a>(
@@ -246,6 +250,52 @@ impl Service for VaultService {
 
                     Ok(reply)
                 }
+            }
+            VAULT_DELETE => {
+                let vault_id = request.parameters::<Uuid>()?;
+
+                let mut writer = state.write().await;
+                let (exists, proof) = writer
+                    .backend
+                    .wal_exists(&address, &vault_id)
+                    .await
+                    .map_err(Box::from)?;
+
+                if !exists {
+                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                }
+
+                let proof =
+                    proof.ok_or(Error::NoCommitProof).map_err(Box::from)?;
+
+                writer
+                    .backend
+                    .delete_wal(&address, &vault_id)
+                    .await
+                    .map_err(Box::from)?;
+
+                let reply: ResponseMessage<'_> =
+                    (request.id(), ()).try_into()?;
+
+                let notification = ChangeNotification::new(
+                    &address,
+                    &vault_id,
+                    proof,
+                    vec![ChangeEvent::DeleteVault],
+                );
+
+                let log = AuditEvent::new(
+                    EventKind::DeleteVault,
+                    address,
+                    Some(AuditData::Vault(vault_id)),
+                );
+
+                append_audit_logs(&mut writer, vec![log])
+                    .await
+                    .map_err(Box::from)?;
+                send_notification(&mut writer, notification);
+
+                Ok(reply)
             }
             _ => Err(sos_core::Error::Message("unknown method".to_owned())),
         }
