@@ -372,30 +372,36 @@ impl Service for WalService {
                 }
             }
             WAL_SAVE => {
-                /*
+                let (vault_id, commit_proof) =
+                    request.parameters::<(Uuid, CommitProof)>()?;
+
+                let reader = state.read().await;
+                let (exists, _) = reader
+                    .backend
+                    .wal_exists(&address, &vault_id)
+                    .await
+                    .map_err(Box::from)?;
+                drop(reader);
+                if !exists {
+                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                }
 
                 let mut writer = state.write().await;
-                let proof: CommitProof = proof.into();
-
                 // TODO: better error to status code mapping
                 let server_proof = writer
                     .backend
                     .replace_wal(
-                        &token.address,
+                        &address,
                         &vault_id,
-                        proof.0.into(),
-                        body.as_ref(),
+                        commit_proof.0.into(),
+                        request.body(),
                     )
                     .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    .map_err(Box::from)?;
 
-                let mut headers = HeaderMap::new();
-                append_commit_headers(&mut headers, &server_proof)?;
-
-                Ok((StatusCode::OK, headers))
-                */
-
-                todo!()
+                let reply: ResponseMessage<'_> =
+                    (request.id(), server_proof).try_into()?;
+                Ok(reply)
             }
             _ => Err(sos_core::Error::Message("unknown method".to_owned())),
         }

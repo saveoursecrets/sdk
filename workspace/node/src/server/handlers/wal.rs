@@ -515,6 +515,7 @@ impl WalHandler {
     /// WAL (to prune history and save disc space) or if they change
     /// the password for a vault which would require creating a new
     /// commit tree.
+    #[deprecated]
     pub(crate) async fn post_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,

@@ -6,7 +6,7 @@ use sos_core::{
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
         VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_PATCH,
-        WAL_STATUS, X_SESSION,
+        WAL_SAVE, WAL_STATUS, X_SESSION,
     },
     crypto::AeadPack,
     decode, encode,
@@ -481,7 +481,7 @@ impl RpcClient {
     /// TODO: remove the Option from the server_proof ???
     pub async fn apply_patch(
         &self,
-        vault_id: Uuid,
+        vault_id: Uuid, /* WARN: must not be reference */
         proof: CommitProof,
         patch: Patch<'static>,
     ) -> Result<(StatusCode, Option<CommitProof>, Option<CommitProof>)> {
@@ -519,5 +519,40 @@ impl RpcClient {
 
         let (server_proof, match_proof) = result?;
         Ok((status, Some(server_proof), match_proof))
+    }
+
+    /* post_wal -> save_wal */
+
+    /// Replace the WAL for a vault on a remote node.
+    /// TODO: remove the Option from the return value ???
+    pub async fn save_wal(
+        &self,
+        vault_id: &Uuid,
+        proof: CommitProof,
+        body: Vec<u8>,
+    ) -> Result<(StatusCode, Option<CommitProof>)> {
+        let id = self.next_id();
+        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+        let mut session = lock.write().unwrap();
+        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
+
+        let url = self.server.join("api/wal")?;
+        let session_id = session.id().clone();
+
+        let request = new_rpc_body(id, WAL_SAVE, (vault_id, proof), body)?;
+
+        let response = session_request(
+            &self.client,
+            url,
+            session_id,
+            &mut *session,
+            request,
+        )
+        .await?;
+
+        let (status, result, _) =
+            read_rpc_call::<CommitProof>(response, Some(&mut *session))
+                .await?;
+        Ok((status, Some(result?)))
     }
 }
