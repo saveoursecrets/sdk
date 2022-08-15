@@ -5,14 +5,15 @@ use sos_core::{
     commit_tree::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_STATUS,
-        X_SESSION,
+        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_PATCH,
+        WAL_STATUS, X_SESSION,
     },
     crypto::AeadPack,
     decode, encode,
     rpc::{Packet, RequestMessage, ResponseMessage},
     signer::BoxedSigner,
     vault::Summary,
+    Patch,
 };
 use std::{
     borrow::Cow,
@@ -472,5 +473,51 @@ impl RpcClient {
 
         let (server_proof, match_proof) = result?;
         Ok((status, server_proof, match_proof))
+    }
+
+    /* patch_wal -> apply */
+
+    /// Apply a patch to the vault on a remote node.
+    /// TODO: remove the Option from the server_proof ???
+    pub async fn apply_patch(
+        &self,
+        vault_id: Uuid,
+        proof: CommitProof,
+        patch: Patch<'static>,
+    ) -> Result<(StatusCode, Option<CommitProof>, Option<CommitProof>)> {
+        let id = self.next_id();
+        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+        let mut session = lock.write().unwrap();
+        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
+
+        let url = self.server.join("api/wal")?;
+        let session_id = session.id().clone();
+
+        let body = encode(&patch)?;
+        let request = new_rpc_body(id, WAL_PATCH, (vault_id, proof), body)?;
+
+        let response = session_request(
+            &self.client,
+            url,
+            session_id,
+            &mut *session,
+            request,
+        )
+        .await?;
+
+        let (status, result, _) = read_rpc_call::<(
+            CommitProof,
+            Option<CommitProof>,
+        )>(response, Some(&mut *session))
+        .await?;
+
+        // We need to pass the 409 conflict response back
+        // to the caller
+        if status.is_server_error() {
+            return Err(Error::ResponseCode(status.into()));
+        }
+
+        let (server_proof, match_proof) = result?;
+        Ok((status, Some(server_proof), match_proof))
     }
 }

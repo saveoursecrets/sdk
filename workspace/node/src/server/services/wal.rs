@@ -372,6 +372,29 @@ impl Service for WalService {
                 }
             }
             WAL_SAVE => {
+                /*
+
+                let mut writer = state.write().await;
+                let proof: CommitProof = proof.into();
+
+                // TODO: better error to status code mapping
+                let server_proof = writer
+                    .backend
+                    .replace_wal(
+                        &token.address,
+                        &vault_id,
+                        proof.0.into(),
+                        body.as_ref(),
+                    )
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                let mut headers = HeaderMap::new();
+                append_commit_headers(&mut headers, &server_proof)?;
+
+                Ok((StatusCode::OK, headers))
+                */
+
                 todo!()
             }
             _ => Err(sos_core::Error::Message("unknown method".to_owned())),

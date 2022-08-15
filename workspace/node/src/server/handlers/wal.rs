@@ -318,6 +318,7 @@ impl WalHandler {
     }
 
     /// Attempt to append a series of events to a WAL file.
+    #[deprecated]
     pub(crate) async fn patch_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
