@@ -62,7 +62,7 @@ pub mod file {
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
     use crate::client::{
-        net::RequestClient, node_cache::NodeCache, Error, Result,
+        node_cache::NodeCache, Error, Result,
     };
     use secrecy::SecretString;
     use sos_core::{
@@ -122,15 +122,25 @@ pub mod memory {
             Arc::clone(&self.cache)
         }
 
+        /// Authenticate for a session.
+        pub fn authenticate(
+            cache: MemoryCache,
+        ) -> impl Future<Output = Result<()>> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                let vaults = writer.authenticate().await?;
+                Ok::<(), Error>(())
+            }
+        }
+
         /// Create an account.
         pub fn create_account(
-            server: Url,
-            signer: BoxedSigner,
+            cache: MemoryCache,
             buffer: Vec<u8>,
         ) -> impl Future<Output = Result<u16>> + 'static {
             async move {
-                let client = RequestClient::new(server, signer);
-                let status = client.create_account(buffer).await?;
+                let mut writer = cache.write().unwrap();
+                let status = writer.client().create_account(buffer).await?;
                 Ok(status.into())
             }
         }

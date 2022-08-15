@@ -195,6 +195,11 @@ where
         self.client.signer()
     }
 
+    /// Get the client.
+    pub fn client(&self) -> &RpcClient {
+        &self.client
+    }
+
     /// Attempt to open an authenticated, encrypted session.
     ///
     /// Must be called before using any other methods that
