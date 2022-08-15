@@ -1,15 +1,10 @@
 use super::{
-    authenticate::Authentication,
     handlers::{
-        account::AccountHandler,
-        api,
-        auth::AuthHandler,
-        home,
+        api, home,
         service::ServiceHandler,
         sse::{sse_handler, SseConnection},
-        wal::WalHandler,
     },
-    headers::{X_COMMIT_PROOF, X_MATCH_PROOF, X_SESSION, X_SIGNED_MESSAGE},
+    headers::X_SESSION,
     Backend, Result, ServerConfig,
 };
 use axum::{
@@ -18,7 +13,7 @@ use axum::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
     },
-    routing::{get, post, put},
+    routing::{get, post},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
@@ -38,8 +33,6 @@ pub struct State {
     pub info: ServerInfo,
     /// Storage backend.
     pub backend: Box<dyn Backend + Send + Sync>,
-    /// Collection of challenges for authentication
-    pub authentication: Authentication,
     /// Audit log file
     pub audit_log: AuditLogFile,
     /// Map of server sent event channels by authenticated
@@ -137,11 +130,11 @@ impl Server {
     ) -> Result<Router> {
         let cors = CorsLayer::new()
             .allow_methods(vec![
-                Method::PUT,
+                //Method::PUT,
                 Method::GET,
                 Method::POST,
-                Method::DELETE,
-                Method::PATCH,
+                //Method::DELETE,
+                //Method::PATCH,
             ])
             // For SSE support must allow credentials
             .allow_credentials(true)
@@ -149,34 +142,17 @@ impl Server {
                 AUTHORIZATION,
                 CONTENT_TYPE,
                 X_SESSION.clone(),
-                X_SIGNED_MESSAGE.clone(),
-                X_COMMIT_PROOF.clone(),
-                X_MATCH_PROOF.clone(),
+                //X_SIGNED_MESSAGE.clone(),
+                //X_COMMIT_PROOF.clone(),
+                //X_MATCH_PROOF.clone(),
             ])
-            .expose_headers(vec![
-                X_COMMIT_PROOF.clone(),
-                X_MATCH_PROOF.clone(),
-            ])
+            .expose_headers(vec![])
             .allow_origin(Origin::list(origins));
 
         let mut app = Router::new()
             .route("/", get(home))
             .route("/api", get(api))
-            .route("/api/auth", get(AuthHandler::challenge))
-            .route("/api/auth/:uuid", get(AuthHandler::response))
-            .route("/api/accounts", put(AccountHandler::put_account))
-            .route("/api/vaults", put(WalHandler::put_wal))
-            .route(
-                "/api/vaults/:vault_id",
-                get(WalHandler::get_wal)
-                    .head(WalHandler::head_wal)
-                    .post(WalHandler::post_wal)
-                    .put(WalHandler::put_vault)
-                    .patch(WalHandler::patch_wal)
-                    .delete(WalHandler::delete_wal),
-            )
             .route("/api/changes", get(sse_handler))
-            // v2 RPC style
             .route("/api/account", post(ServiceHandler::account))
             .route("/api/session", post(ServiceHandler::session))
             .route("/api/vault", post(ServiceHandler::vault))

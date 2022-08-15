@@ -1,17 +1,10 @@
-//! Authentication helper functions and types for the authentication challenge and response.
-use serde::Deserialize;
-use sha3::{Digest, Keccak256};
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-    time::SystemTime,
-};
-use uuid::Uuid;
-
+//! Authentication helper functions for extracting an address
+//! from a signature given in bearer authorization data.
 use axum::{
     headers::{authorization::Bearer, Authorization},
     http::StatusCode,
 };
+use serde::Deserialize;
 
 use sos_core::{address::AddressStr, decode, signer::BinarySignature};
 
@@ -33,10 +26,6 @@ impl SignedQuery {
     }
 }
 
-#[deprecated]
-type Challenge = [u8; 32];
-
-#[deprecated]
 #[derive(Debug)]
 pub struct BearerToken {
     //public_key: [u8; 33],
@@ -84,7 +73,6 @@ impl BearerToken {
 ///
 /// The signature is then converted to a recoverable signature and the public
 /// key is extracted using the body bytes as the message that has been signed.
-#[deprecated]
 pub fn bearer<B>(
     authorization: Authorization<Bearer>,
     body: B,
@@ -93,43 +81,4 @@ where
     B: AsRef<[u8]>,
 {
     BearerToken::new(authorization.token(), body.as_ref())
-}
-
-/// Encapsulates a collection of authentication challenges.
-#[deprecated]
-#[derive(Debug)]
-pub struct Authentication {
-    challenges: Arc<RwLock<HashMap<Uuid, (Challenge, SystemTime)>>>,
-}
-
-impl Default for Authentication {
-    fn default() -> Self {
-        Self {
-            challenges: Arc::new(RwLock::new(Default::default())),
-        }
-    }
-}
-
-impl Authentication {
-    /// Create a new challenge.
-    ///
-    /// A challenge is a v4 UUID that identifies the challenge
-    /// and a message that must be signed to authenticate.
-    ///
-    /// The message is a keccak256 digest of the UUID.
-    pub fn new_challenge(&mut self) -> (Uuid, Challenge) {
-        let now = SystemTime::now();
-        let id = Uuid::new_v4();
-        let challenge: [u8; 32] =
-            Keccak256::digest(id.as_bytes()).try_into().unwrap();
-        let mut writer = self.challenges.write().unwrap();
-        writer.entry(id).or_insert((challenge, now));
-        (id, challenge)
-    }
-
-    /// Remove and return a challenge.
-    pub fn remove(&mut self, uuid: &Uuid) -> Option<(Challenge, SystemTime)> {
-        let mut writer = self.challenges.write().unwrap();
-        writer.remove(uuid)
-    }
 }

@@ -1,9 +1,7 @@
 use clap::Parser;
 
 use sos_core::{AuditLogFile, FileLocks};
-use sos_node::server::{
-    Authentication, Result, Server, ServerConfig, ServerInfo, State,
-};
+use sos_node::server::{Result, Server, ServerConfig, ServerInfo, State};
 
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
@@ -44,7 +42,6 @@ async fn run() -> Result<()> {
 
     //println!("Config {:#?}", config);
 
-    let authentication: Authentication = Default::default();
     let mut backend = config.backend().await?;
 
     let audit_log_file =
@@ -64,7 +61,6 @@ async fn run() -> Result<()> {
         info: ServerInfo { name, version },
         config,
         backend,
-        authentication,
         audit_log,
         sse: Default::default(),
         sessions: Default::default(),

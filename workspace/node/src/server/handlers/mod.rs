@@ -31,12 +31,8 @@ use sos_core::{
     AuditProvider,
 };
 
-pub(crate) mod account;
-pub(crate) mod auth;
-pub(crate) mod sse;
-pub(crate) mod wal;
-
 pub(crate) mod service;
+pub(crate) mod sse;
 
 fn append_commit_headers(
     headers: &mut HeaderMap,
