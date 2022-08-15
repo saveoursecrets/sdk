@@ -88,6 +88,9 @@ mod rpc {
     /// Vault create method call.
     pub const VAULT_CREATE: &str = "Vault.create";
 
+    /// Vault save method call.
+    pub const VAULT_SAVE: &str = "Vault.save";
+
     /// Vault delete method call.
     pub const VAULT_DELETE: &str = "Vault.delete";
 }

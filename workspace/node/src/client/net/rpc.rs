@@ -5,7 +5,7 @@ use sos_core::{
     commit_tree::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, VAULT_DELETE, X_SESSION,
+        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, X_SESSION,
     },
     crypto::AeadPack,
     decode, encode,
@@ -260,6 +260,8 @@ impl RpcClient {
         Ok(result?)
     }
 
+    /* create_wal -> create_vault */
+
     /// Create a new vault on a remote node.
     pub async fn create_vault(
         &self,
@@ -299,6 +301,8 @@ impl RpcClient {
         Ok((status, result?))
     }
 
+    /* delete_wal -> delete_vault */
+
     /// Delete a vault on a remote node.
     pub async fn delete_vault(
         &self,
@@ -333,6 +337,52 @@ impl RpcClient {
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
+
+        Ok((status, result?))
+    }
+
+    /* put_vault -> save_vault */
+
+    /// Update an existing vault.
+    ///
+    /// This should be used when the commit tree has been
+    /// rewritten, for example if the history was compacted
+    /// or the password for a vault was changed.
+    pub async fn save_vault(
+        &self,
+        vault_id: &Uuid,
+        vault: Vec<u8>,
+    ) -> Result<(StatusCode, Option<CommitProof>)> {
+        let id = self.next_id();
+        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+        let mut session = lock.write().unwrap();
+        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
+
+        let url = self.server.join("api/vault")?;
+        let session_id = session.id().clone();
+
+        let request = new_rpc_body(id, VAULT_SAVE, vault_id, vault)?;
+
+        let response = session_request(
+            &self.client,
+            url,
+            session_id,
+            &mut *session,
+            request,
+        )
+        .await?;
+
+        let (status, result) = read_rpc_call::<Option<CommitProof>>(
+            response,
+            Some(&mut *session),
+        )
+        .await?;
+
+        // We need to pass the 409 conflict response back
+        // to the caller
+        if status.is_server_error() {
+            return Err(Error::ResponseCode(status.into()));
+        }
 
         Ok((status, result?))
     }

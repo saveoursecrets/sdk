@@ -48,16 +48,34 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 
+    // Update and save a vault
+    let name = "New vault name";
+    vault.set_name(String::from(name));
+    let body = encode(&vault)?;
+    let (status, proof) = client.save_vault(vault.id(), body).await?;
+    assert_eq!(StatusCode::OK, status);
+    assert!(proof.is_some());
+
     // Verify new summaries length
     let summaries = client.list_vaults().await?;
     assert_eq!(2, summaries.len());
 
+    // Check the list of summaries includes one with the updated name
+    let new_vault_summary = summaries.iter().find(|s| s.name() == name);
+    assert!(new_vault_summary.is_some());
+
     // Delete a vault
-    client.delete_vault(vault.id()).await?;
+    let (status, proof) = client.delete_vault(vault.id()).await?;
+    assert_eq!(StatusCode::OK, status);
+    assert!(proof.is_some());
 
     // Verify summaries length after deletion
     let summaries = client.list_vaults().await?;
     assert_eq!(1, summaries.len());
+
+    // Check it was the right vault that was deleted
+    let del_vault_summary = summaries.iter().find(|s| s.id() == vault.id());
+    assert!(del_vault_summary.is_none());
 
     Ok(())
 }

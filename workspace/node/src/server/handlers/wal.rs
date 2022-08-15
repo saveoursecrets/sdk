@@ -116,6 +116,7 @@ impl WalHandler {
         }
     }
 
+    #[deprecated]
     /// Replace an exising vault by writing out a new WAL
     /// and the header-only vault file.
     ///

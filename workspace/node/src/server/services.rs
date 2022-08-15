@@ -4,7 +4,7 @@ use sos_core::{
     address::AddressStr,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, VAULT_DELETE,
+        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
     },
     crypto::AeadPack,
     decode, encode,
@@ -275,7 +275,7 @@ impl Service for VaultService {
                     .map_err(Box::from)?;
 
                 let reply: ResponseMessage<'_> =
-                    (request.id(), ()).try_into()?;
+                    (request.id(), &proof).try_into()?;
 
                 let notification = ChangeNotification::new(
                     &address,
@@ -288,6 +288,59 @@ impl Service for VaultService {
                     EventKind::DeleteVault,
                     address,
                     Some(AuditData::Vault(vault_id)),
+                );
+
+                append_audit_logs(&mut writer, vec![log])
+                    .await
+                    .map_err(Box::from)?;
+                send_notification(&mut writer, notification);
+
+                Ok(reply)
+            }
+            VAULT_SAVE => {
+                let vault_id = request.parameters::<Uuid>()?;
+
+                // Check it looks like a vault payload
+                let summary = Header::read_summary_slice(request.body())?;
+
+                if &vault_id != summary.id() {
+                    return Ok((StatusCode::BAD_REQUEST, request.id()).into());
+                }
+
+                let reader = state.read().await;
+                let (exists, _) = reader
+                    .backend
+                    .wal_exists(&address, summary.id())
+                    .await
+                    .map_err(Box::from)?;
+
+                drop(reader);
+
+                if !exists {
+                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                }
+
+                let mut writer = state.write().await;
+                let (sync_event, proof) = writer
+                    .backend
+                    .set_vault(&address, request.body())
+                    .await
+                    .map_err(Box::from)?;
+
+                let reply: ResponseMessage<'_> =
+                    (request.id(), Some(&proof)).try_into()?;
+
+                let notification = ChangeNotification::new(
+                    &address,
+                    summary.id(),
+                    proof,
+                    vec![ChangeEvent::UpdateVault],
+                );
+
+                let log = AuditEvent::from_sync_event(
+                    &sync_event,
+                    address,
+                    *summary.id(),
                 );
 
                 append_audit_logs(&mut writer, vec![log])
