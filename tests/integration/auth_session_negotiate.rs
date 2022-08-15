@@ -87,7 +87,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     assert!(buffer.unwrap().len() > 4);
 
     // Get the status of a remote vault
-    let (status, server_proof, match_proof) =
+    let (status, _server_proof, match_proof) =
         client.status(login.id(), None).await?;
     assert_eq!(StatusCode::OK, status);
     assert!(match_proof.is_none());
