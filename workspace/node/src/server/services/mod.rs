@@ -89,10 +89,10 @@ pub(crate) async fn private_service(
     session_id: &Uuid,
     body: Bytes,
 ) -> Result<(StatusCode, Bytes), StatusCode> {
-    let reader = state.read().await;
-    let session = reader
+    let mut writer = state.write().await;
+    let session = writer
         .sessions
-        .get(session_id)
+        .get_mut(session_id)
         .ok_or(StatusCode::UNAUTHORIZED)?;
     session
         .valid()
@@ -103,12 +103,11 @@ pub(crate) async fn private_service(
     let aead: AeadPack =
         decode(&body).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // FIXME: check nonce is not equal to or behind last used nonce
-
+    session.set_nonce(&aead.nonce);
     let body = session
         .decrypt(&aead)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    drop(reader);
+    drop(writer);
 
     let packet: Packet<'_> =
         decode(&body).map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -138,6 +137,7 @@ pub(crate) async fn private_service(
     let aead = session
         .encrypt(&body)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     let body =
         encode(&aead).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok((status, Bytes::from(body)))

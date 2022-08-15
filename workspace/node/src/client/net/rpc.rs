@@ -56,28 +56,6 @@ fn new_rpc_body<T: Serialize>(
     Ok(body)
 }
 
-/// Read a response to an RPC call.
-async fn read_rpc_call<T: DeserializeOwned>(
-    response: reqwest::Response,
-    session: Option<&mut ClientSession>,
-) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
-    let buffer = response.bytes().await?;
-
-    let buffer = if let Some(session) = session {
-        let aead: AeadPack = decode(&buffer)?;
-        session.decrypt(&aead)?
-    } else {
-        buffer.to_vec()
-    };
-
-    let reply: Packet<'static> = decode(&buffer)?;
-    let response: ResponseMessage<'static> = reply.try_into()?;
-    let (_, status, result, body) = response.take::<T>()?;
-    let result = result.ok_or(Error::NoReturnValue)?;
-
-    Ok((status, result, body))
-}
-
 /// Make an encrypted session request.
 async fn session_request(
     client: &reqwest::Client,
@@ -160,9 +138,10 @@ impl RpcClient {
             .then_some(())
             .ok_or(Error::ResponseCode(response.status().into()))?;
 
-        let (_status, result, _) =
-            read_rpc_call::<(Uuid, [u8; 16], Vec<u8>)>(response, None)
-                .await?;
+        let (_status, result, _) = self
+            .read_response::<(Uuid, [u8; 16], Vec<u8>)>(
+                &response.bytes().await?,
+            )?;
         let result = result?;
 
         let (session_id, challenge, public_key) = result;
@@ -188,7 +167,7 @@ impl RpcClient {
 
         // Check we got a success response; no error indicates success
         let (_status, result, _) =
-            read_rpc_call::<()>(response, None).await?;
+            self.read_response::<()>(&response.bytes().await?)?;
         let _result = result?;
 
         // Store the session for later requests
@@ -488,6 +467,18 @@ impl RpcClient {
         Ok(response)
     }
 
+    /// Read a response that is not encrypted.
+    fn read_response<T: DeserializeOwned>(
+        &self,
+        buffer: &[u8],
+    ) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
+        let reply: Packet<'static> = decode(&buffer)?;
+        let response: ResponseMessage<'static> = reply.try_into()?;
+        let (_, status, result, body) = response.take::<T>()?;
+        let result = result.ok_or(Error::NoReturnValue)?;
+        Ok((status, result, body))
+    }
+
     /// Read an encrypted response to an RPC call.
     fn read_encrypted_response<T: DeserializeOwned>(
         &self,
@@ -498,6 +489,7 @@ impl RpcClient {
         session.ready().then_some(()).ok_or(Error::InvalidSession)?;
 
         let aead: AeadPack = decode(buffer)?;
+        session.set_nonce(&aead.nonce);
         let buffer = session.decrypt(&aead)?;
         let reply: Packet<'static> = decode(&buffer)?;
         let response: ResponseMessage<'static> = reply.try_into()?;

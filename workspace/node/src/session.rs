@@ -105,9 +105,6 @@ pub struct ServerSession {
     secret: EphemeralSecret,
     /// Derived private key for symmetric encryption.
     private: Option<SecretKey>,
-
-    // FIXME: SERVER MUST INCREMENT THE INCOMING MESSAGE NONCE
-    // FIXME: FOR REPLIES
     /// Number once for session messages.
     nonce: U192,
 }
@@ -117,6 +114,7 @@ impl ServerSession {
     pub fn new(identity: AddressStr) -> Self {
         let rng = &mut rand::thread_rng();
         let challenge: [u8; 16] = rng.gen();
+
         Self {
             identity,
             challenge,
@@ -161,6 +159,17 @@ impl ServerSession {
         Ok(())
     }
 
+    /// Update this session to have the given nonce.
+    pub fn set_nonce(&mut self, nonce: &Nonce) {
+        let bytes = match nonce {
+            Nonce::Nonce24(bytes) => *bytes,
+            _ => unreachable!("session got invalid nonce kind"),
+        };
+
+        let nonce = U192::from_be_bytes(bytes);
+        self.nonce = nonce;
+    }
+
     /// Determine if this session is still valid.
     pub fn valid(&self) -> bool {
         self.ready() && (Instant::now() < self.expires)
@@ -175,7 +184,7 @@ impl EncryptedChannel for ServerSession {
     fn next_nonce(&mut self) -> Result<Nonce> {
         let one = U192::from(1u8);
         self.nonce = self.nonce.checked_add(&one).unwrap();
-        let nonce = Nonce::Nonce24(self.nonce.to_le_bytes());
+        let nonce = Nonce::Nonce24(self.nonce.to_be_bytes());
         Ok(nonce)
     }
 }
@@ -232,6 +241,17 @@ impl ClientSession {
         public_key_bytes.as_ref().to_vec()
     }
 
+    /// Update this session to have the given nonce.
+    pub fn set_nonce(&mut self, nonce: &Nonce) {
+        let bytes = match nonce {
+            Nonce::Nonce24(bytes) => *bytes,
+            _ => unreachable!("session got invalid nonce kind"),
+        };
+
+        let nonce = U192::from_be_bytes(bytes);
+        self.nonce = nonce;
+    }
+
     /// Complete the session negotiation.
     pub fn finish(&mut self, key: SecretKey) {
         self.private = Some(key);
@@ -246,7 +266,7 @@ impl EncryptedChannel for ClientSession {
     fn next_nonce(&mut self) -> Result<Nonce> {
         let one = U192::from(1u8);
         self.nonce = self.nonce.checked_add(&one).unwrap();
-        let nonce = Nonce::Nonce24(self.nonce.to_le_bytes());
+        let nonce = Nonce::Nonce24(self.nonce.to_be_bytes());
         Ok(nonce)
     }
 }
@@ -307,6 +327,8 @@ mod test {
             .sign(&server_public_key, server_session.challenge())
             .await?;
 
+        assert_eq!(U192::from(0u8), client_session.nonce);
+
         // Send the session id, signature and client public key
         // bytes to the server which computes it's shared secret
         // ...
@@ -316,41 +338,51 @@ mod test {
 
         client_session.finish(client_key);
 
+        assert_eq!(U192::from(0u8), server_session.nonce);
+
         // Encrypt on the client, send to the server and
         // decrypt on the server
         let message = b"client sent message";
         let aead = client_session.encrypt(message)?;
+        server_session.set_nonce(&aead.nonce);
         let bytes = server_session.decrypt(&aead)?;
 
         assert_eq!(message.as_ref(), &bytes);
         assert_eq!(U192::from(1u8), client_session.nonce);
+        assert_eq!(U192::from(1u8), server_session.nonce);
 
         // Encrypt on the server, send to the client and
         // decrypt on the client
         let message = b"server sent message";
         let aead = server_session.encrypt(message)?;
+        client_session.set_nonce(&aead.nonce);
         let bytes = client_session.decrypt(&aead)?;
 
         assert_eq!(message.as_ref(), &bytes);
-        assert_eq!(U192::from(1u8), server_session.nonce);
+        assert_eq!(U192::from(2u8), client_session.nonce);
+        assert_eq!(U192::from(2u8), server_session.nonce);
 
         // Encrypt on the client, send to the server and
         // decrypt on the server
         let message = b"client sent message with another nonce";
         let aead = client_session.encrypt(message)?;
+        server_session.set_nonce(&aead.nonce);
         let bytes = server_session.decrypt(&aead)?;
 
         assert_eq!(message.as_ref(), &bytes);
-        assert_eq!(U192::from(2u8), client_session.nonce);
+        assert_eq!(U192::from(3u8), client_session.nonce);
+        assert_eq!(U192::from(3u8), server_session.nonce);
 
         // Encrypt on the server, send to the client and
         // decrypt on the client
         let message = b"server sent message with another nonce";
         let aead = server_session.encrypt(message)?;
+        client_session.set_nonce(&aead.nonce);
         let bytes = client_session.decrypt(&aead)?;
 
         assert_eq!(message.as_ref(), &bytes);
-        assert_eq!(U192::from(2u8), server_session.nonce);
+        assert_eq!(U192::from(4u8), client_session.nonce);
+        assert_eq!(U192::from(4u8), server_session.nonce);
 
         Ok(())
     }
