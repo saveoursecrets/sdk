@@ -5,7 +5,7 @@ use crate::test_utils::*;
 
 use http::StatusCode;
 use sos_core::{encode, vault::Vault};
-use sos_node::{client::net::RpcClient};
+use sos_node::client::net::RpcClient;
 
 #[tokio::test]
 #[serial]
@@ -85,6 +85,12 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     assert!(proof.is_some());
     assert!(buffer.is_some());
     assert!(buffer.unwrap().len() > 4);
+
+    // Get the status of a remote vault
+    let (status, server_proof, match_proof) =
+        client.status(login.id(), None).await?;
+    assert_eq!(StatusCode::OK, status);
+    assert!(match_proof.is_none());
 
     Ok(())
 }

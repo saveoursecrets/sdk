@@ -480,7 +480,51 @@ impl Service for WalService {
                 }
             }
             WAL_STATUS => {
-                todo!()
+                let (vault_id, commit_proof) =
+                    request.parameters::<(Uuid, Option<CommitProof>)>()?;
+
+                let reader = state.read().await;
+
+                let (exists, _) = reader
+                    .backend
+                    .wal_exists(&address, &vault_id)
+                    .await
+                    .map_err(Box::from)?;
+
+                if !exists {
+                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                }
+
+                let wal = reader
+                    .backend
+                    .wal_read(&address, &vault_id)
+                    .await
+                    .map_err(Box::from)?;
+
+                let proof = wal.tree().head().map_err(Box::from)?;
+
+                let match_proof = if let Some(client_proof) = commit_proof {
+                    let comparison = wal
+                        .tree()
+                        .compare(client_proof)
+                        .map_err(Box::from)?;
+                    match comparison {
+                        Comparison::Contains(indices, _leaves) => {
+                            let match_proof = wal
+                                .tree()
+                                .proof(&indices)
+                                .map_err(Box::from)?;
+                            Some(match_proof)
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+
+                let reply: ResponseMessage<'_> =
+                    (request.id(), (proof, match_proof)).try_into()?;
+                Ok(reply)
             }
             WAL_PATCH => {
                 todo!()

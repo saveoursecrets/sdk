@@ -5,7 +5,8 @@ use sos_core::{
     commit_tree::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, X_SESSION,
+        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_STATUS,
+        X_SESSION,
     },
     crypto::AeadPack,
     decode, encode,
@@ -429,5 +430,47 @@ impl RpcClient {
         }
 
         Ok((status, result?, Some(body)))
+    }
+
+    /* head_wal -> status */
+
+    /// Get the commit proof of a vault on a remote node.
+    pub async fn status(
+        &self,
+        vault_id: &Uuid,
+        proof: Option<CommitProof>,
+    ) -> Result<(StatusCode, CommitProof, Option<CommitProof>)> {
+        let id = self.next_id();
+        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+        let mut session = lock.write().unwrap();
+        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
+
+        let url = self.server.join("api/wal")?;
+        let session_id = session.id().clone();
+
+        let request = new_rpc_call(id, WAL_STATUS, (vault_id, proof))?;
+
+        let response = session_request(
+            &self.client,
+            url,
+            session_id,
+            &mut *session,
+            request,
+        )
+        .await?;
+
+        let (status, result, _) = read_rpc_call::<(
+            CommitProof,
+            Option<CommitProof>,
+        )>(response, Some(&mut *session))
+        .await?;
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
+        let (server_proof, match_proof) = result?;
+        Ok((status, server_proof, match_proof))
     }
 }

@@ -553,6 +553,7 @@ impl WalHandler {
     }
 
     /// Get the root commit and merkle proof for the WAL file.
+    #[deprecated]
     pub(crate) async fn head_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
