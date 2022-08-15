@@ -73,17 +73,20 @@ mod mime {
 }
 
 mod rpc {
+    /// Session offer method call.
+    pub const SESSION_OFFER: &str = "Session.offer";
+
+    /// Session verify method call.
+    pub const SESSION_VERIFY: &str = "Session.verify";
+
     /// Account create method call.
     pub const ACCOUNT_CREATE: &str = "Account.create";
 
     /// Account list vaults method call.
     pub const ACCOUNT_LIST_VAULTS: &str = "Account.list_vaults";
 
-    /// Session offer method call.
-    pub const SESSION_OFFER: &str = "Session.offer";
-
-    /// Session verify method call.
-    pub const SESSION_VERIFY: &str = "Session.verify";
+    /// Vault create method call.
+    pub const VAULT_CREATE: &str = "Vault.create";
 }
 
 pub use extensions::*;

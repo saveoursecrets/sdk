@@ -5,7 +5,7 @@ use super::{
         api,
         auth::AuthHandler,
         home,
-        session::SessionHandler,
+        service::ServiceHandler,
         sse::{sse_handler, SseConnection},
         wal::WalHandler,
     },
@@ -176,8 +176,9 @@ impl Server {
             )
             .route("/api/changes", get(sse_handler))
             // v2 RPC style
-            .route("/api/account", post(AccountHandler::post))
-            .route("/api/session", post(SessionHandler::post));
+            .route("/api/account", post(ServiceHandler::account))
+            .route("/api/session", post(ServiceHandler::session))
+            .route("/api/vault", post(ServiceHandler::vault));
 
         app = feature_routes(app);
         app = app.layer(cors).layer(Extension(state));

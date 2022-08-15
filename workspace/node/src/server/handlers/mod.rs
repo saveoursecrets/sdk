@@ -36,7 +36,7 @@ pub(crate) mod auth;
 pub(crate) mod sse;
 pub(crate) mod wal;
 
-pub(crate) mod session;
+pub(crate) mod service;
 
 fn append_commit_headers(
     headers: &mut HeaderMap,

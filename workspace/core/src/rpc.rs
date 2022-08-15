@@ -391,6 +391,8 @@ impl From<Error> for ResponseMessage<'_> {
     }
 }
 
+// NOTE: if we put the id first the compiler complains about a conflict
+// NOTE: with a TryFrom implementation
 impl From<(StatusCode, Option<u64>)> for ResponseMessage<'_> {
     fn from(value: (StatusCode, Option<u64>)) -> Self {
         let message = value
@@ -405,6 +407,18 @@ impl From<(StatusCode, Option<u64>)> for ResponseMessage<'_> {
             Some(Err(Error::Message(message))),
         )
         .expect("failed to encode error response message")
+    }
+}
+
+impl<'a, T: Serialize> TryFrom<(StatusCode, Option<u64>, T)>
+    for ResponseMessage<'a>
+{
+    type Error = Error;
+
+    fn try_from(value: (StatusCode, Option<u64>, T)) -> Result<Self> {
+        let reply =
+            ResponseMessage::new_reply(value.1, value.0, Some(Ok(value.1)))?;
+        Ok(reply)
     }
 }
 

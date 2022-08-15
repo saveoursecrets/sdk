@@ -181,6 +181,77 @@ impl Service for AccountService {
     }
 }
 
+/// Vault management service.
+///
+/// * `Vault.create`: Create a new vault.
+///
+pub struct VaultService;
+
+#[async_trait]
+impl Service for VaultService {
+    type State = (AddressStr, Arc<RwLock<State>>);
+
+    async fn handle<'a>(
+        &self,
+        state: Self::State,
+        request: RequestMessage<'a>,
+    ) -> sos_core::Result<ResponseMessage<'a>> {
+        let (address, state) = state;
+
+        match request.method() {
+            VAULT_CREATE => {
+                // Check it looks like a vault payload
+                let summary = Header::read_summary_slice(request.body())?;
+
+                let reader = state.read().await;
+                let (exists, proof) = reader
+                    .backend
+                    .wal_exists(&address, summary.id())
+                    .await
+                    .map_err(Box::from)?;
+                drop(reader);
+
+                if exists {
+                    // Send commit proof back with conflict response
+                    Ok((StatusCode::CONFLICT, request.id(), proof)
+                        .try_into()?)
+                } else {
+                    let mut writer = state.write().await;
+                    let (sync_event, proof) = writer
+                        .backend
+                        .create_wal(&address, summary.id(), request.body())
+                        .await
+                        .map_err(Box::from)?;
+
+                    let reply: ResponseMessage<'_> =
+                        (request.id(), Some(&proof)).try_into()?;
+
+                    let notification = ChangeNotification::new(
+                        &address,
+                        summary.id(),
+                        proof,
+                        vec![ChangeEvent::CreateVault],
+                    );
+
+                    let log = AuditEvent::from_sync_event(
+                        &sync_event,
+                        address,
+                        *summary.id(),
+                    );
+
+                    append_audit_logs(&mut writer, vec![log])
+                        .await
+                        .map_err(Box::from)?;
+                    send_notification(&mut writer, notification);
+
+                    Ok(reply)
+                }
+            }
+            _ => Err(sos_core::Error::Message("unknown method".to_owned())),
+        }
+    }
+}
+
 /// Execute a request message in the context of a service
 /// that does not require session authentication.
 pub(crate) async fn public_service(

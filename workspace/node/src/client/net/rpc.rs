@@ -2,9 +2,10 @@
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use sos_core::{
+    commit_tree::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
-        X_SESSION,
+        VAULT_CREATE, X_SESSION,
     },
     crypto::AeadPack,
     decode, encode,
@@ -235,5 +236,36 @@ impl RpcClient {
             .ok_or(Error::ResponseCode(status.into()))?;
 
         Ok(result?)
+    }
+
+    /// Create a new vault on a remote node.
+    pub async fn create_vault(
+        &mut self,
+        vault: Vec<u8>,
+    ) -> Result<(StatusCode, Option<CommitProof>)> {
+        let id = self.next_id();
+        let session = self.session.as_mut().ok_or(Error::NoSession)?;
+        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
+
+        let url = self.server.join("api/vault")?;
+        let session_id = session.id().clone();
+
+        let request = new_rpc_body(id, VAULT_CREATE, (), vault)?;
+
+        let response =
+            session_request(&self.client, url, session_id, session, request)
+                .await?;
+
+        let (status, result) =
+            read_rpc_call::<Option<CommitProof>>(response, Some(session))
+                .await?;
+
+        // We need to pass the 409 conflict response back
+        // to the caller
+        if status.is_server_error() {
+            return Err(Error::ResponseCode(status.into()));
+        }
+
+        Ok((status, result?))
     }
 }

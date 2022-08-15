@@ -39,5 +39,14 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     // New account with a single vault
     assert_eq!(1, summaries.len());
 
+    let mut vault: Vault = Default::default();
+    vault.set_name(String::from("Mock vault"));
+    let body = encode(&vault)?;
+
+    let (status, proof) = client.create_vault(body).await?;
+
+    assert_eq!(StatusCode::OK, status);
+    assert!(proof.is_some());
+
     Ok(())
 }
