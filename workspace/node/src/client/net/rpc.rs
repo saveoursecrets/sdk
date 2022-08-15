@@ -5,7 +5,7 @@ use sos_core::{
     commit_tree::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, X_SESSION,
+        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, X_SESSION, WAL_LOAD, WAL_PATCH, WAL_SAVE,
     },
     crypto::AeadPack,
     decode, encode,
@@ -385,5 +385,43 @@ impl RpcClient {
         }
 
         Ok((status, result?))
+    }
+
+    /* get_wal -> load_wal */
+
+    /// Get the WAL bytes for a vault.
+    pub async fn load_wal(
+        &self,
+        vault_id: &Uuid,
+        proof: Option<CommitProof>,
+    ) -> Result<(StatusCode, Option<CommitProof>, Option<Vec<u8>>)> {
+
+        todo!()
+
+        /*
+        let url = self.server.join(&format!("api/vaults/{}", vault_id))?;
+        let (message, signature) = self_signed(&self.signer).await?;
+        let mut builder = self
+            .client
+            .get(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(X_SIGNED_MESSAGE, bs58::encode(&message).into_string());
+
+        if let Some(proof) = &proof {
+            builder = encode_headers_proof(builder, proof)?;
+        }
+
+        let response = builder.send().await?;
+        let headers = response.headers();
+        let server_proof = decode_headers_proof(headers)?;
+        let status_code: u16 = response.status().into();
+        let buffer = if response.status().is_success() {
+            Some(response.bytes().await?.to_vec())
+        } else {
+            None
+        };
+
+        Ok((StatusCode::from_u16(status_code)?, server_proof, buffer))
+        */
     }
 }

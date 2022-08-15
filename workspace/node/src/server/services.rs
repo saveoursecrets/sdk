@@ -4,7 +4,7 @@ use sos_core::{
     address::AddressStr,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
+        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_PATCH, WAL_SAVE,
     },
     crypto::AeadPack,
     decode, encode,
@@ -188,6 +188,8 @@ impl Service for AccountService {
 /// Vault management service.
 ///
 /// * `Vault.create`: Create a new vault.
+/// * `Vault.delete`: Delete a vault.
+/// * `Vault.save`: Save a vault.
 ///
 pub struct VaultService;
 
@@ -349,6 +351,40 @@ impl Service for VaultService {
                 send_notification(&mut writer, notification);
 
                 Ok(reply)
+            }
+            _ => Err(sos_core::Error::Message("unknown method".to_owned())),
+        }
+    }
+}
+
+/// WAL management service.
+///
+/// * `Wal.load`: Load the WAL for a vault.
+/// * `Wal.patch`: Apply a patch to the WAL for a vault.
+/// * `Wal.save`: Save a WAL buffer.
+///
+pub struct WalService;
+
+#[async_trait]
+impl Service for WalService {
+    type State = (AddressStr, Arc<RwLock<State>>);
+
+    async fn handle<'a>(
+        &self,
+        state: Self::State,
+        request: RequestMessage<'a>,
+    ) -> sos_core::Result<ResponseMessage<'a>> {
+        let (address, state) = state;
+
+        match request.method() {
+            WAL_LOAD => {
+                todo!()
+            }
+            WAL_PATCH => {
+                todo!()
+            }
+            WAL_SAVE => {
+                todo!()
             }
             _ => Err(sos_core::Error::Message("unknown method".to_owned())),
         }

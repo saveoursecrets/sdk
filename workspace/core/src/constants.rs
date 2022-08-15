@@ -93,6 +93,15 @@ mod rpc {
 
     /// Vault delete method call.
     pub const VAULT_DELETE: &str = "Vault.delete";
+
+    /// WAL load method call.
+    pub const WAL_LOAD: &str = "Wal.load";
+
+    /// WAL patch method call.
+    pub const WAL_PATCH: &str = "Wal.patch";
+
+    /// WAL save method call.
+    pub const WAL_SAVE: &str = "Wal.save";
 }
 
 pub use extensions::*;

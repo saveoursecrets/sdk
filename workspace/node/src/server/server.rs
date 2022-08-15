@@ -178,7 +178,8 @@ impl Server {
             // v2 RPC style
             .route("/api/account", post(ServiceHandler::account))
             .route("/api/session", post(ServiceHandler::session))
-            .route("/api/vault", post(ServiceHandler::vault));
+            .route("/api/vault", post(ServiceHandler::vault))
+            .route("/api/wal", post(ServiceHandler::wal));
 
         app = feature_routes(app);
         app = app.layer(cors).layer(Extension(state));
