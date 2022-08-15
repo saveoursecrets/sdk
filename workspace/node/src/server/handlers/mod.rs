@@ -26,40 +26,6 @@ use super::assets::Assets;
 pub(crate) mod service;
 pub(crate) mod sse;
 
-/*
-#[deprecated]
-/// Append to the audit log.
-async fn append_audit_logs<'a>(
-    writer: &mut RwLockWriteGuard<'a, State>,
-    events: Vec<AuditEvent>,
-) -> Result<(), StatusCode> {
-    writer
-        .audit_log
-        .append_audit_events(&events)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(())
-}
-
-#[deprecated]
-/// Send change notifications to connected clients.
-fn send_notification<'a>(
-    writer: &mut RwLockWriteGuard<'a, State>,
-    notification: ChangeNotification,
-) {
-    // Changes can be empty for non-mutating sync events
-    // that correspond to audit logs; for example, reading secrets
-    if !notification.changes().is_empty() {
-        // Send notification on the SSE channel
-        if let Some(conn) = writer.sse.get(notification.address()) {
-            if let Err(_) = conn.tx.send(notification) {
-                tracing::debug!("server sent events channel dropped");
-            }
-        }
-    }
-}
-*/
-
 /// Serve the home page.
 pub(crate) async fn home(
     Extension(state): Extension<Arc<RwLock<State>>>,
