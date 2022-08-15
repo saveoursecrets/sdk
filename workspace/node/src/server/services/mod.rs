@@ -67,13 +67,15 @@ pub(crate) async fn public_service(
 
     let reply = service.serve(Arc::clone(&state), request).await;
 
-    let body = if let Some(reply) = reply {
+    let (status, body) = if let Some(reply) = reply {
+        //let status = reply.status();
         let response = Packet::new_response(reply);
         let body = encode(&response)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        Bytes::from(body)
+        (StatusCode::OK, Bytes::from(body))
     } else {
-        Bytes::from(vec![])
+        // FIXME: use NO_CONTENT ???
+        (StatusCode::OK, Bytes::from(vec![]))
     };
 
     Ok((StatusCode::OK, body))
@@ -117,13 +119,15 @@ pub(crate) async fn private_service(
 
     let reply = service.serve((address, Arc::clone(&state)), request).await;
 
-    let body = if let Some(reply) = reply {
+    let (status, body) = if let Some(reply) = reply {
+        //let status = reply.status();
         let response = Packet::new_response(reply);
         let body = encode(&response)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        body
+        (StatusCode::OK, body)
     } else {
-        vec![]
+        // FIXME: use NO_CONTENT ???
+        (StatusCode::OK, vec![])
     };
 
     let mut writer = state.write().await;
@@ -136,5 +140,5 @@ pub(crate) async fn private_service(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let body =
         encode(&aead).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok((StatusCode::OK, Bytes::from(body)))
+    Ok((status, Bytes::from(body)))
 }

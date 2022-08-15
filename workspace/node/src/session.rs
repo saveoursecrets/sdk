@@ -105,6 +105,9 @@ pub struct ServerSession {
     secret: EphemeralSecret,
     /// Derived private key for symmetric encryption.
     private: Option<SecretKey>,
+
+    // FIXME: SERVER MUST INCREMENT THE INCOMING MESSAGE NONCE
+    // FIXME: FOR REPLIES
     /// Number once for session messages.
     nonce: U192,
 }

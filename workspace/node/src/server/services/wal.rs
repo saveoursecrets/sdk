@@ -143,7 +143,7 @@ impl Service for WalService {
 
                         let reply = ResponseMessage::new(
                             request.id(),
-                            StatusCode::OK,
+                            status,
                             Some(Ok(Some(&proof))),
                             Cow::Owned(buffer),
                         )?;

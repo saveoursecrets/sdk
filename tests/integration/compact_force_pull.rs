@@ -41,7 +41,8 @@ async fn integration_compact_force_pull() -> Result<()> {
         cache_dir,
         keystore_file,
         keystore_passphrase,
-    )?;
+    )
+    .await?;
     let _ = listener.load_vaults().await?;
 
     let (change_tx, mut change_rx) = mpsc::channel(16);

@@ -47,7 +47,7 @@ pub async fn signup(
     let AccountKey(signing_key, _, _) = &key;
     let expected_signing_key = *signing_key;
 
-    let (credentials, mut disc_cache) = create_account(
+    let (credentials, mut node_cache) = create_account(
         server,
         destination.to_path_buf(),
         name,
@@ -75,7 +75,7 @@ pub async fn signup(
 
     assert_eq!(expected_signing_key, signing_key);
 
-    let _ = disc_cache.load_vaults().await?;
+    let _ = node_cache.load_vaults().await?;
 
-    Ok((address, credentials, disc_cache, signer))
+    Ok((address, credentials, node_cache, signer))
 }
