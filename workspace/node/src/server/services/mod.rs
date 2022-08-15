@@ -103,6 +103,12 @@ pub(crate) async fn private_service(
     let aead: AeadPack =
         decode(&body).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    // Verify the nonce is ahead of this nonce
+    // otherwise we may have a possible replay attack
+    session
+        .verify_nonce(&aead.nonce)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
     session.set_nonce(&aead.nonce);
     let body = session
         .decrypt(&aead)

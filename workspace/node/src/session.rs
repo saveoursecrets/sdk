@@ -170,6 +170,22 @@ impl ServerSession {
         self.nonce = nonce;
     }
 
+    /// Verify an incoming nonce is greater than the nonce
+    /// assigned to this session.
+    pub fn verify_nonce(&self, other_nonce: &Nonce) -> Result<()> {
+        let bytes = match other_nonce {
+            Nonce::Nonce24(bytes) => *bytes,
+            _ => unreachable!("session got invalid nonce kind"),
+        };
+
+        let other_nonce = U192::from_be_bytes(bytes);
+        if other_nonce <= self.nonce {
+            Err(Error::BadNonce)
+        } else {
+            Ok(())
+        }
+    }
+
     /// Determine if this session is still valid.
     pub fn valid(&self) -> bool {
         self.ready() && (Instant::now() < self.expires)
@@ -194,6 +210,10 @@ pub struct ClientSession {
     signer: BoxedSigner,
     /// Session identifier.
     id: Uuid,
+    /// Challenge created when a session was offered.
+    ///
+    /// Used as the salt for key derivation.
+    challenge: Option<[u8; 16]>,
     /// Session secret.
     secret: EphemeralSecret,
     /// Derived private key for symmetric encryption.
@@ -209,6 +229,7 @@ impl ClientSession {
         Ok(Self {
             signer,
             id,
+            challenge: None,
             secret,
             private: None,
             nonce: U192::ZERO,
@@ -232,6 +253,7 @@ impl ClientSession {
         let shared = self.secret.diffie_hellman(&server_public);
         let signature = self.signer.sign(&challenge).await?;
         let key = derive_secret_key(&shared, challenge.as_ref())?;
+        self.challenge = Some(challenge);
         Ok((signature, key))
     }
 
@@ -247,7 +269,6 @@ impl ClientSession {
             Nonce::Nonce24(bytes) => *bytes,
             _ => unreachable!("session got invalid nonce kind"),
         };
-
         let nonce = U192::from_be_bytes(bytes);
         self.nonce = nonce;
     }

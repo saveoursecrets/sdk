@@ -56,26 +56,6 @@ fn new_rpc_body<T: Serialize>(
     Ok(body)
 }
 
-/// Make an encrypted session request.
-async fn session_request(
-    client: &reqwest::Client,
-    url: Url,
-    session_id: Uuid,
-    aead: AeadPack,
-    //session: &mut ClientSession,
-    //request: Vec<u8>,
-) -> Result<reqwest::Response> {
-    //let aead = session.encrypt(&request)?;
-    let body = encode(&aead)?;
-    let response = client
-        .post(url)
-        .header(X_SESSION, session_id.to_string())
-        .body(encode(&aead)?)
-        .send()
-        .await?;
-    Ok(response)
-}
-
 /// Client implementation for RPC requests.
 pub struct RpcClient {
     server: Url,
