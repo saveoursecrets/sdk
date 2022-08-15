@@ -74,7 +74,7 @@ pub(crate) async fn public_service(
 
     let reply = service.serve(Arc::clone(&state), request).await;
 
-    let (status, body) = if let Some(reply) = reply {
+    let (_status, body) = if let Some(reply) = reply {
         //let status = reply.status();
         let response = Packet::new_response(reply);
         let body = encode(&response)

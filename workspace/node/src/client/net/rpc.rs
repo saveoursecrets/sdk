@@ -173,7 +173,7 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = self
+        let (status, _result, _) = self
             .read_encrypted_response::<CommitProof>(
                 &response.bytes().await?,
             )?;

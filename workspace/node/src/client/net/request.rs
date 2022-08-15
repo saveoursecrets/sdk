@@ -1,26 +1,14 @@
 //! HTTP client helper functions.
 
-use http::StatusCode;
 use rand::Rng;
-use reqwest::{header::HeaderMap, RequestBuilder, Response};
+use reqwest::Response;
 use std::future::Future;
 
-use sos_core::{
-    commit_tree::CommitProof,
-    constants::{
-        MIME_TYPE_VAULT, X_COMMIT_PROOF, X_MATCH_PROOF, X_SIGNED_MESSAGE,
-    },
-    decode, encode,
-    signer::BoxedSigner,
-    vault::Summary,
-    Patch,
-};
+use sos_core::signer::BoxedSigner;
 use url::Url;
-use uuid::Uuid;
 
-use crate::client::{Error, Result};
-
-use super::{encode_signature};
+use super::encode_signature;
+use crate::client::Result;
 
 #[cfg(not(target_arch = "wasm32"))]
 use reqwest_eventsource::EventSource;
@@ -33,7 +21,6 @@ use super::changes::ChangeStream;
 pub struct RequestClient;
 
 impl RequestClient {
-
     /// Generic GET function.
     pub async fn get(url: Url) -> Result<Response> {
         let client = reqwest::Client::new();
