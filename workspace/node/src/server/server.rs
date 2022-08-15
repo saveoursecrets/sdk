@@ -77,7 +77,7 @@ impl Server {
         let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
         drop(reader);
 
-        // FIXME: start tokio task to reap stale authentication challenges
+        // FIXME: start tokio task to reap stale sessions
 
         let app = Server::router(state, origins)?;
         tracing::info!("listening on {}", addr);
@@ -101,7 +101,7 @@ impl Server {
         let origins = Server::read_origins(&reader)?;
         drop(reader);
 
-        // FIXME: start tokio task to reap stale authentication challenges
+        // FIXME: start tokio task to reap stale sessions
 
         let app = Server::router(state, origins)?;
         tracing::info!("listening on {}", addr);
@@ -129,22 +129,13 @@ impl Server {
         origins: Vec<HeaderValue>,
     ) -> Result<Router> {
         let cors = CorsLayer::new()
-            .allow_methods(vec![
-                //Method::PUT,
-                Method::GET,
-                Method::POST,
-                //Method::DELETE,
-                //Method::PATCH,
-            ])
+            .allow_methods(vec![Method::GET, Method::POST])
             // For SSE support must allow credentials
             .allow_credentials(true)
             .allow_headers(vec![
                 AUTHORIZATION,
                 CONTENT_TYPE,
                 X_SESSION.clone(),
-                //X_SIGNED_MESSAGE.clone(),
-                //X_COMMIT_PROOF.clone(),
-                //X_MATCH_PROOF.clone(),
             ])
             .expose_headers(vec![])
             .allow_origin(Origin::list(origins));

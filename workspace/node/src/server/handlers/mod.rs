@@ -1,6 +1,6 @@
 use axum::{
     extract::Extension,
-    http::{header::HeaderMap, HeaderValue, StatusCode},
+    http::StatusCode,
     response::{IntoResponse, Redirect},
     Json,
 };
@@ -16,50 +16,17 @@ use axum::{
 use serde_json::json;
 
 use std::sync::Arc;
-use tokio::sync::{RwLock, RwLockWriteGuard};
+use tokio::sync::RwLock;
 
-use super::{
-    headers::{X_COMMIT_PROOF, X_MATCH_PROOF},
-    State,
-};
+use super::State;
 
 #[cfg(feature = "gui")]
 use super::assets::Assets;
 
-use sos_core::{
-    commit_tree::CommitProof, encode, events::ChangeNotification, AuditEvent,
-    AuditProvider,
-};
-
 pub(crate) mod service;
 pub(crate) mod sse;
 
-fn append_commit_headers(
-    headers: &mut HeaderMap,
-    proof: &CommitProof,
-) -> Result<(), StatusCode> {
-    let value =
-        encode(proof).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let x_commit_proof =
-        HeaderValue::from_str(&bs58::encode(&value).into_string())
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
-    Ok(())
-}
-
-fn append_match_header(
-    headers: &mut HeaderMap,
-    proof: &CommitProof,
-) -> Result<(), StatusCode> {
-    let value =
-        encode(proof).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let x_match_proof =
-        HeaderValue::from_str(&bs58::encode(&value).into_string())
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    headers.insert(X_MATCH_PROOF.clone(), x_match_proof);
-    Ok(())
-}
-
+/*
 #[deprecated]
 /// Append to the audit log.
 async fn append_audit_logs<'a>(
@@ -91,6 +58,7 @@ fn send_notification<'a>(
         }
     }
 }
+*/
 
 /// Serve the home page.
 pub(crate) async fn home(
