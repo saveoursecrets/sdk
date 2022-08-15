@@ -213,6 +213,7 @@ impl WalHandler {
     /// should always be the case) then it returns it's root hash in
     /// the `x-commit-hash` and a proof of the last leaf node in the
     /// `x-commit-proof` header.
+    #[deprecated]
     pub(crate) async fn get_wal(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,

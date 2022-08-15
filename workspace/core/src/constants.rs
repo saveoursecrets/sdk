@@ -97,6 +97,9 @@ mod rpc {
     /// WAL load method call.
     pub const WAL_LOAD: &str = "Wal.load";
 
+    /// WAL status method call.
+    pub const WAL_STATUS: &str = "Wal.status";
+
     /// WAL patch method call.
     pub const WAL_PATCH: &str = "Wal.patch";
 

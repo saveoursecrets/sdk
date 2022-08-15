@@ -5,7 +5,7 @@ use crate::test_utils::*;
 
 use http::StatusCode;
 use sos_core::{encode, vault::Vault};
-use sos_node::{client::net::RpcClient, session::EncryptedChannel};
+use sos_node::{client::net::RpcClient};
 
 #[tokio::test]
 #[serial]
@@ -76,6 +76,15 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     // Check it was the right vault that was deleted
     let del_vault_summary = summaries.iter().find(|s| s.id() == vault.id());
     assert!(del_vault_summary.is_none());
+
+    let login = summaries.get(0).unwrap();
+
+    // Load the entire WAL buffer
+    let (status, proof, buffer) = client.load_wal(login.id(), None).await?;
+    assert_eq!(StatusCode::OK, status);
+    assert!(proof.is_some());
+    assert!(buffer.is_some());
+    assert!(buffer.unwrap().len() > 4);
 
     Ok(())
 }

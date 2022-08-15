@@ -2,9 +2,11 @@ use axum::{body::Bytes, http::StatusCode};
 
 use sos_core::{
     address::AddressStr,
+    commit_tree::{CommitProof, Comparison},
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_PATCH, WAL_SAVE,
+        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_PATCH,
+        WAL_SAVE, WAL_STATUS,
     },
     crypto::AeadPack,
     decode, encode,
@@ -15,7 +17,7 @@ use sos_core::{
 };
 
 use async_trait::async_trait;
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 use tokio::sync::{RwLock, RwLockWriteGuard};
 use uuid::Uuid;
 use web3_signature::Signature;
@@ -378,6 +380,106 @@ impl Service for WalService {
 
         match request.method() {
             WAL_LOAD => {
+                let (vault_id, commit_proof) =
+                    request.parameters::<(Uuid, Option<CommitProof>)>()?;
+
+                let reader = state.read().await;
+                let (exists, _) = reader
+                    .backend
+                    .wal_exists(&address, &vault_id)
+                    .await
+                    .map_err(Box::from)?;
+                drop(reader);
+
+                if !exists {
+                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                }
+
+                let reader = state.read().await;
+
+                let wal = reader
+                    .backend
+                    .wal_read(&address, &vault_id)
+                    .await
+                    .map_err(Box::from)?;
+
+                let proof = wal.tree().head().map_err(Box::from)?;
+
+                tracing::debug!(root = %proof.root_hex(),
+                    "get_wal server root");
+
+                // Client is asking for data from a specific commit hash
+                let result = if let Some(proof) = commit_proof {
+                    //let proof: CommitProof = proof.into();
+
+                    tracing::debug!(root = %proof.root_hex(),
+                        "get_wal client root");
+
+                    let comparison =
+                        wal.tree().compare(proof).map_err(Box::from)?;
+
+                    match comparison {
+                        Comparison::Equal => {
+                            Ok((StatusCode::NOT_MODIFIED, vec![]))
+                        }
+                        Comparison::Contains(_, mut leaves) => {
+                            if leaves.len() == 1 {
+                                let leaf = leaves.remove(0);
+                                if let Some(partial) =
+                                    wal.diff(leaf).map_err(Box::from)?
+                                {
+                                    Ok((StatusCode::OK, partial))
+                                // Could not find a record corresponding
+                                // to the leaf node
+                                } else {
+                                    Ok((StatusCode::CONFLICT, vec![]))
+                                }
+                            } else {
+                                Err(StatusCode::BAD_REQUEST)
+                            }
+                        }
+                        // Could not find leaf node in the commit tree
+                        Comparison::Unknown => {
+                            Ok((StatusCode::CONFLICT, vec![]))
+                        }
+                    }
+                // Otherwise get the entire WAL buffer
+                } else if let Ok(buffer) =
+                    reader.backend.get_wal(&address, &vault_id).await
+                {
+                    Ok((StatusCode::OK, buffer))
+                } else {
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                };
+
+                drop(reader);
+
+                match result {
+                    Ok((status, buffer)) => {
+                        if status == StatusCode::OK {
+                            let mut writer = state.write().await;
+                            let log = AuditEvent::new(
+                                EventKind::ReadWal,
+                                address,
+                                Some(AuditData::Vault(vault_id)),
+                            );
+                            append_audit_logs(&mut writer, vec![log])
+                                .await
+                                .map_err(Box::from)?;
+                        }
+
+                        let reply = ResponseMessage::new(
+                            request.id(),
+                            StatusCode::OK,
+                            Some(Ok(Some(&proof))),
+                            Cow::Owned(buffer),
+                        )?;
+                        Ok(reply)
+                    }
+                    Err(status) => Ok((status, request.id()).into()),
+                }
+            }
+            WAL_STATUS => {
                 todo!()
             }
             WAL_PATCH => {
