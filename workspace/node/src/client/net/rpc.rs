@@ -30,6 +30,10 @@ use crate::{
     session::{ClientSession, EncryptedChannel},
 };
 
+use super::{bearer_prefix, encode_signature};
+
+const AUTHORIZATION: &str = "authorization";
+
 /// Create an RPC call without a body.
 fn new_rpc_call<T: Serialize>(
     id: u64,
@@ -160,11 +164,14 @@ impl RpcClient {
     /// Create a new account.
     pub async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
         let url = self.server.join("api/account")?;
-        let (session_id, body) = self.build_request(|id| {
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_body(id, ACCOUNT_CREATE, (), vault)?)
         })?;
 
-        let response = self.send_request(url, session_id, body).await?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
         let (status, result, _) = self
             .read_encrypted_response::<CommitProof>(
@@ -182,11 +189,14 @@ impl RpcClient {
     /// List vaults for an account.
     pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
         let url = self.server.join("api/account")?;
-        let (session_id, body) = self.build_request(|id| {
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_call(id, ACCOUNT_LIST_VAULTS, ())?)
         })?;
 
-        let response = self.send_request(url, session_id, body).await?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
         let (status, result, _) = self
             .read_encrypted_response::<Vec<Summary>>(
@@ -209,11 +219,14 @@ impl RpcClient {
         vault: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join("api/vault")?;
-        let (session_id, body) = self.build_request(|id| {
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_body(id, VAULT_CREATE, (), vault)?)
         })?;
 
-        let response = self.send_request(url, session_id, body).await?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
         let (status, result, _) = self
             .read_encrypted_response::<Option<CommitProof>>(
@@ -237,11 +250,14 @@ impl RpcClient {
         vault_id: &Uuid,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join("api/vault")?;
-        let (session_id, body) = self.build_request(|id| {
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_call(id, VAULT_DELETE, vault_id)?)
         })?;
 
-        let response = self.send_request(url, session_id, body).await?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
         let (status, result, _) = self
             .read_encrypted_response::<Option<CommitProof>>(
@@ -269,11 +285,14 @@ impl RpcClient {
         vault: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join("api/vault")?;
-        let (session_id, body) = self.build_request(|id| {
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_body(id, VAULT_SAVE, vault_id, vault)?)
         })?;
 
-        let response = self.send_request(url, session_id, body).await?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
         let (status, result, _) = self
             .read_encrypted_response::<Option<CommitProof>>(
@@ -299,11 +318,14 @@ impl RpcClient {
         proof: Option<CommitProof>,
     ) -> Result<(StatusCode, Option<CommitProof>, Option<Vec<u8>>)> {
         let url = self.server.join("api/wal")?;
-        let (session_id, body) = self.build_request(|id| {
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_call(id, WAL_LOAD, (vault_id, proof))?)
         })?;
 
-        let response = self.send_request(url, session_id, body).await?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
         let (status, result, body) = self
             .read_encrypted_response::<Option<CommitProof>>(
@@ -328,11 +350,14 @@ impl RpcClient {
         proof: Option<CommitProof>,
     ) -> Result<(StatusCode, CommitProof, Option<CommitProof>)> {
         let url = self.server.join("api/wal")?;
-        let (session_id, body) = self.build_request(|id| {
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_call(id, WAL_STATUS, (vault_id, proof))?)
         })?;
 
-        let response = self.send_request(url, session_id, body).await?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
         let (status, result, _) = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
@@ -360,11 +385,14 @@ impl RpcClient {
     ) -> Result<(StatusCode, Option<CommitProof>, Option<CommitProof>)> {
         let body = encode(&patch)?;
         let url = self.server.join("api/wal")?;
-        let (session_id, body) = self.build_request(|id| {
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_body(id, WAL_PATCH, (vault_id, proof), body)?)
         })?;
 
-        let response = self.send_request(url, session_id, body).await?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
         let (status, result, _) = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
@@ -392,11 +420,14 @@ impl RpcClient {
         body: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
         let url = self.server.join("api/wal")?;
-        let (session_id, body) = self.build_request(|id| {
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_body(id, WAL_SAVE, (vault_id, proof), body)?)
         })?;
 
-        let response = self.send_request(url, session_id, body).await?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
         let (status, result, _) = self
             .read_encrypted_response::<CommitProof>(
@@ -412,7 +443,10 @@ impl RpcClient {
     }
 
     /// Build an encrypted request.
-    fn build_request<F>(&self, builder: F) -> Result<(Uuid, Vec<u8>)>
+    fn build_request<F>(
+        &self,
+        builder: F,
+    ) -> Result<(Uuid, [u8; 32], Vec<u8>)>
     where
         F: FnOnce(u64) -> Result<Vec<u8>>,
     {
@@ -425,9 +459,11 @@ impl RpcClient {
 
         let request = builder(id)?;
         let aead = session.encrypt(&request)?;
+        let sign_bytes =
+            session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
         let body = encode(&aead)?;
 
-        Ok((session_id, body))
+        Ok((session_id, sign_bytes, body))
     }
 
     /// Send an encrypted session request.
@@ -435,11 +471,13 @@ impl RpcClient {
         &self,
         url: Url,
         session_id: Uuid,
+        signature: String,
         body: Vec<u8>,
     ) -> Result<reqwest::Response> {
         let response = self
             .client
             .post(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
             .header(X_SESSION, session_id.to_string())
             .body(body)
             .send()

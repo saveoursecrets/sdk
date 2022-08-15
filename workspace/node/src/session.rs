@@ -5,7 +5,7 @@ use k256::{
     elliptic_curve::ecdh::SharedSecret, EncodedPoint, PublicKey, Secp256k1,
 };
 use rand::Rng;
-use sha3::Keccak256;
+use sha3::{Digest, Keccak256};
 use sos_core::{
     address::AddressStr,
     crypto::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce},
@@ -203,6 +203,10 @@ impl EncryptedChannel for ServerSession {
         let nonce = Nonce::Nonce24(self.nonce.to_be_bytes());
         Ok(nonce)
     }
+
+    fn salt(&self) -> Result<&[u8; 16]> {
+        Ok(&self.challenge)
+    }
 }
 
 /// Client side session implementation.
@@ -290,6 +294,10 @@ impl EncryptedChannel for ClientSession {
         let nonce = Nonce::Nonce24(self.nonce.to_be_bytes());
         Ok(nonce)
     }
+
+    fn salt(&self) -> Result<&[u8; 16]> {
+        Ok(self.challenge.as_ref().ok_or(Error::NoSessionSalt)?)
+    }
 }
 
 /// Cryptographic operations for both sides of session communication.
@@ -299,6 +307,27 @@ pub trait EncryptedChannel {
 
     /// Increment and return the next sequential nonce.
     fn next_nonce(&mut self) -> Result<Nonce>;
+
+    /// Get the challenge/salt for the session.
+    fn salt(&self) -> Result<&[u8; 16]>;
+
+    /// Get the bytes used to create a signature for the message.
+    ///
+    /// This is the challenge (or salt) concatenated with the
+    /// nonce for the message.
+    fn sign_bytes<H: Digest>(&self, nonce: &Nonce) -> Result<[u8; 32]> {
+        let nonce_bytes = match nonce {
+            Nonce::Nonce24(bytes) => bytes,
+            _ => unreachable!("session got invalid nonce kind"),
+        };
+
+        let mut bytes = Vec::with_capacity(40);
+        bytes.extend_from_slice(self.salt()?);
+        bytes.extend_from_slice(nonce_bytes);
+
+        let digest: [u8; 32] = H::digest(&bytes).as_slice().try_into()?;
+        Ok(digest)
+    }
 
     /// Encrypt a message.
     fn encrypt(&mut self, message: &[u8]) -> Result<AeadPack> {

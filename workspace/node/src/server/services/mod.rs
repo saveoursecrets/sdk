@@ -1,4 +1,8 @@
-use axum::{body::Bytes, http::StatusCode};
+use axum::{
+    body::Bytes,
+    headers::{authorization::Bearer, Authorization},
+    http::StatusCode,
+};
 
 use sos_core::{
     address::AddressStr,
@@ -13,7 +17,10 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 use uuid::Uuid;
 
-use crate::{server::State, session::EncryptedChannel};
+use crate::{
+    server::{authenticate, State},
+    session::EncryptedChannel,
+};
 
 /// Append to the audit log.
 async fn append_audit_logs<'a>(
@@ -86,6 +93,7 @@ pub(crate) async fn public_service(
 pub(crate) async fn private_service(
     service: impl Service<State = (AddressStr, Arc<RwLock<State>>)> + Sync + Send,
     state: Arc<RwLock<State>>,
+    bearer: Authorization<Bearer>,
     session_id: &Uuid,
     body: Bytes,
 ) -> Result<(StatusCode, Bytes), StatusCode> {
@@ -108,6 +116,27 @@ pub(crate) async fn private_service(
     session
         .verify_nonce(&aead.nonce)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    // Verify the signature for the message
+    let sign_bytes = session
+        .sign_bytes::<sha3::Keccak256>(&aead.nonce)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let (status_code, token) = authenticate::bearer(bearer, &sign_bytes)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Failed to generate a valid bearer token
+    if status_code != StatusCode::OK {
+        return Err(status_code);
+    }
+
+    // Should have a valid token by now
+    let token = token.unwrap();
+
+    // Attempt to impersonate the session identity
+    if &token.address != session.identity() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
 
     session.set_nonce(&aead.nonce);
     let body = session
