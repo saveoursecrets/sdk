@@ -49,8 +49,12 @@ fn send_notification<'a>(
 
         // Send notification on the websockets channel
         if let Some(conn) = writer.sockets.get(notification.address()) {
+            println!(
+                "sending notification on ws channel {:#?}",
+                notification
+            );
             if let Err(_) = conn.tx.send(notification) {
-                tracing::debug!("webcoket events channel dropped");
+                tracing::debug!("websocket events channel dropped");
             }
         }
     }

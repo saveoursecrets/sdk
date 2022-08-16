@@ -10,8 +10,13 @@ pub mod changes;
 pub mod request;
 pub mod rpc;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod ws_changes;
+
 pub use request::RequestClient;
 pub use rpc::RpcClient;
+
+const AUTHORIZATION: &str = "authorization";
 
 pub(crate) fn encode_signature(signature: Signature) -> Result<String> {
     let signature: BinarySignature = signature.into();

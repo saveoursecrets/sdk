@@ -7,6 +7,7 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
+use futures::{SinkExt, StreamExt};
 
 use std::sync::Arc;
 use tokio::sync::{
@@ -14,7 +15,9 @@ use tokio::sync::{
     RwLock,
 };
 
-use sos_core::{crypto::AeadPack, decode, events::ChangeNotification};
+use sos_core::{
+    address::AddressStr, crypto::AeadPack, decode, events::ChangeNotification,
+};
 
 use crate::{
     server::{
@@ -119,50 +122,57 @@ pub async fn upgrade(
 
     drop(writer);
 
-    let disconnect = move || async move {
-        let mut writer = state.write().await;
-        let clients = if let Some(conn) = writer.sockets.get_mut(&address) {
-            conn.clients -= 1;
-            Some(conn.clients)
-        } else {
-            None
+    Ok(ws.on_upgrade(move |mut socket: WebSocket| async move {
+        let disconnect = move |state: Arc<RwLock<State>>| async move {
+            let mut writer = state.write().await;
+            let clients = if let Some(conn) = writer.sockets.get_mut(&address)
+            {
+                conn.clients -= 1;
+                Some(conn.clients)
+            } else {
+                None
+            };
+
+            if let Some(clients) = clients {
+                if clients == 0 {
+                    writer.sockets.remove(&address);
+                }
+            }
         };
 
-        if let Some(clients) = clients {
-            if clients == 0 {
-                writer.sockets.remove(&address);
-            }
-        }
-    };
+        let (mut write, mut read) = socket.split();
 
-    Ok(ws.on_upgrade(|mut socket: WebSocket| async move {
-        if let Some(msg) = socket.recv().await {
-            if let Ok(msg) = msg {
-                match msg {
-                    Message::Text(_) => {}
-                    Message::Binary(_) => {}
-                    Message::Ping(_) => {}
-                    Message::Pong(_) => {}
-                    Message::Close(_) => {
-                        disconnect().await;
-                        return;
+        let read_state = Arc::clone(&state);
+        tokio::task::spawn(async move {
+            while let Some(msg) = read.next().await {
+                if let Ok(msg) = msg {
+                    match msg {
+                        Message::Text(_) => {}
+                        Message::Binary(_) => {}
+                        Message::Ping(_) => {}
+                        Message::Pong(_) => {}
+                        Message::Close(_) => {
+                            disconnect(read_state).await;
+                            return;
+                        }
                     }
+                } else {
+                    disconnect(read_state).await;
+                    return;
                 }
-            } else {
-                disconnect().await;
-                return;
             }
-        }
+        });
 
+        // Read change notifications and send them over the socket
         while let Ok(event) = rx.recv().await {
             tracing::trace!("{:#?}", event);
             if let Ok(msg) = serde_json::to_string(&event) {
-                if socket.send(Message::Text(msg)).await.is_err() {
-                    disconnect().await;
+                if write.send(Message::Text(msg)).await.is_err() {
+                    disconnect(state).await;
                     return;
                 }
             } else {
-                disconnect().await;
+                disconnect(state).await;
                 return;
             }
         }

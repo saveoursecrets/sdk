@@ -30,9 +30,7 @@ use crate::{
     session::{ClientSession, EncryptedChannel},
 };
 
-use super::{bearer_prefix, encode_signature};
-
-const AUTHORIZATION: &str = "authorization";
+use super::{bearer_prefix, encode_signature, AUTHORIZATION};
 
 /// Create an RPC call without a body.
 fn new_rpc_call<T: Serialize>(

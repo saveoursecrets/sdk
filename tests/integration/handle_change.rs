@@ -47,6 +47,14 @@ async fn integration_handle_change() -> Result<()> {
 
     let (change_tx, mut change_rx) = mpsc::channel(16);
 
+    let ws_url = server_url.clone();
+    let ws_signer = signer.clone();
+    tokio::task::spawn(async move {
+        sos_node::client::net::ws_changes::connect(ws_url, ws_signer)
+            .await
+            .expect("failed to connect websocket");
+    });
+
     let (tx, mut rx) = mpsc::channel(1);
 
     let mut es = RequestClient::changes(server_url, signer).await?;
