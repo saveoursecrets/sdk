@@ -55,6 +55,9 @@ struct Shell {
 
 #[derive(Subcommand, Debug)]
 enum ShellCommand {
+    /// Renew session authentication.
+    #[clap(alias = "auth")]
+    Authenticate,
     /// List vaults.
     Vaults,
     /// Create a new vault.
@@ -482,6 +485,12 @@ fn exec_program(
     cache: ReplCache,
 ) -> Result<()> {
     match program.cmd {
+        ShellCommand::Authenticate => {
+            let mut writer = cache.write().unwrap();
+            run_blocking(writer.authenticate())?;
+            println!("session renewed ✓");
+            Ok(())
+        }
         ShellCommand::Vaults => {
             let mut writer = cache.write().unwrap();
             let summaries = run_blocking(writer.load_vaults())?;
