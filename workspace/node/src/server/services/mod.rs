@@ -39,10 +39,18 @@ fn send_notification<'a>(
     // Changes can be empty for non-mutating sync events
     // that correspond to audit logs; for example, reading secrets
     if !notification.changes().is_empty() {
+        // FIXME: remove this when the websocket impl is completed
         // Send notification on the SSE channel
+        if let Some(conn) = writer.sse.get(notification.address()) {
+            if let Err(_) = conn.tx.send(notification.clone()) {
+                tracing::debug!("server sent events channel dropped");
+            }
+        }
+
+        // Send notification on the websockets channel
         if let Some(conn) = writer.sockets.get(notification.address()) {
             if let Err(_) = conn.tx.send(notification) {
-                tracing::debug!("server sent events channel dropped");
+                tracing::debug!("webcoket events channel dropped");
             }
         }
     }

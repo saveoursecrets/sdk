@@ -117,6 +117,13 @@ impl RpcClient {
     /// Attempt to authenticate to the remote node and store
     /// the client session.
     pub async fn authenticate(&mut self) -> Result<()> {
+        let session = self.new_session().await?;
+        self.session = Some(RwLock::new(session));
+        Ok(())
+    }
+
+    /// Negotiate a new session.
+    pub async fn new_session(&self) -> Result<ClientSession> {
         let url = self.server.join("api/session")?;
 
         // Offer
@@ -158,9 +165,8 @@ impl RpcClient {
 
         // Store the session for later requests
         session.finish(client_key);
-        self.session = Some(RwLock::new(session));
 
-        Ok(())
+        Ok(session)
     }
 
     /// Create a new account.
