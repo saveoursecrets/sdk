@@ -24,7 +24,6 @@ use super::State;
 use super::assets::Assets;
 
 pub(crate) mod service;
-pub(crate) mod sse;
 
 pub(crate) mod websocket;
 

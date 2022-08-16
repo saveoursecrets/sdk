@@ -5,8 +5,10 @@ use sos_core::{encode, signer::BinarySignature};
 use super::Result;
 use web3_signature::Signature;
 
+#[deprecated]
 #[cfg(not(target_arch = "wasm32"))]
 pub mod changes;
+
 pub mod request;
 pub mod rpc;
 

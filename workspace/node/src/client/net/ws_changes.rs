@@ -76,7 +76,7 @@ pub async fn connect(
 ) -> Result<(WsStream, ClientSession)> {
     let origin = remote.origin();
 
-    let mut endpoint = remote.join("api/changes2")?;
+    let mut endpoint = remote.join("api/changes")?;
     let scheme = if endpoint.scheme() == "http" {
         "ws"
     } else if endpoint.scheme() == "https" {

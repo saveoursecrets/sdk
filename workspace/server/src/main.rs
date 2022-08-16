@@ -83,7 +83,6 @@ async fn run() -> Result<()> {
         config,
         backend,
         audit_log,
-        sse: Default::default(),
         sockets: Default::default(),
         sessions,
     }));

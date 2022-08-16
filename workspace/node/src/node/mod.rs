@@ -2,7 +2,7 @@
 
 use sos_core::{wal::WalProvider, PatchProvider};
 
-use crate::client::{node_cache::NodeCache};
+use crate::client::node_cache::NodeCache;
 
 mod error;
 

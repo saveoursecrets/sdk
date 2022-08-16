@@ -61,7 +61,6 @@ impl MockServer {
             config,
             backend,
             audit_log,
-            sse: Default::default(),
             sockets: Default::default(),
             sessions: SessionManager::new(300),
         }));
