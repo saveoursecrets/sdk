@@ -20,9 +20,6 @@ pub enum Error {
     #[error("path {0} does not have a file name")]
     FileName(PathBuf),
 
-    #[error("server url {0} is not HTTPS")]
-    ServerHttps(Url),
-
     #[error("failed to create account, got status code {0}")]
     AccountCreate(u16),
 

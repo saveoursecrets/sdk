@@ -2,7 +2,7 @@
 
 use sos_core::{wal::WalProvider, PatchProvider};
 
-use crate::client::{net::changes::ChangeStream, node_cache::NodeCache};
+use crate::client::{node_cache::NodeCache};
 
 mod error;
 
@@ -13,7 +13,6 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 
 /// Bi-directional communication channel between nodes.
 pub struct Channel {
-    stream: ChangeStream,
     //client: ,
 }
 

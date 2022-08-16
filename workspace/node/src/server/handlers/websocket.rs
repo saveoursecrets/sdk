@@ -46,6 +46,9 @@ pub async fn upgrade(
     Query(query): Query<QueryMessage>,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
+
+    println!("GOT UPGRADE REQUEST");
+
     let mut writer = state.write().await;
 
     let session = writer

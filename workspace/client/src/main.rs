@@ -64,15 +64,6 @@ enum Command {
     },
 }
 
-/// Ensure a supplied URL is https.
-fn ensure_https(url: &Url) -> Result<()> {
-    if url.scheme() != "https" {
-        Err(Error::ServerHttps(url.clone()))
-    } else {
-        Ok(())
-    }
-}
-
 /// Print the welcome information.
 fn welcome(server: &Url) -> Result<()> {
     let help_info = r#"Type "help", "--help" or "-h" for command usage
@@ -93,7 +84,6 @@ fn run() -> Result<()> {
 
     match args.cmd {
         Command::Monitor { server, keystore } => {
-            ensure_https(&server)?;
             monitor(server, keystore)?;
         }
         Command::Signup {
@@ -101,11 +91,9 @@ fn run() -> Result<()> {
             keystore,
             name,
         } => {
-            ensure_https(&server)?;
             signup(server, keystore, name)?;
         }
         Command::Shell { server, keystore } => {
-            ensure_https(&server)?;
             let server_url = server.clone();
             let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
             if !cache_dir.is_dir() {

@@ -8,7 +8,6 @@ use std::{
     sync::{Arc, RwLock},
     time::Duration,
 };
-use tokio::sync::mpsc;
 use url::Url;
 
 use secrecy::ExposeSecret;

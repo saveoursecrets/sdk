@@ -6,7 +6,7 @@ use crate::{Result, StdinPassphraseReader};
 use futures::stream::StreamExt;
 use sos_core::signer::BoxedSigner;
 use sos_node::client::{
-    net::{changes::ChangeStreamEvent, RequestClient},
+    net::ws_changes::{changes, connect},
     run_blocking, SignerBuilder,
 };
 
@@ -15,18 +15,16 @@ async fn changes_stream(
     server: Url,
     signer: BoxedSigner,
 ) -> sos_node::client::Result<()> {
-    let mut es = RequestClient::changes(server, signer).await?;
-    while let Some(event) = es.next().await {
-        let event = event?;
-        match event {
-            ChangeStreamEvent::Message(notification) => {
-                tracing::info!(
-                    changes = ?notification.changes(),
-                    vault_id = %notification.vault_id());
-            }
-            _ => {}
-        }
+    let (stream, session) = connect(server, signer).await?;
+    let mut stream = changes(stream, session);
+
+    while let Some(notification) = stream.next().await {
+        let notification = notification?;
+        tracing::info!(
+            changes = ?notification.changes(),
+            vault_id = %notification.vault_id());
     }
+
     Ok(())
 }
 

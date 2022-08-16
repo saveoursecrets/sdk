@@ -1,6 +1,4 @@
-//! Listen for change notifications from a websocket connection.
-
-//use tokio::io::{AsyncReadExt, AsyncWriteExt};
+//! Listen for change notifications on a websocket connection.
 use futures::{
     stream::{Map, SplitStream},
     StreamExt,
@@ -105,10 +103,12 @@ pub async fn connect(
     let host = endpoint.host_str().unwrap().to_string();
     let uri = websocket_uri(endpoint, message, bearer, *session.id());
 
+    println!("uri {}", uri);
+    println!("origin {:#?}", origin);
+
     let request = WebSocketRequest { host, uri, origin };
 
-    let (ws_stream, _) =
-        connect_async(request).await.expect("Failed to connect");
+    let (ws_stream, _) = connect_async(request).await?;
     Ok((ws_stream, session))
 }
 
@@ -123,7 +123,6 @@ pub fn changes(
     ) -> Result<ChangeNotification>,
 > {
     let (_, read) = stream.split();
-
     read.map(|message| -> Result<ChangeNotification> {
         let message = message?;
         match message {
