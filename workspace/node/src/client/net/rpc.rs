@@ -196,7 +196,7 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = self
+        let (_status, result, _) = self
             .read_encrypted_response::<Vec<Summary>>(
                 response.status(),
                 &response.bytes().await?,

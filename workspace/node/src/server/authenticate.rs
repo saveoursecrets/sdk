@@ -23,6 +23,12 @@ impl SignedQuery {
     }
 }
 
+/// An RPC message in a query string encoded as base58.
+#[derive(Debug, Deserialize)]
+pub struct QueryMessage {
+    pub request: String,
+}
+
 #[derive(Debug)]
 pub struct BearerToken {
     //public_key: [u8; 33],

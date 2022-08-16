@@ -26,6 +26,8 @@ use super::assets::Assets;
 pub(crate) mod service;
 pub(crate) mod sse;
 
+pub(crate) mod websocket;
+
 /// Serve the home page.
 pub(crate) async fn home(
     Extension(state): Extension<Arc<RwLock<State>>>,

@@ -4,6 +4,7 @@ use super::{
         api, home,
         service::ServiceHandler,
         sse::{sse_handler, SseConnection},
+        websocket::{upgrade, WebSocketConnection},
     },
     headers::X_SESSION,
     Backend, Result, ServerConfig,
@@ -53,11 +54,16 @@ pub struct State {
     pub backend: Box<dyn Backend + Send + Sync>,
     /// Audit log file
     pub audit_log: AuditLogFile,
+
     /// Map of server sent event channels by authenticated
     /// client address.
     pub sse: HashMap<AddressStr, SseConnection>,
+
     /// Session manager.
     pub sessions: SessionManager,
+    /// Map of websocket  channels by authenticated
+    /// client address.
+    pub sockets: HashMap<AddressStr, WebSocketConnection>,
 }
 
 /// Server information.
@@ -169,6 +175,7 @@ impl Server {
             .route("/", get(home))
             .route("/api", get(api))
             .route("/api/changes", get(sse_handler))
+            .route("/api/changes2", get(upgrade))
             .route("/api/account", post(ServiceHandler::account))
             .route("/api/session", post(ServiceHandler::session))
             .route("/api/vault", post(ServiceHandler::vault))

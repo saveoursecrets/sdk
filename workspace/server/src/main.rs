@@ -84,6 +84,7 @@ async fn run() -> Result<()> {
         backend,
         audit_log,
         sse: Default::default(),
+        sockets: Default::default(),
         sessions,
     }));
 
