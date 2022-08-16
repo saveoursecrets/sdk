@@ -1,9 +1,8 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Extension, Query, TypedHeader,
+        Extension, Query,
     },
-    headers::{authorization::Bearer, Authorization},
     http::StatusCode,
     response::Response,
 };
@@ -15,14 +14,11 @@ use tokio::sync::{
     RwLock,
 };
 
-use sos_core::{
-    address::AddressStr, crypto::AeadPack, decode, events::ChangeNotification,
-};
+use sos_core::{crypto::AeadPack, decode, events::ChangeNotification};
 
 use crate::{
     server::{
         authenticate::{self, QueryMessage},
-        headers::Session,
         State,
     },
     session::EncryptedChannel,
@@ -120,7 +116,7 @@ pub async fn upgrade(
 
     drop(writer);
 
-    Ok(ws.on_upgrade(move |mut socket: WebSocket| async move {
+    Ok(ws.on_upgrade(move |socket: WebSocket| async move {
         let disconnect = move |state: Arc<RwLock<State>>| async move {
             let mut writer = state.write().await;
             let clients = if let Some(conn) = writer.sockets.get_mut(&address)

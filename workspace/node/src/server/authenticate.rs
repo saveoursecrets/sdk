@@ -6,8 +6,8 @@ use serde::Deserialize;
 use sos_core::{address::AddressStr, decode, signer::BinarySignature};
 
 use k256::ecdsa::recoverable;
-use web3_signature::Signature;
 use uuid::Uuid;
+use web3_signature::Signature;
 
 use super::Result;
 
