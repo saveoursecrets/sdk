@@ -30,6 +30,10 @@ use crate::{
     session::{ClientSession, EncryptedChannel},
 };
 
+use super::{bearer_prefix, encode_signature};
+
+const AUTHORIZATION: &str = "authorization";
+
 /// Create an RPC call without a body.
 fn new_rpc_call<T: Serialize>(
     id: u64,
@@ -54,47 +58,6 @@ fn new_rpc_body<T: Serialize>(
     let packet = Packet::new_request(request);
     let body = encode(&packet)?;
     Ok(body)
-}
-
-/// Read a response to an RPC call.
-async fn read_rpc_call<T: DeserializeOwned>(
-    response: reqwest::Response,
-    session: Option<&mut ClientSession>,
-) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
-    let buffer = response.bytes().await?;
-
-    let buffer = if let Some(session) = session {
-        let aead: AeadPack = decode(&buffer)?;
-        session.decrypt(&aead)?
-    } else {
-        buffer.to_vec()
-    };
-
-    let reply: Packet<'static> = decode(&buffer)?;
-    let response: ResponseMessage<'static> = reply.try_into()?;
-    let (_, status, result, body) = response.take::<T>()?;
-    let result = result.ok_or(Error::NoReturnValue)?;
-
-    Ok((status, result, body))
-}
-
-/// Make an encrypted session request.
-async fn session_request(
-    client: &reqwest::Client,
-    url: Url,
-    session_id: Uuid,
-    session: &mut ClientSession,
-    request: Vec<u8>,
-) -> Result<reqwest::Response> {
-    let aead = session.encrypt(&request)?;
-    let body = encode(&aead)?;
-    let response = client
-        .post(url)
-        .header(X_SESSION, session_id.to_string())
-        .body(body)
-        .send()
-        .await?;
-    Ok(response)
 }
 
 /// Client implementation for RPC requests.
@@ -129,6 +92,16 @@ impl RpcClient {
         self.session.is_some()
     }
 
+    /*
+    /// Get the session identifier.
+    pub fn session_id(&self) -> Result<Uuid> {
+        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+        let reader = lock.read().unwrap();
+        let id = *reader.id();
+        Ok(id)
+    }
+    */
+
     /// Determine if this client's session is ready for use.
     pub fn is_ready(&self) -> Result<bool> {
         let lock = self.session.as_ref().ok_or(Error::NoSession)?;
@@ -153,15 +126,11 @@ impl RpcClient {
         let response =
             self.client.post(url.clone()).body(body).send().await?;
 
-        response
-            .status()
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
-
-        let (_status, result, _) =
-            read_rpc_call::<(Uuid, [u8; 16], Vec<u8>)>(response, None)
-                .await?;
+        let (_status, result, _) = self
+            .read_response::<(Uuid, [u8; 16], Vec<u8>)>(
+                response.status(),
+                &response.bytes().await?,
+            )?;
         let result = result?;
 
         let (session_id, challenge, public_key) = result;
@@ -179,15 +148,12 @@ impl RpcClient {
         )?;
 
         let response = self.client.post(url).body(body).send().await?;
-        response
-            .status()
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
 
         // Check we got a success response; no error indicates success
-        let (_status, result, _) =
-            read_rpc_call::<()>(response, None).await?;
+        let (_status, result, _) = self.read_response::<()>(
+            response.status(),
+            &response.bytes().await?,
+        )?;
         let _result = result?;
 
         // Store the session for later requests
@@ -199,66 +165,42 @@ impl RpcClient {
 
     /// Create a new account.
     pub async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
-        let id = self.next_id();
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().unwrap();
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
         let url = self.server.join("api/account")?;
-        let session_id = session.id().clone();
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
+            Ok(new_rpc_body(id, ACCOUNT_CREATE, (), vault)?)
+        })?;
 
-        let request = new_rpc_body(id, ACCOUNT_CREATE, (), vault)?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
-        let response = session_request(
-            &self.client,
-            url,
-            session_id,
-            &mut *session,
-            request,
-        )
-        .await?;
-
-        let (status, _, _) =
-            read_rpc_call::<()>(response, Some(&mut *session)).await?;
-
-        // Note we need to pass the 409 conflict response back
-        // to the caller
-        if status.is_server_error() {
-            return Err(Error::ResponseCode(status.into()));
-        }
+        let (status, _result, _) = self
+            .read_encrypted_response::<CommitProof>(
+                response.status(),
+                &response.bytes().await?,
+            )?;
 
         Ok(status)
     }
 
     /// List vaults for an account.
     pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
-        let id = self.next_id();
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().unwrap();
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
         let url = self.server.join("api/account")?;
-        let session_id = session.id().clone();
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
+            Ok(new_rpc_call(id, ACCOUNT_LIST_VAULTS, ())?)
+        })?;
 
-        let request = new_rpc_call(id, ACCOUNT_LIST_VAULTS, ())?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
-        let response = session_request(
-            &self.client,
-            url,
-            session_id,
-            &mut *session,
-            request,
-        )
-        .await?;
-
-        let (status, result, _) =
-            read_rpc_call::<Vec<Summary>>(response, Some(&mut *session))
-                .await?;
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+        let (status, result, _) = self
+            .read_encrypted_response::<Vec<Summary>>(
+                response.status(),
+                &response.bytes().await?,
+            )?;
 
         Ok(result?)
     }
@@ -270,36 +212,21 @@ impl RpcClient {
         &self,
         vault: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
-        let id = self.next_id();
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().unwrap();
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
         let url = self.server.join("api/vault")?;
-        let session_id = session.id().clone();
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
+            Ok(new_rpc_body(id, VAULT_CREATE, (), vault)?)
+        })?;
 
-        let request = new_rpc_body(id, VAULT_CREATE, (), vault)?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
-        let response = session_request(
-            &self.client,
-            url,
-            session_id,
-            &mut *session,
-            request,
-        )
-        .await?;
-
-        let (status, result, _) = read_rpc_call::<Option<CommitProof>>(
-            response,
-            Some(&mut *session),
-        )
-        .await?;
-
-        // We need to pass the 409 conflict response back
-        // to the caller
-        if status.is_server_error() {
-            return Err(Error::ResponseCode(status.into()));
-        }
+        let (status, result, _) = self
+            .read_encrypted_response::<Option<CommitProof>>(
+                response.status(),
+                &response.bytes().await?,
+            )?;
 
         Ok((status, result?))
     }
@@ -311,35 +238,21 @@ impl RpcClient {
         &self,
         vault_id: &Uuid,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
-        let id = self.next_id();
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().unwrap();
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
         let url = self.server.join("api/vault")?;
-        let session_id = session.id().clone();
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
+            Ok(new_rpc_call(id, VAULT_DELETE, vault_id)?)
+        })?;
 
-        let request = new_rpc_call(id, VAULT_DELETE, vault_id)?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
-        let response = session_request(
-            &self.client,
-            url,
-            session_id,
-            &mut *session,
-            request,
-        )
-        .await?;
-
-        let (status, result, _) = read_rpc_call::<Option<CommitProof>>(
-            response,
-            Some(&mut *session),
-        )
-        .await?;
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+        let (status, result, _) = self
+            .read_encrypted_response::<Option<CommitProof>>(
+                response.status(),
+                &response.bytes().await?,
+            )?;
 
         Ok((status, result?))
     }
@@ -356,36 +269,21 @@ impl RpcClient {
         vault_id: &Uuid,
         vault: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
-        let id = self.next_id();
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().unwrap();
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
         let url = self.server.join("api/vault")?;
-        let session_id = session.id().clone();
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
+            Ok(new_rpc_body(id, VAULT_SAVE, vault_id, vault)?)
+        })?;
 
-        let request = new_rpc_body(id, VAULT_SAVE, vault_id, vault)?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
-        let response = session_request(
-            &self.client,
-            url,
-            session_id,
-            &mut *session,
-            request,
-        )
-        .await?;
-
-        let (status, result, _) = read_rpc_call::<Option<CommitProof>>(
-            response,
-            Some(&mut *session),
-        )
-        .await?;
-
-        // We need to pass the 409 conflict response back
-        // to the caller
-        if status.is_server_error() {
-            return Err(Error::ResponseCode(status.into()));
-        }
+        let (status, result, _) = self
+            .read_encrypted_response::<Option<CommitProof>>(
+                response.status(),
+                &response.bytes().await?,
+            )?;
 
         Ok((status, result?))
     }
@@ -399,36 +297,21 @@ impl RpcClient {
         vault_id: &Uuid,
         proof: Option<CommitProof>,
     ) -> Result<(StatusCode, Option<CommitProof>, Option<Vec<u8>>)> {
-        let id = self.next_id();
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().unwrap();
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
         let url = self.server.join("api/wal")?;
-        let session_id = session.id().clone();
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
+            Ok(new_rpc_call(id, WAL_LOAD, (vault_id, proof))?)
+        })?;
 
-        let request = new_rpc_call(id, WAL_LOAD, (vault_id, proof))?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
-        let response = session_request(
-            &self.client,
-            url,
-            session_id,
-            &mut *session,
-            request,
-        )
-        .await?;
-
-        let (status, result, body) = read_rpc_call::<Option<CommitProof>>(
-            response,
-            Some(&mut *session),
-        )
-        .await?;
-
-        // We need to pass the 409 conflict response back
-        // to the caller
-        if status.is_server_error() {
-            return Err(Error::ResponseCode(status.into()));
-        }
+        let (status, result, body) = self
+            .read_encrypted_response::<Option<CommitProof>>(
+                response.status(),
+                &response.bytes().await?,
+            )?;
 
         Ok((status, result?, Some(body)))
     }
@@ -441,35 +324,21 @@ impl RpcClient {
         vault_id: &Uuid,
         proof: Option<CommitProof>,
     ) -> Result<(StatusCode, CommitProof, Option<CommitProof>)> {
-        let id = self.next_id();
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().unwrap();
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
         let url = self.server.join("api/wal")?;
-        let session_id = session.id().clone();
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
+            Ok(new_rpc_call(id, WAL_STATUS, (vault_id, proof))?)
+        })?;
 
-        let request = new_rpc_call(id, WAL_STATUS, (vault_id, proof))?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
-        let response = session_request(
-            &self.client,
-            url,
-            session_id,
-            &mut *session,
-            request,
-        )
-        .await?;
-
-        let (status, result, _) = read_rpc_call::<(
-            CommitProof,
-            Option<CommitProof>,
-        )>(response, Some(&mut *session))
-        .await?;
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+        let (status, result, _) = self
+            .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
+                response.status(),
+                &response.bytes().await?,
+            )?;
 
         let (server_proof, match_proof) = result?;
         Ok((status, server_proof, match_proof))
@@ -485,37 +354,22 @@ impl RpcClient {
         proof: CommitProof,
         patch: Patch<'static>,
     ) -> Result<(StatusCode, Option<CommitProof>, Option<CommitProof>)> {
-        let id = self.next_id();
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().unwrap();
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
-        let url = self.server.join("api/wal")?;
-        let session_id = session.id().clone();
-
         let body = encode(&patch)?;
-        let request = new_rpc_body(id, WAL_PATCH, (vault_id, proof), body)?;
+        let url = self.server.join("api/wal")?;
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
+            Ok(new_rpc_body(id, WAL_PATCH, (vault_id, proof), body)?)
+        })?;
 
-        let response = session_request(
-            &self.client,
-            url,
-            session_id,
-            &mut *session,
-            request,
-        )
-        .await?;
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = read_rpc_call::<(
-            CommitProof,
-            Option<CommitProof>,
-        )>(response, Some(&mut *session))
-        .await?;
-
-        // We need to pass the 409 conflict response back
-        // to the caller
-        if status.is_server_error() {
-            return Err(Error::ResponseCode(status.into()));
-        }
+        let (status, result, _) = self
+            .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
+                response.status(),
+                &response.bytes().await?,
+            )?;
 
         let (server_proof, match_proof) = result?;
         Ok((status, Some(server_proof), match_proof))
@@ -531,28 +385,121 @@ impl RpcClient {
         proof: CommitProof,
         body: Vec<u8>,
     ) -> Result<(StatusCode, Option<CommitProof>)> {
+        let url = self.server.join("api/wal")?;
+        let (session_id, sign_bytes, body) = self.build_request(|id| {
+            Ok(new_rpc_body(id, WAL_SAVE, (vault_id, proof), body)?)
+        })?;
+
+        let signature =
+            encode_signature(self.signer.sign(&sign_bytes).await?)?;
+        let response =
+            self.send_request(url, session_id, signature, body).await?;
+
+        let (status, result, _) = self
+            .read_encrypted_response::<CommitProof>(
+                response.status(),
+                &response.bytes().await?,
+            )?;
+
+        Ok((status, Some(result?)))
+    }
+
+    /// Build an encrypted request.
+    fn build_request<F>(
+        &self,
+        builder: F,
+    ) -> Result<(Uuid, [u8; 32], Vec<u8>)>
+    where
+        F: FnOnce(u64) -> Result<Vec<u8>>,
+    {
         let id = self.next_id();
         let lock = self.session.as_ref().ok_or(Error::NoSession)?;
         let mut session = lock.write().unwrap();
         session.ready().then_some(()).ok_or(Error::InvalidSession)?;
 
-        let url = self.server.join("api/wal")?;
         let session_id = session.id().clone();
 
-        let request = new_rpc_body(id, WAL_SAVE, (vault_id, proof), body)?;
+        let request = builder(id)?;
+        let aead = session.encrypt(&request)?;
+        let sign_bytes =
+            session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
+        let body = encode(&aead)?;
 
-        let response = session_request(
-            &self.client,
-            url,
-            session_id,
-            &mut *session,
-            request,
-        )
-        .await?;
+        Ok((session_id, sign_bytes, body))
+    }
 
-        let (status, result, _) =
-            read_rpc_call::<CommitProof>(response, Some(&mut *session))
-                .await?;
-        Ok((status, Some(result?)))
+    /// Send an encrypted session request.
+    async fn send_request(
+        &self,
+        url: Url,
+        session_id: Uuid,
+        signature: String,
+        body: Vec<u8>,
+    ) -> Result<reqwest::Response> {
+        let response = self
+            .client
+            .post(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(X_SESSION, session_id.to_string())
+            .body(body)
+            .send()
+            .await?;
+        Ok(response)
+    }
+
+    /// Read a response that is not encrypted.
+    fn read_response<T: DeserializeOwned>(
+        &self,
+        status: StatusCode,
+        buffer: &[u8],
+    ) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
+        let reply: Packet<'static> = decode(&buffer)?;
+        let response: ResponseMessage<'static> = reply.try_into()?;
+        let (_, status, result, body) = response.take::<T>()?;
+        let result = result.ok_or(Error::NoReturnValue)?;
+        Ok((status, result, body))
+    }
+
+    /// Read an encrypted response to an RPC call.
+    fn read_encrypted_response<T: DeserializeOwned>(
+        &self,
+        http_status: StatusCode,
+        buffer: &[u8],
+    ) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
+        // Unauthorized means the session could not be found
+        // or has expired
+        if http_status == StatusCode::UNAUTHORIZED {
+            Err(Error::NotAuthorized)
+        } else if http_status.is_success()
+            || http_status == StatusCode::CONFLICT
+        {
+            let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+            let mut session = lock.write().unwrap();
+            session.ready().then_some(()).ok_or(Error::InvalidSession)?;
+
+            let aead: AeadPack = decode(buffer)?;
+            session.set_nonce(&aead.nonce);
+            let buffer = session.decrypt(&aead)?;
+
+            let reply: Packet<'static> = decode(&buffer)?;
+            let response: ResponseMessage<'static> = reply.try_into()?;
+
+            // We must return the inner status code as the server mutates
+            // some status codes (eg: NOT_MODIFIED -> OK) so that the client
+            // will read the body of the response.
+            //
+            // Callers need to respond to the actual NOT_MODIFIED status.
+
+            let (_, status, result, body) = response.take::<T>()?;
+            let result = result.ok_or(Error::NoReturnValue)?;
+            Ok((status, result, body))
+        } else {
+            Err(Error::ResponseCode(http_status.into()))
+        }
     }
 }

@@ -31,6 +31,11 @@ pub enum Error {
     #[error("session key does not exist")]
     NoSessionKey,
 
+    /// Error generated when a session receives a nonce that is equal to
+    /// or less than the current server session nonce.
+    #[error("bad nonce, possible replay attack")]
+    BadNonce,
+
     /// Error generated converting from a slice.
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),

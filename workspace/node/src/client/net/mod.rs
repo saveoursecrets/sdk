@@ -13,9 +13,6 @@ pub mod rpc;
 pub use request::RequestClient;
 pub use rpc::RpcClient;
 
-#[deprecated]
-pub(crate) type Challenge = [u8; 32];
-
 pub(crate) fn encode_signature(signature: Signature) -> Result<String> {
     let signature: BinarySignature = signature.into();
     let value = bs58::encode(encode(&signature)?).into_string();

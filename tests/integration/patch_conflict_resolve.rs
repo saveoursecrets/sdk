@@ -30,7 +30,8 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
     // cache directory but sharing the same credentials
     let cache_dir = dirs.clients.get(1).unwrap().to_path_buf();
     let mut client2 =
-        login(server_url, cache_dir, keystore_file, keystore_passphrase)?;
+        login(server_url, cache_dir, keystore_file, keystore_passphrase)
+            .await?;
     let _ = client2.load_vaults().await?;
 
     // Both client use the login vault

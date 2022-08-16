@@ -1,6 +1,6 @@
 //! Caching implementation.
 use super::{Error, Result};
-use crate::client::net::RequestClient;
+use crate::client::net::RpcClient;
 
 use async_recursion::async_recursion;
 use http::StatusCode;
@@ -159,13 +159,8 @@ impl NodeState {
 pub struct NodeCache<W, P> {
     /// State of this node.
     state: NodeState,
-
-    /*
-    /// The URL for a remote node.
-    server: Url,
-    */
     /// Client to use for server communication.
-    client: RequestClient,
+    client: RpcClient,
     /// Directory for the user cache.
     ///
     /// Only available when using disc backing storage.
@@ -198,6 +193,19 @@ where
     /// Get the signer for this node cache.
     pub fn signer(&self) -> &BoxedSigner {
         self.client.signer()
+    }
+
+    /// Get the client.
+    pub fn client(&self) -> &RpcClient {
+        &self.client
+    }
+
+    /// Attempt to open an authenticated, encrypted session.
+    ///
+    /// Must be called before using any other methods that
+    /// communicate over the network to prepare the client session.
+    pub async fn authenticate(&mut self) -> Result<()> {
+        Ok(self.client.authenticate().await?)
     }
 
     /// Take a snapshot of the WAL for the given vault.
@@ -410,7 +418,7 @@ where
     /// Remove a vault.
     pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Attempt to delete on the remote server
-        let (status, _) = self.client.delete_wal(*summary.id()).await?;
+        let (status, _) = self.client.delete_vault(summary.id()).await?;
         status
             .is_success()
             .then_some(())
@@ -481,7 +489,7 @@ where
         let client_proof = wal.tree().head()?;
         let (status, server_proof, match_proof) = self
             .client
-            .head_wal(*summary.id(), Some(client_proof.clone()))
+            .status(summary.id(), Some(client_proof.clone()))
             .await?;
         status
             .is_success()
@@ -543,7 +551,7 @@ where
         // Send the new vault to the server
         let buffer = encode(vault)?;
         let (status, server_proof) =
-            self.client.put_vault(*summary.id(), buffer).await?;
+            self.client.save_vault(summary.id(), buffer).await?;
         status
             .is_success()
             .then_some(())
@@ -605,6 +613,7 @@ where
         events: Vec<SyncEvent<'_>>,
     ) -> Result<()> {
         let status = self.patch_wal(summary, events).await?;
+
         status
             .is_success()
             .then_some(())
@@ -631,7 +640,7 @@ where
 
         let (status, server_proof, match_proof) = self
             .client
-            .head_wal(*summary.id(), Some(client_proof.clone()))
+            .status(summary.id(), Some(client_proof.clone()))
             .await?;
         status
             .is_success()
@@ -686,7 +695,7 @@ where
         let client_proof = wal.tree().head()?;
 
         let (status, server_proof, _match_proof) =
-            self.client.head_wal(*summary.id(), None).await?;
+            self.client.status(summary.id(), None).await?;
         status
             .is_success()
             .then_some(())
@@ -753,7 +762,7 @@ impl NodeCache<WalFile, PatchFile> {
         std::fs::create_dir_all(&user_dir)?;
 
         let snapshots = Some(SnapShotManager::new(&user_dir)?);
-        let client = RequestClient::new(server, signer);
+        let client = RpcClient::new(server, signer);
 
         Ok(Self {
             state: Default::default(),
@@ -772,7 +781,7 @@ impl NodeCache<WalMemory, PatchMemory<'static>> {
         server: Url,
         signer: BoxedSigner,
     ) -> NodeCache<WalMemory, PatchMemory<'static>> {
-        let client = RequestClient::new(server, signer);
+        let client = RpcClient::new(server, signer);
         Self {
             state: Default::default(),
             client,
@@ -806,7 +815,7 @@ where
         let status = if is_account {
             self.client.create_account(buffer).await?
         } else {
-            let (status, _) = self.client.create_wal(buffer).await?;
+            let (status, _) = self.client.create_vault(buffer).await?;
             status
         };
 
@@ -943,7 +952,7 @@ where
 
         let (status, server_proof, buffer) = self
             .client
-            .get_wal(*summary.id(), client_proof.clone())
+            .load_wal(summary.id(), client_proof.clone())
             .await?;
 
         tracing::debug!(status = %status, "pull_wal");
@@ -1057,7 +1066,7 @@ where
 
         let (status, server_proof, match_proof) = self
             .client
-            .patch_wal(
+            .apply_patch(
                 *summary.id(),
                 client_proof.clone(),
                 patch.clone().into_owned(),
@@ -1131,6 +1140,7 @@ where
                             }
                         }
                     }
+
                     Ok(status)
                 } else {
                     Err(Error::Conflict {
@@ -1233,7 +1243,7 @@ where
         let body = std::fs::read(wal.path())?;
         let (status, server_proof) = self
             .client
-            .post_wal(*summary.id(), client_proof.clone(), body)
+            .save_wal(summary.id(), client_proof.clone(), body)
             .await?;
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;

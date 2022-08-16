@@ -35,7 +35,7 @@ pub trait Backend {
     /// Get the lock files.
     fn file_locks(&self) -> &FileLocks;
 
-    /// ACCOUNT ///
+    /* ACCOUNT */
 
     /// Create a new account with the given default vault.
     ///
@@ -52,7 +52,7 @@ pub trait Backend {
     /// Determine if an account exists for the given address.
     async fn account_exists(&self, owner: &AddressStr) -> bool;
 
-    /// VAULT ///
+    /* VAULT */
 
     /// List vaults for an account.
     ///
@@ -78,7 +78,7 @@ pub trait Backend {
         vault: &'a [u8],
     ) -> Result<(SyncEvent<'a>, CommitProof)>;
 
-    /// WAL ///
+    /* WAL */
 
     /// Create a new WAL.
     ///

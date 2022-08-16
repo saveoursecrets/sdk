@@ -41,92 +41,95 @@ pub(crate) async fn sse_handler(
     Extension(state): Extension<Arc<RwLock<State>>>,
     Query(params): Query<SignedQuery>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
-    if let Ok((status_code, token)) = params.bearer() {
-        if let (StatusCode::OK, Some(token)) = (status_code, token) {
-            let address = token.address;
-            let stream_state = Arc::clone(&state);
-            // Save the sender side of the channel so other handlers
-            // can publish to the server sent events stream
-            let mut writer = state.write().await;
+    //if let Ok((status_code, token)) = params.bearer() {
+    //if let (StatusCode::OK, Some(token)) = (status_code, token) {
+    if let Ok(token) = params.bearer() {
+        let address = token.address;
+        let stream_state = Arc::clone(&state);
+        // Save the sender side of the channel so other handlers
+        // can publish to the server sent events stream
+        let mut writer = state.write().await;
 
-            let conn = if let Some(conn) = writer.sse.get_mut(&token.address)
-            {
-                conn
-            } else {
-                let (tx, _) = broadcast::channel::<ChangeNotification>(32);
-                writer
-                    .sse
-                    .entry(token.address)
-                    .or_insert(SseConnection { tx, clients: 0 })
-            };
+        let conn = if let Some(conn) = writer.sse.get_mut(&token.address) {
+            conn
+        } else {
+            let (tx, _) = broadcast::channel::<ChangeNotification>(32);
+            writer
+                .sse
+                .entry(token.address)
+                .or_insert(SseConnection { tx, clients: 0 })
+        };
 
-            if let Some(result) = conn.clients.checked_add(1) {
-                if result > MAX_SSE_CONNECTIONS_PER_CLIENT {
-                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
-                }
-                conn.clients = result;
-            } else {
+        if let Some(result) = conn.clients.checked_add(1) {
+            if result > MAX_SSE_CONNECTIONS_PER_CLIENT {
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
-
-            let mut rx = conn.tx.subscribe();
-
-            struct Guard {
-                state: Arc<RwLock<State>>,
-                address: AddressStr,
-            }
-
-            impl Drop for Guard {
-                fn drop(&mut self) {
-                    let state = Arc::clone(&self.state);
-                    let address = self.address;
-
-                    tokio::spawn(
-                        // Clean up the state removing the channel for the
-                        // client when the socket is closed.
-                        async move {
-                            let mut writer = state.write().await;
-                            let clients = if let Some(conn) =
-                                writer.sse.get_mut(&address)
-                            {
-                                conn.clients -= 1;
-                                Some(conn.clients)
-                            } else {
-                                None
-                            };
-
-                            if let Some(clients) = clients {
-                                if clients == 0 {
-                                    writer.sse.remove(&address);
-                                }
-                            }
-                        },
-                    );
-                }
-            }
-
-            // Publish to the server sent events stream
-            let stream = async_stream::stream! {
-                let _guard = Guard { state: stream_state, address };
-                while let Ok(event) = rx.recv().await {
-                    // Must be Infallible here
-                    let event = Event::default()
-                        .json_data(event)
-                        .unwrap();
-                    tracing::trace!("{:#?}", event);
-                    yield Ok(event);
-                }
-            };
-
-            Ok(Sse::new(stream).keep_alive(
-                axum::response::sse::KeepAlive::new()
-                    .interval(Duration::from_secs(30))
-                    .text("keep-alive"),
-            ))
+            conn.clients = result;
         } else {
-            Err(status_code)
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
+
+        let mut rx = conn.tx.subscribe();
+
+        struct Guard {
+            state: Arc<RwLock<State>>,
+            address: AddressStr,
+        }
+
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                let state = Arc::clone(&self.state);
+                let address = self.address;
+
+                tokio::spawn(
+                    // Clean up the state removing the channel for the
+                    // client when the socket is closed.
+                    async move {
+                        let mut writer = state.write().await;
+                        let clients = if let Some(conn) =
+                            writer.sse.get_mut(&address)
+                        {
+                            conn.clients -= 1;
+                            Some(conn.clients)
+                        } else {
+                            None
+                        };
+
+                        if let Some(clients) = clients {
+                            if clients == 0 {
+                                writer.sse.remove(&address);
+                            }
+                        }
+                    },
+                );
+            }
+        }
+
+        // Publish to the server sent events stream
+        let stream = async_stream::stream! {
+            let _guard = Guard { state: stream_state, address };
+            while let Ok(event) = rx.recv().await {
+                // Must be Infallible here
+                let event = Event::default()
+                    .json_data(event)
+                    .unwrap();
+                tracing::trace!("{:#?}", event);
+                yield Ok(event);
+            }
+        };
+
+        Ok(Sse::new(stream).keep_alive(
+            axum::response::sse::KeepAlive::new()
+                .interval(Duration::from_secs(30))
+                .text("keep-alive"),
+        ))
     } else {
-        Err(StatusCode::INTERNAL_SERVER_ERROR)
+        Err(StatusCode::BAD_REQUEST)
     }
+    //} else {
+    //Err(status_code)
+    //}
+    //} else {
+    //Err(StatusCode::INTERNAL_SERVER_ERROR)
+    //}
 }

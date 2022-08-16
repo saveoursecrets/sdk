@@ -107,4 +107,8 @@ pub enum Error {
     /// Error generate by the UUID library.
     #[error(transparent)]
     Uuid(#[from] uuid::Error),
+
+    /// Error generated trying to decode from base58.
+    #[error(transparent)]
+    Base58(#[from] bs58::decode::Error),
 }

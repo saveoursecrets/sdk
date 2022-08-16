@@ -77,6 +77,10 @@ pub enum Error {
     #[error("session is invalid, authentication is required")]
     InvalidSession,
 
+    /// Error generated when a client receives an unauthorized response.
+    #[error("not authorized, authentication is required")]
+    NotAuthorized,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

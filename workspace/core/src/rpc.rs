@@ -290,6 +290,11 @@ impl<'a> ResponseMessage<'a> {
         self.id
     }
 
+    /// Get the status code.
+    pub fn status(&self) -> StatusCode {
+        self.status
+    }
+
     /// Take the result.
     pub fn take<T: DeserializeOwned>(
         self,
@@ -417,7 +422,7 @@ impl<'a, T: Serialize> TryFrom<(StatusCode, Option<u64>, T)>
 
     fn try_from(value: (StatusCode, Option<u64>, T)) -> Result<Self> {
         let reply =
-            ResponseMessage::new_reply(value.1, value.0, Some(Ok(value.1)))?;
+            ResponseMessage::new_reply(value.1, value.0, Some(Ok(value.2)))?;
         Ok(reply)
     }
 }

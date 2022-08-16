@@ -5,7 +5,7 @@ use k256::{
     elliptic_curve::ecdh::SharedSecret, EncodedPoint, PublicKey, Secp256k1,
 };
 use rand::Rng;
-use sha3::Keccak256;
+use sha3::{Digest, Keccak256};
 use sos_core::{
     address::AddressStr,
     crypto::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce},
@@ -20,9 +20,6 @@ use web3_signature::Signature;
 
 use crate::{Error, Result};
 
-/// Default session length in seconds.
-const SESSION_LENGTH: u64 = 900;
-
 /// Generate a secret key suitable for symmetric encryption.
 fn derive_secret_key(
     shared: &SharedSecret<Secp256k1>,
@@ -35,15 +32,32 @@ fn derive_secret_key(
 }
 
 /// Manages a collection of sessions.
-#[derive(Default)]
 pub struct SessionManager {
     sessions: HashMap<Uuid, ServerSession>,
+    duration_secs: u64,
 }
 
 impl SessionManager {
-    /// Attempt to get a session.
-    pub fn get(&self, id: &Uuid) -> Option<&ServerSession> {
-        self.sessions.get(id)
+    /// Create a session manager using the given session duration.
+    pub fn new(duration_secs: u64) -> Self {
+        Self {
+            sessions: Default::default(),
+            duration_secs,
+        }
+    }
+
+    /// Get the keys of sessions that have expired.
+    pub fn expired_keys(&self) -> Vec<Uuid> {
+        self.sessions
+            .iter()
+            .filter(|(_, v)| v.expired())
+            .map(|(k, _)| *k)
+            .collect::<Vec<_>>()
+    }
+
+    /// Remove the given session.
+    pub fn remove_session(&mut self, key: &Uuid) -> Option<ServerSession> {
+        self.sessions.remove(key)
     }
 
     /// Attempt to get a mutable reference to a session.
@@ -58,7 +72,7 @@ impl SessionManager {
     /// offering a session.
     pub fn offer(&mut self, identity: AddressStr) -> (Uuid, &ServerSession) {
         let id = Uuid::new_v4();
-        let session = ServerSession::new(identity);
+        let session = ServerSession::new(identity, self.duration_secs);
         let session = self.sessions.entry(id.clone()).or_insert(session);
         (id, session)
     }
@@ -94,6 +108,8 @@ pub struct ServerSession {
     identity: AddressStr,
     /// Expiry time.
     expires: Instant,
+    /// Duration for this session.
+    duration_secs: u64,
     /// Random challenge that the client must sign to
     /// prove their identity.
     ///
@@ -111,14 +127,16 @@ pub struct ServerSession {
 
 impl ServerSession {
     /// Create a new server session.
-    pub fn new(identity: AddressStr) -> Self {
+    pub fn new(identity: AddressStr, duration_secs: u64) -> Self {
         let rng = &mut rand::thread_rng();
         let challenge: [u8; 16] = rng.gen();
+
         Self {
             identity,
             challenge,
+            duration_secs,
             identity_proof: None,
-            expires: Instant::now() + Duration::from_secs(SESSION_LENGTH),
+            expires: Instant::now() + Duration::from_secs(duration_secs),
             secret: EphemeralSecret::random(&mut rand::thread_rng()),
             private: None,
             nonce: U192::ZERO,
@@ -158,6 +176,47 @@ impl ServerSession {
         Ok(())
     }
 
+    /// Update this session to have the given nonce.
+    pub fn set_nonce(&mut self, nonce: &Nonce) {
+        let bytes = match nonce {
+            Nonce::Nonce24(bytes) => *bytes,
+            _ => unreachable!("session got invalid nonce kind"),
+        };
+
+        let nonce = U192::from_be_bytes(bytes);
+        self.nonce = nonce;
+    }
+
+    /// Verify an incoming nonce is greater than the nonce
+    /// assigned to this session.
+    pub fn verify_nonce(&self, other_nonce: &Nonce) -> Result<()> {
+        let bytes = match other_nonce {
+            Nonce::Nonce24(bytes) => *bytes,
+            _ => unreachable!("session got invalid nonce kind"),
+        };
+
+        let other_nonce = U192::from_be_bytes(bytes);
+        if other_nonce <= self.nonce {
+            Err(Error::BadNonce)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Refresh this session.
+    ///
+    /// Extends the expiry time for this session from now by the session
+    /// duration given when the session was created.
+    pub fn refresh(&mut self) {
+        self.expires =
+            Instant::now() + Duration::from_secs(self.duration_secs);
+    }
+
+    /// Determine if this session has expired.
+    pub fn expired(&self) -> bool {
+        Instant::now() >= self.expires
+    }
+
     /// Determine if this session is still valid.
     pub fn valid(&self) -> bool {
         self.ready() && (Instant::now() < self.expires)
@@ -172,8 +231,12 @@ impl EncryptedChannel for ServerSession {
     fn next_nonce(&mut self) -> Result<Nonce> {
         let one = U192::from(1u8);
         self.nonce = self.nonce.checked_add(&one).unwrap();
-        let nonce = Nonce::Nonce24(self.nonce.to_le_bytes());
+        let nonce = Nonce::Nonce24(self.nonce.to_be_bytes());
         Ok(nonce)
+    }
+
+    fn salt(&self) -> Result<&[u8; 16]> {
+        Ok(&self.challenge)
     }
 }
 
@@ -182,6 +245,10 @@ pub struct ClientSession {
     signer: BoxedSigner,
     /// Session identifier.
     id: Uuid,
+    /// Challenge created when a session was offered.
+    ///
+    /// Used as the salt for key derivation.
+    challenge: Option<[u8; 16]>,
     /// Session secret.
     secret: EphemeralSecret,
     /// Derived private key for symmetric encryption.
@@ -197,6 +264,7 @@ impl ClientSession {
         Ok(Self {
             signer,
             id,
+            challenge: None,
             secret,
             private: None,
             nonce: U192::ZERO,
@@ -220,6 +288,7 @@ impl ClientSession {
         let shared = self.secret.diffie_hellman(&server_public);
         let signature = self.signer.sign(&challenge).await?;
         let key = derive_secret_key(&shared, challenge.as_ref())?;
+        self.challenge = Some(challenge);
         Ok((signature, key))
     }
 
@@ -227,6 +296,16 @@ impl ClientSession {
     pub fn public_key(&self) -> Vec<u8> {
         let public_key_bytes = EncodedPoint::from(self.secret.public_key());
         public_key_bytes.as_ref().to_vec()
+    }
+
+    /// Update this session to have the given nonce.
+    pub fn set_nonce(&mut self, nonce: &Nonce) {
+        let bytes = match nonce {
+            Nonce::Nonce24(bytes) => *bytes,
+            _ => unreachable!("session got invalid nonce kind"),
+        };
+        let nonce = U192::from_be_bytes(bytes);
+        self.nonce = nonce;
     }
 
     /// Complete the session negotiation.
@@ -243,8 +322,12 @@ impl EncryptedChannel for ClientSession {
     fn next_nonce(&mut self) -> Result<Nonce> {
         let one = U192::from(1u8);
         self.nonce = self.nonce.checked_add(&one).unwrap();
-        let nonce = Nonce::Nonce24(self.nonce.to_le_bytes());
+        let nonce = Nonce::Nonce24(self.nonce.to_be_bytes());
         Ok(nonce)
+    }
+
+    fn salt(&self) -> Result<&[u8; 16]> {
+        Ok(self.challenge.as_ref().ok_or(Error::NoSessionSalt)?)
     }
 }
 
@@ -255,6 +338,27 @@ pub trait EncryptedChannel {
 
     /// Increment and return the next sequential nonce.
     fn next_nonce(&mut self) -> Result<Nonce>;
+
+    /// Get the challenge/salt for the session.
+    fn salt(&self) -> Result<&[u8; 16]>;
+
+    /// Get the bytes used to create a signature for the message.
+    ///
+    /// This is the challenge (or salt) concatenated with the
+    /// nonce for the message.
+    fn sign_bytes<H: Digest>(&self, nonce: &Nonce) -> Result<[u8; 32]> {
+        let nonce_bytes = match nonce {
+            Nonce::Nonce24(bytes) => bytes,
+            _ => unreachable!("session got invalid nonce kind"),
+        };
+
+        let mut bytes = Vec::with_capacity(40);
+        bytes.extend_from_slice(self.salt()?);
+        bytes.extend_from_slice(nonce_bytes);
+
+        let digest: [u8; 32] = H::digest(&bytes).as_slice().try_into()?;
+        Ok(digest)
+    }
 
     /// Encrypt a message.
     fn encrypt(&mut self, message: &[u8]) -> Result<AeadPack> {
@@ -280,17 +384,22 @@ mod test {
     use super::*;
     use anyhow::Result;
     use k256::ecdsa::SigningKey;
-    use sos_core::signer::{Signer, SingleParty};
+    use sos_core::signer::{BoxedSigner, SingleParty};
+    use std::time::Duration;
+
+    fn new_signer() -> BoxedSigner {
+        let client_identity = SigningKey::random(&mut rand::thread_rng());
+        Box::new(SingleParty(client_identity))
+    }
 
     #[tokio::test]
     async fn session_negotiate() -> Result<()> {
-        let mut manager: SessionManager = Default::default();
+        let mut manager = SessionManager::new(60);
 
         // Client sends a request to generate an authenticated
         // session by sending it's signing address
         // ...
-        let client_identity = SigningKey::random(&mut rand::thread_rng());
-        let signer = Box::new(SingleParty(client_identity));
+        let signer = new_signer();
         let address = signer.address()?;
 
         let (session_id, server_session) = manager.offer(address);
@@ -304,6 +413,8 @@ mod test {
             .sign(&server_public_key, server_session.challenge())
             .await?;
 
+        assert_eq!(U192::from(0u8), client_session.nonce);
+
         // Send the session id, signature and client public key
         // bytes to the server which computes it's shared secret
         // ...
@@ -313,41 +424,73 @@ mod test {
 
         client_session.finish(client_key);
 
+        assert_eq!(U192::from(0u8), server_session.nonce);
+
         // Encrypt on the client, send to the server and
         // decrypt on the server
         let message = b"client sent message";
         let aead = client_session.encrypt(message)?;
+        server_session.set_nonce(&aead.nonce);
         let bytes = server_session.decrypt(&aead)?;
 
         assert_eq!(message.as_ref(), &bytes);
         assert_eq!(U192::from(1u8), client_session.nonce);
+        assert_eq!(U192::from(1u8), server_session.nonce);
 
         // Encrypt on the server, send to the client and
         // decrypt on the client
         let message = b"server sent message";
         let aead = server_session.encrypt(message)?;
+        client_session.set_nonce(&aead.nonce);
         let bytes = client_session.decrypt(&aead)?;
 
         assert_eq!(message.as_ref(), &bytes);
-        assert_eq!(U192::from(1u8), server_session.nonce);
+        assert_eq!(U192::from(2u8), client_session.nonce);
+        assert_eq!(U192::from(2u8), server_session.nonce);
 
         // Encrypt on the client, send to the server and
         // decrypt on the server
         let message = b"client sent message with another nonce";
         let aead = client_session.encrypt(message)?;
+        server_session.set_nonce(&aead.nonce);
         let bytes = server_session.decrypt(&aead)?;
 
         assert_eq!(message.as_ref(), &bytes);
-        assert_eq!(U192::from(2u8), client_session.nonce);
+        assert_eq!(U192::from(3u8), client_session.nonce);
+        assert_eq!(U192::from(3u8), server_session.nonce);
 
         // Encrypt on the server, send to the client and
         // decrypt on the client
         let message = b"server sent message with another nonce";
         let aead = server_session.encrypt(message)?;
+        client_session.set_nonce(&aead.nonce);
         let bytes = client_session.decrypt(&aead)?;
 
         assert_eq!(message.as_ref(), &bytes);
-        assert_eq!(U192::from(2u8), server_session.nonce);
+        assert_eq!(U192::from(4u8), client_session.nonce);
+        assert_eq!(U192::from(4u8), server_session.nonce);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn session_expired() -> Result<()> {
+        // Create a manager that will expire sessions after a second.
+        let mut manager = SessionManager::new(1);
+
+        let signer = new_signer();
+        let address = signer.address()?;
+
+        // Generate a session
+        let (_session_id, server_session) = manager.offer(address);
+
+        assert!(!server_session.ready());
+
+        // Wait for the session to expire
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        // Verify expiry
+        assert!(server_session.expired());
 
         Ok(())
     }
