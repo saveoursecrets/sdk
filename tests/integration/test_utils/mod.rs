@@ -14,7 +14,8 @@ use sos_core::{
 
 use sos_node::{
     client::node_cache::NodeCache,
-    server::{Authentication, Server, ServerConfig, ServerInfo, State},
+    server::{Server, ServerConfig, ServerInfo, State},
+    session::SessionManager,
 };
 
 const ADDR: &str = "127.0.0.1:3505";
@@ -42,7 +43,6 @@ impl MockServer {
 
         let config = ServerConfig::load("tests/config.toml")?;
 
-        let authentication: Authentication = Default::default();
         let mut backend = config.backend().await?;
 
         let mut locks = FileLocks::new();
@@ -60,16 +60,13 @@ impl MockServer {
             },
             config,
             backend,
-            authentication,
             audit_log,
             sse: Default::default(),
-            sessions: Default::default(),
+            sessions: SessionManager::new(300),
         }));
 
         let server = Server::new();
-        server
-            .start_insecure(addr, state, self.handle.clone())
-            .await?;
+        server.start(addr, state, self.handle.clone()).await?;
         Ok(())
     }
 

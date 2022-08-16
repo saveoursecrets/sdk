@@ -133,6 +133,9 @@ fn run() -> Result<()> {
 
             // Load initial vaults
             let mut writer = cache.write().unwrap();
+
+            run_blocking(writer.authenticate())?;
+
             if let Err(e) = run_blocking(writer.load_vaults()) {
                 tracing::error!("failed to load vaults: {}", e);
             }

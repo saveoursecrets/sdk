@@ -1,4 +1,8 @@
-use axum::{body::Bytes, http::StatusCode};
+use axum::{
+    body::Bytes,
+    headers::{authorization::Bearer, Authorization},
+    http::StatusCode,
+};
 
 use sos_core::{
     address::AddressStr,
@@ -13,7 +17,10 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 use uuid::Uuid;
 
-use crate::{server::State, session::EncryptedChannel};
+use crate::{
+    server::{authenticate, State},
+    session::EncryptedChannel,
+};
 
 /// Append to the audit log.
 async fn append_audit_logs<'a>(
@@ -67,13 +74,16 @@ pub(crate) async fn public_service(
 
     let reply = service.serve(Arc::clone(&state), request).await;
 
-    let body = if let Some(reply) = reply {
+    let (_status, body) = if let Some(reply) = reply {
+        let status = reply.status();
         let response = Packet::new_response(reply);
         let body = encode(&response)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        Bytes::from(body)
+        (status, Bytes::from(body))
     } else {
-        Bytes::from(vec![])
+        // Got a notification request without a message `id`
+        // so we send NO_CONTENT
+        (StatusCode::NO_CONTENT, Bytes::from(vec![]))
     };
 
     Ok((StatusCode::OK, body))
@@ -84,13 +94,14 @@ pub(crate) async fn public_service(
 pub(crate) async fn private_service(
     service: impl Service<State = (AddressStr, Arc<RwLock<State>>)> + Sync + Send,
     state: Arc<RwLock<State>>,
+    bearer: Authorization<Bearer>,
     session_id: &Uuid,
     body: Bytes,
 ) -> Result<(StatusCode, Bytes), StatusCode> {
-    let reader = state.read().await;
-    let session = reader
+    let mut writer = state.write().await;
+    let session = writer
         .sessions
-        .get(session_id)
+        .get_mut(session_id)
         .ok_or(StatusCode::UNAUTHORIZED)?;
     session
         .valid()
@@ -101,29 +112,67 @@ pub(crate) async fn private_service(
     let aead: AeadPack =
         decode(&body).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // FIXME: check nonce is not equal to or behind last used nonce
+    // Verify the nonce is ahead of this nonce
+    // otherwise we may have a possible replay attack
+    session
+        .verify_nonce(&aead.nonce)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
+    // Verify the signature for the message
+    let sign_bytes = session
+        .sign_bytes::<sha3::Keccak256>(&aead.nonce)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Parse the bearer token
+    let token = authenticate::bearer(bearer, &sign_bytes)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    // Attempt to impersonate the session identity
+    if &token.address != session.identity() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Decrypt the incoming data ensuring we update
+    // our session nonce for any reply
+    session.set_nonce(&aead.nonce);
     let body = session
         .decrypt(&aead)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    drop(reader);
 
+    // Decode the incoming packet and request message
     let packet: Packet<'_> =
         decode(&body).map_err(|_| StatusCode::BAD_REQUEST)?;
-
     let request: RequestMessage<'_> = packet
         .try_into()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    // Refresh the session on activity
+    session.refresh();
+    drop(writer);
+
+    // Get a reply from the target service
     let reply = service.serve((address, Arc::clone(&state)), request).await;
 
-    let body = if let Some(reply) = reply {
+    let (status, body) = if let Some(reply) = reply {
+        let mut status = reply.status();
+
         let response = Packet::new_response(reply);
         let body = encode(&response)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        body
+
+        // If we send an actual NOT_MODIFIED response then the
+        // client will not receive any body content so we have
+        // to mutate the actual HTTP response and let the client
+        // act on the inner status code
+        if status == StatusCode::NOT_MODIFIED {
+            status = StatusCode::OK;
+        }
+
+        (status, body)
     } else {
-        vec![]
+        // Got a notification request without a message `id`
+        // so we send NO_CONTENT
+        (StatusCode::NO_CONTENT, vec![])
     };
 
     let mut writer = state.write().await;
@@ -134,7 +183,8 @@ pub(crate) async fn private_service(
     let aead = session
         .encrypt(&body)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     let body =
         encode(&aead).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok((StatusCode::OK, Bytes::from(body)))
+    Ok((status, Bytes::from(body)))
 }

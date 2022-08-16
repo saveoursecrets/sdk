@@ -1,6 +1,6 @@
 use axum::{
     extract::Extension,
-    http::{header::HeaderMap, HeaderValue, StatusCode},
+    http::StatusCode,
     response::{IntoResponse, Redirect},
     Json,
 };
@@ -16,85 +16,15 @@ use axum::{
 use serde_json::json;
 
 use std::sync::Arc;
-use tokio::sync::{RwLock, RwLockWriteGuard};
+use tokio::sync::RwLock;
 
-use super::{
-    headers::{X_COMMIT_PROOF, X_MATCH_PROOF},
-    State,
-};
+use super::State;
 
 #[cfg(feature = "gui")]
 use super::assets::Assets;
 
-use sos_core::{
-    commit_tree::CommitProof, encode, events::ChangeNotification, AuditEvent,
-    AuditProvider,
-};
-
-pub(crate) mod account;
-pub(crate) mod auth;
-pub(crate) mod sse;
-pub(crate) mod wal;
-
 pub(crate) mod service;
-
-fn append_commit_headers(
-    headers: &mut HeaderMap,
-    proof: &CommitProof,
-) -> Result<(), StatusCode> {
-    let value =
-        encode(proof).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let x_commit_proof =
-        HeaderValue::from_str(&bs58::encode(&value).into_string())
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    headers.insert(X_COMMIT_PROOF.clone(), x_commit_proof);
-    Ok(())
-}
-
-fn append_match_header(
-    headers: &mut HeaderMap,
-    proof: &CommitProof,
-) -> Result<(), StatusCode> {
-    let value =
-        encode(proof).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let x_match_proof =
-        HeaderValue::from_str(&bs58::encode(&value).into_string())
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    headers.insert(X_MATCH_PROOF.clone(), x_match_proof);
-    Ok(())
-}
-
-#[deprecated]
-/// Append to the audit log.
-async fn append_audit_logs<'a>(
-    writer: &mut RwLockWriteGuard<'a, State>,
-    events: Vec<AuditEvent>,
-) -> Result<(), StatusCode> {
-    writer
-        .audit_log
-        .append_audit_events(&events)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(())
-}
-
-#[deprecated]
-/// Send change notifications to connected clients.
-fn send_notification<'a>(
-    writer: &mut RwLockWriteGuard<'a, State>,
-    notification: ChangeNotification,
-) {
-    // Changes can be empty for non-mutating sync events
-    // that correspond to audit logs; for example, reading secrets
-    if !notification.changes().is_empty() {
-        // Send notification on the SSE channel
-        if let Some(conn) = writer.sse.get(notification.address()) {
-            if let Err(_) = conn.tx.send(notification) {
-                tracing::debug!("server sent events channel dropped");
-            }
-        }
-    }
-}
+pub(crate) mod sse;
 
 /// Serve the home page.
 pub(crate) async fn home(

@@ -38,7 +38,7 @@ pub struct AccountCredentials {
 }
 
 /// Login to an account.
-pub fn login(
+pub async fn login(
     server: Url,
     cache_dir: PathBuf,
     keystore_file: PathBuf,
@@ -50,7 +50,12 @@ pub fn login(
     let signer = SignerBuilder::<Infallible>::new(keystore_file)
         .with_keystore_passphrase(keystore_passphrase)
         .build()?;
-    Ok(NodeCache::new_file_cache(server, cache_dir, signer)?)
+    let mut cache = NodeCache::new_file_cache(server, cache_dir, signer)?;
+
+    // Prepare the client encrypted session channel
+    cache.authenticate().await?;
+
+    Ok(cache)
 }
 
 /// Create a new account.
@@ -76,6 +81,9 @@ pub async fn create_account(
     let mut cache =
         NodeCache::new_file_cache(server, cache_dir, Box::new(signer))?;
 
+    // Prepare the client encrypted session channel
+    cache.authenticate().await?;
+
     let keystore = encrypt(
         &mut rand::thread_rng(),
         signing_key,
@@ -84,6 +92,7 @@ pub async fn create_account(
     )?;
 
     let (encryption_passphrase, summary) = cache.create_account(name).await?;
+
     std::fs::write(&keystore_file, serde_json::to_string(&keystore)?)?;
 
     let AccountKey(_, _, address) = key;

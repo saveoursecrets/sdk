@@ -8,6 +8,7 @@ use super::{Error, Result};
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ServerConfig {
     /// Whether to serve the web GUI.
     pub gui: bool,
@@ -18,8 +19,11 @@ pub struct ServerConfig {
     /// Storage for the backend.
     pub storage: StorageConfig,
 
+    /// Settings for session management.
+    pub session: SessionConfig,
+
     /// Configuration for TLS encryption.
-    pub tls: TlsConfig,
+    pub tls: Option<TlsConfig>,
 
     /// Configuration for the API.
     pub api: ApiConfig,
@@ -30,7 +34,7 @@ pub struct ServerConfig {
     file: Option<PathBuf>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TlsConfig {
     /// Path to the certificate.
     pub cert: PathBuf,
@@ -42,6 +46,26 @@ pub struct TlsConfig {
 pub struct ApiConfig {
     /// List of additional CORS origins for the server.
     pub origins: Vec<Url>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionConfig {
+    /// Duration for sessions in seconds.
+    pub duration: u64,
+
+    /// Interval in seconds to reap expired sessions.
+    ///
+    /// Default is every 30 minutes.
+    pub reap_interval: u64,
+}
+
+impl Default for SessionConfig {
+    fn default() -> Self {
+        Self {
+            duration: 900,
+            reap_interval: 1800,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -85,16 +109,17 @@ impl ServerConfig {
 
         let dir = config.directory();
 
-        let tls = &mut config.tls;
-        if tls.cert.is_relative() {
-            tls.cert = dir.join(&tls.cert);
-        }
-        if tls.key.is_relative() {
-            tls.key = dir.join(&tls.key);
-        }
+        if let Some(tls) = config.tls.as_mut() {
+            if tls.cert.is_relative() {
+                tls.cert = dir.join(&tls.cert);
+            }
+            if tls.key.is_relative() {
+                tls.key = dir.join(&tls.key);
+            }
 
-        tls.cert = tls.cert.canonicalize()?;
-        tls.key = tls.key.canonicalize()?;
+            tls.cert = tls.cert.canonicalize()?;
+            tls.key = tls.key.canonicalize()?;
+        }
 
         Ok(config)
     }
