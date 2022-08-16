@@ -19,7 +19,7 @@ pub struct ServerConfig {
     pub storage: StorageConfig,
 
     /// Configuration for TLS encryption.
-    pub tls: TlsConfig,
+    pub tls: Option<TlsConfig>,
 
     /// Configuration for the API.
     pub api: ApiConfig,
@@ -30,7 +30,7 @@ pub struct ServerConfig {
     file: Option<PathBuf>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TlsConfig {
     /// Path to the certificate.
     pub cert: PathBuf,
@@ -85,16 +85,17 @@ impl ServerConfig {
 
         let dir = config.directory();
 
-        let tls = &mut config.tls;
-        if tls.cert.is_relative() {
-            tls.cert = dir.join(&tls.cert);
-        }
-        if tls.key.is_relative() {
-            tls.key = dir.join(&tls.key);
-        }
+        if let Some(tls) = config.tls.as_mut() {
+            if tls.cert.is_relative() {
+                tls.cert = dir.join(&tls.cert);
+            }
+            if tls.key.is_relative() {
+                tls.key = dir.join(&tls.key);
+            }
 
-        tls.cert = tls.cert.canonicalize()?;
-        tls.key = tls.key.canonicalize()?;
+            tls.cert = tls.cert.canonicalize()?;
+            tls.key = tls.key.canonicalize()?;
+        }
 
         Ok(config)
     }

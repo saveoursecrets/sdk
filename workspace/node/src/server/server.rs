@@ -1,4 +1,5 @@
 use super::{
+    config::TlsConfig,
     handlers::{
         api, home,
         service::ServiceHandler,
@@ -60,7 +61,7 @@ impl Server {
         Self
     }
 
-    /// Start the server running on HTTPS.
+    /// Start the server.
     pub async fn start(
         &self,
         addr: SocketAddr,
@@ -69,13 +70,26 @@ impl Server {
     ) -> Result<()> {
         let reader = state.read().await;
         let origins = Server::read_origins(&reader)?;
-
-        let tls = &reader.config.tls;
-        tracing::debug!(certificate = ?tls.cert);
-        tracing::debug!(key = ?tls.key);
-
-        let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
+        let tls = reader.config.tls.as_ref().cloned();
         drop(reader);
+
+        if let Some(tls) = tls {
+            self.run_tls(addr, state, handle, origins, tls).await
+        } else {
+            self.run(addr, state, handle, origins).await
+        }
+    }
+
+    /// Start the server running on HTTPS.
+    async fn run_tls(
+        &self,
+        addr: SocketAddr,
+        state: Arc<RwLock<State>>,
+        handle: Handle,
+        origins: Vec<HeaderValue>,
+        tls: TlsConfig,
+    ) -> Result<()> {
+        let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
 
         // FIXME: start tokio task to reap stale sessions
 
@@ -88,18 +102,17 @@ impl Server {
         Ok(())
     }
 
-    #[doc(hidden)]
-    #[cfg(debug_assertions)]
     /// Start the server running on HTTP.
-    pub async fn start_insecure(
+    async fn run(
         &self,
         addr: SocketAddr,
         state: Arc<RwLock<State>>,
         handle: Handle,
+        origins: Vec<HeaderValue>,
     ) -> Result<()> {
-        let reader = state.read().await;
-        let origins = Server::read_origins(&reader)?;
-        drop(reader);
+        //let reader = state.read().await;
+        //let origins = Server::read_origins(&reader)?;
+        //drop(reader);
 
         // FIXME: start tokio task to reap stale sessions
 

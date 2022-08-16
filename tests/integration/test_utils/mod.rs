@@ -65,9 +65,7 @@ impl MockServer {
         }));
 
         let server = Server::new();
-        server
-            .start_insecure(addr, state, self.handle.clone())
-            .await?;
+        server.start(addr, state, self.handle.clone()).await?;
         Ok(())
     }
 
