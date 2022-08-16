@@ -138,19 +138,25 @@ pub(crate) async fn private_service(
         return Err(StatusCode::BAD_REQUEST);
     }
 
+    // Decrypt the incoming data ensuring we update
+    // our session nonce for any reply
     session.set_nonce(&aead.nonce);
     let body = session
         .decrypt(&aead)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    drop(writer);
 
+    // Decode the incoming packet and request message
     let packet: Packet<'_> =
         decode(&body).map_err(|_| StatusCode::BAD_REQUEST)?;
-
     let request: RequestMessage<'_> = packet
         .try_into()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    // Refresh the session on activity
+    session.refresh();
+    drop(writer);
+
+    // Get a reply from the target service
     let reply = service.serve((address, Arc::clone(&state)), request).await;
 
     let (status, body) = if let Some(reply) = reply {

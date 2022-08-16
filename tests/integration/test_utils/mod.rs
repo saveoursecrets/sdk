@@ -15,6 +15,7 @@ use sos_core::{
 use sos_node::{
     client::node_cache::NodeCache,
     server::{Server, ServerConfig, ServerInfo, State},
+    session::SessionManager,
 };
 
 const ADDR: &str = "127.0.0.1:3505";
@@ -61,7 +62,7 @@ impl MockServer {
             backend,
             audit_log,
             sse: Default::default(),
-            sessions: Default::default(),
+            sessions: SessionManager::new(300),
         }));
 
         let server = Server::new();

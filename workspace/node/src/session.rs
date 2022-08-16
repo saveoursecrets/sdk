@@ -20,9 +20,6 @@ use web3_signature::Signature;
 
 use crate::{Error, Result};
 
-/// Default session length is 15 minutes.
-const DEFAULT_DURATION_SECS: u64 = 900;
-
 /// Generate a secret key suitable for symmetric encryption.
 fn derive_secret_key(
     shared: &SharedSecret<Secp256k1>,
@@ -38,15 +35,6 @@ fn derive_secret_key(
 pub struct SessionManager {
     sessions: HashMap<Uuid, ServerSession>,
     duration_secs: u64,
-}
-
-impl Default for SessionManager {
-    fn default() -> Self {
-        Self {
-            sessions: Default::default(),
-            duration_secs: DEFAULT_DURATION_SECS,
-        }
-    }
 }
 
 impl SessionManager {
@@ -120,6 +108,8 @@ pub struct ServerSession {
     identity: AddressStr,
     /// Expiry time.
     expires: Instant,
+    /// Duration for this session.
+    duration_secs: u64,
     /// Random challenge that the client must sign to
     /// prove their identity.
     ///
@@ -144,6 +134,7 @@ impl ServerSession {
         Self {
             identity,
             challenge,
+            duration_secs,
             identity_proof: None,
             expires: Instant::now() + Duration::from_secs(duration_secs),
             secret: EphemeralSecret::random(&mut rand::thread_rng()),
@@ -210,6 +201,15 @@ impl ServerSession {
         } else {
             Ok(())
         }
+    }
+
+    /// Refresh this session.
+    ///
+    /// Extends the expiry time for this session from now by the session
+    /// duration given when the session was created.
+    pub fn refresh(&mut self) {
+        self.expires =
+            Instant::now() + Duration::from_secs(self.duration_secs);
     }
 
     /// Determine if this session has expired.
@@ -394,7 +394,7 @@ mod test {
 
     #[tokio::test]
     async fn session_negotiate() -> Result<()> {
-        let mut manager: SessionManager = Default::default();
+        let mut manager = SessionManager::new(60);
 
         // Client sends a request to generate an authenticated
         // session by sending it's signing address
