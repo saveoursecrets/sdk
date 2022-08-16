@@ -123,16 +123,9 @@ pub(crate) async fn private_service(
         .sign_bytes::<sha3::Keccak256>(&aead.nonce)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let (status_code, token) = authenticate::bearer(bearer, &sign_bytes)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // Failed to generate a valid bearer token
-    if status_code != StatusCode::OK {
-        return Err(status_code);
-    }
-
-    // Should have a valid token by now
-    let token = token.unwrap();
+    // Parse the bearer token
+    let token = authenticate::bearer(bearer, &sign_bytes)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     // Attempt to impersonate the session identity
     if &token.address != session.identity() {

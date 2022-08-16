@@ -1,9 +1,6 @@
 //! Authentication helper functions for extracting an address
 //! from a signature given in bearer authorization data.
-use axum::{
-    headers::{authorization::Bearer, Authorization},
-    http::StatusCode,
-};
+use axum::headers::{authorization::Bearer, Authorization};
 use serde::Deserialize;
 
 use sos_core::{address::AddressStr, decode, signer::BinarySignature};
@@ -21,7 +18,7 @@ pub struct SignedQuery {
 }
 
 impl SignedQuery {
-    pub fn bearer(&self) -> Result<(StatusCode, Option<BearerToken>)> {
+    pub fn bearer(&self) -> Result<BearerToken> {
         BearerToken::new(&self.token, &self.message)
     }
 }
@@ -33,35 +30,20 @@ pub struct BearerToken {
 }
 
 impl BearerToken {
-    fn new(
-        token: &str,
-        message: &[u8],
-    ) -> Result<(StatusCode, Option<BearerToken>)> {
-        let result = if let Ok(value) = bs58::decode(token).into_vec() {
-            if let Ok(binary_sig) = decode::<BinarySignature>(&value) {
-                let signature: Signature = binary_sig.into();
-                let recoverable: recoverable::Signature =
-                    signature.try_into()?;
-                let public_key =
-                    recoverable.recover_verifying_key(message)?;
-                let public_key: [u8; 33] =
-                    public_key.to_bytes().as_slice().try_into()?;
-                let address: AddressStr = (&public_key).try_into()?;
-                (
-                    StatusCode::OK,
-                    Some(BearerToken {
-                        //public_key,
-                        address,
-                    }),
-                )
-            } else {
-                (StatusCode::BAD_REQUEST, None)
-            }
-        } else {
-            (StatusCode::BAD_REQUEST, None)
-        };
+    fn new(token: &str, message: &[u8]) -> Result<Self> {
+        let value = bs58::decode(token).into_vec()?;
+        let binary_sig: BinarySignature = decode(&value)?;
+        let signature: Signature = binary_sig.into();
+        let recoverable: recoverable::Signature = signature.try_into()?;
+        let public_key = recoverable.recover_verifying_key(message)?;
+        let public_key: [u8; 33] =
+            public_key.to_bytes().as_slice().try_into()?;
+        let address: AddressStr = (&public_key).try_into()?;
 
-        Ok(result)
+        Ok(Self {
+            //public_key,
+            address,
+        })
     }
 }
 
@@ -76,7 +58,7 @@ impl BearerToken {
 pub fn bearer<B>(
     authorization: Authorization<Bearer>,
     body: B,
-) -> Result<(StatusCode, Option<BearerToken>)>
+) -> Result<BearerToken>
 where
     B: AsRef<[u8]>,
 {
