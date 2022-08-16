@@ -40,7 +40,7 @@ fn send_notification<'a>(
     // that correspond to audit logs; for example, reading secrets
     if !notification.changes().is_empty() {
         // Send notification on the SSE channel
-        if let Some(conn) = writer.sse.get(notification.address()) {
+        if let Some(conn) = writer.sockets.get(notification.address()) {
             if let Err(_) = conn.tx.send(notification) {
                 tracing::debug!("server sent events channel dropped");
             }
