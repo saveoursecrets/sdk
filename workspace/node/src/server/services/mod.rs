@@ -75,14 +75,15 @@ pub(crate) async fn public_service(
     let reply = service.serve(Arc::clone(&state), request).await;
 
     let (_status, body) = if let Some(reply) = reply {
-        //let status = reply.status();
+        let status = reply.status();
         let response = Packet::new_response(reply);
         let body = encode(&response)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        (StatusCode::OK, Bytes::from(body))
+        (status, Bytes::from(body))
     } else {
-        // FIXME: use NO_CONTENT ???
-        (StatusCode::OK, Bytes::from(vec![]))
+        // Got a notification request without a message `id`
+        // so we send NO_CONTENT
+        (StatusCode::NO_CONTENT, Bytes::from(vec![]))
     };
 
     Ok((StatusCode::OK, body))
@@ -160,14 +161,25 @@ pub(crate) async fn private_service(
     let reply = service.serve((address, Arc::clone(&state)), request).await;
 
     let (status, body) = if let Some(reply) = reply {
-        //let status = reply.status();
+        let mut status = reply.status();
+
         let response = Packet::new_response(reply);
         let body = encode(&response)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        (StatusCode::OK, body)
+
+        // If we send an actual NOT_MODIFIED response then the
+        // client will not receive any body content so we have
+        // to mutate the actual HTTP response and let the client
+        // act on the inner status code
+        if status == StatusCode::NOT_MODIFIED {
+            status = StatusCode::OK;
+        }
+
+        (status, body)
     } else {
-        // FIXME: use NO_CONTENT ???
-        (StatusCode::OK, vec![])
+        // Got a notification request without a message `id`
+        // so we send NO_CONTENT
+        (StatusCode::NO_CONTENT, vec![])
     };
 
     let mut writer = state.write().await;

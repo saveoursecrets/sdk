@@ -126,14 +126,9 @@ impl RpcClient {
         let response =
             self.client.post(url.clone()).body(body).send().await?;
 
-        response
-            .status()
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
-
         let (_status, result, _) = self
             .read_response::<(Uuid, [u8; 16], Vec<u8>)>(
+                response.status(),
                 &response.bytes().await?,
             )?;
         let result = result?;
@@ -153,15 +148,12 @@ impl RpcClient {
         )?;
 
         let response = self.client.post(url).body(body).send().await?;
-        response
-            .status()
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(response.status().into()))?;
 
         // Check we got a success response; no error indicates success
-        let (_status, result, _) =
-            self.read_response::<()>(&response.bytes().await?)?;
+        let (_status, result, _) = self.read_response::<()>(
+            response.status(),
+            &response.bytes().await?,
+        )?;
         let _result = result?;
 
         // Store the session for later requests
@@ -189,11 +181,6 @@ impl RpcClient {
                 &response.bytes().await?,
             )?;
 
-        // Note we need to pass the 409 conflict response back
-        // to the caller
-        if status.is_server_error() {
-            return Err(Error::ResponseCode(status.into()));
-        }
         Ok(status)
     }
 
@@ -214,11 +201,6 @@ impl RpcClient {
                 response.status(),
                 &response.bytes().await?,
             )?;
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
 
         Ok(result?)
     }
@@ -246,12 +228,6 @@ impl RpcClient {
                 &response.bytes().await?,
             )?;
 
-        // We need to pass the 409 conflict response back
-        // to the caller
-        if status.is_server_error() {
-            return Err(Error::ResponseCode(status.into()));
-        }
-
         Ok((status, result?))
     }
 
@@ -277,11 +253,6 @@ impl RpcClient {
                 response.status(),
                 &response.bytes().await?,
             )?;
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
 
         Ok((status, result?))
     }
@@ -314,12 +285,6 @@ impl RpcClient {
                 &response.bytes().await?,
             )?;
 
-        // We need to pass the 409 conflict response back
-        // to the caller
-        if status.is_server_error() {
-            return Err(Error::ResponseCode(status.into()));
-        }
-
         Ok((status, result?))
     }
 
@@ -348,12 +313,6 @@ impl RpcClient {
                 &response.bytes().await?,
             )?;
 
-        // We need to pass the 409 conflict response back
-        // to the caller
-        if status.is_server_error() {
-            return Err(Error::ResponseCode(status.into()));
-        }
-
         Ok((status, result?, Some(body)))
     }
 
@@ -380,11 +339,6 @@ impl RpcClient {
                 response.status(),
                 &response.bytes().await?,
             )?;
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
 
         let (server_proof, match_proof) = result?;
         Ok((status, server_proof, match_proof))
@@ -417,12 +371,6 @@ impl RpcClient {
                 &response.bytes().await?,
             )?;
 
-        // We need to pass the 409 conflict response back
-        // to the caller
-        if status.is_server_error() {
-            return Err(Error::ResponseCode(status.into()));
-        }
-
         let (server_proof, match_proof) = result?;
         Ok((status, Some(server_proof), match_proof))
     }
@@ -452,11 +400,6 @@ impl RpcClient {
                 response.status(),
                 &response.bytes().await?,
             )?;
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
 
         Ok((status, Some(result?)))
     }
@@ -507,8 +450,14 @@ impl RpcClient {
     /// Read a response that is not encrypted.
     fn read_response<T: DeserializeOwned>(
         &self,
+        status: StatusCode,
         buffer: &[u8],
     ) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
         let reply: Packet<'static> = decode(&buffer)?;
         let response: ResponseMessage<'static> = reply.try_into()?;
         let (_, status, result, body) = response.take::<T>()?;
@@ -522,22 +471,35 @@ impl RpcClient {
         http_status: StatusCode,
         buffer: &[u8],
     ) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
+        // Unauthorized means the session could not be found
+        // or has expired
         if http_status == StatusCode::UNAUTHORIZED {
-            return Err(Error::NotAuthorized);
+            Err(Error::NotAuthorized)
+        } else if http_status.is_success()
+            || http_status == StatusCode::CONFLICT
+        {
+            let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+            let mut session = lock.write().unwrap();
+            session.ready().then_some(()).ok_or(Error::InvalidSession)?;
+
+            let aead: AeadPack = decode(buffer)?;
+            session.set_nonce(&aead.nonce);
+            let buffer = session.decrypt(&aead)?;
+
+            let reply: Packet<'static> = decode(&buffer)?;
+            let response: ResponseMessage<'static> = reply.try_into()?;
+
+            // We must return the inner status code as the server mutates
+            // some status codes (eg: NOT_MODIFIED -> OK) so that the client
+            // will read the body of the response.
+            //
+            // Callers need to respond to the actual NOT_MODIFIED status.
+
+            let (_, status, result, body) = response.take::<T>()?;
+            let result = result.ok_or(Error::NoReturnValue)?;
+            Ok((status, result, body))
+        } else {
+            Err(Error::ResponseCode(http_status.into()))
         }
-
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().unwrap();
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
-        let aead: AeadPack = decode(buffer)?;
-        session.set_nonce(&aead.nonce);
-        let buffer = session.decrypt(&aead)?;
-        let reply: Packet<'static> = decode(&buffer)?;
-        let response: ResponseMessage<'static> = reply.try_into()?;
-
-        let (_, status, result, body) = response.take::<T>()?;
-        let result = result.ok_or(Error::NoReturnValue)?;
-        Ok((status, result, body))
     }
 }
