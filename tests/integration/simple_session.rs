@@ -4,7 +4,10 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use futures::stream::StreamExt;
-use std::sync::{Arc, RwLock};
+use std::{
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 use tokio::sync::mpsc;
 use url::Url;
 
@@ -18,7 +21,10 @@ use sos_node::{
     cache_dir,
     client::{
         account::AccountCredentials,
-        net::{changes::ChangeStreamEvent, RequestClient},
+        net::{
+            ws_changes::{changes, connect},
+            RequestClient,
+        },
     },
     sync::SyncStatus,
 };
@@ -38,39 +44,34 @@ async fn integration_simple_session() -> Result<()> {
     let AccountCredentials { summary, .. } = credentials;
     let login_vault_id = *summary.id();
 
-    let (tx, mut rx) = mpsc::channel(1);
-
-    let mut es = RequestClient::changes(server_url.clone(), signer).await?;
     let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
         Arc::new(RwLock::new(Vec::new()));
     let changed = Arc::clone(&notifications);
 
+    // Spawn a task to handle change notifications
+    let ws_url = server_url.clone();
     tokio::task::spawn(async move {
-        while let Some(event) = es.next().await {
-            let event = event?;
-            match event {
-                ChangeStreamEvent::Open => tx
-                    .send(())
-                    .await
-                    .expect("failed to send changes feed open message"),
-                ChangeStreamEvent::Message(notification) => {
-                    // Store change notifications so we can
-                    // assert at the end
-                    let mut writer = changed.write().unwrap();
-                    //println!("{:#?}", notification);
-                    writer.push(notification);
-                }
-            }
+        // Create the websocket connection
+        let (stream, session) = connect(ws_url, signer).await?;
+
+        // Wrap the stream to read change notifications
+        let mut stream = changes(stream, session);
+
+        while let Some(notification) = stream.next().await {
+            let notification = notification?;
+
+            // Store change notifications so we can
+            // assert at the end
+            let mut writer = changed.write().unwrap();
+            //println!("{:#?}", notification);
+            writer.push(notification);
         }
-        Ok::<(), sos_client::Error>(())
+
+        Ok::<(), anyhow::Error>(())
     });
 
-    // Wait for the changes feed to connect before
-    // we start to make changes
-    let _ = rx
-        .recv()
-        .await
-        .expect("failed to receive changes feed open message");
+    // Give the websocket client some time to connect
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     let _ = cache_dir().unwrap();
 

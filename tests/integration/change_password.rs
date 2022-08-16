@@ -8,7 +8,6 @@ use std::{
     sync::{Arc, RwLock},
     time::Duration,
 };
-use tokio::sync::mpsc;
 
 use secrecy::ExposeSecret;
 use sos_core::{
@@ -17,7 +16,7 @@ use sos_core::{
 };
 use sos_node::client::{
     account::AccountCredentials,
-    net::{changes::ChangeStreamEvent, RequestClient},
+    net::ws_changes::{changes, connect},
 };
 
 #[tokio::test]
@@ -38,40 +37,33 @@ async fn integration_change_password() -> Result<()> {
         ..
     } = credentials;
 
-    let (tx, mut rx) = mpsc::channel(1);
-
-    let mut es = RequestClient::changes(server_url, signer).await?;
     let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
         Arc::new(RwLock::new(Vec::new()));
     let changed = Arc::clone(&notifications);
 
+    // Spawn a task to handle change notifications
     tokio::task::spawn(async move {
-        while let Some(event) = es.next().await {
-            let event = event?;
-            match event {
-                ChangeStreamEvent::Open => tx
-                    .send(())
-                    .await
-                    .expect("failed to send changes feed open message"),
-                ChangeStreamEvent::Message(notification) => {
-                    // Store change notifications so we can
-                    // assert at the end
-                    let mut writer = changed.write().unwrap();
-                    //println!("{:#?}", notification);
-                    writer.push(notification);
-                }
-            }
+        // Create the websocket connection
+        let (stream, session) = connect(server_url, signer).await?;
+
+        // Wrap the stream to read change notifications
+        let mut stream = changes(stream, session);
+
+        while let Some(notification) = stream.next().await {
+            let notification = notification?;
+
+            // Store change notifications so we can
+            // assert at the end
+            let mut writer = changed.write().unwrap();
+            //println!("{:#?}", notification);
+            writer.push(notification);
         }
 
-        Ok::<(), sos_client::Error>(())
+        Ok::<(), anyhow::Error>(())
     });
 
-    // Wait for the changes feed to connect before
-    // we start to make changes
-    let _ = rx
-        .recv()
-        .await
-        .expect("failed to receive changes feed open message");
+    // Give the websocket client some time to connect
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Use the new vault
     node_cache
