@@ -22,6 +22,27 @@ use crate::{
     session::EncryptedChannel,
 };
 
+/// Type to represent the caller of a service request.
+pub struct Caller {
+    address: AddressStr,
+    session_id: Uuid,
+}
+
+impl Caller {
+    /// Get the address of the caller.
+    pub fn address(&self) -> &AddressStr {
+        &self.address
+    }
+
+    /// Get the session id of the caller.
+    pub fn session_id(&self) -> &Uuid {
+        &self.session_id
+    }
+}
+
+/// Type used for the state of private services.
+pub type PrivateState = (Caller, Arc<RwLock<State>>);
+
 /// Append to the audit log.
 async fn append_audit_logs<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
@@ -100,7 +121,7 @@ pub(crate) async fn public_service(
 /// Execute a request message in the context of a service
 /// that requires session authentication.
 pub(crate) async fn private_service(
-    service: impl Service<State = (AddressStr, Arc<RwLock<State>>)> + Sync + Send,
+    service: impl Service<State = PrivateState> + Sync + Send,
     state: Arc<RwLock<State>>,
     bearer: Authorization<Bearer>,
     session_id: &Uuid,
@@ -159,7 +180,11 @@ pub(crate) async fn private_service(
     drop(writer);
 
     // Get a reply from the target service
-    let reply = service.serve((address, Arc::clone(&state)), request).await;
+    let owner = Caller {
+        address,
+        session_id: *session_id,
+    };
+    let reply = service.serve((owner, Arc::clone(&state)), request).await;
 
     let (status, body) = if let Some(reply) = reply {
         let mut status = reply.status();

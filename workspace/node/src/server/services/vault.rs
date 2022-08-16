@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use super::{append_audit_logs, send_notification};
+use super::{append_audit_logs, send_notification, PrivateState};
 use crate::server::{Error, State};
 
 /// Vault management service.
@@ -27,14 +27,14 @@ pub struct VaultService;
 
 #[async_trait]
 impl Service for VaultService {
-    type State = (AddressStr, Arc<RwLock<State>>);
+    type State = PrivateState;
 
     async fn handle<'a>(
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
     ) -> sos_core::Result<ResponseMessage<'a>> {
-        let (address, state) = state;
+        let (caller, state) = state;
 
         match request.method() {
             VAULT_CREATE => {
@@ -44,7 +44,7 @@ impl Service for VaultService {
                 let reader = state.read().await;
                 let (exists, proof) = reader
                     .backend
-                    .wal_exists(&address, summary.id())
+                    .wal_exists(caller.address(), summary.id())
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -57,7 +57,11 @@ impl Service for VaultService {
                     let mut writer = state.write().await;
                     let (sync_event, proof) = writer
                         .backend
-                        .create_wal(&address, summary.id(), request.body())
+                        .create_wal(
+                            caller.address(),
+                            summary.id(),
+                            request.body(),
+                        )
                         .await
                         .map_err(Box::from)?;
 
@@ -65,7 +69,7 @@ impl Service for VaultService {
                         (request.id(), Some(&proof)).try_into()?;
 
                     let notification = ChangeNotification::new(
-                        &address,
+                        caller.address(),
                         summary.id(),
                         proof,
                         vec![ChangeEvent::CreateVault],
@@ -73,7 +77,7 @@ impl Service for VaultService {
 
                     let log = AuditEvent::from_sync_event(
                         &sync_event,
-                        address,
+                        caller.address,
                         *summary.id(),
                     );
 
@@ -91,7 +95,7 @@ impl Service for VaultService {
                 let mut writer = state.write().await;
                 let (exists, proof) = writer
                     .backend
-                    .wal_exists(&address, &vault_id)
+                    .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -104,7 +108,7 @@ impl Service for VaultService {
 
                 writer
                     .backend
-                    .delete_wal(&address, &vault_id)
+                    .delete_wal(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -112,7 +116,7 @@ impl Service for VaultService {
                     (request.id(), &proof).try_into()?;
 
                 let notification = ChangeNotification::new(
-                    &address,
+                    caller.address(),
                     &vault_id,
                     proof,
                     vec![ChangeEvent::DeleteVault],
@@ -120,7 +124,7 @@ impl Service for VaultService {
 
                 let log = AuditEvent::new(
                     EventKind::DeleteVault,
-                    address,
+                    caller.address,
                     Some(AuditData::Vault(vault_id)),
                 );
 
@@ -144,7 +148,7 @@ impl Service for VaultService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
-                    .wal_exists(&address, summary.id())
+                    .wal_exists(caller.address(), summary.id())
                     .await
                     .map_err(Box::from)?;
 
@@ -157,7 +161,7 @@ impl Service for VaultService {
                 let mut writer = state.write().await;
                 let (sync_event, proof) = writer
                     .backend
-                    .set_vault(&address, request.body())
+                    .set_vault(caller.address(), request.body())
                     .await
                     .map_err(Box::from)?;
 
@@ -165,7 +169,7 @@ impl Service for VaultService {
                     (request.id(), Some(&proof)).try_into()?;
 
                 let notification = ChangeNotification::new(
-                    &address,
+                    caller.address(),
                     summary.id(),
                     proof,
                     vec![ChangeEvent::UpdateVault],
@@ -173,7 +177,7 @@ impl Service for VaultService {
 
                 let log = AuditEvent::from_sync_event(
                     &sync_event,
-                    address,
+                    caller.address,
                     *summary.id(),
                 );
 

@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use super::{append_audit_logs, send_notification};
+use super::{append_audit_logs, send_notification, PrivateState};
 use crate::server::State;
 
 /// Account management service.
@@ -25,20 +25,20 @@ pub struct AccountService;
 
 #[async_trait]
 impl Service for AccountService {
-    type State = (AddressStr, Arc<RwLock<State>>);
+    type State = PrivateState;
 
     async fn handle<'a>(
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
     ) -> sos_core::Result<ResponseMessage<'a>> {
-        let (address, state) = state;
+        let (caller, state) = state;
 
         let mut writer = state.write().await;
 
         match request.method() {
             ACCOUNT_CREATE => {
-                if writer.backend.account_exists(&address).await {
+                if writer.backend.account_exists(caller.address()).await {
                     return Ok((StatusCode::CONFLICT, request.id()).into());
                 }
 
@@ -46,7 +46,11 @@ impl Service for AccountService {
 
                 let (sync_event, proof) = writer
                     .backend
-                    .create_account(&address, summary.id(), request.body())
+                    .create_account(
+                        caller.address(),
+                        summary.id(),
+                        request.body(),
+                    )
                     .await
                     .map_err(Box::from)?;
 
@@ -54,7 +58,7 @@ impl Service for AccountService {
                     (request.id(), &proof).try_into()?;
 
                 let notification = ChangeNotification::new(
-                    &address,
+                    caller.address(),
                     summary.id(),
                     proof,
                     vec![ChangeEvent::CreateVault],
@@ -62,7 +66,7 @@ impl Service for AccountService {
 
                 let log = AuditEvent::from_sync_event(
                     &sync_event,
-                    address,
+                    caller.address,
                     *summary.id(),
                 );
 
@@ -74,18 +78,24 @@ impl Service for AccountService {
                 Ok(reply)
             }
             ACCOUNT_LIST_VAULTS => {
-                if !writer.backend.account_exists(&address).await {
+                if !writer.backend.account_exists(caller.address()).await {
                     return Ok((StatusCode::NOT_FOUND, request.id()).into());
                 }
 
-                let summaries =
-                    writer.backend.list(&address).await.map_err(Box::from)?;
+                let summaries = writer
+                    .backend
+                    .list(caller.address())
+                    .await
+                    .map_err(Box::from)?;
 
                 let reply: ResponseMessage<'_> =
                     (request.id(), summaries).try_into()?;
 
-                let log =
-                    AuditEvent::new(EventKind::LoginResponse, address, None);
+                let log = AuditEvent::new(
+                    EventKind::LoginResponse,
+                    caller.address,
+                    None,
+                );
                 append_audit_logs(&mut writer, vec![log])
                     .await
                     .map_err(Box::from)?;

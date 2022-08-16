@@ -23,7 +23,7 @@ use sos_core::{encode, events::ChangeNotification, signer::BoxedSigner};
 
 use crate::{
     client::{net::RpcClient, Result},
-    session::{EncryptedChannel, ClientSession},
+    session::{ClientSession, EncryptedChannel},
 };
 
 use super::encode_signature;
@@ -72,7 +72,10 @@ pub fn websocket_uri(
 }
 
 /// Create the websocket connection and listen for events.
-pub async fn connect(remote: Url, signer: BoxedSigner) -> Result<(WsStream, ClientSession)> {
+pub async fn connect(
+    remote: Url,
+    signer: BoxedSigner,
+) -> Result<(WsStream, ClientSession)> {
     let origin = remote.origin();
 
     let mut endpoint = remote.join("api/changes2")?;

@@ -17,7 +17,7 @@ use std::{borrow::Cow, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use super::{append_audit_logs, send_notification};
+use super::{append_audit_logs, send_notification, PrivateState};
 use crate::server::State;
 
 enum PatchResult {
@@ -42,14 +42,14 @@ pub struct WalService;
 
 #[async_trait]
 impl Service for WalService {
-    type State = (AddressStr, Arc<RwLock<State>>);
+    type State = PrivateState;
 
     async fn handle<'a>(
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
     ) -> sos_core::Result<ResponseMessage<'a>> {
-        let (address, state) = state;
+        let (caller, state) = state;
 
         match request.method() {
             WAL_LOAD => {
@@ -59,7 +59,7 @@ impl Service for WalService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
-                    .wal_exists(&address, &vault_id)
+                    .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -72,7 +72,7 @@ impl Service for WalService {
 
                 let wal = reader
                     .backend
-                    .wal_read(&address, &vault_id)
+                    .wal_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -118,7 +118,7 @@ impl Service for WalService {
                     }
                 // Otherwise get the entire WAL buffer
                 } else if let Ok(buffer) =
-                    reader.backend.get_wal(&address, &vault_id).await
+                    reader.backend.get_wal(caller.address(), &vault_id).await
                 {
                     Ok((StatusCode::OK, buffer))
                 } else {
@@ -133,7 +133,7 @@ impl Service for WalService {
                             let mut writer = state.write().await;
                             let log = AuditEvent::new(
                                 EventKind::ReadWal,
-                                address,
+                                caller.address,
                                 Some(AuditData::Vault(vault_id)),
                             );
                             append_audit_logs(&mut writer, vec![log])
@@ -160,7 +160,7 @@ impl Service for WalService {
 
                 let (exists, _) = reader
                     .backend
-                    .wal_exists(&address, &vault_id)
+                    .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -170,7 +170,7 @@ impl Service for WalService {
 
                 let wal = reader
                     .backend
-                    .wal_read(&address, &vault_id)
+                    .wal_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -206,7 +206,7 @@ impl Service for WalService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
-                    .wal_exists(&address, &vault_id)
+                    .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -219,7 +219,7 @@ impl Service for WalService {
 
                     let wal = writer
                         .backend
-                        .wal_write(&address, &vault_id)
+                        .wal_write(caller.address(), &vault_id)
                         .await
                         .map_err(Box::from)?;
 
@@ -255,7 +255,9 @@ impl Service for WalService {
                                 .iter()
                                 .map(|event| {
                                     AuditEvent::from_sync_event(
-                                        event, address, vault_id,
+                                        event,
+                                        caller.address,
+                                        vault_id,
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -291,7 +293,7 @@ impl Service for WalService {
                                 wal.tree().head().map_err(Box::from)?;
 
                             Ok(PatchResult::Success(
-                                address,
+                                caller.address,
                                 audit_logs,
                                 change_events,
                                 commits,
@@ -378,7 +380,7 @@ impl Service for WalService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
-                    .wal_exists(&address, &vault_id)
+                    .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -391,7 +393,7 @@ impl Service for WalService {
                 let server_proof = writer
                     .backend
                     .replace_wal(
-                        &address,
+                        caller.address(),
                         &vault_id,
                         commit_proof.0.into(),
                         request.body(),
