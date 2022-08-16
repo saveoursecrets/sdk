@@ -1,6 +1,5 @@
 use axum::{
     extract::Extension,
-    http::StatusCode,
     response::{IntoResponse, Redirect},
     Json,
 };

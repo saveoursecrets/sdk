@@ -20,8 +20,8 @@ use web3_signature::Signature;
 
 use crate::{Error, Result};
 
-/// Default session length in seconds.
-const SESSION_LENGTH: u64 = 900;
+/// Default session length is 15 minutes.
+const DEFAULT_DURATION_SECS: u64 = 900;
 
 /// Generate a secret key suitable for symmetric encryption.
 fn derive_secret_key(
@@ -35,12 +35,30 @@ fn derive_secret_key(
 }
 
 /// Manages a collection of sessions.
-#[derive(Default)]
 pub struct SessionManager {
     sessions: HashMap<Uuid, ServerSession>,
+    duration_secs: u64,
+}
+
+impl Default for SessionManager {
+    fn default() -> Self {
+        Self {
+            sessions: Default::default(),
+            duration_secs: DEFAULT_DURATION_SECS,
+        }
+    } 
 }
 
 impl SessionManager {
+
+    /// Create a session manager using the given session duration.
+    pub fn new(duration_secs: u64) -> Self {
+        Self {
+            sessions: Default::default(),
+            duration_secs,
+        }
+    }
+
     /// Attempt to get a session.
     pub fn get(&self, id: &Uuid) -> Option<&ServerSession> {
         self.sessions.get(id)
@@ -58,7 +76,7 @@ impl SessionManager {
     /// offering a session.
     pub fn offer(&mut self, identity: AddressStr) -> (Uuid, &ServerSession) {
         let id = Uuid::new_v4();
-        let session = ServerSession::new(identity);
+        let session = ServerSession::new(identity, self.duration_secs);
         let session = self.sessions.entry(id.clone()).or_insert(session);
         (id, session)
     }
@@ -111,7 +129,7 @@ pub struct ServerSession {
 
 impl ServerSession {
     /// Create a new server session.
-    pub fn new(identity: AddressStr) -> Self {
+    pub fn new(identity: AddressStr, duration_secs: u64) -> Self {
         let rng = &mut rand::thread_rng();
         let challenge: [u8; 16] = rng.gen();
 
@@ -119,7 +137,7 @@ impl ServerSession {
             identity,
             challenge,
             identity_proof: None,
-            expires: Instant::now() + Duration::from_secs(SESSION_LENGTH),
+            expires: Instant::now() + Duration::from_secs(duration_secs),
             secret: EphemeralSecret::random(&mut rand::thread_rng()),
             private: None,
             nonce: U192::ZERO,
@@ -184,6 +202,11 @@ impl ServerSession {
         } else {
             Ok(())
         }
+    }
+
+    /// Determine if this session has expired.
+    pub fn expired(&self) -> bool {
+        Instant::now() >= self.expires
     }
 
     /// Determine if this session is still valid.
@@ -353,7 +376,13 @@ mod test {
     use super::*;
     use anyhow::Result;
     use k256::ecdsa::SigningKey;
-    use sos_core::signer::{Signer, SingleParty};
+    use sos_core::signer::{Signer, SingleParty, BoxedSigner};
+    use std::time::Duration;
+
+    fn new_signer() -> BoxedSigner {
+        let client_identity = SigningKey::random(&mut rand::thread_rng());
+        Box::new(SingleParty(client_identity))
+    }
 
     #[tokio::test]
     async fn session_negotiate() -> Result<()> {
@@ -362,8 +391,7 @@ mod test {
         // Client sends a request to generate an authenticated
         // session by sending it's signing address
         // ...
-        let client_identity = SigningKey::random(&mut rand::thread_rng());
-        let signer = Box::new(SingleParty(client_identity));
+        let signer = new_signer();
         let address = signer.address()?;
 
         let (session_id, server_session) = manager.offer(address);
@@ -433,6 +461,28 @@ mod test {
         assert_eq!(message.as_ref(), &bytes);
         assert_eq!(U192::from(4u8), client_session.nonce);
         assert_eq!(U192::from(4u8), server_session.nonce);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn session_expired() -> Result<()> {
+        // Create a manager that will expire sessions after a second.
+        let mut manager = SessionManager::new(1);
+
+        let signer = new_signer();
+        let address = signer.address()?;
+
+        // Generate a session
+        let (session_id, server_session) = manager.offer(address);
+
+        assert!(!server_session.ready());
+
+        // Wait for the session to expire
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        // Verify expiry
+        assert!(server_session.expired());
 
         Ok(())
     }

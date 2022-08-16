@@ -73,6 +73,8 @@ impl Server {
         let tls = reader.config.tls.as_ref().cloned();
         drop(reader);
 
+        // FIXME: start tokio task to reap stale sessions
+
         if let Some(tls) = tls {
             self.run_tls(addr, state, handle, origins, tls).await
         } else {
@@ -90,9 +92,6 @@ impl Server {
         tls: TlsConfig,
     ) -> Result<()> {
         let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
-
-        // FIXME: start tokio task to reap stale sessions
-
         let app = Server::router(state, origins)?;
         tracing::info!("listening on {}", addr);
         axum_server::bind_rustls(addr, tls)
@@ -110,12 +109,6 @@ impl Server {
         handle: Handle,
         origins: Vec<HeaderValue>,
     ) -> Result<()> {
-        //let reader = state.read().await;
-        //let origins = Server::read_origins(&reader)?;
-        //drop(reader);
-
-        // FIXME: start tokio task to reap stale sessions
-
         let app = Server::router(state, origins)?;
         tracing::info!("listening on {}", addr);
         axum_server::bind(addr)
