@@ -18,13 +18,30 @@ use axum::{
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
+use futures::StreamExt;
 use serde::Serialize;
 use sos_core::{address::AddressStr, AuditLogFile};
+use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio_stream::wrappers::IntervalStream;
 use tower_http::cors::{CorsLayer, Origin};
 
 use crate::session::SessionManager;
+
+async fn session_reaper(state: Arc<RwLock<State>>, interval_secs: u64) {
+    let interval = tokio::time::interval(Duration::from_secs(interval_secs));
+    let mut stream = IntervalStream::new(interval);
+    while let Some(_) = stream.next().await {
+        let mut writer = state.write().await;
+        let expired_sessions = writer.sessions.expired_keys();
+        tracing::debug!(
+            expired_sessions = %expired_sessions.len());
+        for key in expired_sessions {
+            writer.sessions.remove_session(&key);
+        }
+    }
+}
 
 /// Server state.
 pub struct State {
@@ -70,10 +87,12 @@ impl Server {
     ) -> Result<()> {
         let reader = state.read().await;
         let origins = Server::read_origins(&reader)?;
+        let reap_interval = reader.config.session.reap_interval;
         let tls = reader.config.tls.as_ref().cloned();
         drop(reader);
 
-        // FIXME: start tokio task to reap stale sessions
+        // Spawn task to reap expired sessions
+        tokio::task::spawn(session_reaper(Arc::clone(&state), reap_interval));
 
         if let Some(tls) = tls {
             self.run_tls(addr, state, handle, origins, tls).await

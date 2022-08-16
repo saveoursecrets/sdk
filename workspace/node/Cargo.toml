@@ -49,6 +49,7 @@ once_cell = { version = "1.10", optional = true }
 rust-embed = { version = "6", optional = true }
 mime_guess = { version = "2", optional = true }
 async-stream = { version = "0.3", optional = true }
+tokio-stream = { version = "0.1", optional = true }
 
 # agent
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
@@ -95,6 +96,7 @@ server = [
   "rust-embed",
   "mime_guess",
   "async-stream",
+  "tokio-stream",
 ]
 gui = []
 agent-client = ["parity-tokio-ipc", "binary-stream"]

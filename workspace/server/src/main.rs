@@ -1,7 +1,10 @@
 use clap::Parser;
 
 use sos_core::{AuditLogFile, FileLocks};
-use sos_node::server::{Result, Server, ServerConfig, ServerInfo, State};
+use sos_node::{
+    server::{Result, Server, ServerConfig, ServerInfo, State},
+    session::SessionManager,
+};
 
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
@@ -19,6 +22,14 @@ struct Cli {
     /// Override the audit log file path.
     #[clap(short, long)]
     audit_log: Option<PathBuf>,
+
+    /// Override the reap interval for expired sessions in seconds.
+    #[clap(long)]
+    reap_interval: Option<u64>,
+
+    /// Override the default session duration in seconds.
+    #[clap(long)]
+    session_duration: Option<u64>,
 
     /// Bind to host:port.
     #[clap(short, long, default_value = "127.0.0.1:5053")]
@@ -39,6 +50,16 @@ async fn run() -> Result<()> {
     if let Some(gui) = args.gui {
         config.gui = gui;
     }
+
+    if let Some(reap_interval) = args.reap_interval {
+        config.session.reap_interval = reap_interval;
+    }
+
+    if let Some(session_duration) = args.session_duration {
+        config.session.duration = session_duration;
+    }
+
+    let sessions = SessionManager::new(config.session.duration);
 
     //println!("Config {:#?}", config);
 
@@ -63,7 +84,7 @@ async fn run() -> Result<()> {
         backend,
         audit_log,
         sse: Default::default(),
-        sessions: Default::default(),
+        sessions,
     }));
 
     let handle = Handle::new();

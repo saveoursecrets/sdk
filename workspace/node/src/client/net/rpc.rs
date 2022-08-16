@@ -175,6 +175,7 @@ impl RpcClient {
 
         let (status, _result, _) = self
             .read_encrypted_response::<CommitProof>(
+                response.status(),
                 &response.bytes().await?,
             )?;
 
@@ -200,6 +201,7 @@ impl RpcClient {
 
         let (status, result, _) = self
             .read_encrypted_response::<Vec<Summary>>(
+                response.status(),
                 &response.bytes().await?,
             )?;
 
@@ -230,6 +232,7 @@ impl RpcClient {
 
         let (status, result, _) = self
             .read_encrypted_response::<Option<CommitProof>>(
+                response.status(),
                 &response.bytes().await?,
             )?;
 
@@ -261,6 +264,7 @@ impl RpcClient {
 
         let (status, result, _) = self
             .read_encrypted_response::<Option<CommitProof>>(
+                response.status(),
                 &response.bytes().await?,
             )?;
 
@@ -296,6 +300,7 @@ impl RpcClient {
 
         let (status, result, _) = self
             .read_encrypted_response::<Option<CommitProof>>(
+                response.status(),
                 &response.bytes().await?,
             )?;
 
@@ -329,6 +334,7 @@ impl RpcClient {
 
         let (status, result, body) = self
             .read_encrypted_response::<Option<CommitProof>>(
+                response.status(),
                 &response.bytes().await?,
             )?;
 
@@ -361,6 +367,7 @@ impl RpcClient {
 
         let (status, result, _) = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
+                response.status(),
                 &response.bytes().await?,
             )?;
 
@@ -396,6 +403,7 @@ impl RpcClient {
 
         let (status, result, _) = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
+                response.status(),
                 &response.bytes().await?,
             )?;
 
@@ -431,6 +439,7 @@ impl RpcClient {
 
         let (status, result, _) = self
             .read_encrypted_response::<CommitProof>(
+                response.status(),
                 &response.bytes().await?,
             )?;
 
@@ -500,8 +509,13 @@ impl RpcClient {
     /// Read an encrypted response to an RPC call.
     fn read_encrypted_response<T: DeserializeOwned>(
         &self,
+        http_status: StatusCode,
         buffer: &[u8],
     ) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
+        if http_status == StatusCode::UNAUTHORIZED {
+            return Err(Error::NotAuthorized);
+        }
+
         let lock = self.session.as_ref().ok_or(Error::NoSession)?;
         let mut session = lock.write().unwrap();
         session.ready().then_some(()).ok_or(Error::InvalidSession)?;

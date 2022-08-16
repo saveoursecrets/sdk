@@ -46,11 +46,10 @@ impl Default for SessionManager {
             sessions: Default::default(),
             duration_secs: DEFAULT_DURATION_SECS,
         }
-    } 
+    }
 }
 
 impl SessionManager {
-
     /// Create a session manager using the given session duration.
     pub fn new(duration_secs: u64) -> Self {
         Self {
@@ -59,9 +58,18 @@ impl SessionManager {
         }
     }
 
-    /// Attempt to get a session.
-    pub fn get(&self, id: &Uuid) -> Option<&ServerSession> {
-        self.sessions.get(id)
+    /// Get the keys of sessions that have expired.
+    pub fn expired_keys(&self) -> Vec<Uuid> {
+        self.sessions
+            .iter()
+            .filter(|(_, v)| v.expired())
+            .map(|(k, _)| *k)
+            .collect::<Vec<_>>()
+    }
+
+    /// Remove the given session.
+    pub fn remove_session(&mut self, key: &Uuid) -> Option<ServerSession> {
+        self.sessions.remove(key)
     }
 
     /// Attempt to get a mutable reference to a session.
@@ -376,7 +384,7 @@ mod test {
     use super::*;
     use anyhow::Result;
     use k256::ecdsa::SigningKey;
-    use sos_core::signer::{Signer, SingleParty, BoxedSigner};
+    use sos_core::signer::{BoxedSigner, SingleParty};
     use std::time::Duration;
 
     fn new_signer() -> BoxedSigner {
@@ -474,7 +482,7 @@ mod test {
         let address = signer.address()?;
 
         // Generate a session
-        let (session_id, server_session) = manager.offer(address);
+        let (_session_id, server_session) = manager.offer(address);
 
         assert!(!server_session.ready());
 
