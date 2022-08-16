@@ -1,7 +1,6 @@
 use sos_core::secret::SecretRef;
 use std::path::PathBuf;
 use thiserror::Error;
-use url::Url;
 
 #[derive(Debug, Error)]
 pub enum Error {
