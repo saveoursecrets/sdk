@@ -36,15 +36,20 @@ impl IntoClientRequest for WebSocketRequest {
     ) -> std::result::Result<http::Request<()>, tungstenite::Error> {
         let host = self.endpoint.host_str().unwrap();
         let uri = format!(
-            "{}?request={}",
+            "{}?request={}&bearer={}&session={}",
             self.endpoint,
-            bs58::encode(&self.message).into_string()
+            bs58::encode(&self.message).into_string(),
+            self.bearer,
+            self.session_id,
         );
+
+        println!("{}", uri);
+
         let origin = self.origin.unicode_serialization();
         let request = http::Request::builder()
             .uri(uri)
-            .header(X_SESSION, self.session_id.to_string())
-            .header(AUTHORIZATION, self.bearer)
+            //.header(X_SESSION, self.session_id.to_string())
+            //.header(AUTHORIZATION, self.bearer)
             .header("sec-websocket-key", generate_key())
             .header("sec-websocket-version", "13")
             .header("host", host)
@@ -80,9 +85,8 @@ pub async fn connect(remote: Url, signer: BoxedSigner) -> Result<()> {
     let aead = session.encrypt(&[])?;
 
     let sign_bytes = session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
-    let signature =
+    let bearer =
         encode_signature(client.signer().sign(&sign_bytes).await?)?;
-    let bearer = bearer_prefix(&signature);
 
     let message = encode(&aead)?;
 

@@ -7,6 +7,7 @@ use sos_core::{address::AddressStr, decode, signer::BinarySignature};
 
 use k256::ecdsa::recoverable;
 use web3_signature::Signature;
+use uuid::Uuid;
 
 use super::Result;
 
@@ -26,7 +27,9 @@ impl SignedQuery {
 /// An RPC message in a query string encoded as base58.
 #[derive(Debug, Deserialize)]
 pub struct QueryMessage {
+    pub session: Uuid,
     pub request: String,
+    pub bearer: String,
 }
 
 #[derive(Debug)]
@@ -36,7 +39,8 @@ pub struct BearerToken {
 }
 
 impl BearerToken {
-    fn new(token: &str, message: &[u8]) -> Result<Self> {
+    /// Create a new bearer token.
+    pub fn new(token: &str, message: &[u8]) -> Result<Self> {
         let value = bs58::decode(token).into_vec()?;
         let binary_sig: BinarySignature = decode(&value)?;
         let signature: Signature = binary_sig.into();

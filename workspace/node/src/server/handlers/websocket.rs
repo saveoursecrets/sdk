@@ -47,8 +47,6 @@ pub struct WebSocketConnection {
 /// Upgrade to a websocket connection.
 pub async fn upgrade(
     Extension(state): Extension<Arc<RwLock<State>>>,
-    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
-    TypedHeader(session_id): TypedHeader<Session>,
     Query(query): Query<QueryMessage>,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
@@ -56,7 +54,7 @@ pub async fn upgrade(
 
     let session = writer
         .sessions
-        .get_mut(session_id.id())
+        .get_mut(&query.session)
         .ok_or(StatusCode::UNAUTHORIZED)?;
     session
         .valid()
@@ -82,7 +80,7 @@ pub async fn upgrade(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Parse the bearer token
-    let token = authenticate::bearer(bearer, &sign_bytes)
+    let token = authenticate::BearerToken::new(&query.bearer, &sign_bytes)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     // Attempt to impersonate the session identity
