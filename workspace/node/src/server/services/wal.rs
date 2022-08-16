@@ -361,7 +361,7 @@ impl Service for WalService {
                         );
 
                         // Send notifications on the SSE channel
-                        send_notification(&mut writer, notification);
+                        send_notification(&mut writer, &caller, notification);
 
                         Ok(reply)
                     }

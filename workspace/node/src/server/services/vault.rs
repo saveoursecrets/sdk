@@ -77,14 +77,14 @@ impl Service for VaultService {
 
                     let log = AuditEvent::from_sync_event(
                         &sync_event,
-                        caller.address,
+                        *caller.address(),
                         *summary.id(),
                     );
 
                     append_audit_logs(&mut writer, vec![log])
                         .await
                         .map_err(Box::from)?;
-                    send_notification(&mut writer, notification);
+                    send_notification(&mut writer, &caller, notification);
 
                     Ok(reply)
                 }
@@ -124,14 +124,14 @@ impl Service for VaultService {
 
                 let log = AuditEvent::new(
                     EventKind::DeleteVault,
-                    caller.address,
+                    *caller.address(),
                     Some(AuditData::Vault(vault_id)),
                 );
 
                 append_audit_logs(&mut writer, vec![log])
                     .await
                     .map_err(Box::from)?;
-                send_notification(&mut writer, notification);
+                send_notification(&mut writer, &caller, notification);
 
                 Ok(reply)
             }
@@ -177,14 +177,14 @@ impl Service for VaultService {
 
                 let log = AuditEvent::from_sync_event(
                     &sync_event,
-                    caller.address,
+                    *caller.address(),
                     *summary.id(),
                 );
 
                 append_audit_logs(&mut writer, vec![log])
                     .await
                     .map_err(Box::from)?;
-                send_notification(&mut writer, notification);
+                send_notification(&mut writer, &caller, notification);
 
                 Ok(reply)
             }

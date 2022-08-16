@@ -66,14 +66,14 @@ impl Service for AccountService {
 
                 let log = AuditEvent::from_sync_event(
                     &sync_event,
-                    caller.address,
+                    *caller.address(),
                     *summary.id(),
                 );
 
                 append_audit_logs(&mut writer, vec![log])
                     .await
                     .map_err(Box::from)?;
-                send_notification(&mut writer, notification);
+                send_notification(&mut writer, &caller, notification);
 
                 Ok(reply)
             }

@@ -55,6 +55,7 @@ async fn append_audit_logs<'a>(
 /// Send change notifications to connected clients.
 fn send_notification<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
+    caller: &Caller,
     notification: ChangeNotification,
 ) {
     // Changes can be empty for non-mutating sync events
@@ -68,11 +69,25 @@ fn send_notification<'a>(
             }
         }
 
+        /*
+        if let Some(session) = writer.sessions.get_mut(caller.session_id()) {
+            println!("Sending change notification in session {}",
+                caller.session_id());
+
+        } else {
+            tracing::warn!(
+                session_id= %caller.session_id(),
+                "failed to locate session for notification dispatch");
+        }
+        */
+
         // Send notification on the websockets channel
         if let Some(conn) = writer.sockets.get(notification.address()) {
+
             if let Err(_) = conn.tx.send(notification) {
                 tracing::debug!("websocket events channel dropped");
             }
+
         }
     }
 }
