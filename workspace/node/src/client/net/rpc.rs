@@ -85,6 +85,11 @@ impl RpcClient {
         &self.signer
     }
 
+    /// Get the URL for the remote node.
+    pub fn remote(&self) -> &Url {
+        &self.server
+    }
+
     /// Determine if this client has a session set.
     pub fn has_session(&self) -> bool {
         self.session.is_some()

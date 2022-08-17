@@ -24,7 +24,7 @@ use crate::{
     session::{ClientSession, EncryptedChannel},
 };
 
-use super::encode_signature;
+use super::{encode_signature, changes_uri};
 
 /// Type of stream created for websocket connections.
 pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -53,45 +53,6 @@ impl IntoClientRequest for WebSocketRequest {
     }
 }
 
-/// Get the URI for a websocket connection.
-pub fn websocket_uri(
-    endpoint: Url,
-    request: Vec<u8>,
-    bearer: String,
-    session: Uuid,
-) -> String {
-    format!(
-        "{}?request={}&bearer={}&session={}",
-        endpoint,
-        bs58::encode(&request).into_string(),
-        bearer,
-        session,
-    )
-}
-
-/// Gets the endpoint URL for a websocket connection.
-///
-/// The `remote` must be an HTTP/S URL; it's scheme will
-/// be switched to `ws` or `wss` as appropiate and the path
-/// for the changes endpoint will be added.
-///
-/// Panics if the remote scheme is invalid or it failed to
-/// set the scheme on the endpoint.
-fn changes_endpoint_url(remote: &Url) -> Result<Url> {
-    let mut endpoint = remote.join("api/changes")?;
-    let scheme = if endpoint.scheme() == "http" {
-        "ws"
-    } else if endpoint.scheme() == "https" {
-        "wss"
-    } else {
-        panic!("bad url scheme for websocket connection, requires http(s)");
-    };
-    endpoint
-        .set_scheme(scheme)
-        .expect("failed to set websocket scheme");
-    Ok(endpoint)
-}
-
 /// Create the websocket connection and listen for events.
 pub async fn connect(
     remote: Url,
@@ -99,11 +60,14 @@ pub async fn connect(
 ) -> Result<(WsStream, ClientSession)> {
     let origin = remote.origin();
 
-    let endpoint = changes_endpoint_url(&remote)?;
+    let endpoint = remote.clone();
+
+    //let endpoint = changes_endpoint_url(&remote)?;
 
     let client = RpcClient::new(remote, signer);
     let mut session = client.new_session().await?;
 
+    /*
     // Need to encode a message into the query string
     // so the server can validate the session request
     let aead = session.encrypt(&[])?;
@@ -115,6 +79,10 @@ pub async fn connect(
 
     let host = endpoint.host_str().unwrap().to_string();
     let uri = websocket_uri(endpoint, message, bearer, *session.id());
+    */
+
+    let host = endpoint.host_str().unwrap().to_string();
+    let uri = changes_uri(&endpoint, client.signer(), &mut session).await?;
 
     tracing::debug!(uri = %uri);
     tracing::debug!(origin = ?origin);

@@ -61,7 +61,7 @@ pub mod file {
 /// Client implementation that stores data in memory.
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
-    use crate::client::{node_cache::NodeCache, Error, Result};
+    use crate::client::{node_cache::NodeCache, Error, Result, net::changes_uri};
     use secrecy::SecretString;
     use sos_core::{
         events::{ChangeNotification, SyncEvent},
@@ -75,6 +75,12 @@ pub mod memory {
         sync::{Arc, RwLock},
     };
     use url::Url;
+
+    use ws_stream_wasm::{WsMeta, WsMessage, WsEvent};
+    use wasm_bindgen_futures::spawn_local;
+    use wasm_bindgen::UnwrapThrowExt;
+    use pharos::{ObserveConfig, Observable, Filter};
+    use futures::stream::StreamExt;
 
     /// Type alias for an in-memory node cache.
     pub type MemoryCache =
@@ -254,6 +260,7 @@ pub mod memory {
             }
         }
 
+        /*
         /// Handle a change notification.
         pub fn handle_change(
             cache: MemoryCache,
@@ -264,6 +271,55 @@ pub mod memory {
                 writer.handle_change(change).await?;
                 Ok::<(), Error>(())
             }
+        }
+        */
+
+        /// Listen for changes notifications using a websocket 
+        /// and update the cache.
+        pub fn listen_changes(
+            cache: MemoryCache,
+        ) {
+            let listener = async move {
+                let reader = cache.read().unwrap();
+                let remote = reader.client().remote().clone();
+                let mut session = reader.client().new_session().await
+                    .expect_throw("failed to negotiate session for websocket");
+
+                let url = changes_uri(
+                    &remote,
+                    reader.client().signer(),
+                    &mut session).await
+                    .expect_throw("could not build websocket changes feed URL");
+
+                let (mut ws, mut wsio) = WsMeta::connect(
+                    url, None).await
+                    .expect_throw("could not connect to websocket");
+
+                let mut evts = ws.observe(
+                    Filter::Pointer( WsEvent::is_closed ).into() )
+                    .await
+                    .expect_throw("could not create websocket observer");
+
+                while let Some(event) = evts.next().await {
+                    match event {
+                        WsEvent::Closed(_) => {
+                            // TODO: try to reconnect???
+                        }
+                        _ => {}
+                    }
+                }
+
+                while let Some(message) = wsio.next().await {
+                    match message {
+                        WsMessage::Text(value) => {
+                            log::info!("Got change notification {}", value);
+                        }
+                        _ => {}
+                    }
+                }
+            };
+
+            spawn_local(listener);
         }
     }
 }
