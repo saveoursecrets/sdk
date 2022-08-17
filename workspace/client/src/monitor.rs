@@ -6,7 +6,7 @@ use crate::{Result, StdinPassphraseReader};
 use futures::stream::StreamExt;
 use sos_core::signer::BoxedSigner;
 use sos_node::client::{
-    net::ws_changes::{changes, connect},
+    net::changes::{changes, connect},
     run_blocking, SignerBuilder,
 };
 

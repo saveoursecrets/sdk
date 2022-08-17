@@ -16,7 +16,7 @@ use sos_core::{
 };
 use sos_node::client::{
     account::AccountCredentials,
-    net::ws_changes::{changes, connect},
+    net::changes::{changes, connect},
 };
 
 #[tokio::test]

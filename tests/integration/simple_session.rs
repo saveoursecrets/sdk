@@ -21,7 +21,7 @@ use sos_node::{
     client::{
         account::AccountCredentials,
         net::{
-            ws_changes::{changes, connect},
+            changes::{changes, connect},
             RequestClient,
         },
     },

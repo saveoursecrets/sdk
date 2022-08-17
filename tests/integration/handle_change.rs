@@ -11,7 +11,7 @@ use secrecy::ExposeSecret;
 use sos_core::commit_tree::CommitProof;
 use sos_node::client::{
     account::{login, AccountCredentials},
-    net::ws_changes::{changes, connect},
+    net::changes::{changes, connect},
 };
 
 #[tokio::test]

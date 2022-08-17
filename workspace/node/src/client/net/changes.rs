@@ -1,64 +1,150 @@
-//! Wrapper for an event source stream that emits change notifications.
-use futures::stream::Stream;
-use futures::task::{Context, Poll};
-use pin_project_lite::pin_project;
+//! Listen for change notifications on a websocket connection.
+use futures::{
+    stream::{Map, SplitStream},
+    StreamExt,
+};
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{
+        self, client::IntoClientRequest, handshake::client::generate_key,
+        protocol::Message,
+    },
+    MaybeTlsStream, WebSocketStream,
+};
 
-use reqwest_eventsource::{Event, EventSource};
-use std::pin::Pin;
+use tokio::net::TcpStream;
 
-use sos_core::events::ChangeNotification;
+use url::{Origin, Url};
+use uuid::Uuid;
 
-use crate::client::{Error, Result};
+use sos_core::{encode, events::ChangeNotification, signer::BoxedSigner};
 
-/// Enumeration yielded by the changes stream.
-pub enum ChangeStreamEvent {
-    /// Emitted when the server sent events stream is opened.
-    Open,
-    /// Emitted when a change notification is received.
-    Message(ChangeNotification),
+use crate::{
+    client::{net::RpcClient, Result},
+    session::{ClientSession, EncryptedChannel},
+};
+
+use super::encode_signature;
+
+/// Type of stream created for websocket connections.
+pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
+
+struct WebSocketRequest {
+    uri: String,
+    host: String,
+    origin: Origin,
 }
 
-pin_project! {
-    /// Change stream emits change notifications.
-    pub struct ChangeStream {
-        #[pin]
-        event_source: EventSource,
+impl IntoClientRequest for WebSocketRequest {
+    fn into_client_request(
+        self,
+    ) -> std::result::Result<http::Request<()>, tungstenite::Error> {
+        let origin = self.origin.unicode_serialization();
+        let request = http::Request::builder()
+            .uri(self.uri)
+            .header("sec-websocket-key", generate_key())
+            .header("sec-websocket-version", "13")
+            .header("host", self.host)
+            .header("origin", origin)
+            .header("connection", "keep-alive, Upgrade")
+            .header("upgrade", "websocket")
+            .body(())?;
+        Ok(request)
     }
 }
 
-impl ChangeStream {
-    /// Create a new change stream.
-    pub fn new(event_source: EventSource) -> Self {
-        Self { event_source }
-    }
+/// Get the URI for a websocket connection.
+pub fn websocket_uri(
+    endpoint: Url,
+    request: Vec<u8>,
+    bearer: String,
+    session: Uuid,
+) -> String {
+    format!(
+        "{}?request={}&bearer={}&session={}",
+        endpoint,
+        bs58::encode(&request).into_string(),
+        bearer,
+        session,
+    )
 }
 
-impl Stream for ChangeStream {
-    type Item = Result<ChangeStreamEvent>;
+/// Gets the endpoint URL for a websocket connection.
+///
+/// The `remote` must be an HTTP/S URL; it's scheme will
+/// be switched to `ws` or `wss` as appropiate and the path
+/// for the changes endpoint will be added.
+///
+/// Panics if the remote scheme is invalid or it failed to
+/// set the scheme on the endpoint.
+fn changes_endpoint_url(remote: &Url) -> Result<Url> {
+    let mut endpoint = remote.join("api/changes")?;
+    let scheme = if endpoint.scheme() == "http" {
+        "ws"
+    } else if endpoint.scheme() == "https" {
+        "wss"
+    } else {
+        panic!("bad url scheme for websocket connection, requires http(s)");
+    };
+    endpoint
+        .set_scheme(scheme)
+        .expect("failed to set websocket scheme");
+    Ok(endpoint)
+}
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        let mut this = self.project();
+/// Create the websocket connection and listen for events.
+pub async fn connect(
+    remote: Url,
+    signer: BoxedSigner,
+) -> Result<(WsStream, ClientSession)> {
+    let origin = remote.origin();
 
-        match this.event_source.as_mut().poll_next(cx) {
-            Poll::Ready(Some(Err(err))) => {
-                this.event_source.close();
-                Poll::Ready(Some(Err(Error::from(err))))
+    let endpoint = changes_endpoint_url(&remote)?;
+
+    let client = RpcClient::new(remote, signer);
+    let mut session = client.new_session().await?;
+
+    // Need to encode a message into the query string
+    // so the server can validate the session request
+    let aead = session.encrypt(&[])?;
+
+    let sign_bytes = session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
+    let bearer = encode_signature(client.signer().sign(&sign_bytes).await?)?;
+
+    let message = encode(&aead)?;
+
+    let host = endpoint.host_str().unwrap().to_string();
+    let uri = websocket_uri(endpoint, message, bearer, *session.id());
+
+    tracing::debug!(uri = %uri);
+    tracing::debug!(origin = ?origin);
+
+    let request = WebSocketRequest { host, uri, origin };
+
+    let (ws_stream, _) = connect_async(request).await?;
+    Ok((ws_stream, session))
+}
+
+/// Read change notifications from a websocket stream.
+pub fn changes(
+    stream: WsStream,
+    _session: ClientSession,
+) -> Map<
+    SplitStream<WsStream>,
+    impl FnMut(
+        std::result::Result<Message, tungstenite::Error>,
+    ) -> Result<ChangeNotification>,
+> {
+    let (_, read) = stream.split();
+    read.map(|message| -> Result<ChangeNotification> {
+        let message = message?;
+        match message {
+            Message::Text(value) => {
+                let notification: ChangeNotification =
+                    serde_json::from_str(&value)?;
+                Ok(notification)
             }
-            Poll::Ready(Some(Ok(event))) => match event {
-                Event::Open => Poll::Ready(Some(Ok(ChangeStreamEvent::Open))),
-                Event::Message(message) => {
-                    let notification: ChangeNotification =
-                        serde_json::from_str(&message.data)?;
-                    Poll::Ready(Some(Ok(ChangeStreamEvent::Message(
-                        notification,
-                    ))))
-                }
-            },
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
+            _ => unreachable!("bad websocket message type"),
         }
-    }
+    })
 }

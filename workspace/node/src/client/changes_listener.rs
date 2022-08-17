@@ -10,7 +10,7 @@ use url::Url;
 
 use super::{
     net::{
-        ws_changes::{changes, connect, WsStream},
+        changes::{changes, connect, WsStream},
         RpcClient,
     },
     Error, Result,
