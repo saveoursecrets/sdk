@@ -1,15 +1,16 @@
 //! HTTP transport trait and implementations.
 
-use sos_core::{encode, signer::{BinarySignature, BoxedSigner}};
+use sos_core::{
+    encode,
+    signer::{BinarySignature, BoxedSigner},
+};
 
-use web3_signature::Signature;
 use url::Url;
 use uuid::Uuid;
+use web3_signature::Signature;
 
 use super::Result;
-use crate::{
-    session::{ClientSession, EncryptedChannel},
-};
+use crate::session::{ClientSession, EncryptedChannel};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod changes;
@@ -75,7 +76,8 @@ fn changes_endpoint_url(remote: &Url) -> Result<Url> {
 pub async fn changes_uri(
     remote: &Url,
     signer: &BoxedSigner,
-    session: &mut ClientSession) -> Result<String> {
+    session: &mut ClientSession,
+) -> Result<String> {
     let endpoint = changes_endpoint_url(&remote)?;
 
     // Need to encode a message into the query string

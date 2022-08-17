@@ -24,7 +24,7 @@ use crate::{
     session::{ClientSession, EncryptedChannel},
 };
 
-use super::{encode_signature, changes_uri};
+use super::{changes_uri, encode_signature};
 
 /// Type of stream created for websocket connections.
 pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
