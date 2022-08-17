@@ -69,6 +69,29 @@ pub fn websocket_uri(
     )
 }
 
+/// Gets the endpoint URL for a websocket connection.
+///
+/// The `remote` must be an HTTP/S URL; it's scheme will 
+/// be switched to `ws` or `wss` as appropiate and the path 
+/// for the changes endpoint will be added.
+///
+/// Panics if the remote scheme is invalid or it failed to 
+/// set the scheme on the endpoint.
+fn changes_endpoint_url(remote: &Url) -> Result<Url> {
+    let mut endpoint = remote.join("api/changes")?;
+    let scheme = if endpoint.scheme() == "http" {
+        "ws"
+    } else if endpoint.scheme() == "https" {
+        "wss"
+    } else {
+        panic!("bad url scheme for websocket connection, requires http(s)");
+    };
+    endpoint
+        .set_scheme(scheme)
+        .expect("failed to set websocket scheme");
+    Ok(endpoint)
+}
+
 /// Create the websocket connection and listen for events.
 pub async fn connect(
     remote: Url,
@@ -76,17 +99,7 @@ pub async fn connect(
 ) -> Result<(WsStream, ClientSession)> {
     let origin = remote.origin();
 
-    let mut endpoint = remote.join("api/changes")?;
-    let scheme = if endpoint.scheme() == "http" {
-        "ws"
-    } else if endpoint.scheme() == "https" {
-        "wss"
-    } else {
-        panic!("bad url scheme for websocket connection");
-    };
-    endpoint
-        .set_scheme(scheme)
-        .expect("failed to set websocket scheme");
+    let endpoint = changes_endpoint_url(&remote)?;
 
     let client = RpcClient::new(remote, signer);
     let mut session = client.new_session().await?;
@@ -103,8 +116,8 @@ pub async fn connect(
     let host = endpoint.host_str().unwrap().to_string();
     let uri = websocket_uri(endpoint, message, bearer, *session.id());
 
-    println!("uri {}", uri);
-    println!("origin {:#?}", origin);
+    tracing::debug!(uri = %uri);
+    tracing::debug!(origin = ?origin);
 
     let request = WebSocketRequest { host, uri, origin };
 

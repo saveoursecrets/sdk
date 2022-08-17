@@ -155,7 +155,6 @@ impl Server {
     ) -> Result<Router> {
         let cors = CorsLayer::new()
             .allow_methods(vec![Method::GET, Method::POST])
-            // For SSE support must allow credentials
             .allow_credentials(true)
             .allow_headers(vec![
                 AUTHORIZATION,
