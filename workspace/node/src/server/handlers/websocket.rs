@@ -6,22 +6,27 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
-use futures::{SinkExt, StreamExt};
+use futures::{
+    stream::{SplitSink, SplitStream},
+    SinkExt, StreamExt,
+};
 
 use std::sync::Arc;
 use tokio::sync::{
-    broadcast::{self, Sender},
+    broadcast::{self, Receiver, Sender},
     RwLock,
 };
 
 use sos_core::{
-    crypto::AeadPack, decode, encode, events::ChangeNotification,
+    address::AddressStr, crypto::AeadPack, decode, encode,
+    events::ChangeNotification,
 };
+use uuid::Uuid;
 
 use crate::{
     server::{
         authenticate::{self, QueryMessage},
-        State,
+        Result, State,
     },
     session::EncryptedChannel,
 };
@@ -111,7 +116,7 @@ pub async fn upgrade(
     // Update the connected client count
     if let Some(result) = conn.clients.checked_add(1) {
         if result > MAX_SOCKET_CONNECTIONS_PER_CLIENT {
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            return Err(StatusCode::TOO_MANY_REQUESTS);
         }
         conn.clients = result;
     } else {
@@ -122,77 +127,110 @@ pub async fn upgrade(
 
     drop(writer);
 
-    Ok(ws.on_upgrade(move |socket: WebSocket| async move {
-        let disconnect = move |state: Arc<RwLock<State>>| async move {
-            let mut writer = state.write().await;
-            let clients = if let Some(conn) = writer.sockets.get_mut(&address)
-            {
-                conn.clients -= 1;
-                Some(conn.clients)
-            } else {
-                None
-            };
+    Ok(ws.on_upgrade(move |socket| {
+        handle_socket(socket, state, address, session_id, rx)
+    }))
+}
 
-            if let Some(clients) = clients {
-                if clients == 0 {
-                    writer.sockets.remove(&address);
+async fn disconnect(state: Arc<RwLock<State>>, address: AddressStr) {
+    let mut writer = state.write().await;
+    let clients = if let Some(conn) = writer.sockets.get_mut(&address) {
+        conn.clients -= 1;
+        Some(conn.clients)
+    } else {
+        None
+    };
+
+    if let Some(clients) = clients {
+        if clients == 0 {
+            writer.sockets.remove(&address);
+        }
+    }
+}
+
+async fn handle_socket(
+    socket: WebSocket,
+    state: Arc<RwLock<State>>,
+    address: AddressStr,
+    session_id: Uuid,
+    outgoing: Receiver<Vec<u8>>,
+) {
+    let (writer, reader) = socket.split();
+    tokio::spawn(write(
+        writer,
+        Arc::clone(&state),
+        address.clone(),
+        outgoing,
+        session_id,
+    ));
+    tokio::spawn(read(reader, Arc::clone(&state), address));
+}
+
+async fn read(
+    mut receiver: SplitStream<WebSocket>,
+    state: Arc<RwLock<State>>,
+    address: AddressStr,
+) -> Result<()> {
+    while let Some(msg) = receiver.next().await {
+        match msg {
+            Ok(msg) => match msg {
+                Message::Text(_) => {}
+                Message::Binary(_) => {}
+                Message::Ping(_) => {}
+                Message::Pong(_) => {}
+                Message::Close(_) => {
+                    disconnect(state, address).await;
+                    return Ok(());
                 }
+            },
+            Err(e) => {
+                disconnect(state, address).await;
+                return Err(e.into());
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn write(
+    mut sender: SplitSink<WebSocket, Message>,
+    state: Arc<RwLock<State>>,
+    address: AddressStr,
+    mut outgoing: Receiver<Vec<u8>>,
+    session_id: Uuid,
+) -> Result<()> {
+    // Receive change notifications and send them over the websocket
+    while let Ok(msg) = outgoing.recv().await {
+        let mut writer = state.write().await;
+        let session = writer
+            .sessions
+            .get_mut(&session_id)
+            .expect("failed to locate websocket session");
+
+        let aead = match session.encrypt(&msg) {
+            Ok(aead) => aead,
+            Err(e) => {
+                drop(writer);
+                disconnect(state, address).await;
+                return Err(e.into());
             }
         };
 
-        let (mut write, mut read) = socket.split();
+        drop(writer);
 
-        let read_state = Arc::clone(&state);
-        tokio::task::spawn(async move {
-            while let Some(msg) = read.next().await {
-                if let Ok(msg) = msg {
-                    match msg {
-                        Message::Text(_) => {}
-                        Message::Binary(_) => {}
-                        Message::Ping(_) => {}
-                        Message::Pong(_) => {}
-                        Message::Close(_) => {
-                            disconnect(read_state).await;
-                            return;
-                        }
-                    }
-                } else {
-                    disconnect(read_state).await;
-                    return;
+        match encode(&aead) {
+            Ok(buffer) => {
+                if sender.send(Message::Binary(buffer)).await.is_err() {
+                    disconnect(state, address).await;
+                    return Ok(());
                 }
             }
-        });
-
-        // Receive change notifications and send them over the websocket
-        while let Ok(msg) = rx.recv().await {
-            let mut writer = state.write().await;
-            let session = writer
-                .sessions
-                .get_mut(&session_id)
-                .expect("failed to locate websocket session");
-
-            let aead = match session.encrypt(&msg) {
-                Ok(aead) => aead,
-                Err(e) => {
-                    panic!("failed to encrypt using websocket session");
-                }
-            };
-
-            drop(writer);
-
-            match encode(&aead) {
-                Ok(buffer) => {
-                    if write.send(Message::Binary(buffer)).await.is_err() {
-                        disconnect(state).await;
-                        return;
-                    }
-                }
-                Err(e) => {
-                    tracing::error!("{}", e);
-                    disconnect(state).await;
-                    return;
-                }
+            Err(e) => {
+                tracing::error!("{}", e);
+                disconnect(state, address).await;
+                return Err(e.into());
             }
         }
-    }))
+    }
+    Ok(())
 }
