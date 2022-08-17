@@ -17,10 +17,7 @@ use tokio::sync::{
     RwLock,
 };
 
-use sos_core::{
-    address::AddressStr, crypto::AeadPack, decode, encode,
-    events::ChangeNotification,
-};
+use sos_core::{address::AddressStr, crypto::AeadPack, decode, encode};
 use uuid::Uuid;
 
 use crate::{
@@ -123,7 +120,7 @@ pub async fn upgrade(
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    let mut rx = conn.tx.subscribe();
+    let rx = conn.tx.subscribe();
 
     drop(writer);
 

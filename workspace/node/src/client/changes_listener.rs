@@ -9,10 +9,7 @@ use tokio::time::sleep;
 use url::Url;
 
 use super::{
-    net::{
-        changes::{changes, connect, WsStream},
-        RpcClient,
-    },
+    net::changes::{changes, connect, WsStream},
     Error, Result,
 };
 

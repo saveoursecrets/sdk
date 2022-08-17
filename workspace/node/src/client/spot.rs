@@ -67,13 +67,14 @@ pub mod memory {
     use crate::session::ClientSession;
     use secrecy::SecretString;
     use sos_core::{
-        events::{ChangeNotification, SyncEvent},
+        events::{ChangeAction, ChangeNotification, SyncEvent},
         signer::BoxedSigner,
         vault::{Summary, Vault},
         wal::memory::WalMemory,
         PatchMemory,
     };
     use std::{
+        collections::HashSet,
         future::Future,
         sync::{Arc, RwLock},
     };
@@ -261,11 +262,12 @@ pub mod memory {
         pub fn handle_change(
             cache: MemoryCache,
             change: ChangeNotification,
-        ) -> impl Future<Output = Result<()>> + 'static {
+        ) -> impl Future<Output = Result<HashSet<ChangeAction>>> + 'static
+        {
             async move {
                 let mut writer = cache.write().unwrap();
-                writer.handle_change(change).await?;
-                Ok::<(), Error>(())
+                let actions = writer.handle_change(change).await?;
+                Ok::<_, Error>(actions)
             }
         }
     }

@@ -111,10 +111,11 @@ impl ChangeEvent {
 }
 
 /// Action corresponding to a change event.
-#[derive(Debug, Hash, Eq, PartialEq)]
+#[derive(Debug, Hash, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ChangeAction {
     /// Pull updates from a remote node.
-    Pull,
+    Pull(VaultId),
     /// Remove from the local cache.
-    Remove,
+    Remove(VaultId),
 }

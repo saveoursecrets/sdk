@@ -311,19 +311,21 @@ where
     pub async fn handle_change(
         &mut self,
         change: ChangeNotification,
-    ) -> Result<()> {
+    ) -> Result<HashSet<ChangeAction>> {
         // Gather actions corresponding to the events
         let mut actions = HashSet::new();
         for event in change.changes() {
             let action = match event {
-                ChangeEvent::DeleteVault => ChangeAction::Remove,
-                _ => ChangeAction::Pull,
+                ChangeEvent::DeleteVault => {
+                    ChangeAction::Remove(*change.vault_id())
+                }
+                _ => ChangeAction::Pull(*change.vault_id()),
             };
             actions.insert(action);
         }
 
         // Consume and react to the actions
-        for action in actions {
+        for action in &actions {
             let summary = self
                 .state
                 .find_vault(&SecretRef::Id(*change.vault_id()))
@@ -331,7 +333,7 @@ where
 
             if let Some(summary) = &summary {
                 match action {
-                    ChangeAction::Pull => {
+                    ChangeAction::Pull(_) => {
                         let tree = self
                             .wal_tree(summary)
                             .ok_or(sos_core::Error::NoRootCommit)?;
@@ -372,14 +374,14 @@ where
                             }
                         }
                     }
-                    ChangeAction::Remove => {
+                    ChangeAction::Remove(_) => {
                         self.remove_local_cache(summary)?;
                     }
                 }
             }
         }
 
-        Ok(())
+        Ok(actions)
     }
 
     /// Load the vault summaries from a remote node.

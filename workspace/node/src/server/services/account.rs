@@ -1,7 +1,6 @@
 use axum::http::StatusCode;
 
 use sos_core::{
-    address::AddressStr,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS},
     events::{ChangeEvent, ChangeNotification, EventKind},
     rpc::{RequestMessage, ResponseMessage, Service},
@@ -10,11 +9,8 @@ use sos_core::{
 };
 
 use async_trait::async_trait;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use super::{append_audit_logs, send_notification, PrivateState};
-use crate::server::State;
 
 /// Account management service.
 ///
