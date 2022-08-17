@@ -25,7 +25,7 @@ use crate::{
 /// Type to represent the caller of a service request.
 pub struct Caller {
     address: AddressStr,
-    session_id: Uuid,
+    //session_id: Uuid,
 }
 
 impl Caller {
@@ -34,10 +34,12 @@ impl Caller {
         &self.address
     }
 
+    /*
     /// Get the session id of the caller.
     pub fn session_id(&self) -> &Uuid {
         &self.session_id
     }
+    */
 }
 
 /// Type used for the state of private services.
@@ -64,7 +66,8 @@ fn send_notification<'a>(
         // Send notification on the websockets channel
         match serde_json::to_vec(&notification) {
             Ok(buffer) => {
-                if let Some(conn) = writer.sockets.get(notification.address()) {
+                if let Some(conn) = writer.sockets.get(notification.address())
+                {
                     if let Err(_) = conn.tx.send(buffer) {
                         tracing::debug!("websocket events channel dropped");
                     }
@@ -182,7 +185,7 @@ pub(crate) async fn private_service(
     // Get a reply from the target service
     let owner = Caller {
         address,
-        session_id: *session_id,
+        //session_id: *session_id,
     };
     let reply = service.serve((owner, Arc::clone(&state)), request).await;
 

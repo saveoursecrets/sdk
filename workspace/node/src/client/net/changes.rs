@@ -17,7 +17,10 @@ use tokio::net::TcpStream;
 use url::{Origin, Url};
 use uuid::Uuid;
 
-use sos_core::{encode, decode, events::ChangeNotification, signer::BoxedSigner, crypto::AeadPack};
+use sos_core::{
+    crypto::AeadPack, decode, encode, events::ChangeNotification,
+    signer::BoxedSigner,
+};
 
 use crate::{
     client::{net::RpcClient, Result},

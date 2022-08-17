@@ -14,7 +14,9 @@ use tokio::sync::{
     RwLock,
 };
 
-use sos_core::{encode, crypto::AeadPack, decode, events::ChangeNotification};
+use sos_core::{
+    crypto::AeadPack, decode, encode, events::ChangeNotification,
+};
 
 use crate::{
     server::{
@@ -164,7 +166,9 @@ pub async fn upgrade(
         // Receive change notifications and send them over the websocket
         while let Ok(msg) = rx.recv().await {
             let mut writer = state.write().await;
-            let session = writer.sessions.get_mut(&session_id)
+            let session = writer
+                .sessions
+                .get_mut(&session_id)
                 .expect("failed to locate websocket session");
 
             let aead = match session.encrypt(&msg) {
