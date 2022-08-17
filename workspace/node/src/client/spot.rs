@@ -78,11 +78,11 @@ pub mod memory {
     };
     use url::Url;
 
-    use futures::stream::StreamExt;
-    use pharos::{Filter, Observable, ObserveConfig};
-    use wasm_bindgen::UnwrapThrowExt;
-    use wasm_bindgen_futures::spawn_local;
-    use ws_stream_wasm::{WsEvent, WsMessage, WsMeta};
+    //use futures::stream::StreamExt;
+    //use pharos::{Filter, Observable, ObserveConfig};
+    //use wasm_bindgen::UnwrapThrowExt;
+    //use wasm_bindgen_futures::spawn_local;
+    //use ws_stream_wasm::{WsEvent, WsMessage, WsMeta};
 
     /// Type alias for an in-memory node cache.
     pub type MemoryCache =
@@ -262,7 +262,6 @@ pub mod memory {
             }
         }
 
-        /*
         /// Handle a change notification.
         pub fn handle_change(
             cache: MemoryCache,
@@ -274,8 +273,8 @@ pub mod memory {
                 Ok::<(), Error>(())
             }
         }
-        */
 
+        /*
         /// Listen for changes notifications using a websocket
         /// and update the cache.
         pub fn listen_changes(cache: MemoryCache) {
@@ -339,5 +338,6 @@ pub mod memory {
 
             spawn_local(listener);
         }
+        */
     }
 }
