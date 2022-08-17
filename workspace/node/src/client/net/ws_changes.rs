@@ -71,11 +71,11 @@ pub fn websocket_uri(
 
 /// Gets the endpoint URL for a websocket connection.
 ///
-/// The `remote` must be an HTTP/S URL; it's scheme will 
-/// be switched to `ws` or `wss` as appropiate and the path 
+/// The `remote` must be an HTTP/S URL; it's scheme will
+/// be switched to `ws` or `wss` as appropiate and the path
 /// for the changes endpoint will be added.
 ///
-/// Panics if the remote scheme is invalid or it failed to 
+/// Panics if the remote scheme is invalid or it failed to
 /// set the scheme on the endpoint.
 fn changes_endpoint_url(remote: &Url) -> Result<Url> {
     let mut endpoint = remote.join("api/changes")?;
