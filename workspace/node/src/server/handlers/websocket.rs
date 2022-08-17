@@ -14,7 +14,7 @@ use tokio::sync::{
     RwLock,
 };
 
-use sos_core::{crypto::AeadPack, decode, events::ChangeNotification};
+use sos_core::{encode, crypto::AeadPack, decode, events::ChangeNotification};
 
 use crate::{
     server::{
@@ -29,11 +29,11 @@ const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;
 /// State for the websocket  connection for a single
 /// authenticated client.
 pub struct WebSocketConnection {
-    /// Broadcast sender for change notifications.
+    /// Broadcast sender for websocket message.
     ///
     /// Handlers can send messages via this sender to broadcast
     /// to all the connected sockets for the client.
-    pub(crate) tx: Sender<ChangeNotification>,
+    pub(crate) tx: Sender<Vec<u8>>,
 
     /// Number of connected clients, used to know when
     /// the connection state can be disposed of.
@@ -50,9 +50,11 @@ pub async fn upgrade(
 
     let mut writer = state.write().await;
 
+    let session_id = query.session;
+
     let session = writer
         .sessions
-        .get_mut(&query.session)
+        .get_mut(&session_id)
         .ok_or(StatusCode::UNAUTHORIZED)?;
     session
         .valid()
@@ -97,7 +99,7 @@ pub async fn upgrade(
     let conn = if let Some(conn) = writer.sockets.get_mut(&token.address) {
         conn
     } else {
-        let (tx, _) = broadcast::channel::<ChangeNotification>(32);
+        let (tx, _) = broadcast::channel::<Vec<u8>>(32);
         writer
             .sockets
             .entry(token.address)
@@ -159,17 +161,33 @@ pub async fn upgrade(
             }
         });
 
-        // Read change notifications and send them over the socket
-        while let Ok(event) = rx.recv().await {
-            tracing::trace!("{:#?}", event);
-            if let Ok(msg) = serde_json::to_string(&event) {
-                if write.send(Message::Text(msg)).await.is_err() {
+        // Receive change notifications and send them over the websocket
+        while let Ok(msg) = rx.recv().await {
+            let mut writer = state.write().await;
+            let session = writer.sessions.get_mut(&session_id)
+                .expect("failed to locate websocket session");
+
+            let aead = match session.encrypt(&msg) {
+                Ok(aead) => aead,
+                Err(e) => {
+                    panic!("failed to encrypt using websocket session");
+                }
+            };
+
+            drop(writer);
+
+            match encode(&aead) {
+                Ok(buffer) => {
+                    if write.send(Message::Binary(buffer)).await.is_err() {
+                        disconnect(state).await;
+                        return;
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("{}", e);
                     disconnect(state).await;
                     return;
                 }
-            } else {
-                disconnect(state).await;
-                return;
             }
         }
     }))

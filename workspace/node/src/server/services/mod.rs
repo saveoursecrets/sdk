@@ -61,22 +61,17 @@ fn send_notification<'a>(
     // Changes can be empty for non-mutating sync events
     // that correspond to audit logs; for example, reading secrets
     if !notification.changes().is_empty() {
-        /*
-        if let Some(session) = writer.sessions.get_mut(caller.session_id()) {
-            println!("Sending change notification in session {}",
-                caller.session_id());
-
-        } else {
-            tracing::warn!(
-                session_id= %caller.session_id(),
-                "failed to locate session for notification dispatch");
-        }
-        */
-
         // Send notification on the websockets channel
-        if let Some(conn) = writer.sockets.get(notification.address()) {
-            if let Err(_) = conn.tx.send(notification) {
-                tracing::debug!("websocket events channel dropped");
+        match serde_json::to_vec(&notification) {
+            Ok(buffer) => {
+                if let Some(conn) = writer.sockets.get(notification.address()) {
+                    if let Err(_) = conn.tx.send(buffer) {
+                        tracing::debug!("websocket events channel dropped");
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!("{}", e);
             }
         }
     }

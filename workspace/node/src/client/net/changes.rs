@@ -17,7 +17,7 @@ use tokio::net::TcpStream;
 use url::{Origin, Url};
 use uuid::Uuid;
 
-use sos_core::{encode, events::ChangeNotification, signer::BoxedSigner};
+use sos_core::{encode, decode, events::ChangeNotification, signer::BoxedSigner, crypto::AeadPack};
 
 use crate::{
     client::{net::RpcClient, Result},
@@ -96,7 +96,7 @@ pub async fn connect(
 /// Read change notifications from a websocket stream.
 pub fn changes(
     stream: WsStream,
-    _session: ClientSession,
+    mut session: ClientSession,
 ) -> Map<
     SplitStream<WsStream>,
     impl FnMut(
@@ -104,12 +104,15 @@ pub fn changes(
     ) -> Result<ChangeNotification>,
 > {
     let (_, read) = stream.split();
-    read.map(|message| -> Result<ChangeNotification> {
+    read.map(move |message| -> Result<ChangeNotification> {
         let message = message?;
         match message {
-            Message::Text(value) => {
+            Message::Binary(buffer) => {
+                let aead: AeadPack = decode(&buffer)?;
+                session.set_nonce(&aead.nonce);
+                let message = session.decrypt(&aead)?;
                 let notification: ChangeNotification =
-                    serde_json::from_str(&value)?;
+                    serde_json::from_slice(&message)?;
                 Ok(notification)
             }
             _ => unreachable!("bad websocket message type"),
