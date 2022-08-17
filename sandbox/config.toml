@@ -8,6 +8,9 @@ origins = [
   "http://localhost:5053",
   "http://localhost:8080",
   "http://localhost:8000",
+
+  "https://localhost:5053",
+  "https://localhost:8080",
 ]
 
 [tls]

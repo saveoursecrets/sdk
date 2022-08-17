@@ -6,21 +6,17 @@ use serde::Deserialize;
 use sos_core::{address::AddressStr, decode, signer::BinarySignature};
 
 use k256::ecdsa::recoverable;
+use uuid::Uuid;
 use web3_signature::Signature;
 
 use super::Result;
 
+/// An RPC message and authorization encoded in a query string.
 #[derive(Debug, Deserialize)]
-pub struct SignedQuery {
-    #[serde(deserialize_with = "hex::serde::deserialize")]
-    message: Vec<u8>,
-    token: String,
-}
-
-impl SignedQuery {
-    pub fn bearer(&self) -> Result<BearerToken> {
-        BearerToken::new(&self.token, &self.message)
-    }
+pub struct QueryMessage {
+    pub session: Uuid,
+    pub request: String,
+    pub bearer: String,
 }
 
 #[derive(Debug)]
@@ -30,7 +26,8 @@ pub struct BearerToken {
 }
 
 impl BearerToken {
-    fn new(token: &str, message: &[u8]) -> Result<Self> {
+    /// Create a new bearer token.
+    pub fn new(token: &str, message: &[u8]) -> Result<Self> {
         let value = bs58::decode(token).into_vec()?;
         let binary_sig: BinarySignature = decode(&value)?;
         let signature: Signature = binary_sig.into();

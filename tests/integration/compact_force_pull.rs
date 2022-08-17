@@ -5,13 +5,13 @@ use crate::test_utils::*;
 
 use futures::stream::StreamExt;
 use std::{sync::Arc, time::Duration};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 
 use secrecy::ExposeSecret;
 use sos_core::commit_tree::CommitProof;
 use sos_node::client::{
     account::{login, AccountCredentials},
-    net::{changes::ChangeStreamEvent, RequestClient},
+    net::changes::{changes, connect},
 };
 
 #[tokio::test]
@@ -45,36 +45,6 @@ async fn integration_compact_force_pull() -> Result<()> {
     .await?;
     let _ = listener.load_vaults().await?;
 
-    let (change_tx, mut change_rx) = mpsc::channel(16);
-
-    let (tx, mut rx) = mpsc::channel(1);
-
-    let mut es = RequestClient::changes(server_url, signer).await?;
-    tokio::task::spawn(async move {
-        while let Some(event) = es.next().await {
-            let event = event?;
-            match event {
-                ChangeStreamEvent::Open => tx
-                    .send(())
-                    .await
-                    .expect("failed to send changes feed open message"),
-                ChangeStreamEvent::Message(notification) => change_tx
-                    .send(notification)
-                    .await
-                    .expect("failed to relay change notification"),
-            }
-        }
-
-        Ok::<(), sos_client::Error>(())
-    });
-
-    // Wait for the changes feed to connect before
-    // we start to make changes
-    let _ = rx
-        .recv()
-        .await
-        .expect("failed to receive changes feed open message");
-
     // Both clients use the login vault
     creator
         .open_vault(&summary, encryption_passphrase.expose_secret())
@@ -92,27 +62,37 @@ async fn integration_compact_force_pull() -> Result<()> {
 
     // Spawn a task to handle change notifications
     tokio::task::spawn(async move {
-        let notification = change_rx
-            .recv()
-            .await
-            .expect("failed to receive changes notification");
+        // Create the websocket connection
+        let (stream, session) = connect(server_url, signer).await?;
 
-        let mut writer = listener_cache.write().await;
-        writer
-            .handle_change(notification)
-            .await
-            .expect("failed to handle change");
+        // Wrap the stream to read change notifications
+        let mut stream = changes(stream, session);
 
-        let head =
-            writer.wal_tree(&listener_summary).unwrap().head().unwrap();
+        while let Some(notification) = stream.next().await {
+            let notification = notification?;
 
-        // Close the listener vault
-        writer.close_vault();
-        drop(writer);
+            let mut writer = listener_cache.write().await;
+            writer
+                .handle_change(notification)
+                .await
+                .expect("failed to handle change");
 
-        let mut writer = listener_head.write().await;
-        *writer = Some(head);
+            let head =
+                writer.wal_tree(&listener_summary).unwrap().head().unwrap();
+
+            // Close the listener vault
+            writer.close_vault();
+            drop(writer);
+
+            let mut writer = listener_head.write().await;
+            *writer = Some(head);
+        }
+
+        Ok::<(), anyhow::Error>(())
     });
+
+    // Give the websocket client some time to connect
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Create some secrets in the creator
     let notes = create_secrets(&mut creator, &summary).await?;

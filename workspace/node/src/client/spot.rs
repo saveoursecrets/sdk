@@ -61,7 +61,10 @@ pub mod file {
 /// Client implementation that stores data in memory.
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
-    use crate::client::{node_cache::NodeCache, Error, Result};
+    use crate::client::{
+        net::changes_uri, node_cache::NodeCache, Error, Result,
+    };
+    use crate::session::ClientSession;
     use secrecy::SecretString;
     use sos_core::{
         events::{ChangeNotification, SyncEvent},
@@ -137,8 +140,8 @@ pub mod memory {
             buffer: Vec<u8>,
         ) -> impl Future<Output = Result<u16>> + 'static {
             async move {
-                let mut writer = cache.write().unwrap();
-                let status = writer.client().create_account(buffer).await?;
+                let reader = cache.read().unwrap();
+                let status = reader.client().create_account(buffer).await?;
                 Ok(status.into())
             }
         }

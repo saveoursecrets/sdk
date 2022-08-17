@@ -10,12 +10,6 @@ use url::Url;
 use super::encode_signature;
 use crate::client::Result;
 
-#[cfg(not(target_arch = "wasm32"))]
-use reqwest_eventsource::EventSource;
-
-#[cfg(not(target_arch = "wasm32"))]
-use super::changes::ChangeStream;
-
 /// HTTP client implementation using the `reqwest` library.
 #[derive(Clone)]
 pub struct RequestClient;
@@ -35,6 +29,7 @@ impl RequestClient {
         Ok(response)
     }
 
+    /*
     /// Get the URL for a changes event source feed.
     pub fn changes_feed_url(
         server: Url,
@@ -69,4 +64,5 @@ impl RequestClient {
             RequestClient::events(server, signer).await?,
         ))
     }
+    */
 }

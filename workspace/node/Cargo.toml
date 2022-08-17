@@ -39,7 +39,7 @@ web3-keystore = { version = "0.4", optional = true }
 
 # server
 toml = { version = "0.5", optional = true }
-axum = { version = "0.5", features = ["headers"], optional = true }
+axum = { version = "0.5", features = ["headers", "ws"], optional = true }
 axum-macros = { version = "0.2", optional = true }
 axum-server = { version = "0.4", features = ["tls-rustls"], optional = true }
 hyper = { version = "0.14", features = ["full"], optional = true }
@@ -55,7 +55,7 @@ tokio-stream = { version = "0.1", optional = true }
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 parity-tokio-ipc = { version = "0.9", optional = true }
 binary-stream = { version = "3", features = ["wasm32"], optional = true }
-reqwest-eventsource = { version = "0.4", optional = true }
+tokio-tungstenite = { version = "0.17.2", features = ["rustls-tls-native-roots"] }
 
 [target.'cfg(any(not(target_arch="aarch64"),not(target_os="linux")))'.dependencies]
 reqwest = { version = "0.11", default-features = true, features = ["json", "rustls-tls"], optional = true }
@@ -80,7 +80,6 @@ anyhow = "1"
 default = ["node"]
 client = [
   "reqwest",
-  "reqwest-eventsource",
   "web3-keystore",
 ]
 node = ["client", "server"]
