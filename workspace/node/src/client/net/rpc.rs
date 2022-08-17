@@ -30,9 +30,7 @@ use crate::{
     session::{ClientSession, EncryptedChannel},
 };
 
-use super::{bearer_prefix, encode_signature};
-
-const AUTHORIZATION: &str = "authorization";
+use super::{bearer_prefix, encode_signature, AUTHORIZATION};
 
 /// Create an RPC call without a body.
 fn new_rpc_call<T: Serialize>(
@@ -87,6 +85,11 @@ impl RpcClient {
         &self.signer
     }
 
+    /// Get the URL for the remote node.
+    pub fn remote(&self) -> &Url {
+        &self.server
+    }
+
     /// Determine if this client has a session set.
     pub fn has_session(&self) -> bool {
         self.session.is_some()
@@ -117,6 +120,13 @@ impl RpcClient {
     /// Attempt to authenticate to the remote node and store
     /// the client session.
     pub async fn authenticate(&mut self) -> Result<()> {
+        let session = self.new_session().await?;
+        self.session = Some(RwLock::new(session));
+        Ok(())
+    }
+
+    /// Negotiate a new session.
+    pub async fn new_session(&self) -> Result<ClientSession> {
         let url = self.server.join("api/session")?;
 
         // Offer
@@ -158,9 +168,8 @@ impl RpcClient {
 
         // Store the session for later requests
         session.finish(client_key);
-        self.session = Some(RwLock::new(session));
 
-        Ok(())
+        Ok(session)
     }
 
     /// Create a new account.
@@ -196,7 +205,7 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = self
+        let (_status, result, _) = self
             .read_encrypted_response::<Vec<Summary>>(
                 response.status(),
                 &response.bytes().await?,

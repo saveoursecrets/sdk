@@ -1186,6 +1186,8 @@ where
     async fn force_pull(&mut self, summary: &Summary) -> Result<CommitProof> {
         // Move our cached vault to a backup
         let vault_path = self.vault_path(summary);
+
+        #[cfg(not(target_arch = "wasm32"))]
         if vault_path.exists() {
             let mut vault_backup = vault_path.clone();
             vault_backup.set_extension(VAULT_BACKUP_EXT);
@@ -1209,6 +1211,7 @@ where
         }
 
         // Remove the existing WAL file
+        #[cfg(not(target_arch = "wasm32"))]
         std::fs::remove_file(wal.path())?;
 
         // Need to recreate the WAL file correctly before pulling

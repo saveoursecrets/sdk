@@ -3,7 +3,7 @@ use super::{
     handlers::{
         api, home,
         service::ServiceHandler,
-        sse::{sse_handler, SseConnection},
+        websocket::{upgrade, WebSocketConnection},
     },
     headers::X_SESSION,
     Backend, Result, ServerConfig,
@@ -53,11 +53,11 @@ pub struct State {
     pub backend: Box<dyn Backend + Send + Sync>,
     /// Audit log file
     pub audit_log: AuditLogFile,
-    /// Map of server sent event channels by authenticated
-    /// client address.
-    pub sse: HashMap<AddressStr, SseConnection>,
     /// Session manager.
     pub sessions: SessionManager,
+    /// Map of websocket  channels by authenticated
+    /// client address.
+    pub sockets: HashMap<AddressStr, WebSocketConnection>,
 }
 
 /// Server information.
@@ -155,7 +155,6 @@ impl Server {
     ) -> Result<Router> {
         let cors = CorsLayer::new()
             .allow_methods(vec![Method::GET, Method::POST])
-            // For SSE support must allow credentials
             .allow_credentials(true)
             .allow_headers(vec![
                 AUTHORIZATION,
@@ -168,7 +167,7 @@ impl Server {
         let mut app = Router::new()
             .route("/", get(home))
             .route("/api", get(api))
-            .route("/api/changes", get(sse_handler))
+            .route("/api/changes", get(upgrade))
             .route("/api/account", post(ServiceHandler::account))
             .route("/api/session", post(ServiceHandler::session))
             .route("/api/vault", post(ServiceHandler::vault))

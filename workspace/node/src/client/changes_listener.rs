@@ -1,5 +1,5 @@
-//! Listen for changes and instruct a cache implementation to
-//! handle the change.
+//! Listens for change notifications on a stream
+//! and calls the handler with the incoming notifications.
 use std::{future::Future, thread};
 
 use async_recursion::async_recursion;
@@ -10,27 +10,29 @@ use url::Url;
 
 use super::{
     net::{
-        changes::{ChangeStream, ChangeStreamEvent},
-        RequestClient,
+        changes::{changes, connect, WsStream},
+        RpcClient,
     },
     Error, Result,
 };
+
+use crate::session::ClientSession;
 
 use sos_core::{events::ChangeNotification, signer::BoxedSigner};
 
 const INTERVAL_MS: u64 = 15000;
 
-/// Listen for changes and update a local cache.
+/// Listen for changes and call a handler with the change notification.
 #[derive(Clone)]
 pub struct ChangesListener {
-    server: Url,
+    remote: Url,
     signer: BoxedSigner,
 }
 
 impl ChangesListener {
     /// Create a new changes listener.
-    pub fn new(server: Url, signer: BoxedSigner) -> Self {
-        Self { server, signer }
+    pub fn new(remote: Url, signer: BoxedSigner) -> Self {
+        Self { remote, signer }
     }
 
     /// Spawn a thread to listen for changes and apply incoming
@@ -54,37 +56,24 @@ impl ChangesListener {
     #[async_recursion(?Send)]
     async fn listen<F>(
         &self,
-        mut stream: ChangeStream,
+        stream: WsStream,
+        session: ClientSession,
         handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
         F: Future<Output = ()> + 'static,
     {
-        while let Some(event) = stream.next().await {
-            match event {
-                Ok(event) => match event {
-                    ChangeStreamEvent::Message(notification) => {
-                        let future = handler(notification);
-                        future.await;
-                    }
-                    ChangeStreamEvent::Open => {
-                        tracing::debug!("changes stream open");
-                    }
-                },
-                Err(e) => {
-                    tracing::error!(error = %e, "changes feed");
-                    let _ = self.delay_connect(handler).await;
-                }
-            }
+        let mut stream = changes(stream, session);
+        while let Some(notification) = stream.next().await {
+            let notification = notification?;
+            let future = handler(notification);
+            future.await;
         }
         Ok(())
     }
 
-    async fn stream(&self) -> Result<ChangeStream> {
-        let stream =
-            RequestClient::changes(self.server.clone(), self.signer.clone())
-                .await?;
-        Ok(stream)
+    async fn stream(&self) -> Result<(WsStream, ClientSession)> {
+        Ok(connect(self.remote.clone(), self.signer.clone()).await?)
     }
 
     async fn connect<F>(
@@ -95,7 +84,9 @@ impl ChangesListener {
         F: Future<Output = ()> + 'static,
     {
         match self.stream().await {
-            Ok(stream) => self.listen(stream, handler).await,
+            Ok((stream, session)) => {
+                self.listen(stream, session, handler).await
+            }
             Err(_) => self.delay_connect(handler).await,
         }
     }
