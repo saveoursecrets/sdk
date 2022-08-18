@@ -277,12 +277,12 @@ pub mod memory {
         pub fn handle_change(
             cache: MemoryCache,
             change: ChangeNotification,
-        ) -> impl Future<Output = Result<HashSet<ChangeAction>>> + 'static
+        ) -> impl Future<Output = Result<(bool, HashSet<ChangeAction>)>> + 'static
         {
             async move {
                 let mut writer = cache.write().unwrap();
-                let actions = writer.handle_change(change).await?;
-                Ok::<_, Error>(actions)
+                let result = writer.handle_change(change).await?;
+                Ok::<_, Error>(result)
             }
         }
     }

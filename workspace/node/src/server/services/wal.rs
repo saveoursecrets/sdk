@@ -353,6 +353,7 @@ impl Service for WalService {
 
                         let notification = ChangeNotification::new(
                             &address,
+                            caller.session_id(),
                             &vault_id,
                             proof,
                             change_events,

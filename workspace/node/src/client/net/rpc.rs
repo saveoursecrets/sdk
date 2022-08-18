@@ -95,7 +95,6 @@ impl RpcClient {
         self.session.is_some()
     }
 
-    /*
     /// Get the session identifier.
     pub fn session_id(&self) -> Result<Uuid> {
         let lock = self.session.as_ref().ok_or(Error::NoSession)?;
@@ -103,7 +102,6 @@ impl RpcClient {
         let id = *reader.id();
         Ok(id)
     }
-    */
 
     /// Determine if this client's session is ready for use.
     pub fn is_ready(&self) -> Result<bool> {

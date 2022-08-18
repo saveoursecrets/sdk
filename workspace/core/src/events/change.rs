@@ -1,6 +1,7 @@
 //! Events emitted over the server-sent events channel to
 //! notify connected clients that changes have been made.
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::{
     address::AddressStr,
@@ -17,8 +18,12 @@ use super::SyncEvent;
 /// single notification to connected clients.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChangeNotification {
+    // TODO: verify if we really need this unused field
     /// The owner address.
+    //#[serde(skip)]
     address: AddressStr,
+    /// The session identifier.
+    session_id: Uuid,
     /// The vault identifier.
     vault_id: VaultId,
     /// The commit proof.
@@ -31,12 +36,14 @@ impl ChangeNotification {
     /// Create a new change notification.
     pub fn new(
         address: &AddressStr,
+        session_id: &Uuid,
         vault_id: &VaultId,
         proof: CommitProof,
         changes: Vec<ChangeEvent>,
     ) -> Self {
         Self {
             address: *address,
+            session_id: *session_id,
             vault_id: *vault_id,
             proof,
             changes,
@@ -46,6 +53,11 @@ impl ChangeNotification {
     /// Address of the owner that made the changes.
     pub fn address(&self) -> &AddressStr {
         &self.address
+    }
+
+    /// The session identifier that made the change.
+    pub fn session_id(&self) -> &Uuid {
+        &self.session_id
     }
 
     /// The identifier of the vault that was modified.

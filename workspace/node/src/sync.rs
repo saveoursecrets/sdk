@@ -1,5 +1,5 @@
 //! Traits and types for syncing between nodes.
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sos_core::commit_tree::{CommitPair, CommitProof};
 use std::fmt;
 

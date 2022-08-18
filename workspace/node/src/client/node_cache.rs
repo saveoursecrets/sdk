@@ -308,10 +308,15 @@ where
     }
 
     /// Respond to a change notification.
+    ///
+    /// The return flag indicates whether the change was made
+    /// by this node which is determined by comparing the session
+    /// identifier on the change notification with the current
+    /// session identifier for this node.
     pub async fn handle_change(
         &mut self,
         change: ChangeNotification,
-    ) -> Result<HashSet<ChangeAction>> {
+    ) -> Result<(bool, HashSet<ChangeAction>)> {
         // Gather actions corresponding to the events
         let mut actions = HashSet::new();
         for event in change.changes() {
@@ -392,7 +397,14 @@ where
             }
         }
 
-        Ok(actions)
+        // Was this change notification triggered by us?
+        let self_change = match self.client.session_id() {
+            Ok(id) => &id == change.session_id(),
+            // Maybe the session is no longer available
+            Err(_) => false,
+        };
+
+        Ok((self_change, actions))
     }
 
     /// Load the vault summaries from a remote node.

@@ -69,6 +69,7 @@ impl Service for VaultService {
 
                     let notification = ChangeNotification::new(
                         caller.address(),
+                        caller.session_id(),
                         &vault_id,
                         proof,
                         vec![ChangeEvent::CreateVault(summary)],
@@ -116,6 +117,7 @@ impl Service for VaultService {
 
                 let notification = ChangeNotification::new(
                     caller.address(),
+                    caller.session_id(),
                     &vault_id,
                     proof,
                     vec![ChangeEvent::DeleteVault],
@@ -169,6 +171,7 @@ impl Service for VaultService {
 
                 let notification = ChangeNotification::new(
                     caller.address(),
+                    caller.session_id(),
                     summary.id(),
                     proof,
                     vec![ChangeEvent::UpdateVault],
