@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     address::AddressStr, commit_tree::CommitProof, secret::SecretId,
-    vault::VaultId,
+    vault::{VaultId, Summary, Header},
 };
 
 use super::SyncEvent;
@@ -66,7 +66,7 @@ impl ChangeNotification {
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum ChangeEvent {
     /// Event emitted when a vault is created.
-    CreateVault,
+    CreateVault(Summary),
     /// Event emitted when a vault is updated.
     ///
     /// This occurs when the passphrase for a vault
@@ -90,7 +90,11 @@ impl ChangeEvent {
     /// Convert from a sync event.
     pub fn from_sync_event(event: &SyncEvent<'_>) -> Option<Self> {
         match event {
-            SyncEvent::CreateVault(_) => Some(ChangeEvent::CreateVault),
+            SyncEvent::CreateVault(vault) => {
+                let summary = Header::read_summary_slice(vault)
+                    .expect("failed to read summary from vault");
+                Some(ChangeEvent::CreateVault(summary))
+            },
             SyncEvent::DeleteVault => Some(ChangeEvent::DeleteVault),
             SyncEvent::SetVaultName(name) => {
                 Some(ChangeEvent::SetVaultName(name.to_string()))
@@ -116,6 +120,18 @@ impl ChangeEvent {
 pub enum ChangeAction {
     /// Pull updates from a remote node.
     Pull(VaultId),
-    /// Remove from the local cache.
+
+    /// Vaults was created on a remote node and the 
+    /// local node has fetched the vault summary
+    /// and added it to it's local state.
+    Create(Summary),
+
+    /// Vault was removed on a remote node and 
+    /// the local node has removed it from it's 
+    /// local cache.
+    ///
+    /// UI implementations should close an open 
+    /// vault if the removed vault is open and 
+    /// update the list of vaults.
     Remove(VaultId),
 }

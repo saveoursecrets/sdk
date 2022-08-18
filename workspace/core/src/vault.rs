@@ -185,7 +185,7 @@ impl Decode for Auth {
 
 /// Summary holding basic file information such as version,
 /// unique identifier and name.
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, Hash, Eq, PartialEq, Clone)]
 pub struct Summary {
     version: u16,
     id: VaultId,

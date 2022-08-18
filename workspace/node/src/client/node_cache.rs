@@ -316,6 +316,9 @@ where
         let mut actions = HashSet::new();
         for event in change.changes() {
             let action = match event {
+                ChangeEvent::CreateVault(summary) => {
+                    ChangeAction::Create(summary.clone())
+                }
                 ChangeEvent::DeleteVault => {
                     ChangeAction::Remove(*change.vault_id())
                 }
@@ -377,6 +380,14 @@ where
                     ChangeAction::Remove(_) => {
                         self.remove_local_cache(summary)?;
                     }
+                    _ => {}
+                }
+            } else {
+                match action {
+                    ChangeAction::Create(summary) => {
+                        self.add_local_cache(summary.clone())?;
+                    }
+                    _ => {}
                 }
             }
         }
@@ -428,6 +439,18 @@ where
 
         // Remove local state
         self.remove_local_cache(summary)?;
+
+        Ok(())
+    }
+
+    /// Add to the local cache for a vault.
+    fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
+
+        // Add to our cache of managed vaults
+        self.init_local_cache(&summary, None)?;
+
+        // Add to the state of managed vaults
+        self.state.add_summary(summary);
 
         Ok(())
     }

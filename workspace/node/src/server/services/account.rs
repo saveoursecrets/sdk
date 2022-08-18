@@ -53,17 +53,19 @@ impl Service for AccountService {
                 let reply: ResponseMessage<'_> =
                     (request.id(), &proof).try_into()?;
 
+                let vault_id = *summary.id();
+
                 let notification = ChangeNotification::new(
                     caller.address(),
-                    summary.id(),
+                    &vault_id,
                     proof,
-                    vec![ChangeEvent::CreateVault],
+                    vec![ChangeEvent::CreateVault(summary)],
                 );
 
                 let log = AuditEvent::from_sync_event(
                     &sync_event,
                     *caller.address(),
-                    *summary.id(),
+                    vault_id,
                 );
 
                 append_audit_logs(&mut writer, vec![log])
