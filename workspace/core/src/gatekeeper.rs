@@ -8,6 +8,7 @@ use crate::{
     vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId},
     Error, Result,
 };
+use std::collections::HashSet;
 use uuid::Uuid;
 
 /// Access to an in-memory vault optionally mirroring changes to disc.
@@ -68,6 +69,59 @@ impl Gatekeeper {
     /// Get a mutable reference to the vault.
     pub fn vault_mut(&mut self) -> &mut Vault {
         &mut self.vault
+    }
+
+    /// Replace this vault with a new updated vault
+    /// and update the search index if possible.
+    ///
+    /// When a password is being changed then we need to use
+    /// the new derived key for the vault.
+    pub fn replace_vault(
+        &mut self,
+        vault: Vault,
+        new_key: Option<SecretKey>,
+    ) -> Result<()> {
+        let derived_key = new_key.as_ref().or(self.private_key.as_ref());
+
+        if let Some(derived_key) = derived_key {
+            let derived_key = Some(derived_key);
+            let existing_keys = self.vault.keys().collect::<HashSet<_>>();
+            let updated_keys = vault.keys().collect::<HashSet<_>>();
+
+            for added_key in updated_keys.difference(&existing_keys) {
+                if let Some((meta, _)) =
+                    self.read_secret(added_key, Some(&vault), derived_key)?
+                {
+                    self.index.add(added_key, meta);
+                }
+            }
+
+            for deleted_key in existing_keys.difference(&updated_keys) {
+                self.index.remove(deleted_key);
+            }
+
+            for maybe_updated in updated_keys.union(&existing_keys) {
+                if let (
+                    Some(VaultCommit(existing_hash, _)),
+                    Some(VaultCommit(updated_hash, _)),
+                ) =
+                    (self.vault.get(maybe_updated), vault.get(maybe_updated))
+                {
+                    if existing_hash != updated_hash {
+                        if let Some((meta, _)) = self.read_secret(
+                            maybe_updated,
+                            Some(&vault),
+                            derived_key,
+                        )? {
+                            self.index.update(maybe_updated, meta);
+                        }
+                    }
+                }
+            }
+        }
+
+        self.vault = vault;
+        Ok(())
     }
 
     /// Set the vault.
@@ -174,17 +228,22 @@ impl Gatekeeper {
     fn read_secret(
         &self,
         id: &SecretId,
+        from: Option<&Vault>,
+        private_key: Option<&SecretKey>,
     ) -> Result<Option<(SecretMeta, Secret)>> {
-        let private_key =
-            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+        let private_key = private_key
+            .or(self.private_key.as_ref())
+            .ok_or(Error::VaultLocked)?;
 
-        if let (Some(value), _payload) = self.vault.read(id)? {
+        let from = from.unwrap_or(&self.vault);
+
+        if let (Some(value), _payload) = from.read(id)? {
             let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
                 value.as_ref();
-            let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+            let meta_blob = from.decrypt(private_key, meta_aead)?;
             let secret_meta: SecretMeta = decode(&meta_blob)?;
 
-            let secret_blob = self.vault.decrypt(private_key, secret_aead)?;
+            let secret_blob = from.decrypt(private_key, secret_aead)?;
             let secret: Secret = decode(&secret_blob)?;
             Ok(Some((secret_meta, secret)))
         } else {
@@ -245,7 +304,7 @@ impl Gatekeeper {
     ) -> Result<Option<(SecretMeta, Secret, SyncEvent<'_>)>> {
         let payload = SyncEvent::ReadSecret(*id);
         Ok(self
-            .read_secret(id)?
+            .read_secret(id, None, None)?
             .map(|(meta, secret)| (meta, secret, payload)))
     }
 
@@ -403,7 +462,7 @@ mod tests {
             keeper.create(secret_meta.clone(), secret.clone())?
         {
             let (saved_secret_meta, saved_secret) =
-                keeper.read_secret(&secret_uuid)?.unwrap();
+                keeper.read_secret(&secret_uuid, None, None)?.unwrap();
             assert_eq!(secret, saved_secret);
             assert_eq!(secret_meta, saved_secret_meta);
         } else {

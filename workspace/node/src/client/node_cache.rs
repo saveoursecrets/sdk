@@ -8,6 +8,7 @@ use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
     constants::{PATCH_EXT, VAULT_BACKUP_EXT, WAL_EXT, WAL_IDENTITY},
+    crypto::secret_key::SecretKey,
     encode,
     events::{
         ChangeAction, ChangeEvent, ChangeNotification, SyncEvent, WalEvent,
@@ -257,8 +258,12 @@ where
         let (new_passphrase, new_vault, wal_events) =
             ChangePassword::new(vault, current_passphrase, new_passphrase)
                 .build()?;
+
         self.update_vault(vault.summary(), &new_vault, wal_events)
             .await?;
+
+        // Refresh the in-memory and disc-based mirror
+        self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
 
         if let Some(keeper) = self.current_mut() {
             if keeper.summary().id() == vault.summary().id() {
@@ -302,7 +307,7 @@ where
         self.force_push(summary).await?;
 
         // Refresh in-memory vault and mirrored copy
-        self.refresh_vault(summary)?;
+        self.refresh_vault(summary, None)?;
 
         Ok((old_size, new_size))
     }
@@ -572,8 +577,9 @@ where
         Ok((status, pending_events))
     }
 
-    /// Update an existing vault.
-    pub async fn update_vault<'a>(
+    /// Update an existing vault by saving the new vault
+    /// on a remote node.
+    async fn update_vault<'a>(
         &mut self,
         summary: &Summary,
         vault: &Vault,
@@ -598,9 +604,6 @@ where
         // Apply the new WAL events to our local WAL log
         wal.clear()?;
         wal.apply(events, Some(CommitHash(*server_proof.root())))?;
-
-        // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(summary)?;
 
         Ok(())
     }
@@ -1192,7 +1195,11 @@ where
 
     // Refresh the in-memory vault of the current selection
     // from the contents of the current WAL file.
-    fn refresh_vault(&mut self, summary: &Summary) -> Result<()> {
+    fn refresh_vault(
+        &mut self,
+        summary: &Summary,
+        new_passphrase: Option<&SecretString>,
+    ) -> Result<()> {
         let wal = self
             .cache
             .get_mut(summary.id())
@@ -1212,8 +1219,23 @@ where
         if let Some(keeper) = self.current_mut() {
             if keeper.id() == summary.id() {
                 // Update the in-memory version
-                let keeper_vault = keeper.vault_mut();
-                *keeper_vault = vault;
+
+                let new_key = if let Some(new_passphrase) = new_passphrase {
+                    if let Some(salt) = vault.salt() {
+                        let salt = SecretKey::parse_salt(salt)?;
+                        let private_key = SecretKey::derive_32(
+                            new_passphrase.expose_secret(),
+                            &salt,
+                        )?;
+                        Some(private_key)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                keeper.replace_vault(vault, new_key)?;
             }
         }
         Ok(())
@@ -1223,14 +1245,16 @@ where
         // Move our cached vault to a backup
         let vault_path = self.vault_path(summary);
 
-        #[cfg(not(target_arch = "wasm32"))]
-        if vault_path.exists() {
-            let mut vault_backup = vault_path.clone();
-            vault_backup.set_extension(VAULT_BACKUP_EXT);
-            std::fs::rename(&vault_path, &vault_backup)?;
-            tracing::debug!(
-                vault = ?vault_path, backup = ?vault_backup, "vault backup");
-        }
+        self.backup_vault_file(summary)?;
+
+        //#[cfg(not(target_arch = "wasm32"))]
+        //if vault_path.exists() {
+        //let mut vault_backup = vault_path.clone();
+        //vault_backup.set_extension(VAULT_BACKUP_EXT);
+        //std::fs::rename(&vault_path, &vault_backup)?;
+        //tracing::debug!(
+        //vault = ?vault_path, backup = ?vault_backup, "vault backup");
+        //}
 
         let (wal, _) = self
             .cache
@@ -1246,9 +1270,7 @@ where
                 path = ?snapshot.0, "force_pull snapshot");
         }
 
-        // Remove the existing WAL file
-        #[cfg(not(target_arch = "wasm32"))]
-        std::fs::remove_file(wal.path())?;
+        remove_file(wal.path())?;
 
         // Need to recreate the WAL file correctly before pulling
         // as pull_wal() expects the file to exist
@@ -1265,7 +1287,7 @@ where
 
         let proof = wal.tree().head()?;
 
-        self.refresh_vault(summary)?;
+        self.refresh_vault(summary, None)?;
 
         Ok(proof)
     }
@@ -1326,6 +1348,27 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
+        // Move our cached vault to a backup
+        let vault_path = self.vault_path(summary);
+
+        if vault_path.exists() {
+            let mut vault_backup = vault_path.clone();
+            vault_backup.set_extension(VAULT_BACKUP_EXT);
+            std::fs::rename(&vault_path, &vault_backup)?;
+            tracing::debug!(
+                vault = ?vault_path, backup = ?vault_backup, "vault backup");
+        }
+
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn backup_vault_file(&self, _summary: &Summary) -> Result<()> {
+        Ok(())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
         // Remove local vault mirror if it exists
         let vault_path = self.vault_path(summary);
@@ -1347,4 +1390,15 @@ where
     fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
         Ok(())
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn remove_file(file: &PathBuf) -> Result<()> {
+    std::fs::remove_file(file)?;
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn remove_file(file: &PathBuf) -> Result<()> {
+    Ok(())
 }
