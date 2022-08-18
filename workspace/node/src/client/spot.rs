@@ -147,8 +147,8 @@ pub mod memory {
             }
         }
 
-        /// Load the vaults.
-        pub fn load_vaults(
+        /// List the vaults.
+        pub fn list_vaults(
             cache: MemoryCache,
         ) -> impl Future<Output = Result<Vec<Summary>>> + 'static {
             async move {
