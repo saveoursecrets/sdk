@@ -1,4 +1,5 @@
 //! Traits and types for syncing between nodes.
+use serde::{Serialize, Deserialize};
 use sos_core::commit_tree::{CommitPair, CommitProof};
 use std::fmt;
 
@@ -49,6 +50,7 @@ impl SyncStatus {
 }
 
 /// Enumerates the kind set after synchronization was attempted.
+#[derive(Serialize, Deserialize)]
 pub enum SyncKind {
     /// Local and remote are equal.
     Equal,
@@ -62,6 +64,7 @@ pub enum SyncKind {
 }
 
 /// Information yielded after attempting synchronization.
+#[derive(Serialize, Deserialize)]
 pub struct SyncInfo {
     /// Local and remote proofs before synchronization.
     pub before: (CommitProof, CommitProof),

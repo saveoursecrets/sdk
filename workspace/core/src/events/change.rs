@@ -3,8 +3,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    address::AddressStr, commit_tree::CommitProof, secret::SecretId,
-    vault::{VaultId, Summary, Header},
+    address::AddressStr,
+    commit_tree::CommitProof,
+    secret::SecretId,
+    vault::{Header, Summary, VaultId},
 };
 
 use super::SyncEvent;
@@ -94,7 +96,7 @@ impl ChangeEvent {
                 let summary = Header::read_summary_slice(vault)
                     .expect("failed to read summary from vault");
                 Some(ChangeEvent::CreateVault(summary))
-            },
+            }
             SyncEvent::DeleteVault => Some(ChangeEvent::DeleteVault),
             SyncEvent::SetVaultName(name) => {
                 Some(ChangeEvent::SetVaultName(name.to_string()))
@@ -121,17 +123,17 @@ pub enum ChangeAction {
     /// Pull updates from a remote node.
     Pull(VaultId),
 
-    /// Vaults was created on a remote node and the 
+    /// Vaults was created on a remote node and the
     /// local node has fetched the vault summary
     /// and added it to it's local state.
     Create(Summary),
 
-    /// Vault was removed on a remote node and 
-    /// the local node has removed it from it's 
+    /// Vault was removed on a remote node and
+    /// the local node has removed it from it's
     /// local cache.
     ///
-    /// UI implementations should close an open 
-    /// vault if the removed vault is open and 
+    /// UI implementations should close an open
+    /// vault if the removed vault is open and
     /// update the list of vaults.
     Remove(VaultId),
 }

@@ -445,7 +445,6 @@ where
 
     /// Add to the local cache for a vault.
     fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
-
         // Add to our cache of managed vaults
         self.init_local_cache(&summary, None)?;
 

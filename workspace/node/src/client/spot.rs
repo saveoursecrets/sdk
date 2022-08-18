@@ -80,6 +80,8 @@ pub mod memory {
     };
     use url::Url;
 
+    use crate::sync::SyncInfo;
+
     /// Type alias for an in-memory node cache.
     pub type MemoryCache =
         Arc<RwLock<NodeCache<WalMemory, PatchMemory<'static>>>>;
@@ -194,6 +196,19 @@ pub mod memory {
                 let mut writer = cache.write().unwrap();
                 writer.remove_vault(&summary).await?;
                 Ok::<(), Error>(())
+            }
+        }
+
+        /// Pull a vault.
+        pub fn pull(
+            cache: MemoryCache,
+            summary: Summary,
+            force: bool,
+        ) -> impl Future<Output = Result<SyncInfo>> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                let info = writer.pull(&summary, force).await?;
+                Ok::<SyncInfo, Error>(info)
             }
         }
 

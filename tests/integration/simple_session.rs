@@ -88,7 +88,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
-    let (new_passphrase, _) = node_cache
+    let (new_passphrase, new_vault_summary) = node_cache
         .create_vault(new_vault_name.clone(), None)
         .await?;
 
@@ -200,7 +200,7 @@ async fn integration_simple_session() -> Result<()> {
     assert_eq!(&new_vault_id, create_vault.vault_id());
     assert_eq!(1, create_vault.changes().len());
     assert_eq!(
-        &ChangeEvent::CreateVault,
+        &ChangeEvent::CreateVault(new_vault_summary),
         create_vault.changes().get(0).unwrap()
     );
 
