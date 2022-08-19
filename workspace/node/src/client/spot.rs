@@ -155,7 +155,7 @@ pub mod memory {
         ) -> impl Future<Output = Result<Vec<Summary>>> + 'static {
             async move {
                 let mut writer = cache.write().unwrap();
-                let vaults = writer.load_vaults().await?;
+                let vaults = writer.list_vaults().await?;
                 Ok::<Vec<Summary>, Error>(vaults.to_vec())
             }
         }

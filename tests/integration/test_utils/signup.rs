@@ -75,7 +75,7 @@ pub async fn signup(
 
     assert_eq!(expected_signing_key, signing_key);
 
-    let _ = node_cache.load_vaults().await?;
+    let _ = node_cache.list_vaults().await?;
 
     Ok((address, credentials, node_cache, signer))
 }

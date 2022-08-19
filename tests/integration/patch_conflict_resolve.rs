@@ -32,7 +32,7 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
     let mut client2 =
         login(server_url, cache_dir, keystore_file, keystore_passphrase)
             .await?;
-    let _ = client2.load_vaults().await?;
+    let _ = client2.list_vaults().await?;
 
     // Both client use the login vault
     client1

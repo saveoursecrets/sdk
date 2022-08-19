@@ -124,8 +124,8 @@ fn run() -> Result<()> {
 
             run_blocking(writer.authenticate())?;
 
-            if let Err(e) = run_blocking(writer.load_vaults()) {
-                tracing::error!("failed to load vaults: {}", e);
+            if let Err(e) = run_blocking(writer.list_vaults()) {
+                tracing::error!("failed to list vaults: {}", e);
             }
             drop(writer);
 

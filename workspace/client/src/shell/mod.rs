@@ -493,7 +493,7 @@ fn exec_program(
         }
         ShellCommand::Vaults => {
             let mut writer = cache.write().unwrap();
-            let summaries = run_blocking(writer.load_vaults())?;
+            let summaries = run_blocking(writer.list_vaults())?;
             print::summaries_list(summaries);
             Ok(())
         }
@@ -1037,7 +1037,7 @@ fn exec_program(
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
-            run_blocking(node_cache.load_vaults())?;
+            run_blocking(node_cache.list_vaults())?;
 
             let mut writer = cache.write().unwrap();
             *writer = node_cache;
