@@ -257,9 +257,6 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<SyncEvent<'_>> {
-        // TODO: use cached in-memory meta data
-        //let meta = self.meta_data()?;
-
         if self.index.find_by_label(secret_meta.label()).is_some() {
             return Err(Error::SecretAlreadyExists(
                 secret_meta.label().to_string(),
