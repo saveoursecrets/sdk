@@ -493,7 +493,7 @@ fn exec_program(
         }
         ShellCommand::Vaults => {
             let mut writer = cache.write().unwrap();
-            let summaries = run_blocking(writer.load_vaults())?;
+            let summaries = run_blocking(writer.list_vaults())?;
             print::summaries_list(summaries);
             Ok(())
         }
@@ -604,8 +604,12 @@ fn exec_program(
         ShellCommand::Status { verbose } => {
             let reader = cache.read().unwrap();
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
+            let summary = keeper.summary().clone();
+            drop(reader);
+
+            let mut writer = cache.write().unwrap();
             let (status, pending_events) =
-                run_blocking(reader.vault_status(keeper.summary()))?;
+                run_blocking(writer.vault_status(&summary))?;
             if verbose {
                 let pair = status.pair();
                 println!("local  = {}", pair.local.root_hex());
@@ -1037,7 +1041,7 @@ fn exec_program(
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
-            run_blocking(node_cache.load_vaults())?;
+            run_blocking(node_cache.list_vaults())?;
 
             let mut writer = cache.write().unwrap();
             *writer = node_cache;

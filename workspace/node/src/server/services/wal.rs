@@ -13,12 +13,10 @@ use sos_core::{
 };
 
 use async_trait::async_trait;
-use std::{borrow::Cow, sync::Arc};
-use tokio::sync::RwLock;
+use std::borrow::Cow;
 use uuid::Uuid;
 
 use super::{append_audit_logs, send_notification, PrivateState};
-use crate::server::State;
 
 enum PatchResult {
     Conflict(CommitProof, Option<CommitProof>),
@@ -355,6 +353,7 @@ impl Service for WalService {
 
                         let notification = ChangeNotification::new(
                             &address,
+                            caller.session_id(),
                             &vault_id,
                             proof,
                             change_events,

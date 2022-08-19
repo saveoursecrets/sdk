@@ -1,6 +1,6 @@
 //! Caching implementation.
 use super::{Error, Result};
-use crate::client::net::RpcClient;
+use crate::client::net::{MaybeRetry, RpcClient};
 
 use async_recursion::async_recursion;
 use http::StatusCode;
@@ -8,6 +8,7 @@ use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
     constants::{PATCH_EXT, VAULT_BACKUP_EXT, WAL_EXT, WAL_IDENTITY},
+    crypto::secret_key::SecretKey,
     encode,
     events::{
         ChangeAction, ChangeEvent, ChangeNotification, SyncEvent, WalEvent,
@@ -42,6 +43,44 @@ use std::{
 use uuid::Uuid;
 
 use crate::sync::{SyncInfo, SyncKind, SyncStatus};
+
+/// Retry a request after renewing a session if an
+/// UNAUTHORIZED response is returned,
+macro_rules! retry {
+    ($future:expr, $client:expr) => {{
+        let future = $future();
+        let maybe_retry = future.await?;
+
+        match maybe_retry {
+            MaybeRetry::Retry(status) => {
+                if status == StatusCode::UNAUTHORIZED && $client.has_session()
+                {
+                    tracing::debug!("renew client session");
+                    $client.authenticate().await?;
+                    let future = $future();
+                    let maybe_retry = future.await?;
+                    match maybe_retry {
+                        MaybeRetry::Retry(status) => {
+                            if status == StatusCode::UNAUTHORIZED {
+                                return Err(Error::NotAuthorized);
+                            } else {
+                                return Err(Error::ResponseCode(
+                                    status.into(),
+                                ));
+                            }
+                        }
+                        MaybeRetry::Complete(status, result) => {
+                            (status, result)
+                        }
+                    }
+                } else {
+                    return Err(Error::NotAuthorized);
+                }
+            }
+            MaybeRetry::Complete(status, result) => (status, result),
+        }
+    }};
+}
 
 fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -257,8 +296,12 @@ where
         let (new_passphrase, new_vault, wal_events) =
             ChangePassword::new(vault, current_passphrase, new_passphrase)
                 .build()?;
+
         self.update_vault(vault.summary(), &new_vault, wal_events)
             .await?;
+
+        // Refresh the in-memory and disc-based mirror
+        self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
 
         if let Some(keeper) = self.current_mut() {
             if keeper.summary().id() == vault.summary().id() {
@@ -302,28 +345,38 @@ where
         self.force_push(summary).await?;
 
         // Refresh in-memory vault and mirrored copy
-        self.refresh_vault(summary)?;
+        self.refresh_vault(summary, None)?;
 
         Ok((old_size, new_size))
     }
 
     /// Respond to a change notification.
+    ///
+    /// The return flag indicates whether the change was made
+    /// by this node which is determined by comparing the session
+    /// identifier on the change notification with the current
+    /// session identifier for this node.
     pub async fn handle_change(
         &mut self,
         change: ChangeNotification,
-    ) -> Result<()> {
+    ) -> Result<(bool, HashSet<ChangeAction>)> {
         // Gather actions corresponding to the events
         let mut actions = HashSet::new();
         for event in change.changes() {
             let action = match event {
-                ChangeEvent::DeleteVault => ChangeAction::Remove,
-                _ => ChangeAction::Pull,
+                ChangeEvent::CreateVault(summary) => {
+                    ChangeAction::Create(summary.clone())
+                }
+                ChangeEvent::DeleteVault => {
+                    ChangeAction::Remove(*change.vault_id())
+                }
+                _ => ChangeAction::Pull(*change.vault_id()),
             };
             actions.insert(action);
         }
 
         // Consume and react to the actions
-        for action in actions {
+        for action in &actions {
             let summary = self
                 .state
                 .find_vault(&SecretRef::Id(*change.vault_id()))
@@ -331,7 +384,7 @@ where
 
             if let Some(summary) = &summary {
                 match action {
-                    ChangeAction::Pull => {
+                    ChangeAction::Pull(_) => {
                         let tree = self
                             .wal_tree(summary)
                             .ok_or(sos_core::Error::NoRootCommit)?;
@@ -372,19 +425,35 @@ where
                             }
                         }
                     }
-                    ChangeAction::Remove => {
+                    ChangeAction::Remove(_) => {
                         self.remove_local_cache(summary)?;
                     }
+                    _ => {}
+                }
+            } else {
+                match action {
+                    ChangeAction::Create(summary) => {
+                        self.add_local_cache(summary.clone())?;
+                    }
+                    _ => {}
                 }
             }
         }
 
-        Ok(())
+        // Was this change notification triggered by us?
+        let self_change = match self.client.session_id() {
+            Ok(id) => &id == change.session_id(),
+            // Maybe the session is no longer available
+            Err(_) => false,
+        };
+
+        Ok((self_change, actions))
     }
 
-    /// Load the vault summaries from a remote node.
-    pub async fn load_vaults(&mut self) -> Result<&[Summary]> {
-        let summaries = self.client.list_vaults().await?;
+    /// List the vault summaries on a remote node.
+    pub async fn list_vaults(&mut self) -> Result<&[Summary]> {
+        let (_, summaries) =
+            retry!(|| self.client.list_vaults(), &mut self.client);
 
         self.load_caches(&summaries)?;
 
@@ -418,7 +487,10 @@ where
     /// Remove a vault.
     pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Attempt to delete on the remote server
-        let (status, _) = self.client.delete_vault(summary.id()).await?;
+        let (status, _) = retry!(
+            || self.client.delete_vault(summary.id()),
+            &mut self.client
+        );
         status
             .is_success()
             .then_some(())
@@ -426,6 +498,17 @@ where
 
         // Remove local state
         self.remove_local_cache(summary)?;
+
+        Ok(())
+    }
+
+    /// Add to the local cache for a vault.
+    fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
+        // Add to our cache of managed vaults
+        self.init_local_cache(&summary, None)?;
+
+        // Add to the state of managed vaults
+        self.state.add_summary(summary);
 
         Ok(())
     }
@@ -479,7 +562,7 @@ where
     /// If a patch file has unsaved events then the number
     /// of pending events is returned along with the `SyncStatus`.
     pub async fn vault_status(
-        &self,
+        &mut self,
         summary: &Summary,
     ) -> Result<(SyncStatus, Option<usize>)> {
         let (wal, patch_file) = self
@@ -487,10 +570,11 @@ where
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
-        let (status, server_proof, match_proof) = self
-            .client
-            .status(summary.id(), Some(client_proof.clone()))
-            .await?;
+        let (status, (server_proof, match_proof)) = retry!(
+            || self.client.status(summary.id(), Some(client_proof.clone())),
+            &mut self.client
+        );
+        //.await?;
         status
             .is_success()
             .then_some(())
@@ -536,8 +620,9 @@ where
         Ok((status, pending_events))
     }
 
-    /// Update an existing vault.
-    pub async fn update_vault<'a>(
+    /// Update an existing vault by saving the new vault
+    /// on a remote node.
+    async fn update_vault<'a>(
         &mut self,
         summary: &Summary,
         vault: &Vault,
@@ -550,8 +635,10 @@ where
 
         // Send the new vault to the server
         let buffer = encode(vault)?;
-        let (status, server_proof) =
-            self.client.save_vault(summary.id(), buffer).await?;
+        let (status, server_proof) = retry!(
+            || self.client.save_vault(summary.id(), buffer.clone()),
+            &mut self.client
+        );
         status
             .is_success()
             .then_some(())
@@ -562,9 +649,6 @@ where
         // Apply the new WAL events to our local WAL log
         wal.clear()?;
         wal.apply(events, Some(CommitHash(*server_proof.root())))?;
-
-        // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(summary)?;
 
         Ok(())
     }
@@ -638,10 +722,11 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, match_proof) = self
-            .client
-            .status(summary.id(), Some(client_proof.clone()))
-            .await?;
+        let (status, (server_proof, match_proof)) = retry!(
+            || self.client.status(summary.id(), Some(client_proof.clone())),
+            &mut self.client
+        );
+        //.await?;
         status
             .is_success()
             .then_some(())
@@ -694,8 +779,10 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, _match_proof) =
-            self.client.status(summary.id(), None).await?;
+        let (status, (server_proof, _match_proof)) = retry!(
+            || self.client.status(summary.id(), None),
+            &mut self.client
+        );
         status
             .is_success()
             .then_some(())
@@ -813,9 +900,16 @@ where
         }
 
         let status = if is_account {
-            self.client.create_account(buffer).await?
+            let (status, _) = retry!(
+                || self.client.create_account(buffer.clone()),
+                &mut self.client
+            );
+            status
         } else {
-            let (status, _) = self.client.create_vault(buffer).await?;
+            let (status, _) = retry!(
+                || self.client.create_vault(buffer.clone()),
+                &mut self.client
+            );
             status
         };
 
@@ -950,10 +1044,10 @@ where
             None
         };
 
-        let (status, server_proof, buffer) = self
-            .client
-            .load_wal(summary.id(), client_proof.clone())
-            .await?;
+        let (status, (server_proof, buffer)) = retry!(
+            || self.client.load_wal(summary.id(), client_proof.clone()),
+            &mut self.client
+        );
 
         tracing::debug!(status = %status, "pull_wal");
 
@@ -1064,14 +1158,14 @@ where
 
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, match_proof) = self
-            .client
-            .apply_patch(
+        let (status, (server_proof, match_proof)) = retry!(
+            || self.client.apply_patch(
                 *summary.id(),
                 client_proof.clone(),
                 patch.clone().into_owned(),
-            )
-            .await?;
+            ),
+            &mut self.client
+        );
 
         match status {
             StatusCode::OK => {
@@ -1156,7 +1250,11 @@ where
 
     // Refresh the in-memory vault of the current selection
     // from the contents of the current WAL file.
-    fn refresh_vault(&mut self, summary: &Summary) -> Result<()> {
+    fn refresh_vault(
+        &mut self,
+        summary: &Summary,
+        new_passphrase: Option<&SecretString>,
+    ) -> Result<()> {
         let wal = self
             .cache
             .get_mut(summary.id())
@@ -1176,8 +1274,23 @@ where
         if let Some(keeper) = self.current_mut() {
             if keeper.id() == summary.id() {
                 // Update the in-memory version
-                let keeper_vault = keeper.vault_mut();
-                *keeper_vault = vault;
+
+                let new_key = if let Some(new_passphrase) = new_passphrase {
+                    if let Some(salt) = vault.salt() {
+                        let salt = SecretKey::parse_salt(salt)?;
+                        let private_key = SecretKey::derive_32(
+                            new_passphrase.expose_secret(),
+                            &salt,
+                        )?;
+                        Some(private_key)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                keeper.replace_vault(vault, new_key)?;
             }
         }
         Ok(())
@@ -1187,14 +1300,16 @@ where
         // Move our cached vault to a backup
         let vault_path = self.vault_path(summary);
 
-        #[cfg(not(target_arch = "wasm32"))]
-        if vault_path.exists() {
-            let mut vault_backup = vault_path.clone();
-            vault_backup.set_extension(VAULT_BACKUP_EXT);
-            std::fs::rename(&vault_path, &vault_backup)?;
-            tracing::debug!(
-                vault = ?vault_path, backup = ?vault_backup, "vault backup");
-        }
+        self.backup_vault_file(summary)?;
+
+        //#[cfg(not(target_arch = "wasm32"))]
+        //if vault_path.exists() {
+        //let mut vault_backup = vault_path.clone();
+        //vault_backup.set_extension(VAULT_BACKUP_EXT);
+        //std::fs::rename(&vault_path, &vault_backup)?;
+        //tracing::debug!(
+        //vault = ?vault_path, backup = ?vault_backup, "vault backup");
+        //}
 
         let (wal, _) = self
             .cache
@@ -1210,9 +1325,7 @@ where
                 path = ?snapshot.0, "force_pull snapshot");
         }
 
-        // Remove the existing WAL file
-        #[cfg(not(target_arch = "wasm32"))]
-        std::fs::remove_file(wal.path())?;
+        remove_file(wal.path())?;
 
         // Need to recreate the WAL file correctly before pulling
         // as pull_wal() expects the file to exist
@@ -1229,7 +1342,7 @@ where
 
         let proof = wal.tree().head()?;
 
-        self.refresh_vault(summary)?;
+        self.refresh_vault(summary, None)?;
 
         Ok(proof)
     }
@@ -1244,10 +1357,14 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
         let body = std::fs::read(wal.path())?;
-        let (status, server_proof) = self
-            .client
-            .save_wal(summary.id(), client_proof.clone(), body)
-            .await?;
+        let (status, server_proof) = retry!(
+            || self.client.save_wal(
+                summary.id(),
+                client_proof.clone(),
+                body.clone()
+            ),
+            &mut self.client
+        );
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
         status
@@ -1290,6 +1407,27 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
+        // Move our cached vault to a backup
+        let vault_path = self.vault_path(summary);
+
+        if vault_path.exists() {
+            let mut vault_backup = vault_path.clone();
+            vault_backup.set_extension(VAULT_BACKUP_EXT);
+            std::fs::rename(&vault_path, &vault_backup)?;
+            tracing::debug!(
+                vault = ?vault_path, backup = ?vault_backup, "vault backup");
+        }
+
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn backup_vault_file(&self, _summary: &Summary) -> Result<()> {
+        Ok(())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
         // Remove local vault mirror if it exists
         let vault_path = self.vault_path(summary);
@@ -1311,4 +1449,15 @@ where
     fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
         Ok(())
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn remove_file(file: &PathBuf) -> Result<()> {
+    std::fs::remove_file(file)?;
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn remove_file(file: &PathBuf) -> Result<()> {
+    Ok(())
 }

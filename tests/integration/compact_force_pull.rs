@@ -43,7 +43,7 @@ async fn integration_compact_force_pull() -> Result<()> {
         keystore_passphrase,
     )
     .await?;
-    let _ = listener.load_vaults().await?;
+    let _ = listener.list_vaults().await?;
 
     // Both clients use the login vault
     creator

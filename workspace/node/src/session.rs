@@ -47,10 +47,13 @@ impl SessionManager {
     }
 
     /// Get the keys of sessions that have expired.
+    ///
+    /// Sessions that have been marked with the keep alive
+    /// flag are not included.
     pub fn expired_keys(&self) -> Vec<Uuid> {
         self.sessions
             .iter()
-            .filter(|(_, v)| v.expired())
+            .filter(|(_, v)| v.expired() && !v.keep_alive())
             .map(|(k, _)| *k)
             .collect::<Vec<_>>()
     }
@@ -123,6 +126,8 @@ pub struct ServerSession {
     private: Option<SecretKey>,
     /// Number once for session messages.
     nonce: U192,
+    /// Determines if this session is allowed to expire.
+    keep_alive: bool,
 }
 
 impl ServerSession {
@@ -140,6 +145,7 @@ impl ServerSession {
             secret: EphemeralSecret::random(&mut rand::thread_rng()),
             private: None,
             nonce: U192::ZERO,
+            keep_alive: false,
         }
     }
 
@@ -151,6 +157,16 @@ impl ServerSession {
     /// Get the challenge bytes.
     pub fn challenge(&self) -> [u8; 16] {
         self.challenge
+    }
+
+    /// Set the keep alive flag for this session.
+    pub fn set_keep_alive(&mut self, keep_alive: bool) {
+        self.keep_alive = keep_alive;
+    }
+
+    /// Get the keep alive flag for this session.
+    pub fn keep_alive(&self) -> bool {
+        self.keep_alive
     }
 
     /// Get the public key bytes.

@@ -1,7 +1,6 @@
 use axum::http::StatusCode;
 
 use sos_core::{
-    address::AddressStr,
     constants::{VAULT_CREATE, VAULT_DELETE, VAULT_SAVE},
     events::{ChangeEvent, ChangeNotification, EventKind},
     rpc::{RequestMessage, ResponseMessage, Service},
@@ -10,12 +9,10 @@ use sos_core::{
 };
 
 use async_trait::async_trait;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use super::{append_audit_logs, send_notification, PrivateState};
-use crate::server::{Error, State};
+use crate::server::Error;
 
 /// Vault management service.
 ///
@@ -68,17 +65,20 @@ impl Service for VaultService {
                     let reply: ResponseMessage<'_> =
                         (request.id(), Some(&proof)).try_into()?;
 
+                    let vault_id = *summary.id();
+
                     let notification = ChangeNotification::new(
                         caller.address(),
-                        summary.id(),
+                        caller.session_id(),
+                        &vault_id,
                         proof,
-                        vec![ChangeEvent::CreateVault],
+                        vec![ChangeEvent::CreateVault(summary)],
                     );
 
                     let log = AuditEvent::from_sync_event(
                         &sync_event,
                         *caller.address(),
-                        *summary.id(),
+                        vault_id,
                     );
 
                     append_audit_logs(&mut writer, vec![log])
@@ -117,6 +117,7 @@ impl Service for VaultService {
 
                 let notification = ChangeNotification::new(
                     caller.address(),
+                    caller.session_id(),
                     &vault_id,
                     proof,
                     vec![ChangeEvent::DeleteVault],
@@ -170,6 +171,7 @@ impl Service for VaultService {
 
                 let notification = ChangeNotification::new(
                     caller.address(),
+                    caller.session_id(),
                     summary.id(),
                     proof,
                     vec![ChangeEvent::UpdateVault],
