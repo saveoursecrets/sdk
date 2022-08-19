@@ -414,7 +414,7 @@ where
 
     /// Load the vault summaries from a remote node.
     pub async fn load_vaults(&mut self) -> Result<&[Summary]> {
-        let summaries = self.client.list_vaults().await?;
+        let (_, summaries) = self.client.list_vaults().await?;
 
         self.load_caches(&summaries)?;
 

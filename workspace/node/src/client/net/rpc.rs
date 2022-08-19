@@ -192,7 +192,7 @@ impl RpcClient {
     }
 
     /// List vaults for an account.
-    pub async fn list_vaults(&self) -> Result<Vec<Summary>> {
+    pub async fn list_vaults(&self) -> Result<(StatusCode, Vec<Summary>)> {
         let url = self.server.join("api/account")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_call(id, ACCOUNT_LIST_VAULTS, ())?)
@@ -203,16 +203,14 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (_status, result, _) = self
+        let (status, result, _) = self
             .read_encrypted_response::<Vec<Summary>>(
                 response.status(),
                 &response.bytes().await?,
             )?;
 
-        Ok(result?)
+        Ok((status, result?))
     }
-
-    /* create_wal -> create_vault */
 
     /// Create a new vault on a remote node.
     pub async fn create_vault(
@@ -238,8 +236,6 @@ impl RpcClient {
         Ok((status, result?))
     }
 
-    /* delete_wal -> delete_vault */
-
     /// Delete a vault on a remote node.
     pub async fn delete_vault(
         &self,
@@ -263,8 +259,6 @@ impl RpcClient {
 
         Ok((status, result?))
     }
-
-    /* put_vault -> save_vault */
 
     /// Update an existing vault.
     ///
@@ -295,8 +289,6 @@ impl RpcClient {
         Ok((status, result?))
     }
 
-    /* get_wal -> load_wal */
-
     /// Get the WAL bytes for a vault.
     /// TODO: remove the Option from the body return value???
     pub async fn load_wal(
@@ -323,8 +315,6 @@ impl RpcClient {
         Ok((status, result?, Some(body)))
     }
 
-    /* head_wal -> status */
-
     /// Get the commit proof of a vault on a remote node.
     pub async fn status(
         &self,
@@ -350,8 +340,6 @@ impl RpcClient {
         let (server_proof, match_proof) = result?;
         Ok((status, server_proof, match_proof))
     }
-
-    /* patch_wal -> apply */
 
     /// Apply a patch to the vault on a remote node.
     /// TODO: remove the Option from the server_proof ???
@@ -381,8 +369,6 @@ impl RpcClient {
         let (server_proof, match_proof) = result?;
         Ok((status, Some(server_proof), match_proof))
     }
-
-    /* post_wal -> save_wal */
 
     /// Replace the WAL for a vault on a remote node.
     /// TODO: remove the Option from the return value ???

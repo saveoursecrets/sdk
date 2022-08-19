@@ -35,7 +35,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     assert_eq!(StatusCode::CONFLICT, status);
 
     // List vaults for the account
-    let summaries = client.list_vaults().await?;
+    let (_, summaries) = client.list_vaults().await?;
     // New account with a single vault
     assert_eq!(1, summaries.len());
 
@@ -57,7 +57,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     assert!(proof.is_some());
 
     // Verify new summaries length
-    let summaries = client.list_vaults().await?;
+    let (_, summaries) = client.list_vaults().await?;
     assert_eq!(2, summaries.len());
 
     // Check the list of summaries includes one with the updated name
@@ -70,7 +70,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     assert!(proof.is_some());
 
     // Verify summaries length after deletion
-    let summaries = client.list_vaults().await?;
+    let (_, summaries) = client.list_vaults().await?;
     assert_eq!(1, summaries.len());
 
     // Check it was the right vault that was deleted
