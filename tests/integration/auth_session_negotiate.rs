@@ -31,11 +31,11 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     let body = encode(&vault)?;
 
     // Try to create a new account
-    let status = client.create_account(body).await?;
+    let (status, _) = client.create_account(body).await?.unwrap();
     assert_eq!(StatusCode::CONFLICT, status);
 
     // List vaults for the account
-    let summaries = client.list_vaults().await?;
+    let (_, summaries) = client.list_vaults().await?.unwrap();
     // New account with a single vault
     assert_eq!(1, summaries.len());
 
@@ -43,7 +43,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     vault.set_name(String::from("Mock vault"));
     let body = encode(&vault)?;
 
-    let (status, proof) = client.create_vault(body).await?;
+    let (status, proof) = client.create_vault(body).await?.unwrap();
 
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
@@ -52,12 +52,12 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     let name = "New vault name";
     vault.set_name(String::from(name));
     let body = encode(&vault)?;
-    let (status, proof) = client.save_vault(vault.id(), body).await?;
+    let (status, proof) = client.save_vault(vault.id(), body).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 
     // Verify new summaries length
-    let summaries = client.list_vaults().await?;
+    let (_, summaries) = client.list_vaults().await?.unwrap();
     assert_eq!(2, summaries.len());
 
     // Check the list of summaries includes one with the updated name
@@ -65,12 +65,12 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     assert!(new_vault_summary.is_some());
 
     // Delete a vault
-    let (status, proof) = client.delete_vault(vault.id()).await?;
+    let (status, proof) = client.delete_vault(vault.id()).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 
     // Verify summaries length after deletion
-    let summaries = client.list_vaults().await?;
+    let (_, summaries) = client.list_vaults().await?.unwrap();
     assert_eq!(1, summaries.len());
 
     // Check it was the right vault that was deleted
@@ -80,15 +80,16 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     let login = summaries.get(0).unwrap();
 
     // Load the entire WAL buffer
-    let (status, proof, buffer) = client.load_wal(login.id(), None).await?;
+    let (status, (proof, buffer)) =
+        client.load_wal(login.id(), None).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
     assert!(buffer.is_some());
     assert!(buffer.unwrap().len() > 4);
 
     // Get the status of a remote vault
-    let (status, _server_proof, match_proof) =
-        client.status(login.id(), None).await?;
+    let (status, (_server_proof, match_proof)) =
+        client.status(login.id(), None).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(match_proof.is_none());
 

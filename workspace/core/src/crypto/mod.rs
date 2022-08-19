@@ -48,7 +48,7 @@ pub mod algorithms {
     pub const ALGORITHMS: [u8; 2] = [X_CHACHA20_POLY1305, AES_GCM_256];
 
     /// Wrapper type for cipher algorithm.
-    #[derive(Debug, Eq, PartialEq, Copy, Clone)]
+    #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
     pub enum Algorithm {
         /// Algorithm for XChaCha20Poly1305 encryption.
         XChaCha20Poly1305(u8),

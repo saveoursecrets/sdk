@@ -1,13 +1,9 @@
 //! HTTP client helper functions.
 
-use rand::Rng;
 use reqwest::Response;
-use std::future::Future;
 
-use sos_core::signer::BoxedSigner;
 use url::Url;
 
-use super::encode_signature;
 use crate::client::Result;
 
 /// HTTP client implementation using the `reqwest` library.

@@ -17,10 +17,7 @@ use tokio::sync::{
     RwLock,
 };
 
-use sos_core::{
-    address::AddressStr, crypto::AeadPack, decode, encode,
-    events::ChangeNotification,
-};
+use sos_core::{address::AddressStr, crypto::AeadPack, decode, encode};
 use uuid::Uuid;
 
 use crate::{
@@ -100,6 +97,10 @@ pub async fn upgrade(
     // Update the server nonce
     session.set_nonce(&aead.nonce);
 
+    // Prevent this session from expiring because
+    // we need it to last as long as the socket connection
+    session.set_keep_alive(true);
+
     // Refresh the session on activity
     session.refresh();
 
@@ -123,7 +124,7 @@ pub async fn upgrade(
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    let mut rx = conn.tx.subscribe();
+    let rx = conn.tx.subscribe();
 
     drop(writer);
 
@@ -132,8 +133,17 @@ pub async fn upgrade(
     }))
 }
 
-async fn disconnect(state: Arc<RwLock<State>>, address: AddressStr) {
+async fn disconnect(
+    state: Arc<RwLock<State>>,
+    address: AddressStr,
+    session_id: Uuid,
+) {
     let mut writer = state.write().await;
+
+    // Sessions for websocket connections have the keep alive
+    // flag so we must remove them on disconnect
+    writer.sessions.remove_session(&session_id);
+
     let clients = if let Some(conn) = writer.sockets.get_mut(&address) {
         conn.clients -= 1;
         Some(conn.clients)
@@ -163,13 +173,14 @@ async fn handle_socket(
         outgoing,
         session_id,
     ));
-    tokio::spawn(read(reader, Arc::clone(&state), address));
+    tokio::spawn(read(reader, Arc::clone(&state), address, session_id));
 }
 
 async fn read(
     mut receiver: SplitStream<WebSocket>,
     state: Arc<RwLock<State>>,
     address: AddressStr,
+    session_id: Uuid,
 ) -> Result<()> {
     while let Some(msg) = receiver.next().await {
         match msg {
@@ -179,12 +190,12 @@ async fn read(
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
                 Message::Close(_) => {
-                    disconnect(state, address).await;
+                    disconnect(state, address, session_id).await;
                     return Ok(());
                 }
             },
             Err(e) => {
-                disconnect(state, address).await;
+                disconnect(state, address, session_id).await;
                 return Err(e.into());
             }
         }
@@ -211,7 +222,7 @@ async fn write(
             Ok(aead) => aead,
             Err(e) => {
                 drop(writer);
-                disconnect(state, address).await;
+                disconnect(state, address, session_id).await;
                 return Err(e.into());
             }
         };
@@ -221,13 +232,13 @@ async fn write(
         match encode(&aead) {
             Ok(buffer) => {
                 if sender.send(Message::Binary(buffer)).await.is_err() {
-                    disconnect(state, address).await;
+                    disconnect(state, address, session_id).await;
                     return Ok(());
                 }
             }
             Err(e) => {
                 tracing::error!("{}", e);
-                disconnect(state, address).await;
+                disconnect(state, address, session_id).await;
                 return Err(e.into());
             }
         }

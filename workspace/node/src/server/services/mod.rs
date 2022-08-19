@@ -25,7 +25,7 @@ use crate::{
 /// Type to represent the caller of a service request.
 pub struct Caller {
     address: AddressStr,
-    //session_id: Uuid,
+    session_id: Uuid,
 }
 
 impl Caller {
@@ -34,12 +34,10 @@ impl Caller {
         &self.address
     }
 
-    /*
     /// Get the session id of the caller.
     pub fn session_id(&self) -> &Uuid {
         &self.session_id
     }
-    */
 }
 
 /// Type used for the state of private services.
@@ -57,7 +55,7 @@ async fn append_audit_logs<'a>(
 /// Send change notifications to connected clients.
 fn send_notification<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
-    caller: &Caller,
+    _caller: &Caller,
     notification: ChangeNotification,
 ) {
     // Changes can be empty for non-mutating sync events
@@ -185,7 +183,7 @@ pub(crate) async fn private_service(
     // Get a reply from the target service
     let owner = Caller {
         address,
-        //session_id: *session_id,
+        session_id: *session_id,
     };
     let reply = service.serve((owner, Arc::clone(&state)), request).await;
 

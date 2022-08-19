@@ -19,7 +19,7 @@ pub mod request;
 pub mod rpc;
 
 pub use request::RequestClient;
-pub use rpc::RpcClient;
+pub use rpc::{MaybeRetry, RpcClient};
 
 const AUTHORIZATION: &str = "authorization";
 

@@ -109,7 +109,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Load vaults list
     let cached_vaults = node_cache.vaults().to_vec();
-    let vaults = node_cache.load_vaults().await?;
+    let vaults = node_cache.list_vaults().await?;
     assert_eq!(2, vaults.len());
     assert_eq!(&cached_vaults, &vaults);
 
@@ -118,7 +118,7 @@ async fn integration_simple_session() -> Result<()> {
     let default_vault_summary =
         node_cache.state().find_vault(&default_ref).unwrap().clone();
     node_cache.remove_vault(&default_vault_summary).await?;
-    let vaults = node_cache.load_vaults().await?;
+    let vaults = node_cache.list_vaults().await?;
     assert_eq!(1, vaults.len());
     assert_eq!(1, node_cache.vaults().len());
 
@@ -200,7 +200,7 @@ async fn integration_simple_session() -> Result<()> {
     assert_eq!(&new_vault_id, create_vault.vault_id());
     assert_eq!(1, create_vault.changes().len());
     assert_eq!(
-        &ChangeEvent::CreateVault,
+        &ChangeEvent::CreateVault(new_vault_summary),
         create_vault.changes().get(0).unwrap()
     );
 

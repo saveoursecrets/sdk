@@ -67,17 +67,20 @@ pub mod memory {
     use crate::session::ClientSession;
     use secrecy::SecretString;
     use sos_core::{
-        events::{ChangeNotification, SyncEvent},
+        events::{ChangeAction, ChangeNotification, SyncEvent},
         signer::BoxedSigner,
         vault::{Summary, Vault},
         wal::memory::WalMemory,
         PatchMemory,
     };
     use std::{
+        collections::HashSet,
         future::Future,
         sync::{Arc, RwLock},
     };
     use url::Url;
+
+    use crate::sync::SyncInfo;
 
     /// Type alias for an in-memory node cache.
     pub type MemoryCache =
@@ -141,18 +144,22 @@ pub mod memory {
         ) -> impl Future<Output = Result<u16>> + 'static {
             async move {
                 let reader = cache.read().unwrap();
-                let status = reader.client().create_account(buffer).await?;
+                let status = reader
+                    .client()
+                    .create_account(buffer)
+                    .await?
+                    .into_status();
                 Ok(status.into())
             }
         }
 
-        /// Load the vaults.
-        pub fn load_vaults(
+        /// List the vaults.
+        pub fn list_vaults(
             cache: MemoryCache,
         ) -> impl Future<Output = Result<Vec<Summary>>> + 'static {
             async move {
                 let mut writer = cache.write().unwrap();
-                let vaults = writer.load_vaults().await?;
+                let vaults = writer.list_vaults().await?;
                 Ok::<Vec<Summary>, Error>(vaults.to_vec())
             }
         }
@@ -193,6 +200,19 @@ pub mod memory {
                 let mut writer = cache.write().unwrap();
                 writer.remove_vault(&summary).await?;
                 Ok::<(), Error>(())
+            }
+        }
+
+        /// Pull a vault.
+        pub fn pull(
+            cache: MemoryCache,
+            summary: Summary,
+            force: bool,
+        ) -> impl Future<Output = Result<SyncInfo>> + 'static {
+            async move {
+                let mut writer = cache.write().unwrap();
+                let info = writer.pull(&summary, force).await?;
+                Ok::<SyncInfo, Error>(info)
             }
         }
 
@@ -261,11 +281,12 @@ pub mod memory {
         pub fn handle_change(
             cache: MemoryCache,
             change: ChangeNotification,
-        ) -> impl Future<Output = Result<()>> + 'static {
+        ) -> impl Future<Output = Result<(bool, HashSet<ChangeAction>)>> + 'static
+        {
             async move {
                 let mut writer = cache.write().unwrap();
-                writer.handle_change(change).await?;
-                Ok::<(), Error>(())
+                let result = writer.handle_change(change).await?;
+                Ok::<_, Error>(result)
             }
         }
     }

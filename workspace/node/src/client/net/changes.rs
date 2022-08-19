@@ -15,11 +15,9 @@ use tokio_tungstenite::{
 use tokio::net::TcpStream;
 
 use url::{Origin, Url};
-use uuid::Uuid;
 
 use sos_core::{
-    crypto::AeadPack, decode, encode, events::ChangeNotification,
-    signer::BoxedSigner,
+    crypto::AeadPack, decode, events::ChangeNotification, signer::BoxedSigner,
 };
 
 use crate::{
@@ -27,7 +25,7 @@ use crate::{
     session::{ClientSession, EncryptedChannel},
 };
 
-use super::{changes_uri, encode_signature};
+use super::changes_uri;
 
 /// Type of stream created for websocket connections.
 pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
