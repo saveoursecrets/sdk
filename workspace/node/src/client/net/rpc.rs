@@ -171,7 +171,10 @@ impl RpcClient {
     }
 
     /// Create a new account.
-    pub async fn create_account(&self, vault: Vec<u8>) -> Result<StatusCode> {
+    pub async fn create_account(
+        &self,
+        vault: Vec<u8>,
+    ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/account")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_body(id, ACCOUNT_CREATE, (), vault)?)
@@ -182,17 +185,16 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, _result, _) = self
-            .read_encrypted_response::<CommitProof>(
-                response.status(),
-                &response.bytes().await?,
-            )?;
+        let maybe_retry = self.read_encrypted_response::<CommitProof>(
+            response.status(),
+            &response.bytes().await?,
+        )?;
 
-        Ok(status)
+        maybe_retry.map(|result, _| Ok(result.ok()))
     }
 
     /// List vaults for an account.
-    pub async fn list_vaults(&self) -> Result<(StatusCode, Vec<Summary>)> {
+    pub async fn list_vaults(&self) -> Result<MaybeRetry<Vec<Summary>>> {
         let url = self.server.join("api/account")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_call(id, ACCOUNT_LIST_VAULTS, ())?)
@@ -203,20 +205,19 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = self
-            .read_encrypted_response::<Vec<Summary>>(
-                response.status(),
-                &response.bytes().await?,
-            )?;
+        let maybe_retry = self.read_encrypted_response::<Vec<Summary>>(
+            response.status(),
+            &response.bytes().await?,
+        )?;
 
-        Ok((status, result?))
+        maybe_retry.map(|result, _| Ok(result?))
     }
 
     /// Create a new vault on a remote node.
     pub async fn create_vault(
         &self,
         vault: Vec<u8>,
-    ) -> Result<(StatusCode, Option<CommitProof>)> {
+    ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_body(id, VAULT_CREATE, (), vault)?)
@@ -227,20 +228,20 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = self
+        let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
                 &response.bytes().await?,
             )?;
 
-        Ok((status, result?))
+        maybe_retry.map(|result, _| Ok(result?))
     }
 
     /// Delete a vault on a remote node.
     pub async fn delete_vault(
         &self,
         vault_id: &Uuid,
-    ) -> Result<(StatusCode, Option<CommitProof>)> {
+    ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_call(id, VAULT_DELETE, vault_id)?)
@@ -251,13 +252,13 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = self
+        let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
                 &response.bytes().await?,
             )?;
 
-        Ok((status, result?))
+        maybe_retry.map(|result, _| Ok(result?))
     }
 
     /// Update an existing vault.
@@ -269,7 +270,7 @@ impl RpcClient {
         &self,
         vault_id: &Uuid,
         vault: Vec<u8>,
-    ) -> Result<(StatusCode, Option<CommitProof>)> {
+    ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_body(id, VAULT_SAVE, vault_id, vault)?)
@@ -280,13 +281,13 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = self
+        let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
                 &response.bytes().await?,
             )?;
 
-        Ok((status, result?))
+        maybe_retry.map(|result, _| Ok(result?))
     }
 
     /// Get the WAL bytes for a vault.
@@ -295,7 +296,7 @@ impl RpcClient {
         &self,
         vault_id: &Uuid,
         proof: Option<CommitProof>,
-    ) -> Result<(StatusCode, Option<CommitProof>, Option<Vec<u8>>)> {
+    ) -> Result<MaybeRetry<(Option<CommitProof>, Option<Vec<u8>>)>> {
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_call(id, WAL_LOAD, (vault_id, proof))?)
@@ -306,13 +307,13 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, body) = self
+        let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
                 &response.bytes().await?,
             )?;
 
-        Ok((status, result?, Some(body)))
+        maybe_retry.map(|result, body| Ok((result?, Some(body))))
     }
 
     /// Get the commit proof of a vault on a remote node.
@@ -320,7 +321,7 @@ impl RpcClient {
         &self,
         vault_id: &Uuid,
         proof: Option<CommitProof>,
-    ) -> Result<(StatusCode, CommitProof, Option<CommitProof>)> {
+    ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_call(id, WAL_STATUS, (vault_id, proof))?)
@@ -331,14 +332,16 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = self
+        let maybe_retry = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
                 response.status(),
                 &response.bytes().await?,
             )?;
 
-        let (server_proof, match_proof) = result?;
-        Ok((status, server_proof, match_proof))
+        maybe_retry.map(|result, _| {
+            let (server_proof, match_proof) = result?;
+            Ok((server_proof, match_proof))
+        })
     }
 
     /// Apply a patch to the vault on a remote node.
@@ -348,7 +351,7 @@ impl RpcClient {
         vault_id: Uuid, /* WARN: must not be reference */
         proof: CommitProof,
         patch: Patch<'static>,
-    ) -> Result<(StatusCode, Option<CommitProof>, Option<CommitProof>)> {
+    ) -> Result<MaybeRetry<(Option<CommitProof>, Option<CommitProof>)>> {
         let body = encode(&patch)?;
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
@@ -360,14 +363,16 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = self
+        let maybe_retry = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
                 response.status(),
                 &response.bytes().await?,
             )?;
 
-        let (server_proof, match_proof) = result?;
-        Ok((status, Some(server_proof), match_proof))
+        maybe_retry.map(|result, _| {
+            let (server_proof, match_proof) = result?;
+            Ok((Some(server_proof), match_proof))
+        })
     }
 
     /// Replace the WAL for a vault on a remote node.
@@ -377,7 +382,7 @@ impl RpcClient {
         vault_id: &Uuid,
         proof: CommitProof,
         body: Vec<u8>,
-    ) -> Result<(StatusCode, Option<CommitProof>)> {
+    ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             Ok(new_rpc_body(id, WAL_SAVE, (vault_id, proof), body)?)
@@ -388,13 +393,12 @@ impl RpcClient {
         let response =
             self.send_request(url, session_id, signature, body).await?;
 
-        let (status, result, _) = self
-            .read_encrypted_response::<CommitProof>(
-                response.status(),
-                &response.bytes().await?,
-            )?;
+        let maybe_retry = self.read_encrypted_response::<CommitProof>(
+            response.status(),
+            &response.bytes().await?,
+        )?;
 
-        Ok((status, Some(result?)))
+        maybe_retry.map(|result, _| Ok(Some(result?)))
     }
 
     /// Build an encrypted request.
@@ -463,11 +467,13 @@ impl RpcClient {
         &self,
         http_status: StatusCode,
         buffer: &[u8],
-    ) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
+    ) -> Result<RetryResponse<T>> {
+        //) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
         // Unauthorized means the session could not be found
         // or has expired
         if http_status == StatusCode::UNAUTHORIZED {
-            Err(Error::NotAuthorized)
+            //Err(Error::NotAuthorized)
+            Ok(RetryResponse::Retry(http_status))
         } else if http_status.is_success()
             || http_status == StatusCode::CONFLICT
         {
@@ -490,9 +496,62 @@ impl RpcClient {
 
             let (_, status, result, body) = response.take::<T>()?;
             let result = result.ok_or(Error::NoReturnValue)?;
-            Ok((status, result, body))
+            Ok(RetryResponse::Complete(status, result, body))
         } else {
             Err(Error::ResponseCode(http_status.into()))
+        }
+    }
+}
+
+/// Enumeration for a response that allows for retrying the request.
+enum RetryResponse<T> {
+    Retry(StatusCode),
+    Complete(StatusCode, sos_core::Result<T>, Vec<u8>),
+}
+
+impl<T> RetryResponse<T> {
+    fn map<E>(
+        self,
+        func: impl FnOnce(sos_core::Result<T>, Vec<u8>) -> Result<E>,
+    ) -> Result<MaybeRetry<E>> {
+        match self {
+            RetryResponse::Retry(status) => Ok(MaybeRetry::Retry(status)),
+            RetryResponse::Complete(status, result, body) => {
+                let res = func(result, body)?;
+                Ok(MaybeRetry::Complete(status, res))
+            }
+        }
+    }
+}
+
+/// Enumeration for a mapped result that may be retried
+pub enum MaybeRetry<T> {
+    /// Indicates the previous request should be retried.
+    Retry(StatusCode),
+    /// Indicates the request was completed.
+    Complete(StatusCode, T),
+}
+
+impl<T> MaybeRetry<T> {
+    /// Consume self into the underlying status code.
+    pub fn into_status(self) -> StatusCode {
+        match self {
+            MaybeRetry::Complete(status, _) => status,
+            MaybeRetry::Retry(status) => status,
+        }
+    }
+
+    /// Unwrap as a completed request.
+    ///
+    /// Panices if the request should be retried.
+    pub fn unwrap(self) -> (StatusCode, T) {
+        match self {
+            MaybeRetry::Complete(status, result) => (status, result),
+            _ => {
+                panic!(
+                    "unwrap called on a maybe retry that should be retried"
+                );
+            }
         }
     }
 }

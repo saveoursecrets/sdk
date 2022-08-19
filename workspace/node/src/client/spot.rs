@@ -144,7 +144,11 @@ pub mod memory {
         ) -> impl Future<Output = Result<u16>> + 'static {
             async move {
                 let reader = cache.read().unwrap();
-                let status = reader.client().create_account(buffer).await?;
+                let status = reader
+                    .client()
+                    .create_account(buffer)
+                    .await?
+                    .into_status();
                 Ok(status.into())
             }
         }

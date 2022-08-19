@@ -1,6 +1,6 @@
 //! Caching implementation.
 use super::{Error, Result};
-use crate::client::net::RpcClient;
+use crate::client::net::{MaybeRetry, RpcClient};
 
 use async_recursion::async_recursion;
 use http::StatusCode;
@@ -43,6 +43,44 @@ use std::{
 use uuid::Uuid;
 
 use crate::sync::{SyncInfo, SyncKind, SyncStatus};
+
+/// Retry a request after renewing a session if an
+/// UNAUTHORIZED response is returned,
+macro_rules! retry {
+    ($future:expr, $client:expr) => {{
+        let future = $future();
+        let maybe_retry = future.await?;
+
+        match maybe_retry {
+            MaybeRetry::Retry(status) => {
+                if status == StatusCode::UNAUTHORIZED && $client.has_session()
+                {
+                    tracing::debug!("renew client session");
+                    $client.authenticate().await?;
+                    let future = $future();
+                    let maybe_retry = future.await?;
+                    match maybe_retry {
+                        MaybeRetry::Retry(status) => {
+                            if status == StatusCode::UNAUTHORIZED {
+                                return Err(Error::NotAuthorized);
+                            } else {
+                                return Err(Error::ResponseCode(
+                                    status.into(),
+                                ));
+                            }
+                        }
+                        MaybeRetry::Complete(status, result) => {
+                            (status, result)
+                        }
+                    }
+                } else {
+                    return Err(Error::NotAuthorized);
+                }
+            }
+            MaybeRetry::Complete(status, result) => (status, result),
+        }
+    }};
+}
 
 fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -414,7 +452,8 @@ where
 
     /// List the vault summaries on a remote node.
     pub async fn list_vaults(&mut self) -> Result<&[Summary]> {
-        let (_, summaries) = self.client.list_vaults().await?;
+        let (_, summaries) =
+            retry!(|| self.client.list_vaults(), &mut self.client);
 
         self.load_caches(&summaries)?;
 
@@ -448,7 +487,10 @@ where
     /// Remove a vault.
     pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Attempt to delete on the remote server
-        let (status, _) = self.client.delete_vault(summary.id()).await?;
+        let (status, _) = retry!(
+            || self.client.delete_vault(summary.id()),
+            &mut self.client
+        );
         status
             .is_success()
             .then_some(())
@@ -520,7 +562,7 @@ where
     /// If a patch file has unsaved events then the number
     /// of pending events is returned along with the `SyncStatus`.
     pub async fn vault_status(
-        &self,
+        &mut self,
         summary: &Summary,
     ) -> Result<(SyncStatus, Option<usize>)> {
         let (wal, patch_file) = self
@@ -528,10 +570,11 @@ where
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
-        let (status, server_proof, match_proof) = self
-            .client
-            .status(summary.id(), Some(client_proof.clone()))
-            .await?;
+        let (status, (server_proof, match_proof)) = retry!(
+            || self.client.status(summary.id(), Some(client_proof.clone())),
+            &mut self.client
+        );
+        //.await?;
         status
             .is_success()
             .then_some(())
@@ -592,8 +635,10 @@ where
 
         // Send the new vault to the server
         let buffer = encode(vault)?;
-        let (status, server_proof) =
-            self.client.save_vault(summary.id(), buffer).await?;
+        let (status, server_proof) = retry!(
+            || self.client.save_vault(summary.id(), buffer.clone()),
+            &mut self.client
+        );
         status
             .is_success()
             .then_some(())
@@ -677,10 +722,11 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, match_proof) = self
-            .client
-            .status(summary.id(), Some(client_proof.clone()))
-            .await?;
+        let (status, (server_proof, match_proof)) = retry!(
+            || self.client.status(summary.id(), Some(client_proof.clone())),
+            &mut self.client
+        );
+        //.await?;
         status
             .is_success()
             .then_some(())
@@ -733,8 +779,10 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, _match_proof) =
-            self.client.status(summary.id(), None).await?;
+        let (status, (server_proof, _match_proof)) = retry!(
+            || self.client.status(summary.id(), None),
+            &mut self.client
+        );
         status
             .is_success()
             .then_some(())
@@ -852,9 +900,16 @@ where
         }
 
         let status = if is_account {
-            self.client.create_account(buffer).await?
+            let (status, _) = retry!(
+                || self.client.create_account(buffer.clone()),
+                &mut self.client
+            );
+            status
         } else {
-            let (status, _) = self.client.create_vault(buffer).await?;
+            let (status, _) = retry!(
+                || self.client.create_vault(buffer.clone()),
+                &mut self.client
+            );
             status
         };
 
@@ -989,10 +1044,10 @@ where
             None
         };
 
-        let (status, server_proof, buffer) = self
-            .client
-            .load_wal(summary.id(), client_proof.clone())
-            .await?;
+        let (status, (server_proof, buffer)) = retry!(
+            || self.client.load_wal(summary.id(), client_proof.clone()),
+            &mut self.client
+        );
 
         tracing::debug!(status = %status, "pull_wal");
 
@@ -1103,14 +1158,14 @@ where
 
         let client_proof = wal.tree().head()?;
 
-        let (status, server_proof, match_proof) = self
-            .client
-            .apply_patch(
+        let (status, (server_proof, match_proof)) = retry!(
+            || self.client.apply_patch(
                 *summary.id(),
                 client_proof.clone(),
                 patch.clone().into_owned(),
-            )
-            .await?;
+            ),
+            &mut self.client
+        );
 
         match status {
             StatusCode::OK => {
@@ -1302,10 +1357,14 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let client_proof = wal.tree().head()?;
         let body = std::fs::read(wal.path())?;
-        let (status, server_proof) = self
-            .client
-            .save_wal(summary.id(), client_proof.clone(), body)
-            .await?;
+        let (status, server_proof) = retry!(
+            || self.client.save_wal(
+                summary.id(),
+                client_proof.clone(),
+                body.clone()
+            ),
+            &mut self.client
+        );
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
         status
