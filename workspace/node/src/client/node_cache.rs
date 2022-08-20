@@ -7,7 +7,7 @@ use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
-    constants::{PATCH_EXT, VAULT_BACKUP_EXT, WAL_EXT, WAL_IDENTITY},
+    constants::{PATCH_EXT, WAL_EXT, WAL_IDENTITY},
     crypto::secret_key::SecretKey,
     encode,
     events::{
@@ -1297,19 +1297,9 @@ where
     }
 
     async fn force_pull(&mut self, summary: &Summary) -> Result<CommitProof> {
-        // Move our cached vault to a backup
-        let vault_path = self.vault_path(summary);
 
+        // Noop on wasm32
         self.backup_vault_file(summary)?;
-
-        //#[cfg(not(target_arch = "wasm32"))]
-        //if vault_path.exists() {
-        //let mut vault_backup = vault_path.clone();
-        //vault_backup.set_extension(VAULT_BACKUP_EXT);
-        //std::fs::rename(&vault_path, &vault_backup)?;
-        //tracing::debug!(
-        //vault = ?vault_path, backup = ?vault_backup, "vault backup");
-        //}
 
         let (wal, _) = self
             .cache
@@ -1325,6 +1315,7 @@ where
                 path = ?snapshot.0, "force_pull snapshot");
         }
 
+        // Noop on wasm32
         remove_file(wal.path())?;
 
         // Need to recreate the WAL file correctly before pulling
@@ -1408,6 +1399,8 @@ where
 
     #[cfg(not(target_arch = "wasm32"))]
     fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
+        use sos_core::constants::VAULT_BACKUP_EXT;
+
         // Move our cached vault to a backup
         let vault_path = self.vault_path(summary);
 
@@ -1458,6 +1451,6 @@ fn remove_file(file: &PathBuf) -> Result<()> {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn remove_file(file: &PathBuf) -> Result<()> {
+fn remove_file(_file: &PathBuf) -> Result<()> {
     Ok(())
 }

@@ -16,20 +16,20 @@ use crate::secret::{SecretId, SecretMeta, SecretRef};
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct DocumentKey(String, SecretId);
 
-// A white space tokenizer
+// Tokenizer used for indexing.
 fn tokenizer(s: &str) -> Vec<&str> {
     s.split(' ')
         .collect::<Vec<_>>()
 }
 
+// Filter used for indexing and querying.
+fn filter(s: &str) -> &str {
+    s
+}
+
 // Label
 fn label_extract<'a>(d: &'a Document) -> Option<&'a str> {
     Some(d.1.label())
-}
-
-// A no-op filter
-fn filter(s: &str) -> &str {
-    s
 }
 
 /// Document that can be indexed.

@@ -62,14 +62,13 @@ pub mod file {
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
     use crate::client::{
-        net::changes_uri, node_cache::NodeCache, Error, Result,
+        node_cache::NodeCache, Error, Result,
     };
-    use crate::session::ClientSession;
     use secrecy::SecretString;
     use sos_core::{
         events::{ChangeAction, ChangeNotification, SyncEvent},
         signer::BoxedSigner,
-        vault::{Summary, Vault},
+        vault::{Summary, Vault, Header},
         wal::memory::WalMemory,
         PatchMemory,
     };
@@ -132,7 +131,7 @@ pub mod memory {
         ) -> impl Future<Output = Result<()>> + 'static {
             async move {
                 let mut writer = cache.write().unwrap();
-                let vaults = writer.authenticate().await?;
+                writer.authenticate().await?;
                 Ok::<(), Error>(())
             }
         }
@@ -141,15 +140,21 @@ pub mod memory {
         pub fn create_account(
             cache: MemoryCache,
             buffer: Vec<u8>,
-        ) -> impl Future<Output = Result<u16>> + 'static {
+        ) -> impl Future<Output = Result<(u16, Summary)>> + 'static {
             async move {
+                let summary = Header::read_summary_slice(&buffer)?;
                 let reader = cache.read().unwrap();
+                // We don't use the create_account() function on 
+                // NodeCache as that will assign a passphrase and 
+                // in this case we expect the client to have chosen 
+                // a passphrase for the vault rather than having a 
+                // passphrase assigned.
                 let status = reader
                     .client()
                     .create_account(buffer)
                     .await?
                     .into_status();
-                Ok(status.into())
+                Ok((status.into(), summary))
             }
         }
 
