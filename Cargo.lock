@@ -1968,9 +1968,9 @@ dependencies = [
 
 [[package]]
 name = "probly-search"
-version = "1.2.4"
+version = "2.0.0-alpha-1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3f13d43bd513ab7a69eda5621b140c960801859a2e606d6401e83e3b48a4378"
+checksum = "4d547f64c14951b0b8cf0cdc7e07562466ca3f90141f01e7c49be6b4a53153e6"
 dependencies = [
  "typed-generational-arena",
 ]

@@ -17,10 +17,9 @@ use crate::secret::{SecretId, SecretMeta, SecretRef};
 pub struct DocumentKey(String, SecretId);
 
 // A white space tokenizer
-fn tokenizer(s: &str) -> Vec<String> {
+fn tokenizer(s: &str) -> Vec<&str> {
     s.split(' ')
-        .map(|slice| slice.to_owned())
-        .collect::<Vec<String>>()
+        .collect::<Vec<_>>()
 }
 
 // Label
@@ -29,14 +28,12 @@ fn label_extract<'a>(d: &'a Document) -> Option<&'a str> {
 }
 
 // A no-op filter
-fn filter(s: &str) -> String {
-    s.to_owned()
+fn filter(s: &str) -> &str {
+    s
 }
 
-// FIXME: remove Clone here
-
 /// Document that can be indexed.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Document(pub SecretId, pub SecretMeta);
 
 impl Document {
@@ -115,9 +112,7 @@ impl SearchIndex {
             tokenizer,
             filter,
             *id,
-            // FIXME: remove clone() here
-            // SEE: https://github.com/quantleaf/probly-search/pull/11
-            doc.clone(),
+            &doc,
         );
     }
 
