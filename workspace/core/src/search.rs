@@ -18,8 +18,7 @@ pub struct DocumentKey(String, SecretId);
 
 // Tokenizer used for indexing.
 fn tokenizer(s: &str) -> Vec<&str> {
-    s.split(' ')
-        .collect::<Vec<_>>()
+    s.split(' ').collect::<Vec<_>>()
 }
 
 // Filter used for indexing and querying.
@@ -78,6 +77,30 @@ impl SearchIndex {
     /// Find document by label.
     pub fn find_by_label<'a>(&'a self, label: &str) -> Option<&'a Document> {
         self.documents.values().find(|d| d.meta().label() == label)
+    }
+
+    /// Find all documents with the given label ignoring
+    /// a particular identifier.
+    pub fn find_all_by_label<'a>(
+        &'a self,
+        label: &str,
+        id: Option<SecretId>,
+    ) -> Vec<&'a Document> {
+        self.documents
+            .iter()
+            .filter(|(k, v)| {
+                if let Some(id) = &id {
+                    if id == &k.1 {
+                        false
+                    } else {
+                        v.meta().label() == label
+                    }
+                } else {
+                    v.meta().label() == label
+                }
+            })
+            .map(|(_, v)| v)
+            .collect::<Vec<_>>()
     }
 
     /// Find document by id.
