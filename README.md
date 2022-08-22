@@ -154,13 +154,19 @@ cargo install cargo-release
 Perform a release dry run:
 
 ```
-cargo release --workspace
+cargo release --workspace minor
+```
+
+To skip releasing the crates use `--no-publish`:
+
+```
+cargo release --workspace --no-publish minor
 ```
 
 Then to cut a new release which will publish the libraries as crates and create a new git tag for the release run:
 
 ```
-cargo release --workspace -x
+cargo release --workspace minor -x
 ```
 
 The new git tag will trigger a github workflow that will build all the artifacts across the supported platform matrix.
