@@ -6,6 +6,7 @@ use axum::{
 
 #[cfg(feature = "gui")]
 use axum::{
+    http::StatusCode,
     body::{Body, Bytes},
     http::{Request, Response},
 };
