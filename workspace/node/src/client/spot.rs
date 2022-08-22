@@ -61,14 +61,12 @@ pub mod file {
 /// Client implementation that stores data in memory.
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
-    use crate::client::{
-        node_cache::NodeCache, Error, Result,
-    };
+    use crate::client::{node_cache::NodeCache, Error, Result};
     use secrecy::SecretString;
     use sos_core::{
         events::{ChangeAction, ChangeNotification, SyncEvent},
         signer::BoxedSigner,
-        vault::{Summary, Vault, Header},
+        vault::{Header, Summary, Vault},
         wal::memory::WalMemory,
         PatchMemory,
     };
@@ -144,10 +142,10 @@ pub mod memory {
             async move {
                 let summary = Header::read_summary_slice(&buffer)?;
                 let reader = cache.read().unwrap();
-                // We don't use the create_account() function on 
-                // NodeCache as that will assign a passphrase and 
-                // in this case we expect the client to have chosen 
-                // a passphrase for the vault rather than having a 
+                // We don't use the create_account() function on
+                // NodeCache as that will assign a passphrase and
+                // in this case we expect the client to have chosen
+                // a passphrase for the vault rather than having a
                 // passphrase assigned.
                 let status = reader
                     .client()

@@ -81,6 +81,9 @@ pub(super) fn secret(
         } => banner
             .text(Cow::Borrowed(title))
             .text(Cow::Borrowed(document.expose_secret())),
+        Secret::Pin { number } => {
+            banner.text(Cow::Borrowed(number.expose_secret()))
+        }
     };
 
     let result = banner.render();

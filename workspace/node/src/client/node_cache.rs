@@ -1297,7 +1297,6 @@ where
     }
 
     async fn force_pull(&mut self, summary: &Summary) -> Result<CommitProof> {
-
         // Noop on wasm32
         self.backup_vault_file(summary)?;
 

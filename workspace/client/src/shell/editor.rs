@@ -52,6 +52,10 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
             document.expose_secret().as_bytes().to_vec(),
             ".md".to_string(),
         ),
+        Secret::Pin { number } => (
+            number.expose_secret().as_bytes().to_vec(),
+            ".txt".to_string(),
+        ),
     })
 }
 
@@ -78,6 +82,13 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
                 std::str::from_utf8(content)?.to_owned(),
             ),
         },
+        Secret::Pin { .. } => {
+            let number = std::str::from_utf8(content)?.to_owned();
+            Secret::ensure_ascii_digits(&number)?;
+            Secret::Pin {
+                number: secrecy::Secret::new(number),
+            }
+        }
     })
 }
 

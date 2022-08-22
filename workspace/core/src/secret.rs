@@ -13,7 +13,7 @@ use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
 
-use crate::{Error, Timestamp};
+use crate::{Error, Result, Timestamp};
 
 fn serialize_secret_string<S>(
     secret: &SecretString,
@@ -76,7 +76,7 @@ impl fmt::Display for SecretRef {
 
 impl FromStr for SecretRef {
     type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if let Ok(id) = Uuid::parse_str(s) {
             Ok(Self::Id(id))
         } else {
@@ -186,6 +186,7 @@ impl SecretMeta {
             kind::FILE => "FILE",
             kind::PEM => "CERT",
             kind::PAGE => "PAGE",
+            kind::PIN => "PIN",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }
@@ -259,6 +260,18 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         document: SecretString,
     },
+    /// Personal identification number.
+    ///
+    /// Encoded as a string so there are no restrictions
+    /// on the number of allowed digits.
+    ///
+    /// Client implementations should ensure the value
+    /// only contains digits.
+    Pin {
+        /// The value for the PIN.
+        #[serde(serialize_with = "serialize_secret_string")]
+        number: SecretString,
+    },
 }
 
 impl Clone for Secret {
@@ -309,6 +322,11 @@ impl Clone for Secret {
                     document.expose_secret().to_owned(),
                 ),
             },
+            Secret::Pin { number } => Secret::Pin {
+                number: secrecy::Secret::new(
+                    number.expose_secret().to_owned(),
+                ),
+            },
         }
     }
 }
@@ -339,11 +357,22 @@ impl fmt::Debug for Secret {
                 .field("title", title)
                 .field("mime", mime)
                 .finish(),
+            Secret::Pin { .. } => f.debug_struct("PIN").finish(),
         }
     }
 }
 
 impl Secret {
+    /// Ensure all the bytes are ASCII digits.
+    pub fn ensure_ascii_digits<B: AsRef<[u8]>>(bytes: B) -> Result<()> {
+        for byte in bytes.as_ref() {
+            if !byte.is_ascii_digit() {
+                return Err(Error::NotDigit);
+            }
+        }
+        Ok(())
+    }
+
     /// Get a human readable name for the type of secret.
     pub fn type_name(kind: u8) -> &'static str {
         match kind {
@@ -353,6 +382,7 @@ impl Secret {
             kind::LIST => "List",
             kind::PEM => "Certificate",
             kind::PAGE => "Page",
+            kind::PIN => "PIN",
             _ => unreachable!(),
         }
     }
@@ -366,6 +396,7 @@ impl Secret {
             Secret::List(_) => kind::LIST,
             Secret::Pem(_) => kind::PEM,
             Secret::Page { .. } => kind::PAGE,
+            Secret::Pin { .. } => kind::PIN,
         }
     }
 }
@@ -435,6 +466,9 @@ impl PartialEq for Secret {
                     && document_a.expose_secret()
                         == document_b.expose_secret()
             }
+            (Self::Pin { number: a }, Self::Pin { number: b }) => {
+                a.expose_secret() == b.expose_secret()
+            }
             _ => false,
         }
     }
@@ -454,17 +488,19 @@ impl Default for Secret {
 /// of a secret.
 pub mod kind {
     /// Account password type.
-    pub const ACCOUNT: u8 = 0x01;
+    pub const ACCOUNT: u8 = 1;
     /// Note UTF-8 text type.
-    pub const NOTE: u8 = 0x02;
+    pub const NOTE: u8 = 2;
     /// List of credentials key / value pairs.
-    pub const LIST: u8 = 0x03;
+    pub const LIST: u8 = 3;
     /// Binary blob, may be file content.
-    pub const FILE: u8 = 0x04;
+    pub const FILE: u8 = 4;
     /// List of PEM encoded binary blobs.
-    pub const PEM: u8 = 0x05;
+    pub const PEM: u8 = 5;
     /// UTF-8 page that can be rendered to HTML.
-    pub const PAGE: u8 = 0x06;
+    pub const PAGE: u8 = 6;
+    /// Personal identification number.
+    pub const PIN: u8 = 7;
 }
 
 impl Encode for Secret {
@@ -476,6 +512,7 @@ impl Encode for Secret {
             Self::List { .. } => kind::LIST,
             Self::Pem(_) => kind::PEM,
             Self::Page { .. } => kind::PAGE,
+            Self::Pin { .. } => kind::PIN,
         };
         writer.write_u8(kind)?;
 
@@ -520,6 +557,9 @@ impl Encode for Secret {
                 writer.write_string(title)?;
                 writer.write_string(mime)?;
                 writer.write_string(document.expose_secret())?;
+            }
+            Self::Pin { number } => {
+                writer.write_string(number.expose_secret())?;
             }
         }
         Ok(())
@@ -586,6 +626,11 @@ impl Decode for Secret {
                     title,
                     mime,
                     document,
+                };
+            }
+            kind::PIN => {
+                *self = Self::Pin {
+                    number: secrecy::Secret::new(reader.read_string()?),
                 };
             }
             _ => {
