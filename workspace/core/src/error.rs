@@ -139,6 +139,10 @@ pub enum Error {
     #[error("method kind {0} is invalid")]
     InvalidMethod(u16),
 
+    /// Error generated when a value is expected to be all digits.
+    #[error("expected only digit characters")]
+    NotDigit,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
