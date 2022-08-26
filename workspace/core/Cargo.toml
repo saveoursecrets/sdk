@@ -38,6 +38,8 @@ time = { version = "0.3.13", features = ["serde", "local-offset", "formatting", 
 
 #probly-search = "2.0.0-alpha-1"
 
+creature_feature = "0.1"
+
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"
 git = "https://github.com/tmpfs/probly-search/"
