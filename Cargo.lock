@@ -62,6 +62,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ahash"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcb51a0695d8f838b1ee009b3fbf66bda078cd64590202a864a8f3e8c4315c47"
+dependencies = [
+ "getrandom 0.2.7",
+ "once_cell",
+ "version_check",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "0.7.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1169,6 +1180,9 @@ name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
+dependencies = [
+ "ahash",
+]
 
 [[package]]
 name = "headers"
@@ -1968,10 +1982,10 @@ dependencies = [
 
 [[package]]
 name = "probly-search"
-version = "2.0.0-alpha-1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d547f64c14951b0b8cf0cdc7e07562466ca3f90141f01e7c49be6b4a53153e6"
+version = "2.0.0-alpha-2"
+source = "git+https://github.com/tmpfs/probly-search/?branch=master#3767aa6642c341dd7319cfda259e52ec9b3d9eeb"
 dependencies = [
+ "hashbrown",
  "typed-generational-arena",
 ]
 
