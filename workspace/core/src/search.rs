@@ -1,8 +1,14 @@
 //! Search provides a search index for the meta data
 //! of an open vault.
-use probly_search::{score::bm25, Index, QueryResult};
+use probly_search::{
+    Index, QueryResult,
+    score::bm25,
+};
 use serde::Serialize;
-use std::{borrow::Cow, collections::BTreeMap};
+use std::{collections::{BTreeMap, HashSet}, borrow::Cow};
+
+use creature_feature::traits::Ftzr;
+use creature_feature::ftzrs::n_slice;
 
 use crate::secret::{SecretId, SecretMeta, SecretRef};
 
@@ -10,9 +16,30 @@ use crate::secret::{SecretId, SecretMeta, SecretRef};
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct DocumentKey(String, SecretId);
 
-// Tokenizer used for indexing.
+// Index tokenizer.
 fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
-    s.split(' ').map(Cow::Borrowed).collect::<Vec<_>>()
+    let ngrams: HashSet<&str> = n_slice(2).featurize(s);
+
+    //log::info!("Tokens {:#?}", ngrams);
+
+    let words = s.split(' ')
+        .into_iter()
+        .collect::<HashSet<_>>();
+
+    let mut tokens: Vec<Cow<str>> = Vec::new();
+    for token in words.union(&ngrams) {
+        tokens.push(Cow::Owned(token.to_lowercase()))
+    }
+    tokens
+}
+
+// Query tokenizer.
+fn query_tokenizer(s: &str) -> Vec<Cow<'_, str>> {
+    s.split(' ')
+        .into_iter()
+        .map(|s| s.to_lowercase())
+        .map(Cow::Owned)
+        .collect::<Vec<_>>()
 }
 
 // Label
@@ -118,8 +145,12 @@ impl SearchIndex {
             DocumentKey(doc.meta().label().to_lowercase().to_owned(), *id);
         let doc = self.documents.entry(key).or_insert(doc);
 
-        self.index
-            .add_document(&[label_extract], tokenizer, *id, &doc);
+        self.index.add_document(
+            &[label_extract],
+            tokenizer,
+            *id,
+            &doc,
+        );
     }
 
     /// Update a document in the index.
@@ -147,8 +178,12 @@ impl SearchIndex {
 
     /// Query the index.
     pub fn query(&self, needle: &str) -> Vec<QueryResult<SecretId>> {
-        self.index
-            .query(needle, &mut bm25::new(), tokenizer, &[1., 1.])
+        self.index.query(
+            needle,
+            &mut bm25::new(),
+            query_tokenizer,
+            &[1., 1.],
+        )
     }
 
     /// Query the index and map each result to the corresponding document.
