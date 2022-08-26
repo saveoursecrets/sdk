@@ -1,14 +1,8 @@
 //! Search provides a search index for the meta data
 //! of an open vault.
-use probly_search::{
-    index::{
-        add_document_to_index, create_index, remove_document_from_index,
-        vacuum_index, Index,
-    },
-    query::{query, score::default::bm25, QueryResult},
-};
+use probly_search::{score::bm25, Index, QueryResult};
 use serde::Serialize;
-use std::collections::{BTreeMap, HashSet};
+use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::secret::{SecretId, SecretMeta, SecretRef};
 
@@ -17,13 +11,8 @@ use crate::secret::{SecretId, SecretMeta, SecretRef};
 pub struct DocumentKey(String, SecretId);
 
 // Tokenizer used for indexing.
-fn tokenizer(s: &str) -> Vec<&str> {
-    s.split(' ').collect::<Vec<_>>()
-}
-
-// Filter used for indexing and querying.
-fn filter(s: &str) -> &str {
-    s
+fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
+    s.split(' ').map(Cow::Borrowed).collect::<Vec<_>>()
 }
 
 // Label
@@ -57,7 +46,7 @@ impl SearchIndex {
     /// Create a new search index.
     pub fn new() -> Self {
         // Create index with N fields
-        let index = create_index::<SecretId>(1);
+        let index = Index::<SecretId>::new(1);
         Self {
             index,
             documents: Default::default(),
@@ -129,14 +118,8 @@ impl SearchIndex {
             DocumentKey(doc.meta().label().to_lowercase().to_owned(), *id);
         let doc = self.documents.entry(key).or_insert(doc);
 
-        add_document_to_index(
-            &mut self.index,
-            &[label_extract],
-            tokenizer,
-            filter,
-            *id,
-            &doc,
-        );
+        self.index
+            .add_document(&[label_extract], tokenizer, *id, &doc);
     }
 
     /// Update a document in the index.
@@ -156,30 +139,23 @@ impl SearchIndex {
             self.documents.remove(key);
         }
 
-        let mut removed_docs = HashSet::new();
-        remove_document_from_index(&mut self.index, &mut removed_docs, *id);
+        //let mut removed_docs = HashSet::new();
+        self.index.remove_document(*id);
         // Vacuum to remove completely
-        vacuum_index(&mut self.index, &mut removed_docs);
+        self.index.vacuum();
     }
 
     /// Query the index.
-    pub fn query(&mut self, needle: &str) -> Vec<QueryResult<SecretId>> {
-        query(
-            &mut self.index,
-            needle,
-            &mut bm25::new(),
-            tokenizer,
-            filter,
-            &[1., 1.],
-            None,
-        )
+    pub fn query(&self, needle: &str) -> Vec<QueryResult<SecretId>> {
+        self.index
+            .query(needle, &mut bm25::new(), tokenizer, &[1., 1.])
     }
 
     /// Query the index and map each result to the corresponding document.
     ///
     /// If a corresponding document could not be located the search result
     /// will be ignored.
-    pub fn query_map(&mut self, needle: &str) -> Vec<&Document> {
+    pub fn query_map(&self, needle: &str) -> Vec<&Document> {
         let results = self.query(needle);
         results
             .into_iter()
