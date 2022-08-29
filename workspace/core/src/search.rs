@@ -20,8 +20,6 @@ pub struct DocumentKey(String, SecretId);
 fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
     let ngrams: HashSet<&str> = n_slice(2).featurize(s);
 
-    //log::info!("Tokens {:#?}", ngrams);
-
     let words = s.split(' ')
         .into_iter()
         .collect::<HashSet<_>>();

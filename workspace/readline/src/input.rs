@@ -38,7 +38,7 @@ impl Highlighter for MaskingHighlighter {
 /// Read a passphrase from stdin prompt.
 pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {
     let h = MaskingHighlighter { masking: true };
-    let mut rl = Editor::new();
+    let mut rl = Editor::new()?;
     rl.set_helper(Some(h));
     rl.set_color_mode(ColorMode::Forced);
     rl.set_auto_add_history(false);
@@ -66,7 +66,7 @@ pub fn read_stdin() -> Result<Option<String>> {
 
 /// Read a multi-line string.
 pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
-    let mut rl = rustyline::Editor::<()>::new();
+    let mut rl = rustyline::Editor::<()>::new()?;
 
     let mut value = String::new();
     loop {
@@ -95,7 +95,7 @@ pub fn read_shell<H>(
 where
     H: FnMut(String),
 {
-    let mut rl = rustyline::Editor::<()>::new();
+    let mut rl = rustyline::Editor::<()>::new()?;
     loop {
         let prompt_value = prompt();
         let readline = rl.readline(&prompt_value);
@@ -122,7 +122,7 @@ fn read_line_value(
     prompt: Option<&str>,
     allows_empty: bool,
 ) -> Result<String> {
-    let mut rl = rustyline::Editor::<()>::new();
+    let mut rl = rustyline::Editor::<()>::new()?;
     loop {
         let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
         match readline {
@@ -142,7 +142,7 @@ fn read_line_value(
 
 /// Read an optional string.
 pub fn read_option(prompt: Option<&str>) -> Result<Option<String>> {
-    let mut rl = rustyline::Editor::<()>::new();
+    let mut rl = rustyline::Editor::<()>::new()?;
     let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
     match readline {
         Ok(line) => {
@@ -158,7 +158,7 @@ pub fn read_option(prompt: Option<&str>) -> Result<Option<String>> {
 
 /// Read a flag value (y/n).
 pub fn read_flag(prompt: Option<&str>) -> Result<bool> {
-    let mut rl = rustyline::Editor::<()>::new();
+    let mut rl = rustyline::Editor::<()>::new()?;
     let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
     match readline {
         Ok(ref line) => {
