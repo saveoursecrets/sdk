@@ -44,7 +44,7 @@ axum-macros = { version = "0.2", optional = true }
 axum-server = { version = "0.4", features = ["tls-rustls"], optional = true }
 hyper = { version = "0.14", features = ["full"], optional = true }
 tower = { version = "0.4", optional = true }
-tower-http = { version = "0.2", features = ["full"], optional = true }
+tower-http = { version = "0.3", features = ["full"], optional = true }
 once_cell = { version = "1.10", optional = true }
 rust-embed = { version = "6", optional = true }
 mime_guess = { version = "2", optional = true }
