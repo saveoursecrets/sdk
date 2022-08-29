@@ -25,7 +25,7 @@ use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_stream::wrappers::IntervalStream;
-use tower_http::cors::{CorsLayer, Origin};
+use tower_http::cors::CorsLayer;
 
 use crate::session::SessionManager;
 
@@ -162,7 +162,7 @@ impl Server {
                 X_SESSION.clone(),
             ])
             .expose_headers(vec![])
-            .allow_origin(Origin::list(origins));
+            .allow_origin(origins);
 
         let mut app = Router::new()
             .route("/", get(home))

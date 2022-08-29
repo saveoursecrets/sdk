@@ -1,14 +1,14 @@
 //! Search provides a search index for the meta data
 //! of an open vault.
-use probly_search::{
-    Index, QueryResult,
-    score::bm25,
-};
+use probly_search::{score::bm25, Index, QueryResult};
 use serde::Serialize;
-use std::{collections::{BTreeMap, HashSet}, borrow::Cow};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, HashSet},
+};
 
-use creature_feature::traits::Ftzr;
 use creature_feature::ftzrs::n_slice;
+use creature_feature::traits::Ftzr;
 
 use crate::secret::{SecretId, SecretMeta, SecretRef};
 
@@ -20,9 +20,7 @@ pub struct DocumentKey(String, SecretId);
 fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
     let ngrams: HashSet<&str> = n_slice(2).featurize(s);
 
-    let words = s.split(' ')
-        .into_iter()
-        .collect::<HashSet<_>>();
+    let words = s.split(' ').into_iter().collect::<HashSet<_>>();
 
     let mut tokens: Vec<Cow<str>> = Vec::new();
     for token in words.union(&ngrams) {
@@ -143,12 +141,8 @@ impl SearchIndex {
             DocumentKey(doc.meta().label().to_lowercase().to_owned(), *id);
         let doc = self.documents.entry(key).or_insert(doc);
 
-        self.index.add_document(
-            &[label_extract],
-            tokenizer,
-            *id,
-            &doc,
-        );
+        self.index
+            .add_document(&[label_extract], tokenizer, *id, &doc);
     }
 
     /// Update a document in the index.
@@ -176,12 +170,8 @@ impl SearchIndex {
 
     /// Query the index.
     pub fn query(&self, needle: &str) -> Vec<QueryResult<SecretId>> {
-        self.index.query(
-            needle,
-            &mut bm25::new(),
-            query_tokenizer,
-            &[1., 1.],
-        )
+        self.index
+            .query(needle, &mut bm25::new(), query_tokenizer, &[1., 1.])
     }
 
     /// Query the index and map each result to the corresponding document.
