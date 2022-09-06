@@ -17,8 +17,9 @@ use tokio::sync::{
     RwLock,
 };
 
-use sos_core::{address::AddressStr, crypto::AeadPack, decode, encode};
+use sos_core::{crypto::AeadPack, decode, encode};
 use uuid::Uuid;
+use web3_address::ethereum::Address;
 
 use crate::{
     server::{
@@ -135,7 +136,7 @@ pub async fn upgrade(
 
 async fn disconnect(
     state: Arc<RwLock<State>>,
-    address: AddressStr,
+    address: Address,
     session_id: Uuid,
 ) {
     let mut writer = state.write().await;
@@ -161,7 +162,7 @@ async fn disconnect(
 async fn handle_socket(
     socket: WebSocket,
     state: Arc<RwLock<State>>,
-    address: AddressStr,
+    address: Address,
     session_id: Uuid,
     outgoing: Receiver<Vec<u8>>,
 ) {
@@ -179,7 +180,7 @@ async fn handle_socket(
 async fn read(
     mut receiver: SplitStream<WebSocket>,
     state: Arc<RwLock<State>>,
-    address: AddressStr,
+    address: Address,
     session_id: Uuid,
 ) -> Result<()> {
     while let Some(msg) = receiver.next().await {
@@ -206,7 +207,7 @@ async fn read(
 async fn write(
     mut sender: SplitSink<WebSocket, Message>,
     state: Arc<RwLock<State>>,
-    address: AddressStr,
+    address: Address,
     mut outgoing: Receiver<Vec<u8>>,
     session_id: Uuid,
 ) -> Result<()> {

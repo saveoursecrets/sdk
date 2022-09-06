@@ -6,9 +6,9 @@ use binary_stream::{
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use web3_address::ethereum::Address;
 
 use crate::{
-    address::AddressStr,
     events::{EventKind, SyncEvent},
     secret::SecretId,
     timestamp::Timestamp,
@@ -65,7 +65,7 @@ pub struct AuditEvent {
     /// The event_kind being performed.
     event_kind: EventKind,
     /// The address of the client performing the event_kind.
-    address: AddressStr,
+    address: Address,
     /// Context data about the event_kind.
     #[serde(skip_serializing_if = "Option::is_none")]
     data: Option<AuditData>,
@@ -86,7 +86,7 @@ impl AuditEvent {
     /// Create a new audit log entry.
     pub fn new(
         event_kind: EventKind,
-        address: AddressStr,
+        address: Address,
         data: Option<AuditData>,
     ) -> Self {
         Self {
@@ -98,7 +98,7 @@ impl AuditEvent {
     }
 
     /// Get the address for this audit event.
-    pub fn address(&self) -> &AddressStr {
+    pub fn address(&self) -> &Address {
         &self.address
     }
 
@@ -139,7 +139,7 @@ impl AuditEvent {
     /// Convert from a sync event to an audit event.
     pub fn from_sync_event(
         event: &SyncEvent,
-        address: AddressStr,
+        address: Address,
         vault_id: Uuid,
     ) -> AuditEvent {
         let audit_data = match event {

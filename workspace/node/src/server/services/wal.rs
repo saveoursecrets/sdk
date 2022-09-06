@@ -1,7 +1,5 @@
 use axum::http::StatusCode;
-
 use sos_core::{
-    address::AddressStr,
     commit_tree::{CommitProof, Comparison},
     constants::{WAL_LOAD, WAL_PATCH, WAL_SAVE, WAL_STATUS},
     decode,
@@ -11,6 +9,7 @@ use sos_core::{
     rpc::{RequestMessage, ResponseMessage, Service},
     AuditData, AuditEvent, CommitHash, Patch,
 };
+use web3_address::ethereum::Address;
 
 use async_trait::async_trait;
 use std::borrow::Cow;
@@ -21,7 +20,7 @@ use super::{append_audit_logs, send_notification, PrivateState};
 enum PatchResult {
     Conflict(CommitProof, Option<CommitProof>),
     Success(
-        AddressStr,
+        Address,
         Vec<AuditEvent>,
         Vec<ChangeEvent>,
         Vec<CommitHash>,

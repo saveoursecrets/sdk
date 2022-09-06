@@ -1,9 +1,8 @@
 use clap::{Parser, Subcommand};
+use sos_audit::Result;
 use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-use sos_audit::Result;
-use sos_core::address::AddressStr;
+use web3_address::ethereum::Address;
 
 /// Print and monitor audit log events.
 #[derive(Parser, Debug)]
@@ -31,7 +30,7 @@ enum Command {
 
         /// Filter to events that match the given address.
         #[clap(short, long)]
-        address: Vec<AddressStr>,
+        address: Vec<Address>,
 
         /// Audit log file
         #[clap(parse(from_os_str))]
@@ -45,7 +44,7 @@ enum Command {
 
         /// Filter to events that match the given address.
         #[clap(short, long)]
-        address: Vec<AddressStr>,
+        address: Vec<Address>,
 
         /// Audit log file
         #[clap(parse(from_os_str))]

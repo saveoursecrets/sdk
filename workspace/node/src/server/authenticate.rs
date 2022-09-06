@@ -3,7 +3,8 @@
 use axum::headers::{authorization::Bearer, Authorization};
 use serde::Deserialize;
 
-use sos_core::{address::AddressStr, decode, signer::BinarySignature};
+use sos_core::{decode, signer::BinarySignature};
+use web3_address::ethereum::Address;
 
 use k256::ecdsa::recoverable;
 use uuid::Uuid;
@@ -22,7 +23,7 @@ pub struct QueryMessage {
 #[derive(Debug)]
 pub struct BearerToken {
     //public_key: [u8; 33],
-    pub address: AddressStr,
+    pub address: Address,
 }
 
 impl BearerToken {
@@ -35,7 +36,7 @@ impl BearerToken {
         let public_key = recoverable.recover_verifying_key(message)?;
         let public_key: [u8; 33] =
             public_key.to_bytes().as_slice().try_into()?;
-        let address: AddressStr = (&public_key).try_into()?;
+        let address: Address = (&public_key).try_into()?;
 
         Ok(Self {
             //public_key,

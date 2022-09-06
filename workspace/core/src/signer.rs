@@ -6,9 +6,10 @@ use binary_stream::{
 use k256::ecdsa::{
     recoverable, signature::Signer as EcdsaSigner, SigningKey,
 };
+use web3_address::ethereum::Address;
 use web3_signature::Signature;
 
-use crate::{address::AddressStr, Result};
+use crate::Result;
 
 /// Signature that can be encoded and decoded to binary.
 #[derive(Default)]
@@ -56,7 +57,7 @@ pub trait Signer {
     async fn sign(&self, message: &[u8]) -> Result<Signature>;
 
     /// Compute the public address for this signer.
-    fn address(&self) -> Result<AddressStr>;
+    fn address(&self) -> Result<Address>;
 
     /// Clone a boxed version of this signer.
     fn clone_boxed(&self) -> BoxedSigner;
@@ -98,10 +99,10 @@ impl Signer for SingleParty {
         Ok(sig)
     }
 
-    fn address(&self) -> Result<AddressStr> {
+    fn address(&self) -> Result<Address> {
         let bytes = self.0.verifying_key().to_bytes();
         let bytes: [u8; 33] = bytes.as_slice().try_into()?;
-        let address: AddressStr = (&bytes).try_into()?;
+        let address: Address = (&bytes).try_into()?;
         Ok(address)
     }
 }

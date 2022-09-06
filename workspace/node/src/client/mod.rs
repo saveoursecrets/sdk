@@ -3,13 +3,11 @@ use std::{fs::File, io::Read, path::PathBuf};
 
 use std::future::Future;
 
+use web3_address::ethereum::Address;
 use web3_keystore::{decrypt, KeyStore};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{
-    address::AddressStr,
-    signer::{BoxedSigner, Signer, SingleParty},
-};
+use sos_core::signer::{BoxedSigner, Signer, SingleParty};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod account;
@@ -67,14 +65,14 @@ pub trait PassphraseReader {
 }
 
 #[cfg(feature = "agent-client")]
-async fn get_agent_key(address: &AddressStr) -> Result<Option<[u8; 32]>> {
+async fn get_agent_key(address: &Address) -> Result<Option<[u8; 32]>> {
     use crate::agent::client::KeyAgentClient;
     Ok(KeyAgentClient::get(address.clone().into()).await)
 }
 
 #[cfg(feature = "agent-client")]
 async fn set_agent_key(
-    address: AddressStr,
+    address: Address,
     value: [u8; 32],
 ) -> Result<Option<()>> {
     use crate::agent::client::KeyAgentClient;
@@ -82,13 +80,13 @@ async fn set_agent_key(
 }
 
 #[cfg(not(feature = "agent-client"))]
-async fn get_agent_key(_address: &AddressStr) -> Result<Option<[u8; 32]>> {
+async fn get_agent_key(_address: &Address) -> Result<Option<[u8; 32]>> {
     Ok(None)
 }
 
 #[cfg(not(feature = "agent-client"))]
 async fn set_agent_key(
-    _address: AddressStr,
+    _address: Address,
     _value: [u8; 32],
 ) -> Result<Option<()>> {
     Ok(None)
@@ -153,7 +151,7 @@ where
         let keystore: KeyStore = serde_json::from_slice(&keystore_bytes)?;
 
         let address = if let Some(address) = &keystore.address {
-            let address: AddressStr = address.parse()?;
+            let address: Address = address.parse()?;
             Some(address)
         } else {
             None
