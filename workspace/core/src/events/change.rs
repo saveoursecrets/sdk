@@ -2,9 +2,9 @@
 //! notify connected clients that changes have been made.
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use web3_address::ethereum::Address;
 
 use crate::{
-    address::AddressStr,
     commit_tree::CommitProof,
     secret::SecretId,
     vault::{Header, Summary, VaultId},
@@ -18,10 +18,8 @@ use super::SyncEvent;
 /// single notification to connected clients.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChangeNotification {
-    // TODO: verify if we really need this unused field
     /// The owner address.
-    //#[serde(skip)]
-    address: AddressStr,
+    address: Address,
     /// The session identifier.
     session_id: Uuid,
     /// The vault identifier.
@@ -35,7 +33,7 @@ pub struct ChangeNotification {
 impl ChangeNotification {
     /// Create a new change notification.
     pub fn new(
-        address: &AddressStr,
+        address: &Address,
         session_id: &Uuid,
         vault_id: &VaultId,
         proof: CommitProof,
@@ -51,7 +49,7 @@ impl ChangeNotification {
     }
 
     /// Address of the owner that made the changes.
-    pub fn address(&self) -> &AddressStr {
+    pub fn address(&self) -> &Address {
         &self.address
     }
 

@@ -1,7 +1,6 @@
 use super::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
-    address::AddressStr,
     commit_tree::{wal_commit_tree_file, CommitProof},
     constants::WAL_DELETED_EXT,
     encode,
@@ -21,6 +20,7 @@ use std::{
 };
 use tempfile::NamedTempFile;
 use uuid::Uuid;
+use web3_address::ethereum::Address;
 
 type WalStorage = Box<
     dyn WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync,
@@ -42,7 +42,7 @@ pub trait Backend {
     /// The owner directory must not exist.
     async fn create_account<'a>(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
         vault: &'a [u8],
     ) -> Result<(SyncEvent<'a>, CommitProof)>;
@@ -50,7 +50,7 @@ pub trait Backend {
     // TODO: support account deletion
 
     /// Determine if an account exists for the given address.
-    async fn account_exists(&self, owner: &AddressStr) -> bool;
+    async fn account_exists(&self, owner: &Address) -> bool;
 
     /* VAULT */
 
@@ -58,12 +58,12 @@ pub trait Backend {
     ///
     /// Callers should ensure the account exists before attempting to
     /// list the vaults for an account.
-    async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>>;
+    async fn list(&self, owner: &Address) -> Result<Vec<Summary>>;
 
     /// Set the name of the vault.
     async fn set_vault_name(
         &self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
         name: String,
     ) -> Result<()>;
@@ -74,7 +74,7 @@ pub trait Backend {
     /// This is used when a vault password has been changed.
     async fn set_vault<'a>(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault: &'a [u8],
     ) -> Result<(SyncEvent<'a>, CommitProof)>;
 
@@ -85,7 +85,7 @@ pub trait Backend {
     /// The owner directory must already exist.
     async fn create_wal<'a>(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
         vault: &'a [u8],
     ) -> Result<(SyncEvent<'a>, CommitProof)>;
@@ -93,7 +93,7 @@ pub trait Backend {
     /// Delete a WAL log and corresponding vault.
     async fn delete_wal(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
     ) -> Result<()>;
 
@@ -101,35 +101,35 @@ pub trait Backend {
     /// if it already exists.
     async fn wal_exists(
         &self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
     ) -> Result<(bool, Option<CommitProof>)>;
 
     /// Get a read handle to an existing vault.
     async fn wal_read(
         &self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
     ) -> Result<&WalStorage>;
 
     /// Get a write handle to an existing vault.
     async fn wal_write(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
     ) -> Result<&mut WalStorage>;
 
     /// Load a WAL buffer for an account.
     async fn get_wal(
         &self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
     ) -> Result<Vec<u8>>;
 
     /// Replace a WAL file with a new buffer.
     async fn replace_wal(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
         root_hash: [u8; 32],
         buffer: &[u8],
@@ -141,7 +141,7 @@ pub struct FileSystemBackend {
     directory: PathBuf,
     locks: FileLocks,
     startup_files: Vec<PathBuf>,
-    accounts: HashMap<AddressStr, HashMap<Uuid, WalStorage>>,
+    accounts: HashMap<Address, HashMap<Uuid, WalStorage>>,
 }
 
 impl FileSystemBackend {
@@ -168,7 +168,7 @@ impl FileSystemBackend {
             if path.is_dir() {
                 if let Some(name) = path.file_stem() {
                     if let Ok(owner) =
-                        name.to_string_lossy().parse::<AddressStr>()
+                        name.to_string_lossy().parse::<Address>()
                     {
                         let accounts = &mut self.accounts;
                         let _vaults = accounts
@@ -223,7 +223,7 @@ impl FileSystemBackend {
     /// Write a WAL file to disc for the given owner address.
     async fn new_wal_file(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
         vault: &[u8],
     ) -> Result<(PathBuf, WalFile)> {
@@ -249,18 +249,14 @@ impl FileSystemBackend {
         Ok((wal_path, wal))
     }
 
-    fn wal_file_path(&self, owner: &AddressStr, vault_id: &Uuid) -> PathBuf {
+    fn wal_file_path(&self, owner: &Address, vault_id: &Uuid) -> PathBuf {
         let account_dir = self.directory.join(owner.to_string());
         let mut wal_file = account_dir.join(vault_id.to_string());
         wal_file.set_extension(WalFile::extension());
         wal_file
     }
 
-    fn vault_file_path(
-        &self,
-        owner: &AddressStr,
-        vault_id: &Uuid,
-    ) -> PathBuf {
+    fn vault_file_path(&self, owner: &Address, vault_id: &Uuid) -> PathBuf {
         let mut vault_path = self.wal_file_path(owner, vault_id);
         vault_path.set_extension(Vault::extension());
         vault_path
@@ -269,7 +265,7 @@ impl FileSystemBackend {
     /// Add a WAL file path to the in-memory account.
     async fn add_wal_path(
         &mut self,
-        owner: AddressStr,
+        owner: Address,
         vault_id: Uuid,
         _wal_path: PathBuf,
         wal_file: WalFile,
@@ -297,7 +293,7 @@ impl Backend for FileSystemBackend {
 
     async fn create_account<'a>(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
         vault: &'a [u8],
     ) -> Result<(SyncEvent<'a>, CommitProof)> {
@@ -321,7 +317,7 @@ impl Backend for FileSystemBackend {
 
     async fn create_wal<'a>(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
         vault: &'a [u8],
     ) -> Result<(SyncEvent<'a>, CommitProof)> {
@@ -345,7 +341,7 @@ impl Backend for FileSystemBackend {
 
     async fn delete_wal(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
     ) -> Result<()> {
         let account_dir = self.directory.join(owner.to_string());
@@ -383,14 +379,14 @@ impl Backend for FileSystemBackend {
         }
     }
 
-    async fn account_exists(&self, owner: &AddressStr) -> bool {
+    async fn account_exists(&self, owner: &Address) -> bool {
         let account_dir = self.directory.join(owner.to_string());
         self.accounts.get(owner).is_some() && account_dir.is_dir()
     }
 
     async fn set_vault_name(
         &self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
         name: String,
     ) -> Result<()> {
@@ -400,7 +396,7 @@ impl Backend for FileSystemBackend {
         Ok(())
     }
 
-    async fn list(&self, owner: &AddressStr) -> Result<Vec<Summary>> {
+    async fn list(&self, owner: &Address) -> Result<Vec<Summary>> {
         let mut summaries = Vec::new();
         if let Some(account) = self.accounts.get(owner) {
             for (id, _) in account {
@@ -415,7 +411,7 @@ impl Backend for FileSystemBackend {
 
     async fn set_vault<'a>(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault: &'a [u8],
     ) -> Result<(SyncEvent<'a>, CommitProof)> {
         let _ = self
@@ -462,7 +458,7 @@ impl Backend for FileSystemBackend {
 
     async fn wal_exists(
         &self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
     ) -> Result<(bool, Option<CommitProof>)> {
         if let Some(account) = self.accounts.get(owner) {
@@ -478,7 +474,7 @@ impl Backend for FileSystemBackend {
 
     async fn get_wal(
         &self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
     ) -> Result<Vec<u8>> {
         let account = self
@@ -497,7 +493,7 @@ impl Backend for FileSystemBackend {
 
     async fn wal_read(
         &self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
     ) -> Result<&WalStorage> {
         let account = self
@@ -514,7 +510,7 @@ impl Backend for FileSystemBackend {
 
     async fn wal_write(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
     ) -> Result<&mut WalStorage> {
         let account = self
@@ -531,7 +527,7 @@ impl Backend for FileSystemBackend {
 
     async fn replace_wal(
         &mut self,
-        owner: &AddressStr,
+        owner: &Address,
         vault_id: &Uuid,
         root_hash: [u8; 32],
         mut buffer: &[u8],

@@ -6,8 +6,6 @@ use binary_stream::{
     SliceStream,
 };
 
-pub mod address;
-
 #[cfg(not(target_arch = "wasm32"))]
 mod audit;
 

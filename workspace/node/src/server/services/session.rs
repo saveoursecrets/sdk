@@ -1,8 +1,8 @@
 use sos_core::{
-    address::AddressStr,
     constants::{SESSION_OFFER, SESSION_VERIFY},
     rpc::{RequestMessage, ResponseMessage, Service},
 };
+use web3_address::ethereum::Address;
 
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -31,7 +31,7 @@ impl Service for SessionService {
         match request.method() {
             SESSION_OFFER => {
                 let mut writer = state.write().await;
-                let address = request.parameters::<AddressStr>()?;
+                let address = request.parameters::<Address>()?;
                 let (session_id, server_session) =
                     writer.sessions.offer(address);
 

@@ -20,12 +20,13 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use serde::Serialize;
-use sos_core::{address::AddressStr, AuditLogFile};
+use sos_core::AuditLogFile;
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_stream::wrappers::IntervalStream;
 use tower_http::cors::CorsLayer;
+use web3_address::ethereum::Address;
 
 use crate::session::SessionManager;
 
@@ -57,7 +58,7 @@ pub struct State {
     pub sessions: SessionManager,
     /// Map of websocket  channels by authenticated
     /// client address.
-    pub sockets: HashMap<AddressStr, WebSocketConnection>,
+    pub sockets: HashMap<Address, WebSocketConnection>,
 }
 
 /// Server information.

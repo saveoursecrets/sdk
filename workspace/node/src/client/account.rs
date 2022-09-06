@@ -1,11 +1,11 @@
 //! Functions and types for creating accounts.
 use sos_core::{
-    address::AddressStr, crypto::generate_random_ecdsa_signing_key,
-    generate_passphrase, signer::SingleParty, vault::Summary,
-    wal::file::WalFile, PatchFile,
+    crypto::generate_random_ecdsa_signing_key, generate_passphrase,
+    signer::SingleParty, vault::Summary, wal::file::WalFile, PatchFile,
 };
 use std::{convert::Infallible, path::PathBuf};
 use url::Url;
+use web3_address::ethereum::Address;
 use web3_keystore::encrypt;
 
 use super::{node_cache::NodeCache, SignerBuilder};
@@ -13,11 +13,11 @@ use super::{Error, Result};
 use secrecy::{ExposeSecret, SecretString};
 
 /// Signing, public key and computed address for a new account.
-pub struct AccountKey(pub [u8; 32], pub [u8; 33], pub AddressStr);
+pub struct AccountKey(pub [u8; 32], pub [u8; 33], pub Address);
 
 impl AccountKey {
     /// Get the address of the client key.
-    pub fn address(&self) -> &AddressStr {
+    pub fn address(&self) -> &Address {
         &self.2
     }
 }
@@ -31,7 +31,7 @@ pub struct AccountCredentials {
     /// File for the keystore.
     pub keystore_file: PathBuf,
     /// Address of the signing key.
-    pub address: AddressStr,
+    pub address: Address,
     /// Summary that represents the login vault
     /// created when the account was created.
     pub summary: Summary,
@@ -110,6 +110,6 @@ pub async fn create_account(
 /// Create a signing key pair and compute the address.
 pub fn create_signing_key() -> Result<AccountKey> {
     let (signing_key, public_key) = generate_random_ecdsa_signing_key();
-    let address: AddressStr = (&public_key).try_into()?;
+    let address: Address = (&public_key).try_into()?;
     Ok(AccountKey(signing_key, public_key, address))
 }

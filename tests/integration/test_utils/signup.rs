@@ -3,11 +3,12 @@ use anyhow::Result;
 use super::{server, TestDirs};
 
 use sos_core::{
-    address::AddressStr,
     signer::{BoxedSigner, SingleParty},
     wal::file::WalFile,
     PatchFile,
 };
+
+use web3_address::ethereum::Address;
 
 use secrecy::ExposeSecret;
 use sos_node::client::{
@@ -22,7 +23,7 @@ pub async fn signup(
     dirs: &TestDirs,
     client_index: usize,
 ) -> Result<(
-    AddressStr,
+    Address,
     AccountCredentials,
     NodeCache<WalFile, PatchFile>,
     BoxedSigner,
