@@ -7,7 +7,6 @@ use k256::{
 use rand::Rng;
 use sha3::{Digest, Keccak256};
 use sos_core::{
-    address::AddressStr,
     crypto::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce},
     signer::BoxedSigner,
 };
@@ -16,6 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 use uuid::Uuid;
+use web3_address::ethereum::Address;
 use web3_signature::Signature;
 
 use crate::{Error, Result};
@@ -73,7 +73,7 @@ impl SessionManager {
     ///
     /// Callers can ensure the identity is known to the service before
     /// offering a session.
-    pub fn offer(&mut self, identity: AddressStr) -> (Uuid, &ServerSession) {
+    pub fn offer(&mut self, identity: Address) -> (Uuid, &ServerSession) {
         let id = Uuid::new_v4();
         let session = ServerSession::new(identity, self.duration_secs);
         let session = self.sessions.entry(id.clone()).or_insert(session);
@@ -92,7 +92,7 @@ impl SessionManager {
         let public_key = recoverable.recover_verifying_key(&message)?;
         let public_key: [u8; 33] =
             public_key.to_bytes().as_slice().try_into()?;
-        let address: AddressStr = (&public_key).try_into()?;
+        let address: Address = (&public_key).try_into()?;
         if address == session.identity {
             session.identity_proof = Some(signature.to_bytes());
         } else {
@@ -108,7 +108,7 @@ impl SessionManager {
 /// Represents a session.
 pub struct ServerSession {
     /// Client identity.
-    identity: AddressStr,
+    identity: Address,
     /// Expiry time.
     expires: Instant,
     /// Duration for this session.
@@ -132,7 +132,7 @@ pub struct ServerSession {
 
 impl ServerSession {
     /// Create a new server session.
-    pub fn new(identity: AddressStr, duration_secs: u64) -> Self {
+    pub fn new(identity: Address, duration_secs: u64) -> Self {
         let rng = &mut rand::thread_rng();
         let challenge: [u8; 16] = rng.gen();
 
@@ -150,7 +150,7 @@ impl ServerSession {
     }
 
     /// Get the client identity.
-    pub fn identity(&self) -> &AddressStr {
+    pub fn identity(&self) -> &Address {
         &self.identity
     }
 

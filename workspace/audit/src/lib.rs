@@ -1,6 +1,6 @@
+use sos_core::{AuditData, AuditEvent, AuditLogFile};
 use std::{fs::File, path::PathBuf, thread, time};
-
-use sos_core::{address::AddressStr, AuditData, AuditEvent, AuditLogFile};
+use web3_address::ethereum::Address;
 
 mod error;
 
@@ -12,7 +12,7 @@ pub use error::Error;
 pub fn monitor(
     audit_log: PathBuf,
     json: bool,
-    address: Vec<AddressStr>,
+    address: Vec<Address>,
 ) -> Result<()> {
     if !audit_log.is_file() {
         return Err(Error::NotFile(audit_log));
@@ -57,7 +57,7 @@ pub fn monitor(
 pub fn logs(
     audit_log: PathBuf,
     json: bool,
-    address: Vec<AddressStr>,
+    address: Vec<Address>,
     reverse: bool,
     count: Option<usize>,
 ) -> Result<()> {
@@ -132,7 +132,7 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn is_address_match(event: &AuditEvent, address: &[AddressStr]) -> bool {
+fn is_address_match(event: &AuditEvent, address: &[Address]) -> bool {
     address
         .iter()
         .position(|addr| addr == event.address())

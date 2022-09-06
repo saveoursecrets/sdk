@@ -2757,6 +2757,7 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-test",
+ "web3-address",
  "web3-keystore",
 ]
 
@@ -2782,6 +2783,7 @@ dependencies = [
  "thiserror",
  "tracing",
  "tracing-subscriber",
+ "web3-address",
 ]
 
 [[package]]
@@ -2861,6 +2863,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid 1.1.2",
+ "web3-address",
  "web3-signature",
  "zeroize",
 ]
@@ -2910,6 +2913,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid 1.1.2",
+ "web3-address",
  "web3-keystore",
  "web3-signature",
 ]
@@ -3701,6 +3705,20 @@ checksum = "ed055ab27f941423197eb86b2035720b1a3ce40504df082cac2ecc6ed73335a1"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "web3-address"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb43db12a4fb39394482f27956028bf506f03b92b005ce72d209d9e3b6e646dd"
+dependencies = [
+ "hex",
+ "k256",
+ "serde",
+ "sha3 0.9.1",
+ "subtle",
+ "thiserror",
 ]
 
 [[package]]

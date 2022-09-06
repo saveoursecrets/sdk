@@ -5,13 +5,13 @@ use axum::{
 };
 
 use sos_core::{
-    address::AddressStr,
     crypto::AeadPack,
     decode, encode,
     events::ChangeNotification,
     rpc::{Packet, RequestMessage, Service},
     AuditEvent, AuditProvider,
 };
+use web3_address::ethereum::Address;
 
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockWriteGuard};
@@ -24,13 +24,13 @@ use crate::{
 
 /// Type to represent the caller of a service request.
 pub struct Caller {
-    address: AddressStr,
+    address: Address,
     session_id: Uuid,
 }
 
 impl Caller {
     /// Get the address of the caller.
-    pub fn address(&self) -> &AddressStr {
+    pub fn address(&self) -> &Address {
         &self.address
     }
 
