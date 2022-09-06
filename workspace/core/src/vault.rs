@@ -340,14 +340,14 @@ impl Header {
 
     /// Read the content offset for a vault file verifying
     /// the identity bytes first.
-    pub fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<usize> {
+    pub fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<u64> {
         let mut stream = FileStream(File::open(path.as_ref())?);
         Header::read_content_offset_stream(&mut stream)
     }
 
     /// Read the content offset for a vault slice verifying
     /// the identity bytes first.
-    pub fn read_content_offset_slice(buffer: &[u8]) -> Result<usize> {
+    pub fn read_content_offset_slice(buffer: &[u8]) -> Result<u64> {
         let mut stream = SliceStream::new(buffer);
         Header::read_content_offset_stream(&mut stream)
     }
@@ -356,12 +356,12 @@ impl Header {
     /// the identity bytes first.
     pub fn read_content_offset_stream(
         stream: &mut dyn ReadStream,
-    ) -> Result<usize> {
+    ) -> Result<u64> {
         let mut reader = BinaryReader::new(stream, Endian::Big);
         let identity = reader.read_bytes(VAULT_IDENTITY.len())?;
         FileIdentity::read_slice(&identity, &VAULT_IDENTITY)?;
-        let header_len = reader.read_u32()? as usize;
-        let content_offset = VAULT_IDENTITY.len() + 4 + header_len;
+        let header_len = reader.read_u32()? as u64;
+        let content_offset = VAULT_IDENTITY.len() as u64 + 4 + header_len;
         Ok(content_offset)
     }
 

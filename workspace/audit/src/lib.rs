@@ -27,7 +27,7 @@ pub fn monitor(
     let mut it = log_file.iter()?;
     let mut offset = audit_log.metadata()?.len();
     // Push iteration constraint to the end of the file
-    it.set_offset(offset as usize);
+    it.set_offset(offset);
 
     loop {
         let step = time::Duration::from_millis(100);
@@ -48,7 +48,7 @@ pub fn monitor(
             offset = len;
 
             // Adjust the iterator constraint for the consumer records
-            it.set_offset(len as usize);
+            it.set_offset(len);
         }
     }
 }

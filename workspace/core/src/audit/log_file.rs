@@ -66,8 +66,8 @@ impl AuditLogFile {
     ) -> Result<AuditEvent> {
         let offset = record.offset();
         let row_len = offset.end - offset.start;
-        file.seek(SeekFrom::Start(offset.start as u64))?;
-        let mut buf = vec![0u8; row_len];
+        file.seek(SeekFrom::Start(offset.start))?;
+        let mut buf = vec![0u8; row_len as usize];
         file.read_exact(&mut buf)?;
 
         let mut stream = SliceStream::new(&buf);

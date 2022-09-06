@@ -105,16 +105,16 @@ pub fn audit_iter(buffer: Vec<u8>) -> Result<ReadStreamIterator<FileRecord>> {
 /// Trait for types yielded by the file iterator.
 pub trait FileItem: Default + std::fmt::Debug + Decode {
     /// Get the byte offset for the record.
-    fn offset(&self) -> &Range<usize>;
+    fn offset(&self) -> &Range<u64>;
 
     /// Get the range for the record value.
-    fn value(&self) -> &Range<usize>;
+    fn value(&self) -> &Range<u64>;
 
     /// Set the byte offset for the record.
-    fn set_offset(&mut self, offset: Range<usize>);
+    fn set_offset(&mut self, offset: Range<u64>);
 
     /// Set the range for the record value.
-    fn set_value(&mut self, value: Range<usize>);
+    fn set_value(&mut self, value: Range<u64>);
 
     /// Read the bytes for the value into an owned buffer.
     fn read_bytes<'a>(
@@ -124,7 +124,7 @@ pub trait FileItem: Default + std::fmt::Debug + Decode {
         let value = self.value();
         let length = value.end - value.start;
         reader.seek(value.start)?;
-        Ok(reader.read_bytes(length)?)
+        Ok(reader.read_bytes(length as usize)?)
     }
 }
 
@@ -132,25 +132,25 @@ pub trait FileItem: Default + std::fmt::Debug + Decode {
 #[derive(Default, Debug)]
 pub struct FileRecord {
     /// Byte offset for the record.
-    offset: Range<usize>,
+    offset: Range<u64>,
     /// The byte range for the value.
-    value: Range<usize>,
+    value: Range<u64>,
 }
 
 impl FileItem for FileRecord {
-    fn offset(&self) -> &Range<usize> {
+    fn offset(&self) -> &Range<u64> {
         &self.offset
     }
 
-    fn value(&self) -> &Range<usize> {
+    fn value(&self) -> &Range<u64> {
         &self.value
     }
 
-    fn set_offset(&mut self, offset: Range<usize>) {
+    fn set_offset(&mut self, offset: Range<u64>) {
         self.offset = offset;
     }
 
-    fn set_value(&mut self, value: Range<usize>) {
+    fn set_value(&mut self, value: Range<u64>) {
         self.value = value;
     }
 }
@@ -165,9 +165,9 @@ impl Decode for FileRecord {
 #[derive(Default, Debug)]
 pub struct VaultRecord {
     /// Byte offset for the record.
-    offset: Range<usize>,
+    offset: Range<u64>,
     /// The byte range for the value.
-    value: Range<usize>,
+    value: Range<u64>,
     /// The identifier for the secret.
     id: [u8; 16],
     /// The commit hash for the secret.
@@ -175,19 +175,19 @@ pub struct VaultRecord {
 }
 
 impl FileItem for VaultRecord {
-    fn offset(&self) -> &Range<usize> {
+    fn offset(&self) -> &Range<u64> {
         &self.offset
     }
 
-    fn value(&self) -> &Range<usize> {
+    fn value(&self) -> &Range<u64> {
         &self.value
     }
 
-    fn set_offset(&mut self, offset: Range<usize>) {
+    fn set_offset(&mut self, offset: Range<u64>) {
         self.offset = offset;
     }
 
-    fn set_value(&mut self, value: Range<usize>) {
+    fn set_value(&mut self, value: Range<u64>) {
         self.value = value;
     }
 }
@@ -220,9 +220,9 @@ impl Decode for VaultRecord {
 #[derive(Default, Debug)]
 pub struct WalFileRecord {
     /// Byte offset for the record.
-    offset: Range<usize>,
+    offset: Range<u64>,
     /// The byte range for the value.
-    value: Range<usize>,
+    value: Range<u64>,
     /// The time the row was created.
     pub(crate) time: Timestamp,
     /// The commit hash for the previous row.
@@ -232,19 +232,19 @@ pub struct WalFileRecord {
 }
 
 impl FileItem for WalFileRecord {
-    fn offset(&self) -> &Range<usize> {
+    fn offset(&self) -> &Range<u64> {
         &self.offset
     }
 
-    fn value(&self) -> &Range<usize> {
+    fn value(&self) -> &Range<u64> {
         &self.value
     }
 
-    fn set_offset(&mut self, offset: Range<usize>) {
+    fn set_offset(&mut self, offset: Range<u64>) {
         self.offset = offset;
     }
 
-    fn set_value(&mut self, value: Range<usize>) {
+    fn set_value(&mut self, value: Range<u64>) {
         self.value = value;
     }
 }
@@ -283,7 +283,7 @@ pub struct ReadStreamIterator<T: FileItem> {
     /// creating the iterator, for example, vault files
     /// have information in the file header so we need
     /// to pass the offset where the content starts.
-    header_offset: usize,
+    header_offset: u64,
 
     /// After decoding the row record is there a u32
     /// that is used to indicate the length of a a data
@@ -296,9 +296,9 @@ pub struct ReadStreamIterator<T: FileItem> {
     /// The read stream.
     read_stream: Box<dyn ReadStream>,
     /// Byte offset for forward iteration.
-    forward: Option<usize>,
+    forward: Option<u64>,
     /// Byte offset for backward iteration.
-    backward: Option<usize>,
+    backward: Option<u64>,
     /// Marker type.
     marker: std::marker::PhantomData<T>,
 }
@@ -310,13 +310,14 @@ impl<T: FileItem> ReadStreamIterator<T> {
         file_path: P,
         identity: &'static [u8],
         data_length_prefix: bool,
-        header_offset: Option<usize>,
+        header_offset: Option<u64>,
     ) -> Result<Self> {
         FileIdentity::read_file(file_path.as_ref(), identity)?;
         let mut read_stream: Box<dyn ReadStream> =
             Box::new(FileStream(File::open(file_path.as_ref())?));
 
-        let header_offset = header_offset.unwrap_or_else(|| identity.len());
+        let header_offset =
+            header_offset.unwrap_or_else(|| identity.len() as u64);
         read_stream.seek(header_offset)?;
 
         Ok(Self {
@@ -334,7 +335,7 @@ impl<T: FileItem> ReadStreamIterator<T> {
         buffer: Vec<u8>,
         identity: &'static [u8],
         data_length_prefix: bool,
-        header_offset: Option<usize>,
+        header_offset: Option<u64>,
     ) -> Result<Self> {
         use binary_stream::MemoryStream;
 
@@ -342,7 +343,8 @@ impl<T: FileItem> ReadStreamIterator<T> {
         let stream: MemoryStream = buffer.into();
         let mut read_stream: Box<dyn ReadStream> = Box::new(stream);
 
-        let header_offset = header_offset.unwrap_or_else(|| identity.len());
+        let header_offset =
+            header_offset.unwrap_or_else(|| identity.len() as u64);
         read_stream.seek(header_offset)?;
 
         Ok(Self {
@@ -358,14 +360,14 @@ impl<T: FileItem> ReadStreamIterator<T> {
     /// Set the byte offset that constrains iteration.
     ///
     /// Useful when creating streams of log events.
-    pub fn set_offset(&mut self, offset: usize) {
+    pub fn set_offset(&mut self, offset: u64) {
         self.header_offset = offset;
     }
 
     /// Helper to decode the row file record.
     fn read_row(
         reader: &mut BinaryReader,
-        offset: Range<usize>,
+        offset: Range<u64>,
         is_prefix: bool,
     ) -> Result<T> {
         let mut row: T = Default::default();
@@ -377,7 +379,7 @@ impl<T: FileItem> ReadStreamIterator<T> {
             let value_len = reader.read_u32()?;
 
             let begin = reader.tell()?;
-            let end = begin + value_len as usize;
+            let end = begin + value_len as u64;
             row.set_value(begin..end);
         } else {
             row.set_value(offset.start + 4..offset.end - 4);
@@ -398,7 +400,7 @@ impl<T: FileItem> ReadStreamIterator<T> {
         let row_len = reader.read_u32()?;
 
         // Position of the end of the row
-        let row_end = row_pos + (row_len as usize + 8);
+        let row_end = row_pos + (row_len as u64 + 8);
 
         let row = ReadStreamIterator::read_row(
             &mut reader,
@@ -424,8 +426,8 @@ impl<T: FileItem> ReadStreamIterator<T> {
         let row_len = reader.read_u32()?;
 
         // Position of the beginning of the row
-        let row_start = row_pos - (row_len as usize + 8);
-        let row_end = row_start + (row_len as usize + 8);
+        let row_start = row_pos - (row_len as u64 + 8);
+        let row_end = row_start + (row_len as u64 + 8);
 
         // Seek to the beginning of the row after the initial
         // row length so we can read in the row data
@@ -447,7 +449,7 @@ impl<T: FileItem> Iterator for ReadStreamIterator<T> {
     type Item = Result<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let offset: usize = self.header_offset;
+        let offset = self.header_offset;
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
             if lpos == rpos {
@@ -481,7 +483,7 @@ impl<T: FileItem> Iterator for ReadStreamIterator<T> {
 
 impl<T: FileItem> DoubleEndedIterator for ReadStreamIterator<T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let offset: usize = self.header_offset;
+        let offset: u64 = self.header_offset;
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
             if lpos == rpos {
