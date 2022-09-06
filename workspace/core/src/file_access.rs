@@ -47,14 +47,14 @@ impl VaultFileAccess {
 
     /// Check the identity bytes and return the byte offset of the
     /// beginning of the vault content area.
-    fn check_identity(&self) -> Result<usize> {
+    fn check_identity(&self) -> Result<u64> {
         Header::read_content_offset(&self.file_path)
     }
 
     /// Write out the header preserving the existing content bytes.
     fn write_header(
         &self,
-        content_offset: usize,
+        content_offset: u64,
         header: &Header,
     ) -> Result<()> {
         let head = encode(header)?;
@@ -85,8 +85,8 @@ impl VaultFileAccess {
     /// content in between.
     fn splice(
         &self,
-        head: Range<usize>,
-        tail: Range<usize>,
+        head: Range<u64>,
+        tail: Range<u64>,
         content: Option<&[u8]>,
     ) -> Result<()> {
         let mut file = OpenOptions::new()
@@ -125,10 +125,7 @@ impl VaultFileAccess {
     /// Find the byte offset of a row.
     ///
     /// Returns the content offset and the byte offset and row length of the row if it exists.
-    fn find_row(
-        &self,
-        id: &SecretId,
-    ) -> Result<(usize, Option<(usize, u32)>)> {
+    fn find_row(&self, id: &SecretId) -> Result<(u64, Option<(u64, u32)>)> {
         let content_offset = self.check_identity()?;
 
         let mut stream = self.stream.lock().unwrap();
@@ -150,7 +147,7 @@ impl VaultFileAccess {
             }
 
             // Move on to the next row
-            reader.seek(current_pos + 8 + (row_len as usize))?;
+            reader.seek(current_pos + 8 + row_len as u64)?;
             current_pos = reader.tell()?;
         }
 
@@ -257,7 +254,7 @@ impl VaultAccess for VaultFileAccess {
             let head = 0..row_offset;
             // Row offset is before the row length u32 so we
             // need to account for that too
-            let tail = (row_offset + 8 + (row_len as usize))..length;
+            let tail = (row_offset + 8 + row_len as u64)..length;
 
             self.splice(head, tail, Some(&encoded))?;
 
@@ -277,7 +274,7 @@ impl VaultAccess for VaultFileAccess {
             let head = 0..row_offset;
             // Row offset is before the row length u32 so we
             // need to account for that too
-            let tail = (row_offset + 8 + (row_len as usize))..length;
+            let tail = (row_offset + 8 + row_len as u64)..length;
 
             self.splice(head, tail, None)?;
 

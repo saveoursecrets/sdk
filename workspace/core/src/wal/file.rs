@@ -157,13 +157,13 @@ impl WalProvider for WalFile {
 
     fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
         let mut partial = WAL_IDENTITY.to_vec();
-        let start = item.offset().end;
+        let start = item.offset().end as usize;
         let mut file = File::open(&self.file_path)?;
         let end = file.metadata()?.len() as usize;
 
         if start < end {
             file.seek(SeekFrom::Start(start as u64))?;
-            let mut buffer = vec![0; end - start];
+            let mut buffer = vec![0; end - start as usize];
             file.read_exact(buffer.as_mut_slice())?;
             partial.append(&mut buffer);
             Ok(partial)
@@ -179,7 +179,7 @@ impl WalProvider for WalFile {
 
         file.seek(SeekFrom::Start(offset.start as u64))?;
 
-        let mut buf = vec![0u8; row_len];
+        let mut buf = vec![0u8; row_len as usize];
         file.read_exact(&mut buf)?;
 
         Ok(buf)
@@ -269,7 +269,7 @@ impl WalProvider for WalFile {
         let mut file = File::open(&self.file_path)?;
 
         file.seek(SeekFrom::Start(value.start as u64))?;
-        let mut buffer = vec![0; value.end - value.start];
+        let mut buffer = vec![0; (value.end - value.start) as usize];
         file.read_exact(buffer.as_mut_slice())?;
 
         let mut stream = SliceStream::new(&buffer);
