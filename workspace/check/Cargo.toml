@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 thiserror = "1"
 sos-core = { path = "../core", version = "0.1.0" }
-clap = { version = "3", features = ["derive", "wrap_help"] }
+clap = { version = "3.2.20", features = ["derive", "wrap_help"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 hex = "0.4"

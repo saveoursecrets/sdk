@@ -25,7 +25,7 @@ exclude = [
 
 [dependencies]
 thiserror = "1"
-clap = { version = "3", features = ["derive", "wrap_help"] }
+clap = { version = "3.2.20", features = ["derive", "wrap_help"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sos-core = { path = "../library/workspace/core" }
