@@ -60,8 +60,7 @@ version = "1.2"
 #path = "../../../../forks/rs-merkle"
 
 [dependencies.binary-stream]
-version = "3.2"
-features = ["wasm32"]
+version = "3.2.2"
 #path = "../../../../binary-stream"
 
 [dependencies.chbs]
