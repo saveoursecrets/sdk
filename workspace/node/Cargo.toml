@@ -71,7 +71,7 @@ reqwest = { version = "0.11", default-features = true, features = ["json", "rust
 # NOTE: Which is related to the `security-framework` not 
 # NOTE: being compiled on macos when `default-features` is 
 # NOTE: disabled.
-[target.'cfg(any(all(target_arch="aarch64",target_os="linux"),target_os = "android"))'.dependencies]
+[target.'cfg(any(all(target_arch="aarch64",target_os="linux"),target_os = "android", target_family = "wasm"))'.dependencies]
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
 
 [dev-dependencies]
