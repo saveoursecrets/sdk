@@ -315,9 +315,9 @@ checksum = "8a32fd6af2b5827bce66c29053ba0e7c42b9dcab01835835058558c10851a46b"
 
 [[package]]
 name = "binary-stream"
-version = "3.2.2"
+version = "3.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d6c5e1cc7c0b32878afb166b097618cd4730e41a4821bb8680fd8aee20c1adf"
+checksum = "b91db4a0f636f4a42a71e9a16670dfbaa13817c740fb92b503443eed6e402cb3"
 dependencies = [
  "thiserror",
 ]
