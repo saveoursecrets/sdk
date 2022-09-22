@@ -55,7 +55,7 @@ tokio-stream = { version = "0.1", optional = true }
 # agent
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 parity-tokio-ipc = { version = "0.9", optional = true }
-binary-stream = { version = "3.2.2", optional = true }
+binary-stream = { version = "3.3.2", features = ["32bit"], optional = true }
 tokio-tungstenite = { version = "0.17.2", features = ["rustls-tls-native-roots"] }
 
 [target.'cfg(target_os="macos")'.dependencies]
