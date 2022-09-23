@@ -63,11 +63,11 @@ pub mod file {
 
         /// Create an account.
         pub async fn create_account(
-            cache: FileCache,
+            &self,
             buffer: Vec<u8>,
         ) -> Result<(u16, Summary)> {
             let summary = Header::read_summary_slice(&buffer)?;
-            let reader = cache.read().unwrap();
+            let reader = self.cache.read().unwrap();
             // We don't use the create_account() function on
             // NodeCache as that will assign a passphrase and
             // in this case we expect the client to have chosen
