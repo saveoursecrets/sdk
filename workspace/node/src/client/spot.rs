@@ -4,20 +4,26 @@
 /// Client implementations that write to disc.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file {
-    use crate::client::{
-        changes_listener::ChangesListener, node_cache::NodeCache, Result,
+    use http::StatusCode;
+    use sos_core::{
+        signer::BoxedSigner,
+        vault::{Header, Summary},
+        wal::file::WalFile,
+        PatchFile,
     };
-    use sos_core::{signer::BoxedSigner, wal::file::WalFile, PatchFile, vault::{Header, Summary}};
     use std::{
         path::PathBuf,
-        sync::{Arc,RwLock},
+        sync::{Arc, RwLock},
     };
-    //use tokio::sync::RwLock;
     use url::Url;
 
+    use crate::client::{
+        changes_listener::ChangesListener, node_cache::NodeCache, Error,
+        Result,
+    };
+
     /// Type alias for a file node cache.
-    pub type FileCache =
-        Arc<RwLock<NodeCache<WalFile, PatchFile>>>;
+    pub type FileCache = Arc<RwLock<NodeCache<WalFile, PatchFile>>>;
 
     /// Client that communicates with a single server and
     /// writes it's cache to disc.
@@ -73,11 +79,13 @@ pub mod file {
             // in this case we expect the client to have chosen
             // a passphrase for the vault rather than having a
             // passphrase assigned.
-            let status = reader
-                .client()
-                .create_account(buffer)
-                .await?
-                .into_status();
+            let status =
+                reader.client().create_account(buffer).await?.into_status();
+
+            if status != StatusCode::OK {
+                return Err(Error::ResponseCode(status.into()));
+            }
+
             Ok((status.into(), summary))
         }
     }
@@ -85,7 +93,7 @@ pub mod file {
 
 /// Client implementation that stores data in memory.
 ///
-/// Designed to use static futures so that they may be driven 
+/// Designed to use static futures so that they may be driven
 /// from webassembly created by `wasm-bindgen`.
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
