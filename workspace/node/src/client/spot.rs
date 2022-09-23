@@ -7,17 +7,22 @@ pub mod file {
     use crate::client::{
         changes_listener::ChangesListener, node_cache::NodeCache, Result,
     };
-    use sos_core::{signer::BoxedSigner, wal::file::WalFile, PatchFile};
+    use sos_core::{signer::BoxedSigner, wal::file::WalFile, PatchFile, vault::{Header, Summary}};
     use std::{
         path::PathBuf,
-        sync::{Arc, RwLock},
+        sync::{Arc,RwLock},
     };
+    //use tokio::sync::RwLock;
     use url::Url;
+
+    /// Type alias for a file node cache.
+    pub type FileCache =
+        Arc<RwLock<NodeCache<WalFile, PatchFile>>>;
 
     /// Client that communicates with a single server and
     /// writes it's cache to disc.
     pub struct SpotFileClient {
-        cache: Arc<RwLock<NodeCache<WalFile, PatchFile>>>,
+        cache: FileCache,
         changes: ChangesListener,
     }
 
@@ -37,7 +42,7 @@ pub mod file {
         }
 
         /// Get a clone of the underlying node cache.
-        pub fn cache(&self) -> Arc<RwLock<NodeCache<WalFile, PatchFile>>> {
+        pub fn cache(&self) -> FileCache {
             Arc::clone(&self.cache)
         }
 
@@ -55,10 +60,33 @@ pub mod file {
                 }
             });
         }
+
+        /// Create an account.
+        pub async fn create_account(
+            cache: FileCache,
+            buffer: Vec<u8>,
+        ) -> Result<(u16, Summary)> {
+            let summary = Header::read_summary_slice(&buffer)?;
+            let reader = cache.read().unwrap();
+            // We don't use the create_account() function on
+            // NodeCache as that will assign a passphrase and
+            // in this case we expect the client to have chosen
+            // a passphrase for the vault rather than having a
+            // passphrase assigned.
+            let status = reader
+                .client()
+                .create_account(buffer)
+                .await?
+                .into_status();
+            Ok((status.into(), summary))
+        }
     }
 }
 
 /// Client implementation that stores data in memory.
+///
+/// Designed to use static futures so that they may be driven 
+/// from webassembly created by `wasm-bindgen`.
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
     use crate::client::{node_cache::NodeCache, Error, Result};
