@@ -35,8 +35,7 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_blocking<F, R>(func: F) -> Result<R>
 where
-    F: Future<Output = Result<R>> + Send,
-    R: Send,
+    F: Future<Output = Result<R>>,
 {
     use tokio::runtime::Runtime;
     Runtime::new().unwrap().block_on(func)
