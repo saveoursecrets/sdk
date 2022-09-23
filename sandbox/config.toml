@@ -13,9 +13,9 @@ origins = [
   "https://localhost:8080",
 ]
 
-[tls]
-cert = "cert.pem"
-key = "key.pem"
+#[tls]
+#cert = "cert.pem"
+#key = "key.pem"
 
 [storage]
 url = "file://."
