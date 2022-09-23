@@ -111,7 +111,7 @@ fn run() -> Result<()> {
                 .build()?;
 
             // Set up the client implementation
-            let spot_client = SpotFileClient::new(server, cache_dir, signer)?;
+            let spot_client = SpotFileClient::new(server, signer, cache_dir)?;
             // Hook up a change stream to call into the node cache
             spot_client.spawn_changes();
 
