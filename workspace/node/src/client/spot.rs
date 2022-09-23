@@ -25,8 +25,8 @@ pub mod file {
         /// Create a new SPOT file client.
         pub fn new(
             server: Url,
-            cache_dir: PathBuf,
             signer: BoxedSigner,
+            cache_dir: PathBuf,
         ) -> Result<Self> {
             let changes =
                 ChangesListener::new(server.clone(), signer.clone());
