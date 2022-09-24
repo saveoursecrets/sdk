@@ -1,6 +1,7 @@
 //! Traits and implementations for clients.
 use std::{fs::File, io::Read, path::PathBuf};
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::future::Future;
 
 use web3_address::ethereum::Address;
@@ -41,19 +42,6 @@ where
     Runtime::new().unwrap().block_on(func)
 }
 
-/// Runs a future blocking the current thread.
-#[cfg(target_arch = "wasm32")]
-pub fn run_blocking<F, R>(func: F) -> Result<R>
-where
-    F: Future<Output = Result<R>>,
-{
-    use tokio::runtime::Builder;
-    Builder::new_current_thread()
-        .build()
-        .unwrap()
-        .block_on(func)
-}
-
 /// Trait for implementations that can read a passphrase.
 pub trait PassphraseReader {
     /// Error generated attempting to read a passphrase.
@@ -61,34 +49,6 @@ pub trait PassphraseReader {
 
     /// Read a passphrase.
     fn read(&self) -> std::result::Result<SecretString, Self::Error>;
-}
-
-#[cfg(feature = "agent-client")]
-async fn get_agent_key(address: &Address) -> Result<Option<[u8; 32]>> {
-    use crate::agent::client::KeyAgentClient;
-    Ok(KeyAgentClient::get(address.clone().into()).await)
-}
-
-#[cfg(feature = "agent-client")]
-async fn set_agent_key(
-    address: Address,
-    value: [u8; 32],
-) -> Result<Option<()>> {
-    use crate::agent::client::KeyAgentClient;
-    Ok(KeyAgentClient::set(address.into(), value).await)
-}
-
-#[cfg(not(feature = "agent-client"))]
-async fn get_agent_key(_address: &Address) -> Result<Option<[u8; 32]>> {
-    Ok(None)
-}
-
-#[cfg(not(feature = "agent-client"))]
-async fn set_agent_key(
-    _address: Address,
-    _value: [u8; 32],
-) -> Result<Option<()>> {
-    Ok(None)
 }
 
 /// Builds a client implementation.
@@ -158,7 +118,7 @@ where
 
         let agent_key = if self.use_agent {
             if let Some(address) = &address {
-                run_blocking(get_agent_key(address))?
+                agent_helpers::blocking_get_agent_key(address)?
             } else {
                 None
             }
@@ -186,10 +146,10 @@ where
 
             if self.use_agent {
                 if let Some(address) = address {
-                    run_blocking(set_agent_key(
+                    agent_helpers::blocking_set_agent_key(
                         address.into(),
                         signing_key.clone(),
-                    ))?;
+                    )?;
                 }
             }
 
@@ -199,5 +159,56 @@ where
         let signer: Box<dyn Signer + Send + Sync + 'static> =
             Box::new(signer);
         Ok(signer)
+    }
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "agent-client"))]
+mod agent_helpers {
+    use super::{run_blocking, Result};
+    use web3_address::ethereum::Address;
+
+    async fn get_agent_key(address: &Address) -> Result<Option<[u8; 32]>> {
+        use crate::agent::client::KeyAgentClient;
+        Ok(KeyAgentClient::get(address.clone().into()).await)
+    }
+
+    async fn set_agent_key(
+        address: Address,
+        value: [u8; 32],
+    ) -> Result<Option<()>> {
+        use crate::agent::client::KeyAgentClient;
+        Ok(KeyAgentClient::set(address.into(), value).await)
+    }
+
+    pub(crate) fn blocking_get_agent_key(
+        address: &Address,
+    ) -> Result<Option<[u8; 32]>> {
+        run_blocking(get_agent_key(address))
+    }
+
+    pub(crate) fn blocking_set_agent_key(
+        address: Address,
+        value: [u8; 32],
+    ) -> Result<Option<()>> {
+        run_blocking(set_agent_key(address.into(), value))
+    }
+}
+
+#[cfg(any(target_arch = "wasm32", not(feature = "agent-client")))]
+mod agent_helpers {
+    use super::Result;
+    use web3_address::ethereum::Address;
+
+    pub(crate) fn blocking_get_agent_key(
+        _address: &Address,
+    ) -> Result<Option<[u8; 32]>> {
+        Ok(None)
+    }
+
+    pub(crate) fn blocking_set_agent_key(
+        _address: Address,
+        _value: [u8; 32],
+    ) -> Result<Option<()>> {
+        Ok(None)
     }
 }
