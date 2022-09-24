@@ -6,22 +6,23 @@
 pub mod file {
     use http::StatusCode;
     use sos_core::{
-        signer::BoxedSigner,
         events::WalEvent,
+        signer::BoxedSigner,
         vault::{Header, Summary, Vault},
         wal::{file::WalFile, WalProvider},
         PatchFile,
     };
     use std::{
         borrow::Cow,
-        path::{PathBuf, Path},
+        path::{Path, PathBuf},
         sync::{Arc, RwLock},
     };
     use url::Url;
 
     use crate::client::{
-        changes_listener::ChangesListener, node_cache::{NodeCache, ensure_user_vaults_dir}, Error,
-        Result,
+        changes_listener::ChangesListener,
+        node_cache::{ensure_user_vaults_dir, NodeCache},
+        Error, Result,
     };
 
     /// Type alias for a file node cache.
@@ -78,8 +79,8 @@ pub mod file {
             let summary = Header::read_summary_slice(&buffer)?;
 
             let reader = self.cache.read().unwrap();
-            let user_dir = ensure_user_vaults_dir(
-                cache_dir, reader.signer())?;
+            let user_dir =
+                ensure_user_vaults_dir(cache_dir, reader.signer())?;
 
             // Write out the vault
             let mut vault_path = user_dir.join(summary.id().to_string());

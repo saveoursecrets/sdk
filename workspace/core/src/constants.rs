@@ -104,10 +104,10 @@ mod dirs {
     pub const KEYSTORES_DIR: &str = "keystores";
 }
 
+pub use dirs::*;
 pub use extensions::*;
 pub use headers::*;
 pub use identity::*;
 pub use mime::*;
 pub use rpc::*;
 pub use vault::*;
-pub use dirs::*;

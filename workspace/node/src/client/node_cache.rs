@@ -97,7 +97,10 @@ fn assert_proofs_eq(
 
 #[cfg(not(target_arch = "wasm32"))]
 /// Ensure a directory for a user's vaults.
-pub fn ensure_user_vaults_dir<D: AsRef<Path>>(cache_dir: D, signer: &BoxedSigner) -> Result<PathBuf> {
+pub fn ensure_user_vaults_dir<D: AsRef<Path>>(
+    cache_dir: D,
+    signer: &BoxedSigner,
+) -> Result<PathBuf> {
     use sos_core::constants::VAULTS_DIR;
 
     let address = signer.address()?;
@@ -851,7 +854,9 @@ impl NodeCache<WalFile, PatchFile> {
         signer: BoxedSigner,
     ) -> Result<NodeCache<WalFile, PatchFile>> {
         if !cache_dir.as_ref().is_dir() {
-            return Err(Error::NotDirectory(cache_dir.as_ref().to_path_buf()));
+            return Err(Error::NotDirectory(
+                cache_dir.as_ref().to_path_buf(),
+            ));
         }
 
         let user_dir = ensure_user_vaults_dir(cache_dir, &signer)?;
@@ -868,7 +873,6 @@ impl NodeCache<WalFile, PatchFile> {
             snapshots,
         })
     }
-
 }
 
 impl NodeCache<WalMemory, PatchMemory<'static>> {
