@@ -95,6 +95,18 @@ fn assert_proofs_eq(
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+/// Ensure a directory for a user's vaults.
+pub fn ensure_user_vaults_dir<D: AsRef<Path>>(cache_dir: D, signer: &BoxedSigner) -> Result<PathBuf> {
+    use sos_core::constants::VAULTS_DIR;
+
+    let address = signer.address()?;
+    let vaults_dir = cache_dir.as_ref().join(VAULTS_DIR);
+    let user_dir = vaults_dir.join(address.to_string());
+    std::fs::create_dir_all(&user_dir)?;
+    Ok(user_dir)
+}
+
 /// Manages the state of a node.
 #[derive(Default)]
 pub struct NodeState {
@@ -838,15 +850,11 @@ impl NodeCache<WalFile, PatchFile> {
         cache_dir: D,
         signer: BoxedSigner,
     ) -> Result<NodeCache<WalFile, PatchFile>> {
-        let cache_dir = cache_dir.as_ref().to_path_buf();
-        if !cache_dir.is_dir() {
-            return Err(Error::NotDirectory(cache_dir));
+        if !cache_dir.as_ref().is_dir() {
+            return Err(Error::NotDirectory(cache_dir.as_ref().to_path_buf()));
         }
 
-        let address = signer.address()?;
-        let address = format!("{}", address);
-        let user_dir = cache_dir.join(&address);
-        std::fs::create_dir_all(&user_dir)?;
+        let user_dir = ensure_user_vaults_dir(cache_dir, &signer)?;
 
         let snapshots = Some(SnapShotManager::new(&user_dir)?);
         let client = RpcClient::new(server, signer);
@@ -860,6 +868,7 @@ impl NodeCache<WalFile, PatchFile> {
             snapshots,
         })
     }
+
 }
 
 impl NodeCache<WalMemory, PatchMemory<'static>> {

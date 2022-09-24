@@ -95,9 +95,19 @@ mod rpc {
     pub const WAL_SAVE: &str = "Wal.save";
 }
 
+/// Constants for directory names.
+mod dirs {
+    /// Directory to store vaults.
+    pub const VAULTS_DIR: &str = "vaults";
+
+    /// Directory to store keystores.
+    pub const KEYSTORES_DIR: &str = "keystores";
+}
+
 pub use extensions::*;
 pub use headers::*;
 pub use identity::*;
 pub use mime::*;
 pub use rpc::*;
 pub use vault::*;
+pub use dirs::*;
