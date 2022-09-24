@@ -15,5 +15,5 @@ pub use error::Error;
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub use backend::{Backend, FileSystemBackend};
-pub use config::ServerConfig;
+pub use config::*;
 pub use server::{Server, ServerInfo, State};
