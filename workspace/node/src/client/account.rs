@@ -65,6 +65,7 @@ pub async fn create_account(
     name: Option<String>,
     key: AccountKey,
     cache_dir: PathBuf,
+    label: Option<String>,
 ) -> Result<(AccountCredentials, NodeCache<WalFile, PatchFile>)> {
     if !destination.is_dir() {
         return Err(Error::NotDirectory(destination));
@@ -89,6 +90,7 @@ pub async fn create_account(
         signing_key,
         keystore_passphrase.expose_secret(),
         Some(key.address().to_string()),
+        label,
     )?;
 
     let (encryption_passphrase, summary) = cache.create_account(name).await?;
