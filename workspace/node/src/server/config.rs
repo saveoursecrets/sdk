@@ -26,7 +26,7 @@ pub struct ServerConfig {
     pub tls: Option<TlsConfig>,
 
     /// Configuration for the API.
-    pub api: ApiConfig,
+    pub api: CorsConfig,
 
     /// Path the file was loaded from used to determine
     /// relative paths.
@@ -43,6 +43,7 @@ impl ServerConfig {
     }
 }
 
+/// Certificate and key for TLS.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TlsConfig {
     /// Path to the certificate.
@@ -51,12 +52,14 @@ pub struct TlsConfig {
     pub key: PathBuf,
 }
 
+/// Configuration for CORS.
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ApiConfig {
+pub struct CorsConfig {
     /// List of additional CORS origins for the server.
     pub origins: Vec<Url>,
 }
 
+/// Configuration for server sessions.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SessionConfig {
     /// Duration for sessions in seconds.
@@ -77,6 +80,7 @@ impl Default for SessionConfig {
     }
 }
 
+/// Configuration for audit logs.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuditConfig {
     /// File system path to the audit log.
@@ -91,6 +95,7 @@ impl Default for AuditConfig {
     }
 }
 
+/// Configuration for storage locations.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StorageConfig {
     /// URL for the backend storage.
