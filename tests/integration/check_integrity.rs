@@ -5,7 +5,7 @@ use crate::test_utils::*;
 
 use secrecy::ExposeSecret;
 use sos_check::{keys, status, verify_vault, verify_wal};
-use sos_core::{vault::Vault, wal::file::WalFile};
+use sos_core::{vault::Vault, wal::file::WalFile, constants::VAULTS_DIR};
 use sos_node::client::account::AccountCredentials;
 
 #[tokio::test]
@@ -32,14 +32,16 @@ async fn integration_check_integrity() -> Result<()> {
     // Create some secrets
     let _notes = create_secrets(&mut node_cache, &summary).await?;
 
-    let expected_dir = dirs.clients.get(0).unwrap().join(address.to_string());
+    let expected_dir = dirs.clients.get(0).unwrap();
     let expected_vault =
-        expected_dir.join(format!("{}.{}", summary.id(), Vault::extension()));
-    let expected_wal = expected_dir.join(format!(
-        "{}.{}",
-        summary.id(),
-        WalFile::extension()
-    ));
+        expected_dir
+            .join(VAULTS_DIR)
+            .join(address.to_string())
+            .join(format!("{}.{}", summary.id(), Vault::extension()));
+    let expected_wal = expected_dir
+        .join(VAULTS_DIR)
+        .join(address.to_string())
+        .join(format!("{}.{}", summary.id(), WalFile::extension()));
 
     assert!(expected_vault.exists());
     assert!(expected_wal.exists());

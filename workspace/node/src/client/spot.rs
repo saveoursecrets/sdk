@@ -7,18 +7,20 @@ pub mod file {
     use http::StatusCode;
     use sos_core::{
         signer::BoxedSigner,
-        vault::{Header, Summary},
-        wal::file::WalFile,
+        events::WalEvent,
+        vault::{Header, Summary, Vault},
+        wal::{file::WalFile, WalProvider},
         PatchFile,
     };
     use std::{
-        path::PathBuf,
+        borrow::Cow,
+        path::{PathBuf, Path},
         sync::{Arc, RwLock},
     };
     use url::Url;
 
     use crate::client::{
-        changes_listener::ChangesListener, node_cache::NodeCache, Error,
+        changes_listener::ChangesListener, node_cache::{NodeCache, ensure_user_vaults_dir}, Error,
         Result,
     };
 
@@ -67,7 +69,34 @@ pub mod file {
             });
         }
 
-        /// Create an account.
+        /// Create an account on the local filesystem.
+        pub async fn create_local_account<D: AsRef<Path>>(
+            &self,
+            cache_dir: D,
+            buffer: Vec<u8>,
+        ) -> Result<Summary> {
+            let summary = Header::read_summary_slice(&buffer)?;
+
+            let reader = self.cache.read().unwrap();
+            let user_dir = ensure_user_vaults_dir(
+                cache_dir, reader.signer())?;
+
+            // Write out the vault
+            let mut vault_path = user_dir.join(summary.id().to_string());
+            vault_path.set_extension(Vault::extension());
+            std::fs::write(&vault_path, &buffer)?;
+
+            // Write the WAL file
+            let mut wal_path = user_dir.join(summary.id().to_string());
+            wal_path.set_extension(WalFile::extension());
+            let mut wal = WalFile::new(&wal_path)?;
+            let event = WalEvent::CreateVault(Cow::Owned(buffer));
+            wal.append_event(event)?;
+
+            Ok(summary)
+        }
+
+        /// Create an account on a remote node.
         pub async fn create_account(
             &self,
             buffer: Vec<u8>,
