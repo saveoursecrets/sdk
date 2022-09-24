@@ -34,6 +34,15 @@ pub struct ServerConfig {
     file: Option<PathBuf>,
 }
 
+impl ServerConfig {
+    /// Create a new server config with a file path.
+    pub fn new_dummy_file(path: PathBuf) -> Self {
+        let mut config: Self = Default::default();
+        config.file = Some(path);
+        config
+    }
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TlsConfig {
     /// Path to the certificate.
