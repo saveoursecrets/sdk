@@ -115,6 +115,15 @@ impl SignSync for SingleParty {
     }
 }
 
+impl TryFrom<[u8; 32]> for SingleParty {
+    type Error = crate::Error;
+    fn try_from(
+        value: [u8; 32],
+    ) -> std::result::Result<Self, Self::Error> {
+        (&value).try_into()
+    }
+}
+
 impl<'a> TryFrom<&'a [u8; 32]> for SingleParty {
     type Error = crate::Error;
     fn try_from(
