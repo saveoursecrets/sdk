@@ -54,6 +54,7 @@ pub async fn signup(
         name,
         key,
         cache_dir,
+        None,
     )
     .await?;
 

@@ -91,6 +91,7 @@ pub fn signup(
             name,
             client_key,
             cache_dir,
+            None,
         ))?;
 
         display_passphrase(
