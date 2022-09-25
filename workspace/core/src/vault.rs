@@ -187,9 +187,13 @@ impl Decode for Auth {
 /// unique identifier and name.
 #[derive(Serialize, Deserialize, Debug, Hash, Eq, PartialEq, Clone)]
 pub struct Summary {
+    /// Encoding version.
     version: u16,
+    /// Unique identifier for the vault.
     id: VaultId,
+    /// Vault name.
     name: String,
+    /// Encryption algorithm.
     #[serde(skip)]
     algorithm: Algorithm,
 }
