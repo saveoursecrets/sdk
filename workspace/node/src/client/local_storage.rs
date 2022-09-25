@@ -2,7 +2,6 @@
 use super::{Error, Result};
 use crate::client::net::{MaybeRetry, RpcClient};
 
-use async_recursion::async_recursion;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
@@ -68,15 +67,13 @@ pub fn ensure_user_vaults_dir<D: AsRef<Path>>(
 pub struct LocalStorage<W, P> {
     /// State of this node.
     state: NodeState,
-    /// Owner's signing key.
-    signer: BoxedSigner,
     /// Directory for the user cache.
     ///
     /// Only available when using disc backing storage.
     user_dir: Option<PathBuf>,
     /// Data for the cache.
     cache: HashMap<Uuid, (W, P)>,
-    /// Mirror WAL files and in-memory contents to vault files
+    /// Mirror in-memory contents to vault files.
     mirror: bool,
     /// Snapshot manager for WAL files.
     ///
@@ -97,11 +94,6 @@ where
     /// Get the snapshot manager for this cache.
     pub fn snapshots(&self) -> Option<&SnapShotManager> {
         self.snapshots.as_ref()
-    }
-
-    /// Get the signer for this node cache.
-    pub fn signer(&self) -> &BoxedSigner {
-        &self.signer
     }
 
     /// Take a snapshot of the WAL for the given vault.
@@ -144,7 +136,7 @@ where
     /// If the target vault is the currently selected vault
     /// the currently selected vault is unlocked with the new
     /// passphrase on success.
-    pub async fn change_password(
+    pub fn change_password(
         &mut self,
         vault: &Vault,
         current_passphrase: SecretString,
@@ -154,8 +146,7 @@ where
             ChangePassword::new(vault, current_passphrase, new_passphrase)
                 .build()?;
 
-        self.update_vault(vault.summary(), &new_vault, wal_events)
-            .await?;
+        self.update_vault(vault.summary(), &new_vault, wal_events)?;
 
         // Refresh the in-memory and disc-based mirror
         self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
@@ -187,7 +178,7 @@ where
     }
 
     /// Compact a WAL provider.
-    pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+    pub fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
         let (wal, _) = self
             .cache
             .get_mut(summary.id())
@@ -206,7 +197,7 @@ where
     }
 
     /// List the vault summaries.
-    pub async fn list_vaults(&mut self) -> Result<&[Summary]> {
+    pub fn list_vaults(&mut self) -> Result<&[Summary]> {
         /*
 
         self.load_caches(&summaries)?;
@@ -243,7 +234,7 @@ where
     }
 
     /// Remove a vault.
-    pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
+    pub fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         todo!("Remove the WAL and vault files...");
 
         // Remove local state
@@ -288,87 +279,83 @@ where
     }
 
     /// Attempt to set the vault name for a vault.
-    pub async fn set_vault_name(
+    pub fn set_vault_name(
         &mut self,
         summary: &Summary,
         name: &str,
     ) -> Result<()> {
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
+        self.patch_wal(summary, vec![event])?;
 
-        todo!("Set vault name event");
-
-        /*
         // Update the in-memory name.
         for item in self.state.summaries_mut().iter_mut() {
             if item.id() == summary.id() {
                 item.set_name(name.to_string());
             }
         }
-        Ok(())
-        */
 
-        /*
-        let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
-        let status = self.patch_wal(summary, vec![event]).await?;
-        if status.is_success() {
-        } else {
-            Err(Error::ResponseCode(status.into()))
+        Ok(())
+    }
+
+    fn patch_wal(
+        &mut self,
+        summary: &Summary,
+        events: Vec<SyncEvent<'_>>,
+    ) -> Result<()> {
+        let (wal, patch_file) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        // Store events in a patch file so networking
+        // logic can see which events need to be synced
+        let patch = patch_file.append(events.clone())?;
+
+        // Append to the WAL file
+        for event in events {
+            wal.append_event(event.try_into()?)?;
         }
-        */
+
+        Ok(())
     }
 
     /// Update an existing vault by saving the new vault
-    /// on a remote node.
-    async fn update_vault<'a>(
+    /// and WAL events.
+    fn update_vault<'a>(
         &mut self,
         summary: &Summary,
         vault: &Vault,
         events: Vec<WalEvent<'a>>,
     ) -> Result<()> {
-        todo!();
+        if self.mirror {
+            // Write the vault to disc
+            let buffer = encode(vault)?;
+            self.write_vault_file(summary, &buffer)?;
+        }
 
-        /*
+        // Apply events to the WAL
         let (wal, _) = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-        // Send the new vault to the server
-        let buffer = encode(vault)?;
-        let (status, server_proof) = retry!(
-            || self.client.save_vault(summary.id(), buffer.clone()),
-            &mut self.client
-        );
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
-
-        let server_proof = server_proof.ok_or(Error::ServerProof)?;
-
-        // Apply the new WAL events to our local WAL log
         wal.clear()?;
-        wal.apply(events, Some(CommitHash(*server_proof.root())))?;
+        wal.apply(events, None)?;
 
         Ok(())
-        */
     }
 
     /// Load a vault, unlock it and set it as the current vault.
-    pub async fn open_vault(
+    pub fn open_vault(
         &mut self,
         summary: &Summary,
         passphrase: &str,
     ) -> Result<()> {
-        todo!();
-
-        /*
-        let vault = self.get_wal_vault(summary).await?;
+        let vault = self.get_wal_vault(summary)?;
         let vault_path = if self.mirror {
             let vault_path = self.vault_path(summary);
             if !vault_path.exists() {
                 let buffer = encode(&vault)?;
-                self.write_vault_mirror(summary, &buffer)?;
+                self.write_vault_file(summary, &buffer)?;
             }
             Some(vault_path)
         } else {
@@ -378,7 +365,18 @@ where
         self.state.open_vault(passphrase, vault, vault_path)?;
 
         Ok(())
-        */
+    }
+
+    /// Load a vault by reducing it from the WAL stored on disc.
+    fn get_wal_vault(&mut self, summary: &Summary) -> Result<Vault> {
+        // Reduce the WAL to a vault
+        let wal = self
+            .cache
+            .get_mut(summary.id())
+            .map(|(w, _)| w)
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let vault = WalReducer::new().reduce(wal)?.build()?;
+        Ok(vault)
     }
 
     /// Close the currently selected vault.
@@ -396,23 +394,6 @@ where
         self.state.current_mut()
     }
 
-    /*
-    /// Apply changes to a vault.
-    pub async fn patch_vault(
-        &mut self,
-        summary: &Summary,
-        events: Vec<SyncEvent<'_>>,
-    ) -> Result<()> {
-        let status = self.patch_wal(summary, events).await?;
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
-        Ok(())
-    }
-    */
-
     /// Get a reference to the commit tree for a WAL file.
     pub fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree> {
         self.cache.get(summary.id()).map(|(wal, _)| wal.tree())
@@ -425,7 +406,6 @@ impl LocalStorage<WalFile, PatchFile> {
     pub fn new_file_storage<D: AsRef<Path>>(
         signer: BoxedSigner,
         cache_dir: D,
-        mirror: bool,
     ) -> Result<LocalStorage<WalFile, PatchFile>> {
         if !cache_dir.as_ref().is_dir() {
             return Err(Error::NotDirectory(
@@ -437,11 +417,10 @@ impl LocalStorage<WalFile, PatchFile> {
         let snapshots = Some(SnapShotManager::new(&user_dir)?);
 
         Ok(Self {
-            signer,
             state: Default::default(),
             user_dir: Some(user_dir),
             cache: Default::default(),
-            mirror,
+            mirror: true,
             snapshots,
         })
     }
@@ -450,10 +429,8 @@ impl LocalStorage<WalFile, PatchFile> {
 impl LocalStorage<WalMemory, PatchMemory<'static>> {
     /// Create new local storage backed by memory.
     pub fn new_memory_storage(
-        signer: BoxedSigner,
     ) -> LocalStorage<WalMemory, PatchMemory<'static>> {
         Self {
-            signer,
             state: Default::default(),
             user_dir: None,
             cache: Default::default(),
@@ -478,19 +455,9 @@ where
         let (passphrase, vault, buffer) = self.new_vault(name, passphrase)?;
         let summary = vault.summary().clone();
 
-        println!("Creating new account or vault...");
-
         if self.mirror {
-            self.write_vault_mirror(&summary, &buffer)?;
+            self.write_vault_file(&summary, &buffer)?;
         }
-
-        /*
-        if is_account {
-            self.create_local_account(&buffer)?;
-        } else {
-            todo!();
-        };
-        */
 
         // Add the summary to the vaults we are managing
         self.state.add_summary(summary.clone());
@@ -501,28 +468,8 @@ where
         Ok((passphrase, summary))
     }
 
-    /*
-    fn create_local_account(&mut self, buffer: &[u8]) -> Result<Summary> {
-        let summary = Header::read_summary_slice(&buffer)?;
-        self.init_local_cache(&summary, None)?;
-
-        // Write out the vault
-        let vault_path = self.vault_path(&summary);
-        println!("Writing vault path {:#?}", vault_path);
-        std::fs::write(&vault_path, buffer)?;
-
-        // Write the WAL file
-        let wal_path = self.wal_path(&summary);
-        let mut wal = W::new(&wal_path)?;
-        let event = WalEvent::CreateVault(Cow::Borrowed(buffer));
-        wal.append_event(event)?;
-
-        Ok(summary)
-    }
-    */
-
     #[cfg(not(target_arch = "wasm32"))]
-    fn write_vault_mirror(
+    fn write_vault_file(
         &self,
         summary: &Summary,
         buffer: &[u8],
@@ -534,7 +481,7 @@ where
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn write_vault_mirror(
+    fn write_vault_file(
         &self,
         _summary: &Summary,
         _buffer: &[u8],
@@ -635,13 +582,10 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let vault = WalReducer::new().reduce(wal)?.build()?;
 
-        let mirror = self.mirror;
-        let _vault_path = self.vault_path(summary);
-
         // Rewrite the on-disc version if we are mirroring
-        if mirror {
+        if self.mirror {
             let buffer = encode(&vault)?;
-            self.write_vault_mirror(summary, &buffer)?;
+            self.write_vault_file(summary, &buffer)?;
         }
 
         if let Some(keeper) = self.current_mut() {
