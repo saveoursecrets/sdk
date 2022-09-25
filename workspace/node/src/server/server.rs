@@ -25,7 +25,10 @@ use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_stream::wrappers::IntervalStream;
-use tower_http::cors::CorsLayer;
+use tower_http::{
+    cors::CorsLayer,
+    trace::TraceLayer,
+};
 use web3_address::ethereum::Address;
 
 use crate::session::SessionManager;
@@ -175,7 +178,9 @@ impl Server {
             .route("/api/wal", post(ServiceHandler::wal));
 
         app = feature_routes(app);
-        app = app.layer(cors).layer(Extension(state));
+        app = app.layer(cors)
+            .layer(TraceLayer::new_for_http())
+            .layer(Extension(state));
 
         Ok(app)
     }
