@@ -97,6 +97,7 @@ pub mod file {
             Ok(summary)
         }
 
+        /*
         /// Create an account on a remote node.
         pub async fn create_account(
             &self,
@@ -117,6 +118,14 @@ pub mod file {
             }
 
             Ok((status.into(), summary))
+        }
+        */
+
+        /// List the vault summaries.
+        pub async fn list_vaults(&mut self) -> Result<Vec<Summary>> {
+            let mut writer = self.cache.write().unwrap();
+            let summaries = writer.list_vaults().await?.to_vec();
+            Ok(summaries)
         }
     }
 }
