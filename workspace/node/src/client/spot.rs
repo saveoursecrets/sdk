@@ -138,9 +138,7 @@ pub mod file {
         }
 
         /// Close the currently open vault.
-        pub fn close_vault(
-            &mut self,
-        ) -> Result<()> {
+        pub fn close_vault(&mut self) -> Result<()> {
             let mut writer = self.cache.write().unwrap();
             writer.close_vault();
             Ok(())
