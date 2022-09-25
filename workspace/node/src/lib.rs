@@ -11,8 +11,6 @@ extern crate sha3;
 pub mod agent;
 #[cfg(feature = "client")]
 pub mod client;
-#[cfg(feature = "node")]
-pub mod node;
 #[cfg(feature = "server")]
 pub mod server;
 

@@ -2750,6 +2750,7 @@ dependencies = [
  "sos-core",
  "sos-node",
  "sos-server",
+ "tempfile",
  "thiserror",
  "tokio",
  "tracing",

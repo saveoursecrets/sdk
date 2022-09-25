@@ -12,6 +12,10 @@ mod check_integrity;
 mod compact_force_pull;
 #[cfg(not(target_arch = "wasm32"))]
 mod handle_change;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod local_storage;
+
 #[cfg(not(target_arch = "wasm32"))]
 mod patch_conflict_resolve;
 #[cfg(not(target_arch = "wasm32"))]

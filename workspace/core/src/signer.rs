@@ -87,6 +87,14 @@ impl Clone for BoxedSigner {
 #[derive(Clone)]
 pub struct SingleParty(pub SigningKey);
 
+impl SingleParty {
+    /// Generate a new random single party signing key.
+    pub fn new_random() -> SingleParty {
+        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        SingleParty(signing_key)
+    }
+}
+
 #[async_trait]
 impl Signer for SingleParty {
     fn clone_boxed(&self) -> BoxedSigner {

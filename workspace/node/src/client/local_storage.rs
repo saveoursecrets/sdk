@@ -16,7 +16,7 @@ use sos_core::{
     generate_passphrase,
     secret::SecretRef,
     signer::BoxedSigner,
-    vault::{Summary, Vault},
+    vault::{Header, Summary, Vault},
     wal::{
         memory::WalMemory,
         reducer::WalReducer,
@@ -78,7 +78,7 @@ pub struct LocalStorage<W, P> {
     cache: HashMap<Uuid, (W, P)>,
     /// Mirror WAL files and in-memory contents to vault files
     mirror: bool,
-    /// Snapshots manager for WAL files.
+    /// Snapshot manager for WAL files.
     ///
     /// Only available when using disc backing storage.
     snapshots: Option<SnapShotManager>,
@@ -207,7 +207,6 @@ where
 
     /// List the vault summaries.
     pub async fn list_vaults(&mut self) -> Result<&[Summary]> {
-
         /*
 
         self.load_caches(&summaries)?;
@@ -226,25 +225,25 @@ where
     }
 
     /// Create a new account and default login vault.
-    pub async fn create_account(
+    pub fn create_account(
         &mut self,
         name: Option<String>,
+        passphrase: Option<String>,
     ) -> Result<(SecretString, Summary)> {
-        self.create(name, None, true).await
+        self.create(name, passphrase, true)
     }
 
     /// Create a new vault.
-    pub async fn create_vault(
+    pub fn create_vault(
         &mut self,
         name: String,
         passphrase: Option<String>,
     ) -> Result<(SecretString, Summary)> {
-        self.create(Some(name), passphrase, false).await
+        self.create(Some(name), passphrase, false)
     }
 
     /// Remove a vault.
     pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
-
         todo!("Remove the WAL and vault files...");
 
         // Remove local state
@@ -294,19 +293,24 @@ where
         summary: &Summary,
         name: &str,
     ) -> Result<()> {
+        let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
 
-        todo!();
+        todo!("Set vault name event");
+
+        /*
+        // Update the in-memory name.
+        for item in self.state.summaries_mut().iter_mut() {
+            if item.id() == summary.id() {
+                item.set_name(name.to_string());
+            }
+        }
+        Ok(())
+        */
 
         /*
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
         let status = self.patch_wal(summary, vec![event]).await?;
         if status.is_success() {
-            for item in self.state.summaries_mut().iter_mut() {
-                if item.id() == summary.id() {
-                    item.set_name(name.to_string());
-                }
-            }
-            Ok(())
         } else {
             Err(Error::ResponseCode(status.into()))
         }
@@ -321,7 +325,6 @@ where
         vault: &Vault,
         events: Vec<WalEvent<'a>>,
     ) -> Result<()> {
-
         todo!();
 
         /*
@@ -357,7 +360,6 @@ where
         summary: &Summary,
         passphrase: &str,
     ) -> Result<()> {
-
         todo!();
 
         /*
@@ -415,15 +417,15 @@ where
     pub fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree> {
         self.cache.get(summary.id()).map(|(wal, _)| wal.tree())
     }
-
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl LocalStorage<WalFile, PatchFile> {
     /// Create new node cache backed by files on disc.
-    pub fn new_file_cache<D: AsRef<Path>>(
-        cache_dir: D,
+    pub fn new_file_storage<D: AsRef<Path>>(
         signer: BoxedSigner,
+        cache_dir: D,
+        mirror: bool,
     ) -> Result<LocalStorage<WalFile, PatchFile>> {
         if !cache_dir.as_ref().is_dir() {
             return Err(Error::NotDirectory(
@@ -439,7 +441,7 @@ impl LocalStorage<WalFile, PatchFile> {
             state: Default::default(),
             user_dir: Some(user_dir),
             cache: Default::default(),
-            mirror: true,
+            mirror,
             snapshots,
         })
     }
@@ -447,7 +449,7 @@ impl LocalStorage<WalFile, PatchFile> {
 
 impl LocalStorage<WalMemory, PatchMemory<'static>> {
     /// Create new local storage backed by memory.
-    pub fn new_memory_cache(
+    pub fn new_memory_storage(
         signer: BoxedSigner,
     ) -> LocalStorage<WalMemory, PatchMemory<'static>> {
         Self {
@@ -467,41 +469,28 @@ where
     P: PatchProvider + Send + Sync + 'static,
 {
     /// Create a new account or vault.
-    async fn create(
+    fn create(
         &mut self,
         name: Option<String>,
         passphrase: Option<String>,
         is_account: bool,
     ) -> Result<(SecretString, Summary)> {
-
-        todo!();
-
-        /*
         let (passphrase, vault, buffer) = self.new_vault(name, passphrase)?;
         let summary = vault.summary().clone();
+
+        println!("Creating new account or vault...");
 
         if self.mirror {
             self.write_vault_mirror(&summary, &buffer)?;
         }
 
-        let status = if is_account {
-            let (status, _) = retry!(
-                || self.client.create_account(buffer.clone()),
-                &mut self.client
-            );
-            status
+        /*
+        if is_account {
+            self.create_local_account(&buffer)?;
         } else {
-            let (status, _) = retry!(
-                || self.client.create_vault(buffer.clone()),
-                &mut self.client
-            );
-            status
+            todo!();
         };
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+        */
 
         // Add the summary to the vaults we are managing
         self.state.add_summary(summary.clone());
@@ -509,11 +498,28 @@ where
         // Initialize the local cache for WAL and Patch
         self.init_local_cache(&summary, Some(vault))?;
 
-
         Ok((passphrase, summary))
-
-        */
     }
+
+    /*
+    fn create_local_account(&mut self, buffer: &[u8]) -> Result<Summary> {
+        let summary = Header::read_summary_slice(&buffer)?;
+        self.init_local_cache(&summary, None)?;
+
+        // Write out the vault
+        let vault_path = self.vault_path(&summary);
+        println!("Writing vault path {:#?}", vault_path);
+        std::fs::write(&vault_path, buffer)?;
+
+        // Write the WAL file
+        let wal_path = self.wal_path(&summary);
+        let mut wal = W::new(&wal_path)?;
+        let event = WalEvent::CreateVault(Cow::Borrowed(buffer));
+        wal.append_event(event)?;
+
+        Ok(summary)
+    }
+    */
 
     #[cfg(not(target_arch = "wasm32"))]
     fn write_vault_mirror(

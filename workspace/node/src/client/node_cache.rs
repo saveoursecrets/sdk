@@ -98,6 +98,7 @@ fn assert_proofs_eq(
     }
 }
 
+#[deprecated(note = "Use the version in local_storage.")]
 #[cfg(not(target_arch = "wasm32"))]
 /// Ensure a directory for a user's vaults.
 pub fn ensure_user_vaults_dir<D: AsRef<Path>>(
