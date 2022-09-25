@@ -125,6 +125,17 @@ pub mod file {
             let summaries = writer.list_vaults().await?.to_vec();
             Ok(summaries)
         }
+
+        /// Open a vault.
+        pub async fn open_vault(
+            &mut self,
+            summary: Summary,
+            passphrase: String,
+        ) -> Result<()> {
+            let mut writer = self.cache.write().unwrap();
+            writer.open_vault(&summary, &passphrase).await?;
+            Ok::<(), Error>(())
+        }
     }
 }
 

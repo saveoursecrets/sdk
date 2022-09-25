@@ -95,6 +95,19 @@ pub mod algorithms {
         }
     }
 
+    impl TryFrom<u8> for Algorithm {
+        type Error = Error;
+        fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+            match value {
+                X_CHACHA20_POLY1305 => {
+                    Ok(Algorithm::XChaCha20Poly1305(X_CHACHA20_POLY1305))
+                }
+                AES_GCM_256 => Ok(Algorithm::AesGcm256(AES_GCM_256)),
+                _ => Err(Error::InvalidAlgorithm(value.to_string())),
+            }
+        }
+    }
+
     impl AsRef<u8> for Algorithm {
         fn as_ref(&self) -> &u8 {
             match self {
