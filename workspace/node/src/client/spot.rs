@@ -134,7 +134,16 @@ pub mod file {
         ) -> Result<()> {
             let mut writer = self.cache.write().unwrap();
             writer.open_vault(&summary, &passphrase).await?;
-            Ok::<(), Error>(())
+            Ok(())
+        }
+
+        /// Close the currently open vault.
+        pub fn close_vault(
+            &mut self,
+        ) -> Result<()> {
+            let mut writer = self.cache.write().unwrap();
+            writer.close_vault();
+            Ok(())
         }
     }
 }
