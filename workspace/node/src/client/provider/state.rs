@@ -5,7 +5,6 @@ use super::{Error, Result};
 use sos_core::{
     secret::SecretRef,
     vault::{Summary, Vault},
-    wal::WalProvider,
     Gatekeeper, PatchProvider, VaultFileAccess,
 };
 

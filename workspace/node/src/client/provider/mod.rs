@@ -9,26 +9,48 @@ use std::{
 };
 
 use sos_core::{
-    commit_tree::CommitTree,
+    commit_tree::{CommitPair, CommitProof, CommitTree},
     constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
     crypto::secret_key::SecretKey,
     encode,
     events::{SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault, VaultId},
-    wal::{reducer::WalReducer, WalProvider},
-    Gatekeeper, PatchProvider,
+    wal::{
+        reducer::WalReducer,
+        snapshot::{SnapShot, SnapShotManager},
+        WalProvider,
+    },
+    CommitHash, Gatekeeper, PatchProvider,
 };
 
-use crate::client::{Error, Result};
+use crate::{
+    client::{Error, Result},
+    sync::{SyncInfo, SyncKind, SyncStatus},
+};
+
+pub(crate) fn assert_proofs_eq(
+    client_proof: &CommitProof,
+    server_proof: &CommitProof,
+) -> Result<()> {
+    if client_proof.0 != server_proof.0 {
+        let client = CommitHash(client_proof.0);
+        let server = CommitHash(server_proof.0);
+        Err(Error::RootHashMismatch(client, server))
+    } else {
+        Ok(())
+    }
+}
 
 mod fs_adapter;
 mod local_provider;
 mod macros;
 mod remote_provider;
 mod state;
+mod sync;
 
 pub use local_provider::LocalProvider;
+pub use remote_provider::RemoteProvider;
 pub use state::ProviderState;
 
 /// Encapsulates the paths for vault storage.
@@ -92,6 +114,22 @@ where
 
     /// Get a mutable reference to the cache.
     fn cache_mut(&mut self) -> &mut HashMap<VaultId, (W, P)>;
+
+    /// Get the snapshot manager for this cache.
+    fn snapshots(&self) -> Option<&SnapShotManager>;
+
+    /// Take a snapshot of the WAL for the given vault.
+    ///
+    /// Snapshots must be enabled.
+    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)> {
+        let snapshots = self.snapshots().ok_or(Error::SnapshotsNotEnabled)?;
+        let (wal_file, _) = self
+            .cache()
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let root_hash = wal_file.tree().root().ok_or(Error::NoRootCommit)?;
+        Ok(snapshots.create(summary.id(), wal_file.path(), root_hash)?)
+    }
 
     /// Attempt to open an authenticated, encrypted session.
     ///
@@ -392,6 +430,67 @@ where
         let event = event.into_owned();
         self.patch_vault(&summary, vec![event.clone()]).await?;
         Ok(event)
+    }
+
+    /// Download changes from a remote server.
+    ///
+    /// For a local provider this is a noop.
+    async fn pull(
+        &mut self,
+        summary: &Summary,
+        _force: bool,
+    ) -> Result<SyncInfo> {
+        let head = self
+            .commit_tree(summary)
+            .ok_or(Error::NoRootCommit)?
+            .head()?;
+        let info = SyncInfo {
+            before: (head.clone(), head),
+            after: None,
+            status: SyncKind::Equal,
+        };
+        Ok(info)
+    }
+
+    /// Upload changes to a remote server.
+    ///
+    /// For a local provider this is a noop.
+    async fn push(
+        &mut self,
+        summary: &Summary,
+        _force: bool,
+    ) -> Result<SyncInfo> {
+        let head = self
+            .commit_tree(summary)
+            .ok_or(Error::NoRootCommit)?
+            .head()?;
+        let info = SyncInfo {
+            before: (head.clone(), head),
+            after: None,
+            status: SyncKind::Equal,
+        };
+        Ok(info)
+    }
+
+    /// Get a comparison between a local and remote.
+    ///
+    /// If a patch file has unsaved events then the number
+    /// of pending events is returned along with the `SyncStatus`.
+    ///
+    /// For a local provider this will always return an equal status.
+    async fn status(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<(SyncStatus, Option<usize>)> {
+        let head = self
+            .commit_tree(summary)
+            .ok_or(Error::NoRootCommit)?
+            .head()?;
+        let pair = CommitPair {
+            local: head.clone(),
+            remote: head,
+        };
+        Ok((SyncStatus::Equal(pair), None))
     }
 
     /// Verify a WAL log.

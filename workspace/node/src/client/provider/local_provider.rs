@@ -9,11 +9,7 @@ use sos_core::{
     encode,
     events::{SyncEvent, WalEvent},
     vault::{Header, Summary, Vault, VaultId},
-    wal::{
-        memory::WalMemory,
-        snapshot::{SnapShot, SnapShotManager},
-        WalProvider,
-    },
+    wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider},
     ChangePassword, PatchMemory, PatchProvider,
 };
 
@@ -111,6 +107,10 @@ where
 
     fn cache_mut(&mut self) -> &mut HashMap<VaultId, (W, P)> {
         &mut self.cache
+    }
+
+    fn snapshots(&self) -> Option<&SnapShotManager> {
+        self.snapshots.as_ref()
     }
 
     async fn change_password(
@@ -232,28 +232,6 @@ where
     /// Ensure a directory for a user's vaults.
     pub async fn ensure_dir(&self) -> Result<()> {
         Ok(())
-    }
-
-    /// Get the snapshot manager for this cache.
-    pub fn snapshots(&self) -> Option<&SnapShotManager> {
-        self.snapshots.as_ref()
-    }
-
-    /// Take a snapshot of the WAL for the given vault.
-    ///
-    /// Snapshots must be enabled.
-    pub fn take_snapshot(
-        &self,
-        summary: &Summary,
-    ) -> Result<(SnapShot, bool)> {
-        let snapshots =
-            self.snapshots.as_ref().ok_or(Error::SnapshotsNotEnabled)?;
-        let (wal, _) = self
-            .cache
-            .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
-        Ok(snapshots.create(summary.id(), wal.path(), root_hash)?)
     }
 
     /// Add to the local cache for a vault.
