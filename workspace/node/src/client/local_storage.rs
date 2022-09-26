@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
-    constants::{PATCH_EXT, WAL_EXT, WAL_IDENTITY, VAULTS_DIR},
+    constants::{PATCH_EXT, WAL_EXT, VAULT_EXT, WAL_IDENTITY, VAULTS_DIR},
     crypto::secret_key::SecretKey,
     encode,
     events::{
@@ -170,18 +170,30 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn verify(&self, summary: &Summary) -> Result<()> {
-        use sos_core::commit_tree::wal_commit_tree_file;
-        let wal_path = self.wal_path(summary);
-        wal_commit_tree_file(&wal_path, true, |_| {})?;
-        Ok(())
+    async fn load_vaults(&mut self) -> Result<&[Summary]> {
+        self.ensure_dir().await?;
+
+        let storage = self.storage_dir();
+        let mut summaries = Vec::new();
+        let mut contents = tokio::fs::read_dir(&storage).await?;
+        while let Some(entry) = contents.next_entry().await? {
+            let path = entry.path();
+            if let Some(extension) = path.extension() {
+                if extension == VAULT_EXT {
+                    let summary = Header::read_summary_file(path)?;
+                    summaries.push(summary);
+                }
+            }
+        } 
+
+        self.load_caches(&summaries)?;
+        self.state.set_summaries(summaries);
+        Ok(self.vaults())
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn verify(&self, _summary: &Summary) -> Result<()> {
-        // NOTE: verify is a noop in WASM when the records
-        // NOTE: are stored in memory
-        Ok(())
+    async fn load_vaults(&mut self) -> Result<&[Summary]> {
+        Ok(self.vaults())
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
@@ -234,6 +246,21 @@ where
     fn close_vault(&mut self) {
         self.state.close_vault();
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn verify(&self, summary: &Summary) -> Result<()> {
+        use sos_core::commit_tree::wal_commit_tree_file;
+        let wal_path = self.wal_path(summary);
+        wal_commit_tree_file(&wal_path, true, |_| {})?;
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn verify(&self, _summary: &Summary) -> Result<()> {
+        // NOTE: verify is a noop in WASM when the records
+        // NOTE: are stored in memory
+        Ok(())
+    }
 }
 
 impl<W, P> LocalStorage<W, P>
@@ -275,20 +302,6 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
         Ok(snapshots.create(summary.id(), wal.path(), root_hash)?)
-    }
-
-    /// List the vault summaries.
-    pub async fn list_vaults(&mut self) -> Result<&[Summary]> {
-        /*
-
-        self.load_caches(&summaries)?;
-
-        self.state.set_summaries(summaries);
-
-        Ok(self.vaults())
-        */
-
-        todo!();
     }
 
     /// Add to the local cache for a vault.
@@ -404,12 +417,10 @@ impl LocalStorage<WalFile, PatchFile> {
         }
 
         let user_dir = storage_dir.as_ref().join(&user_id);
-
         if !user_dir.exists() {
             std::fs::create_dir(&user_dir)?;
         }
 
-        //let user_dir = ensure_user_vaults_dir(cache_dir, &signer)?;
         let snapshots = Some(
             SnapShotManager::new(user_dir)?);
 

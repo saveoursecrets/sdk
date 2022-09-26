@@ -104,6 +104,9 @@ where
     /// Remove a vault.
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;
 
+    /// Load vault summaries.
+    async fn load_vaults(&mut self) -> Result<&[Summary]>;
+
     /// Attempt to set the vault name for a vault.
     async fn set_vault_name(
         &mut self,
