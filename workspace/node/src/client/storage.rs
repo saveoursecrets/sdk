@@ -5,6 +5,7 @@ use secrecy::SecretString;
 use std::path::{Path, PathBuf};
 
 use sos_core::{
+    commit_tree::CommitTree,
     constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     events::{SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
@@ -165,6 +166,9 @@ where
     /// Verify a WAL log.
     fn verify(&self, summary: &Summary) -> Result<()>;
 
+    /// Get a reference to the commit tree for a WAL file.
+    fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree>;
+
     /// Apply changes to a vault.
     async fn patch_vault(
         &mut self,
@@ -177,22 +181,24 @@ where
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-    ) -> Result<()> {
+    ) -> Result<SyncEvent<'_>> {
         let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         let event = keeper.create(meta, secret)?.into_owned();
-        self.patch_vault(&summary, vec![event]).await?;
-        Ok(())
+        self.patch_vault(&summary, vec![event.clone()]).await?;
+        Ok(event)
     }
 
     /// Read a secret in the currently open vault.
     async fn read_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<Option<(SecretMeta, Secret, SyncEvent<'_>)>> {
+    ) -> Result<(SecretMeta, Secret, SyncEvent<'_>)> {
         let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
-        Ok(keeper.read(id)?)
+        let result = keeper.read(id)?
+            .ok_or(Error::SecretNotFound(*id))?;
+        Ok(result)
     }
 
     /// Update a secret in the currently open vault.
@@ -201,28 +207,28 @@ where
         id: &SecretId,
         mut meta: SecretMeta,
         secret: Secret,
-    ) -> Result<()> {
+    ) -> Result<SyncEvent<'_>> {
         let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         meta.touch();
         let event = keeper.update(id, meta, secret)?
             .ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
-        self.patch_vault(&summary, vec![event]).await?;
-        Ok(())
+        self.patch_vault(&summary, vec![event.clone()]).await?;
+        Ok(event)
     }
 
     /// Delete a secret in the currently open vault.
     async fn delete_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<()> {
+    ) -> Result<SyncEvent<'_>> {
         let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         let event = keeper.delete(id)?
             .ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
-        self.patch_vault(&summary, vec![event]).await?;
-        Ok(())
+        self.patch_vault(&summary, vec![event.clone()]).await?;
+        Ok(event)
     }
 }

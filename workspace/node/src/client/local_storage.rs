@@ -265,6 +265,10 @@ where
         // NOTE: are stored in memory
         Ok(())
     }
+
+    fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree> {
+        self.cache.get(summary.id()).map(|(wal, _)| wal.tree())
+    }
 }
 
 impl<W, P> LocalStorage<W, P>
@@ -400,10 +404,6 @@ where
         Ok(WalReducer::new().reduce(wal)?.build()?)
     }
 
-    /// Get a reference to the commit tree for a WAL file.
-    pub fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree> {
-        self.cache.get(summary.id()).map(|(wal, _)| wal.tree())
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
