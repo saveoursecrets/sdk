@@ -1,29 +1,15 @@
 use std::collections::HashSet;
 
-use super::{Error, Result};
-use crate::client::net::{MaybeRetry, RpcClient};
-
-use http::StatusCode;
+use super::Result;
 
 use sos_core::{
-    commit_tree::CommitProof,
-    constants::WAL_IDENTITY,
     events::{ChangeAction, ChangeEvent, ChangeNotification},
     secret::SecretRef,
-    vault::Summary,
     wal::WalProvider,
-    FileIdentity, PatchProvider,
+    PatchProvider,
 };
 
-use uuid::Uuid;
-
-use crate::{
-    client::provider::{assert_proofs_eq, ProviderState, StorageProvider},
-    retry,
-    sync::{SyncInfo, SyncKind, SyncStatus},
-};
-
-use super::{pull, status};
+use crate::{client::provider::StorageProvider, sync::SyncStatus};
 
 /// Respond to a change notification.
 ///

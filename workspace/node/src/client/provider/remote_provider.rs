@@ -5,16 +5,13 @@ use crate::client::net::{MaybeRetry, RpcClient};
 
 use async_trait::async_trait;
 use http::StatusCode;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use sos_core::{
     encode,
-    events::{
-        ChangeAction, ChangeEvent, ChangeNotification, SyncEvent, WalEvent,
-    },
-    secret::SecretRef,
+    events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     vault::{Summary, Vault, VaultId},
     wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider},
-    ChangePassword, CommitHash, PatchMemory, PatchProvider,
+    CommitHash, PatchMemory, PatchProvider,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -131,20 +128,46 @@ where
         self.snapshots.as_ref()
     }
 
-    async fn create_account(
+    async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
         passphrase: Option<String>,
+        is_account: bool,
     ) -> Result<(SecretString, Summary)> {
-        self.create(name, passphrase, true).await
-    }
+        let (passphrase, vault, buffer) =
+            Vault::new_buffer(name, passphrase)?;
+        let status = if is_account {
+            let (status, _) = retry!(
+                || self.client.create_account(buffer.clone()),
+                &mut self.client
+            );
+            status
+        } else {
+            let (status, _) = retry!(
+                || self.client.create_vault(buffer.clone()),
+                &mut self.client
+            );
+            status
+        };
 
-    async fn create_vault(
-        &mut self,
-        name: String,
-        passphrase: Option<String>,
-    ) -> Result<(SecretString, Summary)> {
-        self.create(Some(name), passphrase, false).await
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
+        let summary = vault.summary().clone();
+
+        if self.state().mirror() {
+            self.write_vault_file(&summary, &buffer)?;
+        }
+
+        // Add the summary to the vaults we are managing
+        self.state_mut().add_summary(summary.clone());
+
+        // Initialize the local cache for WAL and Patch
+        self.create_cache_entry(&summary, Some(vault))?;
+
+        Ok((passphrase, summary))
     }
 
     async fn authenticate(&mut self) -> Result<()> {
@@ -349,54 +372,5 @@ where
         };
         let actions = sync::handle_change(self, change).await?;
         Ok((self_change, actions))
-    }
-}
-
-impl<W, P> RemoteProvider<W, P>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
-    /// Create a new account or vault.
-    async fn create(
-        &mut self,
-        name: Option<String>,
-        passphrase: Option<String>,
-        is_account: bool,
-    ) -> Result<(SecretString, Summary)> {
-        let (passphrase, vault, buffer) =
-            Vault::new_buffer(name, passphrase)?;
-        let summary = vault.summary().clone();
-
-        if self.state().mirror() {
-            self.write_vault_file(&summary, &buffer)?;
-        }
-
-        let status = if is_account {
-            let (status, _) = retry!(
-                || self.client.create_account(buffer.clone()),
-                &mut self.client
-            );
-            status
-        } else {
-            let (status, _) = retry!(
-                || self.client.create_vault(buffer.clone()),
-                &mut self.client
-            );
-            status
-        };
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
-
-        // Add the summary to the vaults we are managing
-        self.state.add_summary(summary.clone());
-
-        // Initialize the local cache for WAL and Patch
-        self.create_cache_entry(&summary, Some(vault))?;
-
-        Ok((passphrase, summary))
     }
 }

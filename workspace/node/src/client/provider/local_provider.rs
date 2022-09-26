@@ -3,14 +3,14 @@ use super::{Error, Result};
 
 use async_trait::async_trait;
 
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use sos_core::{
     constants::VAULT_EXT,
     encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     vault::{Header, Summary, Vault, VaultId},
     wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider},
-    ChangePassword, PatchMemory, PatchProvider,
+    PatchMemory, PatchProvider,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -118,6 +118,19 @@ where
         self.snapshots.as_ref()
     }
 
+    async fn create_vault_or_account(
+        &mut self,
+        name: Option<String>,
+        passphrase: Option<String>,
+        is_account: bool,
+    ) -> Result<(SecretString, Summary)> {
+        self.ensure_dir().await?;
+        StorageProvider::<W, P>::create_vault_or_account(
+            self, name, passphrase, is_account,
+        )
+        .await
+    }
+
     async fn handle_change(
         &mut self,
         change: ChangeNotification,
@@ -147,22 +160,6 @@ where
         wal.apply(events, None)?;
 
         Ok(())
-    }
-
-    async fn create_account(
-        &mut self,
-        name: Option<String>,
-        passphrase: Option<String>,
-    ) -> Result<(SecretString, Summary)> {
-        self.create(name, passphrase, true).await
-    }
-
-    async fn create_vault(
-        &mut self,
-        name: String,
-        passphrase: Option<String>,
-    ) -> Result<(SecretString, Summary)> {
-        self.create(Some(name), passphrase, false).await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -259,7 +256,7 @@ where
     }
 
     /// Create a new account or vault.
-    async fn create(
+    async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
         passphrase: Option<String>,

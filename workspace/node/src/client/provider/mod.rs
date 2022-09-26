@@ -305,14 +305,45 @@ where
         &mut self,
         name: Option<String>,
         passphrase: Option<String>,
-    ) -> Result<(SecretString, Summary)>;
+    ) -> Result<(SecretString, Summary)> {
+        self.create_vault_or_account(name, passphrase, true).await
+    }
 
     /// Create a new vault.
     async fn create_vault(
         &mut self,
         name: String,
         passphrase: Option<String>,
-    ) -> Result<(SecretString, Summary)>;
+    ) -> Result<(SecretString, Summary)> {
+        self.create_vault_or_account(Some(name), passphrase, false)
+            .await
+    }
+
+    /// Create a new account or vault.
+    async fn create_vault_or_account(
+        &mut self,
+        name: Option<String>,
+        passphrase: Option<String>,
+        _is_account: bool,
+    ) -> Result<(SecretString, Summary)> {
+        //self.ensure_dir().await?;
+
+        let (passphrase, vault, buffer) =
+            Vault::new_buffer(name, passphrase)?;
+        let summary = vault.summary().clone();
+
+        if self.state().mirror() {
+            self.write_vault_file(&summary, &buffer)?;
+        }
+
+        // Add the summary to the vaults we are managing
+        self.state_mut().add_summary(summary.clone());
+
+        // Initialize the local cache for WAL and Patch
+        self.create_cache_entry(&summary, Some(vault))?;
+
+        Ok((passphrase, summary))
+    }
 
     /// Remove a vault.
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;
