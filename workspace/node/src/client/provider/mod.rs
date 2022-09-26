@@ -1,24 +1,35 @@
 //! Storage provider trait.
 
 use async_trait::async_trait;
-use secrecy::SecretString;
-use std::path::{Path, PathBuf};
+use secrecy::{ExposeSecret, SecretString};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use sos_core::{
     commit_tree::CommitTree,
-    constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
+    constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
+    crypto::secret_key::SecretKey,
+    encode,
     events::{SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
-    vault::{Header, Summary, Vault},
-    wal::WalProvider,
+    vault::{Summary, Vault, VaultId},
+    wal::{reducer::WalReducer, WalProvider},
     Gatekeeper, PatchProvider,
 };
 
-use crate::client::{node_state::NodeState, Error, Result};
+use crate::client::{Error, Result};
 
+mod fs_adapter;
 mod local_provider;
+mod macros;
+mod remote_provider;
+mod state;
 
-pub use local_provider::*;
+pub use local_provider::LocalProvider;
+pub use state::ProviderState;
 
 /// Encapsulates the paths for vault storage.
 #[derive(Default)]
@@ -68,13 +79,29 @@ where
     P: PatchProvider + Send + Sync + 'static,
 {
     /// Get the state for this storage provider.
-    fn state(&self) -> &NodeState;
+    fn state(&self) -> &ProviderState;
 
     /// Get a mutable reference to the state for this storage provider.
-    fn state_mut(&mut self) -> &mut NodeState;
+    fn state_mut(&mut self) -> &mut ProviderState;
 
     /// Compute the storage directory for the user.
     fn dirs(&self) -> &StorageDirs;
+
+    /// Get the cache.
+    fn cache(&self) -> &HashMap<VaultId, (W, P)>;
+
+    /// Get a mutable reference to the cache.
+    fn cache_mut(&mut self) -> &mut HashMap<VaultId, (W, P)>;
+
+    /// Attempt to open an authenticated, encrypted session.
+    ///
+    /// Must be called before using any other methods that
+    /// communicate over the network to prepare the client session.
+    ///
+    /// For a local provider this is a noop.
+    async fn authenticate(&mut self) -> Result<()> {
+        Ok(())
+    }
 
     /// Get the path to a WAL file.
     fn wal_path(&self, summary: &Summary) -> PathBuf {
@@ -113,7 +140,19 @@ where
     fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(W::Item, WalEvent<'_>)>>;
+    ) -> Result<Vec<(W::Item, WalEvent<'_>)>> {
+        let (wal, _) = self
+            .cache()
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let mut records = Vec::new();
+        for record in wal.iter()? {
+            let record = record?;
+            let event = wal.event_data(&record)?;
+            records.push((record, event));
+        }
+        Ok(records)
+    }
 
     /// Change the password for a vault.
     ///
@@ -128,7 +167,67 @@ where
     ) -> Result<SecretString>;
 
     /// Compact a WAL file.
-    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
+    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+        let (wal, _) = self
+            .cache_mut()
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        let (compact_wal, old_size, new_size) = wal.compact()?;
+
+        // Need to recreate the WAL file and load the updated
+        // commit tree
+        *wal = compact_wal;
+
+        // Refresh in-memory vault and mirrored copy
+        self.refresh_vault(summary, None)?;
+
+        Ok((old_size, new_size))
+    }
+
+    /// Refresh the in-memory vault of the current selection
+    /// from the contents of the current WAL file.
+    fn refresh_vault(
+        &mut self,
+        summary: &Summary,
+        new_passphrase: Option<&SecretString>,
+    ) -> Result<()> {
+        let wal = self
+            .cache_mut()
+            .get_mut(summary.id())
+            .map(|(w, _)| w)
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let vault = WalReducer::new().reduce(wal)?.build()?;
+
+        // Rewrite the on-disc version if we are mirroring
+        if self.state().mirror() {
+            let buffer = encode(&vault)?;
+            self.write_vault_file(summary, &buffer)?;
+        }
+
+        if let Some(keeper) = self.current_mut() {
+            if keeper.id() == summary.id() {
+                // Update the in-memory version
+                let new_key = if let Some(new_passphrase) = new_passphrase {
+                    if let Some(salt) = vault.salt() {
+                        let salt = SecretKey::parse_salt(salt)?;
+                        let private_key = SecretKey::derive_32(
+                            new_passphrase.expose_secret(),
+                            &salt,
+                        )?;
+                        Some(private_key)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                keeper.replace_vault(vault, new_key)?;
+            }
+        }
+        Ok(())
+    }
 
     /// Create a new account and default login vault.
     async fn create_account(
@@ -158,20 +257,80 @@ where
     ) -> Result<()>;
 
     /// Load a vault, unlock it and set it as the current vault.
-    fn open_vault(
+    async fn open_vault(
         &mut self,
         summary: &Summary,
         passphrase: &str,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let vault = self.get_wal_vault(summary).await?;
+        let vault_path = self.vault_path(summary);
+        if self.state().mirror() {
+            let vault_path = self.vault_path(summary);
+            if !vault_path.exists() {
+                let buffer = encode(&vault)?;
+                self.write_vault_file(summary, &buffer)?;
+            }
+        };
+        self.state_mut().open_vault(passphrase, vault, vault_path)?;
+        Ok(())
+    }
+
+    /// Load a vault by reducing it from the WAL stored on disc.
+    ///
+    /// Remote providers may pull changes beforehand.
+    async fn get_wal_vault(&mut self, summary: &Summary) -> Result<Vault> {
+        // Reduce the WAL to a vault
+        let wal = self
+            .cache_mut()
+            .get_mut(summary.id())
+            .map(|(w, _)| w)
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        Ok(WalReducer::new().reduce(wal)?.build()?)
+    }
 
     /// Close the currently selected vault.
-    fn close_vault(&mut self);
-
-    /// Verify a WAL log.
-    fn verify(&self, summary: &Summary) -> Result<()>;
+    fn close_vault(&mut self) {
+        self.state_mut().close_vault();
+    }
 
     /// Get a reference to the commit tree for a WAL file.
-    fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree>;
+    fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree> {
+        self.cache().get(summary.id()).map(|(wal, _)| wal.tree())
+    }
+
+    /// Create new patch and WAL cache entries.
+    fn create_cache_entry(
+        &mut self,
+        summary: &Summary,
+        vault: Option<Vault>,
+    ) -> Result<()> {
+        let patch_path = self.patch_path(summary);
+        let patch_file = P::new(patch_path)?;
+
+        let wal_path = self.wal_path(summary);
+        let mut wal = W::new(&wal_path)?;
+
+        if let Some(vault) = &vault {
+            let encoded = encode(vault)?;
+            let event = WalEvent::CreateVault(Cow::Owned(encoded));
+            wal.append_event(event)?;
+        }
+        wal.load_tree()?;
+        self.cache_mut().insert(*summary.id(), (wal, patch_file));
+        Ok(())
+    }
+
+    /// Create a cache entry for each summary if it does not
+    /// already exist.
+    fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
+        for summary in summaries {
+            // Ensure we don't overwrite existing data
+            if self.cache().get(summary.id()).is_none() {
+                self.create_cache_entry(summary, None)?;
+            }
+        }
+        Ok(())
+    }
 
     /// Apply changes to a vault.
     async fn patch_vault(
@@ -186,7 +345,7 @@ where
         meta: SecretMeta,
         secret: Secret,
     ) -> Result<SyncEvent<'_>> {
-        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         let event = keeper.create(meta, secret)?.into_owned();
         self.patch_vault(&summary, vec![event.clone()]).await?;
@@ -198,10 +357,9 @@ where
         &mut self,
         id: &SecretId,
     ) -> Result<(SecretMeta, Secret, SyncEvent<'_>)> {
-        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-        let summary = keeper.summary().clone();
-        let result = keeper.read(id)?
-            .ok_or(Error::SecretNotFound(*id))?;
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let _summary = keeper.summary().clone();
+        let result = keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
         Ok(result)
     }
 
@@ -212,10 +370,11 @@ where
         mut meta: SecretMeta,
         secret: Secret,
     ) -> Result<SyncEvent<'_>> {
-        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         meta.touch();
-        let event = keeper.update(id, meta, secret)?
+        let event = keeper
+            .update(id, meta, secret)?
             .ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
         self.patch_vault(&summary, vec![event.clone()]).await?;
@@ -227,12 +386,103 @@ where
         &mut self,
         id: &SecretId,
     ) -> Result<SyncEvent<'_>> {
-        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
-        let event = keeper.delete(id)?
-            .ok_or(Error::SecretNotFound(*id))?;
+        let event = keeper.delete(id)?.ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
         self.patch_vault(&summary, vec![event.clone()]).await?;
         Ok(event)
+    }
+
+    /// Verify a WAL log.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn verify(&self, summary: &Summary) -> Result<()> {
+        use sos_core::commit_tree::wal_commit_tree_file;
+        let wal_path = self.wal_path(summary);
+        wal_commit_tree_file(&wal_path, true, |_| {})?;
+        Ok(())
+    }
+
+    /// Verify a WAL log.
+    #[cfg(target_arch = "wasm32")]
+    fn verify(&self, _summary: &Summary) -> Result<()> {
+        // NOTE: verify is a noop in WASM when the records
+        // NOTE: are stored in memory
+        Ok(())
+    }
+
+    /// Write the buffer for a vault to disc.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn write_vault_file(
+        &self,
+        summary: &Summary,
+        buffer: &[u8],
+    ) -> Result<()> {
+        use std::io::Write;
+        let vault_path = self.vault_path(&summary);
+        // FIXME: use tokio writer?
+        let mut file = std::fs::File::create(vault_path)?;
+        file.write_all(buffer)?;
+        Ok(())
+    }
+
+    /// Write the buffer for a vault to disc.
+    #[cfg(target_arch = "wasm32")]
+    fn write_vault_file(
+        &self,
+        _summary: &Summary,
+        _buffer: &[u8],
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    /// Create a backup of a vault file.
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
+        use sos_core::constants::VAULT_BACKUP_EXT;
+
+        // Move our cached vault to a backup
+        let vault_path = self.vault_path(summary);
+
+        if vault_path.exists() {
+            let mut vault_backup = vault_path.clone();
+            vault_backup.set_extension(VAULT_BACKUP_EXT);
+            fs_adapter::rename(&vault_path, &vault_backup).await?;
+            tracing::debug!(
+                vault = ?vault_path, backup = ?vault_backup, "vault backup");
+        }
+
+        Ok(())
+    }
+
+    /// Create a backup of a vault file.
+    #[cfg(target_arch = "wasm32")]
+    async fn backup_vault_file(&self, _summary: &Summary) -> Result<()> {
+        Ok(())
+    }
+
+    /// Remove a vault file and WAL file.
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
+        // Remove local vault mirror if it exists
+        let vault_path = self.vault_path(summary);
+        if vault_path.exists() {
+            fs_adapter::remove_file(&vault_path).await?;
+        }
+
+        // Rename the local WAL file so recovery is still possible
+        let wal_path = self.wal_path(summary);
+        if wal_path.exists() {
+            let mut wal_path_backup = wal_path.clone();
+            wal_path_backup.set_extension(WAL_DELETED_EXT);
+            fs_adapter::rename(wal_path, wal_path_backup).await?;
+        }
+        Ok(())
+    }
+
+    /// Remove a vault file and WAL file.
+    #[cfg(target_arch = "wasm32")]
+    async fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
+        Ok(())
     }
 }

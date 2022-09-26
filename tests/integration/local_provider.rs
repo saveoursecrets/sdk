@@ -7,22 +7,22 @@ use tempfile::tempdir;
 use secrecy::ExposeSecret;
 use sos_core::{
     events::SyncEvent,
+    secret::Secret,
     signer::{Signer, SingleParty},
     wal::WalProvider,
-    secret::Secret,
     PatchProvider,
 };
-use sos_node::client::{provider::{LocalProvider, StorageProvider}};
+use sos_node::client::provider::{
+    LocalProvider, StorageDirs, StorageProvider,
+};
 
 macro_rules! commit_count {
-    ($storage:expr, $summary:expr, $amount:expr) => {
-        {
-            let commits = $storage.commit_tree($summary);
-            assert!(commits.is_some());
-            let commits = commits.unwrap();
-            assert_eq!($amount, commits.len());
-        }
-    };
+    ($storage:expr, $summary:expr, $amount:expr) => {{
+        let commits = $storage.commit_tree($summary);
+        assert!(commits.is_some());
+        let commits = commits.unwrap();
+        assert_eq!($amount, commits.len());
+    }};
 }
 
 async fn run_local_storage_tests<W, P>(
@@ -53,7 +53,9 @@ where
     commit_count!(storage, &summary, 2);
 
     // Open the vault
-    storage.open_vault(&summary, passphrase.expose_secret())?;
+    storage
+        .open_vault(&summary, passphrase.expose_secret())
+        .await?;
 
     let (meta, secret) = mock_note("Test Note", "Mock note content.");
     let event = storage.create_secret(meta, secret).await?;
@@ -78,7 +80,7 @@ where
 
     let (_, updated_secret) = mock_note("", "New mock note content.");
 
-    let event = storage.update_secret(&id, meta, updated_secret).await?;
+    let _event = storage.update_secret(&id, meta, updated_secret).await?;
 
     // Commit for secret edit
     commit_count!(storage, &summary, 4);
@@ -95,7 +97,7 @@ where
     // Commit for secret creation
     commit_count!(storage, &summary, 5);
 
-    let event = storage.delete_secret(&alt_id).await?;
+    let _event = storage.delete_secret(&alt_id).await?;
 
     // Commit for secret deletion
     commit_count!(storage, &summary, 6);
@@ -106,8 +108,8 @@ where
     // Compact the vault
     storage.compact(&summary).await?;
 
-    // After compaction only two commits are left 
-    // one for vault creation and one for the 
+    // After compaction only two commits are left
+    // one for vault creation and one for the
     // remaining secret
     commit_count!(storage, &summary, 2);
     let history = storage.history(&summary)?;
@@ -128,7 +130,8 @@ async fn integration_local_provider_file() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
-    let mut storage = LocalProvider::new_file_storage(dir.path(), &user_id)?;
+    let dirs = StorageDirs::new(dir.path(), &user_id);
+    let mut storage = LocalProvider::new_file_storage(dirs)?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())
 }

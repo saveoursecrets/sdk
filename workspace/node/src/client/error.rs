@@ -1,5 +1,5 @@
 //! Error type for the client module.
-use sos_core::{vault::Summary, CommitHash, secret::SecretId};
+use sos_core::{secret::SecretId, vault::Summary, CommitHash};
 use std::path::PathBuf;
 use thiserror::Error;
 use uuid::Uuid;

@@ -12,15 +12,30 @@ use sos_core::{
 use std::path::PathBuf;
 
 /// Manages the state of a node.
-#[derive(Default)]
-pub struct NodeState {
+pub struct ProviderState {
+    /// Whether this state should mirror changes to disc.
+    mirror: bool,
     /// Vaults managed by this state.
     summaries: Vec<Summary>,
     /// Currently selected in-memory vault.
     current: Option<Gatekeeper>,
 }
 
-impl NodeState {
+impl ProviderState {
+    /// Create a new node state.
+    pub fn new(mirror: bool) -> Self {
+        Self {
+            mirror,
+            summaries: Default::default(),
+            current: None,
+        }
+    }
+
+    /// Determine if mirroring is enabled.
+    pub fn mirror(&self) -> bool {
+        self.mirror
+    }
+
     /// Get the current in-memory vault access.
     pub fn current(&self) -> Option<&Gatekeeper> {
         self.current.as_ref()
@@ -78,9 +93,9 @@ impl NodeState {
         &mut self,
         passphrase: &str,
         vault: Vault,
-        vault_path: Option<PathBuf>,
+        vault_path: PathBuf,
     ) -> Result<()> {
-        let mut keeper = if let Some(vault_path) = vault_path {
+        let mut keeper = if self.mirror {
             let mirror = Box::new(VaultFileAccess::new(vault_path)?);
             Gatekeeper::new_mirror(vault, mirror)
         } else {

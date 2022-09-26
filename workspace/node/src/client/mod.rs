@@ -17,7 +17,6 @@ pub mod account;
 mod changes_listener;
 pub mod net;
 pub mod node_cache;
-pub mod node_state;
 pub mod provider;
 pub mod spot;
 

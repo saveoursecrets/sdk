@@ -1,39 +1,35 @@
-//! Caching implementation.
+//! Wrapper for the RPC client that handles authentication
+//! and retries when an unauthorized response is returned.
 use super::{Error, Result};
 use crate::client::net::{MaybeRetry, RpcClient};
 
 use async_recursion::async_recursion;
+use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
-    constants::{PATCH_EXT, WAL_EXT, WAL_IDENTITY},
-    crypto::secret_key::SecretKey,
+    commit_tree::{CommitPair, CommitProof, Comparison},
+    constants::WAL_IDENTITY,
     encode,
     events::{
         ChangeAction, ChangeEvent, ChangeNotification, SyncEvent, WalEvent,
     },
-    generate_passphrase,
     secret::SecretRef,
     signer::BoxedSigner,
-    vault::{Summary, Vault},
+    vault::{Summary, Vault, VaultId},
     wal::{
         memory::WalMemory,
-        reducer::WalReducer,
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
-    ChangePassword, CommitHash, FileIdentity, Gatekeeper, PatchMemory,
-    PatchProvider,
+    ChangePassword, CommitHash, FileIdentity, PatchMemory, PatchProvider,
 };
 
-use url::Url;
+#[cfg(not(target_arch = "wasm32"))]
+use sos_core::{wal::file::WalFile, PatchFile};
 
 #[cfg(not(target_arch = "wasm32"))]
-use sos_core::{constants::WAL_DELETED_EXT, wal::file::WalFile, PatchFile};
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::{io::Write, path::Path};
+use std::path::Path;
 
 use std::{
     borrow::Cow,
@@ -43,47 +39,10 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
-    client::provider::ProviderState,
+    client::provider::{fs_adapter, ProviderState, StorageDirs, StorageProvider},
+    retry,
     sync::{SyncInfo, SyncKind, SyncStatus},
 };
-
-/// Retry a request after renewing a session if an
-/// UNAUTHORIZED response is returned,
-macro_rules! retry {
-    ($future:expr, $client:expr) => {{
-        let future = $future();
-        let maybe_retry = future.await?;
-
-        match maybe_retry {
-            MaybeRetry::Retry(status) => {
-                if status == StatusCode::UNAUTHORIZED && $client.has_session()
-                {
-                    tracing::debug!("renew client session");
-                    $client.authenticate().await?;
-                    let future = $future();
-                    let maybe_retry = future.await?;
-                    match maybe_retry {
-                        MaybeRetry::Retry(status) => {
-                            if status == StatusCode::UNAUTHORIZED {
-                                return Err(Error::NotAuthorized);
-                            } else {
-                                return Err(Error::ResponseCode(
-                                    status.into(),
-                                ));
-                            }
-                        }
-                        MaybeRetry::Complete(status, result) => {
-                            (status, result)
-                        }
-                    }
-                } else {
-                    return Err(Error::NotAuthorized);
-                }
-            }
-            MaybeRetry::Complete(status, result) => (status, result),
-        }
-    }};
-}
 
 fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -118,99 +77,179 @@ pub fn ensure_user_vaults_dir<D: AsRef<Path>>(
 ///
 /// May be backed by files on disc or in-memory implementations
 /// for use in webassembly.
-pub struct NodeCache<W, P> {
+pub struct RemoteProvider<W, P> {
     /// State of this node.
     state: ProviderState,
+
     /// Client to use for server communication.
     client: RpcClient,
-    /// Directory for the user cache.
+
+    /// Directories for file storage.
     ///
-    /// Only available when using disc backing storage.
-    user_dir: Option<PathBuf>,
+    /// For memory based storage the paths will be empty.
+    dirs: StorageDirs,
+
     /// Data for the cache.
     cache: HashMap<Uuid, (W, P)>,
-    /// Mirror WAL files and in-memory contents to vault files
-    mirror: bool,
+
     /// Snapshots manager for WAL files.
     ///
     /// Only available when using disc backing storage.
     snapshots: Option<SnapShotManager>,
 }
 
-impl<W, P> NodeCache<W, P>
+#[cfg(not(target_arch = "wasm32"))]
+impl RemoteProvider<WalFile, PatchFile> {
+    /// Create new node cache backed by files on disc.
+    pub fn new_file_cache<D: AsRef<Path>>(
+        client: RpcClient,
+        dirs: StorageDirs,
+    ) -> Result<RemoteProvider<WalFile, PatchFile>> {
+        if !dirs.documents_dir().is_dir() {
+            return Err(Error::NotDirectory(
+                dirs.documents_dir().to_path_buf(),
+            ));
+        }
+
+        //let user_dir = ensure_user_vaults_dir(cache_dir, &signer)?;
+
+        let snapshots = Some(SnapShotManager::new(dirs.user_dir())?);
+        Ok(Self {
+            state: ProviderState::new(false),
+            cache: Default::default(),
+            client,
+            dirs,
+            snapshots,
+        })
+    }
+}
+
+impl RemoteProvider<WalMemory, PatchMemory<'static>> {
+    /// Create new node cache backed by memory.
+    pub fn new_memory_cache(
+        client: RpcClient,
+    ) -> RemoteProvider<WalMemory, PatchMemory<'static>> {
+        Self {
+            state: ProviderState::new(false),
+            cache: Default::default(),
+            dirs: Default::default(),
+            client,
+            snapshots: None,
+        }
+    }
+}
+
+#[async_trait]
+impl<W, P> StorageProvider<W, P> for RemoteProvider<W, P>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-    /// Get the vault summaries for this cache.
-    pub fn vaults(&self) -> &[Summary] {
-        self.state.summaries()
+    fn state(&self) -> &ProviderState {
+        &self.state
     }
 
-    /// Get the snapshot manager for this cache.
-    pub fn snapshots(&self) -> Option<&SnapShotManager> {
-        self.snapshots.as_ref()
+    fn state_mut(&mut self) -> &mut ProviderState {
+        &mut self.state
     }
 
-    /// Get the signer for this node cache.
-    pub fn signer(&self) -> &BoxedSigner {
-        self.client.signer()
+    fn dirs(&self) -> &StorageDirs {
+        &self.dirs
     }
 
-    /// Get the client.
-    pub fn client(&self) -> &RpcClient {
-        &self.client
+    fn cache(&self) -> &HashMap<VaultId, (W, P)> {
+        &self.cache
     }
 
-    /// Attempt to open an authenticated, encrypted session.
-    ///
-    /// Must be called before using any other methods that
-    /// communicate over the network to prepare the client session.
-    pub async fn authenticate(&mut self) -> Result<()> {
+    fn cache_mut(&mut self) -> &mut HashMap<VaultId, (W, P)> {
+        &mut self.cache
+    }
+
+    async fn create_account(
+        &mut self,
+        name: Option<String>,
+        passphrase: Option<String>,
+    ) -> Result<(SecretString, Summary)> {
+        self.create(name, passphrase, true).await
+    }
+
+    async fn create_vault(
+        &mut self,
+        name: String,
+        passphrase: Option<String>,
+    ) -> Result<(SecretString, Summary)> {
+        self.create(Some(name), passphrase, false).await
+    }
+
+    async fn authenticate(&mut self) -> Result<()> {
         Ok(self.client.authenticate().await?)
     }
 
-    /// Take a snapshot of the WAL for the given vault.
-    ///
-    /// Snapshots must be enabled.
-    pub fn take_snapshot(
-        &self,
-        summary: &Summary,
-    ) -> Result<(SnapShot, bool)> {
-        let snapshots =
-            self.snapshots.as_ref().ok_or(Error::SnapshotsNotEnabled)?;
-        let (wal, _) = self
-            .cache
-            .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
-        Ok(snapshots.create(summary.id(), wal.path(), root_hash)?)
+    async fn load_vaults(&mut self) -> Result<&[Summary]> {
+        let (_, summaries) =
+            retry!(|| self.client.list_vaults(), &mut self.client);
+
+        self.load_caches(&summaries)?;
+        self.state.set_summaries(summaries);
+        Ok(self.vaults())
     }
 
-    /// Get the history for a WAL provider.
-    pub fn history(
-        &self,
+    async fn patch_vault(
+        &mut self,
         summary: &Summary,
-    ) -> Result<Vec<(W::Item, WalEvent<'_>)>> {
-        let (wal, _) = self
-            .cache
-            .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let mut records = Vec::new();
-        for record in wal.iter()? {
-            let record = record?;
-            let event = wal.event_data(&record)?;
-            records.push((record, event));
+        events: Vec<SyncEvent<'_>>,
+    ) -> Result<()> {
+        let status = self.patch_wal(summary, events).await?;
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+        Ok(())
+    }
+
+    async fn set_vault_name(
+        &mut self,
+        summary: &Summary,
+        name: &str,
+    ) -> Result<()> {
+        let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
+        let status = self.patch_wal(summary, vec![event]).await?;
+        if status.is_success() {
+            for item in self.state.summaries_mut().iter_mut() {
+                if item.id() == summary.id() {
+                    item.set_name(name.to_string());
+                }
+            }
+            Ok(())
+        } else {
+            Err(Error::ResponseCode(status.into()))
         }
-        Ok(records)
     }
 
-    /// Change the password for a vault.
-    ///
-    /// If the target vault is the currently selected vault
-    /// the currently selected vault is unlocked with the new
-    /// passphrase on success.
-    pub async fn change_password(
+    async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
+        // Attempt to delete on the remote server
+        let (status, _) = retry!(
+            || self.client.delete_vault(summary.id()),
+            &mut self.client
+        );
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
+        // Remove local state
+        self.remove_local_cache(summary).await?;
+        Ok(())
+    }
+
+    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+        let (old_size, new_size) =
+            StorageProvider::<W, P>::compact(self, summary).await?;
+        self.force_push(summary).await?;
+        Ok((old_size, new_size))
+    }
+
+    async fn change_password(
         &mut self,
         vault: &Vault,
         current_passphrase: SecretString,
@@ -235,42 +274,43 @@ where
         Ok(new_passphrase)
     }
 
-    /// Verify a WAL log.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn verify(&self, summary: &Summary) -> Result<()> {
-        use sos_core::commit_tree::wal_commit_tree_file;
-        let wal_path = self.wal_path(summary);
-        wal_commit_tree_file(&wal_path, true, |_| {})?;
-        Ok(())
+    async fn get_wal_vault(&mut self, summary: &Summary) -> Result<Vault> {
+        // Fetch latest version of the WAL content
+        self.pull_wal(summary).await?;
+        StorageProvider::<W, P>::get_wal_vault(self, summary).await
+    }
+}
+
+impl<W, P> RemoteProvider<W, P>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
+    /// Get the snapshot manager for this cache.
+    pub fn snapshots(&self) -> Option<&SnapShotManager> {
+        self.snapshots.as_ref()
     }
 
-    /// Verify a WAL log.
-    #[cfg(target_arch = "wasm32")]
-    pub fn verify(&self, _summary: &Summary) -> Result<()> {
-        // NOTE: verify is a noop in WASM when the records
-        // NOTE: are stored in memory
-        Ok(())
+    /// Get the client.
+    pub fn client(&self) -> &RpcClient {
+        &self.client
     }
 
-    /// Compact a WAL provider.
-    pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+    /// Take a snapshot of the WAL for the given vault.
+    ///
+    /// Snapshots must be enabled.
+    pub fn take_snapshot(
+        &self,
+        summary: &Summary,
+    ) -> Result<(SnapShot, bool)> {
+        let snapshots =
+            self.snapshots.as_ref().ok_or(Error::SnapshotsNotEnabled)?;
         let (wal, _) = self
             .cache
-            .get_mut(summary.id())
+            .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-        let (compact_wal, old_size, new_size) = wal.compact()?;
-
-        // Need to recreate the WAL file and load the updated
-        // commit tree
-        *wal = compact_wal;
-
-        self.force_push(summary).await?;
-
-        // Refresh in-memory vault and mirrored copy
-        self.refresh_vault(summary, None)?;
-
-        Ok((old_size, new_size))
+        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
+        Ok(snapshots.create(summary.id(), wal.path(), root_hash)?)
     }
 
     /// Respond to a change notification.
@@ -309,7 +349,7 @@ where
                 match action {
                     ChangeAction::Pull(_) => {
                         let tree = self
-                            .wal_tree(summary)
+                            .commit_tree(summary)
                             .ok_or(sos_core::Error::NoRootCommit)?;
 
                         let head = tree.head()?;
@@ -349,7 +389,7 @@ where
                         }
                     }
                     ChangeAction::Remove(_) => {
-                        self.remove_local_cache(summary)?;
+                        self.remove_local_cache(summary).await?;
                     }
                     _ => {}
                 }
@@ -373,62 +413,10 @@ where
         Ok((self_change, actions))
     }
 
-    /// List the vault summaries on a remote node.
-    pub async fn list_vaults(&mut self) -> Result<&[Summary]> {
-        let (_, summaries) =
-            retry!(|| self.client.list_vaults(), &mut self.client);
-
-        self.load_caches(&summaries)?;
-
-        self.state.set_summaries(summaries);
-
-        Ok(self.vaults())
-    }
-
-    /// Get the state for this node cache.
-    pub fn state(&self) -> &ProviderState {
-        &self.state
-    }
-
-    /// Create a new account and default login vault.
-    pub async fn create_account(
-        &mut self,
-        name: Option<String>,
-    ) -> Result<(SecretString, Summary)> {
-        self.create(name, None, true).await
-    }
-
-    /// Create a new vault.
-    pub async fn create_vault(
-        &mut self,
-        name: String,
-        passphrase: Option<String>,
-    ) -> Result<(SecretString, Summary)> {
-        self.create(Some(name), passphrase, false).await
-    }
-
-    /// Remove a vault.
-    pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
-        // Attempt to delete on the remote server
-        let (status, _) = retry!(
-            || self.client.delete_vault(summary.id()),
-            &mut self.client
-        );
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
-
-        // Remove local state
-        self.remove_local_cache(summary)?;
-
-        Ok(())
-    }
-
     /// Add to the local cache for a vault.
     fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
         // Add to our cache of managed vaults
-        self.init_local_cache(&summary, None)?;
+        self.create_cache_entry(&summary, None)?;
 
         // Add to the state of managed vaults
         self.state.add_summary(summary);
@@ -437,7 +425,7 @@ where
     }
 
     /// Remove the local cache for a vault.
-    fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
+    async fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
         let current_id = self.current().map(|c| c.id().clone());
 
         // If the deleted vault is the currently selected
@@ -449,7 +437,7 @@ where
         }
 
         // Remove a mirrored vault file if it exists
-        self.remove_vault_file(summary)?;
+        self.remove_vault_file(summary).await?;
 
         // Remove from our cache of managed vaults
         self.cache.remove(summary.id());
@@ -458,26 +446,6 @@ where
         self.state.remove_summary(summary);
 
         Ok(())
-    }
-
-    /// Attempt to set the vault name on the remote node.
-    pub async fn set_vault_name(
-        &mut self,
-        summary: &Summary,
-        name: &str,
-    ) -> Result<()> {
-        let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
-        let status = self.patch_wal(summary, vec![event]).await?;
-        if status.is_success() {
-            for item in self.state.summaries_mut().iter_mut() {
-                if item.id() == summary.id() {
-                    item.set_name(name.to_string());
-                }
-            }
-            Ok(())
-        } else {
-            Err(Error::ResponseCode(status.into()))
-        }
     }
 
     /// Get a comparison between a local WAL and remote WAL.
@@ -574,68 +542,6 @@ where
         wal.apply(events, Some(CommitHash(*server_proof.root())))?;
 
         Ok(())
-    }
-
-    /// Load a vault, unlock it and set it as the current vault.
-    pub async fn open_vault(
-        &mut self,
-        summary: &Summary,
-        passphrase: &str,
-    ) -> Result<()> {
-        let vault = self.get_wal_vault(summary).await?;
-
-        let vault_path = self.vault_path(summary);
-
-        /*
-        let vault_path = if self.mirror {
-            let vault_path = self.vault_path(summary);
-            if !vault_path.exists() {
-                let buffer = encode(&vault)?;
-                self.write_vault_mirror(summary, &buffer)?;
-            }
-            Some(vault_path)
-        } else {
-            None
-        };
-        */
-
-        self.state.open_vault(passphrase, vault, vault_path)?;
-        Ok(())
-    }
-
-    /// Close the currently selected vault.
-    pub fn close_vault(&mut self) {
-        self.state.close_vault();
-    }
-
-    /// Get the current in-memory vault access.
-    pub fn current(&self) -> Option<&Gatekeeper> {
-        self.state.current()
-    }
-
-    /// Get a mutable reference to the current in-memory vault access.
-    pub fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
-        self.state.current_mut()
-    }
-
-    /// Apply changes to a vault.
-    pub async fn patch_vault(
-        &mut self,
-        summary: &Summary,
-        events: Vec<SyncEvent<'_>>,
-    ) -> Result<()> {
-        let status = self.patch_wal(summary, events).await?;
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
-        Ok(())
-    }
-
-    /// Get a reference to the commit tree for a WAL file.
-    pub fn wal_tree(&self, summary: &Summary) -> Option<&CommitTree> {
-        self.cache.get(summary.id()).map(|(wal, _)| wal.tree())
     }
 
     /// Download changes from the remote server.
@@ -756,61 +662,7 @@ where
             Ok(info)
         }
     }
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-impl NodeCache<WalFile, PatchFile> {
-    /// Create new node cache backed by files on disc.
-    pub fn new_file_cache<D: AsRef<Path>>(
-        server: Url,
-        cache_dir: D,
-        signer: BoxedSigner,
-    ) -> Result<NodeCache<WalFile, PatchFile>> {
-        if !cache_dir.as_ref().is_dir() {
-            return Err(Error::NotDirectory(
-                cache_dir.as_ref().to_path_buf(),
-            ));
-        }
-
-        let user_dir = ensure_user_vaults_dir(cache_dir, &signer)?;
-
-        let snapshots = Some(SnapShotManager::new(&user_dir)?);
-        let client = RpcClient::new(server, signer);
-
-        Ok(Self {
-            state: ProviderState::new(true),
-            client,
-            user_dir: Some(user_dir),
-            cache: Default::default(),
-            mirror: true,
-            snapshots,
-        })
-    }
-}
-
-impl NodeCache<WalMemory, PatchMemory<'static>> {
-    /// Create new node cache backed by memory.
-    pub fn new_memory_cache(
-        server: Url,
-        signer: BoxedSigner,
-    ) -> NodeCache<WalMemory, PatchMemory<'static>> {
-        let client = RpcClient::new(server, signer);
-        Self {
-            state: ProviderState::new(false),
-            client,
-            user_dir: None,
-            cache: Default::default(),
-            mirror: false,
-            snapshots: None,
-        }
-    }
-}
-
-impl<W, P> NodeCache<W, P>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
     /// Create a new account or vault.
     async fn create(
         &mut self,
@@ -818,11 +670,12 @@ where
         passphrase: Option<String>,
         is_account: bool,
     ) -> Result<(SecretString, Summary)> {
-        let (passphrase, vault, buffer) = self.new_vault(name, passphrase)?;
+        let (passphrase, vault, buffer) =
+            Vault::new_buffer(name, passphrase)?;
         let summary = vault.summary().clone();
 
-        if self.mirror {
-            self.write_vault_mirror(&summary, &buffer)?;
+        if self.state().mirror() {
+            self.write_vault_file(&summary, &buffer)?;
         }
 
         let status = if is_account {
@@ -848,109 +701,9 @@ where
         self.state.add_summary(summary.clone());
 
         // Initialize the local cache for WAL and Patch
-        self.init_local_cache(&summary, Some(vault))?;
+        self.create_cache_entry(&summary, Some(vault))?;
 
         Ok((passphrase, summary))
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn write_vault_mirror(
-        &self,
-        summary: &Summary,
-        buffer: &[u8],
-    ) -> Result<()> {
-        let vault_path = self.vault_path(&summary);
-        let mut file = std::fs::File::create(vault_path)?;
-        file.write_all(buffer)?;
-        Ok(())
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn write_vault_mirror(
-        &self,
-        _summary: &Summary,
-        _buffer: &[u8],
-    ) -> Result<()> {
-        Ok(())
-    }
-
-    fn new_vault(
-        &self,
-        name: Option<String>,
-        passphrase: Option<String>,
-    ) -> Result<(SecretString, Vault, Vec<u8>)> {
-        let passphrase = if let Some(passphrase) = passphrase {
-            secrecy::Secret::new(passphrase)
-        } else {
-            let (passphrase, _) = generate_passphrase()?;
-            passphrase
-        };
-        let mut vault: Vault = Default::default();
-        if let Some(name) = name {
-            vault.set_name(name);
-        }
-        vault.initialize(passphrase.expose_secret())?;
-        let buffer = encode(&vault)?;
-        Ok((passphrase, vault, buffer))
-    }
-
-    fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
-        for summary in summaries {
-            // Ensure we don't overwrite existing data
-            if self.cache.get(summary.id()).is_none() {
-                self.init_local_cache(summary, None)?;
-            }
-        }
-        Ok(())
-    }
-
-    fn init_local_cache(
-        &mut self,
-        summary: &Summary,
-        vault: Option<Vault>,
-    ) -> Result<()> {
-        let patch_path = self.patch_path(summary);
-        let patch_file = P::new(patch_path)?;
-
-        let wal_path = self.wal_path(summary);
-        let mut wal = W::new(&wal_path)?;
-
-        if let Some(vault) = &vault {
-            let encoded = encode(vault)?;
-            let event = WalEvent::CreateVault(Cow::Owned(encoded));
-            wal.append_event(event)?;
-        }
-
-        wal.load_tree()?;
-        self.cache.insert(*summary.id(), (wal, patch_file));
-        Ok(())
-    }
-
-    fn wal_path(&self, summary: &Summary) -> PathBuf {
-        if let Some(user_dir) = &self.user_dir {
-            let wal_name = format!("{}.{}", summary.id(), WAL_EXT);
-            user_dir.join(&wal_name)
-        } else {
-            PathBuf::from("/dev/memory/wal")
-        }
-    }
-
-    fn vault_path(&self, summary: &Summary) -> PathBuf {
-        if let Some(user_dir) = &self.user_dir {
-            let wal_name = format!("{}.{}", summary.id(), Vault::extension());
-            user_dir.join(&wal_name)
-        } else {
-            PathBuf::from("/dev/memory/vault")
-        }
-    }
-
-    fn patch_path(&self, summary: &Summary) -> PathBuf {
-        if let Some(user_dir) = &self.user_dir {
-            let patch_name = format!("{}.{}", summary.id(), PATCH_EXT);
-            user_dir.join(&patch_name)
-        } else {
-            PathBuf::from("/dev/memory/patch")
-        }
     }
 
     /// Fetch the remote WAL file.
@@ -1049,22 +802,6 @@ where
             }
             _ => Err(Error::ResponseCode(status.into())),
         }
-    }
-
-    /// Load a vault by attempting to fetch the WAL file and caching
-    /// the result on disc then building an in-memory vault from the WAL.
-    async fn get_wal_vault(&mut self, summary: &Summary) -> Result<Vault> {
-        // Fetch latest version of the WAL content
-        self.pull_wal(summary).await?;
-
-        // Reduce the WAL to a vault
-        let wal = self
-            .cache
-            .get_mut(summary.id())
-            .map(|(w, _)| w)
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let vault = WalReducer::new().reduce(wal)?.build()?;
-        Ok(vault)
     }
 
     /// Attempt to patch a remote WAL file.
@@ -1174,57 +911,9 @@ where
         }
     }
 
-    // Refresh the in-memory vault of the current selection
-    // from the contents of the current WAL file.
-    fn refresh_vault(
-        &mut self,
-        summary: &Summary,
-        new_passphrase: Option<&SecretString>,
-    ) -> Result<()> {
-        let wal = self
-            .cache
-            .get_mut(summary.id())
-            .map(|(w, _)| w)
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let vault = WalReducer::new().reduce(wal)?.build()?;
-
-        let mirror = self.mirror;
-        let _vault_path = self.vault_path(summary);
-
-        // Rewrite the on-disc version if we are mirroring
-        if mirror {
-            let buffer = encode(&vault)?;
-            self.write_vault_mirror(summary, &buffer)?;
-        }
-
-        if let Some(keeper) = self.current_mut() {
-            if keeper.id() == summary.id() {
-                // Update the in-memory version
-
-                let new_key = if let Some(new_passphrase) = new_passphrase {
-                    if let Some(salt) = vault.salt() {
-                        let salt = SecretKey::parse_salt(salt)?;
-                        let private_key = SecretKey::derive_32(
-                            new_passphrase.expose_secret(),
-                            &salt,
-                        )?;
-                        Some(private_key)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-
-                keeper.replace_vault(vault, new_key)?;
-            }
-        }
-        Ok(())
-    }
-
     async fn force_pull(&mut self, summary: &Summary) -> Result<CommitProof> {
         // Noop on wasm32
-        self.backup_vault_file(summary)?;
+        self.backup_vault_file(summary).await?;
 
         let (wal, _) = self
             .cache
@@ -1241,7 +930,7 @@ where
         }
 
         // Noop on wasm32
-        remove_file(wal.path())?;
+        fs_adapter::remove_file(wal.path()).await?;
 
         // Need to recreate the WAL file correctly before pulling
         // as pull_wal() expects the file to exist
@@ -1321,61 +1010,4 @@ where
             Ok(())
         }
     }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
-        use sos_core::constants::VAULT_BACKUP_EXT;
-
-        // Move our cached vault to a backup
-        let vault_path = self.vault_path(summary);
-
-        if vault_path.exists() {
-            let mut vault_backup = vault_path.clone();
-            vault_backup.set_extension(VAULT_BACKUP_EXT);
-            std::fs::rename(&vault_path, &vault_backup)?;
-            tracing::debug!(
-                vault = ?vault_path, backup = ?vault_backup, "vault backup");
-        }
-
-        Ok(())
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn backup_vault_file(&self, _summary: &Summary) -> Result<()> {
-        Ok(())
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
-        // Remove local vault mirror if it exists
-        let vault_path = self.vault_path(summary);
-        if vault_path.exists() {
-            std::fs::remove_file(vault_path)?;
-        }
-
-        // Rename the local WAL file so recovery is still possible
-        let wal_path = self.vault_path(summary);
-        if wal_path.exists() {
-            let mut wal_path_backup = wal_path.clone();
-            wal_path_backup.set_extension(WAL_DELETED_EXT);
-            std::fs::rename(wal_path, wal_path_backup)?;
-        }
-        Ok(())
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
-        Ok(())
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn remove_file(file: &PathBuf) -> Result<()> {
-    std::fs::remove_file(file)?;
-    Ok(())
-}
-
-#[cfg(target_arch = "wasm32")]
-fn remove_file(_file: &PathBuf) -> Result<()> {
-    Ok(())
 }
