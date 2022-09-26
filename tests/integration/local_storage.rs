@@ -3,13 +3,10 @@ use anyhow::Result;
 use tempfile::tempdir;
 
 use secrecy::ExposeSecret;
-use sos_core::{
-    signer::SingleParty, wal::WalProvider,
-    PatchProvider,
-};
-use sos_node::client::local_storage::LocalStorage;
+use sos_core::{signer::SingleParty, wal::WalProvider, PatchProvider};
+use sos_node::client::{local_storage::LocalStorage, StorageProvider};
 
-fn run_local_storage_tests<W, P>(
+async fn run_local_storage_tests<W, P>(
     storage: &mut LocalStorage<W, P>,
 ) -> Result<()>
 where
@@ -17,7 +14,7 @@ where
     P: PatchProvider + Send + Sync + 'static,
 {
     // Create an account with default login vault
-    let (passphrase, _) = storage.create_account(None, None)?;
+    let (passphrase, _) = storage.create_account(None, None).await?;
 
     let mut summaries = storage.vaults().to_vec();
     assert_eq!(1, summaries.len());
@@ -25,7 +22,7 @@ where
     assert_eq!("Login", summary.name());
 
     // Rename a vault
-    storage.set_vault_name(&summary, "MockVault")?;
+    storage.set_vault_name(&summary, "MockVault").await?;
     let mut summaries = storage.vaults().to_vec();
     let summary = summaries.remove(0);
     assert_eq!("MockVault", summary.name());
@@ -39,18 +36,18 @@ where
     Ok(())
 }
 
-#[test]
-fn integration_local_storage_memory() -> Result<()> {
+#[tokio::test]
+async fn integration_local_storage_memory() -> Result<()> {
     let mut storage = LocalStorage::new_memory_storage();
-    run_local_storage_tests(&mut storage)?;
+    run_local_storage_tests(&mut storage).await?;
     Ok(())
 }
 
-#[test]
-fn integration_local_storage_file() -> Result<()> {
+#[tokio::test]
+async fn integration_local_storage_file() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let mut storage = LocalStorage::new_file_storage(signer, dir.path())?;
-    run_local_storage_tests(&mut storage)?;
+    run_local_storage_tests(&mut storage).await?;
     Ok(())
 }

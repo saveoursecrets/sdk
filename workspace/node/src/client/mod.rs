@@ -20,12 +20,15 @@ pub mod net;
 pub mod node_cache;
 pub mod node_state;
 pub mod spot;
+pub mod storage;
 
 mod error;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use changes_listener::ChangesListener;
 pub use error::Error;
+
+pub use storage::StorageProvider;
 
 /// Result type for the client module.
 pub type Result<T> = std::result::Result<T, error::Error>;
