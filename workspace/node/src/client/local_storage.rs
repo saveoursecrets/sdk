@@ -6,15 +6,13 @@ use async_trait::async_trait;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
-    constants::{PATCH_EXT, WAL_EXT, WAL_IDENTITY},
+    constants::{PATCH_EXT, WAL_EXT, WAL_IDENTITY, VAULTS_DIR},
     crypto::secret_key::SecretKey,
     encode,
     events::{
         ChangeAction, ChangeEvent, ChangeNotification, SyncEvent, WalEvent,
     },
     generate_passphrase,
-    secret::SecretRef,
-    signer::BoxedSigner,
     vault::{Header, Summary, Vault},
     wal::{
         memory::WalMemory,
@@ -44,35 +42,33 @@ use crate::{
     sync::{SyncInfo, SyncKind, SyncStatus},
 };
 
-#[cfg(not(target_arch = "wasm32"))]
-/// Ensure a directory for a user's vaults.
-pub fn ensure_user_vaults_dir<D: AsRef<Path>>(
-    cache_dir: D,
-    signer: &BoxedSigner,
-) -> Result<PathBuf> {
-    use sos_core::constants::VAULTS_DIR;
-    let address = signer.address()?;
-    let vaults_dir = cache_dir.as_ref().join(VAULTS_DIR);
-    let user_dir = vaults_dir.join(address.to_string());
-    std::fs::create_dir_all(&user_dir)?;
-    Ok(user_dir)
-}
-
 /// Local storage for a node.
 ///
 /// May be backed by files on disc or in-memory implementations
 /// for use in webassembly.
 pub struct LocalStorage<W, P> {
-    /// State of this node.
+    /// State of this storage.
     state: NodeState,
-    /// Directory for the user cache.
+
+    /// Directory for file storage.
     ///
-    /// Only available when using disc backing storage.
-    user_dir: Option<PathBuf>,
-    /// Data for the cache.
+    /// Only available when using disc backing storage; for 
+    /// memory based storage this will be an empty path.
+    storage_dir: PathBuf,
+
+    /// Identifier for the user so that storage is 
+    /// segregated by user identifier.
+    ///
+    /// The value should match the address of the
+    /// user's signing key.
+    user_id: String,
+
+    /// Cache for WAL and patch providers.
     cache: HashMap<Uuid, (W, P)>,
+
     /// Mirror in-memory contents to vault files.
     mirror: bool,
+
     /// Snapshot manager for WAL files.
     ///
     /// Only available when using disc backing storage.
@@ -89,16 +85,12 @@ where
         &self.state
     }
 
-    fn vaults(&self) -> &[Summary] {
-        self.state.summaries()
+    fn state_mut(&mut self) -> &mut NodeState {
+        &mut self.state
     }
 
-    fn current(&self) -> Option<&Gatekeeper> {
-        self.state.current()
-    }
-
-    fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
-        self.state.current_mut()
+    fn storage_dir(&self) -> PathBuf {
+        self.storage_dir.join(&self.user_id).join(VAULTS_DIR)
     }
 
     fn history(
@@ -166,7 +158,7 @@ where
         name: Option<String>,
         passphrase: Option<String>,
     ) -> Result<(SecretString, Summary)> {
-        self.create(name, passphrase, true)
+        self.create(name, passphrase, true).await
     }
 
     async fn create_vault(
@@ -174,7 +166,7 @@ where
         name: String,
         passphrase: Option<String>,
     ) -> Result<(SecretString, Summary)> {
-        self.create(Some(name), passphrase, false)
+        self.create(Some(name), passphrase, false).await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -193,11 +185,8 @@ where
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
-        todo!("Remove the WAL and vault files...");
-
         // Remove local state
         self.remove_local_cache(summary).await?;
-
         Ok(())
     }
 
@@ -252,6 +241,20 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Ensure a directory for a user's vaults.
+    pub async fn ensure_dir(&self) -> Result<()> {
+        tokio::fs::create_dir_all(self.storage_dir()).await?;
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    /// Ensure a directory for a user's vaults.
+    pub async fn ensure_dir(&self) -> Result<()> {
+        Ok(())
+    }
+
     /// Get the snapshot manager for this cache.
     pub fn snapshots(&self) -> Option<&SnapShotManager> {
         self.snapshots.as_ref()
@@ -301,6 +304,9 @@ where
 
     /// Remove the local cache for a vault.
     async fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
+        // Remove a mirrored vault file if it exists
+        self.remove_vault_file(summary).await?;
+
         let current_id = self.current().map(|c| c.id().clone());
 
         // If the deleted vault is the currently selected
@@ -310,9 +316,6 @@ where
                 self.close_vault();
             }
         }
-
-        // Remove a mirrored vault file if it exists
-        self.remove_vault_file(summary).await?;
 
         // Remove from our cache of managed vaults
         self.cache.remove(summary.id());
@@ -378,8 +381,7 @@ where
             .get_mut(summary.id())
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let vault = WalReducer::new().reduce(wal)?.build()?;
-        Ok(vault)
+        Ok(WalReducer::new().reduce(wal)?.build()?)
     }
 
     /// Get a reference to the commit tree for a WAL file.
@@ -392,21 +394,29 @@ where
 impl LocalStorage<WalFile, PatchFile> {
     /// Create new node cache backed by files on disc.
     pub fn new_file_storage<D: AsRef<Path>>(
-        signer: BoxedSigner,
-        cache_dir: D,
+        storage_dir: D,
+        user_id: String,
     ) -> Result<LocalStorage<WalFile, PatchFile>> {
-        if !cache_dir.as_ref().is_dir() {
+        if !storage_dir.as_ref().is_dir() {
             return Err(Error::NotDirectory(
-                cache_dir.as_ref().to_path_buf(),
+                storage_dir.as_ref().to_path_buf(),
             ));
         }
 
-        let user_dir = ensure_user_vaults_dir(cache_dir, &signer)?;
-        let snapshots = Some(SnapShotManager::new(&user_dir)?);
+        let user_dir = storage_dir.as_ref().join(&user_id);
+
+        if !user_dir.exists() {
+            std::fs::create_dir(&user_dir)?;
+        }
+
+        //let user_dir = ensure_user_vaults_dir(cache_dir, &signer)?;
+        let snapshots = Some(
+            SnapShotManager::new(user_dir)?);
 
         Ok(Self {
             state: Default::default(),
-            user_dir: Some(user_dir),
+            storage_dir: storage_dir.as_ref().to_path_buf(),
+            user_id,
             cache: Default::default(),
             mirror: true,
             snapshots,
@@ -420,7 +430,8 @@ impl LocalStorage<WalMemory, PatchMemory<'static>> {
     ) -> LocalStorage<WalMemory, PatchMemory<'static>> {
         Self {
             state: Default::default(),
-            user_dir: None,
+            storage_dir: PathBuf::from(""),
+            user_id: String::new(),
             cache: Default::default(),
             mirror: false,
             snapshots: None,
@@ -434,12 +445,15 @@ where
     P: PatchProvider + Send + Sync + 'static,
 {
     /// Create a new account or vault.
-    fn create(
+    async fn create(
         &mut self,
         name: Option<String>,
         passphrase: Option<String>,
         is_account: bool,
     ) -> Result<(SecretString, Summary)> {
+
+        self.ensure_dir().await?;
+
         let (passphrase, vault, buffer) = self.new_vault(name, passphrase)?;
         let summary = vault.summary().clone();
 
@@ -463,6 +477,7 @@ where
         buffer: &[u8],
     ) -> Result<()> {
         let vault_path = self.vault_path(&summary);
+        // FIXME: use tokio writer?
         let mut file = std::fs::File::create(vault_path)?;
         file.write_all(buffer)?;
         Ok(())
@@ -527,33 +542,6 @@ where
         wal.load_tree()?;
         self.cache.insert(*summary.id(), (wal, patch_file));
         Ok(())
-    }
-
-    fn wal_path(&self, summary: &Summary) -> PathBuf {
-        if let Some(user_dir) = &self.user_dir {
-            let wal_name = format!("{}.{}", summary.id(), WAL_EXT);
-            user_dir.join(&wal_name)
-        } else {
-            PathBuf::from("/dev/memory/wal")
-        }
-    }
-
-    fn vault_path(&self, summary: &Summary) -> PathBuf {
-        if let Some(user_dir) = &self.user_dir {
-            let wal_name = format!("{}.{}", summary.id(), Vault::extension());
-            user_dir.join(&wal_name)
-        } else {
-            PathBuf::from("/dev/memory/vault")
-        }
-    }
-
-    fn patch_path(&self, summary: &Summary) -> PathBuf {
-        if let Some(user_dir) = &self.user_dir {
-            let patch_name = format!("{}.{}", summary.id(), PATCH_EXT);
-            user_dir.join(&patch_name)
-        } else {
-            PathBuf::from("/dev/memory/patch")
-        }
     }
 
     // Refresh the in-memory vault of the current selection
@@ -643,7 +631,7 @@ where
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
+    async fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
         Ok(())
     }
 }

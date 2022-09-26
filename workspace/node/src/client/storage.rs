@@ -1,47 +1,20 @@
 //! Storage provider trait.
-use super::{Error, Result};
 
+use std::path::PathBuf;
 use async_trait::async_trait;
+use secrecy::SecretString;
 
-use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
-    constants::{PATCH_EXT, WAL_EXT, WAL_IDENTITY},
-    crypto::secret_key::SecretKey,
-    encode,
-    events::{
-        ChangeAction, ChangeEvent, ChangeNotification, SyncEvent, WalEvent,
-    },
-    generate_passphrase,
-    secret::SecretRef,
-    signer::BoxedSigner,
+    constants::{PATCH_EXT, WAL_EXT, VAULT_EXT},
     vault::{Header, Summary, Vault},
-    wal::{
-        memory::WalMemory,
-        reducer::WalReducer,
-        snapshot::{SnapShot, SnapShotManager},
-        WalProvider,
-    },
-    ChangePassword, CommitHash, FileIdentity, Gatekeeper, PatchMemory,
+    events::WalEvent,
+    wal::WalProvider,
+    Gatekeeper,
     PatchProvider,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
-use sos_core::{constants::WAL_DELETED_EXT, wal::file::WalFile, PatchFile};
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::{io::Write, path::Path};
-
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
-use uuid::Uuid;
-
 use crate::{
-    client::node_state::NodeState,
-    sync::{SyncInfo, SyncKind, SyncStatus},
+    client::{node_state::NodeState, Result},
 };
 
 /// Trait for storage providers.
@@ -54,14 +27,44 @@ where
     /// Get the state for this storage provider.
     fn state(&self) -> &NodeState;
 
+    /// Get a mutable reference to the state for this storage provider.
+    fn state_mut(&mut self) -> &mut NodeState;
+
+    /// Compute the storage directory for the user.
+    fn storage_dir(&self) -> PathBuf;
+
+    /// Get the path to a WAL file.
+    fn wal_path(&self, summary: &Summary) -> PathBuf {
+        let file_name = format!("{}.{}", summary.id(), WAL_EXT);
+        self.storage_dir().join(&file_name)
+    }
+
+    /// Get the path to a vault file.
+    fn vault_path(&self, summary: &Summary) -> PathBuf {
+        let file_name = format!("{}.{}", summary.id(), VAULT_EXT);
+        self.storage_dir().join(&file_name)
+    }
+
+    /// Get the path to a patch file.
+    fn patch_path(&self, summary: &Summary) -> PathBuf {
+        let file_name = format!("{}.{}", summary.id(), PATCH_EXT);
+        self.storage_dir().join(&file_name)
+    }
+
     /// Get the vault summaries for this storage.
-    fn vaults(&self) -> &[Summary];
+    fn vaults(&self) -> &[Summary] {
+        self.state().summaries()
+    }
 
     /// Get the current in-memory vault access.
-    fn current(&self) -> Option<&Gatekeeper>;
+    fn current(&self) -> Option<&Gatekeeper> {
+        self.state().current()
+    }
 
     /// Get a mutable reference to the current in-memory vault access.
-    fn current_mut(&mut self) -> Option<&mut Gatekeeper>;
+    fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
+        self.state_mut().current_mut()
+    }
 
     /// Get the history of events for a vault.
     fn history(

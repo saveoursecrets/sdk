@@ -3,7 +3,7 @@ use anyhow::Result;
 use tempfile::tempdir;
 
 use secrecy::ExposeSecret;
-use sos_core::{signer::SingleParty, wal::WalProvider, PatchProvider};
+use sos_core::{signer::{SingleParty, Signer}, wal::WalProvider, PatchProvider};
 use sos_node::client::{local_storage::LocalStorage, StorageProvider};
 
 async fn run_local_storage_tests<W, P>(
@@ -47,7 +47,8 @@ async fn integration_local_storage_memory() -> Result<()> {
 async fn integration_local_storage_file() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
-    let mut storage = LocalStorage::new_file_storage(signer, dir.path())?;
+    let user_id = signer.address()?.to_string();
+    let mut storage = LocalStorage::new_file_storage(dir.path(), user_id)?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())
 }
