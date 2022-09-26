@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
     borrow::Cow,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
 };
 
@@ -13,7 +13,7 @@ use sos_core::{
     constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
     crypto::secret_key::SecretKey,
     encode,
-    events::{SyncEvent, WalEvent},
+    events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault, VaultId},
     wal::{
@@ -21,7 +21,7 @@ use sos_core::{
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
-    CommitHash, Gatekeeper, PatchProvider,
+    ChangePassword, CommitHash, Gatekeeper, PatchProvider,
 };
 
 use crate::{
@@ -192,6 +192,14 @@ where
         Ok(records)
     }
 
+    /// Update an existing vault by replacing it with a new vault.
+    async fn update_vault<'a>(
+        &mut self,
+        summary: &Summary,
+        vault: &Vault,
+        events: Vec<WalEvent<'a>>,
+    ) -> Result<()>;
+
     /// Change the password for a vault.
     ///
     /// If the target vault is the currently selected vault
@@ -202,7 +210,32 @@ where
         vault: &Vault,
         current_passphrase: SecretString,
         new_passphrase: SecretString,
-    ) -> Result<SecretString>;
+    ) -> Result<SecretString> {
+        let (new_passphrase, new_vault, wal_events) =
+            ChangePassword::new(vault, current_passphrase, new_passphrase)
+                .build()?;
+
+        self.update_vault(vault.summary(), &new_vault, wal_events)
+            .await?;
+
+        // Refresh the in-memory and disc-based mirror
+        self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
+
+        if let Some(keeper) = self.current_mut() {
+            if keeper.summary().id() == vault.summary().id() {
+                keeper.unlock(new_passphrase.expose_secret())?;
+            }
+        }
+
+        Ok(new_passphrase)
+    }
+
+    //async fn change_password(
+    //&mut self,
+    //vault: &Vault,
+    //current_passphrase: SecretString,
+    //new_passphrase: SecretString,
+    //) -> Result<SecretString>;
 
     /// Compact a WAL file.
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
@@ -358,6 +391,37 @@ where
         Ok(())
     }
 
+    /// Remove the local cache for a vault.
+    async fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
+        let current_id = self.current().map(|c| c.id().clone());
+
+        // If the deleted vault is the currently selected
+        // vault we must close it
+        if let Some(id) = &current_id {
+            if id == summary.id() {
+                self.close_vault();
+            }
+        }
+
+        // Remove from our cache of managed vaults
+        self.cache_mut().remove(summary.id());
+
+        // Remove from the state of managed vaults
+        self.state_mut().remove_summary(summary);
+
+        Ok(())
+    }
+
+    /// Add to the local cache for a vault.
+    fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
+        // Add to our cache of managed vaults
+        self.create_cache_entry(&summary, None)?;
+
+        // Add to the state of managed vaults
+        self.state_mut().add_summary(summary);
+        Ok(())
+    }
+
     /// Create a cache entry for each summary if it does not
     /// already exist.
     fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
@@ -493,6 +557,17 @@ where
         Ok((SyncStatus::Equal(pair), None))
     }
 
+    /// Respond to a change notification.
+    ///
+    /// The return flag indicates whether the change was made
+    /// by this node which is determined by comparing the session
+    /// identifier on the change notification with the current
+    /// session identifier for this node.
+    async fn handle_change(
+        &mut self,
+        change: ChangeNotification,
+    ) -> Result<(bool, HashSet<ChangeAction>)>;
+
     /// Verify a WAL log.
     #[cfg(not(target_arch = "wasm32"))]
     fn verify(&self, summary: &Summary) -> Result<()> {
@@ -582,6 +657,19 @@ where
     /// Remove a vault file and WAL file.
     #[cfg(target_arch = "wasm32")]
     async fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
+        Ok(())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Ensure a directory for a user's vaults.
+    async fn ensure_dir(&self) -> Result<()> {
+        tokio::fs::create_dir_all(self.dirs().vaults_dir()).await?;
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    /// Ensure a directory for a user's vaults.
+    async fn ensure_dir(&self) -> Result<()> {
         Ok(())
     }
 }

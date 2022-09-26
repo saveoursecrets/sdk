@@ -28,10 +28,6 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-    //let (wal, patch_file) = self
-    //.cache
-    //.get(summary.id())
-    //.ok_or(Error::CacheNotAvailable(*summary.id()))?;
     let client_proof = wal_file.tree().head()?;
 
     let (status, (server_proof, match_proof)) = retry!(

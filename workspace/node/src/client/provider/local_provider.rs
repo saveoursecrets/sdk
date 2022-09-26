@@ -7,7 +7,7 @@ use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     constants::VAULT_EXT,
     encode,
-    events::{SyncEvent, WalEvent},
+    events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     vault::{Header, Summary, Vault, VaultId},
     wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider},
     ChangePassword, PatchMemory, PatchProvider,
@@ -16,9 +16,14 @@ use sos_core::{
 #[cfg(not(target_arch = "wasm32"))]
 use sos_core::{wal::file::WalFile, PatchFile};
 
-use std::{borrow::Cow, collections::HashMap};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+};
 
-use crate::client::provider::{ProviderState, StorageDirs, StorageProvider};
+use crate::client::provider::{
+    sync, ProviderState, StorageDirs, StorageProvider,
+};
 
 /// Local storage for a node.
 ///
@@ -113,28 +118,35 @@ where
         self.snapshots.as_ref()
     }
 
-    async fn change_password(
+    async fn handle_change(
         &mut self,
+        change: ChangeNotification,
+    ) -> Result<(bool, HashSet<ChangeAction>)> {
+        let actions = sync::handle_change(self, change).await?;
+        Ok((false, actions))
+    }
+
+    async fn update_vault<'a>(
+        &mut self,
+        summary: &Summary,
         vault: &Vault,
-        current_passphrase: SecretString,
-        new_passphrase: SecretString,
-    ) -> Result<SecretString> {
-        let (new_passphrase, new_vault, wal_events) =
-            ChangePassword::new(vault, current_passphrase, new_passphrase)
-                .build()?;
-
-        self.update_vault(vault.summary(), &new_vault, wal_events)?;
-
-        // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
-
-        if let Some(keeper) = self.current_mut() {
-            if keeper.summary().id() == vault.summary().id() {
-                keeper.unlock(new_passphrase.expose_secret())?;
-            }
+        events: Vec<WalEvent<'a>>,
+    ) -> Result<()> {
+        if self.state().mirror() {
+            // Write the vault to disc
+            let buffer = encode(vault)?;
+            self.write_vault_file(summary, &buffer)?;
         }
 
-        Ok(new_passphrase)
+        // Apply events to the WAL
+        let (wal, _) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        wal.clear()?;
+        wal.apply(events, None)?;
+
+        Ok(())
     }
 
     async fn create_account(
@@ -181,6 +193,9 @@ where
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
+        // Remove the files
+        self.remove_vault_file(summary).await?;
+
         // Remove local state
         self.remove_local_cache(summary).await?;
         Ok(())
@@ -221,54 +236,6 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-    #[cfg(not(target_arch = "wasm32"))]
-    /// Ensure a directory for a user's vaults.
-    pub async fn ensure_dir(&self) -> Result<()> {
-        tokio::fs::create_dir_all(self.dirs().vaults_dir()).await?;
-        Ok(())
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    /// Ensure a directory for a user's vaults.
-    pub async fn ensure_dir(&self) -> Result<()> {
-        Ok(())
-    }
-
-    /// Add to the local cache for a vault.
-    fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
-        // Add to our cache of managed vaults
-        self.create_cache_entry(&summary, None)?;
-
-        // Add to the state of managed vaults
-        self.state.add_summary(summary);
-
-        Ok(())
-    }
-
-    /// Remove the local cache for a vault.
-    async fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
-        // Remove a mirrored vault file if it exists
-        self.remove_vault_file(summary).await?;
-
-        let current_id = self.current().map(|c| c.id().clone());
-
-        // If the deleted vault is the currently selected
-        // vault we must close it
-        if let Some(id) = &current_id {
-            if id == summary.id() {
-                self.close_vault();
-            }
-        }
-
-        // Remove from our cache of managed vaults
-        self.cache.remove(summary.id());
-
-        // Remove from the state of managed vaults
-        self.state.remove_summary(summary);
-
-        Ok(())
-    }
-
     fn patch_wal(
         &mut self,
         summary: &Summary,
@@ -291,31 +258,6 @@ where
         Ok(())
     }
 
-    /// Update an existing vault by saving the new vault
-    /// and WAL events.
-    fn update_vault<'a>(
-        &mut self,
-        summary: &Summary,
-        vault: &Vault,
-        events: Vec<WalEvent<'a>>,
-    ) -> Result<()> {
-        if self.state().mirror() {
-            // Write the vault to disc
-            let buffer = encode(vault)?;
-            self.write_vault_file(summary, &buffer)?;
-        }
-
-        // Apply events to the WAL
-        let (wal, _) = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        wal.clear()?;
-        wal.apply(events, None)?;
-
-        Ok(())
-    }
-
     /// Create a new account or vault.
     async fn create(
         &mut self,
@@ -334,7 +276,7 @@ where
         }
 
         // Add the summary to the vaults we are managing
-        self.state.add_summary(summary.clone());
+        self.state_mut().add_summary(summary.clone());
 
         // Initialize the local cache for WAL and Patch
         self.create_cache_entry(&summary, Some(vault))?;

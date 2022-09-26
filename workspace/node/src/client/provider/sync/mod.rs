@@ -12,11 +12,13 @@ use sos_core::{
 
 use crate::{client::provider::StorageProvider, retry, sync::SyncStatus};
 
+mod change;
 mod patch;
 mod pull;
 mod push;
 mod status;
 
+pub use change::*;
 pub use patch::*;
 pub use pull::*;
 pub use push::*;

@@ -195,7 +195,6 @@ where
         )
         .await?;
 
-        //let status = self.apply_patch(summary, vec![event]).await?;
         if status.is_success() {
             for item in self.state.summaries_mut().iter_mut() {
                 if item.id() == summary.id() {
@@ -219,6 +218,9 @@ where
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
 
+        // Remove the files
+        self.remove_vault_file(summary).await?;
+
         // Remove local state
         self.remove_local_cache(summary).await?;
         Ok(())
@@ -231,29 +233,37 @@ where
         Ok((old_size, new_size))
     }
 
-    async fn change_password(
+    /// Update an existing vault by saving the new vault
+    /// on a remote node.
+    async fn update_vault<'a>(
         &mut self,
+        summary: &Summary,
         vault: &Vault,
-        current_passphrase: SecretString,
-        new_passphrase: SecretString,
-    ) -> Result<SecretString> {
-        let (new_passphrase, new_vault, wal_events) =
-            ChangePassword::new(vault, current_passphrase, new_passphrase)
-                .build()?;
+        events: Vec<WalEvent<'a>>,
+    ) -> Result<()> {
+        let (wal, _) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        self.update_vault(vault.summary(), &new_vault, wal_events)
-            .await?;
+        // Send the new vault to the server
+        let buffer = encode(vault)?;
+        let (status, server_proof) = retry!(
+            || self.client.save_vault(summary.id(), buffer.clone()),
+            &mut self.client
+        );
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
 
-        // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
+        let server_proof = server_proof.ok_or(Error::ServerProof)?;
 
-        if let Some(keeper) = self.current_mut() {
-            if keeper.summary().id() == vault.summary().id() {
-                keeper.unlock(new_passphrase.expose_secret())?;
-            }
-        }
+        // Apply the new WAL events to our local WAL log
+        wal.clear()?;
+        wal.apply(events, Some(CommitHash(*server_proof.root())))?;
 
-        Ok(new_passphrase)
+        Ok(())
     }
 
     async fn get_wal_vault(&mut self, summary: &Summary) -> Result<Vault> {
@@ -326,6 +336,20 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         sync::status(&mut self.client, summary, wal_file, patch_file).await
     }
+
+    async fn handle_change(
+        &mut self,
+        change: ChangeNotification,
+    ) -> Result<(bool, HashSet<ChangeAction>)> {
+        // Was this change notification triggered by us?
+        let self_change = match self.client.session_id() {
+            Ok(id) => &id == change.session_id(),
+            // Maybe the session is no longer available
+            Err(_) => false,
+        };
+        let actions = sync::handle_change(self, change).await?;
+        Ok((self_change, actions))
+    }
 }
 
 impl<W, P> RemoteProvider<W, P>
@@ -333,178 +357,6 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-    /// Get the client.
-    pub fn client(&self) -> &RpcClient {
-        &self.client
-    }
-
-    /// Respond to a change notification.
-    ///
-    /// The return flag indicates whether the change was made
-    /// by this node which is determined by comparing the session
-    /// identifier on the change notification with the current
-    /// session identifier for this node.
-    pub async fn handle_change(
-        &mut self,
-        change: ChangeNotification,
-    ) -> Result<(bool, HashSet<ChangeAction>)> {
-        // Gather actions corresponding to the events
-        let mut actions = HashSet::new();
-        for event in change.changes() {
-            let action = match event {
-                ChangeEvent::CreateVault(summary) => {
-                    ChangeAction::Create(summary.clone())
-                }
-                ChangeEvent::DeleteVault => {
-                    ChangeAction::Remove(*change.vault_id())
-                }
-                _ => ChangeAction::Pull(*change.vault_id()),
-            };
-            actions.insert(action);
-        }
-
-        // Consume and react to the actions
-        for action in &actions {
-            let summary = self
-                .state
-                .find_vault(&SecretRef::Id(*change.vault_id()))
-                .cloned();
-
-            if let Some(summary) = &summary {
-                match action {
-                    ChangeAction::Pull(_) => {
-                        let tree = self
-                            .commit_tree(summary)
-                            .ok_or(sos_core::Error::NoRootCommit)?;
-
-                        let head = tree.head()?;
-
-                        tracing::debug!(
-                            vault_id = ?summary.id(),
-                            change_root = ?change.proof().root_hex(),
-                            root = ?head.root_hex(),
-                            "handle_change");
-
-                        // Looks like the change was made elsewhere
-                        // and we should attempt to sync with the server
-                        if change.proof().root() != head.root() {
-                            let (status, _) = self.status(summary).await?;
-                            match status {
-                                SyncStatus::Behind(_, _) => {
-                                    self.pull(summary, false).await?;
-                                }
-                                SyncStatus::Diverged(_) => {
-                                    if let Some(_) = change
-                                        .changes()
-                                        .into_iter()
-                                        .find(|c| {
-                                            *c == &ChangeEvent::UpdateVault
-                                        })
-                                    {
-                                        // If the trees have diverged and the other
-                                        // node indicated it did an update to the
-                                        // entire vault then we need a force pull to
-                                        // stay in sync
-                                        self.pull(summary, true).await?;
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                    ChangeAction::Remove(_) => {
-                        self.remove_local_cache(summary).await?;
-                    }
-                    _ => {}
-                }
-            } else {
-                match action {
-                    ChangeAction::Create(summary) => {
-                        self.add_local_cache(summary.clone())?;
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        // Was this change notification triggered by us?
-        let self_change = match self.client.session_id() {
-            Ok(id) => &id == change.session_id(),
-            // Maybe the session is no longer available
-            Err(_) => false,
-        };
-
-        Ok((self_change, actions))
-    }
-
-    /// Add to the local cache for a vault.
-    fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
-        // Add to our cache of managed vaults
-        self.create_cache_entry(&summary, None)?;
-
-        // Add to the state of managed vaults
-        self.state.add_summary(summary);
-
-        Ok(())
-    }
-
-    /// Remove the local cache for a vault.
-    async fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
-        let current_id = self.current().map(|c| c.id().clone());
-
-        // If the deleted vault is the currently selected
-        // vault we must close it
-        if let Some(id) = &current_id {
-            if id == summary.id() {
-                self.close_vault();
-            }
-        }
-
-        // Remove a mirrored vault file if it exists
-        self.remove_vault_file(summary).await?;
-
-        // Remove from our cache of managed vaults
-        self.cache.remove(summary.id());
-
-        // Remove from the state of managed vaults
-        self.state.remove_summary(summary);
-
-        Ok(())
-    }
-
-    /// Update an existing vault by saving the new vault
-    /// on a remote node.
-    async fn update_vault<'a>(
-        &mut self,
-        summary: &Summary,
-        vault: &Vault,
-        events: Vec<WalEvent<'a>>,
-    ) -> Result<()> {
-        let (wal, _) = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-        // Send the new vault to the server
-        let buffer = encode(vault)?;
-        let (status, server_proof) = retry!(
-            || self.client.save_vault(summary.id(), buffer.clone()),
-            &mut self.client
-        );
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
-
-        let server_proof = server_proof.ok_or(Error::ServerProof)?;
-
-        // Apply the new WAL events to our local WAL log
-        wal.clear()?;
-        wal.apply(events, Some(CommitHash(*server_proof.root())))?;
-
-        Ok(())
-    }
-
     /// Create a new account or vault.
     async fn create(
         &mut self,

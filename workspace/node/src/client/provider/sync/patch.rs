@@ -126,6 +126,8 @@ where
 
                 if status.is_success() {
 
+                    // FIXME
+
                     /*
                     // If the retry was successful then
                     // we should update the in-memory vault
