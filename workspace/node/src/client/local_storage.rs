@@ -38,7 +38,7 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
-    client::{node_state::NodeState, storage::StorageProvider},
+    client::{node_state::NodeState, storage::{StorageProvider, StorageDirs}},
     sync::{SyncInfo, SyncKind, SyncStatus},
 };
 
@@ -50,18 +50,19 @@ pub struct LocalStorage<W, P> {
     /// State of this storage.
     state: NodeState,
 
-    /// Directory for file storage.
+    /// Directories for file storage.
     ///
-    /// Only available when using disc backing storage; for 
-    /// memory based storage this will be an empty path.
-    storage_dir: PathBuf,
+    /// For memory based storage the paths will be empty.
+    dirs: StorageDirs,
 
+    /*
     /// Identifier for the user so that storage is 
     /// segregated by user identifier.
     ///
     /// The value should match the address of the
     /// user's signing key.
     user_id: String,
+    */
 
     /// Cache for WAL and patch providers.
     cache: HashMap<Uuid, (W, P)>,
@@ -89,8 +90,8 @@ where
         &mut self.state
     }
 
-    fn storage_dir(&self) -> PathBuf {
-        self.storage_dir.join(&self.user_id).join(VAULTS_DIR)
+    fn dirs(&self) -> &StorageDirs {
+        &self.dirs
     }
 
     fn history(
@@ -173,7 +174,7 @@ where
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
         self.ensure_dir().await?;
 
-        let storage = self.storage_dir();
+        let storage = self.dirs().vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = tokio::fs::read_dir(&storage).await?;
         while let Some(entry) = contents.next_entry().await? {
@@ -272,7 +273,7 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     /// Ensure a directory for a user's vaults.
     pub async fn ensure_dir(&self) -> Result<()> {
-        tokio::fs::create_dir_all(self.storage_dir()).await?;
+        tokio::fs::create_dir_all(self.dirs().vaults_dir()).await?;
         Ok(())
     }
 
@@ -408,7 +409,7 @@ impl LocalStorage<WalFile, PatchFile> {
     /// Create new node cache backed by files on disc.
     pub fn new_file_storage<D: AsRef<Path>>(
         storage_dir: D,
-        user_id: String,
+        user_id: &str,
     ) -> Result<LocalStorage<WalFile, PatchFile>> {
         if !storage_dir.as_ref().is_dir() {
             return Err(Error::NotDirectory(
@@ -416,9 +417,11 @@ impl LocalStorage<WalFile, PatchFile> {
             ));
         }
 
-        let user_dir = storage_dir.as_ref().join(&user_id);
+        let dirs = StorageDirs::new(storage_dir, user_id);
+
+        let user_dir = dirs.user_dir();
         if !user_dir.exists() {
-            std::fs::create_dir(&user_dir)?;
+            std::fs::create_dir(user_dir)?;
         }
 
         let snapshots = Some(
@@ -426,9 +429,8 @@ impl LocalStorage<WalFile, PatchFile> {
 
         Ok(Self {
             state: Default::default(),
-            storage_dir: storage_dir.as_ref().to_path_buf(),
-            user_id,
             cache: Default::default(),
+            dirs,
             mirror: true,
             snapshots,
         })
@@ -441,8 +443,7 @@ impl LocalStorage<WalMemory, PatchMemory<'static>> {
     ) -> LocalStorage<WalMemory, PatchMemory<'static>> {
         Self {
             state: Default::default(),
-            storage_dir: PathBuf::from(""),
-            user_id: String::new(),
+            dirs: Default::default(),
             cache: Default::default(),
             mirror: false,
             snapshots: None,

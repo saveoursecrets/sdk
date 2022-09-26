@@ -1,11 +1,11 @@
 //! Storage provider trait.
 
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use async_trait::async_trait;
 use secrecy::SecretString;
 
 use sos_core::{
-    constants::{PATCH_EXT, WAL_EXT, VAULT_EXT},
+    constants::{PATCH_EXT, WAL_EXT, VAULT_EXT, VAULTS_DIR},
     vault::{Header, Summary, Vault},
     events::WalEvent,
     wal::WalProvider,
@@ -16,6 +16,46 @@ use sos_core::{
 use crate::{
     client::{node_state::NodeState, Result},
 };
+
+/// Encapsulates the paths for vault storage.
+#[derive(Default)]
+pub struct StorageDirs {
+    /// Top-level documents folder.
+    documents_dir: PathBuf,
+    /// User segregated storage.
+    user_dir: PathBuf,
+    /// Sub-directory for the vaults.
+    vaults_dir: PathBuf,
+}
+
+impl StorageDirs {
+    /// Create new storage dirs.
+    pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: &str) -> Self {
+        let documents_dir = documents_dir.as_ref().to_path_buf();
+        let user_dir = documents_dir.join(user_id);
+        let vaults_dir =  user_dir.join(VAULTS_DIR);
+        Self {
+            documents_dir,
+            user_dir,
+            vaults_dir,
+        }
+    }
+
+    /// Get the documents storage directory.
+    pub fn documents_dir(&self) -> &PathBuf {
+        &self.documents_dir
+    }
+
+    /// Get the user storage directory.
+    pub fn user_dir(&self) -> &PathBuf {
+        &self.user_dir
+    }
+
+    /// Get the vaults storage directory.
+    pub fn vaults_dir(&self) -> &PathBuf {
+        &self.vaults_dir
+    }
+}
 
 /// Trait for storage providers.
 #[async_trait]
@@ -31,24 +71,24 @@ where
     fn state_mut(&mut self) -> &mut NodeState;
 
     /// Compute the storage directory for the user.
-    fn storage_dir(&self) -> PathBuf;
+    fn dirs(&self) -> &StorageDirs;
 
     /// Get the path to a WAL file.
     fn wal_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), WAL_EXT);
-        self.storage_dir().join(&file_name)
+        self.dirs().vaults_dir().join(&file_name)
     }
 
     /// Get the path to a vault file.
     fn vault_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), VAULT_EXT);
-        self.storage_dir().join(&file_name)
+        self.dirs().vaults_dir().join(&file_name)
     }
 
     /// Get the path to a patch file.
     fn patch_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), PATCH_EXT);
-        self.storage_dir().join(&file_name)
+        self.dirs().vaults_dir().join(&file_name)
     }
 
     /// Get the vault summaries for this storage.

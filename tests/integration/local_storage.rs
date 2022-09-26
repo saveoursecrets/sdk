@@ -48,7 +48,7 @@ async fn integration_local_storage_file() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
-    let mut storage = LocalStorage::new_file_storage(dir.path(), user_id)?;
+    let mut storage = LocalStorage::new_file_storage(dir.path(), &user_id)?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())
 }
