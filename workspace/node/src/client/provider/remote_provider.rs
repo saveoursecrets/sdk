@@ -250,10 +250,14 @@ where
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+        // FIXME: 
+        /*
         let (old_size, new_size) =
             StorageProvider::<W, P>::compact(self, summary).await?;
         self.push(summary, true).await?;
         Ok((old_size, new_size))
+        */
+        todo!()
     }
 
     /// Update an existing vault by saving the new vault
@@ -292,7 +296,10 @@ where
     async fn get_wal_vault(&mut self, summary: &Summary) -> Result<Vault> {
         // Fetch latest version of the WAL content
         self.pull(summary, false).await?;
-        StorageProvider::<W, P>::get_wal_vault(self, summary).await
+
+        // FIXME
+        //StorageProvider::<W, P>::get_wal_vault(self, summary).await
+        todo!()
     }
 
     async fn pull(
