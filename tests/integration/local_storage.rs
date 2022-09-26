@@ -3,7 +3,11 @@ use anyhow::Result;
 use tempfile::tempdir;
 
 use secrecy::ExposeSecret;
-use sos_core::{signer::{SingleParty, Signer}, wal::WalProvider, PatchProvider};
+use sos_core::{
+    signer::{Signer, SingleParty},
+    wal::WalProvider,
+    PatchProvider,
+};
 use sos_node::client::{local_storage::LocalStorage, StorageProvider};
 
 async fn run_local_storage_tests<W, P>(

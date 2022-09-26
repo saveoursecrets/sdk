@@ -1,5 +1,5 @@
 //! Error type for the client module.
-use sos_core::{vault::Summary, CommitHash};
+use sos_core::{vault::Summary, CommitHash, secret::SecretId};
 use std::path::PathBuf;
 use thiserror::Error;
 use uuid::Uuid;
@@ -80,6 +80,15 @@ pub enum Error {
     /// Error generated when a client receives an unauthorized response.
     #[error("not authorized, authentication is required")]
     NotAuthorized,
+
+    /// Error generated attempting to make changes to the current
+    /// vault but no vault is open.
+    #[error("no vault is available, vault must be open")]
+    NoOpenVault,
+
+    /// Error generated when a secret could not be found.
+    #[error(r#"secret "{0}" not found"#)]
+    SecretNotFound(SecretId),
 
     /// Generic boxed error.
     #[error(transparent)]

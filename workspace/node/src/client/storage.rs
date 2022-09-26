@@ -1,21 +1,19 @@
 //! Storage provider trait.
 
-use std::path::{PathBuf, Path};
 use async_trait::async_trait;
 use secrecy::SecretString;
+use std::path::{Path, PathBuf};
 
 use sos_core::{
-    constants::{PATCH_EXT, WAL_EXT, VAULT_EXT, VAULTS_DIR},
+    constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
+    events::{SyncEvent, WalEvent},
+    secret::{Secret, SecretId, SecretMeta},
     vault::{Header, Summary, Vault},
-    events::WalEvent,
     wal::WalProvider,
-    Gatekeeper,
-    PatchProvider,
+    Gatekeeper, PatchProvider,
 };
 
-use crate::{
-    client::{node_state::NodeState, Result},
-};
+use crate::client::{node_state::NodeState, Error, Result};
 
 /// Encapsulates the paths for vault storage.
 #[derive(Default)]
@@ -33,7 +31,7 @@ impl StorageDirs {
     pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: &str) -> Self {
         let documents_dir = documents_dir.as_ref().to_path_buf();
         let user_dir = documents_dir.join(user_id);
-        let vaults_dir =  user_dir.join(VAULTS_DIR);
+        let vaults_dir = user_dir.join(VAULTS_DIR);
         Self {
             documents_dir,
             user_dir,
@@ -166,4 +164,65 @@ where
 
     /// Verify a WAL log.
     fn verify(&self, summary: &Summary) -> Result<()>;
+
+    /// Apply changes to a vault.
+    async fn patch_vault(
+        &mut self,
+        summary: &Summary,
+        events: Vec<SyncEvent<'_>>,
+    ) -> Result<()>;
+
+    /// Create a secret in the currently open vault.
+    async fn create_secret(
+        &mut self,
+        meta: SecretMeta,
+        secret: Secret,
+    ) -> Result<()> {
+        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let summary = keeper.summary().clone();
+        let event = keeper.create(meta, secret)?.into_owned();
+        self.patch_vault(&summary, vec![event]).await?;
+        Ok(())
+    }
+
+    /// Read a secret in the currently open vault.
+    async fn read_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<(SecretMeta, Secret, SyncEvent<'_>)>> {
+        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let summary = keeper.summary().clone();
+        Ok(keeper.read(id)?)
+    }
+
+    /// Update a secret in the currently open vault.
+    async fn update_secret(
+        &mut self,
+        id: &SecretId,
+        mut meta: SecretMeta,
+        secret: Secret,
+    ) -> Result<()> {
+        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let summary = keeper.summary().clone();
+        meta.touch();
+        let event = keeper.update(id, meta, secret)?
+            .ok_or(Error::SecretNotFound(*id))?;
+        let event = event.into_owned();
+        self.patch_vault(&summary, vec![event]).await?;
+        Ok(())
+    }
+
+    /// Delete a secret in the currently open vault.
+    async fn delete_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<()> {
+        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let summary = keeper.summary().clone();
+        let event = keeper.delete(id)?
+            .ok_or(Error::SecretNotFound(*id))?;
+        let event = event.into_owned();
+        self.patch_vault(&summary, vec![event]).await?;
+        Ok(())
+    }
 }

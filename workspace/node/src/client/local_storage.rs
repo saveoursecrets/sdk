@@ -6,14 +6,14 @@ use async_trait::async_trait;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     commit_tree::{CommitPair, CommitProof, CommitTree, Comparison},
-    constants::{PATCH_EXT, WAL_EXT, VAULT_EXT, WAL_IDENTITY, VAULTS_DIR},
+    constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT, WAL_IDENTITY},
     crypto::secret_key::SecretKey,
     encode,
     events::{
         ChangeAction, ChangeEvent, ChangeNotification, SyncEvent, WalEvent,
     },
     generate_passphrase,
-    vault::{Header, Summary, Vault},
+    vault::{Header, Summary, Vault, VaultId},
     wal::{
         memory::WalMemory,
         reducer::WalReducer,
@@ -35,10 +35,12 @@ use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
 };
-use uuid::Uuid;
 
 use crate::{
-    client::{node_state::NodeState, storage::{StorageProvider, StorageDirs}},
+    client::{
+        node_state::NodeState,
+        storage::{StorageDirs, StorageProvider},
+    },
     sync::{SyncInfo, SyncKind, SyncStatus},
 };
 
@@ -55,17 +57,8 @@ pub struct LocalStorage<W, P> {
     /// For memory based storage the paths will be empty.
     dirs: StorageDirs,
 
-    /*
-    /// Identifier for the user so that storage is 
-    /// segregated by user identifier.
-    ///
-    /// The value should match the address of the
-    /// user's signing key.
-    user_id: String,
-    */
-
     /// Cache for WAL and patch providers.
-    cache: HashMap<Uuid, (W, P)>,
+    cache: HashMap<VaultId, (W, P)>,
 
     /// Mirror in-memory contents to vault files.
     mirror: bool,
@@ -185,7 +178,7 @@ where
                     summaries.push(summary);
                 }
             }
-        } 
+        }
 
         self.load_caches(&summaries)?;
         self.state.set_summaries(summaries);
@@ -248,6 +241,16 @@ where
         self.state.close_vault();
     }
 
+    /// Apply changes to a vault.
+    async fn patch_vault(
+        &mut self,
+        summary: &Summary,
+        events: Vec<SyncEvent<'_>>,
+    ) -> Result<()> {
+        self.patch_wal(summary, events)?;
+        Ok(())
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     fn verify(&self, summary: &Summary) -> Result<()> {
         use sos_core::commit_tree::wal_commit_tree_file;
@@ -269,7 +272,6 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-
     #[cfg(not(target_arch = "wasm32"))]
     /// Ensure a directory for a user's vaults.
     pub async fn ensure_dir(&self) -> Result<()> {
@@ -424,8 +426,7 @@ impl LocalStorage<WalFile, PatchFile> {
             std::fs::create_dir(user_dir)?;
         }
 
-        let snapshots = Some(
-            SnapShotManager::new(user_dir)?);
+        let snapshots = Some(SnapShotManager::new(user_dir)?);
 
         Ok(Self {
             state: Default::default(),
@@ -463,7 +464,6 @@ where
         passphrase: Option<String>,
         is_account: bool,
     ) -> Result<(SecretString, Summary)> {
-
         self.ensure_dir().await?;
 
         let (passphrase, vault, buffer) = self.new_vault(name, passphrase)?;
