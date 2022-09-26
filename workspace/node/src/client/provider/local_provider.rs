@@ -39,7 +39,7 @@ use std::{
 use crate::{
     client::{
         node_state::NodeState,
-        storage::{StorageDirs, StorageProvider},
+        provider::{StorageDirs, StorageProvider},
     },
     sync::{SyncInfo, SyncKind, SyncStatus},
 };
@@ -48,7 +48,7 @@ use crate::{
 ///
 /// May be backed by files on disc or in-memory implementations
 /// for use in webassembly.
-pub struct LocalStorage<W, P> {
+pub struct LocalProvider<W, P> {
     /// State of this storage.
     state: NodeState,
 
@@ -70,7 +70,7 @@ pub struct LocalStorage<W, P> {
 }
 
 #[async_trait]
-impl<W, P> StorageProvider<W, P> for LocalStorage<W, P>
+impl<W, P> StorageProvider<W, P> for LocalProvider<W, P>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
@@ -271,7 +271,7 @@ where
     }
 }
 
-impl<W, P> LocalStorage<W, P>
+impl<W, P> LocalProvider<W, P>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
@@ -407,12 +407,12 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl LocalStorage<WalFile, PatchFile> {
+impl LocalProvider<WalFile, PatchFile> {
     /// Create new node cache backed by files on disc.
     pub fn new_file_storage<D: AsRef<Path>>(
         storage_dir: D,
         user_id: &str,
-    ) -> Result<LocalStorage<WalFile, PatchFile>> {
+    ) -> Result<LocalProvider<WalFile, PatchFile>> {
         if !storage_dir.as_ref().is_dir() {
             return Err(Error::NotDirectory(
                 storage_dir.as_ref().to_path_buf(),
@@ -438,10 +438,10 @@ impl LocalStorage<WalFile, PatchFile> {
     }
 }
 
-impl LocalStorage<WalMemory, PatchMemory<'static>> {
+impl LocalProvider<WalMemory, PatchMemory<'static>> {
     /// Create new local storage backed by memory.
     pub fn new_memory_storage(
-    ) -> LocalStorage<WalMemory, PatchMemory<'static>> {
+    ) -> LocalProvider<WalMemory, PatchMemory<'static>> {
         Self {
             state: Default::default(),
             dirs: Default::default(),
@@ -452,7 +452,7 @@ impl LocalStorage<WalMemory, PatchMemory<'static>> {
     }
 }
 
-impl<W, P> LocalStorage<W, P>
+impl<W, P> LocalProvider<W, P>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,

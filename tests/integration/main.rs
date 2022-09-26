@@ -14,7 +14,7 @@ mod compact_force_pull;
 mod handle_change;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod local_storage;
+mod local_provider;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod patch_conflict_resolve;

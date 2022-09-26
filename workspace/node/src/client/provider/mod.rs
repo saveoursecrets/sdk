@@ -16,6 +16,10 @@ use sos_core::{
 
 use crate::client::{node_state::NodeState, Error, Result};
 
+mod local_provider;
+
+pub use local_provider::*;
+
 /// Encapsulates the paths for vault storage.
 #[derive(Default)]
 pub struct StorageDirs {

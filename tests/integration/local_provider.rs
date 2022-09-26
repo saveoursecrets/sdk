@@ -12,7 +12,7 @@ use sos_core::{
     secret::Secret,
     PatchProvider,
 };
-use sos_node::client::{local_storage::LocalStorage, StorageProvider};
+use sos_node::client::{provider::{LocalProvider, StorageProvider}};
 
 macro_rules! commit_count {
     ($storage:expr, $summary:expr, $amount:expr) => {
@@ -26,7 +26,7 @@ macro_rules! commit_count {
 }
 
 async fn run_local_storage_tests<W, P>(
-    storage: &mut LocalStorage<W, P>,
+    storage: &mut LocalProvider<W, P>,
 ) -> Result<()>
 where
     W: WalProvider + Send + Sync + 'static,
@@ -117,18 +117,18 @@ where
 }
 
 #[tokio::test]
-async fn integration_local_storage_memory() -> Result<()> {
-    let mut storage = LocalStorage::new_memory_storage();
+async fn integration_local_provider_memory() -> Result<()> {
+    let mut storage = LocalProvider::new_memory_storage();
     run_local_storage_tests(&mut storage).await?;
     Ok(())
 }
 
 #[tokio::test]
-async fn integration_local_storage_file() -> Result<()> {
+async fn integration_local_provider_file() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
-    let mut storage = LocalStorage::new_file_storage(dir.path(), &user_id)?;
+    let mut storage = LocalProvider::new_file_storage(dir.path(), &user_id)?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())
 }
