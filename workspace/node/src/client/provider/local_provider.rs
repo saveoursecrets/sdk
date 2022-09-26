@@ -118,17 +118,30 @@ where
         self.snapshots.as_ref()
     }
 
+    /// Create a new account or vault.
     async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
         passphrase: Option<String>,
-        is_account: bool,
+        _is_account: bool,
     ) -> Result<(SecretString, Summary)> {
         self.ensure_dir().await?;
-        StorageProvider::<W, P>::create_vault_or_account(
-            self, name, passphrase, is_account,
-        )
-        .await
+
+        let (passphrase, vault, buffer) =
+            Vault::new_buffer(name, passphrase)?;
+        let summary = vault.summary().clone();
+
+        if self.state().mirror() {
+            self.write_vault_file(&summary, &buffer)?;
+        }
+
+        // Add the summary to the vaults we are managing
+        self.state_mut().add_summary(summary.clone());
+
+        // Initialize the local cache for WAL and Patch
+        self.create_cache_entry(&summary, Some(vault))?;
+
+        Ok((passphrase, summary))
     }
 
     async fn handle_change(
@@ -205,7 +218,7 @@ where
         name: &str,
     ) -> Result<()> {
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
-        self.patch_wal(summary, vec![event])?;
+        self.patch_vault(summary, vec![event]).await?;
 
         // Update the in-memory name.
         for item in self.state.summaries_mut().iter_mut() {
@@ -217,23 +230,7 @@ where
         Ok(())
     }
 
-    /// Apply changes to a vault.
     async fn patch_vault(
-        &mut self,
-        summary: &Summary,
-        events: Vec<SyncEvent<'_>>,
-    ) -> Result<()> {
-        self.patch_wal(summary, events)?;
-        Ok(())
-    }
-}
-
-impl<W, P> LocalProvider<W, P>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
-    fn patch_wal(
         &mut self,
         summary: &Summary,
         events: Vec<SyncEvent<'_>>,
@@ -253,31 +250,5 @@ where
         }
 
         Ok(())
-    }
-
-    /// Create a new account or vault.
-    async fn create_vault_or_account(
-        &mut self,
-        name: Option<String>,
-        passphrase: Option<String>,
-        _is_account: bool,
-    ) -> Result<(SecretString, Summary)> {
-        self.ensure_dir().await?;
-
-        let (passphrase, vault, buffer) =
-            Vault::new_buffer(name, passphrase)?;
-        let summary = vault.summary().clone();
-
-        if self.state().mirror() {
-            self.write_vault_file(&summary, &buffer)?;
-        }
-
-        // Add the summary to the vaults we are managing
-        self.state_mut().add_summary(summary.clone());
-
-        // Initialize the local cache for WAL and Patch
-        self.create_cache_entry(&summary, Some(vault))?;
-
-        Ok((passphrase, summary))
     }
 }

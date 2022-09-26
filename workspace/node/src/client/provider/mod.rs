@@ -325,25 +325,7 @@ where
         name: Option<String>,
         passphrase: Option<String>,
         _is_account: bool,
-    ) -> Result<(SecretString, Summary)> {
-        //self.ensure_dir().await?;
-
-        let (passphrase, vault, buffer) =
-            Vault::new_buffer(name, passphrase)?;
-        let summary = vault.summary().clone();
-
-        if self.state().mirror() {
-            self.write_vault_file(&summary, &buffer)?;
-        }
-
-        // Add the summary to the vaults we are managing
-        self.state_mut().add_summary(summary.clone());
-
-        // Initialize the local cache for WAL and Patch
-        self.create_cache_entry(&summary, Some(vault))?;
-
-        Ok((passphrase, summary))
-    }
+    ) -> Result<(SecretString, Summary)>;
 
     /// Remove a vault.
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;

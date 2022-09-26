@@ -345,10 +345,6 @@ where
             .await
     }
 
-    /// Get a comparison between a local WAL and remote WAL.
-    ///
-    /// If a patch file has unsaved events then the number
-    /// of pending events is returned along with the `SyncStatus`.
     async fn status(
         &mut self,
         summary: &Summary,
