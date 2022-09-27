@@ -46,6 +46,8 @@ mod helpers;
 #[cfg(not(target_arch = "wasm32"))]
 mod local_provider;
 mod macros;
+#[cfg(target_arch = "wasm32")]
+mod memory_provider;
 mod remote_provider;
 mod state;
 mod sync;
@@ -53,6 +55,9 @@ mod sync;
 #[cfg(not(target_arch = "wasm32"))]
 pub use local_provider::LocalProvider;
 pub use remote_provider::RemoteProvider;
+
+#[cfg(target_arch = "wasm32")]
+pub use memory_provider::MemoryProvider;
 
 pub use state::ProviderState;
 
