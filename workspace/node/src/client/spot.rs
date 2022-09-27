@@ -68,6 +68,7 @@ pub mod file {
         Ok(Arc::new(RwLock::new(provider)))
     }
 
+    /*
     /// Client that communicates with a single server and
     /// writes it's cache to disc.
     pub struct SpotFileClient<W, P> {
@@ -112,7 +113,6 @@ pub mod file {
 
         /// Spawn a change notification listener that
         /// updates the local node cache.
-        /*
         pub fn spawn_changes(&self) {
             let cache = self.cache();
             let listener = self.changes.clone();
@@ -125,9 +125,7 @@ pub mod file {
                 }
             });
         }
-        */
 
-        /*
         /// Create an account on the local filesystem.
         pub async fn create_local_account<D: AsRef<Path>>(
             &self,
@@ -154,9 +152,7 @@ pub mod file {
 
             Ok(summary)
         }
-        */
 
-        /*
         /// Create an account on a remote node.
         pub async fn create_remote_account(
             &self,
@@ -178,7 +174,6 @@ pub mod file {
 
             Ok((status.into(), summary))
         }
-        */
 
         /// List the vault summaries.
         pub async fn load_vaults(&mut self) -> Result<Vec<Summary>> {
@@ -205,4 +200,5 @@ pub mod file {
             Ok(())
         }
     }
+    */
 }
