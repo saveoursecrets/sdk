@@ -116,10 +116,9 @@ fn run() -> Result<()> {
                 .with_passphrase_reader(Box::new(reader))
                 .with_use_agent(true)
                 .build()?;
-            let address = signer.address()?;
 
             // Setup the provider
-            let cache = new_remote_file_provider(
+            let (provider, address) = new_remote_file_provider(
                 server.clone(),
                 signer.clone(),
                 cache_dir)?;
@@ -128,17 +127,17 @@ fn run() -> Result<()> {
             spawn_changes_listener(
                 server,
                 signer,
-                Arc::clone(&cache));
+                Arc::clone(&provider));
 
             // Prepare state for shell execution
-            let shell_cache = Arc::clone(&cache);
+            let shell_cache = Arc::clone(&provider);
             let state =
                 Arc::new(RwLock::new(ShellState(shell_cache, address)));
 
             welcome(&server_url)?;
 
             // Authenticate and load initial vaults
-            let mut writer = cache.write().unwrap();
+            let mut writer = provider.write().unwrap();
             run_blocking(writer.authenticate())?;
             if let Err(e) = run_blocking(writer.load_vaults()) {
                 tracing::error!("failed to list vaults: {}", e);
@@ -146,7 +145,7 @@ fn run() -> Result<()> {
             drop(writer);
 
             let prompt = || -> String {
-                let cache = cache.read().unwrap();
+                let cache = provider.read().unwrap();
                 if let Some(current) = cache.current() {
                     return format!("sos@{}> ", current.name());
                 }

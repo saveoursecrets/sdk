@@ -16,11 +16,12 @@ pub mod file {
         sync::{Arc, RwLock},
     };
     use url::Url;
+    use web3_address::ethereum::Address;
 
     use crate::client::{
         changes_listener::ChangesListener,
         net::RpcClient,
-        provider::{RemoteProvider, StorageDirs, StorageProvider},
+        provider::{RemoteProvider, StorageDirs, StorageProvider, LocalProvider},
         Result,
     };
 
@@ -52,7 +53,7 @@ pub mod file {
         server: Url,
         signer: BoxedSigner,
         cache_dir: PathBuf,
-        ) -> Result<FileCache<WalFile, PatchFile>>
+        ) -> Result<(FileCache<WalFile, PatchFile>, Address)>
     {
         let address = signer.address()?;
         let client = RpcClient::new(server, signer);
@@ -65,7 +66,25 @@ pub mod file {
                 + 'static,
         > = Box::new(RemoteProvider::new_file_cache(client, dirs)?);
 
-        Ok(Arc::new(RwLock::new(provider)))
+        Ok((Arc::new(RwLock::new(provider)), address))
+    }
+
+    /// Create a new local provider.
+    pub fn new_local_file_provider(
+        signer: BoxedSigner,
+        cache_dir: PathBuf) -> Result<(FileCache<WalFile, PatchFile>, Address)>
+    {
+        let address = signer.address()?;
+        let dirs = StorageDirs::new(cache_dir, &address.to_string());
+
+        let provider: Box<
+            dyn StorageProvider<WalFile, PatchFile>
+                + Send
+                + Sync
+                + 'static,
+        > = Box::new(LocalProvider::new_file_storage(dirs)?);
+
+        Ok((Arc::new(RwLock::new(provider)), address))
     }
 
     /*
