@@ -4,17 +4,12 @@
 /// Client implementations that write to disc.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file {
-    use http::StatusCode;
+
     use sos_core::{
-        events::WalEvent,
-        signer::BoxedSigner,
-        vault::{Header, Summary, Vault},
-        wal::file::WalFile,
-        PatchFile,
+        signer::BoxedSigner, vault::Summary, wal::file::WalFile, PatchFile,
     };
     use std::{
-        borrow::Cow,
-        path::{Path, PathBuf},
+        path::PathBuf,
         sync::{Arc, RwLock},
     };
     use url::Url;
@@ -23,7 +18,7 @@ pub mod file {
         changes_listener::ChangesListener,
         net::RpcClient,
         provider::{RemoteProvider, StorageDirs, StorageProvider},
-        Error, Result,
+        Result,
     };
 
     /// Type alias for a file node cache.
@@ -162,7 +157,11 @@ pub mod file {
 /// from webassembly created by `wasm-bindgen`.
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
-    use crate::client::{net::RpcClient, provider::{StorageProvider, RemoteProvider}, Error, Result};
+    use crate::client::{
+        net::RpcClient,
+        provider::{RemoteProvider, StorageProvider},
+        Error, Result,
+    };
     use secrecy::SecretString;
     use sos_core::{
         events::{ChangeAction, ChangeNotification, SyncEvent},
@@ -200,9 +199,9 @@ pub mod memory {
             let url = server.clone();
             let client_signer = signer.clone();
             let client = RpcClient::new(server, signer);
-            let cache = Arc::new(RwLock::new(RemoteProvider::new_memory_cache(
-                client
-            )));
+            let cache = Arc::new(RwLock::new(
+                RemoteProvider::new_memory_cache(client),
+            ));
             Self {
                 cache,
                 url,
@@ -248,9 +247,8 @@ pub mod memory {
         ) -> impl Future<Output = Result<Summary>> + 'static {
             async move {
                 let mut writer = cache.write().unwrap();
-                let summary = writer
-                    .create_account_with_buffer(buffer)
-                    .await?;
+                let summary =
+                    writer.create_account_with_buffer(buffer).await?;
                 Ok(summary)
             }
         }

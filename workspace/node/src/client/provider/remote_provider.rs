@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::SecretString;
 use sos_core::{
-    encode, decode,
+    decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     vault::{Summary, Vault, VaultId},
     wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider},
@@ -16,9 +16,6 @@ use sos_core::{
 
 #[cfg(not(target_arch = "wasm32"))]
 use sos_core::{wal::file::WalFile, PatchFile};
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::Path;
 
 use std::{
     borrow::Cow,

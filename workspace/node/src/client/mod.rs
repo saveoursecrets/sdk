@@ -16,7 +16,6 @@ pub mod account;
 #[cfg(not(target_arch = "wasm32"))]
 mod changes_listener;
 pub mod net;
-pub mod node_cache;
 pub mod provider;
 pub mod spot;
 

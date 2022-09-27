@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_core::{
     constants::VAULT_EXT,
-    encode, decode,
+    decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     vault::{Header, Summary, Vault, VaultId},
     wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider},

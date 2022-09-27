@@ -8,10 +8,7 @@ use sos_core::{
     PatchProvider,
 };
 
-use crate::client::{
-    provider::StorageProvider,
-    Error, Result,
-};
+use crate::client::{provider::StorageProvider, Error, Result};
 
 /// Load a vault, unlock it and set it as the current vault.
 pub(crate) async fn open_vault<W, P>(
