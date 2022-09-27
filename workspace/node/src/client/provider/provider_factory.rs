@@ -5,7 +5,9 @@ use sos_core::{
     PatchFile, PatchProvider,
 };
 use std::{
+    fmt,
     path::PathBuf,
+    str::FromStr,
     sync::{Arc, RwLock},
 };
 use url::Url;
@@ -19,7 +21,7 @@ use crate::{
         provider::{
             LocalProvider, RemoteProvider, StorageDirs, StorageProvider,
         },
-        Result, Error,
+        Error, Result,
     },
 };
 
@@ -34,16 +36,26 @@ pub enum ProviderFactory {
     Remote(Url),
 }
 
+impl fmt::Display for ProviderFactory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Local => write!(f, "local"),
+            Self::Directory(path) => write!(f, "{}", path.display()),
+            Self::Remote(remote) => write!(f, "{}", remote),
+        }
+    }
+}
+
 impl Default for ProviderFactory {
     fn default() -> Self {
-        Self::Local
+        Self::Remote(Url::parse("http://localhost:5053").unwrap())
     }
 }
 
 impl ProviderFactory {
     /// Create a provider.
     pub fn create_provider(
-        self,
+        &self,
         signer: BoxedSigner,
     ) -> Result<(FileCache<WalFile, PatchFile>, Address)> {
         match self {
@@ -52,11 +64,39 @@ impl ProviderFactory {
                 Ok(new_local_file_provider(signer, dir)?)
             }
             Self::Directory(dir) => {
-                Ok(new_local_file_provider(signer, dir)?)
+                if !dir.is_dir() {
+                    return Err(Error::NotDirectory(dir.clone()));
+                }
+                Ok(new_local_file_provider(signer, dir.clone())?)
             }
             Self::Remote(remote) => {
                 let dir = cache_dir().ok_or_else(|| Error::NoCache)?;
-                Ok(new_remote_file_provider(signer, dir, remote)?)
+                Ok(new_remote_file_provider(signer, dir, remote.clone())?)
+            }
+        }
+    }
+}
+
+impl FromStr for ProviderFactory {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        if s == "local" {
+            Ok(Self::Local)
+        } else {
+            match s.parse::<Url>() {
+                Ok(url) => {
+                    let scheme = url.scheme();
+                    if scheme == "http" || scheme == "https" {
+                        Ok(Self::Remote(url))
+                    } else if scheme == "file" {
+                        let path = s.trim_start_matches("file://");
+                        Ok(Self::Directory(PathBuf::from(path)))
+                    } else {
+                        Err(Error::InvalidProvider(s.to_string()))
+                    }
+                }
+                Err(e) => Err(e.into()),
             }
         }
     }

@@ -18,9 +18,7 @@ use terminal_banner::{Banner, Padding};
 use sos_node::{
     cache_dir,
     client::{
-        provider::{
-            spawn_changes_listener, ProviderFactory,
-        },
+        provider::{spawn_changes_listener, ProviderFactory},
         run_blocking, SignerBuilder,
     },
 };
@@ -53,9 +51,9 @@ enum Command {
     },
     /// Launch the interactive shell.
     Shell {
-        /// Server URL.
+        /// Provider URL.
         #[clap(short, long)]
-        server: Url,
+        provider: Option<ProviderFactory>,
 
         /// Keystore file containing the signing key.
         #[clap(short, long)]
@@ -74,10 +72,10 @@ enum Command {
 }
 
 /// Print the welcome information.
-fn welcome(server: &Url) -> Result<()> {
+fn welcome(factory: &ProviderFactory) -> Result<()> {
     let help_info = r#"Type "help", "--help" or "-h" for command usage
 Type "quit" or "q" to exit"#;
-    let status_info = format!("Server: {}", server);
+    let status_info = format!("Provider: {}", factory);
     let banner = Banner::new()
         .padding(Padding::one())
         .text(Cow::from(WELCOME))
@@ -102,8 +100,7 @@ fn run() -> Result<()> {
         } => {
             signup(server, keystore, name)?;
         }
-        Command::Shell { server, keystore } => {
-            let server_url = server.clone();
+        Command::Shell { provider, keystore } => {
             let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
@@ -119,18 +116,31 @@ fn run() -> Result<()> {
                 .with_use_agent(true)
                 .build()?;
 
-            let factory = ProviderFactory::Remote(server.clone());
-            let (provider, address) = factory.create_provider(signer.clone())?;
+            let factory = provider.unwrap_or_default();
+            let (provider, address) =
+                factory.create_provider(signer.clone())?;
 
-            // Listen for change notifications
-            spawn_changes_listener(server, signer, Arc::clone(&provider));
+            match &factory {
+                ProviderFactory::Remote(remote) => {
+                    // Listen for change notifications
+                    spawn_changes_listener(
+                        remote.clone(),
+                        signer,
+                        Arc::clone(&provider),
+                    );
+                }
+                _ => {}
+            }
+
+            welcome(&factory)?;
 
             // Prepare state for shell execution
             let shell_cache = Arc::clone(&provider);
-            let state =
-                Arc::new(RwLock::new(ShellState(shell_cache, address)));
-
-            welcome(&server_url)?;
+            let state = Arc::new(RwLock::new(ShellState(
+                shell_cache,
+                address,
+                factory,
+            )));
 
             // Authenticate and load initial vaults
             let mut writer = provider.write().unwrap();
@@ -151,7 +161,7 @@ fn run() -> Result<()> {
             read_shell(
                 |line: String| {
                     let provider = Arc::clone(&state);
-                    if let Err(e) = exec(&line, &server_url, provider) {
+                    if let Err(e) = exec(&line, provider) {
                         tracing::error!("{}", e);
                     }
                 },

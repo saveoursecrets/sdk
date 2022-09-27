@@ -21,6 +21,10 @@ pub enum Error {
     #[error("path {0} is not a file")]
     NotFile(PathBuf),
 
+    /// Error generated when a provider is not valid.
+    #[error("provider {0} is not valid")]
+    InvalidProvider(String),
+
     /// Error generated when a file already exists.
     #[error("file {0} already exists")]
     FileExists(PathBuf),

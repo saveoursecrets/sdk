@@ -22,9 +22,8 @@ use sos_core::{
     CommitHash, PatchProvider,
 };
 use sos_node::{
-    cache_dir,
     client::{
-        provider::GenericProvider,
+        provider::{GenericProvider, ProviderFactory},
         run_blocking,
     },
     sync::SyncKind,
@@ -36,7 +35,7 @@ use sos_readline::{
 
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::{display_passphrase, switch, Error, Result};
+use crate::{display_passphrase, Error, Result};
 
 mod editor;
 mod print;
@@ -44,7 +43,11 @@ mod print;
 pub type ShellProvider<W, P> = Arc<RwLock<GenericProvider<W, P>>>;
 
 /// Encapsulates the state for the shell REPL.
-pub struct ShellState<W, P>(pub ShellProvider<W, P>, pub Address);
+pub struct ShellState<W, P>(
+    pub ShellProvider<W, P>,
+    pub Address,
+    pub ProviderFactory,
+);
 
 /// Type for the root shell data.
 pub type ShellData<W, P> = Arc<RwLock<ShellState<W, P>>>;
@@ -509,11 +512,7 @@ where
 */
 
 /// Execute the program command.
-fn exec_program<W, P>(
-    program: Shell,
-    server: &Url,
-    state: ShellData<W, P>,
-) -> Result<()>
+fn exec_program<W, P>(program: Shell, state: ShellData<W, P>) -> Result<()>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
@@ -1069,15 +1068,17 @@ where
 
             Ok(())
         }
-        ShellCommand::Switch { keystore } => {
+        ShellCommand::Switch { keystore: _ } => {
             // FIXME
 
+            /*
             let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
             }
             let (mut provider, address) =
                 switch::<W, P>(server.clone(), cache_dir, keystore)?;
+            */
 
             /*
             // Ensure the vault summaries are loaded
@@ -1111,11 +1112,7 @@ where
 }
 
 /// Intermediary to pretty print clap parse errors.
-fn exec_args<I, T, W, P>(
-    it: I,
-    server: &Url,
-    cache: ShellData<W, P>,
-) -> Result<()>
+fn exec_args<I, T, W, P>(it: I, cache: ShellData<W, P>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -1123,18 +1120,14 @@ where
     P: PatchProvider + Send + Sync + 'static,
 {
     match Shell::try_parse_from(it) {
-        Ok(program) => exec_program(program, server, cache)?,
+        Ok(program) => exec_program(program, cache)?,
         Err(e) => e.print().expect("unable to write error output"),
     }
     Ok(())
 }
 
 /// Execute a line of input in the context of the shell program.
-pub fn exec<W, P>(
-    line: &str,
-    server: &Url,
-    cache: ShellData<W, P>,
-) -> Result<()>
+pub fn exec<W, P>(line: &str, cache: ShellData<W, P>) -> Result<()>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
@@ -1155,7 +1148,7 @@ where
         } else if line == "help" || line == "--help" {
             cmd.print_long_help()?;
         } else {
-            exec_args(it, server, cache)?;
+            exec_args(it, cache)?;
         }
     }
     Ok(())
