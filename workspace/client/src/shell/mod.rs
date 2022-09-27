@@ -23,7 +23,7 @@ use sos_core::{
 };
 use sos_node::{
     client::{
-        provider::{GenericProvider, ProviderFactory},
+        provider::{BoxedProvider, ProviderFactory},
         run_blocking,
     },
     sync::SyncKind,
@@ -40,7 +40,7 @@ use crate::{display_passphrase, Error, Result};
 mod editor;
 mod print;
 
-pub type ShellProvider<W, P> = Arc<RwLock<GenericProvider<W, P>>>;
+pub type ShellProvider<W, P> = Arc<RwLock<BoxedProvider<W, P>>>;
 
 /// Encapsulates the state for the shell REPL.
 pub struct ShellState<W, P>(
@@ -424,7 +424,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 fn maybe_conflict<F, W, P>(cache: ShellProvider<W, P>, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, GenericProvider<W, P>>,
+        &mut RwLockWriteGuard<'_, BoxedProvider<W, P>>,
     ) -> sos_node::client::Result<()>,
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,

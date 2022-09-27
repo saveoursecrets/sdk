@@ -66,7 +66,7 @@ pub use memory_provider::MemoryProvider;
 pub use state::ProviderState;
 
 /// Generic boxed provider.
-pub type GenericProvider<W, P> =
+pub type BoxedProvider<W, P> =
     Box<dyn StorageProvider<W, P> + Send + Sync + 'static>;
 
 /// Encapsulates the paths for vault storage.

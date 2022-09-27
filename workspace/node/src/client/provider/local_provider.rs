@@ -74,8 +74,7 @@ impl LocalProvider<WalFile, PatchFile> {
 
 impl LocalProvider<WalMemory, PatchMemory<'static>> {
     /// Create new local storage backed by memory.
-    pub fn new_memory_storage(
-    ) -> LocalProvider<WalMemory, PatchMemory<'static>> {
+    pub fn new_memory_storage() -> LocalProvider<WalMemory, PatchMemory<'static>> {
         Self {
             state: ProviderState::new(false),
             dirs: Default::default(),

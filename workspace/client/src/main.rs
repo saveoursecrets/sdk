@@ -120,6 +120,8 @@ fn run() -> Result<()> {
             let (provider, address) =
                 factory.create_provider(signer.clone())?;
 
+            let provider = Arc::new(RwLock::new(provider));
+
             match &factory {
                 ProviderFactory::Remote(remote) => {
                     // Listen for change notifications
