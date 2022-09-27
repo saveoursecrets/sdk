@@ -63,7 +63,7 @@ pub struct RemoteProvider<W, P> {
 #[cfg(not(target_arch = "wasm32"))]
 impl RemoteProvider<WalFile, PatchFile> {
     /// Create new node cache backed by files on disc.
-    pub fn new_file_cache<D: AsRef<Path>>(
+    pub fn new_file_cache(
         client: RpcClient,
         dirs: StorageDirs,
     ) -> Result<RemoteProvider<WalFile, PatchFile>> {
@@ -73,9 +73,11 @@ impl RemoteProvider<WalFile, PatchFile> {
             ));
         }
 
+        dirs.ensure()?;
+
         let snapshots = Some(SnapShotManager::new(dirs.user_dir())?);
         Ok(Self {
-            state: ProviderState::new(false),
+            state: ProviderState::new(true),
             cache: Default::default(),
             client,
             dirs,
@@ -138,6 +140,7 @@ where
     ) -> Result<(SecretString, Summary)> {
         let (passphrase, vault, buffer) =
             Vault::new_buffer(name, passphrase)?;
+
         let status = if is_account {
             let (status, _) = retry!(
                 || self.client.create_account(buffer.clone()),
@@ -181,7 +184,34 @@ where
             retry!(|| self.client.list_vaults(), &mut self.client);
 
         self.load_caches(&summaries)?;
+
+        // Find empty WAL logs which need to pull from remote
+        let mut needs_pull = Vec::new();
+        for summary in &summaries {
+            let (wal_file, _) = self
+                .cache()
+                .get(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            let length = wal_file.tree().len();
+
+            // Got an empty WAL tree which can happen if an
+            // existing user signs in with a new cache directory
+            // we need to fetch the entire WAL from remote
+            if length == 0 {
+                needs_pull.push(summary.clone());
+            }
+        }
+
         self.state.set_summaries(summaries);
+
+        for summary in needs_pull {
+            let (wal_file, _) = self
+                .cache
+                .get_mut(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            sync::pull_wal(&mut self.client, &summary, wal_file).await?;
+        }
+
         Ok(self.vaults())
     }
 
@@ -286,7 +316,8 @@ where
 
     async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
         // Fetch latest version of the WAL content
-        self.pull(summary, false).await?;
+        //self.pull(summary, false).await?;
+
         helpers::reduce_wal(self, summary).await
     }
 

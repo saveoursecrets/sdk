@@ -57,7 +57,7 @@ pub use remote_provider::RemoteProvider;
 pub use state::ProviderState;
 
 /// Encapsulates the paths for vault storage.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct StorageDirs {
     /// Top-level documents folder.
     documents_dir: PathBuf,
@@ -78,6 +78,12 @@ impl StorageDirs {
             user_dir,
             vaults_dir,
         }
+    }
+
+    /// Ensure all the directories exist.
+    pub fn ensure(&self) -> Result<()> {
+        std::fs::create_dir_all(&self.vaults_dir)?;
+        Ok(())
     }
 
     /// Get the documents storage directory.
@@ -333,6 +339,14 @@ where
             wal.append_event(event)?;
         }
         wal.load_tree()?;
+
+        /*
+        println!("After create cache entry {} {:#?} {}",
+            wal.tree().len(),
+            wal.path(),
+            wal.path().metadata()?.len());
+        */
+
         self.cache_mut().insert(*summary.id(), (wal, patch_file));
         Ok(())
     }

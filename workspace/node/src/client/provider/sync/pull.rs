@@ -28,6 +28,8 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
+    println!("Pulling with {}", wal_file.tree().len());
+
     let client_proof = wal_file.tree().head()?;
 
     let (status, (server_proof, match_proof)) = retry!(

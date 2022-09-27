@@ -614,6 +614,7 @@ impl Vault {
             let (passphrase, _) = generate_passphrase()?;
             passphrase
         };
+
         let mut vault: Vault = Default::default();
         if let Some(name) = name {
             vault.set_name(name);

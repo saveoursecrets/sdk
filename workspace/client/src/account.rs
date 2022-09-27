@@ -7,7 +7,8 @@ use sos_node::{
     cache_dir,
     client::{
         account::{create_account, AccountKey},
-        node_cache::NodeCache,
+        net::RpcClient,
+        provider::{RemoteProvider, StorageDirs},
         run_blocking, PassphraseReader, SignerBuilder,
     },
 };
@@ -31,7 +32,7 @@ pub fn switch(
     server: Url,
     cache_dir: PathBuf,
     keystore_file: PathBuf,
-) -> Result<NodeCache<WalFile, PatchFile>> {
+) -> Result<RemoteProvider<WalFile, PatchFile>> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
@@ -40,7 +41,12 @@ pub fn switch(
         .with_passphrase_reader(Box::new(reader))
         .with_use_agent(true)
         .build()?;
-    Ok(NodeCache::new_file_cache(server, cache_dir, signer)?)
+
+    let address = signer.address()?;
+    let client = RpcClient::new(server, signer);
+    let dirs = StorageDirs::new(cache_dir, &address.to_string());
+
+    Ok(RemoteProvider::new_file_cache(client, dirs)?)
 }
 
 pub fn signup(

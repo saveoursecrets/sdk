@@ -23,15 +23,16 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-    let vault = provider.reduce_wal(summary).await?;
+    let vault = reduce_wal(provider, summary).await?;
     let vault_path = provider.vault_path(summary);
     if provider.state().mirror() {
-        let vault_path = provider.vault_path(summary);
+        //let vault_path = provider.vault_path(summary);
         if !vault_path.exists() {
             let buffer = encode(&vault)?;
             write_vault_file(provider, summary, &buffer).await?;
         }
     };
+
     provider
         .state_mut()
         .open_vault(passphrase, vault, vault_path)?;
@@ -127,6 +128,7 @@ where
         .get_mut(summary.id())
         .map(|(w, _)| w)
         .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
     Ok(WalReducer::new().reduce(wal_file)?.build()?)
 }
 

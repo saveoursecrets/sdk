@@ -17,6 +17,7 @@ use sos_core::{
 use sos_node::client::{
     account::AccountCredentials,
     net::changes::{changes, connect},
+    provider::StorageProvider,
 };
 
 #[tokio::test]

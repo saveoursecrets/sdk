@@ -13,7 +13,10 @@ use terminal_banner::{Banner, Padding};
 
 use sos_node::{
     cache_dir,
-    client::{run_blocking, spot::file::SpotFileClient, SignerBuilder},
+    client::{
+        provider::StorageProvider, run_blocking, spot::file::SpotFileClient,
+        SignerBuilder,
+    },
 };
 
 const WELCOME: &str = include_str!("welcome.txt");
@@ -124,7 +127,7 @@ fn run() -> Result<()> {
 
             run_blocking(writer.authenticate())?;
 
-            if let Err(e) = run_blocking(writer.list_vaults()) {
+            if let Err(e) = run_blocking(writer.load_vaults()) {
                 tracing::error!("failed to list vaults: {}", e);
             }
             drop(writer);

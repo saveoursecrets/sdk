@@ -8,10 +8,11 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
 use secrecy::ExposeSecret;
-use sos_core::commit_tree::CommitProof;
+use sos_core::{commit_tree::CommitProof, wal::WalProvider};
 use sos_node::client::{
     account::{login, AccountCredentials},
     net::changes::{changes, connect},
+    provider::StorageProvider,
 };
 
 #[tokio::test]
@@ -35,7 +36,7 @@ async fn integration_handle_change() -> Result<()> {
     } = credentials;
 
     // Set up another connected client to listen for changes
-    let cache_dir = dirs.clients.get(1).unwrap().to_path_buf();
+    let cache_dir = dirs.clients.get(0).unwrap().to_path_buf();
     let mut listener = login(
         server_url.clone(),
         cache_dir,
@@ -43,15 +44,33 @@ async fn integration_handle_change() -> Result<()> {
         keystore_passphrase,
     )
     .await?;
-    let _ = listener.list_vaults().await?;
+    let _ = listener.load_vaults().await?;
+
+    println!(
+        "Opening the vaults: {}",
+        encryption_passphrase.expose_secret()
+    );
 
     // Both clients use the login vault
     creator
         .open_vault(&summary, encryption_passphrase.expose_secret())
         .await?;
+
+    println!("CREATOR OPENED");
+
+    for (k, (w, _)) in creator.cache() {
+        println!("Creator has {} : {}", k, w.tree().len());
+    }
+
+    for (k, (w, _)) in listener.cache() {
+        println!("Listener has {} : {}", k, w.tree().len());
+    }
+
     listener
         .open_vault(&summary, encryption_passphrase.expose_secret())
         .await?;
+
+    println!("After opening...");
 
     let listener_cache = Arc::new(RwLock::new(listener));
     let listener_summary = summary.clone();
@@ -77,8 +96,11 @@ async fn integration_handle_change() -> Result<()> {
                 .await
                 .expect("failed to handle change");
 
-            let head =
-                writer.wal_tree(&listener_summary).unwrap().head().unwrap();
+            let head = writer
+                .commit_tree(&listener_summary)
+                .unwrap()
+                .head()
+                .unwrap();
 
             // Close the listener vault
             writer.close_vault();
@@ -98,7 +120,7 @@ async fn integration_handle_change() -> Result<()> {
     // to trigger a change notification
     let _notes = create_secrets(&mut creator, &summary).await?;
 
-    let creator_head = creator.wal_tree(&summary).unwrap().head()?;
+    let creator_head = creator.commit_tree(&summary).unwrap().head()?;
 
     // Delay a while so the change notification SSE events
     // can be received

@@ -22,7 +22,10 @@ use sos_core::{
 };
 use sos_node::{
     cache_dir,
-    client::{node_cache::NodeCache, run_blocking},
+    client::{
+        provider::{RemoteProvider, StorageProvider},
+        run_blocking,
+    },
     sync::SyncKind,
 };
 use sos_readline::{
@@ -37,7 +40,7 @@ use crate::{display_passphrase, switch, Error, Result};
 mod editor;
 mod print;
 
-type ReplCache = Arc<RwLock<NodeCache<WalFile, PatchFile>>>;
+type ReplCache = Arc<RwLock<RemoteProvider<WalFile, PatchFile>>>;
 
 enum ConflictChoice {
     Push,
@@ -407,7 +410,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, NodeCache<WalFile, PatchFile>>,
+        &mut RwLockWriteGuard<'_, RemoteProvider<WalFile, PatchFile>>,
     ) -> sos_node::client::Result<()>,
 {
     let mut writer = cache.write().unwrap();
@@ -507,7 +510,7 @@ fn exec_program(
         }
         ShellCommand::Vaults => {
             let mut writer = cache.write().unwrap();
-            let summaries = run_blocking(writer.list_vaults())?;
+            let summaries = run_blocking(writer.load_vaults())?;
             print::summaries_list(summaries);
             Ok(())
         }
@@ -623,7 +626,7 @@ fn exec_program(
 
             let mut writer = cache.write().unwrap();
             let (status, pending_events) =
-                run_blocking(writer.vault_status(&summary))?;
+                run_blocking(writer.status(&summary))?;
             if verbose {
                 let pair = status.pair();
                 println!("local  = {}", pair.local.root_hex());
@@ -639,7 +642,7 @@ fn exec_program(
             let reader = cache.read().unwrap();
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary();
-            if let Some(tree) = reader.wal_tree(summary) {
+            if let Some(tree) = reader.commit_tree(summary) {
                 if let Some(leaves) = tree.leaves() {
                     for leaf in &leaves {
                         println!("{}", hex::encode(leaf));
@@ -679,7 +682,7 @@ fn exec_program(
 
             if let Some((summary, event)) = result {
                 maybe_conflict(cache, |writer| {
-                    run_blocking(writer.patch_vault(&summary, vec![event]))
+                    run_blocking(writer.patch(&summary, vec![event]))
                 })
             } else {
                 Ok(())
@@ -701,7 +704,7 @@ fn exec_program(
                 let event = event.into_owned();
 
                 print::secret(&secret_meta, &secret_data)?;
-                Ok(run_blocking(writer.patch_vault(&summary, vec![event]))?)
+                Ok(run_blocking(writer.patch(&summary, vec![event]))?)
             } else {
                 Err(Error::SecretNotAvailable(secret))
             }
@@ -761,7 +764,7 @@ fn exec_program(
                 drop(writer);
 
                 maybe_conflict(cache, |writer| {
-                    run_blocking(writer.patch_vault(&summary, vec![event]))
+                    run_blocking(writer.patch(&summary, vec![event]))
                 })
 
             // If the edited result was borrowed
@@ -789,9 +792,7 @@ fn exec_program(
 
                     drop(writer);
                     maybe_conflict(cache, |writer| {
-                        run_blocking(
-                            writer.patch_vault(&summary, vec![event]),
-                        )
+                        run_blocking(writer.patch(&summary, vec![event]))
                     })
                 } else {
                     Err(Error::SecretNotAvailable(secret))
@@ -842,7 +843,7 @@ fn exec_program(
 
             drop(writer);
             maybe_conflict(cache, |writer| {
-                run_blocking(writer.patch_vault(&summary, vec![event]))
+                run_blocking(writer.patch(&summary, vec![event]))
             })
         }
         ShellCommand::Snapshot { cmd } => match cmd {
@@ -1056,16 +1057,20 @@ fn exec_program(
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
-            run_blocking(node_cache.list_vaults())?;
+            run_blocking(node_cache.load_vaults())?;
 
             let mut writer = cache.write().unwrap();
             *writer = node_cache;
             Ok(())
         }
         ShellCommand::Whoami => {
+            // FIXME
+
+            /*
             let reader = cache.read().unwrap();
             let address = reader.signer().address()?;
             println!("{}", address);
+            */
             Ok(())
         }
         ShellCommand::Close => {

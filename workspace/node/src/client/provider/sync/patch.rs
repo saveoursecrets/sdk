@@ -10,10 +10,7 @@ use sos_core::{
     CommitHash, PatchProvider,
 };
 
-use crate::{
-    client::provider::assert_proofs_eq,
-    retry,
-};
+use crate::{client::provider::assert_proofs_eq, retry};
 
 /// Apply a patch and error on failure.
 pub async fn patch<W, P>(

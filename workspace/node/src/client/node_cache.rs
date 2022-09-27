@@ -43,8 +43,8 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
-    retry,
     client::provider::ProviderState,
+    retry,
     sync::{SyncInfo, SyncKind, SyncStatus},
 };
 
@@ -558,7 +558,8 @@ where
             None
         };
 
-        self.state.open_vault(passphrase, vault, vault_path.unwrap())?;
+        self.state
+            .open_vault(passphrase, vault, vault_path.unwrap())?;
         Ok(())
     }
 

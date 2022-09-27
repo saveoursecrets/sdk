@@ -100,6 +100,7 @@ impl ProviderState {
         } else {
             Gatekeeper::new(vault)
         };
+
         keeper
             .unlock(passphrase)
             .map_err(|_| Error::VaultUnlockFail)?;

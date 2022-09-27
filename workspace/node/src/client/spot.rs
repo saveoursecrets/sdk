@@ -21,12 +21,13 @@ pub mod file {
 
     use crate::client::{
         changes_listener::ChangesListener,
-        node_cache::{ensure_user_vaults_dir, NodeCache},
+        net::RpcClient,
+        provider::{RemoteProvider, StorageDirs, StorageProvider},
         Error, Result,
     };
 
     /// Type alias for a file node cache.
-    pub type FileCache = Arc<RwLock<NodeCache<WalFile, PatchFile>>>;
+    pub type FileCache = Arc<RwLock<RemoteProvider<WalFile, PatchFile>>>;
 
     /// Client that communicates with a single server and
     /// writes it's cache to disc.
@@ -44,9 +45,14 @@ pub mod file {
         ) -> Result<Self> {
             let changes =
                 ChangesListener::new(server.clone(), signer.clone());
-            let cache = Arc::new(RwLock::new(NodeCache::new_file_cache(
-                server, cache_dir, signer,
-            )?));
+
+            let address = signer.address()?;
+            let client = RpcClient::new(server, signer);
+            let dirs = StorageDirs::new(cache_dir, &address.to_string());
+
+            let cache = Arc::new(RwLock::new(
+                RemoteProvider::new_file_cache(client, dirs)?,
+            ));
             Ok(Self { cache, changes })
         }
 
@@ -70,6 +76,7 @@ pub mod file {
             });
         }
 
+        /*
         /// Create an account on the local filesystem.
         pub async fn create_local_account<D: AsRef<Path>>(
             &self,
@@ -96,7 +103,9 @@ pub mod file {
 
             Ok(summary)
         }
+        */
 
+        /*
         /// Create an account on a remote node.
         pub async fn create_remote_account(
             &self,
@@ -118,11 +127,12 @@ pub mod file {
 
             Ok((status.into(), summary))
         }
+        */
 
         /// List the vault summaries.
         pub async fn list_vaults(&mut self) -> Result<Vec<Summary>> {
             let mut writer = self.cache.write().unwrap();
-            let summaries = writer.list_vaults().await?.to_vec();
+            let summaries = writer.load_vaults().await?.to_vec();
             Ok(summaries)
         }
 

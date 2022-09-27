@@ -62,6 +62,7 @@ macro_rules! patch {
         match result {
             Ok(_) => return Ok(()),
             Err(e) => match e {
+
                 Error::ConflictBehind { events, local, remote, .. } => {
                     tracing::debug!(
                         local = %local.0,
