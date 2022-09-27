@@ -209,7 +209,7 @@ where
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        let status = sync::apply_patch(
+        sync::patch(
             &mut self.client,
             summary,
             wal_file,
@@ -218,16 +218,12 @@ where
         )
         .await?;
 
-        if status.is_success() {
-            for item in self.state.summaries_mut().iter_mut() {
-                if item.id() == summary.id() {
-                    item.set_name(name.to_string());
-                }
+        for item in self.state.summaries_mut().iter_mut() {
+            if item.id() == summary.id() {
+                item.set_name(name.to_string());
             }
-            Ok(())
-        } else {
-            Err(Error::ResponseCode(status.into()))
         }
+        Ok(())
     }
 
     async fn open_vault(

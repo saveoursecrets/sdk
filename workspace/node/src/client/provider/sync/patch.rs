@@ -42,7 +42,7 @@ where
 /// Attempt to apply a patch and return the status code.
 #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
-pub async fn apply_patch<W, P>(
+async fn apply_patch<W, P>(
     client: &mut RpcClient,
     summary: &Summary,
     wal_file: &mut W,
