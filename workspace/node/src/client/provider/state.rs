@@ -5,7 +5,7 @@ use super::{Error, Result};
 use sos_core::{
     secret::SecretRef,
     vault::{Summary, Vault},
-    Gatekeeper, PatchProvider, VaultFileAccess,
+    Gatekeeper, VaultFileAccess,
 };
 
 use std::path::PathBuf;

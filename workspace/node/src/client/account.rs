@@ -1,7 +1,7 @@
 //! Functions and types for creating accounts.
 use sos_core::{
-    crypto::generate_random_ecdsa_signing_key, generate_passphrase,
-    signer::SingleParty, vault::Summary, wal::file::WalFile, PatchFile,
+    generate_passphrase,
+    signer::{BoxedSigner, SingleParty, Signer}, vault::Summary, wal::file::WalFile, PatchFile,
 };
 use std::{convert::Infallible, path::PathBuf};
 use url::Url;
@@ -12,13 +12,20 @@ use super::{node_cache::NodeCache, SignerBuilder};
 use super::{Error, Result};
 use secrecy::{ExposeSecret, SecretString};
 
-/// Signing, public key and computed address for a new account.
-pub struct AccountKey(pub [u8; 32], pub [u8; 33], pub Address);
+/// Signing key and computed address for a new account.
+pub struct AccountKey(pub BoxedSigner, pub Address);
 
 impl AccountKey {
+    /// Create a signing key pair and compute the address.
+    pub fn new_random() -> Result<AccountKey> {
+        let signer = SingleParty::new_random();
+        let address = signer.address()?;
+        Ok(Self(Box::new(signer), address))
+    }
+
     /// Get the address of the client key.
     pub fn address(&self) -> &Address {
-        &self.2
+        &self.1
     }
 }
 
@@ -76,18 +83,18 @@ pub async fn create_account(
         return Err(Error::FileExists(keystore_file));
     }
 
-    let AccountKey(signing_key, _, _) = &key;
+    let AccountKey(signing_key, _) = &key;
     let (keystore_passphrase, _) = generate_passphrase()?;
-    let signer: SingleParty = (signing_key).try_into()?;
+    let signing_key_bytes = signing_key.to_bytes();
     let mut cache =
-        NodeCache::new_file_cache(server, cache_dir, Box::new(signer))?;
+        NodeCache::new_file_cache(server, cache_dir, signing_key.clone())?;
 
     // Prepare the client encrypted session channel
     cache.authenticate().await?;
 
     let keystore = encrypt(
         &mut rand::thread_rng(),
-        signing_key,
+        &signing_key_bytes,
         keystore_passphrase.expose_secret(),
         Some(key.address().to_string()),
         label,
@@ -97,7 +104,7 @@ pub async fn create_account(
 
     std::fs::write(&keystore_file, serde_json::to_string(&keystore)?)?;
 
-    let AccountKey(_, _, address) = key;
+    let AccountKey(_, address) = key;
     let account = AccountCredentials {
         keystore_passphrase,
         encryption_passphrase,
@@ -109,9 +116,13 @@ pub async fn create_account(
     Ok((account, cache))
 }
 
+/*
 /// Create a signing key pair and compute the address.
 pub fn create_signing_key() -> Result<AccountKey> {
-    let (signing_key, public_key) = generate_random_ecdsa_signing_key();
-    let address: Address = (&public_key).try_into()?;
-    Ok(AccountKey(signing_key, public_key, address))
+    let signer = SingleParty::new_random();
+    let address = signer.address()?;
+    //let (signing_key, public_key) = generate_random_ecdsa_signing_key();
+    //let address: Address = (&public_key).try_into()?;
+    Ok(AccountKey(signer, address))
 }
+*/

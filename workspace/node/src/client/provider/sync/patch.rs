@@ -11,7 +11,7 @@ use sos_core::{
 };
 
 use crate::{
-    client::provider::{assert_proofs_eq, StorageProvider},
+    client::provider::assert_proofs_eq,
     retry,
 };
 

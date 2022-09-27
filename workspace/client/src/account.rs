@@ -6,7 +6,7 @@ use sos_core::{wal::file::WalFile, PatchFile};
 use sos_node::{
     cache_dir,
     client::{
-        account::{create_account, create_signing_key},
+        account::{create_account, AccountKey},
         node_cache::NodeCache,
         run_blocking, PassphraseReader, SignerBuilder,
     },
@@ -52,7 +52,7 @@ pub fn signup(
         return Err(Error::NotDirectory(destination));
     }
 
-    let client_key = create_signing_key()?;
+    let client_key = AccountKey::new_random()?;
     let keystore_file =
         destination.join(&format!("{}.json", client_key.address()));
     if keystore_file.exists() {
