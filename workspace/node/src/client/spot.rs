@@ -28,11 +28,51 @@ pub mod file {
     pub type FileCache<W, P> =
         Arc<RwLock<Box<dyn StorageProvider<W, P> + Send + Sync + 'static>>>;
 
+    /// Spawn a change notification listener that
+    /// updates the local node cache.
+    pub fn spawn_changes_listener<W, P>(
+        server: Url, signer: BoxedSigner, cache: FileCache<W, P>) 
+    where
+        W: WalProvider + Send + Sync + 'static,
+        P: PatchProvider + Send + Sync + 'static,
+    {
+        let listener = ChangesListener::new(server, signer);
+        listener.spawn(move |notification| {
+            let cache = Arc::clone(&cache);
+            async move {
+                //println!("{:#?}", notification);
+                let mut writer = cache.write().unwrap();
+                let _ = writer.handle_change(notification).await;
+            }
+        });
+    }
+
+    /// Create a new remote provider with a local disc mirror.
+    pub fn new_remote_file_provider(
+        server: Url,
+        signer: BoxedSigner,
+        cache_dir: PathBuf,
+        ) -> Result<FileCache<WalFile, PatchFile>>
+    {
+        let address = signer.address()?;
+        let client = RpcClient::new(server, signer);
+        let dirs = StorageDirs::new(cache_dir, &address.to_string());
+
+        let provider: Box<
+            dyn StorageProvider<WalFile, PatchFile>
+                + Send
+                + Sync
+                + 'static,
+        > = Box::new(RemoteProvider::new_file_cache(client, dirs)?);
+
+        Ok(Arc::new(RwLock::new(provider)))
+    }
+
     /// Client that communicates with a single server and
     /// writes it's cache to disc.
     pub struct SpotFileClient<W, P> {
         cache: FileCache<W, P>,
-        changes: ChangesListener,
+        //changes: ChangesListener,
     }
 
     impl SpotFileClient<WalFile, PatchFile> {
@@ -42,8 +82,8 @@ pub mod file {
             signer: BoxedSigner,
             cache_dir: PathBuf,
         ) -> Result<Self> {
-            let changes =
-                ChangesListener::new(server.clone(), signer.clone());
+            //let changes =
+                //ChangesListener::new(server.clone(), signer.clone());
 
             let address = signer.address()?;
             let client = RpcClient::new(server, signer);
@@ -56,7 +96,7 @@ pub mod file {
                     + 'static,
             > = Box::new(RemoteProvider::new_file_cache(client, dirs)?);
             let cache = Arc::new(RwLock::new(provider));
-            Ok(Self { cache, changes })
+            Ok(Self { cache })
         }
     }
 
@@ -65,27 +105,6 @@ pub mod file {
         W: WalProvider + Send + Sync + 'static,
         P: PatchProvider + Send + Sync + 'static,
     {
-        /*
-        /// Create a new SPOT file client.
-        pub fn new(
-            server: Url,
-            signer: BoxedSigner,
-            cache_dir: PathBuf,
-        ) -> Result<Self> {
-            let changes =
-                ChangesListener::new(server.clone(), signer.clone());
-
-            let address = signer.address()?;
-            let client = RpcClient::new(server, signer);
-            let dirs = StorageDirs::new(cache_dir, &address.to_string());
-
-            let provider: Box<dyn StorageProvider<W, P> + Send + Sync + 'static>
-                = Box::new(RemoteProvider::new_file_cache(client, dirs)?);
-            let cache = Arc::new(RwLock::new(provider));
-            Ok(Self { cache, changes })
-        }
-            */
-
         /// Get a clone of the underlying provider.
         pub fn cache(&self) -> FileCache<W, P> {
             Arc::clone(&self.cache)
@@ -93,6 +112,7 @@ pub mod file {
 
         /// Spawn a change notification listener that
         /// updates the local node cache.
+        /*
         pub fn spawn_changes(&self) {
             let cache = self.cache();
             let listener = self.changes.clone();
@@ -105,6 +125,7 @@ pub mod file {
                 }
             });
         }
+        */
 
         /*
         /// Create an account on the local filesystem.

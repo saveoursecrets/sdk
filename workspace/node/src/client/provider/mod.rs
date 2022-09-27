@@ -104,9 +104,14 @@ impl StorageDirs {
 }
 
 /// Trait for storage providers.
+///
+/// Note we need `Sync` and `Send` super traits as we want 
+/// to refer to `dyn StorageProvider`.
+///
+/// See: https://docs.rs/async-trait/latest/async_trait/#dyn-traits
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait StorageProvider<W, P>
+pub trait StorageProvider<W, P>: Sync + Send
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,

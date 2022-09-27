@@ -18,13 +18,13 @@ use sos_core::{
     search::Document,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
-    wal::{file::WalFile, WalItem, WalProvider},
-    CommitHash, PatchFile, PatchProvider,
+    wal::{WalItem, WalProvider},
+    CommitHash, PatchProvider,
 };
 use sos_node::{
     cache_dir,
     client::{
-        provider::{RemoteProvider, StorageProvider},
+        provider::StorageProvider,
         run_blocking,
     },
     sync::SyncKind,
@@ -1075,14 +1075,14 @@ where
         ShellCommand::Switch { keystore } => {
             // FIXME
 
-            /*
             let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
             }
             let (mut provider, address) =
-                switch(server.clone(), cache_dir, keystore)?;
+                switch::<W, P>(server.clone(), cache_dir, keystore)?;
 
+            /*
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
             run_blocking(provider.load_vaults())?;

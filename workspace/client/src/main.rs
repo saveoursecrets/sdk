@@ -18,7 +18,7 @@ use terminal_banner::{Banner, Padding};
 use sos_node::{
     cache_dir,
     client::{
-        provider::StorageProvider, run_blocking, spot::file::SpotFileClient,
+        run_blocking, spot::file::{new_remote_file_provider, spawn_changes_listener},
         SignerBuilder,
     },
 };
@@ -118,20 +118,28 @@ fn run() -> Result<()> {
                 .build()?;
             let address = signer.address()?;
 
-            // Set up the client implementation
-            let spot_client = SpotFileClient::new(server, signer, cache_dir)?;
-            // Hook up a change stream to call into the node cache
-            spot_client.spawn_changes();
+            // Setup the provider
+            let cache = new_remote_file_provider(
+                server.clone(),
+                signer.clone(),
+                cache_dir)?;
+
+            // Listen for change notifications
+            spawn_changes_listener(
+                server,
+                signer,
+                Arc::clone(&cache));
+
+            // Prepare state for shell execution
+            let shell_cache = Arc::clone(&cache);
+            let state =
+                Arc::new(RwLock::new(ShellState(shell_cache, address)));
 
             welcome(&server_url)?;
 
-            let cache = spot_client.cache();
-
-            // Load initial vaults
+            // Authenticate and load initial vaults
             let mut writer = cache.write().unwrap();
-
             run_blocking(writer.authenticate())?;
-
             if let Err(e) = run_blocking(writer.load_vaults()) {
                 tracing::error!("failed to list vaults: {}", e);
             }
@@ -144,10 +152,6 @@ fn run() -> Result<()> {
                 }
                 "sos> ".to_string()
             };
-
-            let shell_cache = Arc::clone(&cache);
-            let state =
-                Arc::new(RwLock::new(ShellState(shell_cache, address)));
 
             read_shell(
                 |line: String| {
