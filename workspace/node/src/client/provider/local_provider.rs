@@ -22,7 +22,7 @@ use std::{
 };
 
 use crate::client::provider::{
-    self, sync, ProviderState, StorageDirs, StorageProvider,
+    helpers, sync, ProviderState, StorageDirs, StorageProvider,
 };
 
 /// Local storage for a node.
@@ -132,7 +132,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            self.write_vault_file(&summary, &buffer)?;
+            helpers::write_vault_file(self, &summary, &buffer).await?;
         }
 
         // Add the summary to the vaults we are managing
@@ -161,7 +161,7 @@ where
         if self.state().mirror() {
             // Write the vault to disc
             let buffer = encode(vault)?;
-            self.write_vault_file(summary, &buffer)?;
+            helpers::write_vault_file(self, summary, &buffer).await?;
         }
 
         // Apply events to the WAL
@@ -173,6 +173,14 @@ where
         wal.apply(events, None)?;
 
         Ok(())
+    }
+
+    async fn refresh_vault(
+        &mut self,
+        summary: &Summary,
+        new_passphrase: Option<&SecretString>,
+    ) -> Result<()> {
+        helpers::refresh_vault(self, summary, new_passphrase).await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -203,7 +211,11 @@ where
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        provider::compact(self, summary).await
+        helpers::compact(self, summary).await
+    }
+
+    async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
+        helpers::reduce_wal(self, summary).await
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
@@ -232,6 +244,14 @@ where
         }
 
         Ok(())
+    }
+
+    async fn open_vault(
+        &mut self,
+        summary: &Summary,
+        passphrase: &str,
+    ) -> Result<()> {
+        helpers::open_vault(self, summary, passphrase).await
     }
 
     async fn patch_vault(

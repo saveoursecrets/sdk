@@ -42,15 +42,14 @@ pub(crate) fn assert_proofs_eq(
     }
 }
 
-mod compact;
 mod fs_adapter;
+mod helpers;
 mod local_provider;
 mod macros;
 mod remote_provider;
 mod state;
 mod sync;
 
-pub(crate) use compact::compact;
 pub use local_provider::LocalProvider;
 pub use remote_provider::RemoteProvider;
 pub use state::ProviderState;
@@ -217,11 +216,10 @@ where
             ChangePassword::new(vault, current_passphrase, new_passphrase)
                 .build()?;
 
-        self.update_vault(vault.summary(), &new_vault, wal_events)
-            .await?;
+        self.update_vault(vault.summary(), &new_vault, wal_events).await?;
 
         // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
+        self.refresh_vault(vault.summary(), Some(&new_passphrase)).await?;
 
         if let Some(keeper) = self.current_mut() {
             if keeper.summary().id() == vault.summary().id() {
@@ -244,47 +242,11 @@ where
 
     /// Refresh the in-memory vault of the current selection
     /// from the contents of the current WAL file.
-    fn refresh_vault(
+    async fn refresh_vault(
         &mut self,
         summary: &Summary,
         new_passphrase: Option<&SecretString>,
-    ) -> Result<()> {
-        let wal = self
-            .cache_mut()
-            .get_mut(summary.id())
-            .map(|(w, _)| w)
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let vault = WalReducer::new().reduce(wal)?.build()?;
-
-        // Rewrite the on-disc version if we are mirroring
-        if self.state().mirror() {
-            let buffer = encode(&vault)?;
-            self.write_vault_file(summary, &buffer)?;
-        }
-
-        if let Some(keeper) = self.current_mut() {
-            if keeper.id() == summary.id() {
-                // Update the in-memory version
-                let new_key = if let Some(new_passphrase) = new_passphrase {
-                    if let Some(salt) = vault.salt() {
-                        let salt = SecretKey::parse_salt(salt)?;
-                        let private_key = SecretKey::derive_32(
-                            new_passphrase.expose_secret(),
-                            &salt,
-                        )?;
-                        Some(private_key)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-
-                keeper.replace_vault(vault, new_key)?;
-            }
-        }
-        Ok(())
-    }
+    ) -> Result<()>;
 
     /// Create a new account and default login vault.
     async fn create_account(
@@ -331,32 +293,12 @@ where
         &mut self,
         summary: &Summary,
         passphrase: &str,
-    ) -> Result<()> {
-        let vault = self.get_wal_vault(summary).await?;
-        let vault_path = self.vault_path(summary);
-        if self.state().mirror() {
-            let vault_path = self.vault_path(summary);
-            if !vault_path.exists() {
-                let buffer = encode(&vault)?;
-                self.write_vault_file(summary, &buffer)?;
-            }
-        };
-        self.state_mut().open_vault(passphrase, vault, vault_path)?;
-        Ok(())
-    }
+    ) -> Result<()>;
 
     /// Load a vault by reducing it from the WAL stored on disc.
     ///
     /// Remote providers may pull changes beforehand.
-    async fn get_wal_vault(&mut self, summary: &Summary) -> Result<Vault> {
-        // Reduce the WAL to a vault
-        let wal = self
-            .cache_mut()
-            .get_mut(summary.id())
-            .map(|(w, _)| w)
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        Ok(WalReducer::new().reduce(wal)?.build()?)
-    }
+    async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault>;
 
     /// Close the currently selected vault.
     fn close_vault(&mut self) {
@@ -581,31 +523,6 @@ where
     fn verify(&self, _summary: &Summary) -> Result<()> {
         // NOTE: verify is a noop in WASM when the records
         // NOTE: are stored in memory
-        Ok(())
-    }
-
-    /// Write the buffer for a vault to disc.
-    #[cfg(not(target_arch = "wasm32"))]
-    fn write_vault_file(
-        &self,
-        summary: &Summary,
-        buffer: &[u8],
-    ) -> Result<()> {
-        use std::io::Write;
-        let vault_path = self.vault_path(&summary);
-        // FIXME: use tokio writer?
-        let mut file = std::fs::File::create(vault_path)?;
-        file.write_all(buffer)?;
-        Ok(())
-    }
-
-    /// Write the buffer for a vault to disc.
-    #[cfg(target_arch = "wasm32")]
-    fn write_vault_file(
-        &self,
-        _summary: &Summary,
-        _buffer: &[u8],
-    ) -> Result<()> {
         Ok(())
     }
 

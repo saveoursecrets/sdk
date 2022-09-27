@@ -1,5 +1,4 @@
-//! Adapter for path operations that are noop
-//! operations for webassembly.
+//! Adapter for file system operations that are noop in webassembly.
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use fs::*;
@@ -19,6 +18,13 @@ mod fs {
     ) -> Result<()> {
         Ok(tokio::fs::rename(from, to).await?)
     }
+
+    pub async fn write(
+        path: impl AsRef<Path>,
+        contents: impl AsRef<[u8]>
+    ) -> Result<()> {
+        Ok(tokio::fs::write(path, contents).await?)
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -36,6 +42,13 @@ mod noop {
     pub async fn rename(
         _from: impl AsRef<Path>,
         _to: impl AsRef<Path>,
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    pub async fn write(
+        path: impl AsRef<Path>,
+        contents: impl AsRef<[u8]>
     ) -> Result<()> {
         Ok(())
     }

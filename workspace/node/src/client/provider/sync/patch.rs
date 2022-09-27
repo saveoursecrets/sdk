@@ -134,7 +134,7 @@ where
                     // so if reflects the pulled changes
                     // with our patch applied over the top
                     let updated_vault =
-                        self.get_wal_vault(summary).await?;
+                        self.reduce_wal(summary).await?;
 
                     if let Some(keeper) = self.current_mut() {
                         if keeper.id() == summary.id() {

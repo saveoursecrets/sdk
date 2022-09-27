@@ -28,7 +28,7 @@ use uuid::Uuid;
 
 use crate::{
     client::provider::{
-        self, fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
+        helpers, fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
     },
     retry,
     sync::{SyncInfo, SyncStatus},
@@ -158,7 +158,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            self.write_vault_file(&summary, &buffer)?;
+            helpers::write_vault_file(self, &summary, &buffer).await?;
         }
 
         // Add the summary to the vaults we are managing
@@ -230,6 +230,14 @@ where
         }
     }
 
+    async fn open_vault(
+        &mut self,
+        summary: &Summary,
+        passphrase: &str,
+    ) -> Result<()> {
+        helpers::open_vault(self, summary, passphrase).await
+    }
+
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Attempt to delete on the remote server
         let (status, _) = retry!(
@@ -250,7 +258,7 @@ where
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let result = provider::compact(self, summary).await?;
+        let result = helpers::compact(self, summary).await?;
         self.push(summary, true).await?;
         Ok(result)
     }
@@ -288,13 +296,18 @@ where
         Ok(())
     }
 
-    async fn get_wal_vault(&mut self, summary: &Summary) -> Result<Vault> {
+    async fn refresh_vault(
+        &mut self,
+        summary: &Summary,
+        new_passphrase: Option<&SecretString>,
+    ) -> Result<()> {
+        helpers::refresh_vault(self, summary, new_passphrase).await
+    }
+
+    async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
         // Fetch latest version of the WAL content
         self.pull(summary, false).await?;
-
-        // FIXME
-        //StorageProvider::<W, P>::get_wal_vault(self, summary).await
-        todo!()
+        helpers::reduce_wal(self, summary).await
     }
 
     async fn pull(
