@@ -22,7 +22,7 @@ use std::{
 };
 
 use crate::client::provider::{
-    sync, ProviderState, StorageDirs, StorageProvider,
+    self, sync, ProviderState, StorageDirs, StorageProvider,
 };
 
 /// Local storage for a node.
@@ -200,6 +200,10 @@ where
     #[cfg(target_arch = "wasm32")]
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
         Ok(self.vaults())
+    }
+
+    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+        provider::compact(self, summary).await
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {

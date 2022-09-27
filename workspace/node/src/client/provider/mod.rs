@@ -42,6 +42,7 @@ pub(crate) fn assert_proofs_eq(
     }
 }
 
+mod compact;
 mod fs_adapter;
 mod local_provider;
 mod macros;
@@ -49,6 +50,7 @@ mod remote_provider;
 mod state;
 mod sync;
 
+pub(crate) use compact::compact;
 pub use local_provider::LocalProvider;
 pub use remote_provider::RemoteProvider;
 pub use state::ProviderState;
@@ -238,23 +240,7 @@ where
     //) -> Result<SecretString>;
 
     /// Compact a WAL file.
-    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let (wal, _) = self
-            .cache_mut()
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-        let (compact_wal, old_size, new_size) = wal.compact()?;
-
-        // Need to recreate the WAL file and load the updated
-        // commit tree
-        *wal = compact_wal;
-
-        // Refresh in-memory vault and mirrored copy
-        self.refresh_vault(summary, None)?;
-
-        Ok((old_size, new_size))
-    }
+    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
 
     /// Refresh the in-memory vault of the current selection
     /// from the contents of the current WAL file.

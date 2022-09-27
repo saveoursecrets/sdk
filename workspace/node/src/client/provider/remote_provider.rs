@@ -28,7 +28,7 @@ use uuid::Uuid;
 
 use crate::{
     client::provider::{
-        fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
+        self, fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
     },
     retry,
     sync::{SyncInfo, SyncStatus},
@@ -250,14 +250,9 @@ where
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        // FIXME: 
-        /*
-        let (old_size, new_size) =
-            StorageProvider::<W, P>::compact(self, summary).await?;
+        let result = provider::compact(self, summary).await?;
         self.push(summary, true).await?;
-        Ok((old_size, new_size))
-        */
-        todo!()
+        Ok(result)
     }
 
     /// Update an existing vault by saving the new vault
@@ -376,4 +371,5 @@ where
         let actions = sync::handle_change(self, change).await?;
         Ok((self_change, actions))
     }
+
 }
