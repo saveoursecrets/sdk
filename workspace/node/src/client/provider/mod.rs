@@ -44,14 +44,18 @@ pub(crate) fn assert_proofs_eq(
 
 mod fs_adapter;
 mod helpers;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod local_provider;
 mod macros;
 mod remote_provider;
 mod state;
 mod sync;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub use local_provider::LocalProvider;
 pub use remote_provider::RemoteProvider;
+
 pub use state::ProviderState;
 
 /// Encapsulates the paths for vault storage.
@@ -95,7 +99,8 @@ impl StorageDirs {
 }
 
 /// Trait for storage providers.
-#[async_trait]
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait StorageProvider<W, P>
 where
     W: WalProvider + Send + Sync + 'static,

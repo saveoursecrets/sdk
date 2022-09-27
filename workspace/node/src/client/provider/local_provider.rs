@@ -88,7 +88,8 @@ impl LocalProvider<WalMemory, PatchMemory<'static>> {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<W, P> StorageProvider<W, P> for LocalProvider<W, P>
 where
     W: WalProvider + Send + Sync + 'static,

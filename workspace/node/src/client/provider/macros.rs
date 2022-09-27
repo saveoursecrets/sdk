@@ -43,6 +43,7 @@ macro_rules! retry {
 ///
 /// When local is behind remote attempt to pull changes from
 /// remote and apply the patch if the pull succeeds.
+#[macro_export]
 macro_rules! patch {
     ($provider:expr, $summary:expr, $events:expr) => {{
         let (wal_file, patch_file) = $provider
