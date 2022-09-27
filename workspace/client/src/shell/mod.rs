@@ -10,6 +10,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 
 use terminal_banner::{Banner, Padding};
 use url::Url;
+use web3_address::ethereum::Address;
 
 use human_bytes::human_bytes;
 use sos_core::{
@@ -17,8 +18,8 @@ use sos_core::{
     search::Document,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
-    wal::{file::WalFile, WalItem},
-    CommitHash, PatchFile,
+    wal::{file::WalFile, WalItem, WalProvider},
+    CommitHash, PatchFile, PatchProvider,
 };
 use sos_node::{
     cache_dir,
@@ -40,7 +41,16 @@ use crate::{display_passphrase, switch, Error, Result};
 mod editor;
 mod print;
 
-type ReplCache = Arc<RwLock<RemoteProvider<WalFile, PatchFile>>>;
+pub type DynamicProvider<W, P> =
+    Box<dyn StorageProvider<W, P> + Send + Sync + 'static>;
+
+pub type ShellProvider<W, P> = Arc<RwLock<DynamicProvider<W, P>>>;
+
+/// Encapsulates the state for the shell REPL.
+pub struct ShellState<W, P>(pub ShellProvider<W, P>, pub Address);
+
+/// Type for the root shell data.
+pub type ShellData<W, P> = Arc<RwLock<ShellState<W, P>>>;
 
 enum ConflictChoice {
     Push,
@@ -220,10 +230,14 @@ enum History {
 }
 
 /// Attempt to read secret meta data for a reference.
-fn find_secret_meta(
-    cache: ReplCache,
+fn find_secret_meta<W, P>(
+    cache: ShellProvider<W, P>,
     secret: &SecretRef,
-) -> Result<Option<(SecretId, SecretMeta)>> {
+) -> Result<Option<(SecretId, SecretMeta)>>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
     let reader = cache.read().unwrap();
     let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
     //let meta_data = keeper.meta_data()?;
@@ -407,11 +421,13 @@ fn read_file_secret(path: &str) -> Result<Secret> {
     Ok(Secret::File { name, mime, buffer })
 }
 
-fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
+fn maybe_conflict<F, W, P>(cache: ShellProvider<W, P>, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, RemoteProvider<WalFile, PatchFile>>,
+        &mut RwLockWriteGuard<'_, DynamicProvider<W, P>>,
     ) -> sos_node::client::Result<()>,
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
 {
     let mut writer = cache.write().unwrap();
     match func(&mut writer) {
@@ -496,11 +512,19 @@ where
 */
 
 /// Execute the program command.
-fn exec_program(
+fn exec_program<W, P>(
     program: Shell,
     server: &Url,
-    cache: ReplCache,
-) -> Result<()> {
+    state: ShellData<W, P>,
+) -> Result<()>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
+    let data = state.read().unwrap();
+    let cache = Arc::clone(&data.0);
+    drop(data);
+
     match program.cmd {
         ShellCommand::Authenticate => {
             let mut writer = cache.write().unwrap();
@@ -1049,28 +1073,33 @@ fn exec_program(
             Ok(())
         }
         ShellCommand::Switch { keystore } => {
+            // FIXME
+
+            /*
             let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
             }
-            let mut node_cache = switch(server.clone(), cache_dir, keystore)?;
+            let (mut provider, address) =
+                switch(server.clone(), cache_dir, keystore)?;
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
-            run_blocking(node_cache.load_vaults())?;
+            run_blocking(provider.load_vaults())?;
 
             let mut writer = cache.write().unwrap();
-            *writer = node_cache;
+            *writer = provider;
+
+            let mut writer = state.write().unwrap();
+            writer.1 = address;
+            */
+
             Ok(())
         }
         ShellCommand::Whoami => {
-            // FIXME
-
-            /*
-            let reader = cache.read().unwrap();
-            let address = reader.signer().address()?;
+            let reader = state.read().unwrap();
+            let address = reader.1;
             println!("{}", address);
-            */
             Ok(())
         }
         ShellCommand::Close => {
@@ -1085,10 +1114,16 @@ fn exec_program(
 }
 
 /// Intermediary to pretty print clap parse errors.
-fn exec_args<I, T>(it: I, server: &Url, cache: ReplCache) -> Result<()>
+fn exec_args<I, T, W, P>(
+    it: I,
+    server: &Url,
+    cache: ShellData<W, P>,
+) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
 {
     match Shell::try_parse_from(it) {
         Ok(program) => exec_program(program, server, cache)?,
@@ -1098,7 +1133,15 @@ where
 }
 
 /// Execute a line of input in the context of the shell program.
-pub fn exec(line: &str, server: &Url, cache: ReplCache) -> Result<()> {
+pub fn exec<W, P>(
+    line: &str,
+    server: &Url,
+    cache: ShellData<W, P>,
+) -> Result<()>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));

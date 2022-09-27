@@ -1,11 +1,15 @@
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{
+    borrow::Cow,
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
 use sos_client::{
-    exec, monitor, signup, Error, Result, StdinPassphraseReader,
+    exec, monitor, signup, Error, Result, ShellState, StdinPassphraseReader,
 };
 use sos_core::FileLocks;
 use sos_readline::read_shell;
@@ -112,6 +116,7 @@ fn run() -> Result<()> {
                 .with_passphrase_reader(Box::new(reader))
                 .with_use_agent(true)
                 .build()?;
+            let address = signer.address()?;
 
             // Set up the client implementation
             let spot_client = SpotFileClient::new(server, signer, cache_dir)?;
@@ -140,10 +145,14 @@ fn run() -> Result<()> {
                 "sos> ".to_string()
             };
 
+            let shell_cache = Arc::clone(&cache);
+            let state =
+                Arc::new(RwLock::new(ShellState(shell_cache, address)));
+
             read_shell(
                 |line: String| {
-                    let shell_cache = Arc::clone(&cache);
-                    if let Err(e) = exec(&line, &server_url, shell_cache) {
+                    let provider = Arc::clone(&state);
+                    if let Err(e) = exec(&line, &server_url, provider) {
                         tracing::error!("{}", e);
                     }
                 },

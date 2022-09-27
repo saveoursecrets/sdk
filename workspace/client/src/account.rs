@@ -16,6 +16,7 @@ use sos_readline::{read_flag, read_password};
 use std::{borrow::Cow, path::PathBuf};
 use terminal_banner::{Banner, Padding};
 use url::Url;
+use web3_address::ethereum::Address;
 
 pub struct StdinPassphraseReader {}
 
@@ -32,7 +33,7 @@ pub fn switch(
     server: Url,
     cache_dir: PathBuf,
     keystore_file: PathBuf,
-) -> Result<RemoteProvider<WalFile, PatchFile>> {
+) -> Result<(RemoteProvider<WalFile, PatchFile>, Address)> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
@@ -46,7 +47,7 @@ pub fn switch(
     let client = RpcClient::new(server, signer);
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
 
-    Ok(RemoteProvider::new_file_cache(client, dirs)?)
+    Ok((RemoteProvider::new_file_cache(client, dirs)?, address))
 }
 
 pub fn signup(

@@ -2824,6 +2824,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid 1.1.2",
+ "web3-address",
  "zeroize",
 ]
 
