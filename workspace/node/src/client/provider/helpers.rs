@@ -1,14 +1,17 @@
 //! Helper functions shared by the providers.
-use secrecy::{SecretString, ExposeSecret};
+use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    encode,
-    wal::{WalProvider, reducer::WalReducer},
-    PatchProvider,
     crypto::secret_key::SecretKey,
+    encode,
     vault::{Summary, Vault},
+    wal::{reducer::WalReducer, WalProvider},
+    PatchProvider,
 };
 
-use crate::client::{Result, Error, provider::{StorageProvider, fs_adapter}};
+use crate::client::{
+    provider::{fs_adapter, StorageProvider},
+    Error, Result,
+};
 
 /// Load a vault, unlock it and set it as the current vault.
 pub(crate) async fn open_vault<W, P>(
@@ -29,7 +32,9 @@ where
             write_vault_file(provider, summary, &buffer).await?;
         }
     };
-    provider.state_mut().open_vault(passphrase, vault, vault_path)?;
+    provider
+        .state_mut()
+        .open_vault(passphrase, vault, vault_path)?;
     Ok(())
 }
 
@@ -84,7 +89,8 @@ where
 /// Compact a WAL file.
 pub(crate) async fn compact<W, P>(
     provider: &mut (impl StorageProvider<W, P> + Send + Sync + 'static),
-    summary: &Summary) -> Result<(u64, u64)>
+    summary: &Summary,
+) -> Result<(u64, u64)>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
@@ -109,7 +115,8 @@ where
 /// Helper to reduce a WAL file to a vault.
 pub(crate) async fn reduce_wal<W, P>(
     provider: &mut (impl StorageProvider<W, P> + Send + Sync + 'static),
-    summary: &Summary) -> Result<Vault>
+    summary: &Summary,
+) -> Result<Vault>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
@@ -152,4 +159,3 @@ where
 {
     Ok(())
 }
-

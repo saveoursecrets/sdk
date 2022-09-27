@@ -10,7 +10,7 @@ use sos_core::{
     PatchProvider,
 };
 
-use crate::{client::provider::StorageProvider, retry, sync::SyncStatus};
+use crate::{retry, sync::SyncStatus};
 
 mod change;
 mod patch;

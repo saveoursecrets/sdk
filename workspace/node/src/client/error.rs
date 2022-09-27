@@ -1,5 +1,7 @@
 //! Error type for the client module.
-use sos_core::{secret::SecretId, vault::Summary, CommitHash};
+use sos_core::{
+    events::SyncEvent, secret::SecretId, vault::Summary, CommitHash,
+};
 use std::path::PathBuf;
 use thiserror::Error;
 use uuid::Uuid;
@@ -43,6 +45,23 @@ pub enum Error {
     /// Error generated attempting to access a vault that is not available.
     #[error("cache not available for {0}")]
     CacheNotAvailable(Uuid),
+
+    /// Error generated when a conflict is detected where the local  
+    /// is behind the remote.
+    ///
+    /// Pulling from remote and applying changes afterwards should resolve
+    /// the conflict.
+    #[error("conflict detected, pull required")]
+    ConflictBehind {
+        /// Summary of the vault that triggered the conflict.
+        summary: Summary,
+        /// Commit hash of the local WAL.
+        local: (CommitHash, usize),
+        /// Commit hash of the remote WAL.
+        remote: (CommitHash, usize),
+        /// Events that can be applied after a pull.
+        events: Vec<SyncEvent<'static>>,
+    },
 
     /// Error generated when a conflict is detected that may be
     /// resolved by the user.

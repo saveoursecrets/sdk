@@ -1,6 +1,5 @@
 use super::{Error, Result};
 use crate::client::net::{MaybeRetry, RpcClient};
-use async_recursion::async_recursion;
 
 use http::StatusCode;
 
@@ -24,7 +23,7 @@ pub async fn patch<W, P>(
     summary: &Summary,
     wal_file: &mut W,
     patch_file: &mut P,
-    events: Vec<SyncEvent<'_>>,
+    events: Vec<SyncEvent<'static>>,
 ) -> Result<()>
 where
     W: WalProvider + Send + Sync + 'static,
@@ -40,14 +39,12 @@ where
 }
 
 /// Attempt to apply a patch and return the status code.
-#[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
-async fn apply_patch<W, P>(
+pub(crate) async fn apply_patch<W, P>(
     client: &mut RpcClient,
     summary: &Summary,
     wal_file: &mut W,
     patch_file: &mut P,
-    events: Vec<SyncEvent<'async_recursion>>,
+    events: Vec<SyncEvent<'static>>,
 ) -> Result<StatusCode>
 where
     W: WalProvider + Send + Sync + 'static,
@@ -98,6 +95,14 @@ where
             // indicates that we are behind the remote so we
             // can try to pull again and try to patch afterwards
             if let Some(_) = match_proof {
+                Err(Error::ConflictBehind {
+                    summary: summary.clone(),
+                    local: client_proof.reduce(),
+                    remote: server_proof.reduce(),
+                    events: patch.0.clone(),
+                })
+
+                /*
                 tracing::debug!(
                     client_root = %client_proof.root_hex(),
                     server_root = %server_proof.root_hex(),
@@ -128,7 +133,6 @@ where
 
                     // FIXME
 
-                    /*
                     // If the retry was successful then
                     // we should update the in-memory vault
                     // so if reflects the pulled changes
@@ -142,10 +146,10 @@ where
                             *existing_vault = updated_vault;
                         }
                     }
-                    */
                 }
+                */
 
-                Ok(status)
+                //Ok(status)
             } else {
                 Err(Error::Conflict {
                     summary: summary.clone(),

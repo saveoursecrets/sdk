@@ -21,7 +21,7 @@ mod fs {
 
     pub async fn write(
         path: impl AsRef<Path>,
-        contents: impl AsRef<[u8]>
+        contents: impl AsRef<[u8]>,
     ) -> Result<()> {
         Ok(tokio::fs::write(path, contents).await?)
     }
@@ -48,7 +48,7 @@ mod noop {
 
     pub async fn write(
         path: impl AsRef<Path>,
-        contents: impl AsRef<[u8]>
+        contents: impl AsRef<[u8]>,
     ) -> Result<()> {
         Ok(())
     }

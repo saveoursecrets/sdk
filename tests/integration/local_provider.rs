@@ -32,7 +32,6 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-
     // Create an account with default login vault
     let (passphrase, _) = storage.create_account(None, None).await?;
 

@@ -10,7 +10,7 @@ use sos_core::{
     PatchProvider,
 };
 
-use crate::{client::provider::StorageProvider, retry, sync::SyncStatus};
+use crate::{retry, sync::SyncStatus};
 
 /// Get a comparison between a local WAL and remote WAL.
 ///

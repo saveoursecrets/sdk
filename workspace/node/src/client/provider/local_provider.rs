@@ -234,7 +234,7 @@ where
         name: &str,
     ) -> Result<()> {
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
-        self.patch_vault(summary, vec![event]).await?;
+        self.patch_vault(summary, vec![event.into_owned()]).await?;
 
         // Update the in-memory name.
         for item in self.state.summaries_mut().iter_mut() {
@@ -257,7 +257,7 @@ where
     async fn patch_vault(
         &mut self,
         summary: &Summary,
-        events: Vec<SyncEvent<'_>>,
+        events: Vec<SyncEvent<'static>>,
     ) -> Result<()> {
         let (wal, patch_file) = self
             .cache

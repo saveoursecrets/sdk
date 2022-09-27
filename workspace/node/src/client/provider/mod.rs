@@ -216,10 +216,12 @@ where
             ChangePassword::new(vault, current_passphrase, new_passphrase)
                 .build()?;
 
-        self.update_vault(vault.summary(), &new_vault, wal_events).await?;
+        self.update_vault(vault.summary(), &new_vault, wal_events)
+            .await?;
 
         // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), Some(&new_passphrase)).await?;
+        self.refresh_vault(vault.summary(), Some(&new_passphrase))
+            .await?;
 
         if let Some(keeper) = self.current_mut() {
             if keeper.summary().id() == vault.summary().id() {
@@ -379,7 +381,7 @@ where
     async fn patch_vault(
         &mut self,
         summary: &Summary,
-        events: Vec<SyncEvent<'_>>,
+        events: Vec<SyncEvent<'static>>,
     ) -> Result<()>;
 
     /// Create a secret in the currently open vault.

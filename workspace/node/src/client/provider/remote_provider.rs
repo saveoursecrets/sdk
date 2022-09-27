@@ -28,7 +28,8 @@ use uuid::Uuid;
 
 use crate::{
     client::provider::{
-        helpers, fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
+        fs_adapter, helpers, sync, ProviderState, StorageDirs,
+        StorageProvider,
     },
     retry,
     sync::{SyncInfo, SyncStatus},
@@ -186,15 +187,9 @@ where
     async fn patch_vault(
         &mut self,
         summary: &Summary,
-        events: Vec<SyncEvent<'_>>,
+        events: Vec<SyncEvent<'static>>,
     ) -> Result<()> {
-        let (wal_file, patch_file) = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-        sync::patch(&mut self.client, summary, wal_file, patch_file, events)
-            .await
+        patch!(self, summary, events)
     }
 
     async fn set_vault_name(
@@ -204,19 +199,7 @@ where
     ) -> Result<()> {
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
 
-        let (wal_file, patch_file) = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-        sync::patch(
-            &mut self.client,
-            summary,
-            wal_file,
-            patch_file,
-            vec![event],
-        )
-        .await?;
+        patch!(self, summary, vec![event.into_owned()])?;
 
         for item in self.state.summaries_mut().iter_mut() {
             if item.id() == summary.id() {
@@ -380,5 +363,4 @@ where
         let actions = sync::handle_change(self, change).await?;
         Ok((self_change, actions))
     }
-
 }
