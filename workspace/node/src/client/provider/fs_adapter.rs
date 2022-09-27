@@ -47,8 +47,8 @@ mod noop {
     }
 
     pub async fn write(
-        path: impl AsRef<Path>,
-        contents: impl AsRef<[u8]>,
+        _path: impl AsRef<Path>,
+        _contents: impl AsRef<[u8]>,
     ) -> Result<()> {
         Ok(())
     }

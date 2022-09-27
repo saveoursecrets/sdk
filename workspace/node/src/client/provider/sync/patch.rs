@@ -15,8 +15,6 @@ use crate::{
     retry,
 };
 
-use super::pull_wal;
-
 /// Apply a patch and error on failure.
 pub async fn patch<W, P>(
     client: &mut RpcClient,

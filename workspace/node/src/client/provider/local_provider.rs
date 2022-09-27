@@ -235,7 +235,7 @@ where
         name: &str,
     ) -> Result<()> {
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
-        self.patch_vault(summary, vec![event.into_owned()]).await?;
+        self.patch(summary, vec![event.into_owned()]).await?;
 
         // Update the in-memory name.
         for item in self.state.summaries_mut().iter_mut() {
@@ -255,7 +255,7 @@ where
         helpers::open_vault(self, summary, passphrase).await
     }
 
-    async fn patch_vault(
+    async fn patch(
         &mut self,
         summary: &Summary,
         events: Vec<SyncEvent<'static>>,

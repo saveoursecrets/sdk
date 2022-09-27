@@ -31,7 +31,7 @@ use crate::{
         fs_adapter, helpers, sync, ProviderState, StorageDirs,
         StorageProvider,
     },
-    retry, patch,
+    patch, retry,
     sync::{SyncInfo, SyncStatus},
 };
 
@@ -185,7 +185,7 @@ where
         Ok(self.vaults())
     }
 
-    async fn patch_vault(
+    async fn patch(
         &mut self,
         summary: &Summary,
         events: Vec<SyncEvent<'static>>,

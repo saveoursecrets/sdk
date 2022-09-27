@@ -11,13 +11,11 @@ use std::{
 use sos_core::{
     commit_tree::{CommitPair, CommitProof, CommitTree},
     constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
-    crypto::secret_key::SecretKey,
     encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault, VaultId},
     wal::{
-        reducer::WalReducer,
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
@@ -383,7 +381,7 @@ where
     }
 
     /// Apply changes to a vault.
-    async fn patch_vault(
+    async fn patch(
         &mut self,
         summary: &Summary,
         events: Vec<SyncEvent<'static>>,
@@ -398,7 +396,7 @@ where
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         let event = keeper.create(meta, secret)?.into_owned();
-        self.patch_vault(&summary, vec![event.clone()]).await?;
+        self.patch(&summary, vec![event.clone()]).await?;
         Ok(event)
     }
 
@@ -427,7 +425,7 @@ where
             .update(id, meta, secret)?
             .ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
-        self.patch_vault(&summary, vec![event.clone()]).await?;
+        self.patch(&summary, vec![event.clone()]).await?;
         Ok(event)
     }
 
@@ -440,7 +438,7 @@ where
         let summary = keeper.summary().clone();
         let event = keeper.delete(id)?.ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
-        self.patch_vault(&summary, vec![event.clone()]).await?;
+        self.patch(&summary, vec![event.clone()]).await?;
         Ok(event)
     }
 
