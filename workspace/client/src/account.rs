@@ -2,7 +2,10 @@
 use crate::{display_passphrase, Error, Result};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{wal::{file::WalFile, WalProvider}, PatchFile, PatchProvider};
+use sos_core::{
+    wal::{file::WalFile, WalProvider},
+    PatchFile, PatchProvider,
+};
 use sos_node::{
     cache_dir,
     client::{
@@ -33,7 +36,10 @@ pub fn switch<W, P>(
     server: Url,
     cache_dir: PathBuf,
     keystore_file: PathBuf,
-) -> Result<(Box<dyn StorageProvider<WalFile, PatchFile> + Send + Sync + 'static>, Address)>
+) -> Result<(
+    Box<dyn StorageProvider<WalFile, PatchFile> + Send + Sync + 'static>,
+    Address,
+)>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
@@ -52,10 +58,7 @@ where
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
 
     let provider: Box<
-        dyn StorageProvider<WalFile, PatchFile>
-            + Send
-            + Sync
-            + 'static,
+        dyn StorageProvider<WalFile, PatchFile> + Send + Sync + 'static,
     > = Box::new(RemoteProvider::new_file_cache(client, dirs)?);
 
     Ok((provider, address))

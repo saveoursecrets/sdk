@@ -48,18 +48,26 @@ mod local_provider;
 mod macros;
 #[cfg(target_arch = "wasm32")]
 mod memory_provider;
+#[cfg(not(target_arch = "wasm32"))]
+mod provider_factory;
 mod remote_provider;
 mod state;
 mod sync;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use local_provider::LocalProvider;
+#[cfg(not(target_arch = "wasm32"))]
+pub use provider_factory::*;
 pub use remote_provider::RemoteProvider;
 
 #[cfg(target_arch = "wasm32")]
 pub use memory_provider::MemoryProvider;
 
 pub use state::ProviderState;
+
+/// Generic boxed provider.
+pub type GenericProvider<W, P> =
+    Box<dyn StorageProvider<W, P> + Send + Sync + 'static>;
 
 /// Encapsulates the paths for vault storage.
 #[derive(Default, Debug)]
@@ -110,7 +118,7 @@ impl StorageDirs {
 
 /// Trait for storage providers.
 ///
-/// Note we need `Sync` and `Send` super traits as we want 
+/// Note we need `Sync` and `Send` super traits as we want
 /// to refer to `dyn StorageProvider`.
 ///
 /// See: https://docs.rs/async-trait/latest/async_trait/#dyn-traits

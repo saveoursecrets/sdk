@@ -43,9 +43,8 @@ impl MemoryProvider {
         let url = server.clone();
         let client_signer = signer.clone();
         let client = RpcClient::new(server, signer);
-        let cache = Arc::new(RwLock::new(
-            RemoteProvider::new_memory_cache(client),
-        ));
+        let cache =
+            Arc::new(RwLock::new(RemoteProvider::new_memory_cache(client)));
         Self {
             cache,
             url,
@@ -91,8 +90,7 @@ impl MemoryProvider {
     ) -> impl Future<Output = Result<Summary>> + 'static {
         async move {
             let mut writer = cache.write().unwrap();
-            let summary =
-                writer.create_account_with_buffer(buffer).await?;
+            let summary = writer.create_account_with_buffer(buffer).await?;
             Ok(summary)
         }
     }
@@ -170,11 +168,7 @@ impl MemoryProvider {
         async move {
             let mut writer = cache.write().unwrap();
             writer
-                .change_password(
-                    &vault,
-                    current_passphrase,
-                    new_passphrase,
-                )
+                .change_password(&vault, current_passphrase, new_passphrase)
                 .await?;
             Ok::<(), Error>(())
         }

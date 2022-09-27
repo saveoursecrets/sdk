@@ -21,10 +21,8 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use crate::{
-    client::provider::{
-        helpers, sync, ProviderState, StorageDirs, StorageProvider,
-    },
+use crate::client::provider::{
+    helpers, sync, ProviderState, StorageDirs, StorageProvider,
 };
 
 /// Local storage for a node.
@@ -292,4 +290,3 @@ where
         Ok(())
     }
 }
-

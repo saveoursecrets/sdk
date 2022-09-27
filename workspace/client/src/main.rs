@@ -18,8 +18,10 @@ use terminal_banner::{Banner, Padding};
 use sos_node::{
     cache_dir,
     client::{
-        run_blocking, spot::file::{new_remote_file_provider, spawn_changes_listener},
-        SignerBuilder,
+        provider::{
+            spawn_changes_listener, ProviderFactory,
+        },
+        run_blocking, SignerBuilder,
     },
 };
 
@@ -117,17 +119,11 @@ fn run() -> Result<()> {
                 .with_use_agent(true)
                 .build()?;
 
-            // Setup the provider
-            let (provider, address) = new_remote_file_provider(
-                server.clone(),
-                signer.clone(),
-                cache_dir)?;
+            let factory = ProviderFactory::Remote(server.clone());
+            let (provider, address) = factory.create_provider(signer.clone())?;
 
             // Listen for change notifications
-            spawn_changes_listener(
-                server,
-                signer,
-                Arc::clone(&provider));
+            spawn_changes_listener(server, signer, Arc::clone(&provider));
 
             // Prepare state for shell execution
             let shell_cache = Arc::clone(&provider);
