@@ -9,7 +9,7 @@ pub mod file {
         events::WalEvent,
         signer::BoxedSigner,
         vault::{Header, Summary, Vault},
-        wal::{file::WalFile, WalProvider},
+        wal::file::WalFile,
         PatchFile,
     };
     use std::{
@@ -130,7 +130,7 @@ pub mod file {
         */
 
         /// List the vault summaries.
-        pub async fn list_vaults(&mut self) -> Result<Vec<Summary>> {
+        pub async fn load_vaults(&mut self) -> Result<Vec<Summary>> {
             let mut writer = self.cache.write().unwrap();
             let summaries = writer.load_vaults().await?.to_vec();
             Ok(summaries)
@@ -162,12 +162,12 @@ pub mod file {
 /// from webassembly created by `wasm-bindgen`.
 #[cfg(target_arch = "wasm32")]
 pub mod memory {
-    use crate::client::{node_cache::NodeCache, Error, Result};
+    use crate::client::{net::RpcClient, provider::{StorageProvider, RemoteProvider}, Error, Result};
     use secrecy::SecretString;
     use sos_core::{
         events::{ChangeAction, ChangeNotification, SyncEvent},
         signer::BoxedSigner,
-        vault::{Header, Summary, Vault},
+        vault::{Summary, Vault},
         wal::memory::WalMemory,
         PatchMemory,
     };
@@ -182,7 +182,7 @@ pub mod memory {
 
     /// Type alias for an in-memory node cache.
     pub type MemoryCache =
-        Arc<RwLock<NodeCache<WalMemory, PatchMemory<'static>>>>;
+        Arc<RwLock<RemoteProvider<WalMemory, PatchMemory<'static>>>>;
 
     /// Client that communicates with a single server and
     /// writes it's cache to memory.
@@ -199,8 +199,9 @@ pub mod memory {
         pub fn new(server: Url, signer: BoxedSigner) -> Self {
             let url = server.clone();
             let client_signer = signer.clone();
-            let cache = Arc::new(RwLock::new(NodeCache::new_memory_cache(
-                server, signer,
+            let client = RpcClient::new(server, signer);
+            let cache = Arc::new(RwLock::new(RemoteProvider::new_memory_cache(
+                client
             )));
             Self {
                 cache,
@@ -217,6 +218,11 @@ pub mod memory {
         /// Get the signer.
         pub fn signer(&self) -> &BoxedSigner {
             &self.signer
+        }
+
+        /// Create a new client.
+        pub fn new_client(&self) -> RpcClient {
+            RpcClient::new(self.url.clone(), self.signer.clone())
         }
 
         /// Get a clone of the underlying node cache.
@@ -239,21 +245,13 @@ pub mod memory {
         pub fn create_account(
             cache: MemoryCache,
             buffer: Vec<u8>,
-        ) -> impl Future<Output = Result<(u16, Summary)>> + 'static {
+        ) -> impl Future<Output = Result<Summary>> + 'static {
             async move {
-                let summary = Header::read_summary_slice(&buffer)?;
-                let reader = cache.read().unwrap();
-                // We don't use the create_account() function on
-                // NodeCache as that will assign a passphrase and
-                // in this case we expect the client to have chosen
-                // a passphrase for the vault rather than having a
-                // passphrase assigned.
-                let status = reader
-                    .client()
-                    .create_account(buffer)
-                    .await?
-                    .into_status();
-                Ok((status.into(), summary))
+                let mut writer = cache.write().unwrap();
+                let summary = writer
+                    .create_account_with_buffer(buffer)
+                    .await?;
+                Ok(summary)
             }
         }
 
@@ -263,7 +261,7 @@ pub mod memory {
         ) -> impl Future<Output = Result<Vec<Summary>>> + 'static {
             async move {
                 let mut writer = cache.write().unwrap();
-                let vaults = writer.list_vaults().await?;
+                let vaults = writer.load_vaults().await?;
                 Ok::<Vec<Summary>, Error>(vaults.to_vec())
             }
         }
@@ -354,14 +352,14 @@ pub mod memory {
         }
 
         /// Patch a vault.
-        pub fn patch_vault(
+        pub fn patch(
             cache: MemoryCache,
             summary: Summary,
             events: Vec<SyncEvent<'static>>,
         ) -> impl Future<Output = Result<()>> + 'static {
             async move {
                 let mut writer = cache.write().unwrap();
-                writer.patch_vault(&summary, events).await?;
+                writer.patch(&summary, events).await?;
                 Ok::<(), Error>(())
             }
         }
@@ -377,7 +375,7 @@ pub mod memory {
         ) -> impl Future<Output = ()> + 'static {
             async move {
                 let mut writer = cache.write().unwrap();
-                let _ = writer.patch_vault(&summary, events).await;
+                let _ = writer.patch(&summary, events).await;
             }
         }
 

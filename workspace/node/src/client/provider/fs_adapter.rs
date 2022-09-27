@@ -39,6 +39,7 @@ mod noop {
         Ok(())
     }
 
+    /*
     pub async fn rename(
         _from: impl AsRef<Path>,
         _to: impl AsRef<Path>,
@@ -52,4 +53,5 @@ mod noop {
     ) -> Result<()> {
         Ok(())
     }
+    */
 }

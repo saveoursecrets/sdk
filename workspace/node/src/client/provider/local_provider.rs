@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_core::{
     constants::VAULT_EXT,
-    encode,
+    encode, decode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     vault::{Header, Summary, Vault, VaultId},
     wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider},
@@ -59,12 +59,9 @@ impl LocalProvider<WalFile, PatchFile> {
             ));
         }
 
-        let user_dir = dirs.user_dir();
-        if !user_dir.exists() {
-            std::fs::create_dir(user_dir)?;
-        }
+        dirs.ensure()?;
 
-        let snapshots = Some(SnapShotManager::new(user_dir)?);
+        let snapshots = Some(SnapShotManager::new(dirs.user_dir())?);
 
         Ok(Self {
             state: ProviderState::new(true),
@@ -126,8 +123,6 @@ where
         passphrase: Option<String>,
         _is_account: bool,
     ) -> Result<(SecretString, Summary)> {
-        self.ensure_dir().await?;
-
         let (passphrase, vault, buffer) =
             Vault::new_buffer(name, passphrase)?;
         let summary = vault.summary().clone();
@@ -143,6 +138,26 @@ where
         self.create_cache_entry(&summary, Some(vault))?;
 
         Ok((passphrase, summary))
+    }
+
+    async fn create_account_with_buffer(
+        &mut self,
+        buffer: Vec<u8>,
+    ) -> Result<Summary> {
+        let vault: Vault = decode(&buffer)?;
+        let summary = vault.summary().clone();
+
+        if self.state().mirror() {
+            helpers::write_vault_file(self, &summary, &buffer).await?;
+        }
+
+        // Add the summary to the vaults we are managing
+        self.state_mut().add_summary(summary.clone());
+
+        // Initialize the local cache for WAL and Patch
+        self.create_cache_entry(&summary, Some(vault))?;
+
+        Ok(summary)
     }
 
     async fn handle_change(
@@ -186,8 +201,6 @@ where
 
     #[cfg(not(target_arch = "wasm32"))]
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
-        self.ensure_dir().await?;
-
         let storage = self.dirs().vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = tokio::fs::read_dir(&storage).await?;

@@ -9,7 +9,7 @@ use sos_core::{
 };
 
 use crate::client::{
-    provider::{fs_adapter, StorageProvider},
+    provider::StorageProvider,
     Error, Result,
 };
 
@@ -143,6 +143,8 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
+    use crate::client::provider::fs_adapter;
+
     let vault_path = provider.vault_path(&summary);
     fs_adapter::write(vault_path, buffer).await?;
     Ok(())

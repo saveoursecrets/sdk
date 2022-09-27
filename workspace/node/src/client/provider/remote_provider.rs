@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::SecretString;
 use sos_core::{
-    encode,
+    encode, decode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     vault::{Summary, Vault, VaultId},
     wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider},
@@ -173,6 +173,36 @@ where
         self.create_cache_entry(&summary, Some(vault))?;
 
         Ok((passphrase, summary))
+    }
+
+    async fn create_account_with_buffer(
+        &mut self,
+        buffer: Vec<u8>,
+    ) -> Result<Summary> {
+        let vault: Vault = decode(&buffer)?;
+        let summary = vault.summary().clone();
+
+        let (status, _) = retry!(
+            || self.client.create_account(buffer.clone()),
+            &mut self.client
+        );
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
+        if self.state().mirror() {
+            helpers::write_vault_file(self, &summary, &buffer).await?;
+        }
+
+        // Add the summary to the vaults we are managing
+        self.state_mut().add_summary(summary.clone());
+
+        // Initialize the local cache for WAL and Patch
+        self.create_cache_entry(&summary, Some(vault))?;
+
+        Ok(summary)
     }
 
     async fn authenticate(&mut self) -> Result<()> {

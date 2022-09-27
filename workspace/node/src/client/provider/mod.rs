@@ -10,7 +10,7 @@ use std::{
 
 use sos_core::{
     commit_tree::{CommitPair, CommitProof, CommitTree},
-    constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
+    constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
@@ -81,6 +81,7 @@ impl StorageDirs {
     }
 
     /// Ensure all the directories exist.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn ensure(&self) -> Result<()> {
         std::fs::create_dir_all(&self.vaults_dir)?;
         Ok(())
@@ -277,6 +278,12 @@ where
         self.create_vault_or_account(Some(name), passphrase, false)
             .await
     }
+
+    /// Create a new account using the given vault buffer.
+    async fn create_account_with_buffer(
+        &mut self,
+        buffer: Vec<u8>,
+    ) -> Result<Summary>;
 
     /// Create a new account or vault.
     async fn create_vault_or_account(
@@ -573,6 +580,8 @@ where
     /// Remove a vault file and WAL file.
     #[cfg(not(target_arch = "wasm32"))]
     async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
+        use sos_core::constants::WAL_DELETED_EXT;
+
         // Remove local vault mirror if it exists
         let vault_path = self.vault_path(summary);
         if vault_path.exists() {
@@ -595,6 +604,7 @@ where
         Ok(())
     }
 
+    /*
     #[cfg(not(target_arch = "wasm32"))]
     /// Ensure a directory for a user's vaults.
     async fn ensure_dir(&self) -> Result<()> {
@@ -607,4 +617,5 @@ where
     async fn ensure_dir(&self) -> Result<()> {
         Ok(())
     }
+    */
 }
