@@ -43,47 +43,10 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
+    retry,
     client::provider::ProviderState,
     sync::{SyncInfo, SyncKind, SyncStatus},
 };
-
-/// Retry a request after renewing a session if an
-/// UNAUTHORIZED response is returned,
-macro_rules! retry {
-    ($future:expr, $client:expr) => {{
-        let future = $future();
-        let maybe_retry = future.await?;
-
-        match maybe_retry {
-            MaybeRetry::Retry(status) => {
-                if status == StatusCode::UNAUTHORIZED && $client.has_session()
-                {
-                    tracing::debug!("renew client session");
-                    $client.authenticate().await?;
-                    let future = $future();
-                    let maybe_retry = future.await?;
-                    match maybe_retry {
-                        MaybeRetry::Retry(status) => {
-                            if status == StatusCode::UNAUTHORIZED {
-                                return Err(Error::NotAuthorized);
-                            } else {
-                                return Err(Error::ResponseCode(
-                                    status.into(),
-                                ));
-                            }
-                        }
-                        MaybeRetry::Complete(status, result) => {
-                            (status, result)
-                        }
-                    }
-                } else {
-                    return Err(Error::NotAuthorized);
-                }
-            }
-            MaybeRetry::Complete(status, result) => (status, result),
-        }
-    }};
-}
 
 fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -584,9 +547,6 @@ where
     ) -> Result<()> {
         let vault = self.get_wal_vault(summary).await?;
 
-        let vault_path = self.vault_path(summary);
-
-        /*
         let vault_path = if self.mirror {
             let vault_path = self.vault_path(summary);
             if !vault_path.exists() {
@@ -597,9 +557,8 @@ where
         } else {
             None
         };
-        */
 
-        self.state.open_vault(passphrase, vault, vault_path)?;
+        self.state.open_vault(passphrase, vault, vault_path.unwrap())?;
         Ok(())
     }
 
