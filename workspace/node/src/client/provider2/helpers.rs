@@ -11,17 +11,11 @@ use sos_core::{
 use crate::client::{provider2::StorageProvider, Error, Result};
 
 /// Load a vault, unlock it and set it as the current vault.
-pub(crate) async fn open_vault<W, P>(
-    provider: &mut (impl StorageProvider<W, P> + Send + Sync + 'static),
+pub(crate) async fn open_vault(
+    provider: &mut (impl StorageProvider + Send + Sync + 'static),
     summary: &Summary,
     passphrase: &str,
-) -> Result<()>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
-    todo!()
-    /*
+) -> Result<()> {
     let vault = reduce_wal(provider, summary).await?;
     let vault_path = provider.vault_path(summary);
     if provider.state().mirror() {
@@ -36,19 +30,15 @@ where
         .state_mut()
         .open_vault(passphrase, vault, vault_path)?;
     Ok(())
-    */
 }
 
 /// Refresh the in-memory vault of the current selection
 /// from the contents of the current WAL file.
-pub(crate) async fn refresh_vault<W, P>(
-    provider: &mut (impl StorageProvider<W, P> + Send + Sync + 'static),
+pub(crate) async fn refresh_vault(
+    provider: &mut (impl StorageProvider + Send + Sync + 'static),
     summary: &Summary,
     new_passphrase: Option<&SecretString>,
 ) -> Result<()>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     todo!();
     /*
@@ -90,45 +80,11 @@ where
     */
 }
 
-/// Compact a WAL file.
-pub(crate) async fn compact<W, P>(
-    provider: &mut (impl StorageProvider<W, P> + Send + Sync + 'static),
-    summary: &Summary,
-) -> Result<(u64, u64)>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
-    
-    todo!();
-
-    /*
-    let (wal_file, _) = provider
-        .cache_mut()
-        .get_mut(summary.id())
-        .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-    let (compact_wal, old_size, new_size) = wal_file.compact()?;
-
-    // Need to recreate the WAL file and load the updated
-    // commit tree
-    *wal_file = compact_wal;
-
-    // Refresh in-memory vault and mirrored copy
-    provider.refresh_vault(summary, None).await?;
-
-    Ok((old_size, new_size))
-    */
-}
-
 /// Helper to reduce a WAL file to a vault.
-pub(crate) async fn reduce_wal<W, P>(
-    provider: &mut (impl StorageProvider<W, P> + Send + Sync + 'static),
+pub(crate) async fn reduce_wal(
+    provider: &mut (impl StorageProvider + Send + Sync + 'static),
     summary: &Summary,
 ) -> Result<Vault>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     todo!();
     /*
@@ -145,17 +101,13 @@ where
 
 /// Write the buffer for a vault to disc.
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) async fn write_vault_file<W, P>(
-    provider: &mut (impl StorageProvider<W, P> + Send + Sync + 'static),
+pub(crate) async fn write_vault_file(
+    provider: &mut (impl StorageProvider + Send + Sync + 'static),
     summary: &Summary,
     buffer: &[u8],
 ) -> Result<()>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     use crate::client::provider2::fs_adapter;
-
     let vault_path = provider.vault_path(&summary);
     fs_adapter::write(vault_path, buffer).await?;
     Ok(())
@@ -163,14 +115,11 @@ where
 
 /// Write the buffer for a vault to disc.
 #[cfg(target_arch = "wasm32")]
-pub(crate) async fn write_vault_file<W, P>(
-    _provider: &mut (impl StorageProvider<W, P> + Send + Sync + 'static),
+pub(crate) async fn write_vault_file(
+    _provider: &mut (impl StorageProvider + Send + Sync + 'static),
     _summary: &Summary,
     _buffer: &[u8],
 ) -> Result<()>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     Ok(())
 }

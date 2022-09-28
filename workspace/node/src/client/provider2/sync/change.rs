@@ -17,13 +17,10 @@ use crate::{client::provider2::StorageProvider, sync::SyncStatus};
 /// by this node which is determined by comparing the session
 /// identifier on the change notification with the current
 /// session identifier for this node.
-pub async fn handle_change<W, P>(
-    provider: &mut (impl StorageProvider<W, P> + Send + Sync + 'static),
+pub async fn handle_change(
+    provider: &mut (impl StorageProvider + Send + Sync + 'static),
     change: ChangeNotification,
 ) -> Result<HashSet<ChangeAction>>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     // Gather actions corresponding to the events
     let mut actions = HashSet::new();
@@ -87,7 +84,7 @@ where
                     }
                 }
                 ChangeAction::Remove(_) => {
-                    provider.remove_local_cache(summary).await?;
+                    provider.remove_local_cache(summary)?;
                 }
                 _ => {}
             }

@@ -26,7 +26,7 @@ use crate::{
 };
 
 /// Provider that can be safely sent between threads.
-pub type ArcProvider<W, P> = Arc<RwLock<BoxedProvider<W, P>>>;
+pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
 
 /// Factory for creating providers.
 #[derive(Debug)]
@@ -65,7 +65,7 @@ impl ProviderFactory {
     pub fn create_provider(
         &self,
         signer: BoxedSigner,
-    ) -> Result<(BoxedProvider<WalFile, PatchFile>, Address)> {
+    ) -> Result<(BoxedProvider, Address)> {
         match self {
             Self::Local => {
                 let dir = cache_dir().ok_or_else(|| Error::NoCache)?;
@@ -112,13 +112,11 @@ impl FromStr for ProviderFactory {
 
 /// Spawn a change notification listener that
 /// updates the local node cache.
-pub fn spawn_changes_listener<W, P>(
+pub fn spawn_changes_listener(
     server: Url,
     signer: BoxedSigner,
-    cache: ArcProvider<W, P>,
-) where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
+    cache: ArcProvider,
+)
 {
     let listener = ChangesListener::new(server, signer);
     listener.spawn(move |notification| {
@@ -136,11 +134,11 @@ pub fn new_remote_file_provider(
     signer: BoxedSigner,
     cache_dir: PathBuf,
     server: Url,
-) -> Result<(BoxedProvider<WalFile, PatchFile>, Address)> {
+) -> Result<(BoxedProvider, Address)> {
     let address = signer.address()?;
     let client = RpcClient::new(server, signer);
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
-    let provider: BoxedProvider<WalFile, PatchFile> =
+    let provider: BoxedProvider =
         Box::new(RemoteProvider::new_file_cache(client, dirs)?);
     Ok((provider, address))
 }
@@ -149,22 +147,20 @@ pub fn new_remote_file_provider(
 pub fn new_local_file_provider(
     signer: BoxedSigner,
     cache_dir: PathBuf,
-) -> Result<(BoxedProvider<WalFile, PatchFile>, Address)> {
+) -> Result<(BoxedProvider, Address)> {
     let address = signer.address()?;
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
-    let provider: BoxedProvider<WalFile, PatchFile> =
+    let provider: BoxedProvider =
         Box::new(LocalProvider::new_file_storage(dirs)?);
     Ok((provider, address))
 }
 
-/*
 /// Create a new local memory provider.
 pub fn new_local_memory_provider(
     signer: BoxedSigner,
-) -> Result<(BoxedProvider<WalMemory, PatchMemory<'static>>, Address)> {
+) -> Result<(BoxedProvider, Address)> {
     let address = signer.address()?;
-    let provider: BoxedProvider<WalMemory, PatchMemory> =
+    let provider: BoxedProvider =
         Box::new(LocalProvider::new_memory_storage());
     Ok((provider, address))
 }
-*/

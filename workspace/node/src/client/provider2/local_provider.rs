@@ -26,6 +26,7 @@ use std::{
 
 use crate::{
     provider_impl,
+    provider_impl_async,
     client::provider2::{
         helpers, sync, ProviderState, StorageDirs, StorageProvider,
         fs_adapter,
@@ -95,12 +96,13 @@ impl LocalProvider<WalMemory, PatchMemory<'static>> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<W, P> StorageProvider<W, P> for LocalProvider<W, P>
+impl<W, P> StorageProvider for LocalProvider<W, P>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
     provider_impl!();
+    provider_impl_async!();
 
     /// Create a new account or vault.
     async fn create_vault_or_account(
@@ -211,7 +213,21 @@ where
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        helpers::compact(self, summary).await
+        let (wal_file, _) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        let (compact_wal, old_size, new_size) = wal_file.compact()?;
+
+        // Need to recreate the WAL file and load the updated
+        // commit tree
+        *wal_file = compact_wal;
+
+        // Refresh in-memory vault and mirrored copy
+        self.refresh_vault(summary, None).await?;
+
+        Ok((old_size, new_size))
     }
 
     async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
@@ -223,7 +239,7 @@ where
         self.remove_vault_file(summary).await?;
 
         // Remove local state
-        self.remove_local_cache(summary).await?;
+        self.remove_local_cache(summary)?;
         Ok(())
     }
 
@@ -286,53 +302,6 @@ where
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /// Remove the local cache for a vault.
-    async fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
-        let current_id = self.current().map(|c| c.id().clone());
-
-        // If the deleted vault is the currently selected
-        // vault we must close it
-        if let Some(id) = &current_id {
-            if id == summary.id() {
-                self.close_vault();
-            }
-        }
-
-        // Remove from our cache of managed vaults
-        self.cache.remove(summary.id());
-
-        // Remove from the state of managed vaults
-        self.state_mut().remove_summary(summary);
-
-        Ok(())
-    }
 
     async fn create_secret(
         &mut self,

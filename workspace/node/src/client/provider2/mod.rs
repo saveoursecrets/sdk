@@ -66,8 +66,8 @@ pub use memory_provider::MemoryProvider;
 pub use state::ProviderState;
 
 /// Generic boxed provider.
-pub type BoxedProvider<W, P> =
-    Box<dyn StorageProvider<W, P> + Send + Sync + 'static>;
+pub type BoxedProvider =
+    Box<dyn StorageProvider + Send + Sync + 'static>;
 
 /// Encapsulates the paths for vault storage.
 #[derive(Default, Debug)]
@@ -124,11 +124,7 @@ impl StorageDirs {
 /// See: https://docs.rs/async-trait/latest/async_trait/#dyn-traits
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait StorageProvider<W, P>: Sync + Send
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
+pub trait StorageProvider: Sync + Send {
     /// Get the state for this storage provider.
     fn state(&self) -> &ProviderState;
 
@@ -201,7 +197,7 @@ where
     fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(W::Item, WalEvent<'_>)>>;
+    ) -> Result<Vec<WalEvent<'_>>>;
 
     /// Update an existing vault by replacing it with a new vault.
     async fn update_vault<'a>(
@@ -313,7 +309,7 @@ where
     ) -> Result<()>;
 
     /// Remove the local cache for a vault.
-    async fn remove_local_cache(&mut self, summary: &Summary) -> Result<()>;
+    fn remove_local_cache(&mut self, summary: &Summary) -> Result<()>;
 
     /// Add to the local cache for a vault.
     fn add_local_cache(&mut self, summary: Summary) -> Result<()>;
@@ -397,7 +393,6 @@ where
 
     /// Remove a vault file and WAL file.
     async fn remove_vault_file(&self, summary: &Summary) -> Result<()>;
-
 }
 
 /// Basic provider implementation.
@@ -459,6 +454,26 @@ macro_rules! provider_impl {
             Ok(())
         }
 
+        fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
+            let current_id = self.current().map(|c| c.id().clone());
+
+            // If the deleted vault is the currently selected
+            // vault we must close it
+            if let Some(id) = &current_id {
+                if id == summary.id() {
+                    self.close_vault();
+                }
+            }
+
+            // Remove from our cache of managed vaults
+            self.cache.remove(summary.id());
+
+            // Remove from the state of managed vaults
+            self.state_mut().remove_summary(summary);
+
+            Ok(())
+        }
+
         fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
             for summary in summaries {
                 // Ensure we don't overwrite existing data
@@ -487,7 +502,7 @@ macro_rules! provider_impl {
         fn history(
             &self,
             summary: &Summary,
-        ) -> Result<Vec<(W::Item, WalEvent<'_>)>> {
+        ) -> Result<Vec<WalEvent<'_>>> {
             let (wal, _) = self
                 .cache
                 .get(summary.id())
@@ -496,7 +511,7 @@ macro_rules! provider_impl {
             for record in wal.iter()? {
                 let record = record?;
                 let event = wal.event_data(&record)?;
-                records.push((record, event));
+                records.push(event);
             }
             Ok(records)
         }
@@ -511,4 +526,10 @@ macro_rules! provider_impl {
             Ok(snapshots.create(summary.id(), wal_file.path(), root_hash)?)
         }
     }
+}
+
+/// Async shared implementations.
+#[macro_export]
+macro_rules! provider_impl_async {
+    () => {}
 }
