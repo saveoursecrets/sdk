@@ -8,22 +8,22 @@ mod fs {
     use crate::client::Result;
     use std::path::Path;
 
-    pub async fn remove_file(path: impl AsRef<Path>) -> Result<()> {
-        Ok(tokio::fs::remove_file(path).await?)
+    pub fn remove_file(path: impl AsRef<Path>) -> Result<()> {
+        Ok(std::fs::remove_file(path)?)
     }
 
-    pub async fn rename(
+    pub fn rename(
         from: impl AsRef<Path>,
         to: impl AsRef<Path>,
     ) -> Result<()> {
-        Ok(tokio::fs::rename(from, to).await?)
+        Ok(std::fs::rename(from, to)?)
     }
 
-    pub async fn write(
+    pub fn write(
         path: impl AsRef<Path>,
         contents: impl AsRef<[u8]>,
     ) -> Result<()> {
-        Ok(tokio::fs::write(path, contents).await?)
+        Ok(std::fs::write(path, contents)?)
     }
 }
 
@@ -35,23 +35,7 @@ mod noop {
     use crate::client::Result;
     use std::path::Path;
 
-    pub async fn remove_file(_path: impl AsRef<Path>) -> Result<()> {
+    pub fn remove_file(_path: impl AsRef<Path>) -> Result<()> {
         Ok(())
     }
-
-    /*
-    pub async fn rename(
-        _from: impl AsRef<Path>,
-        _to: impl AsRef<Path>,
-    ) -> Result<()> {
-        Ok(())
-    }
-
-    pub async fn write(
-        _path: impl AsRef<Path>,
-        _contents: impl AsRef<[u8]>,
-    ) -> Result<()> {
-        Ok(())
-    }
-    */
 }

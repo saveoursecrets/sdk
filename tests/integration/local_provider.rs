@@ -54,9 +54,7 @@ where
     commit_count!(storage, &summary, 2);
 
     // Open the vault
-    storage
-        .open_vault(&summary, passphrase.expose_secret())
-        .await?;
+    storage.open_vault(&summary, passphrase.expose_secret())?;
 
     let (meta, secret) = mock_note("Test Note", "Mock note content.");
     let event = storage.create_secret(meta, secret).await?;

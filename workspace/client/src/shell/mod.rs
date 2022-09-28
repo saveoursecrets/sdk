@@ -18,8 +18,6 @@ use sos_core::{
     search::Document,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
-    wal::{WalItem, WalProvider},
-    CommitHash, PatchProvider,
 };
 use sos_node::{
     client::{
@@ -35,22 +33,18 @@ use sos_readline::{
 
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::{display_passphrase, Error, Result};
+use crate::{display_passphrase, switch, Error, Result};
 
 mod editor;
 mod print;
 
-pub type ShellProvider<W, P> = Arc<RwLock<BoxedProvider<W, P>>>;
+pub type ShellProvider = Arc<RwLock<BoxedProvider>>;
 
 /// Encapsulates the state for the shell REPL.
-pub struct ShellState<W, P>(
-    pub ShellProvider<W, P>,
-    pub Address,
-    pub ProviderFactory,
-);
+pub struct ShellState(pub ShellProvider, pub Address, pub ProviderFactory);
 
 /// Type for the root shell data.
-pub type ShellData<W, P> = Arc<RwLock<ShellState<W, P>>>;
+pub type ShellData = Arc<RwLock<ShellState>>;
 
 enum ConflictChoice {
     Push,
@@ -230,14 +224,10 @@ enum History {
 }
 
 /// Attempt to read secret meta data for a reference.
-fn find_secret_meta<W, P>(
-    cache: ShellProvider<W, P>,
+fn find_secret_meta(
+    cache: ShellProvider,
     secret: &SecretRef,
-) -> Result<Option<(SecretId, SecretMeta)>>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
+) -> Result<Option<(SecretId, SecretMeta)>> {
     let reader = cache.read().unwrap();
     let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
     //let meta_data = keeper.meta_data()?;
@@ -421,13 +411,11 @@ fn read_file_secret(path: &str) -> Result<Secret> {
     Ok(Secret::File { name, mime, buffer })
 }
 
-fn maybe_conflict<F, W, P>(cache: ShellProvider<W, P>, func: F) -> Result<()>
+fn maybe_conflict<F>(cache: ShellProvider, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, BoxedProvider<W, P>>,
+        &mut RwLockWriteGuard<'_, BoxedProvider>,
     ) -> sos_node::client::Result<()>,
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     let mut writer = cache.write().unwrap();
     match func(&mut writer) {
@@ -489,14 +477,10 @@ where
 }
 
 /// Execute the program command.
-fn exec_program<W, P>(program: Shell, state: ShellData<W, P>) -> Result<()>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
-    let data = state.read().unwrap();
-    let cache = Arc::clone(&data.0);
-    drop(data);
+fn exec_program(program: Shell, state: ShellData) -> Result<()> {
+    let reader = state.read().unwrap();
+    let cache = Arc::clone(&reader.0);
+    drop(reader);
 
     match program.cmd {
         ShellCommand::Authenticate => {
@@ -551,12 +535,15 @@ where
                 .ok_or(Error::VaultNotAvailable(vault))?;
             drop(reader);
 
+            let mut writer = cache.write().unwrap();
             let passphrase = read_password(Some("Passphrase: "))?;
-            maybe_conflict(cache, |writer| {
-                run_blocking(
-                    writer.open_vault(&summary, passphrase.expose_secret()),
-                )
-            })
+            writer.open_vault(&summary, passphrase.expose_secret())?;
+            Ok(())
+            //maybe_conflict(cache, |writer| {
+            //run_blocking(
+            //writer.open_vault(&summary, passphrase.expose_secret()),
+            //)
+            //})
         }
         ShellCommand::Info => {
             let reader = cache.read().unwrap();
@@ -654,9 +641,8 @@ where
         }
         ShellCommand::Add { cmd } => {
             let mut writer = cache.write().unwrap();
-            let keeper =
+            let _keeper =
                 writer.current_mut().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary().clone();
             let result = match cmd {
                 Add::Note { label } => add_note(label)?,
                 Add::List { label } => add_credentials(label)?,
@@ -666,20 +652,14 @@ where
                 Add::Pin { label } => add_pin(label)?,
             };
 
-            let result = if let Some((secret_meta, secret)) = result {
-                let event = keeper.create(secret_meta, secret)?;
-                // Must call into_owned() on the event to prevent
-                // attempting to borrow mutably twice
-                Some((summary, event.into_owned()))
-            } else {
-                None
-            };
-
             drop(writer);
 
-            if let Some((summary, event)) = result {
+            if let Some((meta, secret)) = result {
                 maybe_conflict(cache, |writer| {
-                    run_blocking(writer.patch(&summary, vec![event]))
+                    run_blocking(async {
+                        writer.create_secret(meta, secret).await?;
+                        Ok(())
+                    })
                 })
             } else {
                 Ok(())
@@ -689,22 +669,9 @@ where
             let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret)?
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
             let mut writer = cache.write().unwrap();
-            let keeper =
-                writer.current_mut().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary().clone();
-
-            if let Some((secret_meta, secret_data, event)) =
-                keeper.read(&uuid)?
-            {
-                // Must call into_owned() on the event to prevent
-                // attempting to borrow mutably twice
-                let event = event.into_owned();
-
-                print::secret(&secret_meta, &secret_data)?;
-                Ok(run_blocking(writer.patch(&summary, vec![event]))?)
-            } else {
-                Err(Error::SecretNotAvailable(secret))
-            }
+            let (meta, secret, _) = run_blocking(writer.read_secret(&uuid))?;
+            print::secret(&meta, &secret)?;
+            Ok(())
         }
 
         ShellCommand::Set { secret } => {
@@ -723,7 +690,7 @@ where
 
             drop(reader);
 
-            let (uuid, mut secret_meta, secret_data) =
+            let (uuid, secret_meta, secret_data) =
                 result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let result =
@@ -745,25 +712,14 @@ where
                 };
 
             if let Cow::Owned(edited_secret) = result {
-                let mut writer = cache.write().unwrap();
-                let keeper =
-                    writer.current_mut().ok_or(Error::NoVaultSelected)?;
-
-                let summary = keeper.summary().clone();
-
-                secret_meta.touch();
-
-                let event = keeper
-                    .update(&uuid, secret_meta, edited_secret)?
-                    .ok_or(Error::SecretNotAvailable(secret))?;
-
-                let event = event.into_owned();
-                drop(writer);
-
                 maybe_conflict(cache, |writer| {
-                    run_blocking(writer.patch(&summary, vec![event]))
+                    run_blocking(async {
+                        writer
+                            .update_secret(&uuid, secret_meta, edited_secret)
+                            .await?;
+                        Ok(())
+                    })
                 })
-
             // If the edited result was borrowed
             // it indicates that no changes were made
             } else {
@@ -779,21 +735,17 @@ where
                 format!(r#"Delete "{}" (y/n)? "#, secret_meta.label());
             if read_flag(Some(&prompt))? {
                 let mut writer = cache.write().unwrap();
-                let keeper =
+                let _keeper =
                     writer.current_mut().ok_or(Error::NoVaultSelected)?;
-                let summary = keeper.summary().clone();
-                if let Some(event) = keeper.delete(&uuid)? {
-                    // Must call into_owned() on the event to prevent
-                    // attempting to borrow mutably twice
-                    let event = event.into_owned();
 
-                    drop(writer);
-                    maybe_conflict(cache, |writer| {
-                        run_blocking(writer.patch(&summary, vec![event]))
+                drop(writer);
+
+                maybe_conflict(cache, |writer| {
+                    run_blocking(async {
+                        writer.delete_secret(&uuid).await?;
+                        Ok(())
                     })
-                } else {
-                    Err(Error::SecretNotAvailable(secret))
-                }
+                })
             } else {
                 Ok(())
             }
@@ -916,9 +868,8 @@ where
                         reader.current().ok_or(Error::NoVaultSelected)?;
 
                     let records = reader.history(keeper.summary())?;
-                    for (record, event) in records {
-                        let commit = CommitHash(record.commit());
-                        print!("{} {} ", event.event_kind(), record.time());
+                    for (commit, time, event) in records {
+                        print!("{} {} ", event.event_kind(), time);
                         if long {
                             println!("{}", commit);
                         } else {
@@ -1018,11 +969,6 @@ where
 
                 drop(writer);
 
-                //let mut writer = cache.write().unwrap();
-                //let keeper =
-                //writer.current_mut().ok_or(Error::NoVaultSelected)?;
-                //keeper.unlock(new_passphrase.expose_secret())?;
-
                 let banner = Banner::new()
                     .padding(Padding::one())
                     .text(Cow::Borrowed("SUCCESS"))
@@ -1045,19 +991,12 @@ where
 
             Ok(())
         }
-        ShellCommand::Switch { keystore: _ } => {
-            // FIXME
+        ShellCommand::Switch { keystore } => {
+            let reader = state.read().unwrap();
+            let factory = &reader.2;
 
-            /*
-            let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
-            if !cache_dir.is_dir() {
-                return Err(Error::NotDirectory(cache_dir));
-            }
-            let (mut provider, address) =
-                switch::<W, P>(server.clone(), cache_dir, keystore)?;
-            */
+            let (mut provider, address) = switch(factory, keystore)?;
 
-            /*
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
             run_blocking(provider.load_vaults())?;
@@ -1067,7 +1006,6 @@ where
 
             let mut writer = state.write().unwrap();
             writer.1 = address;
-            */
 
             Ok(())
         }
@@ -1089,12 +1027,10 @@ where
 }
 
 /// Intermediary to pretty print clap parse errors.
-fn exec_args<I, T, W, P>(it: I, cache: ShellData<W, P>) -> Result<()>
+fn exec_args<I, T>(it: I, cache: ShellData) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     match Shell::try_parse_from(it) {
         Ok(program) => exec_program(program, cache)?,
@@ -1104,11 +1040,7 @@ where
 }
 
 /// Execute a line of input in the context of the shell program.
-pub fn exec<W, P>(line: &str, cache: ShellData<W, P>) -> Result<()>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
+pub fn exec(line: &str, cache: ShellData) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));

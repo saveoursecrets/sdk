@@ -47,12 +47,8 @@ async fn integration_compact_force_pull() -> Result<()> {
     let _ = listener.load_vaults().await?;
 
     // Both clients use the login vault
-    creator
-        .open_vault(&summary, encryption_passphrase.expose_secret())
-        .await?;
-    listener
-        .open_vault(&summary, encryption_passphrase.expose_secret())
-        .await?;
+    creator.open_vault(&summary, encryption_passphrase.expose_secret())?;
+    listener.open_vault(&summary, encryption_passphrase.expose_secret())?;
 
     let listener_cache = Arc::new(RwLock::new(listener));
     let listener_summary = summary.clone();

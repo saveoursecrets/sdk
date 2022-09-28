@@ -3,14 +3,19 @@ use super::{Error, Result};
 
 use async_trait::async_trait;
 
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
+    commit_tree::{CommitPair, CommitTree},
     constants::VAULT_EXT,
+    crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     vault::{Header, Summary, Vault, VaultId},
-    wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider},
-    PatchMemory, PatchProvider,
+    wal::{
+        memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
+        snapshot::SnapShotManager, WalItem, WalProvider,
+    },
+    CommitHash, PatchMemory, PatchProvider, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -21,8 +26,12 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use crate::client::provider::{
-    helpers, sync, ProviderState, StorageDirs, StorageProvider,
+use crate::{
+    client::provider::{
+        fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
+    },
+    provider_impl,
+    sync::{SyncInfo, SyncKind, SyncStatus},
 };
 
 /// Local storage for a node.
@@ -87,34 +96,12 @@ impl LocalProvider<WalMemory, PatchMemory<'static>> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<W, P> StorageProvider<W, P> for LocalProvider<W, P>
+impl<W, P> StorageProvider for LocalProvider<W, P>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-    fn state(&self) -> &ProviderState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ProviderState {
-        &mut self.state
-    }
-
-    fn dirs(&self) -> &StorageDirs {
-        &self.dirs
-    }
-
-    fn cache(&self) -> &HashMap<VaultId, (W, P)> {
-        &self.cache
-    }
-
-    fn cache_mut(&mut self) -> &mut HashMap<VaultId, (W, P)> {
-        &mut self.cache
-    }
-
-    fn snapshots(&self) -> Option<&SnapShotManager> {
-        self.snapshots.as_ref()
-    }
+    provider_impl!();
 
     /// Create a new account or vault.
     async fn create_vault_or_account(
@@ -128,7 +115,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            helpers::write_vault_file(self, &summary, &buffer).await?;
+            self.write_vault_file(&summary, &buffer)?;
         }
 
         // Add the summary to the vaults we are managing
@@ -148,7 +135,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            helpers::write_vault_file(self, &summary, &buffer).await?;
+            self.write_vault_file(&summary, &buffer)?;
         }
 
         // Add the summary to the vaults we are managing
@@ -177,7 +164,7 @@ where
         if self.state().mirror() {
             // Write the vault to disc
             let buffer = encode(vault)?;
-            helpers::write_vault_file(self, summary, &buffer).await?;
+            self.write_vault_file(summary, &buffer)?;
         }
 
         // Apply events to the WAL
@@ -189,14 +176,6 @@ where
         wal.apply(events, None)?;
 
         Ok(())
-    }
-
-    async fn refresh_vault(
-        &mut self,
-        summary: &Summary,
-        new_passphrase: Option<&SecretString>,
-    ) -> Result<()> {
-        helpers::refresh_vault(self, summary, new_passphrase).await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -225,19 +204,39 @@ where
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        helpers::compact(self, summary).await
+        let (wal_file, _) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        let (compact_wal, old_size, new_size) = wal_file.compact()?;
+
+        // Need to recreate the WAL file and load the updated
+        // commit tree
+        *wal_file = compact_wal;
+
+        // Refresh in-memory vault and mirrored copy
+        self.refresh_vault(summary, None)?;
+
+        Ok((old_size, new_size))
     }
 
-    async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
-        helpers::reduce_wal(self, summary).await
+    fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
+        let wal_file = self
+            .cache
+            .get_mut(summary.id())
+            .map(|(w, _)| w)
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        Ok(WalReducer::new().reduce(wal_file)?.build()?)
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Remove the files
-        self.remove_vault_file(summary).await?;
+        self.remove_vault_file(summary)?;
 
         // Remove local state
-        self.remove_local_cache(summary).await?;
+        self.remove_local_cache(summary)?;
         Ok(())
     }
 
@@ -260,14 +259,6 @@ where
         Ok(())
     }
 
-    async fn open_vault(
-        &mut self,
-        summary: &Summary,
-        passphrase: &str,
-    ) -> Result<()> {
-        helpers::open_vault(self, summary, passphrase).await
-    }
-
     async fn patch(
         &mut self,
         summary: &Summary,
@@ -288,5 +279,54 @@ where
         }
 
         Ok(())
+    }
+
+    async fn pull(
+        &mut self,
+        summary: &Summary,
+        _force: bool,
+    ) -> Result<SyncInfo> {
+        let head = self
+            .commit_tree(summary)
+            .ok_or(Error::NoRootCommit)?
+            .head()?;
+        let info = SyncInfo {
+            before: (head.clone(), head),
+            after: None,
+            status: SyncKind::Equal,
+        };
+        Ok(info)
+    }
+
+    async fn push(
+        &mut self,
+        summary: &Summary,
+        _force: bool,
+    ) -> Result<SyncInfo> {
+        let head = self
+            .commit_tree(summary)
+            .ok_or(Error::NoRootCommit)?
+            .head()?;
+        let info = SyncInfo {
+            before: (head.clone(), head),
+            after: None,
+            status: SyncKind::Equal,
+        };
+        Ok(info)
+    }
+
+    async fn status(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<(SyncStatus, Option<usize>)> {
+        let head = self
+            .commit_tree(summary)
+            .ok_or(Error::NoRootCommit)?
+            .head()?;
+        let pair = CommitPair {
+            local: head.clone(),
+            remote: head,
+        };
+        Ok((SyncStatus::Equal(pair), None))
     }
 }
