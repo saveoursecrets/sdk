@@ -3,12 +3,13 @@
 //! Uses static futures so they can be driven from webassembly.
 use crate::client::{
     net::RpcClient,
-    provider::{ProviderFactory, ArcProvider},
+    provider::{ArcProvider, ProviderFactory},
     Error, Result,
 };
 use secrecy::SecretString;
 use sos_core::{
     events::{ChangeAction, ChangeNotification, SyncEvent},
+    secret::{Secret, SecretId, SecretMeta},
     signer::BoxedSigner,
     vault::{Summary, Vault},
 };
@@ -58,9 +59,9 @@ impl MemoryProvider {
 
     /// Create a new client.
     ///
-    /// Exposed so that the webassembly bindings may 
-    /// use a client to get a valid URL to use for listening to 
-    /// change notifications. The generated URL then needs to be 
+    /// Exposed so that the webassembly bindings may
+    /// use a client to get a valid URL to use for listening to
+    /// change notifications. The generated URL then needs to be
     /// sent to Javascript so it can create a websocket connection.
     pub fn new_client(&self) -> RpcClient {
         RpcClient::new(self.url.clone(), self.signer.clone())
@@ -211,6 +212,59 @@ impl MemoryProvider {
             let mut writer = cache.write().unwrap();
             let result = writer.handle_change(change).await?;
             Ok::<_, Error>(result)
+        }
+    }
+
+    /// Create a secret in the currently open vault.
+    pub fn create_secret(
+        cache: ArcProvider,
+        meta: SecretMeta,
+        secret: Secret,
+    ) -> impl Future<Output = Result<SyncEvent<'static>>> + 'static {
+        async move {
+            let mut writer = cache.write().unwrap();
+            let event = writer.create_secret(meta, secret).await?;
+            Ok::<_, Error>(event.into_owned())
+        }
+    }
+
+    /// Read a secret in the currently open vault.
+    pub fn read_secret(
+        cache: ArcProvider,
+        id: SecretId,
+    ) -> impl Future<Output = Result<(SecretMeta, Secret, SyncEvent<'static>)>>
+           + 'static {
+        async move {
+            let mut writer = cache.write().unwrap();
+            let (meta, secret, event) = writer.read_secret(&id).await?;
+            let event = event.into_owned();
+            Ok::<_, Error>((meta, secret, event))
+        }
+    }
+
+    /// Update a secret in the currently open vault.
+    pub fn update_secret(
+        cache: ArcProvider,
+        id: SecretId,
+        meta: SecretMeta,
+        secret: Secret,
+    ) -> impl Future<Output = Result<SyncEvent<'static>>> + 'static {
+        async move {
+            let mut writer = cache.write().unwrap();
+            let event = writer.update_secret(&id, meta, secret).await?;
+            Ok::<_, Error>(event.into_owned())
+        }
+    }
+
+    /// Delete a secret in the currently open vault.
+    pub fn delete_secret(
+        cache: ArcProvider,
+        id: SecretId,
+    ) -> impl Future<Output = Result<SyncEvent<'static>>> + 'static {
+        async move {
+            let mut writer = cache.write().unwrap();
+            let event = writer.delete_secret(&id).await?;
+            Ok::<_, Error>(event.into_owned())
         }
     }
 }

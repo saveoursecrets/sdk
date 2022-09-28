@@ -6,9 +6,7 @@ use sos_node::{
     cache_dir,
     client::{
         account::{create_account, AccountKey},
-        provider::{
-            BoxedProvider, ProviderFactory,
-        },
+        provider::{BoxedProvider, ProviderFactory},
         run_blocking, PassphraseReader, SignerBuilder,
     },
 };

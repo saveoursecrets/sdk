@@ -1,7 +1,5 @@
 //! Factory for creating providers.
-use sos_core::{
-    signer::BoxedSigner,
-};
+use sos_core::signer::BoxedSigner;
 use std::{
     fmt,
     sync::{Arc, RwLock},
@@ -9,31 +7,20 @@ use std::{
 use url::Url;
 use web3_address::ethereum::Address;
 
-use crate::{
-    client::{
-        net::RpcClient,
-        provider::{
-            BoxedProvider, RemoteProvider,
-        },
-        Error, Result,
-    },
+use crate::client::{
+    net::RpcClient,
+    provider::{BoxedProvider, RemoteProvider},
+    Error, Result,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::{
     cache_dir,
-    client::{
-        provider::{
-            LocalProvider, StorageDirs,
-        },
-    },
+    client::provider::{LocalProvider, StorageDirs},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::{
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{path::PathBuf, str::FromStr};
 
 /// Provider that can be safely sent between threads.
 pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
@@ -102,7 +89,7 @@ impl ProviderFactory {
                 } else {
                     Err(Error::InvalidProvider(self.to_string()))
                 }
-            },
+            }
             #[cfg(not(target_arch = "wasm32"))]
             Self::Memory(remote) => {
                 if let Some(remote) = remote {
@@ -110,7 +97,7 @@ impl ProviderFactory {
                 } else {
                     Ok(new_local_memory_provider(signer)?)
                 }
-            },
+            }
             #[cfg(not(target_arch = "wasm32"))]
             Self::Local => {
                 let dir = cache_dir().ok_or_else(|| Error::NoCache)?;
@@ -155,7 +142,9 @@ impl FromStr for ProviderFactory {
                         let mut url = url.clone();
                         let result = url.set_scheme(scheme);
                         if result.is_err() {
-                            return Err(Error::InvalidProvider(s.to_string()))
+                            return Err(Error::InvalidProvider(
+                                s.to_string(),
+                            ));
                         }
                         Ok(Self::Memory(Some(url)))
                     } else {

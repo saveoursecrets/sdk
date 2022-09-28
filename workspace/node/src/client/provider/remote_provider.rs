@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit_tree::{CommitTree},
+    commit_tree::CommitTree,
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
@@ -16,7 +16,8 @@ use sos_core::{
     wal::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,
-    }, CommitHash, PatchMemory, PatchProvider, Timestamp,
+    },
+    CommitHash, PatchMemory, PatchProvider, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]

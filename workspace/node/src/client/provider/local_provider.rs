@@ -14,7 +14,8 @@ use sos_core::{
     wal::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,
-    }, CommitHash, PatchMemory, PatchProvider, Timestamp,
+    },
+    CommitHash, PatchMemory, PatchProvider, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]

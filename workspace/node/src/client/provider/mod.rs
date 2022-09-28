@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
-    collections::{HashSet},
+    collections::HashSet,
     path::{Path, PathBuf},
 };
 
@@ -13,9 +13,7 @@ use sos_core::{
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault},
-    wal::{
-        snapshot::{SnapShot, SnapShotManager},
-    },
+    wal::snapshot::{SnapShot, SnapShotManager},
     ChangePassword, CommitHash, Gatekeeper, Timestamp,
 };
 
@@ -51,9 +49,9 @@ mod sync;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use local_provider::LocalProvider;
-pub use provider_factory::{ProviderFactory, ArcProvider};
 #[cfg(not(target_arch = "wasm32"))]
 pub use provider_factory::spawn_changes_listener;
+pub use provider_factory::{ArcProvider, ProviderFactory};
 pub use remote_provider::RemoteProvider;
 
 #[cfg(target_arch = "wasm32")]

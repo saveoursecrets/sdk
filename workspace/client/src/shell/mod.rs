@@ -33,7 +33,7 @@ use sos_readline::{
 
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::{switch, display_passphrase, Error, Result};
+use crate::{display_passphrase, switch, Error, Result};
 
 mod editor;
 mod print;
@@ -995,8 +995,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let reader = state.read().unwrap();
             let factory = &reader.2;
 
-            let (mut provider, address) =
-                switch(factory, keystore)?;
+            let (mut provider, address) = switch(factory, keystore)?;
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
