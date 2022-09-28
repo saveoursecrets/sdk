@@ -16,10 +16,11 @@ use sos_core::{
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault, VaultId},
     wal::{
+        //file::WalFile,
         snapshot::{SnapShot, SnapShotManager},
         WalProvider,
     },
-    ChangePassword, CommitHash, Gatekeeper, PatchProvider,
+    ChangePassword, CommitHash, Gatekeeper, /*PatchFile,*/ PatchProvider,
 };
 
 use crate::{
@@ -68,6 +69,12 @@ pub use state::ProviderState;
 /// Generic boxed provider.
 pub type BoxedProvider<W, P> =
     Box<dyn StorageProvider<W, P> + Send + Sync + 'static>;
+
+    /*
+/// Boxed file provider..
+pub type BoxedFileProvider =
+    Box<dyn StorageProvider<WalFile, PatchFile> + Send + Sync + 'static>;
+    */
 
 /// Encapsulates the paths for vault storage.
 #[derive(Default, Debug)]

@@ -34,6 +34,7 @@ secrecy = "0.8"
 log = "0.4"
 crypto-bigint = "0.4.8"
 sha3 = "0.10"
+once_cell = { version = "1.10" }
 
 # client
 web3-keystore = { version = "0.5", optional = true }
@@ -46,7 +47,6 @@ axum-server = { version = "0.4", features = ["tls-rustls"], optional = true }
 hyper = { version = "0.14", features = ["full"], optional = true }
 tower = { version = "0.4", optional = true }
 tower-http = { version = "0.3", features = ["full"], optional = true }
-once_cell = { version = "1.10", optional = true }
 rust-embed = { version = "6", optional = true }
 mime_guess = { version = "2", optional = true }
 async-stream = { version = "0.3", optional = true }
@@ -92,7 +92,6 @@ server = [
   "hyper",
   "tower",
   "tower-http",
-  "once_cell",
   "rust-embed",
   "mime_guess",
   "async-stream",
