@@ -41,7 +41,6 @@ pub(crate) fn assert_proofs_eq(
 }
 
 mod fs_adapter;
-mod helpers;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod local_provider;
@@ -220,7 +219,7 @@ pub trait StorageProvider: Sync + Send {
 
     /// Refresh the in-memory vault of the current selection
     /// from the contents of the current WAL file.
-    async fn refresh_vault(
+    fn refresh_vault(
         &mut self,
         summary: &Summary,
         new_passphrase: Option<&SecretString>,
@@ -273,7 +272,7 @@ pub trait StorageProvider: Sync + Send {
     ) -> Result<()>;
 
     /// Load a vault, unlock it and set it as the current vault.
-    async fn open_vault(
+    fn open_vault(
         &mut self,
         summary: &Summary,
         passphrase: &str,
@@ -383,10 +382,17 @@ pub trait StorageProvider: Sync + Send {
     fn verify(&self, summary: &Summary) -> Result<()>;
 
     /// Create a backup of a vault file.
-    async fn backup_vault_file(&self, summary: &Summary) -> Result<()>;
+    fn backup_vault_file(&self, summary: &Summary) -> Result<()>;
 
     /// Remove a vault file and WAL file.
-    async fn remove_vault_file(&self, summary: &Summary) -> Result<()>;
+    fn remove_vault_file(&self, summary: &Summary) -> Result<()>;
+
+    /// Write the buffer for a vault to disc.
+    fn write_vault_file(
+        &self,
+        summary: &Summary,
+        buffer: &[u8],
+    ) -> Result<()>;
 }
 
 /// Basic provider implementation.
@@ -521,11 +527,147 @@ macro_rules! provider_impl {
                 wal_file.tree().root().ok_or(Error::NoRootCommit)?;
             Ok(snapshots.create(summary.id(), wal_file.path(), root_hash)?)
         }
-    };
-}
 
-/// Async shared implementations.
-#[macro_export]
-macro_rules! provider_impl_async {
-    () => {};
+        fn open_vault(
+            &mut self,
+            summary: &Summary,
+            passphrase: &str,
+        ) -> Result<()> {
+            let vault = self.reduce_wal(summary)?;
+            let vault_path = self.vault_path(summary);
+            if self.state().mirror() {
+                if !vault_path.exists() {
+                    let buffer = encode(&vault)?;
+                    self.write_vault_file(summary, &buffer)?;
+                }
+            };
+
+            self 
+                .state_mut()
+                .open_vault(passphrase, vault, vault_path)?;
+            Ok(())
+        }
+
+        /// Refresh the in-memory vault of the current selection
+        /// from the contents of the current WAL file.
+        fn refresh_vault(
+            &mut self,
+            summary: &Summary,
+            new_passphrase: Option<&SecretString>,
+        ) -> Result<()> {
+            let wal = self
+                .cache
+                .get_mut(summary.id())
+                .map(|(w, _)| w)
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            let vault = WalReducer::new().reduce(wal)?.build()?;
+
+            // Rewrite the on-disc version if we are mirroring
+            if self.state().mirror() {
+                let buffer = encode(&vault)?;
+                self.write_vault_file(summary, &buffer)?;
+            }
+
+            if let Some(keeper) = self.current_mut() {
+                if keeper.id() == summary.id() {
+                    // Update the in-memory version
+                    let new_key = if let Some(new_passphrase) = new_passphrase {
+                        if let Some(salt) = vault.salt() {
+                            let salt = SecretKey::parse_salt(salt)?;
+                            let private_key = SecretKey::derive_32(
+                                new_passphrase.expose_secret(),
+                                &salt,
+                            )?;
+                            Some(private_key)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    keeper.replace_vault(vault, new_key)?;
+                }
+            }
+            Ok(())
+        }
+
+
+        /// Write the buffer for a vault to disc.
+        #[cfg(not(target_arch = "wasm32"))]
+        fn write_vault_file(
+            &self,
+            summary: &Summary,
+            buffer: &[u8],
+        ) -> Result<()> {
+            use crate::client::provider2::fs_adapter;
+            let vault_path = self.vault_path(&summary);
+            fs_adapter::write(vault_path, buffer)?;
+            Ok(())
+        }
+
+        /// Write the buffer for a vault to disc.
+        #[cfg(target_arch = "wasm32")]
+        fn write_vault_file(
+            &self,
+            _summary: &Summary,
+            _buffer: &[u8],
+        ) -> Result<()> {
+            Ok(())
+        }
+
+
+        /// Create a backup of a vault file.
+        #[cfg(not(target_arch = "wasm32"))]
+        fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
+            use sos_core::constants::VAULT_BACKUP_EXT;
+
+            // Move our cached vault to a backup
+            let vault_path = self.vault_path(summary);
+
+            if vault_path.exists() {
+                let mut vault_backup = vault_path.clone();
+                vault_backup.set_extension(VAULT_BACKUP_EXT);
+                fs_adapter::rename(&vault_path, &vault_backup)?;
+                tracing::debug!(
+                    vault = ?vault_path, backup = ?vault_backup, "vault backup");
+            }
+
+            Ok(())
+        }
+
+        /// Create a backup of a vault file.
+        #[cfg(target_arch = "wasm32")]
+        fn backup_vault_file(&self, _summary: &Summary) -> Result<()> {
+            Ok(())
+        }
+
+        /// Remove a vault file and WAL file.
+        #[cfg(not(target_arch = "wasm32"))]
+        fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
+            use sos_core::constants::WAL_DELETED_EXT;
+
+            // Remove local vault mirror if it exists
+            let vault_path = self.vault_path(summary);
+            if vault_path.exists() {
+                fs_adapter::remove_file(&vault_path)?;
+            }
+
+            // Rename the local WAL file so recovery is still possible
+            let wal_path = self.wal_path(summary);
+            if wal_path.exists() {
+                let mut wal_path_backup = wal_path.clone();
+                wal_path_backup.set_extension(WAL_DELETED_EXT);
+                fs_adapter::rename(wal_path, wal_path_backup)?;
+            }
+            Ok(())
+        }
+
+        /// Remove a vault file and WAL file.
+        #[cfg(target_arch = "wasm32")]
+        fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
+            Ok(())
+        }
+
+    };
 }

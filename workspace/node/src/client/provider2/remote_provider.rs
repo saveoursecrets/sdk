@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
+    crypto::secret_key::SecretKey,
     commit_tree::{CommitPair, CommitTree},
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
@@ -30,10 +31,10 @@ use uuid::Uuid;
 
 use crate::{
     client::provider2::{
-        fs_adapter, helpers, sync, ProviderState, StorageDirs,
+        fs_adapter, sync, ProviderState, StorageDirs,
         StorageProvider,
     },
-    patch, provider_impl, provider_impl_async, retry,
+    patch, provider_impl, retry,
     sync::{SyncInfo, SyncKind, SyncStatus},
 };
 
@@ -111,7 +112,6 @@ where
     P: PatchProvider + Send + Sync + 'static,
 {
     provider_impl!();
-    provider_impl_async!();
 
     async fn create_vault_or_account(
         &mut self,
@@ -144,7 +144,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            helpers::write_vault_file(self, &summary, &buffer)?;
+            self.write_vault_file(&summary, &buffer)?;
         }
 
         // Add the summary to the vaults we are managing
@@ -174,7 +174,7 @@ where
             .ok_or(Error::ResponseCode(status.into()))?;
 
         if self.state().mirror() {
-            helpers::write_vault_file(self, &summary, &buffer)?;
+            self.write_vault_file(&summary, &buffer)?;
         }
 
         // Add the summary to the vaults we are managing
@@ -251,14 +251,6 @@ where
         Ok(())
     }
 
-    async fn open_vault(
-        &mut self,
-        summary: &Summary,
-        passphrase: &str,
-    ) -> Result<()> {
-        helpers::open_vault(self, summary, passphrase).await
-    }
-
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Attempt to delete on the remote server
         let (status, _) = retry!(
@@ -271,7 +263,7 @@ where
             .ok_or(Error::ResponseCode(status.into()))?;
 
         // Remove the files
-        self.remove_vault_file(summary).await?;
+        self.remove_vault_file(summary)?;
 
         // Remove local state
         self.remove_local_cache(summary)?;
@@ -291,7 +283,7 @@ where
         *wal_file = compact_wal;
 
         // Refresh in-memory vault and mirrored copy
-        self.refresh_vault(summary, None).await?;
+        self.refresh_vault(summary, None)?;
 
         // Push changes to the remote
         self.push(summary, true).await?;
@@ -332,14 +324,6 @@ where
         Ok(())
     }
 
-    async fn refresh_vault(
-        &mut self,
-        summary: &Summary,
-        new_passphrase: Option<&SecretString>,
-    ) -> Result<()> {
-        helpers::refresh_vault(self, summary, new_passphrase).await
-    }
-
     fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
         let wal_file = self
             .cache
@@ -357,7 +341,7 @@ where
     ) -> Result<SyncInfo> {
         if force {
             // Noop on wasm32
-            self.backup_vault_file(summary).await?;
+            self.backup_vault_file(summary)?;
         }
 
         let (wal_file, patch_file) = self
@@ -496,58 +480,6 @@ where
         Ok(event)
     }
 
-    /// Create a backup of a vault file.
-    #[cfg(not(target_arch = "wasm32"))]
-    async fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
-        use sos_core::constants::VAULT_BACKUP_EXT;
-
-        // Move our cached vault to a backup
-        let vault_path = self.vault_path(summary);
-
-        if vault_path.exists() {
-            let mut vault_backup = vault_path.clone();
-            vault_backup.set_extension(VAULT_BACKUP_EXT);
-            fs_adapter::rename(&vault_path, &vault_backup)?;
-            tracing::debug!(
-                vault = ?vault_path, backup = ?vault_backup, "vault backup");
-        }
-
-        Ok(())
-    }
-
-    /// Create a backup of a vault file.
-    #[cfg(target_arch = "wasm32")]
-    async fn backup_vault_file(&self, _summary: &Summary) -> Result<()> {
-        Ok(())
-    }
-
-    /// Remove a vault file and WAL file.
-    #[cfg(not(target_arch = "wasm32"))]
-    async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
-        use sos_core::constants::WAL_DELETED_EXT;
-
-        // Remove local vault mirror if it exists
-        let vault_path = self.vault_path(summary);
-        if vault_path.exists() {
-            fs_adapter::remove_file(&vault_path)?;
-        }
-
-        // Rename the local WAL file so recovery is still possible
-        let wal_path = self.wal_path(summary);
-        if wal_path.exists() {
-            let mut wal_path_backup = wal_path.clone();
-            wal_path_backup.set_extension(WAL_DELETED_EXT);
-            fs_adapter::rename(wal_path, wal_path_backup)?;
-        }
-        Ok(())
-    }
-
-    /// Remove a vault file and WAL file.
-    #[cfg(target_arch = "wasm32")]
-    async fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
-        Ok(())
-    }
-
     /// Change the password for a vault.
     ///
     /// If the target vault is the currently selected vault
@@ -567,8 +499,7 @@ where
             .await?;
 
         // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), Some(&new_passphrase))
-            .await?;
+        self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
 
         if let Some(keeper) = self.current_mut() {
             if keeper.summary().id() == vault.summary().id() {
