@@ -446,6 +446,7 @@ where
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let _summary = keeper.summary().clone();
         let result = keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
+        self.patch(&summary, vec![event.clone()]).await?;
         Ok(result)
     }
 
