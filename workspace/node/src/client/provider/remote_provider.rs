@@ -419,7 +419,12 @@ where
         let (meta, secret, event) =
             keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
-        self.patch(&summary, vec![event.clone()]).await?;
+
+        // If patching fails then we drop an audit log entry
+        // however we don't want this failure to interrupt the client
+        // so we swallow the error in this case
+        let _ = self.patch(&summary, vec![event.clone()]).await;
+
         Ok((meta, secret, event))
     }
 }
