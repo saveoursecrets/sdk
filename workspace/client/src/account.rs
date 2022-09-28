@@ -11,7 +11,9 @@ use sos_node::{
     client::{
         account::{create_account, AccountKey},
         net::RpcClient,
-        provider::{RemoteProvider, StorageDirs, StorageProvider},
+        provider::{
+            BoxedProvider, RemoteProvider, StorageDirs, StorageProvider,
+        },
         run_blocking, PassphraseReader, SignerBuilder,
     },
 };
@@ -32,18 +34,11 @@ impl PassphraseReader for StdinPassphraseReader {
 }
 
 /// Switch to an account.
-pub fn switch<W, P>(
+pub fn switch(
     server: Url,
     cache_dir: PathBuf,
     keystore_file: PathBuf,
-) -> Result<(
-    Box<dyn StorageProvider<WalFile, PatchFile> + Send + Sync + 'static>,
-    Address,
-)>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
+) -> Result<(BoxedProvider, Address)> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
@@ -57,9 +52,8 @@ where
     let client = RpcClient::new(server, signer);
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
 
-    let provider: Box<
-        dyn StorageProvider<WalFile, PatchFile> + Send + Sync + 'static,
-    > = Box::new(RemoteProvider::new_file_cache(client, dirs)?);
+    let provider: BoxedProvider =
+        Box::new(RemoteProvider::new_file_cache(client, dirs)?);
 
     Ok((provider, address))
 }

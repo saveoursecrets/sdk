@@ -40,17 +40,13 @@ use crate::{display_passphrase, Error, Result};
 mod editor;
 mod print;
 
-pub type ShellProvider<W, P> = Arc<RwLock<BoxedProvider<W, P>>>;
+pub type ShellProvider = Arc<RwLock<BoxedProvider>>;
 
 /// Encapsulates the state for the shell REPL.
-pub struct ShellState<W, P>(
-    pub ShellProvider<W, P>,
-    pub Address,
-    pub ProviderFactory,
-);
+pub struct ShellState(pub ShellProvider, pub Address, pub ProviderFactory);
 
 /// Type for the root shell data.
-pub type ShellData<W, P> = Arc<RwLock<ShellState<W, P>>>;
+pub type ShellData = Arc<RwLock<ShellState>>;
 
 enum ConflictChoice {
     Push,
@@ -230,14 +226,10 @@ enum History {
 }
 
 /// Attempt to read secret meta data for a reference.
-fn find_secret_meta<W, P>(
-    cache: ShellProvider<W, P>,
+fn find_secret_meta(
+    cache: ShellProvider,
     secret: &SecretRef,
-) -> Result<Option<(SecretId, SecretMeta)>>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
+) -> Result<Option<(SecretId, SecretMeta)>> {
     let reader = cache.read().unwrap();
     let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
     //let meta_data = keeper.meta_data()?;
@@ -421,13 +413,11 @@ fn read_file_secret(path: &str) -> Result<Secret> {
     Ok(Secret::File { name, mime, buffer })
 }
 
-fn maybe_conflict<F, W, P>(cache: ShellProvider<W, P>, func: F) -> Result<()>
+fn maybe_conflict<F>(cache: ShellProvider, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, BoxedProvider<W, P>>,
+        &mut RwLockWriteGuard<'_, BoxedProvider>,
     ) -> sos_node::client::Result<()>,
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     let mut writer = cache.write().unwrap();
     match func(&mut writer) {
@@ -489,11 +479,7 @@ where
 }
 
 /// Execute the program command.
-fn exec_program<W, P>(program: Shell, state: ShellData<W, P>) -> Result<()>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
+fn exec_program(program: Shell, state: ShellData) -> Result<()> {
     let data = state.read().unwrap();
     let cache = Arc::clone(&data.0);
     drop(data);
@@ -551,12 +537,15 @@ where
                 .ok_or(Error::VaultNotAvailable(vault))?;
             drop(reader);
 
+            let mut writer = cache.write().unwrap();
             let passphrase = read_password(Some("Passphrase: "))?;
-            maybe_conflict(cache, |writer| {
-                run_blocking(
-                    writer.open_vault(&summary, passphrase.expose_secret()),
-                )
-            })
+            writer.open_vault(&summary, passphrase.expose_secret())?;
+            Ok(())
+            //maybe_conflict(cache, |writer| {
+            //run_blocking(
+            //writer.open_vault(&summary, passphrase.expose_secret()),
+            //)
+            //})
         }
         ShellCommand::Info => {
             let reader = cache.read().unwrap();
@@ -656,7 +645,6 @@ where
             let mut writer = cache.write().unwrap();
             let keeper =
                 writer.current_mut().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary().clone();
             let result = match cmd {
                 Add::Note { label } => add_note(label)?,
                 Add::List { label } => add_credentials(label)?,
@@ -685,10 +673,8 @@ where
             let mut writer = cache.write().unwrap();
             let keeper =
                 writer.current_mut().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary().clone();
 
-            let (meta, secret, _) =
-                run_blocking(writer.read_secret(&uuid))?;
+            let (meta, secret, _) = run_blocking(writer.read_secret(&uuid))?;
 
             print::secret(&meta, &secret)?;
             Ok(())
@@ -710,7 +696,7 @@ where
 
             drop(reader);
 
-            let (uuid, mut secret_meta, secret_data) =
+            let (uuid, secret_meta, secret_data) =
                 result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let result =
@@ -734,8 +720,9 @@ where
             if let Cow::Owned(edited_secret) = result {
                 maybe_conflict(cache, |writer| {
                     run_blocking(async {
-                        writer.update_secret(
-                            &uuid, secret_meta, edited_secret).await?;
+                        writer
+                            .update_secret(&uuid, secret_meta, edited_secret)
+                            .await?;
                         Ok(())
                     })
                 })
@@ -756,7 +743,6 @@ where
                 let mut writer = cache.write().unwrap();
                 let keeper =
                     writer.current_mut().ok_or(Error::NoVaultSelected)?;
-                let summary = keeper.summary().clone();
 
                 drop(writer);
 
@@ -888,9 +874,8 @@ where
                         reader.current().ok_or(Error::NoVaultSelected)?;
 
                     let records = reader.history(keeper.summary())?;
-                    for (record, event) in records {
-                        let commit = CommitHash(record.commit());
-                        print!("{} {} ", event.event_kind(), record.time());
+                    for (commit, time, event) in records {
+                        print!("{} {} ", event.event_kind(), time);
                         if long {
                             println!("{}", commit);
                         } else {
@@ -1056,12 +1041,10 @@ where
 }
 
 /// Intermediary to pretty print clap parse errors.
-fn exec_args<I, T, W, P>(it: I, cache: ShellData<W, P>) -> Result<()>
+fn exec_args<I, T>(it: I, cache: ShellData) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     match Shell::try_parse_from(it) {
         Ok(program) => exec_program(program, cache)?,
@@ -1071,11 +1054,7 @@ where
 }
 
 /// Execute a line of input in the context of the shell program.
-pub fn exec<W, P>(line: &str, cache: ShellData<W, P>) -> Result<()>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
+pub fn exec(line: &str, cache: ShellData) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));

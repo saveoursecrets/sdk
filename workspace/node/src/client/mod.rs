@@ -17,7 +17,6 @@ pub mod account;
 mod changes_listener;
 pub mod net;
 pub mod provider;
-pub mod provider2;
 
 mod error;
 

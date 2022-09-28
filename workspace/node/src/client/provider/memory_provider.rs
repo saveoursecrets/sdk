@@ -128,7 +128,7 @@ impl MemoryProvider {
     ) -> impl Future<Output = Result<()>> + 'static {
         async move {
             let mut writer = cache.write().unwrap();
-            writer.open_vault(&summary, &passphrase).await?;
+            writer.open_vault(&summary, &passphrase)?;
             Ok::<(), Error>(())
         }
     }
