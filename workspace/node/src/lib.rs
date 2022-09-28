@@ -30,8 +30,13 @@ static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
 
 /// Get the default root directory used for caching client data.
 ///
-/// If the `CACHE_DIR` environment variable is set it is used
-/// instead of the default location.
+/// If the `CACHE_DIR` environment variable is set it is used.
+///
+/// Otherwise is an explicit directory has been set using `set_cache_dir()`
+/// then that will be used.
+///
+/// Finally if no environment variable or explicit directory has been
+/// set then a path will be computed by platform convention.
 pub fn cache_dir() -> Option<PathBuf> {
     if let Some(env_cache_dir) = std::env::var("CACHE_DIR").ok() {
         Some(PathBuf::from(env_cache_dir))
