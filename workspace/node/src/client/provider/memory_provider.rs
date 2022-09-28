@@ -26,7 +26,7 @@ use crate::sync::SyncInfo;
 ///
 /// Uses static futures so that it can be used in webassembly.
 pub struct MemoryProvider {
-    cache: ArcProvider,
+    provider: ArcProvider,
     url: Url,
     signer: BoxedSigner,
 }
@@ -38,11 +38,11 @@ impl MemoryProvider {
         let client_signer = signer.clone();
         let factory = ProviderFactory::Memory(Some(server.clone()));
         let (provider, _) = factory.create_provider(signer)?;
-        let cache = Arc::new(RwLock::new(provider));
+        let provider = Arc::new(RwLock::new(provider));
         Ok(Self {
             url,
             signer: client_signer,
-            cache,
+            provider,
         })
     }
 
@@ -67,8 +67,8 @@ impl MemoryProvider {
     }
 
     /// Get a clone of the underlying provider.
-    pub fn cache(&self) -> ArcProvider {
-        Arc::clone(&self.cache)
+    pub fn provider(&self) -> ArcProvider {
+        Arc::clone(&self.provider)
     }
 
     /// Authenticate for a session.
@@ -118,21 +118,6 @@ impl MemoryProvider {
             Ok::<Summary, Error>(summary)
         }
     }
-
-    /*
-    /// Open a vault.
-    pub fn open_vault(
-        cache: ArcProvider,
-        summary: Summary,
-        passphrase: String,
-    ) -> impl Future<Output = Result<()>> + 'static {
-        async move {
-            let mut writer = cache.write().unwrap();
-            writer.open_vault(&summary, &passphrase)?;
-            Ok::<(), Error>(())
-        }
-    }
-    */
 
     /// Remove a vault.
     pub fn remove_vault(
