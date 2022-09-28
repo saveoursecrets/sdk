@@ -1,11 +1,15 @@
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{
+    borrow::Cow,
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
 use sos_client::{
-    exec, monitor, signup, Error, Result, StdinPassphraseReader,
+    exec, monitor, signup, Error, Result, ShellState, StdinPassphraseReader,
 };
 use sos_core::FileLocks;
 use sos_readline::read_shell;
@@ -13,7 +17,10 @@ use terminal_banner::{Banner, Padding};
 
 use sos_node::{
     cache_dir,
-    client::{run_blocking, spot::file::SpotFileClient, SignerBuilder},
+    client::{
+        provider::{spawn_changes_listener, ProviderFactory},
+        run_blocking, SignerBuilder,
+    },
 };
 
 const WELCOME: &str = include_str!("welcome.txt");
@@ -44,9 +51,9 @@ enum Command {
     },
     /// Launch the interactive shell.
     Shell {
-        /// Server URL.
+        /// Provider URL.
         #[clap(short, long)]
-        server: Url,
+        provider: Option<ProviderFactory>,
 
         /// Keystore file containing the signing key.
         #[clap(short, long)]
@@ -65,10 +72,10 @@ enum Command {
 }
 
 /// Print the welcome information.
-fn welcome(server: &Url) -> Result<()> {
+fn welcome(factory: &ProviderFactory) -> Result<()> {
     let help_info = r#"Type "help", "--help" or "-h" for command usage
 Type "quit" or "q" to exit"#;
-    let status_info = format!("Server: {}", server);
+    let status_info = format!("Provider: {}", factory);
     let banner = Banner::new()
         .padding(Padding::one())
         .text(Cow::from(WELCOME))
@@ -93,8 +100,7 @@ fn run() -> Result<()> {
         } => {
             signup(server, keystore, name)?;
         }
-        Command::Shell { server, keystore } => {
-            let server_url = server.clone();
+        Command::Shell { provider, keystore } => {
             let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
@@ -110,27 +116,44 @@ fn run() -> Result<()> {
                 .with_use_agent(true)
                 .build()?;
 
-            // Set up the client implementation
-            let spot_client = SpotFileClient::new(server, signer, cache_dir)?;
-            // Hook up a change stream to call into the node cache
-            spot_client.spawn_changes();
+            let factory = provider.unwrap_or_default();
+            let (provider, address) =
+                factory.create_provider(signer.clone())?;
 
-            welcome(&server_url)?;
+            let provider = Arc::new(RwLock::new(provider));
 
-            let cache = spot_client.cache();
+            match &factory {
+                ProviderFactory::Remote(remote) => {
+                    // Listen for change notifications
+                    spawn_changes_listener(
+                        remote.clone(),
+                        signer,
+                        Arc::clone(&provider),
+                    );
+                }
+                _ => {}
+            }
 
-            // Load initial vaults
-            let mut writer = cache.write().unwrap();
+            welcome(&factory)?;
 
+            // Prepare state for shell execution
+            let shell_cache = Arc::clone(&provider);
+            let state = Arc::new(RwLock::new(ShellState(
+                shell_cache,
+                address,
+                factory,
+            )));
+
+            // Authenticate and load initial vaults
+            let mut writer = provider.write().unwrap();
             run_blocking(writer.authenticate())?;
-
-            if let Err(e) = run_blocking(writer.list_vaults()) {
+            if let Err(e) = run_blocking(writer.load_vaults()) {
                 tracing::error!("failed to list vaults: {}", e);
             }
             drop(writer);
 
             let prompt = || -> String {
-                let cache = cache.read().unwrap();
+                let cache = provider.read().unwrap();
                 if let Some(current) = cache.current() {
                     return format!("sos@{}> ", current.name());
                 }
@@ -139,8 +162,8 @@ fn run() -> Result<()> {
 
             read_shell(
                 |line: String| {
-                    let shell_cache = Arc::clone(&cache);
-                    if let Err(e) = exec(&line, &server_url, shell_cache) {
+                    let provider = Arc::clone(&state);
+                    if let Err(e) = exec(&line, provider) {
                         tracing::error!("{}", e);
                     }
                 },

@@ -12,6 +12,7 @@ use sos_core::commit_tree::CommitProof;
 use sos_node::client::{
     account::{login, AccountCredentials},
     net::changes::{changes, connect},
+    provider::StorageProvider,
 };
 
 #[tokio::test]
@@ -35,7 +36,7 @@ async fn integration_compact_force_pull() -> Result<()> {
     } = credentials;
 
     // Set up another connected client to listen for changes
-    let cache_dir = dirs.clients.get(1).unwrap().to_path_buf();
+    let cache_dir = dirs.clients.get(0).unwrap().to_path_buf();
     let mut listener = login(
         server_url.clone(),
         cache_dir,
@@ -43,7 +44,7 @@ async fn integration_compact_force_pull() -> Result<()> {
         keystore_passphrase,
     )
     .await?;
-    let _ = listener.list_vaults().await?;
+    let _ = listener.load_vaults().await?;
 
     // Both clients use the login vault
     creator
@@ -77,8 +78,11 @@ async fn integration_compact_force_pull() -> Result<()> {
                 .await
                 .expect("failed to handle change");
 
-            let head =
-                writer.wal_tree(&listener_summary).unwrap().head().unwrap();
+            let head = writer
+                .commit_tree(&listener_summary)
+                .unwrap()
+                .head()
+                .unwrap();
 
             // Close the listener vault
             writer.close_vault();
@@ -105,7 +109,7 @@ async fn integration_compact_force_pull() -> Result<()> {
     // update vault notification
     let _ = creator.compact(&summary).await?;
 
-    let creator_head = creator.wal_tree(&summary).unwrap().head()?;
+    let creator_head = creator.commit_tree(&summary).unwrap().head()?;
 
     // Delay a while so the change notification SSE events
     // can be received

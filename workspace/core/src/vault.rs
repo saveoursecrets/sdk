@@ -7,6 +7,7 @@ use binary_stream::{
     Endian, FileStream, ReadStream, SeekStream, SliceStream, WriteStream,
 };
 
+use secrecy::{ExposeSecret, SecretString};
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, fs::File,
     path::Path,
@@ -23,6 +24,7 @@ use crate::{
     },
     decode, encode,
     events::SyncEvent,
+    generate_passphrase,
     secret::{SecretId, VaultMeta},
     CommitHash, Error, FileIdentity, Result,
 };
@@ -599,6 +601,27 @@ impl Vault {
             header: Header::new(id, name, algorithm),
             contents: Default::default(),
         }
+    }
+
+    /// Create a new vault and encode it into a buffer.
+    pub fn new_buffer(
+        name: Option<String>,
+        passphrase: Option<String>,
+    ) -> Result<(SecretString, Vault, Vec<u8>)> {
+        let passphrase = if let Some(passphrase) = passphrase {
+            secrecy::Secret::new(passphrase)
+        } else {
+            let (passphrase, _) = generate_passphrase()?;
+            passphrase
+        };
+
+        let mut vault: Vault = Default::default();
+        if let Some(name) = name {
+            vault.set_name(name);
+        }
+        vault.initialize(passphrase.expose_secret())?;
+        let buffer = encode(&vault)?;
+        Ok((passphrase, vault, buffer))
     }
 
     /// Initialize the vault with the given label and password.

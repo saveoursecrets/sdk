@@ -28,6 +28,7 @@ impl SnapShotManager {
     /// to store the snapshot files.
     pub fn new<P: AsRef<Path>>(base_dir: P) -> Result<Self> {
         let snapshots_dir = base_dir.as_ref().join(SNAPSHOTS_DIR);
+
         if !snapshots_dir.exists() {
             std::fs::create_dir(&snapshots_dir)?;
         }

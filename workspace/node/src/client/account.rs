@@ -1,24 +1,39 @@
 //! Functions and types for creating accounts.
 use sos_core::{
-    crypto::generate_random_ecdsa_signing_key, generate_passphrase,
-    signer::SingleParty, vault::Summary, wal::file::WalFile, PatchFile,
+    generate_passphrase,
+    signer::{BoxedSigner, Signer, SingleParty},
+    vault::Summary,
+    wal::file::WalFile,
+    PatchFile,
 };
 use std::{convert::Infallible, path::PathBuf};
 use url::Url;
 use web3_address::ethereum::Address;
 use web3_keystore::encrypt;
 
-use super::{node_cache::NodeCache, SignerBuilder};
 use super::{Error, Result};
 use secrecy::{ExposeSecret, SecretString};
 
-/// Signing, public key and computed address for a new account.
-pub struct AccountKey(pub [u8; 32], pub [u8; 33], pub Address);
+use crate::client::{
+    net::RpcClient,
+    provider::{RemoteProvider, StorageDirs, StorageProvider},
+    SignerBuilder,
+};
+
+/// Signing key and computed address for a new account.
+pub struct AccountKey(pub BoxedSigner, pub Address);
 
 impl AccountKey {
+    /// Create a signing key pair and compute the address.
+    pub fn new_random() -> Result<AccountKey> {
+        let signer = SingleParty::new_random();
+        let address = signer.address()?;
+        Ok(Self(Box::new(signer), address))
+    }
+
     /// Get the address of the client key.
     pub fn address(&self) -> &Address {
-        &self.2
+        &self.1
     }
 }
 
@@ -43,14 +58,18 @@ pub async fn login(
     cache_dir: PathBuf,
     keystore_file: PathBuf,
     keystore_passphrase: SecretString,
-) -> Result<NodeCache<WalFile, PatchFile>> {
+) -> Result<RemoteProvider<WalFile, PatchFile>> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
     let signer = SignerBuilder::<Infallible>::new(keystore_file)
         .with_keystore_passphrase(keystore_passphrase)
         .build()?;
-    let mut cache = NodeCache::new_file_cache(server, cache_dir, signer)?;
+    let address = signer.address()?;
+    let dirs = StorageDirs::new(cache_dir, &address.to_string());
+    let client = RpcClient::new(server, signer);
+
+    let mut cache = RemoteProvider::new_file_cache(client, dirs)?;
 
     // Prepare the client encrypted session channel
     cache.authenticate().await?;
@@ -66,7 +85,7 @@ pub async fn create_account(
     key: AccountKey,
     cache_dir: PathBuf,
     label: Option<String>,
-) -> Result<(AccountCredentials, NodeCache<WalFile, PatchFile>)> {
+) -> Result<(AccountCredentials, RemoteProvider<WalFile, PatchFile>)> {
     if !destination.is_dir() {
         return Err(Error::NotDirectory(destination));
     }
@@ -76,28 +95,33 @@ pub async fn create_account(
         return Err(Error::FileExists(keystore_file));
     }
 
-    let AccountKey(signing_key, _, _) = &key;
+    let AccountKey(signer, _) = &key;
     let (keystore_passphrase, _) = generate_passphrase()?;
-    let signer: SingleParty = (signing_key).try_into()?;
-    let mut cache =
-        NodeCache::new_file_cache(server, cache_dir, Box::new(signer))?;
+    let signing_key_bytes = signer.to_bytes();
+
+    let address = signer.address()?;
+    let dirs = StorageDirs::new(cache_dir, &address.to_string());
+    let client = RpcClient::new(server, signer.clone());
+
+    let mut cache = RemoteProvider::new_file_cache(client, dirs)?;
 
     // Prepare the client encrypted session channel
     cache.authenticate().await?;
 
     let keystore = encrypt(
         &mut rand::thread_rng(),
-        signing_key,
+        &signing_key_bytes,
         keystore_passphrase.expose_secret(),
         Some(key.address().to_string()),
         label,
     )?;
 
-    let (encryption_passphrase, summary) = cache.create_account(name).await?;
+    let (encryption_passphrase, summary) =
+        cache.create_account(name, None).await?;
 
     std::fs::write(&keystore_file, serde_json::to_string(&keystore)?)?;
 
-    let AccountKey(_, _, address) = key;
+    let AccountKey(_, address) = key;
     let account = AccountCredentials {
         keystore_passphrase,
         encryption_passphrase,
@@ -107,11 +131,4 @@ pub async fn create_account(
     };
 
     Ok((account, cache))
-}
-
-/// Create a signing key pair and compute the address.
-pub fn create_signing_key() -> Result<AccountKey> {
-    let (signing_key, public_key) = generate_random_ecdsa_signing_key();
-    let address: Address = (&public_key).try_into()?;
-    Ok(AccountKey(signing_key, public_key, address))
 }

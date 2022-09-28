@@ -2,12 +2,16 @@
 use crate::{display_passphrase, Error, Result};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{wal::file::WalFile, PatchFile};
+use sos_core::{
+    wal::{file::WalFile, WalProvider},
+    PatchFile, PatchProvider,
+};
 use sos_node::{
     cache_dir,
     client::{
-        account::{create_account, create_signing_key},
-        node_cache::NodeCache,
+        account::{create_account, AccountKey},
+        net::RpcClient,
+        provider::{RemoteProvider, StorageDirs, StorageProvider},
         run_blocking, PassphraseReader, SignerBuilder,
     },
 };
@@ -15,6 +19,7 @@ use sos_readline::{read_flag, read_password};
 use std::{borrow::Cow, path::PathBuf};
 use terminal_banner::{Banner, Padding};
 use url::Url;
+use web3_address::ethereum::Address;
 
 pub struct StdinPassphraseReader {}
 
@@ -27,11 +32,18 @@ impl PassphraseReader for StdinPassphraseReader {
 }
 
 /// Switch to an account.
-pub fn switch(
+pub fn switch<W, P>(
     server: Url,
     cache_dir: PathBuf,
     keystore_file: PathBuf,
-) -> Result<NodeCache<WalFile, PatchFile>> {
+) -> Result<(
+    Box<dyn StorageProvider<WalFile, PatchFile> + Send + Sync + 'static>,
+    Address,
+)>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
@@ -40,7 +52,16 @@ pub fn switch(
         .with_passphrase_reader(Box::new(reader))
         .with_use_agent(true)
         .build()?;
-    Ok(NodeCache::new_file_cache(server, cache_dir, signer)?)
+
+    let address = signer.address()?;
+    let client = RpcClient::new(server, signer);
+    let dirs = StorageDirs::new(cache_dir, &address.to_string());
+
+    let provider: Box<
+        dyn StorageProvider<WalFile, PatchFile> + Send + Sync + 'static,
+    > = Box::new(RemoteProvider::new_file_cache(client, dirs)?);
+
+    Ok((provider, address))
 }
 
 pub fn signup(
@@ -52,7 +73,7 @@ pub fn signup(
         return Err(Error::NotDirectory(destination));
     }
 
-    let client_key = create_signing_key()?;
+    let client_key = AccountKey::new_random()?;
     let keystore_file =
         destination.join(&format!("{}.json", client_key.address()));
     if keystore_file.exists() {

@@ -12,10 +12,8 @@ use web3_address::ethereum::Address;
 
 use secrecy::ExposeSecret;
 use sos_node::client::{
-    account::{
-        create_account, create_signing_key, AccountCredentials, AccountKey,
-    },
-    node_cache::NodeCache,
+    account::{create_account, AccountCredentials, AccountKey},
+    provider::{RemoteProvider, StorageProvider},
 };
 use web3_keystore::{decrypt, KeyStore};
 
@@ -25,7 +23,7 @@ pub async fn signup(
 ) -> Result<(
     Address,
     AccountCredentials,
-    NodeCache<WalFile, PatchFile>,
+    RemoteProvider<WalFile, PatchFile>,
     BoxedSigner,
 )> {
     let TestDirs {
@@ -38,15 +36,15 @@ pub async fn signup(
 
     let server = server();
     let name = None;
-    let key = create_signing_key()?;
+    let key = AccountKey::new_random()?;
 
     let address = key.address().to_owned();
 
     let expected_keystore =
         destination.join(&format!("{}.json", key.address()));
 
-    let AccountKey(signing_key, _, _) = &key;
-    let expected_signing_key = *signing_key;
+    let AccountKey(signing_key, _) = &key;
+    let expected_signing_key = signing_key.to_bytes();
 
     let (credentials, mut node_cache) = create_account(
         server,
@@ -77,7 +75,7 @@ pub async fn signup(
 
     assert_eq!(expected_signing_key, signing_key);
 
-    let _ = node_cache.list_vaults().await?;
+    let _ = node_cache.load_vaults().await?;
 
     Ok((address, credentials, node_cache, signer))
 }

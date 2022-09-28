@@ -8,6 +8,8 @@ mod shell;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 
+pub use shell::ShellState;
+
 pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {
     let banner = Banner::new()
         .padding(Padding::one())

@@ -61,6 +61,9 @@ pub trait Signer {
 
     /// Clone a boxed version of this signer.
     fn clone_boxed(&self) -> BoxedSigner;
+
+    /// Get the bytes for this signing key.
+    fn to_bytes(&self) -> Vec<u8>;
 }
 
 /// Trait for implementations that can sign a message synchronously.
@@ -87,10 +90,22 @@ impl Clone for BoxedSigner {
 #[derive(Clone)]
 pub struct SingleParty(pub SigningKey);
 
+impl SingleParty {
+    /// Generate a new random single party signing key.
+    pub fn new_random() -> SingleParty {
+        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        SingleParty(signing_key)
+    }
+}
+
 #[async_trait]
 impl Signer for SingleParty {
     fn clone_boxed(&self) -> BoxedSigner {
         Box::new(self.clone())
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_bytes().as_slice().to_vec()
     }
 
     async fn sign(&self, message: &[u8]) -> Result<Signature> {
