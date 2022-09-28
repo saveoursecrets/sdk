@@ -8,7 +8,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
 use secrecy::ExposeSecret;
-use sos_core::{commit_tree::CommitProof, wal::WalProvider};
+use sos_core::commit_tree::CommitProof;
 use sos_node::client::{
     account::{login, AccountCredentials},
     net::changes::{changes, connect},
@@ -46,31 +46,10 @@ async fn integration_handle_change() -> Result<()> {
     .await?;
     let _ = listener.load_vaults().await?;
 
-    println!(
-        "Opening the vaults: {}",
-        encryption_passphrase.expose_secret()
-    );
-
     // Both clients use the login vault
-    creator
-        .open_vault(&summary, encryption_passphrase.expose_secret())
-        .await?;
+    creator.open_vault(&summary, encryption_passphrase.expose_secret())?;
 
-    println!("CREATOR OPENED");
-
-    for (k, (w, _)) in creator.cache() {
-        println!("Creator has {} : {}", k, w.tree().len());
-    }
-
-    for (k, (w, _)) in listener.cache() {
-        println!("Listener has {} : {}", k, w.tree().len());
-    }
-
-    listener
-        .open_vault(&summary, encryption_passphrase.expose_secret())
-        .await?;
-
-    println!("After opening...");
+    listener.open_vault(&summary, encryption_passphrase.expose_secret())?;
 
     let listener_cache = Arc::new(RwLock::new(listener));
     let listener_summary = summary.clone();

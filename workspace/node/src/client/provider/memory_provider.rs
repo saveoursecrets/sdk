@@ -3,16 +3,15 @@
 //! Uses static futures so they can be driven from webassembly.
 use crate::client::{
     net::RpcClient,
-    provider::{RemoteProvider, StorageProvider},
+    provider::{ArcProvider, ProviderFactory},
     Error, Result,
 };
 use secrecy::SecretString;
 use sos_core::{
     events::{ChangeAction, ChangeNotification, SyncEvent},
+    secret::{Secret, SecretId, SecretMeta},
     signer::BoxedSigner,
     vault::{Summary, Vault},
-    wal::memory::WalMemory,
-    PatchMemory,
 };
 use std::{
     collections::HashSet,
@@ -23,33 +22,29 @@ use url::Url;
 
 use crate::sync::SyncInfo;
 
-/// Type alias for an in-memory node cache.
-pub type MemoryCache =
-    Arc<RwLock<RemoteProvider<WalMemory, PatchMemory<'static>>>>;
-
 /// Client that communicates with a single server and
 /// writes it's cache to memory.
 ///
 /// Uses static futures so that it can be used in webassembly.
 pub struct MemoryProvider {
-    cache: MemoryCache,
+    provider: ArcProvider,
     url: Url,
     signer: BoxedSigner,
 }
 
 impl MemoryProvider {
     /// Create a new SPOT memory client.
-    pub fn new(server: Url, signer: BoxedSigner) -> Self {
+    pub fn new(server: Url, signer: BoxedSigner) -> Result<Self> {
         let url = server.clone();
         let client_signer = signer.clone();
-        let client = RpcClient::new(server, signer);
-        let cache =
-            Arc::new(RwLock::new(RemoteProvider::new_memory_cache(client)));
-        Self {
-            cache,
+        let factory = ProviderFactory::Memory(Some(server.clone()));
+        let (provider, _) = factory.create_provider(signer)?;
+        let provider = Arc::new(RwLock::new(provider));
+        Ok(Self {
             url,
             signer: client_signer,
-        }
+            provider,
+        })
     }
 
     /// Get the URL of the remote node.
@@ -63,18 +58,23 @@ impl MemoryProvider {
     }
 
     /// Create a new client.
+    ///
+    /// Exposed so that the webassembly bindings may
+    /// use a client to get a valid URL to use for listening to
+    /// change notifications. The generated URL then needs to be
+    /// sent to Javascript so it can create a websocket connection.
     pub fn new_client(&self) -> RpcClient {
         RpcClient::new(self.url.clone(), self.signer.clone())
     }
 
-    /// Get a clone of the underlying node cache.
-    pub fn cache(&self) -> MemoryCache {
-        Arc::clone(&self.cache)
+    /// Get a clone of the underlying provider.
+    pub fn provider(&self) -> ArcProvider {
+        Arc::clone(&self.provider)
     }
 
     /// Authenticate for a session.
     pub fn authenticate(
-        cache: MemoryCache,
+        cache: ArcProvider,
     ) -> impl Future<Output = Result<()>> + 'static {
         async move {
             let mut writer = cache.write().unwrap();
@@ -85,7 +85,7 @@ impl MemoryProvider {
 
     /// Create an account.
     pub fn create_account(
-        cache: MemoryCache,
+        cache: ArcProvider,
         buffer: Vec<u8>,
     ) -> impl Future<Output = Result<Summary>> + 'static {
         async move {
@@ -97,7 +97,7 @@ impl MemoryProvider {
 
     /// List the vaults.
     pub fn list_vaults(
-        cache: MemoryCache,
+        cache: ArcProvider,
     ) -> impl Future<Output = Result<Vec<Summary>>> + 'static {
         async move {
             let mut writer = cache.write().unwrap();
@@ -108,7 +108,7 @@ impl MemoryProvider {
 
     /// Create a vault.
     pub fn create_vault(
-        cache: MemoryCache,
+        cache: ArcProvider,
         name: String,
         passphrase: String,
     ) -> impl Future<Output = Result<Summary>> + 'static {
@@ -120,22 +120,9 @@ impl MemoryProvider {
         }
     }
 
-    /// Open a vault.
-    pub fn open_vault(
-        cache: MemoryCache,
-        summary: Summary,
-        passphrase: String,
-    ) -> impl Future<Output = Result<()>> + 'static {
-        async move {
-            let mut writer = cache.write().unwrap();
-            writer.open_vault(&summary, &passphrase).await?;
-            Ok::<(), Error>(())
-        }
-    }
-
     /// Remove a vault.
     pub fn remove_vault(
-        cache: MemoryCache,
+        cache: ArcProvider,
         summary: Summary,
     ) -> impl Future<Output = Result<()>> + 'static {
         async move {
@@ -147,7 +134,7 @@ impl MemoryProvider {
 
     /// Pull a vault.
     pub fn pull(
-        cache: MemoryCache,
+        cache: ArcProvider,
         summary: Summary,
         force: bool,
     ) -> impl Future<Output = Result<SyncInfo>> + 'static {
@@ -160,7 +147,7 @@ impl MemoryProvider {
 
     /// Change the password for a vault.
     pub fn change_password(
-        cache: MemoryCache,
+        cache: ArcProvider,
         vault: Vault,
         current_passphrase: SecretString,
         new_passphrase: SecretString,
@@ -176,7 +163,7 @@ impl MemoryProvider {
 
     /// Rename a vault.
     pub fn rename_vault(
-        cache: MemoryCache,
+        cache: ArcProvider,
         summary: Summary,
         name: String,
     ) -> impl Future<Output = Result<()>> + 'static {
@@ -189,7 +176,7 @@ impl MemoryProvider {
 
     /// Patch a vault.
     pub fn patch(
-        cache: MemoryCache,
+        cache: ArcProvider,
         summary: Summary,
         events: Vec<SyncEvent<'static>>,
     ) -> impl Future<Output = Result<()>> + 'static {
@@ -200,24 +187,9 @@ impl MemoryProvider {
         }
     }
 
-    /// Send a patch of events infallibly.
-    ///
-    /// This is used to send read secret events for
-    /// audit logging.
-    pub fn send_events(
-        cache: MemoryCache,
-        summary: Summary,
-        events: Vec<SyncEvent<'static>>,
-    ) -> impl Future<Output = ()> + 'static {
-        async move {
-            let mut writer = cache.write().unwrap();
-            let _ = writer.patch(&summary, events).await;
-        }
-    }
-
     /// Handle a change notification.
     pub fn handle_change(
-        cache: MemoryCache,
+        cache: ArcProvider,
         change: ChangeNotification,
     ) -> impl Future<Output = Result<(bool, HashSet<ChangeAction>)>> + 'static
     {
@@ -225,6 +197,59 @@ impl MemoryProvider {
             let mut writer = cache.write().unwrap();
             let result = writer.handle_change(change).await?;
             Ok::<_, Error>(result)
+        }
+    }
+
+    /// Create a secret in the currently open vault.
+    pub fn create_secret(
+        cache: ArcProvider,
+        meta: SecretMeta,
+        secret: Secret,
+    ) -> impl Future<Output = Result<SyncEvent<'static>>> + 'static {
+        async move {
+            let mut writer = cache.write().unwrap();
+            let event = writer.create_secret(meta, secret).await?;
+            Ok::<_, Error>(event.into_owned())
+        }
+    }
+
+    /// Read a secret in the currently open vault.
+    pub fn read_secret(
+        cache: ArcProvider,
+        id: SecretId,
+    ) -> impl Future<Output = Result<(SecretMeta, Secret, SyncEvent<'static>)>>
+           + 'static {
+        async move {
+            let mut writer = cache.write().unwrap();
+            let (meta, secret, event) = writer.read_secret(&id).await?;
+            let event = event.into_owned();
+            Ok::<_, Error>((meta, secret, event))
+        }
+    }
+
+    /// Update a secret in the currently open vault.
+    pub fn update_secret(
+        cache: ArcProvider,
+        id: SecretId,
+        meta: SecretMeta,
+        secret: Secret,
+    ) -> impl Future<Output = Result<SyncEvent<'static>>> + 'static {
+        async move {
+            let mut writer = cache.write().unwrap();
+            let event = writer.update_secret(&id, meta, secret).await?;
+            Ok::<_, Error>(event.into_owned())
+        }
+    }
+
+    /// Delete a secret in the currently open vault.
+    pub fn delete_secret(
+        cache: ArcProvider,
+        id: SecretId,
+    ) -> impl Future<Output = Result<SyncEvent<'static>>> + 'static {
+        async move {
+            let mut writer = cache.write().unwrap();
+            let event = writer.delete_secret(&id).await?;
+            Ok::<_, Error>(event.into_owned())
         }
     }
 }

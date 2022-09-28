@@ -5,13 +5,19 @@ use crate::client::net::{MaybeRetry, RpcClient};
 
 use async_trait::async_trait;
 use http::StatusCode;
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
+    commit_tree::CommitTree,
+    crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
-    vault::{Summary, Vault, VaultId},
-    wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider},
-    CommitHash, PatchMemory, PatchProvider,
+    secret::{Secret, SecretId, SecretMeta},
+    vault::{Summary, Vault},
+    wal::{
+        memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
+        snapshot::SnapShotManager, WalItem, WalProvider,
+    },
+    CommitHash, PatchMemory, PatchProvider, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -25,10 +31,9 @@ use uuid::Uuid;
 
 use crate::{
     client::provider::{
-        fs_adapter, helpers, sync, ProviderState, StorageDirs,
-        StorageProvider,
+        fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
     },
-    patch, retry,
+    patch, provider_impl, retry,
     sync::{SyncInfo, SyncStatus},
 };
 
@@ -100,34 +105,12 @@ impl RemoteProvider<WalMemory, PatchMemory<'static>> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<W, P> StorageProvider<W, P> for RemoteProvider<W, P>
+impl<W, P> StorageProvider for RemoteProvider<W, P>
 where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-    fn state(&self) -> &ProviderState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ProviderState {
-        &mut self.state
-    }
-
-    fn dirs(&self) -> &StorageDirs {
-        &self.dirs
-    }
-
-    fn cache(&self) -> &HashMap<VaultId, (W, P)> {
-        &self.cache
-    }
-
-    fn cache_mut(&mut self) -> &mut HashMap<VaultId, (W, P)> {
-        &mut self.cache
-    }
-
-    fn snapshots(&self) -> Option<&SnapShotManager> {
-        self.snapshots.as_ref()
-    }
+    provider_impl!();
 
     async fn create_vault_or_account(
         &mut self,
@@ -160,7 +143,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            helpers::write_vault_file(self, &summary, &buffer).await?;
+            self.write_vault_file(&summary, &buffer)?;
         }
 
         // Add the summary to the vaults we are managing
@@ -190,7 +173,7 @@ where
             .ok_or(Error::ResponseCode(status.into()))?;
 
         if self.state().mirror() {
-            helpers::write_vault_file(self, &summary, &buffer).await?;
+            self.write_vault_file(&summary, &buffer)?;
         }
 
         // Add the summary to the vaults we are managing
@@ -216,7 +199,7 @@ where
         let mut needs_pull = Vec::new();
         for summary in &summaries {
             let (wal_file, _) = self
-                .cache()
+                .cache
                 .get(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
             let length = wal_file.tree().len();
@@ -267,14 +250,6 @@ where
         Ok(())
     }
 
-    async fn open_vault(
-        &mut self,
-        summary: &Summary,
-        passphrase: &str,
-    ) -> Result<()> {
-        helpers::open_vault(self, summary, passphrase).await
-    }
-
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Attempt to delete on the remote server
         let (status, _) = retry!(
@@ -287,17 +262,32 @@ where
             .ok_or(Error::ResponseCode(status.into()))?;
 
         // Remove the files
-        self.remove_vault_file(summary).await?;
+        self.remove_vault_file(summary)?;
 
         // Remove local state
-        self.remove_local_cache(summary).await?;
+        self.remove_local_cache(summary)?;
         Ok(())
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let result = helpers::compact(self, summary).await?;
+        let (wal_file, _) = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        let (compact_wal, old_size, new_size) = wal_file.compact()?;
+
+        // Need to recreate the WAL file and load the updated
+        // commit tree
+        *wal_file = compact_wal;
+
+        // Refresh in-memory vault and mirrored copy
+        self.refresh_vault(summary, None)?;
+
+        // Push changes to the remote
         self.push(summary, true).await?;
-        Ok(result)
+
+        Ok((old_size, new_size))
     }
 
     /// Update an existing vault by saving the new vault
@@ -333,19 +323,14 @@ where
         Ok(())
     }
 
-    async fn refresh_vault(
-        &mut self,
-        summary: &Summary,
-        new_passphrase: Option<&SecretString>,
-    ) -> Result<()> {
-        helpers::refresh_vault(self, summary, new_passphrase).await
-    }
+    fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
+        let wal_file = self
+            .cache
+            .get_mut(summary.id())
+            .map(|(w, _)| w)
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-    async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
-        // Fetch latest version of the WAL content
-        //self.pull(summary, false).await?;
-
-        helpers::reduce_wal(self, summary).await
+        Ok(WalReducer::new().reduce(wal_file)?.build()?)
     }
 
     async fn pull(
@@ -355,7 +340,7 @@ where
     ) -> Result<SyncInfo> {
         if force {
             // Noop on wasm32
-            self.backup_vault_file(summary).await?;
+            self.backup_vault_file(summary)?;
         }
 
         let (wal_file, patch_file) = self
@@ -377,7 +362,7 @@ where
                     path = ?snapshot.0, "force_pull snapshot");
             }
             // Noop on wasm32
-            fs_adapter::remove_file(wal_file.path()).await?;
+            fs_adapter::remove_file(wal_file.path())?;
         }
 
         sync::pull(&mut self.client, summary, wal_file, patch_file, force)
@@ -421,5 +406,25 @@ where
         };
         let actions = sync::handle_change(self, change).await?;
         Ok((self_change, actions))
+    }
+
+    // Override this so we also call patch() which will ensure
+    // the remote adds the event to it's audit log.
+    async fn read_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<(SecretMeta, Secret, SyncEvent<'_>)> {
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let summary = keeper.summary().clone();
+        let (meta, secret, event) =
+            keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
+        let event = event.into_owned();
+
+        // If patching fails then we drop an audit log entry
+        // however we don't want this failure to interrupt the client
+        // so we swallow the error in this case
+        let _ = self.patch(&summary, vec![event.clone()]).await;
+
+        Ok((meta, secret, event))
     }
 }

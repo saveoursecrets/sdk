@@ -16,6 +16,7 @@ use crate::{retry, sync::SyncStatus};
 ///
 /// If a patch file has unsaved events then the number
 /// of pending events is returned along with the `SyncStatus`.
+#[allow(dead_code)]
 pub async fn status<W, P>(
     client: &mut RpcClient,
     summary: &Summary,

@@ -2,16 +2,11 @@
 use crate::{display_passphrase, Error, Result};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{
-    wal::{file::WalFile, WalProvider},
-    PatchFile, PatchProvider,
-};
 use sos_node::{
     cache_dir,
     client::{
         account::{create_account, AccountKey},
-        net::RpcClient,
-        provider::{RemoteProvider, StorageDirs, StorageProvider},
+        provider::{BoxedProvider, ProviderFactory},
         run_blocking, PassphraseReader, SignerBuilder,
     },
 };
@@ -31,19 +26,11 @@ impl PassphraseReader for StdinPassphraseReader {
     }
 }
 
-/// Switch to an account.
-pub fn switch<W, P>(
-    server: Url,
-    cache_dir: PathBuf,
+/// Switch to a different account.
+pub fn switch(
+    factory: &ProviderFactory,
     keystore_file: PathBuf,
-) -> Result<(
-    Box<dyn StorageProvider<WalFile, PatchFile> + Send + Sync + 'static>,
-    Address,
-)>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
+) -> Result<(BoxedProvider, Address)> {
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
@@ -52,16 +39,7 @@ where
         .with_passphrase_reader(Box::new(reader))
         .with_use_agent(true)
         .build()?;
-
-    let address = signer.address()?;
-    let client = RpcClient::new(server, signer);
-    let dirs = StorageDirs::new(cache_dir, &address.to_string());
-
-    let provider: Box<
-        dyn StorageProvider<WalFile, PatchFile> + Send + Sync + 'static,
-    > = Box::new(RemoteProvider::new_file_cache(client, dirs)?);
-
-    Ok((provider, address))
+    Ok(factory.create_provider(signer)?)
 }
 
 pub fn signup(
