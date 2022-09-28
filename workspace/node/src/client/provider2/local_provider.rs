@@ -3,17 +3,19 @@ use super::{Error, Result};
 
 use async_trait::async_trait;
 
-use secrecy::{SecretString, ExposeSecret};
+use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     commit_tree::{CommitPair, CommitTree},
     constants::VAULT_EXT,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    secret::{Secret, SecretId, SecretMeta},
     vault::{Header, Summary, Vault, VaultId},
-    secret::{Secret, SecretMeta, SecretId},
-    wal::{memory::WalMemory, snapshot::SnapShotManager, WalProvider, snapshot::SnapShot},
-    PatchMemory, PatchProvider,
-    ChangePassword,
+    wal::{
+        memory::WalMemory, snapshot::SnapShot, snapshot::SnapShotManager,
+        WalProvider, reducer::WalReducer,
+    },
+    ChangePassword, PatchMemory, PatchProvider,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -25,13 +27,12 @@ use std::{
 };
 
 use crate::{
-    provider_impl,
-    provider_impl_async,
     client::provider2::{
-        helpers, sync, ProviderState, StorageDirs, StorageProvider,
-        fs_adapter,
+        fs_adapter, helpers, sync, ProviderState, StorageDirs,
+        StorageProvider,
     },
-    sync::{SyncInfo, SyncStatus, SyncKind},
+    provider_impl, provider_impl_async,
+    sync::{SyncInfo, SyncKind, SyncStatus},
 };
 
 /// Local storage for a node.
@@ -116,7 +117,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            helpers::write_vault_file(self, &summary, &buffer).await?;
+            helpers::write_vault_file(self, &summary, &buffer)?;
         }
 
         // Add the summary to the vaults we are managing
@@ -136,7 +137,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            helpers::write_vault_file(self, &summary, &buffer).await?;
+            helpers::write_vault_file(self, &summary, &buffer)?;
         }
 
         // Add the summary to the vaults we are managing
@@ -165,7 +166,7 @@ where
         if self.state().mirror() {
             // Write the vault to disc
             let buffer = encode(vault)?;
-            helpers::write_vault_file(self, summary, &buffer).await?;
+            helpers::write_vault_file(self, summary, &buffer)?;
         }
 
         // Apply events to the WAL
@@ -230,8 +231,14 @@ where
         Ok((old_size, new_size))
     }
 
-    async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
-        helpers::reduce_wal(self, summary).await
+    fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
+        let wal_file = self
+            .cache
+            .get_mut(summary.id())
+            .map(|(w, _)| w)
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        Ok(WalReducer::new().reduce(wal_file)?.build()?)
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
@@ -291,6 +298,8 @@ where
 
         Ok(())
     }
+
+
 
 
 
@@ -411,7 +420,7 @@ where
         if vault_path.exists() {
             let mut vault_backup = vault_path.clone();
             vault_backup.set_extension(VAULT_BACKUP_EXT);
-            fs_adapter::rename(&vault_path, &vault_backup).await?;
+            fs_adapter::rename(&vault_path, &vault_backup)?;
             tracing::debug!(
                 vault = ?vault_path, backup = ?vault_backup, "vault backup");
         }
@@ -433,7 +442,7 @@ where
         // Remove local vault mirror if it exists
         let vault_path = self.vault_path(summary);
         if vault_path.exists() {
-            fs_adapter::remove_file(&vault_path).await?;
+            fs_adapter::remove_file(&vault_path)?;
         }
 
         // Rename the local WAL file so recovery is still possible
@@ -441,7 +450,7 @@ where
         if wal_path.exists() {
             let mut wal_path_backup = wal_path.clone();
             wal_path_backup.set_extension(WAL_DELETED_EXT);
-            fs_adapter::rename(wal_path, wal_path_backup).await?;
+            fs_adapter::rename(wal_path, wal_path_backup)?;
         }
         Ok(())
     }
@@ -477,5 +486,4 @@ where
 
         Ok(new_passphrase)
     }
-
 }

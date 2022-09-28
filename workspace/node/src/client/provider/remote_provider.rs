@@ -341,11 +341,11 @@ where
         helpers::refresh_vault(self, summary, new_passphrase).await
     }
 
-    async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
+    fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
         // Fetch latest version of the WAL content
         //self.pull(summary, false).await?;
 
-        helpers::reduce_wal(self, summary).await
+        helpers::reduce_wal(self, summary)
     }
 
     async fn pull(

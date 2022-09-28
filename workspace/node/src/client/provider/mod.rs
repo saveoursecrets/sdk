@@ -334,7 +334,7 @@ where
     /// Load a vault by reducing it from the WAL stored on disc.
     ///
     /// Remote providers may pull changes beforehand.
-    async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault>;
+    fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault>;
 
     /// Close the currently selected vault.
     fn close_vault(&mut self) {

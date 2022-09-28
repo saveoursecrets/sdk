@@ -16,13 +16,12 @@ pub(crate) async fn open_vault(
     summary: &Summary,
     passphrase: &str,
 ) -> Result<()> {
-    let vault = reduce_wal(provider, summary).await?;
+    let vault = provider.reduce_wal(summary)?;
     let vault_path = provider.vault_path(summary);
     if provider.state().mirror() {
-        //let vault_path = provider.vault_path(summary);
         if !vault_path.exists() {
             let buffer = encode(&vault)?;
-            write_vault_file(provider, summary, &buffer).await?;
+            write_vault_file(provider, summary, &buffer)?;
         }
     };
 
@@ -38,8 +37,7 @@ pub(crate) async fn refresh_vault(
     provider: &mut (impl StorageProvider + Send + Sync + 'static),
     summary: &Summary,
     new_passphrase: Option<&SecretString>,
-) -> Result<()>
-{
+) -> Result<()> {
     todo!();
     /*
     let wal = provider
@@ -52,7 +50,7 @@ pub(crate) async fn refresh_vault(
     // Rewrite the on-disc version if we are mirroring
     if provider.state().mirror() {
         let buffer = encode(&vault)?;
-        write_vault_file(provider, summary, &buffer).await?;
+        write_vault_file(provider, summary, &buffer)?;
     }
 
     if let Some(keeper) = provider.current_mut() {
@@ -80,46 +78,25 @@ pub(crate) async fn refresh_vault(
     */
 }
 
-/// Helper to reduce a WAL file to a vault.
-pub(crate) async fn reduce_wal(
-    provider: &mut (impl StorageProvider + Send + Sync + 'static),
-    summary: &Summary,
-) -> Result<Vault>
-{
-    todo!();
-    /*
-    // Reduce the WAL to a vault
-    let wal_file = provider
-        .cache_mut()
-        .get_mut(summary.id())
-        .map(|(w, _)| w)
-        .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-    Ok(WalReducer::new().reduce(wal_file)?.build()?)
-    */
-}
-
 /// Write the buffer for a vault to disc.
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) async fn write_vault_file(
+pub(crate) fn write_vault_file(
     provider: &mut (impl StorageProvider + Send + Sync + 'static),
     summary: &Summary,
     buffer: &[u8],
-) -> Result<()>
-{
+) -> Result<()> {
     use crate::client::provider2::fs_adapter;
     let vault_path = provider.vault_path(&summary);
-    fs_adapter::write(vault_path, buffer).await?;
+    fs_adapter::write(vault_path, buffer)?;
     Ok(())
 }
 
 /// Write the buffer for a vault to disc.
 #[cfg(target_arch = "wasm32")]
-pub(crate) async fn write_vault_file(
+pub(crate) fn write_vault_file(
     _provider: &mut (impl StorageProvider + Send + Sync + 'static),
     _summary: &Summary,
     _buffer: &[u8],
-) -> Result<()>
-{
+) -> Result<()> {
     Ok(())
 }

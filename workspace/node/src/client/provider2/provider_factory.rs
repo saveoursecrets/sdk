@@ -65,9 +65,7 @@ impl ProviderFactory {
         signer: BoxedSigner,
     ) -> Result<(BoxedProvider, Address)> {
         match self {
-            Self::Memory => {
-                Ok(new_local_memory_provider(signer)?)
-            }
+            Self::Memory => Ok(new_local_memory_provider(signer)?),
             Self::Local => {
                 let dir = cache_dir().ok_or_else(|| Error::NoCache)?;
                 Ok(new_local_file_provider(signer, dir)?)
@@ -119,8 +117,7 @@ pub fn spawn_changes_listener(
     server: Url,
     signer: BoxedSigner,
     cache: ArcProvider,
-)
-{
+) {
     let listener = ChangesListener::new(server, signer);
     listener.spawn(move |notification| {
         let cache = Arc::clone(&cache);

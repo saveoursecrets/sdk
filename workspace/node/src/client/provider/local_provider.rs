@@ -228,8 +228,8 @@ where
         helpers::compact(self, summary).await
     }
 
-    async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
-        helpers::reduce_wal(self, summary).await
+    fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
+        helpers::reduce_wal(self, summary)
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {

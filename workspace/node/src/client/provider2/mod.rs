@@ -66,8 +66,7 @@ pub use memory_provider::MemoryProvider;
 pub use state::ProviderState;
 
 /// Generic boxed provider.
-pub type BoxedProvider =
-    Box<dyn StorageProvider + Send + Sync + 'static>;
+pub type BoxedProvider = Box<dyn StorageProvider + Send + Sync + 'static>;
 
 /// Encapsulates the paths for vault storage.
 #[derive(Default, Debug)]
@@ -194,10 +193,7 @@ pub trait StorageProvider: Sync + Send {
     }
 
     /// Get the history of events for a vault.
-    fn history(
-        &self,
-        summary: &Summary,
-    ) -> Result<Vec<WalEvent<'_>>>;
+    fn history(&self, summary: &Summary) -> Result<Vec<WalEvent<'_>>>;
 
     /// Update an existing vault by replacing it with a new vault.
     async fn update_vault<'a>(
@@ -286,7 +282,7 @@ pub trait StorageProvider: Sync + Send {
     /// Load a vault by reducing it from the WAL stored on disc.
     ///
     /// Remote providers may pull changes beforehand.
-    async fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault>;
+    fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault>;
 
     /// Apply changes to a vault.
     async fn patch(
@@ -351,10 +347,8 @@ pub trait StorageProvider: Sync + Send {
     ) -> Result<SyncEvent<'_>>;
 
     /// Delete a secret in the currently open vault.
-    async fn delete_secret(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<SyncEvent<'_>>;
+    async fn delete_secret(&mut self, id: &SecretId)
+        -> Result<SyncEvent<'_>>;
 
     /// Download changes from a remote server.
     ///
@@ -499,10 +493,7 @@ macro_rules! provider_impl {
             Ok(())
         }
 
-        fn history(
-            &self,
-            summary: &Summary,
-        ) -> Result<Vec<WalEvent<'_>>> {
+        fn history(&self, summary: &Summary) -> Result<Vec<WalEvent<'_>>> {
             let (wal, _) = self
                 .cache
                 .get(summary.id())
@@ -516,20 +507,25 @@ macro_rules! provider_impl {
             Ok(records)
         }
 
-        fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)> {
-            let snapshots = self.snapshots().ok_or(Error::SnapshotsNotEnabled)?;
+        fn take_snapshot(
+            &self,
+            summary: &Summary,
+        ) -> Result<(SnapShot, bool)> {
+            let snapshots =
+                self.snapshots().ok_or(Error::SnapshotsNotEnabled)?;
             let (wal_file, _) = self
                 .cache
                 .get(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            let root_hash = wal_file.tree().root().ok_or(Error::NoRootCommit)?;
+            let root_hash =
+                wal_file.tree().root().ok_or(Error::NoRootCommit)?;
             Ok(snapshots.create(summary.id(), wal_file.path(), root_hash)?)
         }
-    }
+    };
 }
 
 /// Async shared implementations.
 #[macro_export]
 macro_rules! provider_impl_async {
-    () => {}
+    () => {};
 }

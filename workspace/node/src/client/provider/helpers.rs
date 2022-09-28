@@ -20,7 +20,7 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-    let vault = reduce_wal(provider, summary).await?;
+    let vault = reduce_wal(provider, summary)?;
     let vault_path = provider.vault_path(summary);
     if provider.state().mirror() {
         //let vault_path = provider.vault_path(summary);
@@ -111,7 +111,7 @@ where
 }
 
 /// Helper to reduce a WAL file to a vault.
-pub(crate) async fn reduce_wal<W, P>(
+pub(crate) fn reduce_wal<W, P>(
     provider: &mut (impl StorageProvider<W, P> + Send + Sync + 'static),
     summary: &Summary,
 ) -> Result<Vault>

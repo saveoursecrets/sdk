@@ -20,8 +20,7 @@ use crate::{client::provider2::StorageProvider, sync::SyncStatus};
 pub async fn handle_change(
     provider: &mut (impl StorageProvider + Send + Sync + 'static),
     change: ChangeNotification,
-) -> Result<HashSet<ChangeAction>>
-{
+) -> Result<HashSet<ChangeAction>> {
     // Gather actions corresponding to the events
     let mut actions = HashSet::new();
     for event in change.changes() {
