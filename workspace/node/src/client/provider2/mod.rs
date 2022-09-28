@@ -132,14 +132,6 @@ pub trait StorageProvider: Sync + Send {
     /// Compute the storage directory for the user.
     fn dirs(&self) -> &StorageDirs;
 
-    /*
-    /// Get the cache.
-    fn cache(&self) -> &HashMap<VaultId, (W, P)>;
-
-    /// Get a mutable reference to the cache.
-    fn cache_mut(&mut self) -> &mut HashMap<VaultId, (W, P)>;
-    */
-
     /// Get the snapshot manager for this cache.
     fn snapshots(&self) -> Option<&SnapShotManager>;
 
@@ -201,18 +193,6 @@ pub trait StorageProvider: Sync + Send {
         vault: &Vault,
         events: Vec<WalEvent<'a>>,
     ) -> Result<()>;
-
-    /// Change the password for a vault.
-    ///
-    /// If the target vault is the currently selected vault
-    /// the currently selected vault is unlocked with the new
-    /// passphrase on success.
-    async fn change_password(
-        &mut self,
-        vault: &Vault,
-        current_passphrase: SecretString,
-        new_passphrase: SecretString,
-    ) -> Result<SecretString>;
 
     /// Compact a WAL file.
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
@@ -324,31 +304,6 @@ pub trait StorageProvider: Sync + Send {
         change: ChangeNotification,
     ) -> Result<(bool, HashSet<ChangeAction>)>;
 
-    /// Create a secret in the currently open vault.
-    async fn create_secret(
-        &mut self,
-        meta: SecretMeta,
-        secret: Secret,
-    ) -> Result<SyncEvent<'_>>;
-
-    /// Read a secret in the currently open vault.
-    async fn read_secret(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<(SecretMeta, Secret, SyncEvent<'_>)>;
-
-    /// Update a secret in the currently open vault.
-    async fn update_secret(
-        &mut self,
-        id: &SecretId,
-        mut meta: SecretMeta,
-        secret: Secret,
-    ) -> Result<SyncEvent<'_>>;
-
-    /// Delete a secret in the currently open vault.
-    async fn delete_secret(&mut self, id: &SecretId)
-        -> Result<SyncEvent<'_>>;
-
     /// Download changes from a remote server.
     ///
     /// For a local provider this is a noop.
@@ -393,9 +348,94 @@ pub trait StorageProvider: Sync + Send {
         summary: &Summary,
         buffer: &[u8],
     ) -> Result<()>;
+
+    /// Create a secret in the currently open vault.
+    async fn create_secret(
+        &mut self,
+        meta: SecretMeta,
+        secret: Secret,
+    ) -> Result<SyncEvent<'_>> {
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let summary = keeper.summary().clone();
+        let event = keeper.create(meta, secret)?.into_owned();
+        self.patch(&summary, vec![event.clone()]).await?;
+        Ok(event)
+    }
+
+    /// Read a secret in the currently open vault.
+    async fn read_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<(SecretMeta, Secret, SyncEvent<'_>)> {
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let _summary = keeper.summary().clone();
+        let result = keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
+        Ok(result)
+    }
+
+    /// Update a secret in the currently open vault.
+    async fn update_secret(
+        &mut self,
+        id: &SecretId,
+        mut meta: SecretMeta,
+        secret: Secret,
+    ) -> Result<SyncEvent<'_>> {
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let summary = keeper.summary().clone();
+        meta.touch();
+        let event = keeper
+            .update(id, meta, secret)?
+            .ok_or(Error::SecretNotFound(*id))?;
+        let event = event.into_owned();
+        self.patch(&summary, vec![event.clone()]).await?;
+        Ok(event)
+    }
+
+    /// Delete a secret in the currently open vault.
+    async fn delete_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<SyncEvent<'_>> {
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let summary = keeper.summary().clone();
+        let event = keeper.delete(id)?.ok_or(Error::SecretNotFound(*id))?;
+        let event = event.into_owned();
+        self.patch(&summary, vec![event.clone()]).await?;
+        Ok(event)
+    }
+
+    /// Change the password for a vault.
+    ///
+    /// If the target vault is the currently selected vault
+    /// the currently selected vault is unlocked with the new
+    /// passphrase on success.
+    async fn change_password(
+        &mut self,
+        vault: &Vault,
+        current_passphrase: SecretString,
+        new_passphrase: SecretString,
+    ) -> Result<SecretString> {
+        let (new_passphrase, new_vault, wal_events) =
+            ChangePassword::new(vault, current_passphrase, new_passphrase)
+                .build()?;
+
+        self.update_vault(vault.summary(), &new_vault, wal_events)
+            .await?;
+
+        // Refresh the in-memory and disc-based mirror
+        self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
+
+        if let Some(keeper) = self.current_mut() {
+            if keeper.summary().id() == vault.summary().id() {
+                keeper.unlock(new_passphrase.expose_secret())?;
+            }
+        }
+
+        Ok(new_passphrase)
+    }
 }
 
-/// Basic provider implementation.
+/// Shared provider implementation.
 #[macro_export]
 macro_rules! provider_impl {
     () => {
@@ -668,6 +708,5 @@ macro_rules! provider_impl {
         fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
             Ok(())
         }
-
     };
 }

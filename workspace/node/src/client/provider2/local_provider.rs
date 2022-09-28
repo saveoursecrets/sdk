@@ -283,67 +283,6 @@ where
         Ok(())
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    async fn create_secret(
-        &mut self,
-        meta: SecretMeta,
-        secret: Secret,
-    ) -> Result<SyncEvent<'_>> {
-        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-        let summary = keeper.summary().clone();
-        let event = keeper.create(meta, secret)?.into_owned();
-        self.patch(&summary, vec![event.clone()]).await?;
-        Ok(event)
-    }
-    async fn read_secret(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<(SecretMeta, Secret, SyncEvent<'_>)> {
-        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-        let _summary = keeper.summary().clone();
-        let result = keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
-        Ok(result)
-    }
-    async fn update_secret(
-        &mut self,
-        id: &SecretId,
-        mut meta: SecretMeta,
-        secret: Secret,
-    ) -> Result<SyncEvent<'_>> {
-        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-        let summary = keeper.summary().clone();
-        meta.touch();
-        let event = keeper
-            .update(id, meta, secret)?
-            .ok_or(Error::SecretNotFound(*id))?;
-        let event = event.into_owned();
-        self.patch(&summary, vec![event.clone()]).await?;
-        Ok(event)
-    }
-    async fn delete_secret(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<SyncEvent<'_>> {
-        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-        let summary = keeper.summary().clone();
-        let event = keeper.delete(id)?.ok_or(Error::SecretNotFound(*id))?;
-        let event = event.into_owned();
-        self.patch(&summary, vec![event.clone()]).await?;
-        Ok(event)
-    }
-
     async fn pull(
         &mut self,
         summary: &Summary,
@@ -393,28 +332,17 @@ where
         Ok((SyncStatus::Equal(pair), None))
     }
 
-    async fn change_password(
-        &mut self,
-        vault: &Vault,
-        current_passphrase: SecretString,
-        new_passphrase: SecretString,
-    ) -> Result<SecretString> {
-        let (new_passphrase, new_vault, wal_events) =
-            ChangePassword::new(vault, current_passphrase, new_passphrase)
-                .build()?;
 
-        self.update_vault(vault.summary(), &new_vault, wal_events)
-            .await?;
 
-        // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
 
-        if let Some(keeper) = self.current_mut() {
-            if keeper.summary().id() == vault.summary().id() {
-                keeper.unlock(new_passphrase.expose_secret())?;
-            }
-        }
 
-        Ok(new_passphrase)
-    }
+
+
+
+
+
+
+
+
+
 }
