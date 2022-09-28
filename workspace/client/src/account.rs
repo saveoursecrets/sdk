@@ -2,17 +2,13 @@
 use crate::{display_passphrase, Error, Result};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{
-    wal::{file::WalFile, WalProvider},
-    PatchFile, PatchProvider,
-};
 use sos_node::{
     cache_dir,
     client::{
         account::{create_account, AccountKey},
         net::RpcClient,
         provider::{
-            BoxedProvider, RemoteProvider, StorageDirs, StorageProvider,
+            BoxedProvider, RemoteProvider, StorageDirs,
         },
         run_blocking, PassphraseReader, SignerBuilder,
     },

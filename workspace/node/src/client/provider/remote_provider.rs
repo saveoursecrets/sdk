@@ -7,17 +7,16 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit_tree::{CommitPair, CommitTree},
+    commit_tree::{CommitTree},
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
-    vault::{Summary, Vault, VaultId},
+    vault::{Summary, Vault},
     wal::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,
-    },
-    ChangePassword, CommitHash, PatchMemory, PatchProvider, Timestamp,
+    }, CommitHash, PatchMemory, PatchProvider, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -34,7 +33,7 @@ use crate::{
         fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
     },
     patch, provider_impl, retry,
-    sync::{SyncInfo, SyncKind, SyncStatus},
+    sync::{SyncInfo, SyncStatus},
 };
 
 /// Local data cache for a node.

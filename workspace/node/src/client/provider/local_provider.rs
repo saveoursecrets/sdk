@@ -10,13 +10,11 @@ use sos_core::{
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
-    secret::{Secret, SecretId, SecretMeta},
     vault::{Header, Summary, Vault, VaultId},
     wal::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,
-    },
-    ChangePassword, CommitHash, PatchMemory, PatchProvider, Timestamp,
+    }, CommitHash, PatchMemory, PatchProvider, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]

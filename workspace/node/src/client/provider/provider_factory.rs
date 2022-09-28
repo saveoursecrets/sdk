@@ -1,8 +1,6 @@
 //! Factory for creating providers.
 use sos_core::{
     signer::BoxedSigner,
-    wal::{file::WalFile, WalProvider},
-    PatchFile, PatchProvider,
 };
 use std::{
     fmt,

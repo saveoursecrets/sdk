@@ -18,8 +18,6 @@ use sos_core::{
     search::Document,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
-    wal::{WalItem, WalProvider},
-    CommitHash, PatchProvider,
 };
 use sos_node::{
     client::{
@@ -643,7 +641,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::Add { cmd } => {
             let mut writer = cache.write().unwrap();
-            let keeper =
+            let _keeper =
                 writer.current_mut().ok_or(Error::NoVaultSelected)?;
             let result = match cmd {
                 Add::Note { label } => add_note(label)?,
@@ -671,11 +669,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret)?
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
             let mut writer = cache.write().unwrap();
-            let keeper =
-                writer.current_mut().ok_or(Error::NoVaultSelected)?;
-
             let (meta, secret, _) = run_blocking(writer.read_secret(&uuid))?;
-
             print::secret(&meta, &secret)?;
             Ok(())
         }
@@ -741,7 +735,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 format!(r#"Delete "{}" (y/n)? "#, secret_meta.label());
             if read_flag(Some(&prompt))? {
                 let mut writer = cache.write().unwrap();
-                let keeper =
+                let _keeper =
                     writer.current_mut().ok_or(Error::NoVaultSelected)?;
 
                 drop(writer);

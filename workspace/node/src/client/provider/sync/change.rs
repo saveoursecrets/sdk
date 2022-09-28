@@ -5,8 +5,6 @@ use super::Result;
 use sos_core::{
     events::{ChangeAction, ChangeEvent, ChangeNotification},
     secret::SecretRef,
-    wal::WalProvider,
-    PatchProvider,
 };
 
 use crate::{client::provider::StorageProvider, sync::SyncStatus};

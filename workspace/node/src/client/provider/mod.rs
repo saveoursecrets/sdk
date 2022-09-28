@@ -3,28 +3,25 @@
 use async_trait::async_trait;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
+    collections::{HashSet},
     path::{Path, PathBuf},
 };
 
 use sos_core::{
-    commit_tree::{CommitPair, CommitProof, CommitTree},
+    commit_tree::{CommitProof, CommitTree},
     constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
-    encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
-    vault::{Summary, Vault, VaultId},
+    vault::{Summary, Vault},
     wal::{
         snapshot::{SnapShot, SnapShotManager},
-        WalProvider,
     },
-    ChangePassword, CommitHash, Gatekeeper, PatchProvider, Timestamp,
+    ChangePassword, CommitHash, Gatekeeper, Timestamp,
 };
 
 use crate::{
     client::{Error, Result},
-    sync::{SyncInfo, SyncKind, SyncStatus},
+    sync::{SyncInfo, SyncStatus},
 };
 
 pub(crate) fn assert_proofs_eq(
