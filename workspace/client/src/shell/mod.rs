@@ -10,6 +10,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 
 use terminal_banner::{Banner, Padding};
 use url::Url;
+use web3_address::ethereum::Address;
 
 use human_bytes::human_bytes;
 use sos_core::{
@@ -17,12 +18,14 @@ use sos_core::{
     search::Document,
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
-    wal::{file::WalFile, WalItem},
-    CommitHash, PatchFile,
+    wal::{WalItem, WalProvider},
+    CommitHash, PatchProvider,
 };
 use sos_node::{
-    cache_dir,
-    client::{node_cache::NodeCache, run_blocking},
+    client::{
+        provider::{BoxedProvider, ProviderFactory},
+        run_blocking,
+    },
     sync::SyncKind,
 };
 use sos_readline::{
@@ -32,12 +35,22 @@ use sos_readline::{
 
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::{display_passphrase, switch, Error, Result};
+use crate::{display_passphrase, Error, Result};
 
 mod editor;
 mod print;
 
-type ReplCache = Arc<RwLock<NodeCache<WalFile, PatchFile>>>;
+pub type ShellProvider<W, P> = Arc<RwLock<BoxedProvider<W, P>>>;
+
+/// Encapsulates the state for the shell REPL.
+pub struct ShellState<W, P>(
+    pub ShellProvider<W, P>,
+    pub Address,
+    pub ProviderFactory,
+);
+
+/// Type for the root shell data.
+pub type ShellData<W, P> = Arc<RwLock<ShellState<W, P>>>;
 
 enum ConflictChoice {
     Push,
@@ -217,10 +230,14 @@ enum History {
 }
 
 /// Attempt to read secret meta data for a reference.
-fn find_secret_meta(
-    cache: ReplCache,
+fn find_secret_meta<W, P>(
+    cache: ShellProvider<W, P>,
     secret: &SecretRef,
-) -> Result<Option<(SecretId, SecretMeta)>> {
+) -> Result<Option<(SecretId, SecretMeta)>>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
     let reader = cache.read().unwrap();
     let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
     //let meta_data = keeper.meta_data()?;
@@ -404,11 +421,13 @@ fn read_file_secret(path: &str) -> Result<Secret> {
     Ok(Secret::File { name, mime, buffer })
 }
 
-fn maybe_conflict<F>(cache: ReplCache, func: F) -> Result<()>
+fn maybe_conflict<F, W, P>(cache: ShellProvider<W, P>, func: F) -> Result<()>
 where
     F: FnOnce(
-        &mut RwLockWriteGuard<'_, NodeCache<WalFile, PatchFile>>,
+        &mut RwLockWriteGuard<'_, BoxedProvider<W, P>>,
     ) -> sos_node::client::Result<()>,
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
 {
     let mut writer = cache.write().unwrap();
     match func(&mut writer) {
@@ -469,35 +488,16 @@ where
     }
 }
 
-/*
-
-    let snapshots = SnapShotManager::new(&user_dir)?;
-
-
-    fn snapshots(&self) -> &SnapShotManager {
-        &self.snapshots
-    }
-
-    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)> {
-        if cfg!(target_arch = "wasm32") {
-            panic!("snapshots not available in webassembly");
-        }
-
-        let (wal, _) = self
-            .cache
-            .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
-        Ok(self.snapshots.create(summary.id(), wal.path(), root_hash)?)
-    }
-*/
-
 /// Execute the program command.
-fn exec_program(
-    program: Shell,
-    server: &Url,
-    cache: ReplCache,
-) -> Result<()> {
+fn exec_program<W, P>(program: Shell, state: ShellData<W, P>) -> Result<()>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
+    let data = state.read().unwrap();
+    let cache = Arc::clone(&data.0);
+    drop(data);
+
     match program.cmd {
         ShellCommand::Authenticate => {
             let mut writer = cache.write().unwrap();
@@ -507,7 +507,7 @@ fn exec_program(
         }
         ShellCommand::Vaults => {
             let mut writer = cache.write().unwrap();
-            let summaries = run_blocking(writer.list_vaults())?;
+            let summaries = run_blocking(writer.load_vaults())?;
             print::summaries_list(summaries);
             Ok(())
         }
@@ -623,7 +623,7 @@ fn exec_program(
 
             let mut writer = cache.write().unwrap();
             let (status, pending_events) =
-                run_blocking(writer.vault_status(&summary))?;
+                run_blocking(writer.status(&summary))?;
             if verbose {
                 let pair = status.pair();
                 println!("local  = {}", pair.local.root_hex());
@@ -639,7 +639,7 @@ fn exec_program(
             let reader = cache.read().unwrap();
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary();
-            if let Some(tree) = reader.wal_tree(summary) {
+            if let Some(tree) = reader.commit_tree(summary) {
                 if let Some(leaves) = tree.leaves() {
                     for leaf in &leaves {
                         println!("{}", hex::encode(leaf));
@@ -679,7 +679,7 @@ fn exec_program(
 
             if let Some((summary, event)) = result {
                 maybe_conflict(cache, |writer| {
-                    run_blocking(writer.patch_vault(&summary, vec![event]))
+                    run_blocking(writer.patch(&summary, vec![event]))
                 })
             } else {
                 Ok(())
@@ -701,7 +701,7 @@ fn exec_program(
                 let event = event.into_owned();
 
                 print::secret(&secret_meta, &secret_data)?;
-                Ok(run_blocking(writer.patch_vault(&summary, vec![event]))?)
+                Ok(run_blocking(writer.patch(&summary, vec![event]))?)
             } else {
                 Err(Error::SecretNotAvailable(secret))
             }
@@ -761,7 +761,7 @@ fn exec_program(
                 drop(writer);
 
                 maybe_conflict(cache, |writer| {
-                    run_blocking(writer.patch_vault(&summary, vec![event]))
+                    run_blocking(writer.patch(&summary, vec![event]))
                 })
 
             // If the edited result was borrowed
@@ -789,9 +789,7 @@ fn exec_program(
 
                     drop(writer);
                     maybe_conflict(cache, |writer| {
-                        run_blocking(
-                            writer.patch_vault(&summary, vec![event]),
-                        )
+                        run_blocking(writer.patch(&summary, vec![event]))
                     })
                 } else {
                     Err(Error::SecretNotAvailable(secret))
@@ -842,7 +840,7 @@ fn exec_program(
 
             drop(writer);
             maybe_conflict(cache, |writer| {
-                run_blocking(writer.patch_vault(&summary, vec![event]))
+                run_blocking(writer.patch(&summary, vec![event]))
             })
         }
         ShellCommand::Snapshot { cmd } => match cmd {
@@ -1047,24 +1045,35 @@ fn exec_program(
 
             Ok(())
         }
-        ShellCommand::Switch { keystore } => {
+        ShellCommand::Switch { keystore: _ } => {
+            // FIXME
+
+            /*
             let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
             }
-            let mut node_cache = switch(server.clone(), cache_dir, keystore)?;
+            let (mut provider, address) =
+                switch::<W, P>(server.clone(), cache_dir, keystore)?;
+            */
 
+            /*
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
-            run_blocking(node_cache.list_vaults())?;
+            run_blocking(provider.load_vaults())?;
 
             let mut writer = cache.write().unwrap();
-            *writer = node_cache;
+            *writer = provider;
+
+            let mut writer = state.write().unwrap();
+            writer.1 = address;
+            */
+
             Ok(())
         }
         ShellCommand::Whoami => {
-            let reader = cache.read().unwrap();
-            let address = reader.signer().address()?;
+            let reader = state.read().unwrap();
+            let address = reader.1;
             println!("{}", address);
             Ok(())
         }
@@ -1080,20 +1089,26 @@ fn exec_program(
 }
 
 /// Intermediary to pretty print clap parse errors.
-fn exec_args<I, T>(it: I, server: &Url, cache: ReplCache) -> Result<()>
+fn exec_args<I, T, W, P>(it: I, cache: ShellData<W, P>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
 {
     match Shell::try_parse_from(it) {
-        Ok(program) => exec_program(program, server, cache)?,
+        Ok(program) => exec_program(program, cache)?,
         Err(e) => e.print().expect("unable to write error output"),
     }
     Ok(())
 }
 
 /// Execute a line of input in the context of the shell program.
-pub fn exec(line: &str, server: &Url, cache: ReplCache) -> Result<()> {
+pub fn exec<W, P>(line: &str, cache: ShellData<W, P>) -> Result<()>
+where
+    W: WalProvider + Send + Sync + 'static,
+    P: PatchProvider + Send + Sync + 'static,
+{
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));
@@ -1110,7 +1125,7 @@ pub fn exec(line: &str, server: &Url, cache: ReplCache) -> Result<()> {
         } else if line == "help" || line == "--help" {
             cmd.print_long_help()?;
         } else {
-            exec_args(it, server, cache)?;
+            exec_args(it, cache)?;
         }
     }
     Ok(())

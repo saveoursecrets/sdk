@@ -4,7 +4,10 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use secrecy::ExposeSecret;
-use sos_node::client::account::{login, AccountCredentials};
+use sos_node::client::{
+    account::{login, AccountCredentials},
+    provider::StorageProvider,
+};
 
 #[tokio::test]
 #[serial]
@@ -27,12 +30,13 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
     } = credentials;
 
     // Set up another connected client using a different
-    // cache directory but sharing the same credentials
+    // cache directory and sharing the same credentials
     let cache_dir = dirs.clients.get(1).unwrap().to_path_buf();
     let mut client2 =
         login(server_url, cache_dir, keystore_file, keystore_passphrase)
             .await?;
-    let _ = client2.list_vaults().await?;
+    let _ = client2.load_vaults().await?;
+    //let _ = client2.pull(&summary, true).await?;
 
     // Both client use the login vault
     client1

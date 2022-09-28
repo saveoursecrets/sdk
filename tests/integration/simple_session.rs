@@ -24,6 +24,7 @@ use sos_node::{
             changes::{changes, connect},
             RequestClient,
         },
+        provider::StorageProvider,
     },
     sync::SyncStatus,
 };
@@ -109,7 +110,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Load vaults list
     let cached_vaults = node_cache.vaults().to_vec();
-    let vaults = node_cache.list_vaults().await?;
+    let vaults = node_cache.load_vaults().await?;
     assert_eq!(2, vaults.len());
     assert_eq!(&cached_vaults, &vaults);
 
@@ -118,7 +119,7 @@ async fn integration_simple_session() -> Result<()> {
     let default_vault_summary =
         node_cache.state().find_vault(&default_ref).unwrap().clone();
     node_cache.remove_vault(&default_vault_summary).await?;
-    let vaults = node_cache.list_vaults().await?;
+    let vaults = node_cache.load_vaults().await?;
     assert_eq!(1, vaults.len());
     assert_eq!(1, node_cache.vaults().len());
 
@@ -131,14 +132,14 @@ async fn integration_simple_session() -> Result<()> {
     let notes = create_secrets(&mut node_cache, &new_vault_summary).await?;
 
     // Ensure we have a commit tree
-    assert!(node_cache.wal_tree(&new_vault_summary).is_some());
+    assert!(node_cache.commit_tree(&new_vault_summary).is_some());
 
     // Check the WAL history has the right length
     let history = node_cache.history(&new_vault_summary)?;
     assert_eq!(4, history.len());
 
     // Check the vault status
-    let (status, _) = node_cache.vault_status(&new_vault_summary).await?;
+    let (status, _) = node_cache.status(&new_vault_summary).await?;
     let equals = if let SyncStatus::Equal(_) = status {
         true
     } else {

@@ -10,6 +10,7 @@ pub mod aesgcm256;
 pub mod secret_key;
 pub mod xchacha20poly1305;
 
+#[deprecated(note = "Use method on SingleParty")]
 /// Generate a random ECDSA private signing key.
 pub fn generate_random_ecdsa_signing_key() -> ([u8; 32], [u8; 33]) {
     use k256::ecdsa::SigningKey;

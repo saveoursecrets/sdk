@@ -2750,6 +2750,7 @@ dependencies = [
  "sos-core",
  "sos-node",
  "sos-server",
+ "tempfile",
  "thiserror",
  "tokio",
  "tracing",
@@ -2823,6 +2824,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid 1.1.2",
+ "web3-address",
  "zeroize",
 ]
 
