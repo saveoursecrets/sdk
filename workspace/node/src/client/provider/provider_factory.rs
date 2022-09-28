@@ -39,7 +39,7 @@ use std::{
 pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
 
 /// Factory for creating providers.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ProviderFactory {
     /// Provider storing data in memory.
     Memory(Option<Url>),

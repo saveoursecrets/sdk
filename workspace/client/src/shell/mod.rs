@@ -33,7 +33,7 @@ use sos_readline::{
 
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::{display_passphrase, Error, Result};
+use crate::{switch, display_passphrase, Error, Result};
 
 mod editor;
 mod print;
@@ -478,9 +478,9 @@ where
 
 /// Execute the program command.
 fn exec_program(program: Shell, state: ShellData) -> Result<()> {
-    let data = state.read().unwrap();
-    let cache = Arc::clone(&data.0);
-    drop(data);
+    let reader = state.read().unwrap();
+    let cache = Arc::clone(&reader.0);
+    drop(reader);
 
     match program.cmd {
         ShellCommand::Authenticate => {
@@ -991,19 +991,13 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             Ok(())
         }
-        ShellCommand::Switch { keystore: _ } => {
-            // FIXME
+        ShellCommand::Switch { keystore } => {
+            let reader = state.read().unwrap();
+            let factory = &reader.2;
 
-            /*
-            let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
-            if !cache_dir.is_dir() {
-                return Err(Error::NotDirectory(cache_dir));
-            }
             let (mut provider, address) =
-                switch::<W, P>(server.clone(), cache_dir, keystore)?;
-            */
+                switch(factory, keystore)?;
 
-            /*
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
             run_blocking(provider.load_vaults())?;
@@ -1013,7 +1007,6 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             let mut writer = state.write().unwrap();
             writer.1 = address;
-            */
 
             Ok(())
         }

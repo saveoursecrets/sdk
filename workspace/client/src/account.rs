@@ -6,9 +6,8 @@ use sos_node::{
     cache_dir,
     client::{
         account::{create_account, AccountKey},
-        net::RpcClient,
         provider::{
-            BoxedProvider, RemoteProvider, StorageDirs,
+            BoxedProvider, ProviderFactory,
         },
         run_blocking, PassphraseReader, SignerBuilder,
     },
@@ -29,10 +28,9 @@ impl PassphraseReader for StdinPassphraseReader {
     }
 }
 
-/// Switch to an account.
+/// Switch to a different account.
 pub fn switch(
-    server: Url,
-    cache_dir: PathBuf,
+    factory: &ProviderFactory,
     keystore_file: PathBuf,
 ) -> Result<(BoxedProvider, Address)> {
     if !keystore_file.exists() {
@@ -43,15 +41,7 @@ pub fn switch(
         .with_passphrase_reader(Box::new(reader))
         .with_use_agent(true)
         .build()?;
-
-    let address = signer.address()?;
-    let client = RpcClient::new(server, signer);
-    let dirs = StorageDirs::new(cache_dir, &address.to_string());
-
-    let provider: BoxedProvider =
-        Box::new(RemoteProvider::new_file_cache(client, dirs)?);
-
-    Ok((provider, address))
+    Ok(factory.create_provider(signer)?)
 }
 
 pub fn signup(
