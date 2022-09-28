@@ -25,7 +25,8 @@ use std::{
 };
 
 use crate::{
-        client::provider2::{
+    provider_impl,
+    client::provider2::{
         helpers, sync, ProviderState, StorageDirs, StorageProvider,
         fs_adapter,
     },
@@ -99,31 +100,7 @@ where
     W: WalProvider + Send + Sync + 'static,
     P: PatchProvider + Send + Sync + 'static,
 {
-    fn state(&self) -> &ProviderState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ProviderState {
-        &mut self.state
-    }
-
-    fn dirs(&self) -> &StorageDirs {
-        &self.dirs
-    }
-
-    /*
-    fn cache(&self) -> &HashMap<VaultId, (W, P)> {
-        &self.cache
-    }
-
-    fn cache_mut(&mut self) -> &mut HashMap<VaultId, (W, P)> {
-        &mut self.cache
-    }
-    */
-
-    fn snapshots(&self) -> Option<&SnapShotManager> {
-        self.snapshots.as_ref()
-    }
+    provider_impl!();
 
     /// Create a new account or vault.
     async fn create_vault_or_account(
@@ -336,40 +313,6 @@ where
 
 
 
-    /// Close the currently selected vault.
-    fn close_vault(&mut self) {
-        self.state_mut().close_vault();
-    }
-
-    /// Get a reference to the commit tree for a WAL file.
-    fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree> {
-        self.cache.get(summary.id()).map(|(wal, _)| wal.tree())
-    }
-
-    /// Create new patch and WAL cache entries.
-    fn create_cache_entry(
-        &mut self,
-        summary: &Summary,
-        vault: Option<Vault>,
-    ) -> Result<()> {
-        let patch_path = self.patch_path(summary);
-        let patch_file = P::new(patch_path)?;
-
-        let wal_path = self.wal_path(summary);
-        let mut wal = W::new(&wal_path)?;
-
-        if let Some(vault) = &vault {
-            let encoded = encode(vault)?;
-            let event = WalEvent::CreateVault(Cow::Owned(encoded));
-            wal.append_event(event)?;
-        }
-        wal.load_tree()?;
-
-        self.cache.insert(*summary.id(), (wal, patch_file));
-        Ok(())
-    }
-
-
     /// Remove the local cache for a vault.
     async fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
         let current_id = self.current().map(|c| c.id().clone());
@@ -388,28 +331,6 @@ where
         // Remove from the state of managed vaults
         self.state_mut().remove_summary(summary);
 
-        Ok(())
-    }
-
-    /// Add to the local cache for a vault.
-    fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
-        // Add to our cache of managed vaults
-        self.create_cache_entry(&summary, None)?;
-
-        // Add to the state of managed vaults
-        self.state_mut().add_summary(summary);
-        Ok(())
-    }
-
-    /// Create a cache entry for each summary if it does not
-    /// already exist.
-    fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
-        for summary in summaries {
-            // Ensure we don't overwrite existing data
-            if self.cache.get(summary.id()).is_none() {
-                self.create_cache_entry(summary, None)?;
-            }
-        }
         Ok(())
     }
 
@@ -510,23 +431,6 @@ where
         Ok((SyncStatus::Equal(pair), None))
     }
 
-    /// Verify a WAL log.
-    #[cfg(not(target_arch = "wasm32"))]
-    fn verify(&self, summary: &Summary) -> Result<()> {
-        use sos_core::commit_tree::wal_commit_tree_file;
-        let wal_path = self.wal_path(summary);
-        wal_commit_tree_file(&wal_path, true, |_| {})?;
-        Ok(())
-    }
-
-    /// Verify a WAL log.
-    #[cfg(target_arch = "wasm32")]
-    fn verify(&self, _summary: &Summary) -> Result<()> {
-        // NOTE: verify is a noop in WASM when the records
-        // NOTE: are stored in memory
-        Ok(())
-    }
-
     /// Create a backup of a vault file.
     #[cfg(not(target_arch = "wasm32"))]
     async fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
@@ -605,35 +509,4 @@ where
         Ok(new_passphrase)
     }
 
-    /// Get the history of events for a vault.
-    fn history(
-        &self,
-        summary: &Summary,
-    ) -> Result<Vec<(W::Item, WalEvent<'_>)>> {
-        let (wal, _) = self
-            .cache
-            .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let mut records = Vec::new();
-        for record in wal.iter()? {
-            let record = record?;
-            let event = wal.event_data(&record)?;
-            records.push((record, event));
-        }
-        Ok(records)
-    }
-
-
-    /// Take a snapshot of the WAL for the given vault.
-    ///
-    /// Snapshots must be enabled.
-    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)> {
-        let snapshots = self.snapshots().ok_or(Error::SnapshotsNotEnabled)?;
-        let (wal_file, _) = self
-            .cache
-            .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let root_hash = wal_file.tree().root().ok_or(Error::NoRootCommit)?;
-        Ok(snapshots.create(summary.id(), wal_file.path(), root_hash)?)
-    }
 }
