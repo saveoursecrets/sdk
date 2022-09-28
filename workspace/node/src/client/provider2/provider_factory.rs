@@ -31,10 +31,8 @@ pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
 /// Factory for creating providers.
 #[derive(Debug)]
 pub enum ProviderFactory {
-    /*
     /// Provider storing data in memory.
     Memory,
-    */
     /// Local provider using the default cache location.
     Local,
     /// Specific directory location.
@@ -47,7 +45,7 @@ impl fmt::Display for ProviderFactory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Local => write!(f, "local"),
-            //Self::Memory => write!(f, "memory"),
+            Self::Memory => write!(f, "memory"),
             Self::Directory(path) => write!(f, "{}", path.display()),
             Self::Remote(remote) => write!(f, "{}", remote),
         }
@@ -67,6 +65,9 @@ impl ProviderFactory {
         signer: BoxedSigner,
     ) -> Result<(BoxedProvider, Address)> {
         match self {
+            Self::Memory => {
+                Ok(new_local_memory_provider(signer)?)
+            }
             Self::Local => {
                 let dir = cache_dir().ok_or_else(|| Error::NoCache)?;
                 Ok(new_local_file_provider(signer, dir)?)
@@ -89,7 +90,9 @@ impl FromStr for ProviderFactory {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        if s == "local" {
+        if s == "memory" {
+            Ok(Self::Memory)
+        } else if s == "local" {
             Ok(Self::Local)
         } else {
             match s.parse::<Url>() {
@@ -130,7 +133,7 @@ pub fn spawn_changes_listener(
 }
 
 /// Create a new remote provider with a local disc mirror.
-pub fn new_remote_file_provider(
+fn new_remote_file_provider(
     signer: BoxedSigner,
     cache_dir: PathBuf,
     server: Url,
@@ -144,7 +147,7 @@ pub fn new_remote_file_provider(
 }
 
 /// Create a new local provider.
-pub fn new_local_file_provider(
+fn new_local_file_provider(
     signer: BoxedSigner,
     cache_dir: PathBuf,
 ) -> Result<(BoxedProvider, Address)> {
@@ -156,7 +159,7 @@ pub fn new_local_file_provider(
 }
 
 /// Create a new local memory provider.
-pub fn new_local_memory_provider(
+fn new_local_memory_provider(
     signer: BoxedSigner,
 ) -> Result<(BoxedProvider, Address)> {
     let address = signer.address()?;
