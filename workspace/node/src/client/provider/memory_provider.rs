@@ -187,21 +187,6 @@ impl MemoryProvider {
         }
     }
 
-    /// Send a patch of events infallibly.
-    ///
-    /// This is used to send read secret events for
-    /// audit logging.
-    pub fn send_events(
-        cache: ArcProvider,
-        summary: Summary,
-        events: Vec<SyncEvent<'static>>,
-    ) -> impl Future<Output = ()> + 'static {
-        async move {
-            let mut writer = cache.write().unwrap();
-            let _ = writer.patch(&summary, events).await;
-        }
-    }
-
     /// Handle a change notification.
     pub fn handle_change(
         cache: ArcProvider,
