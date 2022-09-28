@@ -666,20 +666,14 @@ where
                 Add::Pin { label } => add_pin(label)?,
             };
 
-            let result = if let Some((secret_meta, secret)) = result {
-                let event = keeper.create(secret_meta, secret)?;
-                // Must call into_owned() on the event to prevent
-                // attempting to borrow mutably twice
-                Some((summary, event.into_owned()))
-            } else {
-                None
-            };
-
             drop(writer);
 
-            if let Some((summary, event)) = result {
+            if let Some((meta, secret)) = result {
                 maybe_conflict(cache, |writer| {
-                    run_blocking(writer.patch(&summary, vec![event]))
+                    run_blocking(async {
+                        writer.create_secret(meta, secret).await?;
+                        Ok(())
+                    })
                 })
             } else {
                 Ok(())
@@ -693,18 +687,11 @@ where
                 writer.current_mut().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
 
-            if let Some((secret_meta, secret_data, event)) =
-                keeper.read(&uuid)?
-            {
-                // Must call into_owned() on the event to prevent
-                // attempting to borrow mutably twice
-                let event = event.into_owned();
+            let (meta, secret, _) =
+                run_blocking(writer.read_secret(&uuid))?;
 
-                print::secret(&secret_meta, &secret_data)?;
-                Ok(run_blocking(writer.patch(&summary, vec![event]))?)
-            } else {
-                Err(Error::SecretNotAvailable(secret))
-            }
+            print::secret(&meta, &secret)?;
+            Ok(())
         }
 
         ShellCommand::Set { secret } => {
@@ -745,25 +732,13 @@ where
                 };
 
             if let Cow::Owned(edited_secret) = result {
-                let mut writer = cache.write().unwrap();
-                let keeper =
-                    writer.current_mut().ok_or(Error::NoVaultSelected)?;
-
-                let summary = keeper.summary().clone();
-
-                secret_meta.touch();
-
-                let event = keeper
-                    .update(&uuid, secret_meta, edited_secret)?
-                    .ok_or(Error::SecretNotAvailable(secret))?;
-
-                let event = event.into_owned();
-                drop(writer);
-
                 maybe_conflict(cache, |writer| {
-                    run_blocking(writer.patch(&summary, vec![event]))
+                    run_blocking(async {
+                        writer.update_secret(
+                            &uuid, secret_meta, edited_secret).await?;
+                        Ok(())
+                    })
                 })
-
             // If the edited result was borrowed
             // it indicates that no changes were made
             } else {
@@ -782,18 +757,15 @@ where
                 let keeper =
                     writer.current_mut().ok_or(Error::NoVaultSelected)?;
                 let summary = keeper.summary().clone();
-                if let Some(event) = keeper.delete(&uuid)? {
-                    // Must call into_owned() on the event to prevent
-                    // attempting to borrow mutably twice
-                    let event = event.into_owned();
 
-                    drop(writer);
-                    maybe_conflict(cache, |writer| {
-                        run_blocking(writer.patch(&summary, vec![event]))
+                drop(writer);
+
+                maybe_conflict(cache, |writer| {
+                    run_blocking(async {
+                        writer.delete_secret(&uuid).await?;
+                        Ok(())
                     })
-                } else {
-                    Err(Error::SecretNotAvailable(secret))
-                }
+                })
             } else {
                 Ok(())
             }
@@ -1017,11 +989,6 @@ where
                 ))?;
 
                 drop(writer);
-
-                //let mut writer = cache.write().unwrap();
-                //let keeper =
-                //writer.current_mut().ok_or(Error::NoVaultSelected)?;
-                //keeper.unlock(new_passphrase.expose_secret())?;
 
                 let banner = Banner::new()
                     .padding(Padding::one())

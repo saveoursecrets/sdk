@@ -7,15 +7,15 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    crypto::secret_key::SecretKey,
     commit_tree::{CommitPair, CommitTree},
+    crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault, VaultId},
     wal::{
-        memory::WalMemory, snapshot::SnapShot, snapshot::SnapShotManager,
-        WalProvider, reducer::WalReducer,
+        memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
+        snapshot::SnapShotManager, WalProvider,
     },
     ChangePassword, CommitHash, PatchMemory, PatchProvider,
 };
@@ -31,8 +31,7 @@ use uuid::Uuid;
 
 use crate::{
     client::provider2::{
-        fs_adapter, sync, ProviderState, StorageDirs,
-        StorageProvider,
+        fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
     },
     patch, provider_impl, retry,
     sync::{SyncInfo, SyncKind, SyncStatus},
@@ -409,7 +408,7 @@ where
         Ok((self_change, actions))
     }
 
-    // Override this so we also call patch() which will ensure 
+    // Override this so we also call patch() which will ensure
     // the remote adds the event to it's audit log.
     async fn read_secret(
         &mut self,
@@ -417,11 +416,10 @@ where
     ) -> Result<(SecretMeta, Secret, SyncEvent<'_>)> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
-        let (meta, secret, event) = keeper.read(id)?
-            .ok_or(Error::SecretNotFound(*id))?;
+        let (meta, secret, event) =
+            keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
         self.patch(&summary, vec![event.clone()]).await?;
         Ok((meta, secret, event))
     }
-
 }

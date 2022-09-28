@@ -582,7 +582,7 @@ macro_rules! provider_impl {
                 }
             };
 
-            self 
+            self
                 .state_mut()
                 .open_vault(passphrase, vault, vault_path)?;
             Ok(())

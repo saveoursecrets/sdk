@@ -5,16 +5,16 @@ use async_trait::async_trait;
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    crypto::secret_key::SecretKey,
     commit_tree::{CommitPair, CommitTree},
     constants::VAULT_EXT,
+    crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
     vault::{Header, Summary, Vault, VaultId},
     wal::{
-        memory::WalMemory, snapshot::SnapShot, snapshot::SnapShotManager,
-        WalProvider, reducer::WalReducer,
+        memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
+        snapshot::SnapShotManager, WalProvider,
     },
     ChangePassword, PatchMemory, PatchProvider,
 };
@@ -29,8 +29,7 @@ use std::{
 
 use crate::{
     client::provider2::{
-        fs_adapter, sync, ProviderState, StorageDirs,
-        StorageProvider,
+        fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
     },
     provider_impl,
     sync::{SyncInfo, SyncKind, SyncStatus},
@@ -331,18 +330,4 @@ where
         };
         Ok((SyncStatus::Equal(pair), None))
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
