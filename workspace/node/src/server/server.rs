@@ -142,7 +142,7 @@ impl Server {
         reader: &RwLockReadGuard<'a, State>,
     ) -> Result<Vec<HeaderValue>> {
         let mut origins = Vec::new();
-        for url in reader.config.api.origins.iter() {
+        for url in reader.config.cors.origins.iter() {
             origins.push(HeaderValue::from_str(
                 url.as_str().trim_end_matches('/'),
             )?);
