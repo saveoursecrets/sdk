@@ -453,6 +453,26 @@ macro_rules! provider_impl {
             self.snapshots.as_ref()
         }
 
+        fn open_vault(
+            &mut self,
+            summary: &Summary,
+            passphrase: &str,
+        ) -> Result<()> {
+            let vault = self.reduce_wal(summary)?;
+            let vault_path = self.vault_path(summary);
+            if self.state().mirror() {
+                if !vault_path.exists() {
+                    let buffer = encode(&vault)?;
+                    self.write_vault_file(summary, &buffer)?;
+                }
+            };
+
+            self
+                .state_mut()
+                .open_vault(passphrase, vault, vault_path)?;
+            Ok(())
+        }
+
         fn close_vault(&mut self) {
             self.state_mut().close_vault();
         }
@@ -566,26 +586,6 @@ macro_rules! provider_impl {
             let root_hash =
                 wal_file.tree().root().ok_or(Error::NoRootCommit)?;
             Ok(snapshots.create(summary.id(), wal_file.path(), root_hash)?)
-        }
-
-        fn open_vault(
-            &mut self,
-            summary: &Summary,
-            passphrase: &str,
-        ) -> Result<()> {
-            let vault = self.reduce_wal(summary)?;
-            let vault_path = self.vault_path(summary);
-            if self.state().mirror() {
-                if !vault_path.exists() {
-                    let buffer = encode(&vault)?;
-                    self.write_vault_file(summary, &buffer)?;
-                }
-            };
-
-            self
-                .state_mut()
-                .open_vault(passphrase, vault, vault_path)?;
-            Ok(())
         }
 
         /// Refresh the in-memory vault of the current selection
@@ -710,3 +710,5 @@ macro_rules! provider_impl {
         }
     };
 }
+
+
