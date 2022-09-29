@@ -25,8 +25,8 @@ pub struct ServerConfig {
     /// Configuration for TLS encryption.
     pub tls: Option<TlsConfig>,
 
-    /// Configuration for the API.
-    pub api: CorsConfig,
+    /// Configuration for CORS.
+    pub cors: CorsConfig,
 
     /// Path the file was loaded from used to determine
     /// relative paths.

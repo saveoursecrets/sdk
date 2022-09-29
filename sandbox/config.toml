@@ -3,7 +3,7 @@ gui = true
 [audit]
 file = "audit.dat"
 
-[api]
+[cors]
 origins = [
   "http://localhost:5053",
   "http://localhost:8080",
