@@ -104,7 +104,5 @@ fn default_storage_dir() -> Option<PathBuf> {
 #[cfg(not(target_arch = "wasm32"))]
 fn fallback_storage_dir() -> Option<PathBuf> {
     use sos_core::constants::BUNDLE_ID;
-    dirs::data_local_dir().and_then(|dir| {
-        Some(dir.join(BUNDLE_ID))
-    })
+    dirs::data_local_dir().and_then(|dir| Some(dir.join(BUNDLE_ID)))
 }

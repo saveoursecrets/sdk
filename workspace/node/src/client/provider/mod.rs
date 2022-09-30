@@ -710,5 +710,3 @@ macro_rules! provider_impl {
         }
     };
 }
-
-
