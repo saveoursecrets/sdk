@@ -2,7 +2,7 @@
 
 /// Bundle identifier for MacOS and iOS.
 ///
-/// This is used to determine the default local storage directory 
+/// This is used to determine the default local storage directory
 /// for the macos and ios platforms.
 pub const BUNDLE_ID: &str = "com.saveoursecrets";
 
