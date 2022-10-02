@@ -4,7 +4,7 @@ use probly_search::{score::bm25, Index, QueryResult};
 use serde::Serialize;
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashSet, btree_map::Values},
 };
 
 use creature_feature::ftzrs::n_slice;
@@ -84,6 +84,16 @@ impl SearchIndex {
     /// Get a list of the document values.
     pub fn values(&self) -> Vec<&Document> {
         self.documents.values().collect::<Vec<_>>()
+    }
+
+    /// Get an iterator over all the values.
+    pub fn values_iter(&self) -> Values<'_, DocumentKey, Document> {
+        self.documents.values()
+    }
+
+    /// Get the number of documents in the index.
+    pub fn len(&self) -> usize {
+        self.documents.len()
     }
 
     /// Find document by label.
