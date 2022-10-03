@@ -7,6 +7,7 @@ use binary_stream::{
     Endian, FileStream, ReadStream, SeekStream, SliceStream, WriteStream,
 };
 
+use bitflags::bitflags;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, fs::File,
@@ -28,6 +29,16 @@ use crate::{
     secret::{SecretId, VaultMeta},
     CommitHash, Error, FileIdentity, Result,
 };
+
+bitflags! {
+    /// Bit flags for a vault.
+    #[derive(Default, Serialize, Deserialize)]
+    pub struct VaultFlags: u32 {
+        /// Indicates this vault should be treated as the default
+        /// login vault.
+        const DEFAULT =        0b00000001;
+    }
+}
 
 /// Identifier for vaults.
 pub type VaultId = Uuid;
@@ -198,6 +209,8 @@ pub struct Summary {
     /// Encryption algorithm.
     #[serde(skip)]
     algorithm: Algorithm,
+    /// Flags for the vault.
+    flags: VaultFlags,
 }
 
 impl Ord for Summary {
@@ -229,6 +242,7 @@ impl Default for Summary {
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
+            flags: Default::default(),
         }
     }
 }
@@ -241,6 +255,7 @@ impl Summary {
             algorithm,
             id,
             name,
+            flags: Default::default(),
         }
     }
 
@@ -268,6 +283,16 @@ impl Summary {
     pub fn set_name(&mut self, name: String) {
         self.name = name;
     }
+
+    /// Get the vault flags.
+    pub fn flags(&self) -> &VaultFlags {
+        &self.flags
+    }
+
+    /// Set the vault flags.
+    pub fn set_flags(&mut self, flags: VaultFlags) {
+        self.flags = flags;
+    }
 }
 
 impl Encode for Summary {
@@ -276,6 +301,7 @@ impl Encode for Summary {
         self.algorithm.encode(&mut *writer)?;
         writer.write_bytes(self.id.as_bytes())?;
         writer.write_string(&self.name)?;
+        writer.write_u32(self.flags.bits())?;
         Ok(())
     }
 }
@@ -294,6 +320,9 @@ impl Decode for Summary {
         let uuid: [u8; 16] = reader.read_bytes(16)?.as_slice().try_into()?;
         self.id = Uuid::from_bytes(uuid);
         self.name = reader.read_string()?;
+        self.flags = VaultFlags::from_bits(reader.read_u32()?)
+            .ok_or(Error::InvalidVaultFlags)
+            .map_err(Box::from)?;
         Ok(())
     }
 }
