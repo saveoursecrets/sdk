@@ -4,7 +4,7 @@ use probly_search::{score::bm25, Index, QueryResult};
 use serde::Serialize;
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashSet, btree_map::Values},
+    collections::{btree_map::Values, BTreeMap, HashSet},
 };
 
 use creature_feature::ftzrs::n_slice;
