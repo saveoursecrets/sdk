@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.org"
