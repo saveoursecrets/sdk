@@ -147,6 +147,11 @@ pub enum Error {
     #[error("bits for vault flags are invalid")]
     InvalidVaultFlags,
 
+    /// Error generated when decoding a vault purpose identifier that
+    /// is not known.
+    #[error("purpose identifier {0} is unknown")]
+    UnknownPurpose(u8),
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
