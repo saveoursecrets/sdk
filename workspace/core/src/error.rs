@@ -143,6 +143,10 @@ pub enum Error {
     #[error("expected only digit characters")]
     NotDigit,
 
+    /// Error generated when decoding vault flags has invalid bits.
+    #[error("bits for vault flags are invalid")]
+    InvalidVaultFlags,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
