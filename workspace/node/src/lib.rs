@@ -89,6 +89,12 @@ fn default_storage_dir() -> Option<PathBuf> {
     fallback_storage_dir()
 }
 
+#[cfg(target_os = "android")]
+fn default_storage_dir() -> Option<PathBuf> {
+    // FIXME: compute according to provider_path
+    fallback_storage_dir()
+}
+
 #[cfg(target_os = "linux")]
 fn default_storage_dir() -> Option<PathBuf> {
     // FIXME: compute according to provider_path
