@@ -32,7 +32,7 @@ struct Cli {
     session_duration: Option<u64>,
 
     /// Bind to host:port.
-    #[clap(short, long, default_value = "127.0.0.1:5053")]
+    #[clap(short, long, default_value = "0.0.0.0:5053")]
     bind: String,
 
     /// Config file to load.
