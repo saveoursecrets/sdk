@@ -31,7 +31,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sos-core = { path = "../library/workspace/core" }
 
 [dev-dependencies]
-web3-keystore = "0.5"
+web3-keystore = "0.5.2"
 web3-address = { version = "0.4", features = ["ethereum"] }
 serde_json = "1"
 http = "0.2"

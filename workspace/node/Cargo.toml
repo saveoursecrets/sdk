@@ -37,7 +37,7 @@ sha3 = "0.10"
 once_cell = { version = "1.10" }
 
 # client
-web3-keystore = { version = "0.5", optional = true }
+web3-keystore = { version = "0.5.2", optional = true }
 
 # server
 toml = { version = "0.5", optional = true }
