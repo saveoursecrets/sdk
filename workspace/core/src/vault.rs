@@ -253,7 +253,8 @@ impl Summary {
         id: VaultId,
         name: String,
         algorithm: Algorithm,
-        flags: VaultFlags) -> Self {
+        flags: VaultFlags,
+    ) -> Self {
         Self {
             version: VAULT_VERSION,
             algorithm,
@@ -341,7 +342,12 @@ pub struct Header {
 
 impl Header {
     /// Create a new header.
-    pub fn new(id: VaultId, name: String, algorithm: Algorithm, flags: VaultFlags) -> Self {
+    pub fn new(
+        id: VaultId,
+        name: String,
+        algorithm: Algorithm,
+        flags: VaultFlags,
+    ) -> Self {
         Self {
             summary: Summary::new(id, name, algorithm, flags),
             meta: None,
@@ -633,7 +639,8 @@ impl Vault {
         id: VaultId,
         name: String,
         algorithm: Algorithm,
-        flags: VaultFlags) -> Self {
+        flags: VaultFlags,
+    ) -> Self {
         Self {
             header: Header::new(id, name, algorithm, flags),
             contents: Default::default(),
