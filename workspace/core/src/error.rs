@@ -70,6 +70,10 @@ pub enum Error {
     #[error("too few words for diceware passphrase generation, got {0} but minimum is {1}")]
     DicewareWordsTooFew(usize, u8),
 
+    /// Error generated when the length of a generated password is invalid.
+    #[error("password length is invalid, must be at least {0}")]
+    PasswordLength(u8),
+
     /// Error generated when a vault has not been initialized (no encrypted meta data).
     #[error("vault is not initialized")]
     VaultNotInit,

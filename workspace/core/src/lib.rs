@@ -24,6 +24,7 @@ mod file_locks;
 mod gatekeeper;
 mod hash;
 pub mod iter;
+mod passgen;
 mod passwd;
 mod patch;
 
