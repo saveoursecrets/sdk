@@ -249,13 +249,17 @@ impl Default for Summary {
 
 impl Summary {
     /// Create a new summary.
-    pub fn new(id: Uuid, name: String, algorithm: Algorithm) -> Self {
+    pub fn new(
+        id: VaultId,
+        name: String,
+        algorithm: Algorithm,
+        flags: VaultFlags) -> Self {
         Self {
             version: VAULT_VERSION,
             algorithm,
             id,
             name,
-            flags: Default::default(),
+            flags,
         }
     }
 
@@ -337,9 +341,9 @@ pub struct Header {
 
 impl Header {
     /// Create a new header.
-    pub fn new(id: VaultId, name: String, algorithm: Algorithm) -> Self {
+    pub fn new(id: VaultId, name: String, algorithm: Algorithm, flags: VaultFlags) -> Self {
         Self {
-            summary: Summary::new(id, name, algorithm),
+            summary: Summary::new(id, name, algorithm, flags),
             meta: None,
             auth: Default::default(),
         }
@@ -625,9 +629,13 @@ impl Decode for Vault {
 
 impl Vault {
     /// Create a new vault.
-    pub fn new(id: VaultId, name: String, algorithm: Algorithm) -> Self {
+    pub fn new(
+        id: VaultId,
+        name: String,
+        algorithm: Algorithm,
+        flags: VaultFlags) -> Self {
         Self {
-            header: Header::new(id, name, algorithm),
+            header: Header::new(id, name, algorithm, flags),
             contents: Default::default(),
         }
     }
