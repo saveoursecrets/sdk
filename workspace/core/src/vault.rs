@@ -289,9 +289,9 @@ impl Summary {
         &self.flags
     }
 
-    /// Set the vault flags.
-    pub fn set_flags(&mut self, flags: VaultFlags) {
-        self.flags = flags;
+    /// Get a mutable reference to the vault flags.
+    pub fn flags_mut(&mut self) -> &mut VaultFlags {
+        &mut self.flags
     }
 }
 
@@ -801,6 +801,11 @@ impl Vault {
     /// Get the summary for this vault.
     pub fn summary(&self) -> &Summary {
         &self.header.summary
+    }
+
+    /// Get a mutable reference to the vault flags.
+    pub fn flags_mut(&mut self) -> &mut VaultFlags {
+        self.header.summary.flags_mut()
     }
 
     /// Get the unique identifier for this vault.
