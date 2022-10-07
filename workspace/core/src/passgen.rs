@@ -2,9 +2,7 @@
 use crate::{Error, Result};
 use secrecy::SecretString;
 
-use passwords::{PasswordGenerator, analyzer, scorer};
-
-const MIN_LENGTH: usize = 8;
+use passwords::{analyzer, scorer, PasswordGenerator};
 
 /// Options for password generation.
 #[derive(Debug, Clone)]
@@ -13,7 +11,6 @@ pub struct PasswordGen {
 }
 
 impl PasswordGen {
-
     /// Get the character length of the generated password.
     pub fn len(&self) -> usize {
         self.inner.length
@@ -26,7 +23,7 @@ impl PasswordGen {
                 .length(length)
                 .lowercase_letters(true)
                 .uppercase_letters(true)
-                .symbols(false)
+                .symbols(false),
         }
     }
 
@@ -38,11 +35,11 @@ impl PasswordGen {
                 .numbers(true)
                 .lowercase_letters(false)
                 .uppercase_letters(false)
-                .symbols(false)
+                .symbols(false),
         }
     }
 
-    /// Options using numeric digits, uppercase and lowercase 
+    /// Options using numeric digits, uppercase and lowercase
     /// roman letters.
     pub fn new_alpha_numeric(length: usize) -> Self {
         Self {
@@ -51,7 +48,7 @@ impl PasswordGen {
                 .numbers(true)
                 .lowercase_letters(true)
                 .uppercase_letters(true)
-                .exclude_similar_characters(true)
+                .exclude_similar_characters(true),
         }
     }
 
@@ -64,18 +61,17 @@ impl PasswordGen {
                 .symbols(true)
                 .lowercase_letters(true)
                 .uppercase_letters(true)
-                .exclude_similar_characters(true)
+                .exclude_similar_characters(true),
         }
     }
 }
 
 /// Generate a single random password.
 pub fn generate_one(options: PasswordGen) -> Result<(SecretString, f64)> {
-    if options.len() < MIN_LENGTH {
-        return Err(Error::PasswordLength(MIN_LENGTH));
-    }
-
-    let password = options.inner.generate_one().map_err(|e| Error::PasswordGenerator(e.to_owned()))?;
+    let password = options
+        .inner
+        .generate_one()
+        .map_err(|e| Error::PasswordGenerator(e.to_owned()))?;
 
     let score = scorer::score(&analyzer::analyze(&password));
 
@@ -83,32 +79,28 @@ pub fn generate_one(options: PasswordGen) -> Result<(SecretString, f64)> {
 }
 
 /// Generate multiple random passwords.
-pub fn generate(options: PasswordGen, count: usize) -> Result<Vec<(SecretString, f64)>> {
-    if options.len() < MIN_LENGTH {
-        return Err(Error::PasswordLength(MIN_LENGTH));
-    }
-
-    let passwords = options.inner.generate(count)
+pub fn generate(
+    options: PasswordGen,
+    count: usize,
+) -> Result<Vec<(SecretString, f64)>> {
+    let passwords = options
+        .inner
+        .generate(count)
         .map_err(|e| Error::PasswordGenerator(e.to_owned()))?;
-    Ok(passwords.into_iter().map(|password| {
-        let score = scorer::score(&analyzer::analyze(&password));
-        (SecretString::new(password), score)
-    }).collect())
-
+    Ok(passwords
+        .into_iter()
+        .map(|password| {
+            let score = scorer::score(&analyzer::analyze(&password));
+            (SecretString::new(password), score)
+        })
+        .collect())
 }
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use anyhow::Result;
     use secrecy::ExposeSecret;
-    use super::*;
-
-    #[test]
-    fn passgen_invalid_length() -> Result<()> {
-        let options = PasswordGen::new_alpha(2);
-        assert!(generate_one(options).is_err());
-        Ok(())
-    }
 
     #[test]
     fn passgen_alpha() -> Result<()> {
