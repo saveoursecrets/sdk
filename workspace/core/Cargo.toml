@@ -34,6 +34,7 @@ secrecy = { version = "0.8", features = ["serde"] }
 tempfile = "3"
 log = "0.4"
 http = "0.2"
+passwords = "3"
 
 time = { version = "0.3.13", features = ["serde", "local-offset", "formatting", "wasm-bindgen"] }
 
