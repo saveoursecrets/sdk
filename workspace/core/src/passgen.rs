@@ -8,11 +8,11 @@ const MIN_LENGTH: usize = 8;
 
 /// Options for password generation.
 #[derive(Debug, Clone)]
-pub struct PassGenOptions {
+pub struct PasswordGen {
     inner: PasswordGenerator,
 }
 
-impl PassGenOptions {
+impl PasswordGen {
 
     /// Get the character length of the generated password.
     pub fn len(&self) -> usize {
@@ -70,7 +70,7 @@ impl PassGenOptions {
 }
 
 /// Generate a single random password.
-pub fn generate_one(options: PassGenOptions) -> Result<(SecretString, f64)> {
+pub fn generate_one(options: PasswordGen) -> Result<(SecretString, f64)> {
     if options.len() < MIN_LENGTH {
         return Err(Error::PasswordLength(MIN_LENGTH));
     }
@@ -83,7 +83,7 @@ pub fn generate_one(options: PassGenOptions) -> Result<(SecretString, f64)> {
 }
 
 /// Generate multiple random passwords.
-pub fn generate(options: PassGenOptions, count: usize) -> Result<Vec<(SecretString, f64)>> {
+pub fn generate(options: PasswordGen, count: usize) -> Result<Vec<(SecretString, f64)>> {
     if options.len() < MIN_LENGTH {
         return Err(Error::PasswordLength(MIN_LENGTH));
     }
@@ -105,14 +105,14 @@ mod test {
 
     #[test]
     fn passgen_invalid_length() -> Result<()> {
-        let options = PassGenOptions::new_alpha(2);
+        let options = PasswordGen::new_alpha(2);
         assert!(generate_one(options).is_err());
         Ok(())
     }
 
     #[test]
     fn passgen_alpha() -> Result<()> {
-        let options = PassGenOptions::new_alpha(12);
+        let options = PasswordGen::new_alpha(12);
         let (password, _) = generate_one(options.clone())?;
         assert_eq!(options.len(), password.expose_secret().len());
         Ok(())
@@ -120,7 +120,7 @@ mod test {
 
     #[test]
     fn passgen_numeric() -> Result<()> {
-        let options = PassGenOptions::new_numeric(12);
+        let options = PasswordGen::new_numeric(12);
         let (password, _) = generate_one(options.clone())?;
         assert_eq!(options.len(), password.expose_secret().len());
         Ok(())
@@ -128,7 +128,7 @@ mod test {
 
     #[test]
     fn passgen_alphanumeric() -> Result<()> {
-        let options = PassGenOptions::new_alpha_numeric(12);
+        let options = PasswordGen::new_alpha_numeric(12);
         let (password, _) = generate_one(options.clone())?;
         assert_eq!(options.len(), password.expose_secret().len());
         Ok(())
@@ -136,7 +136,7 @@ mod test {
 
     #[test]
     fn passgen_ascii_printable() -> Result<()> {
-        let options = PassGenOptions::new_ascii_printable(12);
+        let options = PasswordGen::new_ascii_printable(12);
         let (password, _) = generate_one(options.clone())?;
         assert_eq!(options.len(), password.expose_secret().len());
         Ok(())
@@ -144,7 +144,7 @@ mod test {
 
     #[test]
     fn passgen_ascii_printable_long() -> Result<()> {
-        let options = PassGenOptions::new_ascii_printable(32);
+        let options = PasswordGen::new_ascii_printable(32);
         let (password, _) = generate_one(options.clone())?;
         assert_eq!(options.len(), password.expose_secret().len());
         Ok(())
@@ -152,7 +152,7 @@ mod test {
 
     #[test]
     fn passgen_generate() -> Result<()> {
-        let options = PassGenOptions::new_ascii_printable(12);
+        let options = PasswordGen::new_ascii_printable(12);
         let count = 5;
         let passwords = generate(options.clone(), count)?;
         assert_eq!(count, passwords.len());
