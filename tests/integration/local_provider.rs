@@ -39,7 +39,7 @@ where
     let mut summaries = storage.vaults().to_vec();
     assert_eq!(1, summaries.len());
     let summary = summaries.remove(0);
-    assert_eq!("Login", summary.name());
+    assert_eq!("Documents", summary.name());
 
     // Single create vault commit
     commit_count!(storage, &summary, 1);

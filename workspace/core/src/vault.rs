@@ -701,34 +701,6 @@ impl Vault {
         self.contents.data.get(id)
     }
 
-    /// Implements nonce-reuse protection by scanning all
-    /// existing nonces and recursing if a collision is found.
-    fn generate_safe_nonce(&self) -> Nonce {
-        let nonce = match self.algorithm() {
-            Algorithm::AesGcm256(_) => Nonce::new_random_12(),
-            Algorithm::XChaCha20Poly1305(_) => Nonce::new_random_24(),
-        };
-
-        if let Some(vault_meta) = self.header().meta() {
-            // Got collision, try again
-            if nonce == vault_meta.nonce {
-                return self.generate_safe_nonce();
-            }
-        }
-
-        for VaultCommit(_, VaultEntry(meta, data)) in self.values() {
-            if nonce == meta.nonce {
-                // Got collision, try again
-                return self.generate_safe_nonce();
-            }
-            if nonce == data.nonce {
-                // Got collision, try again
-                return self.generate_safe_nonce();
-            }
-        }
-        nonce
-    }
-
     /// Encrypt plaintext using the algorithm assigned to this vault.
     pub fn encrypt(
         &self,
@@ -737,11 +709,11 @@ impl Vault {
     ) -> Result<AeadPack> {
         match self.algorithm() {
             Algorithm::XChaCha20Poly1305(_) => {
-                let nonce = self.generate_safe_nonce();
+                let nonce = Nonce::new_random_24();
                 xchacha20poly1305::encrypt(key, plaintext, Some(nonce))
             }
             Algorithm::AesGcm256(_) => {
-                let nonce = self.generate_safe_nonce();
+                let nonce = Nonce::new_random_12();
                 aesgcm256::encrypt(key, plaintext, Some(nonce))
             }
         }
