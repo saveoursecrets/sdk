@@ -57,7 +57,7 @@ mod vault {
     pub const VAULT_VERSION: u16 = 0;
 
     /// Default public name for a vault.
-    pub const DEFAULT_VAULT_NAME: &str = "Login";
+    pub const DEFAULT_VAULT_NAME: &str = "Documents";
 }
 
 /// Constants for MIME types.
