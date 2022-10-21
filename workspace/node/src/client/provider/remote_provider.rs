@@ -155,6 +155,36 @@ where
         Ok((passphrase, summary))
     }
 
+    async fn import_vault(
+        &mut self,
+        buffer: Vec<u8>,
+    ) -> Result<Summary> {
+        let vault: Vault = decode(&buffer)?;
+        let summary = vault.summary().clone();
+
+        let (status, _) = retry!(
+            || self.client.create_vault(buffer.clone()),
+            &mut self.client
+        );
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
+        if self.state().mirror() {
+            self.write_vault_file(&summary, &buffer)?;
+        }
+
+        // Add the summary to the vaults we are managing
+        self.state_mut().add_summary(summary.clone());
+
+        // Initialize the local cache for WAL and Patch
+        self.create_cache_entry(&summary, Some(vault))?;
+
+        Ok(summary)
+    }
+
     async fn create_account_with_buffer(
         &mut self,
         buffer: Vec<u8>,
