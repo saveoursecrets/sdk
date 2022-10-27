@@ -223,10 +223,7 @@ pub trait StorageProvider: Sync + Send {
     }
 
     /// Import a vault into an existing account.
-    async fn import_vault(
-        &mut self,
-        buffer: Vec<u8>,
-    ) -> Result<Summary>;
+    async fn import_vault(&mut self, buffer: Vec<u8>) -> Result<Summary>;
 
     /// Create a new account using the given vault buffer.
     async fn create_account_with_buffer(

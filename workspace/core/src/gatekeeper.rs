@@ -71,6 +71,11 @@ impl Gatekeeper {
         &mut self.vault
     }
 
+    /// Take the vault from this gatekeeper.
+    pub fn take(self) -> Vault {
+        self.vault
+    }
+
     /// Replace this vault with a new updated vault
     /// and update the search index if possible.
     ///

@@ -258,6 +258,13 @@ impl Decode for SecretMeta {
     }
 }
 
+/// A secret type that has signing capabilities.
+#[derive(Serialize, Deserialize)]
+pub enum SecretSigner {
+    /// Single party Ethereum-compatible ECDSA signing private key.
+    SinglePartyEcdsa(Vec<u8>),
+}
+
 /// Represents the various types of secret.
 ///
 /// This implements the serde traits for the webassembly bindings

@@ -23,6 +23,7 @@ mod file_locks;
 
 mod gatekeeper;
 mod hash;
+pub mod identity;
 pub mod iter;
 pub mod passgen;
 mod passwd;

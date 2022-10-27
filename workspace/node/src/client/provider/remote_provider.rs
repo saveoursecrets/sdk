@@ -155,10 +155,7 @@ where
         Ok((passphrase, summary))
     }
 
-    async fn import_vault(
-        &mut self,
-        buffer: Vec<u8>,
-    ) -> Result<Summary> {
+    async fn import_vault(&mut self, buffer: Vec<u8>) -> Result<Summary> {
         let vault: Vault = decode(&buffer)?;
         let summary = vault.summary().clone();
 

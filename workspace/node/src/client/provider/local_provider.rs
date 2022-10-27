@@ -127,10 +127,7 @@ where
         Ok((passphrase, summary))
     }
 
-    async fn import_vault(
-        &mut self,
-        buffer: Vec<u8>,
-    ) -> Result<Summary> {
+    async fn import_vault(&mut self, buffer: Vec<u8>) -> Result<Summary> {
         self.create_account_with_buffer(buffer).await
     }
 
