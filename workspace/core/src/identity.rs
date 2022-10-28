@@ -28,7 +28,7 @@ pub struct AuthenticatedUser {
     /// Private signing key for the identity.
     pub signer: BoxedSigner,
     /// Encryption passphrase for the user's vaults.
-    pub encryption: SecretString,
+    pub encryption_passphrase: SecretString,
 }
 
 /// Represents an identity.
@@ -132,7 +132,7 @@ impl Identity {
 
         let encryption = encryption.ok_or(Error::LoginEncryptionKind)?;
 
-        Ok(AuthenticatedUser { signer, encryption })
+        Ok(AuthenticatedUser { signer, encryption_passphrase: encryption })
     }
 }
 
