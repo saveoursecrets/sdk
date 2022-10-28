@@ -57,7 +57,17 @@ mod vault {
     pub const VAULT_VERSION: u16 = 0;
 
     /// Default public name for a vault.
+    pub const DEFAULT_LOGIN_VAULT_NAME: &str = "Login";
+
+    /// Default public name for a vault.
     pub const DEFAULT_VAULT_NAME: &str = "Documents";
+
+    /// Login vault encryption passphrase name.
+    pub const LOGIN_ENCRYPTION_PASSPHRASE_NAME: &str =
+        "encryption-passphrase";
+
+    /// Login vault signing key name.
+    pub const LOGIN_SIGNING_KEY_NAME: &str = "signing-key";
 }
 
 /// Constants for MIME types.

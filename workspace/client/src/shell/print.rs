@@ -84,6 +84,9 @@ pub(super) fn secret(
         Secret::Pin { number } => {
             banner.text(Cow::Borrowed(number.expose_secret()))
         }
+        Secret::Signer(_) => {
+            banner.text(Cow::Borrowed("[REDACTED PRIVATE SIGNING KEY]"))
+        }
     };
 
     let result = banner.render();

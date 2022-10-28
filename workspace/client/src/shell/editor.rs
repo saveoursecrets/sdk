@@ -56,6 +56,10 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
             number.expose_secret().as_bytes().to_vec(),
             ".txt".to_string(),
         ),
+        Secret::Signer(_) => {
+            // TODO: handle this more gracefully
+            panic!("signing keys are not editable")
+        }
     })
 }
 
@@ -88,6 +92,10 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
             Secret::Pin {
                 number: secrecy::Secret::new(number),
             }
+        }
+        Secret::Signer(_) => {
+            // TODO: handle this more gracefully
+            panic!("signing keys are not editable")
         }
     })
 }
