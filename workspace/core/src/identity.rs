@@ -6,6 +6,8 @@
 //! key and encryption passphrase using a single master
 //! passphrase.
 
+use secrecy::{SecretString, ExposeSecret, SecretVec};
+
 use crate::{
     constants::{
         DEFAULT_LOGIN_VAULT_NAME, LOGIN_ENCRYPTION_PASSPHRASE_NAME,
@@ -28,19 +30,22 @@ impl Identity {
     /// Generates a new random single party signing key and
     /// stores it in the new vault along with an encryption
     /// passphrase to use for vaults accessed by this identity.
-    pub fn new_login_vault(master_passphrase: String) -> Result<Vault> {
+    pub fn new_login_vault(master_passphrase: SecretString)
+        -> Result<(String, Vault)> {
         let (encryption_passphrase, _) = generate_passphrase_words(12)?;
 
         let mut vault: Vault = Default::default();
         vault.set_name(DEFAULT_LOGIN_VAULT_NAME.to_owned());
-        vault.initialize(&master_passphrase)?;
+        vault.initialize(master_passphrase.expose_secret())?;
 
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(&master_passphrase)?;
+        keeper.unlock(master_passphrase.expose_secret())?;
 
         // Store the encryption passphrase
         let passphrase_secret =
-            Secret::Note(secrecy::SecretString::new(master_passphrase));
+            Secret::Note(
+                SecretString::new(
+                    encryption_passphrase.expose_secret().to_owned()));
         let passphrase_meta = SecretMeta::new(
             LOGIN_ENCRYPTION_PASSPHRASE_NAME.to_owned(),
             passphrase_secret.kind(),
@@ -49,16 +54,16 @@ impl Identity {
 
         // Store the signing key
         let signer = SingleParty::new_random();
-        let secret_signer = SecretSigner::SinglePartyEcdsa(signer.to_bytes());
-        // FIXME: use the Secret::Signer type when ready
-        let signer_secret =
-            Secret::Note(secrecy::SecretString::new("".to_owned()));
+        let address = signer.address()?.to_string();
+        let secret_signer = SecretSigner::SinglePartyEcdsa(
+            SecretVec::new(signer.to_bytes()));
+        let signer_secret = Secret::Signer(secret_signer);
         let signer_meta = SecretMeta::new(
             LOGIN_SIGNING_KEY_NAME.to_owned(),
             signer_secret.kind(),
         );
         keeper.create(signer_meta, signer_secret)?;
 
-        Ok(keeper.take())
+        Ok((address, keeper.take()))
     }
 }

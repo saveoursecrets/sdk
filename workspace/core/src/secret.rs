@@ -233,6 +233,7 @@ impl SecretMeta {
             kind::PEM => "CERT",
             kind::PAGE => "PAGE",
             kind::PIN => "PIN",
+            kind::SIGNER => "SIGNER",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }
@@ -258,11 +259,82 @@ impl Decode for SecretMeta {
     }
 }
 
+/// Constants for signer kinds.
+mod signer_kind {
+    pub(crate) const SINGLE_PARTY_ECDSA: u8 = 1;
+}
+
 /// A secret type that has signing capabilities.
 #[derive(Serialize, Deserialize)]
 pub enum SecretSigner {
     /// Single party Ethereum-compatible ECDSA signing private key.
-    SinglePartyEcdsa(Vec<u8>),
+    #[serde(serialize_with = "serialize_secret_buffer")]
+    SinglePartyEcdsa(SecretVec<u8>),
+}
+
+impl Default for SecretSigner {
+    fn default() -> Self {
+        Self::SinglePartyEcdsa(SecretVec::new(vec![]))
+    }    
+}
+
+impl Clone for SecretSigner {
+    fn clone(&self) -> Self {
+        match self {
+            Self::SinglePartyEcdsa(buffer) => Self::SinglePartyEcdsa(
+                SecretVec::new(buffer.expose_secret().to_vec())),
+        }
+    }
+}
+
+impl PartialEq for SecretSigner {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::SinglePartyEcdsa(a), Self::SinglePartyEcdsa(b)) => {
+                a.expose_secret() == b.expose_secret()
+            }
+        }
+    }
+}
+
+impl Encode for SecretSigner {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        let kind = match self {
+            Self::SinglePartyEcdsa(_) => signer_kind::SINGLE_PARTY_ECDSA,
+        };
+        writer.write_u8(kind)?;
+
+        match self {
+            Self::SinglePartyEcdsa(buffer) => {
+                writer.write_u32(buffer.expose_secret().len() as u32)?;
+                writer.write_bytes(buffer.expose_secret())?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Decode for SecretSigner {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let kind = reader.read_u8()?;
+        match kind {
+            signer_kind::SINGLE_PARTY_ECDSA => {
+                let buffer_len = reader.read_u32()?;
+                let buffer = secrecy::Secret::new(
+                    reader.read_bytes(buffer_len as usize)?,
+                );
+                *self = Self::SinglePartyEcdsa(buffer);
+            }
+            _ => {
+                return Err(BinaryError::Boxed(Box::from(
+                    Error::UnknownSignerKind(kind),
+                )))
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// Represents the various types of secret.
@@ -325,6 +397,8 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         number: SecretString,
     },
+    /// Private signing key.
+    Signer(SecretSigner),
 }
 
 impl Clone for Secret {
@@ -380,6 +454,7 @@ impl Clone for Secret {
                     number.expose_secret().to_owned(),
                 ),
             },
+            Secret::Signer(signer) => Secret::Signer(signer.clone()),
         }
     }
 }
@@ -411,6 +486,7 @@ impl fmt::Debug for Secret {
                 .field("mime", mime)
                 .finish(),
             Secret::Pin { .. } => f.debug_struct("PIN").finish(),
+            Secret::Signer { .. } => f.debug_struct("Signer").finish(),
         }
     }
 }
@@ -436,6 +512,7 @@ impl Secret {
             kind::PEM => "Certificate",
             kind::PAGE => "Page",
             kind::PIN => "PIN",
+            kind::SIGNER => "Signer",
             _ => unreachable!(),
         }
     }
@@ -450,6 +527,7 @@ impl Secret {
             Secret::Pem(_) => kind::PEM,
             Secret::Page { .. } => kind::PAGE,
             Secret::Pin { .. } => kind::PIN,
+            Secret::Signer(_) => kind::SIGNER,
         }
     }
 }
@@ -522,6 +600,9 @@ impl PartialEq for Secret {
             (Self::Pin { number: a }, Self::Pin { number: b }) => {
                 a.expose_secret() == b.expose_secret()
             }
+            (Self::Signer(a), Self::Signer(b)) => {
+                a.eq(b)
+            }
             _ => false,
         }
     }
@@ -554,6 +635,8 @@ pub mod kind {
     pub const PAGE: u8 = 6;
     /// Personal identification number.
     pub const PIN: u8 = 7;
+    /// Private signing key.
+    pub const SIGNER: u8 = 8;
 }
 
 impl Encode for Secret {
@@ -566,6 +649,7 @@ impl Encode for Secret {
             Self::Pem(_) => kind::PEM,
             Self::Page { .. } => kind::PAGE,
             Self::Pin { .. } => kind::PIN,
+            Self::Signer(_) => kind::SIGNER,
         };
         writer.write_u8(kind)?;
 
@@ -613,6 +697,9 @@ impl Encode for Secret {
             }
             Self::Pin { number } => {
                 writer.write_string(number.expose_secret())?;
+            }
+            Self::Signer(signer) => {
+                signer.encode(writer)?;
             }
         }
         Ok(())
@@ -686,6 +773,11 @@ impl Decode for Secret {
                     number: secrecy::Secret::new(reader.read_string()?),
                 };
             }
+            kind::SIGNER => {
+                let mut signer: SecretSigner = Default::default();
+                signer.decode(reader)?;
+                *self = Self::Signer(signer);
+            }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
                     Error::UnknownSecretKind(kind),
@@ -699,7 +791,7 @@ impl Decode for Secret {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{decode, encode};
+    use crate::{decode, encode, signer::{SingleParty, Signer}};
     use anyhow::Result;
     use secrecy::ExposeSecret;
     use std::collections::HashMap;
@@ -833,6 +925,18 @@ i1KQYQNRTzo=
             mime: "text/markdown".to_string(),
             document: secrecy::Secret::new("# Mock Page".to_owned()),
         };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_signer() -> Result<()> {
+        let signer = SingleParty::new_random();
+        let secret_signer = SecretSigner::SinglePartyEcdsa(
+            SecretVec::new(signer.to_bytes()));
+        let secret = Secret::Signer(secret_signer);
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);
