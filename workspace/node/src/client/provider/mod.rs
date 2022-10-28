@@ -9,7 +9,7 @@ use std::{
 
 use sos_core::{
     commit_tree::{CommitProof, CommitTree},
-    constants::{PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
+    constants::{PATCH_EXT, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault},
@@ -77,7 +77,8 @@ impl StorageDirs {
     /// Create new storage dirs.
     pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: &str) -> Self {
         let documents_dir = documents_dir.as_ref().to_path_buf();
-        let user_dir = documents_dir.join(user_id);
+        let local_dir = documents_dir.join(LOCAL_DIR);
+        let user_dir = local_dir.join(user_id);
         let vaults_dir = user_dir.join(VAULTS_DIR);
         Self {
             documents_dir,

@@ -10,10 +10,7 @@ use std::path::Path;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 
 use crate::{
-    constants::{
-        DEFAULT_LOGIN_VAULT_NAME,
-        LOGIN_SIGNING_KEY_NAME,
-    },
+    constants::LOGIN_SIGNING_KEY_NAME,
     decode,
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta, SecretSigner},
@@ -38,11 +35,12 @@ impl Identity {
     /// stores it in the new vault along with an encryption
     /// passphrase to use for vaults accessed by this identity.
     pub fn new_login_vault(
+        name: String,
         master_passphrase: SecretString,
     ) -> Result<(String, Vault)> {
         let mut vault: Vault = Default::default();
-        vault.flags_mut().set(VaultFlags::LOGIN, true);
-        vault.set_name(DEFAULT_LOGIN_VAULT_NAME.to_owned());
+        vault.flags_mut().set(VaultFlags::IDENTITY, true);
+        vault.set_name(name);
         vault.initialize(master_passphrase.expose_secret())?;
 
         let mut keeper = Gatekeeper::new(vault);
@@ -118,7 +116,8 @@ mod tests {
         let (master_passphrase, _) = generate_passphrase()?;
         let auth_master_passphrase =
             SecretString::new(master_passphrase.expose_secret().to_owned());
-        let (_address, vault) = Identity::new_login_vault(master_passphrase)?;
+        let (_address, vault) =
+            Identity::new_login_vault("Login".to_owned(), master_passphrase)?;
         let buffer = encode(&vault)?;
         let temp = NamedTempFile::new()?;
         std::fs::write(temp.path(), buffer)?;

@@ -57,9 +57,6 @@ mod vault {
     pub const VAULT_VERSION: u16 = 0;
 
     /// Default public name for a vault.
-    pub const DEFAULT_LOGIN_VAULT_NAME: &str = "Login";
-
-    /// Default public name for a vault.
     pub const DEFAULT_VAULT_NAME: &str = "Documents";
 
     /// Login vault signing key name.
@@ -112,8 +109,11 @@ mod dirs {
     /// Directory to store vaults.
     pub const VAULTS_DIR: &str = "vaults";
 
-    /// Directory to store keystores.
-    pub const KEYSTORES_DIR: &str = "keystores";
+    /// Directory to store local provider data.
+    pub const LOCAL_DIR: &str = "local";
+
+    /// Directory to store identity vaults.
+    pub const IDENTITY_DIR: &str = "identity";
 }
 
 pub use dirs::*;
