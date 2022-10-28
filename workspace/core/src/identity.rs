@@ -19,7 +19,7 @@ use crate::{
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta, SecretSigner},
     signer::{BoxedSigner, Signer, SingleParty},
-    vault::Vault,
+    vault::{Vault, VaultFlags},
     Error, Result,
 };
 
@@ -46,6 +46,7 @@ impl Identity {
         let (encryption_passphrase, _) = generate_passphrase_words(12)?;
 
         let mut vault: Vault = Default::default();
+        vault.flags_mut().set(VaultFlags::LOGIN, true);
         vault.set_name(DEFAULT_LOGIN_VAULT_NAME.to_owned());
         vault.initialize(master_passphrase.expose_secret())?;
 
