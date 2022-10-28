@@ -13,7 +13,10 @@ use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
 
-use crate::{Error, Result, Timestamp};
+use crate::{
+    signer::{BoxedSigner, SingleParty},
+    Error, Result, Timestamp,
+};
 
 fn serialize_secret_string<S>(
     secret: &SecretString,
@@ -264,7 +267,7 @@ mod signer_kind {
     pub(crate) const SINGLE_PARTY_ECDSA: u8 = 1;
 }
 
-/// A secret type that has signing capabilities.
+/// Secret type that encapsulates a signing private key.
 #[derive(Serialize, Deserialize)]
 pub enum SecretSigner {
     /// Single party Ethereum-compatible ECDSA signing private key.
@@ -272,17 +275,32 @@ pub enum SecretSigner {
     SinglePartyEcdsa(SecretVec<u8>),
 }
 
+impl SecretSigner {
+    /// Convert this secret into a type with signing capabilities.
+    pub fn into_boxed_signer(self) -> Result<BoxedSigner> {
+        match self {
+            Self::SinglePartyEcdsa(key) => {
+                let private_key: [u8; 32] =
+                    key.expose_secret().as_slice().try_into()?;
+                let signer: SingleParty = private_key.try_into()?;
+                Ok(Box::new(signer))
+            }
+        }
+    }
+}
+
 impl Default for SecretSigner {
     fn default() -> Self {
         Self::SinglePartyEcdsa(SecretVec::new(vec![]))
-    }    
+    }
 }
 
 impl Clone for SecretSigner {
     fn clone(&self) -> Self {
         match self {
             Self::SinglePartyEcdsa(buffer) => Self::SinglePartyEcdsa(
-                SecretVec::new(buffer.expose_secret().to_vec())),
+                SecretVec::new(buffer.expose_secret().to_vec()),
+            ),
         }
     }
 }
@@ -600,9 +618,7 @@ impl PartialEq for Secret {
             (Self::Pin { number: a }, Self::Pin { number: b }) => {
                 a.expose_secret() == b.expose_secret()
             }
-            (Self::Signer(a), Self::Signer(b)) => {
-                a.eq(b)
-            }
+            (Self::Signer(a), Self::Signer(b)) => a.eq(b),
             _ => false,
         }
     }
@@ -791,7 +807,10 @@ impl Decode for Secret {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{decode, encode, signer::{SingleParty, Signer}};
+    use crate::{
+        decode, encode,
+        signer::{Signer, SingleParty},
+    };
     use anyhow::Result;
     use secrecy::ExposeSecret;
     use std::collections::HashMap;
@@ -934,8 +953,8 @@ i1KQYQNRTzo=
     #[test]
     fn secret_encode_signer() -> Result<()> {
         let signer = SingleParty::new_random();
-        let secret_signer = SecretSigner::SinglePartyEcdsa(
-            SecretVec::new(signer.to_bytes()));
+        let secret_signer =
+            SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
         let secret = Secret::Signer(secret_signer);
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
