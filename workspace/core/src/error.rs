@@ -86,14 +86,6 @@ pub enum Error {
     #[error("login vault signing secret is of the wrong kind")]
     LoginSignerKind,
 
-    /// Error generated when a login encryption secret is of the wrong kind.
-    #[error("login vault encryption secret is of the wrong kind")]
-    LoginEncryptionKind,
-
-    /// Error generated when a login vault does not contain an encryption passphrase.
-    #[error("login vault does not contain an encryption passphrase")]
-    NoLoginPassphrase,
-
     /// Error generated when a login vault is missing a secret.
     #[error("login vault does not contain a secret")]
     NoLoginSecret,

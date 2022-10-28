@@ -11,11 +11,10 @@ use secrecy::{ExposeSecret, SecretString, SecretVec};
 
 use crate::{
     constants::{
-        DEFAULT_LOGIN_VAULT_NAME, LOGIN_ENCRYPTION_PASSPHRASE_NAME,
+        DEFAULT_LOGIN_VAULT_NAME,
         LOGIN_SIGNING_KEY_NAME,
     },
     decode,
-    diceware::generate_passphrase_words,
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta, SecretSigner},
     signer::{BoxedSigner, Signer, SingleParty},
@@ -27,8 +26,6 @@ use crate::{
 pub struct AuthenticatedUser {
     /// Private signing key for the identity.
     pub signer: BoxedSigner,
-    /// Encryption passphrase for the user's vaults.
-    pub encryption_passphrase: SecretString,
 }
 
 /// Represents an identity.
@@ -43,8 +40,6 @@ impl Identity {
     pub fn new_login_vault(
         master_passphrase: SecretString,
     ) -> Result<(String, Vault)> {
-        let (encryption_passphrase, _) = generate_passphrase_words(12)?;
-
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::LOGIN, true);
         vault.set_name(DEFAULT_LOGIN_VAULT_NAME.to_owned());
@@ -64,16 +59,6 @@ impl Identity {
             signer_secret.kind(),
         );
         keeper.create(signer_meta, signer_secret)?;
-
-        // Store the encryption passphrase
-        let passphrase_secret = Secret::Note(SecretString::new(
-            encryption_passphrase.expose_secret().to_owned(),
-        ));
-        let passphrase_meta = SecretMeta::new(
-            LOGIN_ENCRYPTION_PASSPHRASE_NAME.to_owned(),
-            passphrase_secret.kind(),
-        );
-        keeper.create(passphrase_meta, passphrase_secret)?;
 
         Ok((address, keeper.take()))
     }
@@ -102,19 +87,10 @@ impl Identity {
             .index()
             .find_by_label(LOGIN_SIGNING_KEY_NAME)
             .ok_or(Error::NoLoginSigner)?;
-        let encryption_doc = keeper
-            .index()
-            .find_by_label(LOGIN_ENCRYPTION_PASSPHRASE_NAME)
-            .ok_or(Error::NoLoginPassphrase)?;
-
         let signing_data =
             keeper.read(signing_doc.id())?.ok_or(Error::NoLoginSecret)?;
-        let encryption_data = keeper
-            .read(encryption_doc.id())?
-            .ok_or(Error::NoLoginSecret)?;
 
         let (_, signer_secret, _) = signing_data;
-        let (_, encryption_secret, _) = encryption_data;
 
         let signer = if let Secret::Signer(signer) = signer_secret {
             Some(signer.into_boxed_signer()?)
@@ -123,16 +99,7 @@ impl Identity {
         };
         let signer = signer.ok_or(Error::LoginSignerKind)?;
 
-        let encryption =
-            if let Secret::Note(encryption_passphrase) = encryption_secret {
-                Some(encryption_passphrase)
-            } else {
-                None
-            };
-
-        let encryption = encryption.ok_or(Error::LoginEncryptionKind)?;
-
-        Ok(AuthenticatedUser { signer, encryption_passphrase: encryption })
+        Ok(AuthenticatedUser { signer })
     }
 }
 
