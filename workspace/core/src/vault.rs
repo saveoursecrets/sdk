@@ -35,8 +35,11 @@ bitflags! {
     #[derive(Default, Serialize, Deserialize)]
     pub struct VaultFlags: u32 {
         /// Indicates this vault should be treated as the default
-        /// login vault.
-        const DEFAULT =        0b00000001;
+        /// folder.
+        const DEFAULT   =        0b00000001;
+        /// Indicates this vault is a login vault used to authenticate 
+        /// a user.
+        const LOGIN     =        0b00000010;
     }
 }
 
