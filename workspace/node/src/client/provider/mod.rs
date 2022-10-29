@@ -9,7 +9,7 @@ use std::{
 
 use sos_core::{
     commit_tree::{CommitProof, CommitTree},
-    constants::{PATCH_EXT, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
+    constants::{LOCAL_DIR, PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault},

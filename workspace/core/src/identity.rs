@@ -76,6 +76,11 @@ impl Identity {
         master_passphrase: SecretString,
     ) -> Result<AuthenticatedUser> {
         let vault: Vault = decode(buffer.as_ref())?;
+
+        if !vault.flags().contains(VaultFlags::IDENTITY) {
+            return Err(Error::NotIdentityVault);
+        }
+
         let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(master_passphrase.expose_secret())?;
         // Must create the index so we can find by name
@@ -84,9 +89,10 @@ impl Identity {
         let signing_doc = keeper
             .index()
             .find_by_label(LOGIN_SIGNING_KEY_NAME)
-            .ok_or(Error::NoLoginSigner)?;
-        let signing_data =
-            keeper.read(signing_doc.id())?.ok_or(Error::NoLoginSecret)?;
+            .ok_or(Error::NoIdentitySigner)?;
+        let signing_data = keeper
+            .read(signing_doc.id())?
+            .ok_or(Error::NoIdentitySecret)?;
 
         let (_, signer_secret, _) = signing_data;
 
@@ -95,7 +101,7 @@ impl Identity {
         } else {
             None
         };
-        let signer = signer.ok_or(Error::LoginSignerKind)?;
+        let signer = signer.ok_or(Error::IdentitySignerKind)?;
 
         Ok(AuthenticatedUser { signer })
     }
@@ -109,7 +115,14 @@ mod tests {
 
     use super::Identity;
 
-    use crate::{diceware::generate_passphrase, encode};
+    use crate::{
+        constants::LOGIN_SIGNING_KEY_NAME,
+        diceware::generate_passphrase,
+        encode,
+        secret::{Secret, SecretMeta},
+        vault::{Vault, VaultFlags},
+        Error, Gatekeeper,
+    };
 
     #[test]
     fn identity_create_login() -> Result<()> {
@@ -123,5 +136,69 @@ mod tests {
         std::fs::write(temp.path(), buffer)?;
         let _ = Identity::login_file(temp.path(), auth_master_passphrase)?;
         Ok(())
+    }
+
+    #[test]
+    fn identity_not_identity_vault() -> Result<()> {
+        let (master_passphrase, _) = generate_passphrase()?;
+
+        let mut vault: Vault = Default::default();
+        vault.initialize(master_passphrase.expose_secret())?;
+        let buffer = encode(&vault)?;
+
+        let result = Identity::login_buffer(buffer, master_passphrase);
+        if let Err(Error::NotIdentityVault) = result {
+            Ok(())
+        } else {
+            panic!("expecting identity vault error");
+        }
+    }
+
+    #[test]
+    fn identity_no_identity_signer() -> Result<()> {
+        let (master_passphrase, _) = generate_passphrase()?;
+
+        let mut vault: Vault = Default::default();
+        vault.flags_mut().set(VaultFlags::IDENTITY, true);
+        vault.initialize(master_passphrase.expose_secret())?;
+        let buffer = encode(&vault)?;
+
+        let result = Identity::login_buffer(buffer, master_passphrase);
+        if let Err(Error::NoIdentitySigner) = result {
+            Ok(())
+        } else {
+            panic!("expecting no identity signer error");
+        }
+    }
+
+    #[test]
+    fn identity_signer_kind() -> Result<()> {
+        let (master_passphrase, _) = generate_passphrase()?;
+
+        let mut vault: Vault = Default::default();
+        vault.flags_mut().set(VaultFlags::IDENTITY, true);
+        vault.initialize(master_passphrase.expose_secret())?;
+
+        let mut keeper = Gatekeeper::new(vault);
+        keeper.unlock(master_passphrase.expose_secret())?;
+
+        // Create a secret using the expected name but of the wrong kind
+        let signer_secret =
+            Secret::Note(SecretString::new("Mock note".to_owned()));
+        let signer_meta = SecretMeta::new(
+            LOGIN_SIGNING_KEY_NAME.to_owned(),
+            signer_secret.kind(),
+        );
+        keeper.create(signer_meta, signer_secret)?;
+
+        let vault = keeper.take();
+        let buffer = encode(&vault)?;
+
+        let result = Identity::login_buffer(buffer, master_passphrase);
+        if let Err(Error::IdentitySignerKind) = result {
+            Ok(())
+        } else {
+            panic!("expecting identity signer kind error");
+        }
     }
 }
