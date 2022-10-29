@@ -793,6 +793,11 @@ impl Vault {
         &self.header.summary
     }
 
+    /// Get a reference to the vault flags.
+    pub fn flags(&self) -> &VaultFlags {
+        self.header.summary.flags()
+    }
+
     /// Get a mutable reference to the vault flags.
     pub fn flags_mut(&mut self) -> &mut VaultFlags {
         self.header.summary.flags_mut()

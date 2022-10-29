@@ -5,7 +5,11 @@ use crate::test_utils::*;
 
 use secrecy::ExposeSecret;
 use sos_check::{keys, status, verify_vault, verify_wal};
-use sos_core::{constants::VAULTS_DIR, vault::Vault, wal::file::WalFile};
+use sos_core::{
+    constants::{LOCAL_DIR, VAULTS_DIR},
+    vault::Vault,
+    wal::file::WalFile,
+};
 use sos_node::client::{
     account::AccountCredentials, provider::StorageProvider,
 };
@@ -33,11 +37,17 @@ async fn integration_check_integrity() -> Result<()> {
     let _notes = create_secrets(&mut node_cache, &summary).await?;
 
     let expected_dir = dirs.clients.get(0).unwrap();
+
+    // Local vault file
     let expected_vault = expected_dir
+        .join(LOCAL_DIR)
         .join(address.to_string())
         .join(VAULTS_DIR)
         .join(format!("{}.{}", summary.id(), Vault::extension()));
+
+    // WAL for the local data
     let expected_wal = expected_dir
+        .join(LOCAL_DIR)
         .join(address.to_string())
         .join(VAULTS_DIR)
         .join(format!("{}.{}", summary.id(), WalFile::extension()));

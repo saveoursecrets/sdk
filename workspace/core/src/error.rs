@@ -78,17 +78,22 @@ pub enum Error {
     #[error("{0}")]
     PasswordGenerator(String),
 
+    /// Error generated when a login vault does not contain
+    /// the identity bit flag.
+    #[error("vault is not an identity vault")]
+    NotIdentityVault,
+
     /// Error generated when a login vault does not contain a signing key.
-    #[error("login vault does not contain a signing key")]
-    NoLoginSigner,
+    #[error("identity vault does not contain a signing key")]
+    NoIdentitySigner,
 
     /// Error generated when a login signing secret is of the wrong kind.
-    #[error("login vault signing secret is of the wrong kind")]
-    LoginSignerKind,
+    #[error("identity vault signing secret is of the wrong kind")]
+    IdentitySignerKind,
 
     /// Error generated when a login vault is missing a secret.
-    #[error("login vault does not contain a secret")]
-    NoLoginSecret,
+    #[error("identity vault does not contain a secret")]
+    NoIdentitySecret,
 
     /// Error generated when a vault has not been initialized (no encrypted meta data).
     #[error("vault is not initialized")]
