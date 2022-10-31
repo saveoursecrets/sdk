@@ -12,6 +12,7 @@ use serde::{
 use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
+use vcard_parser::{vcard::Vcard, parse_to_vcards_without_errors};
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
@@ -417,6 +418,8 @@ pub enum Secret {
     },
     /// Private signing key.
     Signer(SecretSigner),
+    /// Contact vCard.
+    Contact(Vcard),
 }
 
 impl Clone for Secret {
@@ -473,6 +476,12 @@ impl Clone for Secret {
                 ),
             },
             Secret::Signer(signer) => Secret::Signer(signer.clone()),
+            Secret::Contact(vcard) => {
+                let card = vcard.to_string();
+                let mut cards = parse_to_vcards_without_errors(&card);
+                let vcard = cards.remove(0);
+                Secret::Contact(vcard)
+            },
         }
     }
 }
@@ -505,6 +514,7 @@ impl fmt::Debug for Secret {
                 .finish(),
             Secret::Pin { .. } => f.debug_struct("PIN").finish(),
             Secret::Signer { .. } => f.debug_struct("Signer").finish(),
+            Secret::Contact { .. } => f.debug_struct("Contact").finish(),
         }
     }
 }
@@ -531,6 +541,7 @@ impl Secret {
             kind::PAGE => "Page",
             kind::PIN => "PIN",
             kind::SIGNER => "Signer",
+            kind::CONTACT => "Contact",
             _ => unreachable!(),
         }
     }
@@ -546,6 +557,7 @@ impl Secret {
             Secret::Page { .. } => kind::PAGE,
             Secret::Pin { .. } => kind::PIN,
             Secret::Signer(_) => kind::SIGNER,
+            Secret::Contact(_) => kind::CONTACT,
         }
     }
 }
@@ -653,6 +665,8 @@ pub mod kind {
     pub const PIN: u8 = 7;
     /// Private signing key.
     pub const SIGNER: u8 = 8;
+    /// Contact vCard.
+    pub const CONTACT: u8 = 9;
 }
 
 impl Encode for Secret {
@@ -666,6 +680,7 @@ impl Encode for Secret {
             Self::Page { .. } => kind::PAGE,
             Self::Pin { .. } => kind::PIN,
             Self::Signer(_) => kind::SIGNER,
+            Self::Contact(_) => kind::CONTACT,
         };
         writer.write_u8(kind)?;
 
@@ -716,6 +731,9 @@ impl Encode for Secret {
             }
             Self::Signer(signer) => {
                 signer.encode(writer)?;
+            }
+            Self::Contact(vcard) => {
+                writer.write_string(vcard.to_string())?;
             }
         }
         Ok(())
@@ -794,6 +812,11 @@ impl Decode for Secret {
                 signer.decode(reader)?;
                 *self = Self::Signer(signer);
             }
+            kind::CONTACT => {
+                let vcard = reader.read_string()?;
+                let vcard = Vcard::try_from(&vcard[..]).map_err(Box::from)?;
+                *self = Self::Contact(vcard);
+            }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
                     Error::UnknownSecretKind(kind),
@@ -814,6 +837,7 @@ mod test {
     use anyhow::Result;
     use secrecy::ExposeSecret;
     use std::collections::HashMap;
+    use vcard_parser::parse_to_vcards;
 
     #[test]
     fn secret_serde() -> Result<()> {
@@ -959,6 +983,27 @@ i1KQYQNRTzo=
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_contact() -> Result<()> {
+        let text = r#"
+        BEGIN:VCARD
+        VERSION:4.0
+        FN:John Doe
+        END:VCARD
+        "#;
+
+        let vcard = Vcard::from(text);
+        vcard.validate_vcard()?;
+
+        /*
+        let secret = Secret::Contact(vcard);
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+        */
         Ok(())
     }
 }
