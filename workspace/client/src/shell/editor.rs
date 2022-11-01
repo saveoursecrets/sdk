@@ -13,6 +13,7 @@ use secrecy::ExposeSecret;
 use sha3::{Digest, Keccak256};
 use sos_core::secret::Secret;
 use tempfile::Builder;
+use vcard_parser::vcard::Vcard;
 
 use crate::{Error, Result};
 
@@ -60,6 +61,9 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
             // TODO: handle this more gracefully
             panic!("signing keys are not editable")
         }
+        Secret::Contact(vcard) => {
+            (vcard.to_string().as_bytes().to_vec(), ".txt".to_string())
+        }
     })
 }
 
@@ -96,6 +100,12 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         Secret::Signer(_) => {
             // TODO: handle this more gracefully
             panic!("signing keys are not editable")
+        }
+        Secret::Contact(_) => {
+            let value = std::str::from_utf8(content)?;
+            let vcard = Vcard::from(value);
+            vcard.validate_vcard()?;
+            Secret::Contact(vcard)
         }
     })
 }

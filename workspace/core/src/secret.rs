@@ -12,7 +12,7 @@ use serde::{
 use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
-use vcard_parser::{vcard::Vcard, parse_to_vcards_without_errors};
+use vcard_parser::{parse_to_vcards, vcard::Vcard};
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
@@ -238,6 +238,7 @@ impl SecretMeta {
             kind::PAGE => "PAGE",
             kind::PIN => "PIN",
             kind::SIGNER => "SIGNER",
+            kind::CONTACT => "CONTACT",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }
@@ -476,12 +477,7 @@ impl Clone for Secret {
                 ),
             },
             Secret::Signer(signer) => Secret::Signer(signer.clone()),
-            Secret::Contact(vcard) => {
-                let card = vcard.to_string();
-                let mut cards = parse_to_vcards_without_errors(&card);
-                let vcard = cards.remove(0);
-                Secret::Contact(vcard)
-            },
+            Secret::Contact(vcard) => Secret::Contact(vcard.clone()),
         }
     }
 }
@@ -631,6 +627,7 @@ impl PartialEq for Secret {
                 a.expose_secret() == b.expose_secret()
             }
             (Self::Signer(a), Self::Signer(b)) => a.eq(b),
+            (Self::Contact(a), Self::Contact(b)) => a.eq(b),
             _ => false,
         }
     }
@@ -814,7 +811,8 @@ impl Decode for Secret {
             }
             kind::CONTACT => {
                 let vcard = reader.read_string()?;
-                let vcard = Vcard::try_from(&vcard[..]).map_err(Box::from)?;
+                let mut cards = parse_to_vcards(&vcard).map_err(Box::from)?;
+                let vcard = cards.remove(0);
                 *self = Self::Contact(vcard);
             }
             _ => {
@@ -837,7 +835,6 @@ mod test {
     use anyhow::Result;
     use secrecy::ExposeSecret;
     use std::collections::HashMap;
-    use vcard_parser::parse_to_vcards;
 
     #[test]
     fn secret_serde() -> Result<()> {
@@ -989,21 +986,20 @@ i1KQYQNRTzo=
     #[test]
     fn secret_encode_contact() -> Result<()> {
         let text = r#"
-        BEGIN:VCARD
-        VERSION:4.0
-        FN:John Doe
-        END:VCARD
+BEGIN:VCARD
+VERSION:4.0
+FN:John Doe
+END:VCARD
         "#;
 
         let vcard = Vcard::from(text);
         vcard.validate_vcard()?;
 
-        /*
         let secret = Secret::Contact(vcard);
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
+
         assert_eq!(secret, decoded);
-        */
         Ok(())
     }
 }

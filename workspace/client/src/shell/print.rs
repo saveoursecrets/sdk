@@ -87,6 +87,7 @@ pub(super) fn secret(
         Secret::Signer(_) => {
             banner.text(Cow::Borrowed("[REDACTED PRIVATE SIGNING KEY]"))
         }
+        Secret::Contact(vcard) => banner.text(Cow::Owned(vcard.to_string())),
     };
 
     let result = banner.render();
