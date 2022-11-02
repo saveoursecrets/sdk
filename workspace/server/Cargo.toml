@@ -13,7 +13,7 @@ clap = { version = "3.2.20", features = ["derive", "wrap_help"] }
 tokio = { version = "1", features = ["full"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 
 [[bin]]
 name = "sos-server"

@@ -13,6 +13,7 @@ use secrecy::ExposeSecret;
 use sha3::{Digest, Keccak256};
 use sos_core::secret::Secret;
 use tempfile::Builder;
+use vcard_parser::vcard::Vcard;
 
 use crate::{Error, Result};
 
@@ -36,7 +37,10 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
         Secret::Note(text) => {
             (text.expose_secret().as_bytes().to_vec(), ".txt".to_string())
         }
-        Secret::List(_) | Secret::Account { .. } | Secret::Pem(_) => {
+        Secret::List(_)
+        | Secret::Account { .. }
+        | Secret::Pem(_)
+        | Secret::Totp(_) => {
             (serde_json::to_vec_pretty(secret)?, ".json".to_string())
         }
         Secret::File { name, buffer, .. } => {
@@ -60,6 +64,9 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
             // TODO: handle this more gracefully
             panic!("signing keys are not editable")
         }
+        Secret::Contact(vcard) => {
+            (vcard.to_string().as_bytes().to_vec(), ".txt".to_string())
+        }
     })
 }
 
@@ -71,9 +78,10 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
                 //.trim_end_matches('\n')
                 .to_owned(),
         )),
-        Secret::List(_) | Secret::Account { .. } | Secret::Pem(_) => {
-            serde_json::from_slice::<Secret>(content)?
-        }
+        Secret::List(_)
+        | Secret::Account { .. }
+        | Secret::Pem(_)
+        | Secret::Totp(_) => serde_json::from_slice::<Secret>(content)?,
         Secret::File { name, mime, .. } => Secret::File {
             name: name.clone(),
             mime: mime.clone(),
@@ -96,6 +104,12 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         Secret::Signer(_) => {
             // TODO: handle this more gracefully
             panic!("signing keys are not editable")
+        }
+        Secret::Contact(_) => {
+            let value = std::str::from_utf8(content)?;
+            let vcard = Vcard::from(value);
+            vcard.validate_vcard()?;
+            Secret::Contact(vcard)
         }
     })
 }
