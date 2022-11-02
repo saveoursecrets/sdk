@@ -10,10 +10,10 @@ use serde::{
     Deserialize, Serialize, Serializer,
 };
 use std::{collections::HashMap, fmt, str::FromStr};
+use totp_rs::TOTP;
 use url::Url;
 use uuid::Uuid;
 use vcard_parser::{parse_to_vcards, vcard::Vcard};
-use totp_rs::TOTP;
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
@@ -834,8 +834,8 @@ impl Decode for Secret {
             kind::TOTP => {
                 let buffer_len = reader.read_u32()?;
                 let buffer = reader.read_bytes(buffer_len as usize)?;
-                let totp: TOTP = serde_json::from_slice(&buffer)
-                    .map_err(Box::from)?;
+                let totp: TOTP =
+                    serde_json::from_slice(&buffer).map_err(Box::from)?;
                 *self = Self::Totp(totp);
             }
             _ => {
@@ -1028,7 +1028,7 @@ END:VCARD
 
     #[test]
     fn secret_encode_totp() -> Result<()> {
-        use totp_rs::{Algorithm, TOTP, Secret as TotpSecret};
+        use totp_rs::{Algorithm, Secret as TotpSecret, TOTP};
 
         let totp = TOTP::new(
             Algorithm::SHA1,
@@ -1036,11 +1036,14 @@ END:VCARD
             1,
             30,
             TotpSecret::Raw(
-                "MockSecretWhichMustBeAtLeast80Bytes"
-                    .as_bytes().to_vec()).to_bytes().unwrap(),
+                "MockSecretWhichMustBeAtLeast80Bytes".as_bytes().to_vec(),
+            )
+            .to_bytes()
+            .unwrap(),
             Some("MockIssuer".to_string()),
             "mock@example.com".to_string(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let secret = Secret::Totp(totp);
         let encoded = encode(&secret)?;

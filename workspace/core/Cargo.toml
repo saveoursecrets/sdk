@@ -9,12 +9,12 @@ license = "GPL-3.0"
 [dependencies]
 async-trait = "0.1"
 aes-gcm = { version = "0.9", features = ["std"] }
-chacha20poly1305 = { version = "0.9", features = ["std"] }
+chacha20poly1305 = { version = "0.10.1", features = ["std"] }
 tracing = "0.1"
 filetime = "0.2"
 rand = "0.8"
 thiserror = "1"
-web3-signature = { version = "0.2.5", features = ["single-party"] }
+web3-signature = { version = "0.2.6", features = ["single-party"] }
 web3-address = { version = "0.4", features = ["ethereum"] }
 serde = { version = "1", features = ["derive"] }
 hex = { version = "0.4", features = ["serde"] }

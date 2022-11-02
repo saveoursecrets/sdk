@@ -18,7 +18,7 @@ serde_json = "1"
 uuid = { version = "1", features = ["serde", "v4"] }
 hex = "0.4"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 mime_guess = "2"
 human_bytes = "0.3"
 tempfile = "3"
