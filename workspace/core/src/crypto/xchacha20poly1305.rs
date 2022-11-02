@@ -1,6 +1,6 @@
 //! Encrypt and decrypt using XChacha20poly1305.
-use chacha20poly1305::aead::{Aead, NewAead};
-use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
+use chacha20poly1305::aead::Aead;
+use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 
 use super::{secret_key::SecretKey, AeadPack, Nonce};
 use crate::{Error, Result};
