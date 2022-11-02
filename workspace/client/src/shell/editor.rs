@@ -37,7 +37,10 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
         Secret::Note(text) => {
             (text.expose_secret().as_bytes().to_vec(), ".txt".to_string())
         }
-        Secret::List(_) | Secret::Account { .. } | Secret::Pem(_) => {
+        Secret::List(_)
+        | Secret::Account { .. }
+        | Secret::Pem(_)
+        | Secret::Totp(_) => {
             (serde_json::to_vec_pretty(secret)?, ".json".to_string())
         }
         Secret::File { name, buffer, .. } => {
@@ -75,9 +78,10 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
                 //.trim_end_matches('\n')
                 .to_owned(),
         )),
-        Secret::List(_) | Secret::Account { .. } | Secret::Pem(_) => {
-            serde_json::from_slice::<Secret>(content)?
-        }
+        Secret::List(_)
+        | Secret::Account { .. }
+        | Secret::Pem(_)
+        | Secret::Totp(_) => serde_json::from_slice::<Secret>(content)?,
         Secret::File { name, mime, .. } => Secret::File {
             name: name.clone(),
             mime: mime.clone(),

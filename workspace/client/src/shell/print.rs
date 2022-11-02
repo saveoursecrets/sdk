@@ -88,6 +88,15 @@ pub(super) fn secret(
             banner.text(Cow::Borrowed("[REDACTED PRIVATE SIGNING KEY]"))
         }
         Secret::Contact(vcard) => banner.text(Cow::Owned(vcard.to_string())),
+        Secret::Totp(totp) => {
+            let mut details =
+                format!("Account name:  {}\n", totp.account_name);
+            if let Some(issuer) = &totp.issuer {
+                details.push_str(&format!("Issuer:  {}\n", issuer));
+            }
+            details.push_str(&format!("Digits: {}", totp.digits));
+            banner.text(Cow::Owned(details))
+        }
     };
 
     let result = banner.render();

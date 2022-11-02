@@ -13,6 +13,7 @@ use std::{collections::HashMap, fmt, str::FromStr};
 use url::Url;
 use uuid::Uuid;
 use vcard_parser::{parse_to_vcards, vcard::Vcard};
+use totp_rs::TOTP;
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
@@ -421,6 +422,8 @@ pub enum Secret {
     Signer(SecretSigner),
     /// Contact vCard.
     Contact(Vcard),
+    /// Time-based one-time passcode.
+    Totp(TOTP),
 }
 
 impl Clone for Secret {
@@ -478,6 +481,7 @@ impl Clone for Secret {
             },
             Secret::Signer(signer) => Secret::Signer(signer.clone()),
             Secret::Contact(vcard) => Secret::Contact(vcard.clone()),
+            Secret::Totp(totp) => Secret::Totp(totp.clone()),
         }
     }
 }
@@ -511,6 +515,7 @@ impl fmt::Debug for Secret {
             Secret::Pin { .. } => f.debug_struct("PIN").finish(),
             Secret::Signer { .. } => f.debug_struct("Signer").finish(),
             Secret::Contact { .. } => f.debug_struct("Contact").finish(),
+            Secret::Totp { .. } => f.debug_struct("TOTP").finish(),
         }
     }
 }
@@ -538,6 +543,7 @@ impl Secret {
             kind::PIN => "PIN",
             kind::SIGNER => "Signer",
             kind::CONTACT => "Contact",
+            kind::TOTP => "TOTP",
             _ => unreachable!(),
         }
     }
@@ -554,6 +560,7 @@ impl Secret {
             Secret::Pin { .. } => kind::PIN,
             Secret::Signer(_) => kind::SIGNER,
             Secret::Contact(_) => kind::CONTACT,
+            Secret::Totp(_) => kind::TOTP,
         }
     }
 }
@@ -628,6 +635,7 @@ impl PartialEq for Secret {
             }
             (Self::Signer(a), Self::Signer(b)) => a.eq(b),
             (Self::Contact(a), Self::Contact(b)) => a.eq(b),
+            (Self::Totp(a), Self::Totp(b)) => a.eq(b),
             _ => false,
         }
     }
@@ -664,6 +672,8 @@ pub mod kind {
     pub const SIGNER: u8 = 8;
     /// Contact vCard.
     pub const CONTACT: u8 = 9;
+    /// Time-based one time passcode.
+    pub const TOTP: u8 = 10;
 }
 
 impl Encode for Secret {
@@ -678,6 +688,7 @@ impl Encode for Secret {
             Self::Pin { .. } => kind::PIN,
             Self::Signer(_) => kind::SIGNER,
             Self::Contact(_) => kind::CONTACT,
+            Self::Totp(_) => kind::TOTP,
         };
         writer.write_u8(kind)?;
 
@@ -731,6 +742,11 @@ impl Encode for Secret {
             }
             Self::Contact(vcard) => {
                 writer.write_string(vcard.to_string())?;
+            }
+            Self::Totp(totp) => {
+                let totp = serde_json::to_vec(totp).map_err(Box::from)?;
+                writer.write_u32(totp.len() as u32)?;
+                writer.write_bytes(totp)?;
             }
         }
         Ok(())
@@ -814,6 +830,13 @@ impl Decode for Secret {
                 let mut cards = parse_to_vcards(&vcard).map_err(Box::from)?;
                 let vcard = cards.remove(0);
                 *self = Self::Contact(vcard);
+            }
+            kind::TOTP => {
+                let buffer_len = reader.read_u32()?;
+                let buffer = reader.read_bytes(buffer_len as usize)?;
+                let totp: TOTP = serde_json::from_slice(&buffer)
+                    .map_err(Box::from)?;
+                *self = Self::Totp(totp);
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
@@ -996,6 +1019,30 @@ END:VCARD
         vcard.validate_vcard()?;
 
         let secret = Secret::Contact(vcard);
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+
+        assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_totp() -> Result<()> {
+        use totp_rs::{Algorithm, TOTP, Secret as TotpSecret};
+
+        let totp = TOTP::new(
+            Algorithm::SHA1,
+            6,
+            1,
+            30,
+            TotpSecret::Raw(
+                "MockSecretWhichMustBeAtLeast80Bytes"
+                    .as_bytes().to_vec()).to_bytes().unwrap(),
+            Some("MockIssuer".to_string()),
+            "mock@example.com".to_string(),
+        ).unwrap();
+
+        let secret = Secret::Totp(totp);
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
 
