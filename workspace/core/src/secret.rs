@@ -10,7 +10,7 @@ use serde::{
     Deserialize, Serialize, Serializer,
 };
 use std::{collections::HashMap, fmt, str::FromStr};
-use totp_rs::TOTP;
+use totp_sos::TOTP;
 use url::Url;
 use uuid::Uuid;
 use vcard_parser::{parse_to_vcards, vcard::Vcard};
