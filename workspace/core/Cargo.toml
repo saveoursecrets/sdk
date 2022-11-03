@@ -35,7 +35,7 @@ tempfile = "3"
 log = "0.4"
 http = "0.2"
 passwords = "3"
-totp-rs = { version = "3", features = ["serde_support", "otpauth"] }
+totp-sos = { version = "3", features = ["serde"] }
 vcard_parser = { version = "0.1.1", git = "https://github.com/tmpfs/vcard_parser/", branch = "develop", features = ["serde"] }
 
 time = { version = "0.3.13", features = ["serde", "local-offset", "formatting", "wasm-bindgen"] }
