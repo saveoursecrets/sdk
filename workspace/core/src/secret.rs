@@ -1028,20 +1028,16 @@ END:VCARD
 
     #[test]
     fn secret_encode_totp() -> Result<()> {
-        use totp_rs::{Algorithm, Secret as TotpSecret, TOTP};
+        use totp_sos::{Algorithm, TOTP};
 
         let totp = TOTP::new(
             Algorithm::SHA1,
             6,
             1,
             30,
-            TotpSecret::Raw(
-                "MockSecretWhichMustBeAtLeast80Bytes".as_bytes().to_vec(),
-            )
-            .to_bytes()
-            .unwrap(),
-            Some("MockIssuer".to_string()),
+            "MockSecretWhichMustBeAtLeast80Bytes".as_bytes().to_vec(),
             "mock@example.com".to_string(),
+            Some("MockIssuer".to_string()),
         )
         .unwrap();
 
