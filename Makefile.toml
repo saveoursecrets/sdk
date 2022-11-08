@@ -117,23 +117,16 @@ cargo make dist
 cp -rv app/dist ../../workspace/node/public
 '''
 
-[tasks.clean-coverage]
-script = '''
-#rm -rf ./target/cover
-rm -rf ./target/coverage
-rm -f ./target/lcov.info
-'''
-
 [tasks.genhtml]
 script = '''
 grcov . -s . --binary-path ./target/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore 'src/*' --ignore 'tests/*' --ignore 'target/*'
 '''
 
-[tasks.cover]
+[tasks.coverage]
 alias = "coverage_grcov"
 
-[tasks.coverage]
-dependencies = ["clean-coverage", "cover", "genhtml"]
+[tasks.cover]
+dependencies = ["build", "coverage", "genhtml"]
 
 [tasks.brew]
 script = '''
