@@ -13,7 +13,7 @@ use std::{collections::HashMap, fmt, str::FromStr};
 use totp_sos::TOTP;
 use url::Url;
 use uuid::Uuid;
-use vcard_parser::{parse_to_vcards, vcard::Vcard};
+use vcard4::{parse as parse_to_vcards, Vcard};
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
@@ -1008,16 +1008,12 @@ i1KQYQNRTzo=
 
     #[test]
     fn secret_encode_contact() -> Result<()> {
-        let text = r#"
-BEGIN:VCARD
+        let text = r#"BEGIN:VCARD
 VERSION:4.0
 FN:John Doe
-END:VCARD
-        "#;
+END:VCARD"#;
 
-        let vcard = Vcard::from(text);
-        vcard.validate_vcard()?;
-
+        let vcard: Vcard = text.try_into()?;
         let secret = Secret::Contact(vcard);
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;

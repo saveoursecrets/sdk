@@ -323,6 +323,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b645a089122eccb6111b4f81cbc1a49f5900ac4666bb93ac027feaecf15607bf"
 
 [[package]]
+name = "beef"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a8241f3ebb85c056b509d4327ad0358fbbba6ffb340bf388f26350aeda225b1"
+
+[[package]]
 name = "binary-stream"
 version = "3.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1522,6 +1528,9 @@ name = "language-tags"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4345964bb142484797b161f473a503a434de77149dd8c7427788c6e13379388"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "lazy_static"
@@ -1558,6 +1567,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "logos"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf8b031682c67a8e3d5446840f9573eb7fe26efe7ec8d195c9ac4c0647c502f1"
+dependencies = [
+ "logos-derive",
+]
+
+[[package]]
+name = "logos-derive"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1d849148dbaf9661a6151d1ca82b13bb4c4c128146a88d05253b38d4e2f496c"
+dependencies = [
+ "beef",
+ "fnv",
+ "proc-macro2 1.0.47",
+ "quote 1.0.21",
+ "regex-syntax",
+ "syn 1.0.103",
 ]
 
 [[package]]
@@ -2886,7 +2918,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid 1.2.1",
- "vcard_parser",
+ "vcard4",
  "web3-address",
  "zeroize",
 ]
@@ -2930,7 +2962,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid 1.2.1",
- "vcard_parser",
+ "vcard4",
  "web3-address",
  "web3-signature",
  "zeroize",
@@ -3642,6 +3674,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
 
 [[package]]
+name = "uriparse"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0200d0fc04d809396c2ad43f3c95da3582a2556eba8d453c1087f4120ee352ff"
+dependencies = [
+ "fnv",
+ "lazy_static",
+ "serde",
+]
+
+[[package]]
 name = "url"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3688,7 +3731,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "feb41e78f93363bb2df8b0e86a2ca30eed7806ea16ea0c790d757cf93f79be83"
 dependencies = [
  "getrandom 0.2.8",
- "rand 0.8.5",
  "serde",
  "wasm-bindgen",
 ]
@@ -3700,17 +3742,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 
 [[package]]
-name = "vcard_parser"
-version = "0.1.2"
-source = "git+https://github.com/tmpfs/vcard_parser/?branch=develop#2d3055c603bc56f13b8e8c85606e5bec81ee54dd"
+name = "vcard4"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e5f3cddaffbe23e9fca22408b5292043f98570b93ce83e5c1e1f5d2657481c2"
 dependencies = [
+ "aho-corasick",
  "language-tags",
- "regex",
+ "logos",
  "serde",
  "thiserror",
  "time",
- "url",
- "uuid 1.2.1",
+ "unicode-segmentation",
+ "uriparse",
+ "zeroize",
 ]
 
 [[package]]
