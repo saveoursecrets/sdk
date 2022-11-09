@@ -66,5 +66,5 @@ pub enum Error {
     ShellWords(#[from] shell_words::ParseError),
 
     #[error(transparent)]
-    Vcard(#[from] vcard_parser::error::VcardError),
+    Vcard(#[from] vcard4::Error),
 }

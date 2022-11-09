@@ -13,7 +13,7 @@ use secrecy::ExposeSecret;
 use sha3::{Digest, Keccak256};
 use sos_core::secret::Secret;
 use tempfile::Builder;
-use vcard_parser::vcard::Vcard;
+use vcard4::Vcard;
 
 use crate::{Error, Result};
 
@@ -107,8 +107,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         }
         Secret::Contact(_) => {
             let value = std::str::from_utf8(content)?;
-            let vcard = Vcard::from(value);
-            vcard.validate_vcard()?;
+            let vcard: Vcard = value.try_into()?;
             Secret::Contact(vcard)
         }
     })

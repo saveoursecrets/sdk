@@ -29,7 +29,7 @@ zeroize = "1.4"
 secrecy = "0.8"
 web3-address = { version = "0.4", features = ["ethereum"] }
 
-vcard_parser = { version = "0.1.1", git = "https://github.com/tmpfs/vcard_parser/", branch = "develop", features = ["serde"] }
+vcard4 = { version = "0.1.4", features = ["serde"] }
 
 [[bin]]
 name = "sos-client"
