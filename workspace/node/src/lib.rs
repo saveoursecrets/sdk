@@ -33,7 +33,7 @@ static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
 
 /// Get the default root directory used for caching client data.
 ///
-/// If the `CACHE_DIR` environment variable is set it is used.
+/// If the `SOS_CACHE_DIR` environment variable is set it is used.
 ///
 /// Otherwise is an explicit directory has been set using `set_cache_dir()`
 /// then that will be used.
@@ -42,13 +42,16 @@ static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
 /// set then a path will be computed by platform convention.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn cache_dir() -> Option<PathBuf> {
-    let dir = if let Some(env_cache_dir) = std::env::var("CACHE_DIR").ok() {
+    let dir = if let Some(env_cache_dir) = std::env::var("SOS_CACHE_DIR").ok() {
+
+        println!("USING CACHE_DIR");
         Some(PathBuf::from(env_cache_dir))
     } else {
         let reader = CACHE_DIR.read().unwrap();
         if reader.is_some() {
             Some(reader.as_ref().unwrap().to_path_buf())
         } else {
+            println!("USING default or fallback!");
             default_storage_dir().or(fallback_storage_dir())
         }
     };
@@ -103,8 +106,14 @@ fn default_storage_dir() -> Option<PathBuf> {
 
 #[cfg(target_os = "windows")]
 fn default_storage_dir() -> Option<PathBuf> {
-    // FIXME: compute according to provider_path
-    fallback_storage_dir()
+    use sos_core::constants::BUNDLE_ID;
+    dirs::home_dir().and_then(|v| {
+        let d = v
+            .join("AppData")
+            .join("Local")
+            .join(BUNDLE_ID);
+        Some(d)
+    })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
