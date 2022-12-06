@@ -107,9 +107,13 @@ impl PatchProvider for PatchFile {
     }
 
     fn truncate(&mut self) -> Result<()> {
-        self.file.set_len(0)?;
+        // Workaround for set_len(0) failing with "Access Denied" on Windows
+        if cfg!(target_os = "windows") {
+            let _ = OpenOptions::new().write(true).truncate(true).open(&self.file_path);
+        } else {
+            self.file.set_len(0)?;
+        }
         self.file.seek(SeekFrom::Start(0))?;
-
         let patch: Patch = Default::default();
         let buffer = encode(&patch)?;
         self.file.write_all(&buffer)?;
@@ -140,6 +144,7 @@ mod test {
         let events = vec![mock_event.clone()];
 
         let patch = patch_file.append(events)?;
+
         let new_len = temp.path().metadata()?.len();
         assert!(new_len > 4);
         assert_eq!(1, patch.0.len());
