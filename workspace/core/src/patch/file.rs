@@ -108,11 +108,11 @@ impl PatchProvider for PatchFile {
 
     fn truncate(&mut self) -> Result<()> {
         // Workaround for set_len(0) failing with "Access Denied" on Windows
-        if cfg!(target_os = "windows") {
-            let _ = OpenOptions::new().write(true).truncate(true).open(&self.file_path);
-        } else {
-            self.file.set_len(0)?;
-        }
+        // SEE: https://github.com/rust-lang/rust/issues/105437
+        let _ = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.file_path);
         self.file.seek(SeekFrom::Start(0))?;
         let patch: Patch = Default::default();
         let buffer = encode(&patch)?;
