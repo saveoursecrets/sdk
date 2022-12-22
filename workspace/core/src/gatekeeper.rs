@@ -414,12 +414,11 @@ impl Gatekeeper {
     pub fn create_index(&mut self) -> Result<()> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+        let mut writer = self.index.write().unwrap();
         for (id, value) in self.vault.iter() {
             let VaultCommit(_commit, VaultEntry(meta_aead, _)) = value;
             let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
             let secret_meta: SecretMeta = decode(&meta_blob)?;
-
-            let mut writer = self.index.write().unwrap();
             writer.add(id, secret_meta);
         }
         Ok(())
