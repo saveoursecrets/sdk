@@ -3,13 +3,16 @@
 use super::{Error, Result};
 
 use sos_core::{
+    search::SearchIndex,
     secret::SecretRef,
     vault::{Summary, Vault},
-    search::SearchIndex,
     Gatekeeper, VaultFileAccess,
 };
 
-use std::{path::PathBuf, sync::{Arc, RwLock}};
+use std::{
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 
 /// Manages the state of a node.
 pub struct ProviderState {

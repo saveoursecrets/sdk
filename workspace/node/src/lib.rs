@@ -42,7 +42,8 @@ static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
 /// set then a path will be computed by platform convention.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn cache_dir() -> Option<PathBuf> {
-    let dir = if let Some(env_cache_dir) = std::env::var("SOS_CACHE_DIR").ok() {
+    let dir = if let Some(env_cache_dir) = std::env::var("SOS_CACHE_DIR").ok()
+    {
         Some(PathBuf::from(env_cache_dir))
     } else {
         let reader = CACHE_DIR.read().unwrap();
@@ -105,10 +106,7 @@ fn default_storage_dir() -> Option<PathBuf> {
 fn default_storage_dir() -> Option<PathBuf> {
     use sos_core::constants::BUNDLE_ID;
     dirs::home_dir().and_then(|v| {
-        let d = v
-            .join("AppData")
-            .join("Local")
-            .join(BUNDLE_ID);
+        let d = v.join("AppData").join("Local").join(BUNDLE_ID);
         Some(d)
     })
 }

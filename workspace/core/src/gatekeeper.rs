@@ -8,7 +8,10 @@ use crate::{
     vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId},
     Error, Result,
 };
-use std::{collections::HashSet, sync::{Arc, RwLock}};
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock},
+};
 use uuid::Uuid;
 
 /// Access to an in-memory vault optionally mirroring changes to disc.
@@ -41,12 +44,14 @@ impl Gatekeeper {
     /// Create a new gatekeeper.
     pub fn new(
         vault: Vault,
-        index: Option<Arc<RwLock<SearchIndex>>>) -> Self {
+        index: Option<Arc<RwLock<SearchIndex>>>,
+    ) -> Self {
         Self {
             vault,
             private_key: None,
             mirror: None,
-            index: index.unwrap_or_else(|| Arc::new(RwLock::new(SearchIndex::new()))),
+            index: index
+                .unwrap_or_else(|| Arc::new(RwLock::new(SearchIndex::new()))),
         }
     }
 
@@ -60,7 +65,8 @@ impl Gatekeeper {
             vault,
             private_key: None,
             mirror: Some(mirror),
-            index: index.unwrap_or_else(|| Arc::new(RwLock::new(SearchIndex::new()))),
+            index: index
+                .unwrap_or_else(|| Arc::new(RwLock::new(SearchIndex::new()))),
         }
     }
 
@@ -327,7 +333,6 @@ impl Gatekeeper {
         let doc = reader
             .find_by_id(id)
             .ok_or(Error::SecretDoesNotExist(*id))?;
-
 
         // Label has changed, so ensure uniqueness
         if doc.meta().label() != secret_meta.label()
