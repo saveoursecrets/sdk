@@ -5,10 +5,11 @@ use super::{Error, Result};
 use sos_core::{
     secret::SecretRef,
     vault::{Summary, Vault},
+    search::SearchIndex,
     Gatekeeper, VaultFileAccess,
 };
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::{Arc, RwLock}};
 
 /// Manages the state of a node.
 pub struct ProviderState {
@@ -93,12 +94,13 @@ impl ProviderState {
         passphrase: &str,
         vault: Vault,
         vault_path: PathBuf,
+        index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<()> {
         let mut keeper = if self.mirror {
             let mirror = Box::new(VaultFileAccess::new(vault_path)?);
-            Gatekeeper::new_mirror(vault, mirror)
+            Gatekeeper::new_mirror(vault, mirror, index)
         } else {
-            Gatekeeper::new(vault)
+            Gatekeeper::new(vault, index)
         };
 
         keeper

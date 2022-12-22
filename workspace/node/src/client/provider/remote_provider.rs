@@ -11,6 +11,7 @@ use sos_core::{
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault},
     wal::{

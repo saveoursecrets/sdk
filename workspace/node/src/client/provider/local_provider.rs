@@ -10,6 +10,7 @@ use sos_core::{
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    search::SearchIndex,
     vault::{Header, Summary, Vault, VaultId},
     wal::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,

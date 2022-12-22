@@ -43,15 +43,12 @@ static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
 #[cfg(not(target_arch = "wasm32"))]
 pub fn cache_dir() -> Option<PathBuf> {
     let dir = if let Some(env_cache_dir) = std::env::var("SOS_CACHE_DIR").ok() {
-
-        println!("USING CACHE_DIR");
         Some(PathBuf::from(env_cache_dir))
     } else {
         let reader = CACHE_DIR.read().unwrap();
         if reader.is_some() {
             Some(reader.as_ref().unwrap().to_path_buf())
         } else {
-            println!("USING default or fallback!");
             default_storage_dir().or(fallback_storage_dir())
         }
     };

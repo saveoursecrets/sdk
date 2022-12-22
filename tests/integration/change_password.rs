@@ -67,15 +67,19 @@ async fn integration_change_password() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Use the new vault
-    node_cache.open_vault(&summary, encryption_passphrase.expose_secret())?;
+    node_cache.open_vault(&summary, encryption_passphrase.expose_secret(), None)?;
 
     // Create some secrets
     let _notes = create_secrets(&mut node_cache, &summary).await?;
 
     // Check our new list of secrets has the right length
     let keeper = node_cache.current().unwrap();
-    let meta = keeper.index().values();
+
+    let index = keeper.index();
+    let index_reader = index.read().unwrap();
+    let meta = index_reader.values();
     assert_eq!(3, meta.len());
+    drop(index_reader);
     drop(keeper);
 
     let keeper = node_cache.current_mut().unwrap();

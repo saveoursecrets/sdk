@@ -230,9 +230,10 @@ fn find_secret_meta(
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let reader = cache.read().unwrap();
     let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
-    //let meta_data = keeper.meta_data()?;
+    let index = keeper.index();
+    let index_reader = index.read().unwrap();
     if let Some(Document(uuid, secret_meta)) =
-        keeper.index().find_by_uuid_or_label(secret)
+        index_reader.find_by_uuid_or_label(secret)
     {
         Ok(Some((*uuid, secret_meta.clone())))
     } else {
@@ -537,7 +538,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             let mut writer = cache.write().unwrap();
             let passphrase = read_password(Some("Passphrase: "))?;
-            writer.open_vault(&summary, passphrase.expose_secret())?;
+            writer.open_vault(&summary, passphrase.expose_secret(), None)?;
             Ok(())
             //maybe_conflict(cache, |writer| {
             //run_blocking(
@@ -563,7 +564,9 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         ShellCommand::List { long } => {
             let reader = cache.read().unwrap();
             if let Some(keeper) = reader.current() {
-                let meta = keeper.index().values();
+                let index = keeper.index();
+                let index_reader = index.read().unwrap();
+                let meta = index_reader.values();
                 for doc in meta {
                     let Document(uuid, secret_meta) = doc;
                     let label = secret_meta.label();

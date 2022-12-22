@@ -39,8 +39,8 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
     //let _ = client2.pull(&summary, true).await?;
 
     // Both client use the login vault
-    client1.open_vault(&summary, encryption_passphrase.expose_secret())?;
-    client2.open_vault(&summary, encryption_passphrase.expose_secret())?;
+    client1.open_vault(&summary, encryption_passphrase.expose_secret(), None)?;
+    client2.open_vault(&summary, encryption_passphrase.expose_secret(), None)?;
 
     // Create some secrets in client 1
     let _notes = create_secrets(&mut client1, &summary).await?;
