@@ -86,7 +86,6 @@ impl Identity {
         // Must create the index so we can find by name
         keeper.create_index()?;
 
-
         let index = keeper.index();
         let reader = index.read().unwrap();
 
