@@ -418,7 +418,7 @@ impl Gatekeeper {
     }
 
     /// Create the initial search index.
-    pub fn create_index(&mut self) -> Result<()> {
+    pub fn create_search_index(&mut self) -> Result<()> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         let mut writer = self.index.write().unwrap();
