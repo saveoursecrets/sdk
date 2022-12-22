@@ -113,6 +113,13 @@ impl ProviderState {
         Ok(())
     }
 
+    /// Add this vault to the search index.
+    pub(crate) fn create_search_index(&mut self) -> Result<()> {
+        let keeper = self.current_mut().ok_or_else(|| Error::NoOpenVault)?;
+        keeper.create_search_index()?;
+        Ok(())
+    }
+
     /// Close the currently open vault.
     ///
     /// When a vault is open it is locked before being closed.

@@ -84,7 +84,7 @@ impl Identity {
         let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(master_passphrase.expose_secret())?;
         // Must create the index so we can find by name
-        keeper.create_index()?;
+        keeper.create_search_index()?;
 
         let index = keeper.index();
         let reader = index.read().unwrap();

@@ -127,6 +127,11 @@ pub trait StorageProvider: Sync + Send {
     /// Get a mutable reference to the state for this storage provider.
     fn state_mut(&mut self) -> &mut ProviderState;
 
+    /// Create the search index for the currently open vault.
+    fn create_search_index(&mut self) -> Result<()> {
+        self.state_mut().create_search_index()
+    }
+
     /// Compute the storage directory for the user.
     fn dirs(&self) -> &StorageDirs;
 
