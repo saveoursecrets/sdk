@@ -10,11 +10,14 @@ use std::{
 use creature_feature::ftzrs::n_slice;
 use creature_feature::traits::Ftzr;
 
-use crate::secret::{SecretId, SecretMeta, SecretRef};
+use crate::{
+    secret::{SecretId, SecretMeta, SecretRef},
+    vault::VaultId,
+};
 
 /// Key for meta data documents.
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct DocumentKey(String, SecretId);
+pub struct DocumentKey(String, VaultId, SecretId);
 
 // Index tokenizer.
 fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
@@ -40,22 +43,27 @@ fn query_tokenizer(s: &str) -> Vec<Cow<'_, str>> {
 
 // Label
 fn label_extract<'a>(d: &'a Document) -> Option<&'a str> {
-    Some(d.1.label())
+    Some(d.2.label())
 }
 
 /// Document that can be indexed.
 #[derive(Debug, Serialize)]
-pub struct Document(pub SecretId, pub SecretMeta);
+pub struct Document(pub VaultId, pub SecretId, pub SecretMeta);
 
 impl Document {
+    /// Get the vault identifier.
+    pub fn vault_id(&self) -> &VaultId {
+        &self.0
+    }
+
     /// Get the secret identifier.
     pub fn id(&self) -> &SecretId {
-        &self.0
+        &self.1
     }
 
     /// Get the secret meta data.
     pub fn meta(&self) -> &SecretMeta {
-        &self.1
+        &self.2
     }
 }
 
@@ -142,13 +150,21 @@ impl SearchIndex {
     }
 
     /// Add a document to the index.
-    pub fn add(&mut self, id: &SecretId, meta: SecretMeta) {
-        let doc = Document(*id, meta);
+    pub fn add(
+        &mut self,
+        vault_id: &VaultId,
+        id: &SecretId,
+        meta: SecretMeta,
+    ) {
+        let doc = Document(*vault_id, *id, meta);
 
         // Listing key includes the identifier so that
         // secrets with the same label do not overwrite each other
-        let key =
-            DocumentKey(doc.meta().label().to_lowercase().to_owned(), *id);
+        let key = DocumentKey(
+            doc.meta().label().to_lowercase().to_owned(),
+            *vault_id,
+            *id,
+        );
         let doc = self.documents.entry(key).or_insert(doc);
 
         self.index
@@ -156,17 +172,22 @@ impl SearchIndex {
     }
 
     /// Update a document in the index.
-    pub fn update(&mut self, id: &SecretId, meta: SecretMeta) {
-        self.remove(id);
-        self.add(id, meta);
+    pub fn update(
+        &mut self,
+        vault_id: &VaultId,
+        id: &SecretId,
+        meta: SecretMeta,
+    ) {
+        self.remove(vault_id, id);
+        self.add(vault_id, id, meta);
     }
 
     /// Remove and vacuum a document from the index.
-    pub fn remove(&mut self, id: &SecretId) {
+    pub fn remove(&mut self, vault_id: &VaultId, id: &SecretId) {
         let key = self
             .documents
             .keys()
-            .find(|key| &key.1 == id)
+            .find(|key| &key.1 == vault_id && &key.2 == id)
             .map(|k| k.clone());
         if let Some(key) = &key {
             self.documents.remove(key);
@@ -211,6 +232,8 @@ mod test {
 
     #[test]
     fn search_index() {
+        let vault_id = Uuid::new_v4();
+
         let mut idx = SearchIndex::new();
 
         let id1 = Uuid::new_v4();
@@ -219,9 +242,9 @@ mod test {
         let id2 = Uuid::new_v4();
         let meta2 = SecretMeta::new("foo bar baz secret".to_owned(), 1);
 
-        idx.add(&id1, meta1);
+        idx.add(&vault_id, &id1, meta1);
         assert_eq!(1, idx.documents().len());
-        idx.add(&id2, meta2);
+        idx.add(&vault_id, &id2, meta2);
         assert_eq!(2, idx.documents().len());
 
         let docs = idx.query("mock");
@@ -230,7 +253,7 @@ mod test {
         let docs = idx.query("secret");
         assert_eq!(2, docs.len());
 
-        idx.remove(&id1);
+        idx.remove(&vault_id, &id1);
 
         let docs = idx.query("mock");
         assert_eq!(0, docs.len());

@@ -232,7 +232,7 @@ fn find_secret_meta(
     let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
     let index = keeper.index();
     let index_reader = index.read().unwrap();
-    if let Some(Document(uuid, secret_meta)) =
+    if let Some(Document(_, uuid, secret_meta)) =
         index_reader.find_by_uuid_or_label(secret)
     {
         Ok(Some((*uuid, secret_meta.clone())))
@@ -568,7 +568,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 let index_reader = index.read().unwrap();
                 let meta = index_reader.values();
                 for doc in meta {
-                    let Document(uuid, secret_meta) = doc;
+                    let Document(_, uuid, secret_meta) = doc;
                     let label = secret_meta.label();
                     let short_name = secret_meta.short_name();
                     print!("[{}] ", short_name);
