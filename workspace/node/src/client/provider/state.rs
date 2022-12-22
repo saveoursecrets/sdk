@@ -109,7 +109,6 @@ impl ProviderState {
         keeper
             .unlock(passphrase)
             .map_err(|_| Error::VaultUnlockFail)?;
-        keeper.create_index()?;
         self.current = Some(keeper);
         Ok(())
     }
