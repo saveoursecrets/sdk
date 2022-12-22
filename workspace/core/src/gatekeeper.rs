@@ -108,12 +108,12 @@ impl Gatekeeper {
                 if let Some((meta, _)) =
                     self.read_secret(added_key, Some(&vault), derived_key)?
                 {
-                    writer.add(added_key, meta);
+                    writer.add(self.vault().id(), added_key, meta);
                 }
             }
 
             for deleted_key in existing_keys.difference(&updated_keys) {
-                writer.remove(deleted_key);
+                writer.remove(self.vault().id(), deleted_key);
             }
 
             for maybe_updated in updated_keys.union(&existing_keys) {
@@ -129,7 +129,11 @@ impl Gatekeeper {
                             Some(&vault),
                             derived_key,
                         )? {
-                            writer.update(maybe_updated, meta);
+                            writer.update(
+                                self.vault().id(),
+                                maybe_updated,
+                                meta,
+                            );
                         }
                     }
                 }
@@ -268,6 +272,7 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<SyncEvent<'_>> {
+        let vault_id = *self.vault().id();
         let reader = self.index.read().unwrap();
 
         if reader.find_by_label(secret_meta.label()).is_some() {
@@ -305,7 +310,7 @@ impl Gatekeeper {
         drop(reader);
 
         let mut writer = self.index.write().unwrap();
-        writer.add(&id, secret_meta);
+        writer.add(&vault_id, &id, secret_meta);
 
         Ok(result)
     }
@@ -328,6 +333,7 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<Option<SyncEvent<'_>>> {
+        let vault_id = *self.vault().id();
         let reader = self.index.read().unwrap();
 
         let doc = reader
@@ -371,19 +377,20 @@ impl Gatekeeper {
         drop(reader);
 
         let mut writer = self.index.write().unwrap();
-        writer.update(&id, secret_meta);
+        writer.update(&vault_id, &id, secret_meta);
 
         Ok(result)
     }
 
     /// Delete a secret and it's meta data from the vault.
     pub fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent<'_>>> {
+        let vault_id = *self.vault().id();
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.delete(id)?;
         }
         let result = self.vault.delete(id)?;
         let mut writer = self.index.write().unwrap();
-        writer.remove(id);
+        writer.remove(&vault_id, id);
         Ok(result)
     }
 
@@ -419,7 +426,7 @@ impl Gatekeeper {
             let VaultCommit(_commit, VaultEntry(meta_aead, _)) = value;
             let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
             let secret_meta: SecretMeta = decode(&meta_blob)?;
-            writer.add(id, secret_meta);
+            writer.add(self.vault().id(), id, secret_meta);
         }
         Ok(())
     }
