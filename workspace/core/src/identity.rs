@@ -43,7 +43,7 @@ impl Identity {
         vault.set_name(name);
         vault.initialize(master_passphrase.expose_secret())?;
 
-        let mut keeper = Gatekeeper::new(vault);
+        let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(master_passphrase.expose_secret())?;
 
         // Store the signing key
@@ -81,13 +81,16 @@ impl Identity {
             return Err(Error::NotIdentityVault);
         }
 
-        let mut keeper = Gatekeeper::new(vault);
+        let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(master_passphrase.expose_secret())?;
         // Must create the index so we can find by name
         keeper.create_index()?;
 
-        let signing_doc = keeper
-            .index()
+
+        let index = keeper.index();
+        let reader = index.read().unwrap();
+
+        let signing_doc = reader
             .find_by_label(LOGIN_SIGNING_KEY_NAME)
             .ok_or(Error::NoIdentitySigner)?;
         let signing_data = keeper
@@ -179,7 +182,7 @@ mod tests {
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
         vault.initialize(master_passphrase.expose_secret())?;
 
-        let mut keeper = Gatekeeper::new(vault);
+        let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(master_passphrase.expose_secret())?;
 
         // Create a secret using the expected name but of the wrong kind

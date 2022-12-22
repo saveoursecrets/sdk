@@ -31,7 +31,7 @@ async fn integration_check_integrity() -> Result<()> {
     } = credentials;
 
     // Use the new vault
-    node_cache.open_vault(&summary, encryption_passphrase.expose_secret())?;
+    node_cache.open_vault(&summary, encryption_passphrase.expose_secret(), None)?;
 
     // Create some secrets
     let _notes = create_secrets(&mut node_cache, &summary).await?;

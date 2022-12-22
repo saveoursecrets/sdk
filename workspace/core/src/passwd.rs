@@ -146,7 +146,7 @@ mod test {
         let mut mock_vault = mock_vault();
         mock_vault.initialize(current_passphrase.expose_secret())?;
 
-        let mut keeper = Gatekeeper::new(mock_vault);
+        let mut keeper = Gatekeeper::new(mock_vault, None);
         keeper.unlock(current_passphrase.expose_secret())?;
 
         // Propagate some secrets

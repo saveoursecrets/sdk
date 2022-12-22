@@ -5,12 +5,14 @@ use secrecy::{ExposeSecret, SecretString};
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
+    sync::{Arc, RwLock},
 };
 
 use sos_core::{
     commit_tree::{CommitProof, CommitTree},
     constants::{LOCAL_DIR, PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault},
     wal::snapshot::{SnapShot, SnapShotManager},
@@ -258,6 +260,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         summary: &Summary,
         passphrase: &str,
+        index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<()>;
 
     /// Load a vault by reducing it from the WAL stored on disc.
@@ -461,6 +464,7 @@ macro_rules! provider_impl {
             &mut self,
             summary: &Summary,
             passphrase: &str,
+            index: Option<std::sync::Arc<std::sync::RwLock<SearchIndex>>>,
         ) -> Result<()> {
             let vault = self.reduce_wal(summary)?;
             let vault_path = self.vault_path(summary);
@@ -473,7 +477,7 @@ macro_rules! provider_impl {
 
             self
                 .state_mut()
-                .open_vault(passphrase, vault, vault_path)?;
+                .open_vault(passphrase, vault, vault_path, index)?;
             Ok(())
         }
 

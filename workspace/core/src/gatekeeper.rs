@@ -8,7 +8,7 @@ use crate::{
     vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId},
     Error, Result,
 };
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::{Arc, RwLock}};
 use uuid::Uuid;
 
 /// Access to an in-memory vault optionally mirroring changes to disc.
@@ -34,17 +34,19 @@ pub struct Gatekeeper {
     /// Mirror in-memory vault changes to this destination.
     mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
     /// Search index.
-    index: SearchIndex,
+    index: Arc<RwLock<SearchIndex>>,
 }
 
 impl Gatekeeper {
     /// Create a new gatekeeper.
-    pub fn new(vault: Vault) -> Self {
+    pub fn new(
+        vault: Vault,
+        index: Option<Arc<RwLock<SearchIndex>>>) -> Self {
         Self {
             vault,
             private_key: None,
             mirror: None,
-            index: SearchIndex::new(),
+            index: index.unwrap_or_else(|| Arc::new(RwLock::new(SearchIndex::new()))),
         }
     }
 
@@ -52,12 +54,13 @@ impl Gatekeeper {
     pub fn new_mirror(
         vault: Vault,
         mirror: Box<dyn VaultAccess + Send + Sync>,
+        index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Self {
         Self {
             vault,
             private_key: None,
             mirror: Some(mirror),
-            index: SearchIndex::new(),
+            index: index.unwrap_or_else(|| Arc::new(RwLock::new(SearchIndex::new()))),
         }
     }
 
@@ -93,16 +96,18 @@ impl Gatekeeper {
             let existing_keys = self.vault.keys().collect::<HashSet<_>>();
             let updated_keys = vault.keys().collect::<HashSet<_>>();
 
+            let mut writer = self.index.write().unwrap();
+
             for added_key in updated_keys.difference(&existing_keys) {
                 if let Some((meta, _)) =
                     self.read_secret(added_key, Some(&vault), derived_key)?
                 {
-                    self.index.add(added_key, meta);
+                    writer.add(added_key, meta);
                 }
             }
 
             for deleted_key in existing_keys.difference(&updated_keys) {
-                self.index.remove(deleted_key);
+                writer.remove(deleted_key);
             }
 
             for maybe_updated in updated_keys.union(&existing_keys) {
@@ -118,7 +123,7 @@ impl Gatekeeper {
                             Some(&vault),
                             derived_key,
                         )? {
-                            self.index.update(maybe_updated, meta);
+                            writer.update(maybe_updated, meta);
                         }
                     }
                 }
@@ -135,8 +140,8 @@ impl Gatekeeper {
     }
 
     /// Get the search index.
-    pub fn index(&self) -> &SearchIndex {
-        &self.index
+    pub fn index(&self) -> Arc<RwLock<SearchIndex>> {
+        Arc::clone(&self.index)
     }
 
     /// Get the summary for the vault.
@@ -257,7 +262,9 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<SyncEvent<'_>> {
-        if self.index.find_by_label(secret_meta.label()).is_some() {
+        let reader = self.index.read().unwrap();
+
+        if reader.find_by_label(secret_meta.label()).is_some() {
             return Err(Error::SecretAlreadyExists(
                 secret_meta.label().to_string(),
             ));
@@ -289,7 +296,10 @@ impl Gatekeeper {
             VaultEntry(meta_aead, secret_aead),
         )?;
 
-        self.index.add(&id, secret_meta);
+        drop(reader);
+
+        let mut writer = self.index.write().unwrap();
+        writer.add(&id, secret_meta);
 
         Ok(result)
     }
@@ -312,14 +322,16 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<Option<SyncEvent<'_>>> {
-        let doc = self
-            .index
+        let reader = self.index.read().unwrap();
+
+        let doc = reader
             .find_by_id(id)
             .ok_or(Error::SecretDoesNotExist(*id))?;
 
+
         // Label has changed, so ensure uniqueness
         if doc.meta().label() != secret_meta.label()
-            && self.index.find_by_label(secret_meta.label()).is_some()
+            && reader.find_by_label(secret_meta.label()).is_some()
         {
             return Err(Error::SecretAlreadyExists(
                 secret_meta.label().to_string(),
@@ -351,7 +363,10 @@ impl Gatekeeper {
             VaultEntry(meta_aead, secret_aead),
         )?;
 
-        self.index.update(&id, secret_meta);
+        drop(reader);
+
+        let mut writer = self.index.write().unwrap();
+        writer.update(&id, secret_meta);
 
         Ok(result)
     }
@@ -362,7 +377,8 @@ impl Gatekeeper {
             mirror.delete(id)?;
         }
         let result = self.vault.delete(id)?;
-        self.index.remove(id);
+        let mut writer = self.index.write().unwrap();
+        writer.remove(id);
         Ok(result)
     }
 
@@ -397,7 +413,9 @@ impl Gatekeeper {
             let VaultCommit(_commit, VaultEntry(meta_aead, _)) = value;
             let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
             let secret_meta: SecretMeta = decode(&meta_blob)?;
-            self.index.add(id, secret_meta);
+
+            let mut writer = self.index.write().unwrap();
+            writer.add(id, secret_meta);
         }
         Ok(())
     }
@@ -439,7 +457,7 @@ mod tests {
     fn gatekeeper_secret_note() -> Result<()> {
         let passphrase = "mock-passphrase";
         let vault: Vault = Default::default();
-        let mut keeper = Gatekeeper::new(vault);
+        let mut keeper = Gatekeeper::new(vault, None);
 
         let name = String::from(DEFAULT_VAULT_NAME);
         let label = String::from("Mock Vault Label");
