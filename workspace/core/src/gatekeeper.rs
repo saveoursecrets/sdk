@@ -275,7 +275,10 @@ impl Gatekeeper {
         let vault_id = *self.vault().id();
         let reader = self.index.read().unwrap();
 
-        if reader.find_by_label(secret_meta.label()).is_some() {
+        if reader
+            .find_by_label(&vault_id, secret_meta.label())
+            .is_some()
+        {
             return Err(Error::SecretAlreadyExists(
                 secret_meta.label().to_string(),
             ));
@@ -337,12 +340,14 @@ impl Gatekeeper {
         let reader = self.index.read().unwrap();
 
         let doc = reader
-            .find_by_id(id)
+            .find_by_id(&vault_id, id)
             .ok_or(Error::SecretDoesNotExist(*id))?;
 
         // Label has changed, so ensure uniqueness
         if doc.meta().label() != secret_meta.label()
-            && reader.find_by_label(secret_meta.label()).is_some()
+            && reader
+                .find_by_label(&vault_id, secret_meta.label())
+                .is_some()
         {
             return Err(Error::SecretAlreadyExists(
                 secret_meta.label().to_string(),

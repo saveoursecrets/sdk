@@ -69,7 +69,7 @@ impl Document {
 
 /// Exposes access to a search index of meta data.
 pub struct SearchIndex {
-    index: Index<SecretId>,
+    index: Index<(VaultId, SecretId)>,
     documents: BTreeMap<DocumentKey, Document>,
 }
 
@@ -77,7 +77,7 @@ impl SearchIndex {
     /// Create a new search index.
     pub fn new() -> Self {
         // Create index with N fields
-        let index = Index::<SecretId>::new(1);
+        let index = Index::<(VaultId, SecretId)>::new(1);
         Self {
             index,
             documents: Default::default(),
@@ -105,8 +105,14 @@ impl SearchIndex {
     }
 
     /// Find document by label.
-    pub fn find_by_label<'a>(&'a self, label: &str) -> Option<&'a Document> {
-        self.documents.values().find(|d| d.meta().label() == label)
+    pub fn find_by_label<'a>(
+        &'a self,
+        vault_id: &VaultId,
+        label: &str,
+    ) -> Option<&'a Document> {
+        self.documents
+            .values()
+            .find(|d| d.vault_id() == vault_id && d.meta().label() == label)
     }
 
     /// Find all documents with the given label ignoring
@@ -134,18 +140,25 @@ impl SearchIndex {
     }
 
     /// Find document by id.
-    pub fn find_by_id<'a>(&'a self, id: &SecretId) -> Option<&'a Document> {
-        self.documents.values().find(|d| d.id() == id)
+    pub fn find_by_id<'a>(
+        &'a self,
+        vault_id: &VaultId,
+        id: &SecretId,
+    ) -> Option<&'a Document> {
+        self.documents
+            .values()
+            .find(|d| d.vault_id() == vault_id && d.id() == id)
     }
 
     /// Find secret meta by uuid or label.
     pub fn find_by_uuid_or_label<'a>(
         &'a self,
+        vault_id: &VaultId,
         target: &SecretRef,
     ) -> Option<&'a Document> {
         match target {
-            SecretRef::Id(id) => self.find_by_id(id),
-            SecretRef::Name(name) => self.find_by_label(name),
+            SecretRef::Id(id) => self.find_by_id(vault_id, id),
+            SecretRef::Name(name) => self.find_by_label(vault_id, name),
         }
     }
 
@@ -167,8 +180,12 @@ impl SearchIndex {
         );
         let doc = self.documents.entry(key).or_insert(doc);
 
-        self.index
-            .add_document(&[label_extract], tokenizer, *id, &doc);
+        self.index.add_document(
+            &[label_extract],
+            tokenizer,
+            (*vault_id, *id),
+            &doc,
+        );
     }
 
     /// Update a document in the index.
@@ -194,13 +211,16 @@ impl SearchIndex {
         }
 
         //let mut removed_docs = HashSet::new();
-        self.index.remove_document(*id);
+        self.index.remove_document((*vault_id, *id));
         // Vacuum to remove completely
         self.index.vacuum();
     }
 
     /// Query the index.
-    pub fn query(&self, needle: &str) -> Vec<QueryResult<SecretId>> {
+    pub fn query(
+        &self,
+        needle: &str,
+    ) -> Vec<QueryResult<(VaultId, SecretId)>> {
         self.index
             .query(needle, &mut bm25::new(), query_tokenizer, &[1., 1.])
     }
@@ -218,7 +238,7 @@ impl SearchIndex {
         results
             .into_iter()
             .filter_map(|r| {
-                if let Some(doc) = self.find_by_id(&r.key) {
+                if let Some(doc) = self.find_by_id(&r.key.0, &r.key.1) {
                     if predicate(doc) {
                         Some(doc)
                     } else {

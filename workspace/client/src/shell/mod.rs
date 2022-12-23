@@ -233,7 +233,7 @@ fn find_secret_meta(
     let index = keeper.index();
     let index_reader = index.read().unwrap();
     if let Some(Document(_, uuid, secret_meta)) =
-        index_reader.find_by_uuid_or_label(secret)
+        index_reader.find_by_uuid_or_label(keeper.vault().id(), secret)
     {
         Ok(Some((*uuid, secret_meta.clone())))
     } else {
