@@ -90,7 +90,7 @@ impl Identity {
         let reader = index.read().unwrap();
 
         let signing_doc = reader
-            .find_by_label(LOGIN_SIGNING_KEY_NAME)
+            .find_by_label(keeper.vault().id(), LOGIN_SIGNING_KEY_NAME)
             .ok_or(Error::NoIdentitySigner)?;
         let signing_data = keeper
             .read(signing_doc.id())?
