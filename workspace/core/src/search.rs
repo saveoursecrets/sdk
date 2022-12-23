@@ -209,13 +209,21 @@ impl SearchIndex {
     ///
     /// If a corresponding document could not be located the search result
     /// will be ignored.
-    pub fn query_map(&self, needle: &str) -> Vec<&Document> {
+    pub fn query_map(
+        &self,
+        needle: &str,
+        predicate: impl Fn(&Document) -> bool,
+    ) -> Vec<&Document> {
         let results = self.query(needle);
         results
             .into_iter()
             .filter_map(|r| {
                 if let Some(doc) = self.find_by_id(&r.key) {
-                    Some(doc)
+                    if predicate(doc) {
+                        Some(doc)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
@@ -261,7 +269,7 @@ mod test {
         let docs = idx.query("secret");
         assert_eq!(1, docs.len());
 
-        let docs = idx.query_map("secret");
+        let docs = idx.query_map("secret", |_| true);
         assert_eq!(1, docs.len());
         assert_eq!(&id2, docs.get(0).unwrap().id());
     }
