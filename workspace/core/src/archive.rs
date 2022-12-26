@@ -31,7 +31,7 @@ pub struct Manifest {
     pub address: String,
 
     /// Checksum of the identity vault.
-    pub identity: String,
+    pub checksum: String,
 
     /// Map of vault identifiers to checksums.
     pub vaults: HashMap<VaultId, String>,
@@ -73,7 +73,7 @@ impl<W: Write> Writer<W> {
         path.set_extension(VAULT_EXT);
 
         self.manifest.address = address;
-        self.manifest.identity =
+        self.manifest.checksum =
             hex::encode(Keccak256::digest(vault).as_slice());
 
         let mut header = Header::new_gnu();
@@ -226,7 +226,7 @@ impl<R: Read + Seek> Reader<R> {
             self.manifest.take().ok_or(Error::NoArchiveManifest)?;
         let mut identity_path = PathBuf::from(&manifest.address);
         identity_path.set_extension(VAULT_EXT);
-        let checksum = hex::decode(manifest.identity)?;
+        let checksum = hex::decode(manifest.checksum)?;
         let identity = self.archive_entry(identity_path, checksum)?;
         let mut vaults = Vec::new();
         for (k, v) in manifest.vaults {
