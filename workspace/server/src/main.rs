@@ -36,7 +36,7 @@ struct Cli {
     bind: String,
 
     /// Config file to load.
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     config: PathBuf,
 }
 

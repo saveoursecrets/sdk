@@ -10,7 +10,7 @@ thiserror = "1"
 rustyline = "10"
 rustyline-derive = "0.7"
 unicode-width = "0.1"
-atty = "0.2"
+is-terminal = "0.4"
 secrecy = "0.8"
 
 [package.metadata.release]

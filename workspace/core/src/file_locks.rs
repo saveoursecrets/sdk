@@ -44,7 +44,7 @@ impl FileLocks {
     /// Remove the guard on a locked file.
     pub fn remove(&mut self, path: &PathBuf) -> Result<bool> {
         let removed = self.guards.remove(path);
-        if let Some(_) = removed {
+        if removed.is_some() {
             if let Some(lock_path) = self.files.remove(path) {
                 std::fs::remove_file(lock_path)?;
             }
@@ -73,10 +73,7 @@ impl FileLocks {
     /// Determine if attempting to acquire a file lock would block
     /// the process.
     fn would_block(&self, file: &File) -> bool {
-        match file_guard::try_lock(file, Lock::Exclusive, 0, 1) {
-            Ok(_) => false,
-            Err(_) => true,
-        }
+        file_guard::try_lock(file, Lock::Exclusive, 0, 1).is_err()
     }
 }
 

@@ -108,7 +108,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         Secret::Contact(_) => {
             let value = std::str::from_utf8(content)?;
             let vcard: Vcard = value.try_into()?;
-            Secret::Contact(vcard)
+            Secret::Contact(Box::new(vcard))
         }
     })
 }

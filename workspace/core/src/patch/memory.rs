@@ -39,11 +39,11 @@ impl PatchProvider for PatchMemory<'_> {
             .map(|e| e.into_owned())
             .collect::<Vec<_>>();
         self.records.append(&mut events);
-        Ok(self.read()?)
+        self.read()
     }
 
     fn count_events(&self) -> Result<usize> {
-        Ok(self.records.iter().count())
+        Ok(self.records.len())
     }
 
     fn has_events(&self) -> Result<bool> {

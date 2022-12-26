@@ -299,7 +299,7 @@ impl Gatekeeper {
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.insert(
                 id,
-                commit.clone(),
+                commit,
                 VaultEntry(meta_aead.clone(), secret_aead.clone()),
             )?;
         }
@@ -368,7 +368,7 @@ impl Gatekeeper {
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.update(
                 id,
-                commit.clone(),
+                commit,
                 VaultEntry(meta_aead.clone(), secret_aead.clone()),
             )?;
         }
@@ -382,7 +382,7 @@ impl Gatekeeper {
         drop(reader);
 
         let mut writer = self.index.write().unwrap();
-        writer.update(&vault_id, &id, secret_meta);
+        writer.update(&vault_id, id, secret_meta);
 
         Ok(result)
     }

@@ -52,12 +52,7 @@ impl Eq for CommitProof {}
 
 impl Clone for CommitProof {
     fn clone(&self) -> Self {
-        let hashes = self
-            .1
-            .proof_hashes()
-            .into_iter()
-            .map(|h| *h)
-            .collect::<Vec<_>>();
+        let hashes = self.1.proof_hashes().to_vec();
         CommitProof(
             self.0,
             MerkleProof::<Sha256>::new(hashes),
@@ -75,12 +70,17 @@ impl CommitProof {
 
     /// The root hash for the proof as hexadecimal.
     pub fn root_hex(&self) -> String {
-        hex::encode(&self.0)
+        hex::encode(self.0)
     }
 
     /// Number of leaves in the commit tree.
     pub fn len(&self) -> usize {
         self.2
+    }
+
+    /// Determine if this proof is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Reduce this commit proof to it's root hash and leaves length.
@@ -101,7 +101,7 @@ impl Default for CommitProof {
 
 impl Encode for CommitProof {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        writer.write_bytes(&self.0)?;
+        writer.write_bytes(self.0)?;
         let proof_bytes = self.1.to_bytes();
         writer.write_u32(proof_bytes.len() as u32)?;
         writer.write_bytes(&proof_bytes)?;
@@ -138,7 +138,7 @@ impl Decode for CommitProof {
 impl fmt::Debug for CommitProof {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CommitProof")
-            .field("root", &hex::encode(&self.0))
+            .field("root", &hex::encode(self.0))
             //.field("proofs", self.1.proof_hashes())
             .field("size", &self.2)
             .field("leaves", &self.3)
@@ -156,7 +156,7 @@ impl serde::Serialize for CommitProof {
     {
         // 4-element tuple
         let mut tup = serializer.serialize_tuple(4)?;
-        let root_hash = hex::encode(&self.0);
+        let root_hash = hex::encode(self.0);
         tup.serialize_element(&root_hash)?;
         let hashes = self.1.proof_hashes();
         tup.serialize_element(hashes)?;
@@ -262,6 +262,11 @@ impl CommitTree {
         self.tree.leaves_len()
     }
 
+    /// Determine if this commit tree is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Insert a commit hash into the tree,
     pub fn insert(&mut self, hash: <Sha256 as Hasher>::Hash) -> &mut Self {
         self.tree.insert(hash);
@@ -300,27 +305,25 @@ impl CommitTree {
 
     /// Get a proof for the given range.
     pub fn proof_range(&self, indices: Range<usize>) -> Result<CommitProof> {
-        let leaf_indices = indices.clone().map(|i| i).collect::<Vec<_>>();
+        let leaf_indices = indices.collect::<Vec<_>>();
         self.proof(&leaf_indices)
     }
 
     /// Get a proof for the given indices.
     pub fn proof(&self, leaf_indices: &[usize]) -> Result<CommitProof> {
         let root = self.root().ok_or(Error::NoRootCommit)?;
-        let proof = self.tree.proof(&leaf_indices);
+        let proof = self.tree.proof(leaf_indices);
         // Map the usize array to a Range, implies all the elements
         // are continuous, sparse indices are not supported
         //
         // Internally we use a range to represent the indices as these
         // proofs are sent over the network.
-        let indices = if leaf_indices.len() == 0 {
+        let indices = if leaf_indices.is_empty() {
             0..0
+        } else if leaf_indices.len() > 1 {
+            leaf_indices[0]..leaf_indices[leaf_indices.len() - 1] + 1
         } else {
-            if leaf_indices.len() > 1 {
-                leaf_indices[0]..leaf_indices[leaf_indices.len() - 1] + 1
-            } else {
-                leaf_indices[0]..leaf_indices[0] + 1
-            }
+            leaf_indices[0]..leaf_indices[0] + 1
         };
         Ok(CommitProof(root, proof, self.len(), indices))
     }
@@ -331,30 +334,23 @@ impl CommitTree {
         let root = self.root().ok_or(Error::NoRootCommit)?;
         if root == other_root {
             Ok(Comparison::Equal)
-        } else {
-            if range.start < self.len() && range.end < self.len() {
-                let leaves = self.tree.leaves().unwrap_or_default();
-                let indices_to_prove =
-                    range.clone().map(|i| i).collect::<Vec<_>>();
-                let leaves_to_prove = range
-                    .map(|i| *leaves.get(i).unwrap())
-                    .collect::<Vec<_>>();
-                if proof.verify(
-                    other_root,
-                    indices_to_prove.as_slice(),
-                    leaves_to_prove.as_slice(),
-                    count,
-                ) {
-                    Ok(Comparison::Contains(
-                        indices_to_prove,
-                        leaves_to_prove,
-                    ))
-                } else {
-                    Ok(Comparison::Unknown)
-                }
+        } else if range.start < self.len() && range.end < self.len() {
+            let leaves = self.tree.leaves().unwrap_or_default();
+            let indices_to_prove = range.clone().collect::<Vec<_>>();
+            let leaves_to_prove =
+                range.map(|i| *leaves.get(i).unwrap()).collect::<Vec<_>>();
+            if proof.verify(
+                other_root,
+                indices_to_prove.as_slice(),
+                leaves_to_prove.as_slice(),
+                count,
+            ) {
+                Ok(Comparison::Contains(indices_to_prove, leaves_to_prove))
             } else {
                 Ok(Comparison::Unknown)
             }
+        } else {
+            Ok(Comparison::Unknown)
         }
     }
 

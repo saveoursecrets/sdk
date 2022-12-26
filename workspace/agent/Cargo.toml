@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 thiserror = "1"
-clap = { version = "3.2.20", features = ["derive", "wrap_help"] }
+clap = { version = "4", features = ["derive", "wrap_help"] }
 sos-node = { path = "../node", version = "0.1.0", default-features = false, features = ["agent-server"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }

@@ -46,7 +46,6 @@ enum Command {
         name: Option<String>,
 
         /// Directory to write the signing keystore.
-        #[clap(parse(from_os_str))]
         keystore: PathBuf,
     },
     /// Launch the interactive shell.

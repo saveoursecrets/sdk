@@ -62,7 +62,7 @@ impl<'a> TryFrom<Packet<'a>> for ResponseMessage<'a> {
 
 impl Encode for Packet<'_> {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        writer.write_bytes(&RPC_IDENTITY)?;
+        writer.write_bytes(RPC_IDENTITY)?;
         self.payload.encode(writer)?;
         Ok(())
     }
@@ -94,11 +94,7 @@ pub enum Payload<'a> {
 
 impl Encode for Payload<'_> {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        let is_response = if let Payload::Response(_) = self {
-            true
-        } else {
-            false
-        };
+        let is_response = matches!(self, Payload::Response(_));
         writer.write_bool(is_response)?;
         match self {
             Payload::Request(val) => val.encode(writer)?,
@@ -237,6 +233,13 @@ impl Decode for RequestMessage<'_> {
     }
 }
 
+/// Result that can be extracted from a response message.
+///
+/// Contains the message id, HTTP status code, a possible result
+/// and the message body.
+pub type ResponseResult<T> =
+    (Option<u64>, StatusCode, Option<Result<T>>, Vec<u8>);
+
 /// An RPC response message.
 #[derive(Default, Debug)]
 pub struct ResponseMessage<'a> {
@@ -296,9 +299,7 @@ impl<'a> ResponseMessage<'a> {
     }
 
     /// Take the result.
-    pub fn take<T: DeserializeOwned>(
-        self,
-    ) -> Result<(Option<u64>, StatusCode, Option<Result<T>>, Vec<u8>)> {
+    pub fn take<T: DeserializeOwned>(self) -> Result<ResponseResult<T>> {
         let value = if let Some(result) = self.result {
             match result {
                 Ok(value) => Some(Ok(serde_json::from_value::<T>(value)?)),
@@ -404,7 +405,7 @@ impl From<(StatusCode, Option<u64>)> for ResponseMessage<'_> {
             .0
             .canonical_reason()
             .map(|s| s.to_owned())
-            .unwrap_or("unexpected status code".to_owned());
+            .unwrap_or_else(|| "unexpected status code".to_owned());
 
         ResponseMessage::new_reply::<()>(
             value.1,
@@ -461,7 +462,7 @@ pub trait Service {
     ) -> Option<ResponseMessage<'a>> {
         match self.handle(state, request).await {
             Ok(res) => {
-                if let Some(_) = res.id() {
+                if res.id().is_some() {
                     Some(res)
                 } else {
                     None

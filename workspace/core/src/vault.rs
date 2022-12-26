@@ -124,7 +124,7 @@ pub trait VaultAccess {
     fn summary(&self) -> Result<Summary>;
 
     /// Get the name of a vault.
-    fn vault_name<'a>(&'a self) -> Result<Cow<'a, str>>;
+    fn vault_name(&self) -> Result<Cow<'_, str>>;
 
     /// Set the name of a vault.
     fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>>;
@@ -336,7 +336,7 @@ impl Decode for Summary {
 }
 
 /// File header, identifier and version information
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Header {
     summary: Summary,
     meta: Option<AeadPack>,
@@ -456,16 +456,6 @@ impl Header {
         let mut header: Header = Default::default();
         header.decode(&mut reader)?;
         Ok(header)
-    }
-}
-
-impl Default for Header {
-    fn default() -> Self {
-        Self {
-            summary: Default::default(),
-            meta: None,
-            auth: Default::default(),
-        }
     }
 }
 
@@ -742,24 +732,22 @@ impl Vault {
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
         let salt = SecretKey::parse_salt(salt)?;
         let secret_key = SecretKey::derive_32(passphrase.as_ref(), &salt)?;
-        let _ = self.decrypt(&secret_key, &meta_aead)?;
+        let _ = self.decrypt(&secret_key, meta_aead)?;
         Ok(())
     }
 
     /// Iterator for the secret keys and values.
-    pub fn iter<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (&'a Uuid, &'a VaultCommit)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&Uuid, &VaultCommit)> {
         self.contents.data.iter()
     }
 
     /// Iterator for the secret keys.
-    pub fn keys<'a>(&'a self) -> impl Iterator<Item = &'a Uuid> {
+    pub fn keys(&self) -> impl Iterator<Item = &Uuid> {
         self.contents.data.keys()
     }
 
     /// Iterator for the secret values.
-    pub fn values<'a>(&'a self) -> impl Iterator<Item = &'a VaultCommit> {
+    pub fn values(&self) -> impl Iterator<Item = &VaultCommit> {
         self.contents.data.values()
     }
 
@@ -768,10 +756,13 @@ impl Vault {
         self.contents.data.len()
     }
 
+    /// Determine if this vault is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Iterator for the secret keys and commit hashes.
-    pub fn commits<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (&'a Uuid, &'a CommitHash)> {
+    pub fn commits(&self) -> impl Iterator<Item = (&Uuid, &CommitHash)> {
         self.contents
             .data
             .keys()
@@ -919,7 +910,7 @@ impl VaultAccess for Vault {
         Ok(self.header.summary.clone())
     }
 
-    fn vault_name<'a>(&'a self) -> Result<Cow<'a, str>> {
+    fn vault_name(&self) -> Result<Cow<'_, str>> {
         Ok(Cow::Borrowed(self.name()))
     }
 
@@ -933,7 +924,7 @@ impl VaultAccess for Vault {
         meta_data: Option<AeadPack>,
     ) -> Result<SyncEvent<'_>> {
         self.header.set_meta(meta_data);
-        let meta = self.header.meta().map(|m| m.clone());
+        let meta = self.header.meta().cloned();
         Ok(SyncEvent::SetVaultMeta(Cow::Owned(meta)))
     }
 

@@ -58,7 +58,7 @@ pub trait AuditProvider {
 /// * 2 bytes for the event kind identifier.
 /// * 20 bytes for the public address.
 /// * 16 or 32 bytes for the context data (one or two UUIDs).
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AuditEvent {
     /// The time the log was created.
     time: Timestamp,
@@ -69,17 +69,6 @@ pub struct AuditEvent {
     /// Context data about the event_kind.
     #[serde(skip_serializing_if = "Option::is_none")]
     data: Option<AuditData>,
-}
-
-impl Default for AuditEvent {
-    fn default() -> Self {
-        Self {
-            time: Default::default(),
-            event_kind: Default::default(),
-            address: Default::default(),
-            data: None,
-        }
-    }
 }
 
 impl AuditEvent {

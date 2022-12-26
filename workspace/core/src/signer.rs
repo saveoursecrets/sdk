@@ -19,7 +19,7 @@ impl Encode for BinarySignature {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         // 65 byte signature
         let buffer = self.0.to_bytes();
-        writer.write_bytes(&buffer)?;
+        writer.write_bytes(buffer)?;
         Ok(())
     }
 }

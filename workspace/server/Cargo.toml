@@ -9,7 +9,7 @@ publish = false
 sos-core = { path = "../core", version = "0.1.0" }
 sos-node = { path = "../node", version = "0.1.0", default-features = false, features = ["server", "gui"] }
 
-clap = { version = "3.2.20", features = ["derive", "wrap_help"] }
+clap = { version = "4", features = ["derive", "wrap_help"] }
 tokio = { version = "1", features = ["full"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 tracing = "0.1"
