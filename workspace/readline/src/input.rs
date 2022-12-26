@@ -3,6 +3,8 @@ use std::{
     io::{self, Read},
 };
 
+use is_terminal::IsTerminal;
+
 use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
@@ -55,7 +57,7 @@ pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {
 
 /// Read a passphrase from stdin passed into the program.
 pub fn read_stdin() -> Result<Option<String>> {
-    if atty::isnt(atty::Stream::Stdin) {
+    if !std::io::stdin().is_terminal() {
         let mut buffer = Vec::new();
         io::stdin().lock().read_to_end(&mut buffer)?;
         Ok(Some(std::str::from_utf8(&buffer)?.trim().to_string()))

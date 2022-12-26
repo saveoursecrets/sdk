@@ -162,7 +162,6 @@ enum ShellCommand {
     #[clap(alias = "su")]
     Switch {
         /// Keystore file for the identity.
-        #[clap(parse(from_os_str))]
         keystore: PathBuf,
     },
     /// Print the current identity.
