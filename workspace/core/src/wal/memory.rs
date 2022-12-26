@@ -69,7 +69,7 @@ impl WalMemory {
         let time: Timestamp = Default::default();
         let bytes = encode(&event)?;
         let last_commit =
-            self.last_commit()?.unwrap_or_else(|| CommitHash([0u8; 32]));
+            self.last_commit()?.unwrap_or(CommitHash([0u8; 32]));
         let commit = CommitHash(hash(&bytes));
         Ok((
             commit,

@@ -116,6 +116,12 @@ mod dirs {
     pub const IDENTITY_DIR: &str = "identity";
 }
 
+mod archive {
+    /// Manifest file for archives.
+    pub const ARCHIVE_MANIFEST: &str = "sos-manifest.json";
+}
+
+pub use archive::*;
 pub use dirs::*;
 pub use extensions::*;
 pub use headers::*;

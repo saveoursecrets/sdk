@@ -88,12 +88,7 @@ impl SyncEvent<'_> {
     /// Some payloads are purely for auditing and do not
     /// mutate any data.
     pub fn is_mutation(&self) -> bool {
-        match self {
-            Self::Noop => false,
-            Self::ReadVault => false,
-            Self::ReadSecret(_) => false,
-            _ => true,
-        }
+        !matches!(self, Self::Noop | Self::ReadVault | Self::ReadSecret(_))
     }
 
     /// Get the event kind for this event.

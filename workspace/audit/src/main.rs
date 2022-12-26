@@ -33,7 +33,6 @@ enum Command {
         address: Vec<Address>,
 
         /// Audit log file
-        #[clap(parse(from_os_str))]
         audit_log: PathBuf,
     },
     /// Monitor changes to an audit log file
@@ -47,7 +46,6 @@ enum Command {
         address: Vec<Address>,
 
         /// Audit log file
-        #[clap(parse(from_os_str))]
         audit_log: PathBuf,
     },
 }

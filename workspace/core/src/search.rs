@@ -42,7 +42,7 @@ fn query_tokenizer(s: &str) -> Vec<Cow<'_, str>> {
 }
 
 // Label
-fn label_extract<'a>(d: &'a Document) -> Option<&'a str> {
+fn label_extract(d: &Document) -> Option<&str> {
     Some(d.2.label())
 }
 
@@ -71,6 +71,12 @@ impl Document {
 pub struct SearchIndex {
     index: Index<(VaultId, SecretId)>,
     documents: BTreeMap<DocumentKey, Document>,
+}
+
+impl Default for SearchIndex {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SearchIndex {
@@ -102,6 +108,11 @@ impl SearchIndex {
     /// Get the number of documents in the index.
     pub fn len(&self) -> usize {
         self.documents.len()
+    }
+
+    /// Determine if the search index is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Find document by label.
@@ -173,18 +184,15 @@ impl SearchIndex {
 
         // Listing key includes the identifier so that
         // secrets with the same label do not overwrite each other
-        let key = DocumentKey(
-            doc.meta().label().to_lowercase().to_owned(),
-            *vault_id,
-            *id,
-        );
+        let key =
+            DocumentKey(doc.meta().label().to_lowercase(), *vault_id, *id);
         let doc = self.documents.entry(key).or_insert(doc);
 
         self.index.add_document(
             &[label_extract],
             tokenizer,
             (*vault_id, *id),
-            &doc,
+            doc,
         );
     }
 
@@ -205,7 +213,7 @@ impl SearchIndex {
             .documents
             .keys()
             .find(|key| &key.1 == vault_id && &key.2 == id)
-            .map(|k| k.clone());
+            .cloned();
         if let Some(key) = &key {
             self.documents.remove(key);
         }

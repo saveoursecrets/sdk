@@ -11,7 +11,7 @@ pub fn encrypt(
     plaintext: &[u8],
     nonce: Option<Nonce>,
 ) -> Result<AeadPack> {
-    let nonce = nonce.unwrap_or_else(|| Nonce::new_random_24());
+    let nonce = nonce.unwrap_or_else(Nonce::new_random_24);
     let cipher_nonce = XNonce::from_slice(nonce.as_ref());
     let cipher = XChaCha20Poly1305::new(Key::from_slice(key.as_slice()));
     let ciphertext = cipher.encrypt(cipher_nonce, plaintext)?;
