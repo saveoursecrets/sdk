@@ -30,6 +30,6 @@ impl From<CommitHash> for [u8; 32] {
 
 impl fmt::Display for CommitHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::encode(&self.0))
+        write!(f, "{}", hex::encode(self.0))
     }
 }

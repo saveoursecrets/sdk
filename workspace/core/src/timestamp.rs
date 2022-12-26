@@ -44,7 +44,7 @@ impl Timestamp {
 
     /// Convert this timestamp to a RFC2822 formatted string.
     pub fn to_rfc2822(&self) -> Result<String> {
-        Ok(Timestamp::rfc2822(&self.0)?)
+        Timestamp::rfc2822(&self.0)
     }
 
     /// Convert an offset date time to a RFC2822 formatted string.
@@ -54,7 +54,7 @@ impl Timestamp {
 
     /// Convert this timestamp to a RFC3339 formatted string.
     pub fn to_rfc3339(&self) -> Result<String> {
-        Ok(Timestamp::rfc3339(&self.0)?)
+        Timestamp::rfc3339(&self.0)
     }
 
     /// Convert an offset date time to a RFC3339 formatted string.
@@ -67,7 +67,7 @@ impl fmt::Display for Timestamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match UtcOffset::current_local_offset() {
             Ok(local_offset) => {
-                let datetime = self.0.clone();
+                let datetime = self.0;
                 datetime.to_offset(local_offset);
                 match Timestamp::rfc2822(&datetime) {
                     Ok(value) => {

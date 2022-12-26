@@ -16,6 +16,11 @@ impl PasswordGen {
         self.inner.length
     }
 
+    /// Determine if this generator is zero length.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Options using uppercase and lowercase roman letters.
     pub fn new_alpha(length: usize) -> Self {
         Self {

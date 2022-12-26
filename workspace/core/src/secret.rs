@@ -421,7 +421,7 @@ pub enum Secret {
     /// Private signing key.
     Signer(SecretSigner),
     /// Contact vCard.
-    Contact(Vcard),
+    Contact(Box<Vcard>),
     /// Time-based one-time passcode.
     Totp(TOTP),
 }
@@ -450,7 +450,7 @@ impl Clone for Secret {
             },
             Secret::List(map) => {
                 let copy = map
-                    .into_iter()
+                    .iter()
                     .map(|(k, v)| {
                         (
                             k.to_owned(),
@@ -829,7 +829,7 @@ impl Decode for Secret {
                 let vcard = reader.read_string()?;
                 let mut cards = parse_to_vcards(&vcard).map_err(Box::from)?;
                 let vcard = cards.remove(0);
-                *self = Self::Contact(vcard);
+                *self = Self::Contact(Box::new(vcard));
             }
             kind::TOTP => {
                 let buffer_len = reader.read_u32()?;
@@ -1014,7 +1014,7 @@ FN:John Doe
 END:VCARD"#;
 
         let vcard: Vcard = text.try_into()?;
-        let secret = Secret::Contact(vcard);
+        let secret = Secret::Contact(Box::new(vcard));
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
 

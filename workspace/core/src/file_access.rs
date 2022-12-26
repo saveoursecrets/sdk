@@ -160,7 +160,7 @@ impl VaultAccess for VaultFileAccess {
         Header::read_summary_file(&self.file_path)
     }
 
-    fn vault_name<'a>(&'a self) -> Result<Cow<'a, str>> {
+    fn vault_name(&self) -> Result<Cow<'_, str>> {
         let header = Header::read_header_file(&self.file_path)?;
         let name = header.name().to_string();
         Ok(Cow::Owned(name))

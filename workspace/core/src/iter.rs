@@ -316,8 +316,7 @@ impl<T: FileItem> ReadStreamIterator<T> {
         let mut read_stream: Box<dyn ReadStream> =
             Box::new(FileStream(File::open(file_path.as_ref())?));
 
-        let header_offset =
-            header_offset.unwrap_or_else(|| identity.len() as u64);
+        let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(header_offset)?;
 
         Ok(Self {
@@ -343,8 +342,7 @@ impl<T: FileItem> ReadStreamIterator<T> {
         let stream: MemoryStream = buffer.into();
         let mut read_stream: Box<dyn ReadStream> = Box::new(stream);
 
-        let header_offset =
-            header_offset.unwrap_or_else(|| identity.len() as u64);
+        let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(header_offset)?;
 
         Ok(Self {

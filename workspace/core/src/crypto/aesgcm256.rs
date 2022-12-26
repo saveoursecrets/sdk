@@ -14,7 +14,7 @@ pub fn encrypt(
     nonce: Option<Nonce>,
 ) -> Result<AeadPack> {
     // 96 bit (12 byte) unique nonce per message
-    let nonce = nonce.unwrap_or_else(|| Nonce::new_random_12());
+    let nonce = nonce.unwrap_or_else(Nonce::new_random_12);
     let cipher_nonce = AesNonce::from_slice(nonce.as_ref());
     let cipher = Aes256Gcm::new(aes_gcm::Key::from_slice(key.as_slice()));
     let ciphertext = cipher.encrypt(cipher_nonce, plaintext)?;

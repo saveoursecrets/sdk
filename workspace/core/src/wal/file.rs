@@ -74,7 +74,7 @@ impl WalFile {
         let last_commit = if let Some(last_commit) = last_commit {
             last_commit
         } else {
-            self.last_commit()?.unwrap_or_else(|| CommitHash([0u8; 32]))
+            self.last_commit()?.unwrap_or(CommitHash([0u8; 32]))
         };
 
         let record = WalRecord(time, last_commit, commit, bytes);

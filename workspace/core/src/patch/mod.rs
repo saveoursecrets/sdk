@@ -108,7 +108,7 @@ impl Patch<'_> {
 
 impl Encode for Patch<'_> {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        writer.write_bytes(&PATCH_IDENTITY)?;
+        writer.write_bytes(PATCH_IDENTITY)?;
         for event in self.0.iter() {
             Patch::encode_row(writer, event)?;
         }

@@ -222,10 +222,8 @@ impl<R: Read + Seek> Reader<R> {
     pub fn finish(
         mut self,
     ) -> Result<(String, ArchiveItem, Vec<ArchiveItem>)> {
-        let manifest = self
-            .manifest
-            .take()
-            .ok_or_else(|| Error::NoArchiveManifest)?;
+        let manifest =
+            self.manifest.take().ok_or(Error::NoArchiveManifest)?;
         let mut identity_path = PathBuf::from(&manifest.address);
         identity_path.set_extension(VAULT_EXT);
         let checksum = hex::decode(manifest.identity)?;

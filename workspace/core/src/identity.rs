@@ -5,9 +5,10 @@
 //! This enables user interfaces to protect both the signing
 //! key and encryption passphrase using a single master
 //! passphrase.
-use std::path::Path;
-
 use secrecy::{ExposeSecret, SecretString, SecretVec};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
 
 use crate::{
     constants::LOGIN_SIGNING_KEY_NAME,

@@ -60,12 +60,12 @@ pub use timestamp::Timestamp;
 
 /// Encode to a binary buffer.
 pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
-    Ok(encode_endian(encodable, Endian::Big)?)
+    encode_endian(encodable, Endian::Big)
 }
 
 /// Decode from a binary buffer.
 pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
-    Ok(decode_endian::<T>(buffer, Endian::Big)?)
+    decode_endian::<T>(buffer, Endian::Big)
 }
 
 fn encode_endian(encodable: &impl Encode, endian: Endian) -> Result<Vec<u8>> {
