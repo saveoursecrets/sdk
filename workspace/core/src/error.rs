@@ -181,6 +181,14 @@ pub enum Error {
     #[error("archive does not contain a manifest file")]
     NoArchiveManifest,
 
+    /// Error generated an archive does not contain a manifest file.
+    #[error("archive does contain the vault {0}")]
+    NoArchiveVault(PathBuf),
+
+    /// Error generated an archive does not contain a manifest file.
+    #[error("archive file {0} does not match the manifest checksum")]
+    ArchiveChecksumMismatch(PathBuf),
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

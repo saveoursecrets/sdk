@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 use std::{
     collections::HashMap,
-    io::{Cursor, Read, Seek, Write},
+    io::{Read, Seek, Write},
     path::PathBuf,
 };
 use tar::{Archive, Builder, Entry, EntryType, Header};
@@ -19,7 +19,7 @@ use time::OffsetDateTime;
 
 use crate::{
     constants::{ARCHIVE_MANIFEST, VAULT_EXT},
-    vault::VaultId,
+    vault::{Header as VaultHeader, Summary, VaultId},
     Error, Result,
 };
 
@@ -65,10 +65,10 @@ impl<W: Write> Writer<W> {
 
     /// Set the identity vault for the archive.
     pub fn set_identity(
-        &mut self,
+        mut self,
         address: String,
         vault: &[u8],
-    ) -> Result<()> {
+    ) -> Result<Self> {
         let mut path = PathBuf::from(&address);
         path.set_extension(VAULT_EXT);
 
@@ -82,21 +82,19 @@ impl<W: Write> Writer<W> {
         self.finish_header(&mut header);
 
         self.builder.append(&header, vault)?;
-
-        Ok(())
+        Ok(self)
     }
 
     /// Add a vault to the archive.
     pub fn add_vault(
-        &mut self,
+        mut self,
         vault_id: VaultId,
         vault: &[u8],
-    ) -> Result<()> {
+    ) -> Result<Self> {
         let mut path = PathBuf::from(vault_id.to_string());
         path.set_extension(VAULT_EXT);
 
         let checksum = hex::encode(Keccak256::digest(vault).as_slice());
-
         self.manifest.vaults.insert(vault_id, checksum);
 
         let mut header = Header::new_gnu();
@@ -105,8 +103,7 @@ impl<W: Write> Writer<W> {
         self.finish_header(&mut header);
 
         self.builder.append(&header, vault)?;
-
-        Ok(())
+        Ok(self)
     }
 
     /// Add the manifest and finish building the tarball.
@@ -120,7 +117,6 @@ impl<W: Write> Writer<W> {
         self.finish_header(&mut header);
 
         self.builder.append(&header, manifest.as_slice())?;
-
         Ok(self.builder.into_inner()?)
     }
 }
@@ -159,10 +155,13 @@ where
     Ok(buffer)
 }
 
+/// A vault reference extracted from an archive.
+pub type ArchiveItem = (Summary, Vec<u8>);
+
 /// Read from an archive.
 pub struct Reader<R: Read + Seek> {
     archive: Archive<R>,
-    //manifest: Option<Manifest>,
+    manifest: Option<Manifest>,
     entries: HashMap<PathBuf, Vec<u8>>,
 }
 
@@ -171,13 +170,13 @@ impl<R: Read + Seek> Reader<R> {
     pub fn new(inner: R) -> Self {
         Self {
             archive: Archive::new(inner),
+            manifest: None,
             entries: Default::default(),
         }
     }
 
     /// Prepare the archive for reading by parsing the manifest file.
-    pub fn prepare(&mut self) -> Result<Manifest> {
-        let mut manifest: Option<Manifest> = None;
+    pub fn prepare(mut self) -> Result<Self> {
         let it = self.archive.entries_with_seek()?;
         for entry in it {
             let mut entry = entry?;
@@ -185,15 +184,60 @@ impl<R: Read + Seek> Reader<R> {
             let name = path.to_string_lossy().into_owned();
             if name == ARCHIVE_MANIFEST {
                 let data = read_entry_data(&mut entry)?;
-                let manifest_entry: Manifest = serde_json::from_slice(&data)?;
-                manifest = Some(manifest_entry);
+                let manifest: Manifest = serde_json::from_slice(&data)?;
+                self.manifest = Some(manifest);
             } else {
-                println!("{:#?}", path.display()); 
-                self.entries.insert(
-                   path.into_owned(), read_entry_data(&mut entry)?); 
+                self.entries
+                    .insert(path.into_owned(), read_entry_data(&mut entry)?);
             }
         }
-        Ok(manifest.ok_or_else(|| Error::NoArchiveManifest)?)
+        Ok(self)
+    }
+
+    fn archive_entry(
+        &mut self,
+        path: PathBuf,
+        checksum: Vec<u8>,
+    ) -> Result<ArchiveItem> {
+        let (_, vault_buffer) = self
+            .entries
+            .remove_entry(&path)
+            .ok_or_else(|| Error::NoArchiveVault(path.clone()))?;
+        let digest = Keccak256::digest(&vault_buffer);
+        if checksum != digest.to_vec() {
+            return Err(Error::ArchiveChecksumMismatch(path));
+        }
+        let summary = VaultHeader::read_summary_slice(&vault_buffer)?;
+        Ok((summary, vault_buffer))
+    }
+
+    /// Finish reading by validating entries against the manifest.
+    ///
+    /// This will verify the vault buffers match the checksums in
+    /// the manifest and ignore any files in the archive entries
+    /// that are not present in the manifest.
+    ///
+    /// It also extracts the vault summaries so we are confident
+    /// each buffer is a valid vault.
+    pub fn finish(
+        mut self,
+    ) -> Result<(String, ArchiveItem, Vec<ArchiveItem>)> {
+        let manifest = self
+            .manifest
+            .take()
+            .ok_or_else(|| Error::NoArchiveManifest)?;
+        let mut identity_path = PathBuf::from(&manifest.address);
+        identity_path.set_extension(VAULT_EXT);
+        let checksum = hex::decode(manifest.identity)?;
+        let identity = self.archive_entry(identity_path, checksum)?;
+        let mut vaults = Vec::new();
+        for (k, v) in manifest.vaults {
+            let mut entry_path = PathBuf::from(k.to_string());
+            entry_path.set_extension(VAULT_EXT);
+            let checksum = hex::decode(v)?;
+            vaults.push(self.archive_entry(entry_path, checksum)?);
+        }
+        Ok((manifest.address, identity, vaults))
     }
 }
 
@@ -203,11 +247,12 @@ mod test {
     use crate::{encode, identity::Identity, vault::Vault};
     use anyhow::Result;
     use secrecy::SecretString;
+    use std::io::Cursor;
 
     #[test]
     fn archive_buffer() -> Result<()> {
         let mut archive = Vec::new();
-        let mut writer = Writer::new(&mut archive);
+        let writer = Writer::new(&mut archive);
 
         let (address, identity_vault) = Identity::new_login_vault(
             "Mock".to_string(),
@@ -215,14 +260,17 @@ mod test {
         )?;
 
         let identity = encode(&identity_vault)?;
-        writer.set_identity(address, &identity)?;
 
         let vault: Vault = Default::default();
         let vault_buffer = encode(&vault)?;
 
-        writer.add_vault(*vault.id(), &vault_buffer)?;
+        let tarball = writer
+            .set_identity(address.clone(), &identity)?
+            .add_vault(*vault.id(), &vault_buffer)?
+            .finish()?;
 
-        let tarball = writer.finish()?;
+        let expected_vault_entries =
+            vec![(vault.summary().clone(), vault_buffer)];
 
         let mut tar_gz = Vec::new();
         deflate(tarball.as_slice(), &mut tar_gz)?;
@@ -233,14 +281,16 @@ mod test {
         let mut archive = Vec::new();
         inflate(tar_gz.as_slice(), &mut archive)?;
 
-        let mut reader = Reader::new(Cursor::new(archive));
-        let manifest = reader.prepare()?;
+        let reader = Reader::new(Cursor::new(archive));
+        let (address_decoded, identity_entry, vault_entries) =
+            reader.prepare()?.finish()?;
 
-        println!("{:#?}", manifest);
+        assert_eq!(address, address_decoded);
 
-        for (id, _) in manifest.vaults {
-            println!("{}", id);
-        }
+        let (identity_summary, identity_buffer) = identity_entry;
+        assert_eq!(identity_vault.summary(), &identity_summary);
+        assert_eq!(identity, identity_buffer);
+        assert_eq!(expected_vault_entries, vault_entries);
 
         Ok(())
     }
