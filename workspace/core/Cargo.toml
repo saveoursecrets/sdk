@@ -38,7 +38,10 @@ passwords = "3"
 totp-sos = { version = "3", features = ["serde"] }
 vcard4 = { version = "0.1.4", features = ["serde"] }
 
-time = { version = "0.3.13", features = ["serde", "local-offset", "formatting", "wasm-bindgen"] }
+tar = { version = "0.4", default-features = false }
+flate2 = "1"
+
+time = { version = "0.3", features = ["serde", "local-offset", "formatting", "wasm-bindgen"] }
 
 #probly-search = "2.0.0-alpha-1"
 
