@@ -61,7 +61,8 @@ impl Identity {
         Ok((address, keeper.take()))
     }
 
-    /// Attempt to login using a file path
+    /// Attempt to login using a file path.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn login_file<P: AsRef<Path>>(
         file: P,
         master_passphrase: SecretString,

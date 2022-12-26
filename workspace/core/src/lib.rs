@@ -9,6 +9,7 @@ use binary_stream::{
 #[cfg(not(target_arch = "wasm32"))]
 mod audit;
 
+pub mod archive;
 pub mod commit_tree;
 pub mod constants;
 pub mod crypto;
