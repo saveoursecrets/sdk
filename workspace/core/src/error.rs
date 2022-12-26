@@ -177,6 +177,10 @@ pub enum Error {
     #[error("purpose identifier {0} is unknown")]
     UnknownPurpose(u8),
 
+    /// Error generated an archive does not contain a manifest file.
+    #[error("archive does not contain a manifest file")]
+    NoArchiveManifest,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
