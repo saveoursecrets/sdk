@@ -158,6 +158,9 @@ where
 /// A vault reference extracted from an archive.
 pub type ArchiveItem = (Summary, Vec<u8>);
 
+/// Inventory of an archive.
+pub type Inventory = (Manifest, Vec<Summary>);
+
 /// Read from an archive.
 pub struct Reader<R: Read + Seek> {
     archive: Archive<R>,
@@ -175,8 +178,40 @@ impl<R: Read + Seek> Reader<R> {
         }
     }
 
-    /// Prepare the archive for reading by parsing the manifest file.
+    /// Read an inventory including the manifest and summary
+    /// of all the vaults.
+    ///
+    /// This is necessary for an import process which would first
+    /// need to determine the identity and which vaults might conflict
+    /// with existing vaults.
+    pub fn inventory(mut self) -> Result<Inventory> {
+        let manifest = self
+            .find_manifest(false)?
+            .take()
+            .ok_or(Error::NoArchiveManifest)?;
+        let mut summaries = Vec::with_capacity(manifest.vaults.len());
+        for (k, v) in &manifest.vaults {
+            let mut entry_path = PathBuf::from(k.to_string());
+            entry_path.set_extension(VAULT_EXT);
+            let checksum = hex::decode(v)?;
+            let (summary, _) = self.archive_entry(entry_path, checksum)?;
+            summaries.push(summary);
+        }
+        Ok((manifest, summaries))
+    }
+
+    /// Prepare the archive for reading by parsing the manifest file and
+    /// reading the data for other tarball entries.
     pub fn prepare(mut self) -> Result<Self> {
+        self.manifest = self.find_manifest(true)?;
+        Ok(self)
+    }
+
+    fn find_manifest(
+        &mut self,
+        read_entries: bool,
+    ) -> Result<Option<Manifest>> {
+        let mut manifest: Option<Manifest> = None;
         let it = self.archive.entries_with_seek()?;
         for entry in it {
             let mut entry = entry?;
@@ -184,14 +219,18 @@ impl<R: Read + Seek> Reader<R> {
             let name = path.to_string_lossy().into_owned();
             if name == ARCHIVE_MANIFEST {
                 let data = read_entry_data(&mut entry)?;
-                let manifest: Manifest = serde_json::from_slice(&data)?;
-                self.manifest = Some(manifest);
+                let manifest_entry: Manifest = serde_json::from_slice(&data)?;
+                manifest = Some(manifest_entry);
             } else {
-                self.entries
-                    .insert(path.into_owned(), read_entry_data(&mut entry)?);
+                if read_entries {
+                    self.entries.insert(
+                        path.into_owned(),
+                        read_entry_data(&mut entry)?,
+                    );
+                }
             }
         }
-        Ok(self)
+        Ok(manifest)
     }
 
     fn archive_entry(
