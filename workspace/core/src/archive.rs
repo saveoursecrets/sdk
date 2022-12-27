@@ -159,14 +159,13 @@ where
 pub type ArchiveItem = (Summary, Vec<u8>);
 
 /// Inventory of an archive.
-#[allow(dead_code)]
 pub struct Inventory {
     /// The archive manifest.
-    manifest: Manifest,
+    pub manifest: Manifest,
     /// Summary for the identity vault.
-    identity: Summary,
+    pub identity: Summary,
     /// Summaries for the archived vaults.
-    vaults: Vec<Summary>,
+    pub vaults: Vec<Summary>,
 }
 
 /// Read from an archive.
