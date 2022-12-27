@@ -159,7 +159,15 @@ where
 pub type ArchiveItem = (Summary, Vec<u8>);
 
 /// Inventory of an archive.
-pub type Inventory = (Manifest, Vec<Summary>);
+#[allow(dead_code)]
+pub struct Inventory {
+    /// The archive manifest.
+    manifest: Manifest,
+    /// Summary for the identity vault.
+    identity: Summary,
+    /// Summaries for the archived vaults.
+    vaults: Vec<Summary>,
+}
 
 /// Read from an archive.
 pub struct Reader<R: Read + Seek> {
@@ -186,31 +194,38 @@ impl<R: Read + Seek> Reader<R> {
     /// with existing vaults.
     pub fn inventory(mut self) -> Result<Inventory> {
         let manifest = self
-            .find_manifest(false)?
+            .find_manifest()?
             .take()
             .ok_or(Error::NoArchiveManifest)?;
-        let mut summaries = Vec::with_capacity(manifest.vaults.len());
+
+        let mut identity_path = PathBuf::from(&manifest.address);
+        identity_path.set_extension(VAULT_EXT);
+        let checksum = hex::decode(&manifest.checksum)?;
+        let (identity, _) = self.archive_entry(identity_path, checksum)?;
+
+        let mut vaults = Vec::with_capacity(manifest.vaults.len());
         for (k, v) in &manifest.vaults {
             let mut entry_path = PathBuf::from(k.to_string());
             entry_path.set_extension(VAULT_EXT);
             let checksum = hex::decode(v)?;
             let (summary, _) = self.archive_entry(entry_path, checksum)?;
-            summaries.push(summary);
+            vaults.push(summary);
         }
-        Ok((manifest, summaries))
+        Ok(Inventory {
+            manifest,
+            identity,
+            vaults,
+        })
     }
 
     /// Prepare the archive for reading by parsing the manifest file and
     /// reading the data for other tarball entries.
     pub fn prepare(mut self) -> Result<Self> {
-        self.manifest = self.find_manifest(true)?;
+        self.manifest = self.find_manifest()?;
         Ok(self)
     }
 
-    fn find_manifest(
-        &mut self,
-        read_entries: bool,
-    ) -> Result<Option<Manifest>> {
+    fn find_manifest(&mut self) -> Result<Option<Manifest>> {
         let mut manifest: Option<Manifest> = None;
         let it = self.archive.entries_with_seek()?;
         for entry in it {
@@ -222,12 +237,8 @@ impl<R: Read + Seek> Reader<R> {
                 let manifest_entry: Manifest = serde_json::from_slice(&data)?;
                 manifest = Some(manifest_entry);
             } else {
-                if read_entries {
-                    self.entries.insert(
-                        path.into_owned(),
-                        read_entry_data(&mut entry)?,
-                    );
-                }
+                self.entries
+                    .insert(path.into_owned(), read_entry_data(&mut entry)?);
             }
         }
         Ok(manifest)
@@ -317,6 +328,12 @@ mod test {
         // Decompress and extract
         let mut archive = Vec::new();
         inflate(tar_gz.as_slice(), &mut archive)?;
+
+        let reader = Reader::new(Cursor::new(archive.clone()));
+        let inventory = reader.inventory()?;
+        assert_eq!(address, inventory.manifest.address);
+        assert_eq!("Mock", inventory.identity.name());
+        assert_eq!(1, inventory.vaults.len());
 
         let reader = Reader::new(Cursor::new(archive));
         let (address_decoded, identity_entry, vault_entries) =

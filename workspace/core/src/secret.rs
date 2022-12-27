@@ -973,7 +973,7 @@ L0sFErdHZ5BdOJJ1LS9zztUHvb1jaOJQBwaD+H+fbjUleLkKmELQODDiFekLAjRD
 i1KQYQNRTzo=
 -----END CERTIFICATE-----"#;
 
-        let pems = pem::parse_many(&certificate).unwrap();
+        let pems = pem::parse_many(certificate).unwrap();
         let secret = Secret::Pem(pems);
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
