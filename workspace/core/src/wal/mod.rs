@@ -359,7 +359,7 @@ mod test {
 
         if let Comparison::Contains(indices, leaves) = comparison {
             assert_eq!(vec![1], indices);
-            let leaf = leaves.get(0).unwrap();
+            let leaf = leaves.first().unwrap();
             if let Some(records) = server.diff(*leaf)? {
                 assert_eq!(1, records.len());
                 assert_eq!(&record, records.get(0).unwrap());

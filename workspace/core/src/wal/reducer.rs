@@ -230,11 +230,11 @@ mod test {
 
     #[test]
     fn wal_reduce_build() -> Result<()> {
-        let (temp, mut wal, _, encryption_key, secret_id) = mock_wal_file()?;
+        let (temp, wal, _, encryption_key, secret_id) = mock_wal_file()?;
 
         assert_eq!(5, wal.tree().len());
 
-        let vault = WalReducer::new().reduce(&mut wal)?.build()?;
+        let vault = WalReducer::new().reduce(&wal)?.build()?;
 
         assert_eq!(1, vault.len());
 
@@ -264,16 +264,16 @@ mod test {
 
     #[test]
     fn wal_reduce_compact() -> Result<()> {
-        let (_temp, mut wal, _, _encryption_key, _secret_id) =
+        let (_temp, wal, _, _encryption_key, _secret_id) =
             mock_wal_file()?;
 
         assert_eq!(5, wal.tree().len());
 
         // Get a vault so we can assert on the compaction result
-        let vault = WalReducer::new().reduce(&mut wal)?.build()?;
+        let vault = WalReducer::new().reduce(&wal)?.build()?;
 
         // Get the compacted series of events
-        let events = WalReducer::new().reduce(&mut wal)?.compact()?;
+        let events = WalReducer::new().reduce(&wal)?.compact()?;
 
         assert_eq!(2, events.len());
 
@@ -284,7 +284,7 @@ mod test {
         }
 
         let compact_vault =
-            WalReducer::new().reduce(&mut compact)?.build()?;
+            WalReducer::new().reduce(&compact)?.build()?;
         assert_eq!(vault, compact_vault);
 
         Ok(())

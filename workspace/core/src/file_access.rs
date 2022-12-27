@@ -300,13 +300,15 @@ mod tests {
 
     use uuid::Uuid;
 
+    type SecureNoteResult = (SecretId, SecretMeta, Secret, Vec<u8>, Vec<u8>);
+
     fn create_secure_note(
         vault_access: &mut VaultFileAccess,
         vault: &Vault,
         encryption_key: &SecretKey,
         secret_label: &str,
         secret_note: &str,
-    ) -> Result<(SecretId, SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
+    ) -> Result<SecureNoteResult> {
         let (secret_meta, secret_value, meta_bytes, secret_bytes) =
             mock_secret_note(secret_label, secret_note)?;
 
