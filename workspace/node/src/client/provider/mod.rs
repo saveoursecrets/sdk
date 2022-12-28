@@ -16,6 +16,7 @@ use sos_core::{
     constants::{LOCAL_DIR, PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     decode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    identity::Identity,
     search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault},
@@ -248,6 +249,14 @@ pub trait StorageProvider: Sync + Send {
             for (_, vault) in &decoded {
                 let mut keeper = Gatekeeper::new(vault.clone(), None);
                 keeper.unlock(passphrase.expose_secret())?;
+            }
+
+            // Get the signing address from the identity vault and
+            // verify it matches the manifest address
+            let user =
+                Identity::login_buffer(&identity.1, passphrase.clone())?;
+            if user.signer.address()?.to_string() != address {
+                return Err(Error::ArchiveAddressMismatch);
             }
         }
 

@@ -117,6 +117,11 @@ pub enum Error {
     #[error(r#"secret "{0}" not found"#)]
     SecretNotFound(SecretId),
 
+    /// Error generated when an archive signing key address
+    /// does not match the address in the archive manifest.
+    #[error("archive manifest address does not match identity signing key address")]
+    ArchiveAddressMismatch,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
