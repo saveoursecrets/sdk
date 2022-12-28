@@ -119,14 +119,18 @@ cp -rv app/dist ../../workspace/node/public
 
 [tasks.genhtml]
 script = '''
-grcov . -s . --binary-path ./target/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore 'src/*' --ignore 'tests/*' --ignore 'target/*'
+grcov . -s . --binary-path ./target/cover/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore 'src/*' --ignore 'tests/*' --ignore 'target/*'
 '''
 
 [tasks.coverage]
 alias = "coverage_grcov"
 
+[tasks.clean-cover]
+command = "cargo"
+args = ["clean", "--target-dir", "target/cover"]
+
 [tasks.cover]
-dependencies = ["build", "coverage", "genhtml"]
+dependencies = ["clean-cover", "coverage", "genhtml"]
 
 [tasks.brew]
 script = '''
