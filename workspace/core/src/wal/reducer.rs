@@ -264,8 +264,7 @@ mod test {
 
     #[test]
     fn wal_reduce_compact() -> Result<()> {
-        let (_temp, wal, _, _encryption_key, _secret_id) =
-            mock_wal_file()?;
+        let (_temp, wal, _, _encryption_key, _secret_id) = mock_wal_file()?;
 
         assert_eq!(5, wal.tree().len());
 
@@ -283,8 +282,7 @@ mod test {
             compact.append_event(event)?;
         }
 
-        let compact_vault =
-            WalReducer::new().reduce(&compact)?.build()?;
+        let compact_vault = WalReducer::new().reduce(&compact)?.build()?;
         assert_eq!(vault, compact_vault);
 
         Ok(())
