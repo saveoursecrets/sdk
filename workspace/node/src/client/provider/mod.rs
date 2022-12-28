@@ -3,14 +3,18 @@
 use async_trait::async_trait;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
+    borrow::Cow,
     collections::HashSet,
+    io::Cursor,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
 
 use sos_core::{
+    archive::{inflate, ArchiveItem, Reader},
     commit_tree::{CommitProof, CommitTree},
     constants::{LOCAL_DIR, PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
+    decode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta},
@@ -112,6 +116,25 @@ impl StorageDirs {
     }
 }
 
+/// Options for a restore operation.
+pub struct RestoreOptions {
+    /// Vaults that the user selected to be imported.
+    pub selected: Vec<Summary>,
+    /// Passphrase to verify the vaults can be decrypted before import.
+    pub passphrase: Option<SecretString>,
+}
+
+/// Buffers of data to restore after selected options
+/// have been applied to the data in an archive.
+pub struct RestoreTargets {
+    /// The address for the identity.
+    pub address: String,
+    /// Archive item for the identity vault.
+    pub identity: ArchiveItem,
+    /// List of vaults to restore.
+    pub vaults: Vec<(Vec<u8>, Vault)>,
+}
+
 /// Trait for storage providers.
 ///
 /// Note we need `Sync` and `Send` super traits as we want
@@ -142,6 +165,104 @@ pub trait StorageProvider: Sync + Send {
     ///
     /// Snapshots must be enabled.
     fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
+
+    /// Restore vaults from an archive.
+    ///
+    /// Buffer is the compressed archive contents.
+    async fn restore_archive(
+        &mut self,
+        buffer: Vec<u8>,
+        options: RestoreOptions,
+    ) -> Result<(String, ArchiveItem)> {
+        let RestoreTargets {
+            address,
+            identity,
+            vaults,
+        } = self.extract_verify_archive(buffer, &options)?;
+
+        // We may be restoring vaults that do not exist
+        // so we need to update the cache
+        let summaries = vaults
+            .iter()
+            .map(|(_, v)| v.summary().clone())
+            .collect::<Vec<_>>();
+        self.load_caches(&summaries)?;
+
+        for (buffer, vault) in vaults {
+            // Prepare a fresh log of WAL events
+            let mut wal_events = Vec::new();
+            let create_vault = WalEvent::CreateVault(Cow::Owned(buffer));
+            wal_events.push(create_vault);
+
+            self.update_vault(vault.summary(), &vault, wal_events)
+                .await?;
+
+            // Refresh the in-memory and disc-based mirror
+            self.refresh_vault(vault.summary(), None)?;
+        }
+
+        Ok((address, identity))
+    }
+
+    /// Helper to extract from an archive and verify the archive
+    /// contents against the restore options.
+    fn extract_verify_archive(
+        &self,
+        buffer: Vec<u8>,
+        options: &RestoreOptions,
+    ) -> Result<RestoreTargets> {
+        // Decompress
+        let mut archive = Vec::new();
+        inflate(buffer.as_slice(), &mut archive)?;
+
+        // Read from the tarball
+        let reader = Reader::new(Cursor::new(archive));
+        let (address, identity, vaults) = reader.prepare()?.finish()?;
+
+        // Filter extracted vaults to those selected by the user
+        let vaults = vaults
+            .into_iter()
+            .filter(|item| {
+                options
+                    .selected
+                    .iter()
+                    .find(|s| s.id() == item.0.id())
+                    .is_some()
+            })
+            .collect::<Vec<_>>();
+
+        // Check each target vault can be decoded
+        let mut decoded: Vec<(Vec<u8>, Vault)> = Vec::new();
+        //let vault: Vault = decode(&identity.1)?;
+        //decoded.push((identity.1, vault));
+        for item in vaults {
+            let vault: Vault = decode(&item.1)?;
+            decoded.push((item.1, vault));
+        }
+
+        // Check all the decoded vaults can be decrypted
+        if let Some(passphrase) = &options.passphrase {
+            // Check the identity vault
+            let vault: Vault = decode(&identity.1)?;
+            let mut keeper = Gatekeeper::new(vault, None);
+            keeper.unlock(passphrase.expose_secret())?;
+
+            for (_, vault) in &decoded {
+                let mut keeper = Gatekeeper::new(vault.clone(), None);
+                keeper.unlock(passphrase.expose_secret())?;
+            }
+        }
+
+        // Remove the identity vault as callers need to handler
+        // and restoration of the identity vault
+        decoded.remove(0);
+
+        Ok(RestoreTargets {
+            address,
+            identity,
+            vaults: decoded,
+        })
+    }
 
     /// Attempt to open an authenticated, encrypted session.
     ///
