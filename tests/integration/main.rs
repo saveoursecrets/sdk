@@ -2,6 +2,9 @@
 mod test_utils;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod archive_export_restore;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod auth_session_negotiate;
 
 #[cfg(not(target_arch = "wasm32"))]
