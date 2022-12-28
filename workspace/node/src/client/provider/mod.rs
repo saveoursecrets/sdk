@@ -233,8 +233,6 @@ pub trait StorageProvider: Sync + Send {
 
         // Check each target vault can be decoded
         let mut decoded: Vec<(Vec<u8>, Vault)> = Vec::new();
-        //let vault: Vault = decode(&identity.1)?;
-        //decoded.push((identity.1, vault));
         for item in vaults {
             let vault: Vault = decode(&item.1)?;
             decoded.push((item.1, vault));
@@ -252,10 +250,6 @@ pub trait StorageProvider: Sync + Send {
                 keeper.unlock(passphrase.expose_secret())?;
             }
         }
-
-        // Remove the identity vault as callers need to handler
-        // and restoration of the identity vault
-        decoded.remove(0);
 
         Ok(RestoreTargets {
             address,
