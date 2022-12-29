@@ -232,6 +232,12 @@ pub trait StorageProvider: Sync + Send {
             })
             .collect::<Vec<_>>();
 
+        let default_vault =
+            vaults.iter().find(|item| item.0.flags().is_default());
+        if default_vault.is_none() {
+            return Err(Error::NoArchiveDefaultVault);
+        }
+
         // Check each target vault can be decoded
         let mut decoded: Vec<(Vec<u8>, Vault)> = Vec::new();
         for item in vaults {

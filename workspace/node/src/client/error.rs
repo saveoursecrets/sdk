@@ -122,6 +122,10 @@ pub enum Error {
     #[error("archive manifest address does not match identity signing key address")]
     ArchiveAddressMismatch,
 
+    /// Error generated when an archive does not contain a default vault.
+    #[error("archive does not contain a default vault")]
+    NoArchiveDefaultVault,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
