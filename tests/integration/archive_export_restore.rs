@@ -58,9 +58,9 @@ async fn integration_archive_local_provider() -> Result<()> {
 
     // Prepare a vault to add to the archive
     let mut default_vault: Vault = Default::default();
+    default_vault.set_default_flag(true);
     default_vault.initialize(passphrase)?;
     let vault_id = *default_vault.id();
-    println!("vault_id {}", vault_id);
     let (meta, secret) = mock_note("Archived note", "Archived note value");
     let expected_meta = meta.clone();
     let expected_secret = secret.clone();

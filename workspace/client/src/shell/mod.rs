@@ -961,7 +961,6 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 // We need a clone of the vault to avoid borrowing whilst
                 // already mutably borrowed
                 let vault: Vault = keeper.vault().clone();
-                drop(keeper);
 
                 let new_passphrase = run_blocking(writer.change_password(
                     &vault,

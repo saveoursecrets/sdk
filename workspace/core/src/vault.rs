@@ -41,6 +41,14 @@ bitflags! {
         /// a user.
         const IDENTITY          =        0b00000010;
     }
+
+}
+
+impl VaultFlags {
+    /// Determine if this vault is a default vault.
+    pub fn is_default(&self) -> bool {
+        self.contains(VaultFlags::DEFAULT)
+    }
 }
 
 /// Identifier for vaults.
@@ -682,6 +690,11 @@ impl Vault {
         } else {
             Err(Error::VaultAlreadyInit)
         }
+    }
+
+    /// Set whether this vault is a default vault.
+    pub fn set_default_flag(&mut self, value: bool) {
+        self.flags_mut().set(VaultFlags::DEFAULT, value);
     }
 
     /// Insert a secret into this vault.
