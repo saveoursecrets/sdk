@@ -2038,7 +2038,6 @@ dependencies = [
 [[package]]
 name = "probly-search"
 version = "2.0.0-alpha-2"
-source = "git+https://github.com/tmpfs/probly-search/?branch=master#3767aa6642c341dd7319cfda259e52ec9b3d9eeb"
 dependencies = [
  "hashbrown",
  "typed-generational-arena",
