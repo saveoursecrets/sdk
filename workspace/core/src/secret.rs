@@ -90,44 +90,11 @@ impl FromStr for SecretRef {
     }
 }
 
-/// Constants for the vault purposes.
-mod purpose {
-    pub const ANY: u8 = 1;
-}
-
-/// Enumeration of purposes for a vault.
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub enum VaultPurpose {
-    /// Any purpose.
-    #[default]
-    Any,
-}
-
-impl From<&VaultPurpose> for u8 {
-    fn from(value: &VaultPurpose) -> Self {
-        match value {
-            VaultPurpose::Any => purpose::ANY,
-        }
-    }
-}
-
-impl TryFrom<u8> for VaultPurpose {
-    type Error = Error;
-    fn try_from(value: u8) -> Result<Self> {
-        match value {
-            purpose::ANY => Ok(VaultPurpose::Any),
-            _ => Err(Error::UnknownPurpose(value)),
-        }
-    }
-}
-
 /// Unencrypted vault meta data.
 #[derive(Default, Serialize, Deserialize)]
 pub struct VaultMeta {
-    /// Secret human-friendly description of the vault.
+    /// Private human-friendly description of the vault.
     label: String,
-    /// The purpose of the vault.
-    purpose: VaultPurpose,
 }
 
 impl VaultMeta {
@@ -140,23 +107,11 @@ impl VaultMeta {
     pub fn set_label(&mut self, label: String) {
         self.label = label;
     }
-
-    /// Get the vault purpose.
-    pub fn purpose(&self) -> &VaultPurpose {
-        &self.purpose
-    }
-
-    /// Set the vault purpose.
-    pub fn set_purpose(&mut self, purpose: VaultPurpose) {
-        self.purpose = purpose;
-    }
 }
 
 impl Encode for VaultMeta {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         writer.write_string(&self.label)?;
-        let purpose: u8 = self.purpose().into();
-        writer.write_u8(purpose)?;
         Ok(())
     }
 }
@@ -164,7 +119,6 @@ impl Encode for VaultMeta {
 impl Decode for VaultMeta {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         self.label = reader.read_string()?;
-        self.purpose = reader.read_u8()?.try_into().map_err(Box::from)?;
         Ok(())
     }
 }
