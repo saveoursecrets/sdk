@@ -188,9 +188,14 @@ impl SecretMeta {
         &self.last_updated
     }
 
-    /// Get the list of tags for this meta data.
+    /// Get the meta data tags.
     pub fn tags(&self) -> &HashSet<String> {
         &self.tags
+    }
+
+    /// Set the meta data tags.
+    pub fn set_tags(&mut self, tags: HashSet<String>) {
+        self.tags = tags;
     }
 
     /// Get an abbreviated short name based
