@@ -9,7 +9,12 @@ use serde::{
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
-use std::{cmp::Ordering, collections::{HashMap, HashSet}, fmt, str::FromStr};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    fmt,
+    str::FromStr,
+};
 use totp_sos::TOTP;
 use url::Url;
 use uuid::Uuid;
@@ -124,15 +129,7 @@ impl Decode for VaultMeta {
 }
 
 /// Encapsulates the meta data for a secret.
-#[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    Default,
-    Clone,
-    Eq,
-    PartialEq,
-)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretMeta {
     /// Kind of the secret.
@@ -144,6 +141,8 @@ pub struct SecretMeta {
     label: String,
     /// Collection of tags.
     tags: HashSet<String>,
+    /// Additional usage notes for the secret.
+    usage_notes: String,
 }
 
 impl PartialOrd for SecretMeta {
@@ -160,6 +159,7 @@ impl SecretMeta {
             kind,
             last_updated: Default::default(),
             tags: Default::default(),
+            usage_notes: Default::default(),
         }
     }
 
@@ -188,14 +188,24 @@ impl SecretMeta {
         &self.last_updated
     }
 
-    /// Get the meta data tags.
+    /// Get the tags.
     pub fn tags(&self) -> &HashSet<String> {
         &self.tags
     }
 
-    /// Set the meta data tags.
+    /// Set the tags.
     pub fn set_tags(&mut self, tags: HashSet<String>) {
         self.tags = tags;
+    }
+
+    /// Get the usage notes.
+    pub fn usage_notes(&self) -> &str {
+        &self.usage_notes
+    }
+
+    /// Set the usage notes.
+    pub fn set_usage_notes(&mut self, notes: String) {
+        self.usage_notes = notes;
     }
 
     /// Get an abbreviated short name based
@@ -225,6 +235,7 @@ impl Encode for SecretMeta {
         for tag in &self.tags {
             writer.write_string(tag)?;
         }
+        writer.write_string(&self.usage_notes)?;
         Ok(())
     }
 }
@@ -240,7 +251,8 @@ impl Decode for SecretMeta {
         for _ in 0..tag_count {
             let tag = reader.read_string()?;
             self.tags.insert(tag);
-        } 
+        }
+        self.usage_notes = reader.read_string()?;
         Ok(())
     }
 }

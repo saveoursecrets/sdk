@@ -231,11 +231,10 @@ impl SearchIndex {
 
     /// Remove all documents from the index.
     ///
-    /// This should be called before creating a new index using 
+    /// This should be called before creating a new index using
     /// the same search index instance.
     pub fn remove_all(&mut self) {
-        let keys: Vec<DocumentKey> =
-            self.documents.keys().cloned().collect();
+        let keys: Vec<DocumentKey> = self.documents.keys().cloned().collect();
         for key in keys {
             self.remove(&key.1, &key.2);
             self.documents.remove(&key);
