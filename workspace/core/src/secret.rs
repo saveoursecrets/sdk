@@ -188,6 +188,11 @@ impl SecretMeta {
         &self.last_updated
     }
 
+    /// Get the list of tags for this meta data.
+    pub fn tags(&self) -> &HashSet<String> {
+        &self.tags
+    }
+
     /// Get an abbreviated short name based
     /// on the kind of secret.
     pub fn short_name(&self) -> &str {

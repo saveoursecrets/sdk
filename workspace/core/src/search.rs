@@ -42,8 +42,13 @@ fn query_tokenizer(s: &str) -> Vec<Cow<'_, str>> {
 }
 
 // Label
-fn label_extract(d: &Document) -> Option<&str> {
-    Some(d.2.label())
+fn label_extract(d: &Document) -> Vec<&str> {
+    vec![d.2.label()]
+}
+
+// Tags
+fn tags_extract(d: &Document) -> Vec<&str> {
+    d.2.tags().iter().map(|s| &s[..]).collect()
 }
 
 /// Document that can be indexed.
@@ -83,7 +88,7 @@ impl SearchIndex {
     /// Create a new search index.
     pub fn new() -> Self {
         // Create index with N fields
-        let index = Index::<(VaultId, SecretId)>::new(1);
+        let index = Index::<(VaultId, SecretId)>::new(2);
         Self {
             index,
             documents: Default::default(),
@@ -189,7 +194,7 @@ impl SearchIndex {
         let doc = self.documents.entry(key).or_insert(doc);
 
         self.index.add_document(
-            &[label_extract],
+            &[label_extract, tags_extract],
             tokenizer,
             (*vault_id, *id),
             doc,
