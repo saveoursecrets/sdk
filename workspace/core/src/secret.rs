@@ -9,7 +9,7 @@ use serde::{
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
-use std::{collections::HashMap, fmt, str::FromStr};
+use std::{cmp::Ordering, collections::{HashMap, HashSet}, fmt, str::FromStr};
 use totp_sos::TOTP;
 use url::Url;
 use uuid::Uuid;
@@ -132,18 +132,24 @@ impl Decode for VaultMeta {
     Clone,
     Eq,
     PartialEq,
-    Ord,
-    PartialOrd,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct SecretMeta {
-    /// Human-friendly label for the secret.
-    label: String,
     /// Kind of the secret.
     kind: u8,
     /// Last updated timestamp.
     #[serde(skip_deserializing)]
     last_updated: Timestamp,
+    /// Human-friendly label for the secret.
+    label: String,
+    /// Collection of tags.
+    tags: HashSet<String>,
+}
+
+impl PartialOrd for SecretMeta {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.label.partial_cmp(&other.label)
+    }
 }
 
 impl SecretMeta {
@@ -153,6 +159,7 @@ impl SecretMeta {
             label,
             kind,
             last_updated: Default::default(),
+            tags: Default::default(),
         }
     }
 
@@ -204,6 +211,10 @@ impl Encode for SecretMeta {
         writer.write_u8(self.kind)?;
         self.last_updated.encode(&mut *writer)?;
         writer.write_string(&self.label)?;
+        writer.write_u32(self.tags.len() as u32)?;
+        for tag in &self.tags {
+            writer.write_string(tag)?;
+        }
         Ok(())
     }
 }
@@ -215,6 +226,11 @@ impl Decode for SecretMeta {
         last_updated.decode(&mut *reader)?;
         self.last_updated = last_updated;
         self.label = reader.read_string()?;
+        let tag_count = reader.read_u32()?;
+        for _ in 0..tag_count {
+            let tag = reader.read_string()?;
+            self.tags.insert(tag);
+        } 
         Ok(())
     }
 }
