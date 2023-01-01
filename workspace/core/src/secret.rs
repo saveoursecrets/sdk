@@ -9,7 +9,12 @@ use serde::{
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
-use std::{collections::HashMap, fmt, str::FromStr};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    fmt,
+    str::FromStr,
+};
 use totp_sos::TOTP;
 use url::Url;
 use uuid::Uuid;
@@ -90,44 +95,11 @@ impl FromStr for SecretRef {
     }
 }
 
-/// Constants for the vault purposes.
-mod purpose {
-    pub const ANY: u8 = 1;
-}
-
-/// Enumeration of purposes for a vault.
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub enum VaultPurpose {
-    /// Any purpose.
-    #[default]
-    Any,
-}
-
-impl From<&VaultPurpose> for u8 {
-    fn from(value: &VaultPurpose) -> Self {
-        match value {
-            VaultPurpose::Any => purpose::ANY,
-        }
-    }
-}
-
-impl TryFrom<u8> for VaultPurpose {
-    type Error = Error;
-    fn try_from(value: u8) -> Result<Self> {
-        match value {
-            purpose::ANY => Ok(VaultPurpose::Any),
-            _ => Err(Error::UnknownPurpose(value)),
-        }
-    }
-}
-
 /// Unencrypted vault meta data.
 #[derive(Default, Serialize, Deserialize)]
 pub struct VaultMeta {
-    /// Secret human-friendly description of the vault.
+    /// Private human-friendly description of the vault.
     label: String,
-    /// The purpose of the vault.
-    purpose: VaultPurpose,
 }
 
 impl VaultMeta {
@@ -140,23 +112,11 @@ impl VaultMeta {
     pub fn set_label(&mut self, label: String) {
         self.label = label;
     }
-
-    /// Get the vault purpose.
-    pub fn purpose(&self) -> &VaultPurpose {
-        &self.purpose
-    }
-
-    /// Set the vault purpose.
-    pub fn set_purpose(&mut self, purpose: VaultPurpose) {
-        self.purpose = purpose;
-    }
 }
 
 impl Encode for VaultMeta {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         writer.write_string(&self.label)?;
-        let purpose: u8 = self.purpose().into();
-        writer.write_u8(purpose)?;
         Ok(())
     }
 }
@@ -164,32 +124,31 @@ impl Encode for VaultMeta {
 impl Decode for VaultMeta {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         self.label = reader.read_string()?;
-        self.purpose = reader.read_u8()?.try_into().map_err(Box::from)?;
         Ok(())
     }
 }
 
 /// Encapsulates the meta data for a secret.
-#[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    Default,
-    Clone,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretMeta {
-    /// Human-friendly label for the secret.
-    label: String,
     /// Kind of the secret.
     kind: u8,
     /// Last updated timestamp.
     #[serde(skip_deserializing)]
     last_updated: Timestamp,
+    /// Human-friendly label for the secret.
+    label: String,
+    /// Collection of tags.
+    tags: HashSet<String>,
+    /// Additional usage notes for the secret.
+    usage_notes: String,
+}
+
+impl PartialOrd for SecretMeta {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.label.partial_cmp(&other.label)
+    }
 }
 
 impl SecretMeta {
@@ -199,6 +158,8 @@ impl SecretMeta {
             label,
             kind,
             last_updated: Default::default(),
+            tags: Default::default(),
+            usage_notes: Default::default(),
         }
     }
 
@@ -227,6 +188,26 @@ impl SecretMeta {
         &self.last_updated
     }
 
+    /// Get the tags.
+    pub fn tags(&self) -> &HashSet<String> {
+        &self.tags
+    }
+
+    /// Set the tags.
+    pub fn set_tags(&mut self, tags: HashSet<String>) {
+        self.tags = tags;
+    }
+
+    /// Get the usage notes.
+    pub fn usage_notes(&self) -> &str {
+        &self.usage_notes
+    }
+
+    /// Set the usage notes.
+    pub fn set_usage_notes(&mut self, notes: String) {
+        self.usage_notes = notes;
+    }
+
     /// Get an abbreviated short name based
     /// on the kind of secret.
     pub fn short_name(&self) -> &str {
@@ -250,6 +231,11 @@ impl Encode for SecretMeta {
         writer.write_u8(self.kind)?;
         self.last_updated.encode(&mut *writer)?;
         writer.write_string(&self.label)?;
+        writer.write_u32(self.tags.len() as u32)?;
+        for tag in &self.tags {
+            writer.write_string(tag)?;
+        }
+        writer.write_string(&self.usage_notes)?;
         Ok(())
     }
 }
@@ -261,6 +247,12 @@ impl Decode for SecretMeta {
         last_updated.decode(&mut *reader)?;
         self.last_updated = last_updated;
         self.label = reader.read_string()?;
+        let tag_count = reader.read_u32()?;
+        for _ in 0..tag_count {
+            let tag = reader.read_string()?;
+            self.tags.insert(tag);
+        }
+        self.usage_notes = reader.read_string()?;
         Ok(())
     }
 }
