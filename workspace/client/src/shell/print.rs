@@ -97,6 +97,25 @@ pub(super) fn secret(
             details.push_str(&format!("Digits: {}", totp.digits));
             banner.text(Cow::Owned(details))
         }
+        Secret::Card {
+            number,
+            expiry,
+            cvv,
+            name,
+            atm_pin,
+        } => {
+            let mut card = String::new();
+            if let Some(name) = name {
+                card.push_str(&format!("Name:  {}\n", name));
+            }
+            card.push_str(&format!("Number: {}\n", number));
+            card.push_str(&format!("CVV: {}\n", cvv));
+            if let Some(atm_pin) = atm_pin {
+                card.push_str(&format!("PIN:  {}\n", atm_pin));
+            }
+            card.push_str(&format!("Expiry: {}", expiry));
+            banner.text(Cow::Owned(card))
+        }
     };
 
     let result = banner.render();
