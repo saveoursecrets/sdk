@@ -38,6 +38,9 @@ passwords = "3"
 totp-sos = { version = "3", features = ["serde"] }
 vcard4 = { version = "0.1.4", features = ["serde"] }
 
+serde-binary = "0.5"
+binary-stream = { version = "3.3.2", features = ["32bit"] }
+
 tar = { version = "0.4", default-features = false }
 flate2 = "1"
 
@@ -64,10 +67,6 @@ tokio = { version = "1", default-features = false, features = ["rt"] }
 version = "1.2"
 #path = "../../../../forks/rs-merkle"
 
-[dependencies.binary-stream]
-version = "3.3.2"
-features = ["32bit"]
-#path = "../../../../binary-stream"
 
 [dependencies.chbs]
 version = "0.1.1"

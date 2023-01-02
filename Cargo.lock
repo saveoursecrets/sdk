@@ -2038,6 +2038,7 @@ dependencies = [
 [[package]]
 name = "probly-search"
 version = "2.0.0-alpha-2"
+source = "git+https://github.com/tmpfs/probly-search/?branch=multi-field#2703c24eb4041fe98acf547e8e91e6dea6d8119b"
 dependencies = [
  "hashbrown",
  "typed-generational-arena",
@@ -2633,6 +2634,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-binary"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b550db407b83ed53a4f76f888bfd7441b685abc2c086e20fb47781a286940506"
+dependencies = [
+ "binary-stream",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.152"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2927,6 +2939,7 @@ dependencies = [
  "rs_merkle",
  "secrecy",
  "serde",
+ "serde-binary",
  "serde_json",
  "sha3",
  "subtle",
