@@ -47,9 +47,9 @@ creature_feature = "0.1"
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"
-path = "../../../../forks/probly-search"
-#git = "https://github.com/tmpfs/probly-search/"
-#branch = "master"
+#path = "../../../../forks/probly-search"
+git = "https://github.com/tmpfs/probly-search/"
+branch = "multi-field"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 file-guard = "0.1"
