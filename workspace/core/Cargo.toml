@@ -38,7 +38,6 @@ passwords = "3"
 totp-sos = { version = "3", features = ["serde"] }
 vcard4 = { version = "0.1.4", features = ["serde"] }
 
-serde-binary = "0.5"
 binary-stream = { version = "3.3.2", features = ["32bit"] }
 
 tar = { version = "0.4", default-features = false }

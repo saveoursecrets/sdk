@@ -495,13 +495,13 @@ impl Clone for Secret {
                 cvv,
                 name,
                 atm_pin,
-                } => Secret::Card {
-                    number: number.clone(),
-                    expiry: expiry.clone(),
-                    cvv: cvv.clone(),
-                    name: name.clone(),
-                    atm_pin: atm_pin.clone(),
-                },
+            } => Secret::Card {
+                number: number.clone(),
+                expiry: expiry.clone(),
+                cvv: cvv.clone(),
+                name: name.clone(),
+                atm_pin: atm_pin.clone(),
+            },
         }
     }
 }
@@ -797,9 +797,26 @@ impl Encode for Secret {
                 writer.write_u32(totp.len() as u32)?;
                 writer.write_bytes(totp)?;
             }
-            Self::Card {number, expiry, cvv, name, atm_pin} => {
+            Self::Card {
+                number,
+                expiry,
+                cvv,
+                name,
+                atm_pin,
+            } => {
                 writer.write_string(number)?;
-                todo!()
+                writer.write_string(expiry)?;
+                writer.write_string(cvv)?;
+
+                writer.write_bool(name.is_some())?;
+                if let Some(name) = name {
+                    writer.write_string(name)?;
+                }
+
+                writer.write_bool(atm_pin.is_some())?;
+                if let Some(atm_pin) = atm_pin {
+                    writer.write_string(atm_pin)?;
+                }
             }
         }
         Ok(())
@@ -892,14 +909,31 @@ impl Decode for Secret {
                 *self = Self::Totp(totp);
             }
             kind::CARD => {
-                todo!()
-                /*
-                let buffer_len = reader.read_u32()?;
-                let buffer = reader.read_bytes(buffer_len as usize)?;
-                let totp: TOTP =
-                    serde_json::from_slice(&buffer).map_err(Box::from)?;
-                *self = Self::Totp(totp);
-                */
+                let number = reader.read_string()?;
+                let expiry = reader.read_string()?;
+                let cvv = reader.read_string()?;
+
+                let has_name = reader.read_bool()?;
+                let name = if has_name {
+                    Some(reader.read_string()?)
+                } else {
+                    None
+                };
+
+                let has_atm_pin = reader.read_bool()?;
+                let atm_pin = if has_atm_pin {
+                    Some(reader.read_string()?)
+                } else {
+                    None
+                };
+
+                *self = Self::Card {
+                    number,
+                    expiry,
+                    cvv,
+                    name,
+                    atm_pin,
+                };
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
@@ -1101,6 +1135,22 @@ END:VCARD"#;
         .unwrap();
 
         let secret = Secret::Totp(totp);
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+
+        assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_card() -> Result<()> {
+        let secret = Secret::Card {
+            number: "1234567890123456".to_string(),
+            expiry: "03/64".to_string(),
+            cvv: "123".to_string(),
+            name: Some("Mock name".to_string()),
+            atm_pin: Some("123456".to_string()),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
 
