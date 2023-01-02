@@ -221,6 +221,8 @@ impl SecretMeta {
             kind::PIN => "PIN",
             kind::SIGNER => "SIGNER",
             kind::CONTACT => "CONTACT",
+            kind::TOTP => "TOTP",
+            kind::CARD => "CARD",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }
@@ -416,6 +418,19 @@ pub enum Secret {
     Contact(Box<Vcard>),
     /// Time-based one-time passcode.
     Totp(TOTP),
+    /// Credit or debit card.
+    Card {
+        /// The card number.
+        number: String,
+        /// The expiry data for the card.
+        expiry: String,
+        /// Card verification value.
+        cvv: String,
+        /// Name that appears on the card.
+        name: Option<String>,
+        /// ATM PIN.
+        atm_pin: Option<String>,
+    },
 }
 
 impl Clone for Secret {
@@ -474,6 +489,19 @@ impl Clone for Secret {
             Secret::Signer(signer) => Secret::Signer(signer.clone()),
             Secret::Contact(vcard) => Secret::Contact(vcard.clone()),
             Secret::Totp(totp) => Secret::Totp(totp.clone()),
+            Secret::Card {
+                number,
+                expiry,
+                cvv,
+                name,
+                atm_pin,
+            } => Secret::Card {
+                number: number.clone(),
+                expiry: expiry.clone(),
+                cvv: cvv.clone(),
+                name: name.clone(),
+                atm_pin: atm_pin.clone(),
+            },
         }
     }
 }
@@ -507,7 +535,8 @@ impl fmt::Debug for Secret {
             Secret::Pin { .. } => f.debug_struct("PIN").finish(),
             Secret::Signer { .. } => f.debug_struct("Signer").finish(),
             Secret::Contact { .. } => f.debug_struct("Contact").finish(),
-            Secret::Totp { .. } => f.debug_struct("TOTP").finish(),
+            Secret::Totp(_) => f.debug_struct("TOTP").finish(),
+            Secret::Card { .. } => f.debug_struct("CARD").finish(),
         }
     }
 }
@@ -536,6 +565,7 @@ impl Secret {
             kind::SIGNER => "Signer",
             kind::CONTACT => "Contact",
             kind::TOTP => "TOTP",
+            kind::CARD => "CARD",
             _ => unreachable!(),
         }
     }
@@ -553,6 +583,7 @@ impl Secret {
             Secret::Signer(_) => kind::SIGNER,
             Secret::Contact(_) => kind::CONTACT,
             Secret::Totp(_) => kind::TOTP,
+            Secret::Card { .. } => kind::CARD,
         }
     }
 }
@@ -628,6 +659,29 @@ impl PartialEq for Secret {
             (Self::Signer(a), Self::Signer(b)) => a.eq(b),
             (Self::Contact(a), Self::Contact(b)) => a.eq(b),
             (Self::Totp(a), Self::Totp(b)) => a.eq(b),
+            (
+                Self::Card {
+                    number: number_a,
+                    expiry: expiry_a,
+                    cvv: cvv_a,
+                    name: name_a,
+                    atm_pin: atm_pin_a,
+                },
+                Self::Card {
+                    number: number_b,
+                    expiry: expiry_b,
+                    cvv: cvv_b,
+                    name: name_b,
+                    atm_pin: atm_pin_b,
+                },
+            ) => {
+                number_a == number_b
+                    && expiry_a == expiry_b
+                    && cvv_a == cvv_b
+                    && name_a == name_b
+                    && atm_pin_a == atm_pin_b
+            }
+
             _ => false,
         }
     }
@@ -666,6 +720,8 @@ pub mod kind {
     pub const CONTACT: u8 = 9;
     /// Time-based one time passcode.
     pub const TOTP: u8 = 10;
+    /// Credit or debit card.
+    pub const CARD: u8 = 11;
 }
 
 impl Encode for Secret {
@@ -681,6 +737,7 @@ impl Encode for Secret {
             Self::Signer(_) => kind::SIGNER,
             Self::Contact(_) => kind::CONTACT,
             Self::Totp(_) => kind::TOTP,
+            Self::Card { .. } => kind::CARD,
         };
         writer.write_u8(kind)?;
 
@@ -739,6 +796,27 @@ impl Encode for Secret {
                 let totp = serde_json::to_vec(totp).map_err(Box::from)?;
                 writer.write_u32(totp.len() as u32)?;
                 writer.write_bytes(totp)?;
+            }
+            Self::Card {
+                number,
+                expiry,
+                cvv,
+                name,
+                atm_pin,
+            } => {
+                writer.write_string(number)?;
+                writer.write_string(expiry)?;
+                writer.write_string(cvv)?;
+
+                writer.write_bool(name.is_some())?;
+                if let Some(name) = name {
+                    writer.write_string(name)?;
+                }
+
+                writer.write_bool(atm_pin.is_some())?;
+                if let Some(atm_pin) = atm_pin {
+                    writer.write_string(atm_pin)?;
+                }
             }
         }
         Ok(())
@@ -829,6 +907,33 @@ impl Decode for Secret {
                 let totp: TOTP =
                     serde_json::from_slice(&buffer).map_err(Box::from)?;
                 *self = Self::Totp(totp);
+            }
+            kind::CARD => {
+                let number = reader.read_string()?;
+                let expiry = reader.read_string()?;
+                let cvv = reader.read_string()?;
+
+                let has_name = reader.read_bool()?;
+                let name = if has_name {
+                    Some(reader.read_string()?)
+                } else {
+                    None
+                };
+
+                let has_atm_pin = reader.read_bool()?;
+                let atm_pin = if has_atm_pin {
+                    Some(reader.read_string()?)
+                } else {
+                    None
+                };
+
+                *self = Self::Card {
+                    number,
+                    expiry,
+                    cvv,
+                    name,
+                    atm_pin,
+                };
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
@@ -1030,6 +1135,22 @@ END:VCARD"#;
         .unwrap();
 
         let secret = Secret::Totp(totp);
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+
+        assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_card() -> Result<()> {
+        let secret = Secret::Card {
+            number: "1234567890123456".to_string(),
+            expiry: "03/64".to_string(),
+            cvv: "123".to_string(),
+            name: Some("Mock name".to_string()),
+            atm_pin: Some("123456".to_string()),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
 

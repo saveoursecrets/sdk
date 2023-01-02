@@ -40,7 +40,8 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
         Secret::List(_)
         | Secret::Account { .. }
         | Secret::Pem(_)
-        | Secret::Totp(_) => {
+        | Secret::Totp(_)
+        | Secret::Card { .. } => {
             (serde_json::to_vec_pretty(secret)?, ".json".to_string())
         }
         Secret::File { name, buffer, .. } => {
@@ -62,7 +63,7 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
         ),
         Secret::Signer(_) => {
             // TODO: handle this more gracefully
-            panic!("signing keys are not editable")
+            todo!("signing keys are not editable (yet!)")
         }
         Secret::Contact(vcard) => {
             (vcard.to_string().as_bytes().to_vec(), ".txt".to_string())
@@ -81,7 +82,8 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         Secret::List(_)
         | Secret::Account { .. }
         | Secret::Pem(_)
-        | Secret::Totp(_) => serde_json::from_slice::<Secret>(content)?,
+        | Secret::Totp(_)
+        | Secret::Card { .. } => serde_json::from_slice::<Secret>(content)?,
         Secret::File { name, mime, .. } => Secret::File {
             name: name.clone(),
             mime: mime.clone(),
@@ -103,7 +105,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         }
         Secret::Signer(_) => {
             // TODO: handle this more gracefully
-            panic!("signing keys are not editable")
+            todo!("signing keys are not editable (yet!)")
         }
         Secret::Contact(_) => {
             let value = std::str::from_utf8(content)?;
