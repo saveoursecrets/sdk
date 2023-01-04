@@ -120,9 +120,9 @@ checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
 
 [[package]]
 name = "arc-swap"
-version = "1.5.1"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "983cd8b9d4b02a6dc6ffa557262eb5858a27a0038ffffe21a0f133eaa819a164"
+checksum = "bddcadddf5e9015d310179a59bb28c4d4b9920ad0f11e8e14dbadf654890c9a6"
 
 [[package]]
 name = "argon2"
@@ -1690,9 +1690,9 @@ checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "nom"
-version = "7.1.1"
+version = "7.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8903e5a29a317527874d0402f867152a3d21c908bb0b933e416c65e301d4c36"
+checksum = "e5507769c4919c998e69e49c839d9dc6e693ede4cc4290d6ad8b41d4f09c548c"
 dependencies = [
  "memchr",
  "minimal-lexical",
@@ -2802,37 +2802,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "axum-server",
- "clap",
- "futures",
- "http",
- "secrecy",
- "serde_json",
- "serial_test",
- "sos-agent",
- "sos-audit",
- "sos-check",
- "sos-client",
- "sos-core",
- "sos-node",
- "sos-server",
- "tempfile",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "web3-address",
- "web3-keystore",
-]
-
-[[package]]
 name = "sos-agent"
 version = "0.1.0"
 dependencies = [
@@ -3006,6 +2975,37 @@ dependencies = [
  "secrecy",
  "thiserror",
  "unicode-width",
+]
+
+[[package]]
+name = "sos-sdk"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "axum-server",
+ "clap",
+ "futures",
+ "http",
+ "secrecy",
+ "serde_json",
+ "serial_test",
+ "sos-agent",
+ "sos-audit",
+ "sos-check",
+ "sos-client",
+ "sos-core",
+ "sos-node",
+ "sos-server",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "web3-address",
+ "web3-keystore",
 ]
 
 [[package]]
