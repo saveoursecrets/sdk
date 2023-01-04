@@ -35,6 +35,19 @@ where
     ser.serialize_str(secret.expose_secret())
 }
 
+fn serialize_secret_option<S>(
+    secret: &Option<SecretString>,
+    ser: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match secret {
+        Some(ref value) => ser.serialize_some(value.expose_secret()),
+        None => ser.serialize_none(),
+    }
+}
+
 fn serialize_secret_string_map<S>(
     secret: &HashMap<String, SecretString>,
     ser: S,
@@ -223,6 +236,7 @@ impl SecretMeta {
             kind::CONTACT => "CONTACT",
             kind::TOTP => "TOTP",
             kind::CARD => "CARD",
+            kind::BANK => "BANK",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }
@@ -421,15 +435,38 @@ pub enum Secret {
     /// Credit or debit card.
     Card {
         /// The card number.
-        number: String,
+        #[serde(serialize_with = "serialize_secret_string")]
+        number: SecretString,
         /// The expiry data for the card.
-        expiry: String,
+        #[serde(serialize_with = "serialize_secret_string")]
+        expiry: SecretString,
         /// Card verification value.
-        cvv: String,
+        #[serde(serialize_with = "serialize_secret_string")]
+        cvv: SecretString,
         /// Name that appears on the card.
-        name: Option<String>,
+        #[serde(serialize_with = "serialize_secret_option")]
+        name: Option<SecretString>,
         /// ATM PIN.
-        atm_pin: Option<String>,
+        #[serde(serialize_with = "serialize_secret_option")]
+        atm_pin: Option<SecretString>,
+    },
+    /// Bank account.
+    Bank {
+        /// The account number.
+        #[serde(serialize_with = "serialize_secret_string")]
+        number: SecretString,
+        /// The routing number (US) or sort code (UK).
+        #[serde(serialize_with = "serialize_secret_string")]
+        routing: SecretString,
+        /// IBAN.
+        #[serde(serialize_with = "serialize_secret_option")]
+        iban: Option<SecretString>,
+        /// SWIFT.
+        #[serde(serialize_with = "serialize_secret_option")]
+        swift: Option<SecretString>,
+        /// BIC.
+        #[serde(serialize_with = "serialize_secret_option")]
+        bic: Option<SecretString>,
     },
 }
 
@@ -502,6 +539,19 @@ impl Clone for Secret {
                 name: name.clone(),
                 atm_pin: atm_pin.clone(),
             },
+            Secret::Bank {
+                number,
+                routing,
+                iban,
+                swift,
+                bic,
+            } => Secret::Bank {
+                number: number.clone(),
+                routing: routing.clone(),
+                iban: iban.clone(),
+                swift: swift.clone(),
+                bic: bic.clone(),
+            },
         }
     }
 }
@@ -536,7 +586,8 @@ impl fmt::Debug for Secret {
             Secret::Signer { .. } => f.debug_struct("Signer").finish(),
             Secret::Contact { .. } => f.debug_struct("Contact").finish(),
             Secret::Totp(_) => f.debug_struct("TOTP").finish(),
-            Secret::Card { .. } => f.debug_struct("CARD").finish(),
+            Secret::Card { .. } => f.debug_struct("Card").finish(),
+            Secret::Bank { .. } => f.debug_struct("Bank").finish(),
         }
     }
 }
@@ -561,11 +612,12 @@ impl Secret {
             kind::LIST => "List",
             kind::PEM => "Certificate",
             kind::PAGE => "Page",
-            kind::PIN => "PIN",
+            kind::PIN => "Number",
             kind::SIGNER => "Signer",
             kind::CONTACT => "Contact",
-            kind::TOTP => "TOTP",
-            kind::CARD => "CARD",
+            kind::TOTP => "Authenticator",
+            kind::CARD => "Card",
+            kind::BANK => "Bank",
             _ => unreachable!(),
         }
     }
@@ -584,6 +636,7 @@ impl Secret {
             Secret::Contact(_) => kind::CONTACT,
             Secret::Totp(_) => kind::TOTP,
             Secret::Card { .. } => kind::CARD,
+            Secret::Bank { .. } => kind::BANK,
         }
     }
 }
@@ -675,11 +728,39 @@ impl PartialEq for Secret {
                     atm_pin: atm_pin_b,
                 },
             ) => {
-                number_a == number_b
-                    && expiry_a == expiry_b
-                    && cvv_a == cvv_b
-                    && name_a == name_b
-                    && atm_pin_a == atm_pin_b
+                number_a.expose_secret() == number_b.expose_secret()
+                    && expiry_a.expose_secret() == expiry_b.expose_secret()
+                    && cvv_a.expose_secret() == cvv_b.expose_secret()
+                    && name_a.as_ref().map(|s| s.expose_secret())
+                        == name_b.as_ref().map(|s| s.expose_secret())
+                    && atm_pin_a.as_ref().map(|s| s.expose_secret())
+                        == atm_pin_b.as_ref().map(|s| s.expose_secret())
+            }
+
+            (
+                Self::Bank {
+                    number: number_a,
+                    routing: routing_a,
+                    iban: iban_a,
+                    swift: swift_a,
+                    bic: bic_a,
+                },
+                Self::Bank {
+                    number: number_b,
+                    routing: routing_b,
+                    iban: iban_b,
+                    swift: swift_b,
+                    bic: bic_b,
+                },
+            ) => {
+                number_a.expose_secret() == number_b.expose_secret()
+                    && routing_a.expose_secret() == routing_b.expose_secret()
+                    && iban_a.as_ref().map(|s| s.expose_secret())
+                        == iban_b.as_ref().map(|s| s.expose_secret())
+                    && swift_a.as_ref().map(|s| s.expose_secret())
+                        == swift_b.as_ref().map(|s| s.expose_secret())
+                    && bic_a.as_ref().map(|s| s.expose_secret())
+                        == bic_b.as_ref().map(|s| s.expose_secret())
             }
 
             _ => false,
@@ -722,6 +803,8 @@ pub mod kind {
     pub const TOTP: u8 = 10;
     /// Credit or debit card.
     pub const CARD: u8 = 11;
+    /// Bank account.
+    pub const BANK: u8 = 12;
 }
 
 impl Encode for Secret {
@@ -738,6 +821,7 @@ impl Encode for Secret {
             Self::Contact(_) => kind::CONTACT,
             Self::Totp(_) => kind::TOTP,
             Self::Card { .. } => kind::CARD,
+            Self::Bank { .. } => kind::BANK,
         };
         writer.write_u8(kind)?;
 
@@ -804,18 +888,43 @@ impl Encode for Secret {
                 name,
                 atm_pin,
             } => {
-                writer.write_string(number)?;
-                writer.write_string(expiry)?;
-                writer.write_string(cvv)?;
+                writer.write_string(number.expose_secret())?;
+                writer.write_string(expiry.expose_secret())?;
+                writer.write_string(cvv.expose_secret())?;
 
                 writer.write_bool(name.is_some())?;
                 if let Some(name) = name {
-                    writer.write_string(name)?;
+                    writer.write_string(name.expose_secret())?;
                 }
 
                 writer.write_bool(atm_pin.is_some())?;
                 if let Some(atm_pin) = atm_pin {
-                    writer.write_string(atm_pin)?;
+                    writer.write_string(atm_pin.expose_secret())?;
+                }
+            }
+            Self::Bank {
+                number,
+                routing,
+                iban,
+                swift,
+                bic,
+            } => {
+                writer.write_string(number.expose_secret())?;
+                writer.write_string(routing.expose_secret())?;
+
+                writer.write_bool(iban.is_some())?;
+                if let Some(iban) = iban {
+                    writer.write_string(iban.expose_secret())?;
+                }
+
+                writer.write_bool(swift.is_some())?;
+                if let Some(swift) = swift {
+                    writer.write_string(swift.expose_secret())?;
+                }
+
+                writer.write_bool(bic.is_some())?;
+                if let Some(bic) = bic {
+                    writer.write_string(bic.expose_secret())?;
                 }
             }
         }
@@ -909,20 +1018,20 @@ impl Decode for Secret {
                 *self = Self::Totp(totp);
             }
             kind::CARD => {
-                let number = reader.read_string()?;
-                let expiry = reader.read_string()?;
-                let cvv = reader.read_string()?;
+                let number = SecretString::new(reader.read_string()?);
+                let expiry = SecretString::new(reader.read_string()?);
+                let cvv = SecretString::new(reader.read_string()?);
 
                 let has_name = reader.read_bool()?;
                 let name = if has_name {
-                    Some(reader.read_string()?)
+                    Some(SecretString::new(reader.read_string()?))
                 } else {
                     None
                 };
 
                 let has_atm_pin = reader.read_bool()?;
                 let atm_pin = if has_atm_pin {
-                    Some(reader.read_string()?)
+                    Some(SecretString::new(reader.read_string()?))
                 } else {
                     None
                 };
@@ -933,6 +1042,39 @@ impl Decode for Secret {
                     cvv,
                     name,
                     atm_pin,
+                };
+            }
+            kind::BANK => {
+                let number = SecretString::new(reader.read_string()?);
+                let routing = SecretString::new(reader.read_string()?);
+
+                let has_iban = reader.read_bool()?;
+                let iban = if has_iban {
+                    Some(SecretString::new(reader.read_string()?))
+                } else {
+                    None
+                };
+
+                let has_swift = reader.read_bool()?;
+                let swift = if has_swift {
+                    Some(SecretString::new(reader.read_string()?))
+                } else {
+                    None
+                };
+
+                let has_bic = reader.read_bool()?;
+                let bic = if has_bic {
+                    Some(SecretString::new(reader.read_string()?))
+                } else {
+                    None
+                };
+
+                *self = Self::Bank {
+                    number,
+                    routing,
+                    iban,
+                    swift,
+                    bic,
                 };
             }
             _ => {
@@ -1145,11 +1287,27 @@ END:VCARD"#;
     #[test]
     fn secret_encode_card() -> Result<()> {
         let secret = Secret::Card {
-            number: "1234567890123456".to_string(),
-            expiry: "03/64".to_string(),
-            cvv: "123".to_string(),
-            name: Some("Mock name".to_string()),
-            atm_pin: Some("123456".to_string()),
+            number: SecretString::new("1234567890123456".to_string()),
+            expiry: SecretString::new("03/64".to_string()),
+            cvv: SecretString::new("123".to_string()),
+            name: Some(SecretString::new("Mock name".to_string())),
+            atm_pin: Some(SecretString::new("123456".to_string())),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+
+        assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_bank() -> Result<()> {
+        let secret = Secret::Bank {
+            number: SecretString::new("12345678".to_string()),
+            routing: SecretString::new("01-02-03".to_string()),
+            iban: Some(SecretString::new("GB 23 01020312345678".to_string())),
+            swift: Some(SecretString::new("XCVDFGB".to_string())),
+            bic: Some(SecretString::new("6789".to_string())),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
