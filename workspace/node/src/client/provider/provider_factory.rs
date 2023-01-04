@@ -64,7 +64,8 @@ impl fmt::Display for ProviderFactory {
 #[cfg(not(target_arch = "wasm32"))]
 impl Default for ProviderFactory {
     fn default() -> Self {
-        Self::Remote(Url::parse("http://localhost:5053").unwrap())
+        Self::Local
+        //Self::Remote(Url::parse("http://localhost:5053").unwrap())
     }
 }
 
