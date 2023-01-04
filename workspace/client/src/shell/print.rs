@@ -106,14 +106,17 @@ pub(super) fn secret(
         } => {
             let mut value = String::new();
             if let Some(name) = name {
-                value.push_str(&format!("Name:  {}\n", name));
+                value.push_str(&format!("Name:  {}\n", name.expose_secret()));
             }
-            value.push_str(&format!("Number: {}\n", number));
-            value.push_str(&format!("CVV: {}\n", cvv));
+            value.push_str(&format!("Number: {}\n", number.expose_secret()));
+            value.push_str(&format!("CVV: {}\n", cvv.expose_secret()));
             if let Some(atm_pin) = atm_pin {
-                value.push_str(&format!("PIN:  {}\n", atm_pin));
+                value.push_str(&format!(
+                    "PIN:  {}\n",
+                    atm_pin.expose_secret()
+                ));
             }
-            value.push_str(&format!("Expiry: {}", expiry));
+            value.push_str(&format!("Expiry: {}", expiry.expose_secret()));
             banner.text(Cow::Owned(value))
         }
         Secret::Bank {
