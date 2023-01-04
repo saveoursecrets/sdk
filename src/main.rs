@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use sos::Result;
+use sos_sdk::Result;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
