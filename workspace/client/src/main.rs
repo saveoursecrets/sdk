@@ -9,7 +9,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
 use sos_client::{
-    exec, monitor, signup, Error, Result, ShellState, StdinPassphraseReader,
+    exec, monitor, local_signup, Error, Result, ShellState, StdinPassphraseReader,
 };
 use sos_core::FileLocks;
 use sos_readline::read_shell;
@@ -37,6 +37,14 @@ struct Cli {
 enum Command {
     /// Create an account.
     Signup {
+        /// Name for the new identity.
+        name: String,
+
+        /// Name for the default folder.
+        #[clap(short, long)]
+        folder_name: Option<String>,
+
+        /*
         /// Server URL.
         #[clap(short, long)]
         server: Url,
@@ -47,6 +55,7 @@ enum Command {
 
         /// Directory to write the signing keystore.
         keystore: PathBuf,
+        */
     },
     /// Launch the interactive shell.
     Shell {
@@ -93,11 +102,10 @@ fn run() -> Result<()> {
             monitor(server, keystore)?;
         }
         Command::Signup {
-            server,
-            keystore,
             name,
+            folder_name,
         } => {
-            signup(server, keystore, name)?;
+            local_signup(name, folder_name)?;
         }
         Command::Shell { provider, keystore } => {
             let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
