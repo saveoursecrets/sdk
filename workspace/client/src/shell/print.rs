@@ -104,17 +104,42 @@ pub(super) fn secret(
             name,
             atm_pin,
         } => {
-            let mut card = String::new();
+            let mut value = String::new();
             if let Some(name) = name {
-                card.push_str(&format!("Name:  {}\n", name));
+                value.push_str(&format!("Name:  {}\n", name));
             }
-            card.push_str(&format!("Number: {}\n", number));
-            card.push_str(&format!("CVV: {}\n", cvv));
+            value.push_str(&format!("Number: {}\n", number));
+            value.push_str(&format!("CVV: {}\n", cvv));
             if let Some(atm_pin) = atm_pin {
-                card.push_str(&format!("PIN:  {}\n", atm_pin));
+                value.push_str(&format!("PIN:  {}\n", atm_pin));
             }
-            card.push_str(&format!("Expiry: {}", expiry));
-            banner.text(Cow::Owned(card))
+            value.push_str(&format!("Expiry: {}", expiry));
+            banner.text(Cow::Owned(value))
+        }
+        Secret::Bank {
+            number,
+            routing,
+            iban,
+            swift,
+            bic,
+        } => {
+            let mut value = String::new();
+            value.push_str(&format!("Number: {}\n", number.expose_secret()));
+            value
+                .push_str(&format!("Routing: {}\n", routing.expose_secret()));
+            if let Some(iban) = iban {
+                value.push_str(&format!("IBAN:  {}\n", iban.expose_secret()));
+            }
+            if let Some(swift) = swift {
+                value.push_str(&format!(
+                    "SWIFT:  {}\n",
+                    swift.expose_secret()
+                ));
+            }
+            if let Some(bic) = bic {
+                value.push_str(&format!("BIC:  {}\n", bic.expose_secret()));
+            }
+            banner.text(Cow::Owned(value))
         }
     };
 
