@@ -504,10 +504,8 @@ pub enum Secret {
         /// The binary data.
         #[serde(serialize_with = "serialize_secret_buffer")]
         buffer: SecretVec<u8>,
-        /*
         /// Custom user fields.
         fields: UserFields,
-        */
     },
     /// Account with login password.
     Account {
@@ -518,10 +516,15 @@ pub enum Secret {
         /// The account password.
         #[serde(serialize_with = "serialize_secret_string")]
         password: SecretString,
+        /// Custom user fields.
+        fields: UserFields,
     },
     /// Collection of credentials as key/value pairs.
     #[serde(serialize_with = "serialize_secret_string_map")]
-    List(HashMap<String, SecretString>),
+    List {
+        /// The items in the list.
+        items: HashMap<String, SecretString>
+    },
     /// PEM encoded binary data.
     Pem(Vec<Pem>),
     /// A UTF-8 text document.
@@ -597,24 +600,27 @@ impl Clone for Secret {
                 text: secrecy::Secret::new(text.expose_secret().to_owned()),
                 fields: fields.clone(),
             },
-            Secret::File { name, mime, buffer } => Secret::File {
+            Secret::File { name, mime, buffer, fields } => Secret::File {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
+                fields: fields.clone(),
             },
             Secret::Account {
                 account,
                 url,
                 password,
+                fields,
             } => Secret::Account {
                 account: account.to_owned(),
                 url: url.clone(),
                 password: secrecy::Secret::new(
                     password.expose_secret().to_owned(),
                 ),
+                fields: fields.clone(),
             },
-            Secret::List(map) => {
-                let copy = map
+            Secret::List { items } => {
+                let copy = items
                     .iter()
                     .map(|(k, v)| {
                         (
@@ -625,7 +631,7 @@ impl Clone for Secret {
                         )
                     })
                     .collect::<HashMap<_, _>>();
-                Secret::List(copy)
+                Secret::List { items: copy }
             }
             Secret::Pem(pems) => Secret::Pem(pems.clone()),
             Secret::Page {
@@ -691,8 +697,8 @@ impl fmt::Debug for Secret {
                 .field("account", account)
                 .field("url", url)
                 .finish(),
-            Secret::List(map) => {
-                let keys = map.keys().collect::<Vec<_>>();
+            Secret::List { items } => {
+                let keys = items.keys().collect::<Vec<_>>();
                 f.debug_struct("List").field("keys", &keys).finish()
             }
             Secret::Pem(pems) => {
@@ -749,7 +755,7 @@ impl Secret {
             Secret::Note { .. } => kind::NOTE,
             Secret::File { .. } => kind::FILE,
             Secret::Account { .. } => kind::ACCOUNT,
-            Secret::List(_) => kind::LIST,
+            Secret::List { .. } => kind::LIST,
             Secret::Pem(_) => kind::PEM,
             Secret::Page { .. } => kind::PAGE,
             Secret::Pin { .. } => kind::PIN,
@@ -783,35 +789,41 @@ impl PartialEq for Secret {
                     account: account_a,
                     url: url_a,
                     password: password_a,
+                    fields: fields_a,
                 },
                 Self::Account {
                     account: account_b,
                     url: url_b,
                     password: password_b,
+                    fields: fields_b,
                 },
             ) => {
                 account_a == account_b
                     && url_a == url_b
                     && password_a.expose_secret()
                         == password_b.expose_secret()
+                    && fields_a == fields_b
             }
             (
                 Self::File {
                     name: name_a,
                     mime: mime_a,
                     buffer: buffer_a,
+                    fields: fields_a,
                 },
                 Self::File {
                     name: name_b,
                     mime: mime_b,
                     buffer: buffer_b,
+                    fields: fields_b,
                 },
             ) => {
                 name_a == name_b
                     && mime_a == mime_b
                     && buffer_a.expose_secret() == buffer_b.expose_secret()
+                    && fields_a == fields_b
             }
-            (Self::List(a), Self::List(b)) => {
+            (Self::List {items: a}, Self::List {items: b}) => {
                 a.iter().zip(b.iter()).all(|(a, b)| {
                     a.0 == b.0 && a.1.expose_secret() == b.1.expose_secret()
                 })
@@ -964,16 +976,18 @@ impl Encode for Secret {
                 writer.write_string(text.expose_secret())?;
                 write_user_fields(fields, writer)?;
             }
-            Self::File { name, mime, buffer } => {
+            Self::File { name, mime, buffer, fields } => {
                 writer.write_string(name)?;
                 writer.write_string(mime)?;
                 writer.write_u32(buffer.expose_secret().len() as u32)?;
                 writer.write_bytes(buffer.expose_secret())?;
+                write_user_fields(fields, writer)?;
             }
             Self::Account {
                 account,
                 password,
                 url,
+                fields,
             } => {
                 writer.write_string(account)?;
                 writer.write_string(password.expose_secret())?;
@@ -981,10 +995,11 @@ impl Encode for Secret {
                 if let Some(url) = url {
                     writer.write_string(url)?;
                 }
+                write_user_fields(fields, writer)?;
             }
-            Self::List(list) => {
-                writer.write_u32(list.len() as u32)?;
-                for (k, v) in list {
+            Self::List { items } => {
+                writer.write_u32(items.len() as u32)?;
+                for (k, v) in items {
                     writer.write_string(k)?;
                     writer.write_string(v.expose_secret())?;
                 }
@@ -1086,7 +1101,8 @@ impl Decode for Secret {
                 let buffer = secrecy::Secret::new(
                     reader.read_bytes(buffer_len as usize)?,
                 );
-                *self = Self::File { name, mime, buffer };
+                let fields = read_user_fields(reader)?;
+                *self = Self::File { name, mime, buffer, fields };
             }
             kind::ACCOUNT => {
                 let account = reader.read_string()?;
@@ -1100,23 +1116,25 @@ impl Decode for Secret {
                 } else {
                     None
                 };
+                let fields = read_user_fields(reader)?;
 
                 *self = Self::Account {
                     account,
                     password,
                     url,
+                    fields,
                 };
             }
             kind::LIST => {
-                let list_len = reader.read_u32()?;
-                let mut list = HashMap::with_capacity(list_len as usize);
-                for _ in 0..list_len {
+                let items_len = reader.read_u32()?;
+                let mut items = HashMap::with_capacity(items_len as usize);
+                for _ in 0..items_len {
                     let key = reader.read_string()?;
                     let value = secrecy::Secret::new(reader.read_string()?);
-                    list.insert(key, value);
+                    items.insert(key, value);
                 }
 
-                *self = Self::List(list);
+                *self = Self::List { items };
             }
             kind::PEM => {
                 let value = reader.read_string()?;
@@ -1272,6 +1290,7 @@ mod test {
             name: "hello.txt".to_string(),
             mime: "text/plain".to_string(),
             buffer: secrecy::Secret::new("hello".as_bytes().to_vec()),
+            fields: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1285,6 +1304,7 @@ mod test {
             account: "Email".to_string(),
             url: Some("https://webmail.example.com".parse().unwrap()),
             password: secrecy::Secret::new("mock-password".to_string()),
+            fields: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1294,6 +1314,7 @@ mod test {
             account: "Email".to_string(),
             url: None,
             password: secrecy::Secret::new("mock-password".to_string()),
+            fields: Default::default(),
         };
         let encoded = encode(&secret_no_url)?;
         let decoded = decode(&encoded)?;
@@ -1312,7 +1333,7 @@ mod test {
             "PROVIDER_KEY".to_owned(),
             secrecy::Secret::new("mock-provider-key".to_owned()),
         );
-        let secret = Secret::List(credentials);
+        let secret = Secret::List { items: credentials };
 
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1321,7 +1342,7 @@ mod test {
         // we need to expose the underlying secret string
         // so we get an Ord implementation
         let (secret_a, secret_b) =
-            if let (Secret::List(a), Secret::List(b)) = (secret, decoded) {
+            if let (Secret::List { items: a }, Secret::List { items: b }) = (secret, decoded) {
                 let mut a = a
                     .into_iter()
                     .map(|(k, v)| (k, v.expose_secret().to_owned()))

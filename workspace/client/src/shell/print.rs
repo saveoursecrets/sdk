@@ -41,6 +41,7 @@ pub(super) fn secret(
             account,
             url,
             password,
+            ..
         } => {
             let mut account = format!("Account:  {}\n", account);
             if let Some(url) = url {
@@ -50,21 +51,21 @@ pub(super) fn secret(
                 .push_str(&format!("Password: {}", password.expose_secret()));
             banner.text(Cow::Owned(account))
         }
-        Secret::List(list) => {
+        Secret::List { items } => {
             let mut credentials = String::new();
-            for (index, (name, value)) in list.iter().enumerate() {
+            for (index, (name, value)) in items.iter().enumerate() {
                 credentials.push_str(&format!(
                     "{} = {}",
                     name,
                     value.expose_secret()
                 ));
-                if index < list.len() - 1 {
+                if index < items.len() - 1 {
                     credentials.push('\n');
                 }
             }
             banner.text(Cow::Owned(credentials))
         }
-        Secret::File { name, buffer, mime } => {
+        Secret::File { name, buffer, mime, .. } => {
             let mut file = format!(
                 "{} {}\n",
                 name,

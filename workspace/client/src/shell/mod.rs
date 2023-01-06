@@ -333,7 +333,7 @@ fn add_credentials(
     }
 
     if !credentials.is_empty() {
-        let secret = Secret::List(credentials);
+        let secret = Secret::List { items: credentials };
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
     } else {
@@ -360,6 +360,7 @@ fn add_account(
         account,
         url,
         password,
+        fields: Default::default(),
     };
     let secret_meta = SecretMeta::new(label, secret.kind());
     Ok(Some((secret_meta, secret)))
@@ -411,7 +412,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
     let buffer = secrecy::Secret::new(std::fs::read(file)?);
-    Ok(Secret::File { name, mime, buffer })
+    Ok(Secret::File { name, mime, buffer, fields: Default::default() })
 }
 
 fn maybe_conflict<F>(cache: ShellProvider, func: F) -> Result<()>
@@ -699,7 +700,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let result =
-                if let Secret::File { name, mime, buffer } = &secret_data {
+                if let Secret::File { name, mime, buffer, .. } = &secret_data {
                     if mime.starts_with("text/") {
                         editor::edit(&secret_data)?
                     } else {
