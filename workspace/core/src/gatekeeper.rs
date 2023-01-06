@@ -10,8 +10,11 @@ use crate::{
 };
 use std::{
     collections::HashSet,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
+
+use parking_lot::RwLock;
+
 use uuid::Uuid;
 
 /// Access to an in-memory vault optionally mirroring changes to disc.
@@ -102,7 +105,7 @@ impl Gatekeeper {
             let existing_keys = self.vault.keys().collect::<HashSet<_>>();
             let updated_keys = vault.keys().collect::<HashSet<_>>();
 
-            let mut writer = self.index.write().unwrap();
+            let mut writer = self.index.write();
 
             for added_key in updated_keys.difference(&existing_keys) {
                 if let Some((meta, _)) =
@@ -273,7 +276,7 @@ impl Gatekeeper {
         secret: Secret,
     ) -> Result<SyncEvent<'_>> {
         let vault_id = *self.vault().id();
-        let reader = self.index.read().unwrap();
+        let reader = self.index.read();
 
         if reader
             .find_by_label(&vault_id, secret_meta.label())
@@ -312,7 +315,7 @@ impl Gatekeeper {
 
         drop(reader);
 
-        let mut writer = self.index.write().unwrap();
+        let mut writer = self.index.write();
         writer.add(&vault_id, &id, secret_meta);
 
         Ok(result)
@@ -337,7 +340,7 @@ impl Gatekeeper {
         secret: Secret,
     ) -> Result<Option<SyncEvent<'_>>> {
         let vault_id = *self.vault().id();
-        let reader = self.index.read().unwrap();
+        let reader = self.index.read();
 
         let doc = reader
             .find_by_id(&vault_id, id)
@@ -381,7 +384,7 @@ impl Gatekeeper {
 
         drop(reader);
 
-        let mut writer = self.index.write().unwrap();
+        let mut writer = self.index.write();
         writer.update(&vault_id, id, secret_meta);
 
         Ok(result)
@@ -394,7 +397,7 @@ impl Gatekeeper {
             mirror.delete(id)?;
         }
         let result = self.vault.delete(id)?;
-        let mut writer = self.index.write().unwrap();
+        let mut writer = self.index.write();
         writer.remove(&vault_id, id);
         Ok(result)
     }
@@ -426,7 +429,7 @@ impl Gatekeeper {
     pub fn create_search_index(&mut self) -> Result<()> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-        let mut writer = self.index.write().unwrap();
+        let mut writer = self.index.write();
         for (id, value) in self.vault.iter() {
             let VaultCommit(_commit, VaultEntry(meta_aead, _)) = value;
             let meta_blob = self.vault.decrypt(private_key, meta_aead)?;

@@ -37,6 +37,7 @@ http = "0.2"
 passwords = "3"
 totp-sos = { version = "3", features = ["serde"] }
 vcard4 = { version = "0.1.4", features = ["serde"] }
+parking_lot = "0.12"
 
 binary-stream = { version = "3.3.2", features = ["32bit"] }
 
@@ -45,7 +46,7 @@ flate2 = "1"
 
 time = { version = "0.3", features = ["serde", "local-offset", "formatting", "wasm-bindgen"] }
 
-creature_feature = "0.1"
+creature_feature = "0.1.2"
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"

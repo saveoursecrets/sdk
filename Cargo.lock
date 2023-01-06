@@ -2890,6 +2890,7 @@ dependencies = [
  "k256",
  "log",
  "ouroboros",
+ "parking_lot",
  "passwords",
  "pem",
  "probly-search",
