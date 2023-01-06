@@ -46,7 +46,7 @@ flate2 = "1"
 
 time = { version = "0.3", features = ["serde", "local-offset", "formatting", "wasm-bindgen"] }
 
-creature_feature = "0.1.2"
+unicode-segmentation = "1.10"
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"
