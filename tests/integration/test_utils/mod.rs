@@ -162,7 +162,10 @@ pub fn setup(num_clients: usize) -> Result<TestDirs> {
 }
 
 pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
-    let secret_value = Secret::Note(secrecy::Secret::new(text.to_string()));
+    let secret_value = Secret::Note {
+        text: secrecy::Secret::new(text.to_string()),
+        fields: Default::default(),
+    };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
     (secret_meta, secret_value)
 }

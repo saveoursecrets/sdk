@@ -366,6 +366,15 @@ impl Decode for SecretSigner {
     }
 }
 
+/// User defined field.
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub enum CustomField {}
+
+/// Collection of custom user fields.
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+pub struct UserFields {}
+//pub type UserFields = HashSet<CustomField>;
+
 /// Represents the various types of secret.
 ///
 /// This implements the serde traits for the webassembly bindings
@@ -375,8 +384,13 @@ impl Decode for SecretSigner {
 #[serde(untagged, rename_all = "lowercase")]
 pub enum Secret {
     /// A UTF-8 encoded note.
-    #[serde(serialize_with = "serialize_secret_string")]
-    Note(SecretString),
+    Note {
+        /// Note text.
+        #[serde(serialize_with = "serialize_secret_string")]
+        text: SecretString,
+        /// Custom user fields.
+        fields: UserFields,
+    },
     /// A binary blob.
     File {
         /// File name.
@@ -473,9 +487,10 @@ pub enum Secret {
 impl Clone for Secret {
     fn clone(&self) -> Self {
         match self {
-            Secret::Note(value) => Secret::Note(secrecy::Secret::new(
-                value.expose_secret().to_owned(),
-            )),
+            Secret::Note { text, fields } => Secret::Note {
+                text: secrecy::Secret::new(text.expose_secret().to_owned()),
+                fields: fields.clone(),
+            },
             Secret::File { name, mime, buffer } => Secret::File {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
@@ -559,7 +574,7 @@ impl Clone for Secret {
 impl fmt::Debug for Secret {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Secret::Note(_) => f.debug_struct("Note").finish(),
+            Secret::Note { .. } => f.debug_struct("Note").finish(),
             Secret::File { name, mime, .. } => f
                 .debug_struct("File")
                 .field("name", name)
@@ -625,7 +640,7 @@ impl Secret {
     /// Get the kind identifier for this secret.
     pub fn kind(&self) -> u8 {
         match self {
-            Secret::Note(_) => kind::NOTE,
+            Secret::Note { .. } => kind::NOTE,
             Secret::File { .. } => kind::FILE,
             Secret::Account { .. } => kind::ACCOUNT,
             Secret::List(_) => kind::LIST,
@@ -644,8 +659,18 @@ impl Secret {
 impl PartialEq for Secret {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Note(a), Self::Note(b)) => {
-                a.expose_secret() == b.expose_secret()
+            (
+                Self::Note {
+                    text: text_a,
+                    fields: fields_a,
+                },
+                Self::Note {
+                    text: text_b,
+                    fields: fields_b,
+                },
+            ) => {
+                text_a.expose_secret() == text_b.expose_secret()
+                    && fields_a == fields_b
             }
             (
                 Self::Account {
@@ -771,7 +796,10 @@ impl Eq for Secret {}
 
 impl Default for Secret {
     fn default() -> Self {
-        Self::Note(secrecy::Secret::new(String::new()))
+        Self::Note {
+            text: secrecy::Secret::new(String::new()),
+            fields: Default::default(),
+        }
     }
 }
 
@@ -807,10 +835,22 @@ pub mod kind {
     pub const BANK: u8 = 12;
 }
 
+fn write_user_fields(
+    fields: &UserFields,
+    writer: &mut BinaryWriter,
+) -> BinaryResult<()> {
+    Ok(())
+}
+
+fn read_user_fields(reader: &mut BinaryReader) -> BinaryResult<UserFields> {
+    let mut fields: UserFields = Default::default();
+    Ok(fields)
+}
+
 impl Encode for Secret {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         let kind = match self {
-            Self::Note(_) => kind::NOTE,
+            Self::Note { .. } => kind::NOTE,
             Self::File { .. } => kind::FILE,
             Self::Account { .. } => kind::ACCOUNT,
             Self::List { .. } => kind::LIST,
@@ -826,8 +866,9 @@ impl Encode for Secret {
         writer.write_u8(kind)?;
 
         match self {
-            Self::Note(text) => {
+            Self::Note { text, fields } => {
                 writer.write_string(text.expose_secret())?;
+                write_user_fields(fields, writer)?;
             }
             Self::File { name, mime, buffer } => {
                 writer.write_string(name)?;
@@ -937,8 +978,12 @@ impl Decode for Secret {
         let kind = reader.read_u8()?;
         match kind {
             kind::NOTE => {
-                *self =
-                    Self::Note(secrecy::Secret::new(reader.read_string()?));
+                let text = reader.read_string()?;
+                let fields = read_user_fields(reader)?;
+                *self = Self::Note {
+                    text: secrecy::Secret::new(text),
+                    fields: fields,
+                };
             }
             kind::FILE => {
                 let name = reader.read_string()?;
@@ -1100,7 +1145,10 @@ mod test {
 
     #[test]
     fn secret_serde() -> Result<()> {
-        let secret = Secret::Note(secrecy::Secret::new(String::from("foo")));
+        let secret = Secret::Note {
+            text: secrecy::Secret::new(String::from("foo")),
+            fields: Default::default(),
+        };
         let value = serde_json::to_string_pretty(&secret)?;
         let result: Secret = serde_json::from_str(&value)?;
         assert_eq!(secret, result);
@@ -1109,8 +1157,10 @@ mod test {
 
     #[test]
     fn secret_encode_note() -> Result<()> {
-        let secret =
-            Secret::Note(secrecy::Secret::new(String::from("My Note")));
+        let secret = Secret::Note {
+            text: secrecy::Secret::new(String::from("My Note")),
+            fields: Default::default(),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);

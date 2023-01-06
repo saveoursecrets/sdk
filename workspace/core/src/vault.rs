@@ -1059,8 +1059,8 @@ mod tests {
         assert_eq!(secret_value, row_secret);
 
         match &row_secret {
-            Secret::Note(value) => {
-                assert_eq!(secret_note, value.expose_secret());
+            Secret::Note { text, .. } => {
+                assert_eq!(secret_note, text.expose_secret());
             }
             _ => panic!("unexpected secret type"),
         }

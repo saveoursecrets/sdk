@@ -34,7 +34,7 @@ fn spawn_editor<P: AsRef<Path>>(cmd: String, file: P) -> Result<ExitStatus> {
 /// Convert the secret to bytes to be written to the tempfile.
 fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
     Ok(match secret {
-        Secret::Note(text) => {
+        Secret::Note { text, .. } => {
             (text.expose_secret().as_bytes().to_vec(), ".txt".to_string())
         }
         Secret::List(_)
@@ -75,11 +75,14 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
 /// Convert back from the tempfile bytes to a secret.
 fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
     Ok(match secret {
-        Secret::Note(_) => Secret::Note(secrecy::Secret::new(
-            std::str::from_utf8(content)?
-                //.trim_end_matches('\n')
-                .to_owned(),
-        )),
+        Secret::Note { fields, .. } => Secret::Note {
+            text: secrecy::Secret::new(
+                std::str::from_utf8(content)?
+                    //.trim_end_matches('\n')
+                    .to_owned(),
+            ),
+            fields: fields.clone(),
+        },
         Secret::List(_)
         | Secret::Account { .. }
         | Secret::Pem(_)

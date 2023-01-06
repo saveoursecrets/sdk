@@ -267,7 +267,10 @@ fn add_note(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
     if let Some(note) = read_multiline(None)? {
         let note =
             secrecy::Secret::new(note.trim_end_matches('\n').to_string());
-        let secret = Secret::Note(note);
+        let secret = Secret::Note {
+            text: note,
+            fields: Default::default(),
+        };
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
     } else {

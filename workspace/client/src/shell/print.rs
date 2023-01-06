@@ -34,7 +34,7 @@ pub(super) fn secret(
         .text(Cow::Borrowed(secret_meta.label()));
 
     let banner = match secret_data {
-        Secret::Note(text) => {
+        Secret::Note { text, .. } => {
             banner.text(Cow::Borrowed(text.expose_secret()))
         }
         Secret::Account {

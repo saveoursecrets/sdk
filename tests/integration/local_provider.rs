@@ -70,8 +70,8 @@ where
     let (meta, secret, _) = storage.read_secret(&id).await?;
     assert_eq!("Test Note", meta.label());
 
-    let value = if let Secret::Note(value) = &secret {
-        value
+    let value = if let Secret::Note { text, .. } = &secret {
+        text
     } else {
         panic!("expecting note secret type");
     };

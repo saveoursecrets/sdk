@@ -187,8 +187,10 @@ mod tests {
         keeper.unlock(master_passphrase.expose_secret())?;
 
         // Create a secret using the expected name but of the wrong kind
-        let signer_secret =
-            Secret::Note(SecretString::new("Mock note".to_owned()));
+        let signer_secret = Secret::Note {
+            text: SecretString::new("Mock note".to_owned()),
+            fields: Default::default(),
+        };
         let signer_meta = SecretMeta::new(
             LOGIN_SIGNING_KEY_NAME.to_owned(),
             signer_secret.kind(),
