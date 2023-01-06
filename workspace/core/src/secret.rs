@@ -366,14 +366,116 @@ impl Decode for SecretSigner {
     }
 }
 
+mod fields {
+    /// Constant for the heading variant.
+    pub const HEADING: u8 = 1;
+}
+
 /// User defined field.
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
-pub enum CustomField {}
+#[derive(Default, Serialize, Deserialize, Hash, Clone, PartialEq, Eq)]
+pub enum CustomField {
+    /// Default variant for user defined fields.
+    #[default]
+    Noop,
+    /// Heading for a group of fields.
+    Heading {
+        /// The text for the heading.
+        text: String,
+    },
+}
+
+impl CustomField {
+    /// Get the kind of this field.
+    pub fn kind(&self) -> u8 {
+        match self {
+            Self::Heading { .. } => fields::HEADING,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl Encode for CustomField {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        let kind = self.kind();
+        writer.write_u8(kind)?;
+        match self {
+            Self::Heading { text } => {
+                writer.write_string(text)?;
+            }
+            _ => unreachable!(),
+        }
+        Ok(())
+    }
+}
+
+impl Decode for CustomField {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let kind = reader.read_u8()?;
+        match kind {
+            fields::HEADING => {
+                let text = reader.read_string()?;
+                *self = Self::Heading { text };
+            }
+            _ => {
+                return Err(BinaryError::Boxed(Box::from(
+                    Error::UnknownUserFieldKind(kind),
+                )))
+            }
+        }
+        Ok(())
+    }
+}
 
 /// Collection of custom user fields.
-#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
-pub struct UserFields {}
-//pub type UserFields = HashSet<CustomField>;
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct UserFields {
+    /// Collection of custom fields.
+    inner: Vec<CustomField>,
+}
+
+impl UserFields {
+    /// Get the number of user fields.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Determine of there are any user fields.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Get the user fields.
+    pub fn items(&self) -> &[CustomField] {
+        &self.inner
+    }
+
+    /// Add a custom field to this collection.
+    pub fn push(&mut self, field: CustomField) {
+        self.inner.push(field);
+    }
+}
+
+fn write_user_fields(
+    fields: &UserFields,
+    writer: &mut BinaryWriter,
+) -> BinaryResult<()> {
+    writer.write_u32(fields.len() as u32)?;
+    for field in fields.items() {
+        field.encode(writer)?;
+    }
+    Ok(())
+}
+
+fn read_user_fields(reader: &mut BinaryReader) -> BinaryResult<UserFields> {
+    let mut fields: UserFields = Default::default();
+    let count = reader.read_u32()?;
+    for _ in 0..count {
+        let mut field: CustomField = Default::default();
+        field.decode(reader)?;
+        fields.push(field);
+    }
+    Ok(fields)
+}
 
 /// Represents the various types of secret.
 ///
@@ -402,6 +504,10 @@ pub enum Secret {
         /// The binary data.
         #[serde(serialize_with = "serialize_secret_buffer")]
         buffer: SecretVec<u8>,
+        /*
+        /// Custom user fields.
+        fields: UserFields,
+        */
     },
     /// Account with login password.
     Account {
@@ -835,18 +941,6 @@ pub mod kind {
     pub const BANK: u8 = 12;
 }
 
-fn write_user_fields(
-    fields: &UserFields,
-    writer: &mut BinaryWriter,
-) -> BinaryResult<()> {
-    Ok(())
-}
-
-fn read_user_fields(reader: &mut BinaryReader) -> BinaryResult<UserFields> {
-    let mut fields: UserFields = Default::default();
-    Ok(fields)
-}
-
 impl Encode for Secret {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         let kind = match self {
@@ -1157,9 +1251,14 @@ mod test {
 
     #[test]
     fn secret_encode_note() -> Result<()> {
+        let mut fields: UserFields = Default::default();
+        fields.push(CustomField::Heading {
+            text: "Mock field heading".to_string(),
+        });
+
         let secret = Secret::Note {
             text: secrecy::Secret::new(String::from("My Note")),
-            fields: Default::default(),
+            fields,
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
