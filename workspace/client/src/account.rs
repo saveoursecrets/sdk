@@ -2,6 +2,12 @@
 use crate::{display_passphrase, Error, Result};
 
 use secrecy::{ExposeSecret, SecretString};
+use sos_core::{
+    constants::{IDENTITY_DIR, LOCAL_DIR, VAULT_EXT},
+    decode, encode, generate_passphrase,
+    identity::Identity,
+    vault::Vault,
+};
 use sos_node::{
     cache_dir,
     client::{
@@ -26,6 +32,22 @@ impl PassphraseReader for StdinPassphraseReader {
     }
 }
 
+fn get_identity_dir() -> Result<PathBuf> {
+    let cache_dir = cache_dir().ok_or(Error::NoCacheDir)?;
+    let identity_dir = cache_dir.join(IDENTITY_DIR);
+    if !identity_dir.exists() {
+        std::fs::create_dir(&identity_dir)?;
+    }
+    Ok(identity_dir)
+}
+
+fn get_identity_vault(address: &str) -> Result<PathBuf> {
+    let identity_dir = get_identity_dir()?;
+    let mut identity_vault_file = identity_dir.join(address);
+    identity_vault_file.set_extension(VAULT_EXT);
+    Ok(identity_vault_file)
+}
+
 /// Switch to a different account.
 pub fn switch(
     factory: &ProviderFactory,
@@ -42,6 +64,105 @@ pub fn switch(
     Ok(factory.create_provider(signer)?)
 }
 
+/// Create a new local identity.
+pub fn local_signup(name: String, folder_name: Option<String>) -> Result<()> {
+    // Generate a master passphrase
+    let (passphrase, _) = generate_passphrase()?;
+
+    // Prepare the default vault
+    let mut vault: Vault = Default::default();
+    vault.set_default_flag(true);
+    if let Some(name) = folder_name {
+        vault.set_name(name);
+    }
+    vault.initialize(passphrase.expose_secret())?;
+
+    // Prepare the identity vault
+    let (address, login_vault) =
+        Identity::new_login_vault(name.clone(), passphrase.clone())?;
+
+    // Get an authenticated user from the identity vault
+    let buffer = encode(&login_vault)?;
+    let user = Identity::login_buffer(buffer, passphrase.clone())?;
+
+    // Get the signing key for the authenticated user
+    let signer = user.signer;
+    let address = signer.address()?.to_string();
+    let identity_dir = get_identity_dir()?;
+    let identity_vault_file = get_identity_vault(&address)?;
+
+    println!("{}", identity_dir.display());
+
+    let message = format!(
+        r#"* Write identity vault called "{}"
+* Create a default folder called "{}"
+* Master passphrase will be displayed"#,
+        name,
+        vault.summary().name(),
+    );
+
+    let banner = Banner::new()
+        .padding(Padding::one())
+        .text(Cow::Borrowed(
+            "PLEASE READ CAREFULLY",
+        ))
+        .text(Cow::Owned(format!("Identity: {} ({})", name, address)))
+        .text(Cow::Borrowed(
+            "Your new account will be assigned a master passphrase, you must memorize this passphrase or you will lose access to your secrets.",
+        ))
+        .text(Cow::Borrowed(
+            "Creating a new account will perform the following actions:",
+        ))
+        .text(Cow::Owned(message))
+        .render();
+    println!("{}", banner);
+
+    let accepted =
+        read_flag(Some("I will memorize my master passphrase (y/n)? "))?;
+
+    if accepted {
+        display_passphrase("MASTER PASSPHRASE", passphrase.expose_secret());
+
+        let confirmed = read_flag(Some(
+            "Are you sure you want to create a new account (y/n)? ",
+        ))?;
+        if confirmed {
+            // Write out the identity vault
+            let buffer = encode(&login_vault)?;
+            std::fs::write(identity_vault_file, buffer)?;
+
+            // Prepare a provider for account creation
+            let factory = ProviderFactory::Local;
+            let (mut provider, _) = factory.create_provider(signer)?;
+            run_blocking(provider.authenticate())?;
+
+            // Send the default vault for account creation
+            let buffer = encode(&vault)?;
+            let summary =
+                run_blocking(provider.create_account_with_buffer(buffer))?;
+
+            let cache_dir = cache_dir().ok_or(Error::NoCacheDir)?;
+            let message = format!(
+                r#"* Identity: {} ({})
+* Storage: {}"#,
+                name,
+                address,
+                cache_dir.display(),
+            );
+
+            let banner = Banner::new()
+                .padding(Padding::one())
+                .text(Cow::Borrowed("Account created ✓"))
+                .text(Cow::Owned(message))
+                .render();
+            println!("{}", banner);
+        }
+    }
+
+    Ok(())
+}
+
+#[deprecated(note = "Use local_signup")]
 pub fn signup(
     server: Url,
     destination: PathBuf,

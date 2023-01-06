@@ -13,6 +13,9 @@ pub enum Error {
     #[error("path {0} is not a file")]
     NotFile(PathBuf),
 
+    #[error("could not determine path for local cache directory")]
+    NoCacheDir,
+
     #[error("file {0} already exists")]
     FileExists(PathBuf),
 
