@@ -445,7 +445,7 @@ impl UserData {
     }
 
     /// Get the user user_data.
-    pub fn items(&self) -> &[UserField] {
+    pub fn fields(&self) -> &[UserField] {
         &self.inner
     }
 
@@ -455,18 +455,18 @@ impl UserData {
     }
 }
 
-fn write_user_user_data(
+fn write_user_data(
     user_data: &UserData,
     writer: &mut BinaryWriter,
 ) -> BinaryResult<()> {
     writer.write_u32(user_data.len() as u32)?;
-    for field in user_data.items() {
+    for field in user_data.fields() {
         field.encode(writer)?;
     }
     Ok(())
 }
 
-fn read_user_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
+fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
     let mut user_data: UserData = Default::default();
     let count = reader.read_u32()?;
     for _ in 0..count {
@@ -538,6 +538,8 @@ pub enum Secret {
         /// The binary data.
         #[serde(serialize_with = "serialize_secret_string")]
         document: SecretString,
+        /// Custom user user_data.
+        user_data: UserData,
     },
     /// Personal identification number.
     ///
@@ -640,12 +642,14 @@ impl Clone for Secret {
                 title,
                 mime,
                 document,
+                user_data,
             } => Secret::Page {
                 title: title.to_owned(),
                 mime: mime.to_owned(),
                 document: secrecy::Secret::new(
                     document.expose_secret().to_owned(),
                 ),
+                user_data: user_data.clone(),
             },
             Secret::Pin { number } => Secret::Pin {
                 number: secrecy::Secret::new(
@@ -839,17 +843,20 @@ impl PartialEq for Secret {
                     title: title_a,
                     mime: mime_a,
                     document: document_a,
+                    user_data: user_data_a,
                 },
                 Self::Page {
                     title: title_b,
                     mime: mime_b,
                     document: document_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 title_a == title_b
                     && mime_a == mime_b
                     && document_a.expose_secret()
                         == document_b.expose_secret()
+                    && user_data_a == user_data_b
             }
             (Self::Pin { number: a }, Self::Pin { number: b }) => {
                 a.expose_secret() == b.expose_secret()
@@ -976,14 +983,14 @@ impl Encode for Secret {
         match self {
             Self::Note { text, user_data } => {
                 writer.write_string(text.expose_secret())?;
-                write_user_user_data(user_data, writer)?;
+                write_user_data(user_data, writer)?;
             }
             Self::File { name, mime, buffer, user_data } => {
                 writer.write_string(name)?;
                 writer.write_string(mime)?;
                 writer.write_u32(buffer.expose_secret().len() as u32)?;
                 writer.write_bytes(buffer.expose_secret())?;
-                write_user_user_data(user_data, writer)?;
+                write_user_data(user_data, writer)?;
             }
             Self::Account {
                 account,
@@ -997,7 +1004,7 @@ impl Encode for Secret {
                 if let Some(url) = url {
                     writer.write_string(url)?;
                 }
-                write_user_user_data(user_data, writer)?;
+                write_user_data(user_data, writer)?;
             }
             Self::List { items, user_data } => {
                 writer.write_u32(items.len() as u32)?;
@@ -1005,7 +1012,7 @@ impl Encode for Secret {
                     writer.write_string(k)?;
                     writer.write_string(v.expose_secret())?;
                 }
-                write_user_user_data(user_data, writer)?;
+                write_user_data(user_data, writer)?;
             }
             Self::Pem(pems) => {
                 let value = pem::encode_many(pems);
@@ -1015,10 +1022,12 @@ impl Encode for Secret {
                 title,
                 mime,
                 document,
+                user_data,
             } => {
                 writer.write_string(title)?;
                 writer.write_string(mime)?;
                 writer.write_string(document.expose_secret())?;
+                write_user_data(user_data, writer)?;
             }
             Self::Pin { number } => {
                 writer.write_string(number.expose_secret())?;
@@ -1091,7 +1100,7 @@ impl Decode for Secret {
         match kind {
             kind::NOTE => {
                 let text = reader.read_string()?;
-                let user_data = read_user_user_data(reader)?;
+                let user_data = read_user_data(reader)?;
                 *self = Self::Note {
                     text: secrecy::Secret::new(text),
                     user_data: user_data,
@@ -1104,7 +1113,7 @@ impl Decode for Secret {
                 let buffer = secrecy::Secret::new(
                     reader.read_bytes(buffer_len as usize)?,
                 );
-                let user_data = read_user_user_data(reader)?;
+                let user_data = read_user_data(reader)?;
                 *self = Self::File { name, mime, buffer, user_data };
             }
             kind::ACCOUNT => {
@@ -1119,7 +1128,7 @@ impl Decode for Secret {
                 } else {
                     None
                 };
-                let user_data = read_user_user_data(reader)?;
+                let user_data = read_user_data(reader)?;
 
                 *self = Self::Account {
                     account,
@@ -1136,7 +1145,7 @@ impl Decode for Secret {
                     let value = secrecy::Secret::new(reader.read_string()?);
                     items.insert(key, value);
                 }
-                let user_data = read_user_user_data(reader)?;
+                let user_data = read_user_data(reader)?;
                 *self = Self::List { items, user_data };
             }
             kind::PEM => {
@@ -1148,10 +1157,12 @@ impl Decode for Secret {
                 let title = reader.read_string()?;
                 let mime = reader.read_string()?;
                 let document = secrecy::Secret::new(reader.read_string()?);
+                let user_data = read_user_data(reader)?;
                 *self = Self::Page {
                     title,
                     mime,
                     document,
+                    user_data,
                 };
             }
             kind::PIN => {
@@ -1399,6 +1410,7 @@ i1KQYQNRTzo=
             title: "Welcome".to_string(),
             mime: "text/markdown".to_string(),
             document: secrecy::Secret::new("# Mock Page".to_owned()),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;

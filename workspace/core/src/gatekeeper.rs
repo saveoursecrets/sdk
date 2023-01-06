@@ -488,7 +488,7 @@ mod tests {
         let secret_value = String::from("Super Secret Note");
         let secret = Secret::Note {
             text: secrecy::Secret::new(secret_value),
-            fields: Default::default(),
+            user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 

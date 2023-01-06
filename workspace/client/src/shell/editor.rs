@@ -97,12 +97,13 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
             buffer: secrecy::Secret::new(content.to_vec()),
             user_data: user_data.clone(),
         },
-        Secret::Page { title, mime, .. } => Secret::Page {
+        Secret::Page { title, mime, user_data, .. } => Secret::Page {
             title: title.clone(),
             mime: mime.clone(),
             document: secrecy::Secret::new(
                 std::str::from_utf8(content)?.to_owned(),
             ),
+            user_data: user_data.clone(),
         },
         Secret::Pin { .. } => {
             let number = std::str::from_utf8(content)?.to_owned();

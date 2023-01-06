@@ -35,7 +35,7 @@ pub fn mock_secret_note(
 ) -> Result<(SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
     let secret_value = Secret::Note {
         text: secrecy::Secret::new(text.to_string()),
-        fields: Default::default(),
+        user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
     let meta_bytes = encode(&secret_meta)?;

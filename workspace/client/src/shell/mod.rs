@@ -292,6 +292,7 @@ fn add_page(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
             title,
             mime,
             document,
+            user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
