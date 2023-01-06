@@ -308,7 +308,7 @@ fn add_pin(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
 
     Secret::ensure_ascii_digits(number.expose_secret())?;
 
-    let secret = Secret::Pin { number };
+    let secret = Secret::Pin { number, user_data: Default::default() };
     let secret_meta = SecretMeta::new(label, secret.kind());
     Ok(Some((secret_meta, secret)))
 }

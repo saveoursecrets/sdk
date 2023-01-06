@@ -552,6 +552,8 @@ pub enum Secret {
         /// The value for the PIN.
         #[serde(serialize_with = "serialize_secret_string")]
         number: SecretString,
+        /// Custom user user_data.
+        user_data: UserData,
     },
     /// Private signing key.
     Signer(SecretSigner),
@@ -651,10 +653,11 @@ impl Clone for Secret {
                 ),
                 user_data: user_data.clone(),
             },
-            Secret::Pin { number } => Secret::Pin {
+            Secret::Pin { number, user_data } => Secret::Pin {
                 number: secrecy::Secret::new(
                     number.expose_secret().to_owned(),
                 ),
+                user_data: user_data.clone(),
             },
             Secret::Signer(signer) => Secret::Signer(signer.clone()),
             Secret::Contact(vcard) => Secret::Contact(vcard.clone()),
@@ -858,8 +861,8 @@ impl PartialEq for Secret {
                         == document_b.expose_secret()
                     && user_data_a == user_data_b
             }
-            (Self::Pin { number: a }, Self::Pin { number: b }) => {
-                a.expose_secret() == b.expose_secret()
+            (Self::Pin { number: a, user_data: user_data_a }, Self::Pin { number: b, user_data: user_data_b }) => {
+                a.expose_secret() == b.expose_secret() && user_data_a == user_data_b
             }
             (Self::Signer(a), Self::Signer(b)) => a.eq(b),
             (Self::Contact(a), Self::Contact(b)) => a.eq(b),
@@ -1029,8 +1032,9 @@ impl Encode for Secret {
                 writer.write_string(document.expose_secret())?;
                 write_user_data(user_data, writer)?;
             }
-            Self::Pin { number } => {
+            Self::Pin { number, user_data } => {
                 writer.write_string(number.expose_secret())?;
+                write_user_data(user_data, writer)?;
             }
             Self::Signer(signer) => {
                 signer.encode(writer)?;
@@ -1166,8 +1170,11 @@ impl Decode for Secret {
                 };
             }
             kind::PIN => {
+                let number = reader.read_string()?;
+                let user_data = read_user_data(reader)?;
                 *self = Self::Pin {
-                    number: secrecy::Secret::new(reader.read_string()?),
+                    number: secrecy::Secret::new(number),
+                    user_data,
                 };
             }
             kind::SIGNER => {
