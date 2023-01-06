@@ -9,7 +9,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
 use sos_client::{
-    exec, monitor, local_signup, Error, Result, ShellState, StdinPassphraseReader,
+    exec, local_signup, monitor, Error, Result, ShellState,
+    StdinPassphraseReader,
 };
 use sos_core::FileLocks;
 use sos_readline::read_shell;
@@ -43,7 +44,6 @@ enum Command {
         /// Name for the default folder.
         #[clap(short, long)]
         folder_name: Option<String>,
-
         /*
         /// Server URL.
         #[clap(short, long)]
@@ -101,10 +101,7 @@ fn run() -> Result<()> {
         Command::Monitor { server, keystore } => {
             monitor(server, keystore)?;
         }
-        Command::Signup {
-            name,
-            folder_name,
-        } => {
+        Command::Signup { name, folder_name } => {
             local_signup(name, folder_name)?;
         }
         Command::Shell { provider, keystore } => {

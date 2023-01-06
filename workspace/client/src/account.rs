@@ -2,7 +2,12 @@
 use crate::{display_passphrase, Error, Result};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{constants::{IDENTITY_DIR, LOCAL_DIR, VAULT_EXT}, vault::Vault, encode, decode, identity::Identity, generate_passphrase};
+use sos_core::{
+    constants::{IDENTITY_DIR, LOCAL_DIR, VAULT_EXT},
+    decode, encode, generate_passphrase,
+    identity::Identity,
+    vault::Vault,
+};
 use sos_node::{
     cache_dir,
     client::{
@@ -73,15 +78,12 @@ pub fn local_signup(name: String, folder_name: Option<String>) -> Result<()> {
     vault.initialize(passphrase.expose_secret())?;
 
     // Prepare the identity vault
-    let (address, login_vault) = Identity::new_login_vault(
-        name.clone(),
-        passphrase.clone(),
-    )?;
+    let (address, login_vault) =
+        Identity::new_login_vault(name.clone(), passphrase.clone())?;
 
     // Get an authenticated user from the identity vault
     let buffer = encode(&login_vault)?;
-    let user =
-        Identity::login_buffer(buffer, passphrase.clone())?;
+    let user = Identity::login_buffer(buffer, passphrase.clone())?;
 
     // Get the signing key for the authenticated user
     let signer = user.signer;
@@ -96,7 +98,7 @@ pub fn local_signup(name: String, folder_name: Option<String>) -> Result<()> {
 * Create a default folder called "{}"
 * Master passphrase will be displayed"#,
         name,
-        vault.summary().name(), 
+        vault.summary().name(),
     );
 
     let banner = Banner::new()
@@ -115,17 +117,15 @@ pub fn local_signup(name: String, folder_name: Option<String>) -> Result<()> {
         .render();
     println!("{}", banner);
 
-    let accepted = read_flag(
-        Some("I will memorize my master passphrase (y/n)? "))?;
+    let accepted =
+        read_flag(Some("I will memorize my master passphrase (y/n)? "))?;
 
     if accepted {
-        display_passphrase(
-            "MASTER PASSPHRASE",
-            passphrase.expose_secret(),
-        );
+        display_passphrase("MASTER PASSPHRASE", passphrase.expose_secret());
 
-        let confirmed = read_flag(
-            Some("Are you sure you want to create a new account (y/n)? "))?;
+        let confirmed = read_flag(Some(
+            "Are you sure you want to create a new account (y/n)? ",
+        ))?;
         if confirmed {
             // Write out the identity vault
             let buffer = encode(&login_vault)?;
@@ -145,8 +145,9 @@ pub fn local_signup(name: String, folder_name: Option<String>) -> Result<()> {
             let message = format!(
                 r#"* Identity: {} ({})
 * Storage: {}"#,
-                name, address,
-                cache_dir.display(), 
+                name,
+                address,
+                cache_dir.display(),
             );
 
             let banner = Banner::new()

@@ -8,10 +8,7 @@ use crate::{
     vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId},
     Error, Result,
 };
-use std::{
-    collections::HashSet,
-    sync::Arc,
-};
+use std::{collections::HashSet, sync::Arc};
 
 use parking_lot::RwLock;
 

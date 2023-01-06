@@ -1,13 +1,14 @@
 //! Storage provider trait.
 
 use async_trait::async_trait;
+use parking_lot::RwLock;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
     borrow::Cow,
     collections::HashSet,
     io::Cursor,
     path::{Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 
 use sos_core::{
@@ -599,7 +600,7 @@ macro_rules! provider_impl {
             &mut self,
             summary: &Summary,
             passphrase: &str,
-            index: Option<std::sync::Arc<std::sync::RwLock<SearchIndex>>>,
+            index: Option<std::sync::Arc<parking_lot::RwLock<SearchIndex>>>,
         ) -> Result<()> {
             let vault = self.reduce_wal(summary)?;
             let vault_path = self.vault_path(summary);

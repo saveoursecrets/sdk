@@ -9,10 +9,9 @@ use sos_core::{
     Gatekeeper, VaultFileAccess,
 };
 
-use std::{
-    path::PathBuf,
-    sync::{Arc, RwLock},
-};
+use std::{path::PathBuf, sync::Arc};
+
+use parking_lot::RwLock;
 
 /// Manages the state of a node.
 pub struct ProviderState {
