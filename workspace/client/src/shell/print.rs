@@ -51,7 +51,7 @@ pub(super) fn secret(
                 .push_str(&format!("Password: {}", password.expose_secret()));
             banner.text(Cow::Owned(account))
         }
-        Secret::List { items } => {
+        Secret::List { items, user_data } => {
             let mut credentials = String::new();
             for (index, (name, value)) in items.iter().enumerate() {
                 credentials.push_str(&format!(
@@ -65,7 +65,9 @@ pub(super) fn secret(
             }
             banner.text(Cow::Owned(credentials))
         }
-        Secret::File { name, buffer, mime, .. } => {
+        Secret::File {
+            name, buffer, mime, ..
+        } => {
             let mut file = format!(
                 "{} {}\n",
                 name,

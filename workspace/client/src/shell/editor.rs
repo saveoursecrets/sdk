@@ -75,13 +75,13 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
 /// Convert back from the tempfile bytes to a secret.
 fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
     Ok(match secret {
-        Secret::Note { fields, .. } => Secret::Note {
+        Secret::Note { user_data, .. } => Secret::Note {
             text: secrecy::Secret::new(
                 std::str::from_utf8(content)?
                     //.trim_end_matches('\n')
                     .to_owned(),
             ),
-            fields: fields.clone(),
+            user_data: user_data.clone(),
         },
         Secret::List { .. }
         | Secret::Account { .. }
@@ -89,11 +89,13 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         | Secret::Totp(_)
         | Secret::Card { .. }
         | Secret::Bank { .. } => serde_json::from_slice::<Secret>(content)?,
-        Secret::File { name, mime, fields, .. } => Secret::File {
+        Secret::File {
+            name, mime, user_data, ..
+        } => Secret::File {
             name: name.clone(),
             mime: mime.clone(),
             buffer: secrecy::Secret::new(content.to_vec()),
-            fields: fields.clone(),
+            user_data: user_data.clone(),
         },
         Secret::Page { title, mime, .. } => Secret::Page {
             title: title.clone(),

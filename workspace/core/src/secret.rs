@@ -366,35 +366,35 @@ impl Decode for SecretSigner {
     }
 }
 
-mod fields {
+mod user_data {
     /// Constant for the heading variant.
     pub const HEADING: u8 = 1;
 }
 
 /// User defined field.
 #[derive(Default, Serialize, Deserialize, Hash, Clone, PartialEq, Eq)]
-pub enum CustomField {
-    /// Default variant for user defined fields.
+pub enum UserField {
+    /// Default variant for user defined user_data.
     #[default]
     Noop,
-    /// Heading for a group of fields.
+    /// Heading for a group of user_data.
     Heading {
         /// The text for the heading.
         text: String,
     },
 }
 
-impl CustomField {
+impl UserField {
     /// Get the kind of this field.
     pub fn kind(&self) -> u8 {
         match self {
-            Self::Heading { .. } => fields::HEADING,
+            Self::Heading { .. } => user_data::HEADING,
             _ => unreachable!(),
         }
     }
 }
 
-impl Encode for CustomField {
+impl Encode for UserField {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         let kind = self.kind();
         writer.write_u8(kind)?;
@@ -408,11 +408,11 @@ impl Encode for CustomField {
     }
 }
 
-impl Decode for CustomField {
+impl Decode for UserField {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let kind = reader.read_u8()?;
         match kind {
-            fields::HEADING => {
+            user_data::HEADING => {
                 let text = reader.read_string()?;
                 *self = Self::Heading { text };
             }
@@ -426,55 +426,55 @@ impl Decode for CustomField {
     }
 }
 
-/// Collection of custom user fields.
+/// Collection of custom user user_data.
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct UserFields {
-    /// Collection of custom fields.
-    inner: Vec<CustomField>,
+pub struct UserData {
+    /// Collection of custom user_data.
+    inner: Vec<UserField>,
 }
 
-impl UserFields {
-    /// Get the number of user fields.
+impl UserData {
+    /// Get the number of user user_data.
     pub fn len(&self) -> usize {
         self.inner.len()
     }
 
-    /// Determine of there are any user fields.
+    /// Determine of there are any user user_data.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Get the user fields.
-    pub fn items(&self) -> &[CustomField] {
+    /// Get the user user_data.
+    pub fn items(&self) -> &[UserField] {
         &self.inner
     }
 
     /// Add a custom field to this collection.
-    pub fn push(&mut self, field: CustomField) {
+    pub fn push(&mut self, field: UserField) {
         self.inner.push(field);
     }
 }
 
-fn write_user_fields(
-    fields: &UserFields,
+fn write_user_user_data(
+    user_data: &UserData,
     writer: &mut BinaryWriter,
 ) -> BinaryResult<()> {
-    writer.write_u32(fields.len() as u32)?;
-    for field in fields.items() {
+    writer.write_u32(user_data.len() as u32)?;
+    for field in user_data.items() {
         field.encode(writer)?;
     }
     Ok(())
 }
 
-fn read_user_fields(reader: &mut BinaryReader) -> BinaryResult<UserFields> {
-    let mut fields: UserFields = Default::default();
+fn read_user_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
+    let mut user_data: UserData = Default::default();
     let count = reader.read_u32()?;
     for _ in 0..count {
-        let mut field: CustomField = Default::default();
+        let mut field: UserField = Default::default();
         field.decode(reader)?;
-        fields.push(field);
+        user_data.push(field);
     }
-    Ok(fields)
+    Ok(user_data)
 }
 
 /// Represents the various types of secret.
@@ -490,8 +490,8 @@ pub enum Secret {
         /// Note text.
         #[serde(serialize_with = "serialize_secret_string")]
         text: SecretString,
-        /// Custom user fields.
-        fields: UserFields,
+        /// Custom user user_data.
+        user_data: UserData,
     },
     /// A binary blob.
     File {
@@ -504,8 +504,8 @@ pub enum Secret {
         /// The binary data.
         #[serde(serialize_with = "serialize_secret_buffer")]
         buffer: SecretVec<u8>,
-        /// Custom user fields.
-        fields: UserFields,
+        /// Custom user user_data.
+        user_data: UserData,
     },
     /// Account with login password.
     Account {
@@ -516,14 +516,16 @@ pub enum Secret {
         /// The account password.
         #[serde(serialize_with = "serialize_secret_string")]
         password: SecretString,
-        /// Custom user fields.
-        fields: UserFields,
+        /// Custom user user_data.
+        user_data: UserData,
     },
     /// Collection of credentials as key/value pairs.
-    #[serde(serialize_with = "serialize_secret_string_map")]
     List {
         /// The items in the list.
-        items: HashMap<String, SecretString>
+        #[serde(serialize_with = "serialize_secret_string_map")]
+        items: HashMap<String, SecretString>,
+        /// Custom user user_data.
+        user_data: UserData,
     },
     /// PEM encoded binary data.
     Pem(Vec<Pem>),
@@ -596,30 +598,30 @@ pub enum Secret {
 impl Clone for Secret {
     fn clone(&self) -> Self {
         match self {
-            Secret::Note { text, fields } => Secret::Note {
+            Secret::Note { text, user_data } => Secret::Note {
                 text: secrecy::Secret::new(text.expose_secret().to_owned()),
-                fields: fields.clone(),
+                user_data: user_data.clone(),
             },
-            Secret::File { name, mime, buffer, fields } => Secret::File {
+            Secret::File { name, mime, buffer, user_data } => Secret::File {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
-                fields: fields.clone(),
+                user_data: user_data.clone(),
             },
             Secret::Account {
                 account,
                 url,
                 password,
-                fields,
+                user_data,
             } => Secret::Account {
                 account: account.to_owned(),
                 url: url.clone(),
                 password: secrecy::Secret::new(
                     password.expose_secret().to_owned(),
                 ),
-                fields: fields.clone(),
+                user_data: user_data.clone(),
             },
-            Secret::List { items } => {
+            Secret::List { items, user_data } => {
                 let copy = items
                     .iter()
                     .map(|(k, v)| {
@@ -631,7 +633,7 @@ impl Clone for Secret {
                         )
                     })
                     .collect::<HashMap<_, _>>();
-                Secret::List { items: copy }
+                Secret::List { items: copy, user_data: user_data.clone() }
             }
             Secret::Pem(pems) => Secret::Pem(pems.clone()),
             Secret::Page {
@@ -697,7 +699,7 @@ impl fmt::Debug for Secret {
                 .field("account", account)
                 .field("url", url)
                 .finish(),
-            Secret::List { items } => {
+            Secret::List { items, .. } => {
                 let keys = items.keys().collect::<Vec<_>>();
                 f.debug_struct("List").field("keys", &keys).finish()
             }
@@ -774,59 +776,59 @@ impl PartialEq for Secret {
             (
                 Self::Note {
                     text: text_a,
-                    fields: fields_a,
+                    user_data: user_data_a,
                 },
                 Self::Note {
                     text: text_b,
-                    fields: fields_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 text_a.expose_secret() == text_b.expose_secret()
-                    && fields_a == fields_b
+                    && user_data_a == user_data_b
             }
             (
                 Self::Account {
                     account: account_a,
                     url: url_a,
                     password: password_a,
-                    fields: fields_a,
+                    user_data: user_data_a,
                 },
                 Self::Account {
                     account: account_b,
                     url: url_b,
                     password: password_b,
-                    fields: fields_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 account_a == account_b
                     && url_a == url_b
                     && password_a.expose_secret()
                         == password_b.expose_secret()
-                    && fields_a == fields_b
+                    && user_data_a == user_data_b
             }
             (
                 Self::File {
                     name: name_a,
                     mime: mime_a,
                     buffer: buffer_a,
-                    fields: fields_a,
+                    user_data: user_data_a,
                 },
                 Self::File {
                     name: name_b,
                     mime: mime_b,
                     buffer: buffer_b,
-                    fields: fields_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 name_a == name_b
                     && mime_a == mime_b
                     && buffer_a.expose_secret() == buffer_b.expose_secret()
-                    && fields_a == fields_b
+                    && user_data_a == user_data_b
             }
-            (Self::List {items: a}, Self::List {items: b}) => {
-                a.iter().zip(b.iter()).all(|(a, b)| {
+            (Self::List {items: items_a, user_data: user_data_a}, Self::List {items: items_b, user_data: user_data_b}) => {
+                items_a.iter().zip(items_b.iter()).all(|(a, b)| {
                     a.0 == b.0 && a.1.expose_secret() == b.1.expose_secret()
-                })
+                }) && user_data_a == user_data_b
             }
             (Self::Pem(a), Self::Pem(b)) => a
                 .iter()
@@ -916,7 +918,7 @@ impl Default for Secret {
     fn default() -> Self {
         Self::Note {
             text: secrecy::Secret::new(String::new()),
-            fields: Default::default(),
+            user_data: Default::default(),
         }
     }
 }
@@ -972,22 +974,22 @@ impl Encode for Secret {
         writer.write_u8(kind)?;
 
         match self {
-            Self::Note { text, fields } => {
+            Self::Note { text, user_data } => {
                 writer.write_string(text.expose_secret())?;
-                write_user_fields(fields, writer)?;
+                write_user_user_data(user_data, writer)?;
             }
-            Self::File { name, mime, buffer, fields } => {
+            Self::File { name, mime, buffer, user_data } => {
                 writer.write_string(name)?;
                 writer.write_string(mime)?;
                 writer.write_u32(buffer.expose_secret().len() as u32)?;
                 writer.write_bytes(buffer.expose_secret())?;
-                write_user_fields(fields, writer)?;
+                write_user_user_data(user_data, writer)?;
             }
             Self::Account {
                 account,
                 password,
                 url,
-                fields,
+                user_data,
             } => {
                 writer.write_string(account)?;
                 writer.write_string(password.expose_secret())?;
@@ -995,14 +997,15 @@ impl Encode for Secret {
                 if let Some(url) = url {
                     writer.write_string(url)?;
                 }
-                write_user_fields(fields, writer)?;
+                write_user_user_data(user_data, writer)?;
             }
-            Self::List { items } => {
+            Self::List { items, user_data } => {
                 writer.write_u32(items.len() as u32)?;
                 for (k, v) in items {
                     writer.write_string(k)?;
                     writer.write_string(v.expose_secret())?;
                 }
+                write_user_user_data(user_data, writer)?;
             }
             Self::Pem(pems) => {
                 let value = pem::encode_many(pems);
@@ -1088,10 +1091,10 @@ impl Decode for Secret {
         match kind {
             kind::NOTE => {
                 let text = reader.read_string()?;
-                let fields = read_user_fields(reader)?;
+                let user_data = read_user_user_data(reader)?;
                 *self = Self::Note {
                     text: secrecy::Secret::new(text),
-                    fields: fields,
+                    user_data: user_data,
                 };
             }
             kind::FILE => {
@@ -1101,8 +1104,8 @@ impl Decode for Secret {
                 let buffer = secrecy::Secret::new(
                     reader.read_bytes(buffer_len as usize)?,
                 );
-                let fields = read_user_fields(reader)?;
-                *self = Self::File { name, mime, buffer, fields };
+                let user_data = read_user_user_data(reader)?;
+                *self = Self::File { name, mime, buffer, user_data };
             }
             kind::ACCOUNT => {
                 let account = reader.read_string()?;
@@ -1116,13 +1119,13 @@ impl Decode for Secret {
                 } else {
                     None
                 };
-                let fields = read_user_fields(reader)?;
+                let user_data = read_user_user_data(reader)?;
 
                 *self = Self::Account {
                     account,
                     password,
                     url,
-                    fields,
+                    user_data,
                 };
             }
             kind::LIST => {
@@ -1133,8 +1136,8 @@ impl Decode for Secret {
                     let value = secrecy::Secret::new(reader.read_string()?);
                     items.insert(key, value);
                 }
-
-                *self = Self::List { items };
+                let user_data = read_user_user_data(reader)?;
+                *self = Self::List { items, user_data };
             }
             kind::PEM => {
                 let value = reader.read_string()?;
@@ -1259,7 +1262,7 @@ mod test {
     fn secret_serde() -> Result<()> {
         let secret = Secret::Note {
             text: secrecy::Secret::new(String::from("foo")),
-            fields: Default::default(),
+            user_data: Default::default(),
         };
         let value = serde_json::to_string_pretty(&secret)?;
         let result: Secret = serde_json::from_str(&value)?;
@@ -1269,14 +1272,14 @@ mod test {
 
     #[test]
     fn secret_encode_note() -> Result<()> {
-        let mut fields: UserFields = Default::default();
-        fields.push(CustomField::Heading {
+        let mut user_data: UserData = Default::default();
+        user_data.push(UserField::Heading {
             text: "Mock field heading".to_string(),
         });
 
         let secret = Secret::Note {
             text: secrecy::Secret::new(String::from("My Note")),
-            fields,
+            user_data,
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1290,7 +1293,7 @@ mod test {
             name: "hello.txt".to_string(),
             mime: "text/plain".to_string(),
             buffer: secrecy::Secret::new("hello".as_bytes().to_vec()),
-            fields: Default::default(),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1304,7 +1307,7 @@ mod test {
             account: "Email".to_string(),
             url: Some("https://webmail.example.com".parse().unwrap()),
             password: secrecy::Secret::new("mock-password".to_string()),
-            fields: Default::default(),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1314,7 +1317,7 @@ mod test {
             account: "Email".to_string(),
             url: None,
             password: secrecy::Secret::new("mock-password".to_string()),
-            fields: Default::default(),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret_no_url)?;
         let decoded = decode(&encoded)?;
@@ -1333,7 +1336,7 @@ mod test {
             "PROVIDER_KEY".to_owned(),
             secrecy::Secret::new("mock-provider-key".to_owned()),
         );
-        let secret = Secret::List { items: credentials };
+        let secret = Secret::List { items: credentials, user_data: Default::default() };
 
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1342,7 +1345,7 @@ mod test {
         // we need to expose the underlying secret string
         // so we get an Ord implementation
         let (secret_a, secret_b) =
-            if let (Secret::List { items: a }, Secret::List { items: b }) = (secret, decoded) {
+            if let (Secret::List { items: a, .. }, Secret::List { items: b, .. }) = (secret, decoded) {
                 let mut a = a
                     .into_iter()
                     .map(|(k, v)| (k, v.expose_secret().to_owned()))

@@ -269,7 +269,7 @@ fn add_note(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
             secrecy::Secret::new(note.trim_end_matches('\n').to_string());
         let secret = Secret::Note {
             text: note,
-            fields: Default::default(),
+            user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
@@ -333,7 +333,7 @@ fn add_credentials(
     }
 
     if !credentials.is_empty() {
-        let secret = Secret::List { items: credentials };
+        let secret = Secret::List { items: credentials, user_data: Default::default() };
         let secret_meta = SecretMeta::new(label, secret.kind());
         Ok(Some((secret_meta, secret)))
     } else {
@@ -360,7 +360,7 @@ fn add_account(
         account,
         url,
         password,
-        fields: Default::default(),
+        user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label, secret.kind());
     Ok(Some((secret_meta, secret)))
@@ -412,7 +412,12 @@ fn read_file_secret(path: &str) -> Result<Secret> {
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
     let buffer = secrecy::Secret::new(std::fs::read(file)?);
-    Ok(Secret::File { name, mime, buffer, fields: Default::default() })
+    Ok(Secret::File {
+        name,
+        mime,
+        buffer,
+        user_data: Default::default(),
+    })
 }
 
 fn maybe_conflict<F>(cache: ShellProvider, func: F) -> Result<()>
@@ -699,23 +704,25 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let (uuid, secret_meta, secret_data) =
                 result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
-            let result =
-                if let Secret::File { name, mime, buffer, .. } = &secret_data {
-                    if mime.starts_with("text/") {
-                        editor::edit(&secret_data)?
-                    } else {
-                        println!(
-                            "Binary {} {} {}",
-                            name,
-                            mime,
-                            human_bytes(buffer.expose_secret().len() as f64)
-                        );
-                        let file_path = read_line(Some("File path: "))?;
-                        Cow::Owned(read_file_secret(&file_path)?)
-                    }
-                } else {
+            let result = if let Secret::File {
+                name, mime, buffer, ..
+            } = &secret_data
+            {
+                if mime.starts_with("text/") {
                     editor::edit(&secret_data)?
-                };
+                } else {
+                    println!(
+                        "Binary {} {} {}",
+                        name,
+                        mime,
+                        human_bytes(buffer.expose_secret().len() as f64)
+                    );
+                    let file_path = read_line(Some("File path: "))?;
+                    Cow::Owned(read_file_secret(&file_path)?)
+                }
+            } else {
+                editor::edit(&secret_data)?
+            };
 
             if let Cow::Owned(edited_secret) = result {
                 maybe_conflict(cache, |writer| {
