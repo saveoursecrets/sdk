@@ -7,13 +7,36 @@ use std::{
     collections::{btree_map::Values, BTreeMap, HashSet},
 };
 
-use creature_feature::ftzrs::n_slice;
-use creature_feature::traits::Ftzr;
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     secret::{SecretId, SecretMeta, SecretRef},
     vault::VaultId,
 };
+
+/// Create a set of ngrams of the given size.
+fn ngram_slice(s: &str, n: usize) -> HashSet<&str> {
+    let mut items: HashSet<&str> = HashSet::new();
+    let graphemes: Vec<usize> =
+        s.grapheme_indices(true).map(|v| v.0).collect();
+    for (index, offset) in graphemes.iter().enumerate() {
+        if let Some(end_offset) = graphemes.get(index + n) {
+            items.insert(&s[*offset..*end_offset]);
+        } else {
+            let mut end_offset = offset;
+            for i in 1..n {
+                if let Some(end) = graphemes.get(index + i) {
+                    end_offset = end;
+                }
+            }
+            if end_offset > offset {
+                let val = &s[*offset..=*end_offset];
+                items.insert(val);
+            }
+        }
+    }
+    return items;
+}
 
 /// Key for meta data documents.
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd, Serialize)]
@@ -21,8 +44,7 @@ pub struct DocumentKey(String, VaultId, SecretId);
 
 // Index tokenizer.
 fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
-    let ngrams: HashSet<&str> = n_slice(2).featurize(s);
-
+    let ngrams = ngram_slice(s, 2);
     let words = s.split(' ').into_iter().collect::<HashSet<_>>();
 
     let mut tokens: Vec<Cow<str>> = Vec::new();

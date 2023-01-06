@@ -34,6 +34,7 @@ log = "0.4"
 crypto-bigint = "0.4.8"
 sha3 = "0.10"
 once_cell = { version = "1.10" }
+parking_lot = "0.12"
 
 # client
 web3-keystore = { version = "0.5.2", optional = true }

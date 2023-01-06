@@ -89,7 +89,7 @@ impl Identity {
         keeper.create_search_index()?;
 
         let index = keeper.index();
-        let reader = index.read().unwrap();
+        let reader = index.read();
 
         let signing_doc = reader
             .find_by_label(keeper.vault().id(), LOGIN_SIGNING_KEY_NAME)
