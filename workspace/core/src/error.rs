@@ -43,6 +43,10 @@ pub enum Error {
     #[error("unknown secret kind {0}")]
     UnknownSecretKind(u8),
 
+    /// Error generated when the kind of a user field is unknown.
+    #[error("unknown user field kind {0}")]
+    UnknownUserFieldKind(u8),
+
     /// Error generated when the kind of a signer is unknown.
     #[error("unknown signer kind {0}")]
     UnknownSignerKind(u8),

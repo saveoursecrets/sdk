@@ -252,7 +252,7 @@ mod test {
             assert_eq!("bar", meta.label());
             assert_eq!("qux", {
                 match &secret {
-                    Secret::Note(text) => text.expose_secret(),
+                    Secret::Note { text, .. } => text.expose_secret(),
                     _ => panic!("unexpected secret type"),
                 }
             });
