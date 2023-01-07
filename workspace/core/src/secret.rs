@@ -562,8 +562,13 @@ pub enum Secret {
     },
     /// Private signing key.
     Signer(SecretSigner),
-    /// Contact vCard.
-    Contact(Box<Vcard>),
+    /// Contact for an organization or person.
+    Contact {
+        /// The contact vCard.
+        vcard: Box<Vcard>,
+        /// Custom user data.
+        user_data: UserData,
+    },
     /// Two-factor authentication using a TOTP.
     Totp {
         /// Time-based one-time passcode.
@@ -688,7 +693,10 @@ impl Clone for Secret {
                 user_data: user_data.clone(),
             },
             Secret::Signer(signer) => Secret::Signer(signer.clone()),
-            Secret::Contact(vcard) => Secret::Contact(vcard.clone()),
+            Secret::Contact { vcard, user_data } => Secret::Contact {
+                vcard: vcard.clone(),
+                user_data: user_data.clone(),
+            },
             Secret::Totp { totp, user_data } => Secret::Totp {
                 totp: totp.clone(),
                 user_data: user_data.clone(),
@@ -805,7 +813,7 @@ impl Secret {
             Secret::Page { .. } => kind::PAGE,
             Secret::Pin { .. } => kind::PIN,
             Secret::Signer(_) => kind::SIGNER,
-            Secret::Contact(_) => kind::CONTACT,
+            Secret::Contact { .. } => kind::CONTACT,
             Secret::Totp { .. } => kind::TOTP,
             Secret::Card { .. } => kind::CARD,
             Secret::Bank { .. } => kind::BANK,
@@ -931,11 +939,27 @@ impl PartialEq for Secret {
                 a.expose_secret() == b.expose_secret()
                     && user_data_a == user_data_b
             }
-            (Self::Signer(a), Self::Signer(b)) => a.eq(b),
-            (Self::Contact(a), Self::Contact(b)) => a.eq(b),
-            (Self::Totp { totp: totp_a, user_data: user_data_a }, Self::Totp { totp: totp_b, user_data: user_data_b }) => {
-                totp_a == totp_b && user_data_a == user_data_b
-            }
+            (Self::Signer(a), Self::Signer(b)) => a == b,
+            (
+                Self::Contact {
+                    vcard: vcard_a,
+                    user_data: user_data_a,
+                },
+                Self::Contact {
+                    vcard: vcard_b,
+                    user_data: user_data_b,
+                },
+            ) => vcard_a == vcard_b && user_data_a == user_data_b,
+            (
+                Self::Totp {
+                    totp: totp_a,
+                    user_data: user_data_a,
+                },
+                Self::Totp {
+                    totp: totp_b,
+                    user_data: user_data_b,
+                },
+            ) => totp_a == totp_b && user_data_a == user_data_b,
             (
                 Self::Card {
                     number: number_a,
@@ -1051,7 +1075,7 @@ impl Encode for Secret {
             Self::Page { .. } => kind::PAGE,
             Self::Pin { .. } => kind::PIN,
             Self::Signer(_) => kind::SIGNER,
-            Self::Contact(_) => kind::CONTACT,
+            Self::Contact { .. } => kind::CONTACT,
             Self::Totp { .. } => kind::TOTP,
             Self::Card { .. } => kind::CARD,
             Self::Bank { .. } => kind::BANK,
@@ -1123,8 +1147,9 @@ impl Encode for Secret {
             Self::Signer(signer) => {
                 signer.encode(writer)?;
             }
-            Self::Contact(vcard) => {
+            Self::Contact { vcard, user_data } => {
                 writer.write_string(vcard.to_string())?;
+                write_user_data(user_data, writer)?;
             }
             Self::Totp { totp, user_data } => {
                 let totp = serde_json::to_vec(totp).map_err(Box::from)?;
@@ -1196,7 +1221,7 @@ impl Decode for Secret {
                 let user_data = read_user_data(reader)?;
                 *self = Self::Note {
                     text: secrecy::Secret::new(text),
-                    user_data: user_data,
+                    user_data,
                 };
             }
             kind::FILE => {
@@ -1284,7 +1309,11 @@ impl Decode for Secret {
                 let vcard = reader.read_string()?;
                 let mut cards = parse_to_vcards(&vcard).map_err(Box::from)?;
                 let vcard = cards.remove(0);
-                *self = Self::Contact(Box::new(vcard));
+                let user_data = read_user_data(reader)?;
+                *self = Self::Contact {
+                    vcard: Box::new(vcard),
+                    user_data,
+                };
             }
             kind::TOTP => {
                 let buffer_len = reader.read_u32()?;
@@ -1557,7 +1586,10 @@ FN:John Doe
 END:VCARD"#;
 
         let vcard: Vcard = text.try_into()?;
-        let secret = Secret::Contact(Box::new(vcard));
+        let secret = Secret::Contact {
+            vcard: Box::new(vcard),
+            user_data: Default::default(),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
 

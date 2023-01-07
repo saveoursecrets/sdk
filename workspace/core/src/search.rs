@@ -35,7 +35,7 @@ fn ngram_slice(s: &str, n: usize) -> HashSet<&str> {
             }
         }
     }
-    return items;
+    items
 }
 
 /// Key for meta data documents.

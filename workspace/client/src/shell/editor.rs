@@ -66,7 +66,7 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
             // TODO: handle this more gracefully
             todo!("signing keys are not editable (yet!)")
         }
-        Secret::Contact(vcard) => {
+        Secret::Contact { vcard, .. } => {
             (vcard.to_string().as_bytes().to_vec(), ".txt".to_string())
         }
     })
@@ -90,14 +90,22 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         | Secret::Card { .. }
         | Secret::Bank { .. } => serde_json::from_slice::<Secret>(content)?,
         Secret::File {
-            name, mime, user_data, ..
+            name,
+            mime,
+            user_data,
+            ..
         } => Secret::File {
             name: name.clone(),
             mime: mime.clone(),
             buffer: secrecy::Secret::new(content.to_vec()),
             user_data: user_data.clone(),
         },
-        Secret::Page { title, mime, user_data, .. } => Secret::Page {
+        Secret::Page {
+            title,
+            mime,
+            user_data,
+            ..
+        } => Secret::Page {
             title: title.clone(),
             mime: mime.clone(),
             document: secrecy::Secret::new(
@@ -117,10 +125,13 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
             // TODO: handle this more gracefully
             todo!("signing keys are not editable (yet!)")
         }
-        Secret::Contact(_) => {
+        Secret::Contact { user_data, .. } => {
             let value = std::str::from_utf8(content)?;
             let vcard: Vcard = value.try_into()?;
-            Secret::Contact(Box::new(vcard))
+            Secret::Contact {
+                vcard: Box::new(vcard),
+                user_data: user_data.clone(),
+            }
         }
     })
 }
