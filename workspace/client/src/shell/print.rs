@@ -76,8 +76,8 @@ pub(super) fn secret(
             file.push_str(mime);
             banner.text(Cow::Owned(file))
         }
-        Secret::Pem(pem) => {
-            banner.text(Cow::Owned(serde_json::to_string(pem)?))
+        Secret::Pem { certificates, .. } => {
+            banner.text(Cow::Owned(serde_json::to_string(certificates)?))
         }
         Secret::Page {
             title, document, ..

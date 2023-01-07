@@ -528,7 +528,12 @@ pub enum Secret {
         user_data: UserData,
     },
     /// PEM encoded binary data.
-    Pem(Vec<Pem>),
+    Pem {
+        /// Collection of PEM encoded certificates or keys.
+        certificates: Vec<Pem>,
+        /// Custom user user_data.
+        user_data: UserData,
+    },
     /// A UTF-8 text document.
     Page {
         /// Title of the page.
@@ -606,7 +611,12 @@ impl Clone for Secret {
                 text: secrecy::Secret::new(text.expose_secret().to_owned()),
                 user_data: user_data.clone(),
             },
-            Secret::File { name, mime, buffer, user_data } => Secret::File {
+            Secret::File {
+                name,
+                mime,
+                buffer,
+                user_data,
+            } => Secret::File {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
@@ -637,9 +647,18 @@ impl Clone for Secret {
                         )
                     })
                     .collect::<HashMap<_, _>>();
-                Secret::List { items: copy, user_data: user_data.clone() }
+                Secret::List {
+                    items: copy,
+                    user_data: user_data.clone(),
+                }
             }
-            Secret::Pem(pems) => Secret::Pem(pems.clone()),
+            Secret::Pem {
+                certificates,
+                user_data,
+            } => Secret::Pem {
+                certificates: certificates.clone(),
+                user_data: user_data.clone(),
+            },
             Secret::Page {
                 title,
                 mime,
@@ -710,9 +729,10 @@ impl fmt::Debug for Secret {
                 let keys = items.keys().collect::<Vec<_>>();
                 f.debug_struct("List").field("keys", &keys).finish()
             }
-            Secret::Pem(pems) => {
-                f.debug_struct("Pem").field("size", &pems.len()).finish()
-            }
+            Secret::Pem { certificates, .. } => f
+                .debug_struct("Pem")
+                .field("size", &certificates.len())
+                .finish(),
             Secret::Page { title, mime, .. } => f
                 .debug_struct("Page")
                 .field("title", title)
@@ -765,7 +785,7 @@ impl Secret {
             Secret::File { .. } => kind::FILE,
             Secret::Account { .. } => kind::ACCOUNT,
             Secret::List { .. } => kind::LIST,
-            Secret::Pem(_) => kind::PEM,
+            Secret::Pem { .. } => kind::PEM,
             Secret::Page { .. } => kind::PAGE,
             Secret::Pin { .. } => kind::PIN,
             Secret::Signer(_) => kind::SIGNER,
@@ -832,15 +852,36 @@ impl PartialEq for Secret {
                     && buffer_a.expose_secret() == buffer_b.expose_secret()
                     && user_data_a == user_data_b
             }
-            (Self::List {items: items_a, user_data: user_data_a}, Self::List {items: items_b, user_data: user_data_b}) => {
+            (
+                Self::List {
+                    items: items_a,
+                    user_data: user_data_a,
+                },
+                Self::List {
+                    items: items_b,
+                    user_data: user_data_b,
+                },
+            ) => {
                 items_a.iter().zip(items_b.iter()).all(|(a, b)| {
                     a.0 == b.0 && a.1.expose_secret() == b.1.expose_secret()
                 }) && user_data_a == user_data_b
             }
-            (Self::Pem(a), Self::Pem(b)) => a
-                .iter()
-                .zip(b.iter())
-                .all(|(a, b)| a.tag == b.tag && a.contents == b.contents),
+            (
+                Self::Pem {
+                    certificates: certificates_a,
+                    user_data: user_data_a,
+                },
+                Self::Pem {
+                    certificates: certificates_b,
+                    user_data: user_data_b,
+                },
+            ) => {
+                certificates_a
+                    .iter()
+                    .zip(certificates_b.iter())
+                    .all(|(a, b)| a.tag == b.tag && a.contents == b.contents)
+                    && user_data_a == user_data_b
+            }
             (
                 Self::Page {
                     title: title_a,
@@ -861,8 +902,18 @@ impl PartialEq for Secret {
                         == document_b.expose_secret()
                     && user_data_a == user_data_b
             }
-            (Self::Pin { number: a, user_data: user_data_a }, Self::Pin { number: b, user_data: user_data_b }) => {
-                a.expose_secret() == b.expose_secret() && user_data_a == user_data_b
+            (
+                Self::Pin {
+                    number: a,
+                    user_data: user_data_a,
+                },
+                Self::Pin {
+                    number: b,
+                    user_data: user_data_b,
+                },
+            ) => {
+                a.expose_secret() == b.expose_secret()
+                    && user_data_a == user_data_b
             }
             (Self::Signer(a), Self::Signer(b)) => a.eq(b),
             (Self::Contact(a), Self::Contact(b)) => a.eq(b),
@@ -972,7 +1023,7 @@ impl Encode for Secret {
             Self::File { .. } => kind::FILE,
             Self::Account { .. } => kind::ACCOUNT,
             Self::List { .. } => kind::LIST,
-            Self::Pem(_) => kind::PEM,
+            Self::Pem { .. } => kind::PEM,
             Self::Page { .. } => kind::PAGE,
             Self::Pin { .. } => kind::PIN,
             Self::Signer(_) => kind::SIGNER,
@@ -988,7 +1039,12 @@ impl Encode for Secret {
                 writer.write_string(text.expose_secret())?;
                 write_user_data(user_data, writer)?;
             }
-            Self::File { name, mime, buffer, user_data } => {
+            Self::File {
+                name,
+                mime,
+                buffer,
+                user_data,
+            } => {
                 writer.write_string(name)?;
                 writer.write_string(mime)?;
                 writer.write_u32(buffer.expose_secret().len() as u32)?;
@@ -1017,9 +1073,10 @@ impl Encode for Secret {
                 }
                 write_user_data(user_data, writer)?;
             }
-            Self::Pem(pems) => {
-                let value = pem::encode_many(pems);
+            Self::Pem { certificates, user_data } => {
+                let value = pem::encode_many(certificates);
                 writer.write_string(value)?;
+                write_user_data(user_data, writer)?;
             }
             Self::Page {
                 title,
@@ -1118,7 +1175,12 @@ impl Decode for Secret {
                     reader.read_bytes(buffer_len as usize)?,
                 );
                 let user_data = read_user_data(reader)?;
-                *self = Self::File { name, mime, buffer, user_data };
+                *self = Self::File {
+                    name,
+                    mime,
+                    buffer,
+                    user_data,
+                };
             }
             kind::ACCOUNT => {
                 let account = reader.read_string()?;
@@ -1154,8 +1216,12 @@ impl Decode for Secret {
             }
             kind::PEM => {
                 let value = reader.read_string()?;
-                *self =
-                    Self::Pem(pem::parse_many(&value).map_err(Box::from)?);
+                let user_data = read_user_data(reader)?;
+                *self = Self::Pem {
+                    certificates: pem::parse_many(&value)
+                        .map_err(Box::from)?,
+                    user_data,
+                };
             }
             kind::PAGE => {
                 let title = reader.read_string()?;
@@ -1354,7 +1420,10 @@ mod test {
             "PROVIDER_KEY".to_owned(),
             secrecy::Secret::new("mock-provider-key".to_owned()),
         );
-        let secret = Secret::List { items: credentials, user_data: Default::default() };
+        let secret = Secret::List {
+            items: credentials,
+            user_data: Default::default(),
+        };
 
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1362,22 +1431,25 @@ mod test {
         // To assert consistently we must sort and to sort
         // we need to expose the underlying secret string
         // so we get an Ord implementation
-        let (secret_a, secret_b) =
-            if let (Secret::List { items: a, .. }, Secret::List { items: b, .. }) = (secret, decoded) {
-                let mut a = a
-                    .into_iter()
-                    .map(|(k, v)| (k, v.expose_secret().to_owned()))
-                    .collect::<Vec<_>>();
-                a.sort();
-                let mut b = b
-                    .into_iter()
-                    .map(|(k, v)| (k, v.expose_secret().to_owned()))
-                    .collect::<Vec<_>>();
-                b.sort();
-                (a, b)
-            } else {
-                unreachable!()
-            };
+        let (secret_a, secret_b) = if let (
+            Secret::List { items: a, .. },
+            Secret::List { items: b, .. },
+        ) = (secret, decoded)
+        {
+            let mut a = a
+                .into_iter()
+                .map(|(k, v)| (k, v.expose_secret().to_owned()))
+                .collect::<Vec<_>>();
+            a.sort();
+            let mut b = b
+                .into_iter()
+                .map(|(k, v)| (k, v.expose_secret().to_owned()))
+                .collect::<Vec<_>>();
+            b.sort();
+            (a, b)
+        } else {
+            unreachable!()
+        };
 
         assert_eq!(secret_a, secret_b);
         Ok(())
@@ -1403,8 +1475,8 @@ L0sFErdHZ5BdOJJ1LS9zztUHvb1jaOJQBwaD+H+fbjUleLkKmELQODDiFekLAjRD
 i1KQYQNRTzo=
 -----END CERTIFICATE-----"#;
 
-        let pems = pem::parse_many(certificate).unwrap();
-        let secret = Secret::Pem(pems);
+        let certificates = pem::parse_many(certificate).unwrap();
+        let secret = Secret::Pem { certificates, user_data: Default::default() };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);
