@@ -583,6 +583,8 @@ pub enum Secret {
         /// ATM PIN.
         #[serde(serialize_with = "serialize_secret_option")]
         atm_pin: Option<SecretString>,
+        /// Custom user user_data.
+        user_data: UserData,
     },
     /// Bank account.
     Bank {
@@ -601,6 +603,8 @@ pub enum Secret {
         /// BIC.
         #[serde(serialize_with = "serialize_secret_option")]
         bic: Option<SecretString>,
+        /// Custom user user_data.
+        user_data: UserData,
     },
 }
 
@@ -687,12 +691,14 @@ impl Clone for Secret {
                 cvv,
                 name,
                 atm_pin,
+                user_data,
             } => Secret::Card {
                 number: number.clone(),
                 expiry: expiry.clone(),
                 cvv: cvv.clone(),
                 name: name.clone(),
                 atm_pin: atm_pin.clone(),
+                user_data: user_data.clone(),
             },
             Secret::Bank {
                 number,
@@ -700,12 +706,14 @@ impl Clone for Secret {
                 iban,
                 swift,
                 bic,
+                user_data,
             } => Secret::Bank {
                 number: number.clone(),
                 routing: routing.clone(),
                 iban: iban.clone(),
                 swift: swift.clone(),
                 bic: bic.clone(),
+                user_data: user_data.clone(),
             },
         }
     }
@@ -925,6 +933,7 @@ impl PartialEq for Secret {
                     cvv: cvv_a,
                     name: name_a,
                     atm_pin: atm_pin_a,
+                    user_data: user_data_a,
                 },
                 Self::Card {
                     number: number_b,
@@ -932,6 +941,7 @@ impl PartialEq for Secret {
                     cvv: cvv_b,
                     name: name_b,
                     atm_pin: atm_pin_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 number_a.expose_secret() == number_b.expose_secret()
@@ -941,6 +951,7 @@ impl PartialEq for Secret {
                         == name_b.as_ref().map(|s| s.expose_secret())
                     && atm_pin_a.as_ref().map(|s| s.expose_secret())
                         == atm_pin_b.as_ref().map(|s| s.expose_secret())
+                    && user_data_a == user_data_b
             }
 
             (
@@ -950,6 +961,7 @@ impl PartialEq for Secret {
                     iban: iban_a,
                     swift: swift_a,
                     bic: bic_a,
+                    user_data: user_data_a,
                 },
                 Self::Bank {
                     number: number_b,
@@ -957,6 +969,7 @@ impl PartialEq for Secret {
                     iban: iban_b,
                     swift: swift_b,
                     bic: bic_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 number_a.expose_secret() == number_b.expose_secret()
@@ -967,6 +980,7 @@ impl PartialEq for Secret {
                         == swift_b.as_ref().map(|s| s.expose_secret())
                     && bic_a.as_ref().map(|s| s.expose_secret())
                         == bic_b.as_ref().map(|s| s.expose_secret())
+                    && user_data_a == user_data_b
             }
 
             _ => false,
@@ -1110,6 +1124,7 @@ impl Encode for Secret {
                 cvv,
                 name,
                 atm_pin,
+                user_data,
             } => {
                 writer.write_string(number.expose_secret())?;
                 writer.write_string(expiry.expose_secret())?;
@@ -1124,6 +1139,7 @@ impl Encode for Secret {
                 if let Some(atm_pin) = atm_pin {
                     writer.write_string(atm_pin.expose_secret())?;
                 }
+                write_user_data(user_data, writer)?;
             }
             Self::Bank {
                 number,
@@ -1131,6 +1147,7 @@ impl Encode for Secret {
                 iban,
                 swift,
                 bic,
+                user_data,
             } => {
                 writer.write_string(number.expose_secret())?;
                 writer.write_string(routing.expose_secret())?;
@@ -1149,6 +1166,7 @@ impl Encode for Secret {
                 if let Some(bic) = bic {
                     writer.write_string(bic.expose_secret())?;
                 }
+                write_user_data(user_data, writer)?;
             }
         }
         Ok(())
@@ -1280,12 +1298,14 @@ impl Decode for Secret {
                     None
                 };
 
+                let user_data = read_user_data(reader)?;
                 *self = Self::Card {
                     number,
                     expiry,
                     cvv,
                     name,
                     atm_pin,
+                    user_data,
                 };
             }
             kind::BANK => {
@@ -1313,12 +1333,14 @@ impl Decode for Secret {
                     None
                 };
 
+                let user_data = read_user_data(reader)?;
                 *self = Self::Bank {
                     number,
                     routing,
                     iban,
                     swift,
                     bic,
+                    user_data,
                 };
             }
             _ => {
@@ -1556,6 +1578,7 @@ END:VCARD"#;
             cvv: SecretString::new("123".to_string()),
             name: Some(SecretString::new("Mock name".to_string())),
             atm_pin: Some(SecretString::new("123456".to_string())),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1572,6 +1595,7 @@ END:VCARD"#;
             iban: Some(SecretString::new("GB 23 01020312345678".to_string())),
             swift: Some(SecretString::new("XCVDFGB".to_string())),
             bic: Some(SecretString::new("6789".to_string())),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;

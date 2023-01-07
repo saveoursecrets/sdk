@@ -106,6 +106,7 @@ pub(super) fn secret(
             cvv,
             name,
             atm_pin,
+            ..
         } => {
             let mut value = String::new();
             if let Some(name) = name {
@@ -128,6 +129,7 @@ pub(super) fn secret(
             iban,
             swift,
             bic,
+            ..
         } => {
             let mut value = String::new();
             value.push_str(&format!("Number: {}\n", number.expose_secret()));
