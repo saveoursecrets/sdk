@@ -22,7 +22,6 @@ use vcard4::{parse as parse_to_vcards, Vcard};
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
-    vault::VaultId,
     Error, Result, Timestamp,
 };
 
@@ -371,14 +370,11 @@ mod user_data {
     /// Constant for the heading variant.
     pub const HEADING: u8 = 1;
 
-    /// Constant for the related secret variant.
-    pub const RELATED: u8 = 2;
-
     /// Constant for the embedded secret variant.
-    pub const EMBEDDED: u8 = 3;
+    pub const EMBEDDED: u8 = 2;
 
     /// Constant for an external link.
-    pub const EXTERNAL: u8 = 4;
+    pub const EXTERNAL: u8 = 3;
 }
 
 /// User defined field.
@@ -391,13 +387,6 @@ pub enum UserField {
     Heading {
         /// The text for the heading.
         text: String,
-    },
-    /// Related secret.
-    Related {
-        /// Vault identifier.
-        vault_id: VaultId,
-        /// Secret identifier.
-        secret_id: SecretId,
     },
     /// Embedded secret.
     Embedded {
@@ -418,7 +407,6 @@ impl UserField {
     pub fn kind(&self) -> u8 {
         match self {
             Self::Heading { .. } => user_data::HEADING,
-            Self::Related { .. } => user_data::RELATED,
             Self::Embedded { .. } => user_data::EMBEDDED,
             Self::External { .. } => user_data::EXTERNAL,
             _ => unreachable!(),
@@ -433,13 +421,6 @@ impl Encode for UserField {
         match self {
             Self::Heading { text } => {
                 writer.write_string(text)?;
-            }
-            Self::Related {
-                vault_id,
-                secret_id,
-            } => {
-                writer.write_bytes(vault_id.as_bytes())?;
-                writer.write_bytes(secret_id.as_bytes())?;
             }
             Self::Embedded {
                 secret,
@@ -471,17 +452,6 @@ impl Decode for UserField {
                 *self = Self::Heading {
                     text: text,
                 };
-            }
-            user_data::RELATED => {
-                let vault_id: [u8; 16] =
-                    reader.read_bytes(16)?.as_slice().try_into()?;
-                let vault_id = Uuid::from_bytes(vault_id);
-
-                let secret_id: [u8; 16] =
-                    reader.read_bytes(16)?.as_slice().try_into()?;
-                let secret_id = Uuid::from_bytes(secret_id);
-
-                *self = Self::Related { vault_id, secret_id };
             }
             user_data::EMBEDDED => {
                 let mut secret: Secret = Default::default();
@@ -530,10 +500,12 @@ impl UserData {
         &self.inner
     }
 
+    /*
     /// Get a mutable reference to the user fields.
     pub fn fields_mut(&mut self) -> &mut [UserField] {
         &mut self.inner
     }
+    */
 
     /// Add a custom field to this collection.
     pub fn push(&mut self, field: UserField) {
@@ -1588,10 +1560,6 @@ mod test {
             link: "http://mock-bank.com".parse()?,
             label: Some("Mock Bank Website".to_string()),
         });
-        user_data.push(UserField::Related {
-            vault_id: Uuid::new_v4(),
-            secret_id: Uuid::new_v4(),
-        });
 
         let text = r#"BEGIN:VCARD
 VERSION:4.0
@@ -1608,7 +1576,7 @@ END:VCARD"#;
         let decoded: Secret = decode(&encoded)?;
 
         assert_eq!(secret, decoded);
-        assert_eq!(7, decoded.user_data().len());
+        assert_eq!(6, decoded.user_data().len());
 
         assert!(matches!(
             decoded.user_data().fields().get(0).unwrap(),
@@ -1633,10 +1601,6 @@ END:VCARD"#;
         assert!(matches!(
             decoded.user_data().fields().get(5).unwrap(),
             UserField::External { .. }));
-
-        assert!(matches!(
-            decoded.user_data().fields().get(6).unwrap(),
-            UserField::Related { .. }));
 
         Ok(())
     }
