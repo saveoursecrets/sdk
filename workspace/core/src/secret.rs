@@ -366,6 +366,168 @@ impl Decode for SecretSigner {
     }
 }
 
+mod user_data {
+    /// Constant for the heading variant.
+    pub const HEADING: u8 = 1;
+
+    /// Constant for the embedded secret variant.
+    pub const EMBEDDED: u8 = 2;
+
+    /// Constant for an external link.
+    pub const EXTERNAL: u8 = 3;
+}
+
+/// User defined field.
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub enum UserField {
+    /// Default variant for a user defined field.
+    #[default]
+    Noop,
+    /// Heading for a group of user defined fields.
+    Heading {
+        /// The text for the heading.
+        text: String,
+    },
+    /// Embedded secret.
+    Embedded {
+        /// The data for the embedded secret.
+        secret: Secret,
+    },
+    /// External link.
+    External {
+        /// External link URL.
+        link: Url,
+        /// Optional label for the link.
+        label: Option<String>,
+    },
+}
+
+impl UserField {
+    /// Get the kind of this field.
+    pub fn kind(&self) -> u8 {
+        match self {
+            Self::Heading { .. } => user_data::HEADING,
+            Self::Embedded { .. } => user_data::EMBEDDED,
+            Self::External { .. } => user_data::EXTERNAL,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl Encode for UserField {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        let kind = self.kind();
+        writer.write_u8(kind)?;
+        match self {
+            Self::Heading { text } => {
+                writer.write_string(text)?;
+            }
+            Self::Embedded { secret } => {
+                secret.encode(writer)?;
+            }
+            Self::External { link, label } => {
+                writer.write_string(link.to_string())?;
+                writer.write_bool(label.is_some())?;
+                if let Some(label) = label {
+                    writer.write_string(label)?;
+                }
+            }
+            _ => unreachable!(),
+        }
+        Ok(())
+    }
+}
+
+impl Decode for UserField {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let kind = reader.read_u8()?;
+        match kind {
+            user_data::HEADING => {
+                let text = reader.read_string()?;
+                *self = Self::Heading { text: text };
+            }
+            user_data::EMBEDDED => {
+                let mut secret: Secret = Default::default();
+                secret.decode(reader)?;
+                *self = Self::Embedded { secret };
+            }
+            user_data::EXTERNAL => {
+                let link =
+                    Url::parse(&reader.read_string()?).map_err(Box::from)?;
+                let has_label = reader.read_bool()?;
+                let label = if has_label {
+                    Some(reader.read_string()?)
+                } else {
+                    None
+                };
+                *self = Self::External { link, label };
+            }
+            _ => {
+                return Err(BinaryError::Boxed(Box::from(
+                    Error::UnknownUserFieldKind(kind),
+                )))
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Collection of custom user data.
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct UserData {
+    /// Collection of custom user_data.
+    inner: Vec<UserField>,
+}
+
+impl UserData {
+    /// Get the number of user data.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Determine of there are any user data.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Get the user fields.
+    pub fn fields(&self) -> &Vec<UserField> {
+        &self.inner
+    }
+
+    /// Get a mutable reference to the user fields.
+    pub fn fields_mut(&mut self) -> &mut Vec<UserField> {
+        &mut self.inner
+    }
+
+    /// Add a custom field to this collection.
+    pub fn push(&mut self, field: UserField) {
+        self.inner.push(field);
+    }
+}
+
+fn write_user_data(
+    user_data: &UserData,
+    writer: &mut BinaryWriter,
+) -> BinaryResult<()> {
+    writer.write_u32(user_data.len() as u32)?;
+    for field in user_data.fields() {
+        field.encode(writer)?;
+    }
+    Ok(())
+}
+
+fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
+    let mut user_data: UserData = Default::default();
+    let count = reader.read_u32()?;
+    for _ in 0..count {
+        let mut field: UserField = Default::default();
+        field.decode(reader)?;
+        user_data.push(field);
+    }
+    Ok(user_data)
+}
+
 /// Represents the various types of secret.
 ///
 /// This implements the serde traits for the webassembly bindings
@@ -375,8 +537,13 @@ impl Decode for SecretSigner {
 #[serde(untagged, rename_all = "lowercase")]
 pub enum Secret {
     /// A UTF-8 encoded note.
-    #[serde(serialize_with = "serialize_secret_string")]
-    Note(SecretString),
+    Note {
+        /// Note text.
+        #[serde(serialize_with = "serialize_secret_string")]
+        text: SecretString,
+        /// Custom user data.
+        user_data: UserData,
+    },
     /// A binary blob.
     File {
         /// File name.
@@ -388,6 +555,8 @@ pub enum Secret {
         /// The binary data.
         #[serde(serialize_with = "serialize_secret_buffer")]
         buffer: SecretVec<u8>,
+        /// Custom user data.
+        user_data: UserData,
     },
     /// Account with login password.
     Account {
@@ -398,12 +567,24 @@ pub enum Secret {
         /// The account password.
         #[serde(serialize_with = "serialize_secret_string")]
         password: SecretString,
+        /// Custom user data.
+        user_data: UserData,
     },
     /// Collection of credentials as key/value pairs.
-    #[serde(serialize_with = "serialize_secret_string_map")]
-    List(HashMap<String, SecretString>),
+    List {
+        /// The items in the list.
+        #[serde(serialize_with = "serialize_secret_string_map")]
+        items: HashMap<String, SecretString>,
+        /// Custom user data.
+        user_data: UserData,
+    },
     /// PEM encoded binary data.
-    Pem(Vec<Pem>),
+    Pem {
+        /// Collection of PEM encoded certificates or keys.
+        certificates: Vec<Pem>,
+        /// Custom user data.
+        user_data: UserData,
+    },
     /// A UTF-8 text document.
     Page {
         /// Title of the page.
@@ -413,6 +594,8 @@ pub enum Secret {
         /// The binary data.
         #[serde(serialize_with = "serialize_secret_string")]
         document: SecretString,
+        /// Custom user data.
+        user_data: UserData,
     },
     /// Personal identification number.
     ///
@@ -425,13 +608,30 @@ pub enum Secret {
         /// The value for the PIN.
         #[serde(serialize_with = "serialize_secret_string")]
         number: SecretString,
+        /// Custom user data.
+        user_data: UserData,
     },
     /// Private signing key.
-    Signer(SecretSigner),
-    /// Contact vCard.
-    Contact(Box<Vcard>),
-    /// Time-based one-time passcode.
-    Totp(TOTP),
+    Signer {
+        /// The private key.
+        private_key: SecretSigner,
+        /// Custom user data.
+        user_data: UserData,
+    },
+    /// Contact for an organization or person.
+    Contact {
+        /// The contact vCard.
+        vcard: Box<Vcard>,
+        /// Custom user data.
+        user_data: UserData,
+    },
+    /// Two-factor authentication using a TOTP.
+    Totp {
+        /// Time-based one-time passcode.
+        totp: TOTP,
+        /// Custom user data.
+        user_data: UserData,
+    },
     /// Credit or debit card.
     Card {
         /// The card number.
@@ -449,6 +649,8 @@ pub enum Secret {
         /// ATM PIN.
         #[serde(serialize_with = "serialize_secret_option")]
         atm_pin: Option<SecretString>,
+        /// Custom user data.
+        user_data: UserData,
     },
     /// Bank account.
     Bank {
@@ -467,33 +669,44 @@ pub enum Secret {
         /// BIC.
         #[serde(serialize_with = "serialize_secret_option")]
         bic: Option<SecretString>,
+        /// Custom user data.
+        user_data: UserData,
     },
 }
 
 impl Clone for Secret {
     fn clone(&self) -> Self {
         match self {
-            Secret::Note(value) => Secret::Note(secrecy::Secret::new(
-                value.expose_secret().to_owned(),
-            )),
-            Secret::File { name, mime, buffer } => Secret::File {
+            Secret::Note { text, user_data } => Secret::Note {
+                text: secrecy::Secret::new(text.expose_secret().to_owned()),
+                user_data: user_data.clone(),
+            },
+            Secret::File {
+                name,
+                mime,
+                buffer,
+                user_data,
+            } => Secret::File {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
+                user_data: user_data.clone(),
             },
             Secret::Account {
                 account,
                 url,
                 password,
+                user_data,
             } => Secret::Account {
                 account: account.to_owned(),
                 url: url.clone(),
                 password: secrecy::Secret::new(
                     password.expose_secret().to_owned(),
                 ),
+                user_data: user_data.clone(),
             },
-            Secret::List(map) => {
-                let copy = map
+            Secret::List { items, user_data } => {
+                let copy = items
                     .iter()
                     .map(|(k, v)| {
                         (
@@ -504,40 +717,66 @@ impl Clone for Secret {
                         )
                     })
                     .collect::<HashMap<_, _>>();
-                Secret::List(copy)
+                Secret::List {
+                    items: copy,
+                    user_data: user_data.clone(),
+                }
             }
-            Secret::Pem(pems) => Secret::Pem(pems.clone()),
+            Secret::Pem {
+                certificates,
+                user_data,
+            } => Secret::Pem {
+                certificates: certificates.clone(),
+                user_data: user_data.clone(),
+            },
             Secret::Page {
                 title,
                 mime,
                 document,
+                user_data,
             } => Secret::Page {
                 title: title.to_owned(),
                 mime: mime.to_owned(),
                 document: secrecy::Secret::new(
                     document.expose_secret().to_owned(),
                 ),
+                user_data: user_data.clone(),
             },
-            Secret::Pin { number } => Secret::Pin {
+            Secret::Pin { number, user_data } => Secret::Pin {
                 number: secrecy::Secret::new(
                     number.expose_secret().to_owned(),
                 ),
+                user_data: user_data.clone(),
             },
-            Secret::Signer(signer) => Secret::Signer(signer.clone()),
-            Secret::Contact(vcard) => Secret::Contact(vcard.clone()),
-            Secret::Totp(totp) => Secret::Totp(totp.clone()),
+            Secret::Signer {
+                private_key,
+                user_data,
+            } => Secret::Signer {
+                private_key: private_key.clone(),
+                user_data: user_data.clone(),
+            },
+            Secret::Contact { vcard, user_data } => Secret::Contact {
+                vcard: vcard.clone(),
+                user_data: user_data.clone(),
+            },
+            Secret::Totp { totp, user_data } => Secret::Totp {
+                totp: totp.clone(),
+                user_data: user_data.clone(),
+            },
             Secret::Card {
                 number,
                 expiry,
                 cvv,
                 name,
                 atm_pin,
+                user_data,
             } => Secret::Card {
                 number: number.clone(),
                 expiry: expiry.clone(),
                 cvv: cvv.clone(),
                 name: name.clone(),
                 atm_pin: atm_pin.clone(),
+                user_data: user_data.clone(),
             },
             Secret::Bank {
                 number,
@@ -545,12 +784,14 @@ impl Clone for Secret {
                 iban,
                 swift,
                 bic,
+                user_data,
             } => Secret::Bank {
                 number: number.clone(),
                 routing: routing.clone(),
                 iban: iban.clone(),
                 swift: swift.clone(),
                 bic: bic.clone(),
+                user_data: user_data.clone(),
             },
         }
     }
@@ -559,7 +800,7 @@ impl Clone for Secret {
 impl fmt::Debug for Secret {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Secret::Note(_) => f.debug_struct("Note").finish(),
+            Secret::Note { .. } => f.debug_struct("Note").finish(),
             Secret::File { name, mime, .. } => f
                 .debug_struct("File")
                 .field("name", name)
@@ -570,13 +811,14 @@ impl fmt::Debug for Secret {
                 .field("account", account)
                 .field("url", url)
                 .finish(),
-            Secret::List(map) => {
-                let keys = map.keys().collect::<Vec<_>>();
+            Secret::List { items, .. } => {
+                let keys = items.keys().collect::<Vec<_>>();
                 f.debug_struct("List").field("keys", &keys).finish()
             }
-            Secret::Pem(pems) => {
-                f.debug_struct("Pem").field("size", &pems.len()).finish()
-            }
+            Secret::Pem { certificates, .. } => f
+                .debug_struct("Pem")
+                .field("size", &certificates.len())
+                .finish(),
             Secret::Page { title, mime, .. } => f
                 .debug_struct("Page")
                 .field("title", title)
@@ -585,7 +827,7 @@ impl fmt::Debug for Secret {
             Secret::Pin { .. } => f.debug_struct("PIN").finish(),
             Secret::Signer { .. } => f.debug_struct("Signer").finish(),
             Secret::Contact { .. } => f.debug_struct("Contact").finish(),
-            Secret::Totp(_) => f.debug_struct("TOTP").finish(),
+            Secret::Totp { .. } => f.debug_struct("TOTP").finish(),
             Secret::Card { .. } => f.debug_struct("Card").finish(),
             Secret::Bank { .. } => f.debug_struct("Bank").finish(),
         }
@@ -625,18 +867,36 @@ impl Secret {
     /// Get the kind identifier for this secret.
     pub fn kind(&self) -> u8 {
         match self {
-            Secret::Note(_) => kind::NOTE,
+            Secret::Note { .. } => kind::NOTE,
             Secret::File { .. } => kind::FILE,
             Secret::Account { .. } => kind::ACCOUNT,
-            Secret::List(_) => kind::LIST,
-            Secret::Pem(_) => kind::PEM,
+            Secret::List { .. } => kind::LIST,
+            Secret::Pem { .. } => kind::PEM,
             Secret::Page { .. } => kind::PAGE,
             Secret::Pin { .. } => kind::PIN,
-            Secret::Signer(_) => kind::SIGNER,
-            Secret::Contact(_) => kind::CONTACT,
-            Secret::Totp(_) => kind::TOTP,
+            Secret::Signer { .. } => kind::SIGNER,
+            Secret::Contact { .. } => kind::CONTACT,
+            Secret::Totp { .. } => kind::TOTP,
             Secret::Card { .. } => kind::CARD,
             Secret::Bank { .. } => kind::BANK,
+        }
+    }
+
+    /// Get the user data for this secret.
+    pub fn user_data(&self) -> &UserData {
+        match self {
+            Secret::Note { user_data, .. } => user_data,
+            Secret::File { user_data, .. } => user_data,
+            Secret::Account { user_data, .. } => user_data,
+            Secret::List { user_data, .. } => user_data,
+            Secret::Pem { user_data, .. } => user_data,
+            Secret::Page { user_data, .. } => user_data,
+            Secret::Pin { user_data, .. } => user_data,
+            Secret::Signer { user_data, .. } => user_data,
+            Secret::Contact { user_data, .. } => user_data,
+            Secret::Totp { user_data, .. } => user_data,
+            Secret::Card { user_data, .. } => user_data,
+            Secret::Bank { user_data, .. } => user_data,
         }
     }
 }
@@ -644,74 +904,151 @@ impl Secret {
 impl PartialEq for Secret {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Note(a), Self::Note(b)) => {
-                a.expose_secret() == b.expose_secret()
+            (
+                Self::Note {
+                    text: text_a,
+                    user_data: user_data_a,
+                },
+                Self::Note {
+                    text: text_b,
+                    user_data: user_data_b,
+                },
+            ) => {
+                text_a.expose_secret() == text_b.expose_secret()
+                    && user_data_a == user_data_b
             }
             (
                 Self::Account {
                     account: account_a,
                     url: url_a,
                     password: password_a,
+                    user_data: user_data_a,
                 },
                 Self::Account {
                     account: account_b,
                     url: url_b,
                     password: password_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 account_a == account_b
                     && url_a == url_b
                     && password_a.expose_secret()
                         == password_b.expose_secret()
+                    && user_data_a == user_data_b
             }
             (
                 Self::File {
                     name: name_a,
                     mime: mime_a,
                     buffer: buffer_a,
+                    user_data: user_data_a,
                 },
                 Self::File {
                     name: name_b,
                     mime: mime_b,
                     buffer: buffer_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 name_a == name_b
                     && mime_a == mime_b
                     && buffer_a.expose_secret() == buffer_b.expose_secret()
+                    && user_data_a == user_data_b
             }
-            (Self::List(a), Self::List(b)) => {
-                a.iter().zip(b.iter()).all(|(a, b)| {
+            (
+                Self::List {
+                    items: items_a,
+                    user_data: user_data_a,
+                },
+                Self::List {
+                    items: items_b,
+                    user_data: user_data_b,
+                },
+            ) => {
+                items_a.iter().zip(items_b.iter()).all(|(a, b)| {
                     a.0 == b.0 && a.1.expose_secret() == b.1.expose_secret()
-                })
+                }) && user_data_a == user_data_b
             }
-            (Self::Pem(a), Self::Pem(b)) => a
-                .iter()
-                .zip(b.iter())
-                .all(|(a, b)| a.tag == b.tag && a.contents == b.contents),
+            (
+                Self::Pem {
+                    certificates: certificates_a,
+                    user_data: user_data_a,
+                },
+                Self::Pem {
+                    certificates: certificates_b,
+                    user_data: user_data_b,
+                },
+            ) => {
+                certificates_a
+                    .iter()
+                    .zip(certificates_b.iter())
+                    .all(|(a, b)| a.tag == b.tag && a.contents == b.contents)
+                    && user_data_a == user_data_b
+            }
             (
                 Self::Page {
                     title: title_a,
                     mime: mime_a,
                     document: document_a,
+                    user_data: user_data_a,
                 },
                 Self::Page {
                     title: title_b,
                     mime: mime_b,
                     document: document_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 title_a == title_b
                     && mime_a == mime_b
                     && document_a.expose_secret()
                         == document_b.expose_secret()
+                    && user_data_a == user_data_b
             }
-            (Self::Pin { number: a }, Self::Pin { number: b }) => {
+            (
+                Self::Pin {
+                    number: a,
+                    user_data: user_data_a,
+                },
+                Self::Pin {
+                    number: b,
+                    user_data: user_data_b,
+                },
+            ) => {
                 a.expose_secret() == b.expose_secret()
+                    && user_data_a == user_data_b
             }
-            (Self::Signer(a), Self::Signer(b)) => a.eq(b),
-            (Self::Contact(a), Self::Contact(b)) => a.eq(b),
-            (Self::Totp(a), Self::Totp(b)) => a.eq(b),
+            (
+                Self::Signer {
+                    private_key: private_key_a,
+                    user_data: user_data_a,
+                },
+                Self::Signer {
+                    private_key: private_key_b,
+                    user_data: user_data_b,
+                },
+            ) => private_key_a == private_key_b && user_data_a == user_data_b,
+            (
+                Self::Contact {
+                    vcard: vcard_a,
+                    user_data: user_data_a,
+                },
+                Self::Contact {
+                    vcard: vcard_b,
+                    user_data: user_data_b,
+                },
+            ) => vcard_a == vcard_b && user_data_a == user_data_b,
+            (
+                Self::Totp {
+                    totp: totp_a,
+                    user_data: user_data_a,
+                },
+                Self::Totp {
+                    totp: totp_b,
+                    user_data: user_data_b,
+                },
+            ) => totp_a == totp_b && user_data_a == user_data_b,
             (
                 Self::Card {
                     number: number_a,
@@ -719,6 +1056,7 @@ impl PartialEq for Secret {
                     cvv: cvv_a,
                     name: name_a,
                     atm_pin: atm_pin_a,
+                    user_data: user_data_a,
                 },
                 Self::Card {
                     number: number_b,
@@ -726,6 +1064,7 @@ impl PartialEq for Secret {
                     cvv: cvv_b,
                     name: name_b,
                     atm_pin: atm_pin_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 number_a.expose_secret() == number_b.expose_secret()
@@ -735,6 +1074,7 @@ impl PartialEq for Secret {
                         == name_b.as_ref().map(|s| s.expose_secret())
                     && atm_pin_a.as_ref().map(|s| s.expose_secret())
                         == atm_pin_b.as_ref().map(|s| s.expose_secret())
+                    && user_data_a == user_data_b
             }
 
             (
@@ -744,6 +1084,7 @@ impl PartialEq for Secret {
                     iban: iban_a,
                     swift: swift_a,
                     bic: bic_a,
+                    user_data: user_data_a,
                 },
                 Self::Bank {
                     number: number_b,
@@ -751,6 +1092,7 @@ impl PartialEq for Secret {
                     iban: iban_b,
                     swift: swift_b,
                     bic: bic_b,
+                    user_data: user_data_b,
                 },
             ) => {
                 number_a.expose_secret() == number_b.expose_secret()
@@ -761,6 +1103,7 @@ impl PartialEq for Secret {
                         == swift_b.as_ref().map(|s| s.expose_secret())
                     && bic_a.as_ref().map(|s| s.expose_secret())
                         == bic_b.as_ref().map(|s| s.expose_secret())
+                    && user_data_a == user_data_b
             }
 
             _ => false,
@@ -771,7 +1114,10 @@ impl Eq for Secret {}
 
 impl Default for Secret {
     fn default() -> Self {
-        Self::Note(secrecy::Secret::new(String::new()))
+        Self::Note {
+            text: secrecy::Secret::new(String::new()),
+            user_data: Default::default(),
+        }
     }
 }
 
@@ -810,35 +1156,43 @@ pub mod kind {
 impl Encode for Secret {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         let kind = match self {
-            Self::Note(_) => kind::NOTE,
+            Self::Note { .. } => kind::NOTE,
             Self::File { .. } => kind::FILE,
             Self::Account { .. } => kind::ACCOUNT,
             Self::List { .. } => kind::LIST,
-            Self::Pem(_) => kind::PEM,
+            Self::Pem { .. } => kind::PEM,
             Self::Page { .. } => kind::PAGE,
             Self::Pin { .. } => kind::PIN,
-            Self::Signer(_) => kind::SIGNER,
-            Self::Contact(_) => kind::CONTACT,
-            Self::Totp(_) => kind::TOTP,
+            Self::Signer { .. } => kind::SIGNER,
+            Self::Contact { .. } => kind::CONTACT,
+            Self::Totp { .. } => kind::TOTP,
             Self::Card { .. } => kind::CARD,
             Self::Bank { .. } => kind::BANK,
         };
         writer.write_u8(kind)?;
 
         match self {
-            Self::Note(text) => {
+            Self::Note { text, user_data } => {
                 writer.write_string(text.expose_secret())?;
+                write_user_data(user_data, writer)?;
             }
-            Self::File { name, mime, buffer } => {
+            Self::File {
+                name,
+                mime,
+                buffer,
+                user_data,
+            } => {
                 writer.write_string(name)?;
                 writer.write_string(mime)?;
                 writer.write_u32(buffer.expose_secret().len() as u32)?;
                 writer.write_bytes(buffer.expose_secret())?;
+                write_user_data(user_data, writer)?;
             }
             Self::Account {
                 account,
                 password,
                 url,
+                user_data,
             } => {
                 writer.write_string(account)?;
                 writer.write_string(password.expose_secret())?;
@@ -846,40 +1200,55 @@ impl Encode for Secret {
                 if let Some(url) = url {
                     writer.write_string(url)?;
                 }
+                write_user_data(user_data, writer)?;
             }
-            Self::List(list) => {
-                writer.write_u32(list.len() as u32)?;
-                for (k, v) in list {
+            Self::List { items, user_data } => {
+                writer.write_u32(items.len() as u32)?;
+                for (k, v) in items {
                     writer.write_string(k)?;
                     writer.write_string(v.expose_secret())?;
                 }
+                write_user_data(user_data, writer)?;
             }
-            Self::Pem(pems) => {
-                let value = pem::encode_many(pems);
+            Self::Pem {
+                certificates,
+                user_data,
+            } => {
+                let value = pem::encode_many(certificates);
                 writer.write_string(value)?;
+                write_user_data(user_data, writer)?;
             }
             Self::Page {
                 title,
                 mime,
                 document,
+                user_data,
             } => {
                 writer.write_string(title)?;
                 writer.write_string(mime)?;
                 writer.write_string(document.expose_secret())?;
+                write_user_data(user_data, writer)?;
             }
-            Self::Pin { number } => {
+            Self::Pin { number, user_data } => {
                 writer.write_string(number.expose_secret())?;
+                write_user_data(user_data, writer)?;
             }
-            Self::Signer(signer) => {
-                signer.encode(writer)?;
+            Self::Signer {
+                private_key,
+                user_data,
+            } => {
+                private_key.encode(writer)?;
+                write_user_data(user_data, writer)?;
             }
-            Self::Contact(vcard) => {
+            Self::Contact { vcard, user_data } => {
                 writer.write_string(vcard.to_string())?;
+                write_user_data(user_data, writer)?;
             }
-            Self::Totp(totp) => {
+            Self::Totp { totp, user_data } => {
                 let totp = serde_json::to_vec(totp).map_err(Box::from)?;
                 writer.write_u32(totp.len() as u32)?;
                 writer.write_bytes(totp)?;
+                write_user_data(user_data, writer)?;
             }
             Self::Card {
                 number,
@@ -887,6 +1256,7 @@ impl Encode for Secret {
                 cvv,
                 name,
                 atm_pin,
+                user_data,
             } => {
                 writer.write_string(number.expose_secret())?;
                 writer.write_string(expiry.expose_secret())?;
@@ -901,6 +1271,7 @@ impl Encode for Secret {
                 if let Some(atm_pin) = atm_pin {
                     writer.write_string(atm_pin.expose_secret())?;
                 }
+                write_user_data(user_data, writer)?;
             }
             Self::Bank {
                 number,
@@ -908,6 +1279,7 @@ impl Encode for Secret {
                 iban,
                 swift,
                 bic,
+                user_data,
             } => {
                 writer.write_string(number.expose_secret())?;
                 writer.write_string(routing.expose_secret())?;
@@ -926,6 +1298,7 @@ impl Encode for Secret {
                 if let Some(bic) = bic {
                     writer.write_string(bic.expose_secret())?;
                 }
+                write_user_data(user_data, writer)?;
             }
         }
         Ok(())
@@ -937,8 +1310,12 @@ impl Decode for Secret {
         let kind = reader.read_u8()?;
         match kind {
             kind::NOTE => {
-                *self =
-                    Self::Note(secrecy::Secret::new(reader.read_string()?));
+                let text = reader.read_string()?;
+                let user_data = read_user_data(reader)?;
+                *self = Self::Note {
+                    text: secrecy::Secret::new(text),
+                    user_data,
+                };
             }
             kind::FILE => {
                 let name = reader.read_string()?;
@@ -947,7 +1324,13 @@ impl Decode for Secret {
                 let buffer = secrecy::Secret::new(
                     reader.read_bytes(buffer_len as usize)?,
                 );
-                *self = Self::File { name, mime, buffer };
+                let user_data = read_user_data(reader)?;
+                *self = Self::File {
+                    name,
+                    mime,
+                    buffer,
+                    user_data,
+                };
             }
             kind::ACCOUNT => {
                 let account = reader.read_string()?;
@@ -961,61 +1344,81 @@ impl Decode for Secret {
                 } else {
                     None
                 };
+                let user_data = read_user_data(reader)?;
 
                 *self = Self::Account {
                     account,
                     password,
                     url,
+                    user_data,
                 };
             }
             kind::LIST => {
-                let list_len = reader.read_u32()?;
-                let mut list = HashMap::with_capacity(list_len as usize);
-                for _ in 0..list_len {
+                let items_len = reader.read_u32()?;
+                let mut items = HashMap::with_capacity(items_len as usize);
+                for _ in 0..items_len {
                     let key = reader.read_string()?;
                     let value = secrecy::Secret::new(reader.read_string()?);
-                    list.insert(key, value);
+                    items.insert(key, value);
                 }
-
-                *self = Self::List(list);
+                let user_data = read_user_data(reader)?;
+                *self = Self::List { items, user_data };
             }
             kind::PEM => {
                 let value = reader.read_string()?;
-                *self =
-                    Self::Pem(pem::parse_many(&value).map_err(Box::from)?);
+                let user_data = read_user_data(reader)?;
+                *self = Self::Pem {
+                    certificates: pem::parse_many(&value)
+                        .map_err(Box::from)?,
+                    user_data,
+                };
             }
             kind::PAGE => {
                 let title = reader.read_string()?;
                 let mime = reader.read_string()?;
                 let document = secrecy::Secret::new(reader.read_string()?);
+                let user_data = read_user_data(reader)?;
                 *self = Self::Page {
                     title,
                     mime,
                     document,
+                    user_data,
                 };
             }
             kind::PIN => {
+                let number = reader.read_string()?;
+                let user_data = read_user_data(reader)?;
                 *self = Self::Pin {
-                    number: secrecy::Secret::new(reader.read_string()?),
+                    number: secrecy::Secret::new(number),
+                    user_data,
                 };
             }
             kind::SIGNER => {
-                let mut signer: SecretSigner = Default::default();
-                signer.decode(reader)?;
-                *self = Self::Signer(signer);
+                let mut private_key: SecretSigner = Default::default();
+                private_key.decode(reader)?;
+                let user_data = read_user_data(reader)?;
+                *self = Self::Signer {
+                    private_key,
+                    user_data,
+                };
             }
             kind::CONTACT => {
                 let vcard = reader.read_string()?;
                 let mut cards = parse_to_vcards(&vcard).map_err(Box::from)?;
                 let vcard = cards.remove(0);
-                *self = Self::Contact(Box::new(vcard));
+                let user_data = read_user_data(reader)?;
+                *self = Self::Contact {
+                    vcard: Box::new(vcard),
+                    user_data,
+                };
             }
             kind::TOTP => {
                 let buffer_len = reader.read_u32()?;
                 let buffer = reader.read_bytes(buffer_len as usize)?;
                 let totp: TOTP =
                     serde_json::from_slice(&buffer).map_err(Box::from)?;
-                *self = Self::Totp(totp);
+                let user_data = read_user_data(reader)?;
+                *self = Self::Totp { totp, user_data };
             }
             kind::CARD => {
                 let number = SecretString::new(reader.read_string()?);
@@ -1036,12 +1439,14 @@ impl Decode for Secret {
                     None
                 };
 
+                let user_data = read_user_data(reader)?;
                 *self = Self::Card {
                     number,
                     expiry,
                     cvv,
                     name,
                     atm_pin,
+                    user_data,
                 };
             }
             kind::BANK => {
@@ -1069,12 +1474,14 @@ impl Decode for Secret {
                     None
                 };
 
+                let user_data = read_user_data(reader)?;
                 *self = Self::Bank {
                     number,
                     routing,
                     iban,
                     swift,
                     bic,
+                    user_data,
                 };
             }
             _ => {
@@ -1100,7 +1507,10 @@ mod test {
 
     #[test]
     fn secret_serde() -> Result<()> {
-        let secret = Secret::Note(secrecy::Secret::new(String::from("foo")));
+        let secret = Secret::Note {
+            text: secrecy::Secret::new(String::from("foo")),
+            user_data: Default::default(),
+        };
         let value = serde_json::to_string_pretty(&secret)?;
         let result: Secret = serde_json::from_str(&value)?;
         assert_eq!(secret, result);
@@ -1108,9 +1518,103 @@ mod test {
     }
 
     #[test]
+    fn secret_encode_user_data() -> Result<()> {
+        let mut user_data: UserData = Default::default();
+        user_data.push(UserField::Heading {
+            text: "Debit Card".to_string(),
+        });
+        user_data.push(UserField::Embedded {
+            secret: Secret::Card {
+                number: SecretString::new("1234567890123456".to_string()),
+                expiry: SecretString::new("01/4022".to_string()),
+                cvv: SecretString::new("123".to_string()),
+                name: Some(SecretString::new("Miss Jane Doe".to_string())),
+                atm_pin: None,
+                user_data: Default::default(),
+            },
+        });
+        user_data.push(UserField::Heading {
+            text: "Account".to_string(),
+        });
+        user_data.push(UserField::Embedded {
+            secret: Secret::Bank {
+                number: SecretString::new("12345678".to_string()),
+                routing: SecretString::new("00-00-00".to_string()),
+                iban: None,
+                swift: None,
+                bic: None,
+                user_data: Default::default(),
+            },
+        });
+        user_data.push(UserField::Heading {
+            text: "Website".to_string(),
+        });
+        user_data.push(UserField::External {
+            link: "http://mock-bank.com".parse()?,
+            label: Some("Mock Bank Website".to_string()),
+        });
+
+        let text = r#"BEGIN:VCARD
+VERSION:4.0
+FN:Mock Bank
+END:VCARD"#;
+
+        let vcard: Vcard = text.try_into()?;
+        let secret = Secret::Contact {
+            vcard: Box::new(vcard),
+            user_data,
+        };
+
+        let encoded = encode(&secret)?;
+        let decoded: Secret = decode(&encoded)?;
+
+        assert_eq!(secret, decoded);
+        assert_eq!(6, decoded.user_data().len());
+
+        assert!(matches!(
+            decoded.user_data().fields().get(0).unwrap(),
+            UserField::Heading { .. }
+        ));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(1).unwrap(),
+            UserField::Embedded { .. }
+        ));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(2).unwrap(),
+            UserField::Heading { .. }
+        ));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(3).unwrap(),
+            UserField::Embedded { .. }
+        ));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(4).unwrap(),
+            UserField::Heading { .. }
+        ));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(5).unwrap(),
+            UserField::External { .. }
+        ));
+
+        Ok(())
+    }
+
+    #[test]
     fn secret_encode_note() -> Result<()> {
-        let secret =
-            Secret::Note(secrecy::Secret::new(String::from("My Note")));
+        let mut user_data: UserData = Default::default();
+        user_data.push(UserField::Heading {
+            text: "Mock field heading".to_string(),
+        });
+
+        let secret = Secret::Note {
+            text: secrecy::Secret::new(String::from("My Note")),
+            user_data,
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);
@@ -1123,6 +1627,7 @@ mod test {
             name: "hello.txt".to_string(),
             mime: "text/plain".to_string(),
             buffer: secrecy::Secret::new("hello".as_bytes().to_vec()),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1136,6 +1641,7 @@ mod test {
             account: "Email".to_string(),
             url: Some("https://webmail.example.com".parse().unwrap()),
             password: secrecy::Secret::new("mock-password".to_string()),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1145,6 +1651,7 @@ mod test {
             account: "Email".to_string(),
             url: None,
             password: secrecy::Secret::new("mock-password".to_string()),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret_no_url)?;
         let decoded = decode(&encoded)?;
@@ -1163,7 +1670,10 @@ mod test {
             "PROVIDER_KEY".to_owned(),
             secrecy::Secret::new("mock-provider-key".to_owned()),
         );
-        let secret = Secret::List(credentials);
+        let secret = Secret::List {
+            items: credentials,
+            user_data: Default::default(),
+        };
 
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1171,22 +1681,25 @@ mod test {
         // To assert consistently we must sort and to sort
         // we need to expose the underlying secret string
         // so we get an Ord implementation
-        let (secret_a, secret_b) =
-            if let (Secret::List(a), Secret::List(b)) = (secret, decoded) {
-                let mut a = a
-                    .into_iter()
-                    .map(|(k, v)| (k, v.expose_secret().to_owned()))
-                    .collect::<Vec<_>>();
-                a.sort();
-                let mut b = b
-                    .into_iter()
-                    .map(|(k, v)| (k, v.expose_secret().to_owned()))
-                    .collect::<Vec<_>>();
-                b.sort();
-                (a, b)
-            } else {
-                unreachable!()
-            };
+        let (secret_a, secret_b) = if let (
+            Secret::List { items: a, .. },
+            Secret::List { items: b, .. },
+        ) = (secret, decoded)
+        {
+            let mut a = a
+                .into_iter()
+                .map(|(k, v)| (k, v.expose_secret().to_owned()))
+                .collect::<Vec<_>>();
+            a.sort();
+            let mut b = b
+                .into_iter()
+                .map(|(k, v)| (k, v.expose_secret().to_owned()))
+                .collect::<Vec<_>>();
+            b.sort();
+            (a, b)
+        } else {
+            unreachable!()
+        };
 
         assert_eq!(secret_a, secret_b);
         Ok(())
@@ -1212,8 +1725,11 @@ L0sFErdHZ5BdOJJ1LS9zztUHvb1jaOJQBwaD+H+fbjUleLkKmELQODDiFekLAjRD
 i1KQYQNRTzo=
 -----END CERTIFICATE-----"#;
 
-        let pems = pem::parse_many(certificate).unwrap();
-        let secret = Secret::Pem(pems);
+        let certificates = pem::parse_many(certificate).unwrap();
+        let secret = Secret::Pem {
+            certificates,
+            user_data: Default::default(),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);
@@ -1226,6 +1742,7 @@ i1KQYQNRTzo=
             title: "Welcome".to_string(),
             mime: "text/markdown".to_string(),
             document: secrecy::Secret::new("# Mock Page".to_owned()),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1236,9 +1753,12 @@ i1KQYQNRTzo=
     #[test]
     fn secret_encode_signer() -> Result<()> {
         let signer = SingleParty::new_random();
-        let secret_signer =
+        let private_key =
             SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
-        let secret = Secret::Signer(secret_signer);
+        let secret = Secret::Signer {
+            private_key,
+            user_data: Default::default(),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);
@@ -1253,7 +1773,10 @@ FN:John Doe
 END:VCARD"#;
 
         let vcard: Vcard = text.try_into()?;
-        let secret = Secret::Contact(Box::new(vcard));
+        let secret = Secret::Contact {
+            vcard: Box::new(vcard),
+            user_data: Default::default(),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
 
@@ -1276,7 +1799,10 @@ END:VCARD"#;
         )
         .unwrap();
 
-        let secret = Secret::Totp(totp);
+        let secret = Secret::Totp {
+            totp,
+            user_data: Default::default(),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
 
@@ -1292,6 +1818,7 @@ END:VCARD"#;
             cvv: SecretString::new("123".to_string()),
             name: Some(SecretString::new("Mock name".to_string())),
             atm_pin: Some(SecretString::new("123456".to_string())),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
@@ -1308,6 +1835,7 @@ END:VCARD"#;
             iban: Some(SecretString::new("GB 23 01020312345678".to_string())),
             swift: Some(SecretString::new("XCVDFGB".to_string())),
             bic: Some(SecretString::new("6789".to_string())),
+            user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;

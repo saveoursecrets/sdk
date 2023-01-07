@@ -50,9 +50,12 @@ impl Identity {
         // Store the signing key
         let signer = SingleParty::new_random();
         let address = signer.address()?.to_string();
-        let secret_signer =
+        let private_key =
             SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
-        let signer_secret = Secret::Signer(secret_signer);
+        let signer_secret = Secret::Signer {
+            private_key,
+            user_data: Default::default(),
+        };
         let signer_meta = SecretMeta::new(
             LOGIN_SIGNING_KEY_NAME.to_owned(),
             signer_secret.kind(),
@@ -100,8 +103,9 @@ impl Identity {
 
         let (_, signer_secret, _) = signing_data;
 
-        let signer = if let Secret::Signer(signer) = signer_secret {
-            Some(signer.into_boxed_signer()?)
+        let signer = if let Secret::Signer { private_key, .. } = signer_secret
+        {
+            Some(private_key.into_boxed_signer()?)
         } else {
             None
         };
@@ -187,8 +191,10 @@ mod tests {
         keeper.unlock(master_passphrase.expose_secret())?;
 
         // Create a secret using the expected name but of the wrong kind
-        let signer_secret =
-            Secret::Note(SecretString::new("Mock note".to_owned()));
+        let signer_secret = Secret::Note {
+            text: SecretString::new("Mock note".to_owned()),
+            user_data: Default::default(),
+        };
         let signer_meta = SecretMeta::new(
             LOGIN_SIGNING_KEY_NAME.to_owned(),
             signer_secret.kind(),

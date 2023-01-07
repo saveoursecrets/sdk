@@ -34,13 +34,13 @@ fn spawn_editor<P: AsRef<Path>>(cmd: String, file: P) -> Result<ExitStatus> {
 /// Convert the secret to bytes to be written to the tempfile.
 fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
     Ok(match secret {
-        Secret::Note(text) => {
+        Secret::Note { text, .. } => {
             (text.expose_secret().as_bytes().to_vec(), ".txt".to_string())
         }
-        Secret::List(_)
+        Secret::List { .. }
         | Secret::Account { .. }
-        | Secret::Pem(_)
-        | Secret::Totp(_)
+        | Secret::Pem { .. }
+        | Secret::Totp { .. }
         | Secret::Card { .. }
         | Secret::Bank { .. } => {
             (serde_json::to_vec_pretty(secret)?, ".json".to_string())
@@ -58,15 +58,15 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
             document.expose_secret().as_bytes().to_vec(),
             ".md".to_string(),
         ),
-        Secret::Pin { number } => (
+        Secret::Pin { number, .. } => (
             number.expose_secret().as_bytes().to_vec(),
             ".txt".to_string(),
         ),
-        Secret::Signer(_) => {
+        Secret::Signer { .. } => {
             // TODO: handle this more gracefully
             todo!("signing keys are not editable (yet!)")
         }
-        Secret::Contact(vcard) => {
+        Secret::Contact { vcard, .. } => {
             (vcard.to_string().as_bytes().to_vec(), ".txt".to_string())
         }
     })
@@ -75,44 +75,63 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
 /// Convert back from the tempfile bytes to a secret.
 fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
     Ok(match secret {
-        Secret::Note(_) => Secret::Note(secrecy::Secret::new(
-            std::str::from_utf8(content)?
-                //.trim_end_matches('\n')
-                .to_owned(),
-        )),
-        Secret::List(_)
+        Secret::Note { user_data, .. } => Secret::Note {
+            text: secrecy::Secret::new(
+                std::str::from_utf8(content)?
+                    //.trim_end_matches('\n')
+                    .to_owned(),
+            ),
+            user_data: user_data.clone(),
+        },
+        Secret::List { .. }
         | Secret::Account { .. }
-        | Secret::Pem(_)
-        | Secret::Totp(_)
+        | Secret::Pem { .. }
+        | Secret::Totp { .. }
         | Secret::Card { .. }
         | Secret::Bank { .. } => serde_json::from_slice::<Secret>(content)?,
-        Secret::File { name, mime, .. } => Secret::File {
+        Secret::File {
+            name,
+            mime,
+            user_data,
+            ..
+        } => Secret::File {
             name: name.clone(),
             mime: mime.clone(),
             buffer: secrecy::Secret::new(content.to_vec()),
+            user_data: user_data.clone(),
         },
-        Secret::Page { title, mime, .. } => Secret::Page {
+        Secret::Page {
+            title,
+            mime,
+            user_data,
+            ..
+        } => Secret::Page {
             title: title.clone(),
             mime: mime.clone(),
             document: secrecy::Secret::new(
                 std::str::from_utf8(content)?.to_owned(),
             ),
+            user_data: user_data.clone(),
         },
-        Secret::Pin { .. } => {
+        Secret::Pin { user_data, .. } => {
             let number = std::str::from_utf8(content)?.to_owned();
             Secret::ensure_ascii_digits(&number)?;
             Secret::Pin {
                 number: secrecy::Secret::new(number),
+                user_data: user_data.clone(),
             }
         }
-        Secret::Signer(_) => {
+        Secret::Signer { .. } => {
             // TODO: handle this more gracefully
             todo!("signing keys are not editable (yet!)")
         }
-        Secret::Contact(_) => {
+        Secret::Contact { user_data, .. } => {
             let value = std::str::from_utf8(content)?;
             let vcard: Vcard = value.try_into()?;
-            Secret::Contact(Box::new(vcard))
+            Secret::Contact {
+                vcard: Box::new(vcard),
+                user_data: user_data.clone(),
+            }
         }
     })
 }

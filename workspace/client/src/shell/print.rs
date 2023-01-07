@@ -34,13 +34,14 @@ pub(super) fn secret(
         .text(Cow::Borrowed(secret_meta.label()));
 
     let banner = match secret_data {
-        Secret::Note(text) => {
+        Secret::Note { text, .. } => {
             banner.text(Cow::Borrowed(text.expose_secret()))
         }
         Secret::Account {
             account,
             url,
             password,
+            ..
         } => {
             let mut account = format!("Account:  {}\n", account);
             if let Some(url) = url {
@@ -50,21 +51,23 @@ pub(super) fn secret(
                 .push_str(&format!("Password: {}", password.expose_secret()));
             banner.text(Cow::Owned(account))
         }
-        Secret::List(list) => {
+        Secret::List { items, .. } => {
             let mut credentials = String::new();
-            for (index, (name, value)) in list.iter().enumerate() {
+            for (index, (name, value)) in items.iter().enumerate() {
                 credentials.push_str(&format!(
                     "{} = {}",
                     name,
                     value.expose_secret()
                 ));
-                if index < list.len() - 1 {
+                if index < items.len() - 1 {
                     credentials.push('\n');
                 }
             }
             banner.text(Cow::Owned(credentials))
         }
-        Secret::File { name, buffer, mime } => {
+        Secret::File {
+            name, buffer, mime, ..
+        } => {
             let mut file = format!(
                 "{} {}\n",
                 name,
@@ -73,22 +76,24 @@ pub(super) fn secret(
             file.push_str(mime);
             banner.text(Cow::Owned(file))
         }
-        Secret::Pem(pem) => {
-            banner.text(Cow::Owned(serde_json::to_string(pem)?))
+        Secret::Pem { certificates, .. } => {
+            banner.text(Cow::Owned(serde_json::to_string(certificates)?))
         }
         Secret::Page {
             title, document, ..
         } => banner
             .text(Cow::Borrowed(title))
             .text(Cow::Borrowed(document.expose_secret())),
-        Secret::Pin { number } => {
+        Secret::Pin { number, .. } => {
             banner.text(Cow::Borrowed(number.expose_secret()))
         }
-        Secret::Signer(_) => {
+        Secret::Signer { .. } => {
             banner.text(Cow::Borrowed("[REDACTED PRIVATE SIGNING KEY]"))
         }
-        Secret::Contact(vcard) => banner.text(Cow::Owned(vcard.to_string())),
-        Secret::Totp(totp) => {
+        Secret::Contact { vcard, .. } => {
+            banner.text(Cow::Owned(vcard.to_string()))
+        }
+        Secret::Totp { totp, .. } => {
             let mut details =
                 format!("Account name:  {}\n", totp.account_name);
             if let Some(issuer) = &totp.issuer {
@@ -103,6 +108,7 @@ pub(super) fn secret(
             cvv,
             name,
             atm_pin,
+            ..
         } => {
             let mut value = String::new();
             if let Some(name) = name {
@@ -125,6 +131,7 @@ pub(super) fn secret(
             iban,
             swift,
             bic,
+            ..
         } => {
             let mut value = String::new();
             value.push_str(&format!("Number: {}\n", number.expose_secret()));
