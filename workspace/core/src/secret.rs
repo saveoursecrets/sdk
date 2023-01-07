@@ -426,7 +426,7 @@ impl Decode for UserField {
     }
 }
 
-/// Collection of custom user user_data.
+/// Collection of custom user data.
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UserData {
     /// Collection of custom user_data.
@@ -434,17 +434,17 @@ pub struct UserData {
 }
 
 impl UserData {
-    /// Get the number of user user_data.
+    /// Get the number of user data.
     pub fn len(&self) -> usize {
         self.inner.len()
     }
 
-    /// Determine of there are any user user_data.
+    /// Determine of there are any user data.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Get the user user_data.
+    /// Get the user data.
     pub fn fields(&self) -> &[UserField] {
         &self.inner
     }
@@ -490,7 +490,7 @@ pub enum Secret {
         /// Note text.
         #[serde(serialize_with = "serialize_secret_string")]
         text: SecretString,
-        /// Custom user user_data.
+        /// Custom user data.
         user_data: UserData,
     },
     /// A binary blob.
@@ -504,7 +504,7 @@ pub enum Secret {
         /// The binary data.
         #[serde(serialize_with = "serialize_secret_buffer")]
         buffer: SecretVec<u8>,
-        /// Custom user user_data.
+        /// Custom user data.
         user_data: UserData,
     },
     /// Account with login password.
@@ -516,7 +516,7 @@ pub enum Secret {
         /// The account password.
         #[serde(serialize_with = "serialize_secret_string")]
         password: SecretString,
-        /// Custom user user_data.
+        /// Custom user data.
         user_data: UserData,
     },
     /// Collection of credentials as key/value pairs.
@@ -524,14 +524,14 @@ pub enum Secret {
         /// The items in the list.
         #[serde(serialize_with = "serialize_secret_string_map")]
         items: HashMap<String, SecretString>,
-        /// Custom user user_data.
+        /// Custom user data.
         user_data: UserData,
     },
     /// PEM encoded binary data.
     Pem {
         /// Collection of PEM encoded certificates or keys.
         certificates: Vec<Pem>,
-        /// Custom user user_data.
+        /// Custom user data.
         user_data: UserData,
     },
     /// A UTF-8 text document.
@@ -543,7 +543,7 @@ pub enum Secret {
         /// The binary data.
         #[serde(serialize_with = "serialize_secret_string")]
         document: SecretString,
-        /// Custom user user_data.
+        /// Custom user data.
         user_data: UserData,
     },
     /// Personal identification number.
@@ -557,7 +557,7 @@ pub enum Secret {
         /// The value for the PIN.
         #[serde(serialize_with = "serialize_secret_string")]
         number: SecretString,
-        /// Custom user user_data.
+        /// Custom user data.
         user_data: UserData,
     },
     /// Private signing key.
@@ -583,7 +583,7 @@ pub enum Secret {
         /// ATM PIN.
         #[serde(serialize_with = "serialize_secret_option")]
         atm_pin: Option<SecretString>,
-        /// Custom user user_data.
+        /// Custom user data.
         user_data: UserData,
     },
     /// Bank account.
@@ -603,7 +603,7 @@ pub enum Secret {
         /// BIC.
         #[serde(serialize_with = "serialize_secret_option")]
         bic: Option<SecretString>,
-        /// Custom user user_data.
+        /// Custom user data.
         user_data: UserData,
     },
 }
