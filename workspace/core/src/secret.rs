@@ -22,6 +22,7 @@ use vcard4::{parse as parse_to_vcards, Vcard};
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
+    vault::VaultId,
     Error, Result, Timestamp,
 };
 
@@ -369,19 +370,40 @@ impl Decode for SecretSigner {
 mod user_data {
     /// Constant for the heading variant.
     pub const HEADING: u8 = 1;
+
+    /// Constant for the related variant.
+    pub const RELATED: u8 = 2;
+
+    /// Constant for an external link.
+    pub const EXTERNAL: u8 = 3;
 }
 
 /// User defined field.
-#[derive(Default, Serialize, Deserialize, Hash, Clone, PartialEq, Eq)]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum UserField {
-    /// Default variant for user defined user_data.
+    /// Default variant for a user defined field.
     #[default]
     Noop,
-    /// Heading for a group of user_data.
+    /// Heading for a group of user defined fields.
     Heading {
         /// The text for the heading.
         text: String,
     },
+    /// Related secret.
+    Related {
+        /// Vault identifier.
+        vault_id: VaultId,
+        /// Secret identifier.
+        secret_id: SecretId,
+    },
+    /// External link.
+    External {
+        /// External link URL.
+        link: Url,
+        /// Optional label for the link.
+        label: Option<String>,
+    },
+
 }
 
 impl UserField {
@@ -389,6 +411,8 @@ impl UserField {
     pub fn kind(&self) -> u8 {
         match self {
             Self::Heading { .. } => user_data::HEADING,
+            Self::Related { .. } => user_data::RELATED,
+            Self::External { .. } => user_data::EXTERNAL,
             _ => unreachable!(),
         }
     }
@@ -402,6 +426,23 @@ impl Encode for UserField {
             Self::Heading { text } => {
                 writer.write_string(text)?;
             }
+            Self::Related {
+                vault_id,
+                secret_id,
+            } => {
+                writer.write_bytes(vault_id.as_bytes())?;
+                writer.write_bytes(secret_id.as_bytes())?;
+            }
+            Self::External {
+                link,
+                label,
+            } => {
+                writer.write_string(link.to_string())?;
+                writer.write_bool(label.is_some())?;
+                if let Some(label) = label {
+                    writer.write_string(label)?;
+                }
+            }
             _ => unreachable!(),
         }
         Ok(())
@@ -414,7 +455,29 @@ impl Decode for UserField {
         match kind {
             user_data::HEADING => {
                 let text = reader.read_string()?;
-                *self = Self::Heading { text };
+                *self = Self::Heading {
+                    text: text,
+                };
+            }
+            user_data::RELATED => {
+                let vault_id: [u8; 16] =
+                    reader.read_bytes(16)?.as_slice().try_into()?;
+                let vault_id = Uuid::from_bytes(vault_id);
+
+                let secret_id: [u8; 16] =
+                    reader.read_bytes(16)?.as_slice().try_into()?;
+                let secret_id = Uuid::from_bytes(secret_id);
+
+                *self = Self::Related { vault_id, secret_id };
+            }
+            user_data::EXTERNAL => {
+                let link = Url::parse(&reader.read_string()?)
+                    .map_err(Box::from)?;
+                let has_label = reader.read_bool()?;
+                let label = if has_label {
+                    Some(reader.read_string()?)
+                } else { None };
+                *self = Self::External { link, label };
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
