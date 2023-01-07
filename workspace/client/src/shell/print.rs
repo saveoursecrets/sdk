@@ -51,7 +51,7 @@ pub(super) fn secret(
                 .push_str(&format!("Password: {}", password.expose_secret()));
             banner.text(Cow::Owned(account))
         }
-        Secret::List { items, user_data } => {
+        Secret::List { items, .. } => {
             let mut credentials = String::new();
             for (index, (name, value)) in items.iter().enumerate() {
                 credentials.push_str(&format!(
@@ -87,7 +87,7 @@ pub(super) fn secret(
         Secret::Pin { number, .. } => {
             banner.text(Cow::Borrowed(number.expose_secret()))
         }
-        Secret::Signer(_) => {
+        Secret::Signer { .. } => {
             banner.text(Cow::Borrowed("[REDACTED PRIVATE SIGNING KEY]"))
         }
         Secret::Contact { vcard, .. } => {

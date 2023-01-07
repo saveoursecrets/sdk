@@ -561,7 +561,12 @@ pub enum Secret {
         user_data: UserData,
     },
     /// Private signing key.
-    Signer(SecretSigner),
+    Signer {
+        /// The private key.
+        private_key: SecretSigner,
+        /// Custom user data.
+        user_data: UserData,
+    },
     /// Contact for an organization or person.
     Contact {
         /// The contact vCard.
@@ -692,7 +697,13 @@ impl Clone for Secret {
                 ),
                 user_data: user_data.clone(),
             },
-            Secret::Signer(signer) => Secret::Signer(signer.clone()),
+            Secret::Signer {
+                private_key,
+                user_data,
+            } => Secret::Signer {
+                private_key: private_key.clone(),
+                user_data: user_data.clone(),
+            },
             Secret::Contact { vcard, user_data } => Secret::Contact {
                 vcard: vcard.clone(),
                 user_data: user_data.clone(),
@@ -812,7 +823,7 @@ impl Secret {
             Secret::Pem { .. } => kind::PEM,
             Secret::Page { .. } => kind::PAGE,
             Secret::Pin { .. } => kind::PIN,
-            Secret::Signer(_) => kind::SIGNER,
+            Secret::Signer { .. } => kind::SIGNER,
             Secret::Contact { .. } => kind::CONTACT,
             Secret::Totp { .. } => kind::TOTP,
             Secret::Card { .. } => kind::CARD,
@@ -939,7 +950,16 @@ impl PartialEq for Secret {
                 a.expose_secret() == b.expose_secret()
                     && user_data_a == user_data_b
             }
-            (Self::Signer(a), Self::Signer(b)) => a == b,
+            (
+                Self::Signer {
+                    private_key: private_key_a,
+                    user_data: user_data_a,
+                },
+                Self::Signer {
+                    private_key: private_key_b,
+                    user_data: user_data_b,
+                },
+            ) => private_key_a == private_key_b && user_data_a == user_data_b,
             (
                 Self::Contact {
                     vcard: vcard_a,
@@ -1074,7 +1094,7 @@ impl Encode for Secret {
             Self::Pem { .. } => kind::PEM,
             Self::Page { .. } => kind::PAGE,
             Self::Pin { .. } => kind::PIN,
-            Self::Signer(_) => kind::SIGNER,
+            Self::Signer { .. } => kind::SIGNER,
             Self::Contact { .. } => kind::CONTACT,
             Self::Totp { .. } => kind::TOTP,
             Self::Card { .. } => kind::CARD,
@@ -1144,8 +1164,12 @@ impl Encode for Secret {
                 writer.write_string(number.expose_secret())?;
                 write_user_data(user_data, writer)?;
             }
-            Self::Signer(signer) => {
-                signer.encode(writer)?;
+            Self::Signer {
+                private_key,
+                user_data,
+            } => {
+                private_key.encode(writer)?;
+                write_user_data(user_data, writer)?;
             }
             Self::Contact { vcard, user_data } => {
                 writer.write_string(vcard.to_string())?;
@@ -1301,9 +1325,13 @@ impl Decode for Secret {
                 };
             }
             kind::SIGNER => {
-                let mut signer: SecretSigner = Default::default();
-                signer.decode(reader)?;
-                *self = Self::Signer(signer);
+                let mut private_key: SecretSigner = Default::default();
+                private_key.decode(reader)?;
+                let user_data = read_user_data(reader)?;
+                *self = Self::Signer {
+                    private_key,
+                    user_data,
+                };
             }
             kind::CONTACT => {
                 let vcard = reader.read_string()?;
@@ -1569,9 +1597,12 @@ i1KQYQNRTzo=
     #[test]
     fn secret_encode_signer() -> Result<()> {
         let signer = SingleParty::new_random();
-        let secret_signer =
+        let private_key =
             SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
-        let secret = Secret::Signer(secret_signer);
+        let secret = Secret::Signer {
+            private_key,
+            user_data: Default::default(),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);

@@ -3,8 +3,8 @@ use crate::{display_passphrase, Error, Result};
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    constants::{IDENTITY_DIR, LOCAL_DIR, VAULT_EXT},
-    decode, encode, generate_passphrase,
+    constants::{IDENTITY_DIR, VAULT_EXT},
+    encode, generate_passphrase,
     identity::Identity,
     vault::Vault,
 };
@@ -78,7 +78,7 @@ pub fn local_signup(name: String, folder_name: Option<String>) -> Result<()> {
     vault.initialize(passphrase.expose_secret())?;
 
     // Prepare the identity vault
-    let (address, login_vault) =
+    let (_address, login_vault) =
         Identity::new_login_vault(name.clone(), passphrase.clone())?;
 
     // Get an authenticated user from the identity vault
@@ -138,7 +138,7 @@ pub fn local_signup(name: String, folder_name: Option<String>) -> Result<()> {
 
             // Send the default vault for account creation
             let buffer = encode(&vault)?;
-            let summary =
+            let _summary =
                 run_blocking(provider.create_account_with_buffer(buffer))?;
 
             let cache_dir = cache_dir().ok_or(Error::NoCacheDir)?;
