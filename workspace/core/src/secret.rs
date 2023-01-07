@@ -422,15 +422,10 @@ impl Encode for UserField {
             Self::Heading { text } => {
                 writer.write_string(text)?;
             }
-            Self::Embedded {
-                secret,
-            } => {
+            Self::Embedded { secret } => {
                 secret.encode(writer)?;
             }
-            Self::External {
-                link,
-                label,
-            } => {
+            Self::External { link, label } => {
                 writer.write_string(link.to_string())?;
                 writer.write_bool(label.is_some())?;
                 if let Some(label) = label {
@@ -449,9 +444,7 @@ impl Decode for UserField {
         match kind {
             user_data::HEADING => {
                 let text = reader.read_string()?;
-                *self = Self::Heading {
-                    text: text,
-                };
+                *self = Self::Heading { text: text };
             }
             user_data::EMBEDDED => {
                 let mut secret: Secret = Default::default();
@@ -459,12 +452,14 @@ impl Decode for UserField {
                 *self = Self::Embedded { secret };
             }
             user_data::EXTERNAL => {
-                let link = Url::parse(&reader.read_string()?)
-                    .map_err(Box::from)?;
+                let link =
+                    Url::parse(&reader.read_string()?).map_err(Box::from)?;
                 let has_label = reader.read_bool()?;
                 let label = if has_label {
                     Some(reader.read_string()?)
-                } else { None };
+                } else {
+                    None
+                };
                 *self = Self::External { link, label };
             }
             _ => {
@@ -496,16 +491,14 @@ impl UserData {
     }
 
     /// Get the user fields.
-    pub fn fields(&self) -> &[UserField] {
+    pub fn fields(&self) -> &Vec<UserField> {
         &self.inner
     }
 
-    /*
     /// Get a mutable reference to the user fields.
-    pub fn fields_mut(&mut self) -> &mut [UserField] {
+    pub fn fields_mut(&mut self) -> &mut Vec<UserField> {
         &mut self.inner
     }
-    */
 
     /// Add a custom field to this collection.
     pub fn push(&mut self, field: UserField) {
@@ -1580,27 +1573,33 @@ END:VCARD"#;
 
         assert!(matches!(
             decoded.user_data().fields().get(0).unwrap(),
-            UserField::Heading { .. }));
+            UserField::Heading { .. }
+        ));
 
         assert!(matches!(
             decoded.user_data().fields().get(1).unwrap(),
-            UserField::Embedded { .. }));
+            UserField::Embedded { .. }
+        ));
 
         assert!(matches!(
             decoded.user_data().fields().get(2).unwrap(),
-            UserField::Heading { .. }));
+            UserField::Heading { .. }
+        ));
 
         assert!(matches!(
             decoded.user_data().fields().get(3).unwrap(),
-            UserField::Embedded { .. }));
+            UserField::Embedded { .. }
+        ));
 
         assert!(matches!(
             decoded.user_data().fields().get(4).unwrap(),
-            UserField::Heading { .. }));
+            UserField::Heading { .. }
+        ));
 
         assert!(matches!(
             decoded.user_data().fields().get(5).unwrap(),
-            UserField::External { .. }));
+            UserField::External { .. }
+        ));
 
         Ok(())
     }
