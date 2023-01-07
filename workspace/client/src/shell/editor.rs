@@ -40,7 +40,7 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
         Secret::List { .. }
         | Secret::Account { .. }
         | Secret::Pem { .. }
-        | Secret::Totp(_)
+        | Secret::Totp { .. }
         | Secret::Card { .. }
         | Secret::Bank { .. } => {
             (serde_json::to_vec_pretty(secret)?, ".json".to_string())
@@ -86,7 +86,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         Secret::List { .. }
         | Secret::Account { .. }
         | Secret::Pem { .. }
-        | Secret::Totp(_)
+        | Secret::Totp { .. }
         | Secret::Card { .. }
         | Secret::Bank { .. } => serde_json::from_slice::<Secret>(content)?,
         Secret::File {

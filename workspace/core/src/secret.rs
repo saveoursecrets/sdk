@@ -564,8 +564,13 @@ pub enum Secret {
     Signer(SecretSigner),
     /// Contact vCard.
     Contact(Box<Vcard>),
-    /// Time-based one-time passcode.
-    Totp(TOTP),
+    /// Two-factor authentication using a TOTP.
+    Totp {
+        /// Time-based one-time passcode.
+        totp: TOTP,
+        /// Custom user data.
+        user_data: UserData,
+    },
     /// Credit or debit card.
     Card {
         /// The card number.
@@ -684,7 +689,10 @@ impl Clone for Secret {
             },
             Secret::Signer(signer) => Secret::Signer(signer.clone()),
             Secret::Contact(vcard) => Secret::Contact(vcard.clone()),
-            Secret::Totp(totp) => Secret::Totp(totp.clone()),
+            Secret::Totp { totp, user_data } => Secret::Totp {
+                totp: totp.clone(),
+                user_data: user_data.clone(),
+            },
             Secret::Card {
                 number,
                 expiry,
@@ -749,7 +757,7 @@ impl fmt::Debug for Secret {
             Secret::Pin { .. } => f.debug_struct("PIN").finish(),
             Secret::Signer { .. } => f.debug_struct("Signer").finish(),
             Secret::Contact { .. } => f.debug_struct("Contact").finish(),
-            Secret::Totp(_) => f.debug_struct("TOTP").finish(),
+            Secret::Totp { .. } => f.debug_struct("TOTP").finish(),
             Secret::Card { .. } => f.debug_struct("Card").finish(),
             Secret::Bank { .. } => f.debug_struct("Bank").finish(),
         }
@@ -798,7 +806,7 @@ impl Secret {
             Secret::Pin { .. } => kind::PIN,
             Secret::Signer(_) => kind::SIGNER,
             Secret::Contact(_) => kind::CONTACT,
-            Secret::Totp(_) => kind::TOTP,
+            Secret::Totp { .. } => kind::TOTP,
             Secret::Card { .. } => kind::CARD,
             Secret::Bank { .. } => kind::BANK,
         }
@@ -925,7 +933,9 @@ impl PartialEq for Secret {
             }
             (Self::Signer(a), Self::Signer(b)) => a.eq(b),
             (Self::Contact(a), Self::Contact(b)) => a.eq(b),
-            (Self::Totp(a), Self::Totp(b)) => a.eq(b),
+            (Self::Totp { totp: totp_a, user_data: user_data_a }, Self::Totp { totp: totp_b, user_data: user_data_b }) => {
+                totp_a == totp_b && user_data_a == user_data_b
+            }
             (
                 Self::Card {
                     number: number_a,
@@ -1042,7 +1052,7 @@ impl Encode for Secret {
             Self::Pin { .. } => kind::PIN,
             Self::Signer(_) => kind::SIGNER,
             Self::Contact(_) => kind::CONTACT,
-            Self::Totp(_) => kind::TOTP,
+            Self::Totp { .. } => kind::TOTP,
             Self::Card { .. } => kind::CARD,
             Self::Bank { .. } => kind::BANK,
         };
@@ -1087,7 +1097,10 @@ impl Encode for Secret {
                 }
                 write_user_data(user_data, writer)?;
             }
-            Self::Pem { certificates, user_data } => {
+            Self::Pem {
+                certificates,
+                user_data,
+            } => {
                 let value = pem::encode_many(certificates);
                 writer.write_string(value)?;
                 write_user_data(user_data, writer)?;
@@ -1113,10 +1126,11 @@ impl Encode for Secret {
             Self::Contact(vcard) => {
                 writer.write_string(vcard.to_string())?;
             }
-            Self::Totp(totp) => {
+            Self::Totp { totp, user_data } => {
                 let totp = serde_json::to_vec(totp).map_err(Box::from)?;
                 writer.write_u32(totp.len() as u32)?;
                 writer.write_bytes(totp)?;
+                write_user_data(user_data, writer)?;
             }
             Self::Card {
                 number,
@@ -1277,7 +1291,8 @@ impl Decode for Secret {
                 let buffer = reader.read_bytes(buffer_len as usize)?;
                 let totp: TOTP =
                     serde_json::from_slice(&buffer).map_err(Box::from)?;
-                *self = Self::Totp(totp);
+                let user_data = read_user_data(reader)?;
+                *self = Self::Totp { totp, user_data };
             }
             kind::CARD => {
                 let number = SecretString::new(reader.read_string()?);
@@ -1498,7 +1513,10 @@ i1KQYQNRTzo=
 -----END CERTIFICATE-----"#;
 
         let certificates = pem::parse_many(certificate).unwrap();
-        let secret = Secret::Pem { certificates, user_data: Default::default() };
+        let secret = Secret::Pem {
+            certificates,
+            user_data: Default::default(),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);
@@ -1562,7 +1580,10 @@ END:VCARD"#;
         )
         .unwrap();
 
-        let secret = Secret::Totp(totp);
+        let secret = Secret::Totp {
+            totp,
+            user_data: Default::default(),
+        };
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
 
