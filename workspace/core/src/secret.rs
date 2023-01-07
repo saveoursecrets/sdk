@@ -371,11 +371,14 @@ mod user_data {
     /// Constant for the heading variant.
     pub const HEADING: u8 = 1;
 
-    /// Constant for the related variant.
+    /// Constant for the related secret variant.
     pub const RELATED: u8 = 2;
 
+    /// Constant for the embedded secret variant.
+    pub const EMBEDDED: u8 = 3;
+
     /// Constant for an external link.
-    pub const EXTERNAL: u8 = 3;
+    pub const EXTERNAL: u8 = 4;
 }
 
 /// User defined field.
@@ -396,6 +399,11 @@ pub enum UserField {
         /// Secret identifier.
         secret_id: SecretId,
     },
+    /// Embedded secret.
+    Embedded {
+        /// The data for the embedded secret.
+        secret: Secret,
+    },
     /// External link.
     External {
         /// External link URL.
@@ -403,7 +411,6 @@ pub enum UserField {
         /// Optional label for the link.
         label: Option<String>,
     },
-
 }
 
 impl UserField {
@@ -412,6 +419,7 @@ impl UserField {
         match self {
             Self::Heading { .. } => user_data::HEADING,
             Self::Related { .. } => user_data::RELATED,
+            Self::Embedded { .. } => user_data::EMBEDDED,
             Self::External { .. } => user_data::EXTERNAL,
             _ => unreachable!(),
         }
@@ -432,6 +440,11 @@ impl Encode for UserField {
             } => {
                 writer.write_bytes(vault_id.as_bytes())?;
                 writer.write_bytes(secret_id.as_bytes())?;
+            }
+            Self::Embedded {
+                secret,
+            } => {
+                secret.encode(writer)?;
             }
             Self::External {
                 link,
@@ -470,6 +483,11 @@ impl Decode for UserField {
 
                 *self = Self::Related { vault_id, secret_id };
             }
+            user_data::EMBEDDED => {
+                let mut secret: Secret = Default::default();
+                secret.decode(reader)?;
+                *self = Self::Embedded { secret };
+            }
             user_data::EXTERNAL => {
                 let link = Url::parse(&reader.read_string()?)
                     .map_err(Box::from)?;
@@ -507,9 +525,14 @@ impl UserData {
         self.len() == 0
     }
 
-    /// Get the user data.
+    /// Get the user fields.
     pub fn fields(&self) -> &[UserField] {
         &self.inner
+    }
+
+    /// Get a mutable reference to the user fields.
+    pub fn fields_mut(&mut self) -> &mut [UserField] {
+        &mut self.inner
     }
 
     /// Add a custom field to this collection.
@@ -891,6 +914,24 @@ impl Secret {
             Secret::Totp { .. } => kind::TOTP,
             Secret::Card { .. } => kind::CARD,
             Secret::Bank { .. } => kind::BANK,
+        }
+    }
+
+    /// Get the user data for this secret.
+    pub fn user_data(&self) -> &UserData {
+        match self {
+            Secret::Note { user_data, .. } => user_data,
+            Secret::File { user_data, .. } => user_data,
+            Secret::Account { user_data, .. } => user_data,
+            Secret::List { user_data, .. } => user_data,
+            Secret::Pem { user_data, .. } => user_data,
+            Secret::Page { user_data, .. } => user_data,
+            Secret::Pin { user_data, .. } => user_data,
+            Secret::Signer { user_data, .. } => user_data,
+            Secret::Contact { user_data, .. } => user_data,
+            Secret::Totp { user_data, .. } => user_data,
+            Secret::Card { user_data, .. } => user_data,
+            Secret::Bank { user_data, .. } => user_data,
         }
     }
 }
@@ -1508,6 +1549,95 @@ mod test {
         let value = serde_json::to_string_pretty(&secret)?;
         let result: Secret = serde_json::from_str(&value)?;
         assert_eq!(secret, result);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_user_data() -> Result<()> {
+        let mut user_data: UserData = Default::default();
+        user_data.push(UserField::Heading {
+            text: "Debit Card".to_string(),
+        });
+        user_data.push(UserField::Embedded {
+            secret: Secret::Card {
+                number: SecretString::new("1234567890123456".to_string()),
+                expiry: SecretString::new("01/4022".to_string()),
+                cvv: SecretString::new("123".to_string()),
+                name: Some(SecretString::new("Miss Jane Doe".to_string())),
+                atm_pin: None,
+                user_data: Default::default(),
+            },
+        });
+        user_data.push(UserField::Heading {
+            text: "Account".to_string(),
+        });
+        user_data.push(UserField::Embedded {
+            secret: Secret::Bank {
+                number: SecretString::new("12345678".to_string()),
+                routing: SecretString::new("00-00-00".to_string()),
+                iban: None,
+                swift: None,
+                bic: None,
+                user_data: Default::default(),
+            },
+        });
+        user_data.push(UserField::Heading {
+            text: "Website".to_string(),
+        });
+        user_data.push(UserField::External {
+            link: "http://mock-bank.com".parse()?,
+            label: Some("Mock Bank Website".to_string()),
+        });
+        user_data.push(UserField::Related {
+            vault_id: Uuid::new_v4(),
+            secret_id: Uuid::new_v4(),
+        });
+
+        let text = r#"BEGIN:VCARD
+VERSION:4.0
+FN:Mock Bank
+END:VCARD"#;
+
+        let vcard: Vcard = text.try_into()?;
+        let secret = Secret::Contact {
+            vcard: Box::new(vcard),
+            user_data,
+        };
+
+        let encoded = encode(&secret)?;
+        let decoded: Secret = decode(&encoded)?;
+
+        assert_eq!(secret, decoded);
+        assert_eq!(7, decoded.user_data().len());
+
+        assert!(matches!(
+            decoded.user_data().fields().get(0).unwrap(),
+            UserField::Heading { .. }));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(1).unwrap(),
+            UserField::Embedded { .. }));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(2).unwrap(),
+            UserField::Heading { .. }));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(3).unwrap(),
+            UserField::Embedded { .. }));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(4).unwrap(),
+            UserField::Heading { .. }));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(5).unwrap(),
+            UserField::External { .. }));
+
+        assert!(matches!(
+            decoded.user_data().fields().get(6).unwrap(),
+            UserField::Related { .. }));
+
         Ok(())
     }
 
