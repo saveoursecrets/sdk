@@ -4,7 +4,7 @@ use probly_search::{score::bm25, Index, QueryResult};
 use serde::Serialize;
 use std::{
     borrow::Cow,
-    collections::{btree_map::Values, BTreeMap, HashSet, HashMap},
+    collections::{btree_map::Values, BTreeMap, HashMap, HashSet},
 };
 
 use unicode_segmentation::UnicodeSegmentation;
@@ -119,10 +119,12 @@ impl DocumentCount {
     fn add(&mut self, vault_id: VaultId, kind: u8) {
         self.vaults
             .entry(vault_id)
-            .and_modify(|counter| *counter += 1).or_insert(1);
+            .and_modify(|counter| *counter += 1)
+            .or_insert(1);
         self.kinds
             .entry(kind)
-            .and_modify(|counter| *counter += 1).or_insert(1);
+            .and_modify(|counter| *counter += 1)
+            .or_insert(1);
     }
 }
 
@@ -395,12 +397,11 @@ mod test {
         let secret_kind = 1;
 
         let id1 = Uuid::new_v4();
-        let meta1 = SecretMeta::new(
-            "mock secret".to_owned(), secret_kind);
+        let meta1 = SecretMeta::new("mock secret".to_owned(), secret_kind);
 
         let id2 = Uuid::new_v4();
-        let meta2 = SecretMeta::new(
-            "foo bar baz secret".to_owned(), secret_kind);
+        let meta2 =
+            SecretMeta::new("foo bar baz secret".to_owned(), secret_kind);
 
         idx.add(&vault_id, &id1, meta1);
         assert_eq!(1, idx.documents().len());
