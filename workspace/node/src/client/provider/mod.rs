@@ -602,13 +602,20 @@ macro_rules! provider_impl {
             passphrase: &str,
             index: Option<std::sync::Arc<parking_lot::RwLock<SearchIndex>>>,
         ) -> Result<()> {
-            let vault = self.reduce_wal(summary)?;
             let vault_path = self.vault_path(summary);
-            if self.state().mirror() {
+            let vault = if self.state().mirror() {
                 if !vault_path.exists() {
+                    let vault = self.reduce_wal(summary)?;
                     let buffer = encode(&vault)?;
                     self.write_vault_file(summary, &buffer)?;
+                    vault
+                } else {
+                    let buffer = std::fs::read(&vault_path)?;
+                    let vault: Vault = decode(&buffer)?;
+                    vault
                 }
+            } else {
+                self.reduce_wal(summary)?
             };
 
             self
