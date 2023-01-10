@@ -426,7 +426,7 @@ impl Encode for UserField {
                 secret.encode(writer)?;
             }
             Self::External { link, label } => {
-                writer.write_string(link.to_string())?;
+                writer.write_string(link)?;
                 writer.write_bool(label.is_some())?;
                 if let Some(label) = label {
                     writer.write_string(label)?;
@@ -444,7 +444,7 @@ impl Decode for UserField {
         match kind {
             user_data::HEADING => {
                 let text = reader.read_string()?;
-                *self = Self::Heading { text: text };
+                *self = Self::Heading { text };
             }
             user_data::EMBEDDED => {
                 let mut secret: Secret = Default::default();
