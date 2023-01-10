@@ -123,6 +123,13 @@ pub struct SearchStatistics {
     count: DocumentCount,
 }
 
+impl SearchStatistics {
+    /// Get the statistics count.
+    pub fn count(&self) -> &DocumentCount {
+        &self.count
+    }
+}
+
 /// Document that can be indexed.
 #[derive(Debug, Serialize)]
 pub struct Document(pub VaultId, pub SecretId, pub SecretMeta);
@@ -167,6 +174,11 @@ impl SearchIndex {
             documents: Default::default(),
             statistics: Default::default(),
         }
+    }
+
+    /// Get the search index statistics.
+    pub fn statistics(&self) -> &SearchStatistics {
+        &self.statistics
     }
 
     /// Get the collection of documents.
