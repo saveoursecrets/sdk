@@ -4,7 +4,7 @@ use probly_search::{score::bm25, Index, QueryResult};
 use serde::Serialize;
 use std::{
     borrow::Cow,
-    collections::{btree_map::Values, BTreeMap, HashSet},
+    collections::{btree_map::Values, BTreeMap, HashSet, HashMap},
 };
 
 use unicode_segmentation::UnicodeSegmentation;
@@ -73,6 +73,56 @@ fn tags_extract(d: &Document) -> Vec<&str> {
     d.2.tags().iter().map(|s| &s[..]).collect()
 }
 
+/// Count of documents by vault identitier and secret kind.
+#[derive(Default, Debug)]
+pub struct DocumentCount {
+    /// Count number of documents in each vault.
+    vaults: HashMap<VaultId, usize>,
+    /// Count number of documents across all vaults by secret kind.
+    kinds: HashMap<u8, usize>,
+}
+
+impl DocumentCount {
+    /// Document was removed, update the count.
+    fn remove(&mut self, vault_id: VaultId, mut kind: Option<u8>) {
+        self.vaults
+            .entry(vault_id)
+            .and_modify(|counter| {
+                if *counter > 0 {
+                    *counter -= 1;
+                }
+            })
+            .or_insert(0);
+        if let Some(kind) = kind.take() {
+            self.kinds
+                .entry(kind)
+                .and_modify(|counter| {
+                    if *counter > 0 {
+                        *counter -= 1;
+                    }
+                })
+                .or_insert(0);
+        }
+    }
+
+    /// Document was added, update the count.
+    fn add(&mut self, vault_id: VaultId, kind: u8) {
+        self.vaults
+            .entry(vault_id)
+            .and_modify(|counter| *counter += 1).or_insert(1);
+        self.kinds
+            .entry(kind)
+            .and_modify(|counter| *counter += 1).or_insert(1);
+    }
+}
+
+/// Collection of statistics for the search index.
+#[derive(Default, Debug)]
+pub struct SearchStatistics {
+    /// Document counts.
+    count: DocumentCount,
+}
+
 /// Document that can be indexed.
 #[derive(Debug, Serialize)]
 pub struct Document(pub VaultId, pub SecretId, pub SecretMeta);
@@ -98,6 +148,7 @@ impl Document {
 pub struct SearchIndex {
     index: Index<(VaultId, SecretId)>,
     documents: BTreeMap<DocumentKey, Document>,
+    statistics: SearchStatistics,
 }
 
 impl Default for SearchIndex {
@@ -114,6 +165,7 @@ impl SearchIndex {
         Self {
             index,
             documents: Default::default(),
+            statistics: Default::default(),
         }
     }
 
@@ -207,6 +259,7 @@ impl SearchIndex {
         id: &SecretId,
         meta: SecretMeta,
     ) {
+        let kind = *meta.kind();
         let doc = Document(*vault_id, *id, meta);
 
         // Listing key includes the identifier so that
@@ -221,6 +274,8 @@ impl SearchIndex {
             (*vault_id, *id),
             doc,
         );
+
+        self.statistics.count.add(*vault_id, kind);
     }
 
     /// Update a document in the index.
@@ -241,14 +296,18 @@ impl SearchIndex {
             .keys()
             .find(|key| &key.1 == vault_id && &key.2 == id)
             .cloned();
-        if let Some(key) = &key {
-            self.documents.remove(key);
-        }
+        let kind = if let Some(key) = &key {
+            let doc = self.documents.remove(key);
+            doc.map(|doc| *doc.meta().kind())
+        } else {
+            None
+        };
 
-        //let mut removed_docs = HashSet::new();
         self.index.remove_document((*vault_id, *id));
         // Vacuum to remove completely
         self.index.vacuum();
+
+        self.statistics.count.remove(*vault_id, kind);
     }
 
     /// Remove all documents from the index.
@@ -311,16 +370,23 @@ mod test {
 
         let mut idx = SearchIndex::new();
 
+        let secret_kind = 1;
+
         let id1 = Uuid::new_v4();
-        let meta1 = SecretMeta::new("mock secret".to_owned(), 1);
+        let meta1 = SecretMeta::new(
+            "mock secret".to_owned(), secret_kind);
 
         let id2 = Uuid::new_v4();
-        let meta2 = SecretMeta::new("foo bar baz secret".to_owned(), 1);
+        let meta2 = SecretMeta::new(
+            "foo bar baz secret".to_owned(), secret_kind);
 
         idx.add(&vault_id, &id1, meta1);
         assert_eq!(1, idx.documents().len());
         idx.add(&vault_id, &id2, meta2);
         assert_eq!(2, idx.documents().len());
+
+        assert_eq!(2, *idx.statistics.count.vaults.get(&vault_id).unwrap());
+        assert_eq!(2, *idx.statistics.count.kinds.get(&secret_kind).unwrap());
 
         let docs = idx.query("mock");
         assert_eq!(1, docs.len());
@@ -329,6 +395,9 @@ mod test {
         assert_eq!(2, docs.len());
 
         idx.remove(&vault_id, &id1);
+
+        assert_eq!(1, *idx.statistics.count.vaults.get(&vault_id).unwrap());
+        assert_eq!(1, *idx.statistics.count.kinds.get(&secret_kind).unwrap());
 
         let docs = idx.query("mock");
         assert_eq!(0, docs.len());
@@ -339,5 +408,15 @@ mod test {
         let docs = idx.query_map("secret", |_| true);
         assert_eq!(1, docs.len());
         assert_eq!(&id2, docs.get(0).unwrap().id());
+
+        idx.remove(&vault_id, &id2);
+        assert_eq!(0, idx.documents.len());
+
+        assert_eq!(0, *idx.statistics.count.vaults.get(&vault_id).unwrap());
+        assert_eq!(0, *idx.statistics.count.kinds.get(&secret_kind).unwrap());
+
+        // Duplicate removal when no more documents
+        // to ensure it does not panic
+        idx.remove(&vault_id, &id2);
     }
 }
