@@ -83,6 +83,16 @@ pub struct DocumentCount {
 }
 
 impl DocumentCount {
+    /// Get the counts by vault.
+    pub fn vaults(&self) -> &HashMap<VaultId, usize> {
+        &self.vaults
+    }
+
+    /// Get the counts by kinds.
+    pub fn kinds(&self) -> &HashMap<u8, usize> {
+        &self.kinds
+    }
+
     /// Document was removed, update the count.
     fn remove(&mut self, vault_id: VaultId, mut kind: Option<u8>) {
         self.vaults
