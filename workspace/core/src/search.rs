@@ -80,6 +80,8 @@ pub struct DocumentCount {
     vaults: HashMap<VaultId, usize>,
     /// Count number of documents across all vaults by secret kind.
     kinds: HashMap<u8, usize>,
+    /// Map tags to counts.
+    tags: HashMap<String, usize>,
 }
 
 impl DocumentCount {
@@ -93,8 +95,17 @@ impl DocumentCount {
         &self.kinds
     }
 
+    /// Get the counts by tags.
+    pub fn tags(&self) -> &HashMap<String, usize> {
+        &self.tags
+    }
+
     /// Document was removed, update the count.
-    fn remove(&mut self, vault_id: VaultId, mut kind: Option<u8>) {
+    fn remove(
+        &mut self,
+        vault_id: VaultId,
+        mut options: Option<(u8, HashSet<String>)>,
+    ) {
         self.vaults
             .entry(vault_id)
             .and_modify(|counter| {
@@ -103,7 +114,7 @@ impl DocumentCount {
                 }
             })
             .or_insert(0);
-        if let Some(kind) = kind.take() {
+        if let Some((kind, tags)) = options.take() {
             self.kinds
                 .entry(kind)
                 .and_modify(|counter| {
@@ -112,11 +123,28 @@ impl DocumentCount {
                     }
                 })
                 .or_insert(0);
+
+            for tag in &tags {
+                self.tags
+                    .entry(tag.to_owned())
+                    .and_modify(|counter| {
+                        if *counter > 0 {
+                            *counter -= 1;
+                        }
+                    })
+                    .or_insert(0);
+                
+                // Clean up the tag when count reaches zero
+                let value = self.tags.get(tag).unwrap_or(&0);
+                if *value == 0 {
+                    self.tags.remove(tag);
+                }
+            }
         }
     }
 
     /// Document was added, update the count.
-    fn add(&mut self, vault_id: VaultId, kind: u8) {
+    fn add(&mut self, vault_id: VaultId, kind: u8, tags: &HashSet<String>) {
         self.vaults
             .entry(vault_id)
             .and_modify(|counter| *counter += 1)
@@ -125,6 +153,12 @@ impl DocumentCount {
             .entry(kind)
             .and_modify(|counter| *counter += 1)
             .or_insert(1);
+        for tag in tags {
+            self.tags
+                .entry(tag.to_owned())
+                .and_modify(|counter| *counter += 1)
+                .or_insert(1);
+        }
     }
 }
 
@@ -299,7 +333,9 @@ impl SearchIndex {
             doc,
         );
 
-        self.statistics.count.add(*vault_id, kind);
+        self.statistics
+            .count
+            .add(*vault_id, kind, doc.meta().tags());
     }
 
     /// Update a document in the index.
@@ -320,9 +356,9 @@ impl SearchIndex {
             .keys()
             .find(|key| &key.1 == vault_id && &key.2 == id)
             .cloned();
-        let kind = if let Some(key) = &key {
+        let doc_info = if let Some(key) = &key {
             let doc = self.documents.remove(key);
-            doc.map(|doc| *doc.meta().kind())
+            doc.map(|doc| (*doc.meta().kind(), doc.meta().tags().clone()))
         } else {
             None
         };
@@ -331,7 +367,7 @@ impl SearchIndex {
         // Vacuum to remove completely
         self.index.vacuum();
 
-        self.statistics.count.remove(*vault_id, kind);
+        self.statistics.count.remove(*vault_id, doc_info);
     }
 
     /// Remove all documents from the index.
