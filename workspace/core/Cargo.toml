@@ -6,6 +6,9 @@ description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
 license = "GPL-3.0"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 async-trait = "0.1"
 aes-gcm = { version = "0.9", features = ["std"] }
