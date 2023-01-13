@@ -133,7 +133,7 @@ impl DocumentCount {
                         }
                     })
                     .or_insert(0);
-                
+
                 // Clean up the tag when count reaches zero
                 let value = self.tags.get(tag).unwrap_or(&0);
                 if *value == 0 {
