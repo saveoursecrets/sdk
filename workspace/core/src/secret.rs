@@ -372,9 +372,6 @@ mod user_data {
 
     /// Constant for the embedded secret variant.
     pub const EMBEDDED: u8 = 2;
-
-    /// Constant for an external link.
-    pub const EXTERNAL: u8 = 3;
 }
 
 /// User defined field.
@@ -393,13 +390,6 @@ pub enum UserField {
         /// The data for the embedded secret.
         secret: Secret,
     },
-    /// External link.
-    External {
-        /// External link URL.
-        link: Url,
-        /// Optional label for the link.
-        label: Option<String>,
-    },
 }
 
 impl UserField {
@@ -408,7 +398,6 @@ impl UserField {
         match self {
             Self::Heading { .. } => user_data::HEADING,
             Self::Embedded { .. } => user_data::EMBEDDED,
-            Self::External { .. } => user_data::EXTERNAL,
             _ => unreachable!(),
         }
     }
@@ -424,13 +413,6 @@ impl Encode for UserField {
             }
             Self::Embedded { secret } => {
                 secret.encode(writer)?;
-            }
-            Self::External { link, label } => {
-                writer.write_string(link)?;
-                writer.write_bool(label.is_some())?;
-                if let Some(label) = label {
-                    writer.write_string(label)?;
-                }
             }
             _ => unreachable!(),
         }
@@ -450,17 +432,6 @@ impl Decode for UserField {
                 let mut secret: Secret = Default::default();
                 secret.decode(reader)?;
                 *self = Self::Embedded { secret };
-            }
-            user_data::EXTERNAL => {
-                let link =
-                    Url::parse(&reader.read_string()?).map_err(Box::from)?;
-                let has_label = reader.read_bool()?;
-                let label = if has_label {
-                    Some(reader.read_string()?)
-                } else {
-                    None
-                };
-                *self = Self::External { link, label };
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
@@ -672,6 +643,20 @@ pub enum Secret {
         /// Custom user data.
         user_data: UserData,
     },
+    /// External link; intended to be used in embedded user fields.
+    Link{
+        /// External link URL.
+        #[serde(serialize_with = "serialize_secret_string")]
+        url: SecretString,
+        /// Optional label for the link.
+        #[serde(serialize_with = "serialize_secret_option")]
+        label: Option<SecretString>,
+        /// Optional title for the link.
+        #[serde(serialize_with = "serialize_secret_option")]
+        title: Option<SecretString>,
+        /// Custom user data.
+        user_data: UserData,
+    },
 }
 
 impl Clone for Secret {
@@ -793,6 +778,17 @@ impl Clone for Secret {
                 bic: bic.clone(),
                 user_data: user_data.clone(),
             },
+            Secret::Link {
+                url,
+                label,
+                title,
+                user_data,
+            } => Secret::Link {
+                url: url.clone(),
+                label: label.clone(),
+                title: title.clone(),
+                user_data: user_data.clone(),
+            },
         }
     }
 }
@@ -830,6 +826,7 @@ impl fmt::Debug for Secret {
             Secret::Totp { .. } => f.debug_struct("TOTP").finish(),
             Secret::Card { .. } => f.debug_struct("Card").finish(),
             Secret::Bank { .. } => f.debug_struct("Bank").finish(),
+            Secret::Link { .. } => f.debug_struct("Link").finish(),
         }
     }
 }
@@ -860,6 +857,7 @@ impl Secret {
             kind::TOTP => "Authenticator",
             kind::CARD => "Card",
             kind::BANK => "Bank",
+            kind::LINK => "Link",
             _ => unreachable!(),
         }
     }
@@ -879,6 +877,7 @@ impl Secret {
             Secret::Totp { .. } => kind::TOTP,
             Secret::Card { .. } => kind::CARD,
             Secret::Bank { .. } => kind::BANK,
+            Secret::Link { .. } => kind::LINK,
         }
     }
 
@@ -897,6 +896,7 @@ impl Secret {
             Secret::Totp { user_data, .. } => user_data,
             Secret::Card { user_data, .. } => user_data,
             Secret::Bank { user_data, .. } => user_data,
+            Secret::Link { user_data, .. } => user_data,
         }
     }
 }
@@ -1106,6 +1106,28 @@ impl PartialEq for Secret {
                     && user_data_a == user_data_b
             }
 
+            (
+                Self::Link {
+                    url: url_a,
+                    label: label_a,
+                    title: title_a,
+                    user_data: user_data_a,
+                },
+                Self::Link {
+                    url: url_b,
+                    label: label_b,
+                    title: title_b,
+                    user_data: user_data_b,
+                },
+            ) => {
+                url_a.expose_secret() == url_b.expose_secret()
+                    && label_a.as_ref().map(|s| s.expose_secret())
+                        == label_b.as_ref().map(|s| s.expose_secret())
+                    && title_a.as_ref().map(|s| s.expose_secret())
+                        == title_b.as_ref().map(|s| s.expose_secret())
+                    && user_data_a == user_data_b
+            }
+
             _ => false,
         }
     }
@@ -1151,6 +1173,8 @@ pub mod kind {
     pub const CARD: u8 = 11;
     /// Bank account.
     pub const BANK: u8 = 12;
+    /// External link.
+    pub const LINK: u8 = 13;
 }
 
 impl Encode for Secret {
@@ -1168,6 +1192,7 @@ impl Encode for Secret {
             Self::Totp { .. } => kind::TOTP,
             Self::Card { .. } => kind::CARD,
             Self::Bank { .. } => kind::BANK,
+            Self::Link { .. } => kind::LINK,
         };
         writer.write_u8(kind)?;
 
@@ -1298,6 +1323,26 @@ impl Encode for Secret {
                 if let Some(bic) = bic {
                     writer.write_string(bic.expose_secret())?;
                 }
+                write_user_data(user_data, writer)?;
+            }
+            Self::Link {
+                url,
+                label,
+                title,
+                user_data,
+            } => {
+                writer.write_string(url.expose_secret())?;
+
+                writer.write_bool(label.is_some())?;
+                if let Some(label) = label{
+                    writer.write_string(label.expose_secret())?;
+                }
+
+                writer.write_bool(title.is_some())?;
+                if let Some(title) = title {
+                    writer.write_string(title.expose_secret())?;
+                }
+
                 write_user_data(user_data, writer)?;
             }
         }
@@ -1484,6 +1529,31 @@ impl Decode for Secret {
                     user_data,
                 };
             }
+            kind::LINK => {
+                let url = SecretString::new(reader.read_string()?);
+
+                let has_label = reader.read_bool()?;
+                let label = if has_label {
+                    Some(SecretString::new(reader.read_string()?))
+                } else {
+                    None
+                };
+
+                let has_title = reader.read_bool()?;
+                let title = if has_title {
+                    Some(SecretString::new(reader.read_string()?))
+                } else {
+                    None
+                };
+
+                let user_data = read_user_data(reader)?;
+                *self = Self::Link {
+                    url,
+                    label,
+                    title,
+                    user_data,
+                };
+            }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
                     Error::UnknownSecretKind(kind),
@@ -1549,10 +1619,6 @@ mod test {
         user_data.push(UserField::Heading {
             text: "Website".to_string(),
         });
-        user_data.push(UserField::External {
-            link: "http://mock-bank.com".parse()?,
-            label: Some("Mock Bank Website".to_string()),
-        });
 
         let text = r#"BEGIN:VCARD
 VERSION:4.0
@@ -1569,7 +1635,7 @@ END:VCARD"#;
         let decoded: Secret = decode(&encoded)?;
 
         assert_eq!(secret, decoded);
-        assert_eq!(6, decoded.user_data().len());
+        assert_eq!(5, decoded.user_data().len());
 
         assert!(matches!(
             decoded.user_data().fields().get(0).unwrap(),
@@ -1594,11 +1660,6 @@ END:VCARD"#;
         assert!(matches!(
             decoded.user_data().fields().get(4).unwrap(),
             UserField::Heading { .. }
-        ));
-
-        assert!(matches!(
-            decoded.user_data().fields().get(5).unwrap(),
-            UserField::External { .. }
         ));
 
         Ok(())
@@ -1835,6 +1896,21 @@ END:VCARD"#;
             iban: Some(SecretString::new("GB 23 01020312345678".to_string())),
             swift: Some(SecretString::new("XCVDFGB".to_string())),
             bic: Some(SecretString::new("6789".to_string())),
+            user_data: Default::default(),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+
+        assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_link() -> Result<()> {
+        let secret = Secret::Link {
+            url: SecretString::new("https://example.com".to_string()),
+            label: Some(SecretString::new("Example".to_string())),
+            title: Some(SecretString::new("Open example website".to_string())),
             user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
