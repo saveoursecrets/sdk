@@ -237,6 +237,7 @@ impl SecretMeta {
             kind::TOTP => "TOTP",
             kind::CARD => "CARD",
             kind::BANK => "BANK",
+            kind::PASSWORD => "PASSWORD",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }
@@ -644,7 +645,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// External link; intended to be used in embedded user fields.
-    Link{
+    Link {
         /// External link URL.
         #[serde(serialize_with = "serialize_secret_string")]
         url: SecretString,
@@ -654,6 +655,20 @@ pub enum Secret {
         /// Optional title for the link.
         #[serde(serialize_with = "serialize_secret_option")]
         title: Option<SecretString>,
+        /// Custom user data.
+        user_data: UserData,
+    },
+    /// Standalone password; intended to be used in embedded user fields.
+    Password {
+        /// Password secret.
+        #[serde(serialize_with = "serialize_secret_string")]
+        password: SecretString,
+        /// Optional name for the password.
+        ///
+        /// This could be a username, account name or other label
+        /// the user wants to associate with this password.
+        #[serde(serialize_with = "serialize_secret_option")]
+        name: Option<SecretString>,
         /// Custom user data.
         user_data: UserData,
     },
@@ -789,6 +804,15 @@ impl Clone for Secret {
                 title: title.clone(),
                 user_data: user_data.clone(),
             },
+            Secret::Password {
+                password,
+                name,
+                user_data,
+            } => Secret::Password {
+                password: password.clone(),
+                name: name.clone(),
+                user_data: user_data.clone(),
+            },
         }
     }
 }
@@ -827,6 +851,7 @@ impl fmt::Debug for Secret {
             Secret::Card { .. } => f.debug_struct("Card").finish(),
             Secret::Bank { .. } => f.debug_struct("Bank").finish(),
             Secret::Link { .. } => f.debug_struct("Link").finish(),
+            Secret::Password { .. } => f.debug_struct("Password").finish(),
         }
     }
 }
@@ -858,6 +883,7 @@ impl Secret {
             kind::CARD => "Card",
             kind::BANK => "Bank",
             kind::LINK => "Link",
+            kind::PASSWORD => "Password",
             _ => unreachable!(),
         }
     }
@@ -878,6 +904,7 @@ impl Secret {
             Secret::Card { .. } => kind::CARD,
             Secret::Bank { .. } => kind::BANK,
             Secret::Link { .. } => kind::LINK,
+            Secret::Password { .. } => kind::PASSWORD,
         }
     }
 
@@ -897,6 +924,7 @@ impl Secret {
             Secret::Card { user_data, .. } => user_data,
             Secret::Bank { user_data, .. } => user_data,
             Secret::Link { user_data, .. } => user_data,
+            Secret::Password { user_data, .. } => user_data,
         }
     }
 }
@@ -1128,6 +1156,24 @@ impl PartialEq for Secret {
                     && user_data_a == user_data_b
             }
 
+            (
+                Self::Password {
+                    password: password_a,
+                    name: name_a,
+                    user_data: user_data_a,
+                },
+                Self::Password {
+                    password: password_b,
+                    name: name_b,
+                    user_data: user_data_b,
+                },
+            ) => {
+                password_a.expose_secret() == password_b.expose_secret()
+                    && name_a.as_ref().map(|s| s.expose_secret())
+                        == name_b.as_ref().map(|s| s.expose_secret())
+                    && user_data_a == user_data_b
+            }
+
             _ => false,
         }
     }
@@ -1175,6 +1221,8 @@ pub mod kind {
     pub const BANK: u8 = 12;
     /// External link.
     pub const LINK: u8 = 13;
+    /// Standalone password.
+    pub const PASSWORD: u8 = 14;
 }
 
 impl Encode for Secret {
@@ -1193,6 +1241,7 @@ impl Encode for Secret {
             Self::Card { .. } => kind::CARD,
             Self::Bank { .. } => kind::BANK,
             Self::Link { .. } => kind::LINK,
+            Self::Password { .. } => kind::PASSWORD,
         };
         writer.write_u8(kind)?;
 
@@ -1334,13 +1383,27 @@ impl Encode for Secret {
                 writer.write_string(url.expose_secret())?;
 
                 writer.write_bool(label.is_some())?;
-                if let Some(label) = label{
+                if let Some(label) = label {
                     writer.write_string(label.expose_secret())?;
                 }
 
                 writer.write_bool(title.is_some())?;
                 if let Some(title) = title {
                     writer.write_string(title.expose_secret())?;
+                }
+
+                write_user_data(user_data, writer)?;
+            }
+            Self::Password {
+                password,
+                name,
+                user_data,
+            } => {
+                writer.write_string(password.expose_secret())?;
+
+                writer.write_bool(name.is_some())?;
+                if let Some(name) = name {
+                    writer.write_string(name.expose_secret())?;
                 }
 
                 write_user_data(user_data, writer)?;
@@ -1551,6 +1614,23 @@ impl Decode for Secret {
                     url,
                     label,
                     title,
+                    user_data,
+                };
+            }
+            kind::PASSWORD => {
+                let password = SecretString::new(reader.read_string()?);
+
+                let has_name = reader.read_bool()?;
+                let name = if has_name {
+                    Some(SecretString::new(reader.read_string()?))
+                } else {
+                    None
+                };
+
+                let user_data = read_user_data(reader)?;
+                *self = Self::Password {
+                    password,
+                    name,
                     user_data,
                 };
             }
@@ -1910,7 +1990,23 @@ END:VCARD"#;
         let secret = Secret::Link {
             url: SecretString::new("https://example.com".to_string()),
             label: Some(SecretString::new("Example".to_string())),
-            title: Some(SecretString::new("Open example website".to_string())),
+            title: Some(SecretString::new(
+                "Open example website".to_string(),
+            )),
+            user_data: Default::default(),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+
+        assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_password() -> Result<()> {
+        let secret = Secret::Password {
+            password: SecretString::new("abracadabra".to_string()),
+            name: Some(SecretString::new("Open the magic cave".to_string())),
             user_data: Default::default(),
         };
         let encoded = encode(&secret)?;
