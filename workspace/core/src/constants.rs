@@ -60,7 +60,7 @@ mod vault {
     pub const DEFAULT_VAULT_NAME: &str = "Documents";
 
     /// Login vault signing key name.
-    pub const LOGIN_SIGNING_KEY_NAME: &str = "signing-key";
+    pub const LOGIN_SIGNING_KEY_URN: &str = "urn:sos:identity:signer";
 }
 
 /// Constants for MIME types.
