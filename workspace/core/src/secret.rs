@@ -19,6 +19,7 @@ use totp_sos::TOTP;
 use url::Url;
 use uuid::Uuid;
 use vcard4::{parse as parse_to_vcards, Vcard};
+use urn::Urn;
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
@@ -154,6 +155,8 @@ pub struct SecretMeta {
     label: String,
     /// Collection of tags.
     tags: HashSet<String>,
+    /// A URN identifier for this secret.
+    urn: Option<Urn>,
 }
 
 impl PartialOrd for SecretMeta {
@@ -170,6 +173,7 @@ impl SecretMeta {
             kind,
             last_updated: Default::default(),
             tags: Default::default(),
+            urn: None,
         }
     }
 
@@ -207,6 +211,16 @@ impl SecretMeta {
     pub fn set_tags(&mut self, tags: HashSet<String>) {
         self.tags = tags;
     }
+    
+    /// Get the URN for this secret.
+    pub fn urn(&self) -> Option<&Urn> {
+        self.urn.as_ref()
+    }
+
+    /// Get the URN for this secret.
+    pub fn set_urn(&mut self, urn: Option<Urn>) {
+        self.urn = urn;
+    }
 
     /// Get an abbreviated short name based
     /// on the kind of secret.
@@ -224,6 +238,7 @@ impl SecretMeta {
             kind::TOTP => "TOTP",
             kind::CARD => "CARD",
             kind::BANK => "BANK",
+            kind::LINK => "LINK",
             kind::PASSWORD => "PASSWORD",
             _ => unreachable!("unknown kind encountered in short name"),
         }
@@ -238,6 +253,10 @@ impl Encode for SecretMeta {
         writer.write_u32(self.tags.len() as u32)?;
         for tag in &self.tags {
             writer.write_string(tag)?;
+        }
+        writer.write_bool(self.urn.is_some())?;
+        if let Some(urn) = &self.urn {
+            writer.write_string(urn)?;
         }
         Ok(())
     }
@@ -254,6 +273,11 @@ impl Decode for SecretMeta {
         for _ in 0..tag_count {
             let tag = reader.read_string()?;
             self.tags.insert(tag);
+        }
+        let has_urn = reader.read_bool()?;
+        if has_urn {
+            let urn = reader.read_string()?;
+            self.urn = Some(urn.parse().map_err(Box::from)?);
         }
         Ok(())
     }

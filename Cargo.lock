@@ -3670,6 +3670,9 @@ name = "urn"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67eaf234b821412d224e5853b50374f6250b5bad13016bc7897952a99c8d011e"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "utf-8"
