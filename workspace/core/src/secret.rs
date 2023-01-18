@@ -154,8 +154,6 @@ pub struct SecretMeta {
     label: String,
     /// Collection of tags.
     tags: HashSet<String>,
-    /// Additional usage notes for the secret.
-    usage_notes: String,
 }
 
 impl PartialOrd for SecretMeta {
@@ -172,7 +170,6 @@ impl SecretMeta {
             kind,
             last_updated: Default::default(),
             tags: Default::default(),
-            usage_notes: Default::default(),
         }
     }
 
@@ -211,16 +208,6 @@ impl SecretMeta {
         self.tags = tags;
     }
 
-    /// Get the usage notes.
-    pub fn usage_notes(&self) -> &str {
-        &self.usage_notes
-    }
-
-    /// Set the usage notes.
-    pub fn set_usage_notes(&mut self, notes: String) {
-        self.usage_notes = notes;
-    }
-
     /// Get an abbreviated short name based
     /// on the kind of secret.
     pub fn short_name(&self) -> &str {
@@ -252,7 +239,6 @@ impl Encode for SecretMeta {
         for tag in &self.tags {
             writer.write_string(tag)?;
         }
-        writer.write_string(&self.usage_notes)?;
         Ok(())
     }
 }
@@ -269,7 +255,6 @@ impl Decode for SecretMeta {
             let tag = reader.read_string()?;
             self.tags.insert(tag);
         }
-        self.usage_notes = reader.read_string()?;
         Ok(())
     }
 }
@@ -449,6 +434,8 @@ impl Decode for UserField {
 pub struct UserData {
     /// Collection of custom user_data.
     inner: Vec<UserField>,
+    /// Recovery nodes.
+    recovery_notes: Option<String>,
 }
 
 impl UserData {
@@ -476,6 +463,17 @@ impl UserData {
     pub fn push(&mut self, field: UserField) {
         self.inner.push(field);
     }
+
+    /// Get the recovery notes.
+    pub fn recovery_notes(&self) -> Option<&String> {
+        self.recovery_notes.as_ref()
+    }
+
+    /// Set the recovery notes.
+    pub fn set_recovery_notes(&mut self, notes: Option<String>) {
+        self.recovery_notes = notes;
+    }
+
 }
 
 fn write_user_data(
@@ -485,6 +483,10 @@ fn write_user_data(
     writer.write_u32(user_data.len() as u32)?;
     for field in user_data.fields() {
         field.encode(writer)?;
+    }
+    writer.write_bool(user_data.recovery_notes.is_some())?;
+    if let Some(recovery_notes) = &user_data.recovery_notes {
+        writer.write_string(recovery_notes)?;
     }
     Ok(())
 }
@@ -496,6 +498,10 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
         let mut field: UserField = Default::default();
         field.decode(reader)?;
         user_data.push(field);
+    }
+    let has_recovery_notes = reader.read_bool()?;
+    if has_recovery_notes {
+        user_data.recovery_notes = Some(reader.read_string()?);
     }
     Ok(user_data)
 }
