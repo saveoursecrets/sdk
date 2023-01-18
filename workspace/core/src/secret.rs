@@ -157,6 +157,12 @@ pub struct SecretMeta {
     tags: HashSet<String>,
     /// A URN identifier for this secret.
     urn: Option<Urn>,
+    /// An optional owner identifier.
+    ///
+    /// This can be used when creating secrets on behalf of a 
+    /// third-party plugin or application to indicate the identifier 
+    /// of the third-party application.
+    owner_id: Option<String>,
 }
 
 impl PartialOrd for SecretMeta {
@@ -174,6 +180,7 @@ impl SecretMeta {
             last_updated: Default::default(),
             tags: Default::default(),
             urn: None,
+            owner_id: None,
         }
     }
 
@@ -217,9 +224,19 @@ impl SecretMeta {
         self.urn.as_ref()
     }
 
-    /// Get the URN for this secret.
+    /// Set the URN for this secret.
     pub fn set_urn(&mut self, urn: Option<Urn>) {
         self.urn = urn;
+    }
+
+    /// Get the owner identifier for this secret.
+    pub fn owner_id(&self) -> Option<&String> {
+        self.owner_id.as_ref()
+    }
+
+    /// Set the owner identifier for this secret.
+    pub fn set_owner_id(&mut self, owner_id: Option<String>) {
+        self.owner_id = owner_id;
     }
 
     /// Get an abbreviated short name based
@@ -258,6 +275,10 @@ impl Encode for SecretMeta {
         if let Some(urn) = &self.urn {
             writer.write_string(urn)?;
         }
+        writer.write_bool(self.owner_id.is_some())?;
+        if let Some(owner_id) = &self.owner_id {
+            writer.write_string(owner_id)?;
+        }
         Ok(())
     }
 }
@@ -278,6 +299,11 @@ impl Decode for SecretMeta {
         if has_urn {
             let urn = reader.read_string()?;
             self.urn = Some(urn.parse().map_err(Box::from)?);
+        }
+        let has_owner_id = reader.read_bool()?;
+        if has_owner_id {
+            let owner_id = reader.read_string()?;
+            self.owner_id = Some(owner_id.parse().map_err(Box::from)?);
         }
         Ok(())
     }
