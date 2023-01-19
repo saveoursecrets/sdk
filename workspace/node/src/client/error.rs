@@ -130,6 +130,11 @@ pub enum Error {
     #[error("could not find account {0}")]
     NoAccount(String),
 
+    /// Error generated when a vault entry in the identity vault could not
+    /// be located.
+    #[error("could vault entry for {0}")]
+    NoVaultEntry(String),
+
     /// Error generated when an archive is for an address that does
     /// not exist locally when we are expecting an archive to be imported
     /// in the context of an existing account.
