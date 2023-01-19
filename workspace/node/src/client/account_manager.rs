@@ -7,9 +7,11 @@ use sos_core::{
     constants::{IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     encode,
     events::WalEvent,
+    generate_passphrase,
     identity::{AuthenticatedUser, Identity},
+    secret::{Secret, SecretMeta},
     signer::SingleParty,
-    vault::{Header, Summary, Vault, VaultAccess},
+    vault::{Header, Summary, Vault, VaultAccess, VaultId},
     wal::{file::WalFile, WalProvider},
     Gatekeeper, VaultFileAccess,
 };
@@ -55,12 +57,29 @@ impl AccountManager {
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault)?;
-        let (user, _) = Identity::login_buffer(buffer, passphrase.clone())?;
+        let (user, _) = Identity::login_buffer(&buffer, passphrase.clone())?;
+
+        // Prepare the passphrase for the default vault
+        let (vault_passphrase, _) = generate_passphrase()?;
+
+        // Prepare the default vault
+        let mut default_vault: Vault = Default::default();
+        default_vault.set_default_flag(true);
+        default_vault.initialize(vault_passphrase.expose_secret())?;
+
+        // Store the vault passphrase in the identity vault
+        let mut keeper = Gatekeeper::new(identity_vault, None);
+        keeper.unlock(passphrase.expose_secret())?;
+
+        Self::save_vault_passphrase(
+            &mut keeper,
+            default_vault.id(),
+            vault_passphrase,
+        )?;
 
         // Persist the identity vault to disc
         let identity_vault_file = Self::identity_vault(&address)?;
-        let buffer = encode(&identity_vault)?;
-        std::fs::write(identity_vault_file, buffer)?;
+        std::fs::write(identity_vault_file, &buffer)?;
 
         // Create local provider
         let factory = ProviderFactory::Local;
@@ -68,17 +87,31 @@ impl AccountManager {
             factory.create_provider(user.signer.clone())?;
         run_blocking(provider.authenticate())?;
 
-        // Prepare the default vault
-        let mut default_vault: Vault = Default::default();
-        default_vault.set_default_flag(true);
-        default_vault.initialize(passphrase.expose_secret())?;
-
         // Save the default vault
         let buffer = encode(&default_vault)?;
         let summary =
             run_blocking(provider.create_account_with_buffer(buffer))?;
 
         Ok((address, user, summary))
+    }
+
+    /// Save a vault passphrase into an identity vault.
+    pub fn save_vault_passphrase(
+        identity: &mut Gatekeeper,
+        vault_id: &VaultId,
+        vault_passphrase: SecretString,
+    ) -> Result<()> {
+        let urn = Vault::vault_urn(vault_id)?;
+        let secret = Secret::Password {
+            name: None,
+            password: vault_passphrase,
+            user_data: Default::default(),
+        };
+        let mut meta =
+            SecretMeta::new(urn.as_str().to_owned(), secret.kind());
+        meta.set_urn(Some(urn));
+        identity.create(meta, secret)?;
+        Ok(())
     }
 
     /// Sign in a user.

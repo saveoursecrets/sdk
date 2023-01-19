@@ -13,6 +13,7 @@ use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, fs::File,
     path::Path,
 };
+use urn::Urn;
 use uuid::Uuid;
 
 use crate::{
@@ -646,6 +647,12 @@ impl Vault {
             header: Header::new(id, name, algorithm, flags),
             contents: Default::default(),
         }
+    }
+
+    /// Get the URN for a vault identifier.
+    pub fn vault_urn(id: &VaultId) -> Result<Urn> {
+        let vault_urn = format!("urn:sos:vault:{}", id);
+        Ok(vault_urn.parse()?)
     }
 
     /// Create a new vault and encode it into a buffer.
