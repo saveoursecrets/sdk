@@ -7,6 +7,9 @@
 //! passphrase.
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 
+use std::sync::Arc;
+use parking_lot::RwLock;
+
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
@@ -17,6 +20,7 @@ use crate::{
     decode,
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta, SecretSigner},
+    search::SearchIndex,
     signer::{BoxedSigner, Signer, SingleParty},
     vault::{Vault, VaultFlags},
     Error, Result,
@@ -72,15 +76,17 @@ impl Identity {
     pub fn login_file<P: AsRef<Path>>(
         file: P,
         master_passphrase: SecretString,
+        search_index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<(AuthenticatedUser, Gatekeeper)> {
         let buffer = std::fs::read(file.as_ref())?;
-        Identity::login_buffer(buffer, master_passphrase)
+        Identity::login_buffer(buffer, master_passphrase, search_index)
     }
 
     /// Attempt to login using a buffer.
     pub fn login_buffer<B: AsRef<[u8]>>(
         buffer: B,
         master_passphrase: SecretString,
+        search_index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<(AuthenticatedUser, Gatekeeper)> {
         let vault: Vault = decode(buffer.as_ref())?;
 
@@ -88,7 +94,7 @@ impl Identity {
             return Err(Error::NotIdentityVault);
         }
 
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault, search_index);
         keeper.unlock(master_passphrase.expose_secret())?;
         // Must create the index so we can find by name
         keeper.create_search_index()?;

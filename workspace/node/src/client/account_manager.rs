@@ -1,6 +1,8 @@
 //! Account manager provides utility functions for
 //! creating and managing local accounts.
-use std::{borrow::Cow, io::Cursor, path::PathBuf};
+use std::{borrow::Cow, io::Cursor, path::PathBuf, sync::Arc};
+
+use parking_lot::RwLock;
 
 use sos_core::{
     archive::{deflate, inflate, Inventory, Reader, Writer},
@@ -9,6 +11,7 @@ use sos_core::{
     events::WalEvent,
     generate_passphrase,
     identity::{AuthenticatedUser, Identity},
+    search::SearchIndex,
     secret::{Secret, SecretMeta},
     signer::SingleParty,
     vault::{Header, Summary, Vault, VaultAccess, VaultId},
@@ -57,7 +60,8 @@ impl AccountManager {
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault)?;
-        let (user, _) = Identity::login_buffer(&buffer, passphrase.clone())?;
+        let (user, _) =
+            Identity::login_buffer(&buffer, passphrase.clone(), None)?;
 
         // Prepare the passphrase for the default vault
         let (vault_passphrase, _) = generate_passphrase()?;
@@ -77,8 +81,10 @@ impl AccountManager {
             vault_passphrase,
         )?;
 
-        // Persist the identity vault to disc
+        // Persist the identity vault to disc, MUST re-encode the buffer
+        // as we have modified the identity vault
         let identity_vault_file = Self::identity_vault(&address)?;
+        let buffer = encode(keeper.vault())?;
         std::fs::write(identity_vault_file, &buffer)?;
 
         // Create local provider
@@ -118,6 +124,7 @@ impl AccountManager {
     pub fn sign_in(
         address: String,
         passphrase: SecretString,
+        index: Arc<RwLock<SearchIndex>>,
     ) -> Result<(AccountInfo, AuthenticatedUser, Gatekeeper)> {
         let accounts = Self::list_accounts()?;
         let account = accounts
@@ -126,7 +133,8 @@ impl AccountManager {
             .ok_or_else(|| Error::NoAccount(address.clone()))?;
 
         let identity_path = Self::identity_vault(&address)?;
-        let (user, keeper) = Identity::login_file(identity_path, passphrase)?;
+        let (user, keeper) =
+            Identity::login_file(identity_path, passphrase, Some(index))?;
 
         Ok((account, user, keeper))
     }
@@ -134,7 +142,7 @@ impl AccountManager {
     /// Verify the master passphrase for an account.
     pub fn verify(address: &str, passphrase: SecretString) -> Result<bool> {
         let identity_path = Self::identity_vault(&address)?;
-        let result = Identity::login_file(identity_path, passphrase);
+        let result = Identity::login_file(identity_path, passphrase, None);
         Ok(result.is_ok())
     }
 
