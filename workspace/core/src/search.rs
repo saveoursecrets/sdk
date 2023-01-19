@@ -8,6 +8,7 @@ use std::{
 };
 
 use unicode_segmentation::UnicodeSegmentation;
+use urn::Urn;
 
 use crate::{
     secret::{SecretId, SecretMeta, SecretRef},
@@ -250,6 +251,17 @@ impl SearchIndex {
     /// Determine if the search index is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Find document by URN.
+    pub fn find_by_urn<'a>(
+        &'a self,
+        vault_id: &VaultId,
+        urn: &Urn,
+    ) -> Option<&'a Document> {
+        self.documents
+            .values()
+            .find(|d| d.vault_id() == vault_id && d.meta().urn() == Some(urn))
     }
 
     /// Find document by label.

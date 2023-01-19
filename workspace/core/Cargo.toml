@@ -41,6 +41,7 @@ passwords = "3"
 totp-sos = { version = "3", features = ["serde"] }
 vcard4 = { version = "0.1.4", features = ["serde"] }
 parking_lot = "0.12"
+urn = { version = "0.5", features = ["serde"] }
 
 binary-stream = { version = "3.3.2", features = ["32bit"] }
 

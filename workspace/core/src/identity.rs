@@ -10,8 +10,10 @@ use secrecy::{ExposeSecret, SecretString, SecretVec};
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
+use urn::Urn;
+
 use crate::{
-    constants::LOGIN_SIGNING_KEY_NAME,
+    constants::LOGIN_SIGNING_KEY_URN,
     decode,
     gatekeeper::Gatekeeper,
     secret::{Secret, SecretMeta, SecretSigner},
@@ -56,10 +58,12 @@ impl Identity {
             private_key,
             user_data: Default::default(),
         };
-        let signer_meta = SecretMeta::new(
-            LOGIN_SIGNING_KEY_NAME.to_owned(),
+        let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
+        let mut signer_meta = SecretMeta::new(
+            urn.as_str().to_owned(),
             signer_secret.kind(),
         );
+        signer_meta.set_urn(Some(urn));
         keeper.create(signer_meta, signer_secret)?;
 
         Ok((address, keeper.take()))
@@ -94,9 +98,12 @@ impl Identity {
         let index = keeper.index();
         let reader = index.read();
 
+        let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
+
         let signing_doc = reader
-            .find_by_label(keeper.vault().id(), LOGIN_SIGNING_KEY_NAME)
+            .find_by_urn(keeper.vault().id(), &urn)
             .ok_or(Error::NoIdentitySigner)?;
+
         let signing_data = keeper
             .read(signing_doc.id())?
             .ok_or(Error::NoIdentitySecret)?;
@@ -120,11 +127,12 @@ mod tests {
     use anyhow::Result;
     use secrecy::{ExposeSecret, SecretString};
     use tempfile::NamedTempFile;
+    use urn::Urn;
 
     use super::Identity;
 
     use crate::{
-        constants::LOGIN_SIGNING_KEY_NAME,
+        constants::LOGIN_SIGNING_KEY_URN,
         diceware::generate_passphrase,
         encode,
         secret::{Secret, SecretMeta},
@@ -195,10 +203,13 @@ mod tests {
             text: SecretString::new("Mock note".to_owned()),
             user_data: Default::default(),
         };
-        let signer_meta = SecretMeta::new(
-            LOGIN_SIGNING_KEY_NAME.to_owned(),
+
+        let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
+        let mut signer_meta = SecretMeta::new(
+            urn.as_str().to_owned(),
             signer_secret.kind(),
         );
+        signer_meta.set_urn(Some(urn));
         keeper.create(signer_meta, signer_secret)?;
 
         let vault = keeper.take();

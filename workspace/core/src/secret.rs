@@ -19,6 +19,7 @@ use totp_sos::TOTP;
 use url::Url;
 use uuid::Uuid;
 use vcard4::{parse as parse_to_vcards, Vcard};
+use urn::Urn;
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
@@ -154,8 +155,14 @@ pub struct SecretMeta {
     label: String,
     /// Collection of tags.
     tags: HashSet<String>,
-    /// Additional usage notes for the secret.
-    usage_notes: String,
+    /// A URN identifier for this secret.
+    urn: Option<Urn>,
+    /// An optional owner identifier.
+    ///
+    /// This can be used when creating secrets on behalf of a 
+    /// third-party plugin or application to indicate the identifier 
+    /// of the third-party application.
+    owner_id: Option<String>,
 }
 
 impl PartialOrd for SecretMeta {
@@ -172,7 +179,8 @@ impl SecretMeta {
             kind,
             last_updated: Default::default(),
             tags: Default::default(),
-            usage_notes: Default::default(),
+            urn: None,
+            owner_id: None,
         }
     }
 
@@ -210,15 +218,25 @@ impl SecretMeta {
     pub fn set_tags(&mut self, tags: HashSet<String>) {
         self.tags = tags;
     }
-
-    /// Get the usage notes.
-    pub fn usage_notes(&self) -> &str {
-        &self.usage_notes
+    
+    /// Get the URN for this secret.
+    pub fn urn(&self) -> Option<&Urn> {
+        self.urn.as_ref()
     }
 
-    /// Set the usage notes.
-    pub fn set_usage_notes(&mut self, notes: String) {
-        self.usage_notes = notes;
+    /// Set the URN for this secret.
+    pub fn set_urn(&mut self, urn: Option<Urn>) {
+        self.urn = urn;
+    }
+
+    /// Get the owner identifier for this secret.
+    pub fn owner_id(&self) -> Option<&String> {
+        self.owner_id.as_ref()
+    }
+
+    /// Set the owner identifier for this secret.
+    pub fn set_owner_id(&mut self, owner_id: Option<String>) {
+        self.owner_id = owner_id;
     }
 
     /// Get an abbreviated short name based
@@ -237,6 +255,7 @@ impl SecretMeta {
             kind::TOTP => "TOTP",
             kind::CARD => "CARD",
             kind::BANK => "BANK",
+            kind::LINK => "LINK",
             kind::PASSWORD => "PASSWORD",
             _ => unreachable!("unknown kind encountered in short name"),
         }
@@ -252,7 +271,14 @@ impl Encode for SecretMeta {
         for tag in &self.tags {
             writer.write_string(tag)?;
         }
-        writer.write_string(&self.usage_notes)?;
+        writer.write_bool(self.urn.is_some())?;
+        if let Some(urn) = &self.urn {
+            writer.write_string(urn)?;
+        }
+        writer.write_bool(self.owner_id.is_some())?;
+        if let Some(owner_id) = &self.owner_id {
+            writer.write_string(owner_id)?;
+        }
         Ok(())
     }
 }
@@ -269,7 +295,16 @@ impl Decode for SecretMeta {
             let tag = reader.read_string()?;
             self.tags.insert(tag);
         }
-        self.usage_notes = reader.read_string()?;
+        let has_urn = reader.read_bool()?;
+        if has_urn {
+            let urn = reader.read_string()?;
+            self.urn = Some(urn.parse().map_err(Box::from)?);
+        }
+        let has_owner_id = reader.read_bool()?;
+        if has_owner_id {
+            let owner_id = reader.read_string()?;
+            self.owner_id = Some(owner_id.parse().map_err(Box::from)?);
+        }
         Ok(())
     }
 }
@@ -449,6 +484,8 @@ impl Decode for UserField {
 pub struct UserData {
     /// Collection of custom user_data.
     inner: Vec<UserField>,
+    /// Recovery nodes.
+    recovery_notes: Option<String>,
 }
 
 impl UserData {
@@ -476,6 +513,17 @@ impl UserData {
     pub fn push(&mut self, field: UserField) {
         self.inner.push(field);
     }
+
+    /// Get the recovery notes.
+    pub fn recovery_notes(&self) -> Option<&String> {
+        self.recovery_notes.as_ref()
+    }
+
+    /// Set the recovery notes.
+    pub fn set_recovery_notes(&mut self, notes: Option<String>) {
+        self.recovery_notes = notes;
+    }
+
 }
 
 fn write_user_data(
@@ -485,6 +533,10 @@ fn write_user_data(
     writer.write_u32(user_data.len() as u32)?;
     for field in user_data.fields() {
         field.encode(writer)?;
+    }
+    writer.write_bool(user_data.recovery_notes.is_some())?;
+    if let Some(recovery_notes) = &user_data.recovery_notes {
+        writer.write_string(recovery_notes)?;
     }
     Ok(())
 }
@@ -496,6 +548,10 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
         let mut field: UserField = Default::default();
         field.decode(reader)?;
         user_data.push(field);
+    }
+    let has_recovery_notes = reader.read_bool()?;
+    if has_recovery_notes {
+        user_data.recovery_notes = Some(reader.read_string()?);
     }
     Ok(user_data)
 }
