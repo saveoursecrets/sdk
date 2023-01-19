@@ -266,6 +266,7 @@ pub trait StorageProvider: Sync + Send {
                 &identity.1,
                 passphrase.clone(),
                 None,
+                None,
             )?;
             if user.signer.address()?.to_string() != address {
                 return Err(Error::ArchiveAddressMismatch);

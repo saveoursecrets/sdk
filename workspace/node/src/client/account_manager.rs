@@ -61,7 +61,7 @@ impl AccountManager {
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault)?;
         let (user, _) =
-            Identity::login_buffer(&buffer, passphrase.clone(), None)?;
+            Identity::login_buffer(&buffer, passphrase.clone(), None, None)?;
 
         // Prepare the passphrase for the default vault
         let (vault_passphrase, _) = generate_passphrase()?;

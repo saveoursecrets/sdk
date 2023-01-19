@@ -7,8 +7,8 @@
 //! passphrase.
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
@@ -19,11 +19,11 @@ use crate::{
     constants::LOGIN_SIGNING_KEY_URN,
     decode,
     gatekeeper::Gatekeeper,
-    secret::{Secret, SecretMeta, SecretSigner},
     search::SearchIndex,
+    secret::{Secret, SecretMeta, SecretSigner},
     signer::{BoxedSigner, Signer, SingleParty},
-    vault::{Vault, VaultFlags},
-    Error, Result,
+    vault::{Vault, VaultAccess, VaultFlags},
+    Error, Result, VaultFileAccess,
 };
 
 /// User information once authentication to a login vault succeeds.
@@ -78,8 +78,15 @@ impl Identity {
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<(AuthenticatedUser, Gatekeeper)> {
+        let mirror =
+            Box::new(VaultFileAccess::new(file.as_ref().to_path_buf())?);
         let buffer = std::fs::read(file.as_ref())?;
-        Identity::login_buffer(buffer, master_passphrase, search_index)
+        Identity::login_buffer(
+            buffer,
+            master_passphrase,
+            search_index,
+            Some(mirror),
+        )
     }
 
     /// Attempt to login using a buffer.
@@ -87,6 +94,7 @@ impl Identity {
         buffer: B,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
+        mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
     ) -> Result<(AuthenticatedUser, Gatekeeper)> {
         let vault: Vault = decode(buffer.as_ref())?;
 
@@ -94,7 +102,12 @@ impl Identity {
             return Err(Error::NotIdentityVault);
         }
 
-        let mut keeper = Gatekeeper::new(vault, search_index);
+        let mut keeper = if let Some(mirror) = mirror {
+            Gatekeeper::new_mirror(vault, mirror, search_index)
+        } else {
+            Gatekeeper::new(vault, search_index)
+        };
+
         keeper.unlock(master_passphrase.expose_secret())?;
         // Must create the index so we can find by name
         keeper.create_search_index()?;
@@ -154,7 +167,8 @@ mod tests {
         let buffer = encode(&vault)?;
         let temp = NamedTempFile::new()?;
         std::fs::write(temp.path(), buffer)?;
-        let _ = Identity::login_file(temp.path(), auth_master_passphrase, None)?;
+        let _ =
+            Identity::login_file(temp.path(), auth_master_passphrase, None)?;
         Ok(())
     }
 
@@ -166,7 +180,8 @@ mod tests {
         vault.initialize(master_passphrase.expose_secret())?;
         let buffer = encode(&vault)?;
 
-        let result = Identity::login_buffer(buffer, master_passphrase, None);
+        let result =
+            Identity::login_buffer(buffer, master_passphrase, None, None);
         if let Err(Error::NotIdentityVault) = result {
             Ok(())
         } else {
@@ -183,7 +198,8 @@ mod tests {
         vault.initialize(master_passphrase.expose_secret())?;
         let buffer = encode(&vault)?;
 
-        let result = Identity::login_buffer(buffer, master_passphrase, None);
+        let result =
+            Identity::login_buffer(buffer, master_passphrase, None, None);
         if let Err(Error::NoIdentitySigner) = result {
             Ok(())
         } else {
@@ -217,7 +233,8 @@ mod tests {
         let vault = keeper.take();
         let buffer = encode(&vault)?;
 
-        let result = Identity::login_buffer(buffer, master_passphrase, None);
+        let result =
+            Identity::login_buffer(buffer, master_passphrase, None, None);
         if let Err(Error::IdentitySignerKind) = result {
             Ok(())
         } else {
