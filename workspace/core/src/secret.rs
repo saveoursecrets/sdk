@@ -17,9 +17,9 @@ use std::{
 };
 use totp_sos::TOTP;
 use url::Url;
+use urn::Urn;
 use uuid::Uuid;
 use vcard4::{parse as parse_to_vcards, Vcard};
-use urn::Urn;
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
@@ -159,8 +159,8 @@ pub struct SecretMeta {
     urn: Option<Urn>,
     /// An optional owner identifier.
     ///
-    /// This can be used when creating secrets on behalf of a 
-    /// third-party plugin or application to indicate the identifier 
+    /// This can be used when creating secrets on behalf of a
+    /// third-party plugin or application to indicate the identifier
     /// of the third-party application.
     owner_id: Option<String>,
 }
@@ -218,7 +218,7 @@ impl SecretMeta {
     pub fn set_tags(&mut self, tags: HashSet<String>) {
         self.tags = tags;
     }
-    
+
     /// Get the URN for this secret.
     pub fn urn(&self) -> Option<&Urn> {
         self.urn.as_ref()
@@ -523,7 +523,6 @@ impl UserData {
     pub fn set_recovery_notes(&mut self, notes: Option<String>) {
         self.recovery_notes = notes;
     }
-
 }
 
 fn write_user_data(

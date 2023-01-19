@@ -59,10 +59,8 @@ impl Identity {
             user_data: Default::default(),
         };
         let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
-        let mut signer_meta = SecretMeta::new(
-            urn.as_str().to_owned(),
-            signer_secret.kind(),
-        );
+        let mut signer_meta =
+            SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
         keeper.create(signer_meta, signer_secret)?;
 
@@ -205,10 +203,8 @@ mod tests {
         };
 
         let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
-        let mut signer_meta = SecretMeta::new(
-            urn.as_str().to_owned(),
-            signer_secret.kind(),
-        );
+        let mut signer_meta =
+            SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
         keeper.create(signer_meta, signer_secret)?;
 
