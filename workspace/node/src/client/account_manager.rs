@@ -120,6 +120,29 @@ impl AccountManager {
         Ok(())
     }
 
+    /// Remove a vault passphrase from an identity vault.
+    pub fn remove_vault_passphrase(
+        identity: &mut Gatekeeper,
+        vault_id: &VaultId,
+    ) -> Result<()> {
+        let urn = Vault::vault_urn(vault_id)?;
+        let index = identity.index();
+        let index_reader = index.read();
+        let document = index_reader
+            .find_by_urn(identity.id(), &urn)
+            .ok_or(Error::NoVaultEntry(urn.to_string()))?;
+
+        let id = *document.id();
+
+        // Must drop the index reader as deleting 
+        // will write to the index
+        drop(index_reader);
+
+        identity.delete(&id)?;
+
+        Ok(())
+    }
+
     /// Sign in a user.
     pub fn sign_in(
         address: String,
