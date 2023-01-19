@@ -126,6 +126,10 @@ pub enum Error {
     #[error("archive does not contain a default vault")]
     NoArchiveDefaultVault,
 
+    /// Error generated when an account does not exist.
+    #[error("could not find account {0}")]
+    NoAccount(String),
+
     /// Error generated when an archive is for an address that does
     /// not exist locally when we are expecting an archive to be imported
     /// in the context of an existing account.

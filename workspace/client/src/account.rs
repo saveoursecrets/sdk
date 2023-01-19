@@ -83,7 +83,7 @@ pub fn local_signup(name: String, folder_name: Option<String>) -> Result<()> {
 
     // Get an authenticated user from the identity vault
     let buffer = encode(&login_vault)?;
-    let user = Identity::login_buffer(buffer, passphrase.clone())?;
+    let (user, _) = Identity::login_buffer(buffer, passphrase.clone())?;
 
     // Get the signing key for the authenticated user
     let signer = user.signer;

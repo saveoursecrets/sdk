@@ -262,7 +262,7 @@ pub trait StorageProvider: Sync + Send {
 
             // Get the signing address from the identity vault and
             // verify it matches the manifest address
-            let user =
+            let (user, _) =
                 Identity::login_buffer(&identity.1, passphrase.clone())?;
             if user.signer.address()?.to_string() != address {
                 return Err(Error::ArchiveAddressMismatch);

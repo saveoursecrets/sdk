@@ -11,7 +11,7 @@ use sos_core::{
     signer::SingleParty,
     vault::{Header, Summary, Vault, VaultAccess},
     wal::{file::WalFile, WalProvider},
-    VaultFileAccess,
+    Gatekeeper, VaultFileAccess,
 };
 
 use crate::{
@@ -55,7 +55,7 @@ impl AccountManager {
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault)?;
-        let user = Identity::login_buffer(buffer, passphrase.clone())?;
+        let (user, _) = Identity::login_buffer(buffer, passphrase.clone())?;
 
         // Persist the identity vault to disc
         let identity_vault_file = Self::identity_vault(&address)?;
@@ -79,6 +79,23 @@ impl AccountManager {
             run_blocking(provider.create_account_with_buffer(buffer))?;
 
         Ok((address, user, summary))
+    }
+
+    /// Sign in a user.
+    pub fn sign_in(
+        address: String,
+        passphrase: SecretString,
+    ) -> Result<(AccountInfo, AuthenticatedUser, Gatekeeper)> {
+        let accounts = Self::list_accounts()?;
+        let account = accounts
+            .into_iter()
+            .find(|a| a.address == address)
+            .ok_or_else(|| Error::NoAccount(address.clone()))?;
+
+        let identity_path = Self::identity_vault(&address)?;
+        let (user, keeper) = Identity::login_file(identity_path, passphrase)?;
+
+        Ok((account, user, keeper))
     }
 
     /// Verify the master passphrase for an account.
