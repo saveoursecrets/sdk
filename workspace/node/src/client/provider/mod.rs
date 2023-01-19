@@ -120,6 +120,8 @@ impl StorageDirs {
 
 /// Options for a restore operation.
 pub struct RestoreOptions {
+    /// Whether to overwrite an existing identity vault.
+    pub overwrite_identity: bool,
     /// Vaults that the user selected to be imported.
     pub selected: Vec<Summary>,
     /// Passphrase to verify the vaults can be decrypted before import.

@@ -126,6 +126,18 @@ pub enum Error {
     #[error("archive does not contain a default vault")]
     NoArchiveDefaultVault,
 
+    /// Error generated when an archive is for an address that does
+    /// not exist locally when we are expecting an archive to be imported
+    /// in the context of an existing account.
+    #[error("could not find account for archive address {0}")]
+    NoArchiveAccount(String),
+
+    /// Error generated attempting to restore an account from an archive
+    /// whilst not authenticated and the address for the archive matches
+    /// an account that already exists.
+    #[error("account for archive address {0} already exists")]
+    ArchiveAccountAlreadyExists(String),
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

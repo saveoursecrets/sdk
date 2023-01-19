@@ -52,7 +52,7 @@ pub struct AccountCredentials {
     pub summary: Summary,
 }
 
-/// Login to an account.
+/// Login to a remote provider account.
 pub async fn login(
     server: Url,
     cache_dir: PathBuf,

@@ -14,6 +14,9 @@ use sos_core::signer::{BoxedSigner, Signer, SingleParty};
 pub mod account;
 
 #[cfg(not(target_arch = "wasm32"))]
+pub mod account_manager;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod changes_listener;
 pub mod net;
 pub mod provider;
