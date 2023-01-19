@@ -154,7 +154,7 @@ mod tests {
         let buffer = encode(&vault)?;
         let temp = NamedTempFile::new()?;
         std::fs::write(temp.path(), buffer)?;
-        let _ = Identity::login_file(temp.path(), auth_master_passphrase)?;
+        let _ = Identity::login_file(temp.path(), auth_master_passphrase, None)?;
         Ok(())
     }
 
@@ -166,7 +166,7 @@ mod tests {
         vault.initialize(master_passphrase.expose_secret())?;
         let buffer = encode(&vault)?;
 
-        let result = Identity::login_buffer(buffer, master_passphrase);
+        let result = Identity::login_buffer(buffer, master_passphrase, None);
         if let Err(Error::NotIdentityVault) = result {
             Ok(())
         } else {
@@ -183,7 +183,7 @@ mod tests {
         vault.initialize(master_passphrase.expose_secret())?;
         let buffer = encode(&vault)?;
 
-        let result = Identity::login_buffer(buffer, master_passphrase);
+        let result = Identity::login_buffer(buffer, master_passphrase, None);
         if let Err(Error::NoIdentitySigner) = result {
             Ok(())
         } else {
@@ -217,7 +217,7 @@ mod tests {
         let vault = keeper.take();
         let buffer = encode(&vault)?;
 
-        let result = Identity::login_buffer(buffer, master_passphrase);
+        let result = Identity::login_buffer(buffer, master_passphrase, None);
         if let Err(Error::IdentitySignerKind) = result {
             Ok(())
         } else {
