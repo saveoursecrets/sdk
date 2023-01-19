@@ -81,6 +81,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     let options = RestoreOptions {
         selected: vec![vault.summary().clone()],
         passphrase: Some(SecretString::new(passphrase.to_string())),
+        overwrite_identity: false,
     };
 
     // Create the archive

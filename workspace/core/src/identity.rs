@@ -72,7 +72,7 @@ impl Identity {
     pub fn login_file<P: AsRef<Path>>(
         file: P,
         master_passphrase: SecretString,
-    ) -> Result<AuthenticatedUser> {
+    ) -> Result<(AuthenticatedUser, Gatekeeper)> {
         let buffer = std::fs::read(file.as_ref())?;
         Identity::login_buffer(buffer, master_passphrase)
     }
@@ -81,7 +81,7 @@ impl Identity {
     pub fn login_buffer<B: AsRef<[u8]>>(
         buffer: B,
         master_passphrase: SecretString,
-    ) -> Result<AuthenticatedUser> {
+    ) -> Result<(AuthenticatedUser, Gatekeeper)> {
         let vault: Vault = decode(buffer.as_ref())?;
 
         if !vault.flags().contains(VaultFlags::IDENTITY) {
@@ -116,7 +116,7 @@ impl Identity {
         };
         let signer = signer.ok_or(Error::IdentitySignerKind)?;
 
-        Ok(AuthenticatedUser { signer })
+        Ok((AuthenticatedUser { signer }, keeper))
     }
 }
 
