@@ -132,8 +132,13 @@ pub enum Error {
 
     /// Error generated when a vault entry in the identity vault could not
     /// be located.
-    #[error("could vault entry for {0}")]
+    #[error("could not find vault entry for {0}")]
     NoVaultEntry(String),
+
+    /// Error generated when a vault entry in an identity vault is of 
+    /// the wrong secret kind.
+    #[error("vault entry for {0} is of an unexpected type")]
+    VaultEntryKind(String),
 
     /// Error generated when an archive is for an address that does
     /// not exist locally when we are expecting an archive to be imported

@@ -134,13 +134,44 @@ impl AccountManager {
 
         let id = *document.id();
 
-        // Must drop the index reader as deleting 
+        // Must drop the index reader as deleting
         // will write to the index
         drop(index_reader);
 
         identity.delete(&id)?;
 
         Ok(())
+    }
+
+    /// Find a vault passphrase in an identity vault using the 
+    /// search index associated with the vault.
+    ///
+    /// The identity vault must already be unlocked to extract 
+    /// the secret passphrase.
+    pub fn find_vault_passphrase(
+        identity: &Gatekeeper,
+        vault_id: &VaultId,
+    ) -> Result<SecretString> {
+        let urn = Vault::vault_urn(vault_id)?;
+        let index = identity.index();
+        let index_reader = index.read();
+        let document = index_reader
+            .find_by_urn(identity.id(), &urn)
+            .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
+
+        let (_, secret, _) = 
+            identity
+            .read(document.id())?
+            .ok_or_else(|| Error::NoVaultEntry(document.id().to_string()))?;
+
+        let passphrase = if let Secret::Password { password, .. } = secret
+        {
+            password
+        } else {
+            return Err(Error::VaultEntryKind(urn.to_string()))
+        };
+
+        Ok(passphrase)
     }
 
     /// Sign in a user.
