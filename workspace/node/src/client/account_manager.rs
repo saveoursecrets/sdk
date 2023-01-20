@@ -248,7 +248,7 @@ impl AccountManager {
     /// Export a vault by changing the vault passphrase and
     /// converting it to a buffer.
     ///
-    /// The identity vault must be unlocked so we can retrieve 
+    /// The identity vault must be unlocked so we can retrieve
     /// the passphrase for the target vault.
     pub fn export_vault(
         address: &str,
@@ -285,6 +285,16 @@ impl AccountManager {
         let buffer = std::fs::read(&path)?;
         let vault: Vault = decode(&buffer)?;
         Ok((vault, path))
+    }
+
+    /// Find the default vault for an account.
+    pub fn find_default_vault(address: &str) -> Result<(Summary, PathBuf)> {
+        let vaults = Self::list_local_vaults(address)?;
+        let (summary, path) = vaults
+            .into_iter()
+            .find(|(s, _)| s.flags().is_default())
+            .ok_or_else(|| Error::NoDefaultVault(address.to_string()))?;
+        Ok((summary, path))
     }
 
     /// Get a list of the vaults for an account directly from the file system.
