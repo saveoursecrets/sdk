@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use sos_core::{
     archive::{deflate, inflate, Inventory, Reader, Writer},
     constants::{IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
-    encode,
+    decode, encode,
     events::WalEvent,
     generate_passphrase,
     identity::{AuthenticatedUser, Identity},
@@ -16,7 +16,7 @@ use sos_core::{
     signer::SingleParty,
     vault::{Header, Summary, Vault, VaultAccess, VaultId},
     wal::{file::WalFile, WalProvider},
-    Gatekeeper, VaultFileAccess,
+    ChangePassword, Gatekeeper, VaultFileAccess,
 };
 
 use crate::{
@@ -143,10 +143,10 @@ impl AccountManager {
         Ok(())
     }
 
-    /// Find a vault passphrase in an identity vault using the 
+    /// Find a vault passphrase in an identity vault using the
     /// search index associated with the vault.
     ///
-    /// The identity vault must already be unlocked to extract 
+    /// The identity vault must already be unlocked to extract
     /// the secret passphrase.
     pub fn find_vault_passphrase(
         identity: &Gatekeeper,
@@ -159,16 +159,14 @@ impl AccountManager {
             .find_by_urn(identity.id(), &urn)
             .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
 
-        let (_, secret, _) = 
-            identity
+        let (_, secret, _) = identity
             .read(document.id())?
             .ok_or_else(|| Error::NoVaultEntry(document.id().to_string()))?;
 
-        let passphrase = if let Secret::Password { password, .. } = secret
-        {
+        let passphrase = if let Secret::Password { password, .. } = secret {
             password
         } else {
-            return Err(Error::VaultEntryKind(urn.to_string()))
+            return Err(Error::VaultEntryKind(urn.to_string()));
         };
 
         Ok(passphrase)
@@ -247,6 +245,45 @@ impl AccountManager {
         Ok(())
     }
 
+    /// Export a vault by changing the vault passphrase and
+    /// converting it to a buffer.
+    pub fn export_vault(
+        address: &str,
+        identity: &Gatekeeper,
+        vault_id: &VaultId,
+        new_passphrase: SecretString,
+    ) -> Result<Vec<u8>> {
+        // Get the current vault passphrase from the identity vault
+        let current_passphrase =
+            Self::find_vault_passphrase(identity, vault_id)?;
+
+        // Find the local vault for the account
+        let (vault, _) = Self::find_local_vault(address, vault_id)?;
+
+        // Change the password before exporting
+        let (_, vault, _) =
+            ChangePassword::new(&vault, current_passphrase, new_passphrase)
+                .build()?;
+
+        Ok(encode(&vault)?)
+    }
+
+    /// Find and load a vault for a local file.
+    pub fn find_local_vault(
+        address: &str,
+        id: &VaultId,
+    ) -> Result<(Vault, PathBuf)> {
+        let vaults = Self::list_local_vaults(address)?;
+        let (_summary, path) = vaults
+            .into_iter()
+            .find(|(s, _)| s.id() == id)
+            .ok_or_else(|| Error::NoVaultFile(id.to_string()))?;
+
+        let buffer = std::fs::read(&path)?;
+        let vault: Vault = decode(&buffer)?;
+        Ok((vault, path))
+    }
+
     /// Get a list of the vaults for an account directly from the file system.
     pub fn list_local_vaults(
         address: &str,
@@ -301,13 +338,6 @@ impl AccountManager {
 
         let reader = Reader::new(Cursor::new(archive));
         let inventory = reader.inventory()?;
-        //let mut inventory: Inventory = inventory.into();
-        //
-        /*
-        let accounts = Self::list_accounts()?;
-        inventory.exists_local =
-            accounts.iter().any(|account| account.address == inventory.manifest.address);
-        */
         Ok(inventory)
     }
 
