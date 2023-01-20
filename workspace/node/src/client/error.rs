@@ -135,6 +135,10 @@ pub enum Error {
     #[error("could not find vault entry for {0}")]
     NoVaultEntry(String),
 
+    /// Error generated when the default vault for an account could not be found.
+    #[error("could not find the default vault for {0}")]
+    NoDefaultVault(String),
+
     /// Error generated when a vault file could not be located.
     #[error("could not find vault file for {0}")]
     NoVaultFile(String),
