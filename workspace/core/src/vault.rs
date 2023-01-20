@@ -746,6 +746,16 @@ impl Vault {
         }
     }
 
+    /// Choose a new identifier for this vault.
+    ///
+    /// This is useful when importing a vault and the identifier
+    /// collides with an existing vault; rather than overwriting the
+    /// existing vault we can import it alongside by choosing a new
+    /// identifier.
+    pub fn rotate_identifier(&mut self) {
+        self.header.summary.id = Uuid::new_v4();
+    }
+
     /// Verify an encryption passphrase.
     pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
