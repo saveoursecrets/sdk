@@ -422,7 +422,7 @@ impl Gatekeeper {
         self.vault.verify(passphrase)
     }
 
-    /// Create the initial search index.
+    /// Add the meta data for the vault entries to a search index..
     pub fn create_search_index(&mut self) -> Result<()> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;

@@ -382,6 +382,19 @@ impl SearchIndex {
         self.statistics.count.remove(*vault_id, doc_info);
     }
 
+    /// Remove all the documents for a given vault identifier from the index.
+    pub fn remove_vault(&mut self, vault_id: &VaultId) {
+        let keys: Vec<DocumentKey> =
+            self.documents
+            .keys()
+            .filter(|k| &k.1 == vault_id)
+            .cloned().collect();
+        for key in keys {
+            self.remove(&key.1, &key.2);
+            self.documents.remove(&key);
+        }
+    }
+
     /// Remove all documents from the index.
     ///
     /// This should be called before creating a new index using
