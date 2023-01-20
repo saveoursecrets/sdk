@@ -251,6 +251,7 @@ where
         summary: &Summary,
         name: &str,
     ) -> Result<()> {
+        // Log the WAL event
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
         self.patch(summary, vec![event.into_owned()]).await?;
 

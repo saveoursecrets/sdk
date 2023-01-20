@@ -384,11 +384,12 @@ impl SearchIndex {
 
     /// Remove all the documents for a given vault identifier from the index.
     pub fn remove_vault(&mut self, vault_id: &VaultId) {
-        let keys: Vec<DocumentKey> =
-            self.documents
+        let keys: Vec<DocumentKey> = self
+            .documents
             .keys()
             .filter(|k| &k.1 == vault_id)
-            .cloned().collect();
+            .cloned()
+            .collect();
         for key in keys {
             self.remove(&key.1, &key.2);
             self.documents.remove(&key);
