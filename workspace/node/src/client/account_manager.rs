@@ -247,6 +247,9 @@ impl AccountManager {
 
     /// Export a vault by changing the vault passphrase and
     /// converting it to a buffer.
+    ///
+    /// The identity vault must be unlocked so we can retrieve 
+    /// the passphrase for the target vault.
     pub fn export_vault(
         address: &str,
         identity: &Gatekeeper,
