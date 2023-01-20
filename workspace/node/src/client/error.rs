@@ -135,7 +135,11 @@ pub enum Error {
     #[error("could not find vault entry for {0}")]
     NoVaultEntry(String),
 
-    /// Error generated when a vault entry in an identity vault is of 
+    /// Error generated when a vault file could not be located.
+    #[error("could not find vault file for {0}")]
+    NoVaultFile(String),
+
+    /// Error generated when a vault entry in an identity vault is of
     /// the wrong secret kind.
     #[error("vault entry for {0} is of an unexpected type")]
     VaultEntryKind(String),
