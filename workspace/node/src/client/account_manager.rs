@@ -9,7 +9,7 @@ use sos_core::{
     constants::{IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     decode, encode,
     events::WalEvent,
-    generate_passphrase,
+    generate_passphrase_words,
     identity::{AuthenticatedUser, Identity},
     search::SearchIndex,
     secret::{Secret, SecretMeta},
@@ -28,6 +28,9 @@ use crate::{
 };
 
 use secrecy::{ExposeSecret, SecretString};
+
+/// Number of words to use when generating passphrases for vaults.
+const VAULT_PASSPHRASE_WORDS: u8 = 12;
 
 /// Combines an account address with a label.
 #[derive(Debug, Clone)]
@@ -64,7 +67,7 @@ impl AccountManager {
             Identity::login_buffer(&buffer, passphrase.clone(), None, None)?;
 
         // Prepare the passphrase for the default vault
-        let (vault_passphrase, _) = generate_passphrase()?;
+        let vault_passphrase = Self::generate_vault_passphrase()?;
 
         // Prepare the default vault
         let mut default_vault: Vault = Default::default();
@@ -99,6 +102,13 @@ impl AccountManager {
             run_blocking(provider.create_account_with_buffer(buffer))?;
 
         Ok((address, user, summary))
+    }
+
+    /// Generate a vault passphrase.
+    pub fn generate_vault_passphrase() -> Result<SecretString> {
+        let (vault_passphrase, _) =
+            generate_passphrase_words(VAULT_PASSPHRASE_WORDS)?;
+        Ok(vault_passphrase)
     }
 
     /// Save a vault passphrase into an identity vault.
