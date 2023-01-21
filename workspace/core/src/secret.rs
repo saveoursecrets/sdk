@@ -109,9 +109,11 @@ impl FromStr for SecretRef {
     }
 }
 
-/// Unencrypted vault meta data.
+/// Vault meta data.
 #[derive(Default, Serialize, Deserialize)]
 pub struct VaultMeta {
+    /// Date created timestamp.
+    date_created: Timestamp,
     /// Private human-friendly description of the vault.
     label: String,
 }
@@ -126,10 +128,16 @@ impl VaultMeta {
     pub fn set_label(&mut self, label: String) {
         self.label = label;
     }
+
+    /// Date this vault was initialized.
+    pub fn date_created(&self) -> &Timestamp {
+        &self.date_created
+    }
 }
 
 impl Encode for VaultMeta {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        self.date_created.encode(&mut *writer)?;
         writer.write_string(&self.label)?;
         Ok(())
     }
@@ -137,6 +145,8 @@ impl Encode for VaultMeta {
 
 impl Decode for VaultMeta {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let mut date_created: Timestamp = Default::default();
+        date_created.decode(&mut *reader)?;
         self.label = reader.read_string()?;
         Ok(())
     }
