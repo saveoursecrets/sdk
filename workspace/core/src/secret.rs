@@ -444,7 +444,7 @@ mod user_data {
 
 /// User defined field.
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[serde(untagged)]
 pub enum UserField {
     /// Default variant for a user defined field.
     #[default]
