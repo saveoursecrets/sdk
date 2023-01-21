@@ -2,6 +2,7 @@
 //! creating and managing local accounts.
 use std::{borrow::Cow, io::Cursor, path::PathBuf, sync::Arc};
 
+use serde::{Serialize, Deserialize};
 use parking_lot::RwLock;
 
 use sos_core::{
@@ -33,7 +34,7 @@ use secrecy::{ExposeSecret, SecretString};
 const VAULT_PASSPHRASE_WORDS: u8 = 12;
 
 /// Combines an account address with a label.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountInfo {
     /// Address identifier for the account.
     ///

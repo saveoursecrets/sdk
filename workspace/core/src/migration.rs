@@ -164,7 +164,7 @@ mod test {
         files.insert("public-unsafe.json", public_json.as_slice());
 
         // Check creating an archive
-        let archive = create_public_archive(files)?;
+        let _ = create_public_archive(files)?;
 
         Ok(())
     }

@@ -443,6 +443,7 @@ mod user_data {
 
 /// User defined field.
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum UserField {
     /// Default variant for a user defined field.
     #[default]
@@ -602,6 +603,7 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
 #[serde(untagged, rename_all = "lowercase")]
 pub enum Secret {
     /// A UTF-8 encoded note.
+    #[serde(rename_all = "camelCase")]
     Note {
         /// Note text.
         #[serde(serialize_with = "serialize_secret_string")]
@@ -611,6 +613,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// A binary blob.
+    #[serde(rename_all = "camelCase")]
     File {
         /// File name.
         name: String,
@@ -626,6 +629,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// Account with login password.
+    #[serde(rename_all = "camelCase")]
     Account {
         /// Name of the account.
         account: String,
@@ -639,6 +643,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// Collection of credentials as key/value pairs.
+    #[serde(rename_all = "camelCase")]
     List {
         /// The items in the list.
         #[serde(serialize_with = "serialize_secret_string_map")]
@@ -648,6 +653,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// PEM encoded binary data.
+    #[serde(rename_all = "camelCase")]
     Pem {
         /// Collection of PEM encoded certificates or keys.
         certificates: Vec<Pem>,
@@ -656,6 +662,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// A UTF-8 text document.
+    #[serde(rename_all = "camelCase")]
     Page {
         /// Title of the page.
         title: String,
@@ -675,6 +682,7 @@ pub enum Secret {
     ///
     /// Client implementations should ensure the value
     /// only contains digits.
+    #[serde(rename_all = "camelCase")]
     Pin {
         /// The value for the PIN.
         #[serde(serialize_with = "serialize_secret_string")]
@@ -684,6 +692,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// Private signing key.
+    #[serde(rename_all = "camelCase")]
     Signer {
         /// The private key.
         private_key: SecretSigner,
@@ -692,6 +701,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// Contact for an organization or person.
+    #[serde(rename_all = "camelCase")]
     Contact {
         /// The contact vCard.
         vcard: Box<Vcard>,
@@ -700,6 +710,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// Two-factor authentication using a TOTP.
+    #[serde(rename_all = "camelCase")]
     Totp {
         /// Time-based one-time passcode.
         totp: TOTP,
@@ -708,6 +719,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// Credit or debit card.
+    #[serde(rename_all = "camelCase")]
     Card {
         /// The card number.
         #[serde(serialize_with = "serialize_secret_string")]
@@ -729,6 +741,7 @@ pub enum Secret {
         user_data: UserData,
     },
     /// Bank account.
+    #[serde(rename_all = "camelCase")]
     Bank {
         /// The account number.
         #[serde(serialize_with = "serialize_secret_string")]
@@ -750,21 +763,31 @@ pub enum Secret {
         user_data: UserData,
     },
     /// External link; intended to be used in embedded user fields.
+    #[serde(rename_all = "camelCase")]
     Link {
         /// External link URL.
         #[serde(serialize_with = "serialize_secret_string")]
         url: SecretString,
         /// Optional label for the link.
-        #[serde(serialize_with = "serialize_secret_option")]
+        #[serde(
+            default,
+            serialize_with = "serialize_secret_option",
+            skip_serializing_if = "Option::is_none"
+        )]
         label: Option<SecretString>,
         /// Optional title for the link.
-        #[serde(serialize_with = "serialize_secret_option")]
+        #[serde(
+            default,
+            serialize_with = "serialize_secret_option",
+            skip_serializing_if = "Option::is_none"
+        )]
         title: Option<SecretString>,
         /// Custom user data.
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Standalone password; intended to be used in embedded user fields.
+    #[serde(rename_all = "camelCase")]
     Password {
         /// Password secret.
         #[serde(serialize_with = "serialize_secret_string")]
@@ -773,7 +796,11 @@ pub enum Secret {
         ///
         /// This could be a username, account name or other label
         /// the user wants to associate with this password.
-        #[serde(serialize_with = "serialize_secret_option")]
+        #[serde(
+            default,
+            serialize_with = "serialize_secret_option",
+            skip_serializing_if = "Option::is_none"
+        )]
         name: Option<SecretString>,
         /// Custom user data.
         #[serde(default, skip_serializing_if = "UserData::is_default")]
