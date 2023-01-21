@@ -115,6 +115,7 @@ pub struct VaultMeta {
     /// Date created timestamp.
     date_created: Timestamp,
     /// Private human-friendly description of the vault.
+    #[serde(skip_serializing_if = "String::is_empty")]
     label: String,
 }
 
@@ -164,16 +165,20 @@ pub struct SecretMeta {
     #[serde(skip_deserializing)]
     last_updated: Timestamp,
     /// Human-friendly label for the secret.
+    #[serde(skip_serializing_if = "String::is_empty")]
     label: String,
     /// Collection of tags.
+    #[serde(skip_serializing_if = "HashSet::is_empty")]
     tags: HashSet<String>,
     /// A URN identifier for this secret.
+    #[serde(skip_serializing_if = "Option::is_none")]
     urn: Option<Urn>,
     /// An optional owner identifier.
     ///
     /// This can be used when creating secrets on behalf of a
     /// third-party plugin or application to indicate the identifier
     /// of the third-party application.
+    #[serde(skip_serializing_if = "Option::is_none")]
     owner_id: Option<String>,
 }
 
@@ -509,35 +514,42 @@ impl Decode for UserField {
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UserData {
     /// Collection of custom user_data.
-    inner: Vec<UserField>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    fields: Vec<UserField>,
     /// Recovery nodes.
+    #[serde(skip_serializing_if = "Option::is_none")]
     recovery_notes: Option<String>,
 }
 
 impl UserData {
     /// Get the number of user data.
     pub fn len(&self) -> usize {
-        self.inner.len()
+        self.fields.len()
+    }
+
+    /// Determine of there are any user data fields.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0 && self.recovery_notes.is_none()
     }
 
     /// Determine of there are any user data.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_default(&self) -> bool {
+        self.is_empty() && self.recovery_notes.is_none()
     }
 
     /// Get the user fields.
     pub fn fields(&self) -> &Vec<UserField> {
-        &self.inner
+        &self.fields
     }
 
     /// Get a mutable reference to the user fields.
     pub fn fields_mut(&mut self) -> &mut Vec<UserField> {
-        &mut self.inner
+        &mut self.fields
     }
 
     /// Add a custom field to this collection.
     pub fn push(&mut self, field: UserField) {
-        self.inner.push(field);
+        self.fields.push(field);
     }
 
     /// Get the recovery notes.
@@ -595,6 +607,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         text: SecretString,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// A binary blob.
@@ -609,6 +622,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_buffer")]
         buffer: SecretVec<u8>,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Account with login password.
@@ -621,6 +635,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         password: SecretString,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Collection of credentials as key/value pairs.
@@ -629,6 +644,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string_map")]
         items: HashMap<String, SecretString>,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// PEM encoded binary data.
@@ -636,6 +652,7 @@ pub enum Secret {
         /// Collection of PEM encoded certificates or keys.
         certificates: Vec<Pem>,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// A UTF-8 text document.
@@ -648,6 +665,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         document: SecretString,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Personal identification number.
@@ -662,6 +680,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         number: SecretString,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Private signing key.
@@ -669,6 +688,7 @@ pub enum Secret {
         /// The private key.
         private_key: SecretSigner,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Contact for an organization or person.
@@ -676,6 +696,7 @@ pub enum Secret {
         /// The contact vCard.
         vcard: Box<Vcard>,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Two-factor authentication using a TOTP.
@@ -683,6 +704,7 @@ pub enum Secret {
         /// Time-based one-time passcode.
         totp: TOTP,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Credit or debit card.
@@ -703,6 +725,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_option")]
         atm_pin: Option<SecretString>,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Bank account.
@@ -723,6 +746,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_option")]
         bic: Option<SecretString>,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// External link; intended to be used in embedded user fields.
@@ -737,6 +761,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_option")]
         title: Option<SecretString>,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Standalone password; intended to be used in embedded user fields.
@@ -751,6 +776,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_option")]
         name: Option<SecretString>,
         /// Custom user data.
+        #[serde(skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
 }
