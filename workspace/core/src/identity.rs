@@ -23,8 +23,11 @@ use crate::{
     secret::{Secret, SecretMeta, SecretSigner},
     signer::{BoxedSigner, Signer, SingleParty},
     vault::{Vault, VaultAccess, VaultFlags},
-    Error, Result, VaultFileAccess,
+    Error, Result,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::VaultFileAccess;
 
 /// User information once authentication to a login vault succeeds.
 pub struct AuthenticatedUser {

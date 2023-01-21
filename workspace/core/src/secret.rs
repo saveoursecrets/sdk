@@ -143,11 +143,13 @@ impl Decode for VaultMeta {
 }
 
 /// Encapsulates the meta data for a secret.
-#[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretMeta {
     /// Kind of the secret.
     kind: u8,
+    /// Date created timestamp.
+    date_created: Timestamp,
     /// Last updated timestamp.
     #[serde(skip_deserializing)]
     last_updated: Timestamp,
@@ -165,6 +167,16 @@ pub struct SecretMeta {
     owner_id: Option<String>,
 }
 
+impl PartialEq for SecretMeta {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+            && self.label == other.label
+            && self.urn == other.urn
+    }
+}
+
+impl Eq for SecretMeta {}
+
 impl PartialOrd for SecretMeta {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.label.partial_cmp(&other.label)
@@ -177,6 +189,7 @@ impl SecretMeta {
         Self {
             label,
             kind,
+            date_created: Default::default(),
             last_updated: Default::default(),
             tags: Default::default(),
             urn: None,
@@ -265,6 +278,7 @@ impl SecretMeta {
 impl Encode for SecretMeta {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         writer.write_u8(self.kind)?;
+        self.date_created.encode(&mut *writer)?;
         self.last_updated.encode(&mut *writer)?;
         writer.write_string(&self.label)?;
         writer.write_u32(self.tags.len() as u32)?;
@@ -286,6 +300,8 @@ impl Encode for SecretMeta {
 impl Decode for SecretMeta {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         self.kind = reader.read_u8()?;
+        let mut date_created: Timestamp = Default::default();
+        date_created.decode(&mut *reader)?;
         let mut last_updated: Timestamp = Default::default();
         last_updated.decode(&mut *reader)?;
         self.last_updated = last_updated;
