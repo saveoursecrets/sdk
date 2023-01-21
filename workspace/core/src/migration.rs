@@ -101,6 +101,7 @@ pub struct PublicStore {
     /// The vault meta data.
     meta: VaultMeta,
     /// The collection of secrets in the vault.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     secrets: Vec<PublicSecret>,
 }
 

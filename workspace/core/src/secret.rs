@@ -111,6 +111,7 @@ impl FromStr for SecretRef {
 
 /// Vault meta data.
 #[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VaultMeta {
     /// Date created timestamp.
     date_created: Timestamp,
