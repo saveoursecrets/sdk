@@ -23,6 +23,15 @@ use crate::{
     Error, Result,
 };
 
+/// Finish the header in a TAR archive for a regular file.
+pub(crate) fn finish_header(header: &mut Header) {
+    let now = OffsetDateTime::now_utc();
+    header.set_entry_type(EntryType::Regular);
+    header.set_mtime(now.unix_timestamp() as u64);
+    header.set_mode(0o755);
+    header.set_cksum();
+}
+
 /// Manifest used to determine if the archive is supported
 /// for import purposes.
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -55,14 +64,6 @@ impl<W: Write> Writer<W> {
         }
     }
 
-    fn finish_header(&self, header: &mut Header) {
-        let now = OffsetDateTime::now_utc();
-        header.set_entry_type(EntryType::Regular);
-        header.set_mtime(now.unix_timestamp() as u64);
-        header.set_mode(0o755);
-        header.set_cksum();
-    }
-
     /// Set the identity vault for the archive.
     pub fn set_identity(
         mut self,
@@ -79,7 +80,7 @@ impl<W: Write> Writer<W> {
         let mut header = Header::new_gnu();
         header.set_path(path)?;
         header.set_size(vault.len() as u64);
-        self.finish_header(&mut header);
+        finish_header(&mut header);
 
         self.builder.append(&header, vault)?;
         Ok(self)
@@ -100,7 +101,7 @@ impl<W: Write> Writer<W> {
         let mut header = Header::new_gnu();
         header.set_path(path)?;
         header.set_size(vault.len() as u64);
-        self.finish_header(&mut header);
+        finish_header(&mut header);
 
         self.builder.append(&header, vault)?;
         Ok(self)
@@ -114,7 +115,7 @@ impl<W: Write> Writer<W> {
         let mut header = Header::new_gnu();
         header.set_path(path)?;
         header.set_size(manifest.len() as u64);
-        self.finish_header(&mut header);
+        finish_header(&mut header);
 
         self.builder.append(&header, manifest.as_slice())?;
         Ok(self.builder.into_inner()?)

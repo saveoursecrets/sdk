@@ -24,10 +24,7 @@ use crate::Result;
 #[derive(
     Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq,
 )]
-pub struct Timestamp(
-    #[serde(with = "time::serde::rfc3339")]
-    OffsetDateTime
-);
+pub struct Timestamp(#[serde(with = "time::serde::rfc3339")] OffsetDateTime);
 
 impl Default for Timestamp {
     fn default() -> Self {
