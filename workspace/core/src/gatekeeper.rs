@@ -217,7 +217,10 @@ impl Gatekeeper {
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
         if let Some(meta_aead) = self.vault.header().meta() {
-            let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
+            let meta_blob = self
+                .vault
+                .decrypt(private_key, meta_aead)
+                .map_err(|_| Error::PassphraseVerification)?;
             let meta_data: VaultMeta = decode(&meta_blob)?;
             Ok(meta_data)
         } else {

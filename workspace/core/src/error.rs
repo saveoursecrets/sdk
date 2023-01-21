@@ -82,6 +82,13 @@ pub enum Error {
     #[error("{0}")]
     PasswordGenerator(String),
 
+    /// Error generated when attempting to verify a passphrase fails.
+    ///
+    /// This can happen when calling `verify()` on a `Vault` or `unlock()`
+    /// on a `Gatekeeper`.
+    #[error("passphrase verification failed")]
+    PassphraseVerification,
+
     /// Error generated when a login vault does not contain
     /// the identity bit flag.
     #[error("vault is not an identity vault")]
