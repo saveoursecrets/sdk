@@ -32,6 +32,47 @@ pub(crate) fn finish_header(header: &mut Header) {
     header.set_cksum();
 }
 
+/// Borrowed for the tar crate source so we can support long names
+/// when creating entries.
+fn prepare_header(size: u64, entry_type: u8) -> Header {
+    let mut header = Header::new_gnu();
+    let name = b"././@LongLink";
+    header.as_gnu_mut().unwrap().name[..name.len()]
+        .clone_from_slice(&name[..]);
+    header.set_mode(0o644);
+    header.set_uid(0);
+    header.set_gid(0);
+    header.set_mtime(0);
+    // + 1 to be compliant with GNU tar
+    header.set_size(size + 1);
+    header.set_entry_type(EntryType::new(entry_type));
+    header.set_cksum();
+    header
+}
+
+/// Append a buffer using a long path entry.
+pub(crate) fn append_long_path<W: Write>(
+    builder: &mut Builder<W>,
+    path: &str,
+    buffer: &[u8],
+) -> Result<()> {
+    //let path = format!(
+    //"{}/{}", file_path, hex::encode(checksum));
+
+    // Prepare long path header
+    let path_header = prepare_header(path.len() as u64, b'L');
+    // Add entry for the long path data
+    builder.append(&path_header, path.as_bytes())?;
+
+    // Add a standard header for the file data
+    let mut header = Header::new_gnu();
+    header.set_size(buffer.len() as u64);
+    finish_header(&mut header);
+    builder.append(&header, buffer)?;
+
+    Ok(())
+}
+
 /// Manifest used to determine if the archive is supported
 /// for import purposes.
 #[derive(Default, Debug, Serialize, Deserialize)]

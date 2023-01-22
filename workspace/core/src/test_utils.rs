@@ -43,6 +43,24 @@ pub fn mock_secret_note(
     Ok((secret_meta, secret_value, meta_bytes, secret_bytes))
 }
 
+pub fn mock_secret_file(
+    label: &str,
+    name: &str,
+    mime: &str,
+    buffer: Vec<u8>,
+) -> Result<(SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
+    let secret_value = Secret::File {
+        name: name.to_string(),
+        mime: mime.to_string(),
+        buffer: secrecy::Secret::new(buffer),
+        user_data: Default::default(),
+    };
+    let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
+    let meta_bytes = encode(&secret_meta)?;
+    let secret_bytes = encode(&secret_value)?;
+    Ok((secret_meta, secret_value, meta_bytes, secret_bytes))
+}
+
 pub fn mock_vault_note<'a>(
     vault: &'a mut Vault,
     encryption_key: &SecretKey,

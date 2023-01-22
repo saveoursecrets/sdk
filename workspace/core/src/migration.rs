@@ -1,95 +1,121 @@
 //! Migration defines types that expose all
 //! vaults and secrets insecurely and unencrypted
-//! as a single JSON document for migrating to
+//! as a compressed archive for migrating to
 //! another service.
 
+use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
+use sha3::{Digest, Keccak256};
 use std::{collections::HashMap, io::Write};
-use tar::{Builder, Header};
+use tar::Builder;
 
 use crate::{
-    archive::{deflate, finish_header},
+    archive::append_long_path,
     secret::{Secret, SecretId, SecretMeta, VaultMeta},
-    vault::Summary,
+    vault::{Summary, VaultId},
     Gatekeeper, Result,
 };
 
-/// Create a compressed tar.gz public archive from the given files.
-pub fn create_public_archive(files: HashMap<&str, &[u8]>) -> Result<Vec<u8>> {
-    let mut archive = Vec::new();
-    let mut writer = PublicArchive::new(&mut archive);
-
-    for (path, buffer) in files {
-        writer = writer.add_file(path, buffer)?;
-    }
-    writer.finish()?;
-
-    // Compress the tarball
-    let mut tar_gz = Vec::new();
-    deflate(archive.as_slice(), &mut tar_gz)?;
-    Ok(tar_gz)
-}
-
-/// Archive writer for a public migration.
-pub struct PublicArchive<W: Write> {
+/// Migration encapsulates a collection of vaults
+/// and their unencrypted secrets.
+pub struct PublicMigration<W: Write> {
     builder: Builder<W>,
+    public_info: Vec<VaultId>,
 }
 
-impl<W: Write> PublicArchive<W> {
-    /// Create a new writer.
+impl<W: Write> PublicMigration<W> {
+    /// Create a new public migration.
     pub fn new(inner: W) -> Self {
         Self {
             builder: Builder::new(inner),
+            public_info: Vec::new(),
         }
     }
 
-    /// Add a file to this archive.
-    pub fn add_file(mut self, path: &str, buffer: &[u8]) -> Result<Self> {
-        let mut header = Header::new_gnu();
-        header.set_path(path)?;
-        header.set_size(buffer.len() as u64);
-        finish_header(&mut header);
-        self.builder.append(&header, buffer)?;
-        Ok(self)
-    }
-
-    /// Finish building the archive.
-    pub fn finish(self) -> Result<W> {
-        Ok(self.builder.into_inner()?)
-    }
-}
-
-/// Migration encapsulates a collection of vaults
-/// and their unencrypted secrets.
-#[derive(Default, Serialize, Deserialize)]
-pub struct PublicMigration {
-    vaults: Vec<PublicStore>,
-}
-
-impl PublicMigration {
     /// Add the secrets in a vault to this migration.
     ///
     /// The passed `Gatekeeper` must already be unlocked so the
     /// secrets can be decrypted.
     pub fn add(&mut self, access: &Gatekeeper) -> Result<()> {
+        // This verifies decryption early, if the keeper is locked
+        // it will error here
         let meta = access.vault_meta()?;
 
-        let mut store: PublicStore = Default::default();
-        store.summary = access.vault().summary().clone();
-        store.meta = meta;
+        let vault_id = access.summary().id();
+        let base_path = format!("vaults/{}", vault_id);
+        let file_path = format!("{}/files", base_path);
+
+        let store = PublicStore {
+            meta: meta,
+            summary: access.summary().clone(),
+            secrets: access.vault().keys().copied().collect(),
+        };
+        let store_path = format!("{}/meta.json", base_path);
+        let buffer = serde_json::to_vec_pretty(&store)?;
+        append_long_path(&mut self.builder, &store_path, buffer.as_slice())?;
 
         for id in access.vault().keys() {
-            if let Some((meta, secret, _)) = access.read(id)? {
-                store.secrets.push(PublicSecret {
+            if let Some((meta, mut secret, _)) = access.read(id)? {
+                if let Secret::File { buffer, .. } = &mut secret {
+
+                    // FIXME: use pre-computed checksum
+                    let checksum = Keccak256::digest(buffer.expose_secret());
+                    let path =
+                        format!("{}/{}", file_path, hex::encode(checksum));
+                    append_long_path(
+                        &mut self.builder,
+                        &path,
+                        buffer.expose_secret().as_slice(),
+                    )?;
+
+                    *buffer = secrecy::Secret::new(vec![]);
+                }
+
+                // FIXME: handle attachments
+
+                let path = format!("{}/{}.json", base_path, id);
+                let public_secret = PublicSecret {
                     id: *id,
                     meta: meta,
                     secret: secret,
-                });
+                };
+
+                let buffer = serde_json::to_vec_pretty(&public_secret)?;
+                append_long_path(
+                    &mut self.builder,
+                    &path,
+                    buffer.as_slice(),
+                )?;
             }
         }
 
-        self.vaults.push(store);
+        self.public_info.push(*vault_id);
         Ok(())
+    }
+
+    /// Append additional files to the archive.
+    pub fn append_files(
+        mut self,
+        files: HashMap<&str, &[u8]>,
+    ) -> Result<Self> {
+        for (path, buffer) in files {
+            append_long_path(&mut self.builder, path, buffer)?;
+        }
+        Ok(self)
+    }
+
+    /// Finish building the archive.
+    pub fn finish(mut self) -> Result<W> {
+        // Add the collection of vault identifiers
+        let path = format!("vaults.json");
+        let buffer = serde_json::to_vec_pretty(&self.public_info)?;
+        append_long_path(
+            &mut self.builder,
+            &path,
+            buffer.as_slice(),
+        )?;
+
+        Ok(self.builder.into_inner()?)
     }
 }
 
@@ -102,7 +128,7 @@ pub struct PublicStore {
     meta: VaultMeta,
     /// The collection of secrets in the vault.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    secrets: Vec<PublicSecret>,
+    secrets: Vec<SecretId>,
 }
 
 /// Public secret is an insecure, unencrypted representation of a secret.
@@ -124,48 +150,46 @@ mod test {
 
     use super::*;
     use crate::{
+        archive::deflate,
         generate_passphrase, test_utils::*, vault::Vault, Gatekeeper,
     };
 
-    fn create_mock_migration() -> Result<PublicMigration> {
+    fn create_mock_migration<W: Write>(
+        writer: W,
+    ) -> Result<PublicMigration<W>> {
         let (passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
         vault.set_default_flag(true);
         vault.initialize(passphrase.expose_secret())?;
 
+        let mut migration = PublicMigration::new(writer);
         let mut keeper = Gatekeeper::new(vault, None);
-        let mut migration: PublicMigration = Default::default();
-
         keeper.unlock(passphrase.expose_secret())?;
 
         let (meta, secret, _, _) =
             mock_secret_note("Mock note", "Value for the mock note")?;
-
         keeper.create(meta, secret)?;
-        migration.add(&keeper)?;
 
+        let (meta, secret, _, _) = mock_secret_file(
+            "Mock file",
+            "test.txt",
+            "text/plain",
+            "Test value".as_bytes().to_vec(),
+        )?;
+        keeper.create(meta, secret)?;
+
+        migration.add(&keeper)?;
         Ok(migration)
     }
 
     #[test]
-    fn migration_json_encode() -> Result<()> {
-        let migration = create_mock_migration()?;
-        let _public_json = serde_json::to_string_pretty(&migration)?;
-        //println!("{}", public_json);
-        Ok(())
-    }
-
-    #[test]
     fn migration_public_archive() -> Result<()> {
-        let migration = create_mock_migration()?;
-        let public_json = serde_json::to_vec_pretty(&migration)?;
-
-        let mut files = HashMap::new();
-        files.insert("public-unsafe.json", public_json.as_slice());
-
-        // Check creating an archive
-        let _ = create_public_archive(files)?;
+        let mut archive = Vec::new();
+        let migration = create_mock_migration(&mut archive)?;
+        let archive = migration.finish()?;
+        let mut tar_gz = Vec::new();
+        deflate(archive.as_slice(), &mut tar_gz)?;
 
         Ok(())
     }
