@@ -59,6 +59,7 @@ pub async fn handle_change(
                     // and we should attempt to sync with the server
                     if change.proof().root() != head.root() {
                         let (status, _) = provider.status(summary).await?;
+
                         match status {
                             SyncStatus::Behind(_, _) => {
                                 provider.pull(summary, false).await?;

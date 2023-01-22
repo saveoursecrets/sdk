@@ -23,8 +23,8 @@ pub fn generate_random_ecdsa_signing_key() -> ([u8; 32], [u8; 33]) {
         .expect("wrong byte length for private signing key");
 
     let public_bytes: [u8; 33] = public_key
-        .to_bytes()
-        .as_slice()
+        .to_encoded_point(true)
+        .as_bytes()
         .try_into()
         .expect("wrong byte length for public signing key");
 
@@ -244,6 +244,10 @@ mod tests {
     use crate::crypto::secret_key::SecretKey;
     use anyhow::Result;
 
+    use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
+    use sha2::Sha256;
+    use sha3::{Digest, Keccak256};
+
     #[test]
     fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
         let key = SecretKey::new_random_32();
@@ -268,36 +272,37 @@ mod tests {
     }
 
     #[test]
-    fn ecdsa_sign() {
-        use k256::ecdsa::{
-            signature::{Signer, Verifier},
-            Signature, SigningKey, VerifyingKey,
-        };
-
-        // Signing
+    fn ecdsa_sign() -> Result<()> {
+        // Generate a signature with recovery id
         let signing_key = SigningKey::random(&mut rand::thread_rng());
         let message = b".well-known";
-        let signature: Signature = signing_key.sign(message);
-
-        // Verification
-        let verify_key = VerifyingKey::from(&signing_key);
-        assert!(verify_key.verify(message, &signature).is_ok());
+        let digest = Keccak256::digest(message);
+        let (_signature, recid) = signing_key
+            .as_nonzero_scalar()
+            .try_sign_prehashed_rfc6979::<Sha256>(digest, b"")?;
+        assert!(recid.is_some());
+        Ok(())
     }
 
     #[test]
-    fn recover_ecdsa_sign() {
-        use k256::ecdsa::{recoverable, signature::Signer, SigningKey};
-
-        // Signing
+    fn ecdsa_sign_recover() -> Result<()> {
         let signing_key = SigningKey::random(&mut rand::thread_rng());
-        let verify_key = signing_key.verifying_key();
         let message = b".well-known";
-        let signature: recoverable::Signature = signing_key.sign(message);
+        let digest = Keccak256::digest(message);
+        let (signature, recid) = signing_key
+            .as_nonzero_scalar()
+            .try_sign_prehashed_rfc6979::<Sha256>(digest, b"")?;
+
+        let verify_key = signing_key.verifying_key();
 
         // Recovery
-        let recovered_key = signature
-            .recover_verifying_key(message)
-            .expect("couldn't recover pubkey");
-        assert_eq!(&verify_key, &recovered_key);
+        let recovered_key = VerifyingKey::recover_from_digest(
+            Keccak256::new_with_prefix(message),
+            &signature,
+            recid.unwrap(),
+        )?;
+
+        assert_eq!(verify_key, &recovered_key);
+        Ok(())
     }
 }

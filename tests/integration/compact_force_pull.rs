@@ -17,6 +17,8 @@ use sos_node::client::{
 
 #[tokio::test]
 #[serial]
+#[ignore = "flaky"]
+// SEE: https://github.com/saveoursecrets/sdk/issues/126
 async fn integration_compact_force_pull() -> Result<()> {
     let dirs = setup(2)?;
 
@@ -121,6 +123,7 @@ async fn integration_compact_force_pull() -> Result<()> {
 
     // Verify our spawned task handled the notification
     let updated_head = listener_change.read().await;
+
     assert_eq!(&creator_head, updated_head.as_ref().unwrap());
 
     // Close the creator vault

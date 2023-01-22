@@ -41,6 +41,7 @@ where
         .ok_or(Error::ResponseCode(status.into()))?;
 
     let equals = client_proof.root() == server_proof.root();
+
     let can_pull_safely = match_proof.is_some();
     let status = if force {
         SyncKind::Force

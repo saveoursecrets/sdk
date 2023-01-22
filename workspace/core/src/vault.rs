@@ -21,8 +21,10 @@ use crate::{
         DEFAULT_VAULT_NAME, VAULT_EXT, VAULT_IDENTITY, VAULT_VERSION,
     },
     crypto::{
-        aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
-        AeadPack, Nonce,
+        aesgcm256,
+        algorithms::*,
+        secret_key::{SecretKey, Seed, SEED_SIZE},
+        xchacha20poly1305, AeadPack, Nonce,
     },
     decode, encode,
     events::SyncEvent,
@@ -186,6 +188,9 @@ pub trait VaultAccess {
 pub struct Auth {
     /// Salt used to derive a secret key from the passphrase.
     salt: Option<String>,
+    /// Additional entropy to concatenate with the vault passphrase
+    /// before deriving the secret key.
+    seed: Option<Seed>,
 }
 
 impl Encode for Auth {
@@ -193,6 +198,10 @@ impl Encode for Auth {
         writer.write_bool(self.salt.is_some())?;
         if let Some(salt) = &self.salt {
             writer.write_string(salt)?;
+        }
+        writer.write_bool(self.seed.is_some())?;
+        if let Some(seed) = &self.seed {
+            writer.write_bytes(seed)?;
         }
         Ok(())
     }
@@ -203,6 +212,11 @@ impl Decode for Auth {
         let has_salt = reader.read_bool()?;
         if has_salt {
             self.salt = Some(reader.read_string()?);
+        }
+        let has_seed = reader.read_bool()?;
+        if has_seed {
+            self.seed =
+                Some(reader.read_bytes(SEED_SIZE)?.as_slice().try_into()?);
         }
         Ok(())
     }
@@ -659,6 +673,7 @@ impl Vault {
     pub fn new_buffer(
         name: Option<String>,
         passphrase: Option<String>,
+        seed: Option<Seed>,
     ) -> Result<(SecretString, Vault, Vec<u8>)> {
         let passphrase = if let Some(passphrase) = passphrase {
             secrecy::Secret::new(passphrase)
@@ -671,7 +686,7 @@ impl Vault {
         if let Some(name) = name {
             vault.set_name(name);
         }
-        vault.initialize(passphrase.expose_secret())?;
+        vault.initialize(passphrase.expose_secret(), seed)?;
         let buffer = encode(&vault)?;
         Ok((passphrase, vault, buffer))
     }
@@ -680,19 +695,24 @@ impl Vault {
     pub fn initialize<S: AsRef<str>>(
         &mut self,
         password: S,
+        seed: Option<Seed>,
     ) -> Result<SecretKey> {
         if self.header.auth.salt.is_none() {
             let salt = SecretKey::generate_salt();
-            let private_key = SecretKey::derive_32(password, &salt)?;
 
-            // Store the salt so we can generate the same
-            // private key later
-            self.header.auth.salt = Some(salt.to_string());
+            let private_key =
+                SecretKey::derive_32(password, &salt, seed.as_ref())?;
 
             let default_meta: VaultMeta = Default::default();
             let meta_aead =
                 self.encrypt(&private_key, &encode(&default_meta)?)?;
             self.header.set_meta(Some(meta_aead));
+
+            // Store the salt and seed so we can generate the same
+            // private key later
+            self.header.auth.salt = Some(salt.to_string());
+            self.header.auth.seed = seed;
+
             Ok(private_key)
         } else {
             Err(Error::VaultAlreadyInit)
@@ -761,7 +781,8 @@ impl Vault {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
         let salt = SecretKey::parse_salt(salt)?;
-        let secret_key = SecretKey::derive_32(passphrase.as_ref(), &salt)?;
+        let secret_key =
+            SecretKey::derive_32(passphrase.as_ref(), &salt, self.seed())?;
         let _ = self
             .decrypt(&secret_key, meta_aead)
             .map_err(|_| Error::PassphraseVerification)?;
@@ -804,6 +825,11 @@ impl Vault {
     /// Get the salt used for passphrase authentication.
     pub fn salt(&self) -> Option<&String> {
         self.header.auth.salt.as_ref()
+    }
+
+    /// Get the seed used for passphrase authentication.
+    pub fn seed(&self) -> Option<&Seed> {
+        self.header.auth.seed.as_ref()
     }
 
     /// The file extension for vault files.

@@ -3,11 +3,12 @@ use async_trait::async_trait;
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
-use k256::ecdsa::{
-    recoverable, signature::Signer as EcdsaSigner, SigningKey,
-};
+use k256::ecdsa::{hazmat::SignPrimitive, SigningKey};
 use web3_address::ethereum::Address;
 use web3_signature::Signature;
+
+use sha2::Sha256;
+use sha3::{Digest, Keccak256};
 
 use crate::Result;
 
@@ -109,14 +110,12 @@ impl Signer for SingleParty {
     }
 
     async fn sign(&self, message: &[u8]) -> Result<Signature> {
-        let recoverable: recoverable::Signature = self.0.sign(message);
-        let sig: Signature = recoverable.into();
-        Ok(sig)
+        self.sign_sync(message)
     }
 
     fn address(&self) -> Result<Address> {
-        let bytes = self.0.verifying_key().to_bytes();
-        let bytes: [u8; 33] = bytes.as_slice().try_into()?;
+        let point = self.0.verifying_key().to_encoded_point(true);
+        let bytes: [u8; 33] = point.as_bytes().try_into()?;
         let address: Address = (&bytes).try_into()?;
         Ok(address)
     }
@@ -124,8 +123,12 @@ impl Signer for SingleParty {
 
 impl SignSync for SingleParty {
     fn sign_sync(&self, message: &[u8]) -> Result<Signature> {
-        let recoverable: recoverable::Signature = self.0.sign(message);
-        let sig: Signature = recoverable.into();
+        let digest = Keccak256::digest(message);
+        let result = self
+            .0
+            .as_nonzero_scalar()
+            .try_sign_prehashed_rfc6979::<Sha256>(digest, b"")?;
+        let sig: Signature = result.try_into()?;
         Ok(sig)
     }
 }

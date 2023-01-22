@@ -1831,12 +1831,7 @@ mod test {
             user_data: Default::default(),
         };
         let value = serde_json::to_string_pretty(&secret)?;
-
-        println!("{}", value);
-
         let result: Secret = serde_json::from_str(&value)?;
-        println!("{:#?}", secret);
-        println!("{:#?}", result);
         assert_eq!(secret, result);
         Ok(())
     }

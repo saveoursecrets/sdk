@@ -1,7 +1,7 @@
 //! Flow for changing a vault password.
 
 use crate::{
-    crypto::secret_key::SecretKey,
+    crypto::secret_key::{SecretKey, Seed},
     encode,
     events::WalEvent,
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
@@ -22,6 +22,8 @@ pub struct ChangePassword<'a> {
     current_passphrase: SecretString,
     /// New encryption passphrase.
     new_passphrase: SecretString,
+    /// Optional seed for the new passphrase.
+    seed: Option<Seed>,
 }
 
 impl<'a> ChangePassword<'a> {
@@ -30,11 +32,13 @@ impl<'a> ChangePassword<'a> {
         vault: &'a Vault,
         current_passphrase: SecretString,
         new_passphrase: SecretString,
+        seed: Option<Seed>,
     ) -> Self {
         Self {
             vault,
             current_passphrase,
             new_passphrase,
+            seed,
         }
     }
 
@@ -42,7 +46,8 @@ impl<'a> ChangePassword<'a> {
         let passphrase = self.current_passphrase.expose_secret();
         let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = SecretKey::parse_salt(salt)?;
-        let private_key = SecretKey::derive_32(passphrase, &salt)?;
+        let private_key =
+            SecretKey::derive_32(passphrase, &salt, self.vault.seed())?;
         Ok(private_key)
     }
 
@@ -50,7 +55,8 @@ impl<'a> ChangePassword<'a> {
         let passphrase = self.new_passphrase.expose_secret();
         let salt = vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = SecretKey::parse_salt(salt)?;
-        let private_key = SecretKey::derive_32(passphrase, &salt)?;
+        let private_key =
+            SecretKey::derive_32(passphrase, &salt, vault.seed())?;
         Ok(private_key)
     }
 
@@ -80,7 +86,8 @@ impl<'a> ChangePassword<'a> {
         //
         // Must clear the existing salt so we can re-initialize.
         new_vault.header_mut().clear_salt();
-        new_vault.initialize(self.new_passphrase.expose_secret())?;
+        new_vault
+            .initialize(self.new_passphrase.expose_secret(), self.seed)?;
 
         // Get a new secret key after we have initialized the new salt
         let new_private_key = self.new_private_key(&new_vault)?;
@@ -144,7 +151,7 @@ mod test {
     fn change_password() -> Result<()> {
         let (_, _, current_passphrase) = mock_encryption_key()?;
         let mut mock_vault = mock_vault();
-        mock_vault.initialize(current_passphrase.expose_secret())?;
+        mock_vault.initialize(current_passphrase.expose_secret(), None)?;
 
         let mut keeper = Gatekeeper::new(mock_vault, None);
         keeper.unlock(current_passphrase.expose_secret())?;
@@ -173,7 +180,8 @@ mod test {
         assert!(ChangePassword::new(
             keeper.vault(),
             bad_passphrase,
-            new_passphrase.clone()
+            new_passphrase.clone(),
+            None,
         )
         .build()
         .is_err());
@@ -183,6 +191,7 @@ mod test {
             keeper.vault(),
             current_passphrase,
             new_passphrase,
+            None,
         )
         .build()?;
 

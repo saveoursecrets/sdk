@@ -17,17 +17,18 @@ tracing = "0.1"
 filetime = "0.2"
 rand = "0.8"
 thiserror = "1"
-web3-signature = { version = "0.2.6", features = ["single-party"] }
-web3-address = { version = "0.4.1", features = ["ethereum"] }
+web3-signature = { version = "0.3.2", features = ["single-party"] }
+web3-address = { version = "0.5.1", features = ["ethereum"] }
 serde = { version = "1", features = ["derive"] }
 hex = { version = "0.4", features = ["serde"] }
 serde_json = "1"
-k256 = { version = "0.11", features = ["ecdsa", "ecdh", "sha256", "keccak256"] }
+k256 = { version = "0.12", features = ["ecdsa", "ecdh"] }
 subtle = "2.4"
 zeroize = { version = "1.4", features = ["zeroize_derive"] }
 argon2 = { version = "0.4", features = ["std"]}
 # matches the version in k256
-sha3 = "0.10"
+sha3 = "0.10.6"
+sha2 = "0.10.6"
 uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2.2", features = ["serde"] }
 bitflags = "1"
@@ -39,7 +40,7 @@ log = "0.4"
 http = "0.2"
 passwords = "3"
 totp-sos = { version = "3", features = ["serde"] }
-vcard4 = { version = "0.1.4", features = ["serde"] }
+vcard4 = { version = "0.1.6", features = ["serde"] }
 parking_lot = "0.12"
 urn = { version = "0.5", features = ["serde"] }
 
@@ -48,7 +49,7 @@ binary-stream = { version = "3.3.2", features = ["32bit"] }
 tar = { version = "0.4", default-features = false }
 flate2 = "1"
 
-time = { version = "0.3", features = ["serde", "local-offset", "formatting", "wasm-bindgen"] }
+time = { version = "0.3", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 
 unicode-segmentation = "1.10"
 
@@ -69,6 +70,8 @@ tokio = { version = "1", default-features = false, features = ["rt"] }
 
 [dependencies.rs_merkle]
 version = "1.2"
+git = "https://github.com/tmpfs/rs-merkle"
+branch = "sha2-update"
 #path = "../../../../forks/rs-merkle"
 
 

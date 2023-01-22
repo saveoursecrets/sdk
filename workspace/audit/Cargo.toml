@@ -12,7 +12,7 @@ sos-core = { path = "../core", version = "0.1.0" }
 serde_json = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-web3-address = { version = "0.4.1", features = ["ethereum"] }
+web3-address = { version = "0.5.1", features = ["ethereum"] }
 
 [[bin]]
 name = "sos-audit"

@@ -112,7 +112,7 @@ where
         _is_account: bool,
     ) -> Result<(SecretString, Summary)> {
         let (passphrase, vault, buffer) =
-            Vault::new_buffer(name, passphrase)?;
+            Vault::new_buffer(name, passphrase, None)?;
         let summary = vault.summary().clone();
 
         if self.state().mirror() {

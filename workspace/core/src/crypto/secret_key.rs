@@ -10,6 +10,18 @@ use argon2::{
 
 use secrecy::ExposeSecret;
 
+/// Number of bytes for the passphrase seed entropy.
+pub(crate) const SEED_SIZE: usize = 32;
+
+/// Type for additional passphrase seed entropy.
+pub type Seed = [u8; SEED_SIZE];
+
+/// Generate new random seed entropy.
+pub fn generate_seed() -> Seed {
+    let seed: Seed = rand::thread_rng().gen();
+    seed
+}
+
 /// Encapsulates the bytes for a symmetric secret key.
 ///
 /// Currently there is only a single variant but this type exists
@@ -36,7 +48,7 @@ impl SecretKey {
         Ok(SaltString::new(salt.as_ref())?)
     }
 
-    /// Derive a secret key from a passphrase and salt.
+    /// Derive a secret key from a passphrase, salt and optional seed entropy.
     ///
     /// Hash a password using the given salt and Argon2 algorithm then
     /// convert to a 32 byte private key using the keccak256 hashing
@@ -44,8 +56,17 @@ impl SecretKey {
     pub fn derive_32<S: AsRef<str>>(
         password: S,
         salt: &SaltString,
+        seed: Option<&Seed>,
     ) -> Result<SecretKey> {
-        let password_hash = hash_password(password, salt)?;
+        let buffer = if let Some(seed) = seed {
+            let mut buffer = password.as_ref().as_bytes().to_vec();
+            buffer.extend_from_slice(seed.as_slice());
+            buffer
+        } else {
+            password.as_ref().as_bytes().to_vec()
+        };
+
+        let password_hash = hash_password(buffer.as_slice(), salt)?;
         let hash = Keccak256::digest(password_hash.to_string().as_bytes());
         let hash: [u8; 32] = hash.as_slice().try_into()?;
         Ok(SecretKey::Key32(secrecy::Secret::new(hash)))
@@ -62,13 +83,12 @@ impl SecretKey {
 }
 
 /// Hash a password using the given salt and the Argon2 algorithm.
-fn hash_password<S: AsRef<str>>(
-    password: S,
-    salt: &SaltString,
-) -> Result<PasswordHash> {
+fn hash_password<'a>(
+    password: &[u8],
+    salt: &'a SaltString,
+) -> Result<PasswordHash<'a>> {
     let argon2 = Argon2::default();
-    let password_hash =
-        argon2.hash_password(password.as_ref().as_bytes(), salt)?;
+    let password_hash = argon2.hash_password(password, salt)?;
     Ok(password_hash)
 }
 
@@ -80,10 +100,10 @@ mod tests {
     fn argon2() {
         let password = "My super secret password";
         let salt = SecretKey::generate_salt();
-        let hash = hash_password(password, &salt);
+        let hash = hash_password(password.as_bytes(), &salt);
         assert!(hash.is_ok());
 
-        let key = SecretKey::derive_32(password, &salt);
+        let key = SecretKey::derive_32(password, &salt, None);
         assert!(key.is_ok());
 
         let salt = SecretKey::parse_salt(&salt);
