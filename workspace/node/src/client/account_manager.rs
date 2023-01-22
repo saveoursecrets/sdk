@@ -2,8 +2,8 @@
 //! creating and managing local accounts.
 use std::{borrow::Cow, io::Cursor, path::PathBuf, sync::Arc};
 
-use serde::{Serialize, Deserialize};
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 
 use sos_core::{
     archive::{deflate, inflate, Inventory, Reader, Writer},
