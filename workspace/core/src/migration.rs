@@ -20,7 +20,7 @@ use crate::{
 /// and their unencrypted secrets.
 pub struct PublicMigration<W: Write> {
     builder: Builder<W>,
-    public_info: Vec<VaultId>,
+    vault_ids: Vec<VaultId>,
 }
 
 impl<W: Write> PublicMigration<W> {
@@ -28,7 +28,7 @@ impl<W: Write> PublicMigration<W> {
     pub fn new(inner: W) -> Self {
         Self {
             builder: Builder::new(inner),
-            public_info: Vec::new(),
+            vault_ids: Vec::new(),
         }
     }
 
@@ -89,26 +89,26 @@ impl<W: Write> PublicMigration<W> {
             }
         }
 
-        self.public_info.push(*vault_id);
+        self.vault_ids.push(*vault_id);
         Ok(())
     }
 
     /// Append additional files to the archive.
     pub fn append_files(
-        mut self,
+        &mut self,
         files: HashMap<&str, &[u8]>,
-    ) -> Result<Self> {
+    ) -> Result<()> {
         for (path, buffer) in files {
             append_long_path(&mut self.builder, path, buffer)?;
         }
-        Ok(self)
+        Ok(())
     }
 
     /// Finish building the archive.
     pub fn finish(mut self) -> Result<W> {
         // Add the collection of vault identifiers
         let path = format!("vaults.json");
-        let buffer = serde_json::to_vec_pretty(&self.public_info)?;
+        let buffer = serde_json::to_vec_pretty(&self.vault_ids)?;
         append_long_path(
             &mut self.builder,
             &path,
