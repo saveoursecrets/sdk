@@ -6,10 +6,10 @@ use serde::Deserialize;
 use sos_core::{decode, signer::BinarySignature};
 use web3_address::ethereum::Address;
 
+use k256::ecdsa::VerifyingKey;
+use sha3::{Digest, Keccak256};
 use uuid::Uuid;
 use web3_signature::Signature;
-use k256::ecdsa::VerifyingKey;
-use sha3::{Keccak256, Digest};
 
 use super::Result;
 

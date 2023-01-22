@@ -99,7 +99,7 @@ impl SessionManager {
 
         let address: Address = (&recovered_key).try_into()?;
         let public_key = recovered_key.to_encoded_point(true);
-        
+
         /*
         let recoverable: recoverable::Signature = signature.try_into()?;
         let public_key = recoverable.recover_verifying_key(&message)?;

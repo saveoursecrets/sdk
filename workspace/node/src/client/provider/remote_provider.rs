@@ -428,7 +428,6 @@ where
         &mut self,
         change: ChangeNotification,
     ) -> Result<(bool, HashSet<ChangeAction>)> {
-        
         // Was this change notification triggered by us?
         let self_change = match self.client.session_id() {
             Ok(id) => &id == change.session_id(),
@@ -439,7 +438,7 @@ where
         println!("trying to handle the change {}", self_change);
 
         let actions = sync::handle_change(self, change).await?;
-    
+
         println!("GOT LIST OF ACTIONS");
 
         Ok((self_change, actions))

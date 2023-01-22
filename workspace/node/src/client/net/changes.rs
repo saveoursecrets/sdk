@@ -105,7 +105,7 @@ pub fn changes(
     ) -> Result<ChangeNotification>,
 > {
     let (_, read) = stream.split();
-        
+
     read.map(move |message| -> Result<ChangeNotification> {
         let message = message?;
         match message {

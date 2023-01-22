@@ -125,7 +125,7 @@ async fn integration_compact_force_pull() -> Result<()> {
 
     // Verify our spawned task handled the notification
     let updated_head = listener_change.read().await;
-        
+
     println!("Updated head {:#?}", updated_head);
 
     //assert_eq!(&creator_head, updated_head.as_ref().unwrap());

@@ -244,10 +244,7 @@ mod tests {
     use crate::crypto::secret_key::SecretKey;
     use anyhow::Result;
 
-    use k256::ecdsa::{
-        hazmat::SignPrimitive, SigningKey,
-        VerifyingKey,
-    };
+    use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
 

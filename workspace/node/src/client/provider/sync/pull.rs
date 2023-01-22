@@ -66,7 +66,6 @@ where
 
     if force || !equals {
         if force || can_pull_safely {
-                
             println!("TRYING THE FORCE PULL!");
 
             let result_proof = force_pull(client, summary, wal_file).await?;
