@@ -73,7 +73,7 @@ impl AccountManager {
         // Prepare the default vault
         let mut default_vault: Vault = Default::default();
         default_vault.set_default_flag(true);
-        default_vault.initialize(vault_passphrase.expose_secret())?;
+        default_vault.initialize(vault_passphrase.expose_secret(), None)?;
 
         // Store the vault passphrase in the identity vault
         let mut keeper = Gatekeeper::new(identity_vault, None);
@@ -276,7 +276,7 @@ impl AccountManager {
 
         // Change the password before exporting
         let (_, vault, _) =
-            ChangePassword::new(&vault, current_passphrase, new_passphrase)
+            ChangePassword::new(&vault, current_passphrase, new_passphrase, None)
                 .build()?;
 
         Ok(encode(&vault)?)

@@ -5,7 +5,7 @@ use crate::{
     events::SyncEvent,
     search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta, VaultMeta},
-    vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId},
+    vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId, Seed},
     Error, Result,
 };
 use std::{collections::HashSet, sync::Arc};
@@ -183,9 +183,10 @@ impl Gatekeeper {
         name: String,
         label: String,
         password: S,
+        seed: Option<Seed>,
     ) -> Result<()> {
         // Initialize the private key and store the salt
-        let private_key = self.vault.initialize(password.as_ref())?;
+        let private_key = self.vault.initialize(password.as_ref(), seed)?;
         self.private_key = Some(private_key);
 
         // Assign the label to the meta data
@@ -480,7 +481,7 @@ mod tests {
 
         let name = String::from(DEFAULT_VAULT_NAME);
         let label = String::from("Mock Vault Label");
-        keeper.initialize(name, label.clone(), passphrase)?;
+        keeper.initialize(name, label.clone(), passphrase, None)?;
 
         //// Decrypt the initialized meta data.
         let meta = keeper.vault_meta()?;

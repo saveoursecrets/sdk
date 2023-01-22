@@ -154,7 +154,7 @@ mod test {
 
         let mut vault: Vault = Default::default();
         vault.set_default_flag(true);
-        vault.initialize(passphrase.expose_secret())?;
+        vault.initialize(passphrase.expose_secret(), None)?;
 
         let mut migration = PublicExport::new(writer);
         let mut keeper = Gatekeeper::new(vault, None);

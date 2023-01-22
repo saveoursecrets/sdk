@@ -563,7 +563,7 @@ pub trait StorageProvider: Sync + Send {
         new_passphrase: SecretString,
     ) -> Result<SecretString> {
         let (new_passphrase, new_vault, wal_events) =
-            ChangePassword::new(vault, current_passphrase, new_passphrase)
+            ChangePassword::new(vault, current_passphrase, new_passphrase, None)
                 .build()?;
 
         self.update_vault(vault.summary(), &new_vault, wal_events)

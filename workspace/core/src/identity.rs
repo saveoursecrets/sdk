@@ -51,7 +51,9 @@ impl Identity {
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
         vault.set_name(name);
-        vault.initialize(master_passphrase.expose_secret())?;
+        vault.initialize(
+            master_passphrase.expose_secret(),
+            Some(Vault::generate_seed()))?;
 
         let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(master_passphrase.expose_secret())?;
@@ -180,7 +182,7 @@ mod tests {
         let (master_passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
-        vault.initialize(master_passphrase.expose_secret())?;
+        vault.initialize(master_passphrase.expose_secret(), None)?;
         let buffer = encode(&vault)?;
 
         let result =
@@ -198,7 +200,7 @@ mod tests {
 
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.expose_secret())?;
+        vault.initialize(master_passphrase.expose_secret(), None)?;
         let buffer = encode(&vault)?;
 
         let result =
@@ -216,7 +218,7 @@ mod tests {
 
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.expose_secret())?;
+        vault.initialize(master_passphrase.expose_secret(), None)?;
 
         let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(master_passphrase.expose_secret())?;

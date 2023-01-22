@@ -8,6 +8,7 @@ use binary_stream::{
 };
 
 use bitflags::bitflags;
+use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, fs::File,
@@ -44,6 +45,12 @@ bitflags! {
     }
 
 }
+
+/// Number of bytes for the passphrase seed entropy.
+const SEED_SIZE: usize = 32;
+
+/// Type for additional passphrase seed entropy.
+pub type Seed = [u8; SEED_SIZE];
 
 impl VaultFlags {
     /// Determine if this vault is a default vault.
@@ -186,6 +193,9 @@ pub trait VaultAccess {
 pub struct Auth {
     /// Salt used to derive a secret key from the passphrase.
     salt: Option<String>,
+    /// Additional entropy to concatenate with the vault passphrase
+    /// before deriving the secret key.
+    seed: Option<Seed>,
 }
 
 impl Encode for Auth {
@@ -193,6 +203,10 @@ impl Encode for Auth {
         writer.write_bool(self.salt.is_some())?;
         if let Some(salt) = &self.salt {
             writer.write_string(salt)?;
+        }
+        writer.write_bool(self.seed.is_some())?;
+        if let Some(seed) = &self.seed {
+            writer.write_bytes(seed)?;
         }
         Ok(())
     }
@@ -203,6 +217,11 @@ impl Decode for Auth {
         let has_salt = reader.read_bool()?;
         if has_salt {
             self.salt = Some(reader.read_string()?);
+        }
+        let has_seed = reader.read_bool()?;
+        if has_seed {
+            self.seed =
+                Some(reader.read_bytes(SEED_SIZE)?.as_slice().try_into()?);
         }
         Ok(())
     }
@@ -659,6 +678,7 @@ impl Vault {
     pub fn new_buffer(
         name: Option<String>,
         passphrase: Option<String>,
+        seed: Option<Seed>,
     ) -> Result<(SecretString, Vault, Vec<u8>)> {
         let passphrase = if let Some(passphrase) = passphrase {
             secrecy::Secret::new(passphrase)
@@ -671,15 +691,22 @@ impl Vault {
         if let Some(name) = name {
             vault.set_name(name);
         }
-        vault.initialize(passphrase.expose_secret())?;
+        vault.initialize(passphrase.expose_secret(), seed)?;
         let buffer = encode(&vault)?;
         Ok((passphrase, vault, buffer))
+    }
+
+    /// Generate new random seed entropy.
+    pub fn generate_seed() -> Seed {
+        let seed: Seed = rand::thread_rng().gen();
+        seed
     }
 
     /// Initialize the vault with the given label and password.
     pub fn initialize<S: AsRef<str>>(
         &mut self,
         password: S,
+        seed: Option<Seed>,
     ) -> Result<SecretKey> {
         if self.header.auth.salt.is_none() {
             let salt = SecretKey::generate_salt();
@@ -688,6 +715,7 @@ impl Vault {
             // Store the salt so we can generate the same
             // private key later
             self.header.auth.salt = Some(salt.to_string());
+            self.header.auth.seed = seed;
 
             let default_meta: VaultMeta = Default::default();
             let meta_aead =

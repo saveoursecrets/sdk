@@ -75,7 +75,7 @@ pub fn local_signup(name: String, folder_name: Option<String>) -> Result<()> {
     if let Some(name) = folder_name {
         vault.set_name(name);
     }
-    vault.initialize(passphrase.expose_secret())?;
+    vault.initialize(passphrase.expose_secret(), None)?;
 
     // Prepare the identity vault
     let (_address, login_vault) =
