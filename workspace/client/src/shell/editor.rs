@@ -96,12 +96,14 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         Secret::File {
             name,
             mime,
+            checksum,
             user_data,
             ..
         } => Secret::File {
             name: name.clone(),
             mime: mime.clone(),
             buffer: secrecy::Secret::new(content.to_vec()),
+            checksum: checksum.clone(),
             user_data: user_data.clone(),
         },
         Secret::Page {

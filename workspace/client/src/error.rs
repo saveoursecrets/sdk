@@ -41,6 +41,10 @@ pub enum Error {
     #[error("passphrase is not valid")]
     InvalidPassphrase,
 
+    /// Error generated converting to fixed length slice.
+    #[error(transparent)]
+    TryFromSlice(#[from] std::array::TryFromSliceError),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 

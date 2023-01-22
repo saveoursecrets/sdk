@@ -26,6 +26,7 @@ mod gatekeeper;
 mod hash;
 pub mod identity;
 pub mod iter;
+pub mod migration;
 pub mod passgen;
 mod passwd;
 mod patch;
