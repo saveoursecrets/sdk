@@ -562,9 +562,13 @@ pub trait StorageProvider: Sync + Send {
         current_passphrase: SecretString,
         new_passphrase: SecretString,
     ) -> Result<SecretString> {
-        let (new_passphrase, new_vault, wal_events) =
-            ChangePassword::new(vault, current_passphrase, new_passphrase, None)
-                .build()?;
+        let (new_passphrase, new_vault, wal_events) = ChangePassword::new(
+            vault,
+            current_passphrase,
+            new_passphrase,
+            None,
+        )
+        .build()?;
 
         self.update_vault(vault.summary(), &new_vault, wal_events)
             .await?;
@@ -774,6 +778,7 @@ macro_rules! provider_impl {
                             let private_key = SecretKey::derive_32(
                                 new_passphrase.expose_secret(),
                                 &salt,
+                                keeper.vault().seed(),
                             )?;
                             Some(private_key)
                         } else {

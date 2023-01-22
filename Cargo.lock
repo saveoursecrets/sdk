@@ -3715,9 +3715,9 @@ checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 
 [[package]]
 name = "vcard4"
-version = "0.1.4"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e5f3cddaffbe23e9fca22408b5292043f98570b93ce83e5c1e1f5d2657481c2"
+checksum = "bc82a81c37f7eacc70ec7b6bf219b2a2b45b3d2b5cdecfb30371948131ee4308"
 dependencies = [
  "aho-corasick",
  "language-tags",

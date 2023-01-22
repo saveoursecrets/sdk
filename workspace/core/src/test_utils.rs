@@ -21,7 +21,7 @@ pub fn mock_encryption_key() -> Result<(SecretKey, SaltString, SecretString)>
     let salt = SecretKey::generate_salt();
     let (passphrase, _) = generate_passphrase()?;
     let encryption_key =
-        SecretKey::derive_32(passphrase.expose_secret(), &salt)?;
+        SecretKey::derive_32(passphrase.expose_secret(), &salt, None)?;
     Ok((encryption_key, salt, passphrase))
 }
 

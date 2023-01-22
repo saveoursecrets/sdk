@@ -39,7 +39,7 @@ log = "0.4"
 http = "0.2"
 passwords = "3"
 totp-sos = { version = "3", features = ["serde"] }
-vcard4 = { version = "0.1.4", features = ["serde"] }
+vcard4 = { version = "0.1.6", features = ["serde"] }
 parking_lot = "0.12"
 urn = { version = "0.5", features = ["serde"] }
 
@@ -48,7 +48,7 @@ binary-stream = { version = "3.3.2", features = ["32bit"] }
 tar = { version = "0.4", default-features = false }
 flate2 = "1"
 
-time = { version = "0.3", features = ["serde", "local-offset", "formatting", "wasm-bindgen"] }
+time = { version = "0.3", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 
 unicode-segmentation = "1.10"
 

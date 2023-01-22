@@ -275,9 +275,13 @@ impl AccountManager {
         let (vault, _) = Self::find_local_vault(address, vault_id)?;
 
         // Change the password before exporting
-        let (_, vault, _) =
-            ChangePassword::new(&vault, current_passphrase, new_passphrase, None)
-                .build()?;
+        let (_, vault, _) = ChangePassword::new(
+            &vault,
+            current_passphrase,
+            new_passphrase,
+            None,
+        )
+        .build()?;
 
         Ok(encode(&vault)?)
     }

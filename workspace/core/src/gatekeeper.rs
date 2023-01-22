@@ -1,11 +1,14 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    crypto::{secret_key::SecretKey, AeadPack},
+    crypto::{
+        secret_key::{SecretKey, Seed},
+        AeadPack,
+    },
     decode, encode,
     events::SyncEvent,
     search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta, VaultMeta},
-    vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId, Seed},
+    vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId},
     Error, Result,
 };
 use std::{collections::HashSet, sync::Arc};
@@ -449,7 +452,8 @@ impl Gatekeeper {
     ) -> Result<VaultMeta> {
         if let Some(salt) = self.vault.salt() {
             let salt = SecretKey::parse_salt(salt)?;
-            let private_key = SecretKey::derive_32(passphrase, &salt)?;
+            let private_key =
+                SecretKey::derive_32(passphrase, &salt, self.vault.seed())?;
             self.private_key = Some(private_key);
             self.vault_meta()
         } else {

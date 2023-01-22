@@ -17,6 +17,7 @@ use urn::Urn;
 
 use crate::{
     constants::LOGIN_SIGNING_KEY_URN,
+    crypto::secret_key::generate_seed,
     decode,
     gatekeeper::Gatekeeper,
     search::SearchIndex,
@@ -53,7 +54,8 @@ impl Identity {
         vault.set_name(name);
         vault.initialize(
             master_passphrase.expose_secret(),
-            Some(Vault::generate_seed()))?;
+            Some(generate_seed()),
+        )?;
 
         let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(master_passphrase.expose_secret())?;

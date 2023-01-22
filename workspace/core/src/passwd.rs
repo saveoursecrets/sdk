@@ -1,10 +1,10 @@
 //! Flow for changing a vault password.
 
 use crate::{
-    crypto::secret_key::SecretKey,
+    crypto::secret_key::{SecretKey, Seed},
     encode,
     events::WalEvent,
-    vault::{Vault, VaultAccess, VaultCommit, VaultEntry, Seed},
+    vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
 use secrecy::{ExposeSecret, SecretString};
@@ -46,7 +46,8 @@ impl<'a> ChangePassword<'a> {
         let passphrase = self.current_passphrase.expose_secret();
         let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = SecretKey::parse_salt(salt)?;
-        let private_key = SecretKey::derive_32(passphrase, &salt)?;
+        let private_key =
+            SecretKey::derive_32(passphrase, &salt, self.vault.seed())?;
         Ok(private_key)
     }
 
@@ -54,7 +55,8 @@ impl<'a> ChangePassword<'a> {
         let passphrase = self.new_passphrase.expose_secret();
         let salt = vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = SecretKey::parse_salt(salt)?;
-        let private_key = SecretKey::derive_32(passphrase, &salt)?;
+        let private_key =
+            SecretKey::derive_32(passphrase, &salt, vault.seed())?;
         Ok(private_key)
     }
 
@@ -84,7 +86,8 @@ impl<'a> ChangePassword<'a> {
         //
         // Must clear the existing salt so we can re-initialize.
         new_vault.header_mut().clear_salt();
-        new_vault.initialize(self.new_passphrase.expose_secret(), self.seed)?;
+        new_vault
+            .initialize(self.new_passphrase.expose_secret(), self.seed)?;
 
         // Get a new secret key after we have initialized the new salt
         let new_private_key = self.new_private_key(&new_vault)?;

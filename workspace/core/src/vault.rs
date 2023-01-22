@@ -8,7 +8,6 @@ use binary_stream::{
 };
 
 use bitflags::bitflags;
-use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, fs::File,
@@ -22,8 +21,10 @@ use crate::{
         DEFAULT_VAULT_NAME, VAULT_EXT, VAULT_IDENTITY, VAULT_VERSION,
     },
     crypto::{
-        aesgcm256, algorithms::*, secret_key::SecretKey, xchacha20poly1305,
-        AeadPack, Nonce,
+        aesgcm256,
+        algorithms::*,
+        secret_key::{SecretKey, Seed, SEED_SIZE},
+        xchacha20poly1305, AeadPack, Nonce,
     },
     decode, encode,
     events::SyncEvent,
@@ -45,12 +46,6 @@ bitflags! {
     }
 
 }
-
-/// Number of bytes for the passphrase seed entropy.
-const SEED_SIZE: usize = 32;
-
-/// Type for additional passphrase seed entropy.
-pub type Seed = [u8; SEED_SIZE];
 
 impl VaultFlags {
     /// Determine if this vault is a default vault.
@@ -696,12 +691,6 @@ impl Vault {
         Ok((passphrase, vault, buffer))
     }
 
-    /// Generate new random seed entropy.
-    pub fn generate_seed() -> Seed {
-        let seed: Seed = rand::thread_rng().gen();
-        seed
-    }
-
     /// Initialize the vault with the given label and password.
     pub fn initialize<S: AsRef<str>>(
         &mut self,
@@ -710,17 +699,20 @@ impl Vault {
     ) -> Result<SecretKey> {
         if self.header.auth.salt.is_none() {
             let salt = SecretKey::generate_salt();
-            let private_key = SecretKey::derive_32(password, &salt)?;
 
-            // Store the salt so we can generate the same
-            // private key later
-            self.header.auth.salt = Some(salt.to_string());
-            self.header.auth.seed = seed;
+            let private_key =
+                SecretKey::derive_32(password, &salt, seed.as_ref())?;
 
             let default_meta: VaultMeta = Default::default();
             let meta_aead =
                 self.encrypt(&private_key, &encode(&default_meta)?)?;
             self.header.set_meta(Some(meta_aead));
+
+            // Store the salt and seed so we can generate the same
+            // private key later
+            self.header.auth.salt = Some(salt.to_string());
+            self.header.auth.seed = seed;
+
             Ok(private_key)
         } else {
             Err(Error::VaultAlreadyInit)
@@ -789,7 +781,8 @@ impl Vault {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
         let salt = SecretKey::parse_salt(salt)?;
-        let secret_key = SecretKey::derive_32(passphrase.as_ref(), &salt)?;
+        let secret_key =
+            SecretKey::derive_32(passphrase.as_ref(), &salt, self.seed())?;
         let _ = self
             .decrypt(&secret_key, meta_aead)
             .map_err(|_| Error::PassphraseVerification)?;
@@ -832,6 +825,11 @@ impl Vault {
     /// Get the salt used for passphrase authentication.
     pub fn salt(&self) -> Option<&String> {
         self.header.auth.salt.as_ref()
+    }
+
+    /// Get the seed used for passphrase authentication.
+    pub fn seed(&self) -> Option<&Seed> {
+        self.header.auth.seed.as_ref()
     }
 
     /// The file extension for vault files.
