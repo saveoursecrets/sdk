@@ -18,12 +18,12 @@ use crate::{
 
 /// Migration encapsulates a collection of vaults
 /// and their unencrypted secrets.
-pub struct PublicMigration<W: Write> {
+pub struct PublicExport<W: Write> {
     builder: Builder<W>,
     vault_ids: Vec<VaultId>,
 }
 
-impl<W: Write> PublicMigration<W> {
+impl<W: Write> PublicExport<W> {
     /// Create a new public migration.
     pub fn new(inner: W) -> Self {
         Self {
@@ -45,7 +45,7 @@ impl<W: Write> PublicMigration<W> {
         let base_path = format!("vaults/{}", vault_id);
         let file_path = format!("{}/files", base_path);
 
-        let store = PublicStore {
+        let store = PublicVaultInfo {
             meta: meta,
             summary: access.summary().clone(),
             secrets: access.vault().keys().copied().collect(),
@@ -119,9 +119,10 @@ impl<W: Write> PublicMigration<W> {
     }
 }
 
-/// Public store is an insecure, unencrypted representation of a vault.
+/// Public vault info contains meta data about the vault and lists the 
+/// secret identifiers.
 #[derive(Default, Serialize, Deserialize)]
-pub struct PublicStore {
+pub struct PublicVaultInfo {
     /// The vault summary information.
     summary: Summary,
     /// The vault meta data.
@@ -156,14 +157,14 @@ mod test {
 
     fn create_mock_migration<W: Write>(
         writer: W,
-    ) -> Result<PublicMigration<W>> {
+    ) -> Result<PublicExport<W>> {
         let (passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
         vault.set_default_flag(true);
         vault.initialize(passphrase.expose_secret())?;
 
-        let mut migration = PublicMigration::new(writer);
+        let mut migration = PublicExport::new(writer);
         let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(passphrase.expose_secret())?;
 
@@ -190,7 +191,6 @@ mod test {
         let archive = migration.finish()?;
         let mut tar_gz = Vec::new();
         deflate(archive.as_slice(), &mut tar_gz)?;
-
         Ok(())
     }
 }
