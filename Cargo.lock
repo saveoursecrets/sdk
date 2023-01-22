@@ -786,18 +786,6 @@ dependencies = [
 
 [[package]]
 name = "ecdsa"
-version = "0.14.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413301934810f597c1d19ca71c8710e99a3f1ba28a0d2ebc01551a2daeea3c5c"
-dependencies = [
- "der",
- "elliptic-curve",
- "rfc6979",
- "signature 1.6.4",
-]
-
-[[package]]
-name = "ecdsa"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82508ce57bd2b245e9914411800f87fd8fc8288f501bb26919cb9b2ee964028f"
@@ -805,7 +793,7 @@ dependencies = [
  "der",
  "elliptic-curve",
  "rfc6979",
- "signature 2.0.0",
+ "signature",
 ]
 
 [[package]]
@@ -1484,29 +1472,16 @@ dependencies = [
 
 [[package]]
 name = "k256"
-version = "0.11.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72c1e0b51e7ec0a97369623508396067a486bd0cbed95a2659a4b863d28cfc8b"
-dependencies = [
- "cfg-if 1.0.0",
- "ecdsa 0.14.8",
- "elliptic-curve",
- "sha2",
- "sha3",
-]
-
-[[package]]
-name = "k256"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92a55e0ff3b72c262bcf041d9e97f1b84492b68f1c1a384de2323d3dc9403397"
 dependencies = [
  "cfg-if 1.0.0",
- "ecdsa 0.15.0",
+ "ecdsa",
  "elliptic-curve",
  "once_cell",
  "sha2",
- "signature 2.0.0",
+ "signature",
 ]
 
 [[package]]
@@ -2769,16 +2744,6 @@ dependencies = [
 
 [[package]]
 name = "signature"
-version = "1.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74233d3b3b2f6d4b006dc19dee745e73e2a6bfb6f93607cd3b02bd5b00797d7c"
-dependencies = [
- "digest",
- "rand_core 0.6.4",
-]
-
-[[package]]
-name = "signature"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fe458c98333f9c8152221191a77e2a44e8325d0193484af2e9421a53019e57d"
@@ -2903,7 +2868,7 @@ dependencies = [
  "getrandom 0.2.8",
  "hex",
  "http",
- "k256 0.12.0",
+ "k256",
  "log",
  "ouroboros",
  "parking_lot",
@@ -2954,7 +2919,7 @@ dependencies = [
  "hex",
  "http",
  "hyper",
- "k256 0.12.0",
+ "k256",
  "log",
  "mime_guess",
  "once_cell",
@@ -3916,12 +3881,12 @@ dependencies = [
 
 [[package]]
 name = "web3-address"
-version = "0.4.1"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "363ac80a3fdf70d467c313500d62a10bf34402903564a2b22970263718c90235"
+checksum = "7757fc2d21b01dacbcdbbced4ac4b2f915739f722b387ac11ef48e0ea5a26dfb"
 dependencies = [
  "hex",
- "k256 0.11.6",
+ "k256",
  "serde",
  "sha3",
  "subtle",
@@ -3952,13 +3917,13 @@ dependencies = [
 
 [[package]]
 name = "web3-signature"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4482f3d85ec317a80cb4976f2ebd12540f82071e956705170c9ea7ca0fc90676"
+checksum = "04eec443a5398b9919d81ef4b3be39847ed132914e4b79eb26b5c631b083c213"
 dependencies = [
  "ethereum-types",
  "hex",
- "k256 0.12.0",
+ "k256",
  "serde",
  "thiserror",
 ]

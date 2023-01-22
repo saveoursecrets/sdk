@@ -128,7 +128,7 @@ impl SignSync for SingleParty {
             .0
             .as_nonzero_scalar()
             .try_sign_prehashed_rfc6979::<Sha256>(digest, b"")?;
-        let sig: Signature = result.into();
+        let sig: Signature = result.try_into()?;
         Ok(sig)
     }
 }

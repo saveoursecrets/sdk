@@ -6,9 +6,10 @@ use serde::Deserialize;
 use sos_core::{decode, signer::BinarySignature};
 use web3_address::ethereum::Address;
 
-use k256::ecdsa::recoverable;
 use uuid::Uuid;
 use web3_signature::Signature;
+use k256::ecdsa::VerifyingKey;
+use sha3::{Keccak256, Digest};
 
 use super::Result;
 
@@ -32,12 +33,15 @@ impl BearerToken {
         let value = bs58::decode(token).into_vec()?;
         let binary_sig: BinarySignature = decode(&value)?;
         let signature: Signature = binary_sig.into();
-        let recoverable: recoverable::Signature = signature.try_into()?;
-        let public_key = recoverable.recover_verifying_key(message)?;
-        let public_key: [u8; 33] =
-            public_key.to_bytes().as_slice().try_into()?;
-        let address: Address = (&public_key).try_into()?;
+        let (signature, recid) = signature.try_into()?;
 
+        let public_key = VerifyingKey::recover_from_digest(
+            Keccak256::new_with_prefix(message),
+            &signature,
+            recid,
+        )?;
+
+        let address: Address = (&public_key).try_into()?;
         Ok(Self {
             //public_key,
             address,

@@ -1,7 +1,7 @@
 //! Manages network sessions.
 use crypto_bigint::{CheckedAdd, Encoding, U192};
 use k256::{
-    ecdh::EphemeralSecret, ecdsa::recoverable,
+    ecdh::EphemeralSecret, ecdsa::VerifyingKey,
     elliptic_curve::ecdh::SharedSecret, EncodedPoint, PublicKey, Secp256k1,
 };
 use rand::Rng;
@@ -88,18 +88,34 @@ impl SessionManager {
     ) -> Result<&mut ServerSession> {
         let session = self.get_mut(id).ok_or(Error::NoSession)?;
         let message = session.challenge();
+
+        let (ecdsa_signature, recid) = signature.try_into()?;
+
+        let recovered_key = VerifyingKey::recover_from_digest(
+            Keccak256::new_with_prefix(message),
+            &ecdsa_signature,
+            recid,
+        )?;
+
+        let address: Address = (&recovered_key).try_into()?;
+        let public_key = recovered_key.to_encoded_point(true);
+        
+        /*
         let recoverable: recoverable::Signature = signature.try_into()?;
         let public_key = recoverable.recover_verifying_key(&message)?;
         let public_key: [u8; 33] =
             public_key.to_bytes().as_slice().try_into()?;
+
         let address: Address = (&public_key).try_into()?;
+        */
+
         if address == session.identity {
             session.identity_proof = Some(signature.to_bytes());
         } else {
             return Err(Error::BadSessionIdentity);
         }
 
-        session.compute_ecdh(public_key)?;
+        session.compute_ecdh(public_key.as_bytes())?;
 
         Ok(session)
     }
