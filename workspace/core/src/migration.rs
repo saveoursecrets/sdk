@@ -5,7 +5,6 @@
 
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
-use sha3::{Digest, Keccak256};
 use std::{collections::HashMap, io::Write};
 use tar::Builder;
 
@@ -56,10 +55,7 @@ impl<W: Write> PublicExport<W> {
 
         for id in access.vault().keys() {
             if let Some((meta, mut secret, _)) = access.read(id)? {
-                if let Secret::File { buffer, .. } = &mut secret {
-
-                    // FIXME: use pre-computed checksum
-                    let checksum = Keccak256::digest(buffer.expose_secret());
+                if let Secret::File { buffer, checksum, .. } = &mut secret {
                     let path =
                         format!("{}/{}", file_path, hex::encode(checksum));
                     append_long_path(
@@ -67,7 +63,6 @@ impl<W: Write> PublicExport<W> {
                         &path,
                         buffer.expose_secret().as_slice(),
                     )?;
-
                     *buffer = secrecy::Secret::new(vec![]);
                 }
 
@@ -191,6 +186,7 @@ mod test {
         let archive = migration.finish()?;
         let mut tar_gz = Vec::new();
         deflate(archive.as_slice(), &mut tar_gz)?;
+        
         Ok(())
     }
 }

@@ -625,6 +625,17 @@ pub enum Secret {
         /// The binary data.
         #[serde(serialize_with = "serialize_secret_buffer")]
         buffer: SecretVec<u8>,
+        /// The SHA-256 digest of the buffer.
+        ///
+        /// Using the SHA-256 digest allows the checksum to be computed 
+        /// using the Javascript SubtleCrypto API and in Dart using the 
+        /// crypto package.
+        ///
+        /// This is used primarily during the public migration export 
+        /// to identify files that have been extracted to another location 
+        /// in the archive rather than embedding the binary data.
+        #[serde(with = "hex::serde")]
+        checksum: [u8; 32],
         /// Custom user data.
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
@@ -820,11 +831,13 @@ impl Clone for Secret {
                 name,
                 mime,
                 buffer,
+                checksum,
                 user_data,
             } => Secret::File {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
+                checksum: checksum.clone(),
                 user_data: user_data.clone(),
             },
             Secret::Account {
@@ -1105,18 +1118,21 @@ impl PartialEq for Secret {
                     name: name_a,
                     mime: mime_a,
                     buffer: buffer_a,
+                    checksum: checksum_a,
                     user_data: user_data_a,
                 },
                 Self::File {
                     name: name_b,
                     mime: mime_b,
                     buffer: buffer_b,
+                    checksum: checksum_b,
                     user_data: user_data_b,
                 },
             ) => {
                 name_a == name_b
                     && mime_a == mime_b
                     && buffer_a.expose_secret() == buffer_b.expose_secret()
+                    && checksum_a == checksum_b
                     && user_data_a == user_data_b
             }
             (
@@ -1389,12 +1405,14 @@ impl Encode for Secret {
                 name,
                 mime,
                 buffer,
+                checksum,
                 user_data,
             } => {
                 writer.write_string(name)?;
                 writer.write_string(mime)?;
                 writer.write_u32(buffer.expose_secret().len() as u32)?;
                 writer.write_bytes(buffer.expose_secret())?;
+                writer.write_bytes(&checksum)?;
                 write_user_data(user_data, writer)?;
             }
             Self::Account {
@@ -1567,11 +1585,13 @@ impl Decode for Secret {
                 let buffer = secrecy::Secret::new(
                     reader.read_bytes(buffer_len as usize)?,
                 );
+                let checksum: [u8; 32] = reader.read_bytes(32)?.as_slice().try_into()?;
                 let user_data = read_user_data(reader)?;
                 *self = Self::File {
                     name,
                     mime,
                     buffer,
+                    checksum,
                     user_data,
                 };
             }
@@ -1785,6 +1805,7 @@ mod test {
     use crate::{
         decode, encode,
         signer::{Signer, SingleParty},
+        test_utils::*,
     };
     use anyhow::Result;
     use secrecy::ExposeSecret;
@@ -1904,12 +1925,8 @@ END:VCARD"#;
 
     #[test]
     fn secret_encode_file() -> Result<()> {
-        let secret = Secret::File {
-            name: "hello.txt".to_string(),
-            mime: "text/plain".to_string(),
-            buffer: secrecy::Secret::new("hello".as_bytes().to_vec()),
-            user_data: Default::default(),
-        };
+        let (_, secret, _, _) = mock_secret_file(
+            "Mock file", "hello.txt", "text/plain", "hello".as_bytes().to_vec())?;
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);

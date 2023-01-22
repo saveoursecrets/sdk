@@ -7,6 +7,7 @@ use crate::{
     vault::{Vault, VaultAccess, VaultEntry},
     CommitHash,
 };
+use sha3::{Sha3_256, Digest};
 use std::{borrow::Cow, io::Write};
 use uuid::Uuid;
 
@@ -49,10 +50,12 @@ pub fn mock_secret_file(
     mime: &str,
     buffer: Vec<u8>,
 ) -> Result<(SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
+    let checksum = Sha3_256::digest(&buffer);
     let secret_value = Secret::File {
         name: name.to_string(),
         mime: mime.to_string(),
         buffer: secrecy::Secret::new(buffer),
+        checksum: checksum.try_into()?,
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
