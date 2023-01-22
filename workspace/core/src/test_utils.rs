@@ -7,7 +7,7 @@ use crate::{
     vault::{Vault, VaultAccess, VaultEntry},
     CommitHash,
 };
-use sha3::{Sha3_256, Digest};
+use sha3::{Digest, Sha3_256};
 use std::{borrow::Cow, io::Write};
 use uuid::Uuid;
 

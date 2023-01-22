@@ -55,7 +55,10 @@ impl<W: Write> PublicExport<W> {
 
         for id in access.vault().keys() {
             if let Some((meta, mut secret, _)) = access.read(id)? {
-                if let Secret::File { buffer, checksum, .. } = &mut secret {
+                if let Secret::File {
+                    buffer, checksum, ..
+                } = &mut secret
+                {
                     let path =
                         format!("{}/{}", file_path, hex::encode(checksum));
                     append_long_path(
@@ -104,17 +107,13 @@ impl<W: Write> PublicExport<W> {
         // Add the collection of vault identifiers
         let path = format!("vaults.json");
         let buffer = serde_json::to_vec_pretty(&self.vault_ids)?;
-        append_long_path(
-            &mut self.builder,
-            &path,
-            buffer.as_slice(),
-        )?;
+        append_long_path(&mut self.builder, &path, buffer.as_slice())?;
 
         Ok(self.builder.into_inner()?)
     }
 }
 
-/// Public vault info contains meta data about the vault and lists the 
+/// Public vault info contains meta data about the vault and lists the
 /// secret identifiers.
 #[derive(Default, Serialize, Deserialize)]
 pub struct PublicVaultInfo {
@@ -146,13 +145,11 @@ mod test {
 
     use super::*;
     use crate::{
-        archive::deflate,
-        generate_passphrase, test_utils::*, vault::Vault, Gatekeeper,
+        archive::deflate, generate_passphrase, test_utils::*, vault::Vault,
+        Gatekeeper,
     };
 
-    fn create_mock_migration<W: Write>(
-        writer: W,
-    ) -> Result<PublicExport<W>> {
+    fn create_mock_migration<W: Write>(writer: W) -> Result<PublicExport<W>> {
         let (passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
@@ -186,7 +183,7 @@ mod test {
         let archive = migration.finish()?;
         let mut tar_gz = Vec::new();
         deflate(archive.as_slice(), &mut tar_gz)?;
-        
+
         Ok(())
     }
 }

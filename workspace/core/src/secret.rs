@@ -77,6 +77,14 @@ where
     seq.end()
 }
 
+fn is_empty_secret_vec(value: &SecretVec<u8>) -> bool {
+    value.expose_secret().is_empty()
+}
+
+fn default_secret_vec() -> SecretVec<u8> {
+    SecretVec::new(Vec::new())
+}
+
 /// Identifier for secrets.
 pub type SecretId = Uuid;
 
@@ -623,16 +631,20 @@ pub enum Secret {
         /// Use application/octet-stream if no mime-type is available.
         mime: String,
         /// The binary data.
-        #[serde(serialize_with = "serialize_secret_buffer")]
+        #[serde(
+            default = "default_secret_vec",
+            serialize_with = "serialize_secret_buffer",
+            skip_serializing_if = "is_empty_secret_vec"
+        )]
         buffer: SecretVec<u8>,
         /// The SHA-256 digest of the buffer.
         ///
-        /// Using the SHA-256 digest allows the checksum to be computed 
-        /// using the Javascript SubtleCrypto API and in Dart using the 
+        /// Using the SHA-256 digest allows the checksum to be computed
+        /// using the Javascript SubtleCrypto API and in Dart using the
         /// crypto package.
         ///
-        /// This is used primarily during the public migration export 
-        /// to identify files that have been extracted to another location 
+        /// This is used primarily during the public migration export
+        /// to identify files that have been extracted to another location
         /// in the archive rather than embedding the binary data.
         #[serde(with = "hex::serde")]
         checksum: [u8; 32],
@@ -1585,7 +1597,8 @@ impl Decode for Secret {
                 let buffer = secrecy::Secret::new(
                     reader.read_bytes(buffer_len as usize)?,
                 );
-                let checksum: [u8; 32] = reader.read_bytes(32)?.as_slice().try_into()?;
+                let checksum: [u8; 32] =
+                    reader.read_bytes(32)?.as_slice().try_into()?;
                 let user_data = read_user_data(reader)?;
                 *self = Self::File {
                     name,
@@ -1926,7 +1939,11 @@ END:VCARD"#;
     #[test]
     fn secret_encode_file() -> Result<()> {
         let (_, secret, _, _) = mock_secret_file(
-            "Mock file", "hello.txt", "text/plain", "hello".as_bytes().to_vec())?;
+            "Mock file",
+            "hello.txt",
+            "text/plain",
+            "hello".as_bytes().to_vec(),
+        )?;
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);
