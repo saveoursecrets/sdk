@@ -393,8 +393,6 @@ where
             fs_adapter::remove_file(wal_file.path())?;
         }
 
-        println!("RUNNING THE PULL OPERATION {}", force);
-
         sync::pull(&mut self.client, summary, wal_file, patch_file, force)
             .await
     }
@@ -435,12 +433,7 @@ where
             Err(_) => false,
         };
 
-        println!("trying to handle the change {}", self_change);
-
         let actions = sync::handle_change(self, change).await?;
-
-        println!("GOT LIST OF ACTIONS");
-
         Ok((self_change, actions))
     }
 

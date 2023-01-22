@@ -34,8 +34,6 @@ pub async fn handle_change(
         actions.insert(action);
     }
 
-    println!("GATHERED THE ACTIONS {:#?}", actions);
-
     // Consume and react to the actions
     for action in &actions {
         let summary = provider
@@ -46,8 +44,6 @@ pub async fn handle_change(
         if let Some(summary) = &summary {
             match action {
                 ChangeAction::Pull(_) => {
-                    println!("Got a pull change action...");
-
                     let tree = provider
                         .commit_tree(summary)
                         .ok_or(sos_core::Error::NoRootCommit)?;
@@ -62,15 +58,11 @@ pub async fn handle_change(
                     // Looks like the change was made elsewhere
                     // and we should attempt to sync with the server
                     if change.proof().root() != head.root() {
-                        println!("TRYING TO SYNC!!");
-
                         let (status, _) = provider.status(summary).await?;
 
                         match status {
                             SyncStatus::Behind(_, _) => {
-                                println!("TRYING TO DO A PULL!!!!");
                                 provider.pull(summary, false).await?;
-                                println!("AFTER THE PULL");
                             }
                             SyncStatus::Diverged(_) => {
                                 if let Some(_) = change

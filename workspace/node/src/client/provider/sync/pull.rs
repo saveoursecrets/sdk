@@ -34,9 +34,6 @@ where
         || client.status(summary.id(), Some(client_proof.clone())),
         client
     );
-
-    println!("got pull status {}", status);
-
     //.await?;
     status
         .is_success()
@@ -44,8 +41,6 @@ where
         .ok_or(Error::ResponseCode(status.into()))?;
 
     let equals = client_proof.root() == server_proof.root();
-
-    println!("PROOFS ARE EQUAL {}", equals);
 
     let can_pull_safely = match_proof.is_some();
     let status = if force {
@@ -66,8 +61,6 @@ where
 
     if force || !equals {
         if force || can_pull_safely {
-            println!("TRYING THE FORCE PULL!");
-
             let result_proof = force_pull(client, summary, wal_file).await?;
             info.after = Some(result_proof);
 
@@ -104,8 +97,6 @@ where
         || client.load_wal(summary.id(), client_proof.clone()),
         client
     );
-
-    println!("PULL WAL STATUS {}", status);
 
     tracing::debug!(status = %status, "pull_wal");
 
@@ -221,12 +212,8 @@ where
     *wal_file = W::new(wal_file.path())?;
     wal_file.load_tree()?;
 
-    println!("PULLING WAL FROM REMOTE!!!!");
-
     // Pull the remote WAL
     pull_wal(client, summary, wal_file).await?;
-
-    println!("AFTER pulling wal from remote!!!");
 
     /*
     let (wal, _) = self
