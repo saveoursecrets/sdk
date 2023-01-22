@@ -7,6 +7,7 @@ use std::{
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
+use sha3::{Digest, Sha3_256};
 
 use terminal_banner::{Banner, Padding};
 use url::Url;
@@ -418,11 +419,14 @@ fn read_file_secret(path: &str) -> Result<Secret> {
         .map(|m| m.to_string())
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
-    let buffer = secrecy::Secret::new(std::fs::read(file)?);
+    let buffer = std::fs::read(file)?;
+    let checksum = Sha3_256::digest(&buffer);
+    let buffer = secrecy::Secret::new(buffer);
     Ok(Secret::File {
         name,
         mime,
         buffer,
+        checksum: checksum.as_slice().try_into()?,
         user_data: Default::default(),
     })
 }

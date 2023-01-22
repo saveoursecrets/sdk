@@ -3,6 +3,7 @@
 use std::{borrow::Cow, io::Cursor, path::PathBuf, sync::Arc};
 
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 
 use sos_core::{
     archive::{deflate, inflate, Inventory, Reader, Writer},
@@ -33,7 +34,7 @@ use secrecy::{ExposeSecret, SecretString};
 const VAULT_PASSPHRASE_WORDS: u8 = 12;
 
 /// Combines an account address with a label.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountInfo {
     /// Address identifier for the account.
     ///

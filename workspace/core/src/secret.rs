@@ -77,6 +77,14 @@ where
     seq.end()
 }
 
+fn is_empty_secret_vec(value: &SecretVec<u8>) -> bool {
+    value.expose_secret().is_empty()
+}
+
+fn default_secret_vec() -> SecretVec<u8> {
+    SecretVec::new(Vec::new())
+}
+
 /// Identifier for secrets.
 pub type SecretId = Uuid;
 
@@ -111,10 +119,12 @@ impl FromStr for SecretRef {
 
 /// Vault meta data.
 #[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VaultMeta {
     /// Date created timestamp.
     date_created: Timestamp,
     /// Private human-friendly description of the vault.
+    #[serde(skip_serializing_if = "String::is_empty")]
     label: String,
 }
 
@@ -164,16 +174,20 @@ pub struct SecretMeta {
     #[serde(skip_deserializing)]
     last_updated: Timestamp,
     /// Human-friendly label for the secret.
+    #[serde(skip_serializing_if = "String::is_empty")]
     label: String,
     /// Collection of tags.
+    #[serde(skip_serializing_if = "HashSet::is_empty")]
     tags: HashSet<String>,
     /// A URN identifier for this secret.
+    #[serde(skip_serializing_if = "Option::is_none")]
     urn: Option<Urn>,
     /// An optional owner identifier.
     ///
     /// This can be used when creating secrets on behalf of a
     /// third-party plugin or application to indicate the identifier
     /// of the third-party application.
+    #[serde(skip_serializing_if = "Option::is_none")]
     owner_id: Option<String>,
 }
 
@@ -438,6 +452,7 @@ mod user_data {
 
 /// User defined field.
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(untagged)]
 pub enum UserField {
     /// Default variant for a user defined field.
     #[default]
@@ -509,35 +524,42 @@ impl Decode for UserField {
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UserData {
     /// Collection of custom user_data.
-    inner: Vec<UserField>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    fields: Vec<UserField>,
     /// Recovery nodes.
+    #[serde(skip_serializing_if = "Option::is_none")]
     recovery_notes: Option<String>,
 }
 
 impl UserData {
     /// Get the number of user data.
     pub fn len(&self) -> usize {
-        self.inner.len()
+        self.fields.len()
+    }
+
+    /// Determine of there are any user data fields.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0 && self.recovery_notes.is_none()
     }
 
     /// Determine of there are any user data.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_default(&self) -> bool {
+        self.is_empty() && self.recovery_notes.is_none()
     }
 
     /// Get the user fields.
     pub fn fields(&self) -> &Vec<UserField> {
-        &self.inner
+        &self.fields
     }
 
     /// Get a mutable reference to the user fields.
     pub fn fields_mut(&mut self) -> &mut Vec<UserField> {
-        &mut self.inner
+        &mut self.fields
     }
 
     /// Add a custom field to this collection.
     pub fn push(&mut self, field: UserField) {
-        self.inner.push(field);
+        self.fields.push(field);
     }
 
     /// Get the recovery notes.
@@ -590,14 +612,17 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
 #[serde(untagged, rename_all = "lowercase")]
 pub enum Secret {
     /// A UTF-8 encoded note.
+    #[serde(rename_all = "camelCase")]
     Note {
         /// Note text.
         #[serde(serialize_with = "serialize_secret_string")]
         text: SecretString,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// A binary blob.
+    #[serde(rename_all = "camelCase")]
     File {
         /// File name.
         name: String,
@@ -606,12 +631,29 @@ pub enum Secret {
         /// Use application/octet-stream if no mime-type is available.
         mime: String,
         /// The binary data.
-        #[serde(serialize_with = "serialize_secret_buffer")]
+        #[serde(
+            default = "default_secret_vec",
+            serialize_with = "serialize_secret_buffer",
+            skip_serializing_if = "is_empty_secret_vec"
+        )]
         buffer: SecretVec<u8>,
+        /// The SHA-256 digest of the buffer.
+        ///
+        /// Using the SHA-256 digest allows the checksum to be computed
+        /// using the Javascript SubtleCrypto API and in Dart using the
+        /// crypto package.
+        ///
+        /// This is used primarily during the public migration export
+        /// to identify files that have been extracted to another location
+        /// in the archive rather than embedding the binary data.
+        #[serde(with = "hex::serde")]
+        checksum: [u8; 32],
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Account with login password.
+    #[serde(rename_all = "camelCase")]
     Account {
         /// Name of the account.
         account: String,
@@ -621,24 +663,30 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         password: SecretString,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Collection of credentials as key/value pairs.
+    #[serde(rename_all = "camelCase")]
     List {
         /// The items in the list.
         #[serde(serialize_with = "serialize_secret_string_map")]
         items: HashMap<String, SecretString>,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// PEM encoded binary data.
+    #[serde(rename_all = "camelCase")]
     Pem {
         /// Collection of PEM encoded certificates or keys.
         certificates: Vec<Pem>,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// A UTF-8 text document.
+    #[serde(rename_all = "camelCase")]
     Page {
         /// Title of the page.
         title: String,
@@ -648,6 +696,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         document: SecretString,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Personal identification number.
@@ -657,35 +706,44 @@ pub enum Secret {
     ///
     /// Client implementations should ensure the value
     /// only contains digits.
+    #[serde(rename_all = "camelCase")]
     Pin {
         /// The value for the PIN.
         #[serde(serialize_with = "serialize_secret_string")]
         number: SecretString,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Private signing key.
+    #[serde(rename_all = "camelCase")]
     Signer {
         /// The private key.
         private_key: SecretSigner,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Contact for an organization or person.
+    #[serde(rename_all = "camelCase")]
     Contact {
         /// The contact vCard.
         vcard: Box<Vcard>,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Two-factor authentication using a TOTP.
+    #[serde(rename_all = "camelCase")]
     Totp {
         /// Time-based one-time passcode.
         totp: TOTP,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Credit or debit card.
+    #[serde(rename_all = "camelCase")]
     Card {
         /// The card number.
         #[serde(serialize_with = "serialize_secret_string")]
@@ -703,9 +761,11 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_option")]
         atm_pin: Option<SecretString>,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Bank account.
+    #[serde(rename_all = "camelCase")]
     Bank {
         /// The account number.
         #[serde(serialize_with = "serialize_secret_string")]
@@ -723,23 +783,35 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_option")]
         bic: Option<SecretString>,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// External link; intended to be used in embedded user fields.
+    #[serde(rename_all = "camelCase")]
     Link {
         /// External link URL.
         #[serde(serialize_with = "serialize_secret_string")]
         url: SecretString,
         /// Optional label for the link.
-        #[serde(serialize_with = "serialize_secret_option")]
+        #[serde(
+            default,
+            serialize_with = "serialize_secret_option",
+            skip_serializing_if = "Option::is_none"
+        )]
         label: Option<SecretString>,
         /// Optional title for the link.
-        #[serde(serialize_with = "serialize_secret_option")]
+        #[serde(
+            default,
+            serialize_with = "serialize_secret_option",
+            skip_serializing_if = "Option::is_none"
+        )]
         title: Option<SecretString>,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
     /// Standalone password; intended to be used in embedded user fields.
+    #[serde(rename_all = "camelCase")]
     Password {
         /// Password secret.
         #[serde(serialize_with = "serialize_secret_string")]
@@ -748,9 +820,14 @@ pub enum Secret {
         ///
         /// This could be a username, account name or other label
         /// the user wants to associate with this password.
-        #[serde(serialize_with = "serialize_secret_option")]
+        #[serde(
+            default,
+            serialize_with = "serialize_secret_option",
+            skip_serializing_if = "Option::is_none"
+        )]
         name: Option<SecretString>,
         /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
 }
@@ -766,11 +843,13 @@ impl Clone for Secret {
                 name,
                 mime,
                 buffer,
+                checksum,
                 user_data,
             } => Secret::File {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
+                checksum: checksum.clone(),
                 user_data: user_data.clone(),
             },
             Secret::Account {
@@ -1051,18 +1130,21 @@ impl PartialEq for Secret {
                     name: name_a,
                     mime: mime_a,
                     buffer: buffer_a,
+                    checksum: checksum_a,
                     user_data: user_data_a,
                 },
                 Self::File {
                     name: name_b,
                     mime: mime_b,
                     buffer: buffer_b,
+                    checksum: checksum_b,
                     user_data: user_data_b,
                 },
             ) => {
                 name_a == name_b
                     && mime_a == mime_b
                     && buffer_a.expose_secret() == buffer_b.expose_secret()
+                    && checksum_a == checksum_b
                     && user_data_a == user_data_b
             }
             (
@@ -1335,12 +1417,14 @@ impl Encode for Secret {
                 name,
                 mime,
                 buffer,
+                checksum,
                 user_data,
             } => {
                 writer.write_string(name)?;
                 writer.write_string(mime)?;
                 writer.write_u32(buffer.expose_secret().len() as u32)?;
                 writer.write_bytes(buffer.expose_secret())?;
+                writer.write_bytes(&checksum)?;
                 write_user_data(user_data, writer)?;
             }
             Self::Account {
@@ -1513,11 +1597,14 @@ impl Decode for Secret {
                 let buffer = secrecy::Secret::new(
                     reader.read_bytes(buffer_len as usize)?,
                 );
+                let checksum: [u8; 32] =
+                    reader.read_bytes(32)?.as_slice().try_into()?;
                 let user_data = read_user_data(reader)?;
                 *self = Self::File {
                     name,
                     mime,
                     buffer,
+                    checksum,
                     user_data,
                 };
             }
@@ -1731,6 +1818,7 @@ mod test {
     use crate::{
         decode, encode,
         signer::{Signer, SingleParty},
+        test_utils::*,
     };
     use anyhow::Result;
     use secrecy::ExposeSecret;
@@ -1743,7 +1831,12 @@ mod test {
             user_data: Default::default(),
         };
         let value = serde_json::to_string_pretty(&secret)?;
+
+        println!("{}", value);
+
         let result: Secret = serde_json::from_str(&value)?;
+        println!("{:#?}", secret);
+        println!("{:#?}", result);
         assert_eq!(secret, result);
         Ok(())
     }
@@ -1845,12 +1938,12 @@ END:VCARD"#;
 
     #[test]
     fn secret_encode_file() -> Result<()> {
-        let secret = Secret::File {
-            name: "hello.txt".to_string(),
-            mime: "text/plain".to_string(),
-            buffer: secrecy::Secret::new("hello".as_bytes().to_vec()),
-            user_data: Default::default(),
-        };
+        let (_, secret, _, _) = mock_secret_file(
+            "Mock file",
+            "hello.txt",
+            "text/plain",
+            "hello".as_bytes().to_vec(),
+        )?;
         let encoded = encode(&secret)?;
         let decoded = decode(&encoded)?;
         assert_eq!(secret, decoded);
