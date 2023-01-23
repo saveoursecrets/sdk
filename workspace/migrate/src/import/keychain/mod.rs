@@ -1,4 +1,5 @@
 //! Import from keychain access.
+pub mod error;
 pub mod parser;
 
 use std::{
@@ -8,7 +9,10 @@ use std::{
     sync::mpsc::Receiver,
 };
 
-use crate::{Error, Result};
+pub use error::Error;
+
+/// Result type for keychain access integration.
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// File extension for keychain files.
 const KEYCHAIN_DB: &str = "keychain-db";
@@ -159,6 +163,7 @@ mod test {
         // NOTE: and the `security` program does not work
         let keychains = user_keychains()?;
         let keychain =
+            //keychains.into_iter().find(|k| k.name == "test-export");
             keychains.into_iter().find(|k| k.name == "test-export");
         if keychain.is_none() {
             eprintln!("To test the MacOS keychain export you must have a keychain called `test-export` in ~/Library/Keychains.");

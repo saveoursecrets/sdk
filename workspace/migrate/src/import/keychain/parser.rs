@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Range};
 
 use logos::{Lexer, Logos};
 
-use crate::{Error, Result};
+use super::{Error, Result};
 
 #[derive(Logos, Debug, PartialEq)]
 enum Token {
@@ -43,15 +43,15 @@ impl<'s> KeychainParser<'s> {
         Self { source }
     }
 
-    /// Get a lexer for the current source.
-    fn lexer(&self) -> Lexer<'s, Token> {
+    /// Get a lex for the current source.
+    fn lex(&self) -> Lexer<'s, Token> {
         Token::lexer(self.source)
     }
 
     /// Parse the keychain dump.
     pub fn parse(&self) -> Result<Vec<KeychainEntry<'s>>> {
         let mut result: Vec<KeychainEntry<'s>> = Vec::new();
-        let mut lex = self.lexer();
+        let mut lex = self.lex();
         let mut in_attributes = false;
         let mut next_token = lex.next();
         while let Some(token) = next_token {
@@ -59,8 +59,12 @@ impl<'s> KeychainParser<'s> {
             match token {
                 Token::Keychain => {
                     in_attributes = false;
-                    let advance_token = consume_whitespace(&mut lex);
-                    let range = parse_quoted_string(&mut lex, advance_token)?;
+                    let advance_token = Self::consume_whitespace(&mut lex);
+                    let range = Self::parse_quoted_string(
+                        &mut lex,
+                        self.source,
+                        advance_token,
+                    )?;
                     let entry = KeychainEntry {
                         keychain: &self.source[range],
                         version: None,
@@ -70,15 +74,20 @@ impl<'s> KeychainParser<'s> {
                     result.push(entry);
                 }
                 Token::Version => {
-                    let token = consume_whitespace(&mut lex);
-                    let range = parse_number(&mut lex, token)?;
+                    let token = Self::consume_whitespace(&mut lex);
+                    let range =
+                        Self::parse_number(&mut lex, self.source, token)?;
                     if let Some(last) = result.last_mut() {
                         last.version = Some(&self.source[range]);
                     }
                 }
                 Token::Class => {
-                    let token = consume_whitespace(&mut lex);
-                    let range = parse_quoted_string(&mut lex, token)?;
+                    let token = Self::consume_whitespace(&mut lex);
+                    let range = Self::parse_quoted_string(
+                        &mut lex,
+                        self.source,
+                        token,
+                    )?;
                     if let Some(last) = result.last_mut() {
                         let class = &self.source[range];
                         last.class = Some(class.try_into()?);
@@ -86,19 +95,26 @@ impl<'s> KeychainParser<'s> {
                 }
                 Token::Attributes => {
                     in_attributes = true;
-                    let token = consume_whitespace(&mut lex);
+                    let token = Self::consume_whitespace(&mut lex);
                     next_token = token;
                     continue;
                 }
                 _ => {
                     if in_attributes {
-                        let range =
-                            parse_quoted_string(&mut lex, Some(token))?;
+                        let range = Self::parse_quoted_string(
+                            &mut lex,
+                            self.source,
+                            Some(token),
+                        )?;
                         let name = &self.source[range];
                         let name: AttributeName = name.try_into()?;
-                        let token = consume_whitespace(&mut lex);
+                        let token = Self::consume_whitespace(&mut lex);
 
-                        let range = parse_attribute_type(&mut lex, token)?;
+                        let range = Self::parse_attribute_type(
+                            &mut lex,
+                            self.source,
+                            token,
+                        )?;
                         let attr_type = &self.source[range];
                         let attr_type: AttributeType =
                             attr_type.try_into()?;
@@ -106,10 +122,10 @@ impl<'s> KeychainParser<'s> {
                         // Consume the equls sign
                         let equals = lex.next();
                         if !matches!(equals, Some(Token::Equality)) {
-                            panic!("expecting equals sign");
+                            return Err(Error::ParseExpectsEquals);
                         }
 
-                        let value = parse_attribute_value(
+                        let value = Self::parse_attribute_value(
                             &mut lex,
                             self.source,
                             &attr_type,
@@ -120,7 +136,7 @@ impl<'s> KeychainParser<'s> {
                             last.attributes.insert(key, value);
                         }
 
-                        let token = consume_whitespace(&mut lex);
+                        let token = Self::consume_whitespace(&mut lex);
                         next_token = token;
                         continue;
                     }
@@ -131,35 +147,201 @@ impl<'s> KeychainParser<'s> {
         }
         Ok(result)
     }
+
+    fn consume_whitespace(lex: &mut Lexer<Token>) -> Option<Token> {
+        while let Some(token) = lex.next() {
+            match token {
+                Token::WhiteSpace => {}
+                _ => return Some(token),
+            }
+        }
+        None
+    }
+
+    fn parse_quoted_string(
+        lex: &mut Lexer<Token>,
+        source: &str,
+        mut next_token: Option<Token>,
+    ) -> Result<Range<usize>> {
+        let mut in_quote = false;
+        let mut begin: Range<usize> = lex.span();
+
+        while let Some(token) = next_token {
+            match token {
+                Token::HexValue => {
+                    return Ok(lex.span());
+                }
+                Token::DoubleQuote => {
+                    if !in_quote {
+                        begin = lex.span();
+                        in_quote = true;
+                    } else {
+                        return Ok(begin.end..lex.span().start);
+                    }
+                }
+                _ => {}
+            }
+            next_token = lex.next();
+        }
+        Err(Error::ParseNotQuoted((&source[lex.span()]).to_owned()))
+    }
+
+    fn parse_attribute_type(
+        lex: &mut Lexer<Token>,
+        source: &str,
+        mut next_token: Option<Token>,
+    ) -> Result<Range<usize>> {
+        while let Some(token) = next_token {
+            match token {
+                Token::Type => return Ok(lex.span()),
+                _ => {}
+            }
+            next_token = lex.next();
+        }
+        Err(Error::ParseNotAttributeType(
+            (&source[lex.span()]).to_owned(),
+        ))
+    }
+
+    fn parse_attribute_value<'a>(
+        lex: &mut Lexer<Token>,
+        source: &'a str,
+        attr_type: &AttributeType,
+    ) -> Result<AttributeValue<'a>> {
+        match *attr_type {
+            AttributeType::Blob => {
+                while let Some(token) = lex.next() {
+                    match token {
+                        Token::Null => return Ok(AttributeValue::Null),
+                        Token::HexValue => {
+                            let hex_value = &source[lex.span()];
+                            let token = Self::consume_whitespace(lex);
+                            let range = Self::parse_quoted_string(
+                                lex,
+                                source,
+                                token,
+                            )?;
+                            let value = &source[range];
+                            return Ok(AttributeValue::HexBlob(hex_value, value));
+                        }
+                        Token::DoubleQuote => {
+                            let range = Self::parse_quoted_string(
+                                lex,
+                                source,
+                                Some(token),
+                            )?;
+                            let value = &source[range];
+                            return Ok(AttributeValue::Blob(value));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            AttributeType::TimeDate => {
+                while let Some(token) = lex.next() {
+                    match token {
+                        Token::Null => return Ok(AttributeValue::Null),
+                        Token::HexValue => {
+                            let token = Self::consume_whitespace(lex);
+                            let range = Self::parse_quoted_string(
+                                lex, source, token,
+                            )?;
+                            let value = &source[range];
+                            return Ok(AttributeValue::TimeDate(value));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            AttributeType::Uint32 => {
+                while let Some(token) = lex.next() {
+                    match token {
+                        Token::Null => return Ok(AttributeValue::Null),
+                        Token::DoubleQuote => {
+                            let range = Self::parse_quoted_string(
+                                lex,
+                                source,
+                                Some(token),
+                            )?;
+                            let value = &source[range];
+                            return Ok(AttributeValue::Uint32(value));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            AttributeType::Sint32 => {
+                while let Some(token) = lex.next() {
+                    match token {
+                        Token::Null => return Ok(AttributeValue::Null),
+                        Token::DoubleQuote => {
+                            let range = Self::parse_quoted_string(
+                                lex,
+                                source,
+                                Some(token),
+                            )?;
+                            let value = &source[range];
+                            return Ok(AttributeValue::Sint32(value));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        Err(Error::ParseNotAttributeValue(
+            (&source[lex.span()]).to_owned(),
+        ))
+    }
+
+    fn parse_number(
+        lex: &mut Lexer<Token>,
+        source: &str,
+        mut next_token: Option<Token>,
+    ) -> Result<Range<usize>> {
+        while let Some(token) = next_token {
+            match token {
+                Token::Number => return Ok(lex.span()),
+                _ => {}
+            }
+            next_token = lex.next();
+        }
+        Err(Error::ParseNotNumber((&source[lex.span()]).to_owned()))
+    }
 }
 
 /// Represents the class of keychain entry.
 #[derive(Debug)]
 pub enum EntryClass {
-    /// Generic password or note.
+    /// Generic password or note
     GenericPassword,
-    /// Password stored by safari or other apps.
+    /// Password stored by safari or other apps
     InternetPassword,
     /// Apple share password (deprecated)
     AppleSharePassword,
-    /*
-    kSecCertificateItemClass        = 0x80001000,
-    kSecPublicKeyItemClass          = 0x0000000F,
-    kSecPrivateKeyItemClass         = 0x00000010,
-    kSecSymmetricKeyItemClass       = 0x00000011
-    */
+    /// Certificate
+    Certificate,
+    /// Public key
+    PublicKey,
+    /// Private key
+    PrivateKey,
+    /// Symmetric key
+    SymmetricKey,
 }
 
 impl TryFrom<&str> for EntryClass {
     type Error = Error;
 
     fn try_from(value: &str) -> Result<Self> {
-        Ok(match value {
-            "genp" => Self::GenericPassword,
-            "inet" => Self::InternetPassword,
-            "ashp" => Self::AppleSharePassword,
-            _ => panic!("unknown keychain item class"),
-        })
+        match value {
+            "genp" => Ok(Self::GenericPassword),
+            "inet" => Ok(Self::InternetPassword),
+            "ashp" => Ok(Self::AppleSharePassword),
+            "0x80001000" => Ok(Self::Certificate),
+            "0x0000000F" => Ok(Self::PublicKey),
+            "0x00000010" => Ok(Self::PrivateKey),
+            "0x00000011" => Ok(Self::SymmetricKey),
+            _ => Err(Error::ParseUnknownClass(value.to_owned())),
+        }
     }
 }
 
@@ -225,8 +407,6 @@ pub enum AttributeName<'s> {
     SecCrlEncoding,
     /// Unknown.
     SecAlias,
-
-    // ???
     /// Unknown.
     SecProtItemAttr,
 }
@@ -235,49 +415,45 @@ impl<'s> TryFrom<&'s str> for AttributeName<'s> {
     type Error = Error;
 
     fn try_from(value: &'s str) -> Result<Self> {
-        Ok(match value {
-            "cdat" => Self::SecCreationDateItemAttr,
-            "mdat" => Self::SecModDateItemAttr,
-            "desc" => Self::SecDescriptionItemAttr,
-            "icmt" => Self::SecCommentItemAttr,
-            "crtr" => Self::SecCreatorItemAttr,
-            "type" => Self::SecTypeItemAttr,
-            "scrp" => Self::SecScriptCodeItemAttr,
-            "labl" => Self::SecLabelItemAttr,
-            "invi" => Self::SecInvisibleItemAttr,
-            "nega" => Self::SecNegativeItemAttr,
-            "cusi" => Self::SecCustomIconItemAttr,
-            "acct" => Self::SecAccountItemAttr,
-            "svce" => Self::SecServiceItemAttr,
-            "gena" => Self::SecGenericItemAttr,
-            "sdmn" => Self::SecSecurityDomainItemAttr,
-            "srvr" => Self::SecServerItemAttr,
-            "atyp" => Self::SecAuthenticationTypeItemAttr,
-            "port" => Self::SecPortItemAttr,
-            "path" => Self::SecPathItemAttr,
-            "vlme" => Self::SecVolumeItemAttr,
-            "addr" => Self::SecAddressItemAttr,
-            "ssig" => Self::SecSignatureItemAttr,
-            "ptcl" => Self::SecProtocolItemAttr,
-            "ctyp" => Self::SecCertificateType,
-            "cenc" => Self::SecCertificateEncoding,
-            "crtp" => Self::SecCrlType,
-            "crnc" => Self::SecCrlEncoding,
-            "alis" => Self::SecAlias,
-
+        match value {
+            "cdat" => Ok(Self::SecCreationDateItemAttr),
+            "mdat" => Ok(Self::SecModDateItemAttr),
+            "desc" => Ok(Self::SecDescriptionItemAttr),
+            "icmt" => Ok(Self::SecCommentItemAttr),
+            "crtr" => Ok(Self::SecCreatorItemAttr),
+            "type" => Ok(Self::SecTypeItemAttr),
+            "scrp" => Ok(Self::SecScriptCodeItemAttr),
+            "labl" => Ok(Self::SecLabelItemAttr),
+            "invi" => Ok(Self::SecInvisibleItemAttr),
+            "nega" => Ok(Self::SecNegativeItemAttr),
+            "cusi" => Ok(Self::SecCustomIconItemAttr),
+            "acct" => Ok(Self::SecAccountItemAttr),
+            "svce" => Ok(Self::SecServiceItemAttr),
+            "gena" => Ok(Self::SecGenericItemAttr),
+            "sdmn" => Ok(Self::SecSecurityDomainItemAttr),
+            "srvr" => Ok(Self::SecServerItemAttr),
+            "atyp" => Ok(Self::SecAuthenticationTypeItemAttr),
+            "port" => Ok(Self::SecPortItemAttr),
+            "path" => Ok(Self::SecPathItemAttr),
+            "vlme" => Ok(Self::SecVolumeItemAttr),
+            "addr" => Ok(Self::SecAddressItemAttr),
+            "ssig" => Ok(Self::SecSignatureItemAttr),
+            "ptcl" => Ok(Self::SecProtocolItemAttr),
+            "ctyp" => Ok(Self::SecCertificateType),
+            "cenc" => Ok(Self::SecCertificateEncoding),
+            "crtp" => Ok(Self::SecCrlType),
+            "crnc" => Ok(Self::SecCrlEncoding),
+            "alis" => Ok(Self::SecAlias),
             // ???
-            "prot" => Self::SecProtItemAttr,
+            "prot" => Ok(Self::SecProtItemAttr),
             _ => {
                 if value.starts_with("0x") {
-                    Self::Hex(value)
+                    Ok(Self::Hex(value))
                 } else {
-                    panic!(
-                        "{}",
-                        &format!("unknown keychain attribute name {}", value)
-                    );
+                    Err(Error::ParseUnknownAttributeName(value.to_string()))
                 }
             }
-        })
+        }
     }
 }
 
@@ -298,18 +474,13 @@ impl TryFrom<&str> for AttributeType {
     type Error = Error;
 
     fn try_from(value: &str) -> Result<Self> {
-        Ok(match value {
-            "<blob>" => Self::Blob,
-            "<uint32>" => Self::Uint32,
-            "<sint32>" => Self::Sint32,
-            "<timedate>" => Self::TimeDate,
-            _ => {
-                panic!(
-                    "{}",
-                    &format!("unknown keychain attribute type {}", value)
-                );
-            }
-        })
+        match value {
+            "<blob>" => Ok(Self::Blob),
+            "<uint32>" => Ok(Self::Uint32),
+            "<sint32>" => Ok(Self::Sint32),
+            "<timedate>" => Ok(Self::TimeDate),
+            _ => Err(Error::ParseUnknownAttributeType(value.to_owned())),
+        }
     }
 }
 
@@ -330,6 +501,8 @@ pub enum AttributeValue<'s> {
     Uint32(&'s str),
     /// Sint32 value.
     Sint32(&'s str),
+    /// Hex blob value.
+    HexBlob(&'s str, &'s str),
 }
 
 /// Entry in a keychain dump.
@@ -343,132 +516,4 @@ pub struct KeychainEntry<'s> {
     class: Option<EntryClass>,
     /// Attributes mapping.
     attributes: HashMap<AttributeKey<'s>, AttributeValue<'s>>,
-}
-
-fn consume_whitespace(lexer: &mut Lexer<Token>) -> Option<Token> {
-    while let Some(token) = lexer.next() {
-        match token {
-            Token::WhiteSpace => {}
-            _ => return Some(token),
-        }
-    }
-    None
-}
-
-fn parse_quoted_string(
-    lexer: &mut Lexer<Token>,
-    mut next_token: Option<Token>,
-) -> Result<Range<usize>> {
-    let mut in_quote = false;
-    let mut begin: Range<usize> = lexer.span();
-
-    while let Some(token) = next_token {
-        match token {
-            Token::HexValue => {
-                return Ok(lexer.span());
-            }
-            Token::DoubleQuote => {
-                if !in_quote {
-                    begin = lexer.span();
-                    in_quote = true;
-                } else {
-                    return Ok(begin.end..lexer.span().start);
-                }
-            }
-            _ => {}
-        }
-        next_token = lexer.next();
-    }
-    panic!("not a quoted string")
-}
-
-fn parse_attribute_type(
-    lexer: &mut Lexer<Token>,
-    mut next_token: Option<Token>,
-) -> Result<Range<usize>> {
-    while let Some(token) = next_token {
-        match token {
-            Token::Type => return Ok(lexer.span()),
-            _ => {}
-        }
-        next_token = lexer.next();
-    }
-    panic!("not an attribute type")
-}
-
-fn parse_attribute_value<'a>(
-    lexer: &mut Lexer<Token>,
-    source: &'a str,
-    attr_type: &AttributeType,
-) -> Result<AttributeValue<'a>> {
-    match *attr_type {
-        AttributeType::Blob => {
-            while let Some(token) = lexer.next() {
-                match token {
-                    Token::Null => return Ok(AttributeValue::Null),
-                    _ => {
-                        let range = parse_quoted_string(lexer, Some(token))?;
-                        let value = &source[range];
-                        return Ok(AttributeValue::Blob(value));
-                    }
-                }
-            }
-        }
-        AttributeType::TimeDate => {
-            while let Some(token) = lexer.next() {
-                match token {
-                    Token::Null => return Ok(AttributeValue::Null),
-                    Token::HexValue => {
-                        let token = consume_whitespace(lexer);
-                        let range = parse_quoted_string(lexer, token)?;
-                        let value = &source[range];
-                        return Ok(AttributeValue::TimeDate(value));
-                    }
-                    _ => {}
-                }
-            }
-        }
-        AttributeType::Uint32 => {
-            while let Some(token) = lexer.next() {
-                match token {
-                    Token::Null => return Ok(AttributeValue::Null),
-                    Token::DoubleQuote => {
-                        let range = parse_quoted_string(lexer, Some(token))?;
-                        let value = &source[range];
-                        return Ok(AttributeValue::Uint32(value));
-                    }
-                    _ => {}
-                }
-            }
-        }
-        AttributeType::Sint32 => {
-            while let Some(token) = lexer.next() {
-                match token {
-                    Token::Null => return Ok(AttributeValue::Null),
-                    Token::DoubleQuote => {
-                        let range = parse_quoted_string(lexer, Some(token))?;
-                        let value = &source[range];
-                        return Ok(AttributeValue::Sint32(value));
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    panic!("not an attribute value")
-}
-
-fn parse_number(
-    lexer: &mut Lexer<Token>,
-    mut next_token: Option<Token>,
-) -> Result<Range<usize>> {
-    while let Some(token) = next_token {
-        match token {
-            Token::Number => return Ok(lexer.span()),
-            _ => {}
-        }
-        next_token = lexer.next();
-    }
-    panic!("not a number")
 }
