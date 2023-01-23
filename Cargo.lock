@@ -2904,12 +2904,15 @@ name = "sos-migrate"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "dirs",
  "hex",
  "secrecy",
+ "security-framework",
  "serde",
  "serde_json",
  "sos-core",
  "tar",
+ "thiserror",
 ]
 
 [[package]]
