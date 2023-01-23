@@ -2906,6 +2906,7 @@ dependencies = [
  "anyhow",
  "dirs",
  "hex",
+ "logos",
  "secrecy",
  "security-framework",
  "serde",

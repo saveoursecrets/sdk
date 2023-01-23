@@ -1,21 +1,31 @@
 //! Import from keychain access.
+pub mod parser;
+
 use std::{
     io::{BufWriter, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::mpsc::{channel, Receiver},
-};
-
-use security_framework::{
-    item::{ItemClass, ItemSearchOptions},
-    os::macos::item::ItemSearchOptionsExt,
-    os::macos::keychain::SecKeychain,
+    sync::mpsc::Receiver,
 };
 
 use crate::{Error, Result};
 
 /// File extension for keychain files.
 const KEYCHAIN_DB: &str = "keychain-db";
+
+/// Dump and parse a keychain.
+pub fn dump_keychain<P: AsRef<Path>>(path: P, data: bool) -> Result<String> {
+    let mut args = vec!["dump-keychain"];
+    if data {
+        args.push("-d");
+    }
+    let path = path.as_ref().to_string_lossy();
+    args.push(path.as_ref());
+    let dump = Command::new("security").args(args).output()?;
+    let result = std::str::from_utf8(&dump.stdout)?.to_owned();
+    println!("{}", result);
+    Ok(result)
+}
 
 /// Located keychain with full path and name derived from the
 /// file stem.
@@ -80,7 +90,10 @@ pub fn verify_password(keychain: SecKeychain, password: &str) -> Result<()> {
 ///
 /// Requires that the Accessibility permission has been given
 /// to the application in System Preferences.
-pub fn spawn_password_autofill_osascript(rx: Receiver<bool>, password: String) {
+pub fn spawn_password_autofill_osascript(
+    rx: Receiver<bool>,
+    password: String,
+) {
     std::thread::spawn(move || {
         let mut child = Command::new("osascript")
             .stdin(Stdio::piped())
@@ -88,7 +101,8 @@ pub fn spawn_password_autofill_osascript(rx: Receiver<bool>, password: String) {
             .unwrap();
         let mut stdin = child.stdin.take().unwrap();
         let mut writer = BufWriter::new(&mut stdin);
-        let script = format!(r#"
+        let script = format!(
+            r#"
 -- Autofill the passwords
 set thePassword to "{}"
 delay 0.5
@@ -113,7 +127,9 @@ tell application "System Events"
         delay 0.5
     end repeat
 end tell
-"#, password);
+"#,
+            password
+        );
         writer
             .write_all(script.as_bytes())
             .expect("failed to write to child script");
@@ -132,36 +148,48 @@ end tell
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::{parser::KeychainParser, *};
     use anyhow::Result;
 
-    use security_framework::item::*;
-    use security_framework::os::macos::item::ItemSearchOptionsExt;
     use security_framework::os::macos::keychain::SecKeychain;
 
-    #[test]
-    fn keychain_import() -> Result<()> {
+    fn find_test_keychain() -> Result<UserKeychain> {
         // NOTE: the keychain must be located in ~/Library/Keychains
         // NOTE: otherwise searching fails to find any items
-
+        // NOTE: and the `security` program does not work
         let keychains = user_keychains()?;
-        let keychain = keychains.iter()
-            .find(|k| k.name == "test-export");
-
+        let keychain =
+            keychains.into_iter().find(|k| k.name == "test-export");
         if keychain.is_none() {
             eprintln!("To test the MacOS keychain export you must have a keychain called `test-export` in ~/Library/Keychains.");
             panic!("keychain test for MacOS not configured");
         }
+        Ok(keychain.unwrap())
+    }
 
-        let keychain = SecKeychain::open(
-            &keychain.as_ref().unwrap().path)?;
-        let password = "mock-password-foo";
+    #[test]
+    fn keychain_dump() -> Result<()> {
+        let keychain = find_test_keychain()?;
+        let source = dump_keychain(keychain.path, false)?;
+        let parser = KeychainParser::new(&source);
+        let entries = parser.parse()?;
+
+        println!("{}", entries.len());
+
+        Ok(())
+    }
+
+    #[test]
+    fn keychain_import() -> Result<()> {
+        let keychain = find_test_keychain()?;
+        let keychain = SecKeychain::open(&keychain.path)?;
+        let _password = "mock-password";
 
         let (_, _) = keychain
             .find_generic_password("test password", "test account")?;
 
         //keychain.unlock(None)?;
-        
+
         /*
         let mut searcher = ItemSearchOptions::new();
         searcher.class(ItemClass::generic_password());
@@ -169,7 +197,7 @@ mod test {
         searcher.load_data(true);
         searcher.keychains(&[keychain]);
         searcher.limit(1);
-        
+
         let (tx, rx) = channel::<bool>();
         spawn_password_autofill_osascript(rx, password.to_owned());
 
