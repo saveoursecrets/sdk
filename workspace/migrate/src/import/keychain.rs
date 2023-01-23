@@ -157,6 +157,9 @@ mod test {
             &keychain.as_ref().unwrap().path)?;
         let password = "mock-password-foo";
 
+        let (_, _) = keychain
+            .find_generic_password("test password", "test account")?;
+
         //keychain.unlock(None)?;
         
         /*
