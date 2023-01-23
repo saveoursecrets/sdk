@@ -28,7 +28,7 @@ enum Token {
     #[regex("<(blob|timedate|uint32|sint32)>")]
     Type,
     #[error]
-    #[regex("[[:blank:]]", priority = 2)]
+    #[regex(r"[ \t\r\n\f]+")]
     WhiteSpace,
 }
 
@@ -55,7 +55,6 @@ impl<'s> KeychainParser<'s> {
         let mut in_attributes = false;
         let mut next_token = lex.next();
         while let Some(token) = next_token {
-            //println!("{:#?}", token);
             match token {
                 Token::Keychain => {
                     in_attributes = false;
@@ -147,15 +146,9 @@ impl<'s> KeychainParser<'s> {
         }
         Ok(result)
     }
-
+    
     fn consume_whitespace(lex: &mut Lexer<Token>) -> Option<Token> {
-        while let Some(token) = lex.next() {
-            match token {
-                Token::WhiteSpace => {}
-                _ => return Some(token),
-            }
-        }
-        None
+        lex.by_ref().find(|t| !matches!(t, Token::WhiteSpace))
     }
 
     fn parse_quoted_string(
@@ -169,7 +162,9 @@ impl<'s> KeychainParser<'s> {
         while let Some(token) = next_token {
             match token {
                 Token::HexValue => {
-                    return Ok(lex.span());
+                    if !in_quote {
+                        return Ok(lex.span());
+                    }
                 }
                 Token::DoubleQuote => {
                     if !in_quote {
@@ -183,7 +178,7 @@ impl<'s> KeychainParser<'s> {
             }
             next_token = lex.next();
         }
-        Err(Error::ParseNotQuoted((&source[lex.span()]).to_owned()))
+        Err(Error::ParseNotQuoted(source[lex.span()].to_owned()))
     }
 
     fn parse_attribute_type(
@@ -192,14 +187,13 @@ impl<'s> KeychainParser<'s> {
         mut next_token: Option<Token>,
     ) -> Result<Range<usize>> {
         while let Some(token) = next_token {
-            match token {
-                Token::Type => return Ok(lex.span()),
-                _ => {}
+            if let Token::Type = token {
+                return Ok(lex.span());
             }
             next_token = lex.next();
         }
         Err(Error::ParseNotAttributeType(
-            (&source[lex.span()]).to_owned(),
+            source[lex.span()].to_owned(),
         ))
     }
 
@@ -214,15 +208,18 @@ impl<'s> KeychainParser<'s> {
                     match token {
                         Token::Null => return Ok(AttributeValue::Null),
                         Token::HexValue => {
-                            let hex_value = &source[lex.span()];
-                            let token = Self::consume_whitespace(lex);
-                            let range = Self::parse_quoted_string(
-                                lex,
-                                source,
-                                token,
-                            )?;
-                            let value = &source[range];
-                            return Ok(AttributeValue::HexBlob(hex_value, value));
+                            let hex = &source[lex.span()];
+                            if lex.remainder().starts_with(r#"  ""#) {
+                                let next_token = lex.next();
+                                let range = Self::parse_quoted_string(
+                                    lex,
+                                    source,
+                                    next_token,
+                                )?;
+                                let value = &source[range];
+                                return Ok(AttributeValue::HexBlob(hex, value))
+                            }
+                            return Ok(AttributeValue::Hex(hex))
                         }
                         Token::DoubleQuote => {
                             let range = Self::parse_quoted_string(
@@ -257,6 +254,20 @@ impl<'s> KeychainParser<'s> {
                 while let Some(token) = lex.next() {
                     match token {
                         Token::Null => return Ok(AttributeValue::Null),
+                        Token::HexValue => {
+                            let hex = &source[lex.span()];
+                            if lex.remainder().starts_with(r#"  ""#) {
+                                let next_token = lex.next();
+                                let range = Self::parse_quoted_string(
+                                    lex,
+                                    source,
+                                    next_token,
+                                )?;
+                                let value = &source[range];
+                                return Ok(AttributeValue::HexBlob(hex, value))
+                            }
+                            return Ok(AttributeValue::Hex(hex))
+                        }
                         Token::DoubleQuote => {
                             let range = Self::parse_quoted_string(
                                 lex,
@@ -274,6 +285,20 @@ impl<'s> KeychainParser<'s> {
                 while let Some(token) = lex.next() {
                     match token {
                         Token::Null => return Ok(AttributeValue::Null),
+                        Token::HexValue => {
+                            let hex = &source[lex.span()];
+                            if lex.remainder().starts_with(r#"  ""#) {
+                                let next_token = lex.next();
+                                let range = Self::parse_quoted_string(
+                                    lex,
+                                    source,
+                                    next_token,
+                                )?;
+                                let value = &source[range];
+                                return Ok(AttributeValue::HexBlob(hex, value))
+                            }
+                            return Ok(AttributeValue::Hex(hex))
+                        }
                         Token::DoubleQuote => {
                             let range = Self::parse_quoted_string(
                                 lex,
@@ -289,7 +314,7 @@ impl<'s> KeychainParser<'s> {
             }
         }
         Err(Error::ParseNotAttributeValue(
-            (&source[lex.span()]).to_owned(),
+            source[lex.span()].to_owned(),
         ))
     }
 
@@ -299,13 +324,12 @@ impl<'s> KeychainParser<'s> {
         mut next_token: Option<Token>,
     ) -> Result<Range<usize>> {
         while let Some(token) = next_token {
-            match token {
-                Token::Number => return Ok(lex.span()),
-                _ => {}
+            if let Token::Number = token {
+                return Ok(lex.span());
             }
             next_token = lex.next();
         }
-        Err(Error::ParseNotNumber((&source[lex.span()]).to_owned()))
+        Err(Error::ParseNotNumber(source[lex.span()].to_owned()))
     }
 }
 
@@ -407,8 +431,8 @@ pub enum AttributeName<'s> {
     SecCrlEncoding,
     /// Unknown.
     SecAlias,
-    /// Unknown.
-    SecProtItemAttr,
+    /// Unknown attribute name.
+    Unknown(&'s str),
 }
 
 impl<'s> TryFrom<&'s str> for AttributeName<'s> {
@@ -444,8 +468,13 @@ impl<'s> TryFrom<&'s str> for AttributeName<'s> {
             "crtp" => Ok(Self::SecCrlType),
             "crnc" => Ok(Self::SecCrlEncoding),
             "alis" => Ok(Self::SecAlias),
-            // ???
-            "prot" => Ok(Self::SecProtItemAttr),
+            // Unknown
+            "prot" => Ok(Self::Unknown(value)),
+            "hpky" => Ok(Self::Unknown(value)),
+            "issu" => Ok(Self::Unknown(value)),
+            "skid" => Ok(Self::Unknown(value)),
+            "snbr" => Ok(Self::Unknown(value)),
+            "subj" => Ok(Self::Unknown(value)),
             _ => {
                 if value.starts_with("0x") {
                     Ok(Self::Hex(value))
@@ -503,6 +532,8 @@ pub enum AttributeValue<'s> {
     Sint32(&'s str),
     /// Hex blob value.
     HexBlob(&'s str, &'s str),
+    /// Hexadecimal number.
+    Hex(&'s str),
 }
 
 /// Entry in a keychain dump.

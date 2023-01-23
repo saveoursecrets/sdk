@@ -45,7 +45,7 @@ impl<W: Write> PublicExport<W> {
         let file_path = format!("{}/files", base_path);
 
         let store = PublicVaultInfo {
-            meta: meta,
+            meta,
             summary: access.summary().clone(),
             secrets: access.vault().keys().copied().collect(),
         };
@@ -74,8 +74,8 @@ impl<W: Write> PublicExport<W> {
                 let path = format!("{}/{}.json", base_path, id);
                 let public_secret = PublicSecret {
                     id: *id,
-                    meta: meta,
-                    secret: secret,
+                    meta,
+                    secret,
                 };
 
                 let buffer = serde_json::to_vec_pretty(&public_secret)?;
@@ -105,9 +105,9 @@ impl<W: Write> PublicExport<W> {
     /// Finish building the archive.
     pub fn finish(mut self) -> Result<W> {
         // Add the collection of vault identifiers
-        let path = format!("vaults.json");
+        let path = "vaults.json";
         let buffer = serde_json::to_vec_pretty(&self.vault_ids)?;
-        append_long_path(&mut self.builder, &path, buffer.as_slice())?;
+        append_long_path(&mut self.builder, path, buffer.as_slice())?;
 
         Ok(self.builder.into_inner()?)
     }

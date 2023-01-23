@@ -849,7 +849,7 @@ impl Clone for Secret {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
-                checksum: checksum.clone(),
+                checksum: *checksum,
                 user_data: user_data.clone(),
             },
             Secret::Account {
@@ -1424,7 +1424,7 @@ impl Encode for Secret {
                 writer.write_string(mime)?;
                 writer.write_u32(buffer.expose_secret().len() as u32)?;
                 writer.write_bytes(buffer.expose_secret())?;
-                writer.write_bytes(&checksum)?;
+                writer.write_bytes(checksum)?;
                 write_user_data(user_data, writer)?;
             }
             Self::Account {

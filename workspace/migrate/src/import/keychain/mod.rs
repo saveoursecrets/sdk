@@ -27,7 +27,7 @@ pub fn dump_keychain<P: AsRef<Path>>(path: P, data: bool) -> Result<String> {
     args.push(path.as_ref());
     let dump = Command::new("security").args(args).output()?;
     let result = std::str::from_utf8(&dump.stdout)?.to_owned();
-    println!("{}", result);
+    //println!("{}", result);
     Ok(result)
 }
 
@@ -142,9 +142,8 @@ end tell
         // otherwise the applescript keeps running while the SecurityAgent
         // process is closing and keeps trying to steal focus
         std::thread::spawn(move || {
-            while let Ok(_) = rx.recv() {
+            if rx.recv().is_ok() {
                 let _ = child.kill();
-                break;
             }
         });
     });
@@ -163,7 +162,6 @@ mod test {
         // NOTE: and the `security` program does not work
         let keychains = user_keychains()?;
         let keychain =
-            //keychains.into_iter().find(|k| k.name == "test-export");
             keychains.into_iter().find(|k| k.name == "test-export");
         if keychain.is_none() {
             eprintln!("To test the MacOS keychain export you must have a keychain called `test-export` in ~/Library/Keychains.");
@@ -179,7 +177,9 @@ mod test {
         let parser = KeychainParser::new(&source);
         let entries = parser.parse()?;
 
-        println!("{}", entries.len());
+        assert_eq!(2, entries.len());
+
+        // FIXME: complete assertions
 
         Ok(())
     }
@@ -192,8 +192,6 @@ mod test {
 
         let (_, _) = keychain
             .find_generic_password("test password", "test account")?;
-
-        //keychain.unlock(None)?;
 
         /*
         let mut searcher = ItemSearchOptions::new();
