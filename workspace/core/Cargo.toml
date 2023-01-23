@@ -53,6 +53,8 @@ time = { version = "0.3", features = ["serde-human-readable", "local-offset", "w
 
 unicode-segmentation = "1.10"
 
+anyhow = {version = "1", optional = true }
+
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"
 #path = "../../../../forks/probly-search"
@@ -80,6 +82,9 @@ version = "0.1.1"
 #git = "https://gitlab.com/timvisee/chbs.git"
 #rev = "1bb19733ac66cebf58b726d14770a616faba85dd"
 #branch = "wasm32"
+
+[features]
+test-utils = ["dep:anyhow"]
 
 [dev-dependencies]
 anyhow = "1"

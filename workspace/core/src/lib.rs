@@ -26,7 +26,6 @@ mod gatekeeper;
 mod hash;
 pub mod identity;
 pub mod iter;
-pub mod migration;
 pub mod passgen;
 mod passwd;
 mod patch;
@@ -39,7 +38,7 @@ mod timestamp;
 pub mod vault;
 pub mod wal;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
 #[cfg(not(target_arch = "wasm32"))]

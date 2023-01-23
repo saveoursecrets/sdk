@@ -51,7 +51,7 @@ fn prepare_header(size: u64, entry_type: u8) -> Header {
 }
 
 /// Append a buffer using a long path entry.
-pub(crate) fn append_long_path<W: Write>(
+pub fn append_long_path<W: Write>(
     builder: &mut Builder<W>,
     path: &str,
     buffer: &[u8],

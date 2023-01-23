@@ -2900,6 +2900,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-migrate"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hex",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sos-core",
+ "tar",
+]
+
+[[package]]
 name = "sos-node"
 version = "0.1.0"
 dependencies = [

@@ -1,3 +1,4 @@
+//! Test utility functions.
 use crate::{
     crypto::secret_key::SecretKey,
     encode,
@@ -16,6 +17,7 @@ use secrecy::{ExposeSecret, SecretString};
 
 use argon2::password_hash::SaltString;
 
+/// Generate a mock encyption key.
 pub fn mock_encryption_key() -> Result<(SecretKey, SaltString, SecretString)>
 {
     let salt = SecretKey::generate_salt();
@@ -25,11 +27,13 @@ pub fn mock_encryption_key() -> Result<(SecretKey, SaltString, SecretString)>
     Ok((encryption_key, salt, passphrase))
 }
 
+/// Generate a mock vault.
 pub fn mock_vault() -> Vault {
     let vault: Vault = Default::default();
     vault
 }
 
+/// Generate a mock secret note.
 pub fn mock_secret_note(
     label: &str,
     text: &str,
@@ -44,6 +48,7 @@ pub fn mock_secret_note(
     Ok((secret_meta, secret_value, meta_bytes, secret_bytes))
 }
 
+/// Generate a mock secret file.
 pub fn mock_secret_file(
     label: &str,
     name: &str,
@@ -64,6 +69,7 @@ pub fn mock_secret_file(
     Ok((secret_meta, secret_value, meta_bytes, secret_bytes))
 }
 
+/// Generate a mock secret note and add it to a vault.
 pub fn mock_vault_note<'a>(
     vault: &'a mut Vault,
     encryption_key: &SecretKey,
@@ -86,6 +92,7 @@ pub fn mock_vault_note<'a>(
     Ok((secret_id, commit, secret_meta, secret_value, event))
 }
 
+/// Generate a mock secret note and update a vault entry.
 pub fn mock_vault_note_update<'a>(
     vault: &'a mut Vault,
     encryption_key: &SecretKey,
@@ -119,6 +126,7 @@ mod file {
 
     use super::*;
 
+    /// Create a mock vault in a temp file.
     pub fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
         let mut temp = NamedTempFile::new()?;
         let vault = mock_vault();
@@ -127,6 +135,7 @@ mod file {
         Ok((temp, vault, buffer))
     }
 
+    /// Create a mock WAL in a temp file.
     pub fn mock_wal_file(
     ) -> Result<(NamedTempFile, WalFile, Vec<CommitHash>, SecretKey)> {
         let (encryption_key, _, _) = mock_encryption_key()?;

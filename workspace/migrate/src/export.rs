@@ -1,14 +1,14 @@
-//! Migration defines types that expose all
+//! Migration export defines types that expose all
 //! vaults and secrets insecurely and unencrypted
 //! as a compressed archive for migrating to
 //! another service.
 
+use std::{collections::HashMap, io::Write};
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, io::Write};
 use tar::Builder;
 
-use crate::{
+use sos_core::{
     archive::append_long_path,
     secret::{Secret, SecretId, SecretMeta, VaultMeta},
     vault::{Summary, VaultId},
@@ -139,14 +139,14 @@ pub struct PublicSecret {
 
 #[cfg(test)]
 mod test {
-
     use anyhow::Result;
     use secrecy::ExposeSecret;
 
     use super::*;
-    use crate::{
-        archive::deflate, generate_passphrase, test_utils::*, vault::Vault,
+    use sos_core::{
+        archive::deflate, generate_passphrase, vault::Vault,
         Gatekeeper,
+        test_utils::*,
     };
 
     fn create_mock_migration<W: Write>(writer: W) -> Result<PublicExport<W>> {

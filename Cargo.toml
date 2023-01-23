@@ -15,6 +15,7 @@ members = [
   "workspace/check",
   "workspace/client",
   "workspace/core",
+  "workspace/migrate",
   "workspace/node",
   "workspace/readline",
   "workspace/server",
