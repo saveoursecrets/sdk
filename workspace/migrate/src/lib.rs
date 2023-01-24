@@ -1,9 +1,8 @@
 #![deny(missing_docs)]
-//! Migration import and export that exposes secrets
-//! unencrypted.
+//! Library to export secrets unencrypted for migration
+//! or to import unencrypted data.
 //!
-//! Used to move from or to another service provider or
-//! software application.
+//! Used to move between different software providers.
 
 use secrecy::SecretString;
 use sos_core::vault::Vault;

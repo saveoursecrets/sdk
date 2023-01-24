@@ -1,7 +1,5 @@
-//! Migration export defines types that expose all
-//! vaults and secrets insecurely and unencrypted
-//! as a compressed archive for migrating to
-//! another service.
+//! Defines types that expose all secrets insecurely and unencrypted
+//! as a compressed archive for migrating to another service.
 
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};

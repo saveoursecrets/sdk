@@ -9,6 +9,10 @@ use super::{Error, Result};
 /// that are of the note type.
 const NOTE_TYPE: &str = "note";
 
+/// The key in the plist dictionary that contains the
+/// value of a secure note.
+const NOTE_PLIST_KEY: &str = "NOTE";
+
 #[derive(Logos, Debug, PartialEq)]
 enum OctalToken {
     #[regex("\\\\(\\d\\d\\d)")]
@@ -51,6 +55,28 @@ pub fn unescape_octal(value: &str) -> Result<Cow<'_, str>> {
     }
 }
 
+/// Parse a plist and extract the value for a secure note.
+pub fn plist_secure_note(value: &str, unescape: bool) -> Result<Option<Cow<str>>> {
+    let plist = if unescape {
+        unescape_octal(value)?
+    } else {
+        Cow::Borrowed(value)
+    };
+    let value: plist::Value =
+        plist::from_bytes(plist.as_bytes())?;
+    if let plist::Value::Dictionary(map) = value {
+        if let Some(value) = map.get(NOTE_PLIST_KEY) {
+            if let plist::Value::String(data) = value
+            {
+                return Ok(Some(Cow::Owned(
+                    data.to_owned(),
+                )));
+            }
+        }
+    }
+    return Ok(None);
+}
+
 #[derive(Logos, Debug, PartialEq)]
 enum Token {
     #[token("keychain:")]
@@ -61,6 +87,8 @@ enum Token {
     Class,
     #[token("attributes:")]
     Attributes,
+    #[token("data:")]
+    Data,
     #[token("=")]
     Equality,
     #[token("\"")]
@@ -78,7 +106,11 @@ enum Token {
     WhiteSpace,
 }
 
-/// Parsed information from a keychain dump.
+/// Parse the dump for a keychain.
+///
+/// Octal sequences are not handled, you should call
+/// `unescape_octal()` when you need to replace octal
+/// escape sequences.
 pub struct KeychainParser<'s> {
     source: &'s str,
 }
@@ -96,7 +128,7 @@ impl<'s> KeychainParser<'s> {
 
     /// Parse the keychain dump.
     pub fn parse(&self) -> Result<KeychainList<'s>> {
-        let mut result: Vec<KeychainEntry<'s>> = Vec::new();
+        let mut entries: Vec<KeychainEntry<'s>> = Vec::new();
         let mut lex = self.lex();
         let mut in_attributes = false;
         let mut next_token = lex.next();
@@ -114,15 +146,16 @@ impl<'s> KeychainParser<'s> {
                         keychain: &self.source[range],
                         version: None,
                         class: None,
+                        data: None,
                         attributes: HashMap::new(),
                     };
-                    result.push(entry);
+                    entries.push(entry);
                 }
                 Token::Version => {
                     let token = Self::consume_whitespace(&mut lex);
                     let range =
                         Self::parse_number(&mut lex, self.source, token)?;
-                    if let Some(last) = result.last_mut() {
+                    if let Some(last) = entries.last_mut() {
                         last.version = Some(&self.source[range]);
                     }
                 }
@@ -133,7 +166,7 @@ impl<'s> KeychainParser<'s> {
                         self.source,
                         token,
                     )?;
-                    if let Some(last) = result.last_mut() {
+                    if let Some(last) = entries.last_mut() {
                         let class = &self.source[range];
                         last.class = Some(class.try_into()?);
                     }
@@ -144,15 +177,25 @@ impl<'s> KeychainParser<'s> {
                     next_token = token;
                     continue;
                 }
+                Token::Data => {
+                    in_attributes = false;
+                    let token = Self::consume_whitespace(&mut lex);
+                    let value =
+                        Self::parse_value(&mut lex, self.source, token)?;
+                    if let Some(last) = entries.last_mut() {
+                        last.data = Some(value);
+                    }
+                }
                 _ => {
                     if in_attributes {
-                        let range = Self::parse_quoted_string(
+                        let range = Self::parse_attribute_name(
                             &mut lex,
                             self.source,
                             Some(token),
                         )?;
                         let name = &self.source[range];
                         let name: AttributeName = name.try_into()?;
+
                         let token = Self::consume_whitespace(&mut lex);
 
                         let range = Self::parse_attribute_type(
@@ -164,7 +207,7 @@ impl<'s> KeychainParser<'s> {
                         let attr_type: AttributeType =
                             attr_type.try_into()?;
 
-                        // Consume the equls sign
+                        // Consume the equals sign
                         let equals = lex.next();
                         if !matches!(equals, Some(Token::Equality)) {
                             return Err(Error::ParseExpectsEquals);
@@ -176,7 +219,7 @@ impl<'s> KeychainParser<'s> {
                             &attr_type,
                         )?;
 
-                        if let Some(last) = result.last_mut() {
+                        if let Some(last) = entries.last_mut() {
                             let key = AttributeKey(name, attr_type);
                             last.attributes.insert(key, value);
                         }
@@ -190,7 +233,7 @@ impl<'s> KeychainParser<'s> {
 
             next_token = lex.next();
         }
-        Ok(KeychainList { entries: result })
+        Ok(KeychainList { entries })
     }
 
     fn consume_whitespace(lex: &mut Lexer<Token>) -> Option<Token> {
@@ -217,7 +260,14 @@ impl<'s> KeychainParser<'s> {
                         begin = lex.span();
                         in_quote = true;
                     } else {
-                        return Ok(begin.end..lex.span().start);
+                        // We must check for EOF or newline to allow
+                        // for nested quotes in the case of plist XML files
+                        // used as values for secure notes
+                        let finished = lex.remainder().len() == 0
+                            || &lex.remainder()[0..1] == "\n";
+                        if finished {
+                            return Ok(begin.end..lex.span().start);
+                        }
                     }
                 }
                 _ => {}
@@ -225,6 +275,45 @@ impl<'s> KeychainParser<'s> {
             next_token = lex.next();
         }
         Err(Error::ParseNotQuoted(source[lex.span()].to_owned()))
+    }
+
+    fn parse_attribute_name(
+        lex: &mut Lexer<Token>,
+        source: &str,
+        mut next_token: Option<Token>,
+    ) -> Result<Range<usize>> {
+        while let Some(token) = next_token {
+            match token {
+                Token::HexValue => {
+                    return Ok(lex.span());
+                }
+                Token::DoubleQuote => {
+                    // We know that quoted attribute names are always
+                    // 4 characters long so we do this parsing differently
+                    // as the parse_quoted_string() function needs to check
+                    // for a terminating newline in order to handle
+                    // nested quotes properly, without this
+                    // parse_quoted_string() would also need to test
+                    // for a terminating '<' as the start of an attribute type
+                    let start = lex.span().end;
+                    let remainder = lex.remainder();
+                    if remainder.len() >= 4 {
+                        let name = &remainder[0..4];
+                        lex.bump(4);
+                    }
+                    let end_quote = lex.next();
+                    if !matches!(end_quote, Some(Token::DoubleQuote)) {
+                        return Err(Error::ParseAttributeNameQuote(
+                            source[lex.span()].to_owned(),
+                        ));
+                    }
+                    return Ok(start..lex.span().start);
+                }
+                _ => {}
+            }
+            next_token = lex.next();
+        }
+        Err(Error::ParseNotAttributeName(source[lex.span()].to_owned()))
     }
 
     fn parse_attribute_type(
@@ -244,120 +333,46 @@ impl<'s> KeychainParser<'s> {
     fn parse_attribute_value<'a>(
         lex: &mut Lexer<Token>,
         source: &'a str,
-        attr_type: &AttributeType,
-    ) -> Result<AttributeValue<'a>> {
-        match *attr_type {
-            AttributeType::Blob => {
-                while let Some(token) = lex.next() {
-                    match token {
-                        Token::Null => return Ok(AttributeValue::Null),
-                        Token::HexValue => {
-                            let hex = &source[lex.span()];
-                            if lex.remainder().starts_with(r#"  ""#) {
-                                let next_token = lex.next();
-                                let range = Self::parse_quoted_string(
-                                    lex, source, next_token,
-                                )?;
-                                let value = &source[range];
-                                return Ok(AttributeValue::HexBlob(
-                                    hex, value,
-                                ));
-                            }
-                            return Ok(AttributeValue::Hex(hex));
-                        }
-                        Token::DoubleQuote => {
-                            let range = Self::parse_quoted_string(
-                                lex,
-                                source,
-                                Some(token),
-                            )?;
-                            let value = &source[range];
-                            return Ok(AttributeValue::Blob(value));
-                        }
-                        _ => {}
+        _attr_type: &AttributeType,
+    ) -> Result<Value<'a>> {
+        let token = lex.next();
+        Self::parse_value(lex, source, token)
+    }
+
+    fn parse_value<'a>(
+        lex: &mut Lexer<Token>,
+        source: &'a str,
+        token: Option<Token>,
+    ) -> Result<Value<'a>> {
+        if let Some(token) = token {
+            match token {
+                Token::Null => return Ok(Value::Null),
+                Token::HexValue => {
+                    let hex = &source[lex.span()];
+                    if lex.remainder().starts_with(r#"  ""#) {
+                        let next_token = lex.next();
+                        let range = Self::parse_quoted_string(
+                            lex, source, next_token,
+                        )?;
+                        let value = &source[range];
+                        return Ok(Value::BlobString(hex, value));
                     }
+                    return Ok(Value::Blob(hex));
                 }
-            }
-            AttributeType::TimeDate => {
-                while let Some(token) = lex.next() {
-                    match token {
-                        Token::Null => return Ok(AttributeValue::Null),
-                        Token::HexValue => {
-                            let token = Self::consume_whitespace(lex);
-                            let range = Self::parse_quoted_string(
-                                lex, source, token,
-                            )?;
-                            let value = &source[range];
-                            return Ok(AttributeValue::TimeDate(value));
-                        }
-                        _ => {}
-                    }
+                Token::DoubleQuote => {
+                    let range =
+                        Self::parse_quoted_string(lex, source, Some(token))?;
+                    let value = &source[range];
+                    return Ok(Value::String(value));
                 }
-            }
-            AttributeType::Uint32 => {
-                while let Some(token) = lex.next() {
-                    match token {
-                        Token::Null => return Ok(AttributeValue::Null),
-                        Token::HexValue => {
-                            let hex = &source[lex.span()];
-                            if lex.remainder().starts_with(r#"  ""#) {
-                                let next_token = lex.next();
-                                let range = Self::parse_quoted_string(
-                                    lex, source, next_token,
-                                )?;
-                                let value = &source[range];
-                                return Ok(AttributeValue::HexBlob(
-                                    hex, value,
-                                ));
-                            }
-                            return Ok(AttributeValue::Hex(hex));
-                        }
-                        Token::DoubleQuote => {
-                            let range = Self::parse_quoted_string(
-                                lex,
-                                source,
-                                Some(token),
-                            )?;
-                            let value = &source[range];
-                            return Ok(AttributeValue::Uint32(value));
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            AttributeType::Sint32 => {
-                while let Some(token) = lex.next() {
-                    match token {
-                        Token::Null => return Ok(AttributeValue::Null),
-                        Token::HexValue => {
-                            let hex = &source[lex.span()];
-                            if lex.remainder().starts_with(r#"  ""#) {
-                                let next_token = lex.next();
-                                let range = Self::parse_quoted_string(
-                                    lex, source, next_token,
-                                )?;
-                                let value = &source[range];
-                                return Ok(AttributeValue::HexBlob(
-                                    hex, value,
-                                ));
-                            }
-                            return Ok(AttributeValue::Hex(hex));
-                        }
-                        Token::DoubleQuote => {
-                            let range = Self::parse_quoted_string(
-                                lex,
-                                source,
-                                Some(token),
-                            )?;
-                            let value = &source[range];
-                            return Ok(AttributeValue::Sint32(value));
-                        }
-                        _ => {}
-                    }
+                _ => {
+                    return Err(Error::ParseValue(
+                        source[lex.span()].to_owned(),
+                    ))
                 }
             }
         }
-        Err(Error::ParseNotAttributeValue(source[lex.span()].to_owned()))
+        Err(Error::ParseValue(source[lex.span()].to_owned()))
     }
 
     fn parse_number(
@@ -461,7 +476,9 @@ pub struct KeychainEntry<'s> {
     /// Item class.
     class: Option<EntryClass>,
     /// Attributes mapping.
-    attributes: HashMap<AttributeKey<'s>, AttributeValue<'s>>,
+    attributes: HashMap<AttributeKey<'s>, Value<'s>>,
+    /// Data for the entry.
+    data: Option<Value<'s>>,
 }
 
 impl<'s> KeychainEntry<'s> {
@@ -469,7 +486,7 @@ impl<'s> KeychainEntry<'s> {
     pub fn find_attribute_by_name(
         &self,
         name: AttributeName<'_>,
-    ) -> Option<(&AttributeType, &AttributeValue<'_>)> {
+    ) -> Option<(&AttributeType, &Value<'_>)> {
         self.attributes.iter().find_map(|(key, value)| {
             if key.0 == name {
                 Some((&key.1, value))
@@ -477,6 +494,44 @@ impl<'s> KeychainEntry<'s> {
                 None
             }
         })
+    }
+
+    /// Determine if this entry is a secure note.
+    pub fn is_note(&self) -> bool {
+        let type_attr =
+            self.find_attribute_by_name(AttributeName::SecTypeItemAttr);
+        if let Some((_, attr_type)) = type_attr {
+            return attr_type.matches(NOTE_TYPE);
+        }
+        false
+    }
+
+    /// Attempt to get the entry data as a string
+    /// for the generic password class.
+    pub fn generic_data(&self) -> Result<Option<Cow<str>>> {
+        if let Some(data) = &self.data {
+            if let Some(EntryClass::GenericPassword) = self.class {
+                if self.is_note() {
+                    match data {
+                        Value::BlobString(_, value) => {
+                            return plist_secure_note(value, true);
+                        }
+                        _ => {}
+                    }
+                } else {
+                    match data {
+                        Value::String(value) => {
+                            return Ok(Some(Cow::Borrowed(value)))
+                        }
+                        Value::BlobString(_, value) => {
+                            return Ok(Some(Cow::Borrowed(value)))
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        Ok(None)
     }
 }
 
@@ -666,37 +721,37 @@ pub struct AttributeKey<'s>(pub AttributeName<'s>, pub AttributeType);
 
 /// Value of an attribute.
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub enum AttributeValue<'s> {
+pub enum Value<'s> {
     /// Null value.
     Null,
     /// Time date value.
     TimeDate(&'s str),
-    /// Blob value.
-    Blob(&'s str),
+    /// Quoted string value.
+    String(&'s str),
     /// Uint32 value.
     Uint32(&'s str),
     /// Sint32 value.
     Sint32(&'s str),
-    /// Hex blob value.
-    HexBlob(&'s str, &'s str),
-    /// Hexadecimal number.
-    Hex(&'s str),
+    /// Hexadecimal encoded bytes followed by a quoted string value.
+    BlobString(&'s str, &'s str),
+    /// Hexadecimal encoded bytes.
+    Blob(&'s str),
 }
 
-impl<'s> AttributeValue<'s> {
+impl<'s> Value<'s> {
     /// Determine if this value matches the given input.
     ///
-    /// For the `HexBlob` variant this matches against the blob value and
+    /// For the `BlobString` variant this matches against the blob value and
     /// ignores the hex number.
     pub fn matches(&self, input: &str) -> bool {
         match *self {
             Self::Null => false,
             Self::TimeDate(value) => value == input,
-            Self::Blob(value) => value == input,
+            Self::String(value) => value == input,
             Self::Uint32(value) => value == input,
             Self::Sint32(value) => value == input,
-            Self::HexBlob(_, value) => value == input,
-            Self::Hex(value) => value == input,
+            Self::BlobString(_, value) => value == input,
+            Self::Blob(value) => value == input,
         }
     }
 }
@@ -723,8 +778,7 @@ mod test {
 
     #[test]
     fn keychain_parse_basic() -> Result<()> {
-        let contents =
-            std::fs::read_to_string("fixtures/sos-mock.keychain-db.txt")?;
+        let contents = std::fs::read_to_string("fixtures/sos-mock.txt")?;
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 
@@ -734,6 +788,29 @@ mod test {
 
         let note_entry = list.find_generic_note("test note");
         assert!(note_entry.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn keychain_parse_data() -> Result<()> {
+        let contents = std::fs::read_to_string("fixtures/sos-mock-data.txt")?;
+        let parser = KeychainParser::new(&contents);
+        let list = parser.parse()?;
+
+        let password_entry =
+            list.find_generic_password("test password", "test account");
+        assert!(password_entry.is_some());
+
+        let password_data =
+            password_entry.as_ref().unwrap().generic_data()?;
+        assert_eq!("mock-password-value", password_data.unwrap());
+
+        let note_entry = list.find_generic_note("test note");
+        assert!(note_entry.is_some());
+
+        let note_data = note_entry.as_ref().unwrap().generic_data()?;
+        assert_eq!("mock-secure-note-value", note_data.unwrap());
+
         Ok(())
     }
 }
