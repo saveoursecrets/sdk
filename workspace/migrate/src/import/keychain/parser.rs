@@ -1,5 +1,5 @@
 //! Parser for keychain access dumps.
-use std::{collections::HashMap, ops::Range};
+use std::{collections::HashMap, ops::Range, borrow::Cow};
 
 use logos::{Lexer, Logos};
 
@@ -8,6 +8,45 @@ use super::{Error, Result};
 /// The value for the type of generic passwords 
 /// that are of the note type.
 const NOTE_TYPE: &str = "note";
+
+#[derive(Logos, Debug, PartialEq)]
+enum OctalToken {
+    #[regex("\\\\(\\d\\d\\d)")]
+    OctalEscape,
+    #[error]
+    Error,
+}
+
+/// Replace escaped octal sequences such as `\012` in a string.
+pub fn unescape_octal(value: &str) -> Result<Cow<'_, str>> {
+    let mut lex = OctalToken::lexer(value);
+    let mut has_escape = false;
+    let mut tokens = Vec::new();
+    while let Some(token) = lex.next() {
+        if let OctalToken::OctalEscape = token {
+            has_escape = true;
+        }
+        let span = lex.span();
+        tokens.push((token, span));
+    }
+
+    if !has_escape {
+        Ok(Cow::Borrowed(value))
+    } else {
+        let mut s = String::new(); 
+        for (token, span) in tokens {
+            if let OctalToken::OctalEscape = token {
+                let octal = &value[span.start+1..span.end];
+                let num = u32::from_str_radix(octal, 8)?;
+                s.push(char::from_u32(num).ok_or(
+                    Error::InvalidOctalEscape(value[span.start..span.end].to_owned()))?);
+            } else {
+                s.push_str(&value[span]);
+            }
+        }
+        Ok(Cow::Owned(s))
+    }
+}
 
 #[derive(Logos, Debug, PartialEq)]
 enum Token {
@@ -661,8 +700,23 @@ impl<'s> AttributeValue<'s> {
 
 #[cfg(test)]
 mod test {
-    use super::KeychainParser;
+    use super::{KeychainParser, unescape_octal};
     use anyhow::Result;
+
+    #[test]
+    fn keychain_unescape_octal() -> Result<()> {
+        let expected =
+            std::fs::read_to_string("fixtures/plist-data-unescaped.txt")?;
+        let contents =
+            std::fs::read_to_string("fixtures/plist-data-escaped.txt")?;
+        let plist = unescape_octal(&contents)?;
+        /*
+        std::fs::write(
+            "fixtures/plist-data-unescaped.txt", plist.as_ref())?;
+        */
+        assert_eq!(&expected, plist.as_ref());
+        Ok(())
+    }
 
     #[test]
     fn keychain_parse_basic() -> Result<()> {
@@ -678,7 +732,6 @@ mod test {
         let note_entry = list
             .find_generic_note("test note");
         assert!(note_entry.is_some());
-
         Ok(())
     }
 }
