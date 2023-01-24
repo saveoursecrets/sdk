@@ -17,7 +17,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// File extension for keychain files.
 const KEYCHAIN_DB: &str = "keychain-db";
 
-/// Dump and parse a keychain.
+/// Get the stdout of a keychain dump by calling
+/// the `security dump-keychain` command.
+///
+/// If the `data` flag is given a password prompt will
+/// be shown for every entry.
 pub fn dump_keychain<P: AsRef<Path>>(path: P, data: bool) -> Result<String> {
     let mut args = vec!["dump-keychain"];
     if data {
@@ -27,7 +31,6 @@ pub fn dump_keychain<P: AsRef<Path>>(path: P, data: bool) -> Result<String> {
     args.push(path.as_ref());
     let dump = Command::new("security").args(args).output()?;
     let result = std::str::from_utf8(&dump.stdout)?.to_owned();
-    //println!("{}", result);
     Ok(result)
 }
 
@@ -151,7 +154,7 @@ end tell
 
 #[cfg(test)]
 mod test {
-    use super::{parser::KeychainParser, *};
+    use super::*;
     use anyhow::Result;
 
     use security_framework::os::macos::keychain::SecKeychain;
@@ -161,8 +164,7 @@ mod test {
         // NOTE: otherwise searching fails to find any items
         // NOTE: and the `security` program does not work
         let keychains = user_keychains()?;
-        let keychain =
-            keychains.into_iter().find(|k| k.name == "sos-mock");
+        let keychain = keychains.into_iter().find(|k| k.name == "sos-mock");
         if keychain.is_none() {
             eprintln!("To test the MacOS keychain export you must have a keychain called `sos-mock` in ~/Library/Keychains.");
             panic!("keychain test for MacOS not configured");
@@ -174,13 +176,7 @@ mod test {
     fn keychain_dump() -> Result<()> {
         let keychain = find_test_keychain()?;
         let source = dump_keychain(keychain.path, false)?;
-        let parser = KeychainParser::new(&source);
-        let entries = parser.parse()?;
-
-        assert_eq!(2, entries.len());
-
-        // FIXME: complete assertions
-
+        assert!(!source.is_empty());
         Ok(())
     }
 

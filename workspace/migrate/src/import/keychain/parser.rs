@@ -5,6 +5,10 @@ use logos::{Lexer, Logos};
 
 use super::{Error, Result};
 
+/// The value for the type of generic passwords 
+/// that are of the note type.
+const NOTE_TYPE: &str = "note";
+
 #[derive(Logos, Debug, PartialEq)]
 enum Token {
     #[token("keychain:")]
@@ -49,7 +53,7 @@ impl<'s> KeychainParser<'s> {
     }
 
     /// Parse the keychain dump.
-    pub fn parse(&self) -> Result<Vec<KeychainEntry<'s>>> {
+    pub fn parse(&self) -> Result<KeychainList<'s>> {
         let mut result: Vec<KeychainEntry<'s>> = Vec::new();
         let mut lex = self.lex();
         let mut in_attributes = false;
@@ -144,9 +148,9 @@ impl<'s> KeychainParser<'s> {
 
             next_token = lex.next();
         }
-        Ok(result)
+        Ok(KeychainList { entries: result })
     }
-    
+
     fn consume_whitespace(lex: &mut Lexer<Token>) -> Option<Token> {
         lex.by_ref().find(|t| !matches!(t, Token::WhiteSpace))
     }
@@ -192,9 +196,7 @@ impl<'s> KeychainParser<'s> {
             }
             next_token = lex.next();
         }
-        Err(Error::ParseNotAttributeType(
-            source[lex.span()].to_owned(),
-        ))
+        Err(Error::ParseNotAttributeType(source[lex.span()].to_owned()))
     }
 
     fn parse_attribute_value<'a>(
@@ -212,14 +214,14 @@ impl<'s> KeychainParser<'s> {
                             if lex.remainder().starts_with(r#"  ""#) {
                                 let next_token = lex.next();
                                 let range = Self::parse_quoted_string(
-                                    lex,
-                                    source,
-                                    next_token,
+                                    lex, source, next_token,
                                 )?;
                                 let value = &source[range];
-                                return Ok(AttributeValue::HexBlob(hex, value))
+                                return Ok(AttributeValue::HexBlob(
+                                    hex, value,
+                                ));
                             }
-                            return Ok(AttributeValue::Hex(hex))
+                            return Ok(AttributeValue::Hex(hex));
                         }
                         Token::DoubleQuote => {
                             let range = Self::parse_quoted_string(
@@ -259,14 +261,14 @@ impl<'s> KeychainParser<'s> {
                             if lex.remainder().starts_with(r#"  ""#) {
                                 let next_token = lex.next();
                                 let range = Self::parse_quoted_string(
-                                    lex,
-                                    source,
-                                    next_token,
+                                    lex, source, next_token,
                                 )?;
                                 let value = &source[range];
-                                return Ok(AttributeValue::HexBlob(hex, value))
+                                return Ok(AttributeValue::HexBlob(
+                                    hex, value,
+                                ));
                             }
-                            return Ok(AttributeValue::Hex(hex))
+                            return Ok(AttributeValue::Hex(hex));
                         }
                         Token::DoubleQuote => {
                             let range = Self::parse_quoted_string(
@@ -290,14 +292,14 @@ impl<'s> KeychainParser<'s> {
                             if lex.remainder().starts_with(r#"  ""#) {
                                 let next_token = lex.next();
                                 let range = Self::parse_quoted_string(
-                                    lex,
-                                    source,
-                                    next_token,
+                                    lex, source, next_token,
                                 )?;
                                 let value = &source[range];
-                                return Ok(AttributeValue::HexBlob(hex, value))
+                                return Ok(AttributeValue::HexBlob(
+                                    hex, value,
+                                ));
                             }
-                            return Ok(AttributeValue::Hex(hex))
+                            return Ok(AttributeValue::Hex(hex));
                         }
                         Token::DoubleQuote => {
                             let range = Self::parse_quoted_string(
@@ -313,9 +315,7 @@ impl<'s> KeychainParser<'s> {
                 }
             }
         }
-        Err(Error::ParseNotAttributeValue(
-            source[lex.span()].to_owned(),
-        ))
+        Err(Error::ParseNotAttributeValue(source[lex.span()].to_owned()))
     }
 
     fn parse_number(
@@ -330,6 +330,111 @@ impl<'s> KeychainParser<'s> {
             next_token = lex.next();
         }
         Err(Error::ParseNotNumber(source[lex.span()].to_owned()))
+    }
+}
+
+/// Collection of keychain entries.
+#[derive(Debug)]
+pub struct KeychainList<'s> {
+    entries: Vec<KeychainEntry<'s>>,
+}
+
+impl<'s> KeychainList<'s> {
+    /// Get the collection of entries.
+    pub fn entries(&self) -> &[KeychainEntry<'s>] {
+        self.entries.as_slice()
+    }
+
+    /// Get the number of entries.
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Determine if this list is empty.
+    pub fn is_empty(&self) -> bool {
+        self.entries.len() == 0
+    }
+
+    /// Attempt to find a generic password entry.
+    pub fn find_generic_password(
+        &self,
+        service: &str,
+        account: &str,
+    ) -> Option<&KeychainEntry<'_>> {
+        self.entries.iter().find(|entry| {
+            if let Some(EntryClass::GenericPassword) = entry.class {
+                if let (Some((_, attr_service)), Some((_, attr_account))) = (
+                    entry.find_attribute_by_name(
+                        AttributeName::SecServiceItemAttr,
+                    ),
+                    entry.find_attribute_by_name(
+                        AttributeName::SecAccountItemAttr,
+                    ),
+                ) {
+                    if attr_service.matches(service)
+                        && attr_account.matches(account)
+                    {
+                        return true;
+                    }
+                }
+            }
+            false
+        })
+    }
+
+    /// Attempt to find a generic password note.
+    pub fn find_generic_note(
+        &self,
+        service: &str,
+    ) -> Option<&KeychainEntry<'_>> {
+        self.entries.iter().find(|entry| {
+            if let Some(EntryClass::GenericPassword) = entry.class {
+                if let (Some((_, attr_service)), Some((_, attr_type))) = (
+                    entry.find_attribute_by_name(
+                        AttributeName::SecServiceItemAttr,
+                    ),
+                    entry.find_attribute_by_name(
+                        AttributeName::SecTypeItemAttr,
+                    ),
+                ) {
+                    if attr_service.matches(service)
+                        && attr_type.matches(NOTE_TYPE)
+                    {
+                        return true;
+                    }
+                }
+            }
+            false
+        })
+    }
+}
+
+/// Entry in a keychain list.
+#[derive(Debug)]
+pub struct KeychainEntry<'s> {
+    /// The keychain path.
+    keychain: &'s str,
+    /// Keychain version.
+    version: Option<&'s str>,
+    /// Item class.
+    class: Option<EntryClass>,
+    /// Attributes mapping.
+    attributes: HashMap<AttributeKey<'s>, AttributeValue<'s>>,
+}
+
+impl<'s> KeychainEntry<'s> {
+    /// Attempt to find an attribute by name.
+    pub fn find_attribute_by_name(
+        &self,
+        name: AttributeName<'_>,
+    ) -> Option<(&AttributeType, &AttributeValue<'_>)> {
+        self.attributes.iter().find_map(|(key, value)| {
+            if key.0 == name {
+                Some((&key.1, value))
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -536,15 +641,44 @@ pub enum AttributeValue<'s> {
     Hex(&'s str),
 }
 
-/// Entry in a keychain dump.
-#[derive(Debug)]
-pub struct KeychainEntry<'s> {
-    /// The keychain path.
-    keychain: &'s str,
-    /// Keychain version.
-    version: Option<&'s str>,
-    /// Item class.
-    class: Option<EntryClass>,
-    /// Attributes mapping.
-    attributes: HashMap<AttributeKey<'s>, AttributeValue<'s>>,
+impl<'s> AttributeValue<'s> {
+    /// Determine if this value matches the given input.
+    ///
+    /// For the `HexBlob` variant this matches against the blob value and 
+    /// ignores the hex number.
+    pub fn matches(&self, input: &str) -> bool {
+        match *self {
+            Self::Null => false,
+            Self::TimeDate(value) => value == input,
+            Self::Blob(value) => value == input,
+            Self::Uint32(value) => value == input,
+            Self::Sint32(value) => value == input,
+            Self::HexBlob(_, value) => value == input,
+            Self::Hex(value) => value == input,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::KeychainParser;
+    use anyhow::Result;
+
+    #[test]
+    fn keychain_parse_basic() -> Result<()> {
+        let contents =
+            std::fs::read_to_string("fixtures/sos-mock.keychain-db.txt")?;
+        let parser = KeychainParser::new(&contents);
+        let list = parser.parse()?;
+
+        let password_entry = list
+            .find_generic_password("test password", "test account");
+        assert!(password_entry.is_some());
+
+        let note_entry = list
+            .find_generic_note("test note");
+        assert!(note_entry.is_some());
+
+        Ok(())
+    }
 }
