@@ -185,13 +185,20 @@ mod test {
     }
 
     #[test]
-    fn keychain_import() -> Result<()> {
+    #[cfg(feature = "keychain-import-test")]
+    fn keychain_import_autofill() -> Result<()> {
+        use std::sync::mpsc::channel;
+
         let keychain = find_test_keychain()?;
         let keychain = SecKeychain::open(&keychain.path)?;
-        let _password = "mock-password";
+        let password = "mock-password";
+
+        let (tx, rx) = channel::<bool>();
+        spawn_password_autofill_osascript(rx, password.to_owned());
 
         let (_, _) = keychain
             .find_generic_password("test password", "test account")?;
+        tx.send(true)?;
 
         /*
         let mut searcher = ItemSearchOptions::new();

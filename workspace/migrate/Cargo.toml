@@ -21,6 +21,9 @@ logos = "0.12"
 sos-core = { path = "../core", version = "0.1.0", features = ["test-utils"] }
 anyhow = "1"
 
+[features]
+keychain-import-test = []
+
 [package.metadata.release]
 tag = false
 shared-version = true
