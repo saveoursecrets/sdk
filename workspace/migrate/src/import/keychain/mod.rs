@@ -162,9 +162,9 @@ mod test {
         // NOTE: and the `security` program does not work
         let keychains = user_keychains()?;
         let keychain =
-            keychains.into_iter().find(|k| k.name == "test-export");
+            keychains.into_iter().find(|k| k.name == "sos-mock");
         if keychain.is_none() {
-            eprintln!("To test the MacOS keychain export you must have a keychain called `test-export` in ~/Library/Keychains.");
+            eprintln!("To test the MacOS keychain export you must have a keychain called `sos-mock` in ~/Library/Keychains.");
             panic!("keychain test for MacOS not configured");
         }
         Ok(keychain.unwrap())
@@ -185,7 +185,7 @@ mod test {
     }
 
     #[test]
-    #[cfg(feature = "keychain-import-test")]
+    #[cfg(feature = "interactive-keychain-tests")]
     fn keychain_import_autofill() -> Result<()> {
         use std::sync::mpsc::channel;
 

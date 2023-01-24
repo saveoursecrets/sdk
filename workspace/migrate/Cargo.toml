@@ -22,7 +22,7 @@ sos-core = { path = "../core", version = "0.1.0", features = ["test-utils"] }
 anyhow = "1"
 
 [features]
-keychain-import-test = []
+interactive-keychain-tests = []
 
 [package.metadata.release]
 tag = false
