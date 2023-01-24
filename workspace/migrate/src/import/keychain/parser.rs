@@ -1,11 +1,11 @@
 //! Parser for keychain access dumps.
-use std::{collections::HashMap, ops::Range, borrow::Cow};
+use std::{borrow::Cow, collections::HashMap, ops::Range};
 
 use logos::{Lexer, Logos};
 
 use super::{Error, Result};
 
-/// The value for the type of generic passwords 
+/// The value for the type of generic passwords
 /// that are of the note type.
 const NOTE_TYPE: &str = "note";
 
@@ -33,13 +33,16 @@ pub fn unescape_octal(value: &str) -> Result<Cow<'_, str>> {
     if !has_escape {
         Ok(Cow::Borrowed(value))
     } else {
-        let mut s = String::new(); 
+        let mut s = String::new();
         for (token, span) in tokens {
             if let OctalToken::OctalEscape = token {
-                let octal = &value[span.start+1..span.end];
+                let octal = &value[span.start + 1..span.end];
                 let num = u32::from_str_radix(octal, 8)?;
                 s.push(char::from_u32(num).ok_or(
-                    Error::InvalidOctalEscape(value[span.start..span.end].to_owned()))?);
+                    Error::InvalidOctalEscape(
+                        value[span.start..span.end].to_owned(),
+                    ),
+                )?);
             } else {
                 s.push_str(&value[span]);
             }
@@ -683,7 +686,7 @@ pub enum AttributeValue<'s> {
 impl<'s> AttributeValue<'s> {
     /// Determine if this value matches the given input.
     ///
-    /// For the `HexBlob` variant this matches against the blob value and 
+    /// For the `HexBlob` variant this matches against the blob value and
     /// ignores the hex number.
     pub fn matches(&self, input: &str) -> bool {
         match *self {
@@ -700,7 +703,7 @@ impl<'s> AttributeValue<'s> {
 
 #[cfg(test)]
 mod test {
-    use super::{KeychainParser, unescape_octal};
+    use super::{unescape_octal, KeychainParser};
     use anyhow::Result;
 
     #[test]
@@ -725,12 +728,11 @@ mod test {
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 
-        let password_entry = list
-            .find_generic_password("test password", "test account");
+        let password_entry =
+            list.find_generic_password("test password", "test account");
         assert!(password_entry.is_some());
 
-        let note_entry = list
-            .find_generic_note("test note");
+        let note_entry = list.find_generic_note("test note");
         assert!(note_entry.is_some());
         Ok(())
     }
