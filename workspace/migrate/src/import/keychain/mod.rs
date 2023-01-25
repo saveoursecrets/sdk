@@ -1,6 +1,7 @@
 //! Import from keychain access.
 pub mod error;
 pub mod parser;
+pub mod passwords_csv;
 
 pub use error::Error;
 
@@ -286,7 +287,6 @@ end tell
 mod test {
     use super::*;
     use anyhow::Result;
-    use sos_core::secret::SecretId;
 
     fn find_test_keychain() -> Result<UserKeychain> {
         // NOTE: the keychain must be located in ~/Library/Keychains
