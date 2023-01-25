@@ -8,7 +8,7 @@ use tar::Builder;
 
 use sos_core::{
     archive::append_long_path,
-    secret::{Secret, SecretId, SecretMeta, VaultMeta},
+    secret::{Secret, SecretId, SecretMeta, UserField, VaultMeta},
     vault::{Summary, VaultId},
     Gatekeeper, Result,
 };
@@ -53,21 +53,19 @@ impl<W: Write> PublicExport<W> {
 
         for id in access.vault().keys() {
             if let Some((meta, mut secret, _)) = access.read(id)? {
-                if let Secret::File {
-                    buffer, checksum, ..
-                } = &mut secret
-                {
-                    let path =
-                        format!("{}/{}", file_path, hex::encode(checksum));
-                    append_long_path(
-                        &mut self.builder,
-                        &path,
-                        buffer.expose_secret().as_slice(),
-                    )?;
-                    *buffer = secrecy::Secret::new(vec![]);
-                }
 
-                // FIXME: handle attachments
+                // Move contents for file secrets
+                self.move_file_buffer(&file_path, &mut secret)?;
+
+                // Move contents for file attachments
+                for field in secret.user_data_mut().fields_mut() {
+                    match field {
+                        UserField::Embedded { secret } => {
+                            self.move_file_buffer(&file_path, secret)?;
+                        }
+                        _ => {}
+                    }
+                }
 
                 let path = format!("{}/{}.json", base_path, id);
                 let public_secret = PublicSecret {
@@ -86,6 +84,32 @@ impl<W: Write> PublicExport<W> {
         }
 
         self.vault_ids.push(*vault_id);
+        Ok(())
+    }
+
+    /// Take a file secret and move the buffer to an entry in the archive.
+    fn move_file_buffer(
+        &mut self,
+        file_path: &str,
+        secret: &mut Secret,
+    ) -> Result<()> {
+        if let Secret::File {
+            buffer, checksum, ..
+        } = secret
+        {
+            let path = format!("{}/{}", file_path, hex::encode(checksum));
+
+            // Write the file buffer to the archive
+            append_long_path(
+                &mut self.builder,
+                &path,
+                buffer.expose_secret().as_slice(),
+            )?;
+
+            // Clear the buffer so the export does not encode the bytes
+            // in the JSON document
+            *buffer = secrecy::Secret::new(vec![]);
+        }
         Ok(())
     }
 

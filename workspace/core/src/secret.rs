@@ -1087,6 +1087,26 @@ impl Secret {
             Secret::Password { user_data, .. } => user_data,
         }
     }
+
+    /// Get the mutable user data for this secret.
+    pub fn user_data_mut(&mut self) -> &mut UserData {
+        match self {
+            Secret::Note { user_data, .. } => user_data,
+            Secret::File { user_data, .. } => user_data,
+            Secret::Account { user_data, .. } => user_data,
+            Secret::List { user_data, .. } => user_data,
+            Secret::Pem { user_data, .. } => user_data,
+            Secret::Page { user_data, .. } => user_data,
+            Secret::Pin { user_data, .. } => user_data,
+            Secret::Signer { user_data, .. } => user_data,
+            Secret::Contact { user_data, .. } => user_data,
+            Secret::Totp { user_data, .. } => user_data,
+            Secret::Card { user_data, .. } => user_data,
+            Secret::Bank { user_data, .. } => user_data,
+            Secret::Link { user_data, .. } => user_data,
+            Secret::Password { user_data, .. } => user_data,
+        }
+    }
 }
 
 impl PartialEq for Secret {
