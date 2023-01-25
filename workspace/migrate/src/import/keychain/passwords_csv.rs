@@ -1,10 +1,20 @@
 //! Parser for the MacOS passwords CSV export.
 
-use std::{io::Read, path::Path};
+use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
+use std::{
+    io::Read,
+    path::{Path, PathBuf},
+};
 use url::Url;
 
-use crate::Result;
+use sos_core::{
+    secret::{Secret, SecretMeta},
+    vault::Vault,
+    Gatekeeper,
+};
+
+use crate::{Convert, Result};
 
 /// Record for an entry in a MacOS passwords CSV export.
 #[derive(Deserialize)]
@@ -45,6 +55,38 @@ fn parse<R: Read>(mut rdr: csv::Reader<R>) -> Result<Vec<MacPasswordRecord>> {
     Ok(records)
 }
 
+/// Import a MacOS passwords CSV export into a vault.
+pub struct MacPasswordsCsv;
+
+impl Convert for MacPasswordsCsv {
+    type Input = PathBuf;
+
+    fn convert(
+        source: Self::Input,
+        vault: Vault,
+        password: SecretString,
+    ) -> crate::Result<Vault> {
+        let records = parse_path(source)?;
+
+        let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(password.expose_secret())?;
+
+        for entry in records {
+            let secret = Secret::Account {
+                account: entry.username,
+                password: SecretString::new(entry.password),
+                url: Some(entry.url),
+                user_data: Default::default(),
+            };
+            let meta = SecretMeta::new(entry.title, secret.kind());
+            keeper.create(meta, secret)?;
+        }
+
+        keeper.lock();
+        Ok(keeper.take())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::parse_path;
@@ -53,10 +95,10 @@ mod test {
 
     #[test]
     fn keychain_passwords_csv() -> Result<()> {
-        let mut records = parse_path(
-            "fixtures/mock-macos-passwords-export.csv")?;
+        let mut records =
+            parse_path("fixtures/mock-macos-passwords-export.csv")?;
         assert_eq!(2, records.len());
-        
+
         let first = records.remove(0);
         let second = records.remove(0);
 

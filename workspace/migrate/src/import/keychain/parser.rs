@@ -410,32 +410,6 @@ impl<'s> KeychainList<'s> {
         self.entries.len() == 0
     }
 
-    /// Find a generic password entry that can be used to verify
-    /// a supplied password.
-    pub fn first_generic_password(
-        &self,
-    ) -> Option<(&str, &str, &KeychainEntry<'s>)> {
-        self.entries.iter().find_map(|entry| {
-            if let Some(EntryClass::GenericPassword) = entry.class {
-                if let (Some((_, attr_service)), Some((_, attr_account))) = (
-                    entry.find_attribute_by_name(
-                        AttributeName::SecServiceItemAttr,
-                    ),
-                    entry.find_attribute_by_name(
-                        AttributeName::SecAccountItemAttr,
-                    ),
-                ) {
-                    return Some((
-                        attr_service.as_str(),
-                        attr_account.as_str(),
-                        entry,
-                    ));
-                }
-            }
-            None
-        })
-    }
-
     /// Attempt to find a generic password entry.
     pub fn find_generic_password(
         &self,

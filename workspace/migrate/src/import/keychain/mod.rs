@@ -1,4 +1,4 @@
-//! Import from keychain access.
+//! Import from keychain access and passwords CSV.
 pub mod error;
 pub mod parser;
 pub mod passwords_csv;
@@ -24,14 +24,17 @@ use std::{
 use parser::{AttributeName, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};
 
-use security_framework::os::macos::keychain::SecKeychain;
+use security_framework::{
+    item::{ItemClass, ItemSearchOptions},
+    os::macos::{item::ItemSearchOptionsExt, keychain::SecKeychain},
+};
 
 use crate::Convert;
 
 /// File extension for keychain files.
 const KEYCHAIN_DB: &str = "keychain-db";
 
-/// Import keychains.
+/// Import a MacOS keychain access dump into a vault.
 pub struct KeychainImport;
 
 impl KeychainImport {
@@ -49,35 +52,28 @@ impl KeychainImport {
     /// each secret.
     pub fn import_data(
         keychain: &UserKeychain,
-        dump: &str,
         password: Option<SecretString>,
     ) -> Result<Option<String>> {
-        let parser = KeychainParser::new(dump);
-        let list = parser.parse()?;
-        if !list.is_empty() {
-            if let (Some(password), Some((service, account, _))) =
-                (password, list.first_generic_password())
-            {
-                Self::verify_autofill_password(
-                    keychain,
-                    service,
-                    account,
-                    password.expose_secret(),
-                )?;
+        if let Some(password) = password {
+            if Self::verify_autofill_password(
+                keychain,
+                password.expose_secret(),
+            )? {
                 // Now do a dump and include all the data using
                 // the autofill script to enter the password for every entry
                 let data = Self::dump_data_autofill(
                     keychain,
                     password.expose_secret(),
                 )?;
-                return Ok(Some(data));
+                Ok(Some(data))
             } else {
-                // User must manually enter the passphrase for each secret
-                let data = dump_keychain(&keychain.path, true)?;
-                return Ok(Some(data));
+                Ok(None)
             }
+        } else {
+            // User must manually enter the passphrase for each secret
+            let data = dump_keychain(&keychain.path, true)?;
+            Ok(Some(data))
         }
-        Ok(None)
     }
 
     fn dump_data_autofill(
@@ -93,17 +89,29 @@ impl KeychainImport {
 
     fn verify_autofill_password(
         keychain: &UserKeychain,
-        service: &str,
-        account: &str,
         password: &str,
-    ) -> Result<()> {
+    ) -> Result<bool> {
+        let keychain = SecKeychain::open(&keychain.path)?;
+        let mut searcher = ItemSearchOptions::new();
+        searcher.class(ItemClass::generic_password());
+        searcher.load_attributes(true);
+        searcher.load_data(true);
+        searcher.keychains(&[keychain]);
+        searcher.limit(1);
+
         // TODO: handle timeout if wrong password
         let (tx, rx) = channel::<bool>();
         spawn_password_autofill_osascript(rx, password);
-        let keychain = SecKeychain::open(&keychain.path)?;
-        let (_, _) = keychain.find_generic_password(service, account)?;
-        tx.send(true)?;
-        Ok(())
+        match searcher.search() {
+            Ok(_) => {
+                tx.send(true)?;
+                Ok(true)
+            }
+            Err(_) => {
+                tx.send(true)?;
+                Ok(false)
+            }
+        }
     }
 }
 
@@ -313,10 +321,9 @@ mod test {
     #[cfg(feature = "interactive-keychain-tests")]
     fn keychain_import_autofill() -> Result<()> {
         let keychain = find_test_keychain()?;
-        let source = dump_keychain(&keychain.path, false)?;
         let password = SecretString::new("mock-password".to_owned());
         let data_dump =
-            KeychainImport::import_data(&keychain, &source, Some(password))?;
+            KeychainImport::import_data(&keychain, Some(password))?;
         assert!(data_dump.is_some());
 
         let vault_password =
@@ -334,7 +341,7 @@ mod test {
         assert_eq!(2, vault.len());
 
         // Assert on the data
-        let keys: Vec<SecretId> = vault.keys().copied().collect();
+        let keys: Vec<_> = vault.keys().copied().collect();
         let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(vault_password.expose_secret())?;
 
