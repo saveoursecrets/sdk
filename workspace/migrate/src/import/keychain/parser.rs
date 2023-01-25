@@ -56,21 +56,20 @@ pub fn unescape_octal(value: &str) -> Result<Cow<'_, str>> {
 }
 
 /// Parse a plist and extract the value for a secure note.
-pub fn plist_secure_note(value: &str, unescape: bool) -> Result<Option<Cow<str>>> {
+pub fn plist_secure_note(
+    value: &str,
+    unescape: bool,
+) -> Result<Option<Cow<str>>> {
     let plist = if unescape {
         unescape_octal(value)?
     } else {
         Cow::Borrowed(value)
     };
-    let value: plist::Value =
-        plist::from_bytes(plist.as_bytes())?;
+    let value: plist::Value = plist::from_bytes(plist.as_bytes())?;
     if let plist::Value::Dictionary(map) = value {
         if let Some(value) = map.get(NOTE_PLIST_KEY) {
-            if let plist::Value::String(data) = value
-            {
-                return Ok(Some(Cow::Owned(
-                    data.to_owned(),
-                )));
+            if let plist::Value::String(data) = value {
+                return Ok(Some(Cow::Owned(data.to_owned())));
             }
         }
     }
@@ -412,6 +411,32 @@ impl<'s> KeychainList<'s> {
         self.entries.len() == 0
     }
 
+    /// Find a generic password entry that can be used to verify
+    /// a supplied password.
+    pub fn first_generic_password(
+        &self,
+    ) -> Option<(&str, &str, &KeychainEntry<'s>)> {
+        self.entries.iter().find_map(|entry| {
+            if let Some(EntryClass::GenericPassword) = entry.class {
+                if let (Some((_, attr_service)), Some((_, attr_account))) = (
+                    entry.find_attribute_by_name(
+                        AttributeName::SecServiceItemAttr,
+                    ),
+                    entry.find_attribute_by_name(
+                        AttributeName::SecAccountItemAttr,
+                    ),
+                ) {
+                    return Some((
+                        attr_service.as_str(),
+                        attr_account.as_str(),
+                        entry,
+                    ));
+                }
+            }
+            None
+        })
+    }
+
     /// Attempt to find a generic password entry.
     pub fn find_generic_password(
         &self,
@@ -739,6 +764,19 @@ pub enum Value<'s> {
 }
 
 impl<'s> Value<'s> {
+    /// Get this value as a string.
+    pub fn as_str(&self) -> &str {
+        match *self {
+            Self::Null => "",
+            Self::TimeDate(value) => value,
+            Self::String(value) => value,
+            Self::Uint32(value) => value,
+            Self::Sint32(value) => value,
+            Self::BlobString(_, value) => value,
+            Self::Blob(value) => value,
+        }
+    }
+
     /// Determine if this value matches the given input.
     ///
     /// For the `BlobString` variant this matches against the blob value and
@@ -793,19 +831,10 @@ mod test {
 
     #[test]
     fn keychain_parse_certificate() -> Result<()> {
-        let contents = std::fs::read_to_string(
-            "fixtures/mock-certificate.txt")?;
+        let contents =
+            std::fs::read_to_string("fixtures/mock-certificate.txt")?;
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
-
-        /*
-        let password_entry =
-            list.find_generic_password("test password", "test account");
-        assert!(password_entry.is_some());
-
-        let note_entry = list.find_generic_note("test note");
-        assert!(note_entry.is_some());
-        */
         Ok(())
     }
 
