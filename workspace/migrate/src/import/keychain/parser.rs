@@ -507,6 +507,11 @@ pub struct KeychainEntry<'s> {
 }
 
 impl<'s> KeychainEntry<'s> {
+    /// Get the data for this entry.
+    pub fn data(&self) -> Option<&Value<'s>> {
+        self.data.as_ref()
+    }
+
     /// Attempt to find an attribute by name.
     pub fn find_attribute_by_name(
         &self,

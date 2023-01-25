@@ -7,6 +7,13 @@ pub use error::Error;
 /// Result type for keychain access integration.
 pub type Result<T> = std::result::Result<T, Error>;
 
+use sos_core::{
+    crypto::secret_key::Seed,
+    secret::{Secret, SecretMeta},
+    vault::Vault,
+    Gatekeeper,
+};
+
 use std::{
     io::{BufWriter, Write},
     path::{Path, PathBuf},
@@ -14,10 +21,12 @@ use std::{
     sync::mpsc::{channel, Receiver},
 };
 
-use parser::{KeychainList, KeychainParser};
+use parser::{AttributeName, KeychainList, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};
 
 use security_framework::os::macos::keychain::SecKeychain;
+
+use crate::Convert;
 
 /// File extension for keychain files.
 const KEYCHAIN_DB: &str = "keychain-db";
@@ -28,7 +37,7 @@ pub struct KeychainImport;
 impl KeychainImport {
     /// Attempt to generate a dump containing the secret data.
     ///
-    /// Requires an existing dump without the data so we can 
+    /// Requires an existing dump without the data so we can
     /// verify the password prior to attempting to autofill all secrets.
     ///
     /// If a password is given then we verify it by trying to
@@ -36,7 +45,7 @@ impl KeychainImport {
     ///
     /// If verification is correct then we proceed to autofill all fields.
     ///
-    /// If no password is given then the user must enter the password for 
+    /// If no password is given then the user must enter the password for
     /// each secret.
     pub fn import_data<'a>(
         keychain: &UserKeychain,
@@ -45,9 +54,6 @@ impl KeychainImport {
     ) -> Result<Option<String>> {
         let parser = KeychainParser::new(dump);
         let list = parser.parse()?;
-
-        //println!("Total items: {}", list.len());
-
         if !list.is_empty() {
             if let (Some(password), Some((service, account, _))) =
                 (password, list.first_generic_password())
@@ -58,23 +64,26 @@ impl KeychainImport {
                     account,
                     password.expose_secret(),
                 )?;
-
                 // Now do a dump and include all the data using
                 // the autofill script to enter the password for every entry
                 let data = Self::dump_data_autofill(
-                    keychain, password.expose_secret())?;
-                return Ok(Some(data))
+                    keychain,
+                    password.expose_secret(),
+                )?;
+                return Ok(Some(data));
             } else {
-                // User must manually enter the passphrase for each secret 
+                // User must manually enter the passphrase for each secret
                 let data = dump_keychain(&keychain.path, true)?;
-                return Ok(Some(data))
+                return Ok(Some(data));
             }
         }
         Ok(None)
     }
 
     fn dump_data_autofill(
-        keychain: &UserKeychain, password: &str) -> Result<String> {
+        keychain: &UserKeychain,
+        password: &str,
+    ) -> Result<String> {
         let (tx, rx) = channel::<bool>();
         spawn_password_autofill_osascript(rx, password);
         let output = dump_keychain(&keychain.path, true)?;
@@ -95,6 +104,75 @@ impl KeychainImport {
         let (_, _) = keychain.find_generic_password(service, account)?;
         tx.send(true)?;
         Ok(())
+    }
+}
+
+impl Convert for KeychainImport {
+    type Input = String;
+
+    fn convert(
+        source: Self::Input,
+        password: SecretString,
+        seed: Option<Seed>,
+    ) -> crate::Result<Vault> {
+        let mut vault: Vault = Default::default();
+        vault.initialize(password.expose_secret(), seed)?;
+
+        let parser = KeychainParser::new(&source);
+        let list = parser.parse()?;
+
+        let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(password.expose_secret())?;
+
+        for entry in list.entries() {
+            /// Must have some data for the secret
+            if let (Some((_, attr_service)), Some(data)) = (
+                entry.find_attribute_by_name(
+                    AttributeName::SecServiceItemAttr,
+                ),
+                entry.data(),
+            ) {
+                if let Some(generic_data) = entry.generic_data()? {
+                    if entry.is_note() {
+                        let text = generic_data.into_owned();
+                        let secret = Secret::Note {
+                            text: SecretString::new(text),
+                            user_data: Default::default(),
+                        };
+
+                        let meta = SecretMeta::new(
+                            attr_service.as_str().to_owned(),
+                            secret.kind(),
+                        );
+
+                        keeper.create(meta, secret)?;
+                    } else {
+                        if let Some((_, attr_account)) = entry
+                            .find_attribute_by_name(
+                                AttributeName::SecAccountItemAttr,
+                            )
+                        {
+                            let password = generic_data.into_owned();
+                            let secret = Secret::Account {
+                                account: attr_account.as_str().to_owned(),
+                                password: SecretString::new(password),
+                                url: None,
+                                user_data: Default::default(),
+                            };
+
+                            let meta = SecretMeta::new(
+                                attr_service.as_str().to_owned(),
+                                secret.kind(),
+                            );
+
+                            keeper.create(meta, secret)?;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(keeper.take())
     }
 }
 
@@ -155,10 +233,7 @@ pub fn user_keychains() -> Result<Vec<UserKeychain>> {
 ///
 /// Requires that the Accessibility permission has been given
 /// to the application in System Preferences.
-pub fn spawn_password_autofill_osascript(
-    rx: Receiver<bool>,
-    password: &str,
-) {
+pub fn spawn_password_autofill_osascript(rx: Receiver<bool>, password: &str) {
     let script = format!(
         r#"
 -- Autofill the passwords
@@ -215,8 +290,7 @@ end tell
 mod test {
     use super::*;
     use anyhow::Result;
-
-    use security_framework::os::macos::keychain::SecKeychain;
+    use sos_core::secret::SecretId;
 
     fn find_test_keychain() -> Result<UserKeychain> {
         // NOTE: the keychain must be located in ~/Library/Keychains
@@ -242,48 +316,52 @@ mod test {
     #[test]
     #[cfg(feature = "interactive-keychain-tests")]
     fn keychain_import_autofill() -> Result<()> {
-        use std::sync::mpsc::channel;
-
         let keychain = find_test_keychain()?;
         let source = dump_keychain(&keychain.path, false)?;
         let password = SecretString::new("mock-password".to_owned());
-        let data_dump = KeychainImport::import(
-            &keychain, &source, Some(password))?;
+        let data_dump =
+            KeychainImport::import_data(&keychain, &source, Some(password))?;
         assert!(data_dump.is_some());
 
-        let data = data_dump.unwrap();
-        let parser = KeychainParser::new(&data);
-        let list = parser.parse()?;
+        let vault_password =
+            SecretString::new("mock-vault-password".to_owned());
+        let vault = KeychainImport::convert(
+            data_dump.unwrap(),
+            vault_password.clone(),
+            None,
+        )?;
 
-        /*
-        let keychain = SecKeychain::open(&keychain.path)?;
-        let password = "mock-password";
+        assert_eq!(2, vault.len());
 
-        let (tx, rx) = channel::<bool>();
-        spawn_password_autofill_osascript(rx, password.to_owned());
+        // Assert on the data
+        let keys: Vec<SecretId> = vault.keys().copied().collect();
+        let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(vault_password.expose_secret())?;
 
-        let (_, _) = keychain
-            .find_generic_password("test password", "test account")?;
-        tx.send(true)?;
-        */
-
-        /*
-        let mut searcher = ItemSearchOptions::new();
-        searcher.class(ItemClass::generic_password());
-        searcher.load_attributes(true);
-        searcher.load_data(true);
-        searcher.keychains(&[keychain]);
-        searcher.limit(1);
-
-        let (tx, rx) = channel::<bool>();
-        spawn_password_autofill_osascript(rx, password.to_owned());
-
-        let results = searcher.search()?;
-        for result in results {
-            println!("{:#?}", result);
+        for key in &keys {
+            if let Some((meta, secret, _)) = keeper.read(key)? {
+                match secret {
+                    Secret::Note { text, .. } => {
+                        assert_eq!(
+                            "mock-secure-note-value",
+                            text.expose_secret()
+                        );
+                    }
+                    Secret::Account {
+                        account, password, ..
+                    } => {
+                        assert_eq!("test account", account);
+                        assert_eq!(
+                            "mock-password-value",
+                            password.expose_secret()
+                        );
+                    }
+                    _ => unreachable!(),
+                }
+            } else {
+                panic!("expecting entry in the vault");
+            }
         }
-        tx.send(true)?;
-        */
 
         Ok(())
     }
