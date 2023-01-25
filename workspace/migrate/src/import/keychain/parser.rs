@@ -792,6 +792,24 @@ mod test {
     }
 
     #[test]
+    fn keychain_parse_certificate() -> Result<()> {
+        let contents = std::fs::read_to_string(
+            "fixtures/mock-certificate.txt")?;
+        let parser = KeychainParser::new(&contents);
+        let list = parser.parse()?;
+
+        /*
+        let password_entry =
+            list.find_generic_password("test password", "test account");
+        assert!(password_entry.is_some());
+
+        let note_entry = list.find_generic_note("test note");
+        assert!(note_entry.is_some());
+        */
+        Ok(())
+    }
+
+    #[test]
     fn keychain_parse_data() -> Result<()> {
         let contents = std::fs::read_to_string("fixtures/sos-mock-data.txt")?;
         let parser = KeychainParser::new(&contents);
