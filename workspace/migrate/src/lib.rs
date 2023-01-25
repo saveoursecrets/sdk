@@ -5,7 +5,7 @@
 //! Used to move between different software providers.
 
 use secrecy::SecretString;
-use sos_core::{crypto::secret_key::Seed, vault::Vault};
+use sos_core::vault::Vault;
 
 mod error;
 
@@ -20,11 +20,11 @@ pub trait Convert {
     /// Input type for the conversion.
     type Input;
 
-    /// Convert the input type to vault.
+    /// Write the input secrets type to the specified vault.
     fn convert(
         source: Self::Input,
+        vault: Vault,
         password: SecretString,
-        seed: Option<Seed>,
     ) -> Result<Vault>;
 }
 

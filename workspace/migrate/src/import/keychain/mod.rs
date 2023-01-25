@@ -8,7 +8,6 @@ pub use error::Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
 use sos_core::{
-    crypto::secret_key::Seed,
     secret::{Secret, SecretMeta},
     vault::Vault,
     Gatekeeper,
@@ -21,7 +20,7 @@ use std::{
     sync::mpsc::{channel, Receiver},
 };
 
-use parser::{AttributeName, KeychainList, KeychainParser};
+use parser::{AttributeName, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};
 
 use security_framework::os::macos::keychain::SecKeychain;
@@ -47,9 +46,9 @@ impl KeychainImport {
     ///
     /// If no password is given then the user must enter the password for
     /// each secret.
-    pub fn import_data<'a>(
+    pub fn import_data(
         keychain: &UserKeychain,
-        dump: &'a str,
+        dump: &str,
         password: Option<SecretString>,
     ) -> Result<Option<String>> {
         let parser = KeychainParser::new(dump);
@@ -112,12 +111,9 @@ impl Convert for KeychainImport {
 
     fn convert(
         source: Self::Input,
+        vault: Vault,
         password: SecretString,
-        seed: Option<Seed>,
     ) -> crate::Result<Vault> {
-        let mut vault: Vault = Default::default();
-        vault.initialize(password.expose_secret(), seed)?;
-
         let parser = KeychainParser::new(&source);
         let list = parser.parse()?;
 
@@ -125,8 +121,8 @@ impl Convert for KeychainImport {
         keeper.unlock(password.expose_secret())?;
 
         for entry in list.entries() {
-            /// Must have some data for the secret
-            if let (Some((_, attr_service)), Some(data)) = (
+            // Must have some data for the secret
+            if let (Some((_, attr_service)), Some(_)) = (
                 entry.find_attribute_by_name(
                     AttributeName::SecServiceItemAttr,
                 ),
@@ -146,31 +142,31 @@ impl Convert for KeychainImport {
                         );
 
                         keeper.create(meta, secret)?;
-                    } else {
-                        if let Some((_, attr_account)) = entry
-                            .find_attribute_by_name(
-                                AttributeName::SecAccountItemAttr,
-                            )
-                        {
-                            let password = generic_data.into_owned();
-                            let secret = Secret::Account {
-                                account: attr_account.as_str().to_owned(),
-                                password: SecretString::new(password),
-                                url: None,
-                                user_data: Default::default(),
-                            };
+                    } else if let Some((_, attr_account)) = entry
+                        .find_attribute_by_name(
+                            AttributeName::SecAccountItemAttr,
+                        )
+                    {
+                        let password = generic_data.into_owned();
+                        let secret = Secret::Account {
+                            account: attr_account.as_str().to_owned(),
+                            password: SecretString::new(password),
+                            url: None,
+                            user_data: Default::default(),
+                        };
 
-                            let meta = SecretMeta::new(
-                                attr_service.as_str().to_owned(),
-                                secret.kind(),
-                            );
+                        let meta = SecretMeta::new(
+                            attr_service.as_str().to_owned(),
+                            secret.kind(),
+                        );
 
-                            keeper.create(meta, secret)?;
-                        }
+                        keeper.create(meta, secret)?;
                     }
                 }
             }
         }
+
+        keeper.lock();
 
         Ok(keeper.take())
     }
@@ -325,10 +321,14 @@ mod test {
 
         let vault_password =
             SecretString::new("mock-vault-password".to_owned());
+
+        let mut vault: Vault = Default::default();
+        vault.initialize(vault_password.expose_secret(), None)?;
+
         let vault = KeychainImport::convert(
             data_dump.unwrap(),
+            vault,
             vault_password.clone(),
-            None,
         )?;
 
         assert_eq!(2, vault.len());
@@ -339,7 +339,7 @@ mod test {
         keeper.unlock(vault_password.expose_secret())?;
 
         for key in &keys {
-            if let Some((meta, secret, _)) = keeper.read(key)? {
+            if let Some((_meta, secret, _)) = keeper.read(key)? {
                 match secret {
                     Secret::Note { text, .. } => {
                         assert_eq!(

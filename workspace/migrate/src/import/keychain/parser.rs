@@ -42,11 +42,11 @@ pub fn unescape_octal(value: &str) -> Result<Cow<'_, str>> {
             if let OctalToken::OctalEscape = token {
                 let octal = &value[span.start + 1..span.end];
                 let num = u32::from_str_radix(octal, 8)?;
-                s.push(char::from_u32(num).ok_or(
+                s.push(char::from_u32(num).ok_or_else(|| {
                     Error::InvalidOctalEscape(
                         value[span.start..span.end].to_owned(),
-                    ),
-                )?);
+                    )
+                })?);
             } else {
                 s.push_str(&value[span]);
             }
@@ -67,13 +67,11 @@ pub fn plist_secure_note(
     };
     let value: plist::Value = plist::from_bytes(plist.as_bytes())?;
     if let plist::Value::Dictionary(map) = value {
-        if let Some(value) = map.get(NOTE_PLIST_KEY) {
-            if let plist::Value::String(data) = value {
-                return Ok(Some(Cow::Owned(data.to_owned())));
-            }
+        if let Some(plist::Value::String(data)) = map.get(NOTE_PLIST_KEY) {
+            return Ok(Some(Cow::Owned(data.to_owned())));
         }
     }
-    return Ok(None);
+    Ok(None)
 }
 
 #[derive(Logos, Debug, PartialEq)]
@@ -262,7 +260,7 @@ impl<'s> KeychainParser<'s> {
                         // We must check for EOF or newline to allow
                         // for nested quotes in the case of plist XML files
                         // used as values for secure notes
-                        let finished = lex.remainder().len() == 0
+                        let finished = lex.remainder().is_empty()
                             || &lex.remainder()[0..1] == "\n";
                         if finished {
                             return Ok(begin.end..lex.span().start);
@@ -297,7 +295,8 @@ impl<'s> KeychainParser<'s> {
                     let start = lex.span().end;
                     let remainder = lex.remainder();
                     if remainder.len() >= 4 {
-                        let name = &remainder[0..4];
+                        // Bump to ignore the 4 characters for the
+                        // attribute name identifier
                         lex.bump(4);
                     }
                     let end_quote = lex.next();
@@ -542,11 +541,8 @@ impl<'s> KeychainEntry<'s> {
         if let Some(data) = &self.data {
             if let Some(EntryClass::GenericPassword) = self.class {
                 if self.is_note() {
-                    match data {
-                        Value::BlobString(_, value) => {
-                            return plist_secure_note(value, true);
-                        }
-                        _ => {}
+                    if let Value::BlobString(_, value) = data {
+                        return plist_secure_note(value, true);
                     }
                 } else {
                     match data {
@@ -839,7 +835,7 @@ mod test {
         let contents =
             std::fs::read_to_string("fixtures/mock-certificate.txt")?;
         let parser = KeychainParser::new(&contents);
-        let list = parser.parse()?;
+        let _list = parser.parse()?;
         Ok(())
     }
 
