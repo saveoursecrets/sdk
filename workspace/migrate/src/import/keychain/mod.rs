@@ -208,7 +208,7 @@ pub struct UserKeychain {
 /// user directory (`~/Library/Keychains`).
 pub fn user_keychains() -> Result<Vec<UserKeychain>> {
     let mut keychains = Vec::new();
-    let mut args = vec!["list-keychains"];
+    let args = vec!["list-keychains"];
     let dump = Command::new("security").args(args).output()?;
     let reader = BufReader::new(dump.stdout.as_slice());
 
@@ -221,20 +221,24 @@ pub fn user_keychains() -> Result<Vec<UserKeychain>> {
 
         let unquoted = line
             .trim_start_matches(r#"""#)
-            .trim_end_matches(r#"""#);
+            .trim_end_matches(r#"""#)
+            .trim();
         
-        let path = PathBuf::from(unquoted);
-        if path.starts_with(&user_path) {
-            let name = path
-                .file_stem()
-                .ok_or(Error::NoKeychainName)?
-                .to_string_lossy();
-            keychains.push(UserKeychain {
-                name: name.into_owned(),
-                path: path.to_path_buf(),
-            });
+        // Ignore empty lines
+        if !unquoted.is_empty() {
+            let path = PathBuf::from(unquoted);
+            // Ignore system keychains
+            if path.starts_with(&user_path) {
+                let name = path
+                    .file_stem()
+                    .ok_or(Error::NoKeychainName)?
+                    .to_string_lossy();
+                keychains.push(UserKeychain {
+                    name: name.into_owned(),
+                    path: path.to_path_buf(),
+                });
+            }
         }
-
     }
     Ok(keychains)
 }
@@ -318,6 +322,7 @@ mod test {
     #[test]
     fn keychain_list() -> Result<()> {
         let results = user_keychains()?;
+        assert!(results.len() > 0);
         Ok(())
     }
 
