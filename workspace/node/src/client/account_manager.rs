@@ -105,6 +105,19 @@ impl AccountManager {
         Ok((address, user, summary))
     }
 
+    /// Get the local cache directory.
+    pub fn local_dir() -> Result<PathBuf> {
+        let local_dir = cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR);
+        Ok(local_dir)
+    }
+
+    /// Get the local directory for storing vaults.
+    pub fn local_vaults_dir(address: &str) -> Result<PathBuf> {
+        let local_dir = Self::local_dir()?;
+        let vaults_dir = local_dir.join(address).join(VAULTS_DIR);
+        Ok(vaults_dir)
+    }
+
     /// Generate a vault passphrase.
     pub fn generate_vault_passphrase() -> Result<SecretString> {
         let (vault_passphrase, _) =
@@ -247,7 +260,7 @@ impl AccountManager {
     pub fn delete_account(address: &str) -> Result<()> {
         let identity_vault_file = Self::identity_vault(address)?;
 
-        let local_dir = cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR);
+        let local_dir = Self::local_dir()?;
         let identity_data_dir = local_dir.join(address);
 
         std::fs::remove_file(&identity_vault_file)?;
@@ -316,8 +329,7 @@ impl AccountManager {
     pub fn list_local_vaults(
         address: &str,
     ) -> Result<Vec<(Summary, PathBuf)>> {
-        let local_dir = cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR);
-        let vaults_dir = local_dir.join(address).join(VAULTS_DIR);
+        let vaults_dir = Self::local_vaults_dir(address)?;
         let mut vaults = Vec::new();
         for entry in std::fs::read_dir(vaults_dir)? {
             let entry = entry?;
@@ -467,11 +479,8 @@ impl AccountManager {
             };
 
             // Prepare the vaults directory
-            let cache_dir = cache_dir().ok_or(Error::NoCache)?;
-            let vaults_dir = cache_dir
-                .join(LOCAL_DIR)
-                .join(&restore_targets.address)
-                .join(VAULTS_DIR);
+            let vaults_dir =
+                Self::local_vaults_dir(&restore_targets.address)?;
             std::fs::create_dir_all(&vaults_dir)?;
 
             // Write out each vault and the WAL log
