@@ -202,9 +202,9 @@ pub fn dump_keychain<P: AsRef<Path>>(path: P, data: bool) -> Result<String> {
 /// file stem.
 pub struct UserKeychain {
     /// Name of the keychain.
-    name: String,
+    pub name: String,
     /// Path to the keychain.
-    path: PathBuf,
+    pub path: PathBuf,
 }
 
 /// Attempt to find keychains by searching the standard

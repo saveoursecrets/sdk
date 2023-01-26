@@ -56,9 +56,9 @@ fn parse<R: Read>(mut rdr: csv::Reader<R>) -> Result<Vec<MacPasswordRecord>> {
 }
 
 /// Import a MacOS passwords CSV export into a vault.
-pub struct MacPasswordsCsv;
+pub struct MacPasswordCsv;
 
-impl Convert for MacPasswordsCsv {
+impl Convert for MacPasswordCsv {
     type Input = PathBuf;
 
     fn convert(
