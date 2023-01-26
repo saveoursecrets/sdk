@@ -15,7 +15,7 @@ use sos_core::{
 };
 
 use std::{
-    io::{BufWriter, Write},
+    io::{BufWriter, Write, BufReader, BufRead},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::mpsc::{channel, Receiver},
@@ -30,9 +30,6 @@ use security_framework::{
 };
 
 use crate::Convert;
-
-/// File extension for keychain files.
-const KEYCHAIN_DB: &str = "keychain-db";
 
 /// Import a MacOS keychain access dump into a vault.
 pub struct KeychainImport;
@@ -211,24 +208,33 @@ pub struct UserKeychain {
 /// user directory (`~/Library/Keychains`).
 pub fn user_keychains() -> Result<Vec<UserKeychain>> {
     let mut keychains = Vec::new();
-    let home = dirs::home_dir().unwrap();
-    let path = home.join("Library/Keychains");
+    let mut args = vec!["list-keychains"];
+    let dump = Command::new("security").args(args).output()?;
+    let reader = BufReader::new(dump.stdout.as_slice());
 
-    for entry in std::fs::read_dir(path)? {
-        let entry = entry?;
-        let path = entry.path();
-        if let Some(extension) = path.extension() {
-            if extension == KEYCHAIN_DB {
-                let name = path
-                    .file_stem()
-                    .ok_or(Error::NoKeychainName)?
-                    .to_string_lossy();
-                keychains.push(UserKeychain {
-                    name: name.into_owned(),
-                    path: path.to_path_buf(),
-                });
-            }
+    let home = dirs::home_dir().unwrap();
+    let user_path = home.join("Library/Keychains");
+
+    for line in reader.lines() {
+        let mut line = line?;
+        line = line.trim().to_string();
+
+        let unquoted = line
+            .trim_start_matches(r#"""#)
+            .trim_end_matches(r#"""#);
+        
+        let path = PathBuf::from(unquoted);
+        if path.starts_with(&user_path) {
+            let name = path
+                .file_stem()
+                .ok_or(Error::NoKeychainName)?
+                .to_string_lossy();
+            keychains.push(UserKeychain {
+                name: name.into_owned(),
+                path: path.to_path_buf(),
+            });
         }
+
     }
     Ok(keychains)
 }
@@ -307,6 +313,12 @@ mod test {
             panic!("keychain test for MacOS not configured");
         }
         Ok(keychain.unwrap())
+    }
+
+    #[test]
+    fn keychain_list() -> Result<()> {
+        let results = user_keychains()?;
+        Ok(())
     }
 
     #[test]
