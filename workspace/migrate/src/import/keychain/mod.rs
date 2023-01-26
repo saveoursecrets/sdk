@@ -15,7 +15,7 @@ use sos_core::{
 };
 
 use std::{
-    io::{BufWriter, Write, BufReader, BufRead},
+    io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::mpsc::{channel, Receiver},
@@ -212,9 +212,6 @@ pub fn user_keychains() -> Result<Vec<UserKeychain>> {
     let dump = Command::new("security").args(args).output()?;
     let reader = BufReader::new(dump.stdout.as_slice());
 
-    let home = dirs::home_dir().unwrap();
-    let user_path = home.join("Library/Keychains");
-
     for line in reader.lines() {
         let mut line = line?;
         line = line.trim().to_string();
@@ -223,21 +220,24 @@ pub fn user_keychains() -> Result<Vec<UserKeychain>> {
             .trim_start_matches(r#"""#)
             .trim_end_matches(r#"""#)
             .trim();
-        
-        // Ignore empty lines
-        if !unquoted.is_empty() {
+
+        // Ignore empty lines and check it is in the user directory.
+        //
+        // Note we cannot test against home_dir() because for a sandboxed
+        // application the home directory is not the same as the user's home
+        // directory.
+        //
+        // By testing for /Users we can ignore system keychains.
+        if !unquoted.is_empty() && unquoted.starts_with("/Users") {
             let path = PathBuf::from(unquoted);
-            // Ignore system keychains
-            if path.starts_with(&user_path) {
-                let name = path
-                    .file_stem()
-                    .ok_or(Error::NoKeychainName)?
-                    .to_string_lossy();
-                keychains.push(UserKeychain {
-                    name: name.into_owned(),
-                    path: path.to_path_buf(),
-                });
-            }
+            let name = path
+                .file_stem()
+                .ok_or(Error::NoKeychainName)?
+                .to_string_lossy();
+            keychains.push(UserKeychain {
+                name: name.into_owned(),
+                path: path.to_path_buf(),
+            });
         }
     }
     Ok(keychains)

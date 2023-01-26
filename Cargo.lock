@@ -2982,6 +2982,7 @@ name = "sos-migrate"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
  "csv",
  "dirs",
  "hex",

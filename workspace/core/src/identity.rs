@@ -85,8 +85,7 @@ impl Identity {
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<(AuthenticatedUser, Gatekeeper)> {
-        let mirror =
-            Box::new(VaultFileAccess::new(file.as_ref())?);
+        let mirror = Box::new(VaultFileAccess::new(file.as_ref())?);
         let buffer = std::fs::read(file.as_ref())?;
         Identity::login_buffer(
             buffer,

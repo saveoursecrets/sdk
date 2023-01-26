@@ -53,7 +53,6 @@ impl<W: Write> PublicExport<W> {
 
         for id in access.vault().keys() {
             if let Some((meta, mut secret, _)) = access.read(id)? {
-
                 // Move contents for file secrets
                 self.move_file_buffer(&file_path, &mut secret)?;
 
