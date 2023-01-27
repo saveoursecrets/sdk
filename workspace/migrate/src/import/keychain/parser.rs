@@ -177,6 +177,14 @@ impl<'s> KeychainParser<'s> {
                 Token::Data => {
                     in_attributes = false;
                     let token = Self::consume_whitespace(&mut lex);
+                       
+                    // It is allowed for data: to just be whitespace
+                    // so we have to catch that here
+                    if let Some(Token::Keychain) = token {
+                        next_token = token;
+                        continue;
+                    }
+
                     let value =
                         Self::parse_value(&mut lex, self.source, token)?;
                     if let Some(last) = entries.last_mut() {
