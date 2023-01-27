@@ -1,7 +1,6 @@
 //! Import from keychain access and passwords CSV.
 pub mod error;
 pub mod parser;
-pub mod passwords_csv;
 
 pub use error::Error;
 

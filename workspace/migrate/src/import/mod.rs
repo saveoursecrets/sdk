@@ -2,3 +2,5 @@
 
 #[cfg(target_os = "macos")]
 pub mod keychain;
+
+pub mod passwords_csv;
