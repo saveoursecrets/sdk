@@ -131,7 +131,6 @@ impl Convert for KeychainImport {
         let list = parser.parse()?;
 
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
-
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
         keeper.unlock(password.expose_secret())?;
@@ -149,7 +148,6 @@ impl Convert for KeychainImport {
                 if let Some(generic_data) = entry.generic_data()? {
                     let mut label = attr_service.as_str().to_owned();
                     let search = search_index.read();
-
                     if let Some(_) = search.find_by_label(
                         keeper.vault().id(), &label) {
                         duplicates
@@ -159,6 +157,8 @@ impl Convert for KeychainImport {
                         let counter = duplicates.get(&label).unwrap();
                         label = format!("{} {}", label, counter);
                     }
+                    // Must drop before writing
+                    drop(search);
 
                     if entry.is_note() {
                         let text = generic_data.into_owned();
