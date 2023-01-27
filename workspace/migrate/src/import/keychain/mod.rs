@@ -8,18 +8,25 @@ pub use error::Error;
 /// Result type for keychain access integration.
 pub type Result<T> = std::result::Result<T, Error>;
 
+use std::{
+    collections::HashMap,
+    io::{BufRead, BufReader, BufWriter, Write},
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+    sync::{
+        mpsc::{channel, Receiver},
+        Arc,
+    },
+};
+
 use sos_core::{
+    search::SearchIndex,
     secret::{Secret, SecretMeta},
     vault::Vault,
     Gatekeeper,
 };
 
-use std::{
-    io::{BufRead, BufReader, BufWriter, Write},
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::mpsc::{channel, Receiver},
-};
+use parking_lot::RwLock;
 
 use parser::{AttributeName, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};
@@ -123,8 +130,13 @@ impl Convert for KeychainImport {
         let parser = KeychainParser::new(&source);
         let list = parser.parse()?;
 
-        let mut keeper = Gatekeeper::new(vault, None);
+        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
+
+        let mut keeper =
+            Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
         keeper.unlock(password.expose_secret())?;
+
+        let mut duplicates: HashMap<String, usize> = HashMap::new();
 
         for entry in list.entries() {
             // Must have some data for the secret
@@ -135,6 +147,19 @@ impl Convert for KeychainImport {
                 entry.data(),
             ) {
                 if let Some(generic_data) = entry.generic_data()? {
+                    let mut label = attr_service.as_str().to_owned();
+                    let search = search_index.read();
+
+                    if let Some(_) = search.find_by_label(
+                        keeper.vault().id(), &label) {
+                        duplicates
+                            .entry(label.clone())
+                            .and_modify(|counter| *counter += 1)
+                            .or_insert(1);
+                        let counter = duplicates.get(&label).unwrap();
+                        label = format!("{} {}", label, counter);
+                    }
+
                     if entry.is_note() {
                         let text = generic_data.into_owned();
                         let secret = Secret::Note {
@@ -142,10 +167,7 @@ impl Convert for KeychainImport {
                             user_data: Default::default(),
                         };
 
-                        let meta = SecretMeta::new(
-                            attr_service.as_str().to_owned(),
-                            secret.kind(),
-                        );
+                        let meta = SecretMeta::new(label, secret.kind());
 
                         keeper.create(meta, secret)?;
                     } else if let Some((_, attr_account)) = entry
@@ -161,10 +183,7 @@ impl Convert for KeychainImport {
                             user_data: Default::default(),
                         };
 
-                        let meta = SecretMeta::new(
-                            attr_service.as_str().to_owned(),
-                            secret.kind(),
-                        );
+                        let meta = SecretMeta::new(label, secret.kind());
 
                         keeper.create(meta, secret)?;
                     }

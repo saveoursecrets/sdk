@@ -2986,6 +2986,7 @@ dependencies = [
  "dirs",
  "hex",
  "logos",
+ "parking_lot",
  "plist",
  "secrecy",
  "security-framework",

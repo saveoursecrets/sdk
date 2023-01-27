@@ -177,7 +177,7 @@ impl<'s> KeychainParser<'s> {
                 Token::Data => {
                     in_attributes = false;
                     let token = Self::consume_whitespace(&mut lex);
-                       
+
                     // It is allowed for data: to just be whitespace
                     // so we have to catch that here
                     if let Some(Token::Keychain) = token {
