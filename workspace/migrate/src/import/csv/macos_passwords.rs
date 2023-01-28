@@ -1,6 +1,6 @@
 //! Parser for the MacOS passwords CSV export.
 
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use serde::Deserialize;
 use std::{
     io::Read,
@@ -8,12 +8,9 @@ use std::{
 };
 use url::Url;
 
-use sos_core::{
-    secret::{Secret, SecretMeta},
-    vault::Vault,
-    Gatekeeper,
-};
+use sos_core::vault::Vault;
 
+use super::{GenericCsvConvert, GenericPasswordRecord};
 use crate::{Convert, Result};
 
 /// Record for an entry in a MacOS passwords CSV export.
@@ -34,6 +31,18 @@ pub struct MacPasswordRecord {
     /// OTP auth information for the entry.
     #[serde(rename = "OTPAuth")]
     pub otp_auth: Option<String>,
+}
+
+impl From<MacPasswordRecord> for GenericPasswordRecord {
+    fn from(value: MacPasswordRecord) -> Self {
+        Self {
+            label: value.title,
+            url: value.url,
+            username: value.username,
+            password: value.password,
+            otp_auth: value.otp_auth,
+        }
+    }
 }
 
 /// Parse records from a reader.
@@ -66,37 +75,28 @@ impl Convert for MacPasswordCsv {
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
-        let records = parse_path(source)?;
-
-        let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(password.expose_secret())?;
-
-        for entry in records {
-            let secret = Secret::Account {
-                account: entry.username,
-                password: SecretString::new(entry.password),
-                url: Some(entry.url),
-                user_data: Default::default(),
-            };
-            let meta = SecretMeta::new(entry.title, secret.kind());
-            keeper.create(meta, secret)?;
-        }
-
-        keeper.lock();
-        Ok(keeper.take())
+        let records: Vec<GenericPasswordRecord> =
+            parse_path(source)?.into_iter().map(|r| r.into()).collect();
+        GenericCsvConvert::convert(records, vault, password)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::parse_path;
+    use super::{parse_path, MacPasswordCsv};
+    use crate::Convert;
     use anyhow::Result;
+    use parking_lot::RwLock;
+    use secrecy::ExposeSecret;
+    use sos_core::{
+        generate_passphrase, search::SearchIndex, vault::Vault, Gatekeeper,
+    };
+    use std::sync::Arc;
     use url::Url;
 
     #[test]
-    fn keychain_passwords_csv() -> Result<()> {
-        let mut records =
-            parse_path("fixtures/mock-macos-passwords-export.csv")?;
+    fn macos_passwords_csv_parse() -> Result<()> {
+        let mut records = parse_path("fixtures/macos-passwords-export.csv")?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);
@@ -113,6 +113,38 @@ mod test {
         assert_eq!("mock-username", &second.username);
         assert_eq!("XXX-MOCK-2", &second.password);
         assert!(second.otp_auth.is_none());
+
+        Ok(())
+    }
+
+    #[test]
+    fn macos_passwords_csv_convert() -> Result<()> {
+        let (passphrase, _) = generate_passphrase()?;
+        let mut vault: Vault = Default::default();
+        vault.initialize(passphrase.expose_secret(), None)?;
+
+        let vault = MacPasswordCsv::convert(
+            "fixtures/macos-passwords-export.csv".into(),
+            vault,
+            passphrase.clone(),
+        )?;
+
+        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
+        let mut keeper =
+            Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
+        keeper.unlock(passphrase.expose_secret())?;
+        keeper.create_search_index()?;
+
+        let search = search_index.read();
+        let first = search.find_by_label(
+            keeper.id(),
+            "mock.example.com (mock@example.com)",
+        );
+        assert!(first.is_some());
+
+        let second = search
+            .find_by_label(keeper.id(), "mock2.example.com (mock-username)");
+        assert!(second.is_some());
 
         Ok(())
     }

@@ -147,8 +147,10 @@ impl Convert for KeychainImport {
                 if let Some(generic_data) = entry.generic_data()? {
                     let mut label = attr_service.as_str().to_owned();
                     let search = search_index.read();
-                    if let Some(_) = search.find_by_label(
-                        keeper.vault().id(), &label) {
+                    if search
+                        .find_by_label(keeper.vault().id(), &label)
+                        .is_some()
+                    {
                         duplicates
                             .entry(label.clone())
                             .and_modify(|counter| *counter += 1)
@@ -234,10 +236,8 @@ pub fn user_keychains() -> Result<Vec<UserKeychain>> {
         let mut line = line?;
         line = line.trim().to_string();
 
-        let unquoted = line
-            .trim_start_matches(r#"""#)
-            .trim_end_matches(r#"""#)
-            .trim();
+        let unquoted =
+            line.trim_start_matches('"').trim_end_matches('"').trim();
 
         // Ignore empty lines and check it is in the user directory.
         //
