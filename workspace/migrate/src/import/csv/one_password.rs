@@ -15,7 +15,7 @@ use url::Url;
 
 use sos_core::vault::Vault;
 
-use super::{GenericCsvConvert, GenericPasswordRecord};
+use super::{GenericCsvConvert, GenericPasswordRecord, UNTITLED};
 use crate::{Convert, Result};
 
 /// Record for an entry in a MacOS passwords CSV export.
@@ -56,7 +56,7 @@ impl From<OnePasswordRecord> for GenericPasswordRecord {
             Some(
                 value
                     .tags
-                    .split(";")
+                    .split(';')
                     .into_iter()
                     .map(|s| s.trim().to_owned())
                     .collect(),
@@ -64,13 +64,19 @@ impl From<OnePasswordRecord> for GenericPasswordRecord {
         } else {
             None
         };
+
+        let label = if value.title.is_empty() {
+            UNTITLED.to_owned()
+        } else {
+            value.title
+        };
         Self {
-            label: value.title,
+            label,
             url: value.url,
             username: value.username,
             password: value.password,
             otp_auth: value.otp_auth,
-            tags: tags,
+            tags,
         }
     }
 }
@@ -141,16 +147,12 @@ where
     D: Deserializer<'de>,
 {
     let value = deserializer.deserialize_str(BoolString)?;
-    Ok(if value.to_lowercase() == "true" {
-        true
-    } else {
-        false
-    })
+    Ok(value.to_lowercase() == "true")
 }
 
 #[cfg(test)]
 mod test {
-    use super::{parse_path, OnePasswordCsv};
+    use super::{parse_path, OnePasswordCsv, super::UNTITLED};
     use crate::Convert;
     use anyhow::Result;
     use parking_lot::RwLock;
@@ -205,10 +207,7 @@ mod test {
         assert_eq!("mock-user", fourth.username,);
         assert_eq!("XXX-MOCK-3", fourth.password);
         assert_eq!("mock", fourth.tags);
-        assert_eq!(
-            "",
-            fourth.notes
-        );
+        assert_eq!("", fourth.notes);
         assert!(!fourth.archived);
         assert!(fourth.favorite);
 
@@ -256,17 +255,12 @@ mod test {
         let search = search_index.read();
         assert_eq!(6, search.len());
 
-        /*
-        let first = search.find_by_label(
+        let search = search_index.read();
+        let untitled = search.find_by_label(
             keeper.id(),
-            "mock.example.com (mock@example.com)",
+            UNTITLED,
         );
-        assert!(first.is_some());
-
-        let second = search
-            .find_by_label(keeper.id(), "mock2.example.com (mock-username)");
-        assert!(second.is_some());
-        */
+        assert!(untitled.is_some());
 
         Ok(())
     }

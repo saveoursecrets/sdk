@@ -22,6 +22,9 @@ use sos_core::{
 
 use crate::Convert;
 
+/// Default label for CSV records when a title is not available.
+pub const UNTITLED: &str = "Untitled";
+
 /// Generic password record.
 pub struct GenericPasswordRecord {
     /// The label of the entry.
@@ -34,7 +37,7 @@ pub struct GenericPasswordRecord {
     pub password: String,
     /// OTP auth information for the entry.
     pub otp_auth: Option<String>,
-    //// Collection of tags.
+    /// Collection of tags.
     pub tags: Option<HashSet<String>>,
 }
 

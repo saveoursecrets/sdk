@@ -10,7 +10,7 @@ use url::Url;
 
 use sos_core::vault::Vault;
 
-use super::{GenericCsvConvert, GenericPasswordRecord};
+use super::{GenericCsvConvert, GenericPasswordRecord, UNTITLED};
 use crate::{Convert, Result};
 
 /// Record for an entry in a Chrome passwords CSV export.
@@ -28,8 +28,13 @@ pub struct ChromePasswordRecord {
 
 impl From<ChromePasswordRecord> for GenericPasswordRecord {
     fn from(value: ChromePasswordRecord) -> Self {
+        let label = if value.name.is_empty() {
+            UNTITLED.to_owned()
+        } else {
+            value.name
+        };
         Self {
-            label: value.name,
+            label,
             url: value.url,
             username: value.username,
             password: value.password,

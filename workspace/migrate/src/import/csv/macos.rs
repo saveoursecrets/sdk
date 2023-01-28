@@ -10,7 +10,7 @@ use url::Url;
 
 use sos_core::vault::Vault;
 
-use super::{GenericCsvConvert, GenericPasswordRecord};
+use super::{GenericCsvConvert, GenericPasswordRecord, UNTITLED};
 use crate::{Convert, Result};
 
 /// Record for an entry in a MacOS passwords CSV export.
@@ -35,8 +35,13 @@ pub struct MacPasswordRecord {
 
 impl From<MacPasswordRecord> for GenericPasswordRecord {
     fn from(value: MacPasswordRecord) -> Self {
+        let label = if value.title.is_empty() {
+            UNTITLED.to_owned()
+        } else {
+            value.title
+        };
         Self {
-            label: value.title,
+            label,
             url: value.url,
             username: value.username,
             password: value.password,
