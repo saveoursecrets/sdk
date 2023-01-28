@@ -1,4 +1,3 @@
 "url","username","password","httpRealm","formActionOrigin","guid","timeCreated","timeLastUsed","timePasswordChanged"
 "https://mock.example.com","","MOCK-XXX-1",,"https://mock.example.com","{c986d544-97ab-46a8-bdad-507bca1cdb82}","1642647925763","1672972356666","1642647925763"
 "https://mock2.example.com","mock-user-1","MOCK-XXX-2",,"https://mock2.example.com","{20bad9ad-a521-42b5-a4b2-2e498e37f327}","1642933004840","1642933004840","1642933004840"
-"https://mock3.example.com","mock-user-1","MOCK-XXX-3",,"https://mock3.example.com","{eda5ba0e-b538-4a39-a802-26cab492a065}","1643957343015","1643957343015","1643957343015"

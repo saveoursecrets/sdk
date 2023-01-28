@@ -1,4 +1,9 @@
 //! Conversion types for various CSV formats.
+
+pub mod chrome_passwords;
+pub mod firefox_passwords;
+pub mod macos_passwords;
+
 use parking_lot::RwLock;
 use secrecy::{ExposeSecret, SecretString};
 use std::{collections::HashMap, sync::Arc};
@@ -76,5 +81,3 @@ impl Convert for GenericCsvConvert {
     }
 }
 
-pub mod chrome_passwords;
-pub mod macos_passwords;
