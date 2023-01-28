@@ -476,6 +476,7 @@ impl<'s> KeychainList<'s> {
 #[derive(Debug)]
 pub struct KeychainEntry<'s> {
     /// The keychain path.
+    #[allow(dead_code)]
     keychain: &'s str,
     /// Keychain version.
     version: Option<&'s str>,
