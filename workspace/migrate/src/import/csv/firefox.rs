@@ -49,6 +49,7 @@ impl From<FirefoxPasswordRecord> for GenericPasswordRecord {
             username: value.username,
             password: value.password,
             otp_auth: None,
+            tags: None,
         }
     }
 }
@@ -85,13 +86,14 @@ impl Convert for FirefoxPasswordCsv {
     type Input = PathBuf;
 
     fn convert(
+        &self,
         source: Self::Input,
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
         let records: Vec<GenericPasswordRecord> =
             parse_path(source)?.into_iter().map(|r| r.into()).collect();
-        GenericCsvConvert::convert(records, vault, password)
+        GenericCsvConvert.convert(records, vault, password)
     }
 }
 
@@ -133,7 +135,7 @@ mod test {
         let mut vault: Vault = Default::default();
         vault.initialize(passphrase.expose_secret(), None)?;
 
-        let vault = FirefoxPasswordCsv::convert(
+        let vault = FirefoxPasswordCsv.convert(
             "fixtures/firefox-export.csv".into(),
             vault,
             passphrase.clone(),

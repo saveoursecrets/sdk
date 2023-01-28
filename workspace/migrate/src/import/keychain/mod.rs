@@ -122,6 +122,7 @@ impl Convert for KeychainImport {
     type Input = String;
 
     fn convert(
+        &self,
         source: Self::Input,
         vault: Vault,
         password: SecretString,
@@ -367,7 +368,7 @@ mod test {
         let mut vault: Vault = Default::default();
         vault.initialize(vault_password.expose_secret(), None)?;
 
-        let vault = KeychainImport::convert(
+        let vault = KeychainImport.convert(
             data_dump.unwrap(),
             vault,
             vault_password.clone(),

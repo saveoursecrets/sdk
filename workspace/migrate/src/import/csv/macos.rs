@@ -41,6 +41,7 @@ impl From<MacPasswordRecord> for GenericPasswordRecord {
             username: value.username,
             password: value.password,
             otp_auth: value.otp_auth,
+            tags: None,
         }
     }
 }
@@ -71,13 +72,14 @@ impl Convert for MacPasswordCsv {
     type Input = PathBuf;
 
     fn convert(
+        &self,
         source: Self::Input,
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
         let records: Vec<GenericPasswordRecord> =
             parse_path(source)?.into_iter().map(|r| r.into()).collect();
-        GenericCsvConvert::convert(records, vault, password)
+        GenericCsvConvert.convert(records, vault, password)
     }
 }
 
@@ -109,7 +111,10 @@ mod test {
         assert!(first.otp_auth.is_none());
 
         assert_eq!("mock2.example.com (mock-username)", &second.title);
-        assert_eq!(Some(Url::parse("https://mock2.example.com/")?), second.url);
+        assert_eq!(
+            Some(Url::parse("https://mock2.example.com/")?),
+            second.url
+        );
         assert_eq!("mock-username", &second.username);
         assert_eq!("XXX-MOCK-2", &second.password);
         assert!(second.otp_auth.is_none());
@@ -123,7 +128,7 @@ mod test {
         let mut vault: Vault = Default::default();
         vault.initialize(passphrase.expose_secret(), None)?;
 
-        let vault = MacPasswordCsv::convert(
+        let vault = MacPasswordCsv.convert(
             "fixtures/macos-export.csv".into(),
             vault,
             passphrase.clone(),

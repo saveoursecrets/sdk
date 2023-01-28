@@ -1,13 +1,16 @@
 //! Conversion types for various CSV formats.
 
-pub mod one_password;
 pub mod chrome;
 pub mod firefox;
 pub mod macos;
+pub mod one_password;
 
 use parking_lot::RwLock;
 use secrecy::{ExposeSecret, SecretString};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use url::Url;
 
 use sos_core::{
@@ -31,6 +34,8 @@ pub struct GenericPasswordRecord {
     pub password: String,
     /// OTP auth information for the entry.
     pub otp_auth: Option<String>,
+    //// Collection of tags.
+    pub tags: Option<HashSet<String>>,
 }
 
 /// Convert from generic password records.
@@ -40,6 +45,7 @@ impl Convert for GenericCsvConvert {
     type Input = Vec<GenericPasswordRecord>;
 
     fn convert(
+        &self,
         source: Self::Input,
         vault: Vault,
         password: SecretString,
@@ -73,7 +79,12 @@ impl Convert for GenericCsvConvert {
                 url: entry.url,
                 user_data: Default::default(),
             };
-            let meta = SecretMeta::new(label, secret.kind());
+            let mut meta = SecretMeta::new(label, secret.kind());
+
+            if let Some(tags) = entry.tags {
+                meta.set_tags(tags);
+            }
+
             keeper.create(meta, secret)?;
         }
 
