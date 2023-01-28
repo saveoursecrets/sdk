@@ -54,7 +54,9 @@ impl From<FirefoxPasswordRecord> for GenericPasswordRecord {
 }
 
 /// Parse records from a reader.
-pub fn parse_reader<R: Read>(reader: R) -> Result<Vec<FirefoxPasswordRecord>> {
+pub fn parse_reader<R: Read>(
+    reader: R,
+) -> Result<Vec<FirefoxPasswordRecord>> {
     parse(csv::Reader::from_reader(reader))
 }
 
@@ -113,21 +115,14 @@ mod test {
 
         let first = records.remove(0);
         let second = records.remove(0);
-        
-        /*
-        assert_eq!("mock.example.com", &first.name);
-        assert_eq!(Url::parse("https://mock.example.com/login")?, first.url);
-        assert_eq!("mock@example.com", &first.username);
+
+        assert_eq!(Url::parse("https://mock.example.com")?, first.url);
+        assert_eq!("", &first.username);
         assert_eq!("XXX-MOCK-1", &first.password);
 
-        assert_eq!("mock2.example.com", &second.name);
-        assert_eq!(
-            Url::parse("https://mock2.example.com/login")?,
-            second.url
-        );
-        assert_eq!("mock2@example.com", &second.username);
+        assert_eq!(Url::parse("https://mock2.example.com")?, second.url);
+        assert_eq!("mock-user-1", &second.username);
         assert_eq!("XXX-MOCK-2", &second.password);
-        */
 
         Ok(())
     }
@@ -149,15 +144,15 @@ mod test {
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
         keeper.unlock(passphrase.expose_secret())?;
         keeper.create_search_index()?;
-        
-        /*
+
         let search = search_index.read();
-        let first = search.find_by_label(keeper.id(), "mock.example.com");
+        let first =
+            search.find_by_label(keeper.id(), "https://mock.example.com/");
         assert!(first.is_some());
 
-        let second = search.find_by_label(keeper.id(), "mock2.example.com");
+        let second =
+            search.find_by_label(keeper.id(), "https://mock2.example.com/");
         assert!(second.is_some());
-        */
 
         Ok(())
     }
