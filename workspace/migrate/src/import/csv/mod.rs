@@ -80,4 +80,3 @@ impl Convert for GenericCsvConvert {
         Ok(keeper.take())
     }
 }
-
