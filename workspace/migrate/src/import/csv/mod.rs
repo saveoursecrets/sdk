@@ -1,8 +1,9 @@
 //! Conversion types for various CSV formats.
 
-pub mod chrome_passwords;
-pub mod firefox_passwords;
-pub mod macos_passwords;
+pub mod one_password;
+pub mod chrome;
+pub mod firefox;
+pub mod macos;
 
 use parking_lot::RwLock;
 use secrecy::{ExposeSecret, SecretString};
@@ -23,7 +24,7 @@ pub struct GenericPasswordRecord {
     /// The label of the entry.
     pub label: String,
     /// The URL of the entry.
-    pub url: Url,
+    pub url: Option<Url>,
     /// The username for the entry.
     pub username: String,
     /// The password for the entry.
@@ -69,7 +70,7 @@ impl Convert for GenericCsvConvert {
             let secret = Secret::Account {
                 account: entry.username,
                 password: SecretString::new(entry.password),
-                url: Some(entry.url),
+                url: entry.url,
                 user_data: Default::default(),
             };
             let meta = SecretMeta::new(label, secret.kind());

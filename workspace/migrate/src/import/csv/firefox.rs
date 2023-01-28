@@ -1,4 +1,4 @@
-//! Parser for the MacOS passwords CSV export.
+//! Parser for the Firefox passwords CSV export.
 
 use secrecy::SecretString;
 use serde::Deserialize;
@@ -13,61 +13,75 @@ use sos_core::vault::Vault;
 use super::{GenericCsvConvert, GenericPasswordRecord};
 use crate::{Convert, Result};
 
-/// Record for an entry in a MacOS passwords CSV export.
+/// Record for an entry in a Firefox passwords CSV export.
 #[derive(Deserialize)]
-pub struct MacPasswordRecord {
-    /// The title of the entry.
-    #[serde(rename = "Title")]
-    pub title: String,
+pub struct FirefoxPasswordRecord {
     /// The URL of the entry.
-    #[serde(rename = "Url")]
     pub url: Url,
     /// The username for the entry.
-    #[serde(rename = "Username")]
     pub username: String,
     /// The password for the entry.
-    #[serde(rename = "Password")]
     pub password: String,
-    /// OTP auth information for the entry.
-    #[serde(rename = "OTPAuth")]
-    pub otp_auth: Option<String>,
+    /// The HTTP realm for the entry.
+    #[serde(rename = "httpRealm")]
+    pub http_realm: String,
+    /// The form action origin for the entry.
+    #[serde(rename = "formActionOrigin")]
+    pub form_action_origin: String,
+    /// The guid for the entry.
+    pub guid: String,
+    /// The time created for the entry.
+    #[serde(rename = "timeCreated")]
+    pub time_created: String,
+    /// The time last used for the entry.
+    #[serde(rename = "timeLastUsed")]
+    pub time_last_used: String,
+    /// The time password was changed for the entry.
+    #[serde(rename = "timePasswordChanged")]
+    pub time_password_changed: String,
 }
 
-impl From<MacPasswordRecord> for GenericPasswordRecord {
-    fn from(value: MacPasswordRecord) -> Self {
+impl From<FirefoxPasswordRecord> for GenericPasswordRecord {
+    fn from(value: FirefoxPasswordRecord) -> Self {
         Self {
-            label: value.title,
-            url: value.url,
+            label: value.url.to_string(),
+            url: Some(value.url),
             username: value.username,
             password: value.password,
-            otp_auth: value.otp_auth,
+            otp_auth: None,
         }
     }
 }
 
 /// Parse records from a reader.
-pub fn parse_reader<R: Read>(reader: R) -> Result<Vec<MacPasswordRecord>> {
+pub fn parse_reader<R: Read>(
+    reader: R,
+) -> Result<Vec<FirefoxPasswordRecord>> {
     parse(csv::Reader::from_reader(reader))
 }
 
 /// Parse records from a path.
-pub fn parse_path<P: AsRef<Path>>(path: P) -> Result<Vec<MacPasswordRecord>> {
+pub fn parse_path<P: AsRef<Path>>(
+    path: P,
+) -> Result<Vec<FirefoxPasswordRecord>> {
     parse(csv::Reader::from_path(path)?)
 }
 
-fn parse<R: Read>(mut rdr: csv::Reader<R>) -> Result<Vec<MacPasswordRecord>> {
+fn parse<R: Read>(
+    mut rdr: csv::Reader<R>,
+) -> Result<Vec<FirefoxPasswordRecord>> {
     let mut records = Vec::new();
     for result in rdr.deserialize() {
-        let record: MacPasswordRecord = result?;
+        let record: FirefoxPasswordRecord = result?;
         records.push(record);
     }
     Ok(records)
 }
 
-/// Import a MacOS passwords CSV export into a vault.
-pub struct MacPasswordCsv;
+/// Import a Firefox passwords CSV export into a vault.
+pub struct FirefoxPasswordCsv;
 
-impl Convert for MacPasswordCsv {
+impl Convert for FirefoxPasswordCsv {
     type Input = PathBuf;
 
     fn convert(
@@ -83,7 +97,7 @@ impl Convert for MacPasswordCsv {
 
 #[cfg(test)]
 mod test {
-    use super::{parse_path, MacPasswordCsv};
+    use super::{parse_path, FirefoxPasswordCsv};
     use crate::Convert;
     use anyhow::Result;
     use parking_lot::RwLock;
@@ -95,36 +109,32 @@ mod test {
     use url::Url;
 
     #[test]
-    fn macos_passwords_csv_parse() -> Result<()> {
-        let mut records = parse_path("fixtures/macos-passwords-export.csv")?;
+    fn firefox_passwords_csv_parse() -> Result<()> {
+        let mut records = parse_path("fixtures/firefox-export.csv")?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);
         let second = records.remove(0);
 
-        assert_eq!("mock.example.com (mock@example.com)", &first.title);
-        assert_eq!(Url::parse("https://mock.example.com/")?, first.url);
-        assert_eq!("mock@example.com", &first.username);
+        assert_eq!(Url::parse("https://mock.example.com")?, first.url);
+        assert_eq!("", &first.username);
         assert_eq!("XXX-MOCK-1", &first.password);
-        assert!(first.otp_auth.is_none());
 
-        assert_eq!("mock2.example.com (mock-username)", &second.title);
-        assert_eq!(Url::parse("https://mock2.example.com/")?, second.url);
-        assert_eq!("mock-username", &second.username);
+        assert_eq!(Url::parse("https://mock2.example.com")?, second.url);
+        assert_eq!("mock-user-1", &second.username);
         assert_eq!("XXX-MOCK-2", &second.password);
-        assert!(second.otp_auth.is_none());
 
         Ok(())
     }
 
     #[test]
-    fn macos_passwords_csv_convert() -> Result<()> {
+    fn firefox_passwords_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
         vault.initialize(passphrase.expose_secret(), None)?;
 
-        let vault = MacPasswordCsv::convert(
-            "fixtures/macos-passwords-export.csv".into(),
+        let vault = FirefoxPasswordCsv::convert(
+            "fixtures/firefox-export.csv".into(),
             vault,
             passphrase.clone(),
         )?;
@@ -136,14 +146,12 @@ mod test {
         keeper.create_search_index()?;
 
         let search = search_index.read();
-        let first = search.find_by_label(
-            keeper.id(),
-            "mock.example.com (mock@example.com)",
-        );
+        let first =
+            search.find_by_label(keeper.id(), "https://mock.example.com/");
         assert!(first.is_some());
 
-        let second = search
-            .find_by_label(keeper.id(), "mock2.example.com (mock-username)");
+        let second =
+            search.find_by_label(keeper.id(), "https://mock2.example.com/");
         assert!(second.is_some());
 
         Ok(())
