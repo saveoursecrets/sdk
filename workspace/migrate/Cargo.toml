@@ -15,6 +15,7 @@ dirs = "4"
 url = { version = "2.2", features = ["serde"] }
 csv = "1.1"
 parking_lot = "0.12"
+zip = { version = "0.6", default-features = false, features = ["bzip2", "deflate"] }
 
 [target.'cfg(target_os="macos")'.dependencies]
 security-framework = "2.8"
