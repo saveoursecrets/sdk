@@ -25,6 +25,52 @@ use crate::Convert;
 /// Default label for CSV records when a title is not available.
 pub const UNTITLED: &str = "Untitled";
 
+/// Generic CSV entry type.
+pub enum GenericCsvEntry {
+    /// Password Entry.
+    Password(GenericPasswordRecord),
+    /// Note Entry.
+    Note(GenericNoteRecord),
+}
+
+impl GenericCsvEntry {
+    /// Get the label for the record.
+    fn label(&self) -> &str {
+        match self {
+            Self::Password(record) => &record.label,
+            Self::Note(record) => &record.label,
+        }
+    }
+
+    fn tags(&mut self) -> &mut Option<HashSet<String>> {
+        match self {
+            Self::Password(record) => &mut record.tags,
+            Self::Note(record) => &mut record.tags,
+        }
+    }
+}
+
+impl From<GenericCsvEntry> for Secret {
+    fn from(value: GenericCsvEntry) -> Self {
+        match value {
+            GenericCsvEntry::Password(record) => {
+                Secret::Account {
+                    account: record.username,
+                    password: SecretString::new(record.password),
+                    url: record.url,
+                    user_data: Default::default(),
+                }
+            }
+            GenericCsvEntry::Note(record) => {
+                Secret::Note {
+                    text: SecretString::new(record.text),
+                    user_data: Default::default(),
+                }
+            }
+        }
+    }
+}
+
 /// Generic password record.
 pub struct GenericPasswordRecord {
     /// The label of the entry.
@@ -39,13 +85,24 @@ pub struct GenericPasswordRecord {
     pub otp_auth: Option<String>,
     /// Collection of tags.
     pub tags: Option<HashSet<String>>,
+    // TODO: support notes for 1Password/Bitwarden etc.
+}
+
+/// Generic note record.
+pub struct GenericNoteRecord {
+    /// The label of the entry.
+    pub label: String,
+    /// The text for the note entry.
+    pub text: String,
+    /// Collection of tags.
+    pub tags: Option<HashSet<String>>,
 }
 
 /// Convert from generic password records.
 pub struct GenericCsvConvert;
 
 impl Convert for GenericCsvConvert {
-    type Input = Vec<GenericPasswordRecord>;
+    type Input = Vec<GenericCsvEntry>;
 
     fn convert(
         &self,
@@ -61,9 +118,10 @@ impl Convert for GenericCsvConvert {
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 
-        for entry in source {
+        for mut entry in source {
+            
             // Handle duplicate labels by incrementing a counter
-            let mut label = entry.label;
+            let mut label = entry.label().to_owned();
             let search = search_index.read();
             if search.find_by_label(keeper.vault().id(), &label).is_some() {
                 duplicates
@@ -76,18 +134,12 @@ impl Convert for GenericCsvConvert {
             // Must drop before writing
             drop(search);
 
-            let secret = Secret::Account {
-                account: entry.username,
-                password: SecretString::new(entry.password),
-                url: entry.url,
-                user_data: Default::default(),
-            };
+            let tags = entry.tags().take();
+            let secret: Secret = entry.into();
             let mut meta = SecretMeta::new(label, secret.kind());
-
-            if let Some(tags) = entry.tags {
+            if let Some(tags) = tags {
                 meta.set_tags(tags);
             }
-
             keeper.create(meta, secret)?;
         }
 

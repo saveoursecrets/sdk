@@ -10,7 +10,7 @@ use url::Url;
 
 use sos_core::vault::Vault;
 
-use super::{GenericCsvConvert, GenericPasswordRecord, UNTITLED};
+use super::{GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED};
 use crate::{Convert, Result};
 
 /// Record for an entry in a MacOS passwords CSV export.
@@ -51,6 +51,12 @@ impl From<MacPasswordRecord> for GenericPasswordRecord {
     }
 }
 
+impl From<MacPasswordRecord> for GenericCsvEntry {
+    fn from(value: MacPasswordRecord) -> Self {
+        Self::Password(value.into())
+    }
+}
+
 /// Parse records from a reader.
 pub fn parse_reader<R: Read>(reader: R) -> Result<Vec<MacPasswordRecord>> {
     parse(csv::Reader::from_reader(reader))
@@ -82,7 +88,7 @@ impl Convert for MacPasswordCsv {
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
-        let records: Vec<GenericPasswordRecord> =
+        let records: Vec<GenericCsvEntry> =
             parse_path(source)?.into_iter().map(|r| r.into()).collect();
         GenericCsvConvert.convert(records, vault, password)
     }

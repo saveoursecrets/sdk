@@ -10,7 +10,7 @@ use url::Url;
 
 use sos_core::vault::Vault;
 
-use super::{GenericCsvConvert, GenericPasswordRecord, UNTITLED};
+use super::{GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED};
 use crate::{Convert, Result};
 
 /// Record for an entry in a Chrome passwords CSV export.
@@ -41,6 +41,12 @@ impl From<ChromePasswordRecord> for GenericPasswordRecord {
             otp_auth: None,
             tags: None,
         }
+    }
+}
+
+impl From<ChromePasswordRecord> for GenericCsvEntry {
+    fn from(value: ChromePasswordRecord) -> Self {
+        Self::Password(value.into())
     }
 }
 
@@ -79,7 +85,7 @@ impl Convert for ChromePasswordCsv {
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
-        let records: Vec<GenericPasswordRecord> =
+        let records: Vec<GenericCsvEntry> =
             parse_path(source)?.into_iter().map(|r| r.into()).collect();
         GenericCsvConvert.convert(records, vault, password)
     }

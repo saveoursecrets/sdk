@@ -10,7 +10,7 @@ use url::Url;
 
 use sos_core::vault::Vault;
 
-use super::{GenericCsvConvert, GenericPasswordRecord};
+use super::{GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord};
 use crate::{Convert, Result};
 
 /// Record for an entry in a Firefox passwords CSV export.
@@ -54,6 +54,12 @@ impl From<FirefoxPasswordRecord> for GenericPasswordRecord {
     }
 }
 
+impl From<FirefoxPasswordRecord> for GenericCsvEntry {
+    fn from(value: FirefoxPasswordRecord) -> Self {
+        Self::Password(value.into())
+    }
+}
+
 /// Parse records from a reader.
 pub fn parse_reader<R: Read>(
     reader: R,
@@ -91,7 +97,7 @@ impl Convert for FirefoxPasswordCsv {
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
-        let records: Vec<GenericPasswordRecord> =
+        let records: Vec<GenericCsvEntry> =
             parse_path(source)?.into_iter().map(|r| r.into()).collect();
         GenericCsvConvert.convert(records, vault, password)
     }
