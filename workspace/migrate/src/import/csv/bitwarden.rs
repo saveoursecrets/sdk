@@ -1,4 +1,7 @@
-//! Parser for the Bitwarden passwords CSV export.
+//! Parser for the Bitwarden CSV export.
+//!
+//! Unlike most of the other formats this format includes notes 
+//! as well as passwords.
 
 use secrecy::SecretString;
 use serde::Deserialize;
@@ -116,9 +119,9 @@ fn parse<R: Read>(
 }
 
 /// Import a Bitwarden passwords CSV export into a vault.
-pub struct BitwardenPasswordCsv;
+pub struct BitwardenCsv;
 
-impl Convert for BitwardenPasswordCsv {
+impl Convert for BitwardenCsv {
     type Input = PathBuf;
 
     fn convert(
@@ -140,7 +143,7 @@ impl Convert for BitwardenPasswordCsv {
 
 #[cfg(test)]
 mod test {
-    use super::{parse_path, BitwardenPasswordCsv};
+    use super::{parse_path, BitwardenCsv};
     use crate::Convert;
     use anyhow::Result;
     use parking_lot::RwLock;
@@ -178,7 +181,7 @@ mod test {
         let mut vault: Vault = Default::default();
         vault.initialize(passphrase.expose_secret(), None)?;
 
-        let vault = BitwardenPasswordCsv.convert(
+        let vault = BitwardenCsv.convert(
             "fixtures/bitwarden-export.csv".into(),
             vault,
             passphrase.clone(),
