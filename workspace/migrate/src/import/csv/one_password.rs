@@ -15,7 +15,9 @@ use url::Url;
 
 use sos_core::vault::Vault;
 
-use super::{GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED};
+use super::{
+    GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
+};
 use crate::{Convert, Result};
 
 /// Record for an entry in a MacOS passwords CSV export.
@@ -158,7 +160,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::{parse_path, OnePasswordCsv, super::UNTITLED};
+    use super::{super::UNTITLED, parse_path, OnePasswordCsv};
     use crate::Convert;
     use anyhow::Result;
     use parking_lot::RwLock;
@@ -262,10 +264,7 @@ mod test {
         assert_eq!(6, search.len());
 
         let search = search_index.read();
-        let untitled = search.find_by_label(
-            keeper.id(),
-            UNTITLED,
-        );
+        let untitled = search.find_by_label(keeper.id(), UNTITLED);
         assert!(untitled.is_some());
 
         Ok(())

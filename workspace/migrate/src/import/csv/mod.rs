@@ -1,5 +1,6 @@
 //! Conversion types for various CSV formats.
 
+pub mod bitwarden;
 pub mod chrome;
 pub mod firefox;
 pub mod macos;
@@ -53,20 +54,16 @@ impl GenericCsvEntry {
 impl From<GenericCsvEntry> for Secret {
     fn from(value: GenericCsvEntry) -> Self {
         match value {
-            GenericCsvEntry::Password(record) => {
-                Secret::Account {
-                    account: record.username,
-                    password: SecretString::new(record.password),
-                    url: record.url,
-                    user_data: Default::default(),
-                }
-            }
-            GenericCsvEntry::Note(record) => {
-                Secret::Note {
-                    text: SecretString::new(record.text),
-                    user_data: Default::default(),
-                }
-            }
+            GenericCsvEntry::Password(record) => Secret::Account {
+                account: record.username,
+                password: SecretString::new(record.password),
+                url: record.url,
+                user_data: Default::default(),
+            },
+            GenericCsvEntry::Note(record) => Secret::Note {
+                text: SecretString::new(record.text),
+                user_data: Default::default(),
+            },
         }
     }
 }
@@ -119,7 +116,6 @@ impl Convert for GenericCsvConvert {
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 
         for mut entry in source {
-            
             // Handle duplicate labels by incrementing a counter
             let mut label = entry.label().to_owned();
             let search = search_index.read();

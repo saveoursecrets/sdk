@@ -10,7 +10,9 @@ use url::Url;
 
 use sos_core::vault::Vault;
 
-use super::{GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED};
+use super::{
+    GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
+};
 use crate::{Convert, Result};
 
 /// Record for an entry in a Chrome passwords CSV export.
