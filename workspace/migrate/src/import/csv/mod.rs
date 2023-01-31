@@ -29,12 +29,14 @@ pub const UNTITLED: &str = "Untitled";
 
 /// Generic CSV entry type.
 pub enum GenericCsvEntry {
-    /// Password Entry.
+    /// Password Eentry.
     Password(GenericPasswordRecord),
-    /// Note Entry.
+    /// Note entry.
     Note(GenericNoteRecord),
-    /// Identification Entry.
+    /// Identification entry.
     Id(GenericIdRecord),
+    /// Payment entry.
+    Payment(GenericPaymentRecord),
 }
 
 impl GenericCsvEntry {
@@ -44,14 +46,17 @@ impl GenericCsvEntry {
             Self::Password(record) => &record.label,
             Self::Note(record) => &record.label,
             Self::Id(record) => &record.label,
+            Self::Payment(record) => record.label(),
         }
     }
 
+    /// Get the tags for the record.
     fn tags(&mut self) -> &mut Option<HashSet<String>> {
         match self {
             Self::Password(record) => &mut record.tags,
             Self::Note(record) => &mut record.tags,
             Self::Id(record) => &mut record.tags,
+            Self::Payment(record) => record.tags(),
         }
     }
 }
@@ -77,6 +82,9 @@ impl From<GenericCsvEntry> for Secret {
                 expiration_date: record.expiration_date,
                 user_data: Default::default(),
             },
+            GenericCsvEntry::Payment(record) => {
+                todo!();
+            }
         }
     }
 }
@@ -124,6 +132,60 @@ pub struct GenericIdRecord {
     pub expiration_date: Option<Timestamp>,
     /// Collection of tags.
     pub tags: Option<HashSet<String>>,
+}
+
+/// Generic payment record.
+pub enum GenericPaymentRecord {
+    Card {
+        /// The label of the entry.
+        label: String,
+        /// The card number.
+        number: String,
+        /// The CVV code.
+        code: String,
+        /// An expiration date.
+        expiration: Option<String>,
+        /// The country for the entry.
+        country: String,
+        /// A note for the entry.
+        note: String,
+        /// Collection of tags.
+        tags: Option<HashSet<String>>,
+    },
+    BankAccount {
+        /// The label of the entry.
+        label: String,
+        /// The account holder of the entry.
+        account_holder: String,
+        /// The account number of the entry.
+        account_number: String,
+        /// The routing number of the entry.
+        routing_number: String,
+        /// The country for the entry.
+        country: String,
+        /// A note for the entry.
+        note: String,
+        /// Collection of tags.
+        tags: Option<HashSet<String>>,
+    },
+}
+
+impl GenericPaymentRecord {
+    /// Get the label for the record.
+    fn label(&self) -> &str {
+        match self {
+            Self::Card { label, .. } => label,
+            Self::BankAccount { label, .. } => label,
+        }
+    }
+
+    /// Get the tags for the record.
+    fn tags(&mut self) -> &mut Option<HashSet<String>> {
+        match self {
+            Self::Card { tags, .. } => tags,
+            Self::BankAccount { tags, .. } => tags,
+        }
+    }
 }
 
 /// Convert from generic password records.
