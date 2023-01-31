@@ -271,6 +271,11 @@ pub enum Error {
     #[error(transparent)]
     TimeFormat(#[from] time::error::Format),
 
+    /// Error generated parsing time.
+    //#[cfg(not(target_arch = "wasm32"))]
+    #[error(transparent)]
+    TimeParse(#[from] time::error::Parse),
+
     /// Error generated creating format descriptions for date formatting.
     //#[cfg(not(target_arch = "wasm32"))]
     #[error(transparent)]

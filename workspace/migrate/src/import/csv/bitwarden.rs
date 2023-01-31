@@ -1,6 +1,6 @@
 //! Parser for the Bitwarden CSV export.
 //!
-//! Unlike most of the other formats this format includes notes 
+//! Unlike most of the other formats this format includes notes
 //! as well as passwords.
 
 use secrecy::SecretString;

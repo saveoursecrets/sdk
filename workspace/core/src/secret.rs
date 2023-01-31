@@ -6,7 +6,7 @@ use binary_stream::{
 use pem::Pem;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{
-    de::{self, Visitor, Deserializer},
+    de::{self, Deserializer, Visitor},
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
@@ -663,7 +663,9 @@ impl Serialize for IdentificationKind {
 }
 
 impl<'de> Deserialize<'de> for IdentificationKind {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<IdentificationKind, D::Error>
+    fn deserialize<D>(
+        deserializer: D,
+    ) -> std::result::Result<IdentificationKind, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -1135,7 +1137,9 @@ impl fmt::Debug for Secret {
             Secret::Bank { .. } => f.debug_struct("Bank").finish(),
             Secret::Link { .. } => f.debug_struct("Link").finish(),
             Secret::Password { .. } => f.debug_struct("Password").finish(),
-            Secret::Identification { .. } => f.debug_struct("Identification").finish(),
+            Secret::Identification { .. } => {
+                f.debug_struct("Identification").finish()
+            }
         }
     }
 }
@@ -2010,8 +2014,8 @@ impl Decode for Secret {
             }
             kind::IDENTIFICATION => {
                 let id_kind = reader.read_u8()?;
-                let id_kind: IdentificationKind = id_kind.try_into()
-                    .map_err(Box::from)?;
+                let id_kind: IdentificationKind =
+                    id_kind.try_into().map_err(Box::from)?;
 
                 let number = SecretString::new(reader.read_string()?);
 
@@ -2025,7 +2029,7 @@ impl Decode for Secret {
                 let has_issue_date = reader.read_bool()?;
                 let issue_date = if has_issue_date {
                     let mut timestamp: Timestamp = Default::default();
-                    timestamp.decode(&mut*reader)?;
+                    timestamp.decode(&mut *reader)?;
                     Some(timestamp)
                 } else {
                     None
@@ -2034,7 +2038,7 @@ impl Decode for Secret {
                 let has_expiration_date = reader.read_bool()?;
                 let expiration_date = if has_expiration_date {
                     let mut timestamp: Timestamp = Default::default();
-                    timestamp.decode(&mut*reader)?;
+                    timestamp.decode(&mut *reader)?;
                     Some(timestamp)
                 } else {
                     None

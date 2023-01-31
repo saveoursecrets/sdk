@@ -17,9 +17,9 @@ use url::Url;
 
 use sos_core::{
     search::SearchIndex,
-    secret::{Secret, SecretMeta},
+    secret::{IdentificationKind, Secret, SecretMeta},
     vault::Vault,
-    Gatekeeper,
+    Gatekeeper, Timestamp,
 };
 
 use crate::Convert;
@@ -33,6 +33,8 @@ pub enum GenericCsvEntry {
     Password(GenericPasswordRecord),
     /// Note Entry.
     Note(GenericNoteRecord),
+    /// Identification Entry.
+    Id(GenericIdRecord),
 }
 
 impl GenericCsvEntry {
@@ -41,6 +43,7 @@ impl GenericCsvEntry {
         match self {
             Self::Password(record) => &record.label,
             Self::Note(record) => &record.label,
+            Self::Id(record) => &record.label,
         }
     }
 
@@ -48,6 +51,7 @@ impl GenericCsvEntry {
         match self {
             Self::Password(record) => &mut record.tags,
             Self::Note(record) => &mut record.tags,
+            Self::Id(record) => &mut record.tags,
         }
     }
 }
@@ -63,6 +67,14 @@ impl From<GenericCsvEntry> for Secret {
             },
             GenericCsvEntry::Note(record) => Secret::Note {
                 text: SecretString::new(record.text),
+                user_data: Default::default(),
+            },
+            GenericCsvEntry::Id(record) => Secret::Identification {
+                id_kind: record.id_kind,
+                number: SecretString::new(record.number),
+                issue_place: record.issue_place,
+                issue_date: record.issue_date,
+                expiration_date: record.expiration_date,
                 user_data: Default::default(),
             },
         }
@@ -92,6 +104,24 @@ pub struct GenericNoteRecord {
     pub label: String,
     /// The text for the note entry.
     pub text: String,
+    /// Collection of tags.
+    pub tags: Option<HashSet<String>>,
+}
+
+/// Generic identification record.
+pub struct GenericIdRecord {
+    /// The label of the entry.
+    pub label: String,
+    /// The kind of identification.
+    pub id_kind: IdentificationKind,
+    /// The number for the entry.
+    pub number: String,
+    /// The issue place for the entry.
+    pub issue_place: Option<String>,
+    /// The issue date for the entry.
+    pub issue_date: Option<Timestamp>,
+    /// The expiration date for the entry.
+    pub expiration_date: Option<Timestamp>,
     /// Collection of tags.
     pub tags: Option<HashSet<String>>,
 }
