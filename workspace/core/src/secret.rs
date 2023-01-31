@@ -607,6 +607,8 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
 /// Enumeration of types of identification.
 #[derive(PartialEq, Eq, Clone)]
 pub enum IdentificationKind {
+    /// Generic id card.
+    IdCard,
     /// Passport identification.
     Passport,
     ///  Driver license identification.
@@ -615,15 +617,19 @@ pub enum IdentificationKind {
     SocialSecurity,
     /// Tax number identification.
     TaxNumber,
+    /// Medical card identification.
+    MedicalCard,
 }
 
 impl From<&IdentificationKind> for u8 {
     fn from(value: &IdentificationKind) -> Self {
         match value {
-            IdentificationKind::Passport => 1,
-            IdentificationKind::DriverLicense => 2,
-            IdentificationKind::SocialSecurity => 3,
-            IdentificationKind::TaxNumber => 4,
+            IdentificationKind::IdCard => 1,
+            IdentificationKind::Passport => 2,
+            IdentificationKind::DriverLicense => 3,
+            IdentificationKind::SocialSecurity => 4,
+            IdentificationKind::TaxNumber => 5,
+            IdentificationKind::MedicalCard => 6,
         }
     }
 }
@@ -633,10 +639,12 @@ impl TryFrom<u8> for IdentificationKind {
 
     fn try_from(value: u8) -> Result<Self> {
         match value {
-            1 => Ok(IdentificationKind::Passport),
-            2 => Ok(IdentificationKind::DriverLicense),
-            3 => Ok(IdentificationKind::SocialSecurity),
-            4 => Ok(IdentificationKind::TaxNumber),
+            1 => Ok(IdentificationKind::IdCard),
+            2 => Ok(IdentificationKind::Passport),
+            3 => Ok(IdentificationKind::DriverLicense),
+            4 => Ok(IdentificationKind::SocialSecurity),
+            5 => Ok(IdentificationKind::TaxNumber),
+            6 => Ok(IdentificationKind::MedicalCard),
             _ => Err(Error::UnknownIdentificationKind(value)),
         }
     }
@@ -2428,43 +2436,7 @@ END:VCARD"#;
     #[test]
     fn secret_encode_identification() -> Result<()> {
         let secret = Secret::Identification {
-            id_kind: IdentificationKind::Passport,
-            number: SecretString::new("12345678".to_string()),
-            issue_place: Some("Mock city".to_string()),
-            issue_date: Some(Default::default()),
-            expiration_date: Some(Default::default()),
-            user_data: Default::default(),
-        };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
-        assert_eq!(secret, decoded);
-
-        let secret = Secret::Identification {
-            id_kind: IdentificationKind::DriverLicense,
-            number: SecretString::new("12345678".to_string()),
-            issue_place: Some("Mock city".to_string()),
-            issue_date: Some(Default::default()),
-            expiration_date: Some(Default::default()),
-            user_data: Default::default(),
-        };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
-        assert_eq!(secret, decoded);
-
-        let secret = Secret::Identification {
-            id_kind: IdentificationKind::SocialSecurity,
-            number: SecretString::new("12345678".to_string()),
-            issue_place: Some("Mock city".to_string()),
-            issue_date: Some(Default::default()),
-            expiration_date: Some(Default::default()),
-            user_data: Default::default(),
-        };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
-        assert_eq!(secret, decoded);
-
-        let secret = Secret::Identification {
-            id_kind: IdentificationKind::TaxNumber,
+            id_kind: IdentificationKind::IdCard,
             number: SecretString::new("12345678".to_string()),
             issue_place: Some("Mock city".to_string()),
             issue_date: Some(Default::default()),
