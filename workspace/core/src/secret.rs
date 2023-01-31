@@ -6,6 +6,7 @@ use binary_stream::{
 use pem::Pem;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{
+    de::{self, Visitor, Deserializer},
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
@@ -603,6 +604,84 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
     Ok(user_data)
 }
 
+/// Enumeration of types of identification.
+#[derive(PartialEq, Eq, Clone)]
+pub enum IdentificationKind {
+    /// Passport identification.
+    Passport,
+    ///  Driver license identification.
+    DriverLicense,
+    /// Social security identification.
+    SocialSecurity,
+    /// Tax number identification.
+    TaxNumber,
+}
+
+impl From<&IdentificationKind> for u8 {
+    fn from(value: &IdentificationKind) -> Self {
+        match value {
+            IdentificationKind::Passport => 1,
+            IdentificationKind::DriverLicense => 2,
+            IdentificationKind::SocialSecurity => 3,
+            IdentificationKind::TaxNumber => 4,
+        }
+    }
+}
+
+impl TryFrom<u8> for IdentificationKind {
+    type Error = Error;
+
+    fn try_from(value: u8) -> Result<Self> {
+        match value {
+            1 => Ok(IdentificationKind::Passport),
+            2 => Ok(IdentificationKind::DriverLicense),
+            3 => Ok(IdentificationKind::SocialSecurity),
+            4 => Ok(IdentificationKind::TaxNumber),
+            _ => Err(Error::UnknownIdentificationKind(value)),
+        }
+    }
+}
+
+impl Serialize for IdentificationKind {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_u8(self.into())
+    }
+}
+
+impl<'de> Deserialize<'de> for IdentificationKind {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<IdentificationKind, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_u8(IdentificationKindVisitor)
+    }
+}
+
+struct IdentificationKindVisitor;
+
+impl<'de> Visitor<'de> for IdentificationKindVisitor {
+    type Value = IdentificationKind;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter
+            .write_str("an integer between 0 and 255 for identification kind")
+    }
+
+    fn visit_u8<E>(self, value: u8) -> std::result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        let value: IdentificationKind = value.try_into().unwrap();
+        Ok(value)
+    }
+}
+
 /// Represents the various types of secret.
 ///
 /// This implements the serde traits for the webassembly bindings
@@ -830,6 +909,27 @@ pub enum Secret {
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
+    /// Identification secret for passports, driving licenses etc.
+    #[serde(rename_all = "camelCase")]
+    Identification {
+        /// The kind of this identification.
+        id_kind: IdentificationKind,
+        /// The number for the identifier.
+        #[serde(serialize_with = "serialize_secret_string")]
+        number: SecretString,
+        /// Issue place.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        issue_place: Option<String>,
+        /// Issue date.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        issue_date: Option<Timestamp>,
+        /// Expiration date.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expiration_date: Option<Timestamp>,
+        /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
+        user_data: UserData,
+    },
 }
 
 impl Clone for Secret {
@@ -973,6 +1073,21 @@ impl Clone for Secret {
                 name: name.clone(),
                 user_data: user_data.clone(),
             },
+            Secret::Identification {
+                id_kind,
+                number,
+                issue_place,
+                issue_date,
+                expiration_date,
+                user_data,
+            } => Secret::Identification {
+                id_kind: id_kind.clone(),
+                number: SecretString::new(number.expose_secret().to_owned()),
+                issue_place: issue_place.clone(),
+                issue_date: issue_date.clone(),
+                expiration_date: expiration_date.clone(),
+                user_data: user_data.clone(),
+            },
         }
     }
 }
@@ -1012,6 +1127,7 @@ impl fmt::Debug for Secret {
             Secret::Bank { .. } => f.debug_struct("Bank").finish(),
             Secret::Link { .. } => f.debug_struct("Link").finish(),
             Secret::Password { .. } => f.debug_struct("Password").finish(),
+            Secret::Identification { .. } => f.debug_struct("Identification").finish(),
         }
     }
 }
@@ -1065,6 +1181,7 @@ impl Secret {
             Secret::Bank { .. } => kind::BANK,
             Secret::Link { .. } => kind::LINK,
             Secret::Password { .. } => kind::PASSWORD,
+            Secret::Identification { .. } => kind::IDENTIFICATION,
         }
     }
 
@@ -1085,6 +1202,7 @@ impl Secret {
             Secret::Bank { user_data, .. } => user_data,
             Secret::Link { user_data, .. } => user_data,
             Secret::Password { user_data, .. } => user_data,
+            Secret::Identification { user_data, .. } => user_data,
         }
     }
 
@@ -1105,6 +1223,7 @@ impl Secret {
             Secret::Bank { user_data, .. } => user_data,
             Secret::Link { user_data, .. } => user_data,
             Secret::Password { user_data, .. } => user_data,
+            Secret::Identification { user_data, .. } => user_data,
         }
     }
 }
@@ -1357,6 +1476,32 @@ impl PartialEq for Secret {
                     && user_data_a == user_data_b
             }
 
+            (
+                Self::Identification {
+                    id_kind: id_kind_a,
+                    number: number_a,
+                    issue_place: issue_place_a,
+                    issue_date: issue_date_a,
+                    expiration_date: expiration_date_a,
+                    user_data: user_data_a,
+                },
+                Self::Identification {
+                    id_kind: id_kind_b,
+                    number: number_b,
+                    issue_place: issue_place_b,
+                    issue_date: issue_date_b,
+                    expiration_date: expiration_date_b,
+                    user_data: user_data_b,
+                },
+            ) => {
+                id_kind_a == id_kind_b
+                    && number_a.expose_secret() == number_b.expose_secret()
+                    && issue_place_a == issue_place_b
+                    && issue_date_a == issue_date_b
+                    && expiration_date_a == expiration_date_b
+                    && user_data_a == user_data_b
+            }
+
             _ => false,
         }
     }
@@ -1406,6 +1551,8 @@ pub mod kind {
     pub const LINK: u8 = 13;
     /// Standalone password.
     pub const PASSWORD: u8 = 14;
+    /// Identification.
+    pub const IDENTIFICATION: u8 = 15;
 }
 
 impl Encode for Secret {
@@ -1425,6 +1572,7 @@ impl Encode for Secret {
             Self::Bank { .. } => kind::BANK,
             Self::Link { .. } => kind::LINK,
             Self::Password { .. } => kind::PASSWORD,
+            Self::Identification { .. } => kind::IDENTIFICATION,
         };
         writer.write_u8(kind)?;
 
@@ -1589,6 +1737,36 @@ impl Encode for Secret {
                 writer.write_bool(name.is_some())?;
                 if let Some(name) = name {
                     writer.write_string(name.expose_secret())?;
+                }
+
+                write_user_data(user_data, writer)?;
+            }
+
+            Self::Identification {
+                id_kind,
+                number,
+                issue_place,
+                issue_date,
+                expiration_date,
+                user_data,
+            } => {
+                let id_kind: u8 = id_kind.into();
+                writer.write_u8(id_kind)?;
+                writer.write_string(number.expose_secret())?;
+
+                writer.write_bool(issue_place.is_some())?;
+                if let Some(issue_place) = issue_place {
+                    writer.write_string(issue_place)?;
+                }
+
+                writer.write_bool(issue_date.is_some())?;
+                if let Some(issue_date) = issue_date {
+                    issue_date.encode(writer)?;
+                }
+
+                writer.write_bool(expiration_date.is_some())?;
+                if let Some(expiration_date) = expiration_date {
+                    expiration_date.encode(writer)?;
                 }
 
                 write_user_data(user_data, writer)?;
@@ -1819,6 +1997,48 @@ impl Decode for Secret {
                 *self = Self::Password {
                     password,
                     name,
+                    user_data,
+                };
+            }
+            kind::IDENTIFICATION => {
+                let id_kind = reader.read_u8()?;
+                let id_kind: IdentificationKind = id_kind.try_into()
+                    .map_err(Box::from)?;
+
+                let number = SecretString::new(reader.read_string()?);
+
+                let has_issue_place = reader.read_bool()?;
+                let issue_place = if has_issue_place {
+                    Some(reader.read_string()?)
+                } else {
+                    None
+                };
+
+                let has_issue_date = reader.read_bool()?;
+                let issue_date = if has_issue_date {
+                    let mut timestamp: Timestamp = Default::default();
+                    timestamp.decode(&mut*reader)?;
+                    Some(timestamp)
+                } else {
+                    None
+                };
+
+                let has_expiration_date = reader.read_bool()?;
+                let expiration_date = if has_expiration_date {
+                    let mut timestamp: Timestamp = Default::default();
+                    timestamp.decode(&mut*reader)?;
+                    Some(timestamp)
+                } else {
+                    None
+                };
+
+                let user_data = read_user_data(reader)?;
+                *self = Self::Identification {
+                    id_kind,
+                    number,
+                    issue_place,
+                    issue_date,
+                    expiration_date,
                     user_data,
                 };
             }
@@ -2202,6 +2422,59 @@ END:VCARD"#;
         let decoded = decode(&encoded)?;
 
         assert_eq!(secret, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_identification() -> Result<()> {
+        let secret = Secret::Identification {
+            id_kind: IdentificationKind::Passport,
+            number: SecretString::new("12345678".to_string()),
+            issue_place: Some("Mock city".to_string()),
+            issue_date: Some(Default::default()),
+            expiration_date: Some(Default::default()),
+            user_data: Default::default(),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+
+        let secret = Secret::Identification {
+            id_kind: IdentificationKind::DriverLicense,
+            number: SecretString::new("12345678".to_string()),
+            issue_place: Some("Mock city".to_string()),
+            issue_date: Some(Default::default()),
+            expiration_date: Some(Default::default()),
+            user_data: Default::default(),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+
+        let secret = Secret::Identification {
+            id_kind: IdentificationKind::SocialSecurity,
+            number: SecretString::new("12345678".to_string()),
+            issue_place: Some("Mock city".to_string()),
+            issue_date: Some(Default::default()),
+            expiration_date: Some(Default::default()),
+            user_data: Default::default(),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+
+        let secret = Secret::Identification {
+            id_kind: IdentificationKind::TaxNumber,
+            number: SecretString::new("12345678".to_string()),
+            issue_place: Some("Mock city".to_string()),
+            issue_date: Some(Default::default()),
+            expiration_date: Some(Default::default()),
+            user_data: Default::default(),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+
         Ok(())
     }
 }

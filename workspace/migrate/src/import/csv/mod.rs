@@ -2,6 +2,7 @@
 
 pub mod bitwarden;
 pub mod chrome;
+pub mod dashlane;
 pub mod firefox;
 pub mod macos;
 pub mod one_password;
