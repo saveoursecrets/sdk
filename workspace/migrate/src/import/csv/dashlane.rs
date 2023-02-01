@@ -3,13 +3,14 @@
 use secrecy::SecretString;
 use serde::Deserialize;
 use std::{
+    collections::HashSet,
     fs::File,
     io::{Read, Seek},
     path::{Path, PathBuf},
 };
-use url::Url;
 use time::Date;
-use vcard4::{uriparse::URI as Uri, VcardBuilder};
+use url::Url;
+use vcard4::{property::DeliveryAddress, uriparse::URI as Uri, VcardBuilder};
 
 use sos_core::{secret::IdentificationKind, vault::Vault, Timestamp};
 
@@ -21,6 +22,7 @@ use super::{
 use crate::{Convert, Result};
 
 /// Record used to deserialize dashlane CSV files.
+#[derive(Debug)]
 pub enum DashlaneRecord {
     /// Password login.
     Password(DashlanePasswordRecord),
@@ -55,7 +57,7 @@ impl From<DashlaneRecord> for GenericCsvEntry {
 }
 
 /// Record for an entry in a Dashlane notes CSV export.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct DashlaneNoteRecord {
     /// The title of the entry.
     pub title: String,
@@ -85,7 +87,7 @@ impl From<DashlaneNoteRecord> for GenericNoteRecord {
 }
 
 /// Record for an entry in a Dashlane id CSV export.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct DashlaneIdRecord {
     /// The type of the entry.
     #[serde(rename = "type")]
@@ -173,7 +175,7 @@ impl From<DashlaneIdRecord> for GenericIdRecord {
 }
 
 /// Record for an entry in a Dashlane id CSV export.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct DashlanePaymentRecord {
     /// The type of the entry.
     #[serde(rename = "type")]
@@ -250,7 +252,7 @@ impl From<DashlanePaymentRecord> for GenericPaymentRecord {
 }
 
 /// Record for an entry in a Dashlane passwords CSV export.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct DashlanePasswordRecord {
     /// The title of the entry.
     pub title: String,
@@ -282,23 +284,39 @@ impl From<DashlanePasswordRecord> for GenericPasswordRecord {
         } else {
             value.title
         };
+
+        let tags = if !value.category.is_empty() {
+            let mut tags = HashSet::new();
+            tags.insert(value.category);
+            Some(tags)
+        } else {
+            None
+        };
+
         Self {
             label,
             url: value.url,
             username: value.username,
             password: value.password,
             otp_auth: None,
-            tags: None,
+            tags,
         }
     }
 }
 
 /// Record for an entry in a Dashlane personalInfo CSV export.
-#[derive(Deserialize)]
+///
+/// Fields that are currently not handled:
+///
+/// * login
+/// * place_of_birth
+/// * email_type
+/// * address_door_code
+///
+#[derive(Debug, Deserialize)]
 pub struct DashlaneContactRecord {
     /// The item name of the entry.
     pub item_name: String,
-
     /// The title.
     pub title: String,
     /// The first name.
@@ -307,6 +325,26 @@ pub struct DashlaneContactRecord {
     pub middle_name: String,
     /// The last name.
     pub last_name: String,
+
+    /// The address.
+    pub address: String,
+    /// The city.
+    pub city: String,
+    /// The state.
+    pub state: String,
+    /// The country.
+    pub country: String,
+    /// The postal code.
+    pub zip: String,
+
+    /// Address recipient.
+    pub address_recipient: String,
+    /// Address apartment.
+    pub address_apartment: String,
+    /// Address floor.
+    pub address_floor: String,
+    /// Address building.
+    pub address_building: String,
 
     /// The phone number.
     pub phone_number: String,
@@ -394,9 +432,63 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
             None
         };
 
+        let extended_address = vec![
+            value.address_recipient,
+            value.address_apartment,
+            value.address_floor,
+            value.address_building,
+        ];
+
+        let has_some_address_parts = !value.address.is_empty()
+            || !value.city.is_empty()
+            || !value.state.is_empty()
+            || !value.zip.is_empty()
+            || !value.country.is_empty();
+
+        let address = if has_some_address_parts {
+            Some(DeliveryAddress {
+                po_box: None,
+                extended_address: if !extended_address.is_empty() {
+                    Some(extended_address.join(","))
+                } else {
+                    None
+                },
+                street_address: if !value.address.is_empty() {
+                    Some(value.address)
+                } else {
+                    None
+                },
+                locality: if !value.city.is_empty() {
+                    Some(value.city)
+                } else {
+                    None
+                },
+                region: if !value.state.is_empty() {
+                    Some(value.state)
+                } else {
+                    None
+                },
+                country_name: if !value.country.is_empty() {
+                    Some(value.country)
+                } else {
+                    None
+                },
+                postal_code: if !value.zip.is_empty() {
+                    Some(value.zip)
+                } else {
+                    None
+                },
+            })
+        } else {
+            None
+        };
+
         let mut builder = VcardBuilder::new(formatted_name);
         if has_some_name_parts {
             builder = builder.name(name);
+        }
+        if let Some(address) = address {
+            builder = builder.address(address);
         }
         if !value.phone_number.is_empty() {
             builder = builder.telephone(value.phone_number);
@@ -500,7 +592,7 @@ impl Convert for DashlaneCsvZip {
 
 #[cfg(test)]
 mod test {
-    use super::{parse_path, DashlaneCsvZip};
+    use super::{parse_path, DashlaneCsvZip, DashlaneRecord};
     use crate::Convert;
     use anyhow::Result;
     use parking_lot::RwLock;
@@ -514,41 +606,31 @@ mod test {
     #[test]
     fn dashlane_csv_parse() -> Result<()> {
         let mut records = parse_path("fixtures/dashlane-export.zip")?;
-        //assert_eq!(2, records.len());
+        assert_eq!(15, records.len());
 
-        /*
         let first = records.remove(0);
-        let second = records.remove(0);
-
-        assert_eq!("mock.example.com", &first.name);
-        assert_eq!(
-            Some(Url::parse("https://mock.example.com/login")?),
-            first.url
-        );
-        assert_eq!("mock@example.com", &first.username);
-        assert_eq!("XXX-MOCK-1", &first.password);
-
-        assert_eq!("mock2.example.com", &second.name);
-        assert_eq!(
-            Some(Url::parse("https://mock2.example.com/login")?),
-            second.url
-        );
-        assert_eq!("mock2@example.com", &second.username);
-        assert_eq!("XXX-MOCK-2", &second.password);
-        */
+        if let DashlaneRecord::Password(record) = first {
+            assert_eq!("example.com", &record.title);
+            assert_eq!("mock-user", &record.username);
+            assert_eq!("MOCK-1", &record.password);
+            assert_eq!(Some(Url::parse("https://example.com")?), record.url);
+            assert_eq!("Entertainment", &record.category);
+            assert_eq!("Some notes about the login.", &record.note);
+        } else {
+            panic!("expecting a password record");
+        }
 
         Ok(())
     }
 
-    /*
     #[test]
     fn dashlane_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
         vault.initialize(passphrase.expose_secret(), None)?;
 
-        let vault = DashlanePasswordCsv.convert(
-            "fixtures/dashlane-export.csv".into(),
+        let vault = DashlaneCsvZip.convert(
+            "fixtures/dashlane-export.zip".into(),
             vault,
             passphrase.clone(),
         )?;
@@ -560,13 +642,24 @@ mod test {
         keeper.create_search_index()?;
 
         let search = search_index.read();
-        let first = search.find_by_label(keeper.id(), "mock.example.com");
-        assert!(first.is_some());
+        assert_eq!(15, search.len());
 
-        let second = search.find_by_label(keeper.id(), "mock2.example.com");
-        assert!(second.is_some());
+        let search = search_index.read();
+        let password = search.find_by_label(keeper.id(), "example.com");
+        assert!(password.is_some());
+
+        let id = search.find_by_label(keeper.id(), "Mock Passport");
+        assert!(id.is_some());
+
+        let payment = search.find_by_label(keeper.id(), "Bank account");
+        assert!(payment.is_some());
+
+        let contact = search.find_by_label(keeper.id(), "Mock Email");
+        assert!(contact.is_some());
+
+        let note = search.find_by_label(keeper.id(), "Mock note");
+        assert!(note.is_some());
 
         Ok(())
     }
-    */
 }

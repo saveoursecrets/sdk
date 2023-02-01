@@ -88,11 +88,38 @@ impl From<GenericCsvEntry> for Secret {
                 user_data: Default::default(),
             },
             GenericCsvEntry::Payment(record) => match record {
-                GenericPaymentRecord::Card { .. } => {
-                    todo!();
+                GenericPaymentRecord::Card {
+                    number,
+                    code,
+                    expiration,
+                    ..
+                } => {
+                    // TODO: handle country?
+                    Secret::Card {
+                        number: SecretString::new(number),
+                        cvv: SecretString::new(code),
+                        expiry: SecretString::new(
+                            expiration.unwrap_or_default(),
+                        ),
+                        name: None,
+                        atm_pin: None,
+                        user_data: Default::default(),
+                    }
                 }
-                GenericPaymentRecord::BankAccount { .. } => {
-                    todo!();
+                GenericPaymentRecord::BankAccount {
+                    account_number,
+                    routing_number,
+                    ..
+                } => {
+                    // TODO: handle country and account_holder
+                    Secret::Bank {
+                        number: SecretString::new(account_number),
+                        routing: SecretString::new(routing_number),
+                        bic: None,
+                        iban: None,
+                        swift: None,
+                        user_data: Default::default(),
+                    }
                 }
             },
             GenericCsvEntry::Contact(record) => Secret::Contact {
