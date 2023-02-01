@@ -8,12 +8,14 @@ use std::{
     path::{Path, PathBuf},
 };
 use url::Url;
+use vcard4::{time::Date, uriparse::URI as Uri, VcardBuilder};
 
 use sos_core::{secret::IdentificationKind, vault::Vault, Timestamp};
 
 use super::{
-    GenericCsvConvert, GenericCsvEntry, GenericIdRecord, GenericNoteRecord,
-    GenericPasswordRecord, GenericPaymentRecord, UNTITLED,
+    GenericContactRecord, GenericCsvConvert, GenericCsvEntry,
+    GenericIdRecord, GenericNoteRecord, GenericPasswordRecord,
+    GenericPaymentRecord, UNTITLED,
 };
 use crate::{Convert, Result};
 
@@ -27,6 +29,8 @@ pub enum DashlaneRecord {
     Id(DashlaneIdRecord),
     /// Payment record.
     Payment(DashlanePaymentRecord),
+    /// Contact record.
+    Contact(DashlaneContactRecord),
 }
 
 impl From<DashlaneRecord> for GenericCsvEntry {
@@ -40,8 +44,10 @@ impl From<DashlaneRecord> for GenericCsvEntry {
             }
             DashlaneRecord::Id(record) => GenericCsvEntry::Id(record.into()),
             DashlaneRecord::Payment(record) => {
-                todo!()
-                //GenericCsvEntry::Payment(record.into()),
+                GenericCsvEntry::Payment(record.into())
+            }
+            DashlaneRecord::Contact(record) => {
+                GenericCsvEntry::Contact(record.into())
             }
         }
     }
@@ -286,6 +292,135 @@ impl From<DashlanePasswordRecord> for GenericPasswordRecord {
     }
 }
 
+/// Record for an entry in a Dashlane personalInfo CSV export.
+#[derive(Deserialize)]
+pub struct DashlaneContactRecord {
+    /// The item name of the entry.
+    pub item_name: String,
+
+    /// The title.
+    pub title: String,
+    /// The first name.
+    pub first_name: String,
+    /// The middle name.
+    pub middle_name: String,
+    /// The last name.
+    pub last_name: String,
+
+    /// The phone number.
+    pub phone_number: String,
+    /// An email address.
+    pub email: String,
+    /// A website URL.
+    pub url: String,
+
+    /// A date of birth.
+    pub date_of_birth: String,
+
+    /// A job title.
+    pub job_title: String,
+}
+
+impl From<DashlaneContactRecord> for DashlaneRecord {
+    fn from(value: DashlaneContactRecord) -> Self {
+        Self::Contact(value)
+    }
+}
+
+impl From<DashlaneContactRecord> for GenericContactRecord {
+    fn from(value: DashlaneContactRecord) -> Self {
+        let has_some_name_parts = !value.last_name.is_empty()
+            || !value.first_name.is_empty()
+            || !value.middle_name.is_empty()
+            || !value.title.is_empty();
+
+        let name: [String; 5] = [
+            value.last_name.clone(),
+            value.first_name.clone(),
+            value.middle_name.clone(),
+            value.title.clone(),
+            String::new(),
+        ];
+
+        let formatted_name = if has_some_name_parts {
+            let mut parts: Vec<String> = Vec::new();
+            if !value.title.is_empty() {
+                parts.push(value.title);
+            }
+            if !value.first_name.is_empty() {
+                parts.push(value.first_name);
+            }
+            if !value.middle_name.is_empty() {
+                parts.push(value.middle_name);
+            }
+            if !value.last_name.is_empty() {
+                parts.push(value.last_name);
+            }
+            parts.join(" ")
+        } else {
+            if !value.item_name.is_empty() {
+                value.item_name.clone()
+            } else {
+                UNTITLED.to_owned()
+            }
+        };
+
+        let label = if value.item_name.is_empty() {
+            formatted_name.clone()
+        } else {
+            if !value.item_name.is_empty() {
+                value.item_name
+            } else {
+                UNTITLED.to_owned()
+            }
+        };
+
+        let date_of_birth: Option<Date> = if !value.date_of_birth.is_empty() {
+            if let Ok(date_time) =
+                Timestamp::parse_simple_date(&value.date_of_birth)
+            {
+                Some(date_time.into_date())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let url: Option<Uri<'static>> = if !value.url.is_empty() {
+            Uri::try_from(&value.url[..]).ok().map(|u| u.into_owned())
+        } else {
+            None
+        };
+
+        let mut builder = VcardBuilder::new(formatted_name);
+        if has_some_name_parts {
+            builder = builder.name(name);
+        }
+        if !value.phone_number.is_empty() {
+            builder = builder.telephone(value.phone_number);
+        }
+        if !value.email.is_empty() {
+            builder = builder.email(value.email);
+        }
+        if let Some(url) = url {
+            builder = builder.url(url);
+        }
+        if !value.job_title.is_empty() {
+            builder = builder.title(value.job_title);
+        }
+        if let Some(date) = date_of_birth {
+            builder = builder.birthday(date);
+        }
+        let vcard = builder.finish();
+        Self {
+            label,
+            vcard,
+            tags: None,
+        }
+    }
+}
+
 /// Parse records from a path.
 pub fn parse_path<P: AsRef<Path>>(path: P) -> Result<Vec<DashlaneRecord>> {
     parse(File::open(path.as_ref())?)
@@ -327,7 +462,11 @@ fn parse<R: Read + Seek>(rdr: R) -> Result<Vec<DashlaneRecord>> {
                 }
             }
             "personalInfo.csv" => {
-                todo!()
+                let mut rdr = csv::Reader::from_reader(file);
+                for result in rdr.deserialize() {
+                    let record: DashlaneContactRecord = result?;
+                    records.push(record.into());
+                }
             }
             _ => {
                 eprintln!(

@@ -14,6 +14,7 @@ use std::{
     sync::Arc,
 };
 use url::Url;
+use vcard4::Vcard;
 
 use sos_core::{
     search::SearchIndex,
@@ -37,6 +38,8 @@ pub enum GenericCsvEntry {
     Id(GenericIdRecord),
     /// Payment entry.
     Payment(GenericPaymentRecord),
+    /// Contact entry.
+    Contact(GenericContactRecord),
 }
 
 impl GenericCsvEntry {
@@ -47,6 +50,7 @@ impl GenericCsvEntry {
             Self::Note(record) => &record.label,
             Self::Id(record) => &record.label,
             Self::Payment(record) => record.label(),
+            Self::Contact(record) => &record.label,
         }
     }
 
@@ -57,6 +61,7 @@ impl GenericCsvEntry {
             Self::Note(record) => &mut record.tags,
             Self::Id(record) => &mut record.tags,
             Self::Payment(record) => record.tags(),
+            Self::Contact(record) => &mut record.tags,
         }
     }
 }
@@ -82,9 +87,18 @@ impl From<GenericCsvEntry> for Secret {
                 expiration_date: record.expiration_date,
                 user_data: Default::default(),
             },
-            GenericCsvEntry::Payment(record) => {
-                todo!();
-            }
+            GenericCsvEntry::Payment(record) => match record {
+                GenericPaymentRecord::Card { .. } => {
+                    todo!();
+                }
+                GenericPaymentRecord::BankAccount { .. } => {
+                    todo!();
+                }
+            },
+            GenericCsvEntry::Contact(record) => Secret::Contact {
+                vcard: Box::new(record.vcard),
+                user_data: Default::default(),
+            },
         }
     }
 }
@@ -116,6 +130,16 @@ pub struct GenericNoteRecord {
     pub tags: Option<HashSet<String>>,
 }
 
+/// Generic contact record.
+pub struct GenericContactRecord {
+    /// The label of the entry.
+    pub label: String,
+    /// The vcard for the entry.
+    pub vcard: Vcard,
+    /// Collection of tags.
+    pub tags: Option<HashSet<String>>,
+}
+
 /// Generic identification record.
 pub struct GenericIdRecord {
     /// The label of the entry.
@@ -136,6 +160,7 @@ pub struct GenericIdRecord {
 
 /// Generic payment record.
 pub enum GenericPaymentRecord {
+    /// Card payment information.
     Card {
         /// The label of the entry.
         label: String,
@@ -152,6 +177,7 @@ pub enum GenericPaymentRecord {
         /// Collection of tags.
         tags: Option<HashSet<String>>,
     },
+    /// Bank account payment information.
     BankAccount {
         /// The label of the entry.
         label: String,

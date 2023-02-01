@@ -2960,7 +2960,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid 1.2.2",
- "vcard4",
+ "vcard4 0.1.6",
  "web3-address",
  "zeroize",
 ]
@@ -3009,7 +3009,7 @@ dependencies = [
  "url",
  "urn",
  "uuid 1.2.2",
- "vcard4",
+ "vcard4 0.2.0",
  "web3-address",
  "web3-signature",
  "zeroize",
@@ -3034,6 +3034,7 @@ dependencies = [
  "tar",
  "thiserror",
  "url",
+ "vcard4 0.2.0",
  "zip",
 ]
 
@@ -3874,6 +3875,23 @@ name = "vcard4"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc82a81c37f7eacc70ec7b6bf219b2a2b45b3d2b5cdecfb30371948131ee4308"
+dependencies = [
+ "aho-corasick",
+ "language-tags",
+ "logos",
+ "serde",
+ "thiserror",
+ "time",
+ "unicode-segmentation",
+ "uriparse",
+ "zeroize",
+]
+
+[[package]]
+name = "vcard4"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e53d8d10ba22592939e8ba5ca4397ce71cfca90743e525bf48002f71a4bc2849"
 dependencies = [
  "aho-corasick",
  "language-tags",

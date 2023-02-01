@@ -67,10 +67,20 @@ impl Timestamp {
     pub fn to_rfc3339(&self) -> Result<String> {
         Timestamp::rfc3339(&self.0)
     }
-
+    
     /// Convert an offset date time to a RFC3339 formatted string.
     fn rfc3339(datetime: &OffsetDateTime) -> Result<String> {
         Ok(datetime.format(&Rfc3339)?)
+    }
+
+    /// Convert to a date component.
+    pub fn into_date(self) -> Date {
+        self.0.date()
+    }
+
+    /// Convert to a time component.
+    pub fn into_time(self) -> Time {
+        self.0.time()
     }
 }
 

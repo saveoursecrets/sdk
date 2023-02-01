@@ -40,7 +40,7 @@ log = "0.4"
 http = "0.2"
 passwords = "3"
 totp-sos = { version = "3", features = ["serde"] }
-vcard4 = { version = "0.1.6", features = ["serde"] }
+vcard4 = { version = "0.2", features = ["serde"] }
 parking_lot = "0.12"
 urn = { version = "0.5", features = ["serde"] }
 
