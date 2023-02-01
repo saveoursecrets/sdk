@@ -8,7 +8,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use url::Url;
-use vcard4::{time::Date, uriparse::URI as Uri, VcardBuilder};
+use time::Date;
+use vcard4::{uriparse::URI as Uri, VcardBuilder};
 
 use sos_core::{secret::IdentificationKind, vault::Vault, Timestamp};
 
