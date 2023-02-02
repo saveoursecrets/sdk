@@ -621,6 +621,12 @@ pub enum IdentificationKind {
     MedicalCard,
 }
 
+impl From<IdentificationKind> for u8 {
+    fn from(value: IdentificationKind) -> Self {
+        (&value).into()
+    }
+}
+
 impl From<&IdentificationKind> for u8 {
     fn from(value: &IdentificationKind) -> Self {
         match value {

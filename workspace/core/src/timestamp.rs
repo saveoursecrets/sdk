@@ -43,6 +43,11 @@ impl Timestamp {
         let offset_date_time = offset_date_time.replace_time(Time::MIDNIGHT);
         Ok(Self(offset_date_time))
     }
+    
+    /// Parse as RFC3339.
+    pub fn parse_rfc3339(value: &str) -> Result<Self> {
+        Ok(Self(OffsetDateTime::parse(value, &Rfc3339)?))
+    }
 
     /// Convert to a short human-readable date and time without
     /// the timezone offset.
