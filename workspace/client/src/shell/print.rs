@@ -157,6 +157,14 @@ pub(super) fn secret(
             }
             banner.text(Cow::Owned(value))
         }
+        Secret::Identification {
+            id_kind, number, ..
+        } => {
+            let mut value = String::new();
+            value.push_str(&format!("Kind: {}\n", id_kind));
+            value.push_str(&format!("Number: {}\n", number.expose_secret()));
+            banner.text(Cow::Owned(value))
+        }
     };
 
     let result = banner.render();

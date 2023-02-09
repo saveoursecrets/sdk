@@ -182,8 +182,8 @@ pub struct SecretMeta {
     tags: HashSet<String>,
     /// A URN identifier for this secret.
     ///
-    /// This is used when an identity vault stores passphrases 
-    /// for other vaults folders on behalf of a user and can also 
+    /// This is used when an identity vault stores passphrases
+    /// for other vaults folders on behalf of a user and can also
     /// be used to assign a predictable identifier to a secret.
     #[serde(skip_serializing_if = "Option::is_none")]
     urn: Option<Urn>,
@@ -639,6 +639,23 @@ pub enum IdentificationKind {
     TaxNumber,
     /// Medical card identification.
     MedicalCard,
+}
+
+impl fmt::Display for IdentificationKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::IdCard => "Id",
+                Self::Passport => "Passport",
+                Self::DriverLicense => "Driver license",
+                Self::SocialSecurity => "Social security",
+                Self::TaxNumber => "Tax number",
+                Self::MedicalCard => "Medical card",
+            }
+        )
+    }
 }
 
 impl From<IdentificationKind> for u8 {
