@@ -10,7 +10,9 @@ use url::Url;
 
 use sos_core::vault::Vault;
 
-use super::{GenericCsvConvert, GenericPasswordRecord};
+use super::{
+    GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
+};
 use crate::{Convert, Result};
 
 /// Record for an entry in a Chrome passwords CSV export.
@@ -28,13 +30,25 @@ pub struct ChromePasswordRecord {
 
 impl From<ChromePasswordRecord> for GenericPasswordRecord {
     fn from(value: ChromePasswordRecord) -> Self {
+        let label = if value.name.is_empty() {
+            UNTITLED.to_owned()
+        } else {
+            value.name
+        };
         Self {
-            label: value.name,
+            label,
             url: value.url,
             username: value.username,
             password: value.password,
             otp_auth: None,
+            tags: None,
         }
+    }
+}
+
+impl From<ChromePasswordRecord> for GenericCsvEntry {
+    fn from(value: ChromePasswordRecord) -> Self {
+        Self::Password(value.into())
     }
 }
 
@@ -68,13 +82,14 @@ impl Convert for ChromePasswordCsv {
     type Input = PathBuf;
 
     fn convert(
+        &self,
         source: Self::Input,
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
-        let records: Vec<GenericPasswordRecord> =
+        let records: Vec<GenericCsvEntry> =
             parse_path(source)?.into_iter().map(|r| r.into()).collect();
-        GenericCsvConvert::convert(records, vault, password)
+        GenericCsvConvert.convert(records, vault, password)
     }
 }
 
@@ -100,7 +115,10 @@ mod test {
         let second = records.remove(0);
 
         assert_eq!("mock.example.com", &first.name);
-        assert_eq!(Some(Url::parse("https://mock.example.com/login")?), first.url);
+        assert_eq!(
+            Some(Url::parse("https://mock.example.com/login")?),
+            first.url
+        );
         assert_eq!("mock@example.com", &first.username);
         assert_eq!("XXX-MOCK-1", &first.password);
 
@@ -121,7 +139,7 @@ mod test {
         let mut vault: Vault = Default::default();
         vault.initialize(passphrase.expose_secret(), None)?;
 
-        let vault = ChromePasswordCsv::convert(
+        let vault = ChromePasswordCsv.convert(
             "fixtures/chrome-export.csv".into(),
             vault,
             passphrase.clone(),
