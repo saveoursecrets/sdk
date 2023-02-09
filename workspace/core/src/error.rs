@@ -55,10 +55,6 @@ pub enum Error {
     #[error("unknown event kind {0}")]
     UnknownEventKind(u16),
 
-    /// Error generated when the kind of an identification secret is unknown.
-    #[error("unknown identification kind {0}")]
-    UnknownIdentificationKind(u8),
-
     /// Error generated when an AeadPack contains a nonce that
     /// is invalid for the decryption algorithm.
     #[error("invalid nonce")]
@@ -270,11 +266,6 @@ pub enum Error {
     //#[cfg(not(target_arch = "wasm32"))]
     #[error(transparent)]
     TimeFormat(#[from] time::error::Format),
-
-    /// Error generated parsing time.
-    //#[cfg(not(target_arch = "wasm32"))]
-    #[error(transparent)]
-    TimeParse(#[from] time::error::Parse),
 
     /// Error generated creating format descriptions for date formatting.
     //#[cfg(not(target_arch = "wasm32"))]

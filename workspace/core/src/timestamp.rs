@@ -15,7 +15,7 @@ use time::{
         self,
         well_known::{Rfc2822, Rfc3339},
     },
-    Date, Duration, OffsetDateTime, Time, UtcOffset,
+    Duration, OffsetDateTime, UtcOffset,
 };
 
 use crate::Result;
@@ -33,22 +33,6 @@ impl Default for Timestamp {
 }
 
 impl Timestamp {
-    /// Parse from a simple date format YYYY-MM-DD.
-    pub fn parse_simple_date(s: &str) -> Result<Self> {
-        let date_separator =
-            format_description::parse("[year]-[month]-[day]")?;
-        let date = Date::parse(s, &date_separator)?;
-        let offset_date_time = OffsetDateTime::now_utc();
-        let offset_date_time = offset_date_time.replace_date(date);
-        let offset_date_time = offset_date_time.replace_time(Time::MIDNIGHT);
-        Ok(Self(offset_date_time))
-    }
-
-    /// Parse as RFC3339.
-    pub fn parse_rfc3339(value: &str) -> Result<Self> {
-        Ok(Self(OffsetDateTime::parse(value, &Rfc3339)?))
-    }
-
     /// Convert to a short human-readable date and time without
     /// the timezone offset.
     pub fn to_date_time(&self) -> Result<String> {
@@ -76,16 +60,6 @@ impl Timestamp {
     /// Convert an offset date time to a RFC3339 formatted string.
     fn rfc3339(datetime: &OffsetDateTime) -> Result<String> {
         Ok(datetime.format(&Rfc3339)?)
-    }
-
-    /// Convert to a date component.
-    pub fn into_date(self) -> Date {
-        self.0.date()
-    }
-
-    /// Convert to a time component.
-    pub fn into_time(self) -> Time {
-        self.0.time()
     }
 }
 

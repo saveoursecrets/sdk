@@ -22,7 +22,6 @@ pub trait Convert {
 
     /// Write the input secrets type to the specified vault.
     fn convert(
-        &self,
         source: Self::Input,
         vault: Vault,
         password: SecretString,
