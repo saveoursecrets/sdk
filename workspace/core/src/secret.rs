@@ -641,6 +641,19 @@ pub enum IdentificationKind {
     MedicalCard,
 }
 
+impl fmt::Display for IdentificationKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Self::IdCard => "Id",
+            Self::Passport => "Passport",
+            Self::DriverLicense => "Driver license",
+            Self::SocialSecurity => "Social security",
+            Self::TaxNumber => "Tax number",
+            Self::MedicalCard => "Medical card",
+        })
+    }
+}
+
 impl From<IdentificationKind> for u8 {
     fn from(value: IdentificationKind) -> Self {
         (&value).into()
