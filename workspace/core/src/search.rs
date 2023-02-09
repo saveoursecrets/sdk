@@ -275,17 +275,46 @@ impl SearchIndex {
             .find(|d| d.vault_id() == vault_id && d.meta().label() == label)
     }
 
+    /// Find document by label in any vault.
+    pub fn find_by_label_any<'a>(
+        &'a self,
+        label: &str,
+        id: Option<&SecretId>,
+        case_insensitive: bool,
+    ) -> Option<&'a Document> {
+        self.documents
+            .values()
+            .filter(|d| {
+                if let Some(id) = id {
+                    if id == d.id() {
+                        false
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                }
+            })
+            .find(|d| {
+                if case_insensitive {
+                    d.meta().label().to_lowercase() == label.to_lowercase()
+                } else {
+                    d.meta().label() == label
+                }
+            })
+    }
+
     /// Find all documents with the given label ignoring
     /// a particular identifier.
     pub fn find_all_by_label<'a>(
         &'a self,
         label: &str,
-        id: Option<SecretId>,
+        id: Option<&SecretId>,
     ) -> Vec<&'a Document> {
         self.documents
             .iter()
             .filter(|(k, v)| {
-                if let Some(id) = &id {
+                if let Some(id) = id {
                     if id == &k.1 {
                         false
                     } else {
