@@ -56,10 +56,11 @@ impl AccountManager {
     pub fn new_account(
         account_name: String,
         passphrase: SecretString,
+        save_passphrase: bool,
     ) -> Result<(String, AuthenticatedUser, Summary)> {
         // Prepare the identity vault
         let (address, identity_vault) =
-            Identity::new_login_vault(account_name, passphrase.clone())?;
+            Identity::new_login_vault(account_name.clone(), passphrase.clone())?;
 
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
@@ -74,6 +75,24 @@ impl AccountManager {
         let mut default_vault: Vault = Default::default();
         default_vault.set_default_flag(true);
         default_vault.initialize(vault_passphrase.expose_secret(), None)?;
+        
+        // Save the master passphrase in the default vault
+        if save_passphrase {
+            let mut keeper = Gatekeeper::new(default_vault, None);
+            keeper.unlock(vault_passphrase.expose_secret())?;
+            
+            let secret = Secret::Account {
+                account: format!("{} ({})", account_name, address),
+                password: passphrase.clone(),
+                url: None,
+                user_data: Default::default(),
+            };
+            let meta = SecretMeta::new(
+                "Master Passphrase".to_string(), secret.kind());
+            keeper.create(meta, secret)?;
+
+            default_vault = keeper.take();
+        }
 
         // Store the vault passphrase in the identity vault
         let mut keeper = Gatekeeper::new(identity_vault, None);
