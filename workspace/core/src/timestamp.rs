@@ -43,7 +43,7 @@ impl Timestamp {
         let offset_date_time = offset_date_time.replace_time(Time::MIDNIGHT);
         Ok(Self(offset_date_time))
     }
-    
+
     /// Parse as RFC3339.
     pub fn parse_rfc3339(value: &str) -> Result<Self> {
         Ok(Self(OffsetDateTime::parse(value, &Rfc3339)?))
@@ -72,7 +72,7 @@ impl Timestamp {
     pub fn to_rfc3339(&self) -> Result<String> {
         Timestamp::rfc3339(&self.0)
     }
-    
+
     /// Convert an offset date time to a RFC3339 formatted string.
     fn rfc3339(datetime: &OffsetDateTime) -> Result<String> {
         Ok(datetime.format(&Rfc3339)?)
