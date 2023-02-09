@@ -181,6 +181,10 @@ pub struct SecretMeta {
     #[serde(skip_serializing_if = "HashSet::is_empty")]
     tags: HashSet<String>,
     /// A URN identifier for this secret.
+    ///
+    /// This is used when an identity vault stores passphrases 
+    /// for other vaults folders on behalf of a user and can also 
+    /// be used to assign a predictable identifier to a secret.
     #[serde(skip_serializing_if = "Option::is_none")]
     urn: Option<Urn>,
     /// An optional owner identifier.
@@ -190,6 +194,8 @@ pub struct SecretMeta {
     /// of the third-party application.
     #[serde(skip_serializing_if = "Option::is_none")]
     owner_id: Option<String>,
+    /// Whether this secret is a favorite.
+    favorite: bool,
 }
 
 impl PartialEq for SecretMeta {
@@ -219,6 +225,7 @@ impl SecretMeta {
             tags: Default::default(),
             urn: None,
             owner_id: None,
+            favorite: false,
         }
     }
 
@@ -277,6 +284,16 @@ impl SecretMeta {
         self.owner_id = owner_id;
     }
 
+    /// The favorite for the secret.
+    pub fn favorite(&self) -> bool {
+        self.favorite
+    }
+
+    /// Set the favorite for the secret.
+    pub fn set_favorite(&mut self, favorite: bool) {
+        self.favorite = favorite;
+    }
+
     /// Get an abbreviated short name based
     /// on the kind of secret.
     pub fn short_name(&self) -> &str {
@@ -295,6 +312,7 @@ impl SecretMeta {
             kind::BANK => "BANK",
             kind::LINK => "LINK",
             kind::PASSWORD => "PASSWORD",
+            kind::IDENTIFICATION => "ID",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }
@@ -318,6 +336,7 @@ impl Encode for SecretMeta {
         if let Some(owner_id) = &self.owner_id {
             writer.write_string(owner_id)?;
         }
+        writer.write_bool(self.favorite)?;
         Ok(())
     }
 }
@@ -346,6 +365,7 @@ impl Decode for SecretMeta {
             let owner_id = reader.read_string()?;
             self.owner_id = Some(owner_id.parse().map_err(Box::from)?);
         }
+        self.favorite = reader.read_bool()?;
         Ok(())
     }
 }
