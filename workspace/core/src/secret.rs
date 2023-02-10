@@ -561,6 +561,15 @@ pub struct UserData {
 }
 
 impl UserData {
+    /// Create user data with a note.
+    pub fn new_note(value: String) -> Self {
+        Self {
+            fields: Default::default(),
+            note: Some(value),
+            recovery_note: Default::default(),
+        }
+    }
+
     /// Get the number of user data.
     pub fn len(&self) -> usize {
         self.fields.len()
