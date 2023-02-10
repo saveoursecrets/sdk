@@ -89,10 +89,11 @@ impl AccountManager {
                 url: None,
                 user_data: UserData::new_note(address.to_owned()),
             };
-            let meta = SecretMeta::new(
+            let mut meta = SecretMeta::new(
                 "Master Passphrase".to_string(),
                 secret.kind(),
             );
+            meta.set_favorite(true);
             keeper.create(meta, secret)?;
 
             default_vault = keeper.take();
