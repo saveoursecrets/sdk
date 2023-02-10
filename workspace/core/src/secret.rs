@@ -547,9 +547,17 @@ pub struct UserData {
     /// Collection of custom user_data.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     fields: Vec<UserField>,
-    /// Recovery nodes.
+    /// Note or comment for the secret.
     #[serde(skip_serializing_if = "Option::is_none")]
-    recovery_notes: Option<String>,
+    note: Option<String>,
+    /// Recovery notes.
+    ///
+    /// These are notes specific for a person that might recover
+    /// the vault information and is intended to provide additional
+    /// information on how to use this secret in the event of an
+    /// emergency.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recovery_note: Option<String>,
 }
 
 impl UserData {
@@ -560,12 +568,12 @@ impl UserData {
 
     /// Determine of there are any user data fields.
     pub fn is_empty(&self) -> bool {
-        self.len() == 0 && self.recovery_notes.is_none()
+        self.len() == 0 && self.recovery_note.is_none()
     }
 
     /// Determine of there are any user data.
     pub fn is_default(&self) -> bool {
-        self.is_empty() && self.recovery_notes.is_none()
+        self.is_empty() && self.recovery_note.is_none()
     }
 
     /// Get the user fields.
@@ -583,14 +591,24 @@ impl UserData {
         self.fields.push(field);
     }
 
+    /// Get the note.
+    pub fn note(&self) -> Option<&str> {
+        self.note.as_ref().map(|s| &s[..])
+    }
+
+    /// Set the note.
+    pub fn set_note(&mut self, note: Option<String>) {
+        self.note = note;
+    }
+
     /// Get the recovery notes.
-    pub fn recovery_notes(&self) -> Option<&String> {
-        self.recovery_notes.as_ref()
+    pub fn recovery_note(&self) -> Option<&str> {
+        self.recovery_note.as_ref().map(|s| &s[..])
     }
 
     /// Set the recovery notes.
-    pub fn set_recovery_notes(&mut self, notes: Option<String>) {
-        self.recovery_notes = notes;
+    pub fn set_recovery_note(&mut self, notes: Option<String>) {
+        self.recovery_note = notes;
     }
 }
 
@@ -602,9 +620,13 @@ fn write_user_data(
     for field in user_data.fields() {
         field.encode(writer)?;
     }
-    writer.write_bool(user_data.recovery_notes.is_some())?;
-    if let Some(recovery_notes) = &user_data.recovery_notes {
-        writer.write_string(recovery_notes)?;
+    writer.write_bool(user_data.note.is_some())?;
+    if let Some(note) = &user_data.note {
+        writer.write_string(note)?;
+    }
+    writer.write_bool(user_data.recovery_note.is_some())?;
+    if let Some(recovery_note) = &user_data.recovery_note {
+        writer.write_string(recovery_note)?;
     }
     Ok(())
 }
@@ -617,9 +639,13 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
         field.decode(reader)?;
         user_data.push(field);
     }
-    let has_recovery_notes = reader.read_bool()?;
-    if has_recovery_notes {
-        user_data.recovery_notes = Some(reader.read_string()?);
+    let has_note = reader.read_bool()?;
+    if has_note {
+        user_data.note = Some(reader.read_string()?);
+    }
+    let has_recovery_note = reader.read_bool()?;
+    if has_recovery_note {
+        user_data.recovery_note = Some(reader.read_string()?);
     }
     Ok(user_data)
 }
@@ -2134,6 +2160,8 @@ mod test {
     #[test]
     fn secret_encode_user_data() -> Result<()> {
         let mut user_data: UserData = Default::default();
+        user_data.set_note(Some("Comment".to_string()));
+        user_data.set_recovery_note(Some("Recovery".to_string()));
         user_data.push(UserField::Heading {
             text: "Debit Card".to_string(),
         });
@@ -2180,6 +2208,12 @@ END:VCARD"#;
 
         assert_eq!(secret, decoded);
         assert_eq!(5, decoded.user_data().len());
+
+        assert!(matches!(decoded.user_data().note(), Some("Comment")));
+        assert!(matches!(
+            decoded.user_data().recovery_note(),
+            Some("Recovery")
+        ));
 
         assert!(matches!(
             decoded.user_data().fields().get(0).unwrap(),
