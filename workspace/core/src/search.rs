@@ -83,6 +83,8 @@ pub struct DocumentCount {
     kinds: HashMap<u8, usize>,
     /// Map tags to counts.
     tags: HashMap<String, usize>,
+    /// Count number of favorites.
+    favorites: usize,
 }
 
 impl DocumentCount {
@@ -101,11 +103,16 @@ impl DocumentCount {
         &self.tags
     }
 
+    /// Get the count of favorites.
+    pub fn favorites(&self) -> usize {
+        self.favorites
+    }
+
     /// Document was removed, update the count.
     fn remove(
         &mut self,
         vault_id: VaultId,
-        mut options: Option<(u8, HashSet<String>)>,
+        mut options: Option<(u8, HashSet<String>, bool)>,
     ) {
         self.vaults
             .entry(vault_id)
@@ -115,7 +122,7 @@ impl DocumentCount {
                 }
             })
             .or_insert(0);
-        if let Some((kind, tags)) = options.take() {
+        if let Some((kind, tags, favorite)) = options.take() {
             self.kinds
                 .entry(kind)
                 .and_modify(|counter| {
@@ -141,11 +148,23 @@ impl DocumentCount {
                     self.tags.remove(tag);
                 }
             }
+
+            if favorite {
+                if self.favorites > 0 {
+                    self.favorites -= 1;
+                }
+            }
         }
     }
 
     /// Document was added, update the count.
-    fn add(&mut self, vault_id: VaultId, kind: u8, tags: &HashSet<String>) {
+    fn add(
+        &mut self,
+        vault_id: VaultId,
+        kind: u8,
+        tags: &HashSet<String>,
+        favorite: bool,
+    ) {
         self.vaults
             .entry(vault_id)
             .and_modify(|counter| *counter += 1)
@@ -159,6 +178,10 @@ impl DocumentCount {
                 .entry(tag.to_owned())
                 .and_modify(|counter| *counter += 1)
                 .or_insert(1);
+        }
+
+        if favorite {
+            self.favorites += 1;
         }
     }
 }
@@ -374,9 +397,12 @@ impl SearchIndex {
             doc,
         );
 
-        self.statistics
-            .count
-            .add(*vault_id, kind, doc.meta().tags());
+        self.statistics.count.add(
+            *vault_id,
+            kind,
+            doc.meta().tags(),
+            doc.meta().favorite(),
+        );
     }
 
     /// Update a document in the index.
@@ -399,7 +425,13 @@ impl SearchIndex {
             .cloned();
         let doc_info = if let Some(key) = &key {
             let doc = self.documents.remove(key);
-            doc.map(|doc| (*doc.meta().kind(), doc.meta().tags().clone()))
+            doc.map(|doc| {
+                (
+                    *doc.meta().kind(),
+                    doc.meta().tags().clone(),
+                    doc.meta().favorite(),
+                )
+            })
         } else {
             None
         };
