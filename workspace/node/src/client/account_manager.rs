@@ -57,7 +57,8 @@ impl AccountManager {
         account_name: String,
         passphrase: SecretString,
         save_passphrase: bool,
-    ) -> Result<(String, AuthenticatedUser, Summary)> {
+        create_archive_vault: bool,
+    ) -> Result<(String, AuthenticatedUser, Summary, Option<Summary>)> {
         // Prepare the identity vault
         let (address, identity_vault) = Identity::new_login_vault(
             account_name.clone(),
@@ -109,6 +110,26 @@ impl AccountManager {
             vault_passphrase,
         )?;
 
+        let archive = if create_archive_vault {
+            // Prepare the passphrase for the archive vault
+            let archive_passphrase = Self::generate_vault_passphrase()?;
+
+            // Prepare the archive vault
+            let mut archive_vault: Vault = Default::default();
+            archive_vault.set_name("Archive".to_string());
+            archive_vault.set_archive_flag(true);
+            archive_vault
+                .initialize(archive_passphrase.expose_secret(), None)?;
+            Self::save_vault_passphrase(
+                &mut keeper,
+                archive_vault.id(),
+                archive_passphrase,
+            )?;
+            Some(archive_vault)
+        } else {
+            None
+        };
+
         // Persist the identity vault to disc, MUST re-encode the buffer
         // as we have modified the identity vault
         let identity_vault_file = Self::identity_vault(&address)?;
@@ -126,7 +147,15 @@ impl AccountManager {
         let summary =
             run_blocking(provider.create_account_with_buffer(buffer))?;
 
-        Ok((address, user, summary))
+        let archive_summary = if let Some(archive_vault) = archive {
+            let buffer = encode(&archive_vault)?;
+            let summary = run_blocking(provider.import_vault(buffer))?;
+            Some(summary)
+        } else {
+            None
+        };
+
+        Ok((address, user, summary, archive_summary))
     }
 
     /// Get the local cache directory.
