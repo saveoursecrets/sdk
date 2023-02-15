@@ -44,7 +44,7 @@ vcard4 = { version = "0.2", features = ["serde"] }
 parking_lot = "0.12"
 urn = { version = "0.5", features = ["serde"] }
 
-binary-stream = { version = "3.3.2", features = ["32bit"] }
+binary-stream = { version = "3.4", features = ["32bit"] }
 
 tar = { version = "0.4", default-features = false }
 flate2 = "1"

@@ -36,7 +36,7 @@ use crate::{
 bitflags! {
     /// Bit flags for a vault.
     #[derive(Default, Serialize, Deserialize)]
-    pub struct VaultFlags: u32 {
+    pub struct VaultFlags: u64 {
         /// Indicates this vault should be treated as the default
         /// folder.
         const DEFAULT           =        0b00000001;
@@ -332,7 +332,7 @@ impl Encode for Summary {
         self.algorithm.encode(&mut *writer)?;
         writer.write_bytes(self.id.as_bytes())?;
         writer.write_string(&self.name)?;
-        writer.write_u32(self.flags.bits())?;
+        writer.write_u64(self.flags.bits())?;
         Ok(())
     }
 }
@@ -351,7 +351,7 @@ impl Decode for Summary {
         let uuid: [u8; 16] = reader.read_bytes(16)?.as_slice().try_into()?;
         self.id = Uuid::from_bytes(uuid);
         self.name = reader.read_string()?;
-        self.flags = VaultFlags::from_bits(reader.read_u32()?)
+        self.flags = VaultFlags::from_bits(reader.read_u64()?)
             .ok_or(Error::InvalidVaultFlags)
             .map_err(Box::from)?;
         Ok(())
