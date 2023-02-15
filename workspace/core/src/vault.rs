@@ -43,6 +43,8 @@ bitflags! {
         /// Indicates this vault is an identity vault used to authenticate
         /// a user.
         const IDENTITY          =        0b00000010;
+        /// Indicates this vault is to be used as an archive.
+        const ARCHIVE           =        0b00000100;
     }
 
 }
@@ -51,6 +53,16 @@ impl VaultFlags {
     /// Determine if this vault is a default vault.
     pub fn is_default(&self) -> bool {
         self.contains(VaultFlags::DEFAULT)
+    }
+
+    /// Determine if this vault is an identity vault.
+    pub fn is_identity(&self) -> bool {
+        self.contains(VaultFlags::IDENTITY)
+    }
+
+    /// Determine if this vault is an archive vault.
+    pub fn is_archive(&self) -> bool {
+        self.contains(VaultFlags::ARCHIVE)
     }
 }
 
@@ -722,6 +734,11 @@ impl Vault {
     /// Set whether this vault is a default vault.
     pub fn set_default_flag(&mut self, value: bool) {
         self.flags_mut().set(VaultFlags::DEFAULT, value);
+    }
+
+    /// Set whether this vault is an archive vault.
+    pub fn set_archive_flag(&mut self, value: bool) {
+        self.flags_mut().set(VaultFlags::ARCHIVE, value);
     }
 
     /// Insert a secret into this vault.
