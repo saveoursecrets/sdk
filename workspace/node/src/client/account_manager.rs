@@ -88,7 +88,7 @@ impl AccountManager {
                 account: account_name,
                 password: passphrase.clone(),
                 url: None,
-                user_data: UserData::new_note(address.to_owned()),
+                user_data: UserData::new_comment(address.to_owned()),
             };
             let mut meta = SecretMeta::new(
                 "Master Passphrase".to_string(),

@@ -547,9 +547,9 @@ pub struct UserData {
     /// Collection of custom user_data.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     fields: Vec<UserField>,
-    /// Note or comment for the secret.
+    /// Comment for the secret.
     #[serde(skip_serializing_if = "Option::is_none")]
-    note: Option<String>,
+    comment: Option<String>,
     /// Recovery notes.
     ///
     /// These are notes specific for a person that might recover
@@ -561,11 +561,11 @@ pub struct UserData {
 }
 
 impl UserData {
-    /// Create user data with a note.
-    pub fn new_note(value: String) -> Self {
+    /// Create user data with a comment.
+    pub fn new_comment(value: String) -> Self {
         Self {
             fields: Default::default(),
-            note: Some(value),
+            comment: Some(value),
             recovery_note: Default::default(),
         }
     }
@@ -600,14 +600,14 @@ impl UserData {
         self.fields.push(field);
     }
 
-    /// Get the note.
-    pub fn note(&self) -> Option<&str> {
-        self.note.as_ref().map(|s| &s[..])
+    /// Get the comment.
+    pub fn comment(&self) -> Option<&str> {
+        self.comment.as_ref().map(|s| &s[..])
     }
 
-    /// Set the note.
-    pub fn set_note(&mut self, note: Option<String>) {
-        self.note = note;
+    /// Set the comment.
+    pub fn set_comment(&mut self, comment: Option<String>) {
+        self.comment = comment;
     }
 
     /// Get the recovery notes.
@@ -629,9 +629,9 @@ fn write_user_data(
     for field in user_data.fields() {
         field.encode(writer)?;
     }
-    writer.write_bool(user_data.note.is_some())?;
-    if let Some(note) = &user_data.note {
-        writer.write_string(note)?;
+    writer.write_bool(user_data.comment.is_some())?;
+    if let Some(comment) = &user_data.comment {
+        writer.write_string(comment)?;
     }
     writer.write_bool(user_data.recovery_note.is_some())?;
     if let Some(recovery_note) = &user_data.recovery_note {
@@ -648,9 +648,9 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
         field.decode(reader)?;
         user_data.push(field);
     }
-    let has_note = reader.read_bool()?;
-    if has_note {
-        user_data.note = Some(reader.read_string()?);
+    let has_comment = reader.read_bool()?;
+    if has_comment {
+        user_data.comment = Some(reader.read_string()?);
     }
     let has_recovery_note = reader.read_bool()?;
     if has_recovery_note {
@@ -2169,7 +2169,7 @@ mod test {
     #[test]
     fn secret_encode_user_data() -> Result<()> {
         let mut user_data: UserData = Default::default();
-        user_data.set_note(Some("Comment".to_string()));
+        user_data.set_comment(Some("Comment".to_string()));
         user_data.set_recovery_note(Some("Recovery".to_string()));
         user_data.push(UserField::Heading {
             text: "Debit Card".to_string(),
@@ -2218,7 +2218,7 @@ END:VCARD"#;
         assert_eq!(secret, decoded);
         assert_eq!(5, decoded.user_data().len());
 
-        assert!(matches!(decoded.user_data().note(), Some("Comment")));
+        assert!(matches!(decoded.user_data().comment(), Some("Comment")));
         assert!(matches!(
             decoded.user_data().recovery_note(),
             Some("Recovery")
