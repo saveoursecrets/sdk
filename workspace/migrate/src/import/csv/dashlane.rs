@@ -635,7 +635,7 @@ mod test {
             passphrase.clone(),
         )?;
 
-        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
+        let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
         keeper.unlock(passphrase.expose_secret())?;

@@ -75,7 +75,7 @@ fn tags_extract(d: &Document) -> Vec<&str> {
 }
 
 /// Count of documents by vault identitier and secret kind.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct DocumentCount {
     /// Count number of documents in each vault.
     vaults: HashMap<VaultId, usize>,
@@ -85,9 +85,26 @@ pub struct DocumentCount {
     tags: HashMap<String, usize>,
     /// Count number of favorites.
     favorites: usize,
+    /// Identifier for an archive vault.
+    ///
+    /// Documents in an archive vault are omitted from the kind counts
+    /// so that client implementations can show correct counts when
+    /// ignoring archived items from lists.
+    archive: Option<VaultId>,
 }
 
 impl DocumentCount {
+    /// Create a new document count.
+    pub fn new(archive: Option<VaultId>) -> Self {
+        Self {
+            vaults: Default::default(),
+            kinds: Default::default(),
+            tags: Default::default(),
+            favorites: Default::default(),
+            archive,
+        }
+    }
+
     /// Get the counts by vault.
     pub fn vaults(&self) -> &HashMap<VaultId, usize> {
         &self.vaults
@@ -108,6 +125,15 @@ impl DocumentCount {
         self.favorites
     }
 
+    /// Determine if a document vault identifier matches
+    /// an archive vault.
+    fn is_archived(&self, vault_id: &VaultId) -> bool {
+        if let Some(archive) = &self.archive {
+            return vault_id == archive;
+        }
+        false
+    }
+
     /// Document was removed, update the count.
     fn remove(
         &mut self,
@@ -123,14 +149,16 @@ impl DocumentCount {
             })
             .or_insert(0);
         if let Some((kind, tags, favorite)) = options.take() {
-            self.kinds
-                .entry(kind)
-                .and_modify(|counter| {
-                    if *counter > 0 {
-                        *counter -= 1;
-                    }
-                })
-                .or_insert(0);
+            if !self.is_archived(&vault_id) {
+                self.kinds
+                    .entry(kind)
+                    .and_modify(|counter| {
+                        if *counter > 0 {
+                            *counter -= 1;
+                        }
+                    })
+                    .or_insert(0);
+            }
 
             for tag in &tags {
                 self.tags
@@ -169,10 +197,13 @@ impl DocumentCount {
             .entry(vault_id)
             .and_modify(|counter| *counter += 1)
             .or_insert(1);
-        self.kinds
-            .entry(kind)
-            .and_modify(|counter| *counter += 1)
-            .or_insert(1);
+
+        if !self.is_archived(&vault_id) {
+            self.kinds
+                .entry(kind)
+                .and_modify(|counter| *counter += 1)
+                .or_insert(1);
+        }
         for tag in tags {
             self.tags
                 .entry(tag.to_owned())
@@ -187,13 +218,20 @@ impl DocumentCount {
 }
 
 /// Collection of statistics for the search index.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct SearchStatistics {
     /// Document counts.
     count: DocumentCount,
 }
 
 impl SearchStatistics {
+    /// Create new statistics.
+    pub fn new(archive: Option<VaultId>) -> Self {
+        Self {
+            count: DocumentCount::new(archive),
+        }
+    }
+
     /// Get the statistics count.
     pub fn count(&self) -> &DocumentCount {
         &self.count
@@ -230,19 +268,19 @@ pub struct SearchIndex {
 
 impl Default for SearchIndex {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl SearchIndex {
     /// Create a new search index.
-    pub fn new() -> Self {
+    pub fn new(archive: Option<VaultId>) -> Self {
         // Create index with N fields
         let index = Index::<(VaultId, SecretId)>::new(2);
         Self {
             index,
             documents: Default::default(),
-            statistics: Default::default(),
+            statistics: SearchStatistics::new(archive),
         }
     }
 
@@ -515,7 +553,7 @@ mod test {
     fn search_index() {
         let vault_id = Uuid::new_v4();
 
-        let mut idx = SearchIndex::new();
+        let mut idx = SearchIndex::new(None);
 
         let secret_kind = 1;
 
