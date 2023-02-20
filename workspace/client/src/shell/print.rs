@@ -125,7 +125,7 @@ pub(super) fn secret(
                     atm_pin.expose_secret()
                 ));
             }
-            value.push_str(&format!("Expiry: {}", expiry.expose_secret()));
+            value.push_str(&format!("Expiry: {}", expiry.to_date_time()?));
             banner.text(Cow::Owned(value))
         }
         Secret::Bank {

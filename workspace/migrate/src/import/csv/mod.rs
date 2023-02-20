@@ -98,9 +98,7 @@ impl From<GenericCsvEntry> for Secret {
                     Secret::Card {
                         number: SecretString::new(number),
                         cvv: SecretString::new(code),
-                        expiry: SecretString::new(
-                            expiration.unwrap_or_default(),
-                        ),
+                        expiry: expiration.unwrap_or_default(),
                         name: None,
                         atm_pin: None,
                         user_data: Default::default(),
@@ -196,7 +194,7 @@ pub enum GenericPaymentRecord {
         /// The CVV code.
         code: String,
         /// An expiration date.
-        expiration: Option<String>,
+        expiration: Option<Timestamp>,
         /// The country for the entry.
         country: String,
         /// A note for the entry.

@@ -904,8 +904,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         number: SecretString,
         /// The expiry data for the card.
-        #[serde(serialize_with = "serialize_secret_string")]
-        expiry: SecretString,
+        expiry: Timestamp,
         /// Card verification value.
         #[serde(serialize_with = "serialize_secret_string")]
         cvv: SecretString,
@@ -1196,9 +1195,7 @@ impl fmt::Debug for Secret {
             Secret::Bank { .. } => f.debug_struct("Bank").finish(),
             Secret::Link { .. } => f.debug_struct("Link").finish(),
             Secret::Password { .. } => f.debug_struct("Password").finish(),
-            Secret::Identity { .. } => {
-                f.debug_struct("Identity").finish()
-            }
+            Secret::Identity { .. } => f.debug_struct("Identity").finish(),
         }
     }
 }
@@ -1453,7 +1450,7 @@ impl PartialEq for Secret {
                 },
             ) => {
                 number_a.expose_secret() == number_b.expose_secret()
-                    && expiry_a.expose_secret() == expiry_b.expose_secret()
+                    && expiry_a == expiry_b
                     && cvv_a.expose_secret() == cvv_b.expose_secret()
                     && name_a.as_ref().map(|s| s.expose_secret())
                         == name_b.as_ref().map(|s| s.expose_secret())
@@ -1714,7 +1711,7 @@ impl Encode for Secret {
                 user_data,
             } => {
                 writer.write_string(number.expose_secret())?;
-                writer.write_string(expiry.expose_secret())?;
+                expiry.encode(&mut *writer)?;
                 writer.write_string(cvv.expose_secret())?;
 
                 writer.write_bool(name.is_some())?;
@@ -1936,7 +1933,10 @@ impl Decode for Secret {
             }
             kind::CARD => {
                 let number = SecretString::new(reader.read_string()?);
-                let expiry = SecretString::new(reader.read_string()?);
+                //let expiry = SecretString::new(reader.read_string()?);
+                let mut expiry: Timestamp = Default::default();
+                expiry.decode(reader)?;
+                //
                 let cvv = SecretString::new(reader.read_string()?);
 
                 let has_name = reader.read_bool()?;
@@ -2127,7 +2127,7 @@ mod test {
         user_data.push(UserField::Embedded {
             secret: Secret::Card {
                 number: SecretString::new("1234567890123456".to_string()),
-                expiry: SecretString::new("01/4022".to_string()),
+                expiry: Default::default(),
                 cvv: SecretString::new("123".to_string()),
                 name: Some(SecretString::new("Miss Jane Doe".to_string())),
                 atm_pin: None,
@@ -2412,7 +2412,7 @@ END:VCARD"#;
     fn secret_encode_card() -> Result<()> {
         let secret = Secret::Card {
             number: SecretString::new("1234567890123456".to_string()),
-            expiry: SecretString::new("03/64".to_string()),
+            expiry: Default::default(),
             cvv: SecretString::new("123".to_string()),
             name: Some(SecretString::new("Mock name".to_string())),
             atm_pin: Some(SecretString::new("123456".to_string())),

@@ -216,13 +216,16 @@ impl From<DashlanePaymentRecord> for GenericPaymentRecord {
             value.account_name
         };
 
-        let expiration = if !value.expiration_month.is_empty()
-            && !value.expiration_year.is_empty()
-        {
-            Some(format!(
-                "{}/{}",
-                value.expiration_month, value.expiration_year
-            ))
+        let expiration = if let (Ok(_), Ok(_)) = (
+            value.expiration_month.parse::<usize>(),
+            value.expiration_year.parse::<usize>(),
+        ) {
+            let date = format!(
+                "{}-{}",
+                value.expiration_year, value.expiration_month
+            );
+
+            Timestamp::parse_year_month(&date).ok()
         } else {
             None
         };

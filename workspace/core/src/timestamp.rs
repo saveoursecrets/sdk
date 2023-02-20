@@ -33,6 +33,16 @@ impl Default for Timestamp {
 }
 
 impl Timestamp {
+    /// Parse from a simple year month format YYYY-MM.
+    pub fn parse_year_month(s: &str) -> Result<Self> {
+        let date_separator = format_description::parse("[year]-[month]")?;
+        let date = Date::parse(s, &date_separator)?;
+        let offset_date_time = OffsetDateTime::now_utc();
+        let offset_date_time = offset_date_time.replace_date(date);
+        let offset_date_time = offset_date_time.replace_time(Time::MIDNIGHT);
+        Ok(Self(offset_date_time))
+    }
+
     /// Parse from a simple date format YYYY-MM-DD.
     pub fn parse_simple_date(s: &str) -> Result<Self> {
         let date_separator =
