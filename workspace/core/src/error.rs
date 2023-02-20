@@ -56,8 +56,8 @@ pub enum Error {
     UnknownEventKind(u16),
 
     /// Error generated when the kind of an identification secret is unknown.
-    #[error("unknown identification kind {0}")]
-    UnknownIdentificationKind(u8),
+    #[error("unknown identity kind {0}")]
+    UnknownIdentityKind(u8),
 
     /// Error generated when an AeadPack contains a nonce that
     /// is invalid for the decryption algorithm.

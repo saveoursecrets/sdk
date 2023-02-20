@@ -186,8 +186,10 @@ enum Add {
     File { path: String, label: Option<String> },
     /// Add a page.
     Page { label: Option<String> },
+    /*
     /// Add a personal identification number.
     Pin { label: Option<String> },
+    */
 }
 
 #[derive(Subcommand, Debug)]
@@ -302,6 +304,7 @@ fn add_page(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
     }
 }
 
+/*
 fn add_pin(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
     let label = get_label(label)?;
 
@@ -316,6 +319,7 @@ fn add_pin(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
     let secret_meta = SecretMeta::new(label, secret.kind());
     Ok(Some((secret_meta, secret)))
 }
+*/
 
 fn add_credentials(
     label: Option<String>,
@@ -671,7 +675,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 Add::Account { label } => add_account(label)?,
                 Add::File { path, label } => add_file(path, label)?,
                 Add::Page { label } => add_page(label)?,
-                Add::Pin { label } => add_pin(label)?,
+                //Add::Pin { label } => add_pin(label)?,
             };
 
             drop(writer);
