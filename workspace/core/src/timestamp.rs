@@ -15,7 +15,7 @@ use time::{
         self,
         well_known::{Rfc2822, Rfc3339},
     },
-    Date, Duration, OffsetDateTime, Time, UtcOffset,
+    Month, Date, Duration, OffsetDateTime, Time, UtcOffset,
 };
 
 use crate::Result;
@@ -33,10 +33,13 @@ impl Default for Timestamp {
 }
 
 impl Timestamp {
-    /// Parse from a simple year month format YYYY-MM.
-    pub fn parse_year_month(s: &str) -> Result<Self> {
-        let date_separator = format_description::parse("[year]-[month]")?;
-        let date = Date::parse(s, &date_separator)?;
+    /// Create from a calendar date.
+    pub fn from_calendar_date(
+        year: i32,
+        month: Month,
+        day: u8,
+    ) -> Result<Self> {
+        let date = Date::from_calendar_date(year, month, day)?;
         let offset_date_time = OffsetDateTime::now_utc();
         let offset_date_time = offset_date_time.replace_date(date);
         let offset_date_time = offset_date_time.replace_time(Time::MIDNIGHT);

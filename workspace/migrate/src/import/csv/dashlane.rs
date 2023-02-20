@@ -8,7 +8,7 @@ use std::{
     io::{Read, Seek},
     path::{Path, PathBuf},
 };
-use time::Date;
+use time::{Date, Month};
 use url::Url;
 use vcard4::{property::DeliveryAddress, uriparse::URI as Uri, VcardBuilder};
 
@@ -216,16 +216,13 @@ impl From<DashlanePaymentRecord> for GenericPaymentRecord {
             value.account_name
         };
 
-        let expiration = if let (Ok(_), Ok(_)) = (
-            value.expiration_month.parse::<usize>(),
-            value.expiration_year.parse::<usize>(),
+        let expiration = if let (Ok(month), Ok(year)) = (
+            value.expiration_month.parse::<u8>(),
+            value.expiration_year.parse::<i32>(),
         ) {
-            let date = format!(
-                "{}-{}",
-                value.expiration_year, value.expiration_month
-            );
-
-            Timestamp::parse_year_month(&date).ok()
+            if let Ok(month) = Month::try_from(month) {
+                Timestamp::from_calendar_date(year, month, 1).ok()
+            } else { None }
         } else {
             None
         };
@@ -602,6 +599,7 @@ mod test {
     use secrecy::ExposeSecret;
     use sos_core::{
         generate_passphrase, search::SearchIndex, vault::Vault, Gatekeeper,
+        secret::Secret,
     };
     use std::sync::Arc;
     use url::Url;
@@ -662,6 +660,21 @@ mod test {
 
         let note = search.find_by_label(keeper.id(), "Mock note");
         assert!(note.is_some());
+
+        let card = search.find_by_label(keeper.id(), "Mock User");
+        assert!(card.is_some());
+
+        if let Some((_, secret, _)) = keeper.read(card.as_ref().unwrap().id())? {
+            //println!("{:#?}", secret);
+            if let Secret::Card { expiry, .. } = secret {
+                println!("{:#?}", expiry);
+            } else {
+                panic!("secret is of the wrong type");
+            }
+
+        } else {
+            panic!("secret not found");
+        }
 
         Ok(())
     }
