@@ -15,7 +15,7 @@ use time::{
         self,
         well_known::{Rfc2822, Rfc3339},
     },
-    Month, Date, Duration, OffsetDateTime, Time, UtcOffset,
+    Date, Duration, Month, OffsetDateTime, Time, UtcOffset,
 };
 
 use crate::Result;

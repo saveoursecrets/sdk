@@ -222,7 +222,9 @@ impl From<DashlanePaymentRecord> for GenericPaymentRecord {
         ) {
             if let Ok(month) = Month::try_from(month) {
                 Timestamp::from_calendar_date(year, month, 1).ok()
-            } else { None }
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -598,8 +600,8 @@ mod test {
     use parking_lot::RwLock;
     use secrecy::ExposeSecret;
     use sos_core::{
-        generate_passphrase, search::SearchIndex, vault::Vault, Gatekeeper,
-        secret::Secret,
+        generate_passphrase, search::SearchIndex, secret::Secret,
+        vault::Vault, Gatekeeper,
     };
     use std::sync::Arc;
     use url::Url;
@@ -664,14 +666,15 @@ mod test {
         let card = search.find_by_label(keeper.id(), "Mock User");
         assert!(card.is_some());
 
-        if let Some((_, secret, _)) = keeper.read(card.as_ref().unwrap().id())? {
+        if let Some((_, secret, _)) =
+            keeper.read(card.as_ref().unwrap().id())?
+        {
             //println!("{:#?}", secret);
             if let Secret::Card { expiry, .. } = secret {
                 println!("{:#?}", expiry);
             } else {
                 panic!("secret is of the wrong type");
             }
-
         } else {
             panic!("secret not found");
         }

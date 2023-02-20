@@ -98,7 +98,7 @@ impl From<GenericCsvEntry> for Secret {
                     Secret::Card {
                         number: SecretString::new(number),
                         cvv: SecretString::new(code),
-                        expiry: expiration.unwrap_or_default(),
+                        expiry: expiration,
                         name: None,
                         atm_pin: None,
                         user_data: Default::default(),

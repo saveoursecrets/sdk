@@ -904,7 +904,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         number: SecretString,
         /// The expiry data for the card.
-        expiry: Timestamp,
+        expiry: Option<Timestamp>,
         /// Card verification value.
         #[serde(serialize_with = "serialize_secret_string")]
         cvv: SecretString,
@@ -1711,7 +1711,11 @@ impl Encode for Secret {
                 user_data,
             } => {
                 writer.write_string(number.expose_secret())?;
-                expiry.encode(&mut *writer)?;
+
+                writer.write_bool(expiry.is_some())?;
+                if let Some(expiry) = expiry {
+                    expiry.encode(&mut *writer)?;
+                }
                 writer.write_string(cvv.expose_secret())?;
 
                 writer.write_bool(name.is_some())?;
@@ -1933,10 +1937,14 @@ impl Decode for Secret {
             }
             kind::CARD => {
                 let number = SecretString::new(reader.read_string()?);
-                //let expiry = SecretString::new(reader.read_string()?);
-                let mut expiry: Timestamp = Default::default();
-                expiry.decode(reader)?;
-                //
+                let has_expiry = reader.read_bool()?;
+                let expiry = if has_expiry {
+                    let mut expiry: Timestamp = Default::default();
+                    expiry.decode(reader)?;
+                    Some(expiry)
+                } else {
+                    None
+                };
                 let cvv = SecretString::new(reader.read_string()?);
 
                 let has_name = reader.read_bool()?;
