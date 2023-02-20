@@ -64,6 +64,17 @@ impl GenericCsvEntry {
             Self::Contact(record) => &mut record.tags,
         }
     }
+
+    /// Get the note for the record.
+    fn note(&mut self) -> &mut Option<String> {
+        match self {
+            Self::Password(record) => &mut record.note,
+            Self::Note(record) => &mut record.note,
+            Self::Id(record) => &mut record.note,
+            Self::Payment(record) => record.note(),
+            Self::Contact(record) => &mut record.note,
+        }
+    }
 }
 
 impl From<GenericCsvEntry> for Secret {
@@ -142,7 +153,8 @@ pub struct GenericPasswordRecord {
     pub otp_auth: Option<String>,
     /// Collection of tags.
     pub tags: Option<HashSet<String>>,
-    // TODO: support notes for 1Password/Bitwarden etc.
+    /// Optional note.
+    pub note: Option<String>,
 }
 
 /// Generic note record.
@@ -153,6 +165,8 @@ pub struct GenericNoteRecord {
     pub text: String,
     /// Collection of tags.
     pub tags: Option<HashSet<String>>,
+    /// Optional note.
+    pub note: Option<String>,
 }
 
 /// Generic contact record.
@@ -163,6 +177,8 @@ pub struct GenericContactRecord {
     pub vcard: Vcard,
     /// Collection of tags.
     pub tags: Option<HashSet<String>>,
+    /// Optional note.
+    pub note: Option<String>,
 }
 
 /// Generic identification record.
@@ -181,6 +197,8 @@ pub struct GenericIdRecord {
     pub expiration_date: Option<Timestamp>,
     /// Collection of tags.
     pub tags: Option<HashSet<String>>,
+    /// Optional note.
+    pub note: Option<String>,
 }
 
 /// Generic payment record.
@@ -198,7 +216,7 @@ pub enum GenericPaymentRecord {
         /// The country for the entry.
         country: String,
         /// A note for the entry.
-        note: String,
+        note: Option<String>,
         /// Collection of tags.
         tags: Option<HashSet<String>>,
     },
@@ -215,7 +233,7 @@ pub enum GenericPaymentRecord {
         /// The country for the entry.
         country: String,
         /// A note for the entry.
-        note: String,
+        note: Option<String>,
         /// Collection of tags.
         tags: Option<HashSet<String>>,
     },
@@ -235,6 +253,14 @@ impl GenericPaymentRecord {
         match self {
             Self::Card { tags, .. } => tags,
             Self::BankAccount { tags, .. } => tags,
+        }
+    }
+
+    /// Get the note for the record.
+    fn note(&mut self) -> &mut Option<String> {
+        match self {
+            Self::Card { note, .. } => note,
+            Self::BankAccount { note, .. } => note,
         }
     }
 }
@@ -275,7 +301,9 @@ impl Convert for GenericCsvConvert {
             drop(search);
 
             let tags = entry.tags().take();
-            let secret: Secret = entry.into();
+            let note = entry.note().take();
+            let mut secret: Secret = entry.into();
+            secret.user_data_mut().set_comment(note);
             let mut meta = SecretMeta::new(label, secret.kind());
             if let Some(tags) = tags {
                 meta.set_tags(tags);

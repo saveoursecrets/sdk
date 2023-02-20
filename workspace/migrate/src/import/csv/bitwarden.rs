@@ -57,6 +57,13 @@ impl From<BitwardenPasswordRecord> for GenericPasswordRecord {
         } else {
             value.name
         };
+
+        let note = if !value.notes.is_empty() {
+            Some(value.notes)
+        } else {
+            None
+        };
+
         Self {
             label,
             url: value.login_uri,
@@ -64,6 +71,7 @@ impl From<BitwardenPasswordRecord> for GenericPasswordRecord {
             password: value.login_password,
             otp_auth: None,
             tags: None,
+            note,
         }
     }
 }
@@ -79,6 +87,7 @@ impl From<BitwardenPasswordRecord> for GenericNoteRecord {
             label,
             text: value.notes,
             tags: None,
+            note: None,
         }
     }
 }

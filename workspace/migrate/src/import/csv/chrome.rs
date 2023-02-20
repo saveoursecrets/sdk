@@ -42,6 +42,7 @@ impl From<ChromePasswordRecord> for GenericPasswordRecord {
             password: value.password,
             otp_auth: None,
             tags: None,
+            note: None,
         }
     }
 }

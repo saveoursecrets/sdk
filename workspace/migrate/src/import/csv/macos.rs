@@ -49,6 +49,7 @@ impl From<MacPasswordRecord> for GenericPasswordRecord {
             password: value.password,
             otp_auth: value.otp_auth,
             tags: None,
+            note: None,
         }
     }
 }

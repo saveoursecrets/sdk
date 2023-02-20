@@ -82,6 +82,7 @@ impl From<DashlaneNoteRecord> for GenericNoteRecord {
             label,
             text: value.note,
             tags: None,
+            note: None,
         }
     }
 }
@@ -170,6 +171,7 @@ impl From<DashlaneIdRecord> for GenericIdRecord {
             issue_date,
             expiration_date,
             tags: None,
+            note: None,
         }
     }
 }
@@ -229,6 +231,10 @@ impl From<DashlanePaymentRecord> for GenericPaymentRecord {
             None
         };
 
+        let note = if !value.note.is_empty() {
+            Some(value.note)
+        } else { None };
+
         match &value.kind[..] {
             "bank" => GenericPaymentRecord::BankAccount {
                 label,
@@ -236,7 +242,7 @@ impl From<DashlanePaymentRecord> for GenericPaymentRecord {
                 account_number: value.account_number,
                 routing_number: value.routing_number,
                 country: value.country,
-                note: value.note,
+                note,
                 tags: None,
             },
             "payment_card" => GenericPaymentRecord::Card {
@@ -245,7 +251,7 @@ impl From<DashlanePaymentRecord> for GenericPaymentRecord {
                 code: value.code,
                 expiration,
                 country: value.country,
-                note: value.note,
+                note,
                 tags: None,
             },
             _ => panic!("unexpected payment type {}", value.kind),
@@ -295,6 +301,12 @@ impl From<DashlanePasswordRecord> for GenericPasswordRecord {
             None
         };
 
+        let note = if !value.note.is_empty() {
+            Some(value.note)
+        } else {
+            None
+        };
+
         Self {
             label,
             url: value.url,
@@ -302,6 +314,7 @@ impl From<DashlanePasswordRecord> for GenericPasswordRecord {
             password: value.password,
             otp_auth: None,
             tags,
+            note,
         }
     }
 }
@@ -512,6 +525,7 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
             label,
             vcard,
             tags: None,
+            note: None,
         }
     }
 }

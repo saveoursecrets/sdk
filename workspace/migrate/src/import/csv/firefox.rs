@@ -50,6 +50,7 @@ impl From<FirefoxPasswordRecord> for GenericPasswordRecord {
             password: value.password,
             otp_auth: None,
             tags: None,
+            note: None,
         }
     }
 }
