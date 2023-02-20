@@ -304,7 +304,7 @@ impl SecretMeta {
             kind::FILE => "FILE",
             kind::PEM => "CERT",
             kind::PAGE => "PAGE",
-            kind::PIN => "PIN",
+            kind::IDENTIFICATION => "ID",
             kind::SIGNER => "SIGNER",
             kind::CONTACT => "CONTACT",
             kind::TOTP => "TOTP",
@@ -312,7 +312,6 @@ impl SecretMeta {
             kind::BANK => "BANK",
             kind::LINK => "LINK",
             kind::PASSWORD => "PASSWORD",
-            kind::IDENTIFICATION => "ID",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }
@@ -871,22 +870,6 @@ pub enum Secret {
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
-    /// Personal identification number.
-    ///
-    /// Encoded as a string so there are no restrictions
-    /// on the number of allowed digits.
-    ///
-    /// Client implementations should ensure the value
-    /// only contains digits.
-    #[serde(rename_all = "camelCase")]
-    Pin {
-        /// The value for the PIN.
-        #[serde(serialize_with = "serialize_secret_string")]
-        number: SecretString,
-        /// Custom user data.
-        #[serde(default, skip_serializing_if = "UserData::is_default")]
-        user_data: UserData,
-    },
     /// Private signing key.
     #[serde(rename_all = "camelCase")]
     Signer {
@@ -1095,12 +1078,6 @@ impl Clone for Secret {
                 ),
                 user_data: user_data.clone(),
             },
-            Secret::Pin { number, user_data } => Secret::Pin {
-                number: secrecy::Secret::new(
-                    number.expose_secret().to_owned(),
-                ),
-                user_data: user_data.clone(),
-            },
             Secret::Signer {
                 private_key,
                 user_data,
@@ -1212,7 +1189,6 @@ impl fmt::Debug for Secret {
                 .field("title", title)
                 .field("mime", mime)
                 .finish(),
-            Secret::Pin { .. } => f.debug_struct("PIN").finish(),
             Secret::Signer { .. } => f.debug_struct("Signer").finish(),
             Secret::Contact { .. } => f.debug_struct("Contact").finish(),
             Secret::Totp { .. } => f.debug_struct("TOTP").finish(),
@@ -1247,7 +1223,7 @@ impl Secret {
             kind::LIST => "List",
             kind::PEM => "Certificate",
             kind::PAGE => "Page",
-            kind::PIN => "Number",
+            kind::IDENTIFICATION => "Identity",
             kind::SIGNER => "Signer",
             kind::CONTACT => "Contact",
             kind::TOTP => "Authenticator",
@@ -1268,7 +1244,6 @@ impl Secret {
             Secret::List { .. } => kind::LIST,
             Secret::Pem { .. } => kind::PEM,
             Secret::Page { .. } => kind::PAGE,
-            Secret::Pin { .. } => kind::PIN,
             Secret::Signer { .. } => kind::SIGNER,
             Secret::Contact { .. } => kind::CONTACT,
             Secret::Totp { .. } => kind::TOTP,
@@ -1289,7 +1264,6 @@ impl Secret {
             Secret::List { user_data, .. } => user_data,
             Secret::Pem { user_data, .. } => user_data,
             Secret::Page { user_data, .. } => user_data,
-            Secret::Pin { user_data, .. } => user_data,
             Secret::Signer { user_data, .. } => user_data,
             Secret::Contact { user_data, .. } => user_data,
             Secret::Totp { user_data, .. } => user_data,
@@ -1310,7 +1284,6 @@ impl Secret {
             Secret::List { user_data, .. } => user_data,
             Secret::Pem { user_data, .. } => user_data,
             Secret::Page { user_data, .. } => user_data,
-            Secret::Pin { user_data, .. } => user_data,
             Secret::Signer { user_data, .. } => user_data,
             Secret::Contact { user_data, .. } => user_data,
             Secret::Totp { user_data, .. } => user_data,
@@ -1429,19 +1402,6 @@ impl PartialEq for Secret {
                     && mime_a == mime_b
                     && document_a.expose_secret()
                         == document_b.expose_secret()
-                    && user_data_a == user_data_b
-            }
-            (
-                Self::Pin {
-                    number: a,
-                    user_data: user_data_a,
-                },
-                Self::Pin {
-                    number: b,
-                    user_data: user_data_b,
-                },
-            ) => {
-                a.expose_secret() == b.expose_secret()
                     && user_data_a == user_data_b
             }
             (
@@ -1630,8 +1590,8 @@ pub mod kind {
     pub const PEM: u8 = 5;
     /// UTF-8 page that can be rendered to HTML.
     pub const PAGE: u8 = 6;
-    /// Personal identification number.
-    pub const PIN: u8 = 7;
+    /// Identity numbers.
+    pub const IDENTIFICATION: u8 = 7;
     /// Private signing key.
     pub const SIGNER: u8 = 8;
     /// Contact vCard.
@@ -1646,8 +1606,6 @@ pub mod kind {
     pub const LINK: u8 = 13;
     /// Standalone password.
     pub const PASSWORD: u8 = 14;
-    /// Identification.
-    pub const IDENTIFICATION: u8 = 15;
 }
 
 impl Encode for Secret {
@@ -1659,7 +1617,6 @@ impl Encode for Secret {
             Self::List { .. } => kind::LIST,
             Self::Pem { .. } => kind::PEM,
             Self::Page { .. } => kind::PAGE,
-            Self::Pin { .. } => kind::PIN,
             Self::Signer { .. } => kind::SIGNER,
             Self::Contact { .. } => kind::CONTACT,
             Self::Totp { .. } => kind::TOTP,
@@ -1729,10 +1686,6 @@ impl Encode for Secret {
                 writer.write_string(title)?;
                 writer.write_string(mime)?;
                 writer.write_string(document.expose_secret())?;
-                write_user_data(user_data, writer)?;
-            }
-            Self::Pin { number, user_data } => {
-                writer.write_string(number.expose_secret())?;
                 write_user_data(user_data, writer)?;
             }
             Self::Signer {
@@ -1951,14 +1904,6 @@ impl Decode for Secret {
                     title,
                     mime,
                     document,
-                    user_data,
-                };
-            }
-            kind::PIN => {
-                let number = reader.read_string()?;
-                let user_data = read_user_data(reader)?;
-                *self = Self::Pin {
-                    number: secrecy::Secret::new(number),
                     user_data,
                 };
             }

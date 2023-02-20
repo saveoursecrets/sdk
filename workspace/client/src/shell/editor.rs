@@ -61,10 +61,6 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
             document.expose_secret().as_bytes().to_vec(),
             ".md".to_string(),
         ),
-        Secret::Pin { number, .. } => (
-            number.expose_secret().as_bytes().to_vec(),
-            ".txt".to_string(),
-        ),
         Secret::Signer { .. } => {
             // TODO: handle this more gracefully
             todo!("signing keys are not editable (yet!)")
@@ -123,14 +119,6 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
             ),
             user_data: user_data.clone(),
         },
-        Secret::Pin { user_data, .. } => {
-            let number = std::str::from_utf8(content)?.to_owned();
-            Secret::ensure_ascii_digits(&number)?;
-            Secret::Pin {
-                number: secrecy::Secret::new(number),
-                user_data: user_data.clone(),
-            }
-        }
         Secret::Signer { .. } => {
             // TODO: handle this more gracefully
             todo!("signing keys are not editable (yet!)")
