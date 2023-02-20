@@ -660,7 +660,7 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
 
 /// Enumeration of types of identification.
 #[derive(PartialEq, Eq, Clone)]
-pub enum IdentificationKind {
+pub enum IdentityKind {
     /// Personal identification number (PIN).
     PersonalIdNumber,
     /// Generic id card.
@@ -677,7 +677,7 @@ pub enum IdentificationKind {
     MedicalCard,
 }
 
-impl fmt::Display for IdentificationKind {
+impl fmt::Display for IdentityKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -695,44 +695,44 @@ impl fmt::Display for IdentificationKind {
     }
 }
 
-impl From<IdentificationKind> for u8 {
-    fn from(value: IdentificationKind) -> Self {
+impl From<IdentityKind> for u8 {
+    fn from(value: IdentityKind) -> Self {
         (&value).into()
     }
 }
 
-impl From<&IdentificationKind> for u8 {
-    fn from(value: &IdentificationKind) -> Self {
+impl From<&IdentityKind> for u8 {
+    fn from(value: &IdentityKind) -> Self {
         match value {
-            IdentificationKind::PersonalIdNumber => 1,
-            IdentificationKind::IdCard => 2,
-            IdentificationKind::Passport => 3,
-            IdentificationKind::DriverLicense => 4,
-            IdentificationKind::SocialSecurity => 5,
-            IdentificationKind::TaxNumber => 6,
-            IdentificationKind::MedicalCard => 7,
+            IdentityKind::PersonalIdNumber => 1,
+            IdentityKind::IdCard => 2,
+            IdentityKind::Passport => 3,
+            IdentityKind::DriverLicense => 4,
+            IdentityKind::SocialSecurity => 5,
+            IdentityKind::TaxNumber => 6,
+            IdentityKind::MedicalCard => 7,
         }
     }
 }
 
-impl TryFrom<u8> for IdentificationKind {
+impl TryFrom<u8> for IdentityKind {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self> {
         match value {
-            1 => Ok(IdentificationKind::PersonalIdNumber),
-            2 => Ok(IdentificationKind::IdCard),
-            3 => Ok(IdentificationKind::Passport),
-            4 => Ok(IdentificationKind::DriverLicense),
-            5 => Ok(IdentificationKind::SocialSecurity),
-            6 => Ok(IdentificationKind::TaxNumber),
-            7 => Ok(IdentificationKind::MedicalCard),
-            _ => Err(Error::UnknownIdentificationKind(value)),
+            1 => Ok(IdentityKind::PersonalIdNumber),
+            2 => Ok(IdentityKind::IdCard),
+            3 => Ok(IdentityKind::Passport),
+            4 => Ok(IdentityKind::DriverLicense),
+            5 => Ok(IdentityKind::SocialSecurity),
+            6 => Ok(IdentityKind::TaxNumber),
+            7 => Ok(IdentityKind::MedicalCard),
+            _ => Err(Error::UnknownIdentityKind(value)),
         }
     }
 }
 
-impl Serialize for IdentificationKind {
+impl Serialize for IdentityKind {
     fn serialize<S>(
         &self,
         serializer: S,
@@ -744,21 +744,21 @@ impl Serialize for IdentificationKind {
     }
 }
 
-impl<'de> Deserialize<'de> for IdentificationKind {
+impl<'de> Deserialize<'de> for IdentityKind {
     fn deserialize<D>(
         deserializer: D,
-    ) -> std::result::Result<IdentificationKind, D::Error>
+    ) -> std::result::Result<IdentityKind, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_u8(IdentificationKindVisitor)
+        deserializer.deserialize_u8(IdentityKindVisitor)
     }
 }
 
-struct IdentificationKindVisitor;
+struct IdentityKindVisitor;
 
-impl<'de> Visitor<'de> for IdentificationKindVisitor {
-    type Value = IdentificationKind;
+impl<'de> Visitor<'de> for IdentityKindVisitor {
+    type Value = IdentityKind;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter
@@ -769,7 +769,7 @@ impl<'de> Visitor<'de> for IdentificationKindVisitor {
     where
         E: de::Error,
     {
-        let value: IdentificationKind = value.try_into().unwrap();
+        let value: IdentityKind = value.try_into().unwrap();
         Ok(value)
     }
 }
@@ -985,11 +985,11 @@ pub enum Secret {
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
-    /// Identification secret for passports, driving licenses etc.
+    /// Identity secret for passports, driving licenses etc.
     #[serde(rename_all = "camelCase")]
-    Identification {
+    Identity {
         /// The kind of this identification.
-        id_kind: IdentificationKind,
+        id_kind: IdentityKind,
         /// The number for the identifier.
         #[serde(serialize_with = "serialize_secret_string")]
         number: SecretString,
@@ -1001,7 +1001,7 @@ pub enum Secret {
         issue_date: Option<Timestamp>,
         /// Expiration date.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        expiration_date: Option<Timestamp>,
+        expiry_date: Option<Timestamp>,
         /// Custom user data.
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
@@ -1143,19 +1143,19 @@ impl Clone for Secret {
                 name: name.clone(),
                 user_data: user_data.clone(),
             },
-            Secret::Identification {
+            Secret::Identity {
                 id_kind,
                 number,
                 issue_place,
                 issue_date,
-                expiration_date,
+                expiry_date,
                 user_data,
-            } => Secret::Identification {
+            } => Secret::Identity {
                 id_kind: id_kind.clone(),
                 number: SecretString::new(number.expose_secret().to_owned()),
                 issue_place: issue_place.clone(),
                 issue_date: issue_date.clone(),
-                expiration_date: expiration_date.clone(),
+                expiry_date: expiry_date.clone(),
                 user_data: user_data.clone(),
             },
         }
@@ -1196,8 +1196,8 @@ impl fmt::Debug for Secret {
             Secret::Bank { .. } => f.debug_struct("Bank").finish(),
             Secret::Link { .. } => f.debug_struct("Link").finish(),
             Secret::Password { .. } => f.debug_struct("Password").finish(),
-            Secret::Identification { .. } => {
-                f.debug_struct("Identification").finish()
+            Secret::Identity { .. } => {
+                f.debug_struct("Identity").finish()
             }
         }
     }
@@ -1251,7 +1251,7 @@ impl Secret {
             Secret::Bank { .. } => kind::BANK,
             Secret::Link { .. } => kind::LINK,
             Secret::Password { .. } => kind::PASSWORD,
-            Secret::Identification { .. } => kind::IDENTIFICATION,
+            Secret::Identity { .. } => kind::IDENTIFICATION,
         }
     }
 
@@ -1271,7 +1271,7 @@ impl Secret {
             Secret::Bank { user_data, .. } => user_data,
             Secret::Link { user_data, .. } => user_data,
             Secret::Password { user_data, .. } => user_data,
-            Secret::Identification { user_data, .. } => user_data,
+            Secret::Identity { user_data, .. } => user_data,
         }
     }
 
@@ -1291,7 +1291,7 @@ impl Secret {
             Secret::Bank { user_data, .. } => user_data,
             Secret::Link { user_data, .. } => user_data,
             Secret::Password { user_data, .. } => user_data,
-            Secret::Identification { user_data, .. } => user_data,
+            Secret::Identity { user_data, .. } => user_data,
         }
     }
 }
@@ -1532,20 +1532,20 @@ impl PartialEq for Secret {
             }
 
             (
-                Self::Identification {
+                Self::Identity {
                     id_kind: id_kind_a,
                     number: number_a,
                     issue_place: issue_place_a,
                     issue_date: issue_date_a,
-                    expiration_date: expiration_date_a,
+                    expiry_date: expiry_date_a,
                     user_data: user_data_a,
                 },
-                Self::Identification {
+                Self::Identity {
                     id_kind: id_kind_b,
                     number: number_b,
                     issue_place: issue_place_b,
                     issue_date: issue_date_b,
-                    expiration_date: expiration_date_b,
+                    expiry_date: expiry_date_b,
                     user_data: user_data_b,
                 },
             ) => {
@@ -1553,7 +1553,7 @@ impl PartialEq for Secret {
                     && number_a.expose_secret() == number_b.expose_secret()
                     && issue_place_a == issue_place_b
                     && issue_date_a == issue_date_b
-                    && expiration_date_a == expiration_date_b
+                    && expiry_date_a == expiry_date_b
                     && user_data_a == user_data_b
             }
 
@@ -1624,7 +1624,7 @@ impl Encode for Secret {
             Self::Bank { .. } => kind::BANK,
             Self::Link { .. } => kind::LINK,
             Self::Password { .. } => kind::PASSWORD,
-            Self::Identification { .. } => kind::IDENTIFICATION,
+            Self::Identity { .. } => kind::IDENTIFICATION,
         };
         writer.write_u8(kind)?;
 
@@ -1790,12 +1790,12 @@ impl Encode for Secret {
                 write_user_data(user_data, writer)?;
             }
 
-            Self::Identification {
+            Self::Identity {
                 id_kind,
                 number,
                 issue_place,
                 issue_date,
-                expiration_date,
+                expiry_date,
                 user_data,
             } => {
                 let id_kind: u8 = id_kind.into();
@@ -1812,9 +1812,9 @@ impl Encode for Secret {
                     issue_date.encode(writer)?;
                 }
 
-                writer.write_bool(expiration_date.is_some())?;
-                if let Some(expiration_date) = expiration_date {
-                    expiration_date.encode(writer)?;
+                writer.write_bool(expiry_date.is_some())?;
+                if let Some(expiry_date) = expiry_date {
+                    expiry_date.encode(writer)?;
                 }
 
                 write_user_data(user_data, writer)?;
@@ -2042,7 +2042,7 @@ impl Decode for Secret {
             }
             kind::IDENTIFICATION => {
                 let id_kind = reader.read_u8()?;
-                let id_kind: IdentificationKind =
+                let id_kind: IdentityKind =
                     id_kind.try_into().map_err(Box::from)?;
 
                 let number = SecretString::new(reader.read_string()?);
@@ -2063,8 +2063,8 @@ impl Decode for Secret {
                     None
                 };
 
-                let has_expiration_date = reader.read_bool()?;
-                let expiration_date = if has_expiration_date {
+                let has_expiry_date = reader.read_bool()?;
+                let expiry_date = if has_expiry_date {
                     let mut timestamp: Timestamp = Default::default();
                     timestamp.decode(&mut *reader)?;
                     Some(timestamp)
@@ -2073,12 +2073,12 @@ impl Decode for Secret {
                 };
 
                 let user_data = read_user_data(reader)?;
-                *self = Self::Identification {
+                *self = Self::Identity {
                     id_kind,
                     number,
                     issue_place,
                     issue_date,
-                    expiration_date,
+                    expiry_date,
                     user_data,
                 };
             }
@@ -2475,12 +2475,12 @@ END:VCARD"#;
 
     #[test]
     fn secret_encode_identification() -> Result<()> {
-        let secret = Secret::Identification {
-            id_kind: IdentificationKind::IdCard,
+        let secret = Secret::Identity {
+            id_kind: IdentityKind::IdCard,
             number: SecretString::new("12345678".to_string()),
             issue_place: Some("Mock city".to_string()),
             issue_date: Some(Default::default()),
-            expiration_date: Some(Default::default()),
+            expiry_date: Some(Default::default()),
             user_data: Default::default(),
         };
         let encoded = encode(&secret)?;

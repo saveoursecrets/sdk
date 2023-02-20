@@ -45,7 +45,7 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
         | Secret::Bank { .. }
         | Secret::Password { .. }
         | Secret::Link { .. }
-        | Secret::Identification { .. } => {
+        | Secret::Identity { .. } => {
             (serde_json::to_vec_pretty(secret)?, ".json".to_string())
         }
         Secret::File { name, buffer, .. } => {
@@ -90,7 +90,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         | Secret::Bank { .. }
         | Secret::Password { .. }
         | Secret::Link { .. }
-        | Secret::Identification { .. } => {
+        | Secret::Identity { .. } => {
             serde_json::from_slice::<Secret>(content)?
         }
         Secret::File {

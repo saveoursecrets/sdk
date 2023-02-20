@@ -18,7 +18,7 @@ use vcard4::Vcard;
 
 use sos_core::{
     search::SearchIndex,
-    secret::{IdentificationKind, Secret, SecretMeta},
+    secret::{IdentityKind, Secret, SecretMeta},
     vault::Vault,
     Gatekeeper, Timestamp,
 };
@@ -34,7 +34,7 @@ pub enum GenericCsvEntry {
     Password(GenericPasswordRecord),
     /// Note entry.
     Note(GenericNoteRecord),
-    /// Identification entry.
+    /// Identity entry.
     Id(GenericIdRecord),
     /// Payment entry.
     Payment(GenericPaymentRecord),
@@ -79,12 +79,12 @@ impl From<GenericCsvEntry> for Secret {
                 text: SecretString::new(record.text),
                 user_data: Default::default(),
             },
-            GenericCsvEntry::Id(record) => Secret::Identification {
+            GenericCsvEntry::Id(record) => Secret::Identity {
                 id_kind: record.id_kind,
                 number: SecretString::new(record.number),
                 issue_place: record.issue_place,
                 issue_date: record.issue_date,
-                expiration_date: record.expiration_date,
+                expiry_date: record.expiration_date,
                 user_data: Default::default(),
             },
             GenericCsvEntry::Payment(record) => match record {
@@ -172,7 +172,7 @@ pub struct GenericIdRecord {
     /// The label of the entry.
     pub label: String,
     /// The kind of identification.
-    pub id_kind: IdentificationKind,
+    pub id_kind: IdentityKind,
     /// The number for the entry.
     pub number: String,
     /// The issue place for the entry.

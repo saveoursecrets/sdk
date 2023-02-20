@@ -12,7 +12,7 @@ use time::Date;
 use url::Url;
 use vcard4::{property::DeliveryAddress, uriparse::URI as Uri, VcardBuilder};
 
-use sos_core::{secret::IdentificationKind, vault::Vault, Timestamp};
+use sos_core::{secret::IdentityKind, vault::Vault, Timestamp};
 
 use super::{
     GenericContactRecord, GenericCsvConvert, GenericCsvEntry,
@@ -28,7 +28,7 @@ pub enum DashlaneRecord {
     Password(DashlanePasswordRecord),
     /// Secure note.
     Note(DashlaneNoteRecord),
-    /// Identification record.
+    /// Identity record.
     Id(DashlaneIdRecord),
     /// Payment record.
     Payment(DashlanePaymentRecord),
@@ -121,11 +121,11 @@ impl From<DashlaneIdRecord> for GenericIdRecord {
         };
 
         let id_kind = match &value.kind[..] {
-            "card" => IdentificationKind::IdCard,
-            "passport" => IdentificationKind::Passport,
-            "license" => IdentificationKind::DriverLicense,
-            "social_security" => IdentificationKind::SocialSecurity,
-            "tax_number" => IdentificationKind::TaxNumber,
+            "card" => IdentityKind::IdCard,
+            "passport" => IdentityKind::Passport,
+            "license" => IdentityKind::DriverLicense,
+            "social_security" => IdentityKind::SocialSecurity,
+            "tax_number" => IdentityKind::TaxNumber,
             _ => {
                 panic!("unsupported type of id {}", value.kind);
             }

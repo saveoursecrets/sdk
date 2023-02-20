@@ -154,7 +154,7 @@ pub(super) fn secret(
             }
             banner.text(Cow::Owned(value))
         }
-        Secret::Identification {
+        Secret::Identity {
             id_kind, number, ..
         } => {
             let mut value = String::new();
