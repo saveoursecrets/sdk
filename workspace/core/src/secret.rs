@@ -662,6 +662,8 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
 /// Enumeration of types of identification.
 #[derive(PartialEq, Eq, Clone)]
 pub enum IdentificationKind {
+    /// Personal identification number (PIN).
+    PersonalIdNumber,
     /// Generic id card.
     IdCard,
     /// Passport identification.
@@ -682,6 +684,7 @@ impl fmt::Display for IdentificationKind {
             f,
             "{}",
             match self {
+                Self::PersonalIdNumber => "PIN",
                 Self::IdCard => "Id",
                 Self::Passport => "Passport",
                 Self::DriverLicense => "Driver license",
@@ -702,12 +705,13 @@ impl From<IdentificationKind> for u8 {
 impl From<&IdentificationKind> for u8 {
     fn from(value: &IdentificationKind) -> Self {
         match value {
-            IdentificationKind::IdCard => 1,
-            IdentificationKind::Passport => 2,
-            IdentificationKind::DriverLicense => 3,
-            IdentificationKind::SocialSecurity => 4,
-            IdentificationKind::TaxNumber => 5,
-            IdentificationKind::MedicalCard => 6,
+            IdentificationKind::PersonalIdNumber => 1,
+            IdentificationKind::IdCard => 2,
+            IdentificationKind::Passport => 3,
+            IdentificationKind::DriverLicense => 4,
+            IdentificationKind::SocialSecurity => 5,
+            IdentificationKind::TaxNumber => 6,
+            IdentificationKind::MedicalCard => 7,
         }
     }
 }
@@ -717,12 +721,13 @@ impl TryFrom<u8> for IdentificationKind {
 
     fn try_from(value: u8) -> Result<Self> {
         match value {
-            1 => Ok(IdentificationKind::IdCard),
-            2 => Ok(IdentificationKind::Passport),
-            3 => Ok(IdentificationKind::DriverLicense),
-            4 => Ok(IdentificationKind::SocialSecurity),
-            5 => Ok(IdentificationKind::TaxNumber),
-            6 => Ok(IdentificationKind::MedicalCard),
+            1 => Ok(IdentificationKind::PersonalIdNumber),
+            2 => Ok(IdentificationKind::IdCard),
+            3 => Ok(IdentificationKind::Passport),
+            4 => Ok(IdentificationKind::DriverLicense),
+            5 => Ok(IdentificationKind::SocialSecurity),
+            6 => Ok(IdentificationKind::TaxNumber),
+            7 => Ok(IdentificationKind::MedicalCard),
             _ => Err(Error::UnknownIdentificationKind(value)),
         }
     }
