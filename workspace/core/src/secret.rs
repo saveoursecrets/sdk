@@ -463,11 +463,8 @@ impl Decode for SecretSigner {
 }
 
 mod user_data {
-    /// Constant for the heading variant.
-    pub const HEADING: u8 = 1;
-
     /// Constant for the embedded secret variant.
-    pub const EMBEDDED: u8 = 2;
+    pub const EMBEDDED: u8 = 1;
 }
 
 /// User defined field.
@@ -477,13 +474,10 @@ pub enum UserField {
     /// Default variant for a user defined field.
     #[default]
     Noop,
-    /// Heading for a group of user defined fields.
-    Heading {
-        /// The text for the heading.
-        text: String,
-    },
     /// Embedded secret.
     Embedded {
+        /// Meta data for the embedded secret.
+        meta: SecretMeta,
         /// The data for the embedded secret.
         secret: Secret,
     },
@@ -493,7 +487,6 @@ impl UserField {
     /// Get the kind of this field.
     pub fn kind(&self) -> u8 {
         match self {
-            Self::Heading { .. } => user_data::HEADING,
             Self::Embedded { .. } => user_data::EMBEDDED,
             _ => unreachable!(),
         }
@@ -505,10 +498,8 @@ impl Encode for UserField {
         let kind = self.kind();
         writer.write_u8(kind)?;
         match self {
-            Self::Heading { text } => {
-                writer.write_string(text)?;
-            }
-            Self::Embedded { secret } => {
+            Self::Embedded { meta, secret } => {
+                meta.encode(writer)?;
                 secret.encode(writer)?;
             }
             _ => unreachable!(),
@@ -521,14 +512,13 @@ impl Decode for UserField {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let kind = reader.read_u8()?;
         match kind {
-            user_data::HEADING => {
-                let text = reader.read_string()?;
-                *self = Self::Heading { text };
-            }
             user_data::EMBEDDED => {
+                let mut meta: SecretMeta = Default::default();
+                meta.decode(reader)?;
+
                 let mut secret: Secret = Default::default();
                 secret.decode(reader)?;
-                *self = Self::Embedded { secret };
+                *self = Self::Embedded { meta, secret };
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
@@ -2129,34 +2119,36 @@ mod test {
         let mut user_data: UserData = Default::default();
         user_data.set_comment(Some("Comment".to_string()));
         user_data.set_recovery_note(Some("Recovery".to_string()));
-        user_data.push(UserField::Heading {
-            text: "Debit Card".to_string(),
+
+        let card = Secret::Card {
+            number: SecretString::new("1234567890123456".to_string()),
+            expiry: Default::default(),
+            cvv: SecretString::new("123".to_string()),
+            name: Some(SecretString::new("Miss Jane Doe".to_string())),
+            atm_pin: None,
+            user_data: Default::default(),
+        };
+        let card_meta =
+            SecretMeta::new("Embedded card".to_string(), card.kind());
+
+        let bank = Secret::Bank {
+            number: SecretString::new("12345678".to_string()),
+            routing: SecretString::new("00-00-00".to_string()),
+            iban: None,
+            swift: None,
+            bic: None,
+            user_data: Default::default(),
+        };
+        let bank_meta =
+            SecretMeta::new("Embedded bank".to_string(), bank.kind());
+
+        user_data.push(UserField::Embedded {
+            meta: card_meta,
+            secret: card,
         });
         user_data.push(UserField::Embedded {
-            secret: Secret::Card {
-                number: SecretString::new("1234567890123456".to_string()),
-                expiry: Default::default(),
-                cvv: SecretString::new("123".to_string()),
-                name: Some(SecretString::new("Miss Jane Doe".to_string())),
-                atm_pin: None,
-                user_data: Default::default(),
-            },
-        });
-        user_data.push(UserField::Heading {
-            text: "Account".to_string(),
-        });
-        user_data.push(UserField::Embedded {
-            secret: Secret::Bank {
-                number: SecretString::new("12345678".to_string()),
-                routing: SecretString::new("00-00-00".to_string()),
-                iban: None,
-                swift: None,
-                bic: None,
-                user_data: Default::default(),
-            },
-        });
-        user_data.push(UserField::Heading {
-            text: "Website".to_string(),
+            meta: bank_meta,
+            secret: bank,
         });
 
         let text = r#"BEGIN:VCARD
@@ -2174,7 +2166,7 @@ END:VCARD"#;
         let decoded: Secret = decode(&encoded)?;
 
         assert_eq!(secret, decoded);
-        assert_eq!(5, decoded.user_data().len());
+        assert_eq!(2, decoded.user_data().len());
 
         assert!(matches!(decoded.user_data().comment(), Some("Comment")));
         assert!(matches!(
@@ -2184,7 +2176,7 @@ END:VCARD"#;
 
         assert!(matches!(
             decoded.user_data().fields().get(0).unwrap(),
-            UserField::Heading { .. }
+            UserField::Embedded { .. }
         ));
 
         assert!(matches!(
@@ -2192,31 +2184,12 @@ END:VCARD"#;
             UserField::Embedded { .. }
         ));
 
-        assert!(matches!(
-            decoded.user_data().fields().get(2).unwrap(),
-            UserField::Heading { .. }
-        ));
-
-        assert!(matches!(
-            decoded.user_data().fields().get(3).unwrap(),
-            UserField::Embedded { .. }
-        ));
-
-        assert!(matches!(
-            decoded.user_data().fields().get(4).unwrap(),
-            UserField::Heading { .. }
-        ));
-
         Ok(())
     }
 
     #[test]
     fn secret_encode_note() -> Result<()> {
-        let mut user_data: UserData = Default::default();
-        user_data.push(UserField::Heading {
-            text: "Mock field heading".to_string(),
-        });
-
+        let user_data: UserData = Default::default();
         let secret = Secret::Note {
             text: secrecy::Secret::new(String::from("My Note")),
             user_data,

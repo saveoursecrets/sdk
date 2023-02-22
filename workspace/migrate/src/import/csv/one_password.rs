@@ -49,7 +49,7 @@ pub struct OnePasswordRecord {
     pub tags: String,
     /// Notes for the entry.
     #[serde(rename = "Notes")]
-    pub note: String,
+    pub notes: String,
 }
 
 impl From<OnePasswordRecord> for GenericPasswordRecord {
@@ -73,8 +73,8 @@ impl From<OnePasswordRecord> for GenericPasswordRecord {
             value.title
         };
 
-        let note = if !value.note.is_empty() {
-            Some(value.note)
+        let note = if !value.notes.is_empty() {
+            Some(value.notes)
         } else {
             None
         };

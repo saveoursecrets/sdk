@@ -233,7 +233,9 @@ impl From<DashlanePaymentRecord> for GenericPaymentRecord {
 
         let note = if !value.note.is_empty() {
             Some(value.note)
-        } else { None };
+        } else {
+            None
+        };
 
         match &value.kind[..] {
             "bank" => GenericPaymentRecord::BankAccount {

@@ -58,7 +58,7 @@ impl<W: Write> PublicExport<W> {
 
                 // Move contents for file attachments
                 for field in secret.user_data_mut().fields_mut() {
-                    if let UserField::Embedded { secret } = field {
+                    if let UserField::Embedded { secret, .. } = field {
                         self.move_file_buffer(&file_path, secret)?;
                     }
                 }
