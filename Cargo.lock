@@ -3051,6 +3051,7 @@ dependencies = [
  "http",
  "k256",
  "log",
+ "once_cell",
  "ouroboros",
  "parking_lot",
  "pem",

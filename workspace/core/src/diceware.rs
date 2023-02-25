@@ -8,6 +8,13 @@ use chbs::{
 };
 use secrecy::{Secret, SecretString};
 
+use once_cell::sync::Lazy;
+
+static WORD_LIST: Lazy<WordList> = Lazy::new(|| {
+    let list = WordList::builtin_eff_large();
+    list
+});
+
 /// Generate a passphrase using the given config.
 pub fn generate_passphrase_config(
     config: &BasicConfig<WordSampler>,
@@ -23,8 +30,8 @@ pub fn generate_passphrase_config(
 /// Generate a diceware passphrase with the given number of words.
 ///
 /// The number of words must be at least six.
-pub fn generate_passphrase_words(words: u8) -> Result<(SecretString, f64)> {
-    let config = default_config(words as usize);
+pub fn generate_passphrase_words(words: usize) -> Result<(SecretString, f64)> {
+    let config = default_config(words);
     generate_passphrase_config(&config)
 }
 
@@ -35,9 +42,8 @@ pub fn generate_passphrase() -> Result<(SecretString, f64)> {
 
 /// Get the default config for diceware passphrase generation.
 pub fn default_config(words: usize) -> BasicConfig<WordSampler> {
-    let list = WordList::builtin_eff_large();
     let config = BasicConfigBuilder::default()
-        .word_provider(list.sampler())
+        .word_provider(WORD_LIST.sampler())
         .words(words)
         .separator(' ')
         .capitalize_first(Probability::Never)
