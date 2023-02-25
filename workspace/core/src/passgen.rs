@@ -2,8 +2,12 @@
 use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
 use zxcvbn::{zxcvbn, Entropy};
+use chbs::{
+    config::{BasicConfig, BasicConfigBuilder},
+    word::WordSampler,
+};
 
-use crate::{diceware::generate_passphrase_words, Result};
+use crate::{diceware::{generate_passphrase_config, default_config}, Result};
 
 const ROMAN_LOWER: &str = "abcdefghijklmnopqrstuvwxyz";
 const ROMAN_UPPER: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -24,7 +28,7 @@ pub struct PasswordResult {
 pub struct PasswordGen {
     length: usize,
     characters: Vec<&'static str>,
-    diceware: bool,
+    diceware: Option<BasicConfig<WordSampler>>,
 }
 
 impl PasswordGen {
@@ -33,7 +37,7 @@ impl PasswordGen {
         Self {
             length,
             characters: vec![],
-            diceware: false,
+            diceware: None,
         }
     }
 
@@ -103,15 +107,15 @@ impl PasswordGen {
 
     /// Use diceware words.
     pub fn diceware(mut self) -> Self {
-        self.diceware = true;
+        self.diceware = Some(default_config(self.len()));
         self
     }
 
     /// Generate a random password.
     pub fn one(&self) -> Result<PasswordResult> {
-        let password = if self.diceware {
+        let password = if let Some(config) = &self.diceware {
             let (passphrase, _) =
-                generate_passphrase_words(self.len() as u8)?;
+                generate_passphrase_config(config)?;
             passphrase
         } else {
             let rng = &mut rand::thread_rng();
