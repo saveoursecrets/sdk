@@ -1,8 +1,9 @@
 //! Utility for generating random passwords.
-use crate::Result;
-use secrecy::SecretString;
+use secrecy::{SecretString, ExposeSecret};
 use rand::Rng;
 use zxcvbn::{zxcvbn, Entropy};
+
+use crate::{Result, diceware::generate_passphrase_words};
 
 const ROMAN_LOWER: &str = "abcdefghijklmnopqrstuvwxyz";
 const ROMAN_UPPER: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -22,6 +23,7 @@ pub struct PasswordResult {
 pub struct PasswordGen {
     length: usize,
     characters: Vec<&'static str>,
+    diceware: bool,
 }
 
 impl PasswordGen {
@@ -30,6 +32,7 @@ impl PasswordGen {
         Self {
             length,
             characters: vec![],
+            diceware: false,
         }
     }
 
@@ -52,6 +55,11 @@ impl PasswordGen {
     /// Options using printable ASCII characters.
     pub fn new_ascii_printable(length: usize) -> Self {
         Self::new(length).upper().lower().numeric().ascii_printable()
+    }
+
+    /// Create with diceware words.
+    pub fn new_diceware(length: usize) -> Self {
+        Self::new(length).diceware()
     }
 
     /// Length of the generated password.
@@ -88,22 +96,35 @@ impl PasswordGen {
         self
     }
 
+    /// Use diceware words.
+    pub fn diceware(mut self) -> Self {
+        self.diceware = true;
+        self
+    }
+
     /// Generate a random password.
     pub fn one(&self) -> Result<PasswordResult> {
-        let rng = &mut rand::thread_rng();
-        let len = self.characters.iter().fold(0, |acc, s| acc + s.len());
-        let mut characters = Vec::with_capacity(len);
-        for chars in &self.characters {
-            let mut list = chars.chars().collect();
-            characters.append(&mut list);
-        }
-        let mut password = String::new();
-        for _ in 0..self.length {
-            password.push(characters[rng.gen_range(0..len)]);
-        }
-        let entropy = zxcvbn(&password, &[])?;
+
+        let password = if self.diceware {
+            let (passphrase, _) = generate_passphrase_words(self.len() as u8)?;
+            passphrase
+        } else {
+            let rng = &mut rand::thread_rng();
+            let len = self.characters.iter().fold(0, |acc, s| acc + s.len());
+            let mut characters = Vec::with_capacity(len);
+            for chars in &self.characters {
+                let mut list = chars.chars().collect();
+                characters.append(&mut list);
+            }
+            let mut password = String::new();
+            for _ in 0..self.length {
+                password.push(characters[rng.gen_range(0..len)]);
+            }
+            SecretString::new(password)
+        };
+        let entropy = zxcvbn(password.expose_secret(), &[])?;
         let result = PasswordResult {
-            password: SecretString::new(password),
+            password,
             entropy,
         };
         Ok(result)
@@ -162,6 +183,16 @@ mod test {
         let generator = PasswordGen::new_ascii_printable(32);
         let result = generator.one()?;
         assert_eq!(generator.len(), result.password.expose_secret().len());
+        Ok(())
+    }
+
+    #[test]
+    fn passgen_diceware() -> Result<()> {
+        let generator = PasswordGen::new_diceware(6);
+        let result = generator.one()?;
+        let words: Vec<String> = result.password.expose_secret()
+            .split(' ').map(|s| s.to_owned()).collect();
+        assert_eq!(generator.len(), words.len());
         Ok(())
     }
     
