@@ -31,7 +31,7 @@ use crate::{
 use secrecy::{ExposeSecret, SecretString};
 
 /// Number of words to use when generating passphrases for vaults.
-const VAULT_PASSPHRASE_WORDS: u8 = 12;
+const VAULT_PASSPHRASE_WORDS: usize = 12;
 
 /// Combines an account address with a label.
 #[derive(Debug, Clone, Serialize, Deserialize)]

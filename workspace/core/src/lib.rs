@@ -13,7 +13,6 @@ pub mod archive;
 pub mod commit_tree;
 pub mod constants;
 pub mod crypto;
-mod diceware;
 mod error;
 pub mod events;
 mod file_access;
@@ -44,7 +43,6 @@ pub mod test_utils;
 #[cfg(not(target_arch = "wasm32"))]
 pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
 
-pub use diceware::{generate_passphrase, generate_passphrase_words};
 pub use error::Error;
 pub use file_access::VaultFileAccess;
 pub use file_identity::FileIdentity;
@@ -52,6 +50,7 @@ pub use file_identity::FileIdentity;
 pub use file_locks::FileLocks;
 pub use gatekeeper::Gatekeeper;
 pub use hash::CommitHash;
+pub use passgen::diceware::{generate_passphrase, generate_passphrase_words};
 pub use passwd::ChangePassword;
 #[cfg(not(target_arch = "wasm32"))]
 pub use patch::PatchFile;
