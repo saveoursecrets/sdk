@@ -1,15 +1,16 @@
 //! Utility for generating random passwords.
-use secrecy::{SecretString, ExposeSecret};
 use rand::Rng;
+use secrecy::{ExposeSecret, SecretString};
 use zxcvbn::{zxcvbn, Entropy};
 
-use crate::{Result, diceware::generate_passphrase_words};
+use crate::{diceware::generate_passphrase_words, Result};
 
 const ROMAN_LOWER: &str = "abcdefghijklmnopqrstuvwxyz";
 const ROMAN_UPPER: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const DIGITS: &str = "0123456789";
 const PUNCTUATION: &str = "!\"#$%&'()*+,-./:;<=>?@`~\\]^_{}";
 
+/// Generated password result.
 #[derive(Debug, Clone)]
 pub struct PasswordResult {
     /// The generated password.
@@ -54,7 +55,11 @@ impl PasswordGen {
 
     /// Options using printable ASCII characters.
     pub fn new_ascii_printable(length: usize) -> Self {
-        Self::new(length).upper().lower().numeric().ascii_printable()
+        Self::new(length)
+            .upper()
+            .lower()
+            .numeric()
+            .ascii_printable()
     }
 
     /// Create with diceware words.
@@ -104,9 +109,9 @@ impl PasswordGen {
 
     /// Generate a random password.
     pub fn one(&self) -> Result<PasswordResult> {
-
         let password = if self.diceware {
-            let (passphrase, _) = generate_passphrase_words(self.len() as u8)?;
+            let (passphrase, _) =
+                generate_passphrase_words(self.len() as u8)?;
             passphrase
         } else {
             let rng = &mut rand::thread_rng();
@@ -123,10 +128,7 @@ impl PasswordGen {
             SecretString::new(password)
         };
         let entropy = zxcvbn(password.expose_secret(), &[])?;
-        let result = PasswordResult {
-            password,
-            entropy,
-        };
+        let result = PasswordResult { password, entropy };
         Ok(result)
     }
 
@@ -190,12 +192,16 @@ mod test {
     fn passgen_diceware() -> Result<()> {
         let generator = PasswordGen::new_diceware(6);
         let result = generator.one()?;
-        let words: Vec<String> = result.password.expose_secret()
-            .split(' ').map(|s| s.to_owned()).collect();
+        let words: Vec<String> = result
+            .password
+            .expose_secret()
+            .split(' ')
+            .map(|s| s.to_owned())
+            .collect();
         assert_eq!(generator.len(), words.len());
         Ok(())
     }
-    
+
     #[test]
     fn passgen_generate() -> Result<()> {
         let generator = PasswordGen::new_ascii_printable(12);
@@ -203,7 +209,10 @@ mod test {
         let passwords = generator.many(count)?;
         assert_eq!(count, passwords.len());
         for result in passwords {
-            assert_eq!(generator.len(), result.password.expose_secret().len());
+            assert_eq!(
+                generator.len(),
+                result.password.expose_secret().len()
+            );
         }
         Ok(())
     }
