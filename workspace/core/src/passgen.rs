@@ -70,6 +70,13 @@ const ROMAN_UPPER: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const DIGITS: &str = "0123456789";
 const PUNCTUATION: &str = "!\"#$%&'()*+,-./:;<=>?@`~\\]^_{}";
 
+/// Measure the entropy in a password.
+pub fn measure_entropy(
+    password: &str,
+    user_inputs: &[&str]) -> Result<Entropy> {
+    Ok(zxcvbn(password, user_inputs)?)
+}
+
 /// Generated password result.
 #[derive(Debug, Clone)]
 pub struct PasswordResult {
