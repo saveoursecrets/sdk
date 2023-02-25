@@ -38,7 +38,7 @@ secrecy = { version = "0.8", features = ["serde"] }
 tempfile = "3"
 log = "0.4"
 http = "0.2"
-passwords = "3"
+zxcvbn = "2"
 totp-sos = { version = "3", features = ["serde"] }
 vcard4 = { version = "0.3", features = ["serde"] }
 parking_lot = "0.12"
