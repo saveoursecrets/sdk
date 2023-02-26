@@ -1,6 +1,11 @@
 //! Account manager provides utility functions for
 //! creating and managing local accounts.
-use std::{borrow::Cow, io::Cursor, path::PathBuf, sync::Arc};
+use std::{
+    borrow::Cow,
+    io::Cursor,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -422,6 +427,16 @@ impl AccountManager {
         let mut compressed = Vec::new();
         deflate(archive.as_slice(), &mut compressed)?;
         Ok(compressed)
+    }
+    
+    /// Export an archive of the account to disc.
+    pub fn export_archive_file<P: AsRef<Path>>(
+        path: P,
+        address: &str,
+    ) -> Result<()> {
+        let buffer = Self::export_archive_buffer(address)?;
+        std::fs::write(path.as_ref(), buffer)?;
+        Ok(())
     }
 
     /// Read the inventory from an archive.

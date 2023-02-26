@@ -73,7 +73,8 @@ const PUNCTUATION: &str = "!\"#$%&'()*+,-./:;<=>?@`~\\]^_{}";
 /// Measure the entropy in a password.
 pub fn measure_entropy(
     password: &str,
-    user_inputs: &[&str]) -> Result<Entropy> {
+    user_inputs: &[&str],
+) -> Result<Entropy> {
     Ok(zxcvbn(password, user_inputs)?)
 }
 
