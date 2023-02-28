@@ -419,28 +419,31 @@ impl SearchIndex {
         id: &SecretId,
         meta: SecretMeta,
     ) {
-        let kind = *meta.kind();
-        let doc = Document(*vault_id, *id, meta);
+        // Prevent duplicates
+        if self.find_by_id(vault_id, id).is_none() {
+            let kind = *meta.kind();
+            let doc = Document(*vault_id, *id, meta);
 
-        // Listing key includes the identifier so that
-        // secrets with the same label do not overwrite each other
-        let key =
-            DocumentKey(doc.meta().label().to_lowercase(), *vault_id, *id);
-        let doc = self.documents.entry(key).or_insert(doc);
+            // Listing key includes the identifier so that
+            // secrets with the same label do not overwrite each other
+            let key =
+                DocumentKey(doc.meta().label().to_lowercase(), *vault_id, *id);
+            let doc = self.documents.entry(key).or_insert(doc);
 
-        self.index.add_document(
-            &[label_extract, tags_extract],
-            tokenizer,
-            (*vault_id, *id),
-            doc,
-        );
+            self.index.add_document(
+                &[label_extract, tags_extract],
+                tokenizer,
+                (*vault_id, *id),
+                doc,
+            );
 
-        self.statistics.count.add(
-            *vault_id,
-            kind,
-            doc.meta().tags(),
-            doc.meta().favorite(),
-        );
+            self.statistics.count.add(
+                *vault_id,
+                kind,
+                doc.meta().tags(),
+                doc.meta().favorite(),
+            );
+        }
     }
 
     /// Update a document in the index.
