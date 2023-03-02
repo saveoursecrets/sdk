@@ -120,11 +120,10 @@ impl StorageDirs {
 
 /// Options for a restore operation.
 pub struct RestoreOptions {
-    /// Whether to overwrite an existing identity vault.
-    pub overwrite_identity: bool,
     /// Vaults that the user selected to be imported.
     pub selected: Vec<Summary>,
-    /// Passphrase to verify the vaults can be decrypted before import.
+    /// Passphrase for the identity vault in the archive to copy 
+    /// the passphrases for imported folders.
     pub passphrase: Option<SecretString>,
 }
 
@@ -175,14 +174,9 @@ pub trait StorageProvider: Sync + Send {
     /// Buffer is the compressed archive contents.
     async fn restore_archive(
         &mut self,
-        buffer: Vec<u8>,
-        options: RestoreOptions,
-    ) -> Result<(String, ArchiveItem)> {
-        let RestoreTargets {
-            address,
-            identity,
-            vaults,
-        } = self.extract_verify_archive(buffer, &options)?;
+        targets: &RestoreTargets,
+    ) -> Result<()> {
+        let RestoreTargets { vaults, .. } = targets;
 
         // We may be restoring vaults that do not exist
         // so we need to update the cache
@@ -195,7 +189,7 @@ pub trait StorageProvider: Sync + Send {
         for (buffer, vault) in vaults {
             // Prepare a fresh log of WAL events
             let mut wal_events = Vec::new();
-            let create_vault = WalEvent::CreateVault(Cow::Owned(buffer));
+            let create_vault = WalEvent::CreateVault(Cow::Borrowed(buffer));
             wal_events.push(create_vault);
 
             self.update_vault(vault.summary(), &vault, wal_events)
@@ -205,7 +199,7 @@ pub trait StorageProvider: Sync + Send {
             self.refresh_vault(vault.summary(), None)?;
         }
 
-        Ok((address, identity))
+        Ok(())
     }
 
     /// Helper to extract from an archive and verify the archive

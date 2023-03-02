@@ -79,7 +79,6 @@ async fn integration_archive_local_provider() -> Result<()> {
     let options = RestoreOptions {
         selected: vec![vault.summary().clone()],
         passphrase: Some(SecretString::new(passphrase.to_string())),
-        overwrite_identity: false,
     };
 
     // Create the archive
@@ -89,9 +88,10 @@ async fn integration_archive_local_provider() -> Result<()> {
     )?;
 
     // Restore from the archive into the provider
-    let (extracted_address, _identity) =
-        storage.restore_archive(archive, options).await?;
-    assert_eq!(address, extracted_address);
+    let targets = storage.extract_verify_archive(archive, &options)?;
+    assert_eq!(address, targets.address);
+
+    storage.restore_archive(&targets).await?;
 
     // Check the vault exists and has the right identifier
     let summaries = storage.load_vaults().await?;

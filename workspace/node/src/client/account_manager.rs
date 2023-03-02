@@ -28,7 +28,9 @@ use sos_core::{
 use crate::{
     cache_dir,
     client::{
-        provider::{BoxedProvider, ProviderFactory, RestoreOptions},
+        provider::{
+            BoxedProvider, ProviderFactory, RestoreOptions, RestoreTargets,
+        },
         run_blocking, Error, Result,
     },
 };
@@ -472,27 +474,55 @@ impl AccountManager {
         options: RestoreOptions,
         provider: Option<&mut BoxedProvider>,
     ) -> Result<AccountInfo> {
-        let overwrite_identity = options.overwrite_identity;
-
         // FIXME: ensure we still have ONE vault marked as default vault!!!
 
         // Signed in so use the existing provider
         let account = if let Some(provider) = provider {
-            let (address, identity) =
-                run_blocking(provider.restore_archive(buffer, options))?;
+            let targets =
+                provider.extract_verify_archive(buffer, &options)?;
+
+            let RestoreTargets {
+                address,
+                identity,
+                vaults,
+            } = &targets;
+
+            let identity_vault_file = Self::identity_vault(&address)?;
+            let identity_buffer = std::fs::read(&identity_vault_file)?;
+            let identity_vault: Vault = decode(&identity_buffer)?;
+            let mut identity_keeper = Gatekeeper::new(identity_vault, None);
+
+            let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
+
+            let restored_identity: Vault = decode(&identity.1)?;
+            let mut restored_identity_keeper =
+                Gatekeeper::new(restored_identity, Some(search_index));
+            restored_identity_keeper.create_search_index()?;
+            restored_identity_keeper.unlock(
+                options.passphrase.as_ref().unwrap().expose_secret(),
+            )?;
+
+            for (_, vault) in vaults {
+                let vault_passphrase = Self::find_vault_passphrase(
+                    &mut restored_identity_keeper,
+                    vault.id(),
+                )?;
+                Self::save_vault_passphrase(
+                    &mut identity_keeper,
+                    vault.id(),
+                    vault_passphrase,
+                )?;
+            }
+
+            run_blocking(provider.restore_archive(&targets))?;
 
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
             let keys = Self::list_accounts()?;
-            let existing_key = keys.iter().find(|k| k.address == address);
+            let existing_key = keys.iter().find(|k| &k.address == address);
             let account = existing_key
                 .ok_or_else(|| Error::NoArchiveAccount(address.to_owned()))?
                 .clone();
-
-            if overwrite_identity {
-                let identity_vault_file = Self::identity_vault(&address)?;
-                std::fs::write(identity_vault_file, identity.1)?;
-            }
 
             account
         // No provider available so the user is not signed in
