@@ -50,6 +50,8 @@ binary-stream = { version = "3.4", features = ["32bit"] }
 tar = { version = "0.4", default-features = false }
 flate2 = "1"
 
+zip = { version = "0.6", default-features = false, features = ["bzip2", "deflate"] }
+
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 
 unicode-segmentation = "1.10"

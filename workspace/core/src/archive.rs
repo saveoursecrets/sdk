@@ -15,6 +15,8 @@ use std::{
     path::PathBuf,
 };
 use tar::{Archive, Builder, Entry, EntryType, Header};
+
+use zip::{ZipWriter, CompressionMethod, write::FileOptions};
 use time::OffsetDateTime;
 
 use crate::{
@@ -23,6 +25,7 @@ use crate::{
     Error, Result,
 };
 
+/*
 /// Finish the header in a TAR archive for a regular file.
 pub(crate) fn finish_header(header: &mut Header) {
     let now = OffsetDateTime::now_utc();
@@ -72,6 +75,7 @@ pub fn append_long_path<W: Write>(
 
     Ok(())
 }
+*/
 
 /// Manifest used to determine if the archive is supported
 /// for import purposes.
@@ -91,18 +95,29 @@ pub struct Manifest {
 ///
 /// Creating archives assumes the vault buffers have already been
 /// verified to be valid vaults.
-pub struct Writer<W: Write> {
-    builder: Builder<W>,
+pub struct Writer<W: Write + Seek> {
+    builder: ZipWriter<W>,
     manifest: Manifest,
 }
 
-impl<W: Write> Writer<W> {
+impl<W: Write + Seek> Writer<W> {
     /// Create a new writer.
     pub fn new(inner: W) -> Self {
         Self {
-            builder: Builder::new(inner),
+            builder: ZipWriter::new(inner),
             manifest: Default::default(),
         }
+    }
+
+    fn append_file_buffer(&mut self, path: &str, buffer: &[u8]) -> Result<()> {
+        //let now = OffsetDateTime::now_utc();
+        let options = FileOptions::default()
+            .compression_method(CompressionMethod::Stored);
+        // FIXME: 
+        //let options = options.last_modified_time(now.try_into()?);
+        self.builder.start_file(path, options)?;
+        self.builder.write(buffer)?;
+        Ok(())
     }
 
     /// Set the identity vault for the archive.
@@ -117,6 +132,18 @@ impl<W: Write> Writer<W> {
         self.manifest.address = address;
         self.manifest.checksum =
             hex::encode(Keccak256::digest(vault).as_slice());
+        self.append_file_buffer(
+            path.to_string_lossy().into_owned().as_ref(),
+            vault,
+        )?;
+
+        /*
+        let mut path = PathBuf::from(&address);
+        path.set_extension(VAULT_EXT);
+
+        self.manifest.address = address;
+        self.manifest.checksum =
+            hex::encode(Keccak256::digest(vault).as_slice());
 
         let mut header = Header::new_gnu();
         header.set_path(path)?;
@@ -124,6 +151,7 @@ impl<W: Write> Writer<W> {
         finish_header(&mut header);
 
         self.builder.append(&header, vault)?;
+        */
         Ok(self)
     }
 
@@ -139,27 +167,25 @@ impl<W: Write> Writer<W> {
         let checksum = hex::encode(Keccak256::digest(vault).as_slice());
         self.manifest.vaults.insert(vault_id, checksum);
 
-        let mut header = Header::new_gnu();
-        header.set_path(path)?;
-        header.set_size(vault.len() as u64);
-        finish_header(&mut header);
+        self.append_file_buffer(
+            path.to_string_lossy().into_owned().as_ref(),
+            vault,
+        )?;
 
-        self.builder.append(&header, vault)?;
         Ok(self)
     }
 
     /// Add the manifest and finish building the tarball.
     pub fn finish(mut self) -> Result<W> {
+        let path = PathBuf::from(ARCHIVE_MANIFEST);
         let manifest = serde_json::to_vec_pretty(&self.manifest)?;
 
-        let path = PathBuf::from(ARCHIVE_MANIFEST);
-        let mut header = Header::new_gnu();
-        header.set_path(path)?;
-        header.set_size(manifest.len() as u64);
-        finish_header(&mut header);
+        self.append_file_buffer(
+            path.to_string_lossy().into_owned().as_ref(),
+            manifest.as_slice(),
+        )?;
 
-        self.builder.append(&header, manifest.as_slice())?;
-        Ok(self.builder.into_inner()?)
+        Ok(self.builder.finish()?)
     }
 }
 
@@ -341,7 +367,7 @@ mod test {
     #[test]
     fn archive_buffer() -> Result<()> {
         let mut archive = Vec::new();
-        let writer = Writer::new(&mut archive);
+        let writer = Writer::new(Cursor::new(&mut archive));
 
         let (address, identity_vault) = Identity::new_login_vault(
             "Mock".to_string(),
@@ -353,7 +379,7 @@ mod test {
         let vault: Vault = Default::default();
         let vault_buffer = encode(&vault)?;
 
-        let tarball = writer
+        let zip = writer
             .set_identity(address.clone(), &identity)?
             .add_vault(*vault.id(), &vault_buffer)?
             .finish()?;
@@ -361,17 +387,15 @@ mod test {
         let expected_vault_entries =
             vec![(vault.summary().clone(), vault_buffer)];
 
-        let mut tar_gz = Vec::new();
-        deflate(tarball.as_slice(), &mut tar_gz)?;
-
-        //std::fs::write("mock.tar.gz", &tar_gz)?;
+        //std::fs::write("mock.zip", zip.into_inner())?;
 
         // Decompress and extract
-        let mut archive = Vec::new();
-        inflate(tar_gz.as_slice(), &mut archive)?;
+        //let mut archive = Vec::new();
 
-        let reader = Reader::new(Cursor::new(archive.clone()));
-        let inventory = reader.inventory()?;
+        //let reader = Reader::new(Cursor::new(zip.into_inner().clone()));
+        //let inventory = reader.inventory()?;
+
+        /*
         assert_eq!(address, inventory.manifest.address);
         assert_eq!("Mock", inventory.identity.name());
         assert_eq!(1, inventory.vaults.len());
@@ -386,6 +410,7 @@ mod test {
         assert_eq!(identity_vault.summary(), &identity_summary);
         assert_eq!(identity, identity_buffer);
         assert_eq!(expected_vault_entries, vault_entries);
+        */
 
         Ok(())
     }

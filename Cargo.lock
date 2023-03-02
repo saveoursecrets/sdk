@@ -3079,6 +3079,7 @@ dependencies = [
  "web3-address",
  "web3-signature",
  "zeroize",
+ "zip",
  "zxcvbn",
 ]
 
