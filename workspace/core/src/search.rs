@@ -426,8 +426,11 @@ impl SearchIndex {
 
             // Listing key includes the identifier so that
             // secrets with the same label do not overwrite each other
-            let key =
-                DocumentKey(doc.meta().label().to_lowercase(), *vault_id, *id);
+            let key = DocumentKey(
+                doc.meta().label().to_lowercase(),
+                *vault_id,
+                *id,
+            );
             let doc = self.documents.entry(key).or_insert(doc);
 
             self.index.add_document(

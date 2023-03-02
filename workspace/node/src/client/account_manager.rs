@@ -428,7 +428,7 @@ impl AccountManager {
         deflate(archive.as_slice(), &mut compressed)?;
         Ok(compressed)
     }
-    
+
     /// Export an archive of the account to disc.
     pub fn export_archive_file<P: AsRef<Path>>(
         path: P,
