@@ -11,7 +11,7 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use sos_core::{
-    archive::{deflate, inflate, Inventory, Reader, Writer},
+    archive::{Inventory, Reader, Writer},
     constants::{IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     decode, encode,
     events::WalEvent,
@@ -413,7 +413,7 @@ impl AccountManager {
         let vaults = Self::list_local_vaults(address)?;
 
         let mut archive = Vec::new();
-        let writer = Writer::new(&mut archive);
+        let writer = Writer::new(Cursor::new(&mut archive));
         let mut writer =
             writer.set_identity(address.to_owned(), &identity)?;
 
@@ -423,10 +423,7 @@ impl AccountManager {
         }
 
         writer.finish()?;
-
-        let mut compressed = Vec::new();
-        deflate(archive.as_slice(), &mut compressed)?;
-        Ok(compressed)
+        Ok(archive)
     }
 
     /// Export an archive of the account to disc.
@@ -440,13 +437,11 @@ impl AccountManager {
     }
 
     /// Read the inventory from an archive.
-    pub fn restore_archive_inventory(buffer: Vec<u8>) -> Result<Inventory> {
-        let mut archive = Vec::new();
-        inflate(buffer.as_slice(), &mut archive)?;
-
-        let reader = Reader::new(Cursor::new(archive));
-        let inventory = reader.inventory()?;
-        Ok(inventory)
+    pub fn restore_archive_inventory(
+        mut archive: Vec<u8>,
+    ) -> Result<Inventory> {
+        let mut reader = Reader::new(Cursor::new(&mut archive))?;
+        Ok(reader.inventory()?)
     }
 
     /// List account information for the identity vaults.

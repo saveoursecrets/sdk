@@ -12,7 +12,7 @@ use std::{
 };
 
 use sos_core::{
-    archive::{inflate, ArchiveItem, Reader},
+    archive::{ArchiveItem, Reader},
     commit_tree::{CommitProof, CommitTree},
     constants::{LOCAL_DIR, PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     decode,
@@ -212,15 +212,10 @@ pub trait StorageProvider: Sync + Send {
     /// contents against the restore options.
     fn extract_verify_archive(
         &self,
-        buffer: Vec<u8>,
+        mut archive: Vec<u8>,
         options: &RestoreOptions,
     ) -> Result<RestoreTargets> {
-        // Decompress
-        let mut archive = Vec::new();
-        inflate(buffer.as_slice(), &mut archive)?;
-
-        // Read from the tarball
-        let reader = Reader::new(Cursor::new(archive));
+        let reader = Reader::new(Cursor::new(&mut archive))?;
         let (address, identity, vaults) = reader.prepare()?.finish()?;
 
         // Filter extracted vaults to those selected by the user

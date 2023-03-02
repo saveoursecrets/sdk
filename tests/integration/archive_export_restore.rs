@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serial_test::serial;
+use std::io::Cursor;
 
 use crate::test_utils::*;
 
@@ -7,7 +8,7 @@ use secrecy::SecretString;
 use tempfile::tempdir;
 
 use sos_core::{
-    archive::{deflate, Writer},
+    archive::Writer,
     encode,
     events::SyncEvent,
     identity::Identity,
@@ -24,7 +25,7 @@ fn create_archive(
     vaults: Vec<Vault>,
 ) -> Result<(String, Vault, Vec<u8>)> {
     let mut archive = Vec::new();
-    let mut writer = Writer::new(&mut archive);
+    let mut writer = Writer::new(Cursor::new(&mut archive));
 
     let (address, identity_vault) =
         Identity::new_login_vault("Mock".to_string(), passphrase)?;
@@ -38,12 +39,9 @@ fn create_archive(
         writer = writer.add_vault(*vault.id(), &buffer)?;
     }
 
-    let tarball = writer.finish()?;
+    writer.finish()?;
 
-    let mut compressed = Vec::new();
-    deflate(tarball.as_slice(), &mut compressed)?;
-
-    Ok((address, identity_vault, compressed))
+    Ok((address, identity_vault, archive))
 }
 
 #[tokio::test]

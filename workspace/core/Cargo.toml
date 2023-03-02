@@ -47,8 +47,7 @@ once_cell = "1"
 
 binary-stream = { version = "3.4", features = ["32bit"] }
 
-tar = { version = "0.4", default-features = false }
-flate2 = "1"
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
 
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 
