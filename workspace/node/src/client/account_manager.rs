@@ -54,6 +54,18 @@ pub struct AccountInfo {
     pub label: String,
 }
 
+/// Settings for creating a new account.
+pub struct NewAccount {
+    /// The name of the account.
+    pub account_name: String,
+    /// The passphrase for the new account.
+    pub passphrase: SecretString,
+    /// Whether to save the account passphrase in the default folder.
+    pub save_passphrase: bool,
+    /// Whether to create a vault to use as an archive folder.
+    pub create_archive_vault: bool,
+}
+
 /// Manage accounts using the file system and a local provider.
 #[derive(Default)]
 pub struct AccountManager {}
@@ -61,11 +73,15 @@ pub struct AccountManager {}
 impl AccountManager {
     /// Create a new account.
     pub fn new_account(
-        account_name: String,
-        passphrase: SecretString,
-        save_passphrase: bool,
-        create_archive_vault: bool,
+        account: NewAccount,
     ) -> Result<(String, AuthenticatedUser, Summary, Option<Summary>)> {
+        let NewAccount {
+            account_name,
+            passphrase,
+            save_passphrase,
+            create_archive_vault,
+        } = account;
+
         // Prepare the identity vault
         let (address, identity_vault) = Identity::new_login_vault(
             account_name.clone(),
