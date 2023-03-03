@@ -176,6 +176,7 @@ impl<R: Read + Seek> Reader<R> {
             let (summary, _) = self.archive_entry(entry_path, checksum)?;
             vaults.push(summary);
         }
+        vaults.sort_by(|a, b| a.name().partial_cmp(b.name()).unwrap());
         Ok(Inventory {
             manifest,
             identity,

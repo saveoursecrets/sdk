@@ -183,8 +183,8 @@ pub struct SecretMeta {
     /// A URN identifier for this secret.
     ///
     /// This is used when an identity vault stores passphrases
-    /// for other vaults folders on behalf of a user and can also
-    /// be used to assign a predictable identifier to a secret.
+    /// for other vault folders on behalf of a user and can also
+    /// be used to assign a predictable identifier for a secret.
     #[serde(skip_serializing_if = "Option::is_none")]
     urn: Option<Urn>,
     /// An optional owner identifier.

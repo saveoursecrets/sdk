@@ -192,6 +192,7 @@ impl AccountManager {
         vault_passphrase: SecretString,
     ) -> Result<()> {
         let urn = Vault::vault_urn(vault_id)?;
+
         let secret = Secret::Password {
             name: None,
             password: vault_passphrase,
@@ -323,6 +324,7 @@ impl AccountManager {
         let local_dir = Self::local_dir()?;
         let identity_data_dir = local_dir.join(address);
 
+        // FIXME: move to a trash folder
         std::fs::remove_file(&identity_vault_file)?;
         std::fs::remove_dir_all(&identity_data_dir)?;
 
@@ -487,42 +489,52 @@ impl AccountManager {
                 vaults,
             } = &targets;
 
-            let identity_vault_file = Self::identity_vault(&address)?;
-            let identity_buffer = std::fs::read(&identity_vault_file)?;
-            let identity_vault: Vault = decode(&identity_buffer)?;
-            let mut identity_keeper = Gatekeeper::new(identity_vault, None);
-
-            let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
-
-            let restored_identity: Vault = decode(&identity.1)?;
-            let mut restored_identity_keeper =
-                Gatekeeper::new(restored_identity, Some(search_index));
-            restored_identity_keeper.create_search_index()?;
-            restored_identity_keeper.unlock(
-                options.passphrase.as_ref().unwrap().expose_secret(),
-            )?;
-
-            for (_, vault) in vaults {
-                let vault_passphrase = Self::find_vault_passphrase(
-                    &mut restored_identity_keeper,
-                    vault.id(),
-                )?;
-                Self::save_vault_passphrase(
-                    &mut identity_keeper,
-                    vault.id(),
-                    vault_passphrase,
-                )?;
-            }
-
-            run_blocking(provider.restore_archive(&targets))?;
-
-            // The GUI should check the identity does not already exist
+            // The GUI should check the identity already exists
             // but we will double check here to be safe
             let keys = Self::list_accounts()?;
             let existing_key = keys.iter().find(|k| &k.address == address);
             let account = existing_key
                 .ok_or_else(|| Error::NoArchiveAccount(address.to_owned()))?
                 .clone();
+
+            if let Some(passphrase) = &options.passphrase {
+                let identity_vault_file = Self::identity_vault(&address)?;
+                let identity_buffer = std::fs::read(&identity_vault_file)?;
+                let identity_vault: Vault = decode(&identity_buffer)?;
+                let mut identity_keeper =
+                    Gatekeeper::new(identity_vault, None);
+                identity_keeper.unlock(passphrase.expose_secret())?;
+
+                let search_index =
+                    Arc::new(RwLock::new(SearchIndex::new(None)));
+                let restored_identity: Vault = decode(&identity.1)?;
+                let mut restored_identity_keeper = Gatekeeper::new(
+                    restored_identity,
+                    Some(Arc::clone(&search_index)),
+                );
+                restored_identity_keeper
+                    .unlock(passphrase.expose_secret())?;
+                restored_identity_keeper.create_search_index()?;
+
+                for (_, vault) in vaults {
+                    let vault_passphrase = Self::find_vault_passphrase(
+                        &mut restored_identity_keeper,
+                        vault.id(),
+                    )?;
+
+                    Self::save_vault_passphrase(
+                        &mut identity_keeper,
+                        vault.id(),
+                        vault_passphrase,
+                    )?;
+                }
+
+                // Must re-write the identity vault
+                let buffer = encode(identity_keeper.vault())?;
+                std::fs::write(identity_vault_file, &buffer)?;
+            }
+
+            run_blocking(provider.restore_archive(&targets))?;
 
             account
         // No provider available so the user is not signed in

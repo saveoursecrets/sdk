@@ -122,7 +122,7 @@ impl StorageDirs {
 pub struct RestoreOptions {
     /// Vaults that the user selected to be imported.
     pub selected: Vec<Summary>,
-    /// Passphrase for the identity vault in the archive to copy 
+    /// Passphrase for the identity vault in the archive to copy
     /// the passphrases for imported folders.
     pub passphrase: Option<SecretString>,
 }
@@ -224,12 +224,6 @@ pub trait StorageProvider: Sync + Send {
             })
             .collect::<Vec<_>>();
 
-        let default_vault =
-            vaults.iter().find(|item| item.0.flags().is_default());
-        if default_vault.is_none() {
-            return Err(Error::NoArchiveDefaultVault);
-        }
-
         // Check each target vault can be decoded
         let mut decoded: Vec<(Vec<u8>, Vault)> = Vec::new();
         for item in vaults {
@@ -239,15 +233,10 @@ pub trait StorageProvider: Sync + Send {
 
         // Check all the decoded vaults can be decrypted
         if let Some(passphrase) = &options.passphrase {
-            // Check the identity vault
+            // Check the identity vault can be unlocked
             let vault: Vault = decode(&identity.1)?;
             let mut keeper = Gatekeeper::new(vault, None);
             keeper.unlock(passphrase.expose_secret())?;
-
-            for (_, vault) in &decoded {
-                let mut keeper = Gatekeeper::new(vault.clone(), None);
-                keeper.unlock(passphrase.expose_secret())?;
-            }
 
             // Get the signing address from the identity vault and
             // verify it matches the manifest address
