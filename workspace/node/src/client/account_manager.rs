@@ -63,7 +63,9 @@ pub struct NewAccount {
     /// Whether to save the account passphrase in the default folder.
     pub save_passphrase: bool,
     /// Whether to create a vault to use as an archive folder.
-    pub create_archive_vault: bool,
+    pub create_archive: bool,
+    /// Whether to create a vault to use for two-factor authentication.
+    pub create_authenticator: bool,
 }
 
 /// Manage accounts using the file system and a local provider.
@@ -79,7 +81,8 @@ impl AccountManager {
             account_name,
             passphrase,
             save_passphrase,
-            create_archive_vault,
+            create_archive,
+            create_authenticator,
         } = account;
 
         // Prepare the identity vault
@@ -133,22 +136,40 @@ impl AccountManager {
             vault_passphrase,
         )?;
 
-        let archive = if create_archive_vault {
+        let archive = if create_archive {
             // Prepare the passphrase for the archive vault
             let archive_passphrase = Self::generate_vault_passphrase()?;
 
             // Prepare the archive vault
-            let mut archive_vault: Vault = Default::default();
-            archive_vault.set_name("Archive".to_string());
-            archive_vault.set_archive_flag(true);
-            archive_vault
-                .initialize(archive_passphrase.expose_secret(), None)?;
+            let mut vault: Vault = Default::default();
+            vault.set_name("Archive".to_string());
+            vault.set_archive_flag(true);
+            vault.initialize(archive_passphrase.expose_secret(), None)?;
             Self::save_vault_passphrase(
                 &mut keeper,
-                archive_vault.id(),
+                vault.id(),
                 archive_passphrase,
             )?;
-            Some(archive_vault)
+            Some(vault)
+        } else {
+            None
+        };
+
+        let authenticator = if create_authenticator {
+            // Prepare the passphrase for the authenticator vault
+            let auth_passphrase = Self::generate_vault_passphrase()?;
+
+            // Prepare the authenticator vault
+            let mut vault: Vault = Default::default();
+            vault.set_name("Authenticator".to_string());
+            vault.set_authenticator_flag(true);
+            vault.initialize(auth_passphrase.expose_secret(), None)?;
+            Self::save_vault_passphrase(
+                &mut keeper,
+                vault.id(),
+                auth_passphrase,
+            )?;
+            Some(vault)
         } else {
             None
         };

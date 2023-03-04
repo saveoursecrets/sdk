@@ -45,6 +45,8 @@ bitflags! {
         const IDENTITY          =        0b00000010;
         /// Indicates this vault is to be used as an archive.
         const ARCHIVE           =        0b00000100;
+        /// Indicates this vault is to be used for two-factor authentication.
+        const AUTHENTICATOR     =        0b00001000;
     }
 
 }
@@ -63,6 +65,11 @@ impl VaultFlags {
     /// Determine if this vault is an archive vault.
     pub fn is_archive(&self) -> bool {
         self.contains(VaultFlags::ARCHIVE)
+    }
+
+    /// Determine if this vault is an authenticator vault.
+    pub fn is_authenticator(&self) -> bool {
+        self.contains(VaultFlags::AUTHENTICATOR)
     }
 }
 
@@ -739,6 +746,11 @@ impl Vault {
     /// Set whether this vault is an archive vault.
     pub fn set_archive_flag(&mut self, value: bool) {
         self.flags_mut().set(VaultFlags::ARCHIVE, value);
+    }
+
+    /// Set whether this vault is an authenticator vault.
+    pub fn set_authenticator_flag(&mut self, value: bool) {
+        self.flags_mut().set(VaultFlags::AUTHENTICATOR, value);
     }
 
     /// Insert a secret into this vault.
