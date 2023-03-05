@@ -183,6 +183,10 @@ pub enum Error {
     #[error("bits for vault flags are invalid")]
     InvalidVaultFlags,
 
+    /// Error generated when decoding secret flags has invalid bits.
+    #[error("bits for secret flags are invalid")]
+    InvalidSecretFlags,
+
     /// Error generated when decoding a vault purpose identifier that
     /// is not known.
     #[error("purpose identifier {0} is unknown")]

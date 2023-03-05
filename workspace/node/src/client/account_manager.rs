@@ -54,8 +54,8 @@ pub struct AccountInfo {
     pub label: String,
 }
 
-/// Settings for creating a new account.
-pub struct NewAccount {
+/// Request to create a new account.
+pub struct NewAccountRequest {
     /// The name of the account.
     pub account_name: String,
     /// The passphrase for the new account.
@@ -68,6 +68,20 @@ pub struct NewAccount {
     pub create_authenticator: bool,
 }
 
+/// Response to creating a new account.
+pub struct NewAccountResponse {
+    /// Address of the account signing key.
+    pub address: String,
+    /// Authenticated user.
+    pub user: AuthenticatedUser,
+    /// Default vault summary.
+    pub summary: Summary,
+    /// Archive summary.
+    pub archive: Option<Summary>,
+    /// Authenticator summary.
+    pub authenticator: Option<Summary>,
+}
+
 /// Manage accounts using the file system and a local provider.
 #[derive(Default)]
 pub struct AccountManager {}
@@ -75,9 +89,9 @@ pub struct AccountManager {}
 impl AccountManager {
     /// Create a new account.
     pub fn new_account(
-        account: NewAccount,
-    ) -> Result<(String, AuthenticatedUser, Summary, Option<Summary>)> {
-        let NewAccount {
+        account: NewAccountRequest,
+    ) -> Result<NewAccountResponse> {
+        let NewAccountRequest {
             account_name,
             passphrase,
             save_passphrase,
@@ -191,7 +205,7 @@ impl AccountManager {
         let summary =
             run_blocking(provider.create_account_with_buffer(buffer))?;
 
-        let archive_summary = if let Some(archive_vault) = archive {
+        let archive = if let Some(archive_vault) = archive {
             let buffer = encode(&archive_vault)?;
             let summary = run_blocking(provider.import_vault(buffer))?;
             Some(summary)
@@ -199,7 +213,21 @@ impl AccountManager {
             None
         };
 
-        Ok((address, user, summary, archive_summary))
+        let authenticator = if let Some(authenticator_vault) = authenticator {
+            let buffer = encode(&authenticator_vault)?;
+            let summary = run_blocking(provider.import_vault(buffer))?;
+            Some(summary)
+        } else {
+            None
+        };
+
+        Ok(NewAccountResponse {
+            address,
+            user,
+            summary,
+            archive,
+            authenticator,
+        })
     }
 
     /// Get the local cache directory.

@@ -21,11 +21,23 @@ use url::Url;
 use urn::Urn;
 use uuid::Uuid;
 use vcard4::{parse as parse_to_vcards, Vcard};
+use bitflags::bitflags;
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
     Error, Result, Timestamp,
 };
+
+bitflags! {
+    /// Bit flags for a secret.
+    #[derive(Default, Serialize, Deserialize)]
+    pub struct SecretFlags: u32 {
+        /// Clients should verify the account passphrase 
+        /// before revealing this secret.
+        const VERIFY            =        0b00000001;
+    }
+
+}
 
 fn serialize_secret_string<S>(
     secret: &SecretString,
@@ -169,6 +181,8 @@ impl Decode for VaultMeta {
 pub struct SecretMeta {
     /// Kind of the secret.
     kind: u8,
+    /// Flags for the secret.
+    flags: SecretFlags,
     /// Date created timestamp.
     date_created: Timestamp,
     /// Last updated timestamp.
@@ -218,8 +232,9 @@ impl SecretMeta {
     /// Create new meta data for a secret.
     pub fn new(label: String, kind: u8) -> Self {
         Self {
-            label,
             kind,
+            flags: Default::default(),
+            label,
             date_created: Default::default(),
             last_updated: Default::default(),
             tags: Default::default(),
@@ -294,6 +309,16 @@ impl SecretMeta {
         self.favorite = favorite;
     }
 
+    /// The flags for the secret.
+    pub fn flags(&self) -> &SecretFlags {
+        &self.flags
+    }
+
+    /// The mutable flags for the secret.
+    pub fn flags_mut(&mut self) -> &mut SecretFlags {
+        &mut self.flags
+    }
+
     /// Get an abbreviated short name based
     /// on the kind of secret.
     pub fn short_name(&self) -> &str {
@@ -320,6 +345,7 @@ impl SecretMeta {
 impl Encode for SecretMeta {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         writer.write_u8(self.kind)?;
+        writer.write_u32(self.flags.bits())?;
         self.date_created.encode(&mut *writer)?;
         self.last_updated.encode(&mut *writer)?;
         writer.write_string(&self.label)?;
@@ -343,6 +369,9 @@ impl Encode for SecretMeta {
 impl Decode for SecretMeta {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         self.kind = reader.read_u8()?;
+        self.flags = SecretFlags::from_bits(reader.read_u32()?)
+            .ok_or(Error::InvalidSecretFlags)
+            .map_err(Box::from)?;
         let mut date_created: Timestamp = Default::default();
         date_created.decode(&mut *reader)?;
         let mut last_updated: Timestamp = Default::default();
