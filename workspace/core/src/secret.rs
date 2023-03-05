@@ -3,6 +3,7 @@ use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 
+use bitflags::bitflags;
 use pem::Pem;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{
@@ -21,7 +22,6 @@ use url::Url;
 use urn::Urn;
 use uuid::Uuid;
 use vcard4::{parse as parse_to_vcards, Vcard};
-use bitflags::bitflags;
 
 use crate::{
     signer::{BoxedSigner, SingleParty},
@@ -32,7 +32,7 @@ bitflags! {
     /// Bit flags for a secret.
     #[derive(Default, Serialize, Deserialize)]
     pub struct SecretFlags: u32 {
-        /// Clients should verify the account passphrase 
+        /// Clients should verify the account passphrase
         /// before revealing this secret.
         const VERIFY            =        0b00000001;
     }
