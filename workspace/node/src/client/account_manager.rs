@@ -131,7 +131,7 @@ impl AccountManager {
                 user_data: UserData::new_comment(address.to_owned()),
             };
             let mut meta = SecretMeta::new(
-                "Master Passphrase".to_string(),
+                "Master Password".to_string(),
                 secret.kind(),
             );
             meta.set_favorite(true);
