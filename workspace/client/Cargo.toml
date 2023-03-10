@@ -29,7 +29,7 @@ zeroize = "1.4"
 secrecy = "0.8"
 web3-address = { version = "0.5.1", features = ["ethereum"] }
 
-vcard4 = { version = "0.4.0", features = ["serde"] }
+vcard4 = { version = "0.4.1", features = ["serde"] }
 
 [[bin]]
 name = "sos-client"
