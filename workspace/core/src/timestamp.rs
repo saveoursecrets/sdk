@@ -157,6 +157,12 @@ impl From<OffsetDateTime> for Timestamp {
     }
 }
 
+impl From<Timestamp> for OffsetDateTime {
+    fn from(value: Timestamp) -> Self {
+        value.0
+    }
+}
+
 impl TryFrom<FileTime> for Timestamp {
     type Error = crate::Error;
 
