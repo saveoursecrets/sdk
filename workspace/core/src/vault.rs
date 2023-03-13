@@ -37,8 +37,7 @@ bitflags! {
     /// Bit flags for a vault.
     #[derive(Default, Serialize, Deserialize)]
     pub struct VaultFlags: u64 {
-        /// Indicates this vault should be treated as the default
-        /// folder.
+        /// Indicates this vault should be treated as the default folder.
         const DEFAULT           =        0b00000001;
         /// Indicates this vault is an identity vault used to authenticate
         /// a user.
@@ -47,8 +46,9 @@ bitflags! {
         const ARCHIVE           =        0b00000100;
         /// Indicates this vault is to be used for two-factor authentication.
         const AUTHENTICATOR     =        0b00001000;
+        /// Indicates this vault is to be used to store contacts.
+        const CONTACT           =        0b00010000;
     }
-
 }
 
 impl VaultFlags {
@@ -70,6 +70,11 @@ impl VaultFlags {
     /// Determine if this vault is an authenticator vault.
     pub fn is_authenticator(&self) -> bool {
         self.contains(VaultFlags::AUTHENTICATOR)
+    }
+
+    /// Determine if this vault is for contacts.
+    pub fn is_contact(&self) -> bool {
+        self.contains(VaultFlags::CONTACT)
     }
 }
 
@@ -751,6 +756,11 @@ impl Vault {
     /// Set whether this vault is an authenticator vault.
     pub fn set_authenticator_flag(&mut self, value: bool) {
         self.flags_mut().set(VaultFlags::AUTHENTICATOR, value);
+    }
+
+    /// Set whether this vault is for contacts.
+    pub fn set_contact_flag(&mut self, value: bool) {
+        self.flags_mut().set(VaultFlags::CONTACT, value);
     }
 
     /// Insert a secret into this vault.

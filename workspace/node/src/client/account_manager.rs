@@ -66,6 +66,8 @@ pub struct NewAccountRequest {
     pub create_archive: bool,
     /// Whether to create a vault to use for two-factor authentication.
     pub create_authenticator: bool,
+    /// Whether to create a vault to use for contacts.
+    pub create_contact: bool,
 }
 
 /// Response to creating a new account.
@@ -80,6 +82,8 @@ pub struct NewAccountResponse {
     pub archive: Option<Summary>,
     /// Authenticator summary.
     pub authenticator: Option<Summary>,
+    /// Contact summary.
+    pub contact: Option<Summary>,
 }
 
 /// Manage accounts using the file system and a local provider.
@@ -97,6 +101,7 @@ impl AccountManager {
             save_passphrase,
             create_archive,
             create_authenticator,
+            create_contact,
         } = account;
 
         // Prepare the identity vault
@@ -186,6 +191,25 @@ impl AccountManager {
             None
         };
 
+        let contact = if create_contact {
+            // Prepare the passphrase for the authenticator vault
+            let auth_passphrase = Self::generate_vault_passphrase()?;
+
+            // Prepare the authenticator vault
+            let mut vault: Vault = Default::default();
+            vault.set_name("Contacts".to_string());
+            vault.set_contact_flag(true);
+            vault.initialize(auth_passphrase.expose_secret(), None)?;
+            Self::save_vault_passphrase(
+                &mut keeper,
+                vault.id(),
+                auth_passphrase,
+            )?;
+            Some(vault)
+        } else {
+            None
+        };
+
         // Persist the identity vault to disc, MUST re-encode the buffer
         // as we have modified the identity vault
         let identity_vault_file = Self::identity_vault(&address)?;
@@ -219,12 +243,21 @@ impl AccountManager {
             None
         };
 
+        let contact = if let Some(contact_vault) = contact {
+            let buffer = encode(&contact_vault)?;
+            let summary = run_blocking(provider.import_vault(buffer))?;
+            Some(summary)
+        } else {
+            None
+        };
+
         Ok(NewAccountResponse {
             address,
             user,
             summary,
             archive,
             authenticator,
+            contact,
         })
     }
 
