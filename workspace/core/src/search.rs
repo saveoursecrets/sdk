@@ -66,12 +66,12 @@ fn query_tokenizer(s: &str) -> Vec<Cow<'_, str>> {
 
 // Label
 fn label_extract(d: &Document) -> Vec<&str> {
-    vec![d.2.label()]
+    vec![d.meta().label()]
 }
 
 // Tags
 fn tags_extract(d: &Document) -> Vec<&str> {
-    d.2.tags().iter().map(|s| &s[..]).collect()
+    d.meta().tags().iter().map(|s| &s[..]).collect()
 }
 
 /// Count of documents by vault identitier and secret kind.
@@ -240,22 +240,29 @@ impl SearchStatistics {
 
 /// Document that can be indexed.
 #[derive(Debug, Serialize)]
-pub struct Document(pub VaultId, pub SecretId, pub SecretMeta);
+pub struct Document {
+    /// The vault identifier.
+    pub vault_id: VaultId,
+    /// The secret identifier.
+    pub secret_id: SecretId,
+    /// The secret meta data.
+    pub meta: SecretMeta,
+}
 
 impl Document {
     /// Get the vault identifier.
     pub fn vault_id(&self) -> &VaultId {
-        &self.0
+        &self.vault_id
     }
 
     /// Get the secret identifier.
     pub fn id(&self) -> &SecretId {
-        &self.1
+        &self.secret_id
     }
 
     /// Get the secret meta data.
     pub fn meta(&self) -> &SecretMeta {
-        &self.2
+        &self.meta
     }
 }
 
@@ -422,7 +429,11 @@ impl SearchIndex {
         // Prevent duplicates
         if self.find_by_id(vault_id, id).is_none() {
             let kind = *meta.kind();
-            let doc = Document(*vault_id, *id, meta);
+            let doc = Document {
+                vault_id: *vault_id,
+                secret_id: *id,
+                meta,
+            };
 
             // Listing key includes the identifier so that
             // secrets with the same label do not overwrite each other
