@@ -11,7 +11,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use urn::Urn;
 
 use crate::{
-    secret::{SecretId, SecretMeta, SecretRef},
+    secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::VaultId,
 };
 
@@ -238,6 +238,32 @@ impl SearchStatistics {
     }
 }
 
+/// Additional fields that can exposed via search results
+/// that are extracted from the secret data but safe to
+/// be exposed.
+#[derive(Default, Debug, Serialize)]
+pub struct ExtraFields {
+    /// The contact type for contact secrets.
+    pub contact_type: Option<vcard4::property::Kind>,
+}
+
+impl From<&Secret> for ExtraFields {
+    fn from(value: &Secret) -> Self {
+        let mut extra: ExtraFields = Default::default();
+        match value {
+            Secret::Contact { vcard, .. } => {
+                extra.contact_type = vcard
+                    .kind
+                    .as_ref()
+                    .map(|p| p.value.clone())
+                    .or(Some(vcard4::property::Kind::Individual));
+            }
+            _ => {}
+        }
+        extra
+    }
+}
+
 /// Document that can be indexed.
 #[derive(Debug, Serialize)]
 pub struct Document {
@@ -247,6 +273,8 @@ pub struct Document {
     pub secret_id: SecretId,
     /// The secret meta data.
     pub meta: SecretMeta,
+    /// The extra fields for the document.
+    pub extra: ExtraFields,
 }
 
 impl Document {
@@ -263,6 +291,11 @@ impl Document {
     /// Get the secret meta data.
     pub fn meta(&self) -> &SecretMeta {
         &self.meta
+    }
+
+    /// Get the extra fields.
+    pub fn extra(&self) -> &ExtraFields {
+        &self.extra
     }
 }
 
@@ -425,6 +458,7 @@ impl SearchIndex {
         vault_id: &VaultId,
         id: &SecretId,
         meta: SecretMeta,
+        secret: &Secret,
     ) {
         // Prevent duplicates
         if self.find_by_id(vault_id, id).is_none() {
@@ -433,6 +467,7 @@ impl SearchIndex {
                 vault_id: *vault_id,
                 secret_id: *id,
                 meta,
+                extra: secret.into(),
             };
 
             // Listing key includes the identifier so that
@@ -466,9 +501,10 @@ impl SearchIndex {
         vault_id: &VaultId,
         id: &SecretId,
         meta: SecretMeta,
+        secret: &Secret,
     ) {
         self.remove(vault_id, id);
-        self.add(vault_id, id, meta);
+        self.add(vault_id, id, meta, secret);
     }
 
     /// Remove and vacuum a document from the index.
