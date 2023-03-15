@@ -600,6 +600,7 @@ impl SearchIndex {
 mod test {
     use super::*;
     use crate::secret::SecretMeta;
+    use secrecy::SecretString;
     use uuid::Uuid;
 
     #[test]
@@ -612,14 +613,26 @@ mod test {
 
         let id1 = Uuid::new_v4();
         let meta1 = SecretMeta::new("mock secret".to_owned(), secret_kind);
+        let secret1 = Secret::Link {
+            url: SecretString::new("https://example.com/one".to_string()),
+            title: None,
+            label: None,
+            user_data: Default::default(),
+        };
 
         let id2 = Uuid::new_v4();
         let meta2 =
             SecretMeta::new("foo bar baz secret".to_owned(), secret_kind);
+        let secret2 = Secret::Link {
+            url: SecretString::new("https://example.com/two".to_string()),
+            title: None,
+            label: None,
+            user_data: Default::default(),
+        };
 
-        idx.add(&vault_id, &id1, meta1);
+        idx.add(&vault_id, &id1, meta1, &secret1);
         assert_eq!(1, idx.documents().len());
-        idx.add(&vault_id, &id2, meta2);
+        idx.add(&vault_id, &id2, meta2, &secret2);
         assert_eq!(2, idx.documents().len());
 
         assert_eq!(2, *idx.statistics.count.vaults.get(&vault_id).unwrap());
