@@ -110,10 +110,10 @@ impl Gatekeeper {
             let mut writer = self.index.write();
 
             for added_key in updated_keys.difference(&existing_keys) {
-                if let Some((meta, _)) =
+                if let Some((meta, secret)) =
                     self.read_secret(added_key, Some(&vault), derived_key)?
                 {
-                    writer.add(self.vault().id(), added_key, meta);
+                    writer.add(self.vault().id(), added_key, meta, &secret);
                 }
             }
 
@@ -129,7 +129,7 @@ impl Gatekeeper {
                     (self.vault.get(maybe_updated), vault.get(maybe_updated))
                 {
                     if existing_hash != updated_hash {
-                        if let Some((meta, _)) = self.read_secret(
+                        if let Some((meta, secret)) = self.read_secret(
                             maybe_updated,
                             Some(&vault),
                             derived_key,
@@ -138,6 +138,7 @@ impl Gatekeeper {
                                 self.vault().id(),
                                 maybe_updated,
                                 meta,
+                                &secret,
                             );
                         }
                     }
@@ -322,7 +323,7 @@ impl Gatekeeper {
         drop(reader);
 
         let mut writer = self.index.write();
-        writer.add(&vault_id, &id, secret_meta);
+        writer.add(&vault_id, &id, secret_meta, &secret);
 
         Ok(result)
     }
@@ -391,7 +392,7 @@ impl Gatekeeper {
         drop(reader);
 
         let mut writer = self.index.write();
-        writer.update(&vault_id, id, secret_meta);
+        writer.update(&vault_id, id, secret_meta, &secret);
 
         Ok(result)
     }
@@ -437,10 +438,15 @@ impl Gatekeeper {
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         let mut writer = self.index.write();
         for (id, value) in self.vault.iter() {
-            let VaultCommit(_commit, VaultEntry(meta_aead, _)) = value;
+            let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
+                value;
             let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
             let secret_meta: SecretMeta = decode(&meta_blob)?;
-            writer.add(self.vault().id(), id, secret_meta);
+
+            let secret_blob = self.vault.decrypt(private_key, secret_aead)?;
+            let secret: Secret = decode(&secret_blob)?;
+
+            writer.add(self.vault().id(), id, secret_meta, &secret);
         }
         Ok(())
     }
