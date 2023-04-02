@@ -2,7 +2,7 @@
 //! creating and managing local accounts.
 use std::{
     borrow::Cow,
-    io::Cursor,
+    io::{Cursor, Read},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -289,7 +289,8 @@ impl AccountManager {
         })
     }
 
-    /// Encrypt a file using AGE and move to the external storage location.
+    /// Encrypt a file using AGE passphrase encryption and
+    /// move to the external storage location.
     ///
     /// The file name is the Sha256 digest of the original file.
     pub fn encrypt_file(
@@ -316,6 +317,24 @@ impl AccountManager {
         std::fs::rename(encrypted.path(), dest)?;
 
         Ok(digest.to_vec())
+    }
+
+    /// Decrypt a file using AGE passphrase encryption.
+    pub fn decrypt_file(
+        path: &str,
+        passphrase: SecretString,
+    ) -> Result<Vec<u8>> {
+        let file = std::fs::File::open(path)?;
+        let decryptor = match age::Decryptor::new(file)? {
+            age::Decryptor::Passphrase(d) => d,
+            _ => return Err(Error::NotPassphraseEncryption),
+        };
+
+        let mut decrypted = vec![];
+        let mut reader = decryptor.decrypt(&passphrase, None)?;
+        reader.read_to_end(&mut decrypted)?;
+        
+        Ok(decrypted)
     }
 
     /// Get the local cache directory.
