@@ -322,7 +322,7 @@ impl AccountManager {
     /// Decrypt a file using AGE passphrase encryption.
     pub fn decrypt_file<P: AsRef<Path>>(
         path: P,
-        passphrase: SecretString,
+        passphrase: &SecretString,
     ) -> Result<Vec<u8>> {
         let file = std::fs::File::open(path)?;
         let decryptor = match age::Decryptor::new(file)? {
@@ -331,7 +331,7 @@ impl AccountManager {
         };
 
         let mut decrypted = vec![];
-        let mut reader = decryptor.decrypt(&passphrase, None)?;
+        let mut reader = decryptor.decrypt(passphrase, None)?;
         reader.read_to_end(&mut decrypted)?;
         
         Ok(decrypted)
