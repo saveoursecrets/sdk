@@ -111,7 +111,7 @@ impl AccountManager {
         )?;
 
         // Ensure the files directory exists
-        Self::files_dir()?;
+        Self::files_dir(&address)?;
 
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
@@ -277,6 +277,18 @@ impl AccountManager {
         Ok(vaults_dir)
     }
 
+    /// Get the path to the directory used to store files.
+    ///
+    /// Ensure it exists if it does not already exist.
+    pub fn files_dir(address: &str) -> Result<PathBuf> {
+        let local_dir = Self::local_dir()?;
+        let files_dir = local_dir.join(address).join(FILES_DIR);
+        if !files_dir.exists() {
+            std::fs::create_dir(&files_dir)?;
+        }
+        Ok(files_dir)
+    }
+
     /// Generate a vault passphrase.
     pub fn generate_vault_passphrase() -> Result<SecretString> {
         let (vault_passphrase, _) =
@@ -392,18 +404,6 @@ impl AccountManager {
             std::fs::create_dir(&identity_dir)?;
         }
         Ok(identity_dir)
-    }
-
-    /// Get the path to the directory used to store files.
-    ///
-    /// Ensure it exists if it does not already exist.
-    pub fn files_dir() -> Result<PathBuf> {
-        let cache_dir = cache_dir().ok_or(Error::NoCache)?;
-        let files_dir = cache_dir.join(FILES_DIR);
-        if !files_dir.exists() {
-            std::fs::create_dir(&files_dir)?;
-        }
-        Ok(files_dir)
     }
 
     /// Get the path to the identity vault file for an account identifier.
