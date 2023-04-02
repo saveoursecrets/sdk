@@ -114,6 +114,9 @@ mod dirs {
 
     /// Directory to store identity vaults.
     pub const IDENTITY_DIR: &str = "identity";
+
+    /// Directory to store files.
+    pub const FILES_DIR: &str = "files";
 }
 
 mod archive {

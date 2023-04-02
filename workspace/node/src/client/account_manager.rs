@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use sos_core::{
     archive::{Inventory, Reader, Writer},
-    constants::{IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
+    constants::{FILES_DIR, IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     decode, encode,
     events::WalEvent,
     generate_passphrase_words,
@@ -109,6 +109,9 @@ impl AccountManager {
             account_name.clone(),
             passphrase.clone(),
         )?;
+
+        // Ensure the files directory exists
+        Self::files_dir()?;
 
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
@@ -389,6 +392,18 @@ impl AccountManager {
             std::fs::create_dir(&identity_dir)?;
         }
         Ok(identity_dir)
+    }
+
+    /// Get the path to the directory used to store files.
+    ///
+    /// Ensure it exists if it does not already exist.
+    pub fn files_dir() -> Result<PathBuf> {
+        let cache_dir = cache_dir().ok_or(Error::NoCache)?;
+        let files_dir = cache_dir.join(FILES_DIR);
+        if !files_dir.exists() {
+            std::fs::create_dir(&files_dir)?;
+        }
+        Ok(files_dir)
     }
 
     /// Get the path to the identity vault file for an account identifier.
