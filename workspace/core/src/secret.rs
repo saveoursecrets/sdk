@@ -867,6 +867,17 @@ pub enum Secret {
         /// in the archive rather than embedding the binary data.
         #[serde(with = "hex::serde")]
         checksum: [u8; 32],
+
+        /// Whether this file is external or embedded.
+        ///
+        /// If the file is embedded then `buffer` should contain
+        /// the file content otherwise callers should encrypt the 
+        /// file and store it on disc outside of the vault.
+        external: bool,
+        
+        /// Size of the unencrypted file content.
+        size: u64,
+
         /// Custom user data.
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
@@ -1079,12 +1090,16 @@ impl Clone for Secret {
                 mime,
                 buffer,
                 checksum,
+                external,
+                size,
                 user_data,
             } => Secret::File {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
                 checksum: *checksum,
+                external: *external,
+                size: *size,
                 user_data: user_data.clone(),
             },
             Secret::Account {
@@ -1410,6 +1425,8 @@ impl PartialEq for Secret {
                     mime: mime_a,
                     buffer: buffer_a,
                     checksum: checksum_a,
+                    external: external_a,
+                    size: size_a,
                     user_data: user_data_a,
                 },
                 Self::File {
@@ -1417,6 +1434,8 @@ impl PartialEq for Secret {
                     mime: mime_b,
                     buffer: buffer_b,
                     checksum: checksum_b,
+                    external: external_b,
+                    size: size_b,
                     user_data: user_data_b,
                 },
             ) => {
@@ -1424,6 +1443,8 @@ impl PartialEq for Secret {
                     && mime_a == mime_b
                     && buffer_a.expose_secret() == buffer_b.expose_secret()
                     && checksum_a == checksum_b
+                    && external_a == external_b
+                    && size_a == size_b
                     && user_data_a == user_data_b
             }
             (
@@ -1722,24 +1743,6 @@ impl Encode for Secret {
         writer.write_u8(kind)?;
 
         match self {
-            Self::Note { text, user_data } => {
-                writer.write_string(text.expose_secret())?;
-                write_user_data(user_data, writer)?;
-            }
-            Self::File {
-                name,
-                mime,
-                buffer,
-                checksum,
-                user_data,
-            } => {
-                writer.write_string(name)?;
-                writer.write_string(mime)?;
-                writer.write_u32(buffer.expose_secret().len() as u32)?;
-                writer.write_bytes(buffer.expose_secret())?;
-                writer.write_bytes(checksum)?;
-                write_user_data(user_data, writer)?;
-            }
             Self::Account {
                 account,
                 password,
@@ -1752,6 +1755,28 @@ impl Encode for Secret {
                 if let Some(url) = url {
                     writer.write_string(url)?;
                 }
+                write_user_data(user_data, writer)?;
+            }
+            Self::Note { text, user_data } => {
+                writer.write_string(text.expose_secret())?;
+                write_user_data(user_data, writer)?;
+            }
+            Self::File {
+                name,
+                mime,
+                buffer,
+                checksum,
+                external,
+                size,
+                user_data,
+            } => {
+                writer.write_string(name)?;
+                writer.write_string(mime)?;
+                writer.write_u32(buffer.expose_secret().len() as u32)?;
+                writer.write_bytes(buffer.expose_secret())?;
+                writer.write_bytes(checksum)?;
+                writer.write_bool(external)?;
+                writer.write_u64(size)?;
                 write_user_data(user_data, writer)?;
             }
             Self::List { items, user_data } => {
@@ -1951,12 +1976,16 @@ impl Decode for Secret {
                 );
                 let checksum: [u8; 32] =
                     reader.read_bytes(32)?.as_slice().try_into()?;
+                let external = reader.read_bool()?;
+                let size = reader.read_u64()?;
                 let user_data = read_user_data(reader)?;
                 *self = Self::File {
                     name,
                     mime,
                     buffer,
                     checksum,
+                    external,
+                    size,
                     user_data,
                 };
             }
