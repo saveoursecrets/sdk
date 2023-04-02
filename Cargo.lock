@@ -3362,6 +3362,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "urn",
  "uuid 1.3.0",
  "web3-address",
  "web3-keystore",

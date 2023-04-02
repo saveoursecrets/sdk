@@ -10,9 +10,11 @@ use std::{
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
+use urn::Urn;
+
 use sos_core::{
     archive::{Inventory, Reader, Writer},
-    constants::{FILES_DIR, IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
+    constants::{FILES_DIR, IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT, FILE_PASSWORD_URN},
     decode, encode,
     events::WalEvent,
     generate_passphrase_words,
@@ -68,6 +70,9 @@ pub struct NewAccountRequest {
     pub create_authenticator: bool,
     /// Whether to create a vault to use for contacts.
     pub create_contact: bool,
+    /// Whether to create a password entry in the identity vault
+    /// for file encryption.
+    pub create_file_password: bool,
 }
 
 /// Response to creating a new account.
@@ -102,6 +107,7 @@ impl AccountManager {
             create_archive,
             create_authenticator,
             create_contact,
+            create_file_password,
         } = account;
 
         // Prepare the identity vault
@@ -109,9 +115,6 @@ impl AccountManager {
             account_name.clone(),
             passphrase.clone(),
         )?;
-
-        // Ensure the files directory exists
-        Self::files_dir(&address)?;
 
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
@@ -155,6 +158,20 @@ impl AccountManager {
             default_vault.id(),
             vault_passphrase,
         )?;
+
+        if create_file_password {
+            let file_passphrase = Self::generate_vault_passphrase()?;
+            let secret = Secret::Password {
+                password: file_passphrase,
+                name: None,
+                user_data: UserData::new_comment(address.to_owned()),
+            };
+            let mut meta =
+                SecretMeta::new("File Encryption".to_string(), secret.kind());
+            let urn: Urn = FILE_PASSWORD_URN.parse()?;
+            meta.set_urn(Some(urn));
+            keeper.create(meta, secret)?;
+        }
 
         let archive = if create_archive {
             // Prepare the passphrase for the archive vault
@@ -253,6 +270,9 @@ impl AccountManager {
         } else {
             None
         };
+
+        // Ensure the files directory exists
+        Self::files_dir(&address)?;
 
         Ok(NewAccountResponse {
             address,

@@ -63,7 +63,15 @@ mod vault {
     pub const LOGIN_SIGNING_KEY_URN: &str = "urn:sos:identity:signer";
 
     /// Login vault AGE key name.
+    ///
+    /// This key is used to encrypt files for specific recipients.
     pub const LOGIN_AGE_KEY_URN: &str = "urn:sos:identity:age";
+
+    /// Login vault file encryption password.
+    ///
+    /// This password is used to encrypt external files that are not 
+    /// embedded in a vault.
+    pub const FILE_PASSWORD_URN: &str = "urn:sos:identity:file";
 }
 
 /// Constants for MIME types.
