@@ -291,12 +291,12 @@ impl AccountManager {
 
     /// Encrypt a file using AGE and move to the external storage location.
     ///
-    /// The file name is the SHA256 digest of the original file content.
+    /// The file name is the Sha256 digest of the original file.
     pub fn encrypt_file(
         address: &str,
         path: &str,
         passphrase: SecretString,
-    ) -> Result<String> {
+    ) -> Result<Vec<u8>> {
         let mut file = std::fs::File::open(path)?;
         let encryptor = Encryptor::with_user_passphrase(passphrase);
 
@@ -315,7 +315,7 @@ impl AccountManager {
         // Move the temporary file into place
         std::fs::rename(encrypted.path(), dest)?;
 
-        Ok(file_name)
+        Ok(digest.to_vec())
     }
 
     /// Get the local cache directory.
