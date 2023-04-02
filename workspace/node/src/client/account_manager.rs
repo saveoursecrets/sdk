@@ -293,9 +293,9 @@ impl AccountManager {
     /// move to the external storage location.
     ///
     /// The file name is the Sha256 digest of the original file.
-    pub fn encrypt_file(
+    pub fn encrypt_file<P: AsRef<Path>>(
         address: &str,
-        path: &str,
+        path: P,
         passphrase: SecretString,
     ) -> Result<Vec<u8>> {
         let mut file = std::fs::File::open(path)?;
@@ -320,8 +320,8 @@ impl AccountManager {
     }
 
     /// Decrypt a file using AGE passphrase encryption.
-    pub fn decrypt_file(
-        path: &str,
+    pub fn decrypt_file<P: AsRef<Path>>(
+        path: P,
         passphrase: SecretString,
     ) -> Result<Vec<u8>> {
         let file = std::fs::File::open(path)?;
