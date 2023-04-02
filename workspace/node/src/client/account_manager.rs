@@ -290,15 +290,15 @@ impl AccountManager {
     }
 
     /// Encrypt a file using AGE passphrase encryption and
-    /// move to the external storage location.
+    /// move to a target directory.
     ///
     /// The file name is the Sha256 digest of the original file.
-    pub fn encrypt_file<P: AsRef<Path>>(
-        address: &str,
-        path: P,
+    pub fn encrypt_file<S: AsRef<Path>, T: AsRef<Path>>(
+        source: S,
+        target: T,
         passphrase: SecretString,
     ) -> Result<Vec<u8>> {
-        let mut file = std::fs::File::open(path)?;
+        let mut file = std::fs::File::open(source)?;
         let encryptor = Encryptor::with_user_passphrase(passphrase);
 
         let mut hasher = Sha3_256::new();
@@ -311,7 +311,7 @@ impl AccountManager {
 
         let digest = hasher.finalize();
         let file_name = hex::encode(digest);
-        let dest = Self::files_dir(address)?.join(&file_name);
+        let dest = PathBuf::from(target.as_ref()).join(&file_name);
         
         // Move the temporary file into place
         std::fs::rename(encrypted.path(), dest)?;
