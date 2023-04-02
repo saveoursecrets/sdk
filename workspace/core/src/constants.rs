@@ -61,6 +61,9 @@ mod vault {
 
     /// Login vault signing key name.
     pub const LOGIN_SIGNING_KEY_URN: &str = "urn:sos:identity:signer";
+
+    /// Login vault AGE key name.
+    pub const LOGIN_AGE_KEY_URN: &str = "urn:sos:identity:age";
 }
 
 /// Constants for MIME types.
