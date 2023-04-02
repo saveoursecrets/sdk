@@ -9,12 +9,16 @@ use std::{
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-
 use urn::Urn;
+
+use age::Encryptor;
 
 use sos_core::{
     archive::{Inventory, Reader, Writer},
-    constants::{FILES_DIR, IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT, FILE_PASSWORD_URN},
+    constants::{
+        FILES_DIR, FILE_PASSWORD_URN, IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR,
+        VAULT_EXT, WAL_EXT,
+    },
     decode, encode,
     events::WalEvent,
     generate_passphrase_words,
@@ -282,6 +286,26 @@ impl AccountManager {
             authenticator,
             contact,
         })
+    }
+
+    /// Encrypt a file using AGE and move to the external storage location.
+    pub fn encrypt_file(
+        address: &str,
+        path: &str,
+        file_name: &str,
+        passphrase: SecretString,
+    ) -> Result<()> {
+        let encryptor = Encryptor::with_user_passphrase(passphrase);
+
+        let mut file = std::fs::File::open(path)?;
+        let dest = Self::files_dir(address)?.join(file_name);
+        let mut encrypted = std::fs::File::open(dest)?;
+
+        let mut writer = encryptor.wrap_output(&mut encrypted)?;
+        std::io::copy(&mut file, &mut writer)?;
+        writer.finish()?;
+        
+        Ok(())
     }
 
     /// Get the local cache directory.

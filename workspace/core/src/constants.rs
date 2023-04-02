@@ -69,7 +69,7 @@ mod vault {
 
     /// Login vault file encryption password.
     ///
-    /// This password is used to encrypt external files that are not 
+    /// This password is used to encrypt external files that are not
     /// embedded in a vault.
     pub const FILE_PASSWORD_URN: &str = "urn:sos:identity:file";
 }

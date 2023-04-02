@@ -871,10 +871,10 @@ pub enum Secret {
         /// Whether this file is external or embedded.
         ///
         /// If the file is embedded then `buffer` should contain
-        /// the file content otherwise callers should encrypt the 
+        /// the file content otherwise callers should encrypt the
         /// file and store it on disc outside of the vault.
         external: bool,
-        
+
         /// Size of the unencrypted file content.
         size: u64,
 
@@ -1238,9 +1238,7 @@ impl Clone for Secret {
                 user_data,
             } => Secret::Age {
                 version: version.clone(),
-                key: secrecy::Secret::new(
-                    key.expose_secret().to_owned(),
-                ),
+                key: secrecy::Secret::new(key.expose_secret().to_owned()),
                 user_data: user_data.clone(),
             },
         }
@@ -1522,7 +1520,6 @@ impl PartialEq for Secret {
                     && expiry_date_a == expiry_date_b
                     && user_data_a == user_data_b
             }
-
 
             (
                 Self::Signer {
@@ -1949,7 +1946,6 @@ impl Encode for Secret {
                 writer.write_string(key.expose_secret())?;
                 write_user_data(user_data, writer)?;
             }
-
         }
         Ok(())
     }

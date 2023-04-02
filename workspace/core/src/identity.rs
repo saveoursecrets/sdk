@@ -16,7 +16,7 @@ use std::path::Path;
 use urn::Urn;
 
 use crate::{
-    constants::{LOGIN_SIGNING_KEY_URN, LOGIN_AGE_KEY_URN},
+    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     crypto::secret_key::generate_seed,
     decode,
     gatekeeper::Gatekeeper,
@@ -74,7 +74,7 @@ impl Identity {
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
         keeper.create(signer_meta, signer_secret)?;
-    
+
         // Store the AGE identity
         let age_secret = Secret::Age {
             version: Default::default(),
