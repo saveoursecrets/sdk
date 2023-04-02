@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use urn::Urn;
 
 use age::Encryptor;
+use sha3::{Digest, Sha3_256};
 
 use sos_core::{
     archive::{Inventory, Reader, Writer},
@@ -289,23 +290,32 @@ impl AccountManager {
     }
 
     /// Encrypt a file using AGE and move to the external storage location.
+    ///
+    /// The file name is the SHA256 digest of the original file content.
     pub fn encrypt_file(
         address: &str,
         path: &str,
-        file_name: &str,
         passphrase: SecretString,
-    ) -> Result<()> {
+    ) -> Result<String> {
+        let mut file = std::fs::File::open(path)?;
         let encryptor = Encryptor::with_user_passphrase(passphrase);
 
-        let mut file = std::fs::File::open(path)?;
-        let dest = Self::files_dir(address)?.join(file_name);
-        let mut encrypted = std::fs::File::open(dest)?;
+        let mut hasher = Sha3_256::new();
+        let mut encrypted = tempfile::NamedTempFile::new()?;
 
         let mut writer = encryptor.wrap_output(&mut encrypted)?;
         std::io::copy(&mut file, &mut writer)?;
+        std::io::copy(&mut file, &mut hasher)?;
         writer.finish()?;
+
+        let digest = hasher.finalize();
+        let file_name = hex::encode(digest);
+        let dest = Self::files_dir(address)?.join(&file_name);
         
-        Ok(())
+        // Move the temporary file into place
+        std::fs::rename(encrypted.path(), dest)?;
+
+        Ok(file_name)
     }
 
     /// Get the local cache directory.
