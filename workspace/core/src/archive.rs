@@ -68,7 +68,8 @@ impl<W: Write + Seek> Writer<W> {
             hours,
             minutes,
             seconds,
-        ).map_err(|_| Error::ZipDateTime)?;
+        )
+        .map_err(|_| Error::ZipDateTime)?;
         let options = options.last_modified_time(dt);
         self.builder.start_file(path, options)?;
         self.builder.write(buffer)?;
@@ -116,15 +117,8 @@ impl<W: Write + Seek> Writer<W> {
     }
 
     /// Add a file to the archive.
-    pub fn add_file(
-        mut self,
-        path: &str,
-        content: &[u8],
-    ) -> Result<Self> {
-        self.append_file_buffer(
-            path,
-            content,
-        )?;
+    pub fn add_file(mut self, path: &str, content: &[u8]) -> Result<Self> {
+        self.append_file_buffer(path, content)?;
         Ok(self)
     }
 

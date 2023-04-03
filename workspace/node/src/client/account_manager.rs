@@ -313,12 +313,16 @@ impl AccountManager {
             let n = std::io::Read::by_ref(&mut file)
                 .take(chunk_size as u64)
                 .read_to_end(&mut chunk)?;
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
 
             writer.write_all(chunk.as_slice())?;
             hasher.update(chunk.as_slice());
 
-            if n < chunk_size { break; }
+            if n < chunk_size {
+                break;
+            }
         }
 
         writer.finish()?;
@@ -623,12 +627,13 @@ impl AccountManager {
             let buffer = std::fs::read(path)?;
             writer = writer.add_vault(*summary.id(), &buffer)?;
         }
-            
+
         let files = Self::files_dir(address)?;
         for entry in WalkDir::new(&files) {
             let entry = entry?;
             if entry.path().is_file() {
-                let relative = entry.path()
+                let relative = entry
+                    .path()
                     .strip_prefix(&files)?
                     .to_string_lossy()
                     .into_owned();
