@@ -632,12 +632,9 @@ impl AccountManager {
         for entry in WalkDir::new(&files) {
             let entry = entry?;
             if entry.path().is_file() {
-                let relative = entry
-                    .path()
-                    .strip_prefix(&files)?
-                    .to_string_lossy()
-                    .into_owned();
-                let relative = format!("files/{}", relative);
+                let relative = PathBuf::from("files")
+                    .join(entry.path().strip_prefix(&files)?);
+                let relative = relative.to_string_lossy().into_owned();
                 let buffer = std::fs::read(entry.path())?;
                 writer = writer.add_file(&relative, &buffer)?;
             }
