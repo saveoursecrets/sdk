@@ -2,7 +2,7 @@
 //! creating and managing local accounts.
 use std::{
     borrow::Cow,
-    io::{Cursor, Read},
+    io::{Cursor, Read, Write},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -305,14 +305,27 @@ impl AccountManager {
         let mut encrypted = tempfile::NamedTempFile::new()?;
 
         let mut writer = encryptor.wrap_output(&mut encrypted)?;
-        std::io::copy(&mut file, &mut writer)?;
-        std::io::copy(&mut file, &mut hasher)?;
+
+        let chunk_size = 8192;
+        loop {
+            let mut chunk = Vec::with_capacity(chunk_size);
+            let n = std::io::Read::by_ref(&mut file)
+                .take(chunk_size as u64)
+                .read_to_end(&mut chunk)?;
+            if n == 0 { break; }
+
+            writer.write_all(chunk.as_slice())?;
+            hasher.update(chunk.as_slice());
+
+            if n < chunk_size { break; }
+        }
+
         writer.finish()?;
 
         let digest = hasher.finalize();
         let file_name = hex::encode(digest);
         let dest = PathBuf::from(target.as_ref()).join(&file_name);
-        
+
         // Move the temporary file into place
         std::fs::rename(encrypted.path(), dest)?;
 
@@ -333,7 +346,7 @@ impl AccountManager {
         let mut decrypted = vec![];
         let mut reader = decryptor.decrypt(passphrase, None)?;
         reader.read_to_end(&mut decrypted)?;
-        
+
         Ok(decrypted)
     }
 
