@@ -11,7 +11,7 @@ use std::{
     path::PathBuf,
 };
 
-//use time::OffsetDateTime;
+use time::OffsetDateTime;
 use zip::{write::FileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
 use crate::{
@@ -57,11 +57,19 @@ impl<W: Write + Seek> Writer<W> {
         path: &str,
         buffer: &[u8],
     ) -> Result<()> {
-        //let now = OffsetDateTime::now_utc();
+        let now = OffsetDateTime::now_utc();
         let options = FileOptions::default()
             .compression_method(CompressionMethod::Stored);
-        // FIXME:
-        //let options = options.last_modified_time(now.try_into()?);
+        let (hours, minutes, seconds) = now.time().as_hms();
+        let dt = zip::DateTime::from_date_and_time(
+            now.year().try_into()?,
+            now.month().into(),
+            now.day(),
+            hours,
+            minutes,
+            seconds,
+        ).map_err(|_| Error::ZipDateTime)?;
+        let options = options.last_modified_time(dt);
         self.builder.start_file(path, options)?;
         self.builder.write(buffer)?;
         Ok(())
@@ -89,10 +97,10 @@ impl<W: Write + Seek> Writer<W> {
 
     /// Add a vault to the archive.
     pub fn add_vault(
-        mut self,
+        &mut self,
         vault_id: VaultId,
         vault: &[u8],
-    ) -> Result<Self> {
+    ) -> Result<()> {
         let mut path = PathBuf::from(vault_id.to_string());
         path.set_extension(VAULT_EXT);
 
@@ -104,7 +112,20 @@ impl<W: Write + Seek> Writer<W> {
             vault,
         )?;
 
-        Ok(self)
+        Ok(())
+    }
+
+    /// Add a file to the archive.
+    pub fn add_file(
+        &mut self,
+        path: &str,
+        content: &[u8],
+    ) -> Result<()> {
+        self.append_file_buffer(
+            path,
+            content,
+        )?;
+        Ok(())
     }
 
     /// Add the manifest and finish building the tarball.

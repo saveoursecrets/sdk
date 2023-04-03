@@ -10,6 +10,7 @@ use std::{
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use urn::Urn;
+use walkdir::WalkDir;
 
 use age::Encryptor;
 use sha3::{Digest, Sha3_256};
@@ -602,7 +603,7 @@ impl AccountManager {
         Ok(vaults)
     }
 
-    /// Create a buffer for a gzip compressed tarball including the
+    /// Create a buffer for a zip archive including the
     /// identity vault and all user vaults.
     pub fn export_archive_buffer(address: &str) -> Result<Vec<u8>> {
         let identity_path = Self::identity_vault(address)?;
@@ -620,7 +621,20 @@ impl AccountManager {
 
         for (summary, path) in vaults {
             let buffer = std::fs::read(path)?;
-            writer = writer.add_vault(*summary.id(), &buffer)?;
+            writer.add_vault(*summary.id(), &buffer)?;
+        }
+            
+        let files = Self::files_dir(address)?;
+        for entry in WalkDir::new(&files) {
+            let entry = entry?;
+            if entry.path().is_file() {
+                let relative = entry.path()
+                    .strip_prefix(&files)?
+                    .to_string_lossy()
+                    .into_owned();
+                let buffer = std::fs::read(entry.path())?;
+                writer.add_file(&relative, &buffer)?;
+            }
         }
 
         writer.finish()?;
