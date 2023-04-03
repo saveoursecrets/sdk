@@ -59,7 +59,7 @@ impl<W: Write + Seek> Writer<W> {
     ) -> Result<()> {
         let now = OffsetDateTime::now_utc();
         let options = FileOptions::default()
-            .compression_method(CompressionMethod::Stored);
+            .compression_method(CompressionMethod::Deflated);
         let (hours, minutes, seconds) = now.time().as_hms();
         let dt = zip::DateTime::from_date_and_time(
             now.year().try_into()?,
