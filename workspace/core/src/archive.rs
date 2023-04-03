@@ -4,7 +4,7 @@
 //! also be used from webassembly.
 
 use serde::{Deserialize, Serialize};
-use sha3::{Digest, Keccak256};
+use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
     io::{Read, Seek, Write},
@@ -86,7 +86,7 @@ impl<W: Write + Seek> Writer<W> {
 
         self.manifest.address = address;
         self.manifest.checksum =
-            hex::encode(Keccak256::digest(vault).as_slice());
+            hex::encode(Sha256::digest(vault).as_slice());
         self.append_file_buffer(
             path.to_string_lossy().into_owned().as_ref(),
             vault,
@@ -97,14 +97,14 @@ impl<W: Write + Seek> Writer<W> {
 
     /// Add a vault to the archive.
     pub fn add_vault(
-        &mut self,
+        mut self,
         vault_id: VaultId,
         vault: &[u8],
-    ) -> Result<()> {
+    ) -> Result<Self> {
         let mut path = PathBuf::from(vault_id.to_string());
         path.set_extension(VAULT_EXT);
 
-        let checksum = hex::encode(Keccak256::digest(vault).as_slice());
+        let checksum = hex::encode(Sha256::digest(vault).as_slice());
         self.manifest.vaults.insert(vault_id, checksum);
 
         self.append_file_buffer(
@@ -112,20 +112,20 @@ impl<W: Write + Seek> Writer<W> {
             vault,
         )?;
 
-        Ok(())
+        Ok(self)
     }
 
     /// Add a file to the archive.
     pub fn add_file(
-        &mut self,
+        mut self,
         path: &str,
         content: &[u8],
-    ) -> Result<()> {
+    ) -> Result<Self> {
         self.append_file_buffer(
             path,
             content,
         )?;
-        Ok(())
+        Ok(self)
     }
 
     /// Add the manifest and finish building the tarball.
@@ -240,7 +240,7 @@ impl<R: Read + Seek> Reader<R> {
             .entries
             .remove_entry(&path)
             .ok_or_else(|| Error::NoArchiveVault(path.clone()))?;
-        let digest = Keccak256::digest(&vault_buffer);
+        let digest = Sha256::digest(&vault_buffer);
         if checksum != digest.to_vec() {
             return Err(Error::ArchiveChecksumMismatch(path));
         }

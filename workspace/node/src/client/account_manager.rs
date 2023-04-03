@@ -621,7 +621,7 @@ impl AccountManager {
 
         for (summary, path) in vaults {
             let buffer = std::fs::read(path)?;
-            writer.add_vault(*summary.id(), &buffer)?;
+            writer = writer.add_vault(*summary.id(), &buffer)?;
         }
             
         let files = Self::files_dir(address)?;
@@ -633,7 +633,7 @@ impl AccountManager {
                     .to_string_lossy()
                     .into_owned();
                 let buffer = std::fs::read(entry.path())?;
-                writer.add_file(&relative, &buffer)?;
+                writer = writer.add_file(&relative, &buffer)?;
             }
         }
 
