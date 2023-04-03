@@ -202,7 +202,7 @@ pub enum Error {
 
     /// Error generated an archive does not contain a manifest file.
     #[error("archive file {0} does not match the manifest checksum")]
-    ArchiveChecksumMismatch(PathBuf),
+    ArchiveChecksumMismatch(String),
 
     /// Error generated converting now to the zip date time format.
     #[error("zip date time is invalid")]

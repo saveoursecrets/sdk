@@ -7,15 +7,16 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
+    fs::File,
     io::{Read, Seek, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use time::OffsetDateTime;
 use zip::{write::FileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
 use crate::{
-    constants::{ARCHIVE_MANIFEST, VAULT_EXT},
+    constants::{ARCHIVE_MANIFEST, FILES_DIR, VAULT_EXT},
     vault::{Header as VaultHeader, Summary, VaultId},
     Error, Result,
 };
@@ -153,7 +154,6 @@ pub struct Inventory {
 pub struct Reader<R: Read + Seek> {
     archive: ZipArchive<R>,
     manifest: Option<Manifest>,
-    entries: HashMap<PathBuf, Vec<u8>>,
 }
 
 impl<R: Read + Seek> Reader<R> {
@@ -162,8 +162,12 @@ impl<R: Read + Seek> Reader<R> {
         Ok(Self {
             archive: ZipArchive::new(inner)?,
             manifest: None,
-            entries: Default::default(),
         })
+    }
+
+    /// Get the manifest.
+    pub fn manifest(&self) -> Option<&Manifest> {
+        self.manifest.as_ref()
     }
 
     /// Read an inventory including the manifest and summary
@@ -177,18 +181,15 @@ impl<R: Read + Seek> Reader<R> {
             .find_manifest()?
             .take()
             .ok_or(Error::NoArchiveManifest)?;
-
-        let mut identity_path = PathBuf::from(&manifest.address);
-        identity_path.set_extension(VAULT_EXT);
+        let entry_name = format!("{}.{}", manifest.address, VAULT_EXT);
         let checksum = hex::decode(&manifest.checksum)?;
-        let (identity, _) = self.archive_entry(identity_path, checksum)?;
+        let (identity, _) = self.archive_entry(&entry_name, checksum)?;
 
         let mut vaults = Vec::with_capacity(manifest.vaults.len());
         for (k, v) in &manifest.vaults {
-            let mut entry_path = PathBuf::from(k.to_string());
-            entry_path.set_extension(VAULT_EXT);
+            let entry_name = format!("{}.{}", k, VAULT_EXT);
             let checksum = hex::decode(v)?;
-            let (summary, _) = self.archive_entry(entry_path, checksum)?;
+            let (summary, _) = self.archive_entry(&entry_name, checksum)?;
             vaults.push(summary);
         }
         vaults.sort_by(|a, b| a.name().partial_cmp(b.name()).unwrap());
@@ -207,46 +208,88 @@ impl<R: Read + Seek> Reader<R> {
     }
 
     fn find_manifest(&mut self) -> Result<Option<Manifest>> {
-        let mut manifest: Option<Manifest> = None;
-        //let it = self.archive.entries_with_seek()?;
-        for i in 0..self.archive.len() {
-            let mut file = self.archive.by_index(i)?;
-            if file.name() == ARCHIVE_MANIFEST {
-                let mut data = Vec::new();
-                std::io::copy(&mut file, &mut data)?;
-                let manifest_entry: Manifest = serde_json::from_slice(&data)?;
-                manifest = Some(manifest_entry);
-            } else {
-                let mut data = Vec::new();
-                std::io::copy(&mut file, &mut data)?;
-                self.entries.insert(PathBuf::from(file.name()), data);
-            }
+        if let Ok(mut file) = self.archive.by_name(ARCHIVE_MANIFEST) {
+            let mut data = Vec::new();
+            std::io::copy(&mut file, &mut data)?;
+            let manifest_entry: Manifest = serde_json::from_slice(&data)?;
+            Ok(Some(manifest_entry))
+        } else {
+            Ok(None)
         }
-        Ok(manifest)
     }
 
     fn archive_entry(
         &mut self,
-        path: PathBuf,
+        name: &str,
         checksum: Vec<u8>,
     ) -> Result<ArchiveItem> {
-        let (_, vault_buffer) = self
-            .entries
-            .remove_entry(&path)
-            .ok_or_else(|| Error::NoArchiveVault(path.clone()))?;
-        let digest = Sha256::digest(&vault_buffer);
+        let mut file = self.archive.by_name(name)?;
+        let mut data = Vec::new();
+        std::io::copy(&mut file, &mut data)?;
+
+        let digest = Sha256::digest(&data);
         if checksum != digest.to_vec() {
-            return Err(Error::ArchiveChecksumMismatch(path));
+            return Err(Error::ArchiveChecksumMismatch(name.to_string()));
         }
-        let summary = VaultHeader::read_summary_slice(&vault_buffer)?;
-        Ok((summary, vault_buffer))
+        let summary = VaultHeader::read_summary_slice(&data)?;
+        Ok((summary, data))
+    }
+
+    /// Extract files to a destination.
+    pub fn extract_files<P: AsRef<Path>>(
+        &mut self,
+        target: P,
+        selected: &[Summary],
+    ) -> Result<()> {
+        for i in 0..self.archive.len() {
+            let mut file = self.archive.by_index(i)?;
+            if file.is_file() {
+                if let Some(name) = file.enclosed_name() {
+                    let path = PathBuf::from(name);
+                    let mut it = path.iter();
+                    if let (Some(first), Some(second)) =
+                        (it.next(), it.next())
+                    {
+                        if first == FILES_DIR {
+                            let vault_id: VaultId =
+                                second.to_string_lossy().parse()?;
+
+                            // Only restore files for the selected vaults
+                            if selected
+                                .iter()
+                                .find(|s| s.id() == &vault_id)
+                                .is_some()
+                            {
+                                // The given target path should already
+                                // include any files/ prefix so we need
+                                // to skip it
+                                let mut relative = PathBuf::new();
+                                for part in path.iter().skip(1) {
+                                    relative = relative.join(part);
+                                }
+                                let destination =
+                                    target.as_ref().join(relative);
+                                if let Some(parent) = destination.parent() {
+                                    if !parent.exists() {
+                                        std::fs::create_dir_all(parent)?;
+                                    }
+                                }
+                                let mut output = File::create(destination)?;
+                                std::io::copy(&mut file, &mut output)?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Finish reading by validating entries against the manifest.
     ///
     /// This will verify the vault buffers match the checksums in
-    /// the manifest and ignore any files in the archive entries
-    /// that are not present in the manifest.
+    /// the manifest.
     ///
     /// It also extracts the vault summaries so we are confident
     /// each buffer is a valid vault.
@@ -255,16 +298,15 @@ impl<R: Read + Seek> Reader<R> {
     ) -> Result<(String, ArchiveItem, Vec<ArchiveItem>)> {
         let manifest =
             self.manifest.take().ok_or(Error::NoArchiveManifest)?;
-        let mut identity_path = PathBuf::from(&manifest.address);
-        identity_path.set_extension(VAULT_EXT);
+        let entry_name = format!("{}.{}", manifest.address, VAULT_EXT);
         let checksum = hex::decode(manifest.checksum)?;
-        let identity = self.archive_entry(identity_path, checksum)?;
+        let identity = self.archive_entry(&entry_name, checksum)?;
         let mut vaults = Vec::new();
+
         for (k, v) in manifest.vaults {
-            let mut entry_path = PathBuf::from(k.to_string());
-            entry_path.set_extension(VAULT_EXT);
+            let entry_name = format!("{}.{}", k, VAULT_EXT);
             let checksum = hex::decode(v)?;
-            vaults.push(self.archive_entry(entry_path, checksum)?);
+            vaults.push(self.archive_entry(&entry_name, checksum)?);
         }
         Ok((manifest.address, identity, vaults))
     }

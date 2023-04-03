@@ -375,7 +375,10 @@ impl AccountManager {
         let local_dir = Self::local_dir()?;
         let files_dir = local_dir.join(address).join(FILES_DIR);
         if !files_dir.exists() {
-            std::fs::create_dir(&files_dir)?;
+            // Must also create parents as when we import
+            // an account from an archive the parent directories
+            // may not already exist
+            std::fs::create_dir_all(&files_dir)?;
         }
         Ok(files_dir)
     }
