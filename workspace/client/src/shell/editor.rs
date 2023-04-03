@@ -61,9 +61,9 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
             document.expose_secret().as_bytes().to_vec(),
             ".md".to_string(),
         ),
-        Secret::Signer { .. } => {
+        Secret::Signer { .. } | Secret::Age { .. } => {
             // TODO: handle this more gracefully
-            todo!("signing keys are not editable (yet!)")
+            todo!("secret type is not editable (yet!)")
         }
         Secret::Contact { vcard, .. } => {
             (vcard.to_string().as_bytes().to_vec(), ".txt".to_string())
@@ -104,6 +104,8 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
             mime: mime.clone(),
             buffer: secrecy::Secret::new(content.to_vec()),
             checksum: checksum.clone(),
+            external: false,
+            size: content.len() as u64,
             user_data: user_data.clone(),
         },
         Secret::Page {
@@ -119,9 +121,9 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
             ),
             user_data: user_data.clone(),
         },
-        Secret::Signer { .. } => {
+        Secret::Signer { .. } | Secret::Age { .. } => {
             // TODO: handle this more gracefully
-            todo!("signing keys are not editable (yet!)")
+            todo!("secret type is not editable (yet!)")
         }
         Secret::Contact { user_data, .. } => {
             let value = std::str::from_utf8(content)?;

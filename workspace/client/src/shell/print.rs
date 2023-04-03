@@ -90,7 +90,7 @@ pub(super) fn secret(
         Secret::Link { url, .. } => {
             banner.text(Cow::Borrowed(url.expose_secret()))
         }
-        Secret::Signer { .. } => {
+        Secret::Signer { .. } | Secret::Age { .. } => {
             banner.text(Cow::Borrowed("[REDACTED PRIVATE SIGNING KEY]"))
         }
         Secret::Contact { vcard, .. } => {
