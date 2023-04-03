@@ -632,6 +632,7 @@ impl AccountManager {
                     .strip_prefix(&files)?
                     .to_string_lossy()
                     .into_owned();
+                let relative = format!("files/{}", relative);
                 let buffer = std::fs::read(entry.path())?;
                 writer = writer.add_file(&relative, &buffer)?;
             }
