@@ -13,7 +13,7 @@ use urn::Urn;
 use walkdir::WalkDir;
 
 use age::Encryptor;
-use sha3::{Digest, Sha3_256};
+use k256::sha2::{Digest, Sha256};
 
 use sos_core::{
     archive::{Inventory, Reader, Writer},
@@ -302,7 +302,7 @@ impl AccountManager {
         let mut file = std::fs::File::open(source)?;
         let encryptor = Encryptor::with_user_passphrase(passphrase);
 
-        let mut hasher = Sha3_256::new();
+        let mut hasher = Sha256::new();
         let mut encrypted = tempfile::NamedTempFile::new()?;
 
         let mut writer = encryptor.wrap_output(&mut encrypted)?;
