@@ -59,8 +59,10 @@ pub fn mock_secret_file(
     let secret_value = Secret::File {
         name: name.to_string(),
         mime: mime.to_string(),
-        buffer: secrecy::Secret::new(buffer),
         checksum: checksum.try_into()?,
+        external: false,
+        size: buffer.len() as u64,
+        buffer: secrecy::Secret::new(buffer),
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());

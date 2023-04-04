@@ -2,17 +2,25 @@
 //! creating and managing local accounts.
 use std::{
     borrow::Cow,
-    io::Cursor,
+    io::{Cursor, Read, Write},
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use urn::Urn;
+use walkdir::WalkDir;
+
+use age::Encryptor;
+use k256::sha2::{Digest, Sha256};
 
 use sos_core::{
     archive::{Inventory, Reader, Writer},
-    constants::{IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
+    constants::{
+        FILES_DIR, FILE_PASSWORD_URN, IDENTITY_DIR, LOCAL_DIR, VAULTS_DIR,
+        VAULT_EXT, WAL_EXT,
+    },
     decode, encode,
     events::WalEvent,
     generate_passphrase_words,
@@ -68,6 +76,9 @@ pub struct NewAccountRequest {
     pub create_authenticator: bool,
     /// Whether to create a vault to use for contacts.
     pub create_contact: bool,
+    /// Whether to create a password entry in the identity vault
+    /// for file encryption.
+    pub create_file_password: bool,
 }
 
 /// Response to creating a new account.
@@ -102,6 +113,7 @@ impl AccountManager {
             create_archive,
             create_authenticator,
             create_contact,
+            create_file_password,
         } = account;
 
         // Prepare the identity vault
@@ -152,6 +164,20 @@ impl AccountManager {
             default_vault.id(),
             vault_passphrase,
         )?;
+
+        if create_file_password {
+            let file_passphrase = Self::generate_vault_passphrase()?;
+            let secret = Secret::Password {
+                password: file_passphrase,
+                name: None,
+                user_data: UserData::new_comment(address.to_owned()),
+            };
+            let mut meta =
+                SecretMeta::new("File Encryption".to_string(), secret.kind());
+            let urn: Urn = FILE_PASSWORD_URN.parse()?;
+            meta.set_urn(Some(urn));
+            keeper.create(meta, secret)?;
+        }
 
         let archive = if create_archive {
             // Prepare the passphrase for the archive vault
@@ -251,6 +277,9 @@ impl AccountManager {
             None
         };
 
+        // Ensure the files directory exists
+        Self::files_dir(&address)?;
+
         Ok(NewAccountResponse {
             address,
             user,
@@ -259,6 +288,71 @@ impl AccountManager {
             authenticator,
             contact,
         })
+    }
+
+    /// Encrypt a file using AGE passphrase encryption and
+    /// move to a target directory.
+    ///
+    /// The file name is the Sha256 digest of the original file.
+    pub fn encrypt_file<S: AsRef<Path>, T: AsRef<Path>>(
+        source: S,
+        target: T,
+        passphrase: SecretString,
+    ) -> Result<Vec<u8>> {
+        let mut file = std::fs::File::open(source)?;
+        let encryptor = Encryptor::with_user_passphrase(passphrase);
+
+        let mut hasher = Sha256::new();
+        let mut encrypted = tempfile::NamedTempFile::new()?;
+
+        let mut writer = encryptor.wrap_output(&mut encrypted)?;
+
+        let chunk_size = 8192;
+        loop {
+            let mut chunk = Vec::with_capacity(chunk_size);
+            let n = std::io::Read::by_ref(&mut file)
+                .take(chunk_size as u64)
+                .read_to_end(&mut chunk)?;
+            if n == 0 {
+                break;
+            }
+
+            writer.write_all(chunk.as_slice())?;
+            hasher.update(chunk.as_slice());
+
+            if n < chunk_size {
+                break;
+            }
+        }
+
+        writer.finish()?;
+
+        let digest = hasher.finalize();
+        let file_name = hex::encode(digest);
+        let dest = PathBuf::from(target.as_ref()).join(&file_name);
+
+        // Move the temporary file into place
+        std::fs::rename(encrypted.path(), dest)?;
+
+        Ok(digest.to_vec())
+    }
+
+    /// Decrypt a file using AGE passphrase encryption.
+    pub fn decrypt_file<P: AsRef<Path>>(
+        path: P,
+        passphrase: &SecretString,
+    ) -> Result<Vec<u8>> {
+        let file = std::fs::File::open(path)?;
+        let decryptor = match age::Decryptor::new(file)? {
+            age::Decryptor::Passphrase(d) => d,
+            _ => return Err(Error::NotPassphraseEncryption),
+        };
+
+        let mut decrypted = vec![];
+        let mut reader = decryptor.decrypt(passphrase, None)?;
+        reader.read_to_end(&mut decrypted)?;
+
+        Ok(decrypted)
     }
 
     /// Get the local cache directory.
@@ -272,6 +366,21 @@ impl AccountManager {
         let local_dir = Self::local_dir()?;
         let vaults_dir = local_dir.join(address).join(VAULTS_DIR);
         Ok(vaults_dir)
+    }
+
+    /// Get the path to the directory used to store files.
+    ///
+    /// Ensure it exists if it does not already exist.
+    pub fn files_dir(address: &str) -> Result<PathBuf> {
+        let local_dir = Self::local_dir()?;
+        let files_dir = local_dir.join(address).join(FILES_DIR);
+        if !files_dir.exists() {
+            // Must also create parents as when we import
+            // an account from an archive the parent directories
+            // may not already exist
+            std::fs::create_dir_all(&files_dir)?;
+        }
+        Ok(files_dir)
     }
 
     /// Generate a vault passphrase.
@@ -501,7 +610,7 @@ impl AccountManager {
         Ok(vaults)
     }
 
-    /// Create a buffer for a gzip compressed tarball including the
+    /// Create a buffer for a zip archive including the
     /// identity vault and all user vaults.
     pub fn export_archive_buffer(address: &str) -> Result<Vec<u8>> {
         let identity_path = Self::identity_vault(address)?;
@@ -520,6 +629,18 @@ impl AccountManager {
         for (summary, path) in vaults {
             let buffer = std::fs::read(path)?;
             writer = writer.add_vault(*summary.id(), &buffer)?;
+        }
+
+        let files = Self::files_dir(address)?;
+        for entry in WalkDir::new(&files) {
+            let entry = entry?;
+            if entry.path().is_file() {
+                let relative = PathBuf::from("files")
+                    .join(entry.path().strip_prefix(&files)?);
+                let relative = relative.to_string_lossy().into_owned();
+                let buffer = std::fs::read(entry.path())?;
+                writer = writer.add_file(&relative, &buffer)?;
+            }
         }
 
         writer.finish()?;

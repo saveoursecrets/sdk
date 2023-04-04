@@ -125,6 +125,10 @@ pub struct RestoreOptions {
     /// Passphrase for the identity vault in the archive to copy
     /// the passphrases for imported folders.
     pub passphrase: Option<SecretString>,
+    /// Target directory for files.
+    pub files_dir: Option<PathBuf>,
+    /// Builder for the files directory.
+    pub files_dir_builder: Option<Box<dyn Fn(&str) -> Option<PathBuf>>>,
 }
 
 /// Buffers of data to restore after selected options
@@ -209,8 +213,20 @@ pub trait StorageProvider: Sync + Send {
         mut archive: Vec<u8>,
         options: &RestoreOptions,
     ) -> Result<RestoreTargets> {
-        let reader = Reader::new(Cursor::new(&mut archive))?;
-        let (address, identity, vaults) = reader.prepare()?.finish()?;
+        let mut reader = Reader::new(Cursor::new(&mut archive))?.prepare()?;
+
+        if let Some(files_dir) = &options.files_dir {
+            reader.extract_files(files_dir, options.selected.as_slice())?;
+        } else if let (Some(builder), Some(manifest)) =
+            (&options.files_dir_builder, reader.manifest())
+        {
+            if let Some(files_dir) = builder(&manifest.address) {
+                reader
+                    .extract_files(files_dir, options.selected.as_slice())?;
+            }
+        }
+
+        let (address, identity, vaults) = reader.finish()?;
 
         // Filter extracted vaults to those selected by the user
         let vaults = vaults

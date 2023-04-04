@@ -425,6 +425,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
     let buffer = std::fs::read(file)?;
+    let size = buffer.len() as u64;
     let checksum = Sha3_256::digest(&buffer);
     let buffer = secrecy::Secret::new(buffer);
     Ok(Secret::File {
@@ -432,6 +433,8 @@ fn read_file_secret(path: &str) -> Result<Secret> {
         mime,
         buffer,
         checksum: checksum.as_slice().try_into()?,
+        external: false,
+        size,
         user_data: Default::default(),
     })
 }

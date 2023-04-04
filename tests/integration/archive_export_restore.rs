@@ -47,6 +47,10 @@ fn create_archive(
 #[tokio::test]
 #[serial]
 async fn integration_archive_local_provider() -> Result<()> {
+    
+    // TODO: test creating external file storage
+    // TODO: and extracting the archived files
+
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
@@ -79,6 +83,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     let options = RestoreOptions {
         selected: vec![vault.summary().clone()],
         passphrase: Some(SecretString::new(passphrase.to_string())),
+        files_dir: None,
     };
 
     // Create the archive

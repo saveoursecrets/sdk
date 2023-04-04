@@ -793,6 +793,35 @@ impl<'de> Visitor<'de> for IdentityKindVisitor {
     }
 }
 
+/// Enumeration of AGE versions.
+#[derive(Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum AgeVersion {
+    /// The v1 AGE version.
+    #[default]
+    Version1,
+}
+
+impl Encode for AgeVersion {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        match self {
+            Self::Version1 => writer.write_u8(1)?,
+        };
+        Ok(())
+    }
+}
+
+impl Decode for AgeVersion {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let kind = reader.read_u8()?;
+        Ok(match kind {
+            1 => {
+                *self = Self::Version1;
+            }
+            _ => todo!(),
+        })
+    }
+}
+
 /// Represents the various types of secret.
 ///
 /// This implements the serde traits for the webassembly bindings
@@ -838,6 +867,17 @@ pub enum Secret {
         /// in the archive rather than embedding the binary data.
         #[serde(with = "hex::serde")]
         checksum: [u8; 32],
+
+        /// Whether this file is external or embedded.
+        ///
+        /// If the file is embedded then `buffer` should contain
+        /// the file content otherwise callers should encrypt the
+        /// file and store it on disc outside of the vault.
+        external: bool,
+
+        /// Size of the unencrypted file content.
+        size: u64,
+
         /// Custom user data.
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
@@ -1024,6 +1064,18 @@ pub enum Secret {
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
     },
+    /// AGE encryption standard.
+    #[serde(rename_all = "camelCase")]
+    Age {
+        /// The version of AGE.
+        version: AgeVersion,
+        #[serde(serialize_with = "serialize_secret_string")]
+        /// Secret key for the AGE identity.
+        key: SecretString,
+        /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
+        user_data: UserData,
+    },
 }
 
 impl Clone for Secret {
@@ -1038,12 +1090,16 @@ impl Clone for Secret {
                 mime,
                 buffer,
                 checksum,
+                external,
+                size,
                 user_data,
             } => Secret::File {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
                 checksum: *checksum,
+                external: *external,
+                size: *size,
                 user_data: user_data.clone(),
             },
             Secret::Account {
@@ -1176,6 +1232,15 @@ impl Clone for Secret {
                 expiry_date: expiry_date.clone(),
                 user_data: user_data.clone(),
             },
+            Secret::Age {
+                version,
+                key,
+                user_data,
+            } => Secret::Age {
+                version: version.clone(),
+                key: secrecy::Secret::new(key.expose_secret().to_owned()),
+                user_data: user_data.clone(),
+            },
         }
     }
 }
@@ -1207,6 +1272,7 @@ impl fmt::Debug for Secret {
                 .field("title", title)
                 .field("mime", mime)
                 .finish(),
+            Secret::Identity { .. } => f.debug_struct("Identity").finish(),
             Secret::Signer { .. } => f.debug_struct("Signer").finish(),
             Secret::Contact { .. } => f.debug_struct("Contact").finish(),
             Secret::Totp { .. } => f.debug_struct("TOTP").finish(),
@@ -1214,7 +1280,7 @@ impl fmt::Debug for Secret {
             Secret::Bank { .. } => f.debug_struct("Bank").finish(),
             Secret::Link { .. } => f.debug_struct("Link").finish(),
             Secret::Password { .. } => f.debug_struct("Password").finish(),
-            Secret::Identity { .. } => f.debug_struct("Identity").finish(),
+            Secret::Age { .. } => f.debug_struct("AGE").finish(),
         }
     }
 }
@@ -1260,6 +1326,7 @@ impl Secret {
             Secret::List { .. } => kind::LIST,
             Secret::Pem { .. } => kind::PEM,
             Secret::Page { .. } => kind::PAGE,
+            Secret::Identity { .. } => kind::IDENTIFICATION,
             Secret::Signer { .. } => kind::SIGNER,
             Secret::Contact { .. } => kind::CONTACT,
             Secret::Totp { .. } => kind::TOTP,
@@ -1267,7 +1334,7 @@ impl Secret {
             Secret::Bank { .. } => kind::BANK,
             Secret::Link { .. } => kind::LINK,
             Secret::Password { .. } => kind::PASSWORD,
-            Secret::Identity { .. } => kind::IDENTIFICATION,
+            Secret::Age { .. } => kind::AGE,
         }
     }
 
@@ -1280,6 +1347,7 @@ impl Secret {
             Secret::List { user_data, .. } => user_data,
             Secret::Pem { user_data, .. } => user_data,
             Secret::Page { user_data, .. } => user_data,
+            Secret::Identity { user_data, .. } => user_data,
             Secret::Signer { user_data, .. } => user_data,
             Secret::Contact { user_data, .. } => user_data,
             Secret::Totp { user_data, .. } => user_data,
@@ -1287,7 +1355,7 @@ impl Secret {
             Secret::Bank { user_data, .. } => user_data,
             Secret::Link { user_data, .. } => user_data,
             Secret::Password { user_data, .. } => user_data,
-            Secret::Identity { user_data, .. } => user_data,
+            Secret::Age { user_data, .. } => user_data,
         }
     }
 
@@ -1300,6 +1368,7 @@ impl Secret {
             Secret::List { user_data, .. } => user_data,
             Secret::Pem { user_data, .. } => user_data,
             Secret::Page { user_data, .. } => user_data,
+            Secret::Identity { user_data, .. } => user_data,
             Secret::Signer { user_data, .. } => user_data,
             Secret::Contact { user_data, .. } => user_data,
             Secret::Totp { user_data, .. } => user_data,
@@ -1307,7 +1376,7 @@ impl Secret {
             Secret::Bank { user_data, .. } => user_data,
             Secret::Link { user_data, .. } => user_data,
             Secret::Password { user_data, .. } => user_data,
-            Secret::Identity { user_data, .. } => user_data,
+            Secret::Age { user_data, .. } => user_data,
         }
     }
 }
@@ -1354,6 +1423,8 @@ impl PartialEq for Secret {
                     mime: mime_a,
                     buffer: buffer_a,
                     checksum: checksum_a,
+                    external: external_a,
+                    size: size_a,
                     user_data: user_data_a,
                 },
                 Self::File {
@@ -1361,6 +1432,8 @@ impl PartialEq for Secret {
                     mime: mime_b,
                     buffer: buffer_b,
                     checksum: checksum_b,
+                    external: external_b,
+                    size: size_b,
                     user_data: user_data_b,
                 },
             ) => {
@@ -1368,6 +1441,8 @@ impl PartialEq for Secret {
                     && mime_a == mime_b
                     && buffer_a.expose_secret() == buffer_b.expose_secret()
                     && checksum_a == checksum_b
+                    && external_a == external_b
+                    && size_a == size_b
                     && user_data_a == user_data_b
             }
             (
@@ -1420,6 +1495,32 @@ impl PartialEq for Secret {
                         == document_b.expose_secret()
                     && user_data_a == user_data_b
             }
+            (
+                Self::Identity {
+                    id_kind: id_kind_a,
+                    number: number_a,
+                    issue_place: issue_place_a,
+                    issue_date: issue_date_a,
+                    expiry_date: expiry_date_a,
+                    user_data: user_data_a,
+                },
+                Self::Identity {
+                    id_kind: id_kind_b,
+                    number: number_b,
+                    issue_place: issue_place_b,
+                    issue_date: issue_date_b,
+                    expiry_date: expiry_date_b,
+                    user_data: user_data_b,
+                },
+            ) => {
+                id_kind_a == id_kind_b
+                    && number_a.expose_secret() == number_b.expose_secret()
+                    && issue_place_a == issue_place_b
+                    && issue_date_a == issue_date_b
+                    && expiry_date_a == expiry_date_b
+                    && user_data_a == user_data_b
+            }
+
             (
                 Self::Signer {
                     private_key: private_key_a,
@@ -1548,28 +1649,19 @@ impl PartialEq for Secret {
             }
 
             (
-                Self::Identity {
-                    id_kind: id_kind_a,
-                    number: number_a,
-                    issue_place: issue_place_a,
-                    issue_date: issue_date_a,
-                    expiry_date: expiry_date_a,
+                Self::Age {
+                    version: version_a,
+                    key: key_a,
                     user_data: user_data_a,
                 },
-                Self::Identity {
-                    id_kind: id_kind_b,
-                    number: number_b,
-                    issue_place: issue_place_b,
-                    issue_date: issue_date_b,
-                    expiry_date: expiry_date_b,
+                Self::Age {
+                    version: version_b,
+                    key: key_b,
                     user_data: user_data_b,
                 },
             ) => {
-                id_kind_a == id_kind_b
-                    && number_a.expose_secret() == number_b.expose_secret()
-                    && issue_place_a == issue_place_b
-                    && issue_date_a == issue_date_b
-                    && expiry_date_a == expiry_date_b
+                version_a == version_b
+                    && key_a.expose_secret() == key_b.expose_secret()
                     && user_data_a == user_data_b
             }
 
@@ -1622,6 +1714,8 @@ pub mod kind {
     pub const LINK: u8 = 13;
     /// Standalone password.
     pub const PASSWORD: u8 = 14;
+    /// [AGE](https://age-encryption.org/v1) identity.
+    pub const AGE: u8 = 15;
 }
 
 impl Encode for Secret {
@@ -1633,6 +1727,7 @@ impl Encode for Secret {
             Self::List { .. } => kind::LIST,
             Self::Pem { .. } => kind::PEM,
             Self::Page { .. } => kind::PAGE,
+            Self::Identity { .. } => kind::IDENTIFICATION,
             Self::Signer { .. } => kind::SIGNER,
             Self::Contact { .. } => kind::CONTACT,
             Self::Totp { .. } => kind::TOTP,
@@ -1640,29 +1735,11 @@ impl Encode for Secret {
             Self::Bank { .. } => kind::BANK,
             Self::Link { .. } => kind::LINK,
             Self::Password { .. } => kind::PASSWORD,
-            Self::Identity { .. } => kind::IDENTIFICATION,
+            Self::Age { .. } => kind::AGE,
         };
         writer.write_u8(kind)?;
 
         match self {
-            Self::Note { text, user_data } => {
-                writer.write_string(text.expose_secret())?;
-                write_user_data(user_data, writer)?;
-            }
-            Self::File {
-                name,
-                mime,
-                buffer,
-                checksum,
-                user_data,
-            } => {
-                writer.write_string(name)?;
-                writer.write_string(mime)?;
-                writer.write_u32(buffer.expose_secret().len() as u32)?;
-                writer.write_bytes(buffer.expose_secret())?;
-                writer.write_bytes(checksum)?;
-                write_user_data(user_data, writer)?;
-            }
             Self::Account {
                 account,
                 password,
@@ -1675,6 +1752,28 @@ impl Encode for Secret {
                 if let Some(url) = url {
                     writer.write_string(url)?;
                 }
+                write_user_data(user_data, writer)?;
+            }
+            Self::Note { text, user_data } => {
+                writer.write_string(text.expose_secret())?;
+                write_user_data(user_data, writer)?;
+            }
+            Self::File {
+                name,
+                mime,
+                buffer,
+                checksum,
+                external,
+                size,
+                user_data,
+            } => {
+                writer.write_string(name)?;
+                writer.write_string(mime)?;
+                writer.write_u32(buffer.expose_secret().len() as u32)?;
+                writer.write_bytes(buffer.expose_secret())?;
+                writer.write_bytes(checksum)?;
+                writer.write_bool(external)?;
+                writer.write_u64(size)?;
                 write_user_data(user_data, writer)?;
             }
             Self::List { items, user_data } => {
@@ -1702,6 +1801,35 @@ impl Encode for Secret {
                 writer.write_string(title)?;
                 writer.write_string(mime)?;
                 writer.write_string(document.expose_secret())?;
+                write_user_data(user_data, writer)?;
+            }
+            Self::Identity {
+                id_kind,
+                number,
+                issue_place,
+                issue_date,
+                expiry_date,
+                user_data,
+            } => {
+                let id_kind: u8 = id_kind.into();
+                writer.write_u8(id_kind)?;
+                writer.write_string(number.expose_secret())?;
+
+                writer.write_bool(issue_place.is_some())?;
+                if let Some(issue_place) = issue_place {
+                    writer.write_string(issue_place)?;
+                }
+
+                writer.write_bool(issue_date.is_some())?;
+                if let Some(issue_date) = issue_date {
+                    issue_date.encode(writer)?;
+                }
+
+                writer.write_bool(expiry_date.is_some())?;
+                if let Some(expiry_date) = expiry_date {
+                    expiry_date.encode(writer)?;
+                }
+
                 write_user_data(user_data, writer)?;
             }
             Self::Signer {
@@ -1809,34 +1937,13 @@ impl Encode for Secret {
 
                 write_user_data(user_data, writer)?;
             }
-
-            Self::Identity {
-                id_kind,
-                number,
-                issue_place,
-                issue_date,
-                expiry_date,
+            Self::Age {
+                version,
+                key,
                 user_data,
             } => {
-                let id_kind: u8 = id_kind.into();
-                writer.write_u8(id_kind)?;
-                writer.write_string(number.expose_secret())?;
-
-                writer.write_bool(issue_place.is_some())?;
-                if let Some(issue_place) = issue_place {
-                    writer.write_string(issue_place)?;
-                }
-
-                writer.write_bool(issue_date.is_some())?;
-                if let Some(issue_date) = issue_date {
-                    issue_date.encode(writer)?;
-                }
-
-                writer.write_bool(expiry_date.is_some())?;
-                if let Some(expiry_date) = expiry_date {
-                    expiry_date.encode(writer)?;
-                }
-
+                version.encode(writer)?;
+                writer.write_string(key.expose_secret())?;
                 write_user_data(user_data, writer)?;
             }
         }
@@ -1865,12 +1972,16 @@ impl Decode for Secret {
                 );
                 let checksum: [u8; 32] =
                     reader.read_bytes(32)?.as_slice().try_into()?;
+                let external = reader.read_bool()?;
+                let size = reader.read_u64()?;
                 let user_data = read_user_data(reader)?;
                 *self = Self::File {
                     name,
                     mime,
                     buffer,
                     checksum,
+                    external,
+                    size,
                     user_data,
                 };
             }
@@ -1924,6 +2035,48 @@ impl Decode for Secret {
                     title,
                     mime,
                     document,
+                    user_data,
+                };
+            }
+            kind::IDENTIFICATION => {
+                let id_kind = reader.read_u8()?;
+                let id_kind: IdentityKind =
+                    id_kind.try_into().map_err(Box::from)?;
+
+                let number = SecretString::new(reader.read_string()?);
+
+                let has_issue_place = reader.read_bool()?;
+                let issue_place = if has_issue_place {
+                    Some(reader.read_string()?)
+                } else {
+                    None
+                };
+
+                let has_issue_date = reader.read_bool()?;
+                let issue_date = if has_issue_date {
+                    let mut timestamp: Timestamp = Default::default();
+                    timestamp.decode(&mut *reader)?;
+                    Some(timestamp)
+                } else {
+                    None
+                };
+
+                let has_expiry_date = reader.read_bool()?;
+                let expiry_date = if has_expiry_date {
+                    let mut timestamp: Timestamp = Default::default();
+                    timestamp.decode(&mut *reader)?;
+                    Some(timestamp)
+                } else {
+                    None
+                };
+
+                let user_data = read_user_data(reader)?;
+                *self = Self::Identity {
+                    id_kind,
+                    number,
+                    issue_place,
+                    issue_date,
+                    expiry_date,
                     user_data,
                 };
             }
@@ -2067,45 +2220,16 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::IDENTIFICATION => {
-                let id_kind = reader.read_u8()?;
-                let id_kind: IdentityKind =
-                    id_kind.try_into().map_err(Box::from)?;
 
-                let number = SecretString::new(reader.read_string()?);
-
-                let has_issue_place = reader.read_bool()?;
-                let issue_place = if has_issue_place {
-                    Some(reader.read_string()?)
-                } else {
-                    None
-                };
-
-                let has_issue_date = reader.read_bool()?;
-                let issue_date = if has_issue_date {
-                    let mut timestamp: Timestamp = Default::default();
-                    timestamp.decode(&mut *reader)?;
-                    Some(timestamp)
-                } else {
-                    None
-                };
-
-                let has_expiry_date = reader.read_bool()?;
-                let expiry_date = if has_expiry_date {
-                    let mut timestamp: Timestamp = Default::default();
-                    timestamp.decode(&mut *reader)?;
-                    Some(timestamp)
-                } else {
-                    None
-                };
+            kind::AGE => {
+                let mut version: AgeVersion = Default::default();
+                version.decode(reader)?;
+                let key = SecretString::new(reader.read_string()?);
 
                 let user_data = read_user_data(reader)?;
-                *self = Self::Identity {
-                    id_kind,
-                    number,
-                    issue_place,
-                    issue_date,
-                    expiry_date,
+                *self = Self::Age {
+                    version,
+                    key,
                     user_data,
                 };
             }
@@ -2491,6 +2615,20 @@ END:VCARD"#;
             issue_place: Some("Mock city".to_string()),
             issue_date: Some(Default::default()),
             expiry_date: Some(Default::default()),
+            user_data: Default::default(),
+        };
+        let encoded = encode(&secret)?;
+        let decoded = decode(&encoded)?;
+        assert_eq!(secret, decoded);
+
+        Ok(())
+    }
+
+    #[test]
+    fn secret_encode_age() -> Result<()> {
+        let secret = Secret::Age {
+            version: Default::default(),
+            key: age::x25519::Identity::generate().to_string(),
             user_data: Default::default(),
         };
         let encoded = encode(&secret)?;

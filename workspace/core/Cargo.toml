@@ -44,6 +44,7 @@ vcard4 = { version = "0.4.3", features = ["serde"] }
 parking_lot = "0.12"
 urn = { version = "0.5", features = ["serde"] }
 once_cell = "1"
+age = "0.9"
 
 binary-stream = { version = "3.4", features = ["32bit"] }
 
