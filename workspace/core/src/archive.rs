@@ -73,7 +73,7 @@ impl<W: Write + Seek> Writer<W> {
         .map_err(|_| Error::ZipDateTime)?;
         let options = options.last_modified_time(dt);
         self.builder.start_file(path, options)?;
-        self.builder.write(buffer)?;
+        self.builder.write_all(buffer)?;
         Ok(())
     }
 
@@ -125,11 +125,10 @@ impl<W: Write + Seek> Writer<W> {
 
     /// Add the manifest and finish building the tarball.
     pub fn finish(mut self) -> Result<W> {
-        let path = PathBuf::from(ARCHIVE_MANIFEST);
         let manifest = serde_json::to_vec_pretty(&self.manifest)?;
 
         self.append_file_buffer(
-            path.to_string_lossy().into_owned().as_ref(),
+            ARCHIVE_MANIFEST,
             manifest.as_slice(),
         )?;
 
