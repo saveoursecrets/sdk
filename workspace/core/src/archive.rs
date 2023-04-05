@@ -127,10 +127,7 @@ impl<W: Write + Seek> Writer<W> {
     pub fn finish(mut self) -> Result<W> {
         let manifest = serde_json::to_vec_pretty(&self.manifest)?;
 
-        self.append_file_buffer(
-            ARCHIVE_MANIFEST,
-            manifest.as_slice(),
-        )?;
+        self.append_file_buffer(ARCHIVE_MANIFEST, manifest.as_slice())?;
 
         Ok(self.builder.finish()?)
     }
