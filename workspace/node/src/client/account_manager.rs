@@ -79,6 +79,8 @@ pub struct NewAccountRequest {
     /// Whether to create a password entry in the identity vault
     /// for file encryption.
     pub create_file_password: bool,
+    /// Default folder name.
+    pub default_folder_name: Option<String>,
 }
 
 /// Response to creating a new account.
@@ -87,6 +89,8 @@ pub struct NewAccountResponse {
     pub address: String,
     /// Authenticated user.
     pub user: AuthenticatedUser,
+    /// Default vault.
+    pub default_vault: Vault,
     /// Default vault summary.
     pub summary: Summary,
     /// Archive summary.
@@ -114,6 +118,7 @@ impl AccountManager {
             create_authenticator,
             create_contact,
             create_file_password,
+            mut default_folder_name,
         } = account;
 
         // Prepare the identity vault
@@ -133,6 +138,9 @@ impl AccountManager {
 
         // Prepare the default vault
         let mut default_vault: Vault = Default::default();
+        if let Some(name) = default_folder_name.take() {
+            default_vault.set_name(name);
+        }
         default_vault.set_default_flag(true);
         default_vault.initialize(vault_passphrase.expose_secret(), None)?;
 
@@ -283,6 +291,7 @@ impl AccountManager {
         Ok(NewAccountResponse {
             address,
             user,
+            default_vault,
             summary,
             archive,
             authenticator,
@@ -445,7 +454,7 @@ impl AccountManager {
 
     /// Sign in a user.
     pub fn sign_in(
-        address: String,
+        address: &str,
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
     ) -> Result<(AccountInfo, AuthenticatedUser, Gatekeeper)> {
@@ -453,7 +462,7 @@ impl AccountManager {
         let account = accounts
             .into_iter()
             .find(|a| a.address == address)
-            .ok_or_else(|| Error::NoAccount(address.clone()))?;
+            .ok_or_else(|| Error::NoAccount(address.to_string()))?;
 
         let identity_path = Self::identity_vault(&address)?;
         let (user, keeper) =

@@ -162,8 +162,8 @@ enum ShellCommand {
     /// Switch identity.
     #[clap(alias = "su")]
     Switch {
-        /// Keystore file for the identity.
-        keystore: PathBuf,
+        /// Account name.
+        account_name: String,
     },
     /// Print the current identity.
     Whoami,
@@ -1024,11 +1024,11 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             Ok(())
         }
-        ShellCommand::Switch { keystore } => {
+        ShellCommand::Switch { account_name} => {
             let reader = state.read().unwrap();
             let factory = &reader.2;
 
-            let (mut provider, address) = switch(factory, keystore)?;
+            let (mut provider, address) = switch(factory, account_name)?;
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately

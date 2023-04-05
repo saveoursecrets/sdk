@@ -13,6 +13,9 @@ pub enum Error {
     #[error("path {0} is not a file")]
     NotFile(PathBuf),
 
+    #[error("account {0} does not exist")]
+    NoAccount(String),
+
     #[error("could not determine path for local cache directory")]
     NoCacheDir,
 

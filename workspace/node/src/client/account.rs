@@ -47,6 +47,7 @@ pub struct AccountCredentials {
 }
 
 /// Login to a remote provider account.
+#[deprecated(note = "Use AccountManager::login()")]
 pub async fn login(
     server: Url,
     cache_dir: PathBuf,
@@ -65,6 +66,7 @@ pub async fn login(
 }
 
 /// Create a new account.
+#[deprecated(note = "Use AccountManager::new_account()")]
 pub async fn create_account(
     server: Url,
     destination: PathBuf,

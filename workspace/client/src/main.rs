@@ -4,6 +4,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use parking_lot::RwLock as SyncRwLock;
+
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
@@ -12,15 +14,16 @@ use sos_client::{
     exec, local_signup, monitor, Error, Result, ShellState,
     StdinPassphraseReader,
 };
-use sos_core::FileLocks;
+use sos_core::{search::SearchIndex, FileLocks};
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
 use sos_node::{
     cache_dir,
     client::{
+        account_manager::AccountManager,
         provider::{spawn_changes_listener, ProviderFactory},
-        run_blocking,
+        run_blocking, PassphraseReader,
     },
 };
 
@@ -36,7 +39,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Create an account.
+    /// Create an account on this device.
     Signup {
         /// Name for the new identity.
         name: String,
@@ -44,28 +47,15 @@ enum Command {
         /// Name for the default folder.
         #[clap(short, long)]
         folder_name: Option<String>,
-        /*
-        /// Server URL.
-        #[clap(short, long)]
-        server: Url,
-
-        /// Vault name.
-        #[clap(short, long)]
-        name: Option<String>,
-
-        /// Directory to write the signing keystore.
-        keystore: PathBuf,
-        */
     },
     /// Launch the interactive shell.
     Shell {
-        /// Provider URL.
+        /// Provider factory.
         #[clap(short, long)]
         provider: Option<ProviderFactory>,
 
-        /// Keystore file containing the signing key.
-        #[clap(short, long)]
-        keystore: PathBuf,
+        /// Account name.
+        account_name: String,
     },
     /// Monitor server events.
     Monitor {
@@ -104,7 +94,10 @@ fn run() -> Result<()> {
         Command::Signup { name, folder_name } => {
             local_signup(name, folder_name)?;
         }
-        Command::Shell { provider, keystore } => {
+        Command::Shell {
+            provider,
+            account_name,
+        } => {
             let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
@@ -114,14 +107,28 @@ fn run() -> Result<()> {
             let mut locks = FileLocks::new();
             let _ = locks.add(&cache_lock)?;
 
-            todo!("get signing key from identity vault");
+            let accounts = AccountManager::list_accounts()?;
 
-            /*
+            let account = accounts
+                .iter()
+                .find(|a| a.label == account_name)
+                .ok_or(Error::NoAccount(account_name.clone()))?;
+
+            // Prepare a  search index for the identity vault
+            let identity_index =
+                Arc::new(SyncRwLock::new(SearchIndex::new(None)));
+
             let reader = StdinPassphraseReader {};
-            let signer = SignerBuilder::new(keystore)
-                .with_passphrase_reader(Box::new(reader))
-                .with_use_agent(true)
-                .build()?;
+            let passphrase = reader.read()?;
+
+            // Verify the identity vault can be unlocked
+            let (account, user, keeper) = AccountManager::sign_in(
+                &account.address,
+                passphrase,
+                Arc::clone(&identity_index),
+            )?;
+
+            let signer = user.signer;
 
             let factory = provider.unwrap_or_default();
             let (provider, address) =
@@ -176,7 +183,6 @@ fn run() -> Result<()> {
                 },
                 prompt,
             )?;
-            */
         }
     }
 
