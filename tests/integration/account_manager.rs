@@ -8,16 +8,17 @@ use sos_core::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     generate_passphrase,
     search::SearchIndex,
+    secret::SecretId,
+    vault::VaultId,
     Gatekeeper,
-    vault::VaultId, secret::SecretId,
 };
 use sos_node::{
     cache_dir, clear_cache_dir,
     client::{
-        provider::RestoreOptions,
         account_manager::{
             AccountManager, NewAccountRequest, NewAccountResponse,
         },
+        provider::{ProviderFactory, RestoreOptions},
     },
     set_cache_dir,
 };
@@ -59,7 +60,7 @@ fn integration_account_manager() -> Result<()> {
     assert_eq!(1, accounts.len());
 
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
-    let (_info, _user, mut identity_keeper) = AccountManager::sign_in(
+    let (_info, user, mut identity_keeper) = AccountManager::sign_in(
         &address,
         passphrase.clone(),
         Arc::clone(&identity_index),
@@ -127,28 +128,42 @@ fn integration_account_manager() -> Result<()> {
     // Decrypt
     let destination = target.join(hex::encode(digest));
     let buffer = AccountManager::decrypt_file(destination, &file_passphrase)?;
-    
+
     let expected = std::fs::read(source_file)?;
     assert_eq!(expected, buffer);
 
     let archive_buffer = AccountManager::export_archive_buffer(&address)?;
-    let _inventory = AccountManager::restore_archive_inventory(
-        archive_buffer.clone())?;
+    let _inventory =
+        AccountManager::restore_archive_inventory(archive_buffer.clone())?;
+
+    // Restore from archive whilst signed in (with provider),
+    // overwrites existing data (backup)
+    let factory = ProviderFactory::Local;
+    let (mut provider, _) = factory.create_provider(user.signer)?;
+    let options = RestoreOptions {
+        selected: vaults.clone().into_iter().map(|v| v.0).collect(),
+        passphrase: Some(passphrase.clone()),
+        files_dir: Some(files_dir.clone()),
+        files_dir_builder: None,
+    };
+    AccountManager::restore_archive_buffer(
+        archive_buffer.clone(),
+        options,
+        Some(&mut provider),
+    )?;
 
     // Remove the account
     AccountManager::delete_account(&address)?;
 
-    // Restore from the backup archive (not signed in)
+    // Restore when not signed in - the account must not exist,
+    // equivalent to importing an account
     let options = RestoreOptions {
         selected: vaults.into_iter().map(|v| v.0).collect(),
         passphrase: Some(passphrase),
         files_dir: Some(files_dir),
         files_dir_builder: None,
     };
-    AccountManager::restore_archive_buffer(
-        archive_buffer, options, None)?;
-
-    // TODO: restore from archive whilst signed in (with provider)
+    AccountManager::restore_archive_buffer(archive_buffer, options, None)?;
 
     // Reset the cache dir so we don't interfere
     // with other tests
