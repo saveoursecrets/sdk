@@ -1,13 +1,12 @@
 //! Listen for changes events on the server sent events channel.
-use std::path::PathBuf;
 use url::Url;
 
-use crate::{Result, StdinPassphraseReader};
+use crate::{sign_in, Result};
 use futures::stream::StreamExt;
 use sos_core::signer::BoxedSigner;
 use sos_node::client::{
     net::changes::{changes, connect},
-    run_blocking, SignerBuilder,
+    run_blocking,
 };
 
 /// Creates a changes stream and calls handler for every change notification.
@@ -29,13 +28,9 @@ async fn changes_stream(
 }
 
 /// Start a monitor listening for events on the SSE stream.
-pub fn monitor(server: Url, keystore: PathBuf) -> Result<()> {
-    let reader = StdinPassphraseReader {};
-    let signer = SignerBuilder::new(keystore)
-        .with_passphrase_reader(Box::new(reader))
-        .with_use_agent(true)
-        .build()?;
-
+pub fn monitor(server: Url, account_name: String) -> Result<()> {
+    let (_, user, _, _) = sign_in(&account_name)?;
+    let signer = user.signer;
     if let Err(e) = run_blocking(changes_stream(server, signer)) {
         tracing::error!("{}", e);
         std::process::exit(1);

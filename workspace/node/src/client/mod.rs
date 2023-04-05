@@ -1,14 +1,9 @@
 //! Traits and implementations for clients.
-use std::{fs::File, io::Read, path::PathBuf};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::future::Future;
 
-use web3_address::ethereum::Address;
-use web3_keystore::{decrypt, KeyStore};
-
-use secrecy::{ExposeSecret, SecretString};
-use sos_core::signer::{BoxedSigner, Signer, SingleParty};
+use secrecy::SecretString;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod account;
@@ -53,11 +48,11 @@ pub trait PassphraseReader {
     fn read(&self) -> std::result::Result<SecretString, Self::Error>;
 }
 
+/*
 /// Builds a client implementation.
 pub struct SignerBuilder<E> {
-    keystore: PathBuf,
-    keystore_passphrase: Option<SecretString>,
     passphrase_reader: Option<Box<dyn PassphraseReader<Error = E>>>,
+    signer: BoxedSigner,
     use_agent: bool,
 }
 
@@ -66,22 +61,12 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     /// Create a new client builder.
-    pub fn new(keystore: PathBuf) -> Self {
+    pub fn new(signer: BoxedSigner) -> Self {
         Self {
-            keystore,
-            keystore_passphrase: None,
             passphrase_reader: None,
+            signer,
             use_agent: false,
         }
-    }
-
-    /// Set a specific passphrase for the keystore.
-    pub fn with_keystore_passphrase(
-        mut self,
-        passphrase: SecretString,
-    ) -> Self {
-        self.keystore_passphrase = Some(passphrase);
-        self
     }
 
     /// Set a passphrase reader implementation.
@@ -101,23 +86,6 @@ where
 
     /// Build a client implementation wrapping a signing key.
     pub fn build(self) -> Result<BoxedSigner> {
-        if !self.keystore.exists() {
-            return Err(Error::NotFile(self.keystore));
-        }
-
-        // Decrypt the keystore and create the client.
-        let mut keystore_file = File::open(&self.keystore)?;
-        let mut keystore_bytes = Vec::new();
-        keystore_file.read_to_end(&mut keystore_bytes)?;
-        let keystore: KeyStore = serde_json::from_slice(&keystore_bytes)?;
-
-        let address = if let Some(address) = &keystore.address {
-            let address: Address = address.parse()?;
-            Some(address)
-        } else {
-            None
-        };
-
         let agent_key = if self.use_agent {
             if let Some(address) = &address {
                 agent_helpers::blocking_get_agent_key(address)?
@@ -130,19 +98,8 @@ where
 
         let signing_key: [u8; 32] = if let Some(signing_key) = agent_key {
             signing_key
-        } else {
-            let passphrase = if let Some(passphrase) =
-                self.keystore_passphrase
-            {
-                passphrase
-            } else if let Some(reader) = self.passphrase_reader {
-                reader.read().map_err(Box::from)?
-            } else {
-                panic!("client builder requires either a passphrase or passphrase reader");
-            };
-
-            let signing_bytes =
-                decrypt(&keystore, passphrase.expose_secret())?;
+        } else if let Some(signer) = self.signer {
+            let signing_bytes = signer.to_bytes();
             let signing_key: [u8; 32] =
                 signing_bytes.as_slice().try_into()?;
 
@@ -163,6 +120,7 @@ where
         Ok(signer)
     }
 }
+*/
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "agent-client"))]
 mod agent_helpers {

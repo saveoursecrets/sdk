@@ -30,20 +30,12 @@ async fn integration_handle_change() -> Result<()> {
     let AccountCredentials {
         summary,
         encryption_passphrase,
-        keystore_file,
-        keystore_passphrase,
         ..
     } = credentials;
 
     // Set up another connected client to listen for changes
     let cache_dir = dirs.clients.get(0).unwrap().to_path_buf();
-    let mut listener = login(
-        server_url.clone(),
-        cache_dir,
-        keystore_file,
-        keystore_passphrase,
-    )
-    .await?;
+    let mut listener = login(server_url.clone(), cache_dir, &signer).await?;
     let _ = listener.load_vaults().await?;
 
     // Both clients use the login vault

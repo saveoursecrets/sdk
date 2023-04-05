@@ -1,6 +1,5 @@
 use std::{
     borrow::Cow,
-    path::PathBuf,
     sync::{Arc, RwLock},
 };
 
@@ -9,8 +8,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
 use sos_client::{
-    exec, local_signup, monitor, Error, Result, ShellState,
-    StdinPassphraseReader,
+    exec, local_signup, monitor, sign_in, Error, Result, ShellState,
 };
 use sos_core::FileLocks;
 use sos_readline::read_shell;
@@ -20,7 +18,7 @@ use sos_node::{
     cache_dir,
     client::{
         provider::{spawn_changes_listener, ProviderFactory},
-        run_blocking, SignerBuilder,
+        run_blocking,
     },
 };
 
@@ -36,7 +34,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Create an account.
+    /// Create an account on this device.
     Signup {
         /// Name for the new identity.
         name: String,
@@ -44,28 +42,15 @@ enum Command {
         /// Name for the default folder.
         #[clap(short, long)]
         folder_name: Option<String>,
-        /*
-        /// Server URL.
-        #[clap(short, long)]
-        server: Url,
-
-        /// Vault name.
-        #[clap(short, long)]
-        name: Option<String>,
-
-        /// Directory to write the signing keystore.
-        keystore: PathBuf,
-        */
     },
     /// Launch the interactive shell.
     Shell {
-        /// Provider URL.
+        /// Provider factory.
         #[clap(short, long)]
         provider: Option<ProviderFactory>,
 
-        /// Keystore file containing the signing key.
-        #[clap(short, long)]
-        keystore: PathBuf,
+        /// Account name.
+        account_name: String,
     },
     /// Monitor server events.
     Monitor {
@@ -73,9 +58,9 @@ enum Command {
         #[clap(short, long)]
         server: Url,
 
-        /// Keystore file containing the signing key.
+        /// Account name.
         #[clap(short, long)]
-        keystore: PathBuf,
+        account_name: String,
     },
 }
 
@@ -98,13 +83,19 @@ fn run() -> Result<()> {
     let args = Cli::parse();
 
     match args.cmd {
-        Command::Monitor { server, keystore } => {
-            monitor(server, keystore)?;
+        Command::Monitor {
+            server,
+            account_name,
+        } => {
+            monitor(server, account_name)?;
         }
         Command::Signup { name, folder_name } => {
             local_signup(name, folder_name)?;
         }
-        Command::Shell { provider, keystore } => {
+        Command::Shell {
+            provider,
+            account_name,
+        } => {
             let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
@@ -114,15 +105,12 @@ fn run() -> Result<()> {
             let mut locks = FileLocks::new();
             let _ = locks.add(&cache_lock)?;
 
-            let reader = StdinPassphraseReader {};
-            let signer = SignerBuilder::new(keystore)
-                .with_passphrase_reader(Box::new(reader))
-                .with_use_agent(true)
-                .build()?;
+            let (info, user, identity_keeper, identity_index) =
+                sign_in(&account_name)?;
 
             let factory = provider.unwrap_or_default();
             let (provider, address) =
-                factory.create_provider(signer.clone())?;
+                factory.create_provider(user.signer.clone())?;
 
             let provider = Arc::new(RwLock::new(provider));
 
@@ -131,7 +119,7 @@ fn run() -> Result<()> {
                     // Listen for change notifications
                     spawn_changes_listener(
                         remote.clone(),
-                        signer,
+                        user.signer.clone(),
                         Arc::clone(&provider),
                     );
                 }
@@ -142,11 +130,15 @@ fn run() -> Result<()> {
 
             // Prepare state for shell execution
             let shell_cache = Arc::clone(&provider);
-            let state = Arc::new(RwLock::new(ShellState(
-                shell_cache,
+            let state = Arc::new(RwLock::new(ShellState {
+                provider: shell_cache,
                 address,
                 factory,
-            )));
+                info,
+                user,
+                identity_keeper,
+                identity_index,
+            }));
 
             // Authenticate and load initial vaults
             let mut writer = provider.write().unwrap();

@@ -15,7 +15,6 @@ use sos_node::client::{
     account::{create_account, AccountCredentials, AccountKey},
     provider::{RemoteProvider, StorageProvider},
 };
-use web3_keystore::{decrypt, KeyStore};
 
 pub async fn signup(
     dirs: &TestDirs,
@@ -44,7 +43,11 @@ pub async fn signup(
         destination.join(&format!("{}.json", key.address()));
 
     let AccountKey(signing_key, _) = &key;
-    let expected_signing_key = signing_key.to_bytes();
+    //let expected_signing_key = signing_key.to_bytes();
+
+    let signer: BoxedSigner = signing_key.clone();
+
+    //assert_eq!(expected_signing_key, signing_key);
 
     let (credentials, mut node_cache) = create_account(
         server,
@@ -56,24 +59,7 @@ pub async fn signup(
     )
     .await?;
 
-    assert_eq!(expected_keystore, credentials.keystore_file);
-    assert!(expected_keystore.is_file());
-
     assert!(!credentials.encryption_passphrase.expose_secret().is_empty());
-    assert!(!credentials.keystore_passphrase.expose_secret().is_empty());
-
-    let keystore = std::fs::read(&expected_keystore)?;
-    let keystore: KeyStore = serde_json::from_slice(&keystore)?;
-
-    let signing_key: [u8; 32] =
-        decrypt(&keystore, credentials.keystore_passphrase.expose_secret())?
-            .as_slice()
-            .try_into()?;
-
-    let signer: SingleParty = (&signing_key).try_into()?;
-    let signer: BoxedSigner = Box::new(signer);
-
-    assert_eq!(expected_signing_key, signing_key);
 
     let _ = node_cache.load_vaults().await?;
 

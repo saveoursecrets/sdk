@@ -7,6 +7,7 @@ use std::{
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
+use parking_lot::RwLock as SyncRwLock;
 use sha3::{Digest, Sha3_256};
 
 use terminal_banner::{Banner, Padding};
@@ -16,12 +17,15 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use sos_core::{
     generate_passphrase,
-    search::Document,
+    identity::AuthenticatedUser,
+    search::{Document, SearchIndex},
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
+    Gatekeeper,
 };
 use sos_node::{
     client::{
+        account_manager::{AccountInfo, AccountManager},
         provider::{BoxedProvider, ProviderFactory},
         run_blocking,
     },
@@ -42,7 +46,15 @@ mod print;
 pub type ShellProvider = Arc<RwLock<BoxedProvider>>;
 
 /// Encapsulates the state for the shell REPL.
-pub struct ShellState(pub ShellProvider, pub Address, pub ProviderFactory);
+pub struct ShellState {
+    pub provider: ShellProvider,
+    pub address: Address,
+    pub factory: ProviderFactory,
+    pub info: AccountInfo,
+    pub user: AuthenticatedUser,
+    pub identity_keeper: Gatekeeper,
+    pub identity_index: Arc<SyncRwLock<SearchIndex>>,
+}
 
 /// Type for the root shell data.
 pub type ShellData = Arc<RwLock<ShellState>>;
@@ -162,8 +174,8 @@ enum ShellCommand {
     /// Switch identity.
     #[clap(alias = "su")]
     Switch {
-        /// Keystore file for the identity.
-        keystore: PathBuf,
+        /// Account name.
+        account_name: String,
     },
     /// Print the current identity.
     Whoami,
@@ -507,7 +519,7 @@ where
 /// Execute the program command.
 fn exec_program(program: Shell, state: ShellData) -> Result<()> {
     let reader = state.read().unwrap();
-    let cache = Arc::clone(&reader.0);
+    let cache = Arc::clone(&reader.provider);
     drop(reader);
 
     match program.cmd {
@@ -563,15 +575,18 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 .ok_or(Error::VaultNotAvailable(vault))?;
             drop(reader);
 
+            let state_reader = state.read().unwrap();
+            let passphrase = AccountManager::find_vault_passphrase(
+                &state_reader.identity_keeper,
+                summary.id(),
+            )?;
+            drop(state_reader);
+
             let mut writer = cache.write().unwrap();
-            let passphrase = read_password(Some("Passphrase: "))?;
             writer.open_vault(&summary, passphrase.expose_secret(), None)?;
+            writer.create_search_index()?;
+
             Ok(())
-            //maybe_conflict(cache, |writer| {
-            //run_blocking(
-            //writer.open_vault(&summary, passphrase.expose_secret()),
-            //)
-            //})
         }
         ShellCommand::Info => {
             let reader = cache.read().unwrap();
@@ -1024,11 +1039,11 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             Ok(())
         }
-        ShellCommand::Switch { keystore } => {
+        ShellCommand::Switch { account_name } => {
             let reader = state.read().unwrap();
-            let factory = &reader.2;
+            let factory = &reader.factory;
 
-            let (mut provider, address) = switch(factory, keystore)?;
+            let (mut provider, address) = switch(factory, account_name)?;
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
@@ -1038,14 +1053,13 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             *writer = provider;
 
             let mut writer = state.write().unwrap();
-            writer.1 = address;
+            writer.address = address;
 
             Ok(())
         }
         ShellCommand::Whoami => {
             let reader = state.read().unwrap();
-            let address = reader.1;
-            println!("{}", address);
+            println!("{}", &reader.address);
             Ok(())
         }
         ShellCommand::Close => {
