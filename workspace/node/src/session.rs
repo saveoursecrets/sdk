@@ -416,7 +416,7 @@ mod test {
     use super::*;
     use anyhow::Result;
     use k256::ecdsa::SigningKey;
-    use sos_core::signer::{BoxedSigner, SingleParty};
+    use sos_core::signer::{ecdsa::SingleParty, BoxedSigner};
     use std::time::Duration;
 
     fn new_signer() -> BoxedSigner {

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use url::Url;
 
 use sos_core::{
-    signer::{BoxedSigner, Signer, SingleParty},
+    signer::{ecdsa::SingleParty, BoxedSigner, Signer},
     wal::file::WalFile,
     PatchFile,
 };

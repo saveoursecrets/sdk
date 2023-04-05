@@ -22,7 +22,7 @@ use crate::{
     gatekeeper::Gatekeeper,
     search::SearchIndex,
     secret::{Secret, SecretMeta, SecretSigner},
-    signer::{BoxedSigner, Signer, SingleParty},
+    signer::{ecdsa::SingleParty, BoxedSigner, Signer},
     vault::{Vault, VaultAccess, VaultFlags},
     Error, Result,
 };

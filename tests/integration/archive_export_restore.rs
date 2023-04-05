@@ -12,7 +12,7 @@ use sos_core::{
     encode,
     events::SyncEvent,
     identity::Identity,
-    signer::{Signer, SingleParty},
+    signer::{ecdsa::SingleParty, Signer},
     vault::Vault,
     Gatekeeper,
 };
