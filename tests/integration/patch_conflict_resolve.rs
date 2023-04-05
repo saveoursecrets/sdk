@@ -4,9 +4,7 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use secrecy::ExposeSecret;
-use sos_node::client::{
-    provider::StorageProvider,
-};
+use sos_node::client::provider::StorageProvider;
 
 #[tokio::test]
 #[serial]
