@@ -4,6 +4,7 @@ use binary_stream::{
 };
 
 use bitflags::bitflags;
+use ed25519_dalek::KEYPAIR_LENGTH;
 use pem::Pem;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{
@@ -24,7 +25,7 @@ use uuid::Uuid;
 use vcard4::{parse as parse_to_vcards, Vcard};
 
 use crate::{
-    signer::{ecdsa::SingleParty, BoxedSigner},
+    signer::{ecdsa, ed25519, BoxedSigner},
     Error, Result, Timestamp,
 };
 
@@ -422,17 +423,14 @@ impl SecretSigner {
             Self::SinglePartyEcdsa(key) => {
                 let private_key: [u8; 32] =
                     key.expose_secret().as_slice().try_into()?;
-                let signer: SingleParty = private_key.try_into()?;
+                let signer: ecdsa::SingleParty = private_key.try_into()?;
                 Ok(Box::new(signer))
             }
             Self::SinglePartyEd25519(key) => {
-                todo!("Create single party Ed25519 signer");
-                /*
-                let private_key: [u8; 32] =
+                let keypair: [u8; KEYPAIR_LENGTH] =
                     key.expose_secret().as_slice().try_into()?;
-                let signer: SingleParty = private_key.try_into()?;
+                let signer: ed25519::SingleParty = keypair.try_into()?;
                 Ok(Box::new(signer))
-                */
             }
         }
     }

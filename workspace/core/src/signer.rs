@@ -87,6 +87,7 @@ impl Clone for BoxedSigner {
 pub mod ecdsa {
     use async_trait::async_trait;
     use k256::ecdsa::{hazmat::SignPrimitive, SigningKey};
+    use rand::rngs::OsRng;
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
     use web3_address::ethereum::Address;
@@ -102,7 +103,8 @@ pub mod ecdsa {
     impl SingleParty {
         /// Generate a new random single party signing key.
         pub fn new_random() -> SingleParty {
-            let signing_key = SigningKey::random(&mut rand::thread_rng());
+            let mut csprng = OsRng {};
+            let signing_key = SigningKey::random(&mut csprng);
             SingleParty(signing_key)
         }
     }
@@ -160,4 +162,78 @@ pub mod ecdsa {
     }
 
     // TODO(muji) Integation with multi-party-ecdsa / cggmp-threshold-ecdsa
+}
+
+/// ED25519 signer using the ed25519-dalek library.
+pub mod ed25519 {
+    use async_trait::async_trait;
+    use ed25519_dalek::{Keypair, KEYPAIR_LENGTH};
+    use rand_legacy::rngs::OsRng;
+    use web3_signature::Signature;
+
+    use super::{BoxedSigner, SignSync, Signer};
+    use crate::Result;
+    use web3_address::ethereum::Address;
+
+    /// Signer for a single party key.
+    pub struct SingleParty(pub Keypair);
+
+    /// Clone this signer.
+    impl Clone for SingleParty {
+        fn clone(&self) -> Self {
+            Self(Keypair::from_bytes(self.0.to_bytes().as_slice()).unwrap())
+        }
+    }
+
+    impl SingleParty {
+        /// Generate a new random single party signing key.
+        pub fn new_random() -> SingleParty {
+            let mut csprng = OsRng {};
+            let signing_key = Keypair::generate(&mut csprng);
+            SingleParty(signing_key)
+        }
+    }
+
+    #[async_trait]
+    impl Signer for SingleParty {
+        fn clone_boxed(&self) -> BoxedSigner {
+            Box::new(self.clone())
+        }
+
+        fn to_bytes(&self) -> Vec<u8> {
+            self.0.to_bytes().as_slice().to_vec()
+        }
+
+        async fn sign(&self, message: &[u8]) -> Result<Signature> {
+            self.sign_sync(message)
+        }
+
+        fn address(&self) -> Result<Address> {
+            todo!();
+        }
+    }
+
+    impl SignSync for SingleParty {
+        fn sign_sync(&self, message: &[u8]) -> Result<Signature> {
+            todo!();
+        }
+    }
+
+    impl TryFrom<[u8; KEYPAIR_LENGTH]> for SingleParty {
+        type Error = crate::Error;
+        fn try_from(
+            value: [u8; KEYPAIR_LENGTH],
+        ) -> std::result::Result<Self, Self::Error> {
+            (&value).try_into()
+        }
+    }
+
+    impl<'a> TryFrom<&'a [u8; KEYPAIR_LENGTH]> for SingleParty {
+        type Error = crate::Error;
+        fn try_from(
+            value: &'a [u8; KEYPAIR_LENGTH],
+        ) -> std::result::Result<Self, Self::Error> {
+            Ok(Self(Keypair::from_bytes(value)?))
+        }
+    }
 }

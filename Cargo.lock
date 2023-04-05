@@ -3272,6 +3272,7 @@ dependencies = [
  "parking_lot",
  "pem",
  "probly-search",
+ "rand 0.7.3",
  "rand 0.8.5",
  "rs_merkle",
  "secrecy",

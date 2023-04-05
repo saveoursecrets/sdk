@@ -16,6 +16,7 @@ chacha20poly1305 = { version = "0.10.1", features = ["std"] }
 tracing = "0.1"
 filetime = "0.2"
 rand = "0.8"
+rand_legacy = {version = "0.7", package = "rand"}
 thiserror = "1"
 web3-signature = { version = "0.3.2", features = ["single-party"] }
 web3-address = { version = "0.5.1", features = ["ethereum"] }
