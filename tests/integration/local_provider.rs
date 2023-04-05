@@ -9,7 +9,7 @@ use secrecy::ExposeSecret;
 use sos_core::{
     events::SyncEvent,
     secret::Secret,
-    signer::{Signer, SingleParty},
+    signer::{ecdsa::SingleParty, Signer},
     wal::WalProvider,
     PatchProvider,
 };

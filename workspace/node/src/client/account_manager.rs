@@ -27,7 +27,7 @@ use sos_core::{
     identity::{AuthenticatedUser, Identity},
     search::SearchIndex,
     secret::{Secret, SecretMeta, UserData},
-    signer::SingleParty,
+    signer::ecdsa::SingleParty,
     vault::{Header, Summary, Vault, VaultAccess, VaultId},
     wal::{file::WalFile, WalProvider},
     ChangePassword, Gatekeeper, VaultFileAccess,

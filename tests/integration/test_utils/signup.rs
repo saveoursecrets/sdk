@@ -4,7 +4,10 @@ use std::path::PathBuf;
 use url::Url;
 
 use sos_core::{
-    signer::{BoxedSigner, Signer, SingleParty},
+    signer::{
+        ecdsa::{BoxedEcdsaSigner, SingleParty},
+        Signer,
+    },
     wal::file::WalFile,
     PatchFile,
 };
@@ -26,7 +29,7 @@ pub async fn signup(
     Address,
     AccountCredentials,
     RemoteProvider<WalFile, PatchFile>,
-    BoxedSigner,
+    BoxedEcdsaSigner,
 )> {
     let TestDirs {
         target: destination,
@@ -61,7 +64,7 @@ pub async fn signup(
 pub async fn login(
     server: Url,
     cache_dir: PathBuf,
-    signer: &BoxedSigner,
+    signer: &BoxedEcdsaSigner,
 ) -> Result<RemoteProvider<WalFile, PatchFile>> {
     let address = signer.address()?;
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
@@ -80,7 +83,7 @@ async fn create_account(
     server: Url,
     destination: PathBuf,
     name: Option<String>,
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
     cache_dir: PathBuf,
 ) -> Result<(AccountCredentials, RemoteProvider<WalFile, PatchFile>)> {
     if !destination.is_dir() {

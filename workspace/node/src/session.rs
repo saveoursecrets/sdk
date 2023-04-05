@@ -8,7 +8,7 @@ use rand::Rng;
 use sha3::{Digest, Keccak256};
 use sos_core::{
     crypto::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce},
-    signer::BoxedSigner,
+    signer::ecdsa::BoxedEcdsaSigner,
 };
 use std::{
     collections::HashMap,
@@ -274,7 +274,7 @@ impl EncryptedChannel for ServerSession {
 
 /// Client side session implementation.
 pub struct ClientSession {
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
     /// Session identifier.
     id: Uuid,
     /// Challenge created when a session was offered.
@@ -291,7 +291,7 @@ pub struct ClientSession {
 
 impl ClientSession {
     /// Create a new client session.
-    pub fn new(signer: BoxedSigner, id: Uuid) -> Result<Self> {
+    pub fn new(signer: BoxedEcdsaSigner, id: Uuid) -> Result<Self> {
         let secret = EphemeralSecret::random(&mut rand::thread_rng());
         Ok(Self {
             signer,
@@ -416,10 +416,10 @@ mod test {
     use super::*;
     use anyhow::Result;
     use k256::ecdsa::SigningKey;
-    use sos_core::signer::{BoxedSigner, SingleParty};
+    use sos_core::signer::ecdsa::{BoxedEcdsaSigner, SingleParty};
     use std::time::Duration;
 
-    fn new_signer() -> BoxedSigner {
+    fn new_signer() -> BoxedEcdsaSigner {
         let client_identity = SigningKey::random(&mut rand::thread_rng());
         Box::new(SingleParty(client_identity))
     }

@@ -10,7 +10,7 @@ use secrecy::SecretString;
 use sos_core::{
     events::{ChangeAction, ChangeNotification, SyncEvent},
     secret::{Secret, SecretId, SecretMeta},
-    signer::BoxedSigner,
+    signer::ecdsa::BoxedEcdsaSigner,
     vault::{Summary, Vault},
 };
 use std::{
@@ -29,12 +29,12 @@ use crate::sync::SyncInfo;
 pub struct MemoryProvider {
     provider: ArcProvider,
     url: Url,
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
 }
 
 impl MemoryProvider {
     /// Create a new SPOT memory client.
-    pub fn new(server: Url, signer: BoxedSigner) -> Result<Self> {
+    pub fn new(server: Url, signer: BoxedEcdsaSigner) -> Result<Self> {
         let url = server.clone();
         let client_signer = signer.clone();
         let factory = ProviderFactory::Memory(Some(server.clone()));
@@ -53,7 +53,7 @@ impl MemoryProvider {
     }
 
     /// Get the signer.
-    pub fn signer(&self) -> &BoxedSigner {
+    pub fn signer(&self) -> &BoxedEcdsaSigner {
         &self.signer
     }
 

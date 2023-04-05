@@ -22,7 +22,10 @@ use crate::{
     gatekeeper::Gatekeeper,
     search::SearchIndex,
     secret::{Secret, SecretMeta, SecretSigner},
-    signer::{BoxedSigner, Signer, SingleParty},
+    signer::{
+        ecdsa::{BoxedEcdsaSigner, SingleParty},
+        Signer,
+    },
     vault::{Vault, VaultAccess, VaultFlags},
     Error, Result,
 };
@@ -33,7 +36,7 @@ use crate::VaultFileAccess;
 /// User information once authentication to a login vault succeeds.
 pub struct AuthenticatedUser {
     /// Private signing key for the identity.
-    pub signer: BoxedSigner,
+    pub signer: BoxedEcdsaSigner,
 }
 
 /// Represents an identity.
@@ -147,7 +150,7 @@ impl Identity {
 
         let signer = if let Secret::Signer { private_key, .. } = signer_secret
         {
-            Some(private_key.into_boxed_signer()?)
+            Some(private_key.try_into_ecdsa_signer()?)
         } else {
             None
         };

@@ -4,6 +4,7 @@ use binary_stream::{
 };
 
 use bitflags::bitflags;
+use ed25519_dalek::SECRET_KEY_LENGTH;
 use pem::Pem;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{
@@ -24,7 +25,10 @@ use uuid::Uuid;
 use vcard4::{parse as parse_to_vcards, Vcard};
 
 use crate::{
-    signer::{BoxedSigner, SingleParty},
+    signer::{
+        ecdsa::{self, BoxedEcdsaSigner},
+        ed25519::{self, BoxedEd25519Signer},
+    },
     Error, Result, Timestamp,
 };
 
@@ -401,6 +405,7 @@ impl Decode for SecretMeta {
 /// Constants for signer kinds.
 mod signer_kind {
     pub(crate) const SINGLE_PARTY_ECDSA: u8 = 1;
+    pub(crate) const SINGLE_PARTY_ED25519: u8 = 2;
 }
 
 /// Secret type that encapsulates a signing private key.
@@ -409,18 +414,37 @@ pub enum SecretSigner {
     /// Single party Ethereum-compatible ECDSA signing private key.
     #[serde(serialize_with = "serialize_secret_buffer")]
     SinglePartyEcdsa(SecretVec<u8>),
+    /// Single party Ethereum-compatible ECDSA signing private key.
+    #[serde(serialize_with = "serialize_secret_buffer")]
+    SinglePartyEd25519(SecretVec<u8>),
 }
 
 impl SecretSigner {
-    /// Convert this secret into a type with signing capabilities.
-    pub fn into_boxed_signer(self) -> Result<BoxedSigner> {
+    /// Try to convert this signing key into an ECDSA signer.
+    pub fn try_into_ecdsa_signer(self) -> Result<BoxedEcdsaSigner> {
         match self {
             Self::SinglePartyEcdsa(key) => {
                 let private_key: [u8; 32] =
                     key.expose_secret().as_slice().try_into()?;
-                let signer: SingleParty = private_key.try_into()?;
+                let signer: ecdsa::SingleParty = private_key.try_into()?;
                 Ok(Box::new(signer))
             }
+            _ => panic!(),
+            //_ => Err(Error::NotEcdsaKey),
+        }
+    }
+
+    /// Try to convert this signing key into an Ed25519 signer.
+    pub fn try_into_ed25519_signer(self) -> Result<BoxedEd25519Signer> {
+        match self {
+            Self::SinglePartyEd25519(key) => {
+                let keypair: [u8; SECRET_KEY_LENGTH] =
+                    key.expose_secret().as_slice().try_into()?;
+                let signer: ed25519::SingleParty = keypair.try_into()?;
+                Ok(Box::new(signer))
+            }
+            _ => panic!(),
+            //_ => Err(Error::NotEd25519Key),
         }
     }
 }
@@ -437,6 +461,9 @@ impl Clone for SecretSigner {
             Self::SinglePartyEcdsa(buffer) => Self::SinglePartyEcdsa(
                 SecretVec::new(buffer.expose_secret().to_vec()),
             ),
+            Self::SinglePartyEd25519(buffer) => Self::SinglePartyEd25519(
+                SecretVec::new(buffer.expose_secret().to_vec()),
+            ),
         }
     }
 }
@@ -447,6 +474,10 @@ impl PartialEq for SecretSigner {
             (Self::SinglePartyEcdsa(a), Self::SinglePartyEcdsa(b)) => {
                 a.expose_secret() == b.expose_secret()
             }
+            (Self::SinglePartyEd25519(a), Self::SinglePartyEd25519(b)) => {
+                a.expose_secret() == b.expose_secret()
+            }
+            _ => false,
         }
     }
 }
@@ -455,11 +486,13 @@ impl Encode for SecretSigner {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         let kind = match self {
             Self::SinglePartyEcdsa(_) => signer_kind::SINGLE_PARTY_ECDSA,
+            Self::SinglePartyEd25519(_) => signer_kind::SINGLE_PARTY_ED25519,
         };
         writer.write_u8(kind)?;
 
         match self {
-            Self::SinglePartyEcdsa(buffer) => {
+            Self::SinglePartyEcdsa(buffer)
+            | Self::SinglePartyEd25519(buffer) => {
                 writer.write_u32(buffer.expose_secret().len() as u32)?;
                 writer.write_bytes(buffer.expose_secret())?;
             }
@@ -479,6 +512,13 @@ impl Decode for SecretSigner {
                     reader.read_bytes(buffer_len as usize)?,
                 );
                 *self = Self::SinglePartyEcdsa(buffer);
+            }
+            signer_kind::SINGLE_PARTY_ED25519 => {
+                let buffer_len = reader.read_u32()?;
+                let buffer = secrecy::Secret::new(
+                    reader.read_bytes(buffer_len as usize)?,
+                );
+                *self = Self::SinglePartyEd25519(buffer);
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
@@ -817,7 +857,11 @@ impl Decode for AgeVersion {
             1 => {
                 *self = Self::Version1;
             }
-            _ => todo!(),
+            _ => {
+                return Err(BinaryError::Boxed(Box::new(
+                    Error::UnknownAgeVersion(kind),
+                )))
+            }
         })
     }
 }
@@ -2248,7 +2292,7 @@ mod test {
     use super::*;
     use crate::{
         decode, encode,
-        signer::{Signer, SingleParty},
+        signer::{ecdsa::SingleParty, Signer},
         test_utils::*,
     };
     use anyhow::Result;
