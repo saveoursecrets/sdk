@@ -83,7 +83,10 @@ fn run() -> Result<()> {
     let args = Cli::parse();
 
     match args.cmd {
-        Command::Monitor { server, account_name} => {
+        Command::Monitor {
+            server,
+            account_name,
+        } => {
             monitor(server, account_name)?;
         }
         Command::Signup { name, folder_name } => {
@@ -102,7 +105,8 @@ fn run() -> Result<()> {
             let mut locks = FileLocks::new();
             let _ = locks.add(&cache_lock)?;
 
-            let (info, user, identity_keeper, identity_index) = sign_in(&account_name)?;
+            let (info, user, identity_keeper, identity_index) =
+                sign_in(&account_name)?;
 
             let factory = provider.unwrap_or_default();
             let (provider, address) =

@@ -1,7 +1,7 @@
 //! Listen for changes events on the server sent events channel.
 use url::Url;
 
-use crate::{Result, sign_in};
+use crate::{sign_in, Result};
 use futures::stream::StreamExt;
 use sos_core::signer::BoxedSigner;
 use sos_node::client::{

@@ -7,8 +7,8 @@ use std::{
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
-use sha3::{Digest, Sha3_256};
 use parking_lot::RwLock as SyncRwLock;
+use sha3::{Digest, Sha3_256};
 
 use terminal_banner::{Banner, Padding};
 use url::Url;
@@ -17,11 +17,11 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use sos_core::{
     generate_passphrase,
-    Gatekeeper,
     identity::AuthenticatedUser,
     search::{Document, SearchIndex},
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
+    Gatekeeper,
 };
 use sos_node::{
     client::{
@@ -578,7 +578,8 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let state_reader = state.read().unwrap();
             let passphrase = AccountManager::find_vault_passphrase(
                 &state_reader.identity_keeper,
-                summary.id())?;
+                summary.id(),
+            )?;
             drop(state_reader);
 
             let mut writer = cache.write().unwrap();
