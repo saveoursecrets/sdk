@@ -1,11 +1,9 @@
 //! Traits and implementations for clients.
-use std::{fs::File, io::Read, path::PathBuf};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::future::Future;
 
 use secrecy::SecretString;
-use sos_core::signer::{BoxedSigner, Signer, SingleParty};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod account;

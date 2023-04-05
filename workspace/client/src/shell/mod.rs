@@ -25,7 +25,7 @@ use sos_core::{
 };
 use sos_node::{
     client::{
-        account_manager::AccountInfo,
+        account_manager::{AccountInfo, AccountManager},
         provider::{BoxedProvider, ProviderFactory},
         run_blocking,
     },
@@ -575,15 +575,17 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 .ok_or(Error::VaultNotAvailable(vault))?;
             drop(reader);
 
+            let state_reader = state.read().unwrap();
+            let passphrase = AccountManager::find_vault_passphrase(
+                &state_reader.identity_keeper,
+                summary.id())?;
+            drop(state_reader);
+
             let mut writer = cache.write().unwrap();
-            let passphrase = read_password(Some("Passphrase: "))?;
             writer.open_vault(&summary, passphrase.expose_secret(), None)?;
+            writer.create_search_index()?;
+
             Ok(())
-            //maybe_conflict(cache, |writer| {
-            //run_blocking(
-            //writer.open_vault(&summary, passphrase.expose_secret()),
-            //)
-            //})
         }
         ShellCommand::Info => {
             let reader = cache.read().unwrap();

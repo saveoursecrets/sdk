@@ -1,5 +1,4 @@
 //! Listen for changes events on the server sent events channel.
-use std::path::PathBuf;
 use url::Url;
 
 use crate::{Result, sign_in};

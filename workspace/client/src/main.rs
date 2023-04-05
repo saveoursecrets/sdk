@@ -1,10 +1,7 @@
 use std::{
     borrow::Cow,
-    path::PathBuf,
     sync::{Arc, RwLock},
 };
-
-use parking_lot::RwLock as SyncRwLock;
 
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -12,18 +9,16 @@ use url::Url;
 
 use sos_client::{
     exec, local_signup, monitor, sign_in, Error, Result, ShellState,
-    StdinPassphraseReader,
 };
-use sos_core::{search::SearchIndex, FileLocks};
+use sos_core::FileLocks;
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
 use sos_node::{
     cache_dir,
     client::{
-        account_manager::AccountManager,
         provider::{spawn_changes_listener, ProviderFactory},
-        run_blocking, PassphraseReader,
+        run_blocking,
     },
 };
 

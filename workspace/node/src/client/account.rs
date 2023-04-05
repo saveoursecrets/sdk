@@ -1,17 +1,16 @@
 //! Functions and types for creating accounts.
 use sos_core::{
-    generate_passphrase,
     signer::{BoxedSigner, Signer, SingleParty},
     vault::Summary,
     wal::file::WalFile,
     PatchFile,
 };
-use std::{convert::Infallible, path::PathBuf};
+use std::path::PathBuf;
 use url::Url;
 use web3_address::ethereum::Address;
 
 use super::{Error, Result};
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 
 use crate::client::{
     net::RpcClient,
@@ -80,7 +79,6 @@ pub async fn create_account(
     }
 
     let AccountKey(signer, _) = &key;
-    let signing_key_bytes = signer.to_bytes();
 
     let address = signer.address()?;
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
