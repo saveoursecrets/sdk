@@ -136,7 +136,7 @@ impl Identity {
         let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
 
         let signing_doc = reader
-            .find_by_urn(keeper.vault().id(), &urn)
+            .find_by_urn(keeper.id(), &urn)
             .ok_or(Error::NoIdentitySigner)?;
 
         let signing_data = keeper

@@ -10,9 +10,7 @@ use sos_core::{
     vault::Vault,
     wal::file::WalFile,
 };
-use sos_node::client::{
-    provider::StorageProvider,
-};
+use sos_node::client::provider::StorageProvider;
 
 #[tokio::test]
 #[serial]

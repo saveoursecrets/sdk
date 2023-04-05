@@ -1,16 +1,20 @@
-use std::path::PathBuf;
-use anyhow::{Result, bail};
 use super::{server, TestDirs};
+use anyhow::{bail, Result};
+use std::path::PathBuf;
 use url::Url;
 
-use sos_core::{signer::{Signer, BoxedSigner, SingleParty}, wal::file::WalFile, PatchFile};
+use sos_core::{
+    signer::{BoxedSigner, Signer, SingleParty},
+    wal::file::WalFile,
+    PatchFile,
+};
 
 use web3_address::ethereum::Address;
 
 use secrecy::ExposeSecret;
 use sos_node::client::{
     net::RpcClient,
-    provider::{RemoteProvider, StorageProvider, StorageDirs},
+    provider::{RemoteProvider, StorageDirs, StorageProvider},
 };
 
 use super::AccountCredentials;
@@ -104,4 +108,3 @@ async fn create_account(
 
     Ok((account, cache))
 }
-

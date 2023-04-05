@@ -1,9 +1,9 @@
 use anyhow::Result;
 use axum_server::Handle;
+use secrecy::SecretString;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, thread};
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
-use secrecy::SecretString;
 use web3_address::ethereum::Address;
 
 use sos_core::{
@@ -25,7 +25,7 @@ const SERVER: &str = "http://localhost:3505";
 
 mod signup;
 
-pub use signup::{signup, login};
+pub use signup::{login, signup};
 
 /// Encapsulates the credentials for a new account signup.
 pub struct AccountCredentials {
@@ -135,6 +135,7 @@ pub fn server() -> Url {
     Url::parse(SERVER).expect("failed to parse server URL")
 }
 
+#[derive(Debug)]
 pub struct TestDirs {
     pub target: PathBuf,
     pub server: PathBuf,

@@ -65,6 +65,15 @@ pub fn set_cache_dir(path: PathBuf) {
     *writer = Some(path);
 }
 
+/// Clear an explicit cache directory.
+///
+/// Primarily used for testing purposes.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn clear_cache_dir() {
+    let mut writer = CACHE_DIR.write().unwrap();
+    *writer = None;
+}
+
 #[cfg(target_os = "macos")]
 fn default_storage_dir() -> Option<PathBuf> {
     use sos_core::constants::BUNDLE_ID;
