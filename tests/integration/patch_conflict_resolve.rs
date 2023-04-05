@@ -20,21 +20,17 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
     let server_url = server();
 
     // Signup a new account
-    let (_, credentials, mut client1, _signer) = signup(&dirs, 0).await?;
+    let (_, credentials, mut client1, signer) = signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,
-        keystore_file,
-        keystore_passphrase,
         ..
     } = credentials;
 
     // Set up another connected client using a different
     // cache directory and sharing the same credentials
     let cache_dir = dirs.clients.get(1).unwrap().to_path_buf();
-    let mut client2 =
-        login(server_url, cache_dir, keystore_file, keystore_passphrase)
-            .await?;
+    let mut client2 = login(server_url, cache_dir, &signer).await?;
     let _ = client2.load_vaults().await?;
     //let _ = client2.pull(&summary, true).await?;
 

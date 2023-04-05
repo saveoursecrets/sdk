@@ -13,7 +13,7 @@ use sos_node::{
     client::{
         account::{create_account, AccountKey},
         provider::{BoxedProvider, ProviderFactory},
-        run_blocking, PassphraseReader, SignerBuilder,
+        run_blocking, PassphraseReader,
     },
 };
 use sos_readline::{read_flag, read_password};
@@ -53,6 +53,9 @@ pub fn switch(
     factory: &ProviderFactory,
     keystore_file: PathBuf,
 ) -> Result<(BoxedProvider, Address)> {
+    todo!("restore account switching...");
+
+    /*
     if !keystore_file.exists() {
         return Err(Error::NotFile(keystore_file));
     }
@@ -62,6 +65,7 @@ pub fn switch(
         .with_use_agent(true)
         .build()?;
     Ok(factory.create_provider(signer)?)
+    */
 }
 
 /// Create a new local identity.
@@ -183,7 +187,6 @@ pub fn signup(
     let message = format!(
         r#"* Write keystore file to {}
 * Send the encrypted vault to {}
-* Keystore passphrase will be displayed
 * Encryption passphrase will be displayed"#,
         keystore_file.display(),
         server
@@ -215,10 +218,12 @@ pub fn signup(
             None,
         ))?;
 
+        /*
         display_passphrase(
             "KEYSTORE PASSPHRASE",
             account.keystore_passphrase.expose_secret(),
         );
+        */
         display_passphrase(
             "ENCRYPTION PASSPHRASE",
             account.encryption_passphrase.expose_secret(),

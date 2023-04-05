@@ -20,7 +20,7 @@ use sos_node::{
     cache_dir,
     client::{
         provider::{spawn_changes_listener, ProviderFactory},
-        run_blocking, SignerBuilder,
+        run_blocking,
     },
 };
 
@@ -114,6 +114,9 @@ fn run() -> Result<()> {
             let mut locks = FileLocks::new();
             let _ = locks.add(&cache_lock)?;
 
+            todo!("get signing key from identity vault");
+
+            /*
             let reader = StdinPassphraseReader {};
             let signer = SignerBuilder::new(keystore)
                 .with_passphrase_reader(Box::new(reader))
@@ -173,6 +176,7 @@ fn run() -> Result<()> {
                 },
                 prompt,
             )?;
+            */
         }
     }
 
