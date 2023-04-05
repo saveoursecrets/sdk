@@ -15,7 +15,7 @@ use super::{
 
 use crate::session::ClientSession;
 
-use sos_core::{events::ChangeNotification, signer::BoxedSigner};
+use sos_core::{events::ChangeNotification, signer::ecdsa::BoxedEcdsaSigner};
 
 const INTERVAL_MS: u64 = 15000;
 
@@ -23,12 +23,12 @@ const INTERVAL_MS: u64 = 15000;
 #[derive(Clone)]
 pub struct ChangesListener {
     remote: Url,
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
 }
 
 impl ChangesListener {
     /// Create a new changes listener.
-    pub fn new(remote: Url, signer: BoxedSigner) -> Self {
+    pub fn new(remote: Url, signer: BoxedEcdsaSigner) -> Self {
         Self { remote, signer }
     }
 

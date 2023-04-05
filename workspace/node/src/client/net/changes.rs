@@ -17,7 +17,8 @@ use tokio::net::TcpStream;
 use url::{Origin, Url};
 
 use sos_core::{
-    crypto::AeadPack, decode, events::ChangeNotification, signer::BoxedSigner,
+    crypto::AeadPack, decode, events::ChangeNotification,
+    signer::ecdsa::BoxedEcdsaSigner,
 };
 
 use crate::{
@@ -57,7 +58,7 @@ impl IntoClientRequest for WebSocketRequest {
 /// Create the websocket connection and listen for events.
 pub async fn connect(
     remote: Url,
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
 ) -> Result<(WsStream, ClientSession)> {
     let origin = remote.origin();
 

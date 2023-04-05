@@ -25,7 +25,10 @@ use uuid::Uuid;
 use vcard4::{parse as parse_to_vcards, Vcard};
 
 use crate::{
-    signer::{ecdsa, ed25519, BoxedSigner},
+    signer::{
+        ecdsa::{self, BoxedEcdsaSigner},
+        ed25519::{self, BoxedEd25519Signer},
+    },
     Error, Result, Timestamp,
 };
 
@@ -417,8 +420,37 @@ pub enum SecretSigner {
 }
 
 impl SecretSigner {
+    /// Try to convert this signing key into an ECDSA signer.
+    pub fn try_into_ecdsa_signer(self) -> Result<BoxedEcdsaSigner> {
+        match self {
+            Self::SinglePartyEcdsa(key) => {
+                let private_key: [u8; 32] =
+                    key.expose_secret().as_slice().try_into()?;
+                let signer: ecdsa::SingleParty = private_key.try_into()?;
+                Ok(Box::new(signer))
+            }
+            _ => panic!(),
+            //_ => Err(Error::NotEcdsaKey),
+        }
+    }
+
+    /// Try to convert this signing key into an Ed25519 signer.
+    pub fn try_into_ed25519_signer(self) -> Result<BoxedEd25519Signer> {
+        match self {
+            Self::SinglePartyEd25519(key) => {
+                let keypair: [u8; KEYPAIR_LENGTH] =
+                    key.expose_secret().as_slice().try_into()?;
+                let signer: ed25519::SingleParty = keypair.try_into()?;
+                Ok(Box::new(signer))
+            }
+            _ => panic!(),
+            //_ => Err(Error::NotEd25519Key),
+        }
+    }
+
+    /*
     /// Convert this secret into a type with signing capabilities.
-    pub fn into_boxed_signer(self) -> Result<BoxedSigner> {
+    pub fn into_boxed_signer<T>(self) -> Result<BoxedSigner<T>> {
         match self {
             Self::SinglePartyEcdsa(key) => {
                 let private_key: [u8; 32] =
@@ -434,6 +466,7 @@ impl SecretSigner {
             }
         }
     }
+    */
 }
 
 impl Default for SecretSigner {
@@ -844,7 +877,11 @@ impl Decode for AgeVersion {
             1 => {
                 *self = Self::Version1;
             }
-            _ => todo!(),
+            _ => {
+                return Err(BinaryError::Boxed(Box::new(
+                    Error::UnknownAgeVersion(kind),
+                )))
+            }
         })
     }
 }

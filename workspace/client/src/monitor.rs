@@ -3,7 +3,7 @@ use url::Url;
 
 use crate::{sign_in, Result};
 use futures::stream::StreamExt;
-use sos_core::signer::BoxedSigner;
+use sos_core::signer::ecdsa::BoxedEcdsaSigner;
 use sos_node::client::{
     net::changes::{changes, connect},
     run_blocking,
@@ -12,7 +12,7 @@ use sos_node::client::{
 /// Creates a changes stream and calls handler for every change notification.
 async fn changes_stream(
     server: Url,
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
 ) -> sos_node::client::Result<()> {
     let (stream, session) = connect(server, signer).await?;
     let mut stream = changes(stream, session);

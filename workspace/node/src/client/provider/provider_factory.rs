@@ -1,5 +1,5 @@
 //! Factory for creating providers.
-use sos_core::signer::BoxedSigner;
+use sos_core::signer::ecdsa::BoxedEcdsaSigner;
 use std::{
     fmt,
     sync::{Arc, RwLock},
@@ -80,7 +80,7 @@ impl ProviderFactory {
     /// Create a provider.
     pub fn create_provider(
         &self,
-        signer: BoxedSigner,
+        signer: BoxedEcdsaSigner,
     ) -> Result<(BoxedProvider, Address)> {
         match self {
             #[cfg(target_arch = "wasm32")]
@@ -163,7 +163,7 @@ impl FromStr for ProviderFactory {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn spawn_changes_listener(
     server: Url,
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
     cache: ArcProvider,
 ) {
     use crate::client::changes_listener::ChangesListener;
@@ -181,7 +181,7 @@ pub fn spawn_changes_listener(
 /// Create a new remote provider with local disc storage.
 #[cfg(not(target_arch = "wasm32"))]
 fn new_remote_file_provider(
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
     cache_dir: PathBuf,
     server: Url,
 ) -> Result<(BoxedProvider, Address)> {
@@ -196,7 +196,7 @@ fn new_remote_file_provider(
 /// Create a new local provider.
 #[cfg(not(target_arch = "wasm32"))]
 fn new_local_file_provider(
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
     cache_dir: PathBuf,
 ) -> Result<(BoxedProvider, Address)> {
     let address = signer.address()?;
@@ -209,7 +209,7 @@ fn new_local_file_provider(
 /// Create a new local memory provider.
 #[cfg(not(target_arch = "wasm32"))]
 fn new_local_memory_provider(
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
 ) -> Result<(BoxedProvider, Address)> {
     let address = signer.address()?;
     let provider: BoxedProvider =
@@ -219,7 +219,7 @@ fn new_local_memory_provider(
 
 /// Create a new remote provider with in-memory storage.
 fn new_remote_memory_provider(
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
     server: Url,
 ) -> Result<(BoxedProvider, Address)> {
     let address = signer.address()?;

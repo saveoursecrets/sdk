@@ -2,7 +2,7 @@
 
 use sos_core::{
     encode,
-    signer::{BinarySignature, BoxedSigner},
+    signer::{ecdsa::BoxedEcdsaSigner, BinarySignature},
 };
 
 use url::Url;
@@ -75,7 +75,7 @@ fn changes_endpoint_url(remote: &Url) -> Result<Url> {
 /// Get the URI for a websocket changes connection.
 pub async fn changes_uri(
     remote: &Url,
-    signer: &BoxedSigner,
+    signer: &BoxedEcdsaSigner,
     session: &mut ClientSession,
 ) -> Result<String> {
     let endpoint = changes_endpoint_url(&remote)?;

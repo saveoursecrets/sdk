@@ -11,7 +11,7 @@ use sos_core::{
     crypto::AeadPack,
     decode, encode,
     rpc::{Packet, RequestMessage, ResponseMessage},
-    signer::BoxedSigner,
+    signer::ecdsa::BoxedEcdsaSigner,
     vault::Summary,
     Patch,
 };
@@ -61,7 +61,7 @@ fn new_rpc_body<T: Serialize>(
 /// Client implementation for RPC requests.
 pub struct RpcClient {
     server: Url,
-    signer: BoxedSigner,
+    signer: BoxedEcdsaSigner,
     client: reqwest::Client,
     session: Option<RwLock<ClientSession>>,
     id: AtomicU64,
@@ -69,7 +69,7 @@ pub struct RpcClient {
 
 impl RpcClient {
     /// Create a new request client.
-    pub fn new(server: Url, signer: BoxedSigner) -> Self {
+    pub fn new(server: Url, signer: BoxedEcdsaSigner) -> Self {
         let client = reqwest::Client::new();
         Self {
             server,
@@ -81,7 +81,7 @@ impl RpcClient {
     }
 
     /// Get the signer for this client.
-    pub fn signer(&self) -> &BoxedSigner {
+    pub fn signer(&self) -> &BoxedEcdsaSigner {
         &self.signer
     }
 
