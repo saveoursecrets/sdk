@@ -1,14 +1,12 @@
 //! Signup a new account.
 use crate::{display_passphrase, Error, Result};
+use std::{borrow::Cow, sync::Arc};
 
 use parking_lot::RwLock as SyncRwLock;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    constants::{IDENTITY_DIR, VAULT_EXT},
-    encode, generate_passphrase,
-    identity::AuthenticatedUser,
-    search::SearchIndex,
-    Gatekeeper,
+    encode, generate_passphrase, identity::AuthenticatedUser,
+    search::SearchIndex, Gatekeeper,
 };
 use sos_node::{
     cache_dir,
@@ -22,7 +20,6 @@ use sos_node::{
     },
 };
 use sos_readline::{read_flag, read_password};
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
 use terminal_banner::{Banner, Padding};
 use web3_address::ethereum::Address;
 
@@ -34,22 +31,6 @@ impl PassphraseReader for StdinPassphraseReader {
     fn read(&self) -> std::result::Result<SecretString, Self::Error> {
         read_password(Some("Passphrase: "))
     }
-}
-
-fn get_identity_dir() -> Result<PathBuf> {
-    let cache_dir = cache_dir().ok_or(Error::NoCacheDir)?;
-    let identity_dir = cache_dir.join(IDENTITY_DIR);
-    if !identity_dir.exists() {
-        std::fs::create_dir(&identity_dir)?;
-    }
-    Ok(identity_dir)
-}
-
-fn get_identity_vault(address: &str) -> Result<PathBuf> {
-    let identity_dir = get_identity_dir()?;
-    let mut identity_vault_file = identity_dir.join(address);
-    identity_vault_file.set_extension(VAULT_EXT);
-    Ok(identity_vault_file)
 }
 
 /// Helper to sign in to an account.
@@ -118,10 +99,7 @@ pub fn local_signup(
 
     // Get the signing key for the authenticated user
     let signer = user.signer;
-    //let address = signer.address()?.to_string();
-    let identity_dir = get_identity_dir()?;
-    let identity_vault_file = get_identity_vault(&address)?;
-
+    let identity_dir = AccountManager::identity_dir()?;
     println!("{}", identity_dir.display());
 
     let message = format!(
