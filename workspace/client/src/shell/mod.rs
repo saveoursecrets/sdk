@@ -8,6 +8,7 @@ use std::{
 
 use clap::{CommandFactory, Parser, Subcommand};
 use sha3::{Digest, Sha3_256};
+use parking_lot::RwLock as SyncRwLock;
 
 use terminal_banner::{Banner, Padding};
 use url::Url;
@@ -16,12 +17,15 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use sos_core::{
     generate_passphrase,
-    search::Document,
+    Gatekeeper,
+    identity::AuthenticatedUser,
+    search::{Document, SearchIndex},
     secret::{Secret, SecretId, SecretMeta, SecretRef},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
 };
 use sos_node::{
     client::{
+        account_manager::AccountInfo,
         provider::{BoxedProvider, ProviderFactory},
         run_blocking,
     },
@@ -42,7 +46,15 @@ mod print;
 pub type ShellProvider = Arc<RwLock<BoxedProvider>>;
 
 /// Encapsulates the state for the shell REPL.
-pub struct ShellState(pub ShellProvider, pub Address, pub ProviderFactory);
+pub struct ShellState {
+    pub provider: ShellProvider,
+    pub address: Address,
+    pub factory: ProviderFactory,
+    pub info: AccountInfo,
+    pub user: AuthenticatedUser,
+    pub identity_keeper: Gatekeeper,
+    pub identity_index: Arc<SyncRwLock<SearchIndex>>,
+}
 
 /// Type for the root shell data.
 pub type ShellData = Arc<RwLock<ShellState>>;
@@ -507,7 +519,7 @@ where
 /// Execute the program command.
 fn exec_program(program: Shell, state: ShellData) -> Result<()> {
     let reader = state.read().unwrap();
-    let cache = Arc::clone(&reader.0);
+    let cache = Arc::clone(&reader.provider);
     drop(reader);
 
     match program.cmd {
@@ -1026,7 +1038,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::Switch { account_name } => {
             let reader = state.read().unwrap();
-            let factory = &reader.2;
+            let factory = &reader.factory;
 
             let (mut provider, address) = switch(factory, account_name)?;
 
@@ -1038,14 +1050,13 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             *writer = provider;
 
             let mut writer = state.write().unwrap();
-            writer.1 = address;
+            writer.address = address;
 
             Ok(())
         }
         ShellCommand::Whoami => {
             let reader = state.read().unwrap();
-            let address = reader.1;
-            println!("{}", address);
+            println!("{}", &reader.address);
             Ok(())
         }
         ShellCommand::Close => {

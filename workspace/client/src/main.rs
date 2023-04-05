@@ -107,12 +107,11 @@ fn run() -> Result<()> {
             let mut locks = FileLocks::new();
             let _ = locks.add(&cache_lock)?;
 
-            let (_, user, _keeper, _identity_index) = sign_in(&account_name)?;
+            let (info, user, identity_keeper, identity_index) = sign_in(&account_name)?;
 
-            let signer = user.signer;
             let factory = provider.unwrap_or_default();
             let (provider, address) =
-                factory.create_provider(signer.clone())?;
+                factory.create_provider(user.signer.clone())?;
 
             let provider = Arc::new(RwLock::new(provider));
 
@@ -121,7 +120,7 @@ fn run() -> Result<()> {
                     // Listen for change notifications
                     spawn_changes_listener(
                         remote.clone(),
-                        signer,
+                        user.signer.clone(),
                         Arc::clone(&provider),
                     );
                 }
@@ -132,11 +131,15 @@ fn run() -> Result<()> {
 
             // Prepare state for shell execution
             let shell_cache = Arc::clone(&provider);
-            let state = Arc::new(RwLock::new(ShellState(
-                shell_cache,
+            let state = Arc::new(RwLock::new(ShellState {
+                provider: shell_cache,
                 address,
                 factory,
-            )));
+                info,
+                user,
+                identity_keeper,
+                identity_index,
+            }));
 
             // Authenticate and load initial vaults
             let mut writer = provider.write().unwrap();
