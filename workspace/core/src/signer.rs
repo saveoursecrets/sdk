@@ -3,7 +3,6 @@ use async_trait::async_trait;
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
-use web3_address::ethereum::Address;
 use web3_signature::Signature;
 
 use crate::Result;
@@ -43,13 +42,17 @@ impl From<BinarySignature> for Signature {
 }
 
 /// Boxed signer.
-type BoxedSigner<O> = Box<dyn Signer<Output = O> + Sync + Send + 'static>;
+type BoxedSigner<O, A> =
+    Box<dyn Signer<Output = O, Address = A> + Sync + Send + 'static>;
 
 /// Trait for implementations that can sign a message.
 #[async_trait]
 pub trait Signer {
     /// The signature output when signing.
     type Output;
+
+    /// The type that represents an address for the signer.
+    type Address;
 
     /// Sign a message and generate a recoverable signature.
     ///
@@ -60,19 +63,13 @@ pub trait Signer {
     async fn sign(&self, message: &[u8]) -> Result<Self::Output>;
 
     /// Compute the public address for this signer.
-    fn address(&self) -> Result<Address>;
+    fn address(&self) -> Result<Self::Address>;
 
     /// Clone a boxed version of this signer.
-    fn clone_boxed(&self) -> BoxedSigner<Self::Output>;
+    fn clone_boxed(&self) -> BoxedSigner<Self::Output, Self::Address>;
 
     /// Get the bytes for this signing key.
     fn to_bytes(&self) -> Vec<u8>;
-}
-
-impl Clone for BoxedSigner<Signature> {
-    fn clone(&self) -> Self {
-        self.clone_boxed()
-    }
 }
 
 /// ECDSA signer using the Secp256k1 curve from the k256 library.
@@ -89,7 +86,13 @@ pub mod ecdsa {
     use crate::Result;
 
     /// Signer for single party ECDSA signatures.
-    pub type BoxedEcdsaSigner = BoxedSigner<Signature>;
+    pub type BoxedEcdsaSigner = BoxedSigner<Signature, Address>;
+
+    impl Clone for BoxedEcdsaSigner {
+        fn clone(&self) -> Self {
+            self.clone_boxed()
+        }
+    }
 
     /// Signer for a single party key.
     #[derive(Clone)]
@@ -107,8 +110,9 @@ pub mod ecdsa {
     #[async_trait]
     impl Signer for SingleParty {
         type Output = Signature;
+        type Address = Address;
 
-        fn clone_boxed(&self) -> BoxedSigner<Self::Output> {
+        fn clone_boxed(&self) -> BoxedEcdsaSigner {
             Box::new(self.clone())
         }
 
@@ -126,7 +130,7 @@ pub mod ecdsa {
             Ok(sig)
         }
 
-        fn address(&self) -> Result<Address> {
+        fn address(&self) -> Result<Self::Address> {
             let point = self.0.verifying_key().to_encoded_point(true);
             let bytes: [u8; 33] = point.as_bytes().try_into()?;
             let address: Address = (&bytes).try_into()?;
@@ -165,10 +169,15 @@ pub mod ed25519 {
 
     use super::{BoxedSigner, Signer};
     use crate::Result;
-    use web3_address::ethereum::Address;
 
     /// Signer for single party Ed25519signatures.
-    pub type BoxedEd25519Signer = BoxedSigner<Signature>;
+    pub type BoxedEd25519Signer = BoxedSigner<Signature, String>;
+
+    impl Clone for BoxedEd25519Signer {
+        fn clone(&self) -> Self {
+            self.clone_boxed()
+        }
+    }
 
     /// Signer for a single party key.
     pub struct SingleParty(pub SigningKey);
@@ -192,8 +201,9 @@ pub mod ed25519 {
     #[async_trait]
     impl Signer for SingleParty {
         type Output = Signature;
+        type Address = String;
 
-        fn clone_boxed(&self) -> BoxedSigner<Self::Output> {
+        fn clone_boxed(&self) -> BoxedEd25519Signer {
             Box::new(self.clone())
         }
 
@@ -205,8 +215,11 @@ pub mod ed25519 {
             Ok(self.0.sign(message))
         }
 
-        fn address(&self) -> Result<Address> {
-            todo!();
+        fn address(&self) -> Result<Self::Address> {
+            let mut encoded = String::new();
+            let verifying_key = self.0.verifying_key();
+            bs58::encode(verifying_key.as_bytes()).into(&mut encoded)?;
+            Ok(encoded)
         }
     }
 
