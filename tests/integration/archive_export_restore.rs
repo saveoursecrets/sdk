@@ -47,7 +47,6 @@ fn create_archive(
 #[tokio::test]
 #[serial]
 async fn integration_archive_local_provider() -> Result<()> {
-    
     // TODO: test creating external file storage
     // TODO: and extracting the archived files
 
@@ -84,6 +83,7 @@ async fn integration_archive_local_provider() -> Result<()> {
         selected: vec![vault.summary().clone()],
         passphrase: Some(SecretString::new(passphrase.to_string())),
         files_dir: None,
+        files_dir_builder: None,
     };
 
     // Create the archive

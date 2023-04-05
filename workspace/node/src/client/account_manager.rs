@@ -2,7 +2,7 @@
 //! creating and managing local accounts.
 use std::{
     borrow::Cow,
-    io::{Cursor, Read, Write},
+    io::{Cursor, Read},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -291,9 +291,9 @@ impl AccountManager {
     }
 
     /// Encrypt a file using AGE passphrase encryption and
-    /// move to a target directory.
+    /// write to a target directory.
     ///
-    /// The file name is the Sha256 digest of the original file.
+    /// The file name is the Sha256 digest of the encrypted file.
     pub fn encrypt_file<S: AsRef<Path>, T: AsRef<Path>>(
         source: S,
         target: T,
@@ -302,37 +302,18 @@ impl AccountManager {
         let mut file = std::fs::File::open(source)?;
         let encryptor = Encryptor::with_user_passphrase(passphrase);
 
-        let mut hasher = Sha256::new();
-        let mut encrypted = tempfile::NamedTempFile::new()?;
-
+        let mut encrypted = Vec::new();
         let mut writer = encryptor.wrap_output(&mut encrypted)?;
-
-        let chunk_size = 8192;
-        loop {
-            let mut chunk = Vec::with_capacity(chunk_size);
-            let n = std::io::Read::by_ref(&mut file)
-                .take(chunk_size as u64)
-                .read_to_end(&mut chunk)?;
-            if n == 0 {
-                break;
-            }
-
-            writer.write_all(chunk.as_slice())?;
-            hasher.update(chunk.as_slice());
-
-            if n < chunk_size {
-                break;
-            }
-        }
-
+        std::io::copy(&mut file, &mut writer)?;
         writer.finish()?;
 
+        let mut hasher = Sha256::new();
+        hasher.update(&encrypted);
         let digest = hasher.finalize();
         let file_name = hex::encode(digest);
         let dest = PathBuf::from(target.as_ref()).join(&file_name);
 
-        // Move the temporary file into place
-        std::fs::rename(encrypted.path(), dest)?;
+        std::fs::write(dest, encrypted)?;
 
         Ok(digest.to_vec())
     }
