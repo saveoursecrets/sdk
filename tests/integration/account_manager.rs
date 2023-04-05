@@ -9,11 +9,15 @@ use sos_core::{
     generate_passphrase,
     search::SearchIndex,
     Gatekeeper,
+    vault::VaultId, secret::SecretId,
 };
 use sos_node::{
     cache_dir, clear_cache_dir,
-    client::account_manager::{
-        AccountManager, NewAccountRequest, NewAccountResponse,
+    client::{
+        provider::RestoreOptions,
+        account_manager::{
+            AccountManager, NewAccountRequest, NewAccountResponse,
+        },
     },
     set_cache_dir,
 };
@@ -57,7 +61,7 @@ fn integration_account_manager() -> Result<()> {
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
     let (_info, _user, mut identity_keeper) = AccountManager::sign_in(
         &address,
-        passphrase,
+        passphrase.clone(),
         Arc::clone(&identity_index),
     )?;
 
@@ -107,7 +111,13 @@ fn integration_account_manager() -> Result<()> {
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
 
     // Encrypt
-    let target = AccountManager::files_dir(&address)?;
+    let files_dir = AccountManager::files_dir(&address)?;
+    let vault_id = VaultId::new_v4();
+    let secret_id = SecretId::new_v4();
+    let target = files_dir
+        .join(vault_id.to_string())
+        .join(secret_id.to_string());
+    std::fs::create_dir_all(&target)?;
     let digest = AccountManager::encrypt_file(
         &source_file,
         &target,
@@ -117,12 +127,28 @@ fn integration_account_manager() -> Result<()> {
     // Decrypt
     let destination = target.join(hex::encode(digest));
     let buffer = AccountManager::decrypt_file(destination, &file_passphrase)?;
-
+    
     let expected = std::fs::read(source_file)?;
     assert_eq!(expected, buffer);
 
-    // TODO: test export/restore from archive
     let archive_buffer = AccountManager::export_archive_buffer(&address)?;
+    let _inventory = AccountManager::restore_archive_inventory(
+        archive_buffer.clone())?;
+
+    // Remove the account
+    AccountManager::delete_account(&address)?;
+
+    // Restore from the backup archive (not signed in)
+    let options = RestoreOptions {
+        selected: vaults.into_iter().map(|v| v.0).collect(),
+        passphrase: Some(passphrase),
+        files_dir: Some(files_dir),
+        files_dir_builder: None,
+    };
+    AccountManager::restore_archive_buffer(
+        archive_buffer, options, None)?;
+
+    // TODO: restore from archive whilst signed in (with provider)
 
     // Reset the cache dir so we don't interfere
     // with other tests

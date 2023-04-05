@@ -214,7 +214,7 @@ pub trait StorageProvider: Sync + Send {
         options: &RestoreOptions,
     ) -> Result<RestoreTargets> {
         let mut reader = Reader::new(Cursor::new(&mut archive))?.prepare()?;
-
+        
         if let Some(files_dir) = &options.files_dir {
             reader.extract_files(files_dir, options.selected.as_slice())?;
         } else if let (Some(builder), Some(manifest)) =
