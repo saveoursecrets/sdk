@@ -1,7 +1,7 @@
 use anyhow::Result;
 use secrecy::ExposeSecret;
 use serial_test::serial;
-use std::{sync::Arc, path::PathBuf};
+use std::{path::PathBuf, sync::Arc};
 
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
@@ -55,11 +55,18 @@ fn integration_account_manager() -> Result<()> {
     assert_eq!(1, accounts.len());
 
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
-    let (_info, _user, identity_keeper) = AccountManager::sign_in(
+    let (_info, _user, mut identity_keeper) = AccountManager::sign_in(
         &address,
         passphrase,
         Arc::clone(&identity_index),
     )?;
+
+    AccountManager::rename_identity(
+        &address,
+        "New account name".to_string(),
+        Some(&mut identity_keeper),
+    )?;
+    assert_eq!("New account name", identity_keeper.vault().name());
 
     let vaults = AccountManager::list_local_vaults(&address)?;
     // Default, Contacts, Authenticator and Archive vaults
@@ -95,25 +102,27 @@ fn integration_account_manager() -> Result<()> {
         Gatekeeper::new(default_vault, Some(default_index));
     default_vault_keeper.unlock(default_vault_passphrase.expose_secret())?;
 
-    let file_passphrase = AccountManager::find_file_encryption_passphrase(
-        &identity_keeper,
-    )?;
+    let file_passphrase =
+        AccountManager::find_file_encryption_passphrase(&identity_keeper)?;
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
-    
+
     // Encrypt
     let target = AccountManager::files_dir(&address)?;
     let digest = AccountManager::encrypt_file(
-        &source_file, &target, file_passphrase.clone())?;
+        &source_file,
+        &target,
+        file_passphrase.clone(),
+    )?;
 
     // Decrypt
     let destination = target.join(hex::encode(digest));
-    let buffer = AccountManager::decrypt_file(
-        destination, &file_passphrase)?;
+    let buffer = AccountManager::decrypt_file(destination, &file_passphrase)?;
 
     let expected = std::fs::read(source_file)?;
     assert_eq!(expected, buffer);
 
     // TODO: test export/restore from archive
+    let archive_buffer = AccountManager::export_archive_buffer(&address)?;
 
     // Reset the cache dir so we don't interfere
     // with other tests

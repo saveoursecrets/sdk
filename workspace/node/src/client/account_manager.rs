@@ -422,7 +422,7 @@ impl AccountManager {
 
         Ok(())
     }
-    
+
     /// Find the passphrase used for symmetric file encryption (AGE).
     pub fn find_file_encryption_passphrase(
         identity: &Gatekeeper,
@@ -526,7 +526,13 @@ impl AccountManager {
     pub fn rename_identity(
         address: &str,
         account_name: String,
+        identity: Option<&mut Gatekeeper>,
     ) -> Result<()> {
+        // Update in-memory vault
+        if let Some(identity) = identity {
+            identity.vault_mut().set_name(account_name.clone());
+        }
+        // Update vault file on disc
         let identity_vault_file = Self::identity_vault(address)?;
         let mut access = VaultFileAccess::new(&identity_vault_file)?;
         access.set_vault_name(account_name)?;
@@ -805,6 +811,7 @@ impl AccountManager {
                 AccountManager::rename_identity(
                     &restore_targets.address,
                     name.clone(),
+                    None,
                 )?;
                 name
             } else {
