@@ -1,7 +1,7 @@
 use anyhow::Result;
 use secrecy::ExposeSecret;
 use serial_test::serial;
-use std::sync::Arc;
+use std::{sync::Arc, path::PathBuf};
 
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
@@ -94,6 +94,26 @@ fn integration_account_manager() -> Result<()> {
     let mut default_vault_keeper =
         Gatekeeper::new(default_vault, Some(default_index));
     default_vault_keeper.unlock(default_vault_passphrase.expose_secret())?;
+
+    let file_passphrase = AccountManager::find_file_encryption_passphrase(
+        &identity_keeper,
+    )?;
+    let source_file = PathBuf::from("tests/fixtures/test-file.txt");
+    
+    // Encrypt
+    let target = AccountManager::files_dir(&address)?;
+    let digest = AccountManager::encrypt_file(
+        &source_file, &target, file_passphrase.clone())?;
+
+    // Decrypt
+    let destination = target.join(hex::encode(digest));
+    let buffer = AccountManager::decrypt_file(
+        destination, &file_passphrase)?;
+
+    let expected = std::fs::read(source_file)?;
+    assert_eq!(expected, buffer);
+
+    // TODO: test export/restore from archive
 
     // Reset the cache dir so we don't interfere
     // with other tests

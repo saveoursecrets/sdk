@@ -422,6 +422,27 @@ impl AccountManager {
 
         Ok(())
     }
+    
+    /// Find the passphrase used for symmetric file encryption (AGE).
+    pub fn find_file_encryption_passphrase(
+        identity: &Gatekeeper,
+    ) -> Result<SecretString> {
+        let index = identity.index();
+        let reader = index.read();
+        let urn: Urn = FILE_PASSWORD_URN.parse()?;
+        let document = reader
+            .find_by_urn(identity.id(), &urn)
+            .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
+        let password =
+            if let Some((_, Secret::Password { password, .. }, _)) =
+                identity.read(document.id())?
+            {
+                password
+            } else {
+                return Err(Error::VaultEntryKind(urn.to_string()));
+            };
+        Ok(password)
+    }
 
     /// Find a vault passphrase in an identity vault using the
     /// search index associated with the vault.

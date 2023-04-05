@@ -37,6 +37,7 @@ http = "0.2"
 tempfile = "3.3"
 parking_lot = "0.12"
 urn = { version = "0.5", features = ["serde"] }
+hex = "0.4"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sos-node = { path = "workspace/node", version = "0.1.0" }
