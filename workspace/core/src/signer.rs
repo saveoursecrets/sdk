@@ -159,9 +159,9 @@ pub mod ecdsa {
 pub mod ed25519 {
     use async_trait::async_trait;
     use ed25519_dalek::{
-        Keypair, Signature, Signer as Ed25519Signer, KEYPAIR_LENGTH,
+        Signature, Signer as Ed25519Signer, SigningKey, SECRET_KEY_LENGTH,
     };
-    use rand_legacy::rngs::OsRng;
+    use rand::rngs::OsRng;
 
     use super::{BoxedSigner, Signer};
     use crate::Result;
@@ -171,12 +171,12 @@ pub mod ed25519 {
     pub type BoxedEd25519Signer = BoxedSigner<Signature>;
 
     /// Signer for a single party key.
-    pub struct SingleParty(pub Keypair);
+    pub struct SingleParty(pub SigningKey);
 
     /// Clone this signer.
     impl Clone for SingleParty {
         fn clone(&self) -> Self {
-            Self(Keypair::from_bytes(self.0.to_bytes().as_slice()).unwrap())
+            Self(SigningKey::from_bytes(&self.0.to_bytes()))
         }
     }
 
@@ -184,7 +184,7 @@ pub mod ed25519 {
         /// Generate a new random single party signing key.
         pub fn new_random() -> SingleParty {
             let mut csprng = OsRng {};
-            let signing_key = Keypair::generate(&mut csprng);
+            let signing_key = SigningKey::generate(&mut csprng);
             SingleParty(signing_key)
         }
     }
@@ -210,21 +210,21 @@ pub mod ed25519 {
         }
     }
 
-    impl TryFrom<[u8; KEYPAIR_LENGTH]> for SingleParty {
+    impl TryFrom<[u8; SECRET_KEY_LENGTH]> for SingleParty {
         type Error = crate::Error;
         fn try_from(
-            value: [u8; KEYPAIR_LENGTH],
+            value: [u8; SECRET_KEY_LENGTH],
         ) -> std::result::Result<Self, Self::Error> {
             (&value).try_into()
         }
     }
 
-    impl<'a> TryFrom<&'a [u8; KEYPAIR_LENGTH]> for SingleParty {
+    impl<'a> TryFrom<&'a [u8; SECRET_KEY_LENGTH]> for SingleParty {
         type Error = crate::Error;
         fn try_from(
-            value: &'a [u8; KEYPAIR_LENGTH],
+            value: &'a [u8; SECRET_KEY_LENGTH],
         ) -> std::result::Result<Self, Self::Error> {
-            Ok(Self(Keypair::from_bytes(value)?))
+            Ok(Self(SigningKey::from_bytes(value)))
         }
     }
 }

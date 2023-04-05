@@ -4,7 +4,7 @@ use binary_stream::{
 };
 
 use bitflags::bitflags;
-use ed25519_dalek::KEYPAIR_LENGTH;
+use ed25519_dalek::SECRET_KEY_LENGTH;
 use pem::Pem;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{
@@ -438,7 +438,7 @@ impl SecretSigner {
     pub fn try_into_ed25519_signer(self) -> Result<BoxedEd25519Signer> {
         match self {
             Self::SinglePartyEd25519(key) => {
-                let keypair: [u8; KEYPAIR_LENGTH] =
+                let keypair: [u8; SECRET_KEY_LENGTH] =
                     key.expose_secret().as_slice().try_into()?;
                 let signer: ed25519::SingleParty = keypair.try_into()?;
                 Ok(Box::new(signer))
@@ -447,26 +447,6 @@ impl SecretSigner {
             //_ => Err(Error::NotEd25519Key),
         }
     }
-
-    /*
-    /// Convert this secret into a type with signing capabilities.
-    pub fn into_boxed_signer<T>(self) -> Result<BoxedSigner<T>> {
-        match self {
-            Self::SinglePartyEcdsa(key) => {
-                let private_key: [u8; 32] =
-                    key.expose_secret().as_slice().try_into()?;
-                let signer: ecdsa::SingleParty = private_key.try_into()?;
-                Ok(Box::new(signer))
-            }
-            Self::SinglePartyEd25519(key) => {
-                let keypair: [u8; KEYPAIR_LENGTH] =
-                    key.expose_secret().as_slice().try_into()?;
-                let signer: ed25519::SingleParty = keypair.try_into()?;
-                Ok(Box::new(signer))
-            }
-        }
-    }
-    */
 }
 
 impl Default for SecretSigner {
