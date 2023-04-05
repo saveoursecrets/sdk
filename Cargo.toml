@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.org"
@@ -10,7 +10,6 @@ publish = false
 
 [workspace]
 members = [
-  "workspace/agent",
   "workspace/audit",
   "workspace/check",
   "workspace/client",
@@ -39,7 +38,6 @@ tempfile = "3.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sos-node = { path = "workspace/node", version = "0.1.0" }
-sos-agent = { path = "workspace/agent", version = "0.1.0" }
 sos-audit = { path = "workspace/audit", version = "0.1.0" }
 sos-check = { path = "workspace/check", version = "0.1.0" }
 sos-client = { path = "workspace/client", version = "0.1.0" }

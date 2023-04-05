@@ -2227,20 +2227,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parity-tokio-ipc"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9981e32fb75e004cc148f5fb70342f393830e0a4aa62e3cc93b50976218d42b6"
-dependencies = [
- "futures",
- "libc",
- "log",
- "rand 0.7.3",
- "tokio",
- "winapi",
-]
-
-[[package]]
 name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3154,18 +3140,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-agent"
-version = "0.1.0"
-dependencies = [
- "clap",
- "sos-node",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "sos-audit"
 version = "0.1.0"
 dependencies = [
@@ -3307,7 +3281,6 @@ dependencies = [
  "axum",
  "axum-macros",
  "axum-server",
- "binary-stream",
  "bs58",
  "crypto-bigint",
  "dirs",
@@ -3319,7 +3292,6 @@ dependencies = [
  "log",
  "mime_guess",
  "once_cell",
- "parity-tokio-ipc",
  "parking_lot",
  "pin-project-lite",
  "rand 0.8.5",
@@ -3372,7 +3344,6 @@ dependencies = [
  "secrecy",
  "serde_json",
  "serial_test",
- "sos-agent",
  "sos-audit",
  "sos-check",
  "sos-client",

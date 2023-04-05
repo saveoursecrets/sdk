@@ -2,11 +2,7 @@ use anyhow::Result;
 
 use super::{server, TestDirs};
 
-use sos_core::{
-    signer::{BoxedSigner, SingleParty},
-    wal::file::WalFile,
-    PatchFile,
-};
+use sos_core::{signer::BoxedSigner, wal::file::WalFile, PatchFile};
 
 use web3_address::ethereum::Address;
 
@@ -39,15 +35,9 @@ pub async fn signup(
 
     let address = key.address().to_owned();
 
-    let expected_keystore =
-        destination.join(&format!("{}.json", key.address()));
-
     let AccountKey(signing_key, _) = &key;
-    //let expected_signing_key = signing_key.to_bytes();
 
     let signer: BoxedSigner = signing_key.clone();
-
-    //assert_eq!(expected_signing_key, signing_key);
 
     let (credentials, mut node_cache) = create_account(
         server,

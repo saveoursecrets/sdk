@@ -9,11 +9,6 @@ use once_cell::sync::Lazy;
 
 extern crate sha3;
 
-#[cfg(all(
-    not(target_arch = "wasm32"),
-    any(feature = "agent-client", feature = "agent-server")
-))]
-pub mod agent;
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "server")]

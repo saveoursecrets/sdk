@@ -55,8 +55,8 @@ tokio-stream = { version = "0.1", optional = true }
 # agent
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
-parity-tokio-ipc = { version = "0.9", optional = true }
-binary-stream = { version = "3.4", features = ["32bit"], optional = true }
+#parity-tokio-ipc = { version = "0.9", optional = true }
+#binary-stream = { version = "3.4", features = ["32bit"], optional = true }
 tokio-tungstenite = { version = "0.17.2", features = ["rustls-tls-native-roots"] }
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
@@ -101,8 +101,6 @@ server = [
   "tokio-stream",
 ]
 gui = []
-agent-client = ["parity-tokio-ipc", "binary-stream"]
-agent-server = ["parity-tokio-ipc", "binary-stream"]
 
 [package.metadata.release]
 tag = false
