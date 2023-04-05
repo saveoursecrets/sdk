@@ -3,6 +3,8 @@ use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, thread};
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
+use secrecy::SecretString;
+use web3_address::ethereum::Address;
 
 use sos_core::{
     events::SyncEvent,
@@ -23,7 +25,18 @@ const SERVER: &str = "http://localhost:3505";
 
 mod signup;
 
-pub use signup::signup;
+pub use signup::{signup, login};
+
+/// Encapsulates the credentials for a new account signup.
+pub struct AccountCredentials {
+    /// Passphrase for the vault encryption.
+    pub encryption_passphrase: SecretString,
+    /// Address of the signing key.
+    pub address: Address,
+    /// Summary that represents the login vault
+    /// created when the account was created.
+    pub summary: Summary,
+}
 
 struct MockServer {
     handle: Handle,

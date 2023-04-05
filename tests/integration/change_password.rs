@@ -15,7 +15,6 @@ use sos_core::{
     generate_passphrase,
 };
 use sos_node::client::{
-    account::AccountCredentials,
     net::changes::{changes, connect},
     provider::StorageProvider,
 };

@@ -11,7 +11,7 @@ use sos_core::{
     wal::file::WalFile,
 };
 use sos_node::client::{
-    account::AccountCredentials, provider::StorageProvider,
+    provider::StorageProvider,
 };
 
 #[tokio::test]

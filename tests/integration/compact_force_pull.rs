@@ -10,7 +10,6 @@ use tokio::sync::RwLock;
 use secrecy::ExposeSecret;
 use sos_core::commit_tree::CommitProof;
 use sos_node::client::{
-    account::{login, AccountCredentials},
     net::changes::{changes, connect},
     provider::StorageProvider,
 };

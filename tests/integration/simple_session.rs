@@ -19,7 +19,6 @@ use sos_core::{
 use sos_node::{
     cache_dir,
     client::{
-        account::AccountCredentials,
         net::{
             changes::{changes, connect},
             RequestClient,

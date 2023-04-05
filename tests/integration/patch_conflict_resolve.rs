@@ -5,7 +5,6 @@ use crate::test_utils::*;
 
 use secrecy::ExposeSecret;
 use sos_node::client::{
-    account::{login, AccountCredentials},
     provider::StorageProvider,
 };
 
