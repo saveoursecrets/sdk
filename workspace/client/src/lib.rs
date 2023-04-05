@@ -19,7 +19,7 @@ pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {
     println!("{}", banner);
 }
 
-pub use account::{local_signup, switch, StdinPassphraseReader};
+pub use account::{local_signup, sign_in, switch, StdinPassphraseReader};
 pub use error::Error;
 pub use monitor::monitor;
 pub use shell::exec;

@@ -6,13 +6,16 @@ use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     constants::{IDENTITY_DIR, VAULT_EXT},
     encode, generate_passphrase,
+    identity::AuthenticatedUser,
     search::SearchIndex,
+    Gatekeeper,
 };
 use sos_node::{
     cache_dir,
     client::{
         account_manager::{
-            AccountManager, NewAccountRequest, NewAccountResponse,
+            AccountInfo, AccountManager, NewAccountRequest,
+            NewAccountResponse,
         },
         provider::{BoxedProvider, ProviderFactory},
         run_blocking, PassphraseReader,
@@ -49,31 +52,40 @@ fn get_identity_vault(address: &str) -> Result<PathBuf> {
     Ok(identity_vault_file)
 }
 
-/// Switch to a different account.
-pub fn switch(
-    factory: &ProviderFactory,
-    account_name: String,
-) -> Result<(BoxedProvider, Address)> {
+/// Helper to sign in to an account.
+pub fn sign_in(
+    account_name: &str,
+) -> Result<(
+    AccountInfo,
+    AuthenticatedUser,
+    Gatekeeper,
+    Arc<SyncRwLock<SearchIndex>>,
+)> {
     let accounts = AccountManager::list_accounts()?;
-
     let account = accounts
         .iter()
         .find(|a| a.label == account_name)
-        .ok_or(Error::NoAccount(account_name.clone()))?;
+        .ok_or(Error::NoAccount(account_name.to_string()))?;
 
     let reader = StdinPassphraseReader {};
     let passphrase = reader.read()?;
-
-    let identity_index =
-        Arc::new(SyncRwLock::new(SearchIndex::new(None)));
-
+    let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
     // Verify the identity vault can be unlocked
-    let (account, user, keeper) = AccountManager::sign_in(
+    let (info, user, keeper) = AccountManager::sign_in(
         &account.address,
         passphrase,
         Arc::clone(&identity_index),
     )?;
 
+    Ok((info, user, keeper, identity_index))
+}
+
+/// Switch to a different account.
+pub fn switch(
+    factory: &ProviderFactory,
+    account_name: String,
+) -> Result<(BoxedProvider, Address)> {
+    let (_, user, _, _) = sign_in(&account_name)?;
     Ok(factory.create_provider(user.signer)?)
 }
 

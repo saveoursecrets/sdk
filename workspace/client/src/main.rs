@@ -11,7 +11,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
 
 use sos_client::{
-    exec, local_signup, monitor, Error, Result, ShellState,
+    exec, local_signup, monitor, sign_in, Error, Result, ShellState,
     StdinPassphraseReader,
 };
 use sos_core::{search::SearchIndex, FileLocks};
@@ -63,9 +63,9 @@ enum Command {
         #[clap(short, long)]
         server: Url,
 
-        /// Keystore file containing the signing key.
+        /// Account name.
         #[clap(short, long)]
-        keystore: PathBuf,
+        account_name: String,
     },
 }
 
@@ -88,8 +88,8 @@ fn run() -> Result<()> {
     let args = Cli::parse();
 
     match args.cmd {
-        Command::Monitor { server, keystore } => {
-            monitor(server, keystore)?;
+        Command::Monitor { server, account_name} => {
+            monitor(server, account_name)?;
         }
         Command::Signup { name, folder_name } => {
             local_signup(name, folder_name)?;
@@ -107,29 +107,9 @@ fn run() -> Result<()> {
             let mut locks = FileLocks::new();
             let _ = locks.add(&cache_lock)?;
 
-            let accounts = AccountManager::list_accounts()?;
-
-            let account = accounts
-                .iter()
-                .find(|a| a.label == account_name)
-                .ok_or(Error::NoAccount(account_name.clone()))?;
-
-            // Prepare a  search index for the identity vault
-            let identity_index =
-                Arc::new(SyncRwLock::new(SearchIndex::new(None)));
-
-            let reader = StdinPassphraseReader {};
-            let passphrase = reader.read()?;
-
-            // Verify the identity vault can be unlocked
-            let (account, user, keeper) = AccountManager::sign_in(
-                &account.address,
-                passphrase,
-                Arc::clone(&identity_index),
-            )?;
+            let (_, user, _keeper, _identity_index) = sign_in(&account_name)?;
 
             let signer = user.signer;
-
             let factory = provider.unwrap_or_default();
             let (provider, address) =
                 factory.create_provider(signer.clone())?;

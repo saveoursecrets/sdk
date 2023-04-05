@@ -1024,7 +1024,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             Ok(())
         }
-        ShellCommand::Switch { account_name} => {
+        ShellCommand::Switch { account_name } => {
             let reader = state.read().unwrap();
             let factory = &reader.2;
 
