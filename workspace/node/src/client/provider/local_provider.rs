@@ -193,6 +193,9 @@ where
             if let Some(extension) = path.extension() {
                 if extension == VAULT_EXT {
                     let summary = Header::read_summary_file(path)?;
+                    if summary.flags().is_system() {
+                        continue;
+                    }
                     summaries.push(summary);
                 }
             }

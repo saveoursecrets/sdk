@@ -539,6 +539,7 @@ impl AccountManager {
             let mut device_keeper =
                 Gatekeeper::new(vault, Some(search_index));
             device_keeper.unlock(device_passphrase.expose_secret())?;
+            device_keeper.create_search_index()?;
             let index = device_keeper.index();
             let index_reader = index.read();
             let document = index_reader
