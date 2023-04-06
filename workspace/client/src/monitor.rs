@@ -29,7 +29,7 @@ async fn changes_stream(
 
 /// Start a monitor listening for events on the SSE stream.
 pub fn monitor(server: Url, account_name: String) -> Result<()> {
-    let (_, user, _, _) = sign_in(&account_name)?;
+    let (_, user, _, _, _) = sign_in(&account_name)?;
     let signer = user.signer;
     if let Err(e) = run_blocking(changes_stream(server, signer)) {
         tracing::error!("{}", e);

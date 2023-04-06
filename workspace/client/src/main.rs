@@ -105,7 +105,7 @@ fn run() -> Result<()> {
             let mut locks = FileLocks::new();
             let _ = locks.add(&cache_lock)?;
 
-            let (info, user, identity_keeper, identity_index) =
+            let (info, user, identity_keeper, _device_signer, identity_index) =
                 sign_in(&account_name)?;
 
             let factory = provider.unwrap_or_default();

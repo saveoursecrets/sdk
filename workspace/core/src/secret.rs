@@ -414,9 +414,21 @@ pub enum SecretSigner {
     /// Single party Ethereum-compatible ECDSA signing private key.
     #[serde(serialize_with = "serialize_secret_buffer")]
     SinglePartyEcdsa(SecretVec<u8>),
-    /// Single party Ethereum-compatible ECDSA signing private key.
+    /// Single party Ed25519 signing private key.
     #[serde(serialize_with = "serialize_secret_buffer")]
     SinglePartyEd25519(SecretVec<u8>),
+}
+
+impl From<ecdsa::SingleParty> for SecretSigner {
+    fn from(value: ecdsa::SingleParty) -> Self {
+        Self::SinglePartyEcdsa(SecretVec::new(value.0.to_bytes().to_vec()))
+    }
+}
+
+impl From<ed25519::SingleParty> for SecretSigner {
+    fn from(value: ed25519::SingleParty) -> Self {
+        Self::SinglePartyEd25519(SecretVec::new(value.0.to_bytes().to_vec()))
+    }
 }
 
 impl SecretSigner {

@@ -240,4 +240,12 @@ pub mod ed25519 {
             Ok(Self(SigningKey::from_bytes(value)))
         }
     }
+
+    impl TryFrom<&[u8]> for SingleParty {
+        type Error = crate::Error;
+        fn try_from(value: &[u8]) -> std::result::Result<Self, Self::Error> {
+            let value: [u8; SECRET_KEY_LENGTH] = value.try_into()?;
+            value.try_into()
+        }
+    }
 }

@@ -72,6 +72,9 @@ mod vault {
     /// This password is used to encrypt external files that are not
     /// embedded in a vault.
     pub const FILE_PASSWORD_URN: &str = "urn:sos:identity:file";
+
+    /// Device key used to identify a device.
+    pub const DEVICE_KEY_URN: &str = "urn:sos:device:key";
 }
 
 /// Constants for MIME types.

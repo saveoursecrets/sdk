@@ -12,7 +12,7 @@ use sos_node::{
     cache_dir,
     client::{
         account_manager::{
-            AccountInfo, AccountManager, NewAccountRequest,
+            AccountInfo, AccountManager, DeviceSigner, NewAccountRequest,
             NewAccountResponse,
         },
         provider::{BoxedProvider, ProviderFactory},
@@ -40,6 +40,7 @@ pub fn sign_in(
     AccountInfo,
     AuthenticatedUser,
     Gatekeeper,
+    DeviceSigner,
     Arc<SyncRwLock<SearchIndex>>,
 )> {
     let accounts = AccountManager::list_accounts()?;
@@ -52,13 +53,13 @@ pub fn sign_in(
     let passphrase = reader.read()?;
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
     // Verify the identity vault can be unlocked
-    let (info, user, keeper) = AccountManager::sign_in(
+    let (info, user, keeper, device_signer) = AccountManager::sign_in(
         &account.address,
         passphrase,
         Arc::clone(&identity_index),
     )?;
 
-    Ok((info, user, keeper, identity_index))
+    Ok((info, user, keeper, device_signer, identity_index))
 }
 
 /// Switch to a different account.
@@ -66,7 +67,7 @@ pub fn switch(
     factory: &ProviderFactory,
     account_name: String,
 ) -> Result<(BoxedProvider, Address)> {
-    let (_, user, _, _) = sign_in(&account_name)?;
+    let (_, user, _, _, _) = sign_in(&account_name)?;
     Ok(factory.create_provider(user.signer)?)
 }
 

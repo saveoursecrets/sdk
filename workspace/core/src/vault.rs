@@ -33,7 +33,6 @@ use crate::{
     CommitHash, Error, FileIdentity, Result,
 };
 
-
 bitflags! {
     /// Bit flags for a vault.
     #[derive(Default, Serialize, Deserialize)]
@@ -49,6 +48,17 @@ bitflags! {
         const AUTHENTICATOR     =        0b0000000000001000;
         /// Indicates this vault is to be used to store contacts.
         const CONTACT           =        0b0000000000010000;
+        /// Indicates this vault is a system vault and should
+        /// not be presented to the account holder when listing
+        /// available vaults.
+        const SYSTEM            =        0b0000000000100000;
+        /// Indicates this vault is to be used to store device
+        /// specific information such as key shares or device
+        /// specific private keys.
+        ///
+        /// Typically these vaults should also be assigned the
+        /// NO_SYNC_SELF flag.
+        const DEVICE            =        0b0000000001000000;
         /// Indicates this vault should not be synced with
         /// devices owned by the account holder.
         ///
@@ -56,10 +66,10 @@ bitflags! {
         /// to completely ignore this vault from sync operations.
         ///
         /// This is useful for storing device specific keys.
-        const NO_SYNC_SELF      =        0b0000000000100000;
-        /// Idnicates this vault should not be synced with 
+        const NO_SYNC_SELF      =        0b0000000010000000;
+        /// Idnicates this vault should not be synced with
         /// devices owned by other accounts.
-        const NO_SYNC_OTHER     =        0b0000000001000000;
+        const NO_SYNC_OTHER     =        0b0000000100000000;
     }
 }
 
@@ -87,6 +97,16 @@ impl VaultFlags {
     /// Determine if this vault is for contacts.
     pub fn is_contact(&self) -> bool {
         self.contains(VaultFlags::CONTACT)
+    }
+
+    /// Determine if this vault is for system specific information.
+    pub fn is_system(&self) -> bool {
+        self.contains(VaultFlags::SYSTEM)
+    }
+
+    /// Determine if this vault is for device specific information.
+    pub fn is_device(&self) -> bool {
+        self.contains(VaultFlags::DEVICE)
     }
 
     /// Determine if this vault is set to ignore sync
@@ -787,14 +807,24 @@ impl Vault {
         self.flags_mut().set(VaultFlags::CONTACT, value);
     }
 
+    /// Set whether this vault is for system specific information.
+    pub fn set_system_flag(&mut self, value: bool) {
+        self.flags_mut().set(VaultFlags::SYSTEM, value);
+    }
+
+    /// Set whether this vault is for device specific information.
+    pub fn set_device_flag(&mut self, value: bool) {
+        self.flags_mut().set(VaultFlags::DEVICE, value);
+    }
+
     /// Set whether this vault should not sync with own devices.
-    pub fn set_no_sync_self(&mut self, value: bool) {
+    pub fn set_no_sync_self_flag(&mut self, value: bool) {
         self.flags_mut().set(VaultFlags::NO_SYNC_SELF, value);
     }
 
     /// Set whether this vault should not sync with devices
     /// owned by other accounts.
-    pub fn set_no_sync_other(&mut self, value: bool) {
+    pub fn set_no_sync_other_flag(&mut self, value: bool) {
         self.flags_mut().set(VaultFlags::NO_SYNC_OTHER, value);
     }
 
