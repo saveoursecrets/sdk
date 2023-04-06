@@ -37,6 +37,8 @@ use crate::VaultFileAccess;
 pub struct AuthenticatedUser {
     /// Private signing key for the identity.
     pub signer: BoxedEcdsaSigner,
+    /// AGE identity keypair.
+    pub identity: age::x25519::Identity,
 }
 
 /// Represents an identity.
@@ -130,33 +132,52 @@ impl Identity {
         };
 
         keeper.unlock(master_passphrase.expose_secret())?;
-        // Must create the index so we can find by name
+        // Must create the index so we can find by URN
         keeper.create_search_index()?;
 
         let index = keeper.index();
         let reader = index.read();
 
         let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
-
-        let signing_doc = reader
+        let document = reader
             .find_by_urn(keeper.id(), &urn)
-            .ok_or(Error::NoIdentitySigner)?;
+            .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
+        let data = keeper
+            .read(document.id())?
+            .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
 
-        let signing_data = keeper
-            .read(signing_doc.id())?
-            .ok_or(Error::NoIdentitySecret)?;
+        let (_, secret, _) = data;
 
-        let (_, signer_secret, _) = signing_data;
-
-        let signer = if let Secret::Signer { private_key, .. } = signer_secret
-        {
+        let signer = if let Secret::Signer { private_key, .. } = secret {
             Some(private_key.try_into_ecdsa_signer()?)
         } else {
             None
         };
-        let signer = signer.ok_or(Error::IdentitySignerKind)?;
+        let signer = signer
+            .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
 
-        Ok((AuthenticatedUser { signer }, keeper))
+        let urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
+        let document = reader
+            .find_by_urn(keeper.id(), &urn)
+            .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
+        let data = keeper
+            .read(document.id())?
+            .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
+
+        let (_, secret, _) = data;
+
+        let identity = if let Secret::Age { key, .. } = secret {
+            let identity: age::x25519::Identity =
+                key.expose_secret().parse().map_err(|s: &'static str| {
+                    Error::AgeIdentityParse(s.to_string())
+                })?;
+            Some(identity)
+        } else {
+            None
+        };
+        let identity = identity
+            .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
+        Ok((AuthenticatedUser { signer, identity }, keeper))
     }
 }
 
@@ -221,7 +242,7 @@ mod tests {
 
         let result =
             Identity::login_buffer(buffer, master_passphrase, None, None);
-        if let Err(Error::NoIdentitySigner) = result {
+        if let Err(Error::NoSecretUrn(_, _)) = result {
             Ok(())
         } else {
             panic!("expecting no identity signer error");
@@ -256,7 +277,7 @@ mod tests {
 
         let result =
             Identity::login_buffer(buffer, master_passphrase, None, None);
-        if let Err(Error::IdentitySignerKind) = result {
+        if let Err(Error::WrongSecretKind(_, _)) = result {
             Ok(())
         } else {
             panic!("expecting identity signer kind error");
