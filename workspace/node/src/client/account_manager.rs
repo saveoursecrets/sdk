@@ -268,7 +268,6 @@ impl AccountManager {
         let factory = ProviderFactory::Local;
         let (mut provider, _) =
             factory.create_provider(user.signer.clone())?;
-        run_blocking(provider.authenticate())?;
 
         // Save the default vault
         let buffer = encode(&default_vault)?;
@@ -505,7 +504,8 @@ impl AccountManager {
             Identity::login_file(identity_path, passphrase, Some(index))?;
 
         // Lazily create or retrieve a device specific signing key
-        let device_info = Self::ensure_device_vault(address, &mut keeper)?;
+        let device_info =
+            Self::ensure_device_vault(address, &user, &mut keeper)?;
 
         Ok((account, user, keeper, device_info))
     }
@@ -515,6 +515,7 @@ impl AccountManager {
     /// on a peer to peer network.
     fn ensure_device_vault(
         address: &str,
+        user: &AuthenticatedUser,
         identity: &mut Gatekeeper,
     ) -> Result<DeviceSigner> {
         let vaults = Self::list_local_vaults(address, true)?;
@@ -598,8 +599,17 @@ impl AccountManager {
             meta.set_urn(Some(urn));
             device_keeper.create(meta, secret)?;
 
+            // Write out the modified device vault to disc
+            let factory = ProviderFactory::Local;
+            let (mut provider, _) =
+                factory.create_provider(user.signer.clone())?;
+
+            let device_vault = device_keeper.take();
+            let buffer = encode(&device_vault)?;
+            let summary = run_blocking(provider.import_vault(buffer))?;
+
             Ok(DeviceSigner {
-                summary: device_keeper.vault().summary().clone(),
+                summary,
                 signer: Box::new(key),
                 address,
             })
