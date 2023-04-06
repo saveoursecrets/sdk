@@ -228,6 +228,7 @@ impl AccountManager {
             let mut vault: Vault = Default::default();
             vault.set_name("Authenticator".to_string());
             vault.set_authenticator_flag(true);
+            vault.set_no_sync_self_flag(true);
             vault.initialize(auth_passphrase.expose_secret(), None)?;
             Self::save_vault_passphrase(
                 &mut keeper,
