@@ -57,6 +57,9 @@ pub use patch::PatchFile;
 pub use patch::{Patch, PatchMemory, PatchProvider};
 pub use timestamp::Timestamp;
 
+// Re-exports
+pub use age;
+
 /// Encode to a binary buffer.
 pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
     encode_endian(encodable, Endian::Big)
