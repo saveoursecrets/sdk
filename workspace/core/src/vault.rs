@@ -33,21 +33,33 @@ use crate::{
     CommitHash, Error, FileIdentity, Result,
 };
 
+
 bitflags! {
     /// Bit flags for a vault.
     #[derive(Default, Serialize, Deserialize)]
     pub struct VaultFlags: u64 {
         /// Indicates this vault should be treated as the default folder.
-        const DEFAULT           =        0b00000001;
+        const DEFAULT           =        0b0000000000000001;
         /// Indicates this vault is an identity vault used to authenticate
         /// a user.
-        const IDENTITY          =        0b00000010;
+        const IDENTITY          =        0b0000000000000010;
         /// Indicates this vault is to be used as an archive.
-        const ARCHIVE           =        0b00000100;
+        const ARCHIVE           =        0b0000000000000100;
         /// Indicates this vault is to be used for two-factor authentication.
-        const AUTHENTICATOR     =        0b00001000;
+        const AUTHENTICATOR     =        0b0000000000001000;
         /// Indicates this vault is to be used to store contacts.
-        const CONTACT           =        0b00010000;
+        const CONTACT           =        0b0000000000010000;
+        /// Indicates this vault should not be synced with
+        /// devices owned by the account holder.
+        ///
+        /// You may want to combine this with NO_SYNC_OTHER
+        /// to completely ignore this vault from sync operations.
+        ///
+        /// This is useful for storing device specific keys.
+        const NO_SYNC_SELF      =        0b0000000000100000;
+        /// Idnicates this vault should not be synced with 
+        /// devices owned by other accounts.
+        const NO_SYNC_OTHER     =        0b0000000001000000;
     }
 }
 
@@ -75,6 +87,18 @@ impl VaultFlags {
     /// Determine if this vault is for contacts.
     pub fn is_contact(&self) -> bool {
         self.contains(VaultFlags::CONTACT)
+    }
+
+    /// Determine if this vault is set to ignore sync
+    /// with other devices owned by the account holder.
+    pub fn is_no_sync_self(&self) -> bool {
+        self.contains(VaultFlags::NO_SYNC_SELF)
+    }
+
+    /// Determine if this vault is set to ignore sync
+    /// with devices owned by other accounts.
+    pub fn is_no_sync_other(&self) -> bool {
+        self.contains(VaultFlags::NO_SYNC_OTHER)
     }
 }
 
@@ -761,6 +785,17 @@ impl Vault {
     /// Set whether this vault is for contacts.
     pub fn set_contact_flag(&mut self, value: bool) {
         self.flags_mut().set(VaultFlags::CONTACT, value);
+    }
+
+    /// Set whether this vault should not sync with own devices.
+    pub fn set_no_sync_self(&mut self, value: bool) {
+        self.flags_mut().set(VaultFlags::NO_SYNC_SELF, value);
+    }
+
+    /// Set whether this vault should not sync with devices
+    /// owned by other accounts.
+    pub fn set_no_sync_other(&mut self, value: bool) {
+        self.flags_mut().set(VaultFlags::NO_SYNC_OTHER, value);
     }
 
     /// Insert a secret into this vault.
