@@ -53,6 +53,7 @@ use secrecy::{ExposeSecret, SecretString};
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
 /// Encapsulate device specific information for an account.
+#[derive(Clone)]
 pub struct DeviceSigner {
     /// The vault containing device specific keys.
     pub summary: Summary,

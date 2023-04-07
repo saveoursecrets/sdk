@@ -42,14 +42,21 @@ impl From<BinarySignature> for Signature {
 }
 
 /// Boxed signer.
-type BoxedSigner<O, A> =
-    Box<dyn Signer<Output = O, Address = A> + Sync + Send + 'static>;
+type BoxedSigner<O, V, A> = Box<
+    dyn Signer<Output = O, Verifying = V, Address = A>
+        + Sync
+        + Send
+        + 'static,
+>;
 
 /// Trait for implementations that can sign a message.
 #[async_trait]
 pub trait Signer {
     /// The signature output when signing.
     type Output;
+
+    /// The type for the verifying key.
+    type Verifying;
 
     /// The type that represents an address for the signer.
     type Address;
@@ -62,11 +69,16 @@ pub trait Signer {
     /// so these signatures are not compatible with libsecp256k1.
     async fn sign(&self, message: &[u8]) -> Result<Self::Output>;
 
+    /// Get the verifying key for this signer.
+    fn verifying_key(&self) -> Self::Verifying;
+
     /// Compute the public address for this signer.
     fn address(&self) -> Result<Self::Address>;
 
     /// Clone a boxed version of this signer.
-    fn clone_boxed(&self) -> BoxedSigner<Self::Output, Self::Address>;
+    fn clone_boxed(
+        &self,
+    ) -> BoxedSigner<Self::Output, Self::Verifying, Self::Address>;
 
     /// Get the bytes for this signing key.
     fn to_bytes(&self) -> Vec<u8>;
@@ -75,7 +87,7 @@ pub trait Signer {
 /// ECDSA signer using the Secp256k1 curve from the k256 library.
 pub mod ecdsa {
     use async_trait::async_trait;
-    use k256::ecdsa::{hazmat::SignPrimitive, SigningKey};
+    use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
     use rand::rngs::OsRng;
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
@@ -86,7 +98,7 @@ pub mod ecdsa {
     use crate::Result;
 
     /// Signer for single party ECDSA signatures.
-    pub type BoxedEcdsaSigner = BoxedSigner<Signature, Address>;
+    pub type BoxedEcdsaSigner = BoxedSigner<Signature, VerifyingKey, Address>;
 
     impl Clone for BoxedEcdsaSigner {
         fn clone(&self) -> Self {
@@ -110,6 +122,7 @@ pub mod ecdsa {
     #[async_trait]
     impl Signer for SingleParty {
         type Output = Signature;
+        type Verifying = VerifyingKey;
         type Address = Address;
 
         fn clone_boxed(&self) -> BoxedEcdsaSigner {
@@ -118,6 +131,10 @@ pub mod ecdsa {
 
         fn to_bytes(&self) -> Vec<u8> {
             self.0.to_bytes().as_slice().to_vec()
+        }
+
+        fn verifying_key(&self) -> Self::Verifying {
+            *self.0.verifying_key()
         }
 
         async fn sign(&self, message: &[u8]) -> Result<Self::Output> {
@@ -163,7 +180,8 @@ pub mod ecdsa {
 pub mod ed25519 {
     use async_trait::async_trait;
     use ed25519_dalek::{
-        Signature, Signer as Ed25519Signer, SigningKey, SECRET_KEY_LENGTH,
+        Signature, Signer as Ed25519Signer, SigningKey, VerifyingKey,
+        SECRET_KEY_LENGTH,
     };
     use rand::rngs::OsRng;
 
@@ -171,7 +189,8 @@ pub mod ed25519 {
     use crate::Result;
 
     /// Signer for single party Ed25519signatures.
-    pub type BoxedEd25519Signer = BoxedSigner<Signature, String>;
+    pub type BoxedEd25519Signer =
+        BoxedSigner<Signature, VerifyingKey, String>;
 
     impl Clone for BoxedEd25519Signer {
         fn clone(&self) -> Self {
@@ -201,6 +220,7 @@ pub mod ed25519 {
     #[async_trait]
     impl Signer for SingleParty {
         type Output = Signature;
+        type Verifying = VerifyingKey;
         type Address = String;
 
         fn clone_boxed(&self) -> BoxedEd25519Signer {
@@ -209,6 +229,10 @@ pub mod ed25519 {
 
         fn to_bytes(&self) -> Vec<u8> {
             self.0.to_bytes().as_slice().to_vec()
+        }
+
+        fn verifying_key(&self) -> Self::Verifying {
+            self.0.verifying_key()
         }
 
         async fn sign(&self, message: &[u8]) -> Result<Self::Output> {
