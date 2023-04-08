@@ -52,6 +52,10 @@ mime_guess = { version = "2", optional = true }
 async-stream = { version = "0.3", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 
+# device
+whoami = { version = "1.4", optional = true }
+if-addrs = { version = "0.10.1", optional = true }
+
 # agent
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
@@ -99,6 +103,10 @@ server = [
   "mime_guess",
   "async-stream",
   "tokio-stream",
+]
+device = [
+  "if-addrs",
+  "whoami",
 ]
 gui = []
 
