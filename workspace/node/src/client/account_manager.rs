@@ -92,12 +92,25 @@ impl Default for AccountManifestOptions {
 }
 
 /// Manifest of all the data in an account.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountManifest {
+    /// Identifier for this manifest.
+    pub id: Uuid,
     /// Account address.
     pub address: String,
     /// Manifest entries.
     pub entries: Vec<ManifestEntry>,
+}
+
+impl AccountManifest {
+    /// Create a new account manifest.
+    pub fn new(address: String) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            address,
+            entries: Vec::new(),
+        }
+    }
 }
 
 /// Account manifest entry.
@@ -430,8 +443,7 @@ impl AccountManager {
         address: &str,
         options: AccountManifestOptions,
     ) -> Result<AccountManifest> {
-        let mut manifest: AccountManifest = Default::default();
-        manifest.address = address.to_owned();
+        let mut manifest = AccountManifest::new(address.to_owned());
 
         let path = Self::identity_vault(address)?;
         let (size, checksum) = Self::read_file_entry(path, None)?;
