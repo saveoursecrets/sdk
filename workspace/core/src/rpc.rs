@@ -182,6 +182,12 @@ impl<'a> RequestMessage<'a> {
     }
 }
 
+impl From<RequestMessage<'_>> for Vec<u8> {
+    fn from(value: RequestMessage<'_>) -> Self {
+        value.body.into_owned()
+    }
+}
+
 impl Encode for RequestMessage<'_> {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         // Id
@@ -309,6 +315,12 @@ impl<'a> ResponseMessage<'a> {
             None
         };
         Ok((self.id, self.status, value, self.body.to_vec()))
+    }
+}
+
+impl From<ResponseMessage<'_>> for Vec<u8> {
+    fn from(value: ResponseMessage<'_>) -> Self {
+        value.body.into_owned()
     }
 }
 

@@ -1,7 +1,7 @@
-//! Functions for getting the local LAN IP address and 
+//! Functions for getting the local LAN IP address and
 //! information about the device.
 use crate::Result;
-use if_addrs::{IfAddr, Ifv4Addr, get_if_addrs};
+use if_addrs::{get_if_addrs, IfAddr, Ifv4Addr};
 
 /// Get v4 IP addresses that are not the loopback or link
 /// local addresses.
@@ -19,7 +19,7 @@ pub fn v4_lan_ip_list() -> Result<Vec<Ifv4Addr>> {
     Ok(output)
 }
 
-/// Get the first v4 IP address that is not a loopback 
+/// Get the first v4 IP address that is not a loopback
 /// or link local address.
 pub fn v4_lan_ip() -> Result<Option<Ifv4Addr>> {
     let mut ips = v4_lan_ip_list()?;
