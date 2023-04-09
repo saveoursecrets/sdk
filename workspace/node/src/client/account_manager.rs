@@ -2,6 +2,8 @@
 //! creating and managing local accounts.
 use std::{
     borrow::Cow,
+    collections::HashMap,
+    fs::File,
     io::{Cursor, Read},
     path::{Path, PathBuf},
     sync::Arc,
@@ -10,6 +12,7 @@ use std::{
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use urn::Urn;
+use uuid::Uuid;
 use walkdir::WalkDir;
 
 use age::Encryptor;
@@ -26,7 +29,7 @@ use sos_core::{
     generate_passphrase_words,
     identity::{AuthenticatedUser, Identity},
     search::SearchIndex,
-    secret::{Secret, SecretMeta, SecretSigner, UserData},
+    secret::{Secret, SecretId, SecretMeta, SecretSigner, UserData},
     signer::{
         ecdsa::SingleParty,
         ed25519::{self, BoxedEd25519Signer},
@@ -75,6 +78,63 @@ pub struct AccountInfo {
     ///
     /// This is the name given to the identity vault.
     pub label: String,
+}
+
+/// Options to use when building an account manifest.
+pub struct AccountManifestOptions {
+    /// Ignore vaults with the NO_SYNC_SELF flag (default: `true`).
+    pub no_sync_self: bool,
+}
+
+impl Default for AccountManifestOptions {
+    fn default() -> Self {
+        Self { no_sync_self: true }
+    }
+}
+
+/// Manifest of all the data in an account.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AccountManifest {
+    /// Account address.
+    pub address: String,
+    /// Manifest entries.
+    pub entries: HashMap<Uuid, ManifestEntry>,
+}
+
+/// Account manifest entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ManifestEntry {
+    /// Identity vault.
+    Identity {
+        /// Label for the entry.
+        label: String,
+        /// Size of the file in bytes.
+        size: u64,
+        /// Checksum of the file data (SHA256).
+        checksum: [u8; 32],
+    },
+    /// Folder vault.
+    Vault {
+        /// Label for the entry.
+        label: String,
+        /// Size of the file in bytes.
+        size: u64,
+        /// Checksum of the file data (SHA256).
+        checksum: [u8; 32],
+    },
+    /// External file storage.
+    File {
+        /// Label for the entry.
+        label: String,
+        /// Size of the file in bytes.
+        size: u64,
+        /// Checksum of the file data (SHA256).
+        checksum: [u8; 32],
+        /// Vault identifier.
+        vault_id: VaultId,
+        /// Secret identifier.
+        secret_id: SecretId,
+    },
 }
 
 /// Request to create a new account.
@@ -360,17 +420,89 @@ impl AccountManager {
         Ok(decrypted)
     }
 
+    /// Build a manifest for an account.
+    pub fn manifest(
+        address: &str,
+        options: AccountManifestOptions,
+    ) -> Result<AccountManifest> {
+        let mut manifest: AccountManifest = Default::default();
+        manifest.address = address.to_owned();
+
+        let path = Self::identity_vault(address)?;
+        let (size, checksum) = Self::read_file_entry(path)?;
+        let entry = ManifestEntry::Identity {
+            label: address.to_owned(),
+            size,
+            checksum: checksum.as_slice().try_into()?,
+        };
+        manifest.entries.insert(Uuid::new_v4(), entry);
+
+        let vaults = Self::list_local_vaults(address, false)?;
+        for (summary, path) in vaults {
+            if options.no_sync_self && summary.flags().is_no_sync_self() {
+                continue;
+            }
+
+            let (size, checksum) = Self::read_file_entry(path)?;
+            let entry = ManifestEntry::Vault {
+                label: summary.name().to_owned(),
+                size,
+                checksum: checksum.as_slice().try_into()?,
+            };
+            manifest.entries.insert(Uuid::new_v4(), entry);
+        }
+
+        let files = Self::files_dir(address)?;
+        for entry in WalkDir::new(&files) {
+            let entry = entry?;
+            if entry.path().is_file() {
+                let relative = entry.path().strip_prefix(&files)?;
+
+                let mut it = relative.iter();
+                if let (Some(vault_id), Some(secret_id), Some(file_name)) =
+                    (it.next(), it.next(), it.next())
+                {
+                    let label = file_name.to_string_lossy().into_owned();
+                    let vault_id: VaultId =
+                        vault_id.to_string_lossy().parse()?;
+
+                    let secret_id: SecretId =
+                        secret_id.to_string_lossy().parse()?;
+
+                    let (size, checksum) =
+                        Self::read_file_entry(entry.path())?;
+                    let entry = ManifestEntry::File {
+                        label,
+                        size,
+                        checksum: checksum.as_slice().try_into()?,
+                        vault_id,
+                        secret_id,
+                    };
+                    manifest.entries.insert(Uuid::new_v4(), entry);
+                }
+            }
+        }
+        Ok(manifest)
+    }
+
+    fn read_file_entry<P: AsRef<Path>>(path: P) -> Result<(u64, [u8; 32])> {
+        let mut file = File::open(path)?;
+        let size = file.metadata()?.len();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+        let checksum = Sha256::digest(&buffer);
+        Ok((size, checksum.as_slice().try_into()?))
+    }
+
     /// Get the local cache directory.
     pub fn local_dir() -> Result<PathBuf> {
-        let local_dir = cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR);
-        Ok(local_dir)
+        Ok(cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR))
     }
 
     /// Get the local directory for storing vaults.
     pub fn local_vaults_dir(address: &str) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
-        let vaults_dir = local_dir.join(address).join(VAULTS_DIR);
-        Ok(vaults_dir)
+        Ok(local_dir.join(address).join(VAULTS_DIR))
     }
 
     /// Get the path to the directory used to store files.

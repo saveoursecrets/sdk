@@ -2,7 +2,7 @@
 
 use sos_core::{
     encode,
-    signer::ecdsa::{BoxedEcdsaSigner, BinarySignature},
+    signer::ecdsa::{BinarySignature, BoxedEcdsaSigner},
 };
 
 use url::Url;

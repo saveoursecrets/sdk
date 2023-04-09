@@ -13,8 +13,8 @@ type BoxedSigner<O, V, A> = Box<
 
 /// Trait for implementations that can sign a message.
 ///
-/// This trait is declared with an async signature so that 
-/// in the future we can support threshold signatures 
+/// This trait is declared with an async signature so that
+/// in the future we can support threshold signatures
 /// which are inherently asynchronous.
 #[async_trait]
 pub trait Signer {
@@ -34,7 +34,7 @@ pub trait Signer {
     /// Note that libsecp256k1 uses SHA256 for it's digest
     /// so these signatures are not compatible with libsecp256k1.
     async fn sign(&self, message: &[u8]) -> Result<Self::Output>;
-    
+
     /// Sign a message synchronously.
     fn sign_sync(&self, message: &[u8]) -> Result<Self::Output>;
 
@@ -56,16 +56,17 @@ pub trait Signer {
 /// ECDSA signer using the Secp256k1 curve from the k256 library.
 pub mod ecdsa {
     use async_trait::async_trait;
-    use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
     use rand::rngs::OsRng;
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
-    use web3_address::ethereum::Address;
-    use web3_signature::Signature;
 
     use binary_stream::{
         BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
     };
+
+    pub use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
+    pub use web3_address::ethereum::Address;
+    pub use web3_signature::Signature;
 
     use super::{BoxedSigner, Signer};
     use crate::Result;
