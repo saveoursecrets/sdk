@@ -21,7 +21,7 @@ use sos_core::{
     archive::{Inventory, Reader, Writer},
     constants::{
         DEVICE_KEY_URN, FILES_DIR, FILE_PASSWORD_URN, IDENTITY_DIR,
-        LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT, TEMP_DIR,
+        LOCAL_DIR, TEMP_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT,
     },
     decode, encode,
     events::WalEvent,
@@ -153,6 +153,17 @@ pub enum ManifestEntry {
         /// Secret identifier.
         secret_id: SecretId,
     },
+}
+
+impl ManifestEntry {
+    /// Get the identifier for this entry.
+    pub fn id(&self) -> &Uuid {
+        match self {
+            Self::Identity { id, .. } => id,
+            Self::Vault { id, .. } => id,
+            Self::File { id, .. } => id,
+        }
+    }
 }
 
 /// Request to create a new account.
@@ -463,7 +474,7 @@ impl AccountManager {
 
             let (size, checksum) = Self::read_file_entry(path, None)?;
             let entry = ManifestEntry::Vault {
-                id: Uuid::new_v4(),
+                id: *summary.id(),
                 label: summary.name().to_owned(),
                 size,
                 checksum: checksum.as_slice().try_into()?,
@@ -505,6 +516,28 @@ impl AccountManager {
             }
         }
         Ok(manifest)
+    }
+
+    /// Resolve a manifest entry to a path.
+    pub fn resolve_manifest_entry(
+        address: &str,
+        entry: &ManifestEntry,
+    ) -> Result<PathBuf> {
+        match entry {
+            ManifestEntry::Identity { .. } => Self::identity_vault(address),
+            ManifestEntry::Vault { id, .. } => {
+                let mut path =
+                    Self::local_vaults_dir(address)?.join(id.to_string());
+                path.set_extension(VAULT_EXT);
+                Ok(path)
+            }
+            ManifestEntry::File { vault_id, secret_id, label, .. } => {
+                Ok(Self::files_dir(address)?
+                    .join(vault_id.to_string())
+                    .join(secret_id.to_string())
+                    .join(label))
+            }
+        }
     }
 
     fn read_file_entry<P: AsRef<Path>>(
