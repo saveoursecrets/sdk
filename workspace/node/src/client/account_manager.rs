@@ -434,7 +434,7 @@ impl AccountManager {
         manifest.address = address.to_owned();
 
         let path = Self::identity_vault(address)?;
-        let (size, checksum) = Self::read_file_entry(path)?;
+        let (size, checksum) = Self::read_file_entry(path, None)?;
         let entry = ManifestEntry::Identity {
             id: Uuid::new_v4(),
             label: address.to_owned(),
@@ -449,7 +449,7 @@ impl AccountManager {
                 continue;
             }
 
-            let (size, checksum) = Self::read_file_entry(path)?;
+            let (size, checksum) = Self::read_file_entry(path, None)?;
             let entry = ManifestEntry::Vault {
                 id: Uuid::new_v4(),
                 label: summary.name().to_owned(),
@@ -476,8 +476,10 @@ impl AccountManager {
                     let secret_id: SecretId =
                         secret_id.to_string_lossy().parse()?;
 
-                    let (size, checksum) =
-                        Self::read_file_entry(entry.path())?;
+                    let (size, checksum) = Self::read_file_entry(
+                        entry.path(),
+                        Some(label.clone()),
+                    )?;
                     let entry = ManifestEntry::File {
                         id: Uuid::new_v4(),
                         label,
@@ -493,12 +495,22 @@ impl AccountManager {
         Ok(manifest)
     }
 
-    fn read_file_entry<P: AsRef<Path>>(path: P) -> Result<(u64, [u8; 32])> {
+    fn read_file_entry<P: AsRef<Path>>(
+        path: P,
+        file_name: Option<String>,
+    ) -> Result<(u64, [u8; 32])> {
         let mut file = File::open(path)?;
         let size = file.metadata()?.len();
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
-        let checksum = Sha256::digest(&buffer);
+        // For files we already have the checksum encoded in the
+        // file name so parse it from the file name
+        let checksum = if let Some(file_name) = file_name {
+            hex::decode(file_name.as_bytes())?
+        // Otherwise for vaults read in the file data and compute
+        } else {
+            let mut hasher = Sha256::new();
+            std::io::copy(&mut file, &mut hasher)?;
+            hasher.finalize().to_vec()
+        };
         Ok((size, checksum.as_slice().try_into()?))
     }
 
