@@ -164,6 +164,15 @@ impl ManifestEntry {
             Self::File { id, .. } => id,
         }
     }
+
+    /// Get the checksum for this entry.
+    pub fn checksum(&self) -> [u8; 32] {
+        match self {
+            Self::Identity { checksum, .. } => *checksum,
+            Self::Vault { checksum, .. } => *checksum,
+            Self::File { checksum, .. } => *checksum,
+        }
+    }
 }
 
 /// Request to create a new account.
@@ -531,12 +540,15 @@ impl AccountManager {
                 path.set_extension(VAULT_EXT);
                 Ok(path)
             }
-            ManifestEntry::File { vault_id, secret_id, label, .. } => {
-                Ok(Self::files_dir(address)?
-                    .join(vault_id.to_string())
-                    .join(secret_id.to_string())
-                    .join(label))
-            }
+            ManifestEntry::File {
+                vault_id,
+                secret_id,
+                label,
+                ..
+            } => Ok(Self::files_dir(address)?
+                .join(vault_id.to_string())
+                .join(secret_id.to_string())
+                .join(label)),
         }
     }
 
