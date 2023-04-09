@@ -131,6 +131,9 @@ mod dirs {
 
     /// Directory to store files.
     pub const FILES_DIR: &str = "files";
+
+    /// Directory to store temporary files.
+    pub const TEMP_DIR: &str = "temp";
 }
 
 mod archive {

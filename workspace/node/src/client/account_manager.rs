@@ -21,7 +21,7 @@ use sos_core::{
     archive::{Inventory, Reader, Writer},
     constants::{
         DEVICE_KEY_URN, FILES_DIR, FILE_PASSWORD_URN, IDENTITY_DIR,
-        LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT,
+        LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT, TEMP_DIR,
     },
     decode, encode,
     events::WalEvent,
@@ -529,6 +529,11 @@ impl AccountManager {
     /// Get the local cache directory.
     pub fn local_dir() -> Result<PathBuf> {
         Ok(cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR))
+    }
+
+    /// Get the temporary directory.
+    pub fn temp_dir() -> Result<PathBuf> {
+        Ok(Self::local_dir()?.join(TEMP_DIR))
     }
 
     /// Get the local directory for storing vaults.
