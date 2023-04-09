@@ -1,45 +1,7 @@
 //! Traits and types for signing messages.
 use async_trait::async_trait;
-use binary_stream::{
-    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-};
-use web3_signature::Signature;
 
 use crate::Result;
-
-/// Signature that can be encoded and decoded to binary.
-#[derive(Default)]
-pub struct BinarySignature(Signature);
-
-impl Encode for BinarySignature {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        // 65 byte signature
-        let buffer = self.0.to_bytes();
-        writer.write_bytes(buffer)?;
-        Ok(())
-    }
-}
-
-impl Decode for BinarySignature {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let buffer: [u8; 65] =
-            reader.read_bytes(65)?.as_slice().try_into()?;
-        self.0 = buffer.into();
-        Ok(())
-    }
-}
-
-impl From<Signature> for BinarySignature {
-    fn from(value: Signature) -> Self {
-        BinarySignature(value)
-    }
-}
-
-impl From<BinarySignature> for Signature {
-    fn from(value: BinarySignature) -> Self {
-        value.0
-    }
-}
 
 /// Boxed signer.
 type BoxedSigner<O, V, A> = Box<
@@ -101,11 +63,49 @@ pub mod ecdsa {
     use web3_address::ethereum::Address;
     use web3_signature::Signature;
 
+    use binary_stream::{
+        BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
+    };
+
     use super::{BoxedSigner, Signer};
     use crate::Result;
 
     /// Signer for single party ECDSA signatures.
     pub type BoxedEcdsaSigner = BoxedSigner<Signature, VerifyingKey, Address>;
+
+    /// Signature that can be encoded and decoded to binary.
+    #[derive(Default)]
+    pub struct BinarySignature(Signature);
+
+    impl Encode for BinarySignature {
+        fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+            // 65 byte signature
+            let buffer = self.0.to_bytes();
+            writer.write_bytes(buffer)?;
+            Ok(())
+        }
+    }
+
+    impl Decode for BinarySignature {
+        fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+            let buffer: [u8; 65] =
+                reader.read_bytes(65)?.as_slice().try_into()?;
+            self.0 = buffer.into();
+            Ok(())
+        }
+    }
+
+    impl From<Signature> for BinarySignature {
+        fn from(value: Signature) -> Self {
+            BinarySignature(value)
+        }
+    }
+
+    impl From<BinarySignature> for Signature {
+        fn from(value: BinarySignature) -> Self {
+            value.0
+        }
+    }
 
     impl Clone for BoxedEcdsaSigner {
         fn clone(&self) -> Self {

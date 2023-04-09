@@ -3,7 +3,7 @@
 use axum::headers::{authorization::Bearer, Authorization};
 use serde::Deserialize;
 
-use sos_core::{decode, signer::BinarySignature};
+use sos_core::{decode, signer::ecdsa::BinarySignature};
 use web3_address::ethereum::Address;
 
 use k256::ecdsa::VerifyingKey;
