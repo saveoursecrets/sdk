@@ -50,6 +50,10 @@ type BoxedSigner<O, V, A> = Box<
 >;
 
 /// Trait for implementations that can sign a message.
+///
+/// This trait is declared with an async signature so that 
+/// in the future we can support threshold signatures 
+/// which are inherently asynchronous.
 #[async_trait]
 pub trait Signer {
     /// The signature output when signing.
@@ -68,6 +72,9 @@ pub trait Signer {
     /// Note that libsecp256k1 uses SHA256 for it's digest
     /// so these signatures are not compatible with libsecp256k1.
     async fn sign(&self, message: &[u8]) -> Result<Self::Output>;
+    
+    /// Sign a message synchronously.
+    fn sign_sync(&self, message: &[u8]) -> Result<Self::Output>;
 
     /// Get the verifying key for this signer.
     fn verifying_key(&self) -> Self::Verifying;
@@ -138,6 +145,10 @@ pub mod ecdsa {
         }
 
         async fn sign(&self, message: &[u8]) -> Result<Self::Output> {
+            self.sign_sync(message)
+        }
+
+        fn sign_sync(&self, message: &[u8]) -> Result<Self::Output> {
             let digest = Keccak256::digest(message);
             let result = self
                 .0
@@ -236,6 +247,10 @@ pub mod ed25519 {
         }
 
         async fn sign(&self, message: &[u8]) -> Result<Self::Output> {
+            self.sign_sync(message)
+        }
+
+        fn sign_sync(&self, message: &[u8]) -> Result<Self::Output> {
             Ok(self.0.sign(message))
         }
 
