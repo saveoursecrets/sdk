@@ -2,7 +2,6 @@
 //! creating and managing local accounts.
 use std::{
     borrow::Cow,
-    collections::HashMap,
     fs::File,
     io::{Cursor, Read},
     path::{Path, PathBuf},
@@ -98,7 +97,7 @@ pub struct AccountManifest {
     /// Account address.
     pub address: String,
     /// Manifest entries.
-    pub entries: HashMap<Uuid, ManifestEntry>,
+    pub entries: Vec<ManifestEntry>,
 }
 
 /// Account manifest entry.
@@ -106,6 +105,8 @@ pub struct AccountManifest {
 pub enum ManifestEntry {
     /// Identity vault.
     Identity {
+        /// Identifier for this entry.
+        id: Uuid,
         /// Label for the entry.
         label: String,
         /// Size of the file in bytes.
@@ -115,6 +116,8 @@ pub enum ManifestEntry {
     },
     /// Folder vault.
     Vault {
+        /// Identifier for this entry.
+        id: Uuid,
         /// Label for the entry.
         label: String,
         /// Size of the file in bytes.
@@ -124,6 +127,8 @@ pub enum ManifestEntry {
     },
     /// External file storage.
     File {
+        /// Identifier for this entry.
+        id: Uuid,
         /// Label for the entry.
         label: String,
         /// Size of the file in bytes.
@@ -431,11 +436,12 @@ impl AccountManager {
         let path = Self::identity_vault(address)?;
         let (size, checksum) = Self::read_file_entry(path)?;
         let entry = ManifestEntry::Identity {
+            id: Uuid::new_v4(),
             label: address.to_owned(),
             size,
             checksum: checksum.as_slice().try_into()?,
         };
-        manifest.entries.insert(Uuid::new_v4(), entry);
+        manifest.entries.push(entry);
 
         let vaults = Self::list_local_vaults(address, false)?;
         for (summary, path) in vaults {
@@ -445,11 +451,12 @@ impl AccountManager {
 
             let (size, checksum) = Self::read_file_entry(path)?;
             let entry = ManifestEntry::Vault {
+                id: Uuid::new_v4(),
                 label: summary.name().to_owned(),
                 size,
                 checksum: checksum.as_slice().try_into()?,
             };
-            manifest.entries.insert(Uuid::new_v4(), entry);
+            manifest.entries.push(entry);
         }
 
         let files = Self::files_dir(address)?;
@@ -472,13 +479,14 @@ impl AccountManager {
                     let (size, checksum) =
                         Self::read_file_entry(entry.path())?;
                     let entry = ManifestEntry::File {
+                        id: Uuid::new_v4(),
                         label,
                         size,
                         checksum: checksum.as_slice().try_into()?,
                         vault_id,
                         secret_id,
                     };
-                    manifest.entries.insert(Uuid::new_v4(), entry);
+                    manifest.entries.push(entry);
                 }
             }
         }
