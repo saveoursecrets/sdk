@@ -98,7 +98,7 @@ impl TryFrom<(Vec<u8>, String)> for TrustedDevice {
     type Error = Error;
     fn try_from(value: (Vec<u8>, String)) -> Result<Self> {
         Ok(Self {
-            extra_info: serde_json::from_str(&value.1)?, 
+            extra_info: serde_json::from_str(&value.1)?,
             public_key: value.0,
         })
     }
@@ -107,10 +107,7 @@ impl TryFrom<(Vec<u8>, String)> for TrustedDevice {
 impl TryFrom<TrustedDevice> for (Vec<u8>, String) {
     type Error = Error;
     fn try_from(value: TrustedDevice) -> Result<Self> {
-        Ok((
-            value.public_key,
-            serde_json::to_string(&value.extra_info)?, 
-        ))
+        Ok((value.public_key, serde_json::to_string(&value.extra_info)?))
     }
 }
 

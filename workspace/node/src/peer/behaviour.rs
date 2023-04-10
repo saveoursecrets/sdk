@@ -1,36 +1,16 @@
-use std::{
-    collections::{hash_map, HashMap, HashSet},
-    io, iter,
-};
-
-use either::Either;
-use futures::channel::{mpsc, oneshot};
-use futures::prelude::*;
-
 use libp2p::{
-    core::Multiaddr,
-    identity,
-    kad::{
-        record::store::MemoryStore, GetProvidersOk, Kademlia, KademliaEvent,
-        QueryId, QueryResult,
-    },
-    multiaddr::Protocol,
-    request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
-    swarm::{
-        ConnectionHandlerUpgrErr, NetworkBehaviour, Swarm, SwarmBuilder,
-        SwarmEvent,
-    },
-    PeerId,
+    kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
+    request_response,
+    swarm::NetworkBehaviour,
 };
 
-use sos_core::rpc::{RequestMessage, ResponseMessage};
-
-use super::{protocol::*, transport};
+use super::protocol::{PeerRpcRequest, PeerRpcResponse, RpcExchangeCodec};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "ComposedEvent")]
 pub(crate) struct ComposedBehaviour {
-    pub(crate) request_response: request_response::Behaviour<RpcExchangeCodec>,
+    pub(crate) request_response:
+        request_response::Behaviour<RpcExchangeCodec>,
     pub(crate) kademlia: Kademlia<MemoryStore>,
 }
 

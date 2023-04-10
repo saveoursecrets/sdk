@@ -5,8 +5,8 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum Error {
     /// Error generated when listening fails.
-    #[error("listen {0} failed")]
-    ListenFailed(String),
+    #[error("listen {0} failed: {1}")]
+    ListenFailed(String, String),
 
     /// Error generated when dialing fails.
     #[error("dial {0} failed")]

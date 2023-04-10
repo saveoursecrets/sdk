@@ -1,6 +1,6 @@
 //! Peer to peer network proxy.
 use std::{
-    collections::{hash_map, HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap},
     io, iter,
 };
 
@@ -13,22 +13,16 @@ use super::{Error, Result};
 use libp2p::{
     core::Multiaddr,
     identity,
-    kad::{
-        record::store::MemoryStore, GetProvidersOk, Kademlia, KademliaEvent,
-        QueryId, QueryResult,
-    },
+    kad::{record::store::MemoryStore, Kademlia},
     multiaddr::Protocol,
     request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
-    swarm::{
-        ConnectionHandlerUpgrErr, NetworkBehaviour, Swarm, SwarmBuilder,
-        SwarmEvent,
-    },
+    swarm::{ConnectionHandlerUpgrErr, Swarm, SwarmBuilder, SwarmEvent},
     PeerId,
 };
 
 use sos_core::rpc::{RequestMessage, ResponseMessage};
 
-use super::{protocol::*, transport, behaviour::*};
+use super::{behaviour::*, protocol::*, transport};
 
 /// Commands are sent by the client to make changes
 /// to the network.
@@ -179,7 +173,7 @@ impl Client {
             .await?;
         receiver.await?
     }
-    
+
     /// Send an RPC request to a peer.
     pub async fn rpc_request(
         &mut self,
@@ -243,7 +237,7 @@ impl EventLoop {
             shutdown,
         }
     }
-    
+
     /// Start the event loop running.
     pub async fn run(mut self) {
         loop {
@@ -269,10 +263,7 @@ impl EventLoop {
         &mut self,
         event: SwarmEvent<
             ComposedEvent,
-            Either<
-                ConnectionHandlerUpgrErr<io::Error>,
-                io::Error,
-            >,
+            Either<ConnectionHandlerUpgrErr<io::Error>, io::Error>,
         >,
     ) {
         match event {
@@ -370,7 +361,6 @@ impl EventLoop {
                 request_response::Message::Request {
                     request,
                     channel,
-                    request_id,
                     ..
                 } => {
                     self.event_sender
@@ -400,18 +390,11 @@ impl EventLoop {
             },
             SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                 request_response::Event::OutboundFailure {
-                    request_id,
-                    error,
+                    //error,
                     ..
                 },
             )) => {
-                /*
-                let _ = self
-                    .pending_request
-                    .remove(&request_id)
-                    .expect("request to still be pending.")
-                    .send(Err(anyhow!(error)));
-                */
+
             }
             SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                 request_response::Event::ResponseSent { .. },
@@ -423,12 +406,14 @@ impl EventLoop {
                 log::error!("{}", error);
                 if let Some(peer_id) = peer_id {
                     if let Some(sender) = self.pending_dial.remove(&peer_id) {
-                        let _ = sender.send(Err(Error::OutgoingConnection(error.to_string())));
+                        let _ = sender.send(Err(Error::OutgoingConnection(
+                            error.to_string(),
+                        )));
                     }
                 }
             }
             SwarmEvent::IncomingConnectionError { .. } => {}
-            SwarmEvent::Dialing(peer_id) => {}
+            SwarmEvent::Dialing(_peer_id) => {}
             e => log::error!("{e:?}"),
         }
     }
@@ -438,7 +423,10 @@ impl EventLoop {
             Command::StartListening { addr, sender } => {
                 let _ = match self.swarm.listen_on(addr.clone()) {
                     Ok(_) => sender.send(Ok(())),
-                    Err(e) => sender.send(Err(Error::ListenFailed(addr.to_string()))),
+                    Err(e) => sender.send(Err(Error::ListenFailed(
+                        addr.to_string(),
+                        e.to_string(),
+                    ))),
                 };
             }
             Command::Dial {
@@ -446,23 +434,22 @@ impl EventLoop {
                 peer_addr,
                 sender,
             } => {
-                if let hash_map::Entry::Vacant(e) =
-                    self.pending_dial.entry(peer_id)
-                {
+                if let Entry::Vacant(e) = self.pending_dial.entry(peer_id) {
                     self.swarm
                         .behaviour_mut()
                         .kademlia
                         .add_address(&peer_id, peer_addr.clone());
-                    match self
-                        .swarm
-                        .dial(peer_addr.clone().with(Protocol::P2p(peer_id.into())))
-                    {
+                    match self.swarm.dial(
+                        peer_addr.clone().with(Protocol::P2p(peer_id.into())),
+                    ) {
                         Ok(()) => {
                             e.insert(sender);
                         }
                         Err(e) => {
                             log::warn!("error on dial {:#?}", e);
-                            let _ = sender.send(Err(Error::DialFailed(peer_addr.to_string())));
+                            let _ = sender.send(Err(Error::DialFailed(
+                                peer_addr.to_string(),
+                            )));
                         }
                     }
                 } else {
