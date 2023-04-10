@@ -56,9 +56,11 @@ const VAULT_PASSPHRASE_WORDS: usize = 12;
 
 /// Device that has been trusted.
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TrustedDevice {
     /// The public key for the device.
-    pub public_key: [u8; 32],
+    #[serde(with = "hex::serde")]
+    pub public_key: Vec<u8>,
     /// Additional information about the device such as the 
     /// manufacturer and model.
     pub extra_info: serde_json::Value,
