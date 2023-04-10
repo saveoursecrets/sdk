@@ -13,6 +13,8 @@ extern crate sha3;
 pub mod client;
 #[cfg(feature = "device")]
 pub mod device;
+#[cfg(feature = "peer")]
+pub mod peer;
 #[cfg(feature = "server")]
 pub mod server;
 
