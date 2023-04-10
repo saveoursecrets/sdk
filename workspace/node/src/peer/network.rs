@@ -20,9 +20,15 @@ use libp2p::{
     PeerId,
 };
 
-use sos_core::rpc::{RequestMessage, ResponseMessage};
-
-use super::{behaviour::*, protocol::*, transport};
+use super::{
+    behaviour::*,
+    events::{ChangeEvent, MessageEvent, NetworkEvent},
+    protocol::{
+        PeerRpcRequest, PeerRpcResponse, RpcExchangeCodec,
+        RpcExchangeProtocol,
+    },
+    transport,
+};
 
 /// Commands are sent by the client to make changes
 /// to the network.
@@ -45,57 +51,6 @@ pub(crate) enum Command {
     Response {
         response: PeerRpcResponse,
         channel: ResponseChannel<PeerRpcResponse>,
-    },
-}
-
-/// Network event is dispatch by the network to the
-/// events stream.
-#[derive(Debug)]
-pub enum NetworkEvent {
-    /// Dispatched when changes to the network have been made.
-    Change(ChangeEvent),
-    /// Dispatched for RPC requests and responses.
-    Message(MessageEvent),
-}
-
-/// Change event dispatched when changes to the network have been made.
-#[derive(Debug)]
-pub enum ChangeEvent {
-    /// Event dispatched when a new listen address becomes available.
-    NewListenAddr {
-        /// Local peer id.
-        peer_id: PeerId,
-        /// Listening address.
-        address: Multiaddr,
-    },
-    /// Event dispatched when a connection is established.
-    ConnectionEstablished {
-        /// Remote peer id.
-        peer_id: PeerId,
-    },
-    /// Event dispatched when a connection is closed.
-    ConnectionClosed {
-        /// Remote peer id.
-        peer_id: PeerId,
-    },
-}
-
-/// Message event dispatched when an RPC message is sent or received.
-#[derive(Debug)]
-pub enum MessageEvent {
-    /// Message event for an inbound request.
-    InboundRequest {
-        /// Request message.
-        request: RequestMessage<'static>,
-        /// Channel to route the response to.
-        channel: ResponseChannel<PeerRpcResponse>,
-    },
-    /// Message event for an outbound response.
-    OutboundResponse {
-        /// The request identifier.
-        request_id: RequestId,
-        /// The response message.
-        response: ResponseMessage<'static>,
     },
 }
 

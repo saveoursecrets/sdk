@@ -16,15 +16,19 @@ use sos_core::{
 
 const MAX_BUFFER_READ: usize = 16_777_216;
 
+/// Protocol for RPC messages.
 #[derive(Debug, Clone)]
 pub struct RpcExchangeProtocol();
 
+/// Codec for RPC messages.
 #[derive(Clone)]
 pub struct RpcExchangeCodec();
 
+/// RPC request message.
 #[derive(Debug)]
 pub struct PeerRpcRequest(pub RequestMessage<'static>);
 
+/// RPC response message.
 #[derive(Debug)]
 pub struct PeerRpcResponse(pub ResponseMessage<'static>);
 

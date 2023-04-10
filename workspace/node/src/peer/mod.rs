@@ -2,8 +2,9 @@
 
 mod behaviour;
 pub mod error;
+pub mod events;
 pub mod network;
-mod protocol;
+pub mod protocol;
 mod transport;
 
 // Re-exports
