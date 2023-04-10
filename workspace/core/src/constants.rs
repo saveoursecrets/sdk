@@ -132,6 +132,9 @@ mod dirs {
     /// Directory to store files.
     pub const FILES_DIR: &str = "files";
 
+    /// Directory to store trusted devices public keys.
+    pub const DEVICES_DIR: &str = "devices";
+
     /// Directory to store temporary files.
     pub const TEMP_DIR: &str = "temp";
 }

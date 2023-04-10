@@ -20,8 +20,8 @@ use k256::sha2::{Digest, Sha256};
 use sos_core::{
     archive::{Inventory, Reader, Writer},
     constants::{
-        DEVICE_KEY_URN, FILES_DIR, FILE_PASSWORD_URN, IDENTITY_DIR,
-        LOCAL_DIR, TEMP_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT,
+        DEVICES_DIR, DEVICE_KEY_URN, FILES_DIR, FILE_PASSWORD_URN,
+        IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT,
     },
     decode, encode,
     events::WalEvent,
@@ -53,6 +53,59 @@ use secrecy::{ExposeSecret, SecretString};
 
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
+
+/// Device that has been trusted.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TrustedDevice {
+    /// The public key for the device.
+    pub public_key: [u8; 32],
+    /// Additional information about the device such as the 
+    /// manufacturer and model.
+    pub extra_info: serde_json::Value,
+}
+
+impl TrustedDevice {
+    /// Compute a base58 address string of this public key.
+    pub fn address(&self) -> Result<String> {
+        let mut encoded = String::new();
+        bs58::encode(&self.public_key).into(&mut encoded)?;
+        Ok(encoded)
+    }
+
+    /// Add a device to the trusted devices for an account.
+    pub fn add_device(address: &str, device: TrustedDevice) -> Result<()> {
+        let device_path = Self::device_path(address, &device)?;
+        let mut file = File::create(device_path)?;
+        serde_json::to_writer(&mut file, &device)?;
+        Ok(())
+    }
+
+    /// Remove a device from the trusted devices for an account.
+    pub fn remove_device(
+        address: &str,
+        device: &TrustedDevice,
+    ) -> Result<()> {
+        let device_path = Self::device_path(address, &device)?;
+        std::fs::remove_file(device_path)?;
+        Ok(())
+    }
+
+    fn device_path(address: &str, device: &TrustedDevice) -> Result<PathBuf> {
+        let device_address = device.address()?;
+        let device_dir = AccountManager::local_devices_dir(address)?;
+
+        let mut device_path = device_dir.join(device_address);
+        device_path.set_extension("json");
+
+        if let Some(parent) = device_path.parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(parent)?;
+            }
+        }
+
+        Ok(device_path)
+    }
+}
 
 /// Encapsulate device specific information for an account.
 #[derive(Clone)]
@@ -579,6 +632,12 @@ impl AccountManager {
     /// Get the temporary directory.
     pub fn temp_dir() -> Result<PathBuf> {
         Ok(Self::local_dir()?.join(TEMP_DIR))
+    }
+
+    /// Get the local directory for storing devices.
+    pub fn local_devices_dir(address: &str) -> Result<PathBuf> {
+        let local_dir = Self::local_dir()?;
+        Ok(local_dir.join(address).join(DEVICES_DIR))
     }
 
     /// Get the local directory for storing vaults.
