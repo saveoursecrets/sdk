@@ -61,7 +61,7 @@ pub struct TrustedDevice {
     /// The public key for the device.
     #[serde(with = "hex::serde")]
     pub public_key: Vec<u8>,
-    /// Additional information about the device such as the 
+    /// Additional information about the device such as the
     /// manufacturer and model.
     pub extra_info: serde_json::Value,
 }
@@ -78,7 +78,7 @@ impl TrustedDevice {
     pub fn add_device(address: &str, device: TrustedDevice) -> Result<()> {
         let device_path = Self::device_path(address, &device)?;
         let mut file = File::create(device_path)?;
-        serde_json::to_writer(&mut file, &device)?;
+        serde_json::to_writer_pretty(&mut file, &device)?;
         Ok(())
     }
 
@@ -90,6 +90,19 @@ impl TrustedDevice {
         let device_path = Self::device_path(address, &device)?;
         std::fs::remove_file(device_path)?;
         Ok(())
+    }
+    
+    /// Load all trusted devices for an account.
+    pub fn load_devices(address: &str) -> Result<Vec<TrustedDevice>> {
+        let mut devices = Vec::new();
+        let device_dir = AccountManager::local_devices_dir(address)?;
+        for entry in std::fs::read_dir(device_dir)? {
+            let entry = entry?;
+            let file = File::open(entry.path())?;
+            let device: TrustedDevice = serde_json::from_reader(file)?;
+            devices.push(device);
+        }
+        Ok(devices)
     }
 
     fn device_path(address: &str, device: &TrustedDevice) -> Result<PathBuf> {
