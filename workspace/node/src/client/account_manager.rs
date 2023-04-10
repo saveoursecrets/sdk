@@ -54,74 +54,6 @@ use secrecy::{ExposeSecret, SecretString};
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
-/// Device that has been trusted.
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TrustedDevice {
-    /// The public key for the device.
-    #[serde(with = "hex::serde")]
-    pub public_key: Vec<u8>,
-    /// Additional information about the device such as the
-    /// manufacturer and model.
-    pub extra_info: serde_json::Value,
-}
-
-impl TrustedDevice {
-    /// Compute a base58 address string of this public key.
-    pub fn address(&self) -> Result<String> {
-        let mut encoded = String::new();
-        bs58::encode(&self.public_key).into(&mut encoded)?;
-        Ok(encoded)
-    }
-
-    /// Add a device to the trusted devices for an account.
-    pub fn add_device(address: &str, device: TrustedDevice) -> Result<()> {
-        let device_path = Self::device_path(address, &device)?;
-        let mut file = File::create(device_path)?;
-        serde_json::to_writer_pretty(&mut file, &device)?;
-        Ok(())
-    }
-
-    /// Remove a device from the trusted devices for an account.
-    pub fn remove_device(
-        address: &str,
-        device: &TrustedDevice,
-    ) -> Result<()> {
-        let device_path = Self::device_path(address, &device)?;
-        std::fs::remove_file(device_path)?;
-        Ok(())
-    }
-    
-    /// Load all trusted devices for an account.
-    pub fn load_devices(address: &str) -> Result<Vec<TrustedDevice>> {
-        let mut devices = Vec::new();
-        let device_dir = AccountManager::local_devices_dir(address)?;
-        for entry in std::fs::read_dir(device_dir)? {
-            let entry = entry?;
-            let file = File::open(entry.path())?;
-            let device: TrustedDevice = serde_json::from_reader(file)?;
-            devices.push(device);
-        }
-        Ok(devices)
-    }
-
-    fn device_path(address: &str, device: &TrustedDevice) -> Result<PathBuf> {
-        let device_address = device.address()?;
-        let device_dir = AccountManager::local_devices_dir(address)?;
-
-        let mut device_path = device_dir.join(device_address);
-        device_path.set_extension("json");
-
-        if let Some(parent) = device_path.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(parent)?;
-            }
-        }
-
-        Ok(device_path)
-    }
-}
-
 /// Encapsulate device specific information for an account.
 #[derive(Clone)]
 pub struct DeviceSigner {
@@ -650,7 +582,7 @@ impl AccountManager {
     }
 
     /// Get the local directory for storing devices.
-    pub fn local_devices_dir(address: &str) -> Result<PathBuf> {
+    pub fn devices_dir(address: &str) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         Ok(local_dir.join(address).join(DEVICES_DIR))
     }

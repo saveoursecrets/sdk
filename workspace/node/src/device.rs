@@ -1,7 +1,15 @@
 //! Functions for getting the local LAN IP address and
 //! information about the device.
-use crate::Result;
 use if_addrs::{get_if_addrs, IfAddr, Ifv4Addr};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::{
+    collections::HashMap,
+    fs::File,
+    path::{Path, PathBuf},
+};
+
+use crate::{Error, Result};
 
 /// Get v4 IP addresses that are not the loopback or link
 /// local addresses.
@@ -64,5 +72,103 @@ impl DeviceInfo {
             arch: whoami::arch(),
             desktop_env: whoami::desktop_env(),
         }
+    }
+}
+
+#[derive(Default, Clone, Serialize, Deserialize)]
+/// Additional information about the device such as the
+/// device name, manufacturer and model.
+pub struct ExtraDeviceInfo {
+    #[serde(flatten)]
+    info: HashMap<String, Value>,
+}
+
+/// Device that has been trusted.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustedDevice {
+    /// The public key for the device.
+    #[serde(with = "hex::serde")]
+    pub public_key: Vec<u8>,
+    /// Extra device information.
+    pub extra_info: ExtraDeviceInfo,
+}
+
+impl TryFrom<(Vec<u8>, String)> for TrustedDevice {
+    type Error = Error;
+    fn try_from(value: (Vec<u8>, String)) -> Result<Self> {
+        Ok(Self {
+            extra_info: serde_json::from_str(&value.1)?, 
+            public_key: value.0,
+        })
+    }
+}
+
+impl TryFrom<TrustedDevice> for (Vec<u8>, String) {
+    type Error = Error;
+    fn try_from(value: TrustedDevice) -> Result<Self> {
+        Ok((
+            value.public_key,
+            serde_json::to_string(&value.extra_info)?, 
+        ))
+    }
+}
+
+impl TrustedDevice {
+    /// Compute a base58 address string of this public key.
+    pub fn address(&self) -> Result<String> {
+        let mut encoded = String::new();
+        bs58::encode(&self.public_key).into(&mut encoded)?;
+        Ok(encoded)
+    }
+
+    /// Add a device to the trusted devices for an account.
+    pub fn add_device<P: AsRef<Path>>(
+        device_dir: P,
+        device: TrustedDevice,
+    ) -> Result<()> {
+        let device_path = Self::device_path(device_dir, &device)?;
+        let mut file = File::create(device_path)?;
+        serde_json::to_writer_pretty(&mut file, &device)?;
+        Ok(())
+    }
+
+    /// Remove a device from the trusted devices for an account.
+    pub fn remove_device<P: AsRef<Path>>(
+        device_dir: P,
+        device: &TrustedDevice,
+    ) -> Result<()> {
+        let device_path = Self::device_path(device_dir, &device)?;
+        std::fs::remove_file(device_path)?;
+        Ok(())
+    }
+
+    /// Load all trusted devices for an account.
+    pub fn load_devices<P: AsRef<Path>>(
+        device_dir: P,
+    ) -> Result<Vec<TrustedDevice>> {
+        let mut devices = Vec::new();
+        for entry in std::fs::read_dir(device_dir.as_ref())? {
+            let entry = entry?;
+            let file = File::open(entry.path())?;
+            let device: TrustedDevice = serde_json::from_reader(file)?;
+            devices.push(device);
+        }
+        Ok(devices)
+    }
+
+    fn device_path<P: AsRef<Path>>(
+        device_dir: P,
+        device: &TrustedDevice,
+    ) -> Result<PathBuf> {
+        let device_address = device.address()?;
+        let mut device_path = device_dir.as_ref().join(device_address);
+        device_path.set_extension("json");
+        if let Some(parent) = device_path.parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(parent)?;
+            }
+        }
+        Ok(device_path)
     }
 }
