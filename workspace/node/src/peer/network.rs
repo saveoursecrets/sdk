@@ -2,6 +2,7 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
     io, iter,
+    time::Duration,
 };
 
 use either::Either;
@@ -15,9 +16,12 @@ use libp2p::{
     identity,
     kad::{record::store::MemoryStore, Kademlia},
     multiaddr::Protocol,
-    rendezvous,
+    rendezvous::{self, Namespace, Cookie},
     request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
-    swarm::{ConnectionHandlerUpgrErr, Swarm, SwarmBuilder, SwarmEvent, AddressScore},
+    swarm::{
+        AddressScore, ConnectionHandlerUpgrErr, Swarm, SwarmBuilder,
+        SwarmEvent,
+    },
     PeerId,
 };
 
@@ -30,6 +34,8 @@ use super::{
     },
     transport,
 };
+
+const NAMESPACE: &str = "rendezvous";
 
 /// Location of a rendezvous server.
 #[derive(Clone)]
@@ -62,6 +68,17 @@ pub(crate) enum Command {
         response: PeerRpcResponse,
         channel: ResponseChannel<PeerRpcResponse>,
     },
+    Register {
+        namespace: Namespace,
+        ttl: Option<u64>,
+    },
+    Unregister {
+        namespace: Namespace,
+    },
+    Discover {
+        namespace: Option<Namespace>,
+        limit: Option<u64>,
+    }
 }
 
 /// Creates a new network.
@@ -70,12 +87,12 @@ pub async fn new(
     shutdown: oneshot::Receiver<()>,
 ) -> Result<(Client, impl Stream<Item = NetworkEvent> + Unpin, EventLoop)> {
     let peer_id = local_key.public().to_peer_id();
-    
+
     let location = RendezvousLocation {
         id: "12D3KooWBL5RkTRJXsSXVUEGfXZuKqdXmWXCfw83QjEv1cjvCGJc".parse()?,
         addr: "/ip4/127.0.0.1/tcp/3505".parse()?,
     };
-    
+
     let mut swarm = SwarmBuilder::with_tokio_executor(
         transport::build(&local_key)?,
         ComposedBehaviour {
@@ -175,7 +192,42 @@ impl Client {
         self.sender
             .send(Command::Response { response, channel })
             .await
-            .expect("Command receiver not to be dropped.");
+            .expect("command receiver not to be dropped.");
+    }
+
+    /// Register this peer in a namespace.
+    pub async fn register(
+        &mut self,
+        namespace: Namespace,
+        ttl: Option<u64>,
+    ) {
+        self.sender
+            .send(Command::Register { namespace, ttl })
+            .await
+            .expect("command receiver not to be dropped.");
+    }
+
+    /// Unregister this peer from a namespace.
+    pub async fn unregister(
+        &mut self,
+        namespace: Namespace,
+    ) {
+        self.sender
+            .send(Command::Unregister { namespace })
+            .await
+            .expect("command receiver not to be dropped.");
+    }
+
+    /// Discover peers in a namespace.
+    pub async fn discover(
+        &mut self,
+        namespace: Option<Namespace>,
+        limit: Option<u64>,
+    ) {
+        self.sender
+            .send(Command::Discover { namespace, limit })
+            .await
+            .expect("command receiver not to be dropped.");
     }
 }
 
@@ -191,6 +243,7 @@ pub struct EventLoop {
     //pending_start_providing: HashMap<QueryId, oneshot::Sender<()>>,
     //pending_get_providers: HashMap<QueryId, oneshot::Sender<HashSet<PeerId>>>,
     shutdown: oneshot::Receiver<()>,
+    cookie: Option<Cookie>,
 }
 
 impl EventLoop {
@@ -213,15 +266,18 @@ impl EventLoop {
             //pending_get_providers: Default::default(),
             //pending_request: HashMap::new(),
             shutdown,
+            cookie: None,
         }
     }
 
     /// Start the event loop running.
     pub async fn run(mut self) {
+        let mut interval = tokio::time::interval(Duration::from_secs(30));
+
         loop {
             futures::select! {
                 _ = &mut self.shutdown => {
-                    log::info!("peer service shutting down");
+                    tracing::info!("peer service shutting down");
                     break;
                 }
                 event = self.swarm.select_next_some() =>
@@ -232,11 +288,21 @@ impl EventLoop {
                     // the network event loop.
                     None =>  return,
                 },
+                _ = async { interval.tick().await }.fuse() => {
+                    if self.cookie.is_some() {
+                        self.swarm.behaviour_mut().rendezvous.discover(
+                            Some(Namespace::new(NAMESPACE.to_string()).unwrap()),
+                            self.cookie.clone(),
+                            None,
+                            self.location.id,
+                        )
+                    }
+                }
                 complete => break,
             }
         }
     }
-
+    
     async fn handle_event(
         &mut self,
         event: SwarmEvent<
@@ -247,6 +313,7 @@ impl EventLoop {
             >,
         >,
     ) {
+
         match event {
             SwarmEvent::NewListenAddr { address, .. } => {
                 self.event_sender
@@ -260,14 +327,9 @@ impl EventLoop {
             SwarmEvent::ConnectionEstablished {
                 peer_id, endpoint, ..
             } => {
-                
-                if peer_id == self.location.id {
-                    self.swarm.behaviour_mut().rendezvous.register(
-                        rendezvous::Namespace::from_static("rendezvous"),
-                        self.location.id,
-                        None,
-                    );
-                }
+
+                /*
+                */
 
                 // Must close the dial channel to yield
                 if endpoint.is_dialer() {
@@ -291,7 +353,7 @@ impl EventLoop {
                     .await
                     .expect("event receiver not to be dropped.");
             }
-
+            // Rendezvous register
             SwarmEvent::Behaviour(ComposedEvent::Rendezvous(
                 rendezvous::client::Event::Registered {
                     namespace,
@@ -310,6 +372,37 @@ impl EventLoop {
                 rendezvous::client::Event::RegisterFailed(error),
             )) => {
                 tracing::error!("failed to register {}", error);
+            }
+            SwarmEvent::Behaviour(ComposedEvent::Rendezvous(
+                rendezvous::client::Event::DiscoverFailed { error, .. },
+            )) => {
+                tracing::error!("failed to discover peers {:#?}", error);
+            }
+            // Rendezvous discovery
+            SwarmEvent::Behaviour(ComposedEvent::Rendezvous(rendezvous::client::Event::Discovered {
+                registrations,
+                cookie: new_cookie,
+                ..
+            })) => {
+                self.cookie.replace(new_cookie);
+
+                for registration in registrations {
+                    for address in registration.record.addresses() {
+                        let peer = registration.record.peer_id();
+                        tracing::info!("discovered peer {} at {}",
+                            peer, address);
+
+                        let p2p_suffix = Protocol::P2p(*peer.as_ref());
+                        let address_with_p2p =
+                            if !address.ends_with(&Multiaddr::empty().with(p2p_suffix.clone())) {
+                                address.clone().with(p2p_suffix)
+                            } else {
+                                address.clone()
+                            };
+
+                        self.swarm.dial(address_with_p2p).unwrap();
+                    }
+                }
             }
 
             /*
@@ -414,7 +507,7 @@ impl EventLoop {
             SwarmEvent::OutgoingConnectionError {
                 peer_id, error, ..
             } => {
-                log::error!("{}", error);
+                tracing::error!("{}", error);
                 if let Some(peer_id) = peer_id {
                     if let Some(sender) = self.pending_dial.remove(&peer_id) {
                         let _ = sender.send(Err(Error::OutgoingConnection(
@@ -425,7 +518,7 @@ impl EventLoop {
             }
             SwarmEvent::IncomingConnectionError { .. } => {}
             SwarmEvent::Dialing(_peer_id) => {}
-            e => log::error!("{e:?}"),
+            e => tracing::error!("{e:?}"),
         }
     }
 
@@ -457,14 +550,14 @@ impl EventLoop {
                             e.insert(sender);
                         }
                         Err(e) => {
-                            log::warn!("error on dial {:#?}", e);
+                            tracing::warn!("error on dial {:#?}", e);
                             let _ = sender.send(Err(Error::DialFailed(
                                 peer_addr.to_string(),
                             )));
                         }
                     }
                 } else {
-                    log::warn!("already dialing peer {}", peer_id);
+                    tracing::warn!("already dialing peer {}", peer_id);
                 }
             }
             Command::Request {
@@ -485,6 +578,27 @@ impl EventLoop {
                     .request_response
                     .send_response(channel, response)
                     .expect("connection to peer to be still open.");
+            }
+            Command::Register { namespace, ttl } => {
+                self.swarm.behaviour_mut().rendezvous.register(
+                    namespace,
+                    self.location.id,
+                    ttl,
+                );
+            }
+            Command::Unregister { namespace } => {
+                self.swarm.behaviour_mut().rendezvous.unregister(
+                    namespace,
+                    self.location.id,
+                );
+            }
+            Command::Discover { namespace, limit } => {
+                self.swarm.behaviour_mut().rendezvous.discover(
+                    namespace,
+                    self.cookie.clone(),
+                    limit,
+                    self.location.id,
+                );
             }
         }
     }
