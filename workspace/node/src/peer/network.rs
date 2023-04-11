@@ -30,10 +30,7 @@ use libp2p::{
 use super::{
     behaviour::*,
     events::{ChangeEvent, MessageEvent, NetworkEvent},
-    protocol::{
-        RpcExchangeCodec,
-        RpcExchangeProtocol,
-    },
+    protocol::{RpcExchangeCodec, RpcExchangeProtocol},
     transport,
 };
 
@@ -383,12 +380,8 @@ impl EventLoop {
         }
     }
 
-    async fn handle_rendezvous(
-        &mut self,
-        event: rendezvous::client::Event,
-    ) {
+    async fn handle_rendezvous(&mut self, event: rendezvous::client::Event) {
         match event {
-
             // Rendezvous register
             rendezvous::client::Event::Registered {
                 namespace,
@@ -402,7 +395,7 @@ impl EventLoop {
                     ttl,
                 );
             }
-            rendezvous::client::Event::RegisterFailed(error)  => {
+            rendezvous::client::Event::RegisterFailed(error) => {
                 tracing::error!("failed to register {}", error);
             }
             rendezvous::client::Event::DiscoverFailed { error, .. } => {
@@ -438,7 +431,7 @@ impl EventLoop {
                     }
                 }
             }
-            rendezvous::client::Event::Expired { .. } => {},
+            rendezvous::client::Event::Expired { .. } => {}
         }
     }
 
@@ -564,7 +557,6 @@ impl EventLoop {
             */
             SwarmEvent::Behaviour(ComposedEvent::Kademlia(_)) => {}
             e => tracing::error!("{e:?}"),
-
         }
     }
 

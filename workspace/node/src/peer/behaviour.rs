@@ -26,16 +26,29 @@ pub(crate) struct ComposedBehaviour {
 
 #[derive(Debug)]
 pub(crate) enum ComposedEvent {
-    RequestResponse(request_response::Event<RequestMessage<'static>, ResponseMessage<'static>>),
+    RequestResponse(
+        request_response::Event<
+            RequestMessage<'static>,
+            ResponseMessage<'static>,
+        >,
+    ),
     Kademlia(KademliaEvent),
     Rendezvous(rendezvous::client::Event),
 }
 
-impl From<request_response::Event<RequestMessage<'static>, ResponseMessage<'static>>>
-    for ComposedEvent
+impl
+    From<
+        request_response::Event<
+            RequestMessage<'static>,
+            ResponseMessage<'static>,
+        >,
+    > for ComposedEvent
 {
     fn from(
-        event: request_response::Event<RequestMessage<'static>, ResponseMessage<'static>>,
+        event: request_response::Event<
+            RequestMessage<'static>,
+            ResponseMessage<'static>,
+        >,
     ) -> Self {
         ComposedEvent::RequestResponse(event)
     }

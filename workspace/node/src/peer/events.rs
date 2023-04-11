@@ -1,10 +1,6 @@
 //! Events dispatched by the network.
 
-use libp2p::{
-    core::Multiaddr,
-    request_response::ResponseChannel,
-    PeerId,
-};
+use libp2p::{core::Multiaddr, request_response::ResponseChannel, PeerId};
 
 use sos_core::rpc::{RequestMessage, ResponseMessage};
 
