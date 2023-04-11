@@ -3,7 +3,10 @@
 use axum::headers::{authorization::Bearer, Authorization};
 use serde::Deserialize;
 
-use sos_core::{decode, signer::ecdsa::BinarySignature};
+use sos_core::{
+    decode,
+    signer::ecdsa::{recover_address, BinarySignature},
+};
 use web3_address::ethereum::Address;
 
 use k256::ecdsa::VerifyingKey;
@@ -33,15 +36,7 @@ impl BearerToken {
         let value = bs58::decode(token).into_vec()?;
         let binary_sig: BinarySignature = decode(&value)?;
         let signature: Signature = binary_sig.into();
-        let (signature, recid) = signature.try_into()?;
-
-        let public_key = VerifyingKey::recover_from_digest(
-            Keccak256::new_with_prefix(message),
-            &signature,
-            recid,
-        )?;
-
-        let address: Address = (&public_key).try_into()?;
+        let address = recover_address(signature, message)?;
         Ok(Self {
             //public_key,
             address,

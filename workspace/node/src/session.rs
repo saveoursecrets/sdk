@@ -1,14 +1,14 @@
 //! Manages network sessions.
 use crypto_bigint::{CheckedAdd, Encoding, U192};
 use k256::{
-    ecdh::EphemeralSecret, ecdsa::VerifyingKey,
-    elliptic_curve::ecdh::SharedSecret, EncodedPoint, PublicKey, Secp256k1,
+    ecdh::EphemeralSecret, elliptic_curve::ecdh::SharedSecret, EncodedPoint,
+    PublicKey, Secp256k1,
 };
 use rand::Rng;
 use sha3::{Digest, Keccak256};
 use sos_core::{
     crypto::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce},
-    signer::ecdsa::BoxedEcdsaSigner,
+    signer::ecdsa::{verify_signature_address, BoxedEcdsaSigner},
 };
 use std::{
     collections::HashMap,
@@ -89,27 +89,14 @@ impl SessionManager {
         let session = self.get_mut(id).ok_or(Error::NoSession)?;
         let message = session.challenge();
 
-        let (ecdsa_signature, recid) = signature.try_into()?;
-
-        let recovered_key = VerifyingKey::recover_from_digest(
-            Keccak256::new_with_prefix(message),
-            &ecdsa_signature,
-            recid,
+        let (valid, recovered_key) = verify_signature_address(
+            &session.identity,
+            signature,
+            message.as_slice(),
         )?;
 
-        let address: Address = (&recovered_key).try_into()?;
         let public_key = recovered_key.to_encoded_point(true);
-
-        /*
-        let recoverable: recoverable::Signature = signature.try_into()?;
-        let public_key = recoverable.recover_verifying_key(&message)?;
-        let public_key: [u8; 33] =
-            public_key.to_bytes().as_slice().try_into()?;
-
-        let address: Address = (&public_key).try_into()?;
-        */
-
-        if address == session.identity {
+        if valid {
             session.identity_proof = Some(signature.to_bytes());
         } else {
             return Err(Error::BadSessionIdentity);

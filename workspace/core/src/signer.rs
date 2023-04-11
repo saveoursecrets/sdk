@@ -78,6 +78,37 @@ pub mod ecdsa {
     #[derive(Default)]
     pub struct BinarySignature(Signature);
 
+    /// Recover the address from a signature.
+    pub fn recover_address(
+        signature: Signature,
+        message: &[u8],
+    ) -> Result<Address> {
+        let (signature, recid) = signature.try_into()?;
+        let public_key = VerifyingKey::recover_from_digest(
+            Keccak256::new_with_prefix(message),
+            &signature,
+            recid,
+        )?;
+        let address: Address = (&public_key).try_into()?;
+        Ok(address)
+    }
+
+    /// Verify the signature matches an expected address.
+    pub fn verify_signature_address(
+        address: &Address,
+        signature: Signature,
+        message: &[u8],
+    ) -> Result<(bool, VerifyingKey)> {
+        let (ecdsa_signature, recid) = signature.try_into()?;
+        let recovered_key = VerifyingKey::recover_from_digest(
+            Keccak256::new_with_prefix(&message),
+            &ecdsa_signature,
+            recid,
+        )?;
+        let signed_address: Address = (&recovered_key).try_into()?;
+        Ok((address == &signed_address, recovered_key))
+    }
+
     impl Encode for BinarySignature {
         fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
             // 65 byte signature
