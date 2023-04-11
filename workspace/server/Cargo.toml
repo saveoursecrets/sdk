@@ -7,17 +7,22 @@ publish = false
 
 [dependencies]
 sos-core = { path = "../core", version = "0.1.0" }
-sos-node = { path = "../node", version = "0.1.0", default-features = false, features = ["server", "gui"] }
+sos-node = { path = "../node", version = "0.1.0", default-features = false, features = ["server", "gui", "peer"] }
 
-clap = { version = "4", features = ["derive", "wrap_help"] }
+clap = { version = "4", features = ["derive", "wrap_help", "env"] }
 tokio = { version = "1", features = ["full"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+hex = "0.4"
 
 [[bin]]
 name = "sos-server"
 path = "src/main.rs"
+
+[[bin]]
+name = "sos-rendezvous"
+path = "src/rendezvous.rs"
 
 [package.metadata.release]
 release = false

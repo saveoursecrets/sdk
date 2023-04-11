@@ -57,9 +57,30 @@ whoami = { version = "1.4", optional = true }
 if-addrs = { version = "0.10.1", optional = true }
 
 # peer
-libp2p = { path = "../../../../forks/libp2p/libp2p", features = ["tokio", "gossipsub", "noise", "macros", "tcp", "yamux", "kad", "request-response"], optional = true }
-libp2p-quic = { version = "0.7.0-alpha.3", path = "../../../../forks/libp2p/transports/quic", features = ["tokio"], optional = true }
 either = { version = "1.8", optional = true }
+
+[dependencies.libp2p]
+version = "0.51"
+path = "../../../../forks/libp2p/libp2p"
+optional = true
+features = [
+  "tokio", 
+  "gossipsub",
+  "noise",
+  "macros",
+  "tcp",
+  "yamux",
+  "kad",
+  "request-response",
+  "rendezvous",
+  "identify",
+]
+
+[dependencies.libp2p-quic]
+version = "0.7.0-alpha.3"
+path = "../../../../forks/libp2p/transports/quic"
+features = ["tokio"]
+optional = true
 
 # agent
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]

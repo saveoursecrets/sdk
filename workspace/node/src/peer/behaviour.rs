@@ -1,10 +1,16 @@
+//! Peer network behaviours.
+
 use libp2p::{
+    identify,
     kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
-    request_response,
-    swarm::NetworkBehaviour,
+    rendezvous, request_response,
+    swarm::{keep_alive, NetworkBehaviour},
 };
 
 use super::protocol::{PeerRpcRequest, PeerRpcResponse, RpcExchangeCodec};
+
+// NOTE: do not include super::Result here as the NetworkBehaviour
+// NOTE: macro expects std::result::Result.
 
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "ComposedEvent")]
@@ -34,4 +40,11 @@ impl From<KademliaEvent> for ComposedEvent {
     fn from(event: KademliaEvent) -> Self {
         ComposedEvent::Kademlia(event)
     }
+}
+
+#[derive(NetworkBehaviour)]
+pub(crate) struct RendezvousBehaviour {
+    pub(crate) identify: identify::Behaviour,
+    pub(crate) rendezvous: rendezvous::server::Behaviour,
+    pub(crate) keep_alive: keep_alive::Behaviour,
 }

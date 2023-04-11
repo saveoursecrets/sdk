@@ -16,9 +16,21 @@ pub enum Error {
     #[error("outgoing connection error: {0}")]
     OutgoingConnection(String),
 
+    /// Error generated attempting to parse a socket address.
+    #[error(transparent)]
+    AddrParse(#[from] std::net::AddrParseError),
+
+    /// Error generated when by the hex library.
+    #[error(transparent)]
+    Hex(#[from] hex::FromHexError),
+
     /// Error generated when by the noise library.
     #[error(transparent)]
     Noise(#[from] libp2p::noise::NoiseError),
+
+    /// Error generated when by decoding an identity keypair.
+    #[error(transparent)]
+    IdentityDecoding(#[from] libp2p::identity::DecodingError),
 
     /// Error generated when by the futures mpsc sender.
     #[error(transparent)]
