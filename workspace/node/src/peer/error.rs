@@ -16,6 +16,10 @@ pub enum Error {
     #[error("outgoing connection error: {0}")]
     OutgoingConnection(String),
 
+    /// Error generated when a multiaddr should contain a peer identifier.
+    #[error("expected peer multiaddr to contain peer ID")]
+    NoMultiAddrPeerId,
+
     /// Error generated attempting to parse a socket address.
     #[error(transparent)]
     AddrParse(#[from] std::net::AddrParseError),
