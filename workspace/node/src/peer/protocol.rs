@@ -24,14 +24,6 @@ pub struct RpcExchangeProtocol();
 #[derive(Clone)]
 pub struct RpcExchangeCodec();
 
-/// RPC request message.
-#[derive(Debug)]
-pub struct PeerRpcRequest(pub RequestMessage<'static>);
-
-/// RPC response message.
-#[derive(Debug)]
-pub struct PeerRpcResponse(pub ResponseMessage<'static>);
-
 impl ProtocolName for RpcExchangeProtocol {
     fn protocol_name(&self) -> &[u8] {
         "/sos-rpc/1".as_bytes()
@@ -41,8 +33,8 @@ impl ProtocolName for RpcExchangeProtocol {
 #[async_trait]
 impl Codec for RpcExchangeCodec {
     type Protocol = RpcExchangeProtocol;
-    type Request = PeerRpcRequest;
-    type Response = PeerRpcResponse;
+    type Request = RequestMessage<'static>;
+    type Response = ResponseMessage<'static>;
 
     async fn read_request<T>(
         &mut self,
@@ -59,7 +51,7 @@ impl Codec for RpcExchangeCodec {
 
         let request: RequestMessage<'static> = decode(vec.as_slice())
             .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
-        Ok(PeerRpcRequest(request))
+        Ok(request)
     }
 
     async fn read_response<T>(
@@ -75,22 +67,22 @@ impl Codec for RpcExchangeCodec {
             return Err(io::ErrorKind::UnexpectedEof.into());
         }
 
-        let request: ResponseMessage<'static> = decode(vec.as_slice())
+        let response: ResponseMessage<'static> = decode(vec.as_slice())
             .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
-        Ok(PeerRpcResponse(request))
+        Ok(response)
     }
 
     async fn write_request<T>(
         &mut self,
         _: &RpcExchangeProtocol,
         io: &mut T,
-        PeerRpcRequest(ref data): PeerRpcRequest,
+        data: RequestMessage<'static>,
     ) -> io::Result<()>
     where
         T: AsyncWrite + Unpin + Send,
     {
         let data =
-            encode(data).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+            encode(&data).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
         write_length_prefixed(io, data).await?;
         io.close().await?;
         Ok(())
@@ -100,13 +92,13 @@ impl Codec for RpcExchangeCodec {
         &mut self,
         _: &RpcExchangeProtocol,
         io: &mut T,
-        PeerRpcResponse(ref data): PeerRpcResponse,
+        data: ResponseMessage<'static>,
     ) -> io::Result<()>
     where
         T: AsyncWrite + Unpin + Send,
     {
         let data =
-            encode(data).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+            encode(&data).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
         write_length_prefixed(io, data).await?;
         io.close().await?;
         Ok(())

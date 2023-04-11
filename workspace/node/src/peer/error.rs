@@ -12,6 +12,14 @@ pub enum Error {
     #[error("dial {0} failed")]
     DialFailed(String),
 
+    /// Error generated when an inbound message fails.
+    #[error("outbound message failed: {0}")]
+    InboundFailure(String),
+
+    /// Error generated when an outbound message fails.
+    #[error("outbound message failed: {0}")]
+    OutboundFailure(String),
+
     /// Error generated when an error occurs on an outbound connection.
     #[error("outgoing connection error: {0}")]
     OutgoingConnection(String),

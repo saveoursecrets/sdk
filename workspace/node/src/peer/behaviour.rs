@@ -7,7 +7,9 @@ use libp2p::{
     swarm::{keep_alive, NetworkBehaviour},
 };
 
-use super::protocol::{PeerRpcRequest, PeerRpcResponse, RpcExchangeCodec};
+use sos_core::rpc::{RequestMessage, ResponseMessage};
+
+use super::protocol::RpcExchangeCodec;
 
 // NOTE: do not include super::Result here as the NetworkBehaviour
 // NOTE: macro expects std::result::Result.
@@ -24,16 +26,16 @@ pub(crate) struct ComposedBehaviour {
 
 #[derive(Debug)]
 pub(crate) enum ComposedEvent {
-    RequestResponse(request_response::Event<PeerRpcRequest, PeerRpcResponse>),
+    RequestResponse(request_response::Event<RequestMessage<'static>, ResponseMessage<'static>>),
     Kademlia(KademliaEvent),
     Rendezvous(rendezvous::client::Event),
 }
 
-impl From<request_response::Event<PeerRpcRequest, PeerRpcResponse>>
+impl From<request_response::Event<RequestMessage<'static>, ResponseMessage<'static>>>
     for ComposedEvent
 {
     fn from(
-        event: request_response::Event<PeerRpcRequest, PeerRpcResponse>,
+        event: request_response::Event<RequestMessage<'static>, ResponseMessage<'static>>,
     ) -> Self {
         ComposedEvent::RequestResponse(event)
     }

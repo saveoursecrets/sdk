@@ -2,13 +2,11 @@
 
 use libp2p::{
     core::Multiaddr,
-    request_response::{RequestId, ResponseChannel},
+    request_response::ResponseChannel,
     PeerId,
 };
 
 use sos_core::rpc::{RequestMessage, ResponseMessage};
-
-use super::protocol::PeerRpcResponse;
 
 /// Network event is dispatch by the network to the
 /// events stream.
@@ -52,15 +50,6 @@ pub enum MessageEvent {
         /// Request message.
         request: RequestMessage<'static>,
         /// Channel to route the response to.
-        channel: ResponseChannel<PeerRpcResponse>,
-    },
-    /// Message event for an outbound response.
-    OutboundResponse {
-        /// Remote peer.
-        peer: PeerId,
-        /// The request identifier.
-        request_id: RequestId,
-        /// The response message.
-        response: ResponseMessage<'static>,
+        channel: ResponseChannel<ResponseMessage<'static>>,
     },
 }

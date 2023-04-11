@@ -1,4 +1,4 @@
-//! Peer to peer network proxy.
+//! Peer to peer network event loop.
 use std::{
     collections::{hash_map::Entry, HashMap},
     io, iter,
@@ -8,6 +8,8 @@ use std::{
 use either::Either;
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
+
+use sos_core::rpc::{RequestMessage, ResponseMessage};
 
 use super::{Error, Result};
 
@@ -29,7 +31,7 @@ use super::{
     behaviour::*,
     events::{ChangeEvent, MessageEvent, NetworkEvent},
     protocol::{
-        PeerRpcRequest, PeerRpcResponse, RpcExchangeCodec,
+        RpcExchangeCodec,
         RpcExchangeProtocol,
     },
     transport,
@@ -61,12 +63,14 @@ pub(crate) enum Command {
     },
     Request {
         peer_id: PeerId,
-        request: PeerRpcRequest,
-        sender: oneshot::Sender<Result<RequestId>>,
+        request: RequestMessage<'static>,
+        sender: oneshot::Sender<
+            Result<(RequestId, PeerId, ResponseMessage<'static>)>,
+        >,
     },
     Response {
-        response: PeerRpcResponse,
-        channel: ResponseChannel<PeerRpcResponse>,
+        response: ResponseMessage<'static>,
+        channel: ResponseChannel<ResponseMessage<'static>>,
     },
     Register {
         namespace: Namespace,
@@ -177,8 +181,8 @@ impl Client {
     pub async fn rpc_request(
         &mut self,
         peer_id: PeerId,
-        request: PeerRpcRequest,
-    ) -> Result<RequestId> {
+        request: RequestMessage<'static>,
+    ) -> Result<(RequestId, PeerId, ResponseMessage<'static>)> {
         let (sender, receiver) = oneshot::channel();
         self.sender
             .send(Command::Request {
@@ -193,8 +197,8 @@ impl Client {
     /// Send an RPC response message.
     pub async fn rpc_response(
         &mut self,
-        response: PeerRpcResponse,
-        channel: ResponseChannel<PeerRpcResponse>,
+        response: ResponseMessage<'static>,
+        channel: ResponseChannel<ResponseMessage<'static>>,
     ) {
         self.sender
             .send(Command::Response { response, channel })
@@ -239,7 +243,12 @@ pub struct EventLoop {
     command_receiver: mpsc::Receiver<Command>,
     event_sender: mpsc::Sender<NetworkEvent>,
     pending_dial: HashMap<PeerId, oneshot::Sender<Result<()>>>,
-    //pending_request: HashMap<RequestId, oneshot::Sender<Result<RequestId>>>,
+    pending_request: HashMap<
+        RequestId,
+        oneshot::Sender<
+            Result<(RequestId, PeerId, ResponseMessage<'static>)>,
+        >,
+    >,
     //pending_start_providing: HashMap<QueryId, oneshot::Sender<()>>,
     //pending_get_providers: HashMap<QueryId, oneshot::Sender<HashSet<PeerId>>>,
     shutdown: oneshot::Receiver<()>,
@@ -264,7 +273,7 @@ impl EventLoop {
             pending_dial: Default::default(),
             //pending_start_providing: Default::default(),
             //pending_get_providers: Default::default(),
-            //pending_request: HashMap::new(),
+            pending_request: HashMap::new(),
             shutdown,
             cookie: None,
         }
@@ -290,6 +299,7 @@ impl EventLoop {
                 },
                 _ = async { interval.tick().await }.fuse() => {
                     if self.cookie.is_some() {
+                        // FIXME: loop managed list of namespaces
                         self.swarm.behaviour_mut().rendezvous.discover(
                             Some(Namespace::new(NAMESPACE.to_string()).unwrap()),
                             self.cookie.clone(),
@@ -300,6 +310,135 @@ impl EventLoop {
                 }
                 complete => break,
             }
+        }
+    }
+
+    async fn handle_rpc_event(
+        &mut self,
+        event: request_response::Event<
+            RequestMessage<'static>,
+            ResponseMessage<'static>,
+            ResponseMessage<'static>,
+        >,
+    ) {
+        match event {
+            request_response::Event::Message { peer, message, .. } => {
+                match message {
+                    request_response::Message::Request {
+                        request,
+                        channel,
+                        ..
+                    } => {
+                        self.event_sender
+                            .send(NetworkEvent::Message(
+                                MessageEvent::InboundRequest {
+                                    peer,
+                                    request,
+                                    channel,
+                                },
+                            ))
+                            .await
+                            .expect("event receiver not to be dropped.");
+                    }
+                    request_response::Message::Response {
+                        request_id,
+                        response,
+                    } => {
+                        if let Some(sender) =
+                            self.pending_request.remove(&request_id)
+                        {
+                            sender
+                                .send(Ok((request_id, peer, response)))
+                                .expect("sender to not be dropped");
+                        }
+                    }
+                }
+            }
+            request_response::Event::InboundFailure {
+                request_id,
+                error,
+                ..
+            } => {
+                if let Some(sender) = self.pending_request.remove(&request_id)
+                {
+                    sender
+                        .send(Err(Error::InboundFailure(error.to_string())))
+                        .expect("sender to not be dropped");
+                }
+            }
+
+            request_response::Event::OutboundFailure {
+                request_id,
+                error,
+                ..
+            } => {
+                if let Some(sender) = self.pending_request.remove(&request_id)
+                {
+                    sender
+                        .send(Err(Error::OutboundFailure(error.to_string())))
+                        .expect("sender to not be dropped");
+                }
+            }
+            request_response::Event::ResponseSent { .. } => {}
+        }
+    }
+
+    async fn handle_rendezvous(
+        &mut self,
+        event: rendezvous::client::Event,
+    ) {
+        match event {
+
+            // Rendezvous register
+            rendezvous::client::Event::Registered {
+                namespace,
+                ttl,
+                rendezvous_node,
+            } => {
+                tracing::info!(
+                    "registered for namespace '{}' at rendezvous point {} for the next {} seconds",
+                    namespace,
+                    rendezvous_node,
+                    ttl,
+                );
+            }
+            rendezvous::client::Event::RegisterFailed(error)  => {
+                tracing::error!("failed to register {}", error);
+            }
+            rendezvous::client::Event::DiscoverFailed { error, .. } => {
+                tracing::error!("failed to discover peers {:#?}", error);
+            }
+            // Rendezvous discovery
+            rendezvous::client::Event::Discovered {
+                registrations,
+                cookie: new_cookie,
+                ..
+            } => {
+                self.cookie.replace(new_cookie);
+
+                for registration in registrations {
+                    for address in registration.record.addresses() {
+                        let peer = registration.record.peer_id();
+                        tracing::info!(
+                            "discovered peer {} at {}",
+                            peer,
+                            address
+                        );
+
+                        let p2p_suffix = Protocol::P2p(*peer.as_ref());
+                        let address_with_p2p = if !address.ends_with(
+                            &Multiaddr::empty().with(p2p_suffix.clone()),
+                        ) {
+                            address.clone().with(p2p_suffix)
+                        } else {
+                            address.clone()
+                        };
+
+                        self.swarm.dial(address_with_p2p).unwrap();
+                    }
+                }
+            }
+            rendezvous::client::Event::Expired { .. } => {},
         }
     }
 
@@ -314,6 +453,12 @@ impl EventLoop {
         >,
     ) {
         match event {
+            SwarmEvent::Behaviour(ComposedEvent::Rendezvous(event)) => {
+                self.handle_rendezvous(event).await;
+            }
+            SwarmEvent::Behaviour(ComposedEvent::RequestResponse(event)) => {
+                self.handle_rpc_event(event).await;
+            }
             SwarmEvent::NewListenAddr { address, .. } => {
                 self.event_sender
                     .send(NetworkEvent::Change(ChangeEvent::NewListenAddr {
@@ -326,10 +471,6 @@ impl EventLoop {
             SwarmEvent::ConnectionEstablished {
                 peer_id, endpoint, ..
             } => {
-
-                /*
-                */
-
                 // Must close the dial channel to yield
                 if endpoint.is_dialer() {
                     if let Some(sender) = self.pending_dial.remove(&peer_id) {
@@ -352,57 +493,21 @@ impl EventLoop {
                     .await
                     .expect("event receiver not to be dropped.");
             }
-            // Rendezvous register
-            SwarmEvent::Behaviour(ComposedEvent::Rendezvous(
-                rendezvous::client::Event::Registered {
-                    namespace,
-                    ttl,
-                    rendezvous_node,
-                },
-            )) => {
-                tracing::info!(
-                    "registered for namespace '{}' at rendezvous point {} for the next {} seconds",
-                    namespace,
-                    rendezvous_node,
-                    ttl,
-                );
-            }
-            SwarmEvent::Behaviour(ComposedEvent::Rendezvous(
-                rendezvous::client::Event::RegisterFailed(error),
-            )) => {
-                tracing::error!("failed to register {}", error);
-            }
-            SwarmEvent::Behaviour(ComposedEvent::Rendezvous(
-                rendezvous::client::Event::DiscoverFailed { error, .. },
-            )) => {
-                tracing::error!("failed to discover peers {:#?}", error);
-            }
-            // Rendezvous discovery
-            SwarmEvent::Behaviour(ComposedEvent::Rendezvous(rendezvous::client::Event::Discovered {
-                registrations,
-                cookie: new_cookie,
-                ..
-            })) => {
-                self.cookie.replace(new_cookie);
-
-                for registration in registrations {
-                    for address in registration.record.addresses() {
-                        let peer = registration.record.peer_id();
-                        tracing::info!("discovered peer {} at {}",
-                            peer, address);
-
-                        let p2p_suffix = Protocol::P2p(*peer.as_ref());
-                        let address_with_p2p =
-                            if !address.ends_with(&Multiaddr::empty().with(p2p_suffix.clone())) {
-                                address.clone().with(p2p_suffix)
-                            } else {
-                                address.clone()
-                            };
-
-                        self.swarm.dial(address_with_p2p).unwrap();
+            SwarmEvent::IncomingConnection { .. } => {}
+            SwarmEvent::OutgoingConnectionError {
+                peer_id, error, ..
+            } => {
+                tracing::error!("{}", error);
+                if let Some(peer_id) = peer_id {
+                    if let Some(sender) = self.pending_dial.remove(&peer_id) {
+                        let _ = sender.send(Err(Error::OutgoingConnection(
+                            error.to_string(),
+                        )));
                     }
                 }
             }
+            SwarmEvent::IncomingConnectionError { .. } => {}
+            SwarmEvent::Dialing(_peer_id) => {}
 
             /*
             SwarmEvent::Behaviour(ComposedEvent::Kademlia(
@@ -458,68 +563,8 @@ impl EventLoop {
             )) => {}
             */
             SwarmEvent::Behaviour(ComposedEvent::Kademlia(_)) => {}
-            SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
-                request_response::Event::Message { peer, message, .. },
-            )) => match message {
-                request_response::Message::Request {
-                    request,
-                    channel,
-                    ..
-                } => {
-                    self.event_sender
-                        .send(NetworkEvent::Message(
-                            MessageEvent::InboundRequest {
-                                peer,
-                                request: request.0,
-                                channel,
-                            },
-                        ))
-                        .await
-                        .expect("event receiver not to be dropped.");
-                }
-                request_response::Message::Response {
-                    request_id,
-                    response,
-                } => {
-                    self.event_sender
-                        .send(NetworkEvent::Message(
-                            MessageEvent::OutboundResponse {
-                                peer,
-                                request_id,
-                                response: response.0,
-                            },
-                        ))
-                        .await
-                        .expect("event receiver not to be dropped.");
-                }
-            },
-            SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
-                request_response::Event::OutboundFailure {
-                    //error,
-                    ..
-                },
-            )) => {
-
-            }
-            SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
-                request_response::Event::ResponseSent { .. },
-            )) => {}
-            SwarmEvent::IncomingConnection { .. } => {}
-            SwarmEvent::OutgoingConnectionError {
-                peer_id, error, ..
-            } => {
-                tracing::error!("{}", error);
-                if let Some(peer_id) = peer_id {
-                    if let Some(sender) = self.pending_dial.remove(&peer_id) {
-                        let _ = sender.send(Err(Error::OutgoingConnection(
-                            error.to_string(),
-                        )));
-                    }
-                }
-            }
-            SwarmEvent::IncomingConnectionError { .. } => {}
-            SwarmEvent::Dialing(_peer_id) => {}
             e => tracing::error!("{e:?}"),
+
         }
     }
 
@@ -571,7 +616,7 @@ impl EventLoop {
                     .behaviour_mut()
                     .request_response
                     .send_request(&peer_id, request);
-                sender.send(Ok(request_id)).expect("sender to be open");
+                self.pending_request.insert(request_id, sender);
             }
             Command::Response { response, channel } => {
                 self.swarm
