@@ -16,7 +16,7 @@ use libp2p::{
     identity,
     kad::{record::store::MemoryStore, Kademlia},
     multiaddr::Protocol,
-    rendezvous::{self, Namespace, Cookie},
+    rendezvous::{self, Cookie, Namespace},
     request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
     swarm::{
         AddressScore, ConnectionHandlerUpgrErr, Swarm, SwarmBuilder,
@@ -78,7 +78,7 @@ pub(crate) enum Command {
     Discover {
         namespace: Option<Namespace>,
         limit: Option<u64>,
-    }
+    },
 }
 
 /// Creates a new network.
@@ -90,7 +90,7 @@ pub async fn new(
 
     let location = RendezvousLocation {
         id: "12D3KooWBL5RkTRJXsSXVUEGfXZuKqdXmWXCfw83QjEv1cjvCGJc".parse()?,
-        addr: "/ip4/127.0.0.1/tcp/3505".parse()?,
+        addr: "/ip4/192.168.1.3/tcp/3505".parse()?,
     };
 
     let mut swarm = SwarmBuilder::with_tokio_executor(
@@ -137,6 +137,13 @@ pub async fn new(
 #[derive(Clone)]
 pub struct Client {
     sender: mpsc::Sender<Command>,
+}
+
+impl Default for Client {
+    fn default() -> Self {
+        let (sender, _) = mpsc::channel(0);
+        Self { sender }
+    }
 }
 
 impl Client {
@@ -196,11 +203,7 @@ impl Client {
     }
 
     /// Register this peer in a namespace.
-    pub async fn register(
-        &mut self,
-        namespace: Namespace,
-        ttl: Option<u64>,
-    ) {
+    pub async fn register(&mut self, namespace: Namespace, ttl: Option<u64>) {
         self.sender
             .send(Command::Register { namespace, ttl })
             .await
@@ -208,10 +211,7 @@ impl Client {
     }
 
     /// Unregister this peer from a namespace.
-    pub async fn unregister(
-        &mut self,
-        namespace: Namespace,
-    ) {
+    pub async fn unregister(&mut self, namespace: Namespace) {
         self.sender
             .send(Command::Unregister { namespace })
             .await
@@ -302,7 +302,7 @@ impl EventLoop {
             }
         }
     }
-    
+
     async fn handle_event(
         &mut self,
         event: SwarmEvent<
@@ -313,7 +313,6 @@ impl EventLoop {
             >,
         >,
     ) {
-
         match event {
             SwarmEvent::NewListenAddr { address, .. } => {
                 self.event_sender
@@ -460,7 +459,7 @@ impl EventLoop {
             */
             SwarmEvent::Behaviour(ComposedEvent::Kademlia(_)) => {}
             SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
-                request_response::Event::Message { message, .. },
+                request_response::Event::Message { peer, message, .. },
             )) => match message {
                 request_response::Message::Request {
                     request,
@@ -470,6 +469,7 @@ impl EventLoop {
                     self.event_sender
                         .send(NetworkEvent::Message(
                             MessageEvent::InboundRequest {
+                                peer,
                                 request: request.0,
                                 channel,
                             },
@@ -484,6 +484,7 @@ impl EventLoop {
                     self.event_sender
                         .send(NetworkEvent::Message(
                             MessageEvent::OutboundResponse {
+                                peer,
                                 request_id,
                                 response: response.0,
                             },
@@ -587,10 +588,10 @@ impl EventLoop {
                 );
             }
             Command::Unregister { namespace } => {
-                self.swarm.behaviour_mut().rendezvous.unregister(
-                    namespace,
-                    self.location.id,
-                );
+                self.swarm
+                    .behaviour_mut()
+                    .rendezvous
+                    .unregister(namespace, self.location.id);
             }
             Command::Discover { namespace, limit } => {
                 self.swarm.behaviour_mut().rendezvous.discover(

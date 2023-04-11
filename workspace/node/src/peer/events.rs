@@ -47,6 +47,8 @@ pub enum ChangeEvent {
 pub enum MessageEvent {
     /// Message event for an inbound request.
     InboundRequest {
+        /// Remote peer.
+        peer: PeerId,
         /// Request message.
         request: RequestMessage<'static>,
         /// Channel to route the response to.
@@ -54,6 +56,8 @@ pub enum MessageEvent {
     },
     /// Message event for an outbound response.
     OutboundResponse {
+        /// Remote peer.
+        peer: PeerId,
         /// The request identifier.
         request_id: RequestId,
         /// The response message.
