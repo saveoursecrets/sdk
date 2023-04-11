@@ -5078,6 +5078,7 @@ dependencies = [
  "url",
  "urn",
  "uuid",
+ "void",
  "walkdir",
  "web3-address",
  "web3-signature",

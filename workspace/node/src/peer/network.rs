@@ -15,8 +15,9 @@ use libp2p::{
     identity,
     kad::{record::store::MemoryStore, Kademlia},
     multiaddr::Protocol,
+    rendezvous,
     request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
-    swarm::{ConnectionHandlerUpgrErr, Swarm, SwarmBuilder, SwarmEvent},
+    swarm::{ConnectionHandlerUpgrErr, Swarm, SwarmBuilder, SwarmEvent, AddressScore},
     PeerId,
 };
 
@@ -29,6 +30,15 @@ use super::{
     },
     transport,
 };
+
+/// Location of a rendezvous server.
+#[derive(Clone)]
+pub struct RendezvousLocation {
+    /// Peer id of the rendezvous server.
+    pub id: PeerId,
+    /// Dial address for the rendezvous server.
+    pub addr: Multiaddr,
+}
 
 /// Commands are sent by the client to make changes
 /// to the network.
@@ -60,8 +70,13 @@ pub async fn new(
     shutdown: oneshot::Receiver<()>,
 ) -> Result<(Client, impl Stream<Item = NetworkEvent> + Unpin, EventLoop)> {
     let peer_id = local_key.public().to_peer_id();
-
-    let swarm = SwarmBuilder::with_tokio_executor(
+    
+    let location = RendezvousLocation {
+        id: "12D3KooWBL5RkTRJXsSXVUEGfXZuKqdXmWXCfw83QjEv1cjvCGJc".parse()?,
+        addr: "/ip4/127.0.0.1/tcp/3505".parse()?,
+    };
+    
+    let mut swarm = SwarmBuilder::with_tokio_executor(
         transport::build(&local_key)?,
         ComposedBehaviour {
             kademlia: Kademlia::new(
@@ -73,10 +88,14 @@ pub async fn new(
                 iter::once((RpcExchangeProtocol(), ProtocolSupport::Full)),
                 Default::default(),
             ),
+            rendezvous: rendezvous::client::Behaviour::new(local_key.clone()),
         },
         peer_id,
     )
     .build();
+
+    swarm.add_external_address(location.addr.clone(), AddressScore::Infinite);
+    swarm.dial(location.addr.clone())?;
 
     let (command_sender, command_receiver) = mpsc::channel(0);
     let (event_sender, event_receiver) = mpsc::channel(16);
@@ -88,6 +107,7 @@ pub async fn new(
         Box::pin(event_receiver),
         EventLoop::new(
             peer_id,
+            location,
             swarm,
             command_receiver,
             event_sender,
@@ -162,6 +182,7 @@ impl Client {
 /// Runs the network event loop.
 pub struct EventLoop {
     peer_id: PeerId,
+    location: RendezvousLocation,
     swarm: Swarm<ComposedBehaviour>,
     command_receiver: mpsc::Receiver<Command>,
     event_sender: mpsc::Sender<NetworkEvent>,
@@ -175,6 +196,7 @@ pub struct EventLoop {
 impl EventLoop {
     fn new(
         peer_id: PeerId,
+        location: RendezvousLocation,
         swarm: Swarm<ComposedBehaviour>,
         command_receiver: mpsc::Receiver<Command>,
         event_sender: mpsc::Sender<NetworkEvent>,
@@ -182,6 +204,7 @@ impl EventLoop {
     ) -> Self {
         Self {
             peer_id,
+            location,
             swarm,
             command_receiver,
             event_sender,
@@ -218,7 +241,10 @@ impl EventLoop {
         &mut self,
         event: SwarmEvent<
             ComposedEvent,
-            Either<ConnectionHandlerUpgrErr<io::Error>, io::Error>,
+            Either<
+                Either<ConnectionHandlerUpgrErr<io::Error>, io::Error>,
+                void::Void,
+            >,
         >,
     ) {
         match event {
@@ -234,6 +260,15 @@ impl EventLoop {
             SwarmEvent::ConnectionEstablished {
                 peer_id, endpoint, ..
             } => {
+                
+                if peer_id == self.location.id {
+                    self.swarm.behaviour_mut().rendezvous.register(
+                        rendezvous::Namespace::from_static("rendezvous"),
+                        self.location.id,
+                        None,
+                    );
+                }
+
                 // Must close the dial channel to yield
                 if endpoint.is_dialer() {
                     if let Some(sender) = self.pending_dial.remove(&peer_id) {
@@ -256,6 +291,27 @@ impl EventLoop {
                     .await
                     .expect("event receiver not to be dropped.");
             }
+
+            SwarmEvent::Behaviour(ComposedEvent::Rendezvous(
+                rendezvous::client::Event::Registered {
+                    namespace,
+                    ttl,
+                    rendezvous_node,
+                },
+            )) => {
+                tracing::info!(
+                    "registered for namespace '{}' at rendezvous point {} for the next {} seconds",
+                    namespace,
+                    rendezvous_node,
+                    ttl,
+                );
+            }
+            SwarmEvent::Behaviour(ComposedEvent::Rendezvous(
+                rendezvous::client::Event::RegisterFailed(error),
+            )) => {
+                tracing::error!("failed to register {}", error);
+            }
+
             /*
             SwarmEvent::Behaviour(ComposedEvent::Kademlia(
                 KademliaEvent::OutboundQueryProgressed {
