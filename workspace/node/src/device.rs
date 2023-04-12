@@ -145,6 +145,9 @@ impl TrustedDevice {
         device_dir: P,
     ) -> Result<Vec<TrustedDevice>> {
         let mut devices = Vec::new();
+        if !device_dir.as_ref().exists() {
+            std::fs::create_dir_all(device_dir.as_ref())?;
+        }
         for entry in std::fs::read_dir(device_dir.as_ref())? {
             let entry = entry?;
             let file = File::open(entry.path())?;
