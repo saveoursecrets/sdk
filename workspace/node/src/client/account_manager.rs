@@ -173,6 +173,15 @@ impl ManifestEntry {
             Self::File { checksum, .. } => *checksum,
         }
     }
+
+    /// Get the label for this entry.
+    pub fn label(&self) -> &str {
+        match self {
+            Self::Identity { label, .. } => label,
+            Self::Vault { label, .. } => label,
+            Self::File { label, .. } => label,
+        }
+    }
 }
 
 /// Request to create a new account.
