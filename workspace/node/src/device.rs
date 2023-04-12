@@ -120,6 +120,8 @@ impl TrustedDevice {
     }
 
     /// Add a device to the trusted devices for an account.
+    ///
+    /// If a device already exists it is overwritten.
     pub fn add_device<P: AsRef<Path>>(
         device_dir: P,
         device: TrustedDevice,
