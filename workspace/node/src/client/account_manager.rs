@@ -462,9 +462,9 @@ impl AccountManager {
     pub fn manifest(
         address: &str,
         options: AccountManifestOptions,
-    ) -> Result<AccountManifest> {
+    ) -> Result<(AccountManifest, u64)> {
+        let mut total_size: u64 = 0;
         let mut manifest = AccountManifest::new(address.to_owned());
-
         let path = Self::identity_vault(address)?;
         let (size, checksum) = Self::read_file_entry(path, None)?;
         let entry = ManifestEntry::Identity {
@@ -474,6 +474,7 @@ impl AccountManager {
             checksum: checksum.as_slice().try_into()?,
         };
         manifest.entries.push(entry);
+        total_size += size;
 
         let vaults = Self::list_local_vaults(address, false)?;
         for (summary, path) in vaults {
@@ -489,6 +490,7 @@ impl AccountManager {
                 checksum: checksum.as_slice().try_into()?,
             };
             manifest.entries.push(entry);
+            total_size += size;
         }
 
         let files = Self::files_dir(address)?;
@@ -521,10 +523,11 @@ impl AccountManager {
                         secret_id,
                     };
                     manifest.entries.push(entry);
+                    total_size += size;
                 }
             }
         }
-        Ok(manifest)
+        Ok((manifest, total_size))
     }
 
     /// Resolve a manifest entry to a path.
