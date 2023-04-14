@@ -58,6 +58,9 @@ pub(crate) enum Command {
         peer_addr: Multiaddr,
         sender: oneshot::Sender<Result<()>>,
     },
+    ConnectedPeers {
+        sender: oneshot::Sender<Result<Vec<PeerId>>>,
+    },
     Request {
         peer_id: PeerId,
         request: RequestMessage<'static>,
@@ -170,6 +173,17 @@ impl Client {
                 peer_addr,
                 sender,
             })
+            .await?;
+        receiver.await?
+    }
+
+    /// Get the list of connected peers from the swarm.
+    pub async fn connected_peers(
+        &mut self,
+    ) -> Result<Vec<PeerId>> {
+        let (sender, receiver) = oneshot::channel();
+        self.sender
+            .send(Command::ConnectedPeers { sender })
             .await?;
         receiver.await?
     }
@@ -597,6 +611,13 @@ impl EventLoop {
                 } else {
                     tracing::warn!("already dialing peer {}", peer_id);
                 }
+            }
+            Command::ConnectedPeers {
+                sender,
+            } => {
+                let peers = self.swarm.connected_peers().cloned().collect();
+                sender.send(Ok(peers))
+                    .expect("sender channel to be open");
             }
             Command::Request {
                 peer_id,
