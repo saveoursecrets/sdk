@@ -59,6 +59,7 @@ pub use timestamp::Timestamp;
 
 // Re-exports
 pub use age;
+pub use time;
 
 /// Encode to a binary buffer.
 pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {

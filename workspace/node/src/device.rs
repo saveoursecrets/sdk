@@ -9,6 +9,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use sos_core::time::OffsetDateTime;
+
 use crate::{Error, Result};
 
 /// Get v4 IP addresses that are not the loopback or link
@@ -92,6 +94,18 @@ pub struct TrustedDevice {
     pub public_key: Vec<u8>,
     /// Extra device information.
     pub extra_info: ExtraDeviceInfo,
+    /// When this device was trusted.
+    pub created_date: OffsetDateTime, 
+}
+
+impl From<Vec<u8>> for TrustedDevice {
+    fn from(value: Vec<u8>) -> Self {
+        Self {
+            extra_info: Default::default(),
+            public_key: value,
+            created_date: OffsetDateTime::now_utc(),
+        }
+    }
 }
 
 impl TryFrom<(Vec<u8>, String)> for TrustedDevice {
@@ -100,6 +114,7 @@ impl TryFrom<(Vec<u8>, String)> for TrustedDevice {
         Ok(Self {
             extra_info: serde_json::from_str(&value.1)?,
             public_key: value.0,
+            created_date: OffsetDateTime::now_utc(),
         })
     }
 }
