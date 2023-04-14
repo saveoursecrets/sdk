@@ -37,7 +37,7 @@ use super::{
 const NAMESPACE: &str = "rendezvous";
 
 /// Location of a rendezvous server.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct RendezvousLocation {
     /// Peer id of the rendezvous server.
     pub id: PeerId,
@@ -88,15 +88,11 @@ pub(crate) enum Command {
 /// Creates a new network.
 pub async fn new(
     local_key: identity::Keypair,
+    location: RendezvousLocation,
     shutdown: oneshot::Receiver<()>,
 ) -> Result<(Client, impl Stream<Item = NetworkEvent> + Unpin, EventLoop)> {
     let peer_id = local_key.public().to_peer_id();
-
-    let location = RendezvousLocation {
-        id: "12D3KooWBL5RkTRJXsSXVUEGfXZuKqdXmWXCfw83QjEv1cjvCGJc".parse()?,
-        addr: "/ip4/192.168.1.3/tcp/3505".parse()?,
-    };
-
+    
     let mut swarm = SwarmBuilder::with_tokio_executor(
         transport::build(&local_key)?,
         ComposedBehaviour {

@@ -37,6 +37,16 @@ pub fn convert_libp2p_identity(
     Ok(ed25519::Keypair::decode(&mut encoded)?.into())
 }
 
+/// Extracts a listen connection from a multiaddr.
+pub fn listen_from_multiaddr(addr: &Multiaddr) -> Result<Multiaddr> {
+    let mut listen = Multiaddr::empty();
+    let protocols = addr.iter().take(2);
+    for protocol in protocols {
+        listen.push(protocol);
+    }
+    Ok(listen)
+}
+
 /// Extracts a peer identifier from a multiaddr.
 pub fn peer_id_from_multihash(addr: &Multiaddr) -> Result<PeerId> {
     match addr.iter().last() {
