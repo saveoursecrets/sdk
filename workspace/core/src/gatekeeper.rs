@@ -284,7 +284,8 @@ impl Gatekeeper {
     ) -> Result<SyncEvent<'_>> {
         let vault_id = *self.vault().id();
         let reader = self.index.read();
-
+        
+        /*
         if reader
             .find_by_label(&vault_id, secret_meta.label())
             .is_some()
@@ -293,6 +294,7 @@ impl Gatekeeper {
                 secret_meta.label().to_string(),
             ));
         }
+        */
 
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
