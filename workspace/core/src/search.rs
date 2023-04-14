@@ -370,9 +370,21 @@ impl SearchIndex {
         &'a self,
         vault_id: &VaultId,
         label: &str,
+        id: Option<&SecretId>,
     ) -> Option<&'a Document> {
         self.documents
             .values()
+            .filter(|d| {
+                if let Some(id) = id {
+                    if id == d.id() {
+                        false
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                }
+            })
             .find(|d| d.vault_id() == vault_id && d.meta().label() == label)
     }
 
@@ -448,7 +460,7 @@ impl SearchIndex {
     ) -> Option<&'a Document> {
         match target {
             SecretRef::Id(id) => self.find_by_id(vault_id, id),
-            SecretRef::Name(name) => self.find_by_label(vault_id, name),
+            SecretRef::Name(name) => self.find_by_label(vault_id, name, None),
         }
     }
 

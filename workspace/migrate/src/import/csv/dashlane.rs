@@ -664,22 +664,22 @@ mod test {
         assert_eq!(15, search.len());
 
         let search = search_index.read();
-        let password = search.find_by_label(keeper.id(), "example.com");
+        let password = search.find_by_label(keeper.id(), "example.com", None);
         assert!(password.is_some());
 
-        let id = search.find_by_label(keeper.id(), "Mock Passport");
+        let id = search.find_by_label(keeper.id(), "Mock Passport", None);
         assert!(id.is_some());
 
-        let payment = search.find_by_label(keeper.id(), "Bank account");
+        let payment = search.find_by_label(keeper.id(), "Bank account", None);
         assert!(payment.is_some());
 
-        let contact = search.find_by_label(keeper.id(), "Mock Email");
+        let contact = search.find_by_label(keeper.id(), "Mock Email", None);
         assert!(contact.is_some());
 
-        let note = search.find_by_label(keeper.id(), "Mock note");
+        let note = search.find_by_label(keeper.id(), "Mock note", None);
         assert!(note.is_some());
 
-        let card = search.find_by_label(keeper.id(), "Mock User");
+        let card = search.find_by_label(keeper.id(), "Mock User", None);
         assert!(card.is_some());
 
         if let Some((_, secret, _)) =

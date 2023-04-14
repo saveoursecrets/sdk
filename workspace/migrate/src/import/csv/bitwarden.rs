@@ -203,10 +203,10 @@ mod test {
         keeper.create_search_index()?;
 
         let search = search_index.read();
-        let first = search.find_by_label(keeper.id(), "Mock Login");
+        let first = search.find_by_label(keeper.id(), "Mock Login", None);
         assert!(first.is_some());
 
-        let second = search.find_by_label(keeper.id(), "Mock Note");
+        let second = search.find_by_label(keeper.id(), "Mock Note", None);
         assert!(second.is_some());
 
         Ok(())

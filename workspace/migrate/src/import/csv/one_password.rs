@@ -272,7 +272,7 @@ mod test {
         assert_eq!(6, search.len());
 
         let search = search_index.read();
-        let untitled = search.find_by_label(keeper.id(), UNTITLED);
+        let untitled = search.find_by_label(keeper.id(), UNTITLED, None);
         assert!(untitled.is_some());
 
         Ok(())

@@ -149,7 +149,7 @@ impl Convert for KeychainImport {
                     let mut label = attr_service.as_str().to_owned();
                     let search = search_index.read();
                     if search
-                        .find_by_label(keeper.vault().id(), &label)
+                        .find_by_label(keeper.vault().id(), &label, None)
                         .is_some()
                     {
                         duplicates
