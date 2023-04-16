@@ -28,6 +28,14 @@ pub enum Error {
     #[error("expected peer multiaddr to contain peer ID")]
     NoMultiAddrPeerId,
 
+    /// Error generated when a register operation is already running.
+    #[error("register is already running for the given namespace")]
+    RegisterRunning,
+
+    /// Error generated when a discover operation is already running.
+    #[error("discover is already running for the given namespace")]
+    DiscoverRunning,
+
     /// Error generated attempting to parse a socket address.
     #[error(transparent)]
     AddrParse(#[from] std::net::AddrParseError),

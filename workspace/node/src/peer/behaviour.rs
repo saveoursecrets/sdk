@@ -21,7 +21,7 @@ pub(crate) struct ComposedBehaviour {
         request_response::Behaviour<RpcExchangeCodec>,
     pub(crate) kademlia: Kademlia<MemoryStore>,
     pub(crate) rendezvous: rendezvous::client::Behaviour,
-    //::new(key_pair.clone()),
+    pub(crate) identify: identify::Behaviour,
 }
 
 #[derive(Debug)]
@@ -34,6 +34,7 @@ pub(crate) enum ComposedEvent {
     ),
     Kademlia(KademliaEvent),
     Rendezvous(rendezvous::client::Event),
+    Identify(identify::Event),
 }
 
 impl
@@ -63,6 +64,12 @@ impl From<KademliaEvent> for ComposedEvent {
 impl From<rendezvous::client::Event> for ComposedEvent {
     fn from(event: rendezvous::client::Event) -> Self {
         ComposedEvent::Rendezvous(event)
+    }
+}
+
+impl From<identify::Event> for ComposedEvent {
+    fn from(event: identify::Event) -> Self {
+        ComposedEvent::Identify(event)
     }
 }
 

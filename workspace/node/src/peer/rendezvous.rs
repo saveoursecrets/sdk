@@ -45,7 +45,8 @@ impl Server {
             transport::build(&self.identity)?,
             RendezvousBehaviour {
                 identify: identify::Behaviour::new(identify::Config::new(
-                    format!("{}/{}", self.name, self.version),
+                    "rendezvous/1.0.0".to_string(),
+                    //format!("{}/{}", self.name, self.version),
                     self.identity.public(),
                 )),
                 rendezvous: rendezvous::server::Behaviour::new(

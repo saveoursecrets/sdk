@@ -15,10 +15,12 @@ use super::{Error, Result};
 
 use libp2p::{
     core::Multiaddr,
-    identity,
+    identify, identity,
     kad::{record::store::MemoryStore, Kademlia},
     multiaddr::Protocol,
-    rendezvous::{self, Cookie, Namespace},
+    rendezvous::{
+        self, client::RegisterError, Cookie, Namespace, Registration,
+    },
     request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
     swarm::{
         AddressScore, ConnectionHandlerUpgrErr, Swarm, SwarmBuilder,
@@ -33,8 +35,6 @@ use super::{
     protocol::{RpcExchangeCodec, RpcExchangeProtocol},
     transport,
 };
-
-const NAMESPACE: &str = "rendezvous";
 
 /// Location of a rendezvous server.
 #[derive(Debug, Clone)]
@@ -75,13 +75,16 @@ pub(crate) enum Command {
     Register {
         namespace: Namespace,
         ttl: Option<u64>,
+        sender: oneshot::Sender<Result<()>>,
     },
     Unregister {
         namespace: Namespace,
+        sender: oneshot::Sender<Result<()>>,
     },
     Discover {
         namespace: Option<Namespace>,
         limit: Option<u64>,
+        sender: oneshot::Sender<Result<Vec<Registration>>>,
     },
 }
 
@@ -92,7 +95,7 @@ pub async fn new(
     shutdown: oneshot::Receiver<()>,
 ) -> Result<(Client, impl Stream<Item = NetworkEvent> + Unpin, EventLoop)> {
     let peer_id = local_key.public().to_peer_id();
-    
+
     let mut swarm = SwarmBuilder::with_tokio_executor(
         transport::build(&local_key)?,
         ComposedBehaviour {
@@ -106,6 +109,11 @@ pub async fn new(
                 Default::default(),
             ),
             rendezvous: rendezvous::client::Behaviour::new(local_key.clone()),
+            identify: identify::Behaviour::new(identify::Config::new(
+                "rendezvous/1.0.0".to_string(),
+                //format!("{}/{}", self.name, self.version),
+                local_key.public(),
+            )),
         },
         peer_id,
     )
@@ -174,13 +182,9 @@ impl Client {
     }
 
     /// Get the list of connected peers from the swarm.
-    pub async fn connected_peers(
-        &mut self,
-    ) -> Result<Vec<PeerId>> {
+    pub async fn connected_peers(&mut self) -> Result<Vec<PeerId>> {
         let (sender, receiver) = oneshot::channel();
-        self.sender
-            .send(Command::ConnectedPeers { sender })
-            .await?;
+        self.sender.send(Command::ConnectedPeers { sender }).await?;
         receiver.await?
     }
 
@@ -214,19 +218,31 @@ impl Client {
     }
 
     /// Register this peer in a namespace.
-    pub async fn register(&mut self, namespace: Namespace, ttl: Option<u64>) {
+    pub async fn register(
+        &mut self,
+        namespace: Namespace,
+        ttl: Option<u64>,
+    ) -> Result<()> {
+        let (sender, receiver) = oneshot::channel();
         self.sender
-            .send(Command::Register { namespace, ttl })
+            .send(Command::Register {
+                namespace,
+                ttl,
+                sender,
+            })
             .await
             .expect("command receiver not to be dropped.");
+        receiver.await?
     }
 
     /// Unregister this peer from a namespace.
-    pub async fn unregister(&mut self, namespace: Namespace) {
+    pub async fn unregister(&mut self, namespace: Namespace) -> Result<()> {
+        let (sender, receiver) = oneshot::channel();
         self.sender
-            .send(Command::Unregister { namespace })
+            .send(Command::Unregister { namespace, sender })
             .await
             .expect("command receiver not to be dropped.");
+        receiver.await?
     }
 
     /// Discover peers in a namespace.
@@ -234,11 +250,17 @@ impl Client {
         &mut self,
         namespace: Option<Namespace>,
         limit: Option<u64>,
-    ) {
+    ) -> Result<Vec<Registration>> {
+        let (sender, receiver) = oneshot::channel();
         self.sender
-            .send(Command::Discover { namespace, limit })
+            .send(Command::Discover {
+                namespace,
+                limit,
+                sender,
+            })
             .await
             .expect("command receiver not to be dropped.");
+        receiver.await?
     }
 }
 
@@ -255,6 +277,11 @@ pub struct EventLoop {
         oneshot::Sender<
             Result<(RequestId, PeerId, ResponseMessage<'static>)>,
         >,
+    >,
+    pending_register: HashMap<Namespace, oneshot::Sender<Result<()>>>,
+    pending_discover: HashMap<
+        Option<Namespace>,
+        oneshot::Sender<Result<Vec<Registration>>>,
     >,
     //pending_start_providing: HashMap<QueryId, oneshot::Sender<()>>,
     //pending_get_providers: HashMap<QueryId, oneshot::Sender<HashSet<PeerId>>>,
@@ -281,6 +308,8 @@ impl EventLoop {
             //pending_start_providing: Default::default(),
             //pending_get_providers: Default::default(),
             pending_request: HashMap::new(),
+            pending_register: HashMap::new(),
+            pending_discover: HashMap::new(),
             shutdown,
             cookie: None,
         }
@@ -305,6 +334,7 @@ impl EventLoop {
                     None =>  return,
                 },
                 _ = async { interval.tick().await }.fuse() => {
+                    /*
                     if self.cookie.is_some() {
                         // FIXME: loop managed list of namespaces
                         self.swarm.behaviour_mut().rendezvous.discover(
@@ -314,6 +344,7 @@ impl EventLoop {
                             self.location.id,
                         )
                     }
+                    */
                 }
                 complete => break,
             }
@@ -404,12 +435,26 @@ impl EventLoop {
                     rendezvous_node,
                     ttl,
                 );
+
+                if let Some(pending) =
+                    self.pending_register.remove(&namespace)
+                {
+                    pending.send(Ok(())).expect("sender channel to be open");
+                }
             }
             rendezvous::client::Event::RegisterFailed(error) => {
                 tracing::error!("failed to register {}", error);
+                if let RegisterError::Remote { namespace, .. } = error {
+                    self.pending_register.remove(&namespace);
+                }
             }
-            rendezvous::client::Event::DiscoverFailed { error, .. } => {
+            rendezvous::client::Event::DiscoverFailed {
+                error,
+                namespace,
+                ..
+            } => {
                 tracing::error!("failed to discover peers {:#?}", error);
+                self.pending_discover.remove(&namespace);
             }
             // Rendezvous discovery
             rendezvous::client::Event::Discovered {
@@ -417,28 +462,38 @@ impl EventLoop {
                 cookie: new_cookie,
                 ..
             } => {
-                self.cookie.replace(new_cookie);
+                let namespace = new_cookie.namespace().cloned();
+                if let Some(pending) =
+                    self.pending_discover.remove(&namespace)
+                {
+                    self.cookie.replace(new_cookie);
 
-                for registration in registrations {
-                    for address in registration.record.addresses() {
-                        let peer = registration.record.peer_id();
-                        tracing::info!(
-                            "discovered peer {} at {}",
-                            peer,
-                            address
-                        );
+                    for registration in &registrations {
+                        for address in registration.record.addresses() {
+                            let peer = registration.record.peer_id();
+                            tracing::info!(
+                                "discovered peer {} at {}",
+                                peer,
+                                address
+                            );
 
-                        let p2p_suffix = Protocol::P2p(*peer.as_ref());
-                        let address_with_p2p = if !address.ends_with(
-                            &Multiaddr::empty().with(p2p_suffix.clone()),
-                        ) {
-                            address.clone().with(p2p_suffix)
-                        } else {
-                            address.clone()
-                        };
+                            let p2p_suffix = Protocol::P2p(*peer.as_ref());
+                            let address_with_p2p = if !address.ends_with(
+                                &Multiaddr::empty().with(p2p_suffix.clone()),
+                            ) {
+                                address.clone().with(p2p_suffix)
+                            } else {
+                                address.clone()
+                            };
 
-                        self.swarm.dial(address_with_p2p).unwrap();
+                            println!("Trying to dial the discovered peer!!!");
+                            self.swarm.dial(address_with_p2p).unwrap();
+                        }
                     }
+
+                    pending
+                        .send(Ok(registrations))
+                        .expect("sender channel to be open");
                 }
             }
             rendezvous::client::Event::Expired { .. } => {}
@@ -450,12 +505,31 @@ impl EventLoop {
         event: SwarmEvent<
             ComposedEvent,
             Either<
-                Either<ConnectionHandlerUpgrErr<io::Error>, io::Error>,
-                void::Void,
+                Either<
+                    Either<ConnectionHandlerUpgrErr<io::Error>, io::Error>,
+                    void::Void,
+                >,
+                io::Error,
             >,
         >,
     ) {
         match event {
+
+            SwarmEvent::Behaviour(ComposedEvent::Identify(identify::Event::Received {
+                ..
+            })) => {
+
+                println!("GOT IDENTIFY RECEIVED EVENT!!!");
+
+                /*
+                swarm.behaviour_mut().rendezvous.register(
+                    rendezvous::Namespace::from_static("rendezvous"),
+                    rendezvous_point,
+                    None,
+                );
+                */
+            }
+
             SwarmEvent::Behaviour(ComposedEvent::Rendezvous(event)) => {
                 self.handle_rendezvous(event).await;
             }
@@ -608,12 +682,9 @@ impl EventLoop {
                     tracing::warn!("already dialing peer {}", peer_id);
                 }
             }
-            Command::ConnectedPeers {
-                sender,
-            } => {
+            Command::ConnectedPeers { sender } => {
                 let peers = self.swarm.connected_peers().cloned().collect();
-                sender.send(Ok(peers))
-                    .expect("sender channel to be open");
+                sender.send(Ok(peers)).expect("sender channel to be open");
             }
             Command::Request {
                 peer_id,
@@ -634,26 +705,64 @@ impl EventLoop {
                     .send_response(channel, response)
                     .expect("connection to peer to be still open.");
             }
-            Command::Register { namespace, ttl } => {
-                self.swarm.behaviour_mut().rendezvous.register(
-                    namespace,
-                    self.location.id,
-                    ttl,
-                );
+            Command::Register {
+                namespace,
+                ttl,
+                sender,
+            } => {
+                if let Some(pending) =
+                    self.pending_register.remove(&namespace)
+                {
+                    tracing::warn!(
+                        "register already running for {:#?}",
+                        namespace,
+                    );
+                    pending
+                        .send(Err(Error::RegisterRunning))
+                        .expect("sender channel to be open")
+                } else {
+                    self.swarm.behaviour_mut().rendezvous.register(
+                        namespace.clone(),
+                        self.location.id,
+                        ttl,
+                    );
+
+                    self.pending_register.insert(namespace, sender);
+                }
+
+                //sender.send(Ok(())).expect("sender channel to be open");
             }
-            Command::Unregister { namespace } => {
+            Command::Unregister { namespace, sender } => {
                 self.swarm
                     .behaviour_mut()
                     .rendezvous
                     .unregister(namespace, self.location.id);
+                sender.send(Ok(())).expect("sender channel to be open");
             }
-            Command::Discover { namespace, limit } => {
-                self.swarm.behaviour_mut().rendezvous.discover(
-                    namespace,
-                    self.cookie.clone(),
-                    limit,
-                    self.location.id,
-                );
+            Command::Discover {
+                namespace,
+                limit,
+                sender,
+            } => {
+                if let Some(pending) =
+                    self.pending_discover.remove(&namespace)
+                {
+                    tracing::warn!(
+                        "discover already running for {:#?}",
+                        namespace,
+                    );
+                    pending
+                        .send(Err(Error::DiscoverRunning))
+                        .expect("sender channel to be open")
+                } else {
+                    self.swarm.behaviour_mut().rendezvous.discover(
+                        namespace.clone(),
+                        self.cookie.clone(),
+                        limit,
+                        self.location.id,
+                    );
+                    self.pending_discover.insert(namespace, sender);
+                }
             }
         }
     }

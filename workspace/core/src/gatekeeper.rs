@@ -307,7 +307,7 @@ impl Gatekeeper {
 
         let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
         let id = Uuid::new_v4();
-        
+
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.insert(
                 id,
@@ -323,7 +323,7 @@ impl Gatekeeper {
         )?;
 
         //drop(reader);
-        
+
         let mut writer = self.index.write();
         writer.add(&vault_id, &id, secret_meta, &secret);
 

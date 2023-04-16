@@ -95,7 +95,7 @@ pub struct TrustedDevice {
     /// Extra device information.
     pub extra_info: ExtraDeviceInfo,
     /// When this device was trusted.
-    pub created_date: OffsetDateTime, 
+    pub created_date: OffsetDateTime,
 }
 
 impl From<Vec<u8>> for TrustedDevice {
