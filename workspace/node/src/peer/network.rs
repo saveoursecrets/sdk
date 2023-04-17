@@ -477,6 +477,11 @@ impl EventLoop {
                     for registration in &registrations {
                         for address in registration.record.addresses() {
                             let peer = registration.record.peer_id();
+
+                            if peer == self.peer_id {
+                                continue;
+                            }
+
                             tracing::info!(
                                 "discovered peer {} at {}",
                                 peer,
@@ -724,8 +729,6 @@ impl EventLoop {
 
                     self.pending_register.insert(namespace, sender);
                 }
-
-                //sender.send(Ok(())).expect("sender channel to be open");
             }
             Command::Unregister { namespace, sender } => {
                 self.swarm
