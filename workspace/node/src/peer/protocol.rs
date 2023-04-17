@@ -26,7 +26,7 @@ pub struct RpcExchangeCodec();
 
 impl ProtocolName for RpcExchangeProtocol {
     fn protocol_name(&self) -> &[u8] {
-        "/sos-rpc/1".as_bytes()
+        "/sos-rpc/1.0.0".as_bytes()
     }
 }
 

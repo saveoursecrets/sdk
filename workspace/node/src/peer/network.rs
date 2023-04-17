@@ -8,6 +8,7 @@ use std::{
 use either::Either;
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
+use tokio::sync::{mpsc as tokio_mpsc};
 
 use sos_core::rpc::{RequestMessage, ResponseMessage};
 
@@ -15,7 +16,7 @@ use super::{Error, Result};
 
 use libp2p::{
     core::Multiaddr,
-    identify, identity,
+    identify::{self, Event as IdentifyEvent}, identity,
     kad::{record::store::MemoryStore, Kademlia},
     multiaddr::Protocol,
     rendezvous::{
@@ -92,6 +93,7 @@ pub(crate) enum Command {
 pub async fn new(
     local_key: identity::Keypair,
     location: RendezvousLocation,
+    identify: tokio_mpsc::Sender<IdentifyEvent>,
     shutdown: oneshot::Receiver<()>,
 ) -> Result<(Client, impl Stream<Item = NetworkEvent> + Unpin, EventLoop)> {
     let peer_id = local_key.public().to_peer_id();
@@ -110,8 +112,7 @@ pub async fn new(
             ),
             rendezvous: rendezvous::client::Behaviour::new(local_key.clone()),
             identify: identify::Behaviour::new(identify::Config::new(
-                "rendezvous/1.0.0".to_string(),
-                //format!("{}/{}", self.name, self.version),
+                "sos-rendezvous/1.0.0".to_string(),
                 local_key.public(),
             )),
         },
@@ -136,6 +137,7 @@ pub async fn new(
             swarm,
             command_receiver,
             event_sender,
+            identify,
             shutdown,
         ),
     ))
@@ -285,6 +287,8 @@ pub struct EventLoop {
     >,
     //pending_start_providing: HashMap<QueryId, oneshot::Sender<()>>,
     //pending_get_providers: HashMap<QueryId, oneshot::Sender<HashSet<PeerId>>>,
+
+    identify: tokio_mpsc::Sender<IdentifyEvent>,
     shutdown: oneshot::Receiver<()>,
     cookie: Option<Cookie>,
 }
@@ -296,6 +300,7 @@ impl EventLoop {
         swarm: Swarm<ComposedBehaviour>,
         command_receiver: mpsc::Receiver<Command>,
         event_sender: mpsc::Sender<NetworkEvent>,
+        identify: tokio_mpsc::Sender<IdentifyEvent>,
         shutdown: oneshot::Receiver<()>,
     ) -> Self {
         Self {
@@ -310,6 +315,7 @@ impl EventLoop {
             pending_request: HashMap::new(),
             pending_register: HashMap::new(),
             pending_discover: HashMap::new(),
+            identify,
             shutdown,
             cookie: None,
         }
@@ -514,22 +520,11 @@ impl EventLoop {
         >,
     ) {
         match event {
+            SwarmEvent::Behaviour(ComposedEvent::Identify(event)) => {
+                self.identify.send(event).await
+                    .expect("identify channel to be open");
 
-            SwarmEvent::Behaviour(ComposedEvent::Identify(identify::Event::Received {
-                ..
-            })) => {
-
-                println!("GOT IDENTIFY RECEIVED EVENT!!!");
-
-                /*
-                swarm.behaviour_mut().rendezvous.register(
-                    rendezvous::Namespace::from_static("rendezvous"),
-                    rendezvous_point,
-                    None,
-                );
-                */
             }
-
             SwarmEvent::Behaviour(ComposedEvent::Rendezvous(event)) => {
                 self.handle_rendezvous(event).await;
             }
