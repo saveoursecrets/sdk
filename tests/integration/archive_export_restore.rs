@@ -77,7 +77,7 @@ async fn integration_archive_local_provider() -> Result<()> {
 
     keeper.lock();
 
-    let vault = keeper.take();
+    let vault: Vault = keeper.into();
 
     let options = RestoreOptions {
         selected: vec![vault.summary().clone()],

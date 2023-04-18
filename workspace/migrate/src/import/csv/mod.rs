@@ -315,6 +315,6 @@ impl Convert for GenericCsvConvert {
         }
 
         keeper.lock();
-        Ok(keeper.take())
+        Ok(keeper.into())
     }
 }

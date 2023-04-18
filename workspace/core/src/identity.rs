@@ -92,7 +92,7 @@ impl Identity {
         age_meta.set_urn(Some(urn));
         keeper.create(age_meta, age_secret)?;
 
-        Ok((address, keeper.take()))
+        Ok((address, keeper.into()))
     }
 
     /// Attempt to login using a file path.
@@ -272,7 +272,7 @@ mod tests {
         signer_meta.set_urn(Some(urn));
         keeper.create(signer_meta, signer_secret)?;
 
-        let vault = keeper.take();
+        let vault: Vault = keeper.into();
         let buffer = encode(&vault)?;
 
         let result =

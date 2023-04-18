@@ -195,7 +195,7 @@ impl Convert for KeychainImport {
 
         keeper.lock();
 
-        Ok(keeper.take())
+        Ok(keeper.into())
     }
 }
 

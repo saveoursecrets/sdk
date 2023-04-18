@@ -282,7 +282,7 @@ impl AccountManager {
             meta.set_favorite(true);
             keeper.create(meta, secret)?;
 
-            default_vault = keeper.take();
+            default_vault = keeper.into();
         }
 
         // Store the vault passphrase in the identity vault
@@ -839,7 +839,7 @@ impl AccountManager {
             let (mut provider, _) =
                 factory.create_provider(user.signer.clone())?;
 
-            let device_vault = device_keeper.take();
+            let device_vault: Vault = device_keeper.into();
             let buffer = encode(&device_vault)?;
             let summary = run_blocking(provider.import_vault(buffer))?;
 

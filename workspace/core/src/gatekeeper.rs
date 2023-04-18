@@ -85,11 +85,6 @@ impl Gatekeeper {
         &mut self.vault
     }
 
-    /// Take the vault from this gatekeeper.
-    pub fn take(self) -> Vault {
-        self.vault
-    }
-
     /// Replace this vault with a new updated vault
     /// and update the search index if possible.
     ///
@@ -476,6 +471,18 @@ impl Gatekeeper {
     /// underlying memory.
     pub fn lock(&mut self) {
         self.private_key = None;
+    }
+}
+
+impl From<Vault> for Gatekeeper {
+    fn from(value: Vault) -> Self {
+        Gatekeeper::new(value, None)
+    }
+}
+
+impl From<Gatekeeper> for Vault {
+    fn from(value: Gatekeeper) -> Self {
+        value.vault
     }
 }
 
