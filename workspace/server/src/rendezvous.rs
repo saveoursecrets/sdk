@@ -21,8 +21,8 @@ struct Cli {
 async fn run() -> Result<()> {
     let args = Cli::parse();
 
-    let name = env!("CARGO_PKG_NAME").to_string();
-    let version = env!("CARGO_PKG_VERSION").to_string();
+    //let name = env!("CARGO_PKG_NAME").to_string();
+    //let version = env!("CARGO_PKG_VERSION").to_string();
 
     let identity = if let Some(identity) = args.identity {
         let private_key = hex::decode(identity)?;
@@ -32,7 +32,7 @@ async fn run() -> Result<()> {
     };
 
     let addr = SocketAddr::from_str(&args.bind)?;
-    let server = Server::new(name, version, identity, addr);
+    let server = Server::new(identity, addr);
     server.run().await?;
     Ok(())
 }

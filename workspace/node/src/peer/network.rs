@@ -8,7 +8,7 @@ use std::{
 use either::Either;
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
-use tokio::sync::{mpsc as tokio_mpsc};
+use tokio::sync::mpsc as tokio_mpsc;
 
 use sos_core::rpc::{RequestMessage, ResponseMessage};
 
@@ -16,7 +16,8 @@ use super::{Error, Result};
 
 use libp2p::{
     core::Multiaddr,
-    identify::{self, Event as IdentifyEvent}, identity,
+    identify::{self, Event as IdentifyEvent},
+    identity,
     kad::{record::store::MemoryStore, Kademlia},
     multiaddr::Protocol,
     rendezvous::{
@@ -287,7 +288,6 @@ pub struct EventLoop {
     >,
     //pending_start_providing: HashMap<QueryId, oneshot::Sender<()>>,
     //pending_get_providers: HashMap<QueryId, oneshot::Sender<HashSet<PeerId>>>,
-
     identify: tokio_mpsc::Sender<IdentifyEvent>,
     shutdown: oneshot::Receiver<()>,
     cookie: Option<Cookie>,
@@ -526,9 +526,10 @@ impl EventLoop {
     ) {
         match event {
             SwarmEvent::Behaviour(ComposedEvent::Identify(event)) => {
-                self.identify.send(event).await
+                self.identify
+                    .send(event)
+                    .await
                     .expect("identify channel to be open");
-
             }
             SwarmEvent::Behaviour(ComposedEvent::Rendezvous(event)) => {
                 self.handle_rendezvous(event).await;

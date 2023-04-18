@@ -40,7 +40,7 @@ log = "0.4"
 http = "0.2"
 zxcvbn = "2"
 totp-sos = { version = "3", features = ["serde"] }
-vcard4 = { version = "0.4.3", features = ["serde"] }
+vcard4 = { version = "0.4.4", features = ["serde"] }
 parking_lot = "0.12"
 urn = { version = "0.5", features = ["serde"] }
 once_cell = "1"

@@ -17,8 +17,8 @@ use super::{
 
 /// Rendezvous service.
 pub struct Server {
-    name: String,
-    version: String,
+    //name: String,
+    //version: String,
     addr: SocketAddr,
     identity: identity::Keypair,
 }
@@ -26,14 +26,14 @@ pub struct Server {
 impl Server {
     /// Create a new rendezvous server.
     pub fn new(
-        name: String,
-        version: String,
+        //name: String,
+        //version: String,
         identity: identity::Keypair,
         addr: SocketAddr,
     ) -> Self {
         Self {
-            name,
-            version,
+            //name,
+            //version,
             identity,
             addr,
         }
