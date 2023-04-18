@@ -43,13 +43,13 @@ pub mod test_utils;
 #[cfg(not(target_arch = "wasm32"))]
 pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
 
+pub use commit_tree::CommitHash;
 pub use error::Error;
 pub use file_access::VaultFileAccess;
 pub use file_identity::FileIdentity;
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_locks::FileLocks;
 pub use gatekeeper::Gatekeeper;
-pub use commit_tree::CommitHash;
 pub use passgen::diceware::{generate_passphrase, generate_passphrase_words};
 pub use passwd::ChangePassword;
 #[cfg(not(target_arch = "wasm32"))]
