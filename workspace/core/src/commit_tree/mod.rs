@@ -3,6 +3,7 @@ use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 use serde::{
+    Deserialize, Serialize,
     de::{self, SeqAccess, Visitor},
     ser::SerializeTuple,
 };
@@ -10,7 +11,7 @@ use std::{fmt, ops::Range};
 
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 
-use crate::{CommitHash, Error, Result};
+use crate::{Error, Result};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod integrity;
@@ -21,6 +22,41 @@ pub use integrity::{vault_commit_tree_file, wal_commit_tree_file};
 /// Compute the Sha256 hash of some data.
 pub fn hash(data: &[u8]) -> [u8; 32] {
     Sha256::hash(data)
+}
+
+/// Newtype for a 32 byte hash that provides a hexadecimal
+/// display implementation.
+#[derive(
+    Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize,
+)]
+pub struct CommitHash(
+    #[serde(with = "hex::serde")]
+    pub [u8; 32],
+);
+
+impl AsRef<[u8; 32]> for CommitHash {
+    fn as_ref(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl CommitHash {
+    /// Get a copy of the underlying bytes for the commit hash.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0
+    }
+}
+
+impl From<CommitHash> for [u8; 32] {
+    fn from(value: CommitHash) -> Self {
+        value.0
+    }
+}
+
+impl fmt::Display for CommitHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(self.0))
+    }
 }
 
 /// A pair of commit proofs.
@@ -428,3 +464,5 @@ mod test {
         Ok(())
     }
 }
+
+

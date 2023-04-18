@@ -22,7 +22,7 @@ mod file_identity;
 mod file_locks;
 
 mod gatekeeper;
-mod hash;
+//mod hash;
 pub mod identity;
 pub mod iter;
 pub mod passgen;
@@ -49,7 +49,7 @@ pub use file_identity::FileIdentity;
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_locks::FileLocks;
 pub use gatekeeper::Gatekeeper;
-pub use hash::CommitHash;
+pub use commit_tree::CommitHash;
 pub use passgen::diceware::{generate_passphrase, generate_passphrase_words};
 pub use passwd::ChangePassword;
 #[cfg(not(target_arch = "wasm32"))]
