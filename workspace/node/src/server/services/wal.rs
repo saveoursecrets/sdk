@@ -393,7 +393,7 @@ impl Service for WalService {
                     .replace_wal(
                         caller.address(),
                         &vault_id,
-                        commit_proof.0.into(),
+                        commit_proof.root.into(),
                         request.body(),
                     )
                     .await

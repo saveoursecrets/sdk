@@ -1,7 +1,7 @@
 //! Type for iterating and managing the commit trees for a vault.
-use std::ops::Range;
-use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 use crate::{Error, Result};
+use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
+use std::ops::Range;
 
 mod proof;
 
@@ -100,12 +100,22 @@ impl CommitTree {
         } else {
             leaf_indices[0]..leaf_indices[0] + 1
         };
-        Ok(CommitProof(root, proof, self.len(), indices))
+        Ok(CommitProof {
+            root,
+            proof,
+            length: self.len(),
+            indices,
+        })
     }
 
     /// Compare this tree against another root hash and merkle proof.
     pub fn compare(&self, proof: CommitProof) -> Result<Comparison> {
-        let CommitProof(other_root, proof, count, range) = proof;
+        let CommitProof {
+            root: other_root,
+            proof,
+            length: count,
+            indices: range,
+        } = proof;
         let root = self.root().ok_or(Error::NoRootCommit)?;
         if root == other_root {
             Ok(Comparison::Equal)
@@ -202,10 +212,13 @@ mod test {
         let json = serde_json::to_string_pretty(&proof)?;
         let commit_proof: CommitProof = serde_json::from_str(&json)?;
 
-        assert_eq!(proof.0, commit_proof.0);
-        assert_eq!(proof.1.proof_hashes(), commit_proof.1.proof_hashes());
-        assert_eq!(proof.2, commit_proof.2);
-        assert_eq!(proof.3, commit_proof.3);
+        assert_eq!(proof.root, commit_proof.root);
+        assert_eq!(
+            proof.proof.proof_hashes(),
+            commit_proof.proof.proof_hashes()
+        );
+        assert_eq!(proof.length, commit_proof.length);
+        assert_eq!(proof.indices, commit_proof.indices);
 
         Ok(())
     }

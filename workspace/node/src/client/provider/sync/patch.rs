@@ -74,7 +74,7 @@ where
 
             // Pass the expected root hash so changes are reverted
             // if the root hashes do not match
-            wal_file.apply(changes, Some(CommitHash(server_proof.0)))?;
+            wal_file.apply(changes, Some(CommitHash(server_proof.root)))?;
 
             patch_file.truncate()?;
 

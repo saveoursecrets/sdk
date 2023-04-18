@@ -34,9 +34,9 @@ pub(crate) fn assert_proofs_eq(
     client_proof: &CommitProof,
     server_proof: &CommitProof,
 ) -> Result<()> {
-    if client_proof.0 != server_proof.0 {
-        let client = CommitHash(client_proof.0);
-        let server = CommitHash(server_proof.0);
+    if client_proof.root != server_proof.root {
+        let client = CommitHash(client_proof.root);
+        let server = CommitHash(server_proof.root);
         Err(Error::RootHashMismatch(client, server))
     } else {
         Ok(())

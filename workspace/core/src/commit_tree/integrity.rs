@@ -1,13 +1,11 @@
 //! Functions to build commit trees and run integrity checks.
-
-use binary_stream::{BinaryReader, Endian, FileStream};
-
 use crate::{
     commit_tree::{hash, CommitTree},
     iter::{vault_iter, FileItem, VaultRecord, WalFileRecord},
     wal::{WalItem, WalProvider},
     Error, Result,
 };
+use binary_stream::{BinaryReader, Endian, FileStream};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::wal::file::WalFile;

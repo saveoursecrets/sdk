@@ -67,23 +67,23 @@ pub struct CommitPair {
 }
 
 /// Represents a root hash and a proof of certain nodes.
-pub struct CommitProof(
+pub struct CommitProof {
     /// Root hash.
-    pub <Sha256 as Hasher>::Hash,
+    pub root: <Sha256 as Hasher>::Hash,
     /// The merkle proof.
-    pub MerkleProof<Sha256>,
+    pub proof: MerkleProof<Sha256>,
     /// The length of the tree.
-    pub usize,
+    pub length: usize,
     /// Range of indices.
-    pub Range<usize>,
-);
+    pub indices: Range<usize>,
+}
 
 impl PartialEq for CommitProof {
     fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-            && self.1.proof_hashes() == other.1.proof_hashes()
-            && self.2 == other.2
-            && self.3 == other.3
+        self.root == other.root
+            && self.proof.proof_hashes() == other.proof.proof_hashes()
+            && self.length == other.length
+            && self.indices == other.indices
     }
 }
 
@@ -91,30 +91,30 @@ impl Eq for CommitProof {}
 
 impl Clone for CommitProof {
     fn clone(&self) -> Self {
-        let hashes = self.1.proof_hashes().to_vec();
-        CommitProof(
-            self.0,
-            MerkleProof::<Sha256>::new(hashes),
-            self.2,
-            self.3.clone(),
-        )
+        let hashes = self.proof.proof_hashes().to_vec();
+        CommitProof {
+            root: self.root,
+            proof: MerkleProof::<Sha256>::new(hashes),
+            length: self.length,
+            indices: self.indices.clone(),
+        }
     }
 }
 
 impl CommitProof {
     /// The root hash for the proof.
     pub fn root(&self) -> &<Sha256 as Hasher>::Hash {
-        &self.0
+        &self.root
     }
 
     /// The root hash for the proof as hexadecimal.
     pub fn root_hex(&self) -> String {
-        hex::encode(self.0)
+        hex::encode(&self.root)
     }
 
     /// Number of leaves in the commit tree.
     pub fn len(&self) -> usize {
-        self.2
+        self.length
     }
 
     /// Determine if this proof is empty.
@@ -128,26 +128,31 @@ impl CommitProof {
     /// implementation but cannot due to the `MerkleProof` type so
     /// this reduces the proof to simpler error-safe types.
     pub fn reduce(self) -> (CommitHash, usize) {
-        (CommitHash(self.0), self.2)
+        (CommitHash(self.root), self.length)
     }
 }
 
 impl Default for CommitProof {
     fn default() -> Self {
-        Self([0; 32], MerkleProof::<Sha256>::new(vec![]), 0, 0..0)
+        Self {
+            root: [0; 32],
+            proof: MerkleProof::<Sha256>::new(vec![]),
+            length: 0,
+            indices: 0..0,
+        }
     }
 }
 
 impl Encode for CommitProof {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        writer.write_bytes(self.0)?;
-        let proof_bytes = self.1.to_bytes();
+        writer.write_bytes(self.root)?;
+        let proof_bytes = self.proof.to_bytes();
         writer.write_u32(proof_bytes.len() as u32)?;
         writer.write_bytes(&proof_bytes)?;
 
-        writer.write_u32(self.2 as u32)?;
-        writer.write_u32(self.3.start as u32)?;
-        writer.write_u32(self.3.end as u32)?;
+        writer.write_u32(self.length as u32)?;
+        writer.write_u32(self.indices.start as u32)?;
+        writer.write_u32(self.indices.end as u32)?;
         Ok(())
     }
 }
@@ -156,20 +161,20 @@ impl Decode for CommitProof {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let root_hash: [u8; 32] =
             reader.read_bytes(32)?.as_slice().try_into()?;
-        self.0 = root_hash;
+        self.root = root_hash;
         let length = reader.read_u32()?;
         let proof_bytes = reader.read_bytes(length as usize)?;
         let proof = MerkleProof::<Sha256>::from_bytes(&proof_bytes)
             .map_err(Box::from)?;
 
-        self.1 = proof;
-        self.2 = reader.read_u32()? as usize;
+        self.proof = proof;
+        self.length = reader.read_u32()? as usize;
         let start = reader.read_u32()?;
         let end = reader.read_u32()?;
 
         // TODO: validate range start is <= range end
 
-        self.3 = start as usize..end as usize;
+        self.indices = start as usize..end as usize;
         Ok(())
     }
 }
@@ -177,10 +182,10 @@ impl Decode for CommitProof {
 impl fmt::Debug for CommitProof {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CommitProof")
-            .field("root", &hex::encode(self.0))
+            .field("root", &hex::encode(self.root))
             //.field("proofs", self.1.proof_hashes())
-            .field("size", &self.2)
-            .field("leaves", &self.3)
+            .field("size", &self.length)
+            .field("leaves", &self.indices)
             .finish()
     }
 }
@@ -195,12 +200,12 @@ impl serde::Serialize for CommitProof {
     {
         // 4-element tuple
         let mut tup = serializer.serialize_tuple(4)?;
-        let root_hash = hex::encode(self.0);
+        let root_hash = hex::encode(self.root);
         tup.serialize_element(&root_hash)?;
-        let hashes = self.1.proof_hashes();
+        let hashes = self.proof.proof_hashes();
         tup.serialize_element(hashes)?;
-        tup.serialize_element(&self.2)?;
-        tup.serialize_element(&self.3)?;
+        tup.serialize_element(&self.length)?;
+        tup.serialize_element(&self.indices)?;
         tup.end()
     }
 }
@@ -230,18 +235,18 @@ impl<'de> Visitor<'de> for CommitProofVisitor {
         let hashes: Vec<[u8; 32]> = seq.next_element()?.ok_or_else(|| {
             de::Error::custom("expecting sequence of proof hashes")
         })?;
-        let size: usize = seq.next_element()?.ok_or_else(|| {
+        let length: usize = seq.next_element()?.ok_or_else(|| {
             de::Error::custom("expecting tree length usize")
         })?;
-        let range: Range<usize> = seq
+        let indices: Range<usize> = seq
             .next_element()?
             .ok_or_else(|| de::Error::custom("expecting leaf node range"))?;
-        Ok(CommitProof(
-            root_hash,
-            MerkleProof::new(hashes),
-            size,
-            range,
-        ))
+        Ok(CommitProof {
+            root: root_hash,
+            proof: MerkleProof::new(hashes),
+            length,
+            indices,
+        })
     }
 }
 
