@@ -10,7 +10,7 @@ use std::{fmt, ops::Range};
 
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 
-use crate::{vault::Vault, CommitHash, Error, Result};
+use crate::{CommitHash, Error, Result};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod integrity;
@@ -33,9 +33,13 @@ pub struct CommitPair {
 
 /// Represents a root hash and a proof of certain nodes.
 pub struct CommitProof(
+    /// Root hash.
     pub <Sha256 as Hasher>::Hash,
+    /// The merkle proof.
     pub MerkleProof<Sha256>,
+    /// The length of the tree.
     pub usize,
+    /// Range of indices.
     pub Range<usize>,
 );
 
@@ -246,17 +250,6 @@ impl CommitTree {
         }
     }
 
-    // TODO: move this to another module!
-    /// Create a commit tree from an existing vault.
-    pub fn from_vault(vault: &Vault) -> Self {
-        let mut commit_tree = Self::new();
-        for (_, commit) in vault.commits() {
-            commit_tree.tree.insert(commit.to_bytes());
-        }
-        commit_tree.tree.commit();
-        commit_tree
-    }
-
     /// Get the number of leaves in the tree.
     pub fn len(&self) -> usize {
         self.tree.leaves_len()
@@ -375,6 +368,16 @@ mod test {
     };
     use anyhow::Result;
 
+    /// Create a commit tree from an existing vault.
+    fn from_vault(vault: &Vault) -> CommitTree {
+        let mut commit_tree = CommitTree::new();
+        for (_, commit) in vault.commits() {
+            commit_tree.tree.insert(commit.to_bytes());
+        }
+        commit_tree.tree.commit();
+        commit_tree
+    }
+
     fn mock_commit_tree() -> Result<CommitTree> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let mut vault = mock_vault();
@@ -399,7 +402,7 @@ mod test {
             };
         }
 
-        Ok(CommitTree::from_vault(&vault))
+        Ok(from_vault(&vault))
     }
 
     #[test]
