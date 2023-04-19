@@ -268,10 +268,14 @@ pub enum CommitRelationship {
     /// Local tree is ahead of the remote.
     ///
     /// A push operation should be successful.
+    ///
+    /// Includes the number of commits ahead.
     Ahead(CommitPair, usize),
     /// Local tree is behind the remote.
     ///
     /// A pull operation should be successful.
+    ///
+    /// Includes the number of commits behind.
     Behind(CommitPair, usize),
     /// Commit trees have diverged and either a force
     /// push or force pull is required to synchronize.

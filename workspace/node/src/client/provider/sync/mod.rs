@@ -64,7 +64,7 @@ where
                 pair.remote.len().overflowing_sub(pair.local.len());
             CommitRelationship::Behind(pair, diff)
         } else {
-            let comparison = wal_file.tree().compare(server_proof)?;
+            let comparison = wal_file.tree().compare(&server_proof)?;
             let is_ahead = match comparison {
                 Comparison::Contains(_, _) => true,
                 _ => false,

@@ -41,7 +41,7 @@ where
 
     let equals = client_proof.root() == server_proof.root();
 
-    let comparison = wal_file.tree().compare(server_proof.clone())?;
+    let comparison = wal_file.tree().compare(&server_proof)?;
     let can_push_safely = match comparison {
         Comparison::Contains(_, _) => true,
         _ => false,

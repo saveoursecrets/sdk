@@ -86,7 +86,7 @@ impl Service for WalService {
                         "get_wal client root");
 
                     let comparison =
-                        wal.tree().compare(proof).map_err(Box::from)?;
+                        wal.tree().compare(&proof).map_err(Box::from)?;
 
                     match comparison {
                         Comparison::Equal => {
@@ -174,20 +174,7 @@ impl Service for WalService {
                 let proof = wal.tree().head().map_err(Box::from)?;
 
                 let match_proof = if let Some(client_proof) = commit_proof {
-                    let comparison = wal
-                        .tree()
-                        .compare(client_proof)
-                        .map_err(Box::from)?;
-                    match comparison {
-                        Comparison::Contains(indices, _leaves) => {
-                            let match_proof = wal
-                                .tree()
-                                .proof(&indices)
-                                .map_err(Box::from)?;
-                            Some(match_proof)
-                        }
-                        _ => None,
-                    }
+                    wal.tree().contains(&client_proof).map_err(Box::from)?
                 } else {
                     None
                 };
@@ -222,7 +209,7 @@ impl Service for WalService {
 
                     let comparison = wal
                         .tree()
-                        .compare(commit_proof)
+                        .compare(&commit_proof)
                         .map_err(Box::from)?;
 
                     match comparison {

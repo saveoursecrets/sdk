@@ -298,7 +298,7 @@ mod test {
         }
 
         let proof = client.tree().head()?;
-        let comparison = server.tree().compare(proof)?;
+        let comparison = server.tree().compare(&proof)?;
         assert_eq!(Comparison::Equal, comparison);
 
         assert_eq!(server.tree().len(), client.tree().len());
@@ -314,7 +314,7 @@ mod test {
 
         // Check that the server contains the client proof
         let proof = client.tree().head()?;
-        let comparison = server.tree().compare(proof)?;
+        let comparison = server.tree().compare(&proof)?;
 
         let matched = if let Comparison::Contains(indices, _) = comparison {
             indices == vec![1]
@@ -325,7 +325,7 @@ mod test {
 
         // Verify that the server root is not contained by the client.
         let proof = server.tree().head()?;
-        let comparison = client.tree().compare(proof)?;
+        let comparison = client.tree().compare(&proof)?;
         assert_eq!(Comparison::Unknown, comparison);
 
         // A completely different tree should also be unknown to the server.
@@ -334,7 +334,7 @@ mod test {
         // a new commit tree.
         let (standalone, _) = mock_wal_standalone()?;
         let proof = standalone.tree().head()?;
-        let comparison = server.tree().compare(proof)?;
+        let comparison = server.tree().compare(&proof)?;
         assert_eq!(Comparison::Unknown, comparison);
 
         Ok(())
@@ -352,7 +352,7 @@ mod test {
 
         let proof = client.tree().head()?;
 
-        let comparison = server.tree().compare(proof)?;
+        let comparison = server.tree().compare(&proof)?;
 
         if let Comparison::Contains(indices, leaves) = comparison {
             assert_eq!(vec![1], indices);
