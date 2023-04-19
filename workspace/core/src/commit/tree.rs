@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
-use std::ops::Range;
+use std::{collections::HashMap, hash::Hash, ops::Range};
 
 use super::{CommitPair, CommitProof, CommitRelationship, Comparison};
 
@@ -199,6 +199,63 @@ impl CommitTree {
     }
 }
 
+/// Multi tree allows comparison between multiple trees each 
+/// represented by a unique identifier.
+#[derive(Default)]
+pub struct MultiTree<'a, K: Hash + Eq + PartialEq> {
+    trees: HashMap<K, &'a CommitTree>,
+}
+
+impl<'a, K: Hash + Eq + PartialEq> MultiTree<'a, K> {
+    /// Insert a tree reference into this multi tree.
+    pub fn insert(&mut self, key: K, tree: &'a CommitTree) {
+        self.trees.insert(key, tree);
+    }
+
+    /// Get the head proof for all trees.
+    pub fn head(&'a self) -> Result<HashMap<&'a K, CommitProof>> {
+        let mut proofs = HashMap::new();
+        for (id, tree) in self.trees.iter() {
+            proofs.insert(id, tree.head()?);
+        }
+        Ok(proofs)
+    }
+
+    /// Determine if each of the other proofs is contained in
+    /// each of the trees in this multi tree.
+    pub fn contains(
+        &'a self,
+        other: &HashMap<&'a K, CommitProof>,
+    ) -> Result<HashMap<&'a K, Option<CommitProof>>> {
+        let mut matches = HashMap::new();
+        for (id, tree) in self.trees.iter() {
+            if let Some(proof) = other.get(id) {
+                matches.insert(id, tree.contains(proof)?);
+            } else {
+                matches.insert(id, None);
+            }
+        }
+        Ok(matches)
+    }
+
+    /// Get the relationship between two multi trees.
+    pub fn relationship(
+        &'a self,
+        proofs: HashMap<&'a K, CommitProof>,
+        matches: HashMap<&'a K, Option<CommitProof>>,
+    ) -> Result<HashMap<&'a K, CommitRelationship>> {
+        let mut relationships = HashMap::new();
+        for (id, tree) in self.trees.iter() {
+            if let (Some(proof), Some(match_proof)) = (proofs.get(id), matches.get(id)) {
+                //matches.insert(id, tree.contains(proof)?);
+                //todo!();
+                relationships.insert(id, tree.relationship(proof.clone(), match_proof.clone())?);
+            }
+        }
+        Ok(relationships)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -208,6 +265,7 @@ mod test {
         vault::{Vault, VaultAccess, VaultEntry},
     };
     use anyhow::Result;
+    use uuid::Uuid;
 
     /// Create a commit tree from an existing vault.
     fn from_vault(vault: &Vault) -> CommitTree {
@@ -448,6 +506,62 @@ mod test {
         let relationship = local.relationship(remote_proof, match_proof)?;
 
         assert!(matches!(relationship, CommitRelationship::Ahead(_, _)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_multi_equal() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        local_tree2.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+
+        let mut remote_tree1 = CommitTree::new();
+        remote_tree1.insert(hash1);
+        remote_tree1.commit();
+
+        let mut remote_tree2 = CommitTree::new();
+        remote_tree2.insert(hash2);
+        remote_tree2.commit();
+
+        let mut remote: MultiTree<Uuid> = Default::default();
+        remote.insert(tree_id1, &remote_tree1);
+        remote.insert(tree_id2, &remote_tree2);
+
+        let local_proofs = local.head()?;
+        let match_proofs = remote.contains(&local_proofs)?;
+        let remote_proofs = remote.head()?;
+
+        let mut relationships =
+            local.relationship(remote_proofs, match_proofs)?;
+
+        assert!(
+            matches!(
+                relationships.remove(&tree_id1).unwrap(),
+                CommitRelationship::Equal(_)
+            )
+        );
+
+        assert!(
+            matches!(
+                relationships.remove(&tree_id2).unwrap(),
+                CommitRelationship::Equal(_)
+            )
+        );
 
         Ok(())
     }

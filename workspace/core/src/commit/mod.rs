@@ -11,4 +11,4 @@ pub use integrity::{vault_commit_tree_file, wal_commit_tree_file};
 pub use proof::{
     CommitHash, CommitPair, CommitProof, CommitRelationship, Comparison,
 };
-pub use tree::CommitTree;
+pub use tree::{CommitTree, MultiTree};
