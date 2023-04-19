@@ -199,7 +199,7 @@ impl CommitTree {
     }
 }
 
-/// Multi tree allows comparison between multiple trees each 
+/// Multi tree allows comparison between multiple trees each
 /// represented by a unique identifier.
 #[derive(Default)]
 pub struct MultiTree<'a, K: Hash + Eq + PartialEq> {
@@ -246,10 +246,13 @@ impl<'a, K: Hash + Eq + PartialEq> MultiTree<'a, K> {
     ) -> Result<HashMap<&'a K, CommitRelationship>> {
         let mut relationships = HashMap::new();
         for (id, tree) in self.trees.iter() {
-            if let (Some(proof), Some(match_proof)) = (proofs.get(id), matches.get(id)) {
-                //matches.insert(id, tree.contains(proof)?);
-                //todo!();
-                relationships.insert(id, tree.relationship(proof.clone(), match_proof.clone())?);
+            if let (Some(proof), Some(match_proof)) =
+                (proofs.get(id), matches.get(id))
+            {
+                relationships.insert(
+                    id,
+                    tree.relationship(proof.clone(), match_proof.clone())?,
+                );
             }
         }
         Ok(relationships)
@@ -549,19 +552,15 @@ mod test {
         let mut relationships =
             local.relationship(remote_proofs, match_proofs)?;
 
-        assert!(
-            matches!(
-                relationships.remove(&tree_id1).unwrap(),
-                CommitRelationship::Equal(_)
-            )
-        );
+        assert!(matches!(
+            relationships.remove(&tree_id1).unwrap(),
+            CommitRelationship::Equal(_)
+        ));
 
-        assert!(
-            matches!(
-                relationships.remove(&tree_id2).unwrap(),
-                CommitRelationship::Equal(_)
-            )
-        );
+        assert!(matches!(
+            relationships.remove(&tree_id2).unwrap(),
+            CommitRelationship::Equal(_)
+        ));
 
         Ok(())
     }
