@@ -4,7 +4,8 @@ use std::ops::Range;
 
 use super::{CommitProof, Comparison};
 
-/// Encapsulates a merkle tree using a Sha256 hash function.
+/// Encapsulates a Merkle tree and provides functions
+/// for generating and comparing proofs.
 #[derive(Default)]
 pub struct CommitTree {
     tree: MerkleTree<Sha256>,
@@ -104,22 +105,22 @@ impl CommitTree {
         let CommitProof {
             root: other_root,
             proof,
-            length: count,
-            indices: range,
+            length,
+            indices,
         } = proof;
         let root = self.root().ok_or(Error::NoRootCommit)?;
         if root == other_root {
             Ok(Comparison::Equal)
-        } else if range.start < self.len() && range.end < self.len() {
+        } else if indices.start < self.len() && indices.end <= self.len() {
             let leaves = self.tree.leaves().unwrap_or_default();
-            let indices_to_prove = range.clone().collect::<Vec<_>>();
+            let indices_to_prove = indices.clone().collect::<Vec<_>>();
             let leaves_to_prove =
-                range.map(|i| *leaves.get(i).unwrap()).collect::<Vec<_>>();
+                indices.map(|i| *leaves.get(i).unwrap()).collect::<Vec<_>>();
             if proof.verify(
                 other_root,
                 indices_to_prove.as_slice(),
                 leaves_to_prove.as_slice(),
-                count,
+                length,
             ) {
                 Ok(Comparison::Contains(indices_to_prove, leaves_to_prove))
             } else {
@@ -210,6 +211,61 @@ mod test {
         );
         assert_eq!(proof.length, commit_proof.length);
         assert_eq!(proof.indices, commit_proof.indices);
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_proof_compare() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+        let hash3 = CommitTree::hash(b"goodbye");
+
+        let mut tree1 = CommitTree::new();
+        tree1.insert(hash1);
+        tree1.commit();
+
+        let mut tree2 = CommitTree::new();
+        tree2.insert(hash1);
+        tree2.commit();
+
+        let mut tree3 = CommitTree::new();
+        tree3.insert(hash3);
+        tree3.commit();
+
+        assert!(tree1.root().is_some());
+        assert!(tree2.root().is_some());
+
+        assert_eq!(tree1.root(), tree2.root());
+
+        let proof = tree1.proof(&[0])?;
+        let comparison = tree2.compare(proof)?;
+
+        assert_eq!(Comparison::Equal, comparison);
+
+        // Add another hash
+        tree2.insert(hash2);
+        tree2.commit();
+
+        assert_ne!(tree1.root(), tree2.root());
+
+        let proof = tree1.proof(&[0])?;
+        let comparison = tree2.compare(proof)?;
+        assert!(matches!(comparison, Comparison::Contains(_, _)));
+
+        let proof = tree2.proof(&[0])?;
+        let comparison = tree1.compare(proof)?;
+        assert!(matches!(comparison, Comparison::Contains(_, _)));
+        
+        // Completely different trees
+        let proof = tree1.proof(&[0])?;
+        let comparison = tree3.compare(proof)?;
+        assert!(matches!(comparison, Comparison::Unknown));
+
+        // Completely different trees
+        let proof = tree3.proof(&[0])?;
+        let comparison = tree2.compare(proof)?;
+        assert!(matches!(comparison, Comparison::Unknown));
 
         Ok(())
     }

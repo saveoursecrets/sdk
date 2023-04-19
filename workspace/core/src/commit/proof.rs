@@ -58,14 +58,6 @@ pub enum Comparison {
     Unknown,
 }
 
-/// A pair of commit proofs.
-pub struct CommitPair {
-    /// Commit proof for a local commit tree.
-    pub local: CommitProof,
-    /// Commit proof for a remote commit tree.
-    pub remote: CommitProof,
-}
-
 /// Represents a root hash and a proof of certain nodes.
 pub struct CommitProof {
     /// Root hash.
@@ -258,5 +250,59 @@ impl<'de> serde::Deserialize<'de> for CommitProof {
         D: serde::Deserializer<'de>,
     {
         deserializer.deserialize_tuple(4, CommitProofVisitor)
+    }
+}
+
+/// A pair of commit proofs.
+pub struct CommitPair {
+    /// Commit proof for a local commit tree.
+    pub local: CommitProof,
+    /// Commit proof for a remote commit tree.
+    pub remote: CommitProof,
+}
+
+/// The relationship between two trees.
+pub enum CommitRelationship {
+    /// Local and remote are equal.
+    Equal(CommitPair),
+    /// Local tree is ahead of the remote.
+    ///
+    /// A push operation should be successful.
+    Ahead(CommitPair, usize),
+    /// Local tree is behind the remote.
+    ///
+    /// A pull operation should be successful.
+    Behind(CommitPair, usize),
+    /// Commit trees have diverged and either a force
+    /// push or force pull is required to synchronize.
+    Diverged(CommitPair),
+}
+
+impl fmt::Display for CommitRelationship {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Equal(_) => {
+                write!(f, "up to date")
+            }
+            Self::Behind(_, diff) => {
+                write!(f, "{} change(s) behind remote: pull changes.", diff)
+            }
+            Self::Ahead(_, diff) => {
+                write!(f, "{} change(s) ahead of remote: push changes.", diff)
+            }
+            Self::Diverged(_) => {
+                write!(f, "local and remote have diverged: force push or force pull to synchronize trees.")
+            }
+        }
+    }
+}
+
+impl CommitRelationship {
+    /// Get the pair of local and remote commit proofs.
+    pub fn pair(&self) -> &CommitPair {
+        match self {
+            Self::Equal(pair) | Self::Diverged(pair) => pair,
+            Self::Behind(pair, _) | Self::Ahead(pair, _) => pair,
+        }
     }
 }

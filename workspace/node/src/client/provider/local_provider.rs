@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit::{CommitPair, CommitTree},
+    commit::{CommitPair, CommitRelationship, CommitTree},
     constants::VAULT_EXT,
     crypto::secret_key::SecretKey,
     decode, encode,
@@ -32,7 +32,7 @@ use crate::{
         fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
     },
     provider_impl,
-    sync::{SyncInfo, SyncKind, SyncStatus},
+    sync::{SyncInfo, SyncKind},
 };
 
 /// Local storage for a node.
@@ -327,7 +327,7 @@ where
     async fn status(
         &mut self,
         summary: &Summary,
-    ) -> Result<(SyncStatus, Option<usize>)> {
+    ) -> Result<(CommitRelationship, Option<usize>)> {
         let head = self
             .commit_tree(summary)
             .ok_or(Error::NoRootCommit)?
@@ -336,6 +336,6 @@ where
             local: head.clone(),
             remote: head,
         };
-        Ok((SyncStatus::Equal(pair), None))
+        Ok((CommitRelationship::Equal(pair), None))
     }
 }

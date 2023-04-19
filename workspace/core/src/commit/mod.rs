@@ -8,5 +8,7 @@ mod integrity;
 #[cfg(not(target_arch = "wasm32"))]
 pub use integrity::{vault_commit_tree_file, wal_commit_tree_file};
 
-pub use proof::{CommitHash, CommitPair, CommitProof, Comparison};
+pub use proof::{
+    CommitHash, CommitPair, CommitProof, CommitRelationship, Comparison,
+};
 pub use tree::CommitTree;

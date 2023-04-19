@@ -12,6 +12,7 @@ use url::Url;
 
 use secrecy::ExposeSecret;
 use sos_core::{
+    commit::CommitRelationship,
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
     secret::SecretRef,
@@ -25,7 +26,6 @@ use sos_node::{
         },
         provider::StorageProvider,
     },
-    sync::SyncStatus,
 };
 
 #[tokio::test]
@@ -141,7 +141,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Check the vault status
     let (status, _) = node_cache.status(&new_vault_summary).await?;
-    let equals = if let SyncStatus::Equal(_) = status {
+    let equals = if let CommitRelationship::Equal(_) = status {
         true
     } else {
         false

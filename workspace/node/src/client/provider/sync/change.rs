@@ -3,11 +3,12 @@ use std::collections::HashSet;
 use super::Result;
 
 use sos_core::{
+    commit::CommitRelationship,
     events::{ChangeAction, ChangeEvent, ChangeNotification},
     secret::SecretRef,
 };
 
-use crate::{client::provider::StorageProvider, sync::SyncStatus};
+use crate::client::provider::StorageProvider;
 
 /// Respond to a change notification.
 ///
@@ -61,10 +62,10 @@ pub async fn handle_change(
                         let (status, _) = provider.status(summary).await?;
 
                         match status {
-                            SyncStatus::Behind(_, _) => {
+                            CommitRelationship::Behind(_, _) => {
                                 provider.pull(summary, false).await?;
                             }
-                            SyncStatus::Diverged(_) => {
+                            CommitRelationship::Diverged(_) => {
                                 if let Some(_) = change
                                     .changes()
                                     .into_iter()

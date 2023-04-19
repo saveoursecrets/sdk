@@ -13,7 +13,7 @@ use std::{
 
 use sos_core::{
     archive::{ArchiveItem, Reader},
-    commit::{CommitProof, CommitTree},
+    commit::{CommitProof, CommitRelationship, CommitTree},
     constants::{LOCAL_DIR, PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     decode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
@@ -27,7 +27,7 @@ use sos_core::{
 
 use crate::{
     client::{Error, Result},
-    sync::{SyncInfo, SyncStatus},
+    sync::SyncInfo,
 };
 
 pub(crate) fn assert_proofs_eq(
@@ -466,13 +466,13 @@ pub trait StorageProvider: Sync + Send {
     /// Get a comparison between a local and remote.
     ///
     /// If a patch file has unsaved events then the number
-    /// of pending events is returned along with the `SyncStatus`.
+    /// of pending events is returned along with the `CommitRelationship`.
     ///
     /// For a local provider this will always return an equal status.
     async fn status(
         &mut self,
         summary: &Summary,
-    ) -> Result<(SyncStatus, Option<usize>)>;
+    ) -> Result<(CommitRelationship, Option<usize>)>;
 
     /// Verify a WAL log.
     fn verify(&self, summary: &Summary) -> Result<()>;

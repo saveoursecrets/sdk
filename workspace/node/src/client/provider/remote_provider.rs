@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit::CommitTree,
+    commit::{CommitRelationship, CommitTree},
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
@@ -35,7 +35,7 @@ use crate::{
         fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
     },
     patch, provider_impl, retry,
-    sync::{SyncInfo, SyncStatus},
+    sync::SyncInfo,
 };
 
 /// Local data cache for a node.
@@ -414,7 +414,7 @@ where
     async fn status(
         &mut self,
         summary: &Summary,
-    ) -> Result<(SyncStatus, Option<usize>)> {
+    ) -> Result<(CommitRelationship, Option<usize>)> {
         let (wal_file, patch_file) = self
             .cache
             .get(summary.id())
