@@ -27,7 +27,7 @@ shell-words = "1"
 terminal-banner = "0.1"
 zeroize = "1.4" 
 secrecy = "0.8"
-web3-address = { version = "0.5.1", features = ["ethereum"] }
+web3-address = { version = "0.6", features = ["ethereum"] }
 parking_lot = "0.12"
 vcard4 = { version = "0.4.4", features = ["serde"] }
 

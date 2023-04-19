@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 /// Access to an in-memory vault optionally mirroring changes to disc.
 ///
-/// It stores the derived private key in memory so should only be 
+/// It stores the derived private key in memory so should only be
 /// used on client implementations.
 ///
 /// Calling `lock()` will zeroize the private key in memory and prevent

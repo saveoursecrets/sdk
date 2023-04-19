@@ -256,7 +256,7 @@ mod test {
         let proof = tree2.proof(&[0])?;
         let comparison = tree1.compare(proof)?;
         assert!(matches!(comparison, Comparison::Contains(_, _)));
-        
+
         // Completely different trees
         let proof = tree1.proof(&[0])?;
         let comparison = tree3.compare(proof)?;

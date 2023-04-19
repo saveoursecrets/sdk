@@ -279,7 +279,10 @@ mod tests {
         let digest = Keccak256::digest(message);
         let (_signature, recid) = signing_key
             .as_nonzero_scalar()
-            .try_sign_prehashed_rfc6979::<Sha256>(digest, b"")?;
+            .try_sign_prehashed_rfc6979::<Sha256>(
+                digest.as_slice().into(),
+                b"",
+            )?;
         assert!(recid.is_some());
         Ok(())
     }
@@ -291,7 +294,10 @@ mod tests {
         let digest = Keccak256::digest(message);
         let (signature, recid) = signing_key
             .as_nonzero_scalar()
-            .try_sign_prehashed_rfc6979::<Sha256>(digest, b"")?;
+            .try_sign_prehashed_rfc6979::<Sha256>(
+                digest.as_slice().into(),
+                b"",
+            )?;
 
         let verify_key = signing_key.verifying_key();
 

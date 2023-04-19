@@ -185,7 +185,10 @@ pub mod ecdsa {
             let result = self
                 .0
                 .as_nonzero_scalar()
-                .try_sign_prehashed_rfc6979::<Sha256>(digest, b"")?;
+                .try_sign_prehashed_rfc6979::<Sha256>(
+                    digest.as_slice().into(),
+                    b"",
+                )?;
             let sig: Signature = result.try_into()?;
             Ok(sig)
         }
@@ -212,7 +215,7 @@ pub mod ecdsa {
         fn try_from(
             value: &'a [u8; 32],
         ) -> std::result::Result<Self, Self::Error> {
-            Ok(Self(SigningKey::from_bytes(value)?))
+            Ok(Self(SigningKey::from_bytes(value.into())?))
         }
     }
 
