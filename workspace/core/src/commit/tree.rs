@@ -326,4 +326,129 @@ mod test {
 
         Ok(())
     }
+
+    #[test]
+    fn commit_proof_relationship_equal() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+
+        let mut local = CommitTree::new();
+        local.insert(hash1);
+        local.commit();
+
+        let mut remote = CommitTree::new();
+        remote.insert(hash1);
+        remote.commit();
+
+        let local_proof = local.head()?;
+
+        // Local sends proof to remote and remote indicates
+        // if proof is contained in the remote tree.
+        //
+        // Remote replies with it's latest head proof
+        // and the optional match proof.
+        let match_proof = remote.contains(&local_proof)?;
+        let remote_proof = remote.head()?;
+
+        // Local can now determine the relationship between the two trees
+        let relationship = local.relationship(remote_proof, match_proof)?;
+
+        assert!(matches!(relationship, CommitRelationship::Equal(_)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_proof_relationship_diverged() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+
+        let mut local = CommitTree::new();
+        local.insert(hash1);
+        local.commit();
+
+        let mut remote = CommitTree::new();
+        remote.insert(hash2);
+        remote.commit();
+
+        let local_proof = local.head()?;
+
+        // Local sends proof to remote and remote indicates
+        // if proof is contained in the remote tree.
+        //
+        // Remote replies with it's latest head proof
+        // and the optional match proof.
+        let match_proof = remote.contains(&local_proof)?;
+        let remote_proof = remote.head()?;
+
+        // Local can now determine the relationship between the two trees
+        let relationship = local.relationship(remote_proof, match_proof)?;
+
+        assert!(matches!(relationship, CommitRelationship::Diverged(_)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_proof_relationship_behind() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+
+        let mut local = CommitTree::new();
+        local.insert(hash1);
+        local.commit();
+
+        let mut remote = CommitTree::new();
+        remote.insert(hash1);
+        remote.insert(hash2);
+        remote.commit();
+
+        let local_proof = local.head()?;
+
+        // Local sends proof to remote and remote indicates
+        // if proof is contained in the remote tree.
+        //
+        // Remote replies with it's latest head proof
+        // and the optional match proof.
+        let match_proof = remote.contains(&local_proof)?;
+        let remote_proof = remote.head()?;
+
+        // Local can now determine the relationship between the two trees
+        let relationship = local.relationship(remote_proof, match_proof)?;
+
+        assert!(matches!(relationship, CommitRelationship::Behind(_, _)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_proof_relationship_ahead() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+
+        let mut local = CommitTree::new();
+        local.insert(hash1);
+        local.insert(hash2);
+        local.commit();
+
+        let mut remote = CommitTree::new();
+        remote.insert(hash1);
+        remote.commit();
+
+        let local_proof = local.head()?;
+
+        // Local sends proof to remote and remote indicates
+        // if proof is contained in the remote tree.
+        //
+        // Remote replies with it's latest head proof
+        // and the optional match proof.
+        let match_proof = remote.contains(&local_proof)?;
+        let remote_proof = remote.head()?;
+
+        // Local can now determine the relationship between the two trees
+        let relationship = local.relationship(remote_proof, match_proof)?;
+
+        assert!(matches!(relationship, CommitRelationship::Ahead(_, _)));
+
+        Ok(())
+    }
 }
