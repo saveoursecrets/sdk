@@ -2,7 +2,7 @@
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use sos_core::{
-    commit_tree::CommitProof,
+    commit::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
         VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_PATCH,

@@ -1,22 +1,8 @@
-//! Type for iterating and managing the commit trees for a vault.
 use crate::{Error, Result};
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 use std::ops::Range;
 
-mod proof;
-
-#[cfg(not(target_arch = "wasm32"))]
-mod integrity;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use integrity::{vault_commit_tree_file, wal_commit_tree_file};
-
-pub use proof::{CommitHash, CommitPair, CommitProof, Comparison};
-
-/// Compute the Sha256 hash of some data.
-pub fn hash(data: &[u8]) -> [u8; 32] {
-    Sha256::hash(data)
-}
+use super::{CommitProof, Comparison};
 
 /// Encapsulates a merkle tree using a Sha256 hash function.
 #[derive(Default)]
@@ -30,6 +16,11 @@ impl CommitTree {
         Self {
             tree: MerkleTree::<Sha256>::new(),
         }
+    }
+
+    /// Compute the Sha256 hash of some data.
+    pub fn hash(data: &[u8]) -> [u8; 32] {
+        Sha256::hash(data)
     }
 
     /// Get the number of leaves in the tree.

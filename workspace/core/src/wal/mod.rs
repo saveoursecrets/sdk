@@ -1,10 +1,7 @@
 //! Write ahead log types and traits.
 use crate::{
-    commit_tree::{hash, CommitTree},
-    events::WalEvent,
-    iter::WalFileRecord,
-    timestamp::Timestamp,
-    CommitHash, Result,
+    commit::CommitTree, events::WalEvent, iter::WalFileRecord,
+    timestamp::Timestamp, CommitHash, Result,
 };
 use std::path::{Path, PathBuf};
 
@@ -46,7 +43,7 @@ pub trait WalProvider {
         if let Some(record) = it.next_back() {
             let record = record?;
             let buffer = self.read_buffer(&record)?;
-            let last_record_hash = hash(&buffer);
+            let last_record_hash = CommitTree::hash(&buffer);
             Ok(Some(CommitHash(last_record_hash)))
         } else {
             Ok(None)
@@ -239,7 +236,7 @@ mod test {
 
     use super::{file::*, memory::*, *};
     use crate::{
-        commit_tree::{hash, Comparison},
+        commit::{CommitTree, Comparison},
         encode,
         events::WalEvent,
         secret::SecretId,
@@ -251,7 +248,7 @@ mod test {
         let id = Uuid::new_v4();
         let entry = VaultEntry(Default::default(), Default::default());
         let buffer = encode(&entry)?;
-        let commit = CommitHash(hash(&buffer));
+        let commit = CommitHash(CommitTree::hash(&buffer));
         let result = VaultCommit(commit, entry);
         Ok((id, Cow::Owned(result)))
     }

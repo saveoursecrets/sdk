@@ -10,7 +10,7 @@
 //! causes numerous lifetime issues in the server code so for
 //! the moment we just clone the records during iteration.
 use crate::{
-    commit_tree::{hash, CommitTree},
+    commit::CommitTree,
     constants::WAL_IDENTITY,
     decode, encode,
     events::WalEvent,
@@ -70,7 +70,7 @@ impl WalMemory {
         let bytes = encode(&event)?;
         let last_commit =
             self.last_commit()?.unwrap_or(CommitHash([0u8; 32]));
-        let commit = CommitHash(hash(&bytes));
+        let commit = CommitHash(CommitTree::hash(&bytes));
         Ok((
             commit,
             WalMemoryRecord(

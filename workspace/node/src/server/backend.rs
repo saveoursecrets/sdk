@@ -1,7 +1,7 @@
 use super::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
-    commit_tree::{wal_commit_tree_file, CommitProof},
+    commit::{wal_commit_tree_file, CommitProof},
     constants::WAL_DELETED_EXT,
     encode,
     events::{SyncEvent, WalEvent},

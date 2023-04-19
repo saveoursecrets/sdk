@@ -1,6 +1,6 @@
 //! Traits and types for syncing between nodes.
 use serde::{Deserialize, Serialize};
-use sos_core::commit_tree::{CommitPair, CommitProof};
+use sos_core::commit::{CommitPair, CommitProof};
 use std::fmt;
 
 /// The relationship between a local and remote WAL file.

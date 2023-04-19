@@ -8,7 +8,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
 use secrecy::ExposeSecret;
-use sos_core::commit_tree::CommitProof;
+use sos_core::commit::CommitProof;
 use sos_node::client::{
     net::changes::{changes, connect},
     provider::StorageProvider,

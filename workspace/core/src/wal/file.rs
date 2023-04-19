@@ -15,7 +15,7 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit_tree::{hash, wal_commit_tree_file, CommitTree},
+    commit::{wal_commit_tree_file, CommitTree},
     constants::{WAL_EXT, WAL_IDENTITY},
     encode,
     events::WalEvent,
@@ -69,7 +69,7 @@ impl WalFile {
     ) -> Result<(CommitHash, WalRecord)> {
         let time: Timestamp = Default::default();
         let bytes = encode(&event)?;
-        let commit = CommitHash(hash(&bytes));
+        let commit = CommitHash(CommitTree::hash(&bytes));
 
         let last_commit = if let Some(last_commit) = last_commit {
             last_commit
@@ -206,7 +206,7 @@ impl WalProvider for WalFile {
                 self.encode_event(event, last_commit_hash)?;
             commits.push(commit);
             let mut buf = encode(&record)?;
-            last_commit_hash = Some(CommitHash(hash(&buf)));
+            last_commit_hash = Some(CommitHash(CommitTree::hash(&buf)));
             buffer.append(&mut buf);
         }
 

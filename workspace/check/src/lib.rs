@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use sos_core::{
-    commit_tree::{vault_commit_tree_file, wal_commit_tree_file, CommitTree},
+    commit::{vault_commit_tree_file, wal_commit_tree_file, CommitTree},
     iter::vault_iter,
     vault::Header,
     wal::WalItem,

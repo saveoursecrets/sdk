@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 use sos_core::{
-    commit_tree::{CommitProof, Comparison},
+    commit::{CommitProof, Comparison},
     constants::{WAL_LOAD, WAL_PATCH, WAL_SAVE, WAL_STATUS},
     decode,
     events::{

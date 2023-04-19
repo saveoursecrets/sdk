@@ -13,7 +13,7 @@ use std::{
 
 use sos_core::{
     archive::{ArchiveItem, Reader},
-    commit_tree::{CommitProof, CommitTree},
+    commit::{CommitProof, CommitTree},
     constants::{LOCAL_DIR, PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
     decode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
@@ -699,7 +699,7 @@ macro_rules! provider_impl {
 
         #[cfg(not(target_arch = "wasm32"))]
         fn verify(&self, summary: &Summary) -> Result<()> {
-            use sos_core::commit_tree::wal_commit_tree_file;
+            use sos_core::commit::wal_commit_tree_file;
             let wal_path = self.wal_path(summary);
             wal_commit_tree_file(&wal_path, true, |_| {})?;
             Ok(())

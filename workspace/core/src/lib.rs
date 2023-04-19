@@ -10,7 +10,7 @@ use binary_stream::{
 mod audit;
 
 pub mod archive;
-pub mod commit_tree;
+pub mod commit;
 pub mod constants;
 pub mod crypto;
 mod error;
@@ -43,7 +43,7 @@ pub mod test_utils;
 #[cfg(not(target_arch = "wasm32"))]
 pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
 
-pub use commit_tree::CommitHash;
+pub use commit::CommitHash;
 pub use error::Error;
 pub use file_access::VaultFileAccess;
 pub use file_identity::FileIdentity;

@@ -4,7 +4,7 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_core::{
-    commit_tree::{CommitPair, Comparison},
+    commit::{CommitPair, Comparison},
     vault::Summary,
     wal::WalProvider,
     PatchProvider,

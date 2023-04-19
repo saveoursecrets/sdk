@@ -5,7 +5,7 @@ use uuid::Uuid;
 use web3_address::ethereum::Address;
 
 use crate::{
-    commit_tree::CommitProof,
+    commit::CommitProof,
     secret::SecretId,
     vault::{Header, Summary, VaultId},
 };

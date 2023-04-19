@@ -1,6 +1,6 @@
 //! Functions to build commit trees and run integrity checks.
 use crate::{
-    commit_tree::{hash, CommitTree},
+    commit::CommitTree,
     iter::{vault_iter, FileItem, VaultRecord, WalFileRecord},
     wal::{WalItem, WalProvider},
     Error, Result,
@@ -41,7 +41,7 @@ where
             let commit = record.commit();
             let value = record.read_bytes(&mut reader)?;
 
-            let checksum = hash(&value);
+            let checksum = CommitTree::hash(&value);
             if checksum != commit {
                 return Err(Error::HashMismatch {
                     commit: hex::encode(commit),
@@ -102,7 +102,7 @@ where
             // Verify the commit hash for the data
             let value = record.read_bytes(&mut reader)?;
 
-            let checksum = hash(&value);
+            let checksum = CommitTree::hash(&value);
             if checksum != record.commit() {
                 return Err(Error::HashMismatch {
                     commit: hex::encode(record.commit()),
@@ -111,7 +111,7 @@ where
             }
 
             let buffer = wal.read_buffer(&record)?;
-            last_checksum = Some(hash(&buffer));
+            last_checksum = Some(CommitTree::hash(&buffer));
         }
 
         func(&record);

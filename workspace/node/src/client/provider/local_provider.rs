@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit_tree::{CommitPair, CommitTree},
+    commit::{CommitPair, CommitTree},
     constants::VAULT_EXT,
     crypto::secret_key::SecretKey,
     decode, encode,
