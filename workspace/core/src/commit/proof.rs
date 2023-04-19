@@ -11,8 +11,7 @@ use std::{fmt, ops::Range};
 
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof};
 
-/// Newtype for a 32 byte hash that provides a hexadecimal
-/// display implementation.
+/// Hash representation that provides a hexadecimal display.
 #[derive(
     Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize,
 )]
@@ -113,14 +112,11 @@ impl CommitProof {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+}
 
-    /// Reduce this commit proof to it's root hash and leaves length.
-    ///
-    /// Sometimes we want to put a commit proof into an `Error`
-    /// implementation but cannot due to the `MerkleProof` type so
-    /// this reduces the proof to simpler error-safe types.
-    pub fn reduce(self) -> (CommitHash, usize) {
-        (CommitHash(self.root), self.length)
+impl From<CommitProof> for (CommitHash, usize) {
+    fn from(value: CommitProof) -> Self {
+        (CommitHash(value.root), value.length)
     }
 }
 
@@ -253,7 +249,7 @@ impl<'de> serde::Deserialize<'de> for CommitProof {
     }
 }
 
-/// A pair of commit proofs.
+/// Pair of commit proofs.
 #[derive(Debug)]
 pub struct CommitPair {
     /// Commit proof for a local commit tree.
@@ -262,7 +258,7 @@ pub struct CommitPair {
     pub remote: CommitProof,
 }
 
-/// The relationship between two trees.
+/// Relationship between two trees.
 #[derive(Debug)]
 pub enum CommitRelationship {
     /// Local and remote are equal.
@@ -291,13 +287,13 @@ impl fmt::Display for CommitRelationship {
                 write!(f, "up to date")
             }
             Self::Behind(_, diff) => {
-                write!(f, "{} change(s) behind remote: pull changes.", diff)
+                write!(f, "{} change(s) behind remote: pull changes", diff)
             }
             Self::Ahead(_, diff) => {
-                write!(f, "{} change(s) ahead of remote: push changes.", diff)
+                write!(f, "{} change(s) ahead of remote: push changes", diff)
             }
             Self::Diverged(_) => {
-                write!(f, "local and remote have diverged: force push or force pull to synchronize trees.")
+                write!(f, "local and remote have diverged: force push or force pull to synchronize trees")
             }
         }
     }

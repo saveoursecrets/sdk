@@ -92,8 +92,8 @@ where
             if let Some(_) = match_proof {
                 Err(Error::ConflictBehind {
                     summary: summary.clone(),
-                    local: client_proof.reduce(),
-                    remote: server_proof.reduce(),
+                    local: client_proof.into(),
+                    remote: server_proof.into(),
                     events: patch.0.clone(),
                 })
 
@@ -148,8 +148,8 @@ where
             } else {
                 Err(Error::Conflict {
                     summary: summary.clone(),
-                    local: client_proof.reduce(),
-                    remote: server_proof.reduce(),
+                    local: client_proof.into(),
+                    remote: server_proof.into(),
                 })
             }
         }

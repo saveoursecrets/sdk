@@ -164,8 +164,8 @@ where
                 let server_proof = server_proof.ok_or(Error::ServerProof)?;
                 Err(Error::Conflict {
                     summary: summary.clone(),
-                    local: client_proof.reduce(),
-                    remote: server_proof.reduce(),
+                    local: client_proof.into(),
+                    remote: server_proof.into(),
                 })
             } else {
                 Err(Error::ResponseCode(status.into()))
