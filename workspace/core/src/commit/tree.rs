@@ -961,34 +961,28 @@ mod test {
 
         let mut node: NodeTree<Uuid, Uuid> = NodeTree::new(node_id1, &local);
 
-        let local_head = local.head()?;
+        let mut local_head = local.head()?;
+        let mut remote_head = remote.head()?;
+
         node.insert(node_id2, &remote);
 
         let mut matches = HashMap::new();
         matches.insert(&node_id2, remote.contains(&local_head)?);
 
-        let mut operations = node.compute(matches)?;
+        let operations = node.compute(matches)?;
         assert_eq!(1, operations.len());
 
-        let op = operations.drain().next().unwrap();
-
-        assert!(matches!(op, Operation::Push { .. }));
-
-        if let Operation::Push {
-            local,
-            remote,
-            id,
-            difference,
-            ..
-        } = op
-        {
-            assert_eq!(node_id1, local);
-            assert_eq!(node_id2, remote);
-            assert_eq!(tree_id2, id);
-            assert_eq!(1, difference);
-        } else {
-            unreachable!();
-        }
+        let push = Operation::Push {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id2,
+            difference: 1,
+            commit: CommitPair {
+                local: local_head.remove(&tree_id2).unwrap(),
+                remote: remote_head.remove(&tree_id2).unwrap(),
+            },
+        };
+        assert!(operations.contains(&push));
 
         Ok(())
     }
@@ -1032,34 +1026,28 @@ mod test {
 
         let mut node: NodeTree<Uuid, Uuid> = NodeTree::new(node_id1, &local);
 
-        let local_head = local.head()?;
+        let mut local_head = local.head()?;
+        let mut remote_head = remote.head()?;
+
         node.insert(node_id2, &remote);
 
         let mut matches = HashMap::new();
         matches.insert(&node_id2, remote.contains(&local_head)?);
 
-        let mut operations = node.compute(matches)?;
+        let operations = node.compute(matches)?;
         assert_eq!(1, operations.len());
 
-        let op = operations.drain().next().unwrap();
-
-        assert!(matches!(op, Operation::Pull { .. }));
-
-        if let Operation::Pull {
-            local,
-            remote,
-            id,
-            difference,
-            ..
-        } = op
-        {
-            assert_eq!(node_id1, local);
-            assert_eq!(node_id2, remote);
-            assert_eq!(tree_id2, id);
-            assert_eq!(1, difference);
-        } else {
-            unreachable!();
-        }
+        let pull = Operation::Pull {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id2,
+            difference: 1,
+            commit: CommitPair {
+                local: local_head.remove(&tree_id2).unwrap(),
+                remote: remote_head.remove(&tree_id2).unwrap(),
+            },
+        };
+        assert!(operations.contains(&pull));
 
         Ok(())
     }
@@ -1102,34 +1090,205 @@ mod test {
 
         let mut node: NodeTree<Uuid, Uuid> = NodeTree::new(node_id1, &local);
 
-        let local_head = local.head()?;
+        let mut local_head = local.head()?;
+        let mut remote_head = remote.head()?;
+
         node.insert(node_id2, &remote);
 
         let mut matches = HashMap::new();
         matches.insert(&node_id2, remote.contains(&local_head)?);
 
-        let mut operations = node.compute(matches)?;
+        let operations = node.compute(matches)?;
         assert_eq!(1, operations.len());
 
-        let op = operations.drain().next().unwrap();
+        let conflict = Operation::Conflict {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id2,
+            commit: CommitPair {
+                local: local_head.remove(&tree_id2).unwrap(),
+                remote: remote_head.remove(&tree_id2).unwrap(),
+            },
+        };
+        assert!(operations.contains(&conflict));
 
-        println!("{:#?}", op);
+        Ok(())
+    }
 
-        assert!(matches!(op, Operation::Conflict { .. }));
+    #[test]
+    fn commit_node_pull_push() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+        let hash3 = CommitTree::hash(b"goodbye");
 
-        if let Operation::Conflict {
-            local,
-            remote,
-            id,
-            ..
-        } = op
-        {
-            assert_eq!(node_id1, local);
-            assert_eq!(node_id2, remote);
-            assert_eq!(tree_id2, id);
-        } else {
-            unreachable!();
-        }
+        let node_id1 = Uuid::new_v4();
+        let node_id2 = Uuid::new_v4();
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        local_tree2.insert(hash3); // Puts the local tree ahead of remote
+        local_tree2.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+
+        let mut remote_tree1 = CommitTree::new();
+        remote_tree1.insert(hash1);
+        remote_tree1.insert(hash3); // Puts the remote tree ahead of local
+        remote_tree1.commit();
+
+        let mut remote_tree2 = CommitTree::new();
+        remote_tree2.insert(hash2);
+        remote_tree2.commit();
+
+        let mut remote: MultiTree<Uuid> = Default::default();
+        remote.insert(tree_id1, &remote_tree1);
+        remote.insert(tree_id2, &remote_tree2);
+
+        let mut node: NodeTree<Uuid, Uuid> = NodeTree::new(node_id1, &local);
+
+        let mut local_head = local.head()?;
+        let mut remote_head = remote.head()?;
+
+        node.insert(node_id2, &remote);
+
+        let mut matches = HashMap::new();
+        matches.insert(&node_id2, remote.contains(&local_head)?);
+
+        let operations = node.compute(matches)?;
+        assert_eq!(2, operations.len());
+
+        let push = Operation::Push {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id2,
+            difference: 1,
+            commit: CommitPair {
+                local: local_head.remove(&tree_id2).unwrap(),
+                remote: remote_head.remove(&tree_id2).unwrap(),
+            },
+        };
+        assert!(operations.contains(&push));
+
+        let pull = Operation::Pull {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id1,
+            difference: 1,
+            commit: CommitPair {
+                local: local_head.remove(&tree_id1).unwrap(),
+                remote: remote_head.remove(&tree_id1).unwrap(),
+            },
+        };
+        assert!(operations.contains(&pull));
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_node_pull_push_conflict() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+        let hash3 = CommitTree::hash(b"goodbye");
+
+        let node_id1 = Uuid::new_v4();
+        let node_id2 = Uuid::new_v4();
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+        let tree_id3 = Uuid::new_v4();
+
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        local_tree2.insert(hash3); // Puts the local tree ahead of remote
+        local_tree2.commit();
+
+        let mut local_tree3 = CommitTree::new();
+        local_tree3.insert(hash1);
+        local_tree3.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+        local.insert(tree_id3, &local_tree3);
+
+        let mut remote_tree1 = CommitTree::new();
+        remote_tree1.insert(hash1);
+        remote_tree1.insert(hash3); // Puts the remote tree ahead of local
+        remote_tree1.commit();
+
+        let mut remote_tree2 = CommitTree::new();
+        remote_tree2.insert(hash2);
+        remote_tree2.commit();
+
+        let mut remote_tree3 = CommitTree::new();
+        remote_tree3.insert(hash2); // Conflict on this tree
+        remote_tree3.commit();
+
+        let mut remote: MultiTree<Uuid> = Default::default();
+        remote.insert(tree_id1, &remote_tree1);
+        remote.insert(tree_id2, &remote_tree2);
+        remote.insert(tree_id3, &remote_tree3);
+
+        let mut node: NodeTree<Uuid, Uuid> = NodeTree::new(node_id1, &local);
+
+        let mut local_head = local.head()?;
+        let mut remote_head = remote.head()?;
+
+        node.insert(node_id2, &remote);
+
+        let mut matches = HashMap::new();
+        matches.insert(&node_id2, remote.contains(&local_head)?);
+
+        let operations = node.compute(matches)?;
+        assert_eq!(3, operations.len());
+
+        let push = Operation::Push {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id2,
+            difference: 1,
+            commit: CommitPair {
+                local: local_head.remove(&tree_id2).unwrap(),
+                remote: remote_head.remove(&tree_id2).unwrap(),
+            },
+        };
+        assert!(operations.contains(&push));
+
+        let pull = Operation::Pull {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id1,
+            difference: 1,
+            commit: CommitPair {
+                local: local_head.remove(&tree_id1).unwrap(),
+                remote: remote_head.remove(&tree_id1).unwrap(),
+            },
+        };
+        assert!(operations.contains(&pull));
+
+        let conflict = Operation::Conflict {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id3,
+            commit: CommitPair {
+                local: local_head.remove(&tree_id3).unwrap(),
+                remote: remote_head.remove(&tree_id3).unwrap(),
+            },
+        };
+        assert!(operations.contains(&conflict));
 
         Ok(())
     }
