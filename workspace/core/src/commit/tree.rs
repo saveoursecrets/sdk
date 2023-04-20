@@ -320,7 +320,7 @@ where
                 for (id, relationship) in relationships {
                     match relationship {
                         CommitRelationship::Ahead(commit, difference) => {
-                            ops.insert(Operation::Pull {
+                            ops.insert(Operation::Push {
                                 local: self.id,
                                 remote: *node_id,
                                 id: *id,
@@ -329,7 +329,7 @@ where
                             });
                         }
                         CommitRelationship::Behind(commit, difference) => {
-                            ops.insert(Operation::Push {
+                            ops.insert(Operation::Pull {
                                 local: self.id,
                                 remote: *node_id,
                                 id: *id,
@@ -918,6 +918,148 @@ mod test {
 
         let operations = node.compute(matches)?;
         assert!(operations.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_node_push() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+        let hash3 = CommitTree::hash(b"goodbye");
+
+        let node_id1 = Uuid::new_v4();
+        let node_id2 = Uuid::new_v4();
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        local_tree2.insert(hash3); // Puts the local tree ahead of remote
+        local_tree2.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+
+        let mut remote_tree1 = CommitTree::new();
+        remote_tree1.insert(hash1);
+        remote_tree1.commit();
+
+        let mut remote_tree2 = CommitTree::new();
+        remote_tree2.insert(hash2);
+        remote_tree2.commit();
+
+        let mut remote: MultiTree<Uuid> = Default::default();
+        remote.insert(tree_id1, &remote_tree1);
+        remote.insert(tree_id2, &remote_tree2);
+
+        let mut node: NodeTree<Uuid, Uuid> = NodeTree::new(node_id1, &local);
+
+        let local_head = local.head()?;
+        node.insert(node_id2, &remote);
+
+        let mut matches = HashMap::new();
+        matches.insert(&node_id2, remote.contains(&local_head)?);
+
+        let mut operations = node.compute(matches)?;
+        assert_eq!(1, operations.len());
+
+        let op = operations.drain().next().unwrap();
+
+        assert!(matches!(op, Operation::Push { .. }));
+
+        if let Operation::Push {
+            local,
+            remote,
+            id,
+            difference,
+            ..
+        } = op
+        {
+            assert_eq!(node_id1, local);
+            assert_eq!(node_id2, remote);
+            assert_eq!(tree_id2, id);
+            assert_eq!(1, difference);
+        } else {
+            unreachable!();
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_node_pull() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+        let hash3 = CommitTree::hash(b"goodbye");
+
+        let node_id1 = Uuid::new_v4();
+        let node_id2 = Uuid::new_v4();
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        local_tree2.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+
+        let mut remote_tree1 = CommitTree::new();
+        remote_tree1.insert(hash1);
+        remote_tree1.commit();
+
+        let mut remote_tree2 = CommitTree::new();
+        remote_tree2.insert(hash2);
+        remote_tree2.insert(hash3); // Puts the remote tree ahead of local
+        remote_tree2.commit();
+
+        let mut remote: MultiTree<Uuid> = Default::default();
+        remote.insert(tree_id1, &remote_tree1);
+        remote.insert(tree_id2, &remote_tree2);
+
+        let mut node: NodeTree<Uuid, Uuid> = NodeTree::new(node_id1, &local);
+
+        let local_head = local.head()?;
+        node.insert(node_id2, &remote);
+
+        let mut matches = HashMap::new();
+        matches.insert(&node_id2, remote.contains(&local_head)?);
+
+        let mut operations = node.compute(matches)?;
+        assert_eq!(1, operations.len());
+
+        let op = operations.drain().next().unwrap();
+
+        assert!(matches!(op, Operation::Pull { .. }));
+
+        if let Operation::Pull {
+            local,
+            remote,
+            id,
+            difference,
+            ..
+        } = op
+        {
+            assert_eq!(node_id1, local);
+            assert_eq!(node_id2, remote);
+            assert_eq!(tree_id2, id);
+            assert_eq!(1, difference);
+        } else {
+            unreachable!();
+        }
 
         Ok(())
     }
