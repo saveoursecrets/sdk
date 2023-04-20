@@ -103,7 +103,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
             name: name.clone(),
             mime: mime.clone(),
             buffer: secrecy::Secret::new(content.to_vec()),
-            checksum: checksum.clone(),
+            checksum: *checksum,
             external: false,
             size: content.len() as u64,
             user_data: user_data.clone(),

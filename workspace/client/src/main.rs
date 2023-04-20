@@ -103,7 +103,7 @@ fn run() -> Result<()> {
 
             let cache_lock = cache_dir.join("client.lock");
             let mut locks = FileLocks::new();
-            let _ = locks.add(&cache_lock)?;
+            locks.add(&cache_lock)?;
 
             let (info, user, identity_keeper, _device_signer, identity_index) =
                 sign_in(&account_name)?;

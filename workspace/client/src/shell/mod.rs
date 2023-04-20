@@ -738,7 +738,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             drop(reader);
 
             let (uuid, secret_meta, secret_data) =
-                result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
+                result.ok_or(Error::SecretNotAvailable(secret))?;
 
             let result = if let Secret::File {
                 name, mime, buffer, ..
@@ -835,7 +835,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let event = keeper
                 .vault_mut()
                 .update(&uuid, commit, VaultEntry(meta_aead, secret_aead))?
-                .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+                .ok_or(Error::SecretNotAvailable(secret))?;
 
             let event = event.into_owned();
 
@@ -922,7 +922,7 @@ fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                         if long {
                             println!("{}", commit);
                         } else {
-                            print!("\n");
+                            println!();
                         }
                     }
                     Ok(())

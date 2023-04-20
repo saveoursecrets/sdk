@@ -133,7 +133,5 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
 }
 
 fn is_address_match(event: &AuditEvent, address: &[Address]) -> bool {
-    address
-        .iter()
-        .any(|addr| addr == event.address())
+    address.iter().any(|addr| addr == event.address())
 }

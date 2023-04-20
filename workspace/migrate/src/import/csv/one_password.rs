@@ -55,13 +55,7 @@ pub struct OnePasswordRecord {
 impl From<OnePasswordRecord> for GenericPasswordRecord {
     fn from(value: OnePasswordRecord) -> Self {
         let tags: Option<HashSet<String>> = if !value.tags.is_empty() {
-            Some(
-                value
-                    .tags
-                    .split(';')
-                    .map(|s| s.trim().to_owned())
-                    .collect(),
-            )
+            Some(value.tags.split(';').map(|s| s.trim().to_owned()).collect())
         } else {
             None
         };
