@@ -7,7 +7,11 @@ use serde::{
     ser::SerializeTuple,
     Deserialize, Serialize,
 };
-use std::{fmt, ops::Range};
+use std::{
+    fmt,
+    hash::{Hash, Hasher as StdHasher},
+    ops::Range,
+};
 
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof};
 
@@ -67,6 +71,15 @@ pub struct CommitProof {
     pub length: usize,
     /// Range of indices.
     pub indices: Range<usize>,
+}
+
+impl Hash for CommitProof {
+    fn hash<H: StdHasher>(&self, state: &mut H) {
+        self.root.hash(state);
+        self.proof.proof_hashes().hash(state);
+        self.length.hash(state);
+        self.indices.hash(state);
+    }
 }
 
 impl PartialEq for CommitProof {
@@ -250,7 +263,7 @@ impl<'de> serde::Deserialize<'de> for CommitProof {
 }
 
 /// Pair of commit proofs.
-#[derive(Debug)]
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct CommitPair {
     /// Commit proof for a local commit tree.
     pub local: CommitProof,

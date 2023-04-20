@@ -1,6 +1,10 @@
 use crate::{Error, Result};
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
-use std::{collections::HashMap, hash::Hash, ops::Range};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    ops::Range,
+};
 
 use super::{CommitPair, CommitProof, CommitRelationship, Comparison};
 
@@ -201,12 +205,20 @@ impl CommitTree {
 
 /// Multi tree allows comparison between multiple trees each
 /// represented by a unique identifier.
+///
+/// The identifier for each tree would be the vault identifier (UUID).
 #[derive(Default)]
-pub struct MultiTree<'a, K: Hash + Eq + PartialEq> {
+pub struct MultiTree<'a, K>
+where
+    K: Hash + Eq + PartialEq + Copy,
+{
     trees: HashMap<K, &'a CommitTree>,
 }
 
-impl<'a, K: Hash + Eq + PartialEq> MultiTree<'a, K> {
+impl<'a, K> MultiTree<'a, K>
+where
+    K: Hash + Eq + PartialEq + Copy,
+{
     /// Insert a tree reference into this multi tree.
     pub fn insert(&mut self, key: K, tree: &'a CommitTree) {
         self.trees.insert(key, tree);
@@ -241,8 +253,8 @@ impl<'a, K: Hash + Eq + PartialEq> MultiTree<'a, K> {
     /// Get the relationship between two multi trees.
     pub fn relationship(
         &'a self,
-        proofs: HashMap<&'a K, CommitProof>,
-        matches: HashMap<&'a K, Option<CommitProof>>,
+        proofs: &HashMap<&'a K, CommitProof>,
+        matches: &HashMap<&'a K, Option<CommitProof>>,
     ) -> Result<HashMap<&'a K, CommitRelationship>> {
         let mut relationships = HashMap::new();
         for (id, tree) in self.trees.iter() {
@@ -259,6 +271,144 @@ impl<'a, K: Hash + Eq + PartialEq> MultiTree<'a, K> {
     }
 }
 
+/// Node tree represents multi trees from different nodes
+/// combined so that a node can determine which actions to
+/// take for a sync operation.
+///
+/// The identifier for each node would typically be the peer id
+/// which for trusted devices is the public key of the
+/// device signing key.
+pub struct NodeTree<'a, I, K>
+where
+    I: Hash + Eq + PartialEq + Copy,
+    K: Hash + Eq + PartialEq + Copy,
+{
+    /// Identifier of this node.
+    id: I,
+    /// Tree for this node.
+    tree: &'a MultiTree<'a, K>,
+    /// Trees for other nodes.
+    nodes: HashMap<I, &'a MultiTree<'a, K>>,
+}
+
+impl<'a, I, K> NodeTree<'a, I, K>
+where
+    I: Hash + Eq + PartialEq + Copy,
+    K: Hash + Eq + PartialEq + Copy,
+{
+    /// Create a new node tree.
+    pub fn new(id: I, tree: &'a MultiTree<'a, K>) -> Self {
+        Self {
+            id,
+            tree,
+            nodes: HashMap::new(),
+        }
+    }
+
+    /// Insert a multi tree into this node.
+    pub fn insert(&mut self, key: I, tree: &'a MultiTree<'a, K>) {
+        self.nodes.insert(key, tree);
+    }
+
+    /// Compute the sync operations from this node tree.
+    pub fn compute(
+        &self,
+        matches: HashMap<&'a I, HashMap<&'a K, Option<CommitProof>>>,
+    ) -> Result<HashSet<Operation<I, K>>> {
+        let mut ops = HashSet::new();
+
+        for (node_id, tree) in self.nodes.iter() {
+            if let Some(matches) = matches.get(node_id) {
+                let proof = tree.head()?;
+                let relationships =
+                    self.tree.relationship(&proof, matches)?;
+                for (id, relationship) in relationships {
+                    match relationship {
+                        CommitRelationship::Ahead(commit, difference) => {
+                            ops.insert(Operation::Pull {
+                                local: self.id,
+                                remote: *node_id,
+                                id: *id,
+                                commit,
+                                difference,
+                            });
+                        }
+                        CommitRelationship::Behind(commit, difference) => {
+                            ops.insert(Operation::Push {
+                                local: self.id,
+                                remote: *node_id,
+                                id: *id,
+                                commit,
+                                difference,
+                            });
+                        }
+                        CommitRelationship::Diverged(commit) => {
+                            ops.insert(Operation::Conflict {
+                                local: self.id,
+                                remote: *node_id,
+                                id: *id,
+                                commit,
+                            });
+                        }
+                        CommitRelationship::Equal(_) => {}
+                    }
+                }
+            }
+        }
+
+        Ok(ops)
+    }
+}
+
+/// Operation that can be made to sync between two peers.
+#[derive(Debug, Hash, Eq, PartialEq)]
+pub enum Operation<I, K>
+where
+    I: Hash + Eq + PartialEq,
+    K: Hash + Eq + PartialEq,
+{
+    /// Push to a remote peer.
+    Push {
+        /// Identifier of the peer to push from.
+        local: I,
+        /// Identifier of the peer to push to.
+        remote: I,
+        /// Identifier of the vault to operate on.
+        id: K,
+        /// Commit information.
+        commit: CommitPair,
+        /// Number of commits difference.
+        difference: usize,
+    },
+    /// Pull from a remote peer.
+    Pull {
+        /// Identifier of the peer to pull to.
+        local: I,
+        /// Identifier of the peer to pull from.
+        remote: I,
+        /// Identifier of the vault to operate on.
+        id: K,
+        /// Commit information.
+        commit: CommitPair,
+        /// Number of commits difference.
+        difference: usize,
+    },
+    /// Trees have diverged so we have a conflict that
+    /// may be resolvable with a force push or force pull.
+    ///
+    /// Requires user intervention to decide.
+    Conflict {
+        /// Identifier of the local peer.
+        local: I,
+        /// Identifier of the remote peer.
+        remote: I,
+        /// Identifier of the vault to operate on.
+        id: K,
+        /// Commit information.
+        commit: CommitPair,
+    },
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -270,7 +420,9 @@ mod test {
     use anyhow::Result;
     use uuid::Uuid;
 
-    /// Create a commit tree from an existing vault.
+    /// Create a commit tree from an existing vault using the
+    /// hashes of the encrypted data that are used to verify
+    /// the integrity of each vault entry.
     fn from_vault(vault: &Vault) -> CommitTree {
         let mut commit_tree = CommitTree::new();
         for (_, commit) in vault.commits() {
@@ -550,7 +702,7 @@ mod test {
         let remote_proofs = remote.head()?;
 
         let mut relationships =
-            local.relationship(remote_proofs, match_proofs)?;
+            local.relationship(&remote_proofs, &match_proofs)?;
 
         assert!(matches!(
             relationships.remove(&tree_id1).unwrap(),
@@ -604,7 +756,7 @@ mod test {
         let remote_proofs = remote.head()?;
 
         let mut relationships =
-            local.relationship(remote_proofs, match_proofs)?;
+            local.relationship(&remote_proofs, &match_proofs)?;
 
         assert!(matches!(
             relationships.remove(&tree_id1).unwrap(),
@@ -658,7 +810,7 @@ mod test {
         let remote_proofs = remote.head()?;
 
         let mut relationships =
-            local.relationship(remote_proofs, match_proofs)?;
+            local.relationship(&remote_proofs, &match_proofs)?;
 
         assert!(matches!(
             relationships.remove(&tree_id1).unwrap(),
@@ -711,7 +863,7 @@ mod test {
         let remote_proofs = remote.head()?;
 
         let mut relationships =
-            local.relationship(remote_proofs, match_proofs)?;
+            local.relationship(&remote_proofs, &match_proofs)?;
 
         assert!(matches!(
             relationships.remove(&tree_id1).unwrap(),
@@ -722,6 +874,55 @@ mod test {
             relationships.remove(&tree_id2).unwrap(),
             CommitRelationship::Diverged(_)
         ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_node_equal() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+
+        let node_id1 = Uuid::new_v4();
+        let node_id2 = Uuid::new_v4();
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        local_tree2.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+
+        let mut remote_tree1 = CommitTree::new();
+        remote_tree1.insert(hash1);
+        remote_tree1.commit();
+
+        let mut remote_tree2 = CommitTree::new();
+        remote_tree2.insert(hash2);
+        remote_tree2.commit();
+
+        let mut remote: MultiTree<Uuid> = Default::default();
+        remote.insert(tree_id1, &remote_tree1);
+        remote.insert(tree_id2, &remote_tree2);
+
+        let mut node: NodeTree<Uuid, Uuid> = NodeTree::new(node_id1, &local);
+
+        let local_head = local.head()?;
+        node.insert(node_id2, &remote);
+
+        let mut matches = HashMap::new();
+        matches.insert(&node_id2, remote.contains(&local_head)?);
+
+        let operations = node.compute(matches)?;
+        assert!(operations.is_empty());
 
         Ok(())
     }
