@@ -39,6 +39,33 @@ pub enum WalEvent<'a> {
     DeleteSecret(SecretId),
 }
 
+/*
+impl<'a> WalEvent<'a> {
+    /// Convert this event into an owned event.
+    pub fn into_owned(self) -> WalEvent<'static> {
+        match self {
+            WalEvent::Noop => WalEvent::Noop,
+            WalEvent::CreateVault(data) => {
+                WalEvent::CreateVault(Cow::Owned(data.into_owned()))
+            }
+            WalEvent::SetVaultName(data) => {
+                WalEvent::SetVaultName(Cow::Owned(data.into_owned()))
+            }
+            WalEvent::SetVaultMeta(data) => {
+                WalEvent::SetVaultMeta(Cow::Owned(data.into_owned()))
+            }
+            WalEvent::CreateSecret(id, data) => {
+                WalEvent::CreateSecret(id, Cow::Owned(data.into_owned()))
+            }
+            WalEvent::UpdateSecret(id, data) => {
+                WalEvent::UpdateSecret(id, Cow::Owned(data.into_owned()))
+            }
+            WalEvent::DeleteSecret(id) => WalEvent::DeleteSecret(id),
+        }
+    }
+}
+*/
+
 impl Ord for WalEvent<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, &other) {
