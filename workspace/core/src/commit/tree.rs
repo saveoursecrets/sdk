@@ -171,10 +171,7 @@ impl CommitTree {
             CommitRelationship::Behind(pair, diff)
         } else {
             let comparison = self.compare(&other_proof)?;
-            let is_ahead = match comparison {
-                Comparison::Contains(_, _) => true,
-                _ => false,
-            };
+            let is_ahead = matches!(comparison, Comparison::Contains(_, _));
 
             if is_ahead {
                 let (diff, _) =

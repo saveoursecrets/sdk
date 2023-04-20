@@ -247,15 +247,12 @@ pub struct ExtraFields {
 impl From<&Secret> for ExtraFields {
     fn from(value: &Secret) -> Self {
         let mut extra: ExtraFields = Default::default();
-        match value {
-            Secret::Contact { vcard, .. } => {
-                extra.contact_type = vcard
-                    .kind
-                    .as_ref()
-                    .map(|p| p.value.clone())
-                    .or(Some(vcard4::property::Kind::Individual));
-            }
-            _ => {}
+        if let Secret::Contact { vcard, .. } = value {
+            extra.contact_type = vcard
+                .kind
+                .as_ref()
+                .map(|p| p.value.clone())
+                .or(Some(vcard4::property::Kind::Individual));
         }
         extra
     }

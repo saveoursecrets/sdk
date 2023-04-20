@@ -117,9 +117,9 @@ pub trait FileItem: Default + std::fmt::Debug + Decode {
     fn set_value(&mut self, value: Range<u64>);
 
     /// Read the bytes for the value into an owned buffer.
-    fn read_bytes<'a>(
+    fn read_bytes(
         &self,
-        reader: &mut BinaryReader<'a>,
+        reader: &mut BinaryReader<'_>,
     ) -> Result<Vec<u8>> {
         let value = self.value();
         let length = value.end - value.start;
