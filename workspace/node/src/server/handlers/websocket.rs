@@ -170,7 +170,7 @@ async fn handle_socket(
     tokio::spawn(write(
         writer,
         Arc::clone(&state),
-        address.clone(),
+        address,
         outgoing,
         session_id,
     ));

@@ -253,7 +253,7 @@ impl AccountManager {
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault)?;
         let (user, _) =
-            Identity::login_buffer(&buffer, passphrase.clone(), None, None)?;
+            Identity::login_buffer(buffer, passphrase.clone(), None, None)?;
 
         // Prepare the passphrase for the default vault
         let vault_passphrase = Self::generate_vault_passphrase()?;
@@ -371,7 +371,7 @@ impl AccountManager {
         // as we have modified the identity vault
         let identity_vault_file = Self::identity_vault(&address)?;
         let buffer = encode(keeper.vault())?;
-        std::fs::write(identity_vault_file, &buffer)?;
+        std::fs::write(identity_vault_file, buffer)?;
 
         // Create local provider
         let factory = ProviderFactory::Local;
@@ -442,7 +442,7 @@ impl AccountManager {
         hasher.update(&encrypted);
         let digest = hasher.finalize();
         let file_name = hex::encode(digest);
-        let dest = PathBuf::from(target.as_ref()).join(&file_name);
+        let dest = PathBuf::from(target.as_ref()).join(file_name);
 
         std::fs::write(dest, encrypted)?;
 
@@ -733,7 +733,7 @@ impl AccountManager {
             .find(|a| a.address == address)
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
 
-        let identity_path = Self::identity_vault(&address)?;
+        let identity_path = Self::identity_vault(address)?;
         let (user, mut keeper) =
             Identity::login_file(identity_path, passphrase, Some(index))?;
 
@@ -853,7 +853,7 @@ impl AccountManager {
 
     /// Verify the master passphrase for an account.
     pub fn verify(address: &str, passphrase: SecretString) -> Result<bool> {
-        let identity_path = Self::identity_vault(&address)?;
+        let identity_path = Self::identity_vault(address)?;
         let result = Identity::login_file(identity_path, passphrase, None);
         Ok(result.is_ok())
     }
@@ -893,7 +893,7 @@ impl AccountManager {
         }
         // Update vault file on disc
         let identity_vault_file = Self::identity_vault(address)?;
-        let mut access = VaultFileAccess::new(&identity_vault_file)?;
+        let mut access = VaultFileAccess::new(identity_vault_file)?;
         access.set_vault_name(account_name)?;
         Ok(())
     }
@@ -906,8 +906,8 @@ impl AccountManager {
         let identity_data_dir = local_dir.join(address);
 
         // FIXME: move to a trash folder
-        std::fs::remove_file(&identity_vault_file)?;
-        std::fs::remove_dir_all(&identity_data_dir)?;
+        std::fs::remove_file(identity_vault_file)?;
+        std::fs::remove_dir_all(identity_data_dir)?;
 
         Ok(())
     }
@@ -1096,7 +1096,7 @@ impl AccountManager {
                 .clone();
 
             if let Some(passphrase) = &options.passphrase {
-                let identity_vault_file = Self::identity_vault(&address)?;
+                let identity_vault_file = Self::identity_vault(address)?;
                 let identity_buffer = std::fs::read(&identity_vault_file)?;
                 let identity_vault: Vault = decode(&identity_buffer)?;
                 let mut identity_keeper =
@@ -1129,7 +1129,7 @@ impl AccountManager {
 
                 // Must re-write the identity vault
                 let buffer = encode(identity_keeper.vault())?;
-                std::fs::write(identity_vault_file, &buffer)?;
+                std::fs::write(identity_vault_file, buffer)?;
             }
 
             run_blocking(provider.restore_archive(&targets))?;

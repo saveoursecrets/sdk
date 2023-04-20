@@ -89,7 +89,7 @@ where
             // leaf node corresponding to our root hash which
             // indicates that we are behind the remote so we
             // can try to pull again and try to patch afterwards
-            if let Some(_) = match_proof {
+            if match_proof.is_some() {
                 Err(Error::ConflictBehind {
                     summary: summary.clone(),
                     local: client_proof.into(),

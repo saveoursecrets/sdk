@@ -196,7 +196,7 @@ pub trait StorageProvider: Sync + Send {
             let create_vault = WalEvent::CreateVault(Cow::Borrowed(buffer));
             wal_events.push(create_vault);
 
-            self.update_vault(vault.summary(), &vault, wal_events)
+            self.update_vault(vault.summary(), vault, wal_events)
                 .await?;
 
             // Refresh the in-memory and disc-based mirror
@@ -232,11 +232,7 @@ pub trait StorageProvider: Sync + Send {
         let vaults = vaults
             .into_iter()
             .filter(|item| {
-                options
-                    .selected
-                    .iter()
-                    .find(|s| s.id() == item.0.id())
-                    .is_some()
+                options.selected.iter().any(|s| s.id() == item.0.id())
             })
             .collect::<Vec<_>>();
 
@@ -287,19 +283,19 @@ pub trait StorageProvider: Sync + Send {
     /// Get the path to a WAL file.
     fn wal_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), WAL_EXT);
-        self.dirs().vaults_dir().join(&file_name)
+        self.dirs().vaults_dir().join(file_name)
     }
 
     /// Get the path to a vault file.
     fn vault_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), VAULT_EXT);
-        self.dirs().vaults_dir().join(&file_name)
+        self.dirs().vaults_dir().join(file_name)
     }
 
     /// Get the path to a patch file.
     fn patch_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), PATCH_EXT);
-        self.dirs().vaults_dir().join(&file_name)
+        self.dirs().vaults_dir().join(file_name)
     }
 
     /// Get the vault summaries for this storage.
@@ -796,7 +792,7 @@ macro_rules! provider_impl {
             summary: &Summary,
             buffer: &[u8],
         ) -> Result<()> {
-            use crate::client::provider::fs_adapter;
+            use $crate::client::provider::fs_adapter;
             let vault_path = self.vault_path(&summary);
             fs_adapter::write(vault_path, buffer)?;
             Ok(())

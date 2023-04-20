@@ -58,25 +58,22 @@ where
 
     let status = if equals {
         CommitRelationship::Equal(pair)
+    } else if match_proof.is_some() {
+        let (diff, _) = pair.remote.len().overflowing_sub(pair.local.len());
+        CommitRelationship::Behind(pair, diff)
     } else {
-        if let Some(_) = match_proof {
-            let (diff, _) =
-                pair.remote.len().overflowing_sub(pair.local.len());
-            CommitRelationship::Behind(pair, diff)
-        } else {
-            let comparison = wal_file.tree().compare(&server_proof)?;
-            let is_ahead = match comparison {
-                Comparison::Contains(_, _) => true,
-                _ => false,
-            };
+        let comparison = wal_file.tree().compare(&server_proof)?;
+        let is_ahead = match comparison {
+            Comparison::Contains(_, _) => true,
+            _ => false,
+        };
 
-            if is_ahead {
-                let (diff, _) =
-                    pair.local.len().overflowing_sub(pair.remote.len());
-                CommitRelationship::Ahead(pair, diff)
-            } else {
-                CommitRelationship::Diverged(pair)
-            }
+        if is_ahead {
+            let (diff, _) =
+                pair.local.len().overflowing_sub(pair.remote.len());
+            CommitRelationship::Ahead(pair, diff)
+        } else {
+            CommitRelationship::Diverged(pair)
         }
     };
 

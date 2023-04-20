@@ -249,11 +249,9 @@ impl Service for WalService {
                             // Changes events for the SSE channel
                             let change_events = change_set
                                 .iter()
-                                .map(|event| {
+                                .filter_map(|event| {
                                     ChangeEvent::from_sync_event(event)
                                 })
-                                .filter(|e| e.is_some())
-                                .map(|e| e.unwrap())
                                 .collect::<Vec<_>>();
 
                             // Changes to apply to the WAL log
@@ -380,7 +378,7 @@ impl Service for WalService {
                     .replace_wal(
                         caller.address(),
                         &vault_id,
-                        commit_proof.root.into(),
+                        commit_proof.root,
                         request.body(),
                     )
                     .await

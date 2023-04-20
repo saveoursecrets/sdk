@@ -41,8 +41,7 @@ static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
 /// set then a path will be computed by platform convention.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn cache_dir() -> Option<PathBuf> {
-    let dir = if let Some(env_cache_dir) = std::env::var("SOS_CACHE_DIR").ok()
-    {
+    let dir = if let Ok(env_cache_dir) = std::env::var("SOS_CACHE_DIR") {
         Some(PathBuf::from(env_cache_dir))
     } else {
         let reader = CACHE_DIR.read().unwrap();
@@ -54,11 +53,11 @@ pub fn cache_dir() -> Option<PathBuf> {
     };
 
     // Try to ensure the directory exists
-    dir.and_then(|d| {
+    dir.map(|d| {
         if !d.exists() {
             let _ = std::fs::create_dir_all(&d);
         }
-        Some(d)
+        d
     })
 }
 
@@ -81,14 +80,12 @@ pub fn clear_cache_dir() {
 #[cfg(target_os = "macos")]
 fn default_storage_dir() -> Option<PathBuf> {
     use sos_core::constants::BUNDLE_ID;
-    dirs::home_dir().and_then(|v| {
-        let d = v
-            .join("Library")
+    dirs::home_dir().map(|v| {
+        v.join("Library")
             .join("Containers")
             .join(BUNDLE_ID)
             .join("Data")
-            .join("Documents");
-        Some(d)
+            .join("Documents")
     })
 }
 
@@ -122,5 +119,5 @@ fn default_storage_dir() -> Option<PathBuf> {
 #[cfg(not(target_arch = "wasm32"))]
 fn fallback_storage_dir() -> Option<PathBuf> {
     use sos_core::constants::BUNDLE_ID;
-    dirs::data_local_dir().and_then(|dir| Some(dir.join(BUNDLE_ID)))
+    dirs::data_local_dir().map(|dir| dir.join(BUNDLE_ID))
 }

@@ -66,10 +66,10 @@ pub async fn handle_change(
                                 provider.pull(summary, false).await?;
                             }
                             CommitRelationship::Diverged(_) => {
-                                if let Some(_) = change
+                                if change
                                     .changes()
-                                    .into_iter()
-                                    .find(|c| *c == &ChangeEvent::UpdateVault)
+                                    .iter()
+                                    .any(|c| c == &ChangeEvent::UpdateVault)
                                 {
                                     // If the trees have diverged and the other
                                     // node indicated it did an update to the

@@ -391,7 +391,7 @@ impl Backend for FileSystemBackend {
         name: String,
     ) -> Result<()> {
         let vault_path = self.vault_file_path(owner, vault_id);
-        let mut access = VaultFileAccess::new(&vault_path)?;
+        let mut access = VaultFileAccess::new(vault_path)?;
         let _ = access.set_vault_name(name)?;
         Ok(())
     }
@@ -446,7 +446,7 @@ impl Backend for FileSystemBackend {
 
         // Replace the WAL with the new buffer
         let commit_proof = self
-            .replace_wal(owner, vault.id(), expected_root.into(), &wal_buffer)
+            .replace_wal(owner, vault.id(), expected_root, &wal_buffer)
             .await?;
 
         // Write out the vault file (header only)
@@ -538,7 +538,7 @@ impl Backend for FileSystemBackend {
         tracing::debug!(len = ?buffer.len(),
             "replace_wal got buffer length");
 
-        tracing::debug!(expected_root = ?hex::encode(&root_hash),
+        tracing::debug!(expected_root = ?hex::encode(root_hash),
             "replace_wal expects root hash");
 
         // NOTE: using tokio::io here would hang sometimes

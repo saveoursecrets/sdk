@@ -76,7 +76,7 @@ impl SessionManager {
     pub fn offer(&mut self, identity: Address) -> (Uuid, &ServerSession) {
         let id = Uuid::new_v4();
         let session = ServerSession::new(identity, self.duration_secs);
-        let session = self.sessions.entry(id.clone()).or_insert(session);
+        let session = self.sessions.entry(id).or_insert(session);
         (id, session)
     }
 
@@ -244,7 +244,7 @@ impl ServerSession {
 
 impl EncryptedChannel for ServerSession {
     fn private_key(&self) -> Result<&SecretKey> {
-        Ok(self.private.as_ref().ok_or(Error::NoSessionKey)?)
+        self.private.as_ref().ok_or(Error::NoSessionKey)
     }
 
     fn next_nonce(&mut self) -> Result<Nonce> {
@@ -302,8 +302,7 @@ impl ClientSession {
         public_key_bytes: &[u8],
         challenge: [u8; 16],
     ) -> Result<(Signature, SecretKey)> {
-        let server_public =
-            PublicKey::from_sec1_bytes(public_key_bytes.as_ref())?;
+        let server_public = PublicKey::from_sec1_bytes(public_key_bytes)?;
         let shared = self.secret.diffie_hellman(&server_public);
         let signature = self.signer.sign(&challenge).await?;
         let key = derive_secret_key(&shared, challenge.as_ref())?;
@@ -335,7 +334,7 @@ impl ClientSession {
 
 impl EncryptedChannel for ClientSession {
     fn private_key(&self) -> Result<&SecretKey> {
-        Ok(self.private.as_ref().ok_or(Error::NoSessionKey)?)
+        self.private.as_ref().ok_or(Error::NoSessionKey)
     }
 
     fn next_nonce(&mut self) -> Result<Nonce> {
@@ -346,7 +345,7 @@ impl EncryptedChannel for ClientSession {
     }
 
     fn salt(&self) -> Result<&[u8; 16]> {
-        Ok(self.challenge.as_ref().ok_or(Error::NoSessionSalt)?)
+        self.challenge.as_ref().ok_or(Error::NoSessionSalt)
     }
 }
 

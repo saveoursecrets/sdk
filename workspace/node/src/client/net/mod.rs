@@ -78,7 +78,7 @@ pub async fn changes_uri(
     signer: &BoxedEcdsaSigner,
     session: &mut ClientSession,
 ) -> Result<String> {
-    let endpoint = changes_endpoint_url(&remote)?;
+    let endpoint = changes_endpoint_url(remote)?;
 
     // Need to encode a message into the query string
     // so the server can validate the session request

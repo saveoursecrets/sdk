@@ -85,7 +85,7 @@ pub async fn pull_wal<W>(
 where
     W: WalProvider + Send + Sync + 'static,
 {
-    let client_proof = if let Some(_) = wal_file.tree().root() {
+    let client_proof = if wal_file.tree().root().is_some() {
         let proof = wal_file.tree().head()?;
         tracing::debug!(root = %proof.root_hex(), "pull_wal wants diff");
         Some(proof)
