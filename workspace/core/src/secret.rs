@@ -865,7 +865,7 @@ impl Encode for AgeVersion {
 impl Decode for AgeVersion {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let kind = reader.read_u8()?;
-        Ok(match kind {
+        match kind {
             1 => {
                 *self = Self::Version1;
             }
@@ -874,7 +874,8 @@ impl Decode for AgeVersion {
                     Error::UnknownAgeVersion(kind),
                 )))
             }
-        })
+        };
+        Ok(())
     }
 }
 
@@ -2077,7 +2078,7 @@ impl Decode for Secret {
                 let value = reader.read_string()?;
                 let user_data = read_user_data(reader)?;
                 *self = Self::Pem {
-                    certificates: pem::parse_many(&value)
+                    certificates: pem::parse_many(value)
                         .map_err(Box::from)?,
                     user_data,
                 };
@@ -2147,7 +2148,7 @@ impl Decode for Secret {
             }
             kind::CONTACT => {
                 let vcard = reader.read_string()?;
-                let mut cards = parse_to_vcards(&vcard).map_err(Box::from)?;
+                let mut cards = parse_to_vcards(vcard).map_err(Box::from)?;
                 let vcard = cards.remove(0);
                 let user_data = read_user_data(reader)?;
                 *self = Self::Contact {

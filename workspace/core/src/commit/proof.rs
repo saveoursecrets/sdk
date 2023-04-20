@@ -113,7 +113,7 @@ impl CommitProof {
 
     /// The root hash for the proof as hexadecimal.
     pub fn root_hex(&self) -> String {
-        hex::encode(&self.root)
+        hex::encode(self.root)
     }
 
     /// Number of leaves in the commit tree.
@@ -230,7 +230,7 @@ impl<'de> Visitor<'de> for CommitProofVisitor {
         let root_hash: String = seq.next_element()?.ok_or_else(|| {
             de::Error::custom("expecting a root hash for commit proof")
         })?;
-        let root_hash = hex::decode(&root_hash).map_err(de::Error::custom)?;
+        let root_hash = hex::decode(root_hash).map_err(de::Error::custom)?;
         let root_hash: [u8; 32] =
             root_hash.as_slice().try_into().map_err(de::Error::custom)?;
         let hashes: Vec<[u8; 32]> = seq.next_element()?.ok_or_else(|| {

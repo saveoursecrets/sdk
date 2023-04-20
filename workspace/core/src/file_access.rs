@@ -64,7 +64,7 @@ impl VaultFileAccess {
             .open(&self.file_path)?;
 
         // Read the content into memory
-        file.seek(SeekFrom::Start(content_offset as u64))?;
+        file.seek(SeekFrom::Start(content_offset))?;
         let mut content = Vec::new();
         file.read_to_end(&mut content)?;
 
@@ -95,14 +95,14 @@ impl VaultFileAccess {
             .open(&self.file_path)?;
 
         // Read the tail into memory
-        file.seek(SeekFrom::Start(tail.start as u64))?;
+        file.seek(SeekFrom::Start(tail.start))?;
         let mut end = Vec::new();
         file.read_to_end(&mut end)?;
 
         if head.start == 0 {
             // Rewind and truncate the file to the head
             file.rewind()?;
-            file.set_len(head.end as u64)?;
+            file.set_len(head.end)?;
         } else {
             unreachable!("file splice head range always starts at zero");
         }

@@ -46,7 +46,7 @@ pub struct DocumentKey(String, VaultId, SecretId);
 // Index tokenizer.
 fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
     let ngrams = ngram_slice(s, 2);
-    let words = s.split(' ').into_iter().collect::<HashSet<_>>();
+    let words = s.split(' ').collect::<HashSet<_>>();
 
     let mut tokens: Vec<Cow<str>> = Vec::new();
     for token in words.union(&ngrams) {
@@ -58,7 +58,6 @@ fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
 // Query tokenizer.
 fn query_tokenizer(s: &str) -> Vec<Cow<'_, str>> {
     s.split(' ')
-        .into_iter()
         .map(|s| s.to_lowercase())
         .map(Cow::Owned)
         .collect::<Vec<_>>()
@@ -177,10 +176,8 @@ impl DocumentCount {
                 }
             }
 
-            if favorite {
-                if self.favorites > 0 {
-                    self.favorites -= 1;
-                }
+            if favorite && self.favorites > 0 {
+                self.favorites -= 1;
             }
         }
     }
@@ -376,11 +373,7 @@ impl SearchIndex {
             .values()
             .filter(|d| {
                 if let Some(id) = id {
-                    if id == d.id() {
-                        false
-                    } else {
-                        true
-                    }
+                    id != d.id()
                 } else {
                     true
                 }
@@ -399,11 +392,7 @@ impl SearchIndex {
             .values()
             .filter(|d| {
                 if let Some(id) = id {
-                    if id == d.id() {
-                        false
-                    } else {
-                        true
-                    }
+                    id != d.id()
                 } else {
                     true
                 }
@@ -594,15 +583,7 @@ impl SearchIndex {
         results
             .into_iter()
             .filter_map(|r| {
-                if let Some(doc) = self.find_by_id(&r.key.0, &r.key.1) {
-                    if predicate(doc) {
-                        Some(doc)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+                self.find_by_id(&r.key.0, &r.key.1).filter(|&doc| predicate(doc))
             })
             .collect::<Vec<_>>()
     }

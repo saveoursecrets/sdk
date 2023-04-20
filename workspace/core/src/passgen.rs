@@ -20,8 +20,8 @@ pub mod diceware {
     use once_cell::sync::Lazy;
 
     static WORD_LIST: Lazy<WordList> = Lazy::new(|| {
-        let list = WordList::builtin_eff_large();
-        list
+        
+        WordList::builtin_eff_large()
     });
 
     /// Generate a passphrase using the given config.

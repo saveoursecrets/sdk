@@ -125,7 +125,7 @@ impl WalProvider for WalMemory {
         let events = WalReducer::new().reduce(self)?.compact()?;
 
         // Apply them to a temporary WAL file
-        let mut temp_wal = WalMemory::new(&path)?;
+        let mut temp_wal = WalMemory::new(path)?;
         temp_wal.apply(events, None)?;
 
         let new_size = temp_wal.records.len() as u64;

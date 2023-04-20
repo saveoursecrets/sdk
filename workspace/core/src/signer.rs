@@ -101,7 +101,7 @@ pub mod ecdsa {
     ) -> Result<(bool, VerifyingKey)> {
         let (ecdsa_signature, recid) = signature.try_into()?;
         let recovered_key = VerifyingKey::recover_from_digest(
-            Keccak256::new_with_prefix(&message),
+            Keccak256::new_with_prefix(message),
             &ecdsa_signature,
             recid,
         )?;

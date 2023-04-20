@@ -130,7 +130,7 @@ impl WalProvider for WalFile {
     }
 
     fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
-        std::fs::write(self.path(), &buffer)?;
+        std::fs::write(self.path(), buffer)?;
         self.load_tree()?;
         Ok(())
     }
@@ -163,7 +163,7 @@ impl WalProvider for WalFile {
 
         if start < end {
             file.seek(SeekFrom::Start(start as u64))?;
-            let mut buffer = vec![0; end - start as usize];
+            let mut buffer = vec![0; end - start];
             file.read_exact(buffer.as_mut_slice())?;
             partial.append(&mut buffer);
             Ok(partial)
@@ -177,7 +177,7 @@ impl WalProvider for WalFile {
         let offset = record.offset();
         let row_len = offset.end - offset.start;
 
-        file.seek(SeekFrom::Start(offset.start as u64))?;
+        file.seek(SeekFrom::Start(offset.start))?;
 
         let mut buf = vec![0u8; row_len as usize];
         file.read_exact(&mut buf)?;
@@ -268,7 +268,7 @@ impl WalProvider for WalFile {
         // be used exclusively for appending
         let mut file = File::open(&self.file_path)?;
 
-        file.seek(SeekFrom::Start(value.start as u64))?;
+        file.seek(SeekFrom::Start(value.start))?;
         let mut buffer = vec![0; (value.end - value.start) as usize];
         file.read_exact(buffer.as_mut_slice())?;
 
