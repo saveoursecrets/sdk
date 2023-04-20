@@ -20,7 +20,7 @@ pub fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     }
     let tree = vault_commit_tree_file(&file, true, |row_info| {
         if commits {
-            println!("{}", hex::encode(&row_info.commit()));
+            println!("{}", hex::encode(row_info.commit()));
         }
     })?;
     if root {
@@ -39,7 +39,7 @@ pub fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     }
     let tree = wal_commit_tree_file(&file, true, |row_info| {
         if commits {
-            println!("{}", hex::encode(&row_info.commit()));
+            println!("{}", hex::encode(row_info.commit()));
         }
     })?;
     if root {
