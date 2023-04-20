@@ -1063,4 +1063,74 @@ mod test {
 
         Ok(())
     }
+
+    #[test]
+    fn commit_node_conflict() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+        let hash3 = CommitTree::hash(b"goodbye");
+
+        let node_id1 = Uuid::new_v4();
+        let node_id2 = Uuid::new_v4();
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        local_tree2.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+
+        let mut remote_tree1 = CommitTree::new();
+        remote_tree1.insert(hash1);
+        remote_tree1.commit();
+
+        let mut remote_tree2 = CommitTree::new();
+        remote_tree2.insert(hash3); // Diverges this tree from local
+        remote_tree2.commit();
+
+        let mut remote: MultiTree<Uuid> = Default::default();
+        remote.insert(tree_id1, &remote_tree1);
+        remote.insert(tree_id2, &remote_tree2);
+
+        let mut node: NodeTree<Uuid, Uuid> = NodeTree::new(node_id1, &local);
+
+        let local_head = local.head()?;
+        node.insert(node_id2, &remote);
+
+        let mut matches = HashMap::new();
+        matches.insert(&node_id2, remote.contains(&local_head)?);
+
+        let mut operations = node.compute(matches)?;
+        assert_eq!(1, operations.len());
+
+        let op = operations.drain().next().unwrap();
+
+        println!("{:#?}", op);
+
+        assert!(matches!(op, Operation::Conflict { .. }));
+
+        if let Operation::Conflict {
+            local,
+            remote,
+            id,
+            ..
+        } = op
+        {
+            assert_eq!(node_id1, local);
+            assert_eq!(node_id2, remote);
+            assert_eq!(tree_id2, id);
+        } else {
+            unreachable!();
+        }
+
+        Ok(())
+    }
 }
