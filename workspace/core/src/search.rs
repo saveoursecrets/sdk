@@ -580,7 +580,8 @@ impl SearchIndex {
         results
             .into_iter()
             .filter_map(|r| {
-                self.find_by_id(&r.key.0, &r.key.1).filter(|&doc| predicate(doc))
+                self.find_by_id(&r.key.0, &r.key.1)
+                    .filter(|&doc| predicate(doc))
             })
             .collect::<Vec<_>>()
     }
