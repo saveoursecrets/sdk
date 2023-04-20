@@ -39,7 +39,7 @@ pub enum GenericCsvEntry {
     /// Payment entry.
     Payment(GenericPaymentRecord),
     /// Contact entry.
-    Contact(GenericContactRecord),
+    Contact(Box<GenericContactRecord>),
 }
 
 impl GenericCsvEntry {

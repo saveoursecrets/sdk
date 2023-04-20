@@ -59,7 +59,6 @@ impl From<OnePasswordRecord> for GenericPasswordRecord {
                 value
                     .tags
                     .split(';')
-                    .into_iter()
                     .map(|s| s.trim().to_owned())
                     .collect(),
             )

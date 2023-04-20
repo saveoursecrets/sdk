@@ -42,7 +42,7 @@ impl<W: Write + Seek> PublicExport<W> {
         // FIXME:
         //let options = options.last_modified_time(now.try_into()?);
         self.builder.start_file(path, options)?;
-        self.builder.write(buffer)?;
+        self.builder.write_all(buffer)?;
         Ok(())
     }
 

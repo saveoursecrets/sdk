@@ -341,7 +341,7 @@ mod test {
     #[test]
     fn keychain_list() -> Result<()> {
         let results = user_keychains()?;
-        assert!(results.len() > 0);
+        assert!(!results.is_empty());
         Ok(())
     }
 
