@@ -564,4 +564,165 @@ mod test {
 
         Ok(())
     }
+
+    #[test]
+    fn commit_multi_ahead() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+        let hash3 = CommitTree::hash(b"goodbye");
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        local_tree2.insert(hash3); // Makes this tree ahead
+        local_tree2.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+
+        let mut remote_tree1 = CommitTree::new();
+        remote_tree1.insert(hash1);
+        remote_tree1.commit();
+
+        let mut remote_tree2 = CommitTree::new();
+        remote_tree2.insert(hash2);
+        remote_tree2.commit();
+
+        let mut remote: MultiTree<Uuid> = Default::default();
+        remote.insert(tree_id1, &remote_tree1);
+        remote.insert(tree_id2, &remote_tree2);
+
+        let local_proofs = local.head()?;
+        let match_proofs = remote.contains(&local_proofs)?;
+        let remote_proofs = remote.head()?;
+
+        let mut relationships =
+            local.relationship(remote_proofs, match_proofs)?;
+
+        assert!(matches!(
+            relationships.remove(&tree_id1).unwrap(),
+            CommitRelationship::Equal(_)
+        ));
+
+        assert!(matches!(
+            relationships.remove(&tree_id2).unwrap(),
+            CommitRelationship::Ahead(_, _)
+        ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_multi_behind() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+        let hash3 = CommitTree::hash(b"goodbye");
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        local_tree2.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+
+        let mut remote_tree1 = CommitTree::new();
+        remote_tree1.insert(hash1);
+        remote_tree1.commit();
+
+        let mut remote_tree2 = CommitTree::new();
+        remote_tree2.insert(hash2);
+        remote_tree2.insert(hash3); // Makes this tree ahead
+        remote_tree2.commit();
+
+        let mut remote: MultiTree<Uuid> = Default::default();
+        remote.insert(tree_id1, &remote_tree1);
+        remote.insert(tree_id2, &remote_tree2);
+
+        let local_proofs = local.head()?;
+        let match_proofs = remote.contains(&local_proofs)?;
+        let remote_proofs = remote.head()?;
+
+        let mut relationships =
+            local.relationship(remote_proofs, match_proofs)?;
+
+        assert!(matches!(
+            relationships.remove(&tree_id1).unwrap(),
+            CommitRelationship::Equal(_)
+        ));
+
+        assert!(matches!(
+            relationships.remove(&tree_id2).unwrap(),
+            CommitRelationship::Behind(_, _)
+        ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn commit_multi_diverged() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        local_tree2.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+
+        // Flip the hashes so the trees are diverged
+        let mut remote_tree1 = CommitTree::new();
+        remote_tree1.insert(hash2);
+        remote_tree1.commit();
+
+        let mut remote_tree2 = CommitTree::new();
+        remote_tree2.insert(hash1);
+        remote_tree2.commit();
+
+        let mut remote: MultiTree<Uuid> = Default::default();
+        remote.insert(tree_id1, &remote_tree1);
+        remote.insert(tree_id2, &remote_tree2);
+
+        let local_proofs = local.head()?;
+        let match_proofs = remote.contains(&local_proofs)?;
+        let remote_proofs = remote.head()?;
+
+        let mut relationships =
+            local.relationship(remote_proofs, match_proofs)?;
+
+        assert!(matches!(
+            relationships.remove(&tree_id1).unwrap(),
+            CommitRelationship::Diverged(_)
+        ));
+
+        assert!(matches!(
+            relationships.remove(&tree_id2).unwrap(),
+            CommitRelationship::Diverged(_)
+        ));
+
+        Ok(())
+    }
 }
