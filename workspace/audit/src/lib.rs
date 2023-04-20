@@ -35,7 +35,7 @@ pub fn monitor(
 
         let len = audit_log.metadata()?.len();
         if len > offset {
-            while let Some(record) = it.next() {
+            for record in it.by_ref() {
                 let record = record?;
                 let event = log_file.read_event(&mut file, &record)?;
                 if !address.is_empty() && !is_address_match(&event, &address)
@@ -71,7 +71,7 @@ pub fn logs(
     // File for reading event data
     let mut file = File::open(&audit_log)?;
 
-    let count = count.unwrap_or_else(|| usize::MAX);
+    let count = count.unwrap_or(usize::MAX);
 
     if reverse {
         for record in log_file.iter()?.rev().take(count) {
@@ -135,6 +135,5 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
 fn is_address_match(event: &AuditEvent, address: &[Address]) -> bool {
     address
         .iter()
-        .position(|addr| addr == event.address())
-        .is_some()
+        .any(|addr| addr == event.address())
 }
