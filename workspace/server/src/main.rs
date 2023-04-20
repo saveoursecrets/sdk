@@ -69,7 +69,7 @@ async fn run() -> Result<()> {
         args.audit_log.unwrap_or_else(|| config.audit_file());
 
     let mut locks = FileLocks::new();
-    let _ = locks.add(&audit_log_file)?;
+    locks.add(&audit_log_file)?;
     // Move into the backend so it can manage lock files too
     backend.set_file_locks(locks)?;
 
