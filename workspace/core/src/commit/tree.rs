@@ -1292,4 +1292,136 @@ mod test {
 
         Ok(())
     }
+
+    #[test]
+    fn commit_multi_node() -> Result<()> {
+        let hash1 = CommitTree::hash(b"hello");
+        let hash2 = CommitTree::hash(b"world");
+        let hash3 = CommitTree::hash(b"goodbye");
+
+        let node_id1 = Uuid::new_v4();
+        let node_id2 = Uuid::new_v4();
+        let node_id3 = Uuid::new_v4();
+
+        let tree_id1 = Uuid::new_v4();
+        let tree_id2 = Uuid::new_v4();
+        let tree_id3 = Uuid::new_v4();
+
+        // Node 1 (local)
+        let mut local_tree1 = CommitTree::new();
+        local_tree1.insert(hash1);
+        local_tree1.commit();
+        let mut local_tree2 = CommitTree::new();
+        local_tree2.insert(hash2);
+        // Puts the local tree ahead of remotes (node 2 and node 3)
+        local_tree2.insert(hash3);
+        local_tree2.commit();
+        let mut local_tree3 = CommitTree::new();
+        local_tree3.insert(hash3);
+        local_tree3.commit();
+
+        let mut local: MultiTree<Uuid> = Default::default();
+        local.insert(tree_id1, &local_tree1);
+        local.insert(tree_id2, &local_tree2);
+        local.insert(tree_id3, &local_tree3);
+
+        // Node 2
+        let mut node2_tree1 = CommitTree::new();
+        node2_tree1.insert(hash1);
+        // Puts the remote tree ahead of local (node 1)
+        node2_tree1.insert(hash3);
+        node2_tree1.commit();
+        let mut node2_tree2 = CommitTree::new();
+        node2_tree2.insert(hash2);
+        node2_tree2.commit();
+        let mut node2_tree3 = CommitTree::new();
+        node2_tree3.insert(hash2); // Conflict on this tree
+        node2_tree3.commit();
+
+        let mut node2: MultiTree<Uuid> = Default::default();
+        node2.insert(tree_id1, &node2_tree1);
+        node2.insert(tree_id2, &node2_tree2);
+        node2.insert(tree_id3, &node2_tree3);
+
+        // Node 3
+        let mut node3_tree1 = CommitTree::new();
+        node3_tree1.insert(hash1);
+        node3_tree1.commit();
+        let mut node3_tree2 = CommitTree::new();
+        node3_tree2.insert(hash2);
+        node3_tree2.commit();
+        let mut node3_tree3 = CommitTree::new();
+        node3_tree3.insert(hash3);
+        node3_tree3.commit();
+
+        let mut node3: MultiTree<Uuid> = Default::default();
+        node3.insert(tree_id1, &node3_tree1);
+        node3.insert(tree_id2, &node3_tree2);
+        node3.insert(tree_id3, &node3_tree3);
+
+        let mut node: NodeTree<Uuid, Uuid> = NodeTree::new(node_id1, &local);
+
+        let mut local_head = local.head()?;
+        let mut node2_head = node2.head()?;
+        let mut node3_head = node3.head()?;
+
+        node.insert(node_id2, &node2);
+        node.insert(node_id3, &node3);
+
+        let mut matches = HashMap::new();
+        matches.insert(&node_id2, node2.contains(&local_head)?);
+        matches.insert(&node_id3, node3.contains(&local_head)?);
+
+        let operations = node.compute(matches)?;
+
+        // Expects conflict, pull and two pushes
+        let conflict = Operation::Conflict {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id3,
+            commit: CommitPair {
+                local: local_head.remove(&tree_id3).unwrap(),
+                remote: node2_head.remove(&tree_id3).unwrap(),
+            },
+        };
+        assert!(operations.contains(&conflict));
+
+        let node2_push = Operation::Push {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id2,
+            difference: 1,
+            commit: CommitPair {
+                local: local_head.get(&tree_id2).cloned().unwrap(),
+                remote: node2_head.remove(&tree_id2).unwrap(),
+            },
+        };
+        assert!(operations.contains(&node2_push));
+
+        let node3_push = Operation::Push {
+            local: node_id1,
+            remote: node_id3,
+            id: tree_id2,
+            difference: 1,
+            commit: CommitPair {
+                local: local_head.get(&tree_id2).cloned().unwrap(),
+                remote: node3_head.remove(&tree_id2).unwrap(),
+            },
+        };
+        assert!(operations.contains(&node3_push));
+
+        let pull = Operation::Pull {
+            local: node_id1,
+            remote: node_id2,
+            id: tree_id1,
+            difference: 1,
+            commit: CommitPair {
+                local: local_head.get(&tree_id1).cloned().unwrap(),
+                remote: node2_head.remove(&tree_id1).unwrap(),
+            },
+        };
+        assert!(operations.contains(&pull));
+
+        Ok(())
+    }
 }
