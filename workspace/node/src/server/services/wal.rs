@@ -7,6 +7,7 @@ use sos_core::{
         ChangeEvent, ChangeNotification, EventKind, SyncEvent, WalEvent,
     },
     rpc::{RequestMessage, ResponseMessage, Service},
+    wal::WalProvider,
     AuditData, AuditEvent, CommitHash, Patch,
 };
 use web3_address::ethereum::Address;
@@ -71,7 +72,6 @@ impl Service for WalService {
 
                 let wal = reader
                     .backend
-                    .handler()
                     .wal_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -174,7 +174,6 @@ impl Service for WalService {
 
                 let wal = reader
                     .backend
-                    .handler()
                     .wal_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -212,7 +211,6 @@ impl Service for WalService {
 
                     let wal = writer
                         .backend
-                        .handler_mut()
                         .wal_write(caller.address(), &vault_id)
                         .await
                         .map_err(Box::from)?;
