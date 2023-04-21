@@ -10,9 +10,6 @@ use super::{Error, Result};
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ServerConfig {
-    /// Whether to serve the web GUI.
-    pub gui: bool,
-
     /// Audit log file.
     pub audit: AuditConfig,
 

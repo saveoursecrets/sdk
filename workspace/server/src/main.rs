@@ -18,10 +18,6 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[derive(Parser, Debug)]
 #[clap(name = "sos-server", author, version, about, long_about = None)]
 struct Cli {
-    /// Serve the built in GUI.
-    #[clap(short, long)]
-    gui: Option<bool>,
-
     /// Override the audit log file path.
     #[clap(short, long)]
     audit_log: Option<PathBuf>,
@@ -50,9 +46,6 @@ async fn run() -> Result<()> {
     let version = env!("CARGO_PKG_VERSION").to_string();
 
     let mut config = ServerConfig::load(&args.config)?;
-    if let Some(gui) = args.gui {
-        config.gui = gui;
-    }
 
     if let Some(reap_interval) = args.reap_interval {
         config.session.reap_interval = reap_interval;

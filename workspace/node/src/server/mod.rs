@@ -1,6 +1,4 @@
 //! Web server implementation.
-#[cfg(feature = "gui")]
-mod assets;
 mod authenticate;
 mod backend;
 mod config;

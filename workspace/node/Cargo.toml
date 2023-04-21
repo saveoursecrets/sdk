@@ -135,7 +135,6 @@ device = [
   "if-addrs",
   "whoami",
 ]
-gui = []
 
 [package.metadata.release]
 tag = false

@@ -174,7 +174,6 @@ impl Server {
             .route("/api/vault", post(ServiceHandler::vault))
             .route("/api/wal", post(ServiceHandler::wal));
 
-        app = feature_routes(app);
         app = app
             .layer(cors)
             .layer(TraceLayer::new_for_http())
@@ -182,14 +181,4 @@ impl Server {
 
         Ok(app)
     }
-}
-
-#[cfg(not(feature = "gui"))]
-fn feature_routes(app: Router) -> Router {
-    app
-}
-
-#[cfg(feature = "gui")]
-fn feature_routes(app: Router) -> Router {
-    app.route("/gui/*path", get(super::handlers::assets))
 }
