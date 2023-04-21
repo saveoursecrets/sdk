@@ -1,14 +1,14 @@
+use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    /*
-    #[error("subcommand is required")]
-    CommandRequired,
+    #[error("path {0} is not a file")]
+    NotFile(PathBuf),
 
-    #[error("{0} is not a known command")]
-    UnknownCommand(String),
-    */
     #[error(transparent)]
     Io(#[from] std::io::Error),
+
+    #[error(transparent)]
+    Core(#[from] sos_core::Error),
 }

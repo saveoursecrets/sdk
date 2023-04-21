@@ -1,3 +1,4 @@
+pub mod commands;
 mod error;
 
 pub use error::Error;

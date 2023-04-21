@@ -34,10 +34,12 @@ pub use timestamp::Timestamp;
 
 // Re-exports
 pub use age;
+pub use hex;
 pub use k256;
 pub use sha2;
 pub use sha3;
 pub use time;
+pub use uuid;
 
 /// Encode to a binary buffer.
 pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
