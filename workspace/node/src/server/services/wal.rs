@@ -8,7 +8,7 @@ use sos_core::{
     },
     rpc::{RequestMessage, ResponseMessage, Service},
     wal::WalProvider,
-    audit::{AuditData, AuditEvent}, Patch,
+    audit::{AuditData, AuditEvent}, patch::Patch,
 };
 use web3_address::ethereum::Address;
 

@@ -7,7 +7,7 @@ use sos_core::{
     commit::{CommitPair, CommitRelationship, Comparison},
     vault::Summary,
     wal::WalProvider,
-    PatchProvider,
+    patch::PatchProvider,
 };
 
 use crate::retry;

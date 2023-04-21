@@ -7,7 +7,7 @@ use sos_core::{
     commit::{CommitProof, Comparison},
     vault::Summary,
     wal::WalProvider,
-    PatchProvider,
+    patch::PatchProvider,
 };
 
 use crate::{

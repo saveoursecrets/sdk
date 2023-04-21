@@ -5,7 +5,7 @@ use http::StatusCode;
 
 use sos_core::{
     commit::CommitRelationship, vault::Summary, wal::WalProvider,
-    PatchProvider,
+    patch::PatchProvider,
 };
 
 use crate::retry;

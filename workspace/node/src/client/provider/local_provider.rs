@@ -16,11 +16,11 @@ use sos_core::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,
     },
-    PatchMemory, PatchProvider, StorageDirs, Timestamp,
+    patch::{PatchMemory, PatchProvider}, StorageDirs, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use sos_core::{wal::file::WalFile, PatchFile};
+use sos_core::{wal::file::WalFile, patch::PatchFile};
 
 use std::{
     borrow::Cow,

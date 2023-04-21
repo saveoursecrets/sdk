@@ -13,7 +13,7 @@ use sos_core::{
     rpc::{Packet, RequestMessage, ResponseMessage},
     signer::ecdsa::BoxedEcdsaSigner,
     vault::Summary,
-    Patch,
+    patch::Patch,
 };
 use std::{
     borrow::Cow,

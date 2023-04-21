@@ -5,7 +5,7 @@ use http::StatusCode;
 
 use sos_core::{
     commit::CommitProof, constants::WAL_IDENTITY, vault::Summary,
-    wal::WalProvider, FileIdentity, PatchProvider,
+    wal::WalProvider, FileIdentity, patch::PatchProvider,
 };
 
 use crate::{

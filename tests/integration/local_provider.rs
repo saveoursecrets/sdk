@@ -11,7 +11,7 @@ use sos_core::{
     secret::Secret,
     signer::{ecdsa::SingleParty, Signer},
     wal::WalProvider,
-    PatchProvider, StorageDirs,
+    patch::PatchProvider, StorageDirs,
 };
 use sos_node::client::provider::{LocalProvider, StorageProvider};
 

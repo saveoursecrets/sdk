@@ -22,12 +22,11 @@ mod file_identity;
 mod file_locks;
 
 mod gatekeeper;
-//mod hash;
 pub mod identity;
 pub mod iter;
 pub mod passgen;
 mod passwd;
-mod patch;
+pub mod patch;
 
 pub mod rpc;
 pub mod search;
@@ -41,9 +40,6 @@ pub mod wal;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
-//#[cfg(not(target_arch = "wasm32"))]
-//pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
-
 pub use error::Error;
 pub use file_access::VaultFileAccess;
 pub use file_identity::FileIdentity;
@@ -52,9 +48,6 @@ pub use file_locks::FileLocks;
 pub use gatekeeper::Gatekeeper;
 pub use passgen::diceware::{generate_passphrase, generate_passphrase_words};
 pub use passwd::ChangePassword;
-#[cfg(not(target_arch = "wasm32"))]
-pub use patch::PatchFile;
-pub use patch::{Patch, PatchMemory, PatchProvider};
 pub use storage::{StorageDirs, FileStorage};
 pub use timestamp::Timestamp;
 

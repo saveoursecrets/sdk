@@ -11,7 +11,7 @@ use sos_core::{
     secret::{Secret, SecretId, SecretMeta},
     vault::Summary,
     wal::file::WalFile,
-    AuditLogFile, FileLocks, PatchFile,
+    audit::AuditLogFile, FileLocks, patch::PatchFile,
 };
 
 use sos_node::{

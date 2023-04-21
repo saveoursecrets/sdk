@@ -9,7 +9,7 @@ use sos_core::{
         Signer,
     },
     wal::file::WalFile,
-    PatchFile, StorageDirs,
+    patch::PatchFile, StorageDirs,
 };
 
 use web3_address::ethereum::Address;
