@@ -16,8 +16,9 @@ use sos_core::{
     vault::Vault,
     Gatekeeper,
 };
-use sos_node::client::provider::{
-    LocalProvider, RestoreOptions, StorageDirs, StorageProvider,
+use sos_node::{
+    client::provider::{LocalProvider, RestoreOptions, StorageProvider},
+    StorageDirs,
 };
 
 fn create_archive(

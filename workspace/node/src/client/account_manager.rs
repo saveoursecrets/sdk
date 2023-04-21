@@ -19,10 +19,7 @@ use k256::sha2::{Digest, Sha256};
 
 use sos_core::{
     archive::{Inventory, Reader, Writer},
-    constants::{
-        DEVICES_DIR, DEVICE_KEY_URN, FILES_DIR, FILE_PASSWORD_URN,
-        IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT,
-    },
+    constants::{DEVICE_KEY_URN, FILE_PASSWORD_URN, VAULT_EXT, WAL_EXT},
     decode, encode,
     events::WalEvent,
     generate_passphrase_words,
@@ -40,13 +37,13 @@ use sos_core::{
 };
 
 use crate::{
-    cache_dir,
     client::{
         provider::{
             BoxedProvider, ProviderFactory, RestoreOptions, RestoreTargets,
         },
         run_blocking, Error, Result,
     },
+    StorageDirs,
 };
 
 use secrecy::{ExposeSecret, SecretString};
@@ -369,7 +366,7 @@ impl AccountManager {
 
         // Persist the identity vault to disc, MUST re-encode the buffer
         // as we have modified the identity vault
-        let identity_vault_file = Self::identity_vault(&address)?;
+        let identity_vault_file = StorageDirs::identity_vault(&address)?;
         let buffer = encode(keeper.vault())?;
         std::fs::write(identity_vault_file, buffer)?;
 
@@ -408,7 +405,7 @@ impl AccountManager {
         };
 
         // Ensure the files directory exists
-        Self::files_dir(&address)?;
+        StorageDirs::files_dir(&address)?;
 
         Ok(NewAccountResponse {
             address,
@@ -474,7 +471,7 @@ impl AccountManager {
     ) -> Result<(AccountManifest, u64)> {
         let mut total_size: u64 = 0;
         let mut manifest = AccountManifest::new(address.to_owned());
-        let path = Self::identity_vault(address)?;
+        let path = StorageDirs::identity_vault(address)?;
         let (size, checksum) = Self::read_file_entry(path, None)?;
         let entry = ManifestEntry::Identity {
             id: Uuid::new_v4(),
@@ -502,7 +499,7 @@ impl AccountManager {
             total_size += size;
         }
 
-        let files = Self::files_dir(address)?;
+        let files = StorageDirs::files_dir(address)?;
         for entry in WalkDir::new(&files) {
             let entry = entry?;
             if entry.path().is_file() {
@@ -545,10 +542,12 @@ impl AccountManager {
         entry: &ManifestEntry,
     ) -> Result<PathBuf> {
         match entry {
-            ManifestEntry::Identity { .. } => Self::identity_vault(address),
+            ManifestEntry::Identity { .. } => {
+                Ok(StorageDirs::identity_vault(address)?)
+            }
             ManifestEntry::Vault { id, .. } => {
-                let mut path =
-                    Self::local_vaults_dir(address)?.join(id.to_string());
+                let mut path = StorageDirs::local_vaults_dir(address)?
+                    .join(id.to_string());
                 path.set_extension(VAULT_EXT);
                 Ok(path)
             }
@@ -557,7 +556,7 @@ impl AccountManager {
                 secret_id,
                 label,
                 ..
-            } => Ok(Self::files_dir(address)?
+            } => Ok(StorageDirs::files_dir(address)?
                 .join(vault_id.to_string())
                 .join(secret_id.to_string())
                 .join(label)),
@@ -583,9 +582,10 @@ impl AccountManager {
         Ok((size, checksum.as_slice().try_into()?))
     }
 
+    /*
     /// Get the local cache directory.
     pub fn local_dir() -> Result<PathBuf> {
-        Ok(cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR))
+        Ok(StorageDirs::cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR))
     }
 
     /// Get the temporary directory.
@@ -619,6 +619,7 @@ impl AccountManager {
         }
         Ok(files_dir)
     }
+    */
 
     /// Generate a vault passphrase.
     pub fn generate_vault_passphrase() -> Result<SecretString> {
@@ -733,7 +734,7 @@ impl AccountManager {
             .find(|a| a.address == address)
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
 
-        let identity_path = Self::identity_vault(address)?;
+        let identity_path = StorageDirs::identity_vault(address)?;
         let (user, mut keeper) =
             Identity::login_file(identity_path, passphrase, Some(index))?;
 
@@ -853,29 +854,9 @@ impl AccountManager {
 
     /// Verify the master passphrase for an account.
     pub fn verify(address: &str, passphrase: SecretString) -> Result<bool> {
-        let identity_path = Self::identity_vault(address)?;
+        let identity_path = StorageDirs::identity_vault(address)?;
         let result = Identity::login_file(identity_path, passphrase, None);
         Ok(result.is_ok())
-    }
-
-    /// Get the path to the directory used to store identity vaults.
-    ///
-    /// Ensure it exists if it does not already exist.
-    pub fn identity_dir() -> Result<PathBuf> {
-        let cache_dir = cache_dir().ok_or(Error::NoCache)?;
-        let identity_dir = cache_dir.join(IDENTITY_DIR);
-        if !identity_dir.exists() {
-            std::fs::create_dir(&identity_dir)?;
-        }
-        Ok(identity_dir)
-    }
-
-    /// Get the path to the identity vault file for an account identifier.
-    pub fn identity_vault(address: &str) -> Result<PathBuf> {
-        let identity_dir = Self::identity_dir()?;
-        let mut identity_vault_file = identity_dir.join(address);
-        identity_vault_file.set_extension(VAULT_EXT);
-        Ok(identity_vault_file)
     }
 
     /// Rename an identity vault.
@@ -892,7 +873,7 @@ impl AccountManager {
             identity.vault_mut().set_name(account_name.clone());
         }
         // Update vault file on disc
-        let identity_vault_file = Self::identity_vault(address)?;
+        let identity_vault_file = StorageDirs::identity_vault(address)?;
         let mut access = VaultFileAccess::new(identity_vault_file)?;
         access.set_vault_name(account_name)?;
         Ok(())
@@ -900,9 +881,9 @@ impl AccountManager {
 
     /// Permanently delete the identity vault and local vaults for an account.
     pub fn delete_account(address: &str) -> Result<()> {
-        let identity_vault_file = Self::identity_vault(address)?;
+        let identity_vault_file = StorageDirs::identity_vault(address)?;
 
-        let local_dir = Self::local_dir()?;
+        let local_dir = StorageDirs::local_dir()?;
         let identity_data_dir = local_dir.join(address);
 
         // FIXME: move to a trash folder
@@ -974,7 +955,7 @@ impl AccountManager {
         address: &str,
         include_system: bool,
     ) -> Result<Vec<(Summary, PathBuf)>> {
-        let vaults_dir = Self::local_vaults_dir(address)?;
+        let vaults_dir = StorageDirs::local_vaults_dir(address)?;
         let mut vaults = Vec::new();
         for entry in std::fs::read_dir(vaults_dir)? {
             let entry = entry?;
@@ -994,7 +975,7 @@ impl AccountManager {
     /// Create a buffer for a zip archive including the
     /// identity vault and all user vaults.
     pub fn export_archive_buffer(address: &str) -> Result<Vec<u8>> {
-        let identity_path = Self::identity_vault(address)?;
+        let identity_path = StorageDirs::identity_vault(address)?;
         if !identity_path.exists() {
             return Err(Error::NotFile(identity_path));
         }
@@ -1012,7 +993,7 @@ impl AccountManager {
             writer = writer.add_vault(*summary.id(), &buffer)?;
         }
 
-        let files = Self::files_dir(address)?;
+        let files = StorageDirs::files_dir(address)?;
         for entry in WalkDir::new(&files) {
             let entry = entry?;
             if entry.path().is_file() {
@@ -1049,7 +1030,7 @@ impl AccountManager {
     /// List account information for the identity vaults.
     pub fn list_accounts() -> Result<Vec<AccountInfo>> {
         let mut keys = Vec::new();
-        let identity_dir = Self::identity_dir()?;
+        let identity_dir = StorageDirs::identity_dir()?;
         for entry in std::fs::read_dir(identity_dir)? {
             let entry = entry?;
             if let (Some(extension), Some(file_stem)) =
@@ -1096,7 +1077,8 @@ impl AccountManager {
                 .clone();
 
             if let Some(passphrase) = &options.passphrase {
-                let identity_vault_file = Self::identity_vault(address)?;
+                let identity_vault_file =
+                    StorageDirs::identity_vault(address)?;
                 let identity_buffer = std::fs::read(&identity_vault_file)?;
                 let identity_vault: Vault = decode(&identity_buffer)?;
                 let mut identity_keeper =
@@ -1158,7 +1140,7 @@ impl AccountManager {
 
             // Write out the identity vault
             let identity_vault_file =
-                Self::identity_vault(&restore_targets.address)?;
+                StorageDirs::identity_vault(&restore_targets.address)?;
             std::fs::write(identity_vault_file, &restore_targets.identity.1)?;
 
             // Check if the identity name already exists
@@ -1184,7 +1166,7 @@ impl AccountManager {
 
             // Prepare the vaults directory
             let vaults_dir =
-                Self::local_vaults_dir(&restore_targets.address)?;
+                StorageDirs::local_vaults_dir(&restore_targets.address)?;
             std::fs::create_dir_all(&vaults_dir)?;
 
             // Write out each vault and the WAL log

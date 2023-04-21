@@ -15,9 +15,12 @@ use sos_core::{
 use web3_address::ethereum::Address;
 
 use secrecy::ExposeSecret;
-use sos_node::client::{
-    net::RpcClient,
-    provider::{RemoteProvider, StorageDirs, StorageProvider},
+use sos_node::{
+    client::{
+        net::RpcClient,
+        provider::{RemoteProvider, StorageProvider},
+    },
+    StorageDirs,
 };
 
 use super::AccountCredentials;

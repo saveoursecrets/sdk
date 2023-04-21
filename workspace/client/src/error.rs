@@ -58,7 +58,10 @@ pub enum Error {
     Core(#[from] sos_core::Error),
 
     #[error(transparent)]
-    Node(#[from] sos_node::client::Error),
+    Node(#[from] sos_node::Error),
+
+    #[error(transparent)]
+    NodeClient(#[from] sos_node::client::Error),
 
     #[error(transparent)]
     Readline(#[from] sos_readline::Error),

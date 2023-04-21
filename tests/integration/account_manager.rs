@@ -13,14 +13,13 @@ use sos_core::{
     Gatekeeper,
 };
 use sos_node::{
-    cache_dir, clear_cache_dir,
     client::{
         account_manager::{
             AccountManager, NewAccountRequest, NewAccountResponse,
         },
         provider::{ProviderFactory, RestoreOptions},
     },
-    set_cache_dir,
+    StorageDirs,
 };
 
 use urn::Urn;
@@ -33,9 +32,9 @@ fn integration_account_manager() -> Result<()> {
     let dirs = setup(1)?;
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
-    set_cache_dir(test_cache_dir.clone());
+    StorageDirs::set_cache_dir(test_cache_dir.clone());
 
-    assert_eq!(cache_dir(), Some(test_cache_dir.clone()));
+    assert_eq!(StorageDirs::cache_dir(), Some(test_cache_dir.clone()));
 
     let account_name = "Mock account name".to_string();
     let folder_name = Some("Default folder".to_string());
@@ -113,7 +112,7 @@ fn integration_account_manager() -> Result<()> {
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
 
     // Encrypt
-    let files_dir = AccountManager::files_dir(&address)?;
+    let files_dir = StorageDirs::files_dir(&address)?;
     let vault_id = VaultId::new_v4();
     let secret_id = SecretId::new_v4();
     let target = files_dir
@@ -168,7 +167,7 @@ fn integration_account_manager() -> Result<()> {
 
     // Reset the cache dir so we don't interfere
     // with other tests
-    clear_cache_dir();
+    StorageDirs::clear_cache_dir();
 
     Ok(())
 }

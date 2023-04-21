@@ -18,7 +18,6 @@ use sos_core::{
     secret::SecretRef,
 };
 use sos_node::{
-    cache_dir,
     client::{
         net::{
             changes::{changes, connect},
@@ -26,6 +25,7 @@ use sos_node::{
         },
         provider::StorageProvider,
     },
+    StorageDirs,
 };
 
 #[tokio::test]
@@ -72,7 +72,7 @@ async fn integration_simple_session() -> Result<()> {
     // Give the websocket client some time to connect
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    let _ = cache_dir().unwrap();
+    let _ = StorageDirs::cache_dir().unwrap();
 
     //assert_eq!(address, node_cache.address()?);
 

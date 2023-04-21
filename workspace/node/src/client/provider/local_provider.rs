@@ -28,11 +28,10 @@ use std::{
 };
 
 use crate::{
-    client::provider::{
-        fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
-    },
+    client::provider::{fs_adapter, sync, ProviderState, StorageProvider},
     provider_impl,
     sync::{SyncInfo, SyncKind},
+    StorageDirs,
 };
 
 /// Local storage for a node.

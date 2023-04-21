@@ -1,5 +1,5 @@
 //! Factory for creating providers.
-use sos_core::{signer::ecdsa::BoxedEcdsaSigner, PatchFile, PatchMemory, wal::{file::WalFile, memory::WalMemory}};
+use sos_core::signer::ecdsa::BoxedEcdsaSigner;
 use std::{
     fmt,
     sync::{Arc, RwLock},
@@ -14,10 +14,7 @@ use crate::client::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::{
-    cache_dir,
-    client::provider::{LocalProvider, StorageDirs},
-};
+use crate::{client::provider::LocalProvider, StorageDirs};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::{path::PathBuf, str::FromStr};
@@ -39,18 +36,6 @@ pub enum ProviderFactory {
     /// Remote server with local disc storage.
     #[cfg(not(target_arch = "wasm32"))]
     Remote(Url),
-}
-
-/// Encapsulates the available provider types.
-pub enum Provider {
-    /// Local file provider.
-    LocalFile(LocalProvider<WalFile, PatchFile>),
-    /// Local memory provider.
-    LocalMemory(LocalProvider<WalMemory, PatchMemory<'static>>),
-    /// Remote file provider.
-    RemoteFile(RemoteProvider<WalFile, PatchFile>),
-    /// Remote memory provider.
-    RemoteMemory(RemoteProvider<WalMemory, PatchMemory<'static>>),
 }
 
 impl fmt::Display for ProviderFactory {
@@ -89,100 +74,6 @@ impl Default for ProviderFactory {
 }
 
 impl ProviderFactory {
-
-    /// Create a provider.
-    pub fn create_provider2(
-        &self,
-        signer: BoxedEcdsaSigner,
-    ) -> Result<(Provider, Address)> {
-        match self {
-            #[cfg(target_arch = "wasm32")]
-            Self::Memory(remote) => {
-                if let Some(remote) = remote {
-                    Ok(Self::new_remote_memory_provider2(signer, remote.clone())?)
-                } else {
-                    Err(Error::InvalidProvider(self.to_string()))
-                }
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            Self::Memory(remote) => {
-                if let Some(remote) = remote {
-                    Ok(Self::new_remote_memory_provider2(signer, remote.clone())?)
-                } else {
-                    Ok(Self::new_local_memory_provider2(signer)?)
-                }
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            Self::Local => {
-                let dir = cache_dir().ok_or_else(|| Error::NoCache)?;
-                Ok(Self::new_local_file_provider2(signer, dir)?)
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            Self::Directory(dir) => {
-                if !dir.is_dir() {
-                    return Err(Error::NotDirectory(dir.clone()));
-                }
-                Ok(Self::new_local_file_provider2(signer, dir.clone())?)
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            Self::Remote(remote) => {
-                let dir = cache_dir().ok_or_else(|| Error::NoCache)?;
-                Ok(Self::new_remote_file_provider2(signer, dir, remote.clone())?)
-            }
-        }
-    }
-
-    /// Create a new local provider.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_local_file_provider2(
-        signer: BoxedEcdsaSigner,
-        cache_dir: PathBuf,
-    ) -> Result<(Provider, Address)> {
-        let address = signer.address()?;
-        let dirs = StorageDirs::new(cache_dir, &address.to_string());
-        let provider = Provider::LocalFile(
-            LocalProvider::new_file_storage(dirs)?);
-        Ok((provider, address))
-    }
-
-    /// Create a new local memory provider.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_local_memory_provider2(
-        signer: BoxedEcdsaSigner,
-    ) -> Result<(Provider, Address)> {
-        let address = signer.address()?;
-        let provider = Provider::LocalMemory(
-            LocalProvider::new_memory_storage());
-        Ok((provider, address))
-    }
-
-    /// Create a new remote provider with local disc storage.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_remote_file_provider2(
-        signer: BoxedEcdsaSigner,
-        cache_dir: PathBuf,
-        server: Url,
-    ) -> Result<(Provider, Address)> {
-        let address = signer.address()?;
-        let client = RpcClient::new(server, signer);
-        let dirs = StorageDirs::new(cache_dir, &address.to_string());
-        let provider = Provider::RemoteFile(
-            RemoteProvider::new_file_cache(client, dirs)?);
-        Ok((provider, address))
-    }
-
-    /// Create a new remote provider with in-memory storage.
-    pub fn new_remote_memory_provider2(
-        signer: BoxedEcdsaSigner,
-        server: Url,
-    ) -> Result<(Provider, Address)> {
-        let address = signer.address()?;
-        let client = RpcClient::new(server, signer);
-        let provider = Provider::RemoteMemory(RemoteProvider::new_memory_cache(client));
-        Ok((provider, address))
-    }
-
-
     /// Create a new remote provider with local disc storage.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new_remote_file_provider(
@@ -243,7 +134,10 @@ impl ProviderFactory {
             #[cfg(target_arch = "wasm32")]
             Self::Memory(remote) => {
                 if let Some(remote) = remote {
-                    Ok(Self::new_remote_memory_provider(signer, remote.clone())?)
+                    Ok(Self::new_remote_memory_provider(
+                        signer,
+                        remote.clone(),
+                    )?)
                 } else {
                     Err(Error::InvalidProvider(self.to_string()))
                 }
@@ -251,14 +145,18 @@ impl ProviderFactory {
             #[cfg(not(target_arch = "wasm32"))]
             Self::Memory(remote) => {
                 if let Some(remote) = remote {
-                    Ok(Self::new_remote_memory_provider(signer, remote.clone())?)
+                    Ok(Self::new_remote_memory_provider(
+                        signer,
+                        remote.clone(),
+                    )?)
                 } else {
                     Ok(Self::new_local_memory_provider(signer)?)
                 }
             }
             #[cfg(not(target_arch = "wasm32"))]
             Self::Local => {
-                let dir = cache_dir().ok_or_else(|| Error::NoCache)?;
+                let dir =
+                    StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
                 Ok(Self::new_local_file_provider(signer, dir)?)
             }
             #[cfg(not(target_arch = "wasm32"))]
@@ -270,8 +168,13 @@ impl ProviderFactory {
             }
             #[cfg(not(target_arch = "wasm32"))]
             Self::Remote(remote) => {
-                let dir = cache_dir().ok_or_else(|| Error::NoCache)?;
-                Ok(Self::new_remote_file_provider(signer, dir, remote.clone())?)
+                let dir =
+                    StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
+                Ok(Self::new_remote_file_provider(
+                    signer,
+                    dir,
+                    remote.clone(),
+                )?)
             }
         }
     }
@@ -334,4 +237,3 @@ pub fn spawn_changes_listener(
         }
     });
 }
-

@@ -15,11 +15,11 @@ use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
 use sos_node::{
-    cache_dir,
     client::{
         provider::{spawn_changes_listener, ProviderFactory},
         run_blocking,
     },
+    StorageDirs,
 };
 
 const WELCOME: &str = include_str!("welcome.txt");
@@ -96,7 +96,8 @@ fn run() -> Result<()> {
             provider,
             account_name,
         } => {
-            let cache_dir = cache_dir().ok_or_else(|| Error::NoCache)?;
+            let cache_dir =
+                StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
             if !cache_dir.is_dir() {
                 return Err(Error::NotDirectory(cache_dir));
             }

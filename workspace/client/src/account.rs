@@ -9,7 +9,6 @@ use sos_core::{
     search::SearchIndex, Gatekeeper,
 };
 use sos_node::{
-    cache_dir,
     client::{
         account_manager::{
             AccountInfo, AccountManager, DeviceSigner, NewAccountRequest,
@@ -18,6 +17,7 @@ use sos_node::{
         provider::{BoxedProvider, ProviderFactory},
         run_blocking, PassphraseReader,
     },
+    StorageDirs,
 };
 use sos_readline::{read_flag, read_password};
 use terminal_banner::{Banner, Padding};
@@ -100,7 +100,7 @@ pub fn local_signup(
 
     // Get the signing key for the authenticated user
     let signer = user.signer;
-    let identity_dir = AccountManager::identity_dir()?;
+    let identity_dir = StorageDirs::identity_dir()?;
     println!("{}", identity_dir.display());
 
     let message = format!(
@@ -147,7 +147,8 @@ pub fn local_signup(
             let _summary =
                 run_blocking(provider.create_account_with_buffer(buffer))?;
 
-            let cache_dir = cache_dir().ok_or(Error::NoCacheDir)?;
+            let cache_dir =
+                StorageDirs::cache_dir().ok_or(Error::NoCacheDir)?;
             let message = format!(
                 r#"* Identity: {} ({})
 * Storage: {}"#,

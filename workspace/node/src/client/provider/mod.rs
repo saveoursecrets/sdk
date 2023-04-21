@@ -4,17 +4,13 @@ use async_trait::async_trait;
 use parking_lot::RwLock;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
-    borrow::Cow,
-    collections::HashSet,
-    io::Cursor,
-    path::{Path, PathBuf},
-    sync::Arc,
+    borrow::Cow, collections::HashSet, io::Cursor, path::PathBuf, sync::Arc,
 };
 
 use sos_core::{
     archive::{ArchiveItem, Reader},
     commit::{CommitProof, CommitRelationship, CommitTree},
-    constants::{LOCAL_DIR, PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
+    constants::{PATCH_EXT, VAULT_EXT, WAL_EXT},
     decode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     identity::Identity,
@@ -28,6 +24,7 @@ use sos_core::{
 use crate::{
     client::{Error, Result},
     sync::SyncInfo,
+    StorageDirs,
 };
 
 pub(crate) fn assert_proofs_eq(
@@ -69,54 +66,6 @@ pub use state::ProviderState;
 
 /// Generic boxed provider.
 pub type BoxedProvider = Box<dyn StorageProvider + Send + Sync + 'static>;
-
-/// Encapsulates the paths for vault storage.
-#[derive(Default, Debug)]
-pub struct StorageDirs {
-    /// Top-level documents folder.
-    documents_dir: PathBuf,
-    /// User segregated storage.
-    user_dir: PathBuf,
-    /// Sub-directory for the vaults.
-    vaults_dir: PathBuf,
-}
-
-impl StorageDirs {
-    /// Create new storage dirs.
-    pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: &str) -> Self {
-        let documents_dir = documents_dir.as_ref().to_path_buf();
-        let local_dir = documents_dir.join(LOCAL_DIR);
-        let user_dir = local_dir.join(user_id);
-        let vaults_dir = user_dir.join(VAULTS_DIR);
-        Self {
-            documents_dir,
-            user_dir,
-            vaults_dir,
-        }
-    }
-
-    /// Ensure all the directories exist.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn ensure(&self) -> Result<()> {
-        std::fs::create_dir_all(&self.vaults_dir)?;
-        Ok(())
-    }
-
-    /// Get the documents storage directory.
-    pub fn documents_dir(&self) -> &PathBuf {
-        &self.documents_dir
-    }
-
-    /// Get the user storage directory.
-    pub fn user_dir(&self) -> &PathBuf {
-        &self.user_dir
-    }
-
-    /// Get the vaults storage directory.
-    pub fn vaults_dir(&self) -> &PathBuf {
-        &self.vaults_dir
-    }
-}
 
 /// Options for a restore operation.
 pub struct RestoreOptions {

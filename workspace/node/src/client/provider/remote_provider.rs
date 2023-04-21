@@ -31,11 +31,10 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
-    client::provider::{
-        fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
-    },
+    client::provider::{fs_adapter, sync, ProviderState, StorageProvider},
     patch, provider_impl, retry,
     sync::SyncInfo,
+    StorageDirs,
 };
 
 /// Local data cache for a node.

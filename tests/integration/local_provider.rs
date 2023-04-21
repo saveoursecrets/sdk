@@ -13,8 +13,9 @@ use sos_core::{
     wal::WalProvider,
     PatchProvider,
 };
-use sos_node::client::provider::{
-    LocalProvider, StorageDirs, StorageProvider,
+use sos_node::{
+    client::provider::{LocalProvider, StorageProvider},
+    StorageDirs,
 };
 
 macro_rules! commit_count {
