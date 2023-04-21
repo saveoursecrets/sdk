@@ -1,4 +1,4 @@
-use sos_core::{AuditData, AuditEvent, AuditLogFile};
+use sos_core::audit::{AuditData, AuditEvent, AuditLogFile};
 use std::{fs::File, path::PathBuf, thread, time};
 use web3_address::ethereum::Address;
 

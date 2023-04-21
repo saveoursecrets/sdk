@@ -5,7 +5,7 @@ use sos_core::{
     events::{ChangeEvent, ChangeNotification, EventKind},
     rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
-    AuditData, AuditEvent,
+    audit::{AuditData, AuditEvent},
 };
 
 use async_trait::async_trait;

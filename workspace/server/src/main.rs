@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use sos_core::{AuditLogFile, FileLocks};
+use sos_core::{audit::AuditLogFile, FileLocks};
 use sos_node::{
     server::{
         BackendHandler, Result, Server, ServerConfig, ServerInfo, State,

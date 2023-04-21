@@ -8,8 +8,10 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use crate::{
     constants::AUDIT_IDENTITY,
     iter::{audit_iter, FileItem, FileRecord, ReadStreamIterator},
-    AuditEvent, AuditProvider, Result,
+    Result,
 };
+
+use super::{AuditEvent, AuditProvider};
 
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, Endian,

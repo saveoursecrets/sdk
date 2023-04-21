@@ -7,7 +7,7 @@ use binary_stream::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-mod audit;
+pub mod audit;
 
 pub mod archive;
 pub mod commit;
@@ -41,8 +41,8 @@ pub mod wal;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
+//#[cfg(not(target_arch = "wasm32"))]
+//pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
 
 pub use error::Error;
 pub use file_access::VaultFileAccess;

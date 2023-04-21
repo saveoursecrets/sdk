@@ -9,7 +9,7 @@ use sos_core::{
     decode, encode,
     events::ChangeNotification,
     rpc::{Packet, RequestMessage, Service},
-    AuditEvent, AuditProvider,
+    audit::{AuditEvent, AuditProvider},
 };
 use web3_address::ethereum::Address;
 
