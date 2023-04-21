@@ -51,7 +51,7 @@ pub struct State {
     /// Server information.
     pub info: ServerInfo,
     /// Storage backend.
-    pub backend: Box<dyn Backend + Send + Sync>,
+    pub backend: Backend,
     /// Audit log file
     pub audit_log: AuditLogFile,
     /// Session manager.

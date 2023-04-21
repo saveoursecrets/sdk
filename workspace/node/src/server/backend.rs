@@ -26,9 +26,33 @@ type WalStorage = Box<
     dyn WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync,
 >;
 
+/// Backend for a server.
+pub enum Backend {
+    /// File storage backend.
+    FileSystem(FileSystemBackend),
+}
+
+impl Backend {
+    /// Get a reference to the backend handler.
+    pub fn handler(&self) -> &(impl BackendHandler + Send + Sync) {
+        match self {
+            Self::FileSystem(handler) => handler,
+        }
+    }
+
+    /// Get a mutable reference to the backend handler.
+    pub fn handler_mut(
+        &mut self,
+    ) -> &mut (impl BackendHandler + Send + Sync) {
+        match self {
+            Self::FileSystem(handler) => handler,
+        }
+    }
+}
+
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]
-pub trait Backend {
+pub trait BackendHandler {
     /// Sets the lock files.
     fn set_file_locks(&mut self, locks: FileLocks) -> Result<()>;
 
@@ -277,7 +301,7 @@ impl FileSystemBackend {
 }
 
 #[async_trait]
-impl Backend for FileSystemBackend {
+impl BackendHandler for FileSystemBackend {
     fn set_file_locks(&mut self, mut locks: FileLocks) -> Result<()> {
         for file in &self.startup_files {
             locks.add(file)?;

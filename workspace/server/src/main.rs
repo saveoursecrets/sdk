@@ -2,7 +2,9 @@ use clap::Parser;
 
 use sos_core::{AuditLogFile, FileLocks};
 use sos_node::{
-    server::{Result, Server, ServerConfig, ServerInfo, State},
+    server::{
+        BackendHandler, Result, Server, ServerConfig, ServerInfo, State,
+    },
     session::SessionManager,
 };
 
@@ -71,9 +73,12 @@ async fn run() -> Result<()> {
     let mut locks = FileLocks::new();
     locks.add(&audit_log_file)?;
     // Move into the backend so it can manage lock files too
-    backend.set_file_locks(locks)?;
+    backend.handler_mut().set_file_locks(locks)?;
 
-    tracing::debug!("lock files {:#?}", backend.file_locks().paths());
+    tracing::debug!(
+        "lock files {:#?}",
+        backend.handler().file_locks().paths()
+    );
 
     // Set up the audit log
     let audit_log = AuditLogFile::new(&audit_log_file)?;

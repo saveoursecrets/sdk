@@ -16,6 +16,7 @@ use std::borrow::Cow;
 use uuid::Uuid;
 
 use super::{append_audit_logs, send_notification, PrivateState};
+use crate::server::BackendHandler;
 
 enum PatchResult {
     Conflict(CommitProof, Option<CommitProof>),
@@ -56,6 +57,7 @@ impl Service for WalService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -69,6 +71,7 @@ impl Service for WalService {
 
                 let wal = reader
                     .backend
+                    .handler()
                     .wal_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -114,8 +117,11 @@ impl Service for WalService {
                         }
                     }
                 // Otherwise get the entire WAL buffer
-                } else if let Ok(buffer) =
-                    reader.backend.get_wal(caller.address(), &vault_id).await
+                } else if let Ok(buffer) = reader
+                    .backend
+                    .handler()
+                    .get_wal(caller.address(), &vault_id)
+                    .await
                 {
                     Ok((StatusCode::OK, buffer))
                 } else {
@@ -157,6 +163,7 @@ impl Service for WalService {
 
                 let (exists, _) = reader
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -167,6 +174,7 @@ impl Service for WalService {
 
                 let wal = reader
                     .backend
+                    .handler()
                     .wal_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -190,6 +198,7 @@ impl Service for WalService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -203,6 +212,7 @@ impl Service for WalService {
 
                     let wal = writer
                         .backend
+                        .handler_mut()
                         .wal_write(caller.address(), &vault_id)
                         .await
                         .map_err(Box::from)?;
@@ -320,6 +330,7 @@ impl Service for WalService {
                         if let Some(name) = name {
                             writer
                                 .backend
+                                .handler_mut()
                                 .set_vault_name(&address, &vault_id, name)
                                 .await
                                 .map_err(Box::from)?;
@@ -363,6 +374,7 @@ impl Service for WalService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -375,6 +387,7 @@ impl Service for WalService {
                 // TODO: better error to status code mapping
                 let server_proof = writer
                     .backend
+                    .handler_mut()
                     .replace_wal(
                         caller.address(),
                         &vault_id,

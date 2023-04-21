@@ -16,7 +16,7 @@ use sos_core::{
 
 use sos_node::{
     client::provider::{RemoteProvider, StorageProvider},
-    server::{Server, ServerConfig, ServerInfo, State},
+    server::{BackendHandler, Server, ServerConfig, ServerInfo, State},
     session::SessionManager,
 };
 
@@ -61,7 +61,7 @@ impl MockServer {
         let mut locks = FileLocks::new();
         let _ = locks.add(config.audit_file())?;
         // Move into the backend so it can manage lock files too
-        backend.set_file_locks(locks)?;
+        backend.handler_mut().set_file_locks(locks)?;
 
         // Set up the audit log
         let audit_log = AuditLogFile::new(config.audit_file())?;
