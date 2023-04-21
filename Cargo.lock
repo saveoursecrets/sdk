@@ -4990,13 +4990,11 @@ dependencies = [
  "axum-server",
  "clap",
  "futures",
- "hex",
  "http",
  "parking_lot 0.12.1",
  "secrecy",
  "serde_json",
  "serial_test",
- "sos-audit",
  "sos-client",
  "sos-core",
  "sos-node",
@@ -5010,19 +5008,6 @@ dependencies = [
  "urn",
  "wasm-bindgen",
  "wasm-bindgen-test",
- "web3-address",
-]
-
-[[package]]
-name = "sos-audit"
-version = "0.1.0"
-dependencies = [
- "clap",
- "serde_json",
- "sos-core",
- "thiserror",
- "tracing",
- "tracing-subscriber",
  "web3-address",
 ]
 

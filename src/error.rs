@@ -11,4 +11,7 @@ pub enum Error {
 
     #[error(transparent)]
     Core(#[from] sos_core::Error),
+
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }

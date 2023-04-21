@@ -10,6 +10,7 @@ use sos_core::{
     search::SearchIndex,
     storage::{FileStorage, StorageDirs},
     vault::{secret::SecretId, Gatekeeper, VaultId},
+    hex,
 };
 use sos_node::client::{
     account_manager::{

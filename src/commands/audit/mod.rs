@@ -1,12 +1,10 @@
 use sos_core::audit::{AuditData, AuditEvent, AuditLogFile};
 use std::{fs::File, path::PathBuf, thread, time};
 use web3_address::ethereum::Address;
+use crate::{Error, Result};
 
-mod error;
-
-pub type Result<T> = std::result::Result<T, error::Error>;
-
-pub use error::Error;
+pub mod cli;
+pub use cli::run;
 
 /// Monitor changes in an audit log file.
 pub fn monitor(

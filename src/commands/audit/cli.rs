@@ -1,19 +1,13 @@
-use clap::{Parser, Subcommand};
-use sos_audit::Result;
+use clap::Subcommand;
 use std::path::PathBuf;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use web3_address::ethereum::Address;
 
-/// Print and monitor audit log events.
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Cli {
-    #[clap(subcommand)]
-    cmd: Command,
-}
+use super::{logs, monitor};
+
+use crate::Result;
 
 #[derive(Subcommand, Debug)]
-enum Command {
+pub enum Command {
     /// Print the events in an audit log file
     Logs {
         /// Print each event as a line of JSON
@@ -50,9 +44,8 @@ enum Command {
     },
 }
 
-fn run() -> Result<()> {
-    let args = Cli::parse();
-    match args.cmd {
+pub fn run(cmd: Command) -> Result<()> {
+    match cmd {
         Command::Logs {
             audit_log,
             json,
@@ -60,31 +53,15 @@ fn run() -> Result<()> {
             reverse,
             count,
         } => {
-            sos_audit::logs(audit_log, json, address, reverse, count)?;
+            logs(audit_log, json, address, reverse, count)?;
         }
         Command::Monitor {
             audit_log,
             json,
             address,
         } => {
-            sos_audit::monitor(audit_log, json, address)?;
+            monitor(audit_log, json, address)?;
         }
     }
-    Ok(())
-}
-
-fn main() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "sos_audit=info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer().without_time())
-        .init();
-
-    if let Err(e) = run() {
-        tracing::error!("{}", e);
-    }
-
     Ok(())
 }
