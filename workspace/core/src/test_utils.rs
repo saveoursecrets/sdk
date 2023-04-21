@@ -6,7 +6,7 @@ use crate::{
     generate_passphrase,
     secret::{Secret, SecretId, SecretMeta},
     vault::{Vault, VaultAccess, VaultEntry},
-    CommitHash,
+    commit::CommitHash,
 };
 use sha3::{Digest, Sha3_256};
 use std::{borrow::Cow, io::Write};
@@ -122,7 +122,7 @@ mod file {
         events::WalEvent,
         vault::Vault,
         wal::{file::WalFile, WalProvider},
-        CommitHash,
+        commit::CommitHash,
     };
     use tempfile::NamedTempFile;
 

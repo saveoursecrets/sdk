@@ -10,13 +10,13 @@
 //! causes numerous lifetime issues in the server code so for
 //! the moment we just clone the records during iteration.
 use crate::{
-    commit::CommitTree,
+    commit::{CommitHash, CommitTree},
     constants::WAL_IDENTITY,
     decode, encode,
     events::WalEvent,
     iter::{FileItem, ReadStreamIterator, WalFileRecord},
     timestamp::Timestamp,
-    CommitHash, Result,
+    Result,
 };
 
 use binary_stream::{BinaryReader, Endian, MemoryStream};

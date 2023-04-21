@@ -1,5 +1,5 @@
 //! Snapshot manager for creating WAL file snapshots.
-use crate::{CommitHash, Error, Result, Timestamp};
+use crate::{commit::CommitHash, Error, Result, Timestamp};
 use filetime::FileTime;
 use std::{
     fs::File,

@@ -30,7 +30,7 @@ use crate::{
     events::SyncEvent,
     generate_passphrase,
     secret::{SecretId, VaultMeta},
-    CommitHash, Error, FileIdentity, Result,
+    commit::CommitHash, Error, FileIdentity, Result,
 };
 
 bitflags! {

@@ -177,7 +177,7 @@ mod test {
         test_utils::*,
         vault::{VaultAccess, VaultCommit, VaultEntry},
         wal::file::WalFile,
-        CommitHash,
+        commit::CommitHash,
     };
     use anyhow::Result;
     use secrecy::ExposeSecret;

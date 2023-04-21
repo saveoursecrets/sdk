@@ -1,7 +1,7 @@
 //! Write ahead log types and traits.
 use crate::{
-    commit::CommitTree, events::WalEvent, iter::WalFileRecord,
-    timestamp::Timestamp, CommitHash, Result,
+    commit::{CommitTree, CommitHash}, events::WalEvent, iter::WalFileRecord,
+    timestamp::Timestamp, Result,
 };
 use std::path::{Path, PathBuf};
 
@@ -237,12 +237,11 @@ mod test {
 
     use super::{file::*, memory::*, *};
     use crate::{
-        commit::{CommitTree, Comparison},
+        commit::{CommitTree, Comparison, CommitHash},
         encode,
         events::WalEvent,
         secret::SecretId,
         vault::{Vault, VaultCommit, VaultEntry},
-        CommitHash,
     };
 
     fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {

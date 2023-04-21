@@ -23,7 +23,7 @@ use crate::{
     vault::{
         Contents, Header, Summary, VaultAccess, VaultCommit, VaultEntry,
     },
-    CommitHash, Result,
+    commit::CommitHash, Result,
 };
 
 /// Implements access to an encrypted vault backed by a file on disc.

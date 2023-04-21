@@ -44,7 +44,6 @@ pub mod test_utils;
 #[cfg(not(target_arch = "wasm32"))]
 pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
 
-pub use commit::CommitHash;
 pub use error::Error;
 pub use file_access::VaultFileAccess;
 pub use file_identity::FileIdentity;

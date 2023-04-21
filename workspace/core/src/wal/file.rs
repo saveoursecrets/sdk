@@ -15,13 +15,13 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit::{wal_commit_tree_file, CommitTree},
+    commit::{wal_commit_tree_file, CommitTree, CommitHash},
     constants::{WAL_EXT, WAL_IDENTITY},
     encode,
     events::WalEvent,
     iter::{wal_iter, FileItem, WalFileRecord},
     timestamp::Timestamp,
-    CommitHash, Error, Result,
+    Error, Result,
 };
 use std::{
     fs::{File, OpenOptions},

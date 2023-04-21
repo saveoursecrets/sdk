@@ -7,7 +7,7 @@ use sos_core::{
     events::{SyncEvent, WalEvent},
     vault::Summary,
     wal::WalProvider,
-    CommitHash, PatchProvider,
+    commit::CommitHash, PatchProvider,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};

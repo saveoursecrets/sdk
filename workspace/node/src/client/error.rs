@@ -1,6 +1,6 @@
 //! Error type for the client module.
 use sos_core::{
-    events::SyncEvent, secret::SecretId, vault::Summary, CommitHash,
+    events::SyncEvent, secret::SecretId, vault::Summary, commit::CommitHash,
 };
 use std::path::PathBuf;
 use thiserror::Error;

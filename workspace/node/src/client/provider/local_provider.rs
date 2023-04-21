@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit::{CommitPair, CommitRelationship, CommitTree},
+    commit::{CommitPair, CommitRelationship, CommitTree, CommitHash},
     constants::VAULT_EXT,
     crypto::secret_key::SecretKey,
     decode, encode,
@@ -16,7 +16,7 @@ use sos_core::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,
     },
-    CommitHash, PatchMemory, PatchProvider, StorageDirs, Timestamp,
+    PatchMemory, PatchProvider, StorageDirs, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
