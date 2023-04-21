@@ -1,7 +1,12 @@
-use std::path::PathBuf;
 use clap::{Parser, Subcommand};
+use sos::{
+    commands::{
+        audit, check, rendezvous, server, AuditCommand, CheckCommand,
+    },
+    Result,
+};
+use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use sos::{commands::{rendezvous, server, check, CheckCommand, audit, AuditCommand}, Result};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -70,20 +75,19 @@ async fn run() -> Result<()> {
             session_duration,
             bind,
             config,
-        } => server::run(
-            audit_log,
-            reap_interval,
-            session_duration,
-            bind,
-            config,
-        ).await?,
-        Command::Rendezvous {
-            identity,
-            bind,
-        } => rendezvous::run(
-            identity,
-            bind,
-        ).await?,
+        } => {
+            server::run(
+                audit_log,
+                reap_interval,
+                session_duration,
+                bind,
+                config,
+            )
+            .await?
+        }
+        Command::Rendezvous { identity, bind } => {
+            rendezvous::run(identity, bind).await?
+        }
         _ => todo!(),
     }
 

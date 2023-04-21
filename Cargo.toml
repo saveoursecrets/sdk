@@ -14,7 +14,6 @@ members = [
   "workspace/core",
   "workspace/migrate",
   "workspace/node",
-  "workspace/readline",
 ]
 exclude = [
   "target/browser"

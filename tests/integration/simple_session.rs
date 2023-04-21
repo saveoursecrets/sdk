@@ -81,9 +81,6 @@ async fn integration_simple_session() -> Result<()> {
     // Trigger server code path for the / URL
     home(&server_url).await?;
 
-    // Trigger server code path for the /gui assets
-    gui(&server_url).await?;
-
     // Create a new vault
     let new_vault_name = String::from("My Vault");
     let (new_passphrase, _) = node_cache
@@ -248,13 +245,6 @@ async fn integration_simple_session() -> Result<()> {
 
 async fn home(server: &Url) -> Result<()> {
     let url = server.clone();
-    let response = RequestClient::get(url).await?;
-    assert!(response.status().is_success());
-    Ok(())
-}
-
-async fn gui(server: &Url) -> Result<()> {
-    let url = server.join("gui")?;
     let response = RequestClient::get(url).await?;
     assert!(response.status().is_success());
     Ok(())

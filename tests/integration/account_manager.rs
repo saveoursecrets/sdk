@@ -6,11 +6,11 @@ use std::{path::PathBuf, sync::Arc};
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
+    hex,
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
     storage::{FileStorage, StorageDirs},
     vault::{secret::SecretId, Gatekeeper, VaultId},
-    hex,
 };
 use sos_node::client::{
     account_manager::{

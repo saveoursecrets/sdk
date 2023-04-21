@@ -38,8 +38,7 @@ pub async fn run(
 
     let mut backend = config.backend().await?;
 
-    let audit_log_file =
-        audit_log.unwrap_or_else(|| config.audit_file());
+    let audit_log_file = audit_log.unwrap_or_else(|| config.audit_file());
 
     let mut locks = FileLocks::new();
     locks.add(&audit_log_file)?;

@@ -1,7 +1,7 @@
+use crate::{Error, Result};
 use sos_core::audit::{AuditData, AuditEvent, AuditLogFile};
 use std::{fs::File, path::PathBuf, thread, time};
 use web3_address::ethereum::Address;
-use crate::{Error, Result};
 
 pub mod cli;
 pub use cli::run;

@@ -11,7 +11,6 @@ use sos_client::{
     exec, local_signup, monitor, sign_in, Error, Result, ShellState,
 };
 use sos_core::storage::StorageDirs;
-use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
 use sos_node::{
@@ -21,6 +20,8 @@ use sos_node::{
     },
     FileLocks,
 };
+
+use sos_client::readline::read_shell;
 
 const WELCOME: &str = include_str!("welcome.txt");
 

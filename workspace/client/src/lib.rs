@@ -4,6 +4,7 @@ use terminal_banner::{Banner, Padding};
 mod account;
 mod error;
 mod monitor;
+pub mod readline;
 mod shell;
 
 pub type Result<T> = std::result::Result<T, error::Error>;

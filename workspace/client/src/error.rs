@@ -64,9 +64,6 @@ pub enum Error {
     NodeClient(#[from] sos_node::client::Error),
 
     #[error(transparent)]
-    Readline(#[from] sos_readline::Error),
-
-    #[error(transparent)]
     UrlParse(#[from] url::ParseError),
 
     #[error(transparent)]
@@ -74,6 +71,9 @@ pub enum Error {
 
     #[error(transparent)]
     Utf8(#[from] std::str::Utf8Error),
+
+    #[error(transparent)]
+    Readline(#[from] rustyline::error::ReadlineError),
 
     #[error(transparent)]
     ShellWords(#[from] shell_words::ParseError),

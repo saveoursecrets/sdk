@@ -15,6 +15,7 @@ use url::Url;
 use web3_address::ethereum::Address;
 
 use human_bytes::human_bytes;
+use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     identity::AuthenticatedUser,
     passwd::diceware::generate_passphrase,
@@ -32,14 +33,15 @@ use sos_node::{
     },
     sync::SyncKind,
 };
-use sos_readline::{
-    choose, read_flag, read_line, read_line_allow_empty, read_multiline,
-    read_option, read_password, Choice,
+
+use crate::{
+    display_passphrase,
+    readline::{
+        choose, read_flag, read_line, read_line_allow_empty, read_multiline,
+        read_option, read_password, Choice,
+    },
+    switch, Error, Result,
 };
-
-use secrecy::{ExposeSecret, SecretString};
-
-use crate::{display_passphrase, switch, Error, Result};
 
 mod editor;
 mod print;

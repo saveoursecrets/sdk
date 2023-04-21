@@ -40,6 +40,7 @@ pub use sha2;
 pub use sha3;
 pub use time;
 pub use uuid;
+pub use vcard4;
 
 /// Encode to a binary buffer.
 pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {

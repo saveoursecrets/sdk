@@ -5018,21 +5018,24 @@ dependencies = [
  "futures",
  "hex",
  "human_bytes",
+ "is-terminal",
  "mime_guess",
  "parking_lot 0.12.1",
+ "rustyline",
+ "rustyline-derive",
  "secrecy",
  "serde_json",
  "sha3",
  "shell-words",
  "sos-core",
  "sos-node",
- "sos-readline",
  "tempfile",
  "terminal-banner",
  "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "unicode-width",
  "url",
  "uuid",
  "vcard4",
@@ -5170,18 +5173,6 @@ dependencies = [
  "web3-address",
  "web3-signature",
  "whoami",
-]
-
-[[package]]
-name = "sos-readline"
-version = "0.1.0"
-dependencies = [
- "is-terminal",
- "rustyline",
- "rustyline-derive",
- "secrecy",
- "thiserror",
- "unicode-width",
 ]
 
 [[package]]

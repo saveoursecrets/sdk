@@ -2,6 +2,7 @@
 use crate::{display_passphrase, Error, Result};
 use std::{borrow::Cow, sync::Arc};
 
+use crate::readline::{read_flag, read_password};
 use parking_lot::RwLock as SyncRwLock;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
@@ -17,14 +18,13 @@ use sos_node::client::{
     provider::{BoxedProvider, ProviderFactory},
     run_blocking, PassphraseReader,
 };
-use sos_readline::{read_flag, read_password};
 use terminal_banner::{Banner, Padding};
 use web3_address::ethereum::Address;
 
 pub struct StdinPassphraseReader {}
 
 impl PassphraseReader for StdinPassphraseReader {
-    type Error = sos_readline::Error;
+    type Error = crate::Error;
 
     fn read(&self) -> std::result::Result<SecretString, Self::Error> {
         read_password(Some("Passphrase: "))
