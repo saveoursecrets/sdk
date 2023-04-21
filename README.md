@@ -187,13 +187,13 @@ We will show commands using the executable names but you can also use `cargo run
 To begin start a server, for example:
 
 ```
-sos-server -c sandbox/config.toml
+sos server -c sandbox/config.toml
 ```
 
 Then in a separate terminal create a new signing key and login vault:
 
 ```
-sos-client signup -s https://localhost:5053 ./sandbox
+sos client signup -s https://localhost:5053 ./sandbox
 ```
 
 This will write the signing key to the `sandbox` directory and create a new account on the server. It will also print the *keystore passphrase* for the signing key and the *encryption passphrase* for the login vault. For testing you may want to make a note of these, in the real world these passphrases need to be memorized.
@@ -201,7 +201,7 @@ This will write the signing key to the `sandbox` directory and create a new acco
 Now create a shell session:
 
 ```
-sos-client shell -s https://localhost:5053 -k ./sandbox/<addr>.json
+sos client shell -s https://localhost:5053 -k ./sandbox/<addr>.json
 ```
 
 Where `<addr>` should be changed with the public address of the signing key created during signup.
@@ -280,7 +280,7 @@ A server writes audit logs which can be viewed using the `sos-audit` tool.
 While you make changes to a vault monitor the audit logs:
 
 ```
-sos-audit monitor sandbox/audit.dat
+sos audit monitor sandbox/audit.dat
 ```
 
 ### Changes Feed
@@ -290,7 +290,7 @@ The changes feed is a stream that networked clients can use to react to changes 
 You can monitor this stream with:
 
 ```
-sos-client monitor -s https://localhost:5053 -k sandbox/<addr>.json
+sos client monitor -s https://localhost:5053 -k sandbox/<addr>.json
 ```
 
 Enter your keystore passphrase and then in a shell session make some changes like creating or removing secrets and you should see the events printed to the terminal.
