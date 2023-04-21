@@ -1,13 +1,13 @@
 //! Listen for changes events on the server sent events channel.
-use url::Url;
-
-use crate::{sign_in, Result};
 use futures::stream::StreamExt;
-use sos_core::signer::ecdsa::BoxedEcdsaSigner;
+use sos_core::{signer::ecdsa::BoxedEcdsaSigner, url::Url};
 use sos_node::client::{
     net::changes::{changes, connect},
     run_blocking,
 };
+
+use super::sign_in;
+use crate::Result;
 
 /// Creates a changes stream and calls handler for every change notification.
 async fn changes_stream(

@@ -1,14 +1,15 @@
 //! Signup a new account.
-use crate::{display_passphrase, Error, Result};
 use std::{borrow::Cow, sync::Arc};
 
-use crate::readline::{read_flag, read_password};
-use parking_lot::RwLock as SyncRwLock;
-use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    encode, identity::AuthenticatedUser,
-    passwd::diceware::generate_passphrase, search::SearchIndex,
-    storage::StorageDirs, vault::Gatekeeper,
+    encode,
+    identity::AuthenticatedUser,
+    parking_lot::RwLock as SyncRwLock,
+    passwd::diceware::generate_passphrase,
+    search::SearchIndex,
+    secrecy::{ExposeSecret, SecretString},
+    storage::StorageDirs,
+    vault::Gatekeeper,
 };
 use sos_node::client::{
     account_manager::{
@@ -20,6 +21,13 @@ use sos_node::client::{
 };
 use terminal_banner::{Banner, Padding};
 use web3_address::ethereum::Address;
+
+use super::{
+    display_passphrase,
+    readline::{read_flag, read_password},
+};
+
+use crate::{Error, Result};
 
 pub struct StdinPassphraseReader {}
 

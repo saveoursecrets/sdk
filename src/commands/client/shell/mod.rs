@@ -7,19 +7,21 @@ use std::{
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
-use parking_lot::RwLock as SyncRwLock;
-use sha3::{Digest, Sha3_256};
 
 use terminal_banner::{Banner, Padding};
-use url::Url;
 use web3_address::ethereum::Address;
 
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
+    hex,
     identity::AuthenticatedUser,
+    parking_lot::RwLock as SyncRwLock,
     passwd::diceware::generate_passphrase,
     search::{Document, SearchIndex},
+    secrecy,
+    sha3::{Digest, Sha3_256},
+    url::Url,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef},
         Gatekeeper, Vault, VaultAccess, VaultCommit, VaultEntry,
@@ -34,14 +36,16 @@ use sos_node::{
     sync::SyncKind,
 };
 
-use crate::{
+use super::{
     display_passphrase,
     readline::{
         choose, read_flag, read_line, read_line_allow_empty, read_multiline,
         read_option, read_password, Choice,
     },
-    switch, Error, Result,
+    switch,
 };
+
+use crate::{Error, Result};
 
 mod editor;
 mod print;

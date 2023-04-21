@@ -3,7 +3,7 @@ use sos_core::audit::{AuditData, AuditEvent, AuditLogFile};
 use std::{fs::File, path::PathBuf, thread, time};
 use web3_address::ethereum::Address;
 
-pub mod cli;
+pub(crate) mod cli;
 pub use cli::run;
 
 /// Monitor changes in an audit log file.

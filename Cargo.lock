@@ -1667,13 +1667,13 @@ dependencies = [
 
 [[package]]
 name = "fd-lock"
-version = "3.0.10"
+version = "3.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ef1a30ae415c3a691a4f41afddc2dbcd6d70baf338368d85ebc1e8ed92cedb9"
+checksum = "39ae6b3d9530211fb3b12a95374b8b0823be812f53d09e18c5675c0146b09642"
 dependencies = [
  "cfg-if 1.0.0",
- "rustix 0.36.9",
- "windows-sys 0.45.0",
+ "rustix 0.37.7",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -4991,32 +4991,6 @@ dependencies = [
  "clap",
  "futures",
  "http",
- "parking_lot 0.12.1",
- "secrecy",
- "serde_json",
- "serial_test",
- "sos-client",
- "sos-core",
- "sos-node",
- "tempfile",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "url",
- "urn",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "web3-address",
-]
-
-[[package]]
-name = "sos-client"
-version = "0.1.0"
-dependencies = [
- "clap",
- "futures",
- "hex",
  "human_bytes",
  "is-terminal",
  "mime_guess",
@@ -5025,7 +4999,7 @@ dependencies = [
  "rustyline-derive",
  "secrecy",
  "serde_json",
- "sha3",
+ "serial_test",
  "shell-words",
  "sos-core",
  "sos-node",
@@ -5037,10 +5011,10 @@ dependencies = [
  "tracing-subscriber",
  "unicode-width",
  "url",
- "uuid",
- "vcard4",
+ "urn",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
  "web3-address",
- "zeroize",
 ]
 
 [[package]]

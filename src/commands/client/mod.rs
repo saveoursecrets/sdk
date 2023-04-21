@@ -2,13 +2,12 @@ use std::borrow::Cow;
 use terminal_banner::{Banner, Padding};
 
 mod account;
-mod error;
+pub(crate) mod cli;
 mod monitor;
 pub mod readline;
 mod shell;
 
-pub type Result<T> = std::result::Result<T, error::Error>;
-
+pub use cli::run;
 pub use shell::ShellState;
 
 pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {
@@ -21,6 +20,5 @@ pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {
 }
 
 pub use account::{local_signup, sign_in, switch, StdinPassphraseReader};
-pub use error::Error;
 pub use monitor::monitor;
 pub use shell::exec;

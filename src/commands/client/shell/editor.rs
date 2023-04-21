@@ -10,10 +10,13 @@ use std::{
 };
 
 use secrecy::ExposeSecret;
-use sha3::{Digest, Keccak256};
-use sos_core::vault::secret::Secret;
+use sos_core::{
+    secrecy,
+    sha3::{Digest, Keccak256},
+    vault::secret::Secret,
+    vcard4::Vcard,
+};
 use tempfile::Builder;
-use vcard4::Vcard;
 
 use crate::{Error, Result};
 

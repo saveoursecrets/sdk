@@ -1,7 +1,8 @@
 use clap::{Parser, Subcommand};
 use sos::{
     commands::{
-        audit, check, rendezvous, server, AuditCommand, CheckCommand,
+        audit, check, client, rendezvous, server, AuditCommand, CheckCommand,
+        ClientCommand,
     },
     Result,
 };
@@ -17,18 +18,22 @@ struct Sos {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Print and monitor audit log events.
+    /// Print and monitor audit logs.
     Audit {
         #[clap(subcommand)]
         cmd: AuditCommand,
     },
-    /// Utility tool to check status and integrity.
+    /// Check file status and integrity.
     Check {
         #[clap(subcommand)]
         cmd: CheckCommand,
     },
-    Client {},
-    /// Run a web service.
+    /// Manage accounts.
+    Client {
+        #[clap(subcommand)]
+        cmd: ClientCommand,
+    },
+    /// Run a web server.
     Server {
         /// Override the audit log file path.
         #[clap(short, long)]
@@ -64,11 +69,10 @@ enum Command {
 
 async fn run() -> Result<()> {
     let args = Sos::parse();
-    //let args = std::env::args().skip(2).collect::<Vec<_>>();
     match args.cmd {
         Command::Audit { cmd } => audit::run(cmd)?,
         Command::Check { cmd } => check::run(cmd)?,
-        //Command::Client {} => "sos-client",
+        Command::Client { cmd } => client::run(cmd)?,
         Command::Server {
             audit_log,
             reap_interval,
@@ -88,9 +92,7 @@ async fn run() -> Result<()> {
         Command::Rendezvous { identity, bind } => {
             rendezvous::run(identity, bind).await?
         }
-        _ => todo!(),
     }
-
     Ok(())
 }
 

@@ -3,14 +3,10 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use clap::{Parser, Subcommand};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use url::Url;
+use clap::Subcommand;
 
-use sos_client::{
-    exec, local_signup, monitor, sign_in, Error, Result, ShellState,
-};
-use sos_core::storage::StorageDirs;
+use super::{exec, local_signup, monitor, sign_in, ShellState};
+use sos_core::{storage::StorageDirs, url::Url};
 use terminal_banner::{Banner, Padding};
 
 use sos_node::{
@@ -21,20 +17,14 @@ use sos_node::{
     FileLocks,
 };
 
-use sos_client::readline::read_shell;
+use super::readline::read_shell;
+
+use crate::{Error, Result};
 
 const WELCOME: &str = include_str!("welcome.txt");
 
-/// Secret storage interactive shell.
-#[derive(Parser, Debug)]
-#[clap(name = "sos-client", author, version, about, long_about = None)]
-struct Cli {
-    #[clap(subcommand)]
-    cmd: Command,
-}
-
 #[derive(Subcommand, Debug)]
-enum Command {
+pub enum Command {
     /// Create an account on this device.
     Signup {
         /// Name for the new identity.
@@ -80,10 +70,8 @@ Type "quit" or "q" to exit"#;
     Ok(())
 }
 
-fn run() -> Result<()> {
-    let args = Cli::parse();
-
-    match args.cmd {
+pub fn run(cmd: Command) -> Result<()> {
+    match cmd {
         Command::Monitor {
             server,
             account_name,
@@ -170,24 +158,5 @@ fn run() -> Result<()> {
         }
     }
 
-    Ok(())
-}
-
-fn main() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| {
-                "sos_node::client=info,sos_client=info".into()
-            }),
-        ))
-        .with(tracing_subscriber::fmt::layer().without_time())
-        .init();
-
-    match run() {
-        Ok(_) => {}
-        Err(e) => {
-            tracing::error!("{}", e);
-        }
-    }
     Ok(())
 }

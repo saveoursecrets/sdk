@@ -11,7 +11,7 @@ use rustyline::highlight::Highlighter;
 use rustyline::{ColorMode, Editor};
 
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
-use secrecy::{Secret, SecretString};
+use sos_core::secrecy::{Secret, SecretString};
 
 use crate::{Error, Result};
 

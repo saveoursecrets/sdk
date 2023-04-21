@@ -11,7 +11,7 @@ use sos_core::{
 
 use crate::{Error, Result};
 
-pub mod cli;
+pub(crate) mod cli;
 pub use cli::run;
 
 /// Verify the integrity of a vault.
