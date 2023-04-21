@@ -10,7 +10,7 @@ use url::Url;
 use sos_client::{
     exec, local_signup, monitor, sign_in, Error, Result, ShellState,
 };
-use sos_core::{FileLocks, StorageDirs};
+use sos_core::{storage::StorageDirs, FileLocks};
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 

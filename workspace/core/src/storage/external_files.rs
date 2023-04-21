@@ -18,7 +18,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{Error, Result, StorageDirs};
+use crate::{storage::StorageDirs, Error, Result};
 
 /// Manage encrypted file storage.
 pub struct FileStorage;

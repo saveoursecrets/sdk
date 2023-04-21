@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use sos_core::{
     commit::{wal_commit_tree_file, CommitProof},
     constants::WAL_DELETED_EXT,
-    encode,
+    encode, decode,
     events::{SyncEvent, WalEvent},
     iter::WalFileRecord,
     vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
@@ -493,7 +493,7 @@ impl BackendHandler for FileSystemBackend {
             .get(owner)
             .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
-        let vault = Vault::read_buffer(vault)?;
+        let vault: Vault = decode(vault)?;
         let (vault, events) = WalReducer::split(vault)?;
 
         // Prepare a temp file with the new WAL records

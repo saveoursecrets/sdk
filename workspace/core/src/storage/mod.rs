@@ -1,4 +1,4 @@
-//! Compute directory paths for file storage.
+//! File system paths and encrypted file storage.
 use crate::{Error, Result};
 use once_cell::sync::Lazy;
 use std::{

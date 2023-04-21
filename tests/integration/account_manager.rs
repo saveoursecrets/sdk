@@ -8,8 +8,8 @@ use sos_core::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
+    storage::{FileStorage, StorageDirs},
     vault::{secret::SecretId, Gatekeeper, VaultId},
-    FileStorage, StorageDirs,
 };
 use sos_node::client::{
     account_manager::{

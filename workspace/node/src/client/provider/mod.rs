@@ -17,9 +17,10 @@ use sos_core::{
     passwd::ChangePassword,
     search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta},
+    storage::StorageDirs,
     vault::{Gatekeeper, Summary, Vault},
     wal::snapshot::{SnapShot, SnapShotManager},
-    StorageDirs, Timestamp,
+    Timestamp,
 };
 
 use crate::{

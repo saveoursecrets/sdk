@@ -28,7 +28,7 @@ pub mod patch;
 pub mod rpc;
 pub mod search;
 pub mod signer;
-mod storage;
+pub mod storage;
 mod timestamp;
 pub mod vault;
 pub mod wal;
@@ -37,10 +37,12 @@ pub mod wal;
 pub mod test_utils;
 
 pub use error::Error;
+
 pub use file_identity::FileIdentity;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_locks::FileLocks;
-pub use storage::{FileStorage, StorageDirs};
+
 pub use timestamp::Timestamp;
 
 pub use vault::secret;

@@ -16,7 +16,7 @@ use sos_core::{
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
     secret::SecretRef,
-    StorageDirs,
+    storage::StorageDirs,
 };
 use sos_node::client::{
     net::{

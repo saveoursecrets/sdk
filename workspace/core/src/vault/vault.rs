@@ -1013,12 +1013,6 @@ impl Vault {
         Ok(vault)
     }
 
-    /// Read a vault from a buffer.
-    pub fn read_buffer<B: AsRef<[u8]>>(buffer: B) -> Result<Vault> {
-        let vault: Vault = decode(buffer.as_ref())?;
-        Ok(vault)
-    }
-
     /// Read a vault from a file.
     pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Vault> {
         let mut stream = FileStream(File::open(path)?);

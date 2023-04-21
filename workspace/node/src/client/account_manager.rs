@@ -30,12 +30,12 @@ use sos_core::{
         ed25519::{self, BoxedEd25519Signer},
         Signer,
     },
+    storage::StorageDirs,
     vault::{
         Gatekeeper, Header, Summary, Vault, VaultAccess, VaultFileAccess,
         VaultId,
     },
     wal::{file::WalFile, WalProvider},
-    StorageDirs,
 };
 
 use crate::client::{

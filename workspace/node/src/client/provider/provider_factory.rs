@@ -1,5 +1,5 @@
 //! Factory for creating providers.
-use sos_core::{signer::ecdsa::BoxedEcdsaSigner, StorageDirs};
+use sos_core::{signer::ecdsa::BoxedEcdsaSigner, storage::StorageDirs};
 use std::{
     fmt,
     sync::{Arc, RwLock},

@@ -9,8 +9,8 @@ use sos_core::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
         Signer,
     },
+    storage::StorageDirs,
     wal::file::WalFile,
-    StorageDirs,
 };
 
 use web3_address::ethereum::Address;

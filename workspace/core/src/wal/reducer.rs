@@ -11,7 +11,7 @@ use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     crypto::AeadPack,
-    encode,
+    encode, decode,
     events::WalEvent,
     secret::SecretId,
     vault::{Vault, VaultCommit},
@@ -122,7 +122,8 @@ impl<'a> WalReducer<'a> {
     pub fn compact(self) -> Result<Vec<WalEvent<'a>>> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();
-            let mut vault = Vault::read_buffer(&vault)?;
+
+            let mut vault: Vault = decode(&vault)?;
             if let Some(name) = self.vault_name {
                 vault.set_name(name.into_owned());
             }
@@ -146,8 +147,7 @@ impl<'a> WalReducer<'a> {
     /// Consume this reducer and build a vault.
     pub fn build(self) -> Result<Vault> {
         if let Some(vault) = self.vault {
-            let mut vault = Vault::read_buffer(&vault)?;
-
+            let mut vault: Vault = decode(&vault)?;
             if let Some(name) = self.vault_name {
                 vault.set_name(name.into_owned());
             }

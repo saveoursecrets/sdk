@@ -7,7 +7,7 @@ use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     encode, identity::AuthenticatedUser,
     passwd::diceware::generate_passphrase, search::SearchIndex,
-    vault::Gatekeeper, StorageDirs,
+    storage::StorageDirs, vault::Gatekeeper,
 };
 use sos_node::client::{
     account_manager::{

@@ -12,12 +12,13 @@ use sos_core::{
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     patch::{PatchMemory, PatchProvider},
     search::SearchIndex,
+    storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
     wal::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,
     },
-    StorageDirs, Timestamp,
+    Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]

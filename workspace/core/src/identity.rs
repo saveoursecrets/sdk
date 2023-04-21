@@ -1,3 +1,5 @@
+//! Login identity vault.
+//!
 //! Identity provides access to a login vault containing
 //! a private signing key and master encryption passphrase
 //! using known identifiers for the secrets.
