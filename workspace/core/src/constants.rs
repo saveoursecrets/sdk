@@ -1,4 +1,4 @@
-//! Constants shared between the client and server.
+//! Constants for file formats, folder names etc.
 
 /// Bundle identifier for MacOS and iOS.
 ///

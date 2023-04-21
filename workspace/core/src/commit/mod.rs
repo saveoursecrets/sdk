@@ -1,4 +1,4 @@
-//! Types to create and compare commits in an underlying merkle tree.
+//! Create and compare commits in an underlying merkle tree.
 mod proof;
 mod tree;
 
