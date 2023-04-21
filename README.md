@@ -52,15 +52,17 @@ The system is eventually consistent except in the case of two events; when a WAL
 ## Repository Layout
 
 * [sandbox](/sandbox) Configuration and storage location for local testing.
+* [src](/src) Command line tool `sos`.
+    * The `audit` command for reading and monitoring audit logs.
+    * The `check` command for verifying file integrity and inspecting files.
+    * The `client` command to launch a login shell for an account.
+    * The `server` server command to run a web server.
+    * The `rendezvous` server for peer to peer nodes.
 * [tests](/tests) Integration tests.
-* [workspace](/workspace) Libraries and command line interfaces.
-    * [audit](/workspace/audit) The `sos-audit` tool for reading and monitoring audit logs.
-    * [check](/workspace/check) The `sos-check` tool for verifying file integrity and inspecting files.
-    * [client](/workspace/client) The `sos-client` terminal read-eval-print-loop (REPL) tool.
+* [workspace](/workspace) Workspace for SDK libraries.
     * [core](/workspace/core) Core library types and traits.
+    * [migrate](/workspace/migrate) Export and import compatibility layer.
     * [node](/workspace/node) Networking library.
-    * [readline](/workspace/readline) Utility functions for reading from stdin.
-    * [server](/workspace/server) The `sos-server` server command line interface.
 
 For webassembly bindings see the [browser][] repository.
 
