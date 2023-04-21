@@ -7,7 +7,7 @@ use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     FileStorage,
-    generate_passphrase,
+    passwd::diceware::generate_passphrase,
     search::SearchIndex,
     secret::SecretId,
     vault::VaultId,

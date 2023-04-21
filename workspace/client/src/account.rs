@@ -5,7 +5,7 @@ use std::{borrow::Cow, sync::Arc};
 use parking_lot::RwLock as SyncRwLock;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    encode, generate_passphrase, identity::AuthenticatedUser,
+    encode, passwd::diceware::generate_passphrase, identity::AuthenticatedUser,
     search::SearchIndex, Gatekeeper, StorageDirs,
 };
 use sos_node::client::{

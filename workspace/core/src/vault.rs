@@ -28,7 +28,7 @@ use crate::{
     },
     decode, encode,
     events::SyncEvent,
-    generate_passphrase,
+    passwd::diceware::generate_passphrase,
     secret::{SecretId, VaultMeta},
     commit::CommitHash, Error, FileIdentity, Result,
 };

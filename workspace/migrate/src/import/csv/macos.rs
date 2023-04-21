@@ -105,7 +105,7 @@ mod test {
     use parking_lot::RwLock;
     use secrecy::ExposeSecret;
     use sos_core::{
-        generate_passphrase, search::SearchIndex, vault::Vault, Gatekeeper,
+        passwd::diceware::generate_passphrase, search::SearchIndex, vault::Vault, Gatekeeper,
     };
     use std::sync::Arc;
     use url::Url;

@@ -175,7 +175,7 @@ mod test {
 
     use super::*;
     use sos_core::{
-        generate_passphrase, test_utils::*, vault::Vault, Gatekeeper,
+        passwd::diceware::generate_passphrase, test_utils::*, vault::Vault, Gatekeeper,
     };
 
     fn create_mock_migration<W: Write + Seek>(

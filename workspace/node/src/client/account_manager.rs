@@ -21,7 +21,7 @@ use sos_core::{
     constants::{DEVICE_KEY_URN, FILE_PASSWORD_URN, VAULT_EXT, WAL_EXT},
     decode, encode,
     events::WalEvent,
-    generate_passphrase_words,
+    passwd::{diceware::generate_passphrase_words, ChangePassword},
     identity::{AuthenticatedUser, Identity},
     search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta, SecretSigner, UserData},
@@ -32,7 +32,7 @@ use sos_core::{
     },
     vault::{Header, Summary, Vault, VaultAccess, VaultId},
     wal::{file::WalFile, WalProvider},
-    ChangePassword, Gatekeeper, StorageDirs, VaultFileAccess,
+    Gatekeeper, StorageDirs, VaultFileAccess,
 };
 
 use crate::client::{

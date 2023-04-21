@@ -16,7 +16,7 @@ use web3_address::ethereum::Address;
 
 use human_bytes::human_bytes;
 use sos_core::{
-    generate_passphrase,
+    passwd::diceware::generate_passphrase,
     identity::AuthenticatedUser,
     search::{Document, SearchIndex},
     secret::{Secret, SecretId, SecretMeta, SecretRef},

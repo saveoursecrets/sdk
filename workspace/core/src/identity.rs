@@ -193,7 +193,7 @@ mod tests {
     use crate::{
         constants::LOGIN_SIGNING_KEY_URN,
         encode,
-        passgen::diceware::generate_passphrase,
+        passwd::diceware::generate_passphrase,
         secret::{Secret, SecretMeta},
         vault::{Vault, VaultFlags},
         Error, Gatekeeper,

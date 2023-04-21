@@ -612,7 +612,7 @@ mod test {
     use parking_lot::RwLock;
     use secrecy::ExposeSecret;
     use sos_core::{
-        generate_passphrase, search::SearchIndex, secret::Secret,
+        passwd::diceware::generate_passphrase, search::SearchIndex, secret::Secret,
         vault::Vault, Gatekeeper,
     };
     use std::sync::Arc;
