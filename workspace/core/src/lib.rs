@@ -15,13 +15,12 @@ pub mod constants;
 pub mod crypto;
 mod error;
 pub mod events;
-mod file_identity;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod file_locks;
 
+pub mod formats;
 pub mod identity;
-pub mod iter;
 pub mod passwd;
 pub mod patch;
 
@@ -37,8 +36,6 @@ pub mod wal;
 pub mod test_utils;
 
 pub use error::Error;
-
-pub use file_identity::FileIdentity;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_locks::FileLocks;

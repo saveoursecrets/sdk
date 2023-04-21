@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use sos_core::{
     commit::{wal_commit_tree_file, CommitProof},
     constants::WAL_DELETED_EXT,
-    encode, decode,
+    decode, encode,
     events::{SyncEvent, WalEvent},
-    iter::WalFileRecord,
+    formats::iter::WalFileRecord,
     vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
     wal::{
         file::WalFile, reducer::WalReducer, snapshot::SnapShotManager,

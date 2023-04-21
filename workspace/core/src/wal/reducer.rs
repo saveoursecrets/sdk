@@ -11,7 +11,7 @@ use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     crypto::AeadPack,
-    encode, decode,
+    decode, encode,
     events::WalEvent,
     secret::SecretId,
     vault::{Vault, VaultCommit},

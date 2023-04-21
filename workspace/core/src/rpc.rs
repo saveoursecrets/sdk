@@ -3,9 +3,7 @@
 //! Message identifiers have the same semantics as JSON-RPC;
 //! if a request does not have an `id` than no reply is expected
 //! otherwise a service must reply.
-use crate::{
-    constants::RPC_IDENTITY, file_identity::FileIdentity, Error, Result,
-};
+use crate::{constants::RPC_IDENTITY, formats::FileIdentity, Error, Result};
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };

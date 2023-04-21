@@ -2,7 +2,7 @@
 use crate::{
     commit::{CommitHash, CommitTree},
     events::WalEvent,
-    iter::WalFileRecord,
+    formats::iter::WalFileRecord,
     timestamp::Timestamp,
     Result,
 };

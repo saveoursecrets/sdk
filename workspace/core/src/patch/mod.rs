@@ -7,7 +7,8 @@ use binary_stream::{
 use std::path::Path;
 
 use crate::{
-    constants::PATCH_IDENTITY, events::SyncEvent, FileIdentity, Result,
+    constants::PATCH_IDENTITY, events::SyncEvent, formats::FileIdentity,
+    Result,
 };
 
 #[cfg(not(target_arch = "wasm32"))]

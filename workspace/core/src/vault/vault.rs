@@ -28,9 +28,10 @@ use crate::{
     },
     decode, encode,
     events::SyncEvent,
+    formats::FileIdentity,
     passwd::diceware::generate_passphrase,
     secret::{SecretId, VaultMeta},
-    Error, FileIdentity, Result,
+    Error, Result,
 };
 
 bitflags! {

@@ -7,7 +7,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::{
     constants::AUDIT_IDENTITY,
-    iter::{audit_iter, FileItem, FileRecord, ReadStreamIterator},
+    formats::iter::{audit_iter, FileItem, FileRecord, ReadStreamIterator},
     Result,
 };
 

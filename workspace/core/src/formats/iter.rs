@@ -1,4 +1,4 @@
-//! Traits and types for a generic file iterator.
+//! File format iterators.
 use std::ops::Range;
 
 use binary_stream::{
@@ -9,9 +9,10 @@ use crate::{
     constants::{
         AUDIT_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY, WAL_IDENTITY,
     },
+    formats::FileIdentity,
     vault::Header,
     wal::WalItem,
-    FileIdentity, Result, Timestamp,
+    Result, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]

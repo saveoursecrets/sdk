@@ -19,7 +19,7 @@ use crate::{
     constants::{WAL_EXT, WAL_IDENTITY},
     encode,
     events::WalEvent,
-    iter::{wal_iter, FileItem, WalFileRecord},
+    formats::iter::{wal_iter, FileItem, WalFileRecord},
     timestamp::Timestamp,
     Error, Result,
 };
