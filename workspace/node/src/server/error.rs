@@ -106,7 +106,7 @@ pub enum Error {
 
     /// Error generate by the ECDSA library.
     #[error(transparent)]
-    Ecdsa(#[from] k256::ecdsa::Error),
+    Ecdsa(#[from] sos_core::k256::ecdsa::Error),
 
     /// Error generate by the JSON library.
     #[error(transparent)]

@@ -1,6 +1,6 @@
 //! Manages network sessions.
 use crypto_bigint::{CheckedAdd, Encoding, U192};
-use k256::{
+use sos_core::k256::{
     ecdh::EphemeralSecret, elliptic_curve::ecdh::SharedSecret, EncodedPoint,
     PublicKey, Secp256k1,
 };
@@ -401,8 +401,10 @@ pub trait EncryptedChannel {
 mod test {
     use super::*;
     use anyhow::Result;
-    use k256::ecdsa::SigningKey;
-    use sos_core::signer::ecdsa::{BoxedEcdsaSigner, SingleParty};
+    use sos_core::{
+        signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
+        k256::ecdsa::SigningKey,
+    };
     use std::time::Duration;
 
     fn new_signer() -> BoxedEcdsaSigner {

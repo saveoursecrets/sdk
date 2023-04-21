@@ -14,7 +14,7 @@ use crate::{
     constants::WAL_IDENTITY,
     decode, encode,
     events::WalEvent,
-    formats::iter::{FileItem, ReadStreamIterator, WalFileRecord},
+    formats::{FileItem, ReadStreamIterator, WalFileRecord},
     timestamp::Timestamp,
     Result,
 };

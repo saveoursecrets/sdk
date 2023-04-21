@@ -5149,7 +5149,6 @@ dependencies = [
 name = "sos-node"
 version = "0.1.0"
 dependencies = [
- "age",
  "anyhow",
  "async-recursion",
  "async-stream",
@@ -5167,7 +5166,6 @@ dependencies = [
  "http",
  "hyper",
  "if-addrs 0.10.1",
- "k256",
  "libp2p",
  "libp2p-quic",
  "log",

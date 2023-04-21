@@ -5,7 +5,7 @@ use sos_core::{
     constants::WAL_DELETED_EXT,
     decode, encode,
     events::{SyncEvent, WalEvent},
-    formats::iter::WalFileRecord,
+    formats::WalFileRecord,
     vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
     wal::{
         file::WalFile, reducer::WalReducer, snapshot::SnapShotManager,

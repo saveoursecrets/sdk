@@ -14,9 +14,8 @@ use urn::Urn;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
-use k256::sha2::{Digest, Sha256};
-
 use sos_core::{
+    sha2::{Digest, Sha256},
     archive::{Inventory, Reader, Writer},
     constants::{DEVICE_KEY_URN, FILE_PASSWORD_URN, VAULT_EXT, WAL_EXT},
     decode, encode,

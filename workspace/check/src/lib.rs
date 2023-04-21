@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use sos_core::{
     commit::{vault_commit_tree_file, wal_commit_tree_file, CommitTree},
-    formats::iter::vault_iter,
+    formats::vault_iter,
     vault::Header,
     wal::WalItem,
 };

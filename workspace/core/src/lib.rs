@@ -8,19 +8,16 @@ use binary_stream::{
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod audit;
-
 pub mod archive;
 pub mod commit;
 pub mod constants;
 pub mod crypto;
 mod error;
 pub mod events;
-
 pub mod formats;
 pub mod identity;
 pub mod passwd;
 pub mod patch;
-
 pub mod rpc;
 pub mod search;
 pub mod signer;
@@ -38,6 +35,8 @@ pub use timestamp::Timestamp;
 // Re-exports
 pub use age;
 pub use k256;
+pub use sha2;
+pub use sha3;
 pub use time;
 
 /// Encode to a binary buffer.

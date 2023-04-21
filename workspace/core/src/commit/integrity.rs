@@ -1,7 +1,7 @@
 //! Functions to build commit trees and run integrity checks.
 use crate::{
     commit::CommitTree,
-    formats::iter::{vault_iter, FileItem, VaultRecord, WalFileRecord},
+    formats::{vault_iter, FileItem, VaultRecord, WalFileRecord},
     wal::{WalItem, WalProvider},
     Error, Result,
 };
