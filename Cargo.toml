@@ -15,20 +15,21 @@ members = [
   "workspace/migrate",
   "workspace/node",
   "workspace/readline",
-  "workspace/server",
 ]
 exclude = [
   "target/browser"
 ]
 
 [dependencies]
+sos-core = { path = "workspace/core" }
 thiserror = "1"
-clap = { version = "4", features = ["derive", "wrap_help"] }
+clap = { version = "4", features = ["derive", "wrap_help", "env"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 serde_json = "1"
 web3-address = { version = "0.6", features = ["ethereum"] }
-sos-core = { path = "workspace/core" }
+tokio = { version = "1", features = ["full"] }
+axum-server = { version = "0.4", features = ["tls-rustls"] }
 
 [dev-dependencies]
 http = "0.2"
@@ -37,9 +38,8 @@ parking_lot = "0.12"
 urn = { version = "0.5", features = ["serde"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-sos-node = { path = "workspace/node", version = "0.1.0" }
+sos-node = { path = "workspace/node", version = "0.1.0" , features = ["peer"]}
 sos-client = { path = "workspace/client", version = "0.1.0" }
-sos-server = { path = "workspace/server", version = "0.1.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow = "1"

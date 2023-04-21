@@ -1,9 +1,7 @@
+use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-use sos::Result;
-
-use sos::commands::{check, CheckCommand, audit, AuditCommand};
+use sos::{commands::{rendezvous, server, check, CheckCommand, audit, AuditCommand}, Result};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -24,43 +22,76 @@ enum Command {
         #[clap(subcommand)]
         cmd: CheckCommand,
     },
-    /// Secret storage interactive shell.
-    #[clap(
-        allow_external_subcommands = true,
-        trailing_var_arg = true,
-        allow_hyphen_values = true,
-        disable_version_flag = true,
-        disable_help_flag = true,
-        disable_help_subcommand = true
-    )]
     Client {},
-    /// Secret storage server.
-    #[clap(
-        allow_external_subcommands = true,
-        trailing_var_arg = true,
-        allow_hyphen_values = true,
-        disable_version_flag = true,
-        disable_help_flag = true,
-        disable_help_subcommand = true
-    )]
-    Server {},
+    /// Run a web service.
+    Server {
+        /// Override the audit log file path.
+        #[clap(short, long)]
+        audit_log: Option<PathBuf>,
+
+        /// Override the reap interval for expired sessions in seconds.
+        #[clap(long)]
+        reap_interval: Option<u64>,
+
+        /// Override the default session duration in seconds.
+        #[clap(long)]
+        session_duration: Option<u64>,
+
+        /// Bind to host:port.
+        #[clap(short, long, default_value = "0.0.0.0:5053")]
+        bind: String,
+
+        /// Config file to load.
+        #[clap(short, long)]
+        config: PathBuf,
+    },
+    /// Peer to peer rendezvous server.
+    Rendezvous {
+        /// Hex encoded 32 byte Ed25519 secret key.
+        #[clap(short, long, env, hide_env_values = true)]
+        identity: Option<String>,
+
+        /// Bind address.
+        #[clap(short, long, default_value = "0.0.0.0:3505")]
+        bind: String,
+    },
 }
 
-fn run() -> Result<()> {
+async fn run() -> Result<()> {
     let args = Sos::parse();
     //let args = std::env::args().skip(2).collect::<Vec<_>>();
     match args.cmd {
         Command::Audit { cmd } => audit::run(cmd)?,
         Command::Check { cmd } => check::run(cmd)?,
-        _ => todo!(),
         //Command::Client {} => "sos-client",
-        //Command::Server {} => "sos-server",
+        Command::Server {
+            audit_log,
+            reap_interval,
+            session_duration,
+            bind,
+            config,
+        } => server::run(
+            audit_log,
+            reap_interval,
+            session_duration,
+            bind,
+            config,
+        ).await?,
+        Command::Rendezvous {
+            identity,
+            bind,
+        } => rendezvous::run(
+            identity,
+            bind,
+        ).await?,
+        _ => todo!(),
     }
 
     Ok(())
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "sos=info".into()),
@@ -68,7 +99,7 @@ fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer().without_time())
         .init();
 
-    if let Err(e) = run() {
+    if let Err(e) = run().await {
         tracing::error!("{}", e);
     }
 

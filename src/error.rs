@@ -14,4 +14,10 @@ pub enum Error {
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    Server(#[from] sos_node::server::Error),
+
+    #[error(transparent)]
+    Peer(#[from] sos_node::peer::Error),
 }

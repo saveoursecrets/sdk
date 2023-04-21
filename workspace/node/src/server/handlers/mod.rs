@@ -21,7 +21,6 @@ pub(crate) mod websocket;
 pub(crate) async fn home(
     Extension(state): Extension<Arc<RwLock<State>>>,
 ) -> impl IntoResponse {
-    let reader = state.read().await;
     Redirect::temporary("/api")
 }
 

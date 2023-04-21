@@ -4998,7 +4998,6 @@ dependencies = [
  "sos-client",
  "sos-core",
  "sos-node",
- "sos-server",
  "tempfile",
  "thiserror",
  "tokio",
@@ -5183,20 +5182,6 @@ dependencies = [
  "secrecy",
  "thiserror",
  "unicode-width",
-]
-
-[[package]]
-name = "sos-server"
-version = "0.1.0"
-dependencies = [
- "axum-server",
- "clap",
- "hex",
- "sos-core",
- "sos-node",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
