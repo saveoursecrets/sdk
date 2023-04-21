@@ -16,9 +16,6 @@ pub mod crypto;
 mod error;
 pub mod events;
 
-#[cfg(not(target_arch = "wasm32"))]
-mod file_locks;
-
 pub mod formats;
 pub mod identity;
 pub mod passwd;
@@ -36,13 +33,11 @@ pub mod wal;
 pub mod test_utils;
 
 pub use error::Error;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use file_locks::FileLocks;
 pub use timestamp::Timestamp;
 
 // Re-exports
 pub use age;
+pub use k256;
 pub use time;
 
 /// Encode to a binary buffer.

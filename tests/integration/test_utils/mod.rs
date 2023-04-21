@@ -15,13 +15,13 @@ use sos_core::{
         Summary,
     },
     wal::file::WalFile,
-    FileLocks,
 };
 
 use sos_node::{
     client::provider::{RemoteProvider, StorageProvider},
     server::{BackendHandler, Server, ServerConfig, ServerInfo, State},
     session::SessionManager,
+    FileLocks,
 };
 
 const ADDR: &str = "127.0.0.1:3505";

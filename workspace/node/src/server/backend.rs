@@ -11,7 +11,6 @@ use sos_core::{
         file::WalFile, reducer::WalReducer, snapshot::SnapShotManager,
         WalProvider,
     },
-    FileLocks,
 };
 use std::{
     borrow::Cow,
@@ -21,6 +20,8 @@ use std::{
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 use web3_address::ethereum::Address;
+
+use crate::FileLocks;
 
 /// Backend for a server.
 pub enum Backend {

@@ -1,5 +1,5 @@
 [package]
-name = "sos-sdk"
+name = "sos"
 version = "0.4.1"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."

@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use sos_sdk::Result;
+use sos::Result;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -12,16 +12,6 @@ struct Sos {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Key agent service.
-    #[clap(
-        allow_external_subcommands = true,
-        trailing_var_arg = true,
-        allow_hyphen_values = true,
-        disable_version_flag = true,
-        disable_help_flag = true,
-        disable_help_subcommand = true
-    )]
-    Agent {},
     /// Print and monitor audit log events.
     #[clap(
         allow_external_subcommands = true,
@@ -68,7 +58,6 @@ fn run() -> Result<()> {
     let argv = Sos::parse();
     let args = std::env::args().skip(2).collect::<Vec<_>>();
     let cmd = match argv.cmd {
-        Command::Agent {} => "sos-agent",
         Command::Audit {} => "sos-audit",
         Command::Check {} => "sos-check",
         Command::Client {} => "sos-client",

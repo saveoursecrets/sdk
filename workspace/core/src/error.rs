@@ -26,10 +26,6 @@ pub enum Error {
     #[error("path {0} is not a directory")]
     NotDirectory(PathBuf),
 
-    /// Error generated attempting acquire a lock on a file that is already locked.
-    #[error("file {0} is already locked")]
-    FileLocked(PathBuf),
-
     /// Error generated when a vault identity byte is wrong.
     #[error("bad identity byte {0}")]
     BadIdentity(u8),

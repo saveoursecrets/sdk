@@ -4983,6 +4983,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "axum-server",
+ "clap",
+ "futures",
+ "hex",
+ "http",
+ "parking_lot 0.12.1",
+ "secrecy",
+ "serde_json",
+ "serial_test",
+ "sos-audit",
+ "sos-check",
+ "sos-client",
+ "sos-core",
+ "sos-node",
+ "sos-server",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "urn",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "web3-address",
+]
+
+[[package]]
 name = "sos-audit"
 version = "0.1.0"
 dependencies = [
@@ -5054,7 +5086,6 @@ dependencies = [
  "chbs",
  "dirs",
  "ed25519-dalek 2.0.0-rc.2",
- "file-guard",
  "filetime",
  "getrandom 0.2.8",
  "hex",
@@ -5062,7 +5093,6 @@ dependencies = [
  "k256",
  "log",
  "once_cell",
- "ouroboros",
  "parking_lot 0.12.1",
  "pem",
  "probly-search",
@@ -5131,6 +5161,7 @@ dependencies = [
  "crypto-bigint 0.4.9",
  "dirs",
  "either",
+ "file-guard",
  "futures",
  "hex",
  "http",
@@ -5142,6 +5173,7 @@ dependencies = [
  "log",
  "mime_guess",
  "once_cell",
+ "ouroboros",
  "parking_lot 0.12.1",
  "pin-project-lite",
  "rand 0.8.5",
@@ -5182,38 +5214,6 @@ dependencies = [
  "secrecy",
  "thiserror",
  "unicode-width",
-]
-
-[[package]]
-name = "sos-sdk"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "axum-server",
- "clap",
- "futures",
- "hex",
- "http",
- "parking_lot 0.12.1",
- "secrecy",
- "serde_json",
- "serial_test",
- "sos-audit",
- "sos-check",
- "sos-client",
- "sos-core",
- "sos-node",
- "sos-server",
- "tempfile",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "url",
- "urn",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "web3-address",
 ]
 
 [[package]]
