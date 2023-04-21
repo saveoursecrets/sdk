@@ -3,7 +3,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use sos::Result;
 
-use sos::commands::{CheckCommand, check};
+use sos::commands::{check, CheckCommand};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -56,33 +56,33 @@ fn run() -> Result<()> {
     //let args = std::env::args().skip(2).collect::<Vec<_>>();
     let cmd = match args.cmd {
         //Command::Audit {} => "sos-audit",
-        Command::Check {cmd} => check::run(cmd)?,
+        Command::Check { cmd } => check::run(cmd)?,
         _ => todo!(),
         //Command::Client {} => "sos-client",
         //Command::Server {} => "sos-server",
     };
 
     /*
-    let argv = Sos::parse();
-    let args = std::env::args().skip(2).collect::<Vec<_>>();
-    let cmd = match argv.cmd {
-        Command::Audit {} => "sos-audit",
-        Command::Check {} => "sos-check",
-        Command::Client {} => "sos-client",
-        Command::Server {} => "sos-server",
-    };
+        let argv = Sos::parse();
+        let args = std::env::args().skip(2).collect::<Vec<_>>();
+        let cmd = match argv.cmd {
+            Command::Audit {} => "sos-audit",
+            Command::Check {} => "sos-check",
+            Command::Client {} => "sos-client",
+            Command::Server {} => "sos-server",
+        };
 
-    let cmd = if cfg!(debug_assertions) {
-        format!("target/debug/{}", cmd)
-    } else {
-        cmd.to_owned()
-    };
+        let cmd = if cfg!(debug_assertions) {
+            format!("target/debug/{}", cmd)
+        } else {
+            cmd.to_owned()
+        };
 
-    tracing::debug!(cmd = %cmd, args = ?args);
+        tracing::debug!(cmd = %cmd, args = ?args);
 
-    std::process::Command::new(&cmd).args(args).status()?;
+        std::process::Command::new(&cmd).args(args).status()?;
 
-*/
+    */
     Ok(())
 }
 

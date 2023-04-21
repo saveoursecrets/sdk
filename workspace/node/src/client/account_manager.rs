@@ -15,7 +15,6 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use sos_core::{
-    sha2::{Digest, Sha256},
     archive::{Inventory, Reader, Writer},
     constants::{DEVICE_KEY_URN, FILE_PASSWORD_URN, VAULT_EXT, WAL_EXT},
     decode, encode,
@@ -23,6 +22,7 @@ use sos_core::{
     identity::{AuthenticatedUser, Identity},
     passwd::{diceware::generate_passphrase_words, ChangePassword},
     search::SearchIndex,
+    sha2::{Digest, Sha256},
     signer::{
         ecdsa::SingleParty,
         ed25519::{self, BoxedEd25519Signer},

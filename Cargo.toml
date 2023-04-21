@@ -11,7 +11,6 @@ publish = false
 [workspace]
 members = [
   "workspace/audit",
-  "workspace/check",
   "workspace/client",
   "workspace/core",
   "workspace/migrate",
@@ -42,7 +41,6 @@ hex = "0.4"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sos-node = { path = "workspace/node", version = "0.1.0" }
 sos-audit = { path = "workspace/audit", version = "0.1.0" }
-sos-check = { path = "workspace/check", version = "0.1.0" }
 sos-client = { path = "workspace/client", version = "0.1.0" }
 sos-server = { path = "workspace/server", version = "0.1.0" }
 

@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use clap::Subcommand;
 use super::{keys, status, verify_vault, verify_wal};
 use crate::Result;
+use clap::Subcommand;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

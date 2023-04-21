@@ -1,11 +1,11 @@
 //! Manages network sessions.
 use crypto_bigint::{CheckedAdd, Encoding, U192};
+use rand::Rng;
+use sha3::{Digest, Keccak256};
 use sos_core::k256::{
     ecdh::EphemeralSecret, elliptic_curve::ecdh::SharedSecret, EncodedPoint,
     PublicKey, Secp256k1,
 };
-use rand::Rng;
-use sha3::{Digest, Keccak256};
 use sos_core::{
     crypto::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce},
     signer::ecdsa::{verify_signature_address, BoxedEcdsaSigner},
@@ -402,8 +402,8 @@ mod test {
     use super::*;
     use anyhow::Result;
     use sos_core::{
-        signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
         k256::ecdsa::SigningKey,
+        signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
     };
     use std::time::Duration;
 

@@ -60,7 +60,7 @@ pub enum Error {
     /// Error generate by the signature library.
     #[error(transparent)]
     Signature(#[from] web3_signature::SignatureError),
-    
+
     /// Error generate by the ECDSA library.
     #[error(transparent)]
     Ecdsa(#[from] sos_core::k256::ecdsa::Error),

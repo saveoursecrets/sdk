@@ -6,9 +6,9 @@ use binary_stream::{
     SliceStream,
 };
 
+pub mod archive;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod audit;
-pub mod archive;
 pub mod commit;
 pub mod constants;
 pub mod crypto;

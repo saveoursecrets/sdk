@@ -4997,7 +4997,6 @@ dependencies = [
  "serde_json",
  "serial_test",
  "sos-audit",
- "sos-check",
  "sos-client",
  "sos-core",
  "sos-node",
@@ -5025,19 +5024,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "web3-address",
-]
-
-[[package]]
-name = "sos-check"
-version = "0.1.0"
-dependencies = [
- "clap",
- "hex",
- "sos-core",
- "thiserror",
- "tracing",
- "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]
