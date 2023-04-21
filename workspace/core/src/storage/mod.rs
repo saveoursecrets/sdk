@@ -6,7 +6,7 @@ use std::{
     sync::RwLock,
 };
 
-use sos_core::constants::{
+use crate::constants::{
     DEVICES_DIR, FILES_DIR, IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, VAULTS_DIR,
     VAULT_EXT,
 };
@@ -14,6 +14,10 @@ use sos_core::constants::{
 #[cfg(not(target_arch = "wasm32"))]
 static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
+
+mod external_files;
+
+pub use external_files::FileStorage;
 
 /// Encapsulates the paths for vault storage.
 #[derive(Default, Debug)]
@@ -139,7 +143,7 @@ impl StorageDirs {
     ///
     /// Ensure it exists if it does not already exist.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn files_dir(address: &str) -> Result<PathBuf> {
+    pub fn files_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         let files_dir = local_dir.join(address).join(FILES_DIR);
         if !files_dir.exists() {
@@ -149,6 +153,26 @@ impl StorageDirs {
             std::fs::create_dir_all(&files_dir)?;
         }
         Ok(files_dir)
+    }
+
+    /// Get the expected location for a file.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn file_location<
+        A: AsRef<Path>,
+        V: AsRef<Path>,
+        S: AsRef<Path>,
+        F: AsRef<Path>,
+    >(
+        address: A,
+        vault_id: V,
+        secret_id: S,
+        file_name: F,
+    ) -> Result<PathBuf> {
+        let path = Self::files_dir(address)?
+            .join(vault_id)
+            .join(secret_id)
+            .join(file_name);
+        Ok(path)
     }
 
     /// Get the path to the directory used to store identity vaults.
@@ -176,7 +200,7 @@ impl StorageDirs {
 
 #[cfg(target_os = "macos")]
 fn default_storage_dir() -> Option<PathBuf> {
-    use sos_core::constants::BUNDLE_ID;
+    use crate::constants::BUNDLE_ID;
     dirs::home_dir().map(|v| {
         v.join("Library")
             .join("Containers")
@@ -215,6 +239,6 @@ fn default_storage_dir() -> Option<PathBuf> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn fallback_storage_dir() -> Option<PathBuf> {
-    use sos_core::constants::BUNDLE_ID;
+    use crate::constants::BUNDLE_ID;
     dirs::data_local_dir().map(|dir| dir.join(BUNDLE_ID))
 }

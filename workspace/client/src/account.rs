@@ -6,18 +6,15 @@ use parking_lot::RwLock as SyncRwLock;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     encode, generate_passphrase, identity::AuthenticatedUser,
-    search::SearchIndex, Gatekeeper,
+    search::SearchIndex, Gatekeeper, StorageDirs,
 };
-use sos_node::{
-    client::{
-        account_manager::{
-            AccountInfo, AccountManager, DeviceSigner, NewAccountRequest,
-            NewAccountResponse,
-        },
-        provider::{BoxedProvider, ProviderFactory},
-        run_blocking, PassphraseReader,
+use sos_node::client::{
+    account_manager::{
+        AccountInfo, AccountManager, DeviceSigner, NewAccountRequest,
+        NewAccountResponse,
     },
-    StorageDirs,
+    provider::{BoxedProvider, ProviderFactory},
+    run_blocking, PassphraseReader,
 };
 use sos_readline::{read_flag, read_password};
 use terminal_banner::{Banner, Padding};

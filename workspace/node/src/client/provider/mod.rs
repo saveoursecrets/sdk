@@ -18,13 +18,12 @@ use sos_core::{
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault},
     wal::snapshot::{SnapShot, SnapShotManager},
-    ChangePassword, CommitHash, Gatekeeper, Timestamp,
+    ChangePassword, CommitHash, Gatekeeper, StorageDirs, Timestamp,
 };
 
 use crate::{
     client::{Error, Result},
     sync::SyncInfo,
-    StorageDirs,
 };
 
 pub(crate) fn assert_proofs_eq(

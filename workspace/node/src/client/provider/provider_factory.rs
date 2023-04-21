@@ -1,5 +1,5 @@
 //! Factory for creating providers.
-use sos_core::signer::ecdsa::BoxedEcdsaSigner;
+use sos_core::{signer::ecdsa::BoxedEcdsaSigner, StorageDirs};
 use std::{
     fmt,
     sync::{Arc, RwLock},
@@ -14,7 +14,7 @@ use crate::client::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::{client::provider::LocalProvider, StorageDirs};
+use crate::client::provider::LocalProvider;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::{path::PathBuf, str::FromStr};

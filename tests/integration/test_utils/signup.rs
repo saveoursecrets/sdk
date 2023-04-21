@@ -9,18 +9,15 @@ use sos_core::{
         Signer,
     },
     wal::file::WalFile,
-    PatchFile,
+    PatchFile, StorageDirs,
 };
 
 use web3_address::ethereum::Address;
 
 use secrecy::ExposeSecret;
-use sos_node::{
-    client::{
-        net::RpcClient,
-        provider::{RemoteProvider, StorageProvider},
-    },
-    StorageDirs,
+use sos_node::client::{
+    net::RpcClient,
+    provider::{RemoteProvider, StorageProvider},
 };
 
 use super::AccountCredentials;

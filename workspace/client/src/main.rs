@@ -10,16 +10,13 @@ use url::Url;
 use sos_client::{
     exec, local_signup, monitor, sign_in, Error, Result, ShellState,
 };
-use sos_core::FileLocks;
+use sos_core::{FileLocks, StorageDirs};
 use sos_readline::read_shell;
 use terminal_banner::{Banner, Padding};
 
-use sos_node::{
-    client::{
-        provider::{spawn_changes_listener, ProviderFactory},
-        run_blocking,
-    },
-    StorageDirs,
+use sos_node::client::{
+    provider::{spawn_changes_listener, ProviderFactory},
+    run_blocking,
 };
 
 const WELCOME: &str = include_str!("welcome.txt");

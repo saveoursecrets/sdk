@@ -6,20 +6,18 @@ use std::{path::PathBuf, sync::Arc};
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
+    file_storage::FileStorage,
     generate_passphrase,
     search::SearchIndex,
     secret::SecretId,
     vault::VaultId,
-    Gatekeeper,
+    Gatekeeper, StorageDirs,
 };
-use sos_node::{
-    client::{
-        account_manager::{
-            AccountManager, NewAccountRequest, NewAccountResponse,
-        },
-        provider::{ProviderFactory, RestoreOptions},
+use sos_node::client::{
+    account_manager::{
+        AccountManager, NewAccountRequest, NewAccountResponse,
     },
-    StorageDirs,
+    provider::{ProviderFactory, RestoreOptions},
 };
 
 use urn::Urn;
@@ -119,7 +117,7 @@ fn integration_account_manager() -> Result<()> {
         .join(vault_id.to_string())
         .join(secret_id.to_string());
     std::fs::create_dir_all(&target)?;
-    let digest = AccountManager::encrypt_file(
+    let digest = FileStorage::encrypt_file_passphrase(
         &source_file,
         &target,
         file_passphrase.clone(),
@@ -127,7 +125,8 @@ fn integration_account_manager() -> Result<()> {
 
     // Decrypt
     let destination = target.join(hex::encode(digest));
-    let buffer = AccountManager::decrypt_file(destination, &file_passphrase)?;
+    let buffer =
+        FileStorage::decrypt_file_passphrase(destination, &file_passphrase)?;
 
     let expected = std::fs::read(source_file)?;
     assert_eq!(expected, buffer);

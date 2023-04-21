@@ -11,12 +11,9 @@ use sos_core::{
     secret::Secret,
     signer::{ecdsa::SingleParty, Signer},
     wal::WalProvider,
-    PatchProvider,
+    PatchProvider, StorageDirs,
 };
-use sos_node::{
-    client::provider::{LocalProvider, StorageProvider},
-    StorageDirs,
-};
+use sos_node::client::provider::{LocalProvider, StorageProvider};
 
 macro_rules! commit_count {
     ($storage:expr, $summary:expr, $amount:expr) => {{

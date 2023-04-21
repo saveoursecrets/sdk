@@ -16,16 +16,14 @@ use sos_core::{
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
     secret::SecretRef,
-};
-use sos_node::{
-    client::{
-        net::{
-            changes::{changes, connect},
-            RequestClient,
-        },
-        provider::StorageProvider,
-    },
     StorageDirs,
+};
+use sos_node::client::{
+    net::{
+        changes::{changes, connect},
+        RequestClient,
+    },
+    provider::StorageProvider,
 };
 
 #[tokio::test]

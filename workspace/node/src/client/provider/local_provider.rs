@@ -16,7 +16,7 @@ use sos_core::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,
     },
-    CommitHash, PatchMemory, PatchProvider, Timestamp,
+    CommitHash, PatchMemory, PatchProvider, StorageDirs, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -31,7 +31,6 @@ use crate::{
     client::provider::{fs_adapter, sync, ProviderState, StorageProvider},
     provider_impl,
     sync::{SyncInfo, SyncKind},
-    StorageDirs,
 };
 
 /// Local storage for a node.

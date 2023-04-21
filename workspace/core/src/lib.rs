@@ -33,6 +33,7 @@ pub mod rpc;
 pub mod search;
 pub mod secret;
 pub mod signer;
+mod storage;
 mod timestamp;
 pub mod vault;
 pub mod wal;
@@ -55,6 +56,7 @@ pub use passwd::ChangePassword;
 #[cfg(not(target_arch = "wasm32"))]
 pub use patch::PatchFile;
 pub use patch::{Patch, PatchMemory, PatchProvider};
+pub use storage::{StorageDirs, FileStorage};
 pub use timestamp::Timestamp;
 
 // Re-exports

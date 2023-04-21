@@ -5052,6 +5052,7 @@ dependencies = [
  "bs58",
  "chacha20poly1305 0.10.1",
  "chbs",
+ "dirs",
  "ed25519-dalek 2.0.0-rc.2",
  "file-guard",
  "filetime",

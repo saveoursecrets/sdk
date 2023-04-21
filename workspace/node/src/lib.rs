@@ -14,11 +14,8 @@ pub mod server;
 
 mod error;
 pub mod session;
-mod storage;
 pub mod sync;
 
 /// Result type for the node module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub use error::Error;
-
-pub use storage::StorageDirs;

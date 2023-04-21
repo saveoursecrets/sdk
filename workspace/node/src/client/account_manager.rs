@@ -3,7 +3,7 @@
 use std::{
     borrow::Cow,
     fs::File,
-    io::{Cursor, Read},
+    io::Cursor,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -14,7 +14,6 @@ use urn::Urn;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
-use age::Encryptor;
 use k256::sha2::{Digest, Sha256};
 
 use sos_core::{
@@ -33,17 +32,14 @@ use sos_core::{
     },
     vault::{Header, Summary, Vault, VaultAccess, VaultId},
     wal::{file::WalFile, WalProvider},
-    ChangePassword, Gatekeeper, VaultFileAccess,
+    ChangePassword, Gatekeeper, StorageDirs, VaultFileAccess,
 };
 
-use crate::{
-    client::{
-        provider::{
-            BoxedProvider, ProviderFactory, RestoreOptions, RestoreTargets,
-        },
-        run_blocking, Error, Result,
+use crate::client::{
+    provider::{
+        BoxedProvider, ProviderFactory, RestoreOptions, RestoreTargets,
     },
-    StorageDirs,
+    run_blocking, Error, Result,
 };
 
 use secrecy::{ExposeSecret, SecretString};
@@ -416,52 +412,6 @@ impl AccountManager {
             authenticator,
             contact,
         })
-    }
-
-    /// Encrypt a file using AGE passphrase encryption and
-    /// write to a target directory.
-    ///
-    /// The file name is the Sha256 digest of the encrypted file.
-    pub fn encrypt_file<S: AsRef<Path>, T: AsRef<Path>>(
-        source: S,
-        target: T,
-        passphrase: SecretString,
-    ) -> Result<Vec<u8>> {
-        let mut file = std::fs::File::open(source)?;
-        let encryptor = Encryptor::with_user_passphrase(passphrase);
-
-        let mut encrypted = Vec::new();
-        let mut writer = encryptor.wrap_output(&mut encrypted)?;
-        std::io::copy(&mut file, &mut writer)?;
-        writer.finish()?;
-
-        let mut hasher = Sha256::new();
-        hasher.update(&encrypted);
-        let digest = hasher.finalize();
-        let file_name = hex::encode(digest);
-        let dest = PathBuf::from(target.as_ref()).join(file_name);
-
-        std::fs::write(dest, encrypted)?;
-
-        Ok(digest.to_vec())
-    }
-
-    /// Decrypt a file using AGE passphrase encryption.
-    pub fn decrypt_file<P: AsRef<Path>>(
-        path: P,
-        passphrase: &SecretString,
-    ) -> Result<Vec<u8>> {
-        let file = std::fs::File::open(path)?;
-        let decryptor = match age::Decryptor::new(file)? {
-            age::Decryptor::Passphrase(d) => d,
-            _ => return Err(Error::NotPassphraseEncryption),
-        };
-
-        let mut decrypted = vec![];
-        let mut reader = decryptor.decrypt(passphrase, None)?;
-        reader.read_to_end(&mut decrypted)?;
-
-        Ok(decrypted)
     }
 
     /// Build a manifest for an account.

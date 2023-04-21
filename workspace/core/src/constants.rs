@@ -119,7 +119,7 @@ mod rpc {
 }
 
 /// Constants for directory names.
-mod dirs {
+mod folders {
     /// Directory to store vaults.
     pub const VAULTS_DIR: &str = "vaults";
 
@@ -150,8 +150,8 @@ mod scheme {
 }
 
 pub use archive::*;
-pub use dirs::*;
 pub use extensions::*;
+pub use folders::*;
 pub use headers::*;
 pub use identity::*;
 pub use mime::*;

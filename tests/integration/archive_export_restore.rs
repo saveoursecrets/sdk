@@ -14,11 +14,10 @@ use sos_core::{
     identity::Identity,
     signer::{ecdsa::SingleParty, Signer},
     vault::Vault,
-    Gatekeeper,
+    Gatekeeper, StorageDirs,
 };
-use sos_node::{
-    client::provider::{LocalProvider, RestoreOptions, StorageProvider},
-    StorageDirs,
+use sos_node::client::provider::{
+    LocalProvider, RestoreOptions, StorageProvider,
 };
 
 fn create_archive(
