@@ -13,8 +13,7 @@ use crate::{
     crypto::AeadPack,
     decode, encode,
     events::WalEvent,
-    secret::SecretId,
-    vault::{Vault, VaultCommit},
+    vault::{secret::SecretId, Vault, VaultCommit},
     wal::{WalItem, WalProvider},
     Error, Result,
 };
@@ -174,9 +173,11 @@ mod test {
         commit::CommitHash,
         crypto::secret_key::SecretKey,
         decode,
-        secret::{Secret, SecretId, SecretMeta},
         test_utils::*,
-        vault::{VaultAccess, VaultCommit, VaultEntry},
+        vault::{
+            secret::{Secret, SecretId, SecretMeta},
+            VaultAccess, VaultCommit, VaultEntry,
+        },
         wal::file::WalFile,
     };
     use anyhow::Result;

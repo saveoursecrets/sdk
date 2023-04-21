@@ -4,7 +4,7 @@ use thiserror::Error;
 use urn::Urn;
 use uuid::Uuid;
 
-use crate::{secret::SecretId, vault::VaultId};
+use crate::vault::{secret::SecretId, VaultId};
 
 /// Error thrown by the core library.
 #[derive(Debug, Error)]

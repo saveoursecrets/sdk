@@ -9,9 +9,9 @@ use secrecy::ExposeSecret;
 use sos_core::{
     events::SyncEvent,
     patch::PatchProvider,
-    secret::Secret,
     signer::{ecdsa::SingleParty, Signer},
     storage::StorageDirs,
+    vault::secret::Secret,
     wal::WalProvider,
 };
 use sos_node::client::provider::{LocalProvider, StorageProvider};

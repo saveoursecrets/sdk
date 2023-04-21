@@ -10,8 +10,10 @@ use std::{
 use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 use sos_core::{
-    secret::{Secret, SecretId, SecretMeta, UserField, VaultMeta},
-    vault::{Gatekeeper, Summary, VaultId},
+    vault::{
+        secret::{Secret, SecretId, SecretMeta, UserField, VaultMeta},
+        Gatekeeper, Summary, VaultId,
+    },
     Result,
 };
 

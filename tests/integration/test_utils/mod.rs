@@ -10,8 +10,10 @@ use sos_core::{
     audit::AuditLogFile,
     events::SyncEvent,
     patch::PatchFile,
-    secret::{Secret, SecretId, SecretMeta},
-    vault::Summary,
+    vault::{
+        secret::{Secret, SecretId, SecretMeta},
+        Summary,
+    },
     wal::file::WalFile,
     FileLocks,
 };

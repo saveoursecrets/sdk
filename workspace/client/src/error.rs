@@ -1,4 +1,4 @@
-use sos_core::secret::SecretRef;
+use sos_core::vault::secret::SecretRef;
 use std::path::PathBuf;
 use thiserror::Error;
 

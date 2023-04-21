@@ -24,7 +24,6 @@ use sos_core::{
     identity::{AuthenticatedUser, Identity},
     passwd::{diceware::generate_passphrase_words, ChangePassword},
     search::SearchIndex,
-    secret::{Secret, SecretId, SecretMeta, SecretSigner, UserData},
     signer::{
         ecdsa::SingleParty,
         ed25519::{self, BoxedEd25519Signer},
@@ -32,6 +31,7 @@ use sos_core::{
     },
     storage::StorageDirs,
     vault::{
+        secret::{Secret, SecretId, SecretMeta, SecretSigner, UserData},
         Gatekeeper, Header, Summary, Vault, VaultAccess, VaultFileAccess,
         VaultId,
     },

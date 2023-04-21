@@ -10,9 +10,9 @@ use std::{
 use unicode_segmentation::UnicodeSegmentation;
 use urn::Urn;
 
-use crate::{
+use crate::vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRef},
-    vault::VaultId,
+    VaultId,
 };
 
 /// Create a set of ngrams of the given size.
@@ -590,7 +590,7 @@ impl SearchIndex {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::secret::SecretMeta;
+    use crate::vault::secret::SecretMeta;
     use secrecy::SecretString;
     use uuid::Uuid;
 

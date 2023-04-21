@@ -11,7 +11,11 @@ use binary_stream::{
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
-use crate::{crypto::AeadPack, secret::SecretId, vault::VaultCommit, Error};
+use crate::{
+    crypto::AeadPack,
+    vault::{secret::SecretId, VaultCommit},
+    Error,
+};
 
 use super::EventKind;
 

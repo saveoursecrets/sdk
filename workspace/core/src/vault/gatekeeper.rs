@@ -7,8 +7,10 @@ use crate::{
     decode, encode,
     events::SyncEvent,
     search::SearchIndex,
-    secret::{Secret, SecretId, SecretMeta, VaultMeta},
-    vault::{Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId},
+    vault::{
+        secret::{Secret, SecretId, SecretMeta, VaultMeta},
+        Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId,
+    },
     Error, Result,
 };
 use std::{collections::HashSet, sync::Arc};
@@ -490,7 +492,8 @@ impl From<Gatekeeper> for Vault {
 mod tests {
     use super::*;
     use crate::{
-        constants::DEFAULT_VAULT_NAME, secret::Secret, vault::Vault,
+        constants::DEFAULT_VAULT_NAME,
+        vault::{secret::Secret, Vault},
     };
     use anyhow::Result;
 

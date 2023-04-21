@@ -6,8 +6,7 @@ use web3_address::ethereum::Address;
 
 use crate::{
     commit::CommitProof,
-    secret::SecretId,
-    vault::{Header, Summary, VaultId},
+    vault::{secret::SecretId, Header, Summary, VaultId},
 };
 
 use super::SyncEvent;

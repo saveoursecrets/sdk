@@ -4,8 +4,7 @@ use super::{Error, Result};
 
 use sos_core::{
     search::SearchIndex,
-    secret::SecretRef,
-    vault::{Gatekeeper, Summary, Vault, VaultFileAccess},
+    vault::{secret::SecretRef, Gatekeeper, Summary, Vault, VaultFileAccess},
 };
 
 use std::{path::PathBuf, sync::Arc};

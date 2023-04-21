@@ -19,8 +19,10 @@ use sos_core::{
     identity::AuthenticatedUser,
     passwd::diceware::generate_passphrase,
     search::{Document, SearchIndex},
-    secret::{Secret, SecretId, SecretMeta, SecretRef},
-    vault::{Gatekeeper, Vault, VaultAccess, VaultCommit, VaultEntry},
+    vault::{
+        secret::{Secret, SecretId, SecretMeta, SecretRef},
+        Gatekeeper, Vault, VaultAccess, VaultCommit, VaultEntry,
+    },
 };
 use sos_node::{
     client::{

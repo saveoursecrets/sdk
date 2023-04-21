@@ -26,11 +26,11 @@ use crate::{
         secret_key::{SecretKey, Seed, SEED_SIZE},
         xchacha20poly1305, AeadPack, Nonce,
     },
-    decode, encode,
+    encode,
     events::SyncEvent,
     formats::FileIdentity,
     passwd::diceware::generate_passphrase,
-    secret::{SecretId, VaultMeta},
+    vault::secret::{SecretId, VaultMeta},
     Error, Result,
 };
 
@@ -1144,9 +1144,9 @@ impl VaultAccess for Vault {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::secret::*;
+    use crate::vault::secret::*;
 
-    use crate::test_utils::*;
+    use crate::{decode, test_utils::*};
 
     use anyhow::Result;
     use binary_stream::MemoryStream;
@@ -1216,7 +1216,7 @@ mod tests {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod file_tests {
     use super::*;
-    use crate::test_utils::*;
+    use crate::{decode, test_utils::*};
     use anyhow::Result;
 
     #[test]

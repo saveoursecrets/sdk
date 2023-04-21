@@ -18,8 +18,10 @@ use vcard4::Vcard;
 
 use sos_core::{
     search::SearchIndex,
-    secret::{IdentityKind, Secret, SecretMeta},
-    vault::{Gatekeeper, Vault},
+    vault::{
+        secret::{IdentityKind, Secret, SecretMeta},
+        Gatekeeper, Vault,
+    },
     Timestamp,
 };
 

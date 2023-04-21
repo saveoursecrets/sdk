@@ -20,9 +20,9 @@ use crate::{
     crypto::AeadPack,
     encode,
     events::SyncEvent,
-    secret::SecretId,
     vault::{
-        Contents, Header, Summary, VaultAccess, VaultCommit, VaultEntry,
+        secret::SecretId, Contents, Header, Summary, VaultAccess,
+        VaultCommit, VaultEntry,
     },
     Result,
 };
@@ -294,8 +294,7 @@ mod tests {
         constants::DEFAULT_VAULT_NAME,
         crypto::secret_key::SecretKey,
         events::SyncEvent,
-        secret::*,
-        vault::{Header, Vault, VaultAccess, VaultEntry},
+        vault::{secret::*, Header, Vault, VaultAccess, VaultEntry},
     };
     use anyhow::Result;
 

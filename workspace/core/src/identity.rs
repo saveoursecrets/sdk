@@ -22,13 +22,14 @@ use crate::{
     crypto::secret_key::generate_seed,
     decode,
     search::SearchIndex,
-    secret::{Secret, SecretMeta, SecretSigner},
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
         Signer,
     },
-    vault::Gatekeeper,
-    vault::{Vault, VaultAccess, VaultFlags},
+    vault::{
+        secret::{Secret, SecretMeta, SecretSigner},
+        Gatekeeper, Vault, VaultAccess, VaultFlags,
+    },
     Error, Result,
 };
 
@@ -196,8 +197,10 @@ mod tests {
         constants::LOGIN_SIGNING_KEY_URN,
         encode,
         passwd::diceware::generate_passphrase,
-        secret::{Secret, SecretMeta},
-        vault::{Gatekeeper, Vault, VaultFlags},
+        vault::{
+            secret::{Secret, SecretMeta},
+            Gatekeeper, Vault, VaultFlags,
+        },
         Error,
     };
 

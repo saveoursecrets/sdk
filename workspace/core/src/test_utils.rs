@@ -5,8 +5,10 @@ use crate::{
     encode,
     events::SyncEvent,
     passwd::diceware::generate_passphrase,
-    secret::{Secret, SecretId, SecretMeta},
-    vault::{Vault, VaultAccess, VaultEntry},
+    vault::{
+        secret::{Secret, SecretId, SecretMeta},
+        Vault, VaultAccess, VaultEntry,
+    },
 };
 use sha3::{Digest, Sha3_256};
 use std::{borrow::Cow, io::Write};

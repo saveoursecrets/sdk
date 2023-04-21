@@ -15,8 +15,8 @@ use sos_core::{
     commit::CommitRelationship,
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
-    secret::SecretRef,
     storage::StorageDirs,
+    vault::secret::SecretRef,
 };
 use sos_node::client::{
     net::{

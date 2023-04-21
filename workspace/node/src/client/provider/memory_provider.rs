@@ -9,9 +9,11 @@ use crate::client::{
 use secrecy::SecretString;
 use sos_core::{
     events::{ChangeAction, ChangeNotification, SyncEvent},
-    secret::{Secret, SecretId, SecretMeta},
     signer::ecdsa::BoxedEcdsaSigner,
-    vault::{Summary, Vault},
+    vault::{
+        secret::{Secret, SecretId, SecretMeta},
+        Summary, Vault,
+    },
 };
 use std::{
     collections::HashSet,

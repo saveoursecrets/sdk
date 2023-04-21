@@ -1,8 +1,8 @@
 //! Functions for printing private data.
 
-use sos_core::{
+use sos_core::vault::{
     secret::{Secret, SecretMeta},
-    vault::Summary,
+    Summary,
 };
 
 use crate::Result;

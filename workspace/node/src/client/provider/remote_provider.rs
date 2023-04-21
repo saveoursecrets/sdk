@@ -13,9 +13,11 @@ use sos_core::{
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     patch::{PatchMemory, PatchProvider},
     search::SearchIndex,
-    secret::{Secret, SecretId, SecretMeta},
     storage::StorageDirs,
-    vault::{Summary, Vault},
+    vault::{
+        secret::{Secret, SecretId, SecretMeta},
+        Summary, Vault,
+    },
     wal::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,

@@ -16,9 +16,11 @@ use sos_core::{
     identity::Identity,
     passwd::ChangePassword,
     search::SearchIndex,
-    secret::{Secret, SecretId, SecretMeta},
     storage::StorageDirs,
-    vault::{Gatekeeper, Summary, Vault},
+    vault::{
+        secret::{Secret, SecretId, SecretMeta},
+        Gatekeeper, Summary, Vault,
+    },
     wal::snapshot::{SnapShot, SnapShotManager},
     Timestamp,
 };

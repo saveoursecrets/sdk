@@ -243,8 +243,7 @@ mod test {
         commit::{CommitHash, CommitTree, Comparison},
         encode,
         events::WalEvent,
-        secret::SecretId,
-        vault::{Vault, VaultCommit, VaultEntry},
+        vault::{secret::SecretId, Vault, VaultCommit, VaultEntry},
     };
 
     fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {

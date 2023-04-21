@@ -12,7 +12,10 @@ use time::{Date, Month};
 use url::Url;
 use vcard4::{property::DeliveryAddress, uriparse::URI as Uri, VcardBuilder};
 
-use sos_core::{secret::IdentityKind, vault::Vault, Timestamp};
+use sos_core::{
+    vault::{secret::IdentityKind, Vault},
+    Timestamp,
+};
 
 use super::{
     GenericContactRecord, GenericCsvConvert, GenericCsvEntry,
@@ -614,8 +617,7 @@ mod test {
     use sos_core::{
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
-        secret::Secret,
-        vault::{Gatekeeper, Vault},
+        vault::{secret::Secret, Gatekeeper, Vault},
     };
     use std::sync::Arc;
     use url::Url;
