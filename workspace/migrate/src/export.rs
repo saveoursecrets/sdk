@@ -11,8 +11,8 @@ use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 use sos_core::{
     secret::{Secret, SecretId, SecretMeta, UserField, VaultMeta},
-    vault::{Summary, VaultId},
-    Gatekeeper, Result,
+    vault::{Gatekeeper, Summary, VaultId},
+    Result,
 };
 
 /// Migration encapsulates a collection of vaults
@@ -175,7 +175,9 @@ mod test {
 
     use super::*;
     use sos_core::{
-        passwd::diceware::generate_passphrase, test_utils::*, vault::Vault, Gatekeeper,
+        passwd::diceware::generate_passphrase,
+        test_utils::*,
+        vault::{Gatekeeper, Vault},
     };
 
     fn create_mock_migration<W: Write + Seek>(

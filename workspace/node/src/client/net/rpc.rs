@@ -10,10 +10,10 @@ use sos_core::{
     },
     crypto::AeadPack,
     decode, encode,
+    patch::Patch,
     rpc::{Packet, RequestMessage, ResponseMessage},
     signer::ecdsa::BoxedEcdsaSigner,
     vault::Summary,
-    patch::Patch,
 };
 use std::{
     borrow::Cow,

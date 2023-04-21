@@ -4,8 +4,8 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_core::{
-    commit::CommitRelationship, vault::Summary, wal::WalProvider,
-    patch::PatchProvider,
+    commit::CommitRelationship, patch::PatchProvider, vault::Summary,
+    wal::WalProvider,
 };
 
 use crate::retry;

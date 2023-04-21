@@ -2,5 +2,5 @@
 mod change;
 pub mod generator;
 
-pub use generator::diceware;
 pub use change::ChangePassword;
+pub use generator::diceware;

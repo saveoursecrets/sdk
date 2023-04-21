@@ -1,11 +1,11 @@
 use axum::http::StatusCode;
 
 use sos_core::{
+    audit::AuditEvent,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS},
     events::{ChangeEvent, ChangeNotification, EventKind},
     rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
-    audit::AuditEvent,
 };
 
 use async_trait::async_trait;

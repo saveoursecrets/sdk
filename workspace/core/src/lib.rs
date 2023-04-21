@@ -15,13 +15,11 @@ pub mod constants;
 pub mod crypto;
 mod error;
 pub mod events;
-mod file_access;
 mod file_identity;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod file_locks;
 
-mod gatekeeper;
 pub mod identity;
 pub mod iter;
 pub mod passwd;
@@ -29,7 +27,6 @@ pub mod patch;
 
 pub mod rpc;
 pub mod search;
-pub mod secret;
 pub mod signer;
 mod storage;
 mod timestamp;
@@ -40,13 +37,13 @@ pub mod wal;
 pub mod test_utils;
 
 pub use error::Error;
-pub use file_access::VaultFileAccess;
 pub use file_identity::FileIdentity;
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_locks::FileLocks;
-pub use gatekeeper::Gatekeeper;
-pub use storage::{StorageDirs, FileStorage};
+pub use storage::{FileStorage, StorageDirs};
 pub use timestamp::Timestamp;
+
+pub use vault::secret;
 
 // Re-exports
 pub use age;

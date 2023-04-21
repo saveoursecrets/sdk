@@ -7,11 +7,13 @@ use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_core::{
+    audit::AuditLogFile,
     events::SyncEvent,
+    patch::PatchFile,
     secret::{Secret, SecretId, SecretMeta},
     vault::Summary,
     wal::file::WalFile,
-    audit::AuditLogFile, FileLocks, patch::PatchFile,
+    FileLocks,
 };
 
 use sos_node::{

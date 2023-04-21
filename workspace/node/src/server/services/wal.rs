@@ -1,14 +1,15 @@
 use axum::http::StatusCode;
 use sos_core::{
-    commit::{CommitProof, Comparison, CommitHash},
+    audit::{AuditData, AuditEvent},
+    commit::{CommitHash, CommitProof, Comparison},
     constants::{WAL_LOAD, WAL_PATCH, WAL_SAVE, WAL_STATUS},
     decode,
     events::{
         ChangeEvent, ChangeNotification, EventKind, SyncEvent, WalEvent,
     },
+    patch::Patch,
     rpc::{RequestMessage, ResponseMessage, Service},
     wal::WalProvider,
-    audit::{AuditData, AuditEvent}, patch::Patch,
 };
 use web3_address::ethereum::Address;
 

@@ -19,8 +19,8 @@ use vcard4::Vcard;
 use sos_core::{
     search::SearchIndex,
     secret::{IdentityKind, Secret, SecretMeta},
-    vault::Vault,
-    Gatekeeper, Timestamp,
+    vault::{Gatekeeper, Vault},
+    Timestamp,
 };
 
 use crate::Convert;

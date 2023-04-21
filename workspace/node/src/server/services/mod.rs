@@ -5,11 +5,11 @@ use axum::{
 };
 
 use sos_core::{
+    audit::{AuditEvent, AuditProvider},
     crypto::AeadPack,
     decode, encode,
     events::ChangeNotification,
     rpc::{Packet, RequestMessage, Service},
-    audit::{AuditEvent, AuditProvider},
 };
 use web3_address::ethereum::Address;
 

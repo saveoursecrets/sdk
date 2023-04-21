@@ -8,10 +8,11 @@ use tempfile::tempdir;
 use secrecy::ExposeSecret;
 use sos_core::{
     events::SyncEvent,
+    patch::PatchProvider,
     secret::Secret,
     signer::{ecdsa::SingleParty, Signer},
     wal::WalProvider,
-    patch::PatchProvider, StorageDirs,
+    StorageDirs,
 };
 use sos_node::client::provider::{LocalProvider, StorageProvider};
 

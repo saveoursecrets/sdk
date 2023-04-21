@@ -143,7 +143,7 @@ impl<'a> ChangePassword<'a> {
 #[cfg(test)]
 mod test {
     use super::ChangePassword;
-    use crate::{test_utils::*, Gatekeeper};
+    use crate::{test_utils::*, vault::Gatekeeper};
     use anyhow::Result;
     use secrecy::ExposeSecret;
 

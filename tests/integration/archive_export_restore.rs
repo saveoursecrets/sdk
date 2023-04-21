@@ -13,8 +13,8 @@ use sos_core::{
     events::SyncEvent,
     identity::Identity,
     signer::{ecdsa::SingleParty, Signer},
-    vault::Vault,
-    Gatekeeper, StorageDirs,
+    vault::{Gatekeeper, Vault},
+    StorageDirs,
 };
 use sos_node::client::provider::{
     LocalProvider, RestoreOptions, StorageProvider,

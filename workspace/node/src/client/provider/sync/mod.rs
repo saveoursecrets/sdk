@@ -5,9 +5,9 @@ use http::StatusCode;
 
 use sos_core::{
     commit::{CommitPair, CommitRelationship, Comparison},
+    patch::PatchProvider,
     vault::Summary,
     wal::WalProvider,
-    patch::PatchProvider,
 };
 
 use crate::retry;

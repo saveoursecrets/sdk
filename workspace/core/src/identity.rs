@@ -19,19 +19,19 @@ use crate::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     crypto::secret_key::generate_seed,
     decode,
-    gatekeeper::Gatekeeper,
     search::SearchIndex,
     secret::{Secret, SecretMeta, SecretSigner},
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
         Signer,
     },
+    vault::Gatekeeper,
     vault::{Vault, VaultAccess, VaultFlags},
     Error, Result,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::VaultFileAccess;
+use crate::vault::VaultFileAccess;
 
 /// User information once authentication to a login vault succeeds.
 pub struct AuthenticatedUser {
@@ -195,8 +195,8 @@ mod tests {
         encode,
         passwd::diceware::generate_passphrase,
         secret::{Secret, SecretMeta},
-        vault::{Vault, VaultFlags},
-        Error, Gatekeeper,
+        vault::{Gatekeeper, Vault, VaultFlags},
+        Error,
     };
 
     #[test]

@@ -15,7 +15,7 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit::{wal_commit_tree_file, CommitTree, CommitHash},
+    commit::{wal_commit_tree_file, CommitHash, CommitTree},
     constants::{WAL_EXT, WAL_IDENTITY},
     encode,
     events::WalEvent,

@@ -1,4 +1,3 @@
-//! Vault secret storage file format.
 use rs_merkle::{algorithms::Sha256, Hasher};
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +16,7 @@ use urn::Urn;
 use uuid::Uuid;
 
 use crate::{
+    commit::CommitHash,
     constants::{
         DEFAULT_VAULT_NAME, VAULT_EXT, VAULT_IDENTITY, VAULT_VERSION,
     },
@@ -30,7 +30,7 @@ use crate::{
     events::SyncEvent,
     passwd::diceware::generate_passphrase,
     secret::{SecretId, VaultMeta},
-    commit::CommitHash, Error, FileIdentity, Result,
+    Error, FileIdentity, Result,
 };
 
 bitflags! {

@@ -171,13 +171,13 @@ impl<'a> WalReducer<'a> {
 mod test {
     use super::*;
     use crate::{
+        commit::CommitHash,
         crypto::secret_key::SecretKey,
         decode,
         secret::{Secret, SecretId, SecretMeta},
         test_utils::*,
         vault::{VaultAccess, VaultCommit, VaultEntry},
         wal::file::WalFile,
-        commit::CommitHash,
     };
     use anyhow::Result;
     use secrecy::ExposeSecret;

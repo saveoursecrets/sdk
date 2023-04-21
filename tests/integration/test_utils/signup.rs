@@ -4,12 +4,13 @@ use std::path::PathBuf;
 use url::Url;
 
 use sos_core::{
+    patch::PatchFile,
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
         Signer,
     },
     wal::file::WalFile,
-    patch::PatchFile, StorageDirs,
+    StorageDirs,
 };
 
 use web3_address::ethereum::Address;

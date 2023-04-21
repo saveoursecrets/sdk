@@ -21,8 +21,8 @@ use sos_core::{
     constants::{DEVICE_KEY_URN, FILE_PASSWORD_URN, VAULT_EXT, WAL_EXT},
     decode, encode,
     events::WalEvent,
-    passwd::{diceware::generate_passphrase_words, ChangePassword},
     identity::{AuthenticatedUser, Identity},
+    passwd::{diceware::generate_passphrase_words, ChangePassword},
     search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta, SecretSigner, UserData},
     signer::{
@@ -30,9 +30,12 @@ use sos_core::{
         ed25519::{self, BoxedEd25519Signer},
         Signer,
     },
-    vault::{Header, Summary, Vault, VaultAccess, VaultId},
+    vault::{
+        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultFileAccess,
+        VaultId,
+    },
     wal::{file::WalFile, WalProvider},
-    Gatekeeper, StorageDirs, VaultFileAccess,
+    StorageDirs,
 };
 
 use crate::client::{

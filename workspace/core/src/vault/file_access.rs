@@ -16,6 +16,7 @@ use binary_stream::{
 use uuid::Uuid;
 
 use crate::{
+    commit::CommitHash,
     crypto::AeadPack,
     encode,
     events::SyncEvent,
@@ -23,7 +24,7 @@ use crate::{
     vault::{
         Contents, Header, Summary, VaultAccess, VaultCommit, VaultEntry,
     },
-    commit::CommitHash, Result,
+    Result,
 };
 
 /// Implements access to an encrypted vault backed by a file on disc.

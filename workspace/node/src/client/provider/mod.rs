@@ -9,16 +9,17 @@ use std::{
 
 use sos_core::{
     archive::{ArchiveItem, Reader},
-    commit::{CommitProof, CommitRelationship, CommitTree, CommitHash},
+    commit::{CommitHash, CommitProof, CommitRelationship, CommitTree},
     constants::{PATCH_EXT, VAULT_EXT, WAL_EXT},
     decode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     identity::Identity,
+    passwd::ChangePassword,
     search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta},
-    vault::{Summary, Vault},
+    vault::{Gatekeeper, Summary, Vault},
     wal::snapshot::{SnapShot, SnapShotManager},
-    passwd::ChangePassword, Gatekeeper, StorageDirs, Timestamp,
+    StorageDirs, Timestamp,
 };
 
 use crate::{

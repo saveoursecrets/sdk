@@ -7,10 +7,11 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit::{CommitRelationship, CommitTree, CommitHash},
+    commit::{CommitHash, CommitRelationship, CommitTree},
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    patch::{PatchMemory, PatchProvider},
     search::SearchIndex,
     secret::{Secret, SecretId, SecretMeta},
     vault::{Summary, Vault},
@@ -18,11 +19,11 @@ use sos_core::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,
     },
-    patch::{PatchMemory, PatchProvider}, StorageDirs, Timestamp,
+    StorageDirs, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use sos_core::{wal::file::WalFile, patch::PatchFile};
+use sos_core::{patch::PatchFile, wal::file::WalFile};
 
 use std::{
     borrow::Cow,

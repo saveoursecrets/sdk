@@ -21,8 +21,7 @@ use std::{
 use sos_core::{
     search::SearchIndex,
     secret::{Secret, SecretMeta},
-    vault::Vault,
-    Gatekeeper,
+    vault::{Gatekeeper, Vault},
 };
 
 use parking_lot::RwLock;

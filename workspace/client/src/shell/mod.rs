@@ -16,12 +16,11 @@ use web3_address::ethereum::Address;
 
 use human_bytes::human_bytes;
 use sos_core::{
-    passwd::diceware::generate_passphrase,
     identity::AuthenticatedUser,
+    passwd::diceware::generate_passphrase,
     search::{Document, SearchIndex},
     secret::{Secret, SecretId, SecretMeta, SecretRef},
-    vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
-    Gatekeeper,
+    vault::{Gatekeeper, Vault, VaultAccess, VaultCommit, VaultEntry},
 };
 use sos_node::{
     client::{

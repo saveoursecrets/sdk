@@ -6,12 +6,12 @@ use sos_core::{
     encode,
     events::{SyncEvent, WalEvent},
     iter::WalFileRecord,
-    vault::{Header, Summary, Vault, VaultAccess},
+    vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
     wal::{
         file::WalFile, reducer::WalReducer, snapshot::SnapShotManager,
         WalProvider,
     },
-    FileLocks, VaultFileAccess,
+    FileLocks,
 };
 use std::{
     borrow::Cow,

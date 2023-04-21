@@ -5,22 +5,23 @@ use async_trait::async_trait;
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit::{CommitPair, CommitRelationship, CommitTree, CommitHash},
+    commit::{CommitHash, CommitPair, CommitRelationship, CommitTree},
     constants::VAULT_EXT,
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    patch::{PatchMemory, PatchProvider},
     search::SearchIndex,
     vault::{Header, Summary, Vault, VaultId},
     wal::{
         memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
         snapshot::SnapShotManager, WalItem, WalProvider,
     },
-    patch::{PatchMemory, PatchProvider}, StorageDirs, Timestamp,
+    StorageDirs, Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use sos_core::{wal::file::WalFile, patch::PatchFile};
+use sos_core::{patch::PatchFile, wal::file::WalFile};
 
 use std::{
     borrow::Cow,

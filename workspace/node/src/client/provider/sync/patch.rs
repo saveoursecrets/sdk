@@ -4,10 +4,11 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_core::{
+    commit::CommitHash,
     events::{SyncEvent, WalEvent},
+    patch::PatchProvider,
     vault::Summary,
     wal::WalProvider,
-    commit::CommitHash, patch::PatchProvider,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};

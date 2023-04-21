@@ -10,27 +10,6 @@ pub mod aesgcm256;
 pub mod secret_key;
 pub mod xchacha20poly1305;
 
-#[deprecated(note = "Use method on SingleParty")]
-/// Generate a random ECDSA private signing key.
-pub fn generate_random_ecdsa_signing_key() -> ([u8; 32], [u8; 33]) {
-    use k256::ecdsa::SigningKey;
-    let signing_key = SigningKey::random(&mut rand::thread_rng());
-    let public_key = signing_key.verifying_key();
-    let signing_bytes: [u8; 32] = signing_key
-        .to_bytes()
-        .as_slice()
-        .try_into()
-        .expect("wrong byte length for private signing key");
-
-    let public_bytes: [u8; 33] = public_key
-        .to_encoded_point(true)
-        .as_bytes()
-        .try_into()
-        .expect("wrong byte length for public signing key");
-
-    (signing_bytes, public_bytes)
-}
-
 /// Constants for supported symmetric ciphers.
 pub mod algorithms {
     use crate::Error;

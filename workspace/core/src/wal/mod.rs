@@ -1,7 +1,10 @@
 //! Write ahead log types and traits.
 use crate::{
-    commit::{CommitTree, CommitHash}, events::WalEvent, iter::WalFileRecord,
-    timestamp::Timestamp, Result,
+    commit::{CommitHash, CommitTree},
+    events::WalEvent,
+    iter::WalFileRecord,
+    timestamp::Timestamp,
+    Result,
 };
 use std::path::{Path, PathBuf};
 
@@ -237,7 +240,7 @@ mod test {
 
     use super::{file::*, memory::*, *};
     use crate::{
-        commit::{CommitTree, Comparison, CommitHash},
+        commit::{CommitHash, CommitTree, Comparison},
         encode,
         events::WalEvent,
         secret::SecretId,
