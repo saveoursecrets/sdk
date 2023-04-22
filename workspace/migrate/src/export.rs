@@ -10,9 +10,11 @@ use std::{
 use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 use sos_core::{
-    secret::{Secret, SecretId, SecretMeta, UserField, VaultMeta},
-    vault::{Summary, VaultId},
-    Gatekeeper, Result,
+    vault::{
+        secret::{Secret, SecretId, SecretMeta, UserField, VaultMeta},
+        Gatekeeper, Summary, VaultId,
+    },
+    Result,
 };
 
 /// Migration encapsulates a collection of vaults
@@ -42,7 +44,7 @@ impl<W: Write + Seek> PublicExport<W> {
         // FIXME:
         //let options = options.last_modified_time(now.try_into()?);
         self.builder.start_file(path, options)?;
-        self.builder.write(buffer)?;
+        self.builder.write_all(buffer)?;
         Ok(())
     }
 
@@ -175,7 +177,9 @@ mod test {
 
     use super::*;
     use sos_core::{
-        generate_passphrase, test_utils::*, vault::Vault, Gatekeeper,
+        passwd::diceware::generate_passphrase,
+        test_utils::*,
+        vault::{Gatekeeper, Vault},
     };
 
     fn create_mock_migration<W: Write + Seek>(

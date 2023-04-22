@@ -1,8 +1,5 @@
 //! Encrypt and decrypt using 256 bit AES GSM.
-use aes_gcm::{
-    aead::{Aead, NewAead},
-    Aes256Gcm, Nonce as AesNonce,
-};
+use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce as AesNonce};
 
 use super::{secret_key::SecretKey, AeadPack, Nonce};
 use crate::{Error, Result};
@@ -16,7 +13,7 @@ pub fn encrypt(
     // 96 bit (12 byte) unique nonce per message
     let nonce = nonce.unwrap_or_else(Nonce::new_random_12);
     let cipher_nonce = AesNonce::from_slice(nonce.as_ref());
-    let cipher = Aes256Gcm::new(aes_gcm::Key::from_slice(key.as_slice()));
+    let cipher = Aes256Gcm::new_from_slice(key.as_slice())?;
     let ciphertext = cipher.encrypt(cipher_nonce, plaintext)?;
     Ok(AeadPack { ciphertext, nonce })
 }
@@ -25,7 +22,7 @@ pub fn encrypt(
 pub fn decrypt(key: &SecretKey, aead_pack: &AeadPack) -> Result<Vec<u8>> {
     if let Nonce::Nonce12(ref nonce) = aead_pack.nonce {
         let cipher_nonce = AesNonce::from_slice(nonce);
-        let cipher = Aes256Gcm::new(aes_gcm::Key::from_slice(key.as_slice()));
+        let cipher = Aes256Gcm::new_from_slice(key.as_slice())?;
         Ok(cipher.decrypt(cipher_nonce, aead_pack.ciphertext.as_ref())?)
     } else {
         Err(Error::InvalidNonce)

@@ -13,11 +13,11 @@ use sos_core::{
     events::SyncEvent,
     identity::Identity,
     signer::{ecdsa::SingleParty, Signer},
-    vault::Vault,
-    Gatekeeper,
+    storage::StorageDirs,
+    vault::{Gatekeeper, Vault},
 };
 use sos_node::client::provider::{
-    LocalProvider, RestoreOptions, StorageDirs, StorageProvider,
+    LocalProvider, RestoreOptions, StorageProvider,
 };
 
 fn create_archive(
@@ -77,7 +77,7 @@ async fn integration_archive_local_provider() -> Result<()> {
 
     keeper.lock();
 
-    let vault = keeper.take();
+    let vault: Vault = keeper.into();
 
     let options = RestoreOptions {
         selected: vec![vault.summary().clone()],

@@ -8,7 +8,7 @@ default_to_workspace = false
 RUST_BACKTRACE = 0
 #RUST_LOG = 0
 BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
-BINARIES = "sos sos-audit sos-check sos-client sos-server"
+BINARIES = "sos"
 
 [tasks.format]
 workspace = true

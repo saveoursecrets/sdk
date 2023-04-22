@@ -45,7 +45,7 @@ impl SecretKey {
 
     /// Parse a saved salt string.
     pub fn parse_salt<S: AsRef<str>>(salt: S) -> Result<SaltString> {
-        Ok(SaltString::new(salt.as_ref())?)
+        Ok(SaltString::from_b64(salt.as_ref())?)
     }
 
     /// Derive a secret key from a passphrase, salt and optional seed entropy.

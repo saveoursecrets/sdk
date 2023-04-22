@@ -7,7 +7,6 @@ use secrecy::SecretString;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod account_manager;
-
 #[cfg(not(target_arch = "wasm32"))]
 mod changes_listener;
 pub mod net;

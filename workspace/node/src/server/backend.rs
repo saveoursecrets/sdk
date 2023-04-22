@@ -1,17 +1,13 @@
 use super::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
-    commit_tree::{wal_commit_tree_file, CommitProof},
+    commit::{wal_commit_tree_file, CommitProof},
     constants::WAL_DELETED_EXT,
-    encode,
+    decode, encode,
     events::{SyncEvent, WalEvent},
-    iter::WalFileRecord,
-    vault::{Header, Summary, Vault, VaultAccess},
-    wal::{
-        file::WalFile, reducer::WalReducer, snapshot::SnapShotManager,
-        WalProvider,
-    },
-    FileLocks, VaultFileAccess,
+    formats::WalFileRecord,
+    vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
+    wal::{file::WalFile, reducer::WalReducer, WalProvider},
 };
 use std::{
     borrow::Cow,
@@ -22,13 +18,67 @@ use tempfile::NamedTempFile;
 use uuid::Uuid;
 use web3_address::ethereum::Address;
 
-type WalStorage = Box<
-    dyn WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync,
->;
+use crate::FileLocks;
+
+/// Backend for a server.
+pub enum Backend {
+    /// File storage backend.
+    FileSystem(FileSystemBackend),
+}
+
+impl Backend {
+    /// Get a reference to the backend handler.
+    pub fn handler(&self) -> &(impl BackendHandler + Send + Sync) {
+        match self {
+            Self::FileSystem(handler) => handler,
+        }
+    }
+
+    /// Get a mutable reference to the backend handler.
+    pub fn handler_mut(
+        &mut self,
+    ) -> &mut (impl BackendHandler + Send + Sync) {
+        match self {
+            Self::FileSystem(handler) => handler,
+        }
+    }
+
+    /// Get a read reference to the WAL implementation for the backend.
+    pub async fn wal_read(
+        &self,
+        owner: &Address,
+        vault_id: &Uuid,
+    ) -> Result<
+        &(impl WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync),
+    > {
+        match self {
+            Self::FileSystem(handler) => {
+                handler.wal_read(owner, vault_id).await
+            }
+        }
+    }
+
+    /// Get a write reference to the WAL implementation for the backend.
+    pub async fn wal_write(
+        &mut self,
+        owner: &Address,
+        vault_id: &Uuid,
+    ) -> Result<
+        &mut (impl WalProvider<Item = WalFileRecord, Partial = Vec<u8>>
+                  + Send
+                  + Sync),
+    > {
+        match self {
+            Self::FileSystem(handler) => {
+                handler.wal_write(owner, vault_id).await
+            }
+        }
+    }
+}
 
 /// Trait for types that provide an interface to vault storage.
 #[async_trait]
-pub trait Backend {
+pub trait BackendHandler {
     /// Sets the lock files.
     fn set_file_locks(&mut self, locks: FileLocks) -> Result<()>;
 
@@ -97,27 +147,13 @@ pub trait Backend {
         vault_id: &Uuid,
     ) -> Result<()>;
 
-    /// Determine if a vault exists and get it's change sequence
+    /// Determine if a vault exists and get it's commit proof
     /// if it already exists.
     async fn wal_exists(
         &self,
         owner: &Address,
         vault_id: &Uuid,
     ) -> Result<(bool, Option<CommitProof>)>;
-
-    /// Get a read handle to an existing vault.
-    async fn wal_read(
-        &self,
-        owner: &Address,
-        vault_id: &Uuid,
-    ) -> Result<&WalStorage>;
-
-    /// Get a write handle to an existing vault.
-    async fn wal_write(
-        &mut self,
-        owner: &Address,
-        vault_id: &Uuid,
-    ) -> Result<&mut WalStorage>;
 
     /// Load a WAL buffer for an account.
     async fn get_wal(
@@ -141,7 +177,7 @@ pub struct FileSystemBackend {
     directory: PathBuf,
     locks: FileLocks,
     startup_files: Vec<PathBuf>,
-    accounts: HashMap<Address, HashMap<Uuid, WalStorage>>,
+    accounts: HashMap<Address, HashMap<Uuid, WalFile>>,
 }
 
 impl FileSystemBackend {
@@ -154,6 +190,42 @@ impl FileSystemBackend {
             startup_files: Vec::new(),
             accounts: Default::default(),
         }
+    }
+
+    /// Get a read reference to a WAL file.
+    pub async fn wal_read(
+        &self,
+        owner: &Address,
+        vault_id: &Uuid,
+    ) -> Result<&WalFile> {
+        let account = self
+            .accounts
+            .get(owner)
+            .ok_or_else(|| Error::AccountNotExist(*owner))?;
+
+        let storage = account
+            .get(vault_id)
+            .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
+
+        Ok(storage)
+    }
+
+    /// Get a write reference to a WAL file.
+    pub async fn wal_write(
+        &mut self,
+        owner: &Address,
+        vault_id: &Uuid,
+    ) -> Result<&mut WalFile> {
+        let account = self
+            .accounts
+            .get_mut(owner)
+            .ok_or_else(|| Error::AccountNotExist(*owner))?;
+
+        let storage = account
+            .get_mut(vault_id)
+            .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
+
+        Ok(storage)
     }
 
     /// Read accounts and vault file paths into memory.
@@ -271,13 +343,13 @@ impl FileSystemBackend {
         wal_file: WalFile,
     ) -> Result<()> {
         let vaults = self.accounts.entry(owner).or_insert(Default::default());
-        vaults.insert(vault_id, Box::new(wal_file));
+        vaults.insert(vault_id, wal_file);
         Ok(())
     }
 }
 
 #[async_trait]
-impl Backend for FileSystemBackend {
+impl BackendHandler for FileSystemBackend {
     fn set_file_locks(&mut self, mut locks: FileLocks) -> Result<()> {
         for file in &self.startup_files {
             locks.add(file)?;
@@ -391,7 +463,7 @@ impl Backend for FileSystemBackend {
         name: String,
     ) -> Result<()> {
         let vault_path = self.vault_file_path(owner, vault_id);
-        let mut access = VaultFileAccess::new(&vault_path)?;
+        let mut access = VaultFileAccess::new(vault_path)?;
         let _ = access.set_vault_name(name)?;
         Ok(())
     }
@@ -419,7 +491,7 @@ impl Backend for FileSystemBackend {
             .get(owner)
             .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
-        let vault = Vault::read_buffer(vault)?;
+        let vault: Vault = decode(vault)?;
         let (vault, events) = WalReducer::split(vault)?;
 
         // Prepare a temp file with the new WAL records
@@ -446,7 +518,7 @@ impl Backend for FileSystemBackend {
 
         // Replace the WAL with the new buffer
         let commit_proof = self
-            .replace_wal(owner, vault.id(), expected_root.into(), &wal_buffer)
+            .replace_wal(owner, vault.id(), expected_root, &wal_buffer)
             .await?;
 
         // Write out the vault file (header only)
@@ -491,40 +563,6 @@ impl Backend for FileSystemBackend {
         Ok(buffer)
     }
 
-    async fn wal_read(
-        &self,
-        owner: &Address,
-        vault_id: &Uuid,
-    ) -> Result<&WalStorage> {
-        let account = self
-            .accounts
-            .get(owner)
-            .ok_or_else(|| Error::AccountNotExist(*owner))?;
-
-        let storage = account
-            .get(vault_id)
-            .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
-
-        Ok(storage)
-    }
-
-    async fn wal_write(
-        &mut self,
-        owner: &Address,
-        vault_id: &Uuid,
-    ) -> Result<&mut WalStorage> {
-        let account = self
-            .accounts
-            .get_mut(owner)
-            .ok_or_else(|| Error::AccountNotExist(*owner))?;
-
-        let storage = account
-            .get_mut(vault_id)
-            .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
-
-        Ok(storage)
-    }
-
     async fn replace_wal(
         &mut self,
         owner: &Address,
@@ -538,7 +576,7 @@ impl Backend for FileSystemBackend {
         tracing::debug!(len = ?buffer.len(),
             "replace_wal got buffer length");
 
-        tracing::debug!(expected_root = ?hex::encode(&root_hash),
+        tracing::debug!(expected_root = ?hex::encode(root_hash),
             "replace_wal expects root hash");
 
         // NOTE: using tokio::io here would hang sometimes
@@ -565,11 +603,6 @@ impl Backend for FileSystemBackend {
 
         let original_wal = self.wal_file_path(owner, vault_id);
 
-        // Create a snapshot for backup purposes
-        let account_dir = self.directory.join(owner.to_string());
-        let snapshots = SnapShotManager::new(account_dir)?;
-        snapshots.create(vault_id, &original_wal, root_hash)?;
-
         // Remove the existing WAL
         std::fs::remove_file(&original_wal)?;
 
@@ -577,7 +610,7 @@ impl Backend for FileSystemBackend {
         std::fs::rename(&temp_path, &original_wal)?;
 
         let wal = self.wal_write(owner, vault_id).await?;
-        *wal = Box::new(WalFile::new(&original_wal)?);
+        *wal = WalFile::new(&original_wal)?;
         wal.load_tree()?;
 
         let new_tree_root =

@@ -7,22 +7,23 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit_tree::CommitTree,
+    commit::{CommitHash, CommitRelationship, CommitTree},
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    patch::{PatchMemory, PatchProvider},
     search::SearchIndex,
-    secret::{Secret, SecretId, SecretMeta},
-    vault::{Summary, Vault},
-    wal::{
-        memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
-        snapshot::SnapShotManager, WalItem, WalProvider,
+    storage::StorageDirs,
+    vault::{
+        secret::{Secret, SecretId, SecretMeta},
+        Summary, Vault,
     },
-    CommitHash, PatchMemory, PatchProvider, Timestamp,
+    wal::{memory::WalMemory, reducer::WalReducer, WalItem, WalProvider},
+    Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use sos_core::{wal::file::WalFile, PatchFile};
+use sos_core::{patch::PatchFile, wal::file::WalFile};
 
 use std::{
     borrow::Cow,
@@ -31,11 +32,9 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
-    client::provider::{
-        fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
-    },
+    client::provider::{fs_adapter, sync, ProviderState, StorageProvider},
     patch, provider_impl, retry,
-    sync::{SyncInfo, SyncStatus},
+    sync::SyncInfo,
 };
 
 /// Local data cache for a node.
@@ -53,11 +52,6 @@ pub struct RemoteProvider<W, P> {
 
     /// Data for the cache.
     cache: HashMap<Uuid, (W, P)>,
-
-    /// Snapshots manager for WAL files.
-    ///
-    /// Only available when using disc backing storage.
-    snapshots: Option<SnapShotManager>,
 
     /// Client to use for remote communication.
     client: RpcClient,
@@ -78,13 +72,11 @@ impl RemoteProvider<WalFile, PatchFile> {
 
         dirs.ensure()?;
 
-        let snapshots = Some(SnapShotManager::new(dirs.user_dir())?);
         Ok(Self {
             state: ProviderState::new(true),
             cache: Default::default(),
             client,
             dirs,
-            snapshots,
         })
     }
 }
@@ -99,7 +91,6 @@ impl RemoteProvider<WalMemory, PatchMemory<'static>> {
             cache: Default::default(),
             dirs: Default::default(),
             client,
-            snapshots: None,
         }
     }
 }
@@ -377,18 +368,6 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         if force {
-            // Create a snapshot of the WAL before deleting it
-            if let Some(snapshots) = &self.snapshots {
-                let root_hash =
-                    wal_file.tree().root().ok_or(Error::NoRootCommit)?;
-                let (snapshot, _) = snapshots.create(
-                    summary.id(),
-                    wal_file.path(),
-                    root_hash,
-                )?;
-                tracing::debug!(
-                    path = ?snapshot.0, "force_pull snapshot");
-            }
             // Noop on wasm32
             fs_adapter::remove_file(wal_file.path())?;
         }
@@ -414,7 +393,7 @@ where
     async fn status(
         &mut self,
         summary: &Summary,
-    ) -> Result<(SyncStatus, Option<usize>)> {
+    ) -> Result<(CommitRelationship, Option<usize>)> {
         let (wal_file, patch_file) = self
             .cache
             .get(summary.id())

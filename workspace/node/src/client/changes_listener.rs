@@ -70,7 +70,7 @@ impl ChangesListener {
     }
 
     async fn stream(&self) -> Result<(WsStream, ClientSession)> {
-        Ok(connect(self.remote.clone(), self.signer.clone()).await?)
+        connect(self.remote.clone(), self.signer.clone()).await
     }
 
     async fn connect<F>(

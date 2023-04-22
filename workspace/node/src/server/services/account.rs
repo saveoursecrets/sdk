@@ -1,16 +1,17 @@
 use axum::http::StatusCode;
 
 use sos_core::{
+    audit::AuditEvent,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS},
     events::{ChangeEvent, ChangeNotification, EventKind},
     rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
-    AuditEvent,
 };
 
 use async_trait::async_trait;
 
 use super::{append_audit_logs, send_notification, PrivateState};
+use crate::server::BackendHandler;
 
 /// Account management service.
 ///
@@ -34,7 +35,12 @@ impl Service for AccountService {
 
         match request.method() {
             ACCOUNT_CREATE => {
-                if writer.backend.account_exists(caller.address()).await {
+                if writer
+                    .backend
+                    .handler()
+                    .account_exists(caller.address())
+                    .await
+                {
                     return Ok((StatusCode::CONFLICT, request.id()).into());
                 }
 
@@ -42,6 +48,7 @@ impl Service for AccountService {
 
                 let (sync_event, proof) = writer
                     .backend
+                    .handler_mut()
                     .create_account(
                         caller.address(),
                         summary.id(),
@@ -77,12 +84,18 @@ impl Service for AccountService {
                 Ok(reply)
             }
             ACCOUNT_LIST_VAULTS => {
-                if !writer.backend.account_exists(caller.address()).await {
+                if !writer
+                    .backend
+                    .handler()
+                    .account_exists(caller.address())
+                    .await
+                {
                     return Ok((StatusCode::NOT_FOUND, request.id()).into());
                 }
 
                 let summaries = writer
                     .backend
+                    .handler()
                     .list(caller.address())
                     .await
                     .map_err(Box::from)?;

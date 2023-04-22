@@ -12,7 +12,7 @@ use std::{
 use secrecy::ExposeSecret;
 use sos_core::{
     events::{ChangeEvent, ChangeNotification},
-    generate_passphrase,
+    passwd::diceware::generate_passphrase,
 };
 use sos_node::client::{
     net::changes::{changes, connect},

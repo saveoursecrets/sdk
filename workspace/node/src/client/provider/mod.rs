@@ -4,39 +4,38 @@ use async_trait::async_trait;
 use parking_lot::RwLock;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
-    borrow::Cow,
-    collections::HashSet,
-    io::Cursor,
-    path::{Path, PathBuf},
-    sync::Arc,
+    borrow::Cow, collections::HashSet, io::Cursor, path::PathBuf, sync::Arc,
 };
 
 use sos_core::{
     archive::{ArchiveItem, Reader},
-    commit_tree::{CommitProof, CommitTree},
-    constants::{LOCAL_DIR, PATCH_EXT, VAULTS_DIR, VAULT_EXT, WAL_EXT},
+    commit::{CommitHash, CommitProof, CommitRelationship, CommitTree},
+    constants::{PATCH_EXT, VAULT_EXT, WAL_EXT},
     decode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     identity::Identity,
+    passwd::ChangePassword,
     search::SearchIndex,
-    secret::{Secret, SecretId, SecretMeta},
-    vault::{Summary, Vault},
-    wal::snapshot::{SnapShot, SnapShotManager},
-    ChangePassword, CommitHash, Gatekeeper, Timestamp,
+    storage::StorageDirs,
+    vault::{
+        secret::{Secret, SecretId, SecretMeta},
+        Gatekeeper, Summary, Vault,
+    },
+    Timestamp,
 };
 
 use crate::{
     client::{Error, Result},
-    sync::{SyncInfo, SyncStatus},
+    sync::SyncInfo,
 };
 
 pub(crate) fn assert_proofs_eq(
     client_proof: &CommitProof,
     server_proof: &CommitProof,
 ) -> Result<()> {
-    if client_proof.0 != server_proof.0 {
-        let client = CommitHash(client_proof.0);
-        let server = CommitHash(server_proof.0);
+    if client_proof.root != server_proof.root {
+        let client = CommitHash(client_proof.root);
+        let server = CommitHash(server_proof.root);
         Err(Error::RootHashMismatch(client, server))
     } else {
         Ok(())
@@ -69,54 +68,6 @@ pub use state::ProviderState;
 
 /// Generic boxed provider.
 pub type BoxedProvider = Box<dyn StorageProvider + Send + Sync + 'static>;
-
-/// Encapsulates the paths for vault storage.
-#[derive(Default, Debug)]
-pub struct StorageDirs {
-    /// Top-level documents folder.
-    documents_dir: PathBuf,
-    /// User segregated storage.
-    user_dir: PathBuf,
-    /// Sub-directory for the vaults.
-    vaults_dir: PathBuf,
-}
-
-impl StorageDirs {
-    /// Create new storage dirs.
-    pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: &str) -> Self {
-        let documents_dir = documents_dir.as_ref().to_path_buf();
-        let local_dir = documents_dir.join(LOCAL_DIR);
-        let user_dir = local_dir.join(user_id);
-        let vaults_dir = user_dir.join(VAULTS_DIR);
-        Self {
-            documents_dir,
-            user_dir,
-            vaults_dir,
-        }
-    }
-
-    /// Ensure all the directories exist.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn ensure(&self) -> Result<()> {
-        std::fs::create_dir_all(&self.vaults_dir)?;
-        Ok(())
-    }
-
-    /// Get the documents storage directory.
-    pub fn documents_dir(&self) -> &PathBuf {
-        &self.documents_dir
-    }
-
-    /// Get the user storage directory.
-    pub fn user_dir(&self) -> &PathBuf {
-        &self.user_dir
-    }
-
-    /// Get the vaults storage directory.
-    pub fn vaults_dir(&self) -> &PathBuf {
-        &self.vaults_dir
-    }
-}
 
 /// Options for a restore operation.
 pub struct RestoreOptions {
@@ -165,14 +116,6 @@ pub trait StorageProvider: Sync + Send {
     /// Compute the storage directory for the user.
     fn dirs(&self) -> &StorageDirs;
 
-    /// Get the snapshot manager for this cache.
-    fn snapshots(&self) -> Option<&SnapShotManager>;
-
-    /// Take a snapshot of the WAL for the given vault.
-    ///
-    /// Snapshots must be enabled.
-    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
-
     /// Restore vaults from an archive.
     ///
     /// Buffer is the compressed archive contents.
@@ -196,7 +139,7 @@ pub trait StorageProvider: Sync + Send {
             let create_vault = WalEvent::CreateVault(Cow::Borrowed(buffer));
             wal_events.push(create_vault);
 
-            self.update_vault(vault.summary(), &vault, wal_events)
+            self.update_vault(vault.summary(), vault, wal_events)
                 .await?;
 
             // Refresh the in-memory and disc-based mirror
@@ -232,11 +175,7 @@ pub trait StorageProvider: Sync + Send {
         let vaults = vaults
             .into_iter()
             .filter(|item| {
-                options
-                    .selected
-                    .iter()
-                    .find(|s| s.id() == item.0.id())
-                    .is_some()
+                options.selected.iter().any(|s| s.id() == item.0.id())
             })
             .collect::<Vec<_>>();
 
@@ -287,19 +226,19 @@ pub trait StorageProvider: Sync + Send {
     /// Get the path to a WAL file.
     fn wal_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), WAL_EXT);
-        self.dirs().vaults_dir().join(&file_name)
+        self.dirs().vaults_dir().join(file_name)
     }
 
     /// Get the path to a vault file.
     fn vault_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), VAULT_EXT);
-        self.dirs().vaults_dir().join(&file_name)
+        self.dirs().vaults_dir().join(file_name)
     }
 
     /// Get the path to a patch file.
     fn patch_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), PATCH_EXT);
-        self.dirs().vaults_dir().join(&file_name)
+        self.dirs().vaults_dir().join(file_name)
     }
 
     /// Get the vault summaries for this storage.
@@ -466,13 +405,13 @@ pub trait StorageProvider: Sync + Send {
     /// Get a comparison between a local and remote.
     ///
     /// If a patch file has unsaved events then the number
-    /// of pending events is returned along with the `SyncStatus`.
+    /// of pending events is returned along with the `CommitRelationship`.
     ///
     /// For a local provider this will always return an equal status.
     async fn status(
         &mut self,
         summary: &Summary,
-    ) -> Result<(SyncStatus, Option<usize>)>;
+    ) -> Result<(CommitRelationship, Option<usize>)>;
 
     /// Verify a WAL log.
     fn verify(&self, summary: &Summary) -> Result<()>;
@@ -596,10 +535,6 @@ macro_rules! provider_impl {
             &self.dirs
         }
 
-        fn snapshots(&self) -> Option<&SnapShotManager> {
-            self.snapshots.as_ref()
-        }
-
         fn open_vault(
             &mut self,
             summary: &Summary,
@@ -699,7 +634,7 @@ macro_rules! provider_impl {
 
         #[cfg(not(target_arch = "wasm32"))]
         fn verify(&self, summary: &Summary) -> Result<()> {
-            use sos_core::commit_tree::wal_commit_tree_file;
+            use sos_core::commit::wal_commit_tree_file;
             let wal_path = self.wal_path(summary);
             wal_commit_tree_file(&wal_path, true, |_| {})?;
             Ok(())
@@ -726,21 +661,6 @@ macro_rules! provider_impl {
                 records.push((commit, time, event));
             }
             Ok(records)
-        }
-
-        fn take_snapshot(
-            &self,
-            summary: &Summary,
-        ) -> Result<(SnapShot, bool)> {
-            let snapshots =
-                self.snapshots().ok_or(Error::SnapshotsNotEnabled)?;
-            let (wal_file, _) = self
-                .cache
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            let root_hash =
-                wal_file.tree().root().ok_or(Error::NoRootCommit)?;
-            Ok(snapshots.create(summary.id(), wal_file.path(), root_hash)?)
         }
 
         /// Refresh the in-memory vault of the current selection
@@ -796,7 +716,7 @@ macro_rules! provider_impl {
             summary: &Summary,
             buffer: &[u8],
         ) -> Result<()> {
-            use crate::client::provider::fs_adapter;
+            use $crate::client::provider::fs_adapter;
             let vault_path = self.vault_path(&summary);
             fs_adapter::write(vault_path, buffer)?;
             Ok(())

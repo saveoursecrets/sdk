@@ -8,14 +8,13 @@ use tempfile::tempdir;
 use secrecy::ExposeSecret;
 use sos_core::{
     events::SyncEvent,
-    secret::Secret,
+    patch::PatchProvider,
     signer::{ecdsa::SingleParty, Signer},
+    storage::StorageDirs,
+    vault::secret::Secret,
     wal::WalProvider,
-    PatchProvider,
 };
-use sos_node::client::provider::{
-    LocalProvider, StorageDirs, StorageProvider,
-};
+use sos_node::client::provider::{LocalProvider, StorageProvider};
 
 macro_rules! commit_count {
     ($storage:expr, $summary:expr, $amount:expr) => {{

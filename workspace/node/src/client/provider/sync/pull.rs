@@ -4,8 +4,8 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_core::{
-    commit_tree::CommitProof, constants::WAL_IDENTITY, vault::Summary,
-    wal::WalProvider, FileIdentity, PatchProvider,
+    commit::CommitProof, constants::WAL_IDENTITY, formats::FileIdentity,
+    patch::PatchProvider, vault::Summary, wal::WalProvider,
 };
 
 use crate::{
@@ -85,7 +85,7 @@ pub async fn pull_wal<W>(
 where
     W: WalProvider + Send + Sync + 'static,
 {
-    let client_proof = if let Some(_) = wal_file.tree().root() {
+    let client_proof = if wal_file.tree().root().is_some() {
         let proof = wal_file.tree().head()?;
         tracing::debug!(root = %proof.root_hex(), "pull_wal wants diff");
         Some(proof)
@@ -164,8 +164,8 @@ where
                 let server_proof = server_proof.ok_or(Error::ServerProof)?;
                 Err(Error::Conflict {
                     summary: summary.clone(),
-                    local: client_proof.reduce(),
-                    remote: server_proof.reduce(),
+                    local: client_proof.into(),
+                    remote: server_proof.into(),
                 })
             } else {
                 Err(Error::ResponseCode(status.into()))
@@ -183,30 +183,6 @@ pub async fn force_pull<W>(
 where
     W: WalProvider + Send + Sync + 'static,
 {
-    /*
-    // Noop on wasm32
-    self.backup_vault_file(summary).await?;
-    */
-
-    //let (wal, _) = self
-    //.cache
-    //.get_mut(summary.id())
-    //.ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-    /*
-    // Create a snapshot of the WAL before deleting it
-    if let Some(snapshots) = &self.snapshots {
-        let root_hash = wal.tree().root().ok_or(Error::NoRootCommit)?;
-        let (snapshot, _) =
-            snapshots.create(summary.id(), wal.path(), root_hash)?;
-        tracing::debug!(
-            path = ?snapshot.0, "force_pull snapshot");
-    }
-    */
-
-    // Noop on wasm32
-    //fs_adapter::remove_file(wal_file.path()).await?;
-
     // Need to recreate the WAL file correctly before pulling
     // as pull_wal() expects the file to exist
     *wal_file = W::new(wal_file.path())?;
@@ -215,16 +191,7 @@ where
     // Pull the remote WAL
     pull_wal(client, summary, wal_file).await?;
 
-    /*
-    let (wal, _) = self
-        .cache
-        .get(summary.id())
-        .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-    */
-
     let proof = wal_file.tree().head()?;
-
-    //self.refresh_vault(summary, None)?;
 
     Ok(proof)
 }

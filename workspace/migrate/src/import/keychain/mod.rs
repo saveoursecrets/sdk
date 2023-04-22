@@ -20,9 +20,10 @@ use std::{
 
 use sos_core::{
     search::SearchIndex,
-    secret::{Secret, SecretMeta},
-    vault::Vault,
-    Gatekeeper,
+    vault::{
+        secret::{Secret, SecretMeta},
+        Gatekeeper, Vault,
+    },
 };
 
 use parking_lot::RwLock;
@@ -149,7 +150,7 @@ impl Convert for KeychainImport {
                     let mut label = attr_service.as_str().to_owned();
                     let search = search_index.read();
                     if search
-                        .find_by_label(keeper.vault().id(), &label)
+                        .find_by_label(keeper.vault().id(), &label, None)
                         .is_some()
                     {
                         duplicates
@@ -195,7 +196,7 @@ impl Convert for KeychainImport {
 
         keeper.lock();
 
-        Ok(keeper.take())
+        Ok(keeper.into())
     }
 }
 
@@ -341,7 +342,7 @@ mod test {
     #[test]
     fn keychain_list() -> Result<()> {
         let results = user_keychains()?;
-        assert!(results.len() > 0);
+        assert!(!results.is_empty());
         Ok(())
     }
 

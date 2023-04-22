@@ -1,12 +1,14 @@
 //! Test utility functions.
 use crate::{
+    commit::CommitHash,
     crypto::secret_key::SecretKey,
     encode,
     events::SyncEvent,
-    generate_passphrase,
-    secret::{Secret, SecretId, SecretMeta},
-    vault::{Vault, VaultAccess, VaultEntry},
-    CommitHash,
+    passwd::diceware::generate_passphrase,
+    vault::{
+        secret::{Secret, SecretId, SecretMeta},
+        Vault, VaultAccess, VaultEntry,
+    },
 };
 use sha3::{Digest, Sha3_256};
 use std::{borrow::Cow, io::Write};
@@ -117,12 +119,12 @@ pub fn mock_vault_note_update<'a>(
 #[cfg(not(target_arch = "wasm32"))]
 mod file {
     use crate::{
+        commit::CommitHash,
         crypto::secret_key::SecretKey,
         encode,
         events::WalEvent,
         vault::Vault,
         wal::{file::WalFile, WalProvider},
-        CommitHash,
     };
     use tempfile::NamedTempFile;
 

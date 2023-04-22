@@ -112,7 +112,9 @@ mod test {
     use parking_lot::RwLock;
     use secrecy::ExposeSecret;
     use sos_core::{
-        generate_passphrase, search::SearchIndex, vault::Vault, Gatekeeper,
+        passwd::diceware::generate_passphrase,
+        search::SearchIndex,
+        vault::{Gatekeeper, Vault},
     };
     use std::sync::Arc;
     use url::Url;
@@ -155,12 +157,18 @@ mod test {
         keeper.create_search_index()?;
 
         let search = search_index.read();
-        let first =
-            search.find_by_label(keeper.id(), "https://mock.example.com/");
+        let first = search.find_by_label(
+            keeper.id(),
+            "https://mock.example.com/",
+            None,
+        );
         assert!(first.is_some());
 
-        let second =
-            search.find_by_label(keeper.id(), "https://mock2.example.com/");
+        let second = search.find_by_label(
+            keeper.id(),
+            "https://mock2.example.com/",
+            None,
+        );
         assert!(second.is_some());
 
         Ok(())

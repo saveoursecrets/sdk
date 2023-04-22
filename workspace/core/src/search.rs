@@ -10,9 +10,9 @@ use std::{
 use unicode_segmentation::UnicodeSegmentation;
 use urn::Urn;
 
-use crate::{
+use crate::vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRef},
-    vault::VaultId,
+    VaultId,
 };
 
 /// Create a set of ngrams of the given size.
@@ -46,7 +46,7 @@ pub struct DocumentKey(String, VaultId, SecretId);
 // Index tokenizer.
 fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
     let ngrams = ngram_slice(s, 2);
-    let words = s.split(' ').into_iter().collect::<HashSet<_>>();
+    let words = s.split(' ').collect::<HashSet<_>>();
 
     let mut tokens: Vec<Cow<str>> = Vec::new();
     for token in words.union(&ngrams) {
@@ -58,7 +58,6 @@ fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
 // Query tokenizer.
 fn query_tokenizer(s: &str) -> Vec<Cow<'_, str>> {
     s.split(' ')
-        .into_iter()
         .map(|s| s.to_lowercase())
         .map(Cow::Owned)
         .collect::<Vec<_>>()
@@ -177,10 +176,8 @@ impl DocumentCount {
                 }
             }
 
-            if favorite {
-                if self.favorites > 0 {
-                    self.favorites -= 1;
-                }
+            if favorite && self.favorites > 0 {
+                self.favorites -= 1;
             }
         }
     }
@@ -250,15 +247,12 @@ pub struct ExtraFields {
 impl From<&Secret> for ExtraFields {
     fn from(value: &Secret) -> Self {
         let mut extra: ExtraFields = Default::default();
-        match value {
-            Secret::Contact { vcard, .. } => {
-                extra.contact_type = vcard
-                    .kind
-                    .as_ref()
-                    .map(|p| p.value.clone())
-                    .or(Some(vcard4::property::Kind::Individual));
-            }
-            _ => {}
+        if let Secret::Contact { vcard, .. } = value {
+            extra.contact_type = vcard
+                .kind
+                .as_ref()
+                .map(|p| p.value.clone())
+                .or(Some(vcard4::property::Kind::Individual));
         }
         extra
     }
@@ -370,9 +364,17 @@ impl SearchIndex {
         &'a self,
         vault_id: &VaultId,
         label: &str,
+        id: Option<&SecretId>,
     ) -> Option<&'a Document> {
         self.documents
             .values()
+            .filter(|d| {
+                if let Some(id) = id {
+                    id != d.id()
+                } else {
+                    true
+                }
+            })
             .find(|d| d.vault_id() == vault_id && d.meta().label() == label)
     }
 
@@ -387,11 +389,7 @@ impl SearchIndex {
             .values()
             .filter(|d| {
                 if let Some(id) = id {
-                    if id == d.id() {
-                        false
-                    } else {
-                        true
-                    }
+                    id != d.id()
                 } else {
                     true
                 }
@@ -448,7 +446,7 @@ impl SearchIndex {
     ) -> Option<&'a Document> {
         match target {
             SecretRef::Id(id) => self.find_by_id(vault_id, id),
-            SecretRef::Name(name) => self.find_by_label(vault_id, name),
+            SecretRef::Name(name) => self.find_by_label(vault_id, name, None),
         }
     }
 
@@ -582,15 +580,8 @@ impl SearchIndex {
         results
             .into_iter()
             .filter_map(|r| {
-                if let Some(doc) = self.find_by_id(&r.key.0, &r.key.1) {
-                    if predicate(doc) {
-                        Some(doc)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+                self.find_by_id(&r.key.0, &r.key.1)
+                    .filter(|&doc| predicate(doc))
             })
             .collect::<Vec<_>>()
     }
@@ -599,7 +590,7 @@ impl SearchIndex {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::secret::SecretMeta;
+    use crate::vault::secret::SecretMeta;
     use secrecy::SecretString;
     use uuid::Uuid;
 

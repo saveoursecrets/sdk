@@ -15,13 +15,13 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit_tree::{hash, wal_commit_tree_file, CommitTree},
+    commit::{wal_commit_tree_file, CommitHash, CommitTree},
     constants::{WAL_EXT, WAL_IDENTITY},
     encode,
     events::WalEvent,
-    iter::{wal_iter, FileItem, WalFileRecord},
+    formats::{wal_iter, FileItem, WalFileRecord},
     timestamp::Timestamp,
-    CommitHash, Error, Result,
+    Error, Result,
 };
 use std::{
     fs::{File, OpenOptions},
@@ -69,7 +69,7 @@ impl WalFile {
     ) -> Result<(CommitHash, WalRecord)> {
         let time: Timestamp = Default::default();
         let bytes = encode(&event)?;
-        let commit = CommitHash(hash(&bytes));
+        let commit = CommitHash(CommitTree::hash(&bytes));
 
         let last_commit = if let Some(last_commit) = last_commit {
             last_commit
@@ -130,7 +130,7 @@ impl WalProvider for WalFile {
     }
 
     fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
-        std::fs::write(self.path(), &buffer)?;
+        std::fs::write(self.path(), buffer)?;
         self.load_tree()?;
         Ok(())
     }
@@ -163,7 +163,7 @@ impl WalProvider for WalFile {
 
         if start < end {
             file.seek(SeekFrom::Start(start as u64))?;
-            let mut buffer = vec![0; end - start as usize];
+            let mut buffer = vec![0; end - start];
             file.read_exact(buffer.as_mut_slice())?;
             partial.append(&mut buffer);
             Ok(partial)
@@ -177,7 +177,7 @@ impl WalProvider for WalFile {
         let offset = record.offset();
         let row_len = offset.end - offset.start;
 
-        file.seek(SeekFrom::Start(offset.start as u64))?;
+        file.seek(SeekFrom::Start(offset.start))?;
 
         let mut buf = vec![0u8; row_len as usize];
         file.read_exact(&mut buf)?;
@@ -206,7 +206,7 @@ impl WalProvider for WalFile {
                 self.encode_event(event, last_commit_hash)?;
             commits.push(commit);
             let mut buf = encode(&record)?;
-            last_commit_hash = Some(CommitHash(hash(&buf)));
+            last_commit_hash = Some(CommitHash(CommitTree::hash(&buf)));
             buffer.append(&mut buf);
         }
 
@@ -268,12 +268,12 @@ impl WalProvider for WalFile {
         // be used exclusively for appending
         let mut file = File::open(&self.file_path)?;
 
-        file.seek(SeekFrom::Start(value.start as u64))?;
+        file.seek(SeekFrom::Start(value.start))?;
         let mut buffer = vec![0; (value.end - value.start) as usize];
         file.read_exact(buffer.as_mut_slice())?;
 
         let mut stream = SliceStream::new(&buffer);
-        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+        let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         let mut event: WalEvent = Default::default();
         event.decode(&mut reader)?;
         Ok(event)

@@ -87,7 +87,7 @@ impl Timestamp {
     }
 
     /// Convert an offset date time to a RFC3339 formatted string.
-    fn rfc3339(datetime: &OffsetDateTime) -> Result<String> {
+    pub fn rfc3339(datetime: &OffsetDateTime) -> Result<String> {
         Ok(datetime.format(&Rfc3339)?)
     }
 

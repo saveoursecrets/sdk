@@ -5,22 +5,21 @@ use async_trait::async_trait;
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit_tree::{CommitPair, CommitTree},
+    commit::{CommitHash, CommitPair, CommitRelationship, CommitTree},
     constants::VAULT_EXT,
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    patch::{PatchMemory, PatchProvider},
     search::SearchIndex,
+    storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
-    wal::{
-        memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
-        snapshot::SnapShotManager, WalItem, WalProvider,
-    },
-    CommitHash, PatchMemory, PatchProvider, Timestamp,
+    wal::{memory::WalMemory, reducer::WalReducer, WalItem, WalProvider},
+    Timestamp,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use sos_core::{wal::file::WalFile, PatchFile};
+use sos_core::{patch::PatchFile, wal::file::WalFile};
 
 use std::{
     borrow::Cow,
@@ -28,11 +27,9 @@ use std::{
 };
 
 use crate::{
-    client::provider::{
-        fs_adapter, sync, ProviderState, StorageDirs, StorageProvider,
-    },
+    client::provider::{fs_adapter, sync, ProviderState, StorageProvider},
     provider_impl,
-    sync::{SyncInfo, SyncKind, SyncStatus},
+    sync::{SyncInfo, SyncKind},
 };
 
 /// Local storage for a node.
@@ -50,11 +47,6 @@ pub struct LocalProvider<W, P> {
 
     /// Cache for WAL and patch providers.
     cache: HashMap<VaultId, (W, P)>,
-
-    /// Snapshot manager for WAL files.
-    ///
-    /// Only available when using disc backing storage.
-    snapshots: Option<SnapShotManager>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -71,13 +63,10 @@ impl LocalProvider<WalFile, PatchFile> {
 
         dirs.ensure()?;
 
-        let snapshots = Some(SnapShotManager::new(dirs.user_dir())?);
-
         Ok(Self {
             state: ProviderState::new(true),
             cache: Default::default(),
             dirs,
-            snapshots,
         })
     }
 }
@@ -90,7 +79,6 @@ impl LocalProvider<WalMemory, PatchMemory<'static>> {
             state: ProviderState::new(false),
             dirs: Default::default(),
             cache: Default::default(),
-            snapshots: None,
         }
     }
 }
@@ -193,6 +181,9 @@ where
             if let Some(extension) = path.extension() {
                 if extension == VAULT_EXT {
                     let summary = Header::read_summary_file(path)?;
+                    if summary.flags().is_system() {
+                        continue;
+                    }
                     summaries.push(summary);
                 }
             }
@@ -324,7 +315,7 @@ where
     async fn status(
         &mut self,
         summary: &Summary,
-    ) -> Result<(SyncStatus, Option<usize>)> {
+    ) -> Result<(CommitRelationship, Option<usize>)> {
         let head = self
             .commit_tree(summary)
             .ok_or(Error::NoRootCommit)?
@@ -333,6 +324,6 @@ where
             local: head.clone(),
             remote: head,
         };
-        Ok((SyncStatus::Equal(pair), None))
+        Ok((CommitRelationship::Equal(pair), None))
     }
 }

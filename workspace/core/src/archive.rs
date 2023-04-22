@@ -251,11 +251,7 @@ impl<R: Read + Seek> Reader<R> {
                                 second.to_string_lossy().parse()?;
 
                             // Only restore files for the selected vaults
-                            if selected
-                                .iter()
-                                .find(|s| s.id() == &vault_id)
-                                .is_some()
-                            {
+                            if selected.iter().any(|s| s.id() == &vault_id) {
                                 // The given target path should already
                                 // include any files/ prefix so we need
                                 // to skip it

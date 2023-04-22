@@ -12,20 +12,18 @@ use url::Url;
 
 use secrecy::ExposeSecret;
 use sos_core::{
+    commit::CommitRelationship,
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
-    secret::SecretRef,
+    storage::StorageDirs,
+    vault::secret::SecretRef,
 };
-use sos_node::{
-    cache_dir,
-    client::{
-        net::{
-            changes::{changes, connect},
-            RequestClient,
-        },
-        provider::StorageProvider,
+use sos_node::client::{
+    net::{
+        changes::{changes, connect},
+        RequestClient,
     },
-    sync::SyncStatus,
+    provider::StorageProvider,
 };
 
 #[tokio::test]
@@ -72,7 +70,7 @@ async fn integration_simple_session() -> Result<()> {
     // Give the websocket client some time to connect
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    let _ = cache_dir().unwrap();
+    let _ = StorageDirs::cache_dir().unwrap();
 
     //assert_eq!(address, node_cache.address()?);
 
@@ -82,9 +80,6 @@ async fn integration_simple_session() -> Result<()> {
 
     // Trigger server code path for the / URL
     home(&server_url).await?;
-
-    // Trigger server code path for the /gui assets
-    gui(&server_url).await?;
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
@@ -141,7 +136,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Check the vault status
     let (status, _) = node_cache.status(&new_vault_summary).await?;
-    let equals = if let SyncStatus::Equal(_) = status {
+    let equals = if let CommitRelationship::Equal(_) = status {
         true
     } else {
         false
@@ -166,16 +161,6 @@ async fn integration_simple_session() -> Result<()> {
     node_cache
         .set_vault_name(&new_vault_summary, DEFAULT_VAULT_NAME)
         .await?;
-
-    // Take a snapshot - need to do these assertions before pull/push
-    let (_snapshot, created) =
-        node_cache.take_snapshot(&new_vault_summary)?;
-    assert!(created);
-    let snapshots = node_cache
-        .snapshots()
-        .unwrap()
-        .list(new_vault_summary.id())?;
-    assert!(!snapshots.is_empty());
 
     // Try to pull whilst up to date
     let _ = node_cache.pull(&new_vault_summary, false).await?;
@@ -250,13 +235,6 @@ async fn integration_simple_session() -> Result<()> {
 
 async fn home(server: &Url) -> Result<()> {
     let url = server.clone();
-    let response = RequestClient::get(url).await?;
-    assert!(response.status().is_success());
-    Ok(())
-}
-
-async fn gui(server: &Url) -> Result<()> {
-    let url = server.join("gui")?;
     let response = RequestClient::get(url).await?;
     assert!(response.status().is_success());
     Ok(())

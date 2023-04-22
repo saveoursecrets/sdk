@@ -1,18 +1,18 @@
 use axum::http::StatusCode;
 
 use sos_core::{
+    audit::{AuditData, AuditEvent},
     constants::{VAULT_CREATE, VAULT_DELETE, VAULT_SAVE},
     events::{ChangeEvent, ChangeNotification, EventKind},
     rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
-    AuditData, AuditEvent,
 };
 
 use async_trait::async_trait;
 use uuid::Uuid;
 
 use super::{append_audit_logs, send_notification, PrivateState};
-use crate::server::Error;
+use crate::server::{BackendHandler, Error};
 
 /// Vault management service.
 ///
@@ -41,6 +41,7 @@ impl Service for VaultService {
                 let reader = state.read().await;
                 let (exists, proof) = reader
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), summary.id())
                     .await
                     .map_err(Box::from)?;
@@ -54,6 +55,7 @@ impl Service for VaultService {
                     let mut writer = state.write().await;
                     let (sync_event, proof) = writer
                         .backend
+                        .handler_mut()
                         .create_wal(
                             caller.address(),
                             summary.id(),
@@ -95,6 +97,7 @@ impl Service for VaultService {
                 let mut writer = state.write().await;
                 let (exists, proof) = writer
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -108,6 +111,7 @@ impl Service for VaultService {
 
                 writer
                     .backend
+                    .handler_mut()
                     .delete_wal(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -149,6 +153,7 @@ impl Service for VaultService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), summary.id())
                     .await
                     .map_err(Box::from)?;
@@ -162,6 +167,7 @@ impl Service for VaultService {
                 let mut writer = state.write().await;
                 let (sync_event, proof) = writer
                     .backend
+                    .handler_mut()
                     .set_vault(caller.address(), request.body())
                     .await
                     .map_err(Box::from)?;

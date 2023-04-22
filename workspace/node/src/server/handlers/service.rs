@@ -28,7 +28,7 @@ impl ServiceHandler {
         body: Bytes,
     ) -> Result<(StatusCode, Bytes), StatusCode> {
         let service = SessionService {};
-        Ok(public_service(service, state, body).await?)
+        public_service(service, state, body).await
     }
 
     /// Handle requests for the account service.
@@ -39,10 +39,7 @@ impl ServiceHandler {
         body: Bytes,
     ) -> Result<(StatusCode, Bytes), StatusCode> {
         let service = AccountService {};
-        Ok(
-            private_service(service, state, bearer, session_id.id(), body)
-                .await?,
-        )
+        private_service(service, state, bearer, session_id.id(), body).await
     }
 
     /// Handle requests for the vault service.
@@ -53,10 +50,7 @@ impl ServiceHandler {
         body: Bytes,
     ) -> Result<(StatusCode, Bytes), StatusCode> {
         let service = VaultService {};
-        Ok(
-            private_service(service, state, bearer, session_id.id(), body)
-                .await?,
-        )
+        private_service(service, state, bearer, session_id.id(), body).await
     }
 
     /// Handle requests for the WAL service.
@@ -67,9 +61,6 @@ impl ServiceHandler {
         body: Bytes,
     ) -> Result<(StatusCode, Bytes), StatusCode> {
         let service = WalService {};
-        Ok(
-            private_service(service, state, bearer, session_id.id(), body)
-                .await?,
-        )
+        private_service(service, state, bearer, session_id.id(), body).await
     }
 }

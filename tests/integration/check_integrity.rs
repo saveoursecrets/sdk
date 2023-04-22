@@ -4,7 +4,7 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use secrecy::ExposeSecret;
-use sos_check::{keys, status, verify_vault, verify_wal};
+use sos::commands::check::{keys, status, verify_vault, verify_wal};
 use sos_core::{
     constants::{LOCAL_DIR, VAULTS_DIR},
     vault::Vault,

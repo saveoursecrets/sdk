@@ -4,10 +4,11 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_core::{
+    commit::CommitHash,
     events::{SyncEvent, WalEvent},
+    patch::PatchProvider,
     vault::Summary,
     wal::WalProvider,
-    CommitHash, PatchProvider,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -74,7 +75,7 @@ where
 
             // Pass the expected root hash so changes are reverted
             // if the root hashes do not match
-            wal_file.apply(changes, Some(CommitHash(server_proof.0)))?;
+            wal_file.apply(changes, Some(CommitHash(server_proof.root)))?;
 
             patch_file.truncate()?;
 
@@ -89,11 +90,11 @@ where
             // leaf node corresponding to our root hash which
             // indicates that we are behind the remote so we
             // can try to pull again and try to patch afterwards
-            if let Some(_) = match_proof {
+            if match_proof.is_some() {
                 Err(Error::ConflictBehind {
                     summary: summary.clone(),
-                    local: client_proof.reduce(),
-                    remote: server_proof.reduce(),
+                    local: client_proof.into(),
+                    remote: server_proof.into(),
                     events: patch.0.clone(),
                 })
 
@@ -148,8 +149,8 @@ where
             } else {
                 Err(Error::Conflict {
                     summary: summary.clone(),
-                    local: client_proof.reduce(),
-                    remote: server_proof.reduce(),
+                    local: client_proof.into(),
+                    remote: server_proof.into(),
                 })
             }
         }

@@ -5,11 +5,11 @@ use axum::{
 };
 
 use sos_core::{
+    audit::{AuditEvent, AuditProvider},
     crypto::AeadPack,
     decode, encode,
     events::ChangeNotification,
     rpc::{Packet, RequestMessage, Service},
-    AuditEvent, AuditProvider,
 };
 use web3_address::ethereum::Address;
 
@@ -66,7 +66,7 @@ fn send_notification<'a>(
             Ok(buffer) => {
                 if let Some(conn) = writer.sockets.get(notification.address())
                 {
-                    if let Err(_) = conn.tx.send(buffer) {
+                    if conn.tx.send(buffer).is_err() {
                         tracing::debug!("websocket events channel dropped");
                     }
                 }
@@ -137,7 +137,7 @@ pub(crate) async fn private_service(
         .valid()
         .then_some(())
         .ok_or(StatusCode::UNAUTHORIZED)?;
-    let address = session.identity().clone();
+    let address = *session.identity();
 
     let aead: AeadPack =
         decode(&body).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -154,7 +154,7 @@ pub(crate) async fn private_service(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Parse the bearer token
-    let token = authenticate::bearer(bearer, &sign_bytes)
+    let token = authenticate::bearer(bearer, sign_bytes)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     // Attempt to impersonate the session identity

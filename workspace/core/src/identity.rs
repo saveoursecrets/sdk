@@ -1,3 +1,5 @@
+//! Login identity vault.
+//!
 //! Identity provides access to a login vault containing
 //! a private signing key and master encryption passphrase
 //! using known identifiers for the secrets.
@@ -19,24 +21,27 @@ use crate::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     crypto::secret_key::generate_seed,
     decode,
-    gatekeeper::Gatekeeper,
     search::SearchIndex,
-    secret::{Secret, SecretMeta, SecretSigner},
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
         Signer,
     },
-    vault::{Vault, VaultAccess, VaultFlags},
+    vault::{
+        secret::{Secret, SecretMeta, SecretSigner},
+        Gatekeeper, Vault, VaultAccess, VaultFlags,
+    },
     Error, Result,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::VaultFileAccess;
+use crate::vault::VaultFileAccess;
 
 /// User information once authentication to a login vault succeeds.
 pub struct AuthenticatedUser {
     /// Private signing key for the identity.
     pub signer: BoxedEcdsaSigner,
+    /// AGE identity keypair.
+    pub identity: age::x25519::Identity,
 }
 
 /// Represents an identity.
@@ -90,7 +95,7 @@ impl Identity {
         age_meta.set_urn(Some(urn));
         keeper.create(age_meta, age_secret)?;
 
-        Ok((address, keeper.take()))
+        Ok((address, keeper.into()))
     }
 
     /// Attempt to login using a file path.
@@ -130,33 +135,52 @@ impl Identity {
         };
 
         keeper.unlock(master_passphrase.expose_secret())?;
-        // Must create the index so we can find by name
+        // Must create the index so we can find by URN
         keeper.create_search_index()?;
 
         let index = keeper.index();
         let reader = index.read();
 
         let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
-
-        let signing_doc = reader
+        let document = reader
             .find_by_urn(keeper.id(), &urn)
-            .ok_or(Error::NoIdentitySigner)?;
+            .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
+        let data = keeper
+            .read(document.id())?
+            .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
 
-        let signing_data = keeper
-            .read(signing_doc.id())?
-            .ok_or(Error::NoIdentitySecret)?;
+        let (_, secret, _) = data;
 
-        let (_, signer_secret, _) = signing_data;
-
-        let signer = if let Secret::Signer { private_key, .. } = signer_secret
-        {
+        let signer = if let Secret::Signer { private_key, .. } = secret {
             Some(private_key.try_into_ecdsa_signer()?)
         } else {
             None
         };
-        let signer = signer.ok_or(Error::IdentitySignerKind)?;
+        let signer = signer
+            .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
 
-        Ok((AuthenticatedUser { signer }, keeper))
+        let urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
+        let document = reader
+            .find_by_urn(keeper.id(), &urn)
+            .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
+        let data = keeper
+            .read(document.id())?
+            .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
+
+        let (_, secret, _) = data;
+
+        let identity = if let Secret::Age { key, .. } = secret {
+            let identity: age::x25519::Identity =
+                key.expose_secret().parse().map_err(|s: &'static str| {
+                    Error::AgeIdentityParse(s.to_string())
+                })?;
+            Some(identity)
+        } else {
+            None
+        };
+        let identity = identity
+            .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
+        Ok((AuthenticatedUser { signer, identity }, keeper))
     }
 }
 
@@ -172,10 +196,12 @@ mod tests {
     use crate::{
         constants::LOGIN_SIGNING_KEY_URN,
         encode,
-        passgen::diceware::generate_passphrase,
-        secret::{Secret, SecretMeta},
-        vault::{Vault, VaultFlags},
-        Error, Gatekeeper,
+        passwd::diceware::generate_passphrase,
+        vault::{
+            secret::{Secret, SecretMeta},
+            Gatekeeper, Vault, VaultFlags,
+        },
+        Error,
     };
 
     #[test]
@@ -221,7 +247,7 @@ mod tests {
 
         let result =
             Identity::login_buffer(buffer, master_passphrase, None, None);
-        if let Err(Error::NoIdentitySigner) = result {
+        if let Err(Error::NoSecretUrn(_, _)) = result {
             Ok(())
         } else {
             panic!("expecting no identity signer error");
@@ -251,12 +277,12 @@ mod tests {
         signer_meta.set_urn(Some(urn));
         keeper.create(signer_meta, signer_secret)?;
 
-        let vault = keeper.take();
+        let vault: Vault = keeper.into();
         let buffer = encode(&vault)?;
 
         let result =
             Identity::login_buffer(buffer, master_passphrase, None, None);
-        if let Err(Error::IdentitySignerKind) = result {
+        if let Err(Error::WrongSecretKind(_, _)) = result {
             Ok(())
         } else {
             panic!("expecting identity signer kind error");

@@ -1,4 +1,4 @@
-//! Constants shared between the client and server.
+//! Constants for file formats, folder names etc.
 
 /// Bundle identifier for MacOS and iOS.
 ///
@@ -72,6 +72,9 @@ mod vault {
     /// This password is used to encrypt external files that are not
     /// embedded in a vault.
     pub const FILE_PASSWORD_URN: &str = "urn:sos:identity:file";
+
+    /// Device key used to identify a device.
+    pub const DEVICE_KEY_URN: &str = "urn:sos:device:key";
 }
 
 /// Constants for MIME types.
@@ -116,7 +119,7 @@ mod rpc {
 }
 
 /// Constants for directory names.
-mod dirs {
+mod folders {
     /// Directory to store vaults.
     pub const VAULTS_DIR: &str = "vaults";
 
@@ -128,6 +131,12 @@ mod dirs {
 
     /// Directory to store files.
     pub const FILES_DIR: &str = "files";
+
+    /// Directory to store trusted devices public keys.
+    pub const DEVICES_DIR: &str = "devices";
+
+    /// Directory to store temporary files.
+    pub const TEMP_DIR: &str = "temp";
 }
 
 mod archive {
@@ -135,11 +144,17 @@ mod archive {
     pub const ARCHIVE_MANIFEST: &str = "sos-manifest.json";
 }
 
+mod scheme {
+    /// Scheme for P2P URIs.
+    pub const P2P_URI_SCHEME: &str = "sos+p2p";
+}
+
 pub use archive::*;
-pub use dirs::*;
 pub use extensions::*;
+pub use folders::*;
 pub use headers::*;
 pub use identity::*;
 pub use mime::*;
 pub use rpc::*;
+pub use scheme::*;
 pub use vault::*;

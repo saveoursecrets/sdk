@@ -7,17 +7,21 @@ use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_core::{
+    audit::AuditLogFile,
     events::SyncEvent,
-    secret::{Secret, SecretId, SecretMeta},
-    vault::Summary,
+    patch::PatchFile,
+    vault::{
+        secret::{Secret, SecretId, SecretMeta},
+        Summary,
+    },
     wal::file::WalFile,
-    AuditLogFile, FileLocks, PatchFile,
 };
 
 use sos_node::{
     client::provider::{RemoteProvider, StorageProvider},
-    server::{Server, ServerConfig, ServerInfo, State},
+    server::{BackendHandler, Server, ServerConfig, ServerInfo, State},
     session::SessionManager,
+    FileLocks,
 };
 
 const ADDR: &str = "127.0.0.1:3505";
@@ -61,7 +65,7 @@ impl MockServer {
         let mut locks = FileLocks::new();
         let _ = locks.add(config.audit_file())?;
         // Move into the backend so it can manage lock files too
-        backend.set_file_locks(locks)?;
+        backend.handler_mut().set_file_locks(locks)?;
 
         // Set up the audit log
         let audit_log = AuditLogFile::new(config.audit_file())?;

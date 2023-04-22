@@ -1,5 +1,3 @@
-gui = true
-
 [audit]
 file = "audit.dat"
 

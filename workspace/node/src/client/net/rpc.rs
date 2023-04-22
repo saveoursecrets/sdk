@@ -2,7 +2,7 @@
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use sos_core::{
-    commit_tree::CommitProof,
+    commit::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
         VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_PATCH,
@@ -10,10 +10,10 @@ use sos_core::{
     },
     crypto::AeadPack,
     decode, encode,
+    patch::Patch,
     rpc::{Packet, RequestMessage, ResponseMessage},
     signer::ecdsa::BoxedEcdsaSigner,
     vault::Summary,
-    Patch,
 };
 use std::{
     borrow::Cow,
@@ -162,7 +162,7 @@ impl RpcClient {
             response.status(),
             &response.bytes().await?,
         )?;
-        let _result = result?;
+        result?;
 
         // Store the session for later requests
         session.finish(client_key);
@@ -177,7 +177,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/account")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
-            Ok(new_rpc_body(id, ACCOUNT_CREATE, (), vault)?)
+            new_rpc_body(id, ACCOUNT_CREATE, (), vault)
         })?;
 
         let signature =
@@ -196,9 +196,8 @@ impl RpcClient {
     /// List vaults for an account.
     pub async fn list_vaults(&self) -> Result<MaybeRetry<Vec<Summary>>> {
         let url = self.server.join("api/account")?;
-        let (session_id, sign_bytes, body) = self.build_request(|id| {
-            Ok(new_rpc_call(id, ACCOUNT_LIST_VAULTS, ())?)
-        })?;
+        let (session_id, sign_bytes, body) = self
+            .build_request(|id| new_rpc_call(id, ACCOUNT_LIST_VAULTS, ()))?;
 
         let signature =
             encode_signature(self.signer.sign(&sign_bytes).await?)?;
@@ -219,9 +218,8 @@ impl RpcClient {
         vault: Vec<u8>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
-        let (session_id, sign_bytes, body) = self.build_request(|id| {
-            Ok(new_rpc_body(id, VAULT_CREATE, (), vault)?)
-        })?;
+        let (session_id, sign_bytes, body) = self
+            .build_request(|id| new_rpc_body(id, VAULT_CREATE, (), vault))?;
 
         let signature =
             encode_signature(self.signer.sign(&sign_bytes).await?)?;
@@ -243,9 +241,8 @@ impl RpcClient {
         vault_id: &Uuid,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
-        let (session_id, sign_bytes, body) = self.build_request(|id| {
-            Ok(new_rpc_call(id, VAULT_DELETE, vault_id)?)
-        })?;
+        let (session_id, sign_bytes, body) = self
+            .build_request(|id| new_rpc_call(id, VAULT_DELETE, vault_id))?;
 
         let signature =
             encode_signature(self.signer.sign(&sign_bytes).await?)?;
@@ -273,7 +270,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
-            Ok(new_rpc_body(id, VAULT_SAVE, vault_id, vault)?)
+            new_rpc_body(id, VAULT_SAVE, vault_id, vault)
         })?;
 
         let signature =
@@ -299,7 +296,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<Vec<u8>>)>> {
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
-            Ok(new_rpc_call(id, WAL_LOAD, (vault_id, proof))?)
+            new_rpc_call(id, WAL_LOAD, (vault_id, proof))
         })?;
 
         let signature =
@@ -324,7 +321,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
-            Ok(new_rpc_call(id, WAL_STATUS, (vault_id, proof))?)
+            new_rpc_call(id, WAL_STATUS, (vault_id, proof))
         })?;
 
         let signature =
@@ -355,7 +352,7 @@ impl RpcClient {
         let body = encode(&patch)?;
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
-            Ok(new_rpc_body(id, WAL_PATCH, (vault_id, proof), body)?)
+            new_rpc_body(id, WAL_PATCH, (vault_id, proof), body)
         })?;
 
         let signature =
@@ -385,7 +382,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
-            Ok(new_rpc_body(id, WAL_SAVE, (vault_id, proof), body)?)
+            new_rpc_body(id, WAL_SAVE, (vault_id, proof), body)
         })?;
 
         let signature =
@@ -414,7 +411,7 @@ impl RpcClient {
         let mut session = lock.write().unwrap();
         session.ready().then_some(()).ok_or(Error::InvalidSession)?;
 
-        let session_id = session.id().clone();
+        let session_id = *session.id();
 
         let request = builder(id)?;
         let aead = session.encrypt(&request)?;
@@ -455,7 +452,7 @@ impl RpcClient {
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
 
-        let reply: Packet<'static> = decode(&buffer)?;
+        let reply: Packet<'static> = decode(buffer)?;
         let response: ResponseMessage<'static> = reply.try_into()?;
         let (_, status, result, body) = response.take::<T>()?;
         let result = result.ok_or(Error::NoReturnValue)?;

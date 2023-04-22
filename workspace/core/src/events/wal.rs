@@ -9,7 +9,11 @@ use binary_stream::{
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, cmp::Ordering};
 
-use crate::{crypto::AeadPack, secret::SecretId, vault::VaultCommit, Error};
+use crate::{
+    crypto::AeadPack,
+    vault::{secret::SecretId, VaultCommit},
+    Error,
+};
 
 use super::{EventKind, SyncEvent};
 
@@ -38,6 +42,33 @@ pub enum WalEvent<'a> {
     /// Delete a secret.
     DeleteSecret(SecretId),
 }
+
+/*
+impl<'a> WalEvent<'a> {
+    /// Convert this event into an owned event.
+    pub fn into_owned(self) -> WalEvent<'static> {
+        match self {
+            WalEvent::Noop => WalEvent::Noop,
+            WalEvent::CreateVault(data) => {
+                WalEvent::CreateVault(Cow::Owned(data.into_owned()))
+            }
+            WalEvent::SetVaultName(data) => {
+                WalEvent::SetVaultName(Cow::Owned(data.into_owned()))
+            }
+            WalEvent::SetVaultMeta(data) => {
+                WalEvent::SetVaultMeta(Cow::Owned(data.into_owned()))
+            }
+            WalEvent::CreateSecret(id, data) => {
+                WalEvent::CreateSecret(id, Cow::Owned(data.into_owned()))
+            }
+            WalEvent::UpdateSecret(id, data) => {
+                WalEvent::UpdateSecret(id, Cow::Owned(data.into_owned()))
+            }
+            WalEvent::DeleteSecret(id) => WalEvent::DeleteSecret(id),
+        }
+    }
+}
+*/
 
 impl Ord for WalEvent<'_> {
     fn cmp(&self, other: &Self) -> Ordering {

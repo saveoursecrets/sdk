@@ -10,9 +10,6 @@ use super::{Error, Result};
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ServerConfig {
-    /// Whether to serve the web GUI.
-    pub gui: bool,
-
     /// Audit log file.
     pub audit: AuditConfig,
 
@@ -160,7 +157,7 @@ impl ServerConfig {
     }
 
     /// Get the backend implementation.
-    pub async fn backend(&self) -> Result<Box<dyn Backend + Send + Sync>> {
+    pub async fn backend(&self) -> Result<Backend> {
         // Config file directory for relative file paths.
         let dir = self.directory();
 
@@ -205,7 +202,7 @@ impl ServerConfig {
 
                 let mut backend = FileSystemBackend::new(path);
                 backend.read_dir().await?;
-                Ok(Box::new(backend))
+                Ok(Backend::FileSystem(backend))
             }
             _ => Err(Error::InvalidUrlScheme(
                 self.storage.url.scheme().to_string(),

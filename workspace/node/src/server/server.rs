@@ -20,7 +20,7 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use serde::Serialize;
-use sos_core::AuditLogFile;
+use sos_core::audit::AuditLogFile;
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -33,7 +33,7 @@ use crate::session::SessionManager;
 async fn session_reaper(state: Arc<RwLock<State>>, interval_secs: u64) {
     let interval = tokio::time::interval(Duration::from_secs(interval_secs));
     let mut stream = IntervalStream::new(interval);
-    while let Some(_) = stream.next().await {
+    while (stream.next().await).is_some() {
         let mut writer = state.write().await;
         let expired_sessions = writer.sessions.expired_keys();
         tracing::debug!(
@@ -51,7 +51,7 @@ pub struct State {
     /// Server information.
     pub info: ServerInfo,
     /// Storage backend.
-    pub backend: Box<dyn Backend + Send + Sync>,
+    pub backend: Backend,
     /// Audit log file
     pub audit_log: AuditLogFile,
     /// Session manager.
@@ -174,7 +174,6 @@ impl Server {
             .route("/api/vault", post(ServiceHandler::vault))
             .route("/api/wal", post(ServiceHandler::wal));
 
-        app = feature_routes(app);
         app = app
             .layer(cors)
             .layer(TraceLayer::new_for_http())
@@ -182,14 +181,4 @@ impl Server {
 
         Ok(app)
     }
-}
-
-#[cfg(not(feature = "gui"))]
-fn feature_routes(app: Router) -> Router {
-    app
-}
-
-#[cfg(feature = "gui")]
-fn feature_routes(app: Router) -> Router {
-    app.route("/gui/*path", get(super::handlers::assets))
 }

@@ -52,15 +52,17 @@ The system is eventually consistent except in the case of two events; when a WAL
 ## Repository Layout
 
 * [sandbox](/sandbox) Configuration and storage location for local testing.
+* [src](/src) Command line tool `sos`.
+    * The `audit` command for reading and monitoring audit logs.
+    * The `check` command for verifying file integrity and inspecting files.
+    * The `client` command to launch a login shell for an account.
+    * The `server` server command to run a web server.
+    * The `rendezvous` server for peer to peer nodes.
 * [tests](/tests) Integration tests.
-* [workspace](/workspace) Libraries and command line interfaces.
-    * [audit](/workspace/audit) The `sos-audit` tool for reading and monitoring audit logs.
-    * [check](/workspace/check) The `sos-check` tool for verifying file integrity and inspecting files.
-    * [client](/workspace/client) The `sos-client` terminal read-eval-print-loop (REPL) tool.
+* [workspace](/workspace) Workspace for SDK libraries.
     * [core](/workspace/core) Core library types and traits.
+    * [migrate](/workspace/migrate) Export and import compatibility layer.
     * [node](/workspace/node) Networking library.
-    * [readline](/workspace/readline) Utility functions for reading from stdin.
-    * [server](/workspace/server) The `sos-server` server command line interface.
 
 For webassembly bindings see the [browser][] repository.
 
@@ -185,13 +187,13 @@ We will show commands using the executable names but you can also use `cargo run
 To begin start a server, for example:
 
 ```
-sos-server -c sandbox/config.toml
+sos server -c sandbox/config.toml
 ```
 
 Then in a separate terminal create a new signing key and login vault:
 
 ```
-sos-client signup -s https://localhost:5053 ./sandbox
+sos client signup -s https://localhost:5053 ./sandbox
 ```
 
 This will write the signing key to the `sandbox` directory and create a new account on the server. It will also print the *keystore passphrase* for the signing key and the *encryption passphrase* for the login vault. For testing you may want to make a note of these, in the real world these passphrases need to be memorized.
@@ -199,7 +201,7 @@ This will write the signing key to the `sandbox` directory and create a new acco
 Now create a shell session:
 
 ```
-sos-client shell -s https://localhost:5053 -k ./sandbox/<addr>.json
+sos client shell -s https://localhost:5053 -k ./sandbox/<addr>.json
 ```
 
 Where `<addr>` should be changed with the public address of the signing key created during signup.
@@ -210,7 +212,7 @@ To view the list of vaults run the `vaults` command; the default vault created w
 
 Now enter your encryption passphrase to unlock the vault.
 
-Once the vault is unlocked you can list, create, update, read and delete secrets and perform other actions such as creating snapshots or changing the vault encryption passphrase.
+Once the vault is unlocked you can list, create, update, read and delete secrets and perform other actions such as changing the vault encryption passphrase.
 
 When you have finished making changes remember to lock the vault again with the `close` command.
 
@@ -278,7 +280,7 @@ A server writes audit logs which can be viewed using the `sos-audit` tool.
 While you make changes to a vault monitor the audit logs:
 
 ```
-sos-audit monitor sandbox/audit.dat
+sos audit monitor sandbox/audit.dat
 ```
 
 ### Changes Feed
@@ -288,7 +290,7 @@ The changes feed is a stream that networked clients can use to react to changes 
 You can monitor this stream with:
 
 ```
-sos-client monitor -s https://localhost:5053 -k sandbox/<addr>.json
+sos client monitor -s https://localhost:5053 -k sandbox/<addr>.json
 ```
 
 Enter your keystore passphrase and then in a shell session make some changes like creating or removing secrets and you should see the events printed to the terminal.

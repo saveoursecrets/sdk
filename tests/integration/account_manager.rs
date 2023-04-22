@@ -6,21 +6,17 @@ use std::{path::PathBuf, sync::Arc};
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
-    generate_passphrase,
+    hex,
+    passwd::diceware::generate_passphrase,
     search::SearchIndex,
-    secret::SecretId,
-    vault::VaultId,
-    Gatekeeper,
+    storage::{FileStorage, StorageDirs},
+    vault::{secret::SecretId, Gatekeeper, VaultId},
 };
-use sos_node::{
-    cache_dir, clear_cache_dir,
-    client::{
-        account_manager::{
-            AccountManager, NewAccountRequest, NewAccountResponse,
-        },
-        provider::{ProviderFactory, RestoreOptions},
+use sos_node::client::{
+    account_manager::{
+        AccountManager, NewAccountRequest, NewAccountResponse,
     },
-    set_cache_dir,
+    provider::{ProviderFactory, RestoreOptions},
 };
 
 use urn::Urn;
@@ -33,9 +29,9 @@ fn integration_account_manager() -> Result<()> {
     let dirs = setup(1)?;
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
-    set_cache_dir(test_cache_dir.clone());
+    StorageDirs::set_cache_dir(test_cache_dir.clone());
 
-    assert_eq!(cache_dir(), Some(test_cache_dir.clone()));
+    assert_eq!(StorageDirs::cache_dir(), Some(test_cache_dir.clone()));
 
     let account_name = "Mock account name".to_string();
     let folder_name = Some("Default folder".to_string());
@@ -60,11 +56,12 @@ fn integration_account_manager() -> Result<()> {
     assert_eq!(1, accounts.len());
 
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
-    let (_info, user, mut identity_keeper) = AccountManager::sign_in(
-        &address,
-        passphrase.clone(),
-        Arc::clone(&identity_index),
-    )?;
+    let (_info, user, mut identity_keeper, _device_signer) =
+        AccountManager::sign_in(
+            &address,
+            passphrase.clone(),
+            Arc::clone(&identity_index),
+        )?;
 
     AccountManager::rename_identity(
         &address,
@@ -73,7 +70,7 @@ fn integration_account_manager() -> Result<()> {
     )?;
     assert_eq!("New account name", identity_keeper.vault().name());
 
-    let vaults = AccountManager::list_local_vaults(&address)?;
+    let vaults = AccountManager::list_local_vaults(&address, false)?;
     // Default, Contacts, Authenticator and Archive vaults
     assert_eq!(4, vaults.len());
 
@@ -102,7 +99,7 @@ fn integration_account_manager() -> Result<()> {
 
     let default_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
     let (default_vault, _) =
-        AccountManager::find_local_vault(&address, summary.id())?;
+        AccountManager::find_local_vault(&address, summary.id(), false)?;
     let mut default_vault_keeper =
         Gatekeeper::new(default_vault, Some(default_index));
     default_vault_keeper.unlock(default_vault_passphrase.expose_secret())?;
@@ -112,14 +109,14 @@ fn integration_account_manager() -> Result<()> {
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
 
     // Encrypt
-    let files_dir = AccountManager::files_dir(&address)?;
+    let files_dir = StorageDirs::files_dir(&address)?;
     let vault_id = VaultId::new_v4();
     let secret_id = SecretId::new_v4();
     let target = files_dir
         .join(vault_id.to_string())
         .join(secret_id.to_string());
     std::fs::create_dir_all(&target)?;
-    let digest = AccountManager::encrypt_file(
+    let digest = FileStorage::encrypt_file_passphrase(
         &source_file,
         &target,
         file_passphrase.clone(),
@@ -127,7 +124,8 @@ fn integration_account_manager() -> Result<()> {
 
     // Decrypt
     let destination = target.join(hex::encode(digest));
-    let buffer = AccountManager::decrypt_file(destination, &file_passphrase)?;
+    let buffer =
+        FileStorage::decrypt_file_passphrase(destination, &file_passphrase)?;
 
     let expected = std::fs::read(source_file)?;
     assert_eq!(expected, buffer);
@@ -167,7 +165,7 @@ fn integration_account_manager() -> Result<()> {
 
     // Reset the cache dir so we don't interfere
     // with other tests
-    clear_cache_dir();
+    StorageDirs::clear_cache_dir();
 
     Ok(())
 }

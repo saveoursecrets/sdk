@@ -1,4 +1,4 @@
-//! Event for audit log records.
+//! Audit logging.
 use async_trait::async_trait;
 use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
@@ -10,9 +10,8 @@ use web3_address::ethereum::Address;
 
 use crate::{
     events::{EventKind, SyncEvent},
-    secret::SecretId,
     timestamp::Timestamp,
-    vault::VaultId,
+    vault::{secret::SecretId, VaultId},
 };
 
 mod log_file;

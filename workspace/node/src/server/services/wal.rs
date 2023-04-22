@@ -1,13 +1,15 @@
 use axum::http::StatusCode;
 use sos_core::{
-    commit_tree::{CommitProof, Comparison},
+    audit::{AuditData, AuditEvent},
+    commit::{CommitHash, CommitProof, Comparison},
     constants::{WAL_LOAD, WAL_PATCH, WAL_SAVE, WAL_STATUS},
     decode,
     events::{
         ChangeEvent, ChangeNotification, EventKind, SyncEvent, WalEvent,
     },
+    patch::Patch,
     rpc::{RequestMessage, ResponseMessage, Service},
-    AuditData, AuditEvent, CommitHash, Patch,
+    wal::WalProvider,
 };
 use web3_address::ethereum::Address;
 
@@ -16,6 +18,7 @@ use std::borrow::Cow;
 use uuid::Uuid;
 
 use super::{append_audit_logs, send_notification, PrivateState};
+use crate::server::BackendHandler;
 
 enum PatchResult {
     Conflict(CommitProof, Option<CommitProof>),
@@ -56,6 +59,7 @@ impl Service for WalService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -86,7 +90,7 @@ impl Service for WalService {
                         "get_wal client root");
 
                     let comparison =
-                        wal.tree().compare(proof).map_err(Box::from)?;
+                        wal.tree().compare(&proof).map_err(Box::from)?;
 
                     match comparison {
                         Comparison::Equal => {
@@ -114,8 +118,11 @@ impl Service for WalService {
                         }
                     }
                 // Otherwise get the entire WAL buffer
-                } else if let Ok(buffer) =
-                    reader.backend.get_wal(caller.address(), &vault_id).await
+                } else if let Ok(buffer) = reader
+                    .backend
+                    .handler()
+                    .get_wal(caller.address(), &vault_id)
+                    .await
                 {
                     Ok((StatusCode::OK, buffer))
                 } else {
@@ -157,6 +164,7 @@ impl Service for WalService {
 
                 let (exists, _) = reader
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -174,20 +182,7 @@ impl Service for WalService {
                 let proof = wal.tree().head().map_err(Box::from)?;
 
                 let match_proof = if let Some(client_proof) = commit_proof {
-                    let comparison = wal
-                        .tree()
-                        .compare(client_proof)
-                        .map_err(Box::from)?;
-                    match comparison {
-                        Comparison::Contains(indices, _leaves) => {
-                            let match_proof = wal
-                                .tree()
-                                .proof(&indices)
-                                .map_err(Box::from)?;
-                            Some(match_proof)
-                        }
-                        _ => None,
-                    }
+                    wal.tree().contains(&client_proof).map_err(Box::from)?
                 } else {
                     None
                 };
@@ -203,6 +198,7 @@ impl Service for WalService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -222,7 +218,7 @@ impl Service for WalService {
 
                     let comparison = wal
                         .tree()
-                        .compare(commit_proof)
+                        .compare(&commit_proof)
                         .map_err(Box::from)?;
 
                     match comparison {
@@ -262,11 +258,9 @@ impl Service for WalService {
                             // Changes events for the SSE channel
                             let change_events = change_set
                                 .iter()
-                                .map(|event| {
+                                .filter_map(|event| {
                                     ChangeEvent::from_sync_event(event)
                                 })
-                                .filter(|e| e.is_some())
-                                .map(|e| e.unwrap())
                                 .collect::<Vec<_>>();
 
                             // Changes to apply to the WAL log
@@ -335,6 +329,7 @@ impl Service for WalService {
                         if let Some(name) = name {
                             writer
                                 .backend
+                                .handler_mut()
                                 .set_vault_name(&address, &vault_id, name)
                                 .await
                                 .map_err(Box::from)?;
@@ -378,6 +373,7 @@ impl Service for WalService {
                 let reader = state.read().await;
                 let (exists, _) = reader
                     .backend
+                    .handler()
                     .wal_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
@@ -390,10 +386,11 @@ impl Service for WalService {
                 // TODO: better error to status code mapping
                 let server_proof = writer
                     .backend
+                    .handler_mut()
                     .replace_wal(
                         caller.address(),
                         &vault_id,
-                        commit_proof.0.into(),
+                        commit_proof.root,
                         request.body(),
                     )
                     .await

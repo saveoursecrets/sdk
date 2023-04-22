@@ -11,10 +11,9 @@ use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     crypto::AeadPack,
-    encode,
+    decode, encode,
     events::WalEvent,
-    secret::SecretId,
-    vault::{Vault, VaultCommit},
+    vault::{secret::SecretId, Vault, VaultCommit},
     wal::{WalItem, WalProvider},
     Error, Result,
 };
@@ -122,7 +121,8 @@ impl<'a> WalReducer<'a> {
     pub fn compact(self) -> Result<Vec<WalEvent<'a>>> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();
-            let mut vault = Vault::read_buffer(&vault)?;
+
+            let mut vault: Vault = decode(&vault)?;
             if let Some(name) = self.vault_name {
                 vault.set_name(name.into_owned());
             }
@@ -146,8 +146,7 @@ impl<'a> WalReducer<'a> {
     /// Consume this reducer and build a vault.
     pub fn build(self) -> Result<Vault> {
         if let Some(vault) = self.vault {
-            let mut vault = Vault::read_buffer(&vault)?;
-
+            let mut vault: Vault = decode(&vault)?;
             if let Some(name) = self.vault_name {
                 vault.set_name(name.into_owned());
             }
@@ -171,13 +170,15 @@ impl<'a> WalReducer<'a> {
 mod test {
     use super::*;
     use crate::{
+        commit::CommitHash,
         crypto::secret_key::SecretKey,
         decode,
-        secret::{Secret, SecretId, SecretMeta},
         test_utils::*,
-        vault::{VaultAccess, VaultCommit, VaultEntry},
+        vault::{
+            secret::{Secret, SecretId, SecretMeta},
+            VaultAccess, VaultCommit, VaultEntry,
+        },
         wal::file::WalFile,
-        CommitHash,
     };
     use anyhow::Result;
     use secrecy::ExposeSecret;

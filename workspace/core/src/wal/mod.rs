@@ -1,10 +1,10 @@
 //! Write ahead log types and traits.
 use crate::{
-    commit_tree::{hash, CommitTree},
+    commit::{CommitHash, CommitTree},
     events::WalEvent,
-    iter::WalFileRecord,
+    formats::WalFileRecord,
     timestamp::Timestamp,
-    CommitHash, Result,
+    Result,
 };
 use std::path::{Path, PathBuf};
 
@@ -17,7 +17,6 @@ pub mod file;
 
 pub mod memory;
 pub mod reducer;
-pub mod snapshot;
 
 /// Trait for implementations that provide access to a write-ahead log (WAL).
 pub trait WalProvider {
@@ -46,7 +45,7 @@ pub trait WalProvider {
         if let Some(record) = it.next_back() {
             let record = record?;
             let buffer = self.read_buffer(&record)?;
-            let last_record_hash = hash(&buffer);
+            let last_record_hash = CommitTree::hash(&buffer);
             Ok(Some(CommitHash(last_record_hash)))
         } else {
             Ok(None)
@@ -103,7 +102,8 @@ pub trait WalProvider {
     /// Get the commit tree for the log records.
     fn tree(&self) -> &CommitTree;
 
-    /// Load any cached data into the WAL implementation to build a commit tree in memory.
+    /// Load any cached data into the WAL implementation
+    /// to build a commit tree in memory.
     fn load_tree(&mut self) -> Result<()>;
 
     /// Clear all events from this WAL.
@@ -239,19 +239,17 @@ mod test {
 
     use super::{file::*, memory::*, *};
     use crate::{
-        commit_tree::{hash, Comparison},
+        commit::{CommitHash, CommitTree, Comparison},
         encode,
         events::WalEvent,
-        secret::SecretId,
-        vault::{Vault, VaultCommit, VaultEntry},
-        CommitHash,
+        vault::{secret::SecretId, Vault, VaultCommit, VaultEntry},
     };
 
     fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {
         let id = Uuid::new_v4();
         let entry = VaultEntry(Default::default(), Default::default());
         let buffer = encode(&entry)?;
-        let commit = CommitHash(hash(&buffer));
+        let commit = CommitHash(CommitTree::hash(&buffer));
         let result = VaultCommit(commit, entry);
         Ok((id, Cow::Owned(result)))
     }
@@ -301,7 +299,7 @@ mod test {
         }
 
         let proof = client.tree().head()?;
-        let comparison = server.tree().compare(proof)?;
+        let comparison = server.tree().compare(&proof)?;
         assert_eq!(Comparison::Equal, comparison);
 
         assert_eq!(server.tree().len(), client.tree().len());
@@ -317,7 +315,7 @@ mod test {
 
         // Check that the server contains the client proof
         let proof = client.tree().head()?;
-        let comparison = server.tree().compare(proof)?;
+        let comparison = server.tree().compare(&proof)?;
 
         let matched = if let Comparison::Contains(indices, _) = comparison {
             indices == vec![1]
@@ -328,7 +326,7 @@ mod test {
 
         // Verify that the server root is not contained by the client.
         let proof = server.tree().head()?;
-        let comparison = client.tree().compare(proof)?;
+        let comparison = client.tree().compare(&proof)?;
         assert_eq!(Comparison::Unknown, comparison);
 
         // A completely different tree should also be unknown to the server.
@@ -337,7 +335,7 @@ mod test {
         // a new commit tree.
         let (standalone, _) = mock_wal_standalone()?;
         let proof = standalone.tree().head()?;
-        let comparison = server.tree().compare(proof)?;
+        let comparison = server.tree().compare(&proof)?;
         assert_eq!(Comparison::Unknown, comparison);
 
         Ok(())
@@ -355,7 +353,7 @@ mod test {
 
         let proof = client.tree().head()?;
 
-        let comparison = server.tree().compare(proof)?;
+        let comparison = server.tree().compare(&proof)?;
 
         if let Comparison::Contains(indices, leaves) = comparison {
             assert_eq!(vec![1], indices);

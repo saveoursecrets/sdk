@@ -10,13 +10,13 @@
 //! causes numerous lifetime issues in the server code so for
 //! the moment we just clone the records during iteration.
 use crate::{
-    commit_tree::{hash, CommitTree},
+    commit::{CommitHash, CommitTree},
     constants::WAL_IDENTITY,
     decode, encode,
     events::WalEvent,
-    iter::{FileItem, ReadStreamIterator, WalFileRecord},
+    formats::{FileItem, ReadStreamIterator, WalFileRecord},
     timestamp::Timestamp,
-    CommitHash, Result,
+    Result,
 };
 
 use binary_stream::{BinaryReader, Endian, MemoryStream};
@@ -70,7 +70,7 @@ impl WalMemory {
         let bytes = encode(&event)?;
         let last_commit =
             self.last_commit()?.unwrap_or(CommitHash([0u8; 32]));
-        let commit = CommitHash(hash(&bytes));
+        let commit = CommitHash(CommitTree::hash(&bytes));
         Ok((
             commit,
             WalMemoryRecord(
@@ -86,7 +86,7 @@ impl WalMemory {
         start: usize,
     ) -> Result<Vec<WalMemoryRecord>> {
         let mut stream: MemoryStream = buffer.clone().into();
-        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+        let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         let it = ReadStreamIterator::<WalFileRecord>::new_memory(
             buffer,
             &WAL_IDENTITY,
@@ -125,7 +125,7 @@ impl WalProvider for WalMemory {
         let events = WalReducer::new().reduce(self)?.compact()?;
 
         // Apply them to a temporary WAL file
-        let mut temp_wal = WalMemory::new(&path)?;
+        let mut temp_wal = WalMemory::new(path)?;
         temp_wal.apply(events, None)?;
 
         let new_size = temp_wal.records.len() as u64;

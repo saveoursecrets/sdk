@@ -6,33 +6,22 @@ use binary_stream::{
     SliceStream,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
-mod audit;
-
 pub mod archive;
-pub mod commit_tree;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod audit;
+pub mod commit;
 pub mod constants;
 pub mod crypto;
 mod error;
 pub mod events;
-mod file_access;
-mod file_identity;
-
-#[cfg(not(target_arch = "wasm32"))]
-mod file_locks;
-
-mod gatekeeper;
-mod hash;
+pub mod formats;
 pub mod identity;
-pub mod iter;
-pub mod passgen;
-mod passwd;
-mod patch;
-
+pub mod passwd;
+pub mod patch;
 pub mod rpc;
 pub mod search;
-pub mod secret;
 pub mod signer;
+pub mod storage;
 mod timestamp;
 pub mod vault;
 pub mod wal;
@@ -40,31 +29,30 @@ pub mod wal;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
-
 pub use error::Error;
-pub use file_access::VaultFileAccess;
-pub use file_identity::FileIdentity;
-#[cfg(not(target_arch = "wasm32"))]
-pub use file_locks::FileLocks;
-pub use gatekeeper::Gatekeeper;
-pub use hash::CommitHash;
-pub use passgen::diceware::{generate_passphrase, generate_passphrase_words};
-pub use passwd::ChangePassword;
-#[cfg(not(target_arch = "wasm32"))]
-pub use patch::PatchFile;
-pub use patch::{Patch, PatchMemory, PatchProvider};
 pub use timestamp::Timestamp;
+
+// Re-exports
+pub use age;
+pub use hex;
+pub use k256;
+pub use parking_lot;
+pub use secrecy;
+pub use sha2;
+pub use sha3;
+pub use time;
+pub use url;
+pub use uuid;
+pub use vcard4;
 
 /// Encode to a binary buffer.
 pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
-    encode_endian(encodable, Endian::Big)
+    encode_endian(encodable, Endian::Little)
 }
 
 /// Decode from a binary buffer.
 pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
-    decode_endian::<T>(buffer, Endian::Big)
+    decode_endian::<T>(buffer, Endian::Little)
 }
 
 fn encode_endian(encodable: &impl Encode, endian: Endian) -> Result<Vec<u8>> {

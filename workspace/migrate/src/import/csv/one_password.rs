@@ -55,14 +55,7 @@ pub struct OnePasswordRecord {
 impl From<OnePasswordRecord> for GenericPasswordRecord {
     fn from(value: OnePasswordRecord) -> Self {
         let tags: Option<HashSet<String>> = if !value.tags.is_empty() {
-            Some(
-                value
-                    .tags
-                    .split(';')
-                    .into_iter()
-                    .map(|s| s.trim().to_owned())
-                    .collect(),
-            )
+            Some(value.tags.split(';').map(|s| s.trim().to_owned()).collect())
         } else {
             None
         };
@@ -174,7 +167,9 @@ mod test {
     use parking_lot::RwLock;
     use secrecy::ExposeSecret;
     use sos_core::{
-        generate_passphrase, search::SearchIndex, vault::Vault, Gatekeeper,
+        passwd::diceware::generate_passphrase,
+        search::SearchIndex,
+        vault::{Gatekeeper, Vault},
     };
     use std::sync::Arc;
     use url::Url;
@@ -272,7 +267,7 @@ mod test {
         assert_eq!(6, search.len());
 
         let search = search_index.read();
-        let untitled = search.find_by_label(keeper.id(), UNTITLED);
+        let untitled = search.find_by_label(keeper.id(), UNTITLED, None);
         assert!(untitled.is_some());
 
         Ok(())

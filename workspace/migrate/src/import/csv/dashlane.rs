@@ -12,7 +12,10 @@ use time::{Date, Month};
 use url::Url;
 use vcard4::{property::DeliveryAddress, uriparse::URI as Uri, VcardBuilder};
 
-use sos_core::{secret::IdentityKind, vault::Vault, Timestamp};
+use sos_core::{
+    vault::{secret::IdentityKind, Vault},
+    Timestamp,
+};
 
 use super::{
     GenericContactRecord, GenericCsvConvert, GenericCsvEntry,
@@ -50,7 +53,7 @@ impl From<DashlaneRecord> for GenericCsvEntry {
                 GenericCsvEntry::Payment(record.into())
             }
             DashlaneRecord::Contact(record) => {
-                GenericCsvEntry::Contact(record.into())
+                GenericCsvEntry::Contact(Box::new(record.into()))
             }
         }
     }
@@ -413,22 +416,18 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
                 parts.push(value.last_name);
             }
             parts.join(" ")
+        } else if !value.item_name.is_empty() {
+            value.item_name.clone()
         } else {
-            if !value.item_name.is_empty() {
-                value.item_name.clone()
-            } else {
-                UNTITLED.to_owned()
-            }
+            UNTITLED.to_owned()
         };
 
         let label = if value.item_name.is_empty() {
             formatted_name.clone()
+        } else if !value.item_name.is_empty() {
+            value.item_name
         } else {
-            if !value.item_name.is_empty() {
-                value.item_name
-            } else {
-                UNTITLED.to_owned()
-            }
+            UNTITLED.to_owned()
         };
 
         let date_of_birth: Option<Date> = if !value.date_of_birth.is_empty() {
@@ -616,8 +615,9 @@ mod test {
     use parking_lot::RwLock;
     use secrecy::ExposeSecret;
     use sos_core::{
-        generate_passphrase, search::SearchIndex, secret::Secret,
-        vault::Vault, Gatekeeper,
+        passwd::diceware::generate_passphrase,
+        search::SearchIndex,
+        vault::{secret::Secret, Gatekeeper, Vault},
     };
     use std::sync::Arc;
     use url::Url;
@@ -664,22 +664,22 @@ mod test {
         assert_eq!(15, search.len());
 
         let search = search_index.read();
-        let password = search.find_by_label(keeper.id(), "example.com");
+        let password = search.find_by_label(keeper.id(), "example.com", None);
         assert!(password.is_some());
 
-        let id = search.find_by_label(keeper.id(), "Mock Passport");
+        let id = search.find_by_label(keeper.id(), "Mock Passport", None);
         assert!(id.is_some());
 
-        let payment = search.find_by_label(keeper.id(), "Bank account");
+        let payment = search.find_by_label(keeper.id(), "Bank account", None);
         assert!(payment.is_some());
 
-        let contact = search.find_by_label(keeper.id(), "Mock Email");
+        let contact = search.find_by_label(keeper.id(), "Mock Email", None);
         assert!(contact.is_some());
 
-        let note = search.find_by_label(keeper.id(), "Mock note");
+        let note = search.find_by_label(keeper.id(), "Mock note", None);
         assert!(note.is_some());
 
-        let card = search.find_by_label(keeper.id(), "Mock User");
+        let card = search.find_by_label(keeper.id(), "Mock User", None);
         assert!(card.is_some());
 
         if let Some((_, secret, _)) =

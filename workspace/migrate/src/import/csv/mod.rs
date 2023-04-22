@@ -18,9 +18,11 @@ use vcard4::Vcard;
 
 use sos_core::{
     search::SearchIndex,
-    secret::{IdentityKind, Secret, SecretMeta},
-    vault::Vault,
-    Gatekeeper, Timestamp,
+    vault::{
+        secret::{IdentityKind, Secret, SecretMeta},
+        Gatekeeper, Vault,
+    },
+    Timestamp,
 };
 
 use crate::Convert;
@@ -39,7 +41,7 @@ pub enum GenericCsvEntry {
     /// Payment entry.
     Payment(GenericPaymentRecord),
     /// Contact entry.
-    Contact(GenericContactRecord),
+    Contact(Box<GenericContactRecord>),
 }
 
 impl GenericCsvEntry {
@@ -289,7 +291,10 @@ impl Convert for GenericCsvConvert {
             // Handle duplicate labels by incrementing a counter
             let mut label = entry.label().to_owned();
             let search = search_index.read();
-            if search.find_by_label(keeper.vault().id(), &label).is_some() {
+            if search
+                .find_by_label(keeper.vault().id(), &label, None)
+                .is_some()
+            {
                 duplicates
                     .entry(label.clone())
                     .and_modify(|counter| *counter += 1)
@@ -312,6 +317,6 @@ impl Convert for GenericCsvConvert {
         }
 
         keeper.lock();
-        Ok(keeper.take())
+        Ok(keeper.into())
     }
 }

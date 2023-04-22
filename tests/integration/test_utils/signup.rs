@@ -4,12 +4,13 @@ use std::path::PathBuf;
 use url::Url;
 
 use sos_core::{
+    patch::PatchFile,
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
         Signer,
     },
+    storage::StorageDirs,
     wal::file::WalFile,
-    PatchFile,
 };
 
 use web3_address::ethereum::Address;
@@ -17,7 +18,7 @@ use web3_address::ethereum::Address;
 use secrecy::ExposeSecret;
 use sos_node::client::{
     net::RpcClient,
-    provider::{RemoteProvider, StorageDirs, StorageProvider},
+    provider::{RemoteProvider, StorageProvider},
 };
 
 use super::AccountCredentials;
