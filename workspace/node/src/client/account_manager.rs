@@ -41,7 +41,7 @@ use crate::client::{
     provider::{
         BoxedProvider, ProviderFactory, RestoreOptions, RestoreTargets,
     },
-    run_blocking, Error, Result,
+    Error, Result,
 };
 
 use secrecy::{ExposeSecret, SecretString};
@@ -224,7 +224,7 @@ pub struct AccountManager {}
 
 impl AccountManager {
     /// Create a new account.
-    pub fn new_account(
+    pub async fn new_account(
         account: NewAccountRequest,
     ) -> Result<NewAccountResponse> {
         let NewAccountRequest {
@@ -375,12 +375,11 @@ impl AccountManager {
 
         // Save the default vault
         let buffer = encode(&default_vault)?;
-        let summary =
-            run_blocking(provider.create_account_with_buffer(buffer))?;
+        let summary = provider.create_account_with_buffer(buffer).await?;
 
         let archive = if let Some(archive_vault) = archive {
             let buffer = encode(&archive_vault)?;
-            let summary = run_blocking(provider.import_vault(buffer))?;
+            let summary = provider.import_vault(buffer).await?;
             Some(summary)
         } else {
             None
@@ -388,7 +387,7 @@ impl AccountManager {
 
         let authenticator = if let Some(authenticator_vault) = authenticator {
             let buffer = encode(&authenticator_vault)?;
-            let summary = run_blocking(provider.import_vault(buffer))?;
+            let summary = provider.import_vault(buffer).await?;
             Some(summary)
         } else {
             None
@@ -396,7 +395,7 @@ impl AccountManager {
 
         let contact = if let Some(contact_vault) = contact {
             let buffer = encode(&contact_vault)?;
-            let summary = run_blocking(provider.import_vault(buffer))?;
+            let summary = provider.import_vault(buffer).await?;
             Some(summary)
         } else {
             None
@@ -674,7 +673,7 @@ impl AccountManager {
     }
 
     /// Sign in a user.
-    pub fn sign_in(
+    pub async fn sign_in(
         address: &str,
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
@@ -692,7 +691,7 @@ impl AccountManager {
 
         // Lazily create or retrieve a device specific signing key
         let device_info =
-            Self::ensure_device_vault(address, &user, &mut keeper)?;
+            Self::ensure_device_vault(address, &user, &mut keeper).await?;
 
         Ok((account, user, keeper, device_info))
     }
@@ -700,7 +699,7 @@ impl AccountManager {
     /// Ensure that the account has a vault for storing device specific
     /// information such as the private key used to identify a machine
     /// on a peer to peer network.
-    fn ensure_device_vault(
+    async fn ensure_device_vault(
         address: &str,
         user: &AuthenticatedUser,
         identity: &mut Gatekeeper,
@@ -794,7 +793,7 @@ impl AccountManager {
 
             let device_vault: Vault = device_keeper.into();
             let buffer = encode(&device_vault)?;
-            let summary = run_blocking(provider.import_vault(buffer))?;
+            let summary = provider.import_vault(buffer).await?;
 
             Ok(DeviceSigner {
                 summary,
@@ -972,8 +971,8 @@ impl AccountManager {
     }
 
     /// Read the inventory from an archive.
-    pub fn restore_archive_inventory(
-        mut archive: Vec<u8>,
+    pub fn restore_archive_inventory<B: AsRef<[u8]>>(
+        mut archive: B,
     ) -> Result<Inventory> {
         let mut reader = Reader::new(Cursor::new(&mut archive))?;
         Ok(reader.inventory()?)
@@ -1002,7 +1001,7 @@ impl AccountManager {
     }
 
     /// Import from an archive.
-    pub fn restore_archive_buffer(
+    pub async fn restore_archive_buffer(
         buffer: Vec<u8>,
         options: RestoreOptions,
         provider: Option<&mut BoxedProvider>,
@@ -1066,7 +1065,7 @@ impl AccountManager {
                 std::fs::write(identity_vault_file, buffer)?;
             }
 
-            run_blocking(provider.restore_archive(&targets))?;
+            provider.restore_archive(&targets).await?;
 
             account
         // No provider available so the user is not signed in

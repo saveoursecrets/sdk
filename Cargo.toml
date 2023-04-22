@@ -2,20 +2,18 @@
 name = "sos"
 version = "0.4.1"
 edition = "2021"
+rust-version = "1.68.2"
 description = "Distributed, encrypted database for private secrets."
-homepage = "https://saveoursecrets.org"
+homepage = "https://saveoursecrets.com"
 license = "GPL-3.0"
 default-run = "sos"
-publish = false
+categories = ["command-line-utilities", "cryptography::cryptocurrencies", "authentication"]
 
 [workspace]
 members = [
   "workspace/core",
   "workspace/migrate",
   "workspace/node",
-]
-exclude = [
-  "target/browser"
 ]
 
 [dependencies]
@@ -37,11 +35,11 @@ terminal-banner = "0.1"
 rustyline = "10"
 rustyline-derive = "0.7"
 unicode-width = "0.1"
+parking_lot = "0.12"
 
 [dev-dependencies]
 http = "0.2"
 tempfile = "3.3"
-parking_lot = "0.12"
 urn = { version = "0.5", features = ["serde"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

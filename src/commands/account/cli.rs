@@ -1,9 +1,12 @@
-use std::path::PathBuf;
 use clap::Subcommand;
+use std::path::PathBuf;
 
 use crate::{
-    helpers::account::{account_info, list_accounts, account_backup, local_signup},
-    Error, Result,
+    helpers::account::{
+        account_backup, account_info, account_restore, list_accounts,
+        local_signup,
+    },
+    Result,
 };
 
 #[derive(Subcommand, Debug)]
@@ -39,7 +42,7 @@ pub enum Command {
     },
     /// Create secure backup as a zip archive.
     Backup {
-        /// Output file.
+        /// Output zip archive.
         #[clap(short, long)]
         output: PathBuf,
 
@@ -50,12 +53,18 @@ pub enum Command {
         /// Account name.
         account_name: String,
     },
+    /// Restore account from secure backup.
+    Restore {
+        /// Input zip archive.
+        #[clap(short, long)]
+        input: PathBuf,
+    },
 }
 
-pub fn run(cmd: Command) -> Result<()> {
+pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::New { name, folder_name } => {
-            local_signup(name, folder_name)?;
+            local_signup(name, folder_name).await?;
         }
         Command::List { verbose } => {
             list_accounts(verbose)?;
@@ -65,7 +74,7 @@ pub fn run(cmd: Command) -> Result<()> {
             verbose,
             system,
         } => {
-            account_info(&account_name, verbose, system)?;
+            account_info(&account_name, verbose, system).await?;
         }
         Command::Backup {
             account_name,
@@ -73,6 +82,10 @@ pub fn run(cmd: Command) -> Result<()> {
             force,
         } => {
             account_backup(&account_name, output, force)?;
+        }
+        Command::Restore { input } => {
+            let account = account_restore(input).await?;
+            println!("restored {} ({})", account.label, account.address);
         }
     }
 

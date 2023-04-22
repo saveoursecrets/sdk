@@ -14,7 +14,6 @@ use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     hex,
     identity::AuthenticatedUser,
-    parking_lot::RwLock as SyncRwLock,
     passwd::diceware::generate_passphrase,
     search::{Document, SearchIndex},
     secrecy,
@@ -32,6 +31,8 @@ use sos_node::{
     },
     sync::SyncKind,
 };
+
+use parking_lot::RwLock as SyncRwLock;
 
 use crate::helpers::{
     account::switch,
@@ -987,7 +988,8 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let reader = state.read().await;
             let factory = &reader.factory;
 
-            let (mut provider, address) = switch(factory, account_name)?;
+            let (mut provider, address) =
+                switch(factory, account_name).await?;
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
