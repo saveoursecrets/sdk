@@ -152,11 +152,6 @@ enum ShellCommand {
         /// New label for the secret.
         label: Option<String>,
     },
-    /// Manage snapshots for the selected vault.
-    Snapshot {
-        #[clap(subcommand)]
-        cmd: SnapShot,
-    },
     /// Inspect the history for the selected vault.
     History {
         #[clap(subcommand)]
@@ -848,43 +843,6 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 writer.patch(&summary, vec![event]).await
             }).await
         }
-        ShellCommand::Snapshot { cmd } => match cmd {
-            SnapShot::Take => {
-                let reader = cache.read().await;
-                let keeper =
-                    reader.current().ok_or(Error::NoVaultSelected)?;
-                let (snapshot, _) = reader.take_snapshot(keeper.summary())?;
-                println!("Path: {}", snapshot.0.display());
-                println!("Time: {}", snapshot.1);
-                println!("Hash: {}", snapshot.2);
-                println!("Size: {}", human_bytes(snapshot.3 as f64));
-                Ok(())
-            }
-            SnapShot::List { long } => {
-                let reader = cache.read().await;
-                let keeper =
-                    reader.current().ok_or(Error::NoVaultSelected)?;
-                let snapshots = reader
-                    .snapshots()
-                    .ok_or(sos_node::client::Error::SnapshotsNotEnabled)?;
-                let snapshots = snapshots.list(keeper.id())?;
-                if !snapshots.is_empty() {
-                    for snapshot in snapshots.into_iter() {
-                        if long {
-                            print!(
-                                "{} {} ",
-                                snapshot.0.display(),
-                                human_bytes(snapshot.3 as f64)
-                            );
-                        }
-                        println!("{} {}", snapshot.1, snapshot.2);
-                    }
-                } else {
-                    println!("No snapshots yet!");
-                }
-                Ok(())
-            }
-        },
         ShellCommand::History { cmd } => {
             match cmd {
                 History::Compact { snapshot } => {
