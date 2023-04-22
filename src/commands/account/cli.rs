@@ -1,8 +1,10 @@
+use std::path::PathBuf;
 use clap::Subcommand;
 
-use crate::Result;
-
-use crate::helpers::account::{account_info, list_accounts, local_signup};
+use crate::{
+    helpers::account::{account_info, list_accounts, account_backup, local_signup},
+    Error, Result,
+};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -35,6 +37,19 @@ pub enum Command {
         /// Account name.
         account_name: String,
     },
+    /// Create secure backup as a zip archive.
+    Backup {
+        /// Output file.
+        #[clap(short, long)]
+        output: PathBuf,
+
+        /// Force overwrite of existing file.
+        #[clap(short, long)]
+        force: bool,
+
+        /// Account name.
+        account_name: String,
+    },
 }
 
 pub fn run(cmd: Command) -> Result<()> {
@@ -51,6 +66,13 @@ pub fn run(cmd: Command) -> Result<()> {
             system,
         } => {
             account_info(&account_name, verbose, system)?;
+        }
+        Command::Backup {
+            account_name,
+            output,
+            force,
+        } => {
+            account_backup(&account_name, output, force)?;
         }
     }
 

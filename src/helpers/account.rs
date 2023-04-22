@@ -1,5 +1,5 @@
 //! Helpers for creating and switching accounts.
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, sync::Arc, path::PathBuf};
 
 use sos_core::{
     encode,
@@ -70,6 +70,29 @@ pub fn account_info(
     Ok(())
 }
 
+/// Create a backup zip archive.
+pub fn account_backup(
+    account_name: &str,
+    output: PathBuf,
+    force: bool,
+) -> Result<()> {
+    if !force && output.exists() {
+        return Err(Error::FileExists(output));
+    }
+
+    let account = find_account(account_name)?
+        .ok_or(Error::NoAccount(account_name.to_string()))?;
+    AccountManager::export_archive_file(&output, &account.address)?;
+    Ok(())
+}
+
+fn find_account(account_name: &str) -> Result<Option<AccountInfo>> {
+    let accounts = AccountManager::list_accounts()?;
+    Ok(accounts
+        .into_iter()
+        .find(|a| a.label == account_name))
+}
+
 /// Helper to sign in to an account.
 pub fn sign_in(
     account_name: &str,
@@ -80,10 +103,7 @@ pub fn sign_in(
     DeviceSigner,
     Arc<SyncRwLock<SearchIndex>>,
 )> {
-    let accounts = AccountManager::list_accounts()?;
-    let account = accounts
-        .iter()
-        .find(|a| a.label == account_name)
+    let account = find_account(account_name)?
         .ok_or(Error::NoAccount(account_name.to_string()))?;
 
     let reader = StdinPassphraseReader {};
