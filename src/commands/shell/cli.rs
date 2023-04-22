@@ -85,8 +85,6 @@ pub async fn run(
     writer.load_vaults().await?;
     drop(writer);
 
-    println!("STarting shell...");
-
     let mut rl = rustyline::Editor::<()>::new()?;
     loop {
         let prompt_value = {

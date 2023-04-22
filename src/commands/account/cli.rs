@@ -84,8 +84,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             account_backup(&account_name, output, force)?;
         }
         Command::Restore { input } => {
-            let account = account_restore(input).await?;
-            println!("restored {} ({})", account.label, account.address);
+            if let Some(account) = account_restore(input).await? {
+                println!("{} ({}) ✓", account.label, account.address);
+            }
         }
     }
 

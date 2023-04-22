@@ -77,7 +77,7 @@ pub fn account_backup(
 }
 
 /// Restore from a zip archive.
-pub async fn account_restore(input: PathBuf) -> Result<AccountInfo> {
+pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     if !input.exists() || !input.is_file() {
         return Err(Error::NotFile(input));
     }
@@ -88,6 +88,13 @@ pub async fn account_restore(input: PathBuf) -> Result<AccountInfo> {
     let account = find_account_by_address(&inventory.manifest.address)?;
 
     let (mut provider, passphrase) = if let Some(account) = account {
+        let confirmed = read_flag(Some(
+            "Overwrite all account data from backup? (y/n) ",
+        ))?;
+        if !confirmed {
+            return Ok(None);
+        }
+
         let (_, user, _, _, _, _) = sign_in(&account.label).await?;
         let factory = ProviderFactory::Local;
         let (provider, _) = factory.create_provider(user.signer)?;
@@ -110,7 +117,7 @@ pub async fn account_restore(input: PathBuf) -> Result<AccountInfo> {
     )
     .await?;
 
-    Ok(account)
+    Ok(Some(account))
 }
 
 fn find_account(account_name: &str) -> Result<Option<AccountInfo>> {
