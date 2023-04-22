@@ -43,8 +43,8 @@ pub async fn run(
     let mut locks = FileLocks::new();
     locks.add(&cache_lock)?;
 
-    let (info, user, identity_keeper, _device_signer, identity_index) =
-        sign_in(&account_name)?;
+    let (info, user, identity_keeper, _device_signer, identity_index, _) =
+        sign_in(&account_name).await?;
 
     let factory = provider.unwrap_or_default();
     let (provider, address) = factory.create_provider(user.signer.clone())?;

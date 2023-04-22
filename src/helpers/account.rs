@@ -1,10 +1,11 @@
 //! Helpers for creating and switching accounts.
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
+use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
+    archive::Inventory,
     encode,
     identity::AuthenticatedUser,
-    parking_lot::RwLock as SyncRwLock,
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
     secrecy::{ExposeSecret, SecretString},
@@ -16,8 +17,7 @@ use sos_node::client::{
         AccountInfo, AccountManager, DeviceSigner, NewAccountRequest,
         NewAccountResponse,
     },
-    provider::{BoxedProvider, ProviderFactory},
-    run_blocking, PassphraseReader,
+    provider::{BoxedProvider, ProviderFactory, RestoreOptions},
 };
 use terminal_banner::{Banner, Padding};
 use web3_address::ethereum::Address;
@@ -28,16 +28,6 @@ use crate::helpers::{
 };
 
 use crate::{Error, Result};
-
-pub struct StdinPassphraseReader {}
-
-impl PassphraseReader for StdinPassphraseReader {
-    type Error = crate::Error;
-
-    fn read(&self) -> std::result::Result<SecretString, Self::Error> {
-        read_password(Some("Passphrase: "))
-    }
-}
 
 /// List local accounts.
 pub fn list_accounts(verbose: bool) -> Result<()> {
@@ -53,12 +43,12 @@ pub fn list_accounts(verbose: bool) -> Result<()> {
 }
 
 /// Print account info.
-pub fn account_info(
+pub async fn account_info(
     account_name: &str,
     verbose: bool,
     system: bool,
 ) -> Result<()> {
-    let (info, _, _, _, _) = sign_in(account_name)?;
+    let (info, _, _, _, _, _) = sign_in(account_name).await?;
     let folders = AccountManager::list_local_vaults(&info.address, system)?;
     for (summary, _) in folders {
         if verbose {
@@ -70,8 +60,78 @@ pub fn account_info(
     Ok(())
 }
 
+/// Create a backup zip archive.
+pub fn account_backup(
+    account_name: &str,
+    output: PathBuf,
+    force: bool,
+) -> Result<()> {
+    if !force && output.exists() {
+        return Err(Error::FileExists(output));
+    }
+
+    let account = find_account(account_name)?
+        .ok_or(Error::NoAccount(account_name.to_string()))?;
+    AccountManager::export_archive_file(&output, &account.address)?;
+    Ok(())
+}
+
+/// Restore from a zip archive.
+pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
+    if !input.exists() || !input.is_file() {
+        return Err(Error::NotFile(input));
+    }
+
+    let buffer = std::fs::read(input)?;
+    let inventory: Inventory =
+        AccountManager::restore_archive_inventory(buffer.as_slice())?;
+    let account = find_account_by_address(&inventory.manifest.address)?;
+
+    let (mut provider, passphrase) = if let Some(account) = account {
+        let confirmed = read_flag(Some(
+            "Overwrite all account data from backup? (y/n) ",
+        ))?;
+        if !confirmed {
+            return Ok(None);
+        }
+
+        let (_, user, _, _, _, _) = sign_in(&account.label).await?;
+        let factory = ProviderFactory::Local;
+        let (provider, _) = factory.create_provider(user.signer)?;
+        (Some(provider), None)
+    } else {
+        (None, None)
+    };
+
+    let files_dir = StorageDirs::files_dir(&inventory.manifest.address)?;
+    let options = RestoreOptions {
+        selected: inventory.vaults,
+        passphrase,
+        files_dir: Some(files_dir),
+        files_dir_builder: None,
+    };
+    let account = AccountManager::restore_archive_buffer(
+        buffer,
+        options,
+        provider.as_mut(),
+    )
+    .await?;
+
+    Ok(Some(account))
+}
+
+fn find_account(account_name: &str) -> Result<Option<AccountInfo>> {
+    let accounts = AccountManager::list_accounts()?;
+    Ok(accounts.into_iter().find(|a| a.label == account_name))
+}
+
+fn find_account_by_address(address: &str) -> Result<Option<AccountInfo>> {
+    let accounts = AccountManager::list_accounts()?;
+    Ok(accounts.into_iter().find(|a| a.address == address))
+}
+
 /// Helper to sign in to an account.
-pub fn sign_in(
+pub async fn sign_in(
     account_name: &str,
 ) -> Result<(
     AccountInfo,
@@ -79,37 +139,42 @@ pub fn sign_in(
     Gatekeeper,
     DeviceSigner,
     Arc<SyncRwLock<SearchIndex>>,
+    SecretString,
 )> {
-    let accounts = AccountManager::list_accounts()?;
-    let account = accounts
-        .iter()
-        .find(|a| a.label == account_name)
+    let account = find_account(account_name)?
         .ok_or(Error::NoAccount(account_name.to_string()))?;
 
-    let reader = StdinPassphraseReader {};
-    let passphrase = reader.read()?;
+    let passphrase = read_password(Some("Password: "))?;
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
     // Verify the identity vault can be unlocked
     let (info, user, keeper, device_signer) = AccountManager::sign_in(
         &account.address,
-        passphrase,
+        passphrase.clone(),
         Arc::clone(&identity_index),
-    )?;
+    )
+    .await?;
 
-    Ok((info, user, keeper, device_signer, identity_index))
+    Ok((
+        info,
+        user,
+        keeper,
+        device_signer,
+        identity_index,
+        passphrase,
+    ))
 }
 
 /// Switch to a different account.
-pub fn switch(
+pub async fn switch(
     factory: &ProviderFactory,
     account_name: String,
 ) -> Result<(BoxedProvider, Address)> {
-    let (_, user, _, _, _) = sign_in(&account_name)?;
+    let (_, user, _, _, _, _) = sign_in(&account_name).await?;
     Ok(factory.create_provider(user.signer)?)
 }
 
 /// Create a new local account.
-pub fn local_signup(
+pub async fn local_signup(
     account_name: String,
     folder_name: Option<String>,
 ) -> Result<()> {
@@ -133,7 +198,7 @@ pub fn local_signup(
         summary,
         default_vault: vault,
         ..
-    } = AccountManager::new_account(account)?;
+    } = AccountManager::new_account(account).await?;
 
     // Get the signing key for the authenticated user
     let signer = user.signer;
@@ -177,12 +242,12 @@ pub fn local_signup(
             // Prepare a provider for account creation
             let factory = ProviderFactory::Local;
             let (mut provider, _) = factory.create_provider(signer)?;
-            run_blocking(provider.authenticate())?;
+            provider.authenticate().await?;
 
             // Send the default vault for account creation
             let buffer = encode(&vault)?;
             let _summary =
-                run_blocking(provider.create_account_with_buffer(buffer))?;
+                provider.create_account_with_buffer(buffer).await?;
 
             let cache_dir =
                 StorageDirs::cache_dir().ok_or(Error::NoCacheDir)?;

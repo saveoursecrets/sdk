@@ -92,7 +92,7 @@ enum Command {
 async fn run() -> Result<()> {
     let args = Sos::parse();
     match args.cmd {
-        Command::Account { cmd } => account::run(cmd)?,
+        Command::Account { cmd } => account::run(cmd).await?,
         Command::Audit { cmd } => audit::run(cmd)?,
         Command::Changes {
             server,
