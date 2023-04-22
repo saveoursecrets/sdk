@@ -6,7 +6,7 @@ use sos_node::client::{
     run_blocking,
 };
 
-use super::sign_in;
+use crate::helpers::account::sign_in;
 use crate::Result;
 
 /// Creates a changes stream and calls handler for every change notification.

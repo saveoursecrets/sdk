@@ -1,4 +1,4 @@
-//! Signup a new account.
+//! Helpers for creating and switching accounts.
 use std::{borrow::Cow, sync::Arc};
 
 use sos_core::{
@@ -22,7 +22,7 @@ use sos_node::client::{
 use terminal_banner::{Banner, Padding};
 use web3_address::ethereum::Address;
 
-use super::{
+use crate::helpers::{
     display_passphrase,
     readline::{read_flag, read_password},
 };
@@ -37,6 +37,16 @@ impl PassphraseReader for StdinPassphraseReader {
     fn read(&self) -> std::result::Result<SecretString, Self::Error> {
         read_password(Some("Passphrase: "))
     }
+}
+
+/// List local accounts.
+pub fn list_accounts(
+) -> Result<()> {
+    let accounts = AccountManager::list_accounts()?;
+    for account in accounts {
+        println!("{} ({})", account.label, account.address);
+    }
+    Ok(())
 }
 
 /// Helper to sign in to an account.
@@ -77,7 +87,7 @@ pub fn switch(
     Ok(factory.create_provider(user.signer)?)
 }
 
-/// Create a new local identity.
+/// Create a new local account.
 pub fn local_signup(
     account_name: String,
     folder_name: Option<String>,

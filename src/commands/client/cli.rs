@@ -5,7 +5,7 @@ use std::{
 
 use clap::Subcommand;
 
-use super::{exec, local_signup, monitor, sign_in, ShellState};
+use super::{exec, monitor, ShellState};
 use sos_core::{storage::StorageDirs, url::Url};
 use terminal_banner::{Banner, Padding};
 
@@ -17,8 +17,8 @@ use sos_node::{
     FileLocks,
 };
 
-use super::readline::read_shell;
-
+use crate::helpers::account::{local_signup, sign_in};
+use crate::helpers::readline::read_shell;
 use crate::{Error, Result};
 
 const WELCOME: &str = include_str!("welcome.txt");

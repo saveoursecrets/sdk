@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 use sos::{
     commands::{
-        audit, check, client, rendezvous, server, AuditCommand, CheckCommand,
-        ClientCommand,
+        account, audit, check, client, rendezvous, server, AuditCommand, CheckCommand,
+        ClientCommand, AccountCommand,
     },
     Result,
 };
@@ -18,6 +18,11 @@ struct Sos {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Manage local accounts.
+    Account {
+        #[clap(subcommand)]
+        cmd: AccountCommand,
+    },
     /// Print and monitor audit logs.
     Audit {
         #[clap(subcommand)]
@@ -70,6 +75,7 @@ enum Command {
 async fn run() -> Result<()> {
     let args = Sos::parse();
     match args.cmd {
+        Command::Account { cmd } => account::run(cmd)?,
         Command::Audit { cmd } => audit::run(cmd)?,
         Command::Check { cmd } => check::run(cmd)?,
         Command::Client { cmd } => client::run(cmd)?,

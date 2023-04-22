@@ -1,4 +1,5 @@
 pub mod commands;
+pub(crate) mod helpers;
 mod error;
 
 pub use error::Error;

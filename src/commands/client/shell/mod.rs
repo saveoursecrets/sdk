@@ -36,13 +36,13 @@ use sos_node::{
     sync::SyncKind,
 };
 
-use super::{
+use crate::helpers::{
     display_passphrase,
     readline::{
         choose, read_flag, read_line, read_line_allow_empty, read_multiline,
         read_option, read_password, Choice,
     },
-    switch,
+    account::switch,
 };
 
 use crate::{Error, Result};
