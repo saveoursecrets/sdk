@@ -40,11 +40,32 @@ impl PassphraseReader for StdinPassphraseReader {
 }
 
 /// List local accounts.
-pub fn list_accounts(
-) -> Result<()> {
+pub fn list_accounts(verbose: bool) -> Result<()> {
     let accounts = AccountManager::list_accounts()?;
     for account in accounts {
-        println!("{} ({})", account.label, account.address);
+        if verbose {
+            println!("{} {}", account.address, account.label);
+        } else {
+            println!("{}", account.label);
+        }
+    }
+    Ok(())
+}
+
+/// Print account info.
+pub fn account_info(
+    account_name: &str,
+    verbose: bool,
+    system: bool,
+) -> Result<()> {
+    let (info, _, _, _, _) = sign_in(account_name)?;
+    let folders = AccountManager::list_local_vaults(&info.address, system)?;
+    for (summary, _) in folders {
+        if verbose {
+            println!("{} {}", summary.id(), summary.name());
+        } else {
+            println!("{}", summary.name());
+        }
     }
     Ok(())
 }

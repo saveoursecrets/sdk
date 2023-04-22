@@ -37,7 +37,6 @@ terminal-banner = "0.1"
 rustyline = "10"
 rustyline-derive = "0.7"
 unicode-width = "0.1"
-is-terminal = "0.4"
 
 [dev-dependencies]
 http = "0.2"

@@ -3,7 +3,6 @@ use futures::stream::StreamExt;
 use sos_core::{signer::ecdsa::BoxedEcdsaSigner, url::Url};
 use sos_node::client::{
     net::changes::{changes, connect},
-    run_blocking,
 };
 
 use crate::helpers::account::sign_in;
@@ -28,10 +27,10 @@ async fn changes_stream(
 }
 
 /// Start a monitor listening for events on the SSE stream.
-pub fn monitor(server: Url, account_name: String) -> Result<()> {
+pub async fn run(server: Url, account_name: String) -> Result<()> {
     let (_, user, _, _, _) = sign_in(&account_name)?;
     let signer = user.signer;
-    if let Err(e) = run_blocking(changes_stream(server, signer)) {
+    if let Err(e) = changes_stream(server, signer).await {
         tracing::error!("{}", e);
         std::process::exit(1);
     }

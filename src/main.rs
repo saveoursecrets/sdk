@@ -1,11 +1,13 @@
 use clap::{Parser, Subcommand};
 use sos::{
     commands::{
-        account, audit, check, client, rendezvous, server, AuditCommand, CheckCommand,
-        ClientCommand, AccountCommand,
+        account, audit, changes, check, rendezvous, server, shell,
+        AccountCommand, AuditCommand, CheckCommand,
     },
     Result,
 };
+use sos_core::url::Url;
+use sos_node::client::provider::ProviderFactory;
 use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -28,15 +30,31 @@ enum Command {
         #[clap(subcommand)]
         cmd: AuditCommand,
     },
+
+    /// Listen to events on a server changes stream.
+    Changes {
+        /// Server URL.
+        #[clap(short, long)]
+        server: Url,
+
+        /// Account name.
+        #[clap(short, long)]
+        account_name: String,
+    },
     /// Check file status and integrity.
     Check {
         #[clap(subcommand)]
         cmd: CheckCommand,
     },
-    /// Manage accounts.
-    Client {
-        #[clap(subcommand)]
-        cmd: ClientCommand,
+    /// Peer to peer rendezvous server.
+    Rendezvous {
+        /// Hex encoded 32 byte Ed25519 secret key.
+        #[clap(short, long, env, hide_env_values = true)]
+        identity: Option<String>,
+
+        /// Bind address.
+        #[clap(short, long, default_value = "0.0.0.0:3505")]
+        bind: String,
     },
     /// Run a web server.
     Server {
@@ -60,15 +78,14 @@ enum Command {
         #[clap(short, long)]
         config: PathBuf,
     },
-    /// Peer to peer rendezvous server.
-    Rendezvous {
-        /// Hex encoded 32 byte Ed25519 secret key.
-        #[clap(short, long, env, hide_env_values = true)]
-        identity: Option<String>,
+    /// Start an interactive login shell.
+    Shell {
+        /// Provider factory.
+        #[clap(short, long)]
+        provider: Option<ProviderFactory>,
 
-        /// Bind address.
-        #[clap(short, long, default_value = "0.0.0.0:3505")]
-        bind: String,
+        /// Account name.
+        account_name: String,
     },
 }
 
@@ -77,8 +94,15 @@ async fn run() -> Result<()> {
     match args.cmd {
         Command::Account { cmd } => account::run(cmd)?,
         Command::Audit { cmd } => audit::run(cmd)?,
+        Command::Changes {
+            server,
+            account_name,
+        } => changes::run(server, account_name).await?,
         Command::Check { cmd } => check::run(cmd)?,
-        Command::Client { cmd } => client::run(cmd)?,
+        Command::Shell {
+            provider,
+            account_name,
+        } => shell::run(provider, account_name).await?,
         Command::Server {
             audit_log,
             reap_interval,

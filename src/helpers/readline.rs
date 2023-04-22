@@ -1,9 +1,6 @@
 use std::{
     borrow::Cow::{self, Borrowed, Owned},
-    io::{self, Read},
 };
-
-use is_terminal::IsTerminal;
 
 use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;
@@ -55,17 +52,6 @@ pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {
     Ok(Secret::new(passwd))
 }
 
-/// Read a passphrase from stdin passed into the program.
-pub fn read_stdin() -> Result<Option<String>> {
-    if !std::io::stdin().is_terminal() {
-        let mut buffer = Vec::new();
-        io::stdin().lock().read_to_end(&mut buffer)?;
-        Ok(Some(std::str::from_utf8(&buffer)?.trim().to_string()))
-    } else {
-        Ok(None)
-    }
-}
-
 /// Read a multi-line string.
 pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
     let mut rl = rustyline::Editor::<()>::new()?;
@@ -85,28 +71,6 @@ pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
                 ReadlineError::Interrupted => return Ok(None),
                 _ => return Err(Error::Readline(e)),
             },
-        }
-    }
-}
-
-/// Read a line and invoke the shell callback.
-pub fn read_shell<H>(
-    mut handler: H,
-    prompt: impl Fn() -> String,
-) -> Result<String>
-where
-    H: FnMut(String),
-{
-    let mut rl = rustyline::Editor::<()>::new()?;
-    loop {
-        let prompt_value = prompt();
-        let readline = rl.readline(&prompt_value);
-        match readline {
-            Ok(line) => {
-                rl.add_history_entry(line.as_str());
-                handler(line);
-            }
-            Err(e) => return Err(Error::Readline(e)),
         }
     }
 }
