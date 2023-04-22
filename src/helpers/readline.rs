@@ -1,6 +1,4 @@
-use std::{
-    borrow::Cow::{self, Borrowed, Owned},
-};
+use std::borrow::Cow::{self, Borrowed, Owned};
 
 use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;

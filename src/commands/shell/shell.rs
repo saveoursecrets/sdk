@@ -1,16 +1,13 @@
 use std::{
-    borrow::Cow,
-    collections::HashMap,
-    ffi::OsString,
-    path::PathBuf,
+    borrow::Cow, collections::HashMap, ffi::OsString, path::PathBuf,
     sync::Arc,
 };
 
 use clap::{CommandFactory, Parser, Subcommand};
 
 use terminal_banner::{Banner, Padding};
-use web3_address::ethereum::Address;
 use tokio::sync::RwLock;
+use web3_address::ethereum::Address;
 
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
@@ -206,27 +203,9 @@ enum Add {
 }
 
 #[derive(Subcommand, Debug)]
-enum SnapShot {
-    /// Take a snapshot of the current WAL state.
-    Take,
-    /// List snapshots.
-    #[clap(alias = "ls")]
-    List {
-        /// Print more information; includes file path and size.
-        #[clap(short, long)]
-        long: bool,
-    },
-    // TODO: support removing all existing snapshots: `purge`?
-}
-
-#[derive(Subcommand, Debug)]
 enum History {
-    /// Compact the currently selected vault.
-    Compact {
-        /// Take a snapshot before compaction.
-        #[clap(short, long)]
-        snapshot: bool,
-    },
+    /// Compact the history for the currently selected vault.
+    Compact,
     /// Verify the integrity of the vault history.
     Check,
     /// List history events.
@@ -642,10 +621,11 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             drop(writer);
             if renamed {
-                maybe_conflict(Arc::clone(&cache), || async move{
+                maybe_conflict(Arc::clone(&cache), || async move {
                     let mut writer = cache.write().await;
                     writer.set_vault_name(&summary, &name).await
-                }).await
+                })
+                .await
             } else {
                 Ok(())
             }
@@ -657,8 +637,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             drop(reader);
 
             let mut writer = cache.write().await;
-            let (status, pending_events) =
-                writer.status(&summary).await?;
+            let (status, pending_events) = writer.status(&summary).await?;
             if verbose {
                 let pair = status.pair();
                 println!("local  = {}", pair.local.root_hex());
@@ -707,13 +686,15 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                     let mut writer = cache.write().await;
                     writer.create_secret(meta, secret).await?;
                     Ok(())
-                }).await
+                })
+                .await
             } else {
                 Ok(())
             }
         }
         ShellCommand::Get { secret } => {
-            let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret).await?
+            let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret)
+                .await?
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
             let mut writer = cache.write().await;
             let (meta, secret, _) = writer.read_secret(&uuid).await?;
@@ -722,7 +703,8 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
 
         ShellCommand::Set { secret } => {
-            let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret).await?
+            let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret)
+                .await?
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             // Read in secret data for editing.
@@ -767,7 +749,8 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                         .update_secret(&uuid, secret_meta, edited_secret)
                         .await?;
                     Ok(())
-                }).await
+                })
+                .await
             // If the edited result was borrowed
             // it indicates that no changes were made
             } else {
@@ -776,7 +759,8 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::Del { secret } => {
             let (uuid, secret_meta) =
-                find_secret_meta(Arc::clone(&cache), &secret).await?
+                find_secret_meta(Arc::clone(&cache), &secret)
+                    .await?
                     .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let prompt =
@@ -792,13 +776,15 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                     let mut writer = cache.write().await;
                     writer.delete_secret(&uuid).await?;
                     Ok(())
-                }).await
+                })
+                .await
             } else {
                 Ok(())
             }
         }
         ShellCommand::Mv { secret, label } => {
-            let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret).await?
+            let (uuid, _) = find_secret_meta(Arc::clone(&cache), &secret)
+                .await?
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let reader = cache.read().await;
@@ -841,18 +827,16 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             maybe_conflict(Arc::clone(&cache), || async move {
                 let mut writer = cache.write().await;
                 writer.patch(&summary, vec![event]).await
-            }).await
+            })
+            .await
         }
         ShellCommand::History { cmd } => {
             match cmd {
-                History::Compact { snapshot } => {
+                History::Compact => {
                     let reader = cache.read().await;
                     let keeper =
                         reader.current().ok_or(Error::NoVaultSelected)?;
                     let summary = keeper.summary().clone();
-                    if snapshot {
-                        reader.take_snapshot(&summary)?;
-                    }
                     drop(reader);
 
                     let prompt = Some("Compaction will remove history, are you sure (y/n)? ");
@@ -971,11 +955,9 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 // already mutably borrowed
                 let vault: Vault = keeper.vault().clone();
 
-                let new_passphrase = writer.change_password(
-                    &vault,
-                    passphrase,
-                    new_passphrase,
-                ).await?;
+                let new_passphrase = writer
+                    .change_password(&vault, passphrase, new_passphrase)
+                    .await?;
 
                 drop(writer);
 

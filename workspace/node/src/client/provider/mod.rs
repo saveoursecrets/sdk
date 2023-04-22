@@ -21,7 +21,6 @@ use sos_core::{
         secret::{Secret, SecretId, SecretMeta},
         Gatekeeper, Summary, Vault,
     },
-    wal::snapshot::{SnapShot, SnapShotManager},
     Timestamp,
 };
 
@@ -116,14 +115,6 @@ pub trait StorageProvider: Sync + Send {
 
     /// Compute the storage directory for the user.
     fn dirs(&self) -> &StorageDirs;
-
-    /// Get the snapshot manager for this cache.
-    fn snapshots(&self) -> Option<&SnapShotManager>;
-
-    /// Take a snapshot of the WAL for the given vault.
-    ///
-    /// Snapshots must be enabled.
-    fn take_snapshot(&self, summary: &Summary) -> Result<(SnapShot, bool)>;
 
     /// Restore vaults from an archive.
     ///
@@ -544,10 +535,6 @@ macro_rules! provider_impl {
             &self.dirs
         }
 
-        fn snapshots(&self) -> Option<&SnapShotManager> {
-            self.snapshots.as_ref()
-        }
-
         fn open_vault(
             &mut self,
             summary: &Summary,
@@ -674,21 +661,6 @@ macro_rules! provider_impl {
                 records.push((commit, time, event));
             }
             Ok(records)
-        }
-
-        fn take_snapshot(
-            &self,
-            summary: &Summary,
-        ) -> Result<(SnapShot, bool)> {
-            let snapshots =
-                self.snapshots().ok_or(Error::SnapshotsNotEnabled)?;
-            let (wal_file, _) = self
-                .cache
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            let root_hash =
-                wal_file.tree().root().ok_or(Error::NoRootCommit)?;
-            Ok(snapshots.create(summary.id(), wal_file.path(), root_hash)?)
         }
 
         /// Refresh the in-memory vault of the current selection

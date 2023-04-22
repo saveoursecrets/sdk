@@ -89,10 +89,6 @@ pub enum Error {
     #[error("commit tree does not have a root")]
     NoRootCommit,
 
-    /// Error generated attempting to take a snapshot when snapshots are disabled.
-    #[error("snapshots must be enabled")]
-    SnapshotsNotEnabled,
-
     /// Error generated when a return value is expected from a RPC call
     /// but the response did not have a result.
     #[error("method did not return a value")]

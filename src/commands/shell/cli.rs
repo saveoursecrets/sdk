@@ -1,7 +1,4 @@
-use std::{
-    borrow::Cow,
-    sync::{Arc},
-};
+use std::{borrow::Cow, sync::Arc};
 
 use super::{exec, ShellState};
 use sos_core::storage::StorageDirs;
@@ -14,7 +11,7 @@ use sos_node::{
 
 use tokio::sync::RwLock;
 
-use crate::{Error, Result, helpers::account::sign_in};
+use crate::{helpers::account::sign_in, Error, Result};
 
 const WELCOME: &str = include_str!("welcome.txt");
 
@@ -53,7 +50,7 @@ pub async fn run(
     let (provider, address) = factory.create_provider(user.signer.clone())?;
 
     let provider = Arc::new(RwLock::new(provider));
-    
+
     /*
     match &factory {
         ProviderFactory::Remote(remote) => {

@@ -7,10 +7,7 @@ use sos_core::{
     events::{SyncEvent, WalEvent},
     formats::WalFileRecord,
     vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
-    wal::{
-        file::WalFile, reducer::WalReducer, snapshot::SnapShotManager,
-        WalProvider,
-    },
+    wal::{file::WalFile, reducer::WalReducer, WalProvider},
 };
 use std::{
     borrow::Cow,
@@ -605,11 +602,6 @@ impl BackendHandler for FileSystemBackend {
         }
 
         let original_wal = self.wal_file_path(owner, vault_id);
-
-        // Create a snapshot for backup purposes
-        let account_dir = self.directory.join(owner.to_string());
-        let snapshots = SnapShotManager::new(account_dir)?;
-        snapshots.create(vault_id, &original_wal, root_hash)?;
 
         // Remove the existing WAL
         std::fs::remove_file(&original_wal)?;

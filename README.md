@@ -212,7 +212,7 @@ To view the list of vaults run the `vaults` command; the default vault created w
 
 Now enter your encryption passphrase to unlock the vault.
 
-Once the vault is unlocked you can list, create, update, read and delete secrets and perform other actions such as creating snapshots or changing the vault encryption passphrase.
+Once the vault is unlocked you can list, create, update, read and delete secrets and perform other actions such as changing the vault encryption passphrase.
 
 When you have finished making changes remember to lock the vault again with the `close` command.
 

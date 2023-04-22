@@ -162,16 +162,6 @@ async fn integration_simple_session() -> Result<()> {
         .set_vault_name(&new_vault_summary, DEFAULT_VAULT_NAME)
         .await?;
 
-    // Take a snapshot - need to do these assertions before pull/push
-    let (_snapshot, created) =
-        node_cache.take_snapshot(&new_vault_summary)?;
-    assert!(created);
-    let snapshots = node_cache
-        .snapshots()
-        .unwrap()
-        .list(new_vault_summary.id())?;
-    assert!(!snapshots.is_empty());
-
     // Try to pull whilst up to date
     let _ = node_cache.pull(&new_vault_summary, false).await?;
     // Now force a pull

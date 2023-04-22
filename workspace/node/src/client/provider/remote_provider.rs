@@ -18,10 +18,7 @@ use sos_core::{
         secret::{Secret, SecretId, SecretMeta},
         Summary, Vault,
     },
-    wal::{
-        memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
-        snapshot::SnapShotManager, WalItem, WalProvider,
-    },
+    wal::{memory::WalMemory, reducer::WalReducer, WalItem, WalProvider},
     Timestamp,
 };
 
@@ -56,11 +53,6 @@ pub struct RemoteProvider<W, P> {
     /// Data for the cache.
     cache: HashMap<Uuid, (W, P)>,
 
-    /// Snapshots manager for WAL files.
-    ///
-    /// Only available when using disc backing storage.
-    snapshots: Option<SnapShotManager>,
-
     /// Client to use for remote communication.
     client: RpcClient,
 }
@@ -80,13 +72,11 @@ impl RemoteProvider<WalFile, PatchFile> {
 
         dirs.ensure()?;
 
-        let snapshots = Some(SnapShotManager::new(dirs.user_dir())?);
         Ok(Self {
             state: ProviderState::new(true),
             cache: Default::default(),
             client,
             dirs,
-            snapshots,
         })
     }
 }
@@ -101,7 +91,6 @@ impl RemoteProvider<WalMemory, PatchMemory<'static>> {
             cache: Default::default(),
             dirs: Default::default(),
             client,
-            snapshots: None,
         }
     }
 }
@@ -379,18 +368,6 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         if force {
-            // Create a snapshot of the WAL before deleting it
-            if let Some(snapshots) = &self.snapshots {
-                let root_hash =
-                    wal_file.tree().root().ok_or(Error::NoRootCommit)?;
-                let (snapshot, _) = snapshots.create(
-                    summary.id(),
-                    wal_file.path(),
-                    root_hash,
-                )?;
-                tracing::debug!(
-                    path = ?snapshot.0, "force_pull snapshot");
-            }
             // Noop on wasm32
             fs_adapter::remove_file(wal_file.path())?;
         }

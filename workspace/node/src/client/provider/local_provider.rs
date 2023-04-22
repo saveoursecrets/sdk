@@ -14,10 +14,7 @@ use sos_core::{
     search::SearchIndex,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
-    wal::{
-        memory::WalMemory, reducer::WalReducer, snapshot::SnapShot,
-        snapshot::SnapShotManager, WalItem, WalProvider,
-    },
+    wal::{memory::WalMemory, reducer::WalReducer, WalItem, WalProvider},
     Timestamp,
 };
 
@@ -50,11 +47,6 @@ pub struct LocalProvider<W, P> {
 
     /// Cache for WAL and patch providers.
     cache: HashMap<VaultId, (W, P)>,
-
-    /// Snapshot manager for WAL files.
-    ///
-    /// Only available when using disc backing storage.
-    snapshots: Option<SnapShotManager>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -71,13 +63,10 @@ impl LocalProvider<WalFile, PatchFile> {
 
         dirs.ensure()?;
 
-        let snapshots = Some(SnapShotManager::new(dirs.user_dir())?);
-
         Ok(Self {
             state: ProviderState::new(true),
             cache: Default::default(),
             dirs,
-            snapshots,
         })
     }
 }
@@ -90,7 +79,6 @@ impl LocalProvider<WalMemory, PatchMemory<'static>> {
             state: ProviderState::new(false),
             dirs: Default::default(),
             cache: Default::default(),
-            snapshots: None,
         }
     }
 }

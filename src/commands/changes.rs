@@ -1,9 +1,7 @@
 //! Listen for changes events on the server sent events channel.
 use futures::stream::StreamExt;
 use sos_core::{signer::ecdsa::BoxedEcdsaSigner, url::Url};
-use sos_node::client::{
-    net::changes::{changes, connect},
-};
+use sos_node::client::net::changes::{changes, connect};
 
 use crate::helpers::account::sign_in;
 use crate::Result;
