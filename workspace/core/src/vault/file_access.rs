@@ -130,7 +130,7 @@ impl VaultFileAccess {
         let content_offset = self.check_identity()?;
 
         let mut stream = self.stream.lock().unwrap();
-        let mut reader = BinaryReader::new(&mut *stream, Endian::Big);
+        let mut reader = BinaryReader::new(&mut *stream, Endian::Little);
 
         reader.seek(content_offset)?;
 
@@ -203,7 +203,7 @@ impl VaultAccess for VaultFileAccess {
     ) -> Result<SyncEvent<'_>> {
         let mut stream = self.stream.lock().unwrap();
         let length = stream.len()?;
-        let mut writer = BinaryWriter::new(&mut *stream, Endian::Big);
+        let mut writer = BinaryWriter::new(&mut *stream, Endian::Little);
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
@@ -222,7 +222,7 @@ impl VaultAccess for VaultFileAccess {
         let (_, row) = self.find_row(id)?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().unwrap();
-            let mut reader = BinaryReader::new(&mut *stream, Endian::Big);
+            let mut reader = BinaryReader::new(&mut *stream, Endian::Little);
             reader.seek(row_offset)?;
             let (_, value) = Contents::decode_row(&mut reader)?;
             Ok((Some(Cow::Owned(value)), SyncEvent::ReadSecret(*id)))
@@ -241,7 +241,7 @@ impl VaultAccess for VaultFileAccess {
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
             let mut stream = MemoryStream::new();
-            let mut writer = BinaryWriter::new(&mut stream, Endian::Big);
+            let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
 
             let row = VaultCommit(commit, secret);
             Contents::encode_row(&mut writer, id, &row)?;

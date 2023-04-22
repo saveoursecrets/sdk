@@ -73,7 +73,7 @@ impl AuditLogFile {
         file.read_exact(&mut buf)?;
 
         let mut stream = SliceStream::new(&buf);
-        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+        let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         Ok(AuditLogFile::decode_row(&mut reader)?)
     }
 
@@ -127,7 +127,7 @@ impl AuditProvider for AuditLogFile {
     ) -> std::result::Result<(), Self::Error> {
         let buffer: Vec<u8> = {
             let mut stream = MemoryStream::new();
-            let mut writer = BinaryWriter::new(&mut stream, Endian::Big);
+            let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
             for event in events {
                 AuditLogFile::encode_row(&mut writer, event)?;
             }

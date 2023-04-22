@@ -273,7 +273,7 @@ impl WalProvider for WalFile {
         file.read_exact(buffer.as_mut_slice())?;
 
         let mut stream = SliceStream::new(&buffer);
-        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+        let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         let mut event: WalEvent = Default::default();
         event.decode(&mut reader)?;
         Ok(event)

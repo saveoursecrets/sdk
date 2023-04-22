@@ -47,12 +47,12 @@ pub use vcard4;
 
 /// Encode to a binary buffer.
 pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
-    encode_endian(encodable, Endian::Big)
+    encode_endian(encodable, Endian::Little)
 }
 
 /// Decode from a binary buffer.
 pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
-    decode_endian::<T>(buffer, Endian::Big)
+    decode_endian::<T>(buffer, Endian::Little)
 }
 
 fn encode_endian(encodable: &impl Encode, endian: Endian) -> Result<Vec<u8>> {

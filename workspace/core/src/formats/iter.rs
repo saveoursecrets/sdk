@@ -391,7 +391,7 @@ impl<T: FileItem> ReadStreamIterator<T> {
         let row_pos = self.forward.unwrap();
 
         let mut reader =
-            BinaryReader::new(&mut *self.read_stream, Endian::Big);
+            BinaryReader::new(&mut *self.read_stream, Endian::Little);
         reader.seek(row_pos)?;
         let row_len = reader.read_u32()?;
 
@@ -415,7 +415,7 @@ impl<T: FileItem> ReadStreamIterator<T> {
         let row_pos = self.backward.unwrap();
 
         let mut reader =
-            BinaryReader::new(&mut *self.read_stream, Endian::Big);
+            BinaryReader::new(&mut *self.read_stream, Endian::Little);
 
         // Read in the reverse iteration row length
         reader.seek(row_pos - 4)?;

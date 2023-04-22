@@ -86,7 +86,7 @@ impl WalMemory {
         start: usize,
     ) -> Result<Vec<WalMemoryRecord>> {
         let mut stream: MemoryStream = buffer.clone().into();
-        let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+        let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         let it = ReadStreamIterator::<WalFileRecord>::new_memory(
             buffer,
             &WAL_IDENTITY,

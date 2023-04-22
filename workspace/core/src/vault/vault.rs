@@ -497,7 +497,7 @@ impl Header {
     pub fn read_content_offset_stream(
         stream: &mut dyn ReadStream,
     ) -> Result<u64> {
-        let mut reader = BinaryReader::new(stream, Endian::Big);
+        let mut reader = BinaryReader::new(stream, Endian::Little);
         let identity = reader.read_bytes(VAULT_IDENTITY.len())?;
         FileIdentity::read_slice(&identity, &VAULT_IDENTITY)?;
         let header_len = reader.read_u32()? as u64;
@@ -519,7 +519,7 @@ impl Header {
 
     /// Read the summary from a stream.
     fn read_summary_stream(stream: &mut impl ReadStream) -> Result<Summary> {
-        let mut reader = BinaryReader::new(stream, Endian::Big);
+        let mut reader = BinaryReader::new(stream, Endian::Little);
 
         // Read magic identity bytes
         FileIdentity::read_identity(&mut reader, &VAULT_IDENTITY)?;
@@ -544,7 +544,7 @@ impl Header {
     pub(crate) fn read_header_stream(
         stream: &mut impl ReadStream,
     ) -> Result<Header> {
-        let mut reader = BinaryReader::new(stream, Endian::Big);
+        let mut reader = BinaryReader::new(stream, Endian::Little);
         let mut header: Header = Default::default();
         header.decode(&mut reader)?;
         Ok(header)
@@ -1001,7 +1001,7 @@ impl Vault {
         stream: &mut impl WriteStream,
         vault: &Vault,
     ) -> Result<()> {
-        let mut writer = BinaryWriter::new(stream, Endian::Big);
+        let mut writer = BinaryWriter::new(stream, Endian::Little);
         vault.encode(&mut writer)?;
         Ok(())
     }
@@ -1009,7 +1009,7 @@ impl Vault {
     /// Decode a vault from binary.
     pub fn decode(stream: &mut impl ReadStream) -> Result<Vault> {
         let mut vault: Vault = Default::default();
-        let mut reader = BinaryReader::new(stream, Endian::Big);
+        let mut reader = BinaryReader::new(stream, Endian::Little);
         vault.decode(&mut reader)?;
         Ok(vault)
     }

@@ -31,7 +31,7 @@ where
     // Need an additional reader as we may also read in the
     // values for the rows
     let mut stream = FileStream(File::open(vault.as_ref())?);
-    let mut reader = BinaryReader::new(&mut stream, Endian::Big);
+    let mut reader = BinaryReader::new(&mut stream, Endian::Little);
     let it = vault_iter(vault.as_ref())?;
 
     for record in it {
@@ -77,7 +77,7 @@ where
     // Need an additional reader as we may also read in the
     // values for the rows
     let mut value = FileStream(File::open(wal_file.as_ref())?);
-    let mut reader = BinaryReader::new(&mut value, Endian::Big);
+    let mut reader = BinaryReader::new(&mut value, Endian::Little);
 
     let wal = WalFile::new(wal_file.as_ref())?;
     let it = wal.iter()?;
