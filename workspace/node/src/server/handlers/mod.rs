@@ -19,9 +19,9 @@ pub(crate) mod websocket;
 
 /// Serve the home page.
 pub(crate) async fn home(
-    Extension(state): Extension<Arc<RwLock<State>>>,
+    Extension(_): Extension<Arc<RwLock<State>>>,
 ) -> impl IntoResponse {
-    Redirect::temporary("/api")
+    Redirect::permanent("/api")
 }
 
 /// Serve the API identity page.

@@ -10,7 +10,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 
 use terminal_banner::{Banner, Padding};
 use web3_address::ethereum::Address;
-use tokio::sync::{RwLock, RwLockWriteGuard};
+use tokio::sync::RwLock;
 
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
@@ -32,7 +32,6 @@ use sos_node::{
     client::{
         account_manager::{AccountInfo, AccountManager},
         provider::{BoxedProvider, ProviderFactory},
-        run_blocking,
     },
     sync::SyncKind,
 };
@@ -458,14 +457,12 @@ fn read_file_secret(path: &str) -> Result<Secret> {
     })
 }
 
-async fn maybe_conflict<F>(cache: ShellProvider, func: F) -> Result<()>
+async fn maybe_conflict<F, R>(cache: ShellProvider, func: F) -> Result<()>
 where
-    F: FnOnce(
-        &mut RwLockWriteGuard<'_, BoxedProvider>,
-    ) -> sos_node::client::Result<()>,
+    F: FnOnce() -> R,
+    R: futures::Future<Output = sos_node::client::Result<()>>,
 {
-    let mut writer = cache.write().await;
-    match func(&mut writer) {
+    match func().await {
         Ok(_) => Ok(()),
         Err(e) => match e {
             sos_node::client::Error::Conflict {
@@ -503,6 +500,7 @@ where
 
                 let prompt =
                     Some("Choose an action to resolve the conflict: ");
+                let mut writer = cache.write().await;
                 match choose(prompt, &options)? {
                     Some(choice) => match choice {
                         ConflictChoice::Pull => {
@@ -649,8 +647,9 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             drop(writer);
             if renamed {
-                maybe_conflict(cache, |writer| {
-                    run_blocking(writer.set_vault_name(&summary, &name))
+                maybe_conflict(Arc::clone(&cache), || async move{
+                    let mut writer = cache.write().await;
+                    writer.set_vault_name(&summary, &name).await
                 }).await
             } else {
                 Ok(())
@@ -709,11 +708,10 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             drop(writer);
 
             if let Some((meta, secret)) = result {
-                maybe_conflict(cache, |writer| {
-                    run_blocking(async {
-                        writer.create_secret(meta, secret).await?;
-                        Ok(())
-                    })
+                maybe_conflict(Arc::clone(&cache), || async move {
+                    let mut writer = cache.write().await;
+                    writer.create_secret(meta, secret).await?;
+                    Ok(())
                 }).await
             } else {
                 Ok(())
@@ -768,13 +766,12 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             };
 
             if let Cow::Owned(edited_secret) = result {
-                maybe_conflict(cache, |writer| {
-                    run_blocking(async {
-                        writer
-                            .update_secret(&uuid, secret_meta, edited_secret)
-                            .await?;
-                        Ok(())
-                    })
+                maybe_conflict(Arc::clone(&cache), || async move {
+                    let mut writer = cache.write().await;
+                    writer
+                        .update_secret(&uuid, secret_meta, edited_secret)
+                        .await?;
+                    Ok(())
                 }).await
             // If the edited result was borrowed
             // it indicates that no changes were made
@@ -796,11 +793,10 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
                 drop(writer);
 
-                maybe_conflict(cache, |writer| {
-                    run_blocking(async {
-                        writer.delete_secret(&uuid).await?;
-                        Ok(())
-                    })
+                maybe_conflict(Arc::clone(&cache), || async move {
+                    let mut writer = cache.write().await;
+                    writer.delete_secret(&uuid).await?;
+                    Ok(())
                 }).await
             } else {
                 Ok(())
@@ -847,8 +843,9 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let event = event.into_owned();
 
             drop(writer);
-            maybe_conflict(cache, |writer| {
-                run_blocking(writer.patch(&summary, vec![event]))
+            maybe_conflict(Arc::clone(&cache), || async move {
+                let mut writer = cache.write().await;
+                writer.patch(&summary, vec![event]).await
             }).await
         }
         ShellCommand::Snapshot { cmd } => match cmd {
@@ -904,7 +901,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                     if read_flag(prompt)? {
                         let mut writer = cache.write().await;
                         let (old_size, new_size) =
-                            run_blocking(writer.compact(&summary))?;
+                            writer.compact(&summary).await?;
                         println!("Old: {}", human_bytes(old_size as f64));
                         println!("New: {}", human_bytes(new_size as f64));
                     }
@@ -940,7 +937,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let mut writer = cache.write().await;
             let keeper = writer.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
-            let result = run_blocking(writer.pull(&summary, force))?;
+            let result = writer.pull(&summary, force).await?;
             match result.status {
                 SyncKind::Equal => println!("Up to date"),
                 SyncKind::Safe => {
@@ -963,7 +960,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let mut writer = cache.write().await;
             let keeper = writer.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
-            let result = run_blocking(writer.push(&summary, force))?;
+            let result = writer.push(&summary, force).await?;
             match result.status {
                 SyncKind::Equal => println!("Up to date"),
                 SyncKind::Safe => {
@@ -1016,11 +1013,11 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 // already mutably borrowed
                 let vault: Vault = keeper.vault().clone();
 
-                let new_passphrase = run_blocking(writer.change_password(
+                let new_passphrase = writer.change_password(
                     &vault,
                     passphrase,
                     new_passphrase,
-                ))?;
+                ).await?;
 
                 drop(writer);
 
@@ -1054,7 +1051,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately
-            run_blocking(provider.load_vaults())?;
+            provider.load_vaults().await?;
 
             let mut writer = cache.write().await;
             *writer = provider;
