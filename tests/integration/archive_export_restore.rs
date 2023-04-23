@@ -80,7 +80,6 @@ async fn integration_archive_local_provider() -> Result<()> {
         selected: vec![vault.summary().clone()],
         passphrase: Some(passphrase.clone()),
         files_dir: None,
-        files_dir_builder: None,
     };
 
     // Create the archive

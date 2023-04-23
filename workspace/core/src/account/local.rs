@@ -6,11 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     constants::VAULT_EXT,
     decode,
-    sha2::Digest,
-    signer::Signer,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
-    wal::WalProvider,
 };
 
 use crate::{Error, Result};
@@ -31,7 +28,7 @@ pub struct AccountInfo {
 
 /// Inspect the local accounts directory.
 #[derive(Default)]
-pub struct LocalAccounts {}
+pub struct LocalAccounts;
 
 impl LocalAccounts {
     /// Find and load a vault for a local file.

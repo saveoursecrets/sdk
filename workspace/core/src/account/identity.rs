@@ -45,8 +45,8 @@ pub struct UserIdentity {
     signer: BoxedEcdsaSigner,
     /// Gatekeeper for the identity vault.
     keeper: Gatekeeper,
-
     /// AGE identity keypair.
+    #[allow(dead_code)]
     shared_private: age::x25519::Identity,
     /// AGE recipient public key.
     shared_public: age::x25519::Recipient,

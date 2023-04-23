@@ -5,12 +5,10 @@ use urn::Urn;
 use crate::{
     constants::FILE_PASSWORD_URN,
     encode,
-    sha2::Digest,
-    signer::Signer,
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretMeta, UserData},
-        Gatekeeper, Summary, Vault, VaultAccess,
+        Gatekeeper, Summary, Vault,
     },
     Result,
 };

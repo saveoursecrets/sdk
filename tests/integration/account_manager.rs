@@ -7,7 +7,7 @@ use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     account::{
         AccountBackup, AccountBuilder, DelegatedPassphrase, ImportedAccount,
-        LocalAccounts, Login, NewAccount, RestoreOptions,
+        LocalAccounts, Login, NewAccount, RestoreOptions, ExtractFilesLocation,
     },
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     hex,
@@ -144,8 +144,7 @@ async fn integration_account_manager() -> Result<()> {
     let options = RestoreOptions {
         selected: vaults.clone().into_iter().map(|v| v.0).collect(),
         passphrase: Some(passphrase.clone()),
-        files_dir: Some(files_dir.clone()),
-        files_dir_builder: None,
+        files_dir: Some(ExtractFilesLocation::Path(files_dir.clone())),
     };
 
     let (targets, _) = AccountBackup::restore_archive_buffer(
@@ -164,8 +163,7 @@ async fn integration_account_manager() -> Result<()> {
     let options = RestoreOptions {
         selected: vaults.into_iter().map(|v| v.0).collect(),
         passphrase: Some(passphrase),
-        files_dir: Some(files_dir),
-        files_dir_builder: None,
+        files_dir: Some(ExtractFilesLocation::Path(files_dir)),
     };
     AccountBackup::restore_archive_buffer(archive_buffer, options, false)?;
 

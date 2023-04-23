@@ -11,7 +11,6 @@ use crate::{
     constants::{DEVICE_KEY_URN, VAULT_EXT},
     encode,
     search::SearchIndex,
-    sha2::Digest,
     signer::{
         ed25519::{self, BoxedEd25519Signer, VerifyingKey},
         Signer,
@@ -21,7 +20,6 @@ use crate::{
         secret::{Secret, SecretMeta, SecretSigner},
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess,
     },
-    wal::WalProvider,
 };
 
 use secrecy::{ExposeSecret, SecretString};
@@ -144,7 +142,7 @@ impl AuthenticatedUser {
 
 /// Login to an account.
 #[derive(Default)]
-pub struct Login {}
+pub struct Login;
 
 impl Login {
     /// Sign in a user.

@@ -5,7 +5,7 @@ use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        AuthenticatedUser, LocalAccounts, Login, RestoreOptions,
+        AuthenticatedUser, LocalAccounts, Login, RestoreOptions, ExtractFilesLocation,
     },
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
@@ -103,8 +103,7 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     let options = RestoreOptions {
         selected: inventory.vaults,
         passphrase,
-        files_dir: Some(files_dir),
-        files_dir_builder: None,
+        files_dir: Some(ExtractFilesLocation::Path(files_dir)),
     };
     let (targets, account) = AccountBackup::restore_archive_buffer(
         buffer,

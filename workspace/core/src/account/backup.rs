@@ -25,7 +25,6 @@ use crate::{
     passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
-    signer::Signer,
     storage::StorageDirs,
     vault::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess,
@@ -37,6 +36,18 @@ use crate::{
 
 use secrecy::SecretString;
 
+/// Get the path to the file storage directory for the given 
+/// account address.
+type ExtractFilesBuilder = Box<dyn Fn(&str) -> Option<PathBuf>>;
+
+/// Known path or builder for a files directory.
+pub enum ExtractFilesLocation {
+    /// Known path.
+    Path(PathBuf),
+    /// Builder for the files directory.
+    Builder(ExtractFilesBuilder),
+}
+
 /// Options for a restore operation.
 pub struct RestoreOptions {
     /// Vaults that the user selected to be imported.
@@ -45,9 +56,7 @@ pub struct RestoreOptions {
     /// the passphrases for imported folders.
     pub passphrase: Option<SecretString>,
     /// Target directory for files.
-    pub files_dir: Option<PathBuf>,
-    /// Builder for the files directory.
-    pub files_dir_builder: Option<Box<dyn Fn(&str) -> Option<PathBuf>>>,
+    pub files_dir: Option<ExtractFilesLocation>,
 }
 
 /// Buffers of data to restore after selected options
@@ -423,7 +432,7 @@ impl AccountBackup {
                 for (_, vault) in vaults {
                     let vault_passphrase =
                         DelegatedPassphrase::find_vault_passphrase(
-                            &mut restored_identity_keeper,
+                            &restored_identity_keeper,
                             vault.id(),
                         )?;
 
@@ -528,6 +537,23 @@ impl AccountBackup {
         let mut reader = Reader::new(Cursor::new(&mut archive))?.prepare()?;
 
         if let Some(files_dir) = &options.files_dir {
+            match files_dir {
+                ExtractFilesLocation::Path(files_dir) => {
+                    reader.extract_files(files_dir, options.selected.as_slice())?;
+                }
+                ExtractFilesLocation::Builder(builder) => {
+                    if let Some(manifest) = reader.manifest() {
+                        if let Some(files_dir) = builder(&manifest.address) {
+                            reader
+                                .extract_files(files_dir, options.selected.as_slice())?;
+                        }
+                    }
+                }
+            }
+        }
+        
+        /*
+        if let Some(files_dir) = &options.files_dir {
             reader.extract_files(files_dir, options.selected.as_slice())?;
         } else if let (Some(builder), Some(manifest)) =
             (&options.files_dir_builder, reader.manifest())
@@ -537,6 +563,7 @@ impl AccountBackup {
                     .extract_files(files_dir, options.selected.as_slice())?;
             }
         }
+        */
 
         let (address, identity, vaults) = reader.finish()?;
 
