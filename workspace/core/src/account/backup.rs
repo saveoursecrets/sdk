@@ -42,11 +42,11 @@ type ExtractFilesBuilder = Box<dyn Fn(&str) -> Option<PathBuf>>;
 
 /// Known path or builder for a files directory.
 ///
-/// When extracting an archive to restore an account a user 
-/// maybe authenticated. If the user is authenticated the file 
-/// extraction directory can be determined ahead of time, but 
-/// if we don't have an authenticated user then the files directory 
-/// should be determined by the address extracted from the archive 
+/// When extracting an archive to restore an account a user
+/// maybe authenticated. If the user is authenticated the file
+/// extraction directory can be determined ahead of time, but
+/// if we don't have an authenticated user then the files directory
+/// should be determined by the address extracted from the archive
 /// manifest.
 pub enum ExtractFilesLocation {
     /// Known path for the files directory.

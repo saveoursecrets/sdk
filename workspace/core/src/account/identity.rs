@@ -1,8 +1,8 @@
 //! Login identity vault.
 //!
 //! Identity provides access to a login vault containing
-//! a private signing key and master encryption passphrase
-//! using known identifiers for the secrets.
+//! the account signing key and delegated passwords used
+//! for folders managed by the account.
 //!
 //! This enables user interfaces to protect both the signing
 //! key and encryption passphrase using a single master
@@ -36,8 +36,10 @@ use crate::{
 #[cfg(not(target_arch = "wasm32"))]
 use crate::vault::VaultFileAccess;
 
-/// User information once password verification using
-/// an identity vault succeeds.
+/// User identity containing the account signing keys.
+///
+/// Exposes access to the identity vault for access to
+/// delegated passwords.
 pub struct UserIdentity {
     /// Address of the signing key.
     address: String,
@@ -79,7 +81,11 @@ impl UserIdentity {
     }
 }
 
-/// Represents an identity.
+/// Provides access to the login vault used for account authentication.
+///
+/// A login vault is the master vault for an account. It stores the
+/// signing keys for the account and delegated passphrases for folders
+/// managed by the account.
 pub struct Identity;
 
 impl Identity {

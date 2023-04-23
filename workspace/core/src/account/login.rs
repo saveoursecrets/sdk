@@ -121,10 +121,7 @@ impl AuthenticatedUser {
         Ok(())
     }
 
-    /// Rename an account by changing the name of the identity vault.
-    ///
-    /// The caller should take care to ensure this is only allowed on the
-    /// identity vault for the currently authenticated account.
+    /// Rename this account by changing the name of the identity vault.
     pub fn rename_account(&mut self, account_name: String) -> Result<()> {
         // Update in-memory vault
         self.identity
@@ -137,6 +134,11 @@ impl AuthenticatedUser {
         let mut access = VaultFileAccess::new(identity_vault_file)?;
         access.set_vault_name(account_name)?;
         Ok(())
+    }
+
+    /// Sign out this user by locking the account identity vault.
+    pub fn sign_out(&mut self) {
+        self.identity.keeper_mut().lock();
     }
 }
 
