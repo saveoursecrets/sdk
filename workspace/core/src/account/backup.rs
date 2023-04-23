@@ -471,7 +471,7 @@ impl AccountBackup {
                     restore_targets.identity.0.name(),
                     &restore_targets.address
                 );
-                LocalAccounts::rename_identity(
+                LocalAccounts::rename_account(
                     &restore_targets.address,
                     name.clone(),
                     None,

@@ -66,7 +66,7 @@ async fn integration_account_manager() -> Result<()> {
     )
     .await?;
 
-    LocalAccounts::rename_identity(
+    LocalAccounts::rename_account(
         &address,
         "New account name".to_string(),
         Some(&mut identity_keeper),

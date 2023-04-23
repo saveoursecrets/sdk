@@ -117,7 +117,7 @@ pub trait StorageProvider: Sync + Send {
                 None
             };
 
-        let contacts = if let Some(contact_vault) = &account.contact {
+        let contacts = if let Some(contact_vault) = &account.contacts {
             let buffer = encode(contact_vault)?;
             let summary = self.import_vault(buffer).await?;
             Some(summary)

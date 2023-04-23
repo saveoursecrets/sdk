@@ -1,4 +1,4 @@
-//! Account builder creates a new local account.
+//! Create new local account.
 
 use urn::Urn;
 
@@ -28,12 +28,12 @@ pub struct NewAccount {
     pub user: AuthenticatedUser,
     /// Default vault.
     pub default_vault: Vault,
-    /// Archive summary.
+    /// Archive vault.
     pub archive: Option<Vault>,
-    /// Authenticator summary.
+    /// Authenticator vault.
     pub authenticator: Option<Vault>,
-    /// Contact summary.
-    pub contact: Option<Vault>,
+    /// Contacts vault.
+    pub contacts: Option<Vault>,
 }
 
 /// New account vaults that have been imported into
@@ -52,7 +52,7 @@ pub struct ImportedAccount {
     pub contacts: Option<Summary>,
 }
 
-/// Manage accounts using the file system and a local provider.
+/// Create a new account.
 pub struct AccountBuilder {
     account_name: String,
     passphrase: SecretString,
@@ -237,7 +237,7 @@ impl AccountBuilder {
             None
         };
 
-        let contact = if create_contacts {
+        let contacts = if create_contacts {
             // Prepare the passphrase for the authenticator vault
             let auth_passphrase =
                 DelegatedPassphrase::generate_vault_passphrase()?;
@@ -265,7 +265,7 @@ impl AccountBuilder {
                 default_vault,
                 archive,
                 authenticator,
-                contact,
+                contacts,
             },
         ))
     }

@@ -18,7 +18,7 @@ use crate::{
 
 use crate::{Error, Result};
 
-/// Combines an account address with a label.
+/// Basic account information.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountInfo {
     /// Address identifier for the account.
@@ -37,20 +37,11 @@ pub struct AccountInfo {
 pub struct LocalAccounts {}
 
 impl LocalAccounts {
-    /*
-    /// Verify the master passphrase for an account.
-    pub fn verify(address: &str, passphrase: SecretString) -> Result<bool> {
-        let identity_path = StorageDirs::identity_vault(address)?;
-        let result = Identity::login_file(identity_path, passphrase, None);
-        Ok(result.is_ok())
-    }
-    */
-
-    /// Rename an identity vault.
+    /// Rename an account by changing the name of the identity vault.
     ///
     /// The caller should take care to ensure this is only allowed on the
     /// identity vault for the currently authenticated account.
-    pub fn rename_identity(
+    pub fn rename_account(
         address: &str,
         account_name: String,
         identity: Option<&mut Gatekeeper>,
