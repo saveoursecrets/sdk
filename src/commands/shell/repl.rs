@@ -78,28 +78,28 @@ enum ShellCommand {
     /// Renew session authentication.
     #[clap(alias = "auth")]
     Authenticate,
-    /// List vaults.
-    Vaults,
-    /// Create a new vault.
+    /// List folders.
+    Folders,
+    /// Create a new folder.
     Create {
-        /// Name for the new vault.
+        /// Name for the new folder.
         name: String,
     },
-    /// Delete a vault.
+    /// Delete a folder.
     Remove {
-        /// Vault reference, it's name or identifier.
+        /// Folder reference, it's name or identifier.
         vault: SecretRef,
     },
-    /// Select a vault.
+    /// Select a folder.
     Use {
         /// Vault reference, it's name or identifier.
         vault: SecretRef,
     },
-    /// Print information about the selected vault.
+    /// Print information about the selected folder.
     Info,
-    /// Get or set the name of the selected vault.
+    /// Get or set the name of the selected folder.
     Name {
-        /// A new name for the vault.
+        /// A new name for the folder.
         name: Option<String>,
     },
     /// Print commit status.
@@ -108,11 +108,11 @@ enum ShellCommand {
         #[clap(short, long)]
         verbose: bool,
     },
-    /// Print commit tree leaves for the current vault.
+    /// Print commit tree leaves for the current folder.
     Tree,
-    /// Print secret keys for the selected vault.
+    /// Print secret keys for the current folder.
     Keys,
-    /// List secrets for the selected vault.
+    /// List secrets in the current folder.
     #[clap(alias = "ls")]
     List {
         /// Print more information
@@ -146,7 +146,7 @@ enum ShellCommand {
         /// New label for the secret.
         label: Option<String>,
     },
-    /// Inspect the history for the selected vault.
+    /// Inspect the history for the current folder.
     History {
         #[clap(subcommand)]
         cmd: History,
@@ -174,7 +174,7 @@ enum ShellCommand {
     },
     /// Print the current identity.
     Whoami,
-    /// Close the selected vault.
+    /// Close the selected folder.
     Close,
     /// Exit the shell.
     #[clap(alias = "q")]
@@ -505,7 +505,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             println!("session renewed ✓");
             Ok(())
         }
-        ShellCommand::Vaults => {
+        ShellCommand::Folders => {
             let mut writer = cache.write().await;
             let summaries = writer.load_vaults().await?;
             print::summaries_list(summaries);
