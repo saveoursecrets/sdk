@@ -4,9 +4,9 @@ use std::{borrow::Cow, path::PathBuf, sync::Arc};
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     account::{
-        AccountBackup, AccountBuilder, AccountInfo, DeviceSigner,
-        LocalAccounts, Login, RestoreOptions, AuthenticatedUser,
-        archive::Inventory,
+        archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
+        AuthenticatedUser, DeviceSigner, LocalAccounts, Login,
+        RestoreOptions,
     },
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
@@ -93,7 +93,7 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
 
         let (_, user, _, _, _, _) = sign_in(&account.label).await?;
         let factory = ProviderFactory::Local;
-        let (provider, _) = factory.create_provider(user.signer)?;
+        let (provider, _) = factory.create_provider(user.signer().clone())?;
         (Some(provider), None)
     } else {
         (None, None)
@@ -170,7 +170,7 @@ pub async fn switch(
     account_name: String,
 ) -> Result<(BoxedProvider, Address)> {
     let (_, user, _, _, _, _) = sign_in(&account_name).await?;
-    Ok(factory.create_provider(user.signer)?)
+    Ok(factory.create_provider(user.signer().clone())?)
 }
 
 /// Create a new local account.
@@ -237,7 +237,7 @@ pub async fn local_signup(
             // Create local provider
             let factory = ProviderFactory::Local;
             let (mut provider, _) =
-                factory.create_provider(new_account.user.signer.clone())?;
+                factory.create_provider(new_account.user.signer().clone())?;
             provider.authenticate().await?;
 
             let _ = provider.import_new_account(&new_account).await?;

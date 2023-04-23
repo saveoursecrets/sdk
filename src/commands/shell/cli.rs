@@ -44,7 +44,8 @@ pub async fn run(
         sign_in(&account_name).await?;
 
     let factory = provider.unwrap_or_default();
-    let (provider, address) = factory.create_provider(user.signer.clone())?;
+    let (provider, address) =
+        factory.create_provider(user.signer().clone())?;
 
     let provider = Arc::new(RwLock::new(provider));
 

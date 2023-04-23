@@ -12,7 +12,7 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    account::{AccountInfo, DelegatedPassphrase, AuthenticatedUser},
+    account::{AccountInfo, AuthenticatedUser, DelegatedPassphrase},
     commit::SyncKind,
     hex,
     passwd::diceware::generate_passphrase,

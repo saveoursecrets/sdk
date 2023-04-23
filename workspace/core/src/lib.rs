@@ -1,5 +1,10 @@
 #![deny(missing_docs)]
-//! Core library for the distributed, encrypted database.
+//! High-level software development kit (SDK) for a
+//! distributed encrypted database that can be used
+//! to build password managers, cryptocurrency wallets
+//! or other applications that require storing secrets
+//! securely.
+//!
 
 use binary_stream::{
     BinaryReader, BinaryWriter, Decode, Encode, Endian, MemoryStream,

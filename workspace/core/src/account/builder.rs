@@ -15,7 +15,7 @@ use crate::{
     Result,
 };
 
-use super::{DelegatedPassphrase, Identity, AuthenticatedUser};
+use super::{AuthenticatedUser, DelegatedPassphrase, Identity};
 
 use secrecy::{ExposeSecret, SecretString};
 

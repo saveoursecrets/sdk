@@ -307,7 +307,7 @@ impl<R: Read + Seek> Reader<R> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{encode, account::Identity, vault::Vault};
+    use crate::{account::Identity, encode, vault::Vault};
     use anyhow::Result;
     use secrecy::SecretString;
     use std::io::Cursor;

@@ -38,10 +38,29 @@ use crate::vault::VaultFileAccess;
 
 /// User information once authentication to a login vault succeeds.
 pub struct AuthenticatedUser {
+    /// Address of the signing key.
+    address: String,
     /// Private signing key for the identity.
-    pub signer: BoxedEcdsaSigner,
+    signer: BoxedEcdsaSigner,
     /// AGE identity keypair.
-    pub identity: age::x25519::Identity,
+    identity: age::x25519::Identity,
+}
+
+impl AuthenticatedUser {
+    /// Address of the signing key.
+    pub fn address(&self) -> &str {
+        &self.address
+    }
+
+    /// Signing key for this user.
+    pub fn signer(&self) -> &BoxedEcdsaSigner {
+        &self.signer
+    }
+
+    /// Identity key for this user.
+    pub fn identity(&self) -> &age::x25519::Identity {
+        &self.identity
+    }
 }
 
 /// Represents an identity.
@@ -158,6 +177,7 @@ impl Identity {
         };
         let signer = signer
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
+        let address = signer.address()?;
 
         let urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
         let document = reader
@@ -180,7 +200,14 @@ impl Identity {
         };
         let identity = identity
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
-        Ok((AuthenticatedUser { signer, identity }, keeper))
+        Ok((
+            AuthenticatedUser {
+                address: address.to_string(),
+                signer,
+                identity,
+            },
+            keeper,
+        ))
     }
 }
 

@@ -15,8 +15,9 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::{
-    account::{AccountInfo, DelegatedPassphrase, LocalAccounts, Identity,
+    account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
+        AccountInfo, DelegatedPassphrase, Identity, LocalAccounts,
     },
     constants::{VAULT_EXT, WAL_EXT},
     decode, encode,
@@ -565,7 +566,7 @@ impl AccountBackup {
                 None,
                 None,
             )?;
-            if user.signer.address()?.to_string() != address {
+            if user.address() != &address {
                 return Err(Error::ArchiveAddressMismatch);
             }
         }
