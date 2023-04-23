@@ -258,6 +258,19 @@ pub enum Error {
     #[error("could not find vault file for {0}")]
     NoVaultFile(String),
 
+    /// Error generated when an account does not exist.
+    #[error("could not find account {0}")]
+    NoAccount(String),
+
+    /// Error generated when an archive signing key address
+    /// does not match the address in the archive manifest.
+    #[error("archive manifest address does not match identity signing key address")]
+    ArchiveAddressMismatch,
+
+    /// Error generated when an archive does not contain a default vault.
+    #[error("archive does not contain a default vault")]
+    NoArchiveDefaultVault,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

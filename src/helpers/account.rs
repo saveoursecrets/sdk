@@ -3,7 +3,10 @@ use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
-    account::{AccountBuilder, AccountInfo, LocalAccounts},
+    account::{
+        AccountBackup, AccountBuilder, AccountInfo, DeviceSigner,
+        LocalAccounts, Login, RestoreOptions,
+    },
     archive::Inventory,
     identity::AuthenticatedUser,
     passwd::diceware::generate_passphrase,
@@ -12,10 +15,7 @@ use sos_core::{
     storage::StorageDirs,
     vault::Gatekeeper,
 };
-use sos_node::client::{
-    account_manager::{AccountManager, DeviceSigner},
-    provider::{BoxedProvider, ProviderFactory, RestoreOptions},
-};
+use sos_node::client::provider::{BoxedProvider, ProviderFactory};
 use terminal_banner::{Banner, Padding};
 use web3_address::ethereum::Address;
 
@@ -69,7 +69,7 @@ pub fn account_backup(
 
     let account = find_account(account_name)?
         .ok_or(Error::NoAccount(account_name.to_string()))?;
-    AccountManager::export_archive_file(&output, &account.address)?;
+    AccountBackup::export_archive_file(&output, &account.address)?;
     Ok(())
 }
 
@@ -81,10 +81,10 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
 
     let buffer = std::fs::read(input)?;
     let inventory: Inventory =
-        AccountManager::restore_archive_inventory(buffer.as_slice())?;
+        AccountBackup::restore_archive_inventory(buffer.as_slice())?;
     let account = find_account_by_address(&inventory.manifest.address)?;
 
-    let (mut provider, passphrase) = if let Some(account) = account {
+    let (provider, passphrase) = if let Some(account) = account {
         let confirmed = read_flag(Some(
             "Overwrite all account data from backup? (y/n) ",
         ))?;
@@ -107,12 +107,16 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         files_dir: Some(files_dir),
         files_dir_builder: None,
     };
-    let account = AccountManager::restore_archive_buffer(
+    let (targets, account) = AccountBackup::restore_archive_buffer(
         buffer,
         options,
-        provider.as_mut(),
+        provider.is_some(),
     )
     .await?;
+
+    if let Some(mut provider) = provider {
+        provider.restore_archive(&targets).await?;
+    }
 
     Ok(Some(account))
 }
@@ -144,7 +148,7 @@ pub async fn sign_in(
     let passphrase = read_password(Some("Password: "))?;
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
     // Verify the identity vault can be unlocked
-    let (info, user, keeper, device_signer) = AccountManager::sign_in(
+    let (info, user, keeper, device_signer) = Login::sign_in(
         &account.address,
         passphrase.clone(),
         Arc::clone(&identity_index),

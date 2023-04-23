@@ -10,38 +10,52 @@ use std::{
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use urn::Urn;
+
 use uuid::Uuid;
 use walkdir::WalkDir;
 
-use sos_core::{
-    account::{DelegatedPassphrase, ImportedAccount, NewAccount},
-    archive::{Inventory, Reader, Writer},
-    constants::{DEVICE_KEY_URN, FILE_PASSWORD_URN, VAULT_EXT, WAL_EXT},
+use crate::{
+    account::{AccountInfo, DelegatedPassphrase, LocalAccounts},
+    archive::{ArchiveItem, Inventory, Reader, Writer},
+    constants::{VAULT_EXT, WAL_EXT},
     decode, encode,
     events::WalEvent,
-    identity::{AuthenticatedUser, Identity},
-    passwd::{diceware::generate_passphrase_words, ChangePassword},
+    identity::Identity,
+    passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
-    signer::{
-        ecdsa::SingleParty,
-        ed25519::{self, BoxedEd25519Signer},
-        Signer,
-    },
+    signer::Signer,
     storage::StorageDirs,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretSigner, UserData},
-        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultFileAccess,
-        VaultId,
-    },
+    vault::{secret::SecretId, Gatekeeper, Summary, Vault, VaultId},
     wal::{file::WalFile, WalProvider},
+    Error, Result,
 };
 
 use secrecy::{ExposeSecret, SecretString};
 
-use super::LocalAccounts;
-use crate::{Error, Result};
+/// Options for a restore operation.
+pub struct RestoreOptions {
+    /// Vaults that the user selected to be imported.
+    pub selected: Vec<Summary>,
+    /// Passphrase for the identity vault in the archive to copy
+    /// the passphrases for imported folders.
+    pub passphrase: Option<SecretString>,
+    /// Target directory for files.
+    pub files_dir: Option<PathBuf>,
+    /// Builder for the files directory.
+    pub files_dir_builder: Option<Box<dyn Fn(&str) -> Option<PathBuf>>>,
+}
+
+/// Buffers of data to restore after selected options
+/// have been applied to the data in an archive.
+pub struct RestoreTargets {
+    /// The address for the identity.
+    pub address: String,
+    /// Archive item for the identity vault.
+    pub identity: ArchiveItem,
+    /// List of vaults to restore.
+    pub vaults: Vec<(Vec<u8>, Vault)>,
+}
 
 /// Options to use when building an account manifest.
 pub struct AccountManifestOptions {
@@ -148,9 +162,9 @@ impl ManifestEntry {
     }
 }
 
-/// Backup accounts and export folders.
+/// Create and restore backup archives.
 #[derive(Default)]
-pub struct AccountBackup {}
+pub struct AccountBackup;
 
 impl AccountBackup {
     /// Build a manifest for an account.
@@ -287,7 +301,8 @@ impl AccountBackup {
             DelegatedPassphrase::find_vault_passphrase(identity, vault_id)?;
 
         // Find the local vault for the account
-        let (vault, _) = LocalAccounts::find_local_vault(address, vault_id, false)?;
+        let (vault, _) =
+            LocalAccounts::find_local_vault(address, vault_id, false)?;
 
         // Change the password before exporting
         let (_, vault, _) = ChangePassword::new(
@@ -298,7 +313,7 @@ impl AccountBackup {
         )
         .build()?;
 
-        Ok(encode(&vault)?)
+        encode(&vault)
     }
 
     /// Create a buffer for a zip archive including the
@@ -353,21 +368,20 @@ impl AccountBackup {
         mut archive: B,
     ) -> Result<Inventory> {
         let mut reader = Reader::new(Cursor::new(&mut archive))?;
-        Ok(reader.inventory()?)
+        reader.inventory()
     }
 
     /// Import from an archive.
     pub async fn restore_archive_buffer(
         buffer: Vec<u8>,
         options: RestoreOptions,
-        provider: Option<&mut BoxedProvider>,
-    ) -> Result<AccountInfo> {
+        existing_account: bool,
+    ) -> Result<(RestoreTargets, AccountInfo)> {
         // FIXME: ensure we still have ONE vault marked as default vault!!!
 
         // Signed in so use the existing provider
-        let account = if let Some(provider) = provider {
-            let targets =
-                provider.extract_verify_archive(buffer, &options)?;
+        let (targets, account) = if existing_account {
+            let targets = Self::extract_verify_archive(buffer, &options)?;
 
             let RestoreTargets {
                 address,
@@ -422,18 +436,13 @@ impl AccountBackup {
                 std::fs::write(identity_vault_file, buffer)?;
             }
 
-            provider.restore_archive(&targets).await?;
+            //provider.restore_archive(&targets).await?;
 
-            account
+            (targets, account)
         // No provider available so the user is not signed in
         } else {
-            // Create a mock provider so we can use the extract_verify_archive()
-            // function declared on the StorageProvider trait
-            let signer = Box::new(SingleParty::new_random());
-            let factory = ProviderFactory::Local;
-            let (provider, _) = factory.create_provider(signer)?;
             let restore_targets =
-                provider.extract_verify_archive(buffer, &options)?;
+                Self::extract_verify_archive(buffer, &options)?;
 
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
@@ -478,29 +487,95 @@ impl AccountBackup {
             std::fs::create_dir_all(&vaults_dir)?;
 
             // Write out each vault and the WAL log
-            for (buffer, vault) in restore_targets.vaults {
+            for (buffer, vault) in &restore_targets.vaults {
                 let mut vault_path = vaults_dir.join(vault.id().to_string());
                 let mut wal_path = vault_path.clone();
                 vault_path.set_extension(VAULT_EXT);
                 wal_path.set_extension(WAL_EXT);
 
                 // Write out the vault buffer
-                std::fs::write(&vault_path, &buffer)?;
+                std::fs::write(&vault_path, buffer)?;
 
                 // Write out the WAL file
                 let mut wal_events = Vec::new();
-                let create_vault = WalEvent::CreateVault(Cow::Owned(buffer));
+                let create_vault =
+                    WalEvent::CreateVault(Cow::Borrowed(buffer));
                 wal_events.push(create_vault);
                 let mut wal = WalFile::new(wal_path)?;
                 wal.apply(wal_events, None)?;
             }
 
-            AccountInfo {
-                address: restore_targets.address,
+            let account = AccountInfo {
+                address: restore_targets.address.clone(),
                 label,
-            }
+            };
+
+            (restore_targets, account)
         };
 
-        Ok(account)
+        Ok((targets, account))
+    }
+
+    /// Helper to extract from an archive and verify the archive
+    /// contents against the restore options.
+    pub fn extract_verify_archive(
+        mut archive: Vec<u8>,
+        options: &RestoreOptions,
+    ) -> Result<RestoreTargets> {
+        let mut reader = Reader::new(Cursor::new(&mut archive))?.prepare()?;
+
+        if let Some(files_dir) = &options.files_dir {
+            reader.extract_files(files_dir, options.selected.as_slice())?;
+        } else if let (Some(builder), Some(manifest)) =
+            (&options.files_dir_builder, reader.manifest())
+        {
+            if let Some(files_dir) = builder(&manifest.address) {
+                reader
+                    .extract_files(files_dir, options.selected.as_slice())?;
+            }
+        }
+
+        let (address, identity, vaults) = reader.finish()?;
+
+        // Filter extracted vaults to those selected by the user
+        let vaults = vaults
+            .into_iter()
+            .filter(|item| {
+                options.selected.iter().any(|s| s.id() == item.0.id())
+            })
+            .collect::<Vec<_>>();
+
+        // Check each target vault can be decoded
+        let mut decoded: Vec<(Vec<u8>, Vault)> = Vec::new();
+        for item in vaults {
+            let vault: Vault = decode(&item.1)?;
+            decoded.push((item.1, vault));
+        }
+
+        // Check all the decoded vaults can be decrypted
+        if let Some(passphrase) = &options.passphrase {
+            // Check the identity vault can be unlocked
+            let vault: Vault = decode(&identity.1)?;
+            let mut keeper = Gatekeeper::new(vault, None);
+            keeper.unlock(passphrase.expose_secret())?;
+
+            // Get the signing address from the identity vault and
+            // verify it matches the manifest address
+            let (user, _) = Identity::login_buffer(
+                &identity.1,
+                passphrase.clone(),
+                None,
+                None,
+            )?;
+            if user.signer.address()?.to_string() != address {
+                return Err(Error::ArchiveAddressMismatch);
+            }
+        }
+
+        Ok(RestoreTargets {
+            address,
+            identity,
+            vaults: decoded,
+        })
     }
 }

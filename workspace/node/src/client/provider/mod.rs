@@ -3,20 +3,16 @@
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use secrecy::{ExposeSecret, SecretString};
-use std::{
-    borrow::Cow, collections::HashSet, io::Cursor, path::PathBuf, sync::Arc,
-};
+use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 
 use sos_core::{
     account::{ImportedAccount, NewAccount},
-    archive::{ArchiveItem, Reader},
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
     constants::{PATCH_EXT, VAULT_EXT, WAL_EXT},
-    decode, encode,
+    encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
-    identity::Identity,
     passwd::ChangePassword,
     search::SearchIndex,
     storage::StorageDirs,
@@ -26,6 +22,9 @@ use sos_core::{
     },
     Timestamp,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use sos_core::account::RestoreTargets;
 
 use crate::client::{Error, Result};
 
@@ -68,30 +67,6 @@ pub use state::ProviderState;
 
 /// Generic boxed provider.
 pub type BoxedProvider = Box<dyn StorageProvider + Send + Sync + 'static>;
-
-/// Options for a restore operation.
-pub struct RestoreOptions {
-    /// Vaults that the user selected to be imported.
-    pub selected: Vec<Summary>,
-    /// Passphrase for the identity vault in the archive to copy
-    /// the passphrases for imported folders.
-    pub passphrase: Option<SecretString>,
-    /// Target directory for files.
-    pub files_dir: Option<PathBuf>,
-    /// Builder for the files directory.
-    pub files_dir_builder: Option<Box<dyn Fn(&str) -> Option<PathBuf>>>,
-}
-
-/// Buffers of data to restore after selected options
-/// have been applied to the data in an archive.
-pub struct RestoreTargets {
-    /// The address for the identity.
-    pub address: String,
-    /// Archive item for the identity vault.
-    pub identity: ArchiveItem,
-    /// List of vaults to restore.
-    pub vaults: Vec<(Vec<u8>, Vault)>,
-}
 
 /// Trait for storage providers.
 ///
@@ -161,6 +136,7 @@ pub trait StorageProvider: Sync + Send {
     /// Restore vaults from an archive.
     ///
     /// Buffer is the compressed archive contents.
+    #[cfg(not(target_arch = "wasm32"))]
     async fn restore_archive(
         &mut self,
         targets: &RestoreTargets,
@@ -189,70 +165,6 @@ pub trait StorageProvider: Sync + Send {
         }
 
         Ok(())
-    }
-
-    /// Helper to extract from an archive and verify the archive
-    /// contents against the restore options.
-    fn extract_verify_archive(
-        &self,
-        mut archive: Vec<u8>,
-        options: &RestoreOptions,
-    ) -> Result<RestoreTargets> {
-        let mut reader = Reader::new(Cursor::new(&mut archive))?.prepare()?;
-
-        if let Some(files_dir) = &options.files_dir {
-            reader.extract_files(files_dir, options.selected.as_slice())?;
-        } else if let (Some(builder), Some(manifest)) =
-            (&options.files_dir_builder, reader.manifest())
-        {
-            if let Some(files_dir) = builder(&manifest.address) {
-                reader
-                    .extract_files(files_dir, options.selected.as_slice())?;
-            }
-        }
-
-        let (address, identity, vaults) = reader.finish()?;
-
-        // Filter extracted vaults to those selected by the user
-        let vaults = vaults
-            .into_iter()
-            .filter(|item| {
-                options.selected.iter().any(|s| s.id() == item.0.id())
-            })
-            .collect::<Vec<_>>();
-
-        // Check each target vault can be decoded
-        let mut decoded: Vec<(Vec<u8>, Vault)> = Vec::new();
-        for item in vaults {
-            let vault: Vault = decode(&item.1)?;
-            decoded.push((item.1, vault));
-        }
-
-        // Check all the decoded vaults can be decrypted
-        if let Some(passphrase) = &options.passphrase {
-            // Check the identity vault can be unlocked
-            let vault: Vault = decode(&identity.1)?;
-            let mut keeper = Gatekeeper::new(vault, None);
-            keeper.unlock(passphrase.expose_secret())?;
-
-            // Get the signing address from the identity vault and
-            // verify it matches the manifest address
-            let (user, _) = Identity::login_buffer(
-                &identity.1,
-                passphrase.clone(),
-                None,
-                None,
-            )?;
-            if user.signer.address()?.to_string() != address {
-                return Err(Error::ArchiveAddressMismatch);
-            }
-        }
-
-        Ok(RestoreTargets {
-            address,
-            identity,
-            vaults: decoded,
-        })
     }
 
     /// Attempt to open an authenticated, encrypted session.

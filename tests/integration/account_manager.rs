@@ -6,8 +6,8 @@ use std::{path::PathBuf, sync::Arc};
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     account::{
-        AccountBuilder, DelegatedPassphrase, ImportedAccount, LocalAccounts,
-        NewAccount,
+        AccountBackup, AccountBuilder, DelegatedPassphrase, ImportedAccount,
+        LocalAccounts, Login, NewAccount, RestoreOptions,
     },
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     hex,
@@ -17,10 +17,7 @@ use sos_core::{
     urn::Urn,
     vault::{secret::SecretId, Gatekeeper, VaultId},
 };
-use sos_node::client::{
-    account_manager::AccountManager,
-    provider::{ProviderFactory, RestoreOptions},
-};
+use sos_node::client::provider::ProviderFactory;
 
 use crate::test_utils::*;
 
@@ -62,13 +59,12 @@ async fn integration_account_manager() -> Result<()> {
     assert_eq!(1, accounts.len());
 
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
-    let (_info, user, mut identity_keeper, _device_signer) =
-        AccountManager::sign_in(
-            &address,
-            passphrase.clone(),
-            Arc::clone(&identity_index),
-        )
-        .await?;
+    let (_info, user, mut identity_keeper, _device_signer) = Login::sign_in(
+        &address,
+        passphrase.clone(),
+        Arc::clone(&identity_index),
+    )
+    .await?;
 
     LocalAccounts::rename_identity(
         &address,
@@ -140,9 +136,9 @@ async fn integration_account_manager() -> Result<()> {
     let expected = std::fs::read(source_file)?;
     assert_eq!(expected, buffer);
 
-    let archive_buffer = AccountManager::export_archive_buffer(&address)?;
+    let archive_buffer = AccountBackup::export_archive_buffer(&address)?;
     let _inventory =
-        AccountManager::restore_archive_inventory(archive_buffer.clone())?;
+        AccountBackup::restore_archive_inventory(archive_buffer.clone())?;
 
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)
@@ -154,12 +150,15 @@ async fn integration_account_manager() -> Result<()> {
         files_dir: Some(files_dir.clone()),
         files_dir_builder: None,
     };
-    AccountManager::restore_archive_buffer(
+
+    let (targets, _) = AccountBackup::restore_archive_buffer(
         archive_buffer.clone(),
         options,
-        Some(&mut provider),
+        true,
     )
     .await?;
+
+    provider.restore_archive(&targets).await?;
 
     // Remove the account
     LocalAccounts::delete_account(&address)?;
@@ -172,7 +171,7 @@ async fn integration_account_manager() -> Result<()> {
         files_dir: Some(files_dir),
         files_dir_builder: None,
     };
-    AccountManager::restore_archive_buffer(archive_buffer, options, None)
+    AccountBackup::restore_archive_buffer(archive_buffer, options, false)
         .await?;
 
     // Reset the cache dir so we don't interfere

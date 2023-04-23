@@ -115,15 +115,18 @@ pub enum Error {
     #[error(r#"secret "{0}" not found"#)]
     SecretNotFound(SecretId),
 
+    // FIXME: remove
     /// Error generated when an archive signing key address
     /// does not match the address in the archive manifest.
     #[error("archive manifest address does not match identity signing key address")]
     ArchiveAddressMismatch,
 
+    // FIXME: remove
     /// Error generated when an archive does not contain a default vault.
     #[error("archive does not contain a default vault")]
     NoArchiveDefaultVault,
 
+    // FIXME: remove
     /// Error generated when an account does not exist.
     #[error("could not find account {0}")]
     NoAccount(String),

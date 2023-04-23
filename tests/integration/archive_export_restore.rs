@@ -8,6 +8,7 @@ use secrecy::SecretString;
 use tempfile::tempdir;
 
 use sos_core::{
+    account::{AccountBackup, RestoreOptions},
     archive::Writer,
     encode,
     events::SyncEvent,
@@ -16,9 +17,7 @@ use sos_core::{
     storage::StorageDirs,
     vault::{Gatekeeper, Vault},
 };
-use sos_node::client::provider::{
-    LocalProvider, RestoreOptions, StorageProvider,
-};
+use sos_node::client::provider::{LocalProvider, StorageProvider};
 
 fn create_archive(
     passphrase: SecretString,
@@ -93,7 +92,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     )?;
 
     // Restore from the archive into the provider
-    let targets = storage.extract_verify_archive(archive, &options)?;
+    let targets = AccountBackup::extract_verify_archive(archive, &options)?;
     assert_eq!(address, targets.address);
 
     storage.restore_archive(&targets).await?;
