@@ -6,8 +6,9 @@ use std::{path::PathBuf, sync::Arc};
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     account::{
-        AccountBackup, AccountBuilder, DelegatedPassphrase, ImportedAccount,
-        LocalAccounts, Login, NewAccount, RestoreOptions, ExtractFilesLocation,
+        AccountBackup, AccountBuilder, DelegatedPassphrase,
+        ExtractFilesLocation, ImportedAccount, LocalAccounts, Login,
+        NewAccount, RestoreOptions,
     },
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     hex,

@@ -12,8 +12,8 @@ mod passphrase;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use backup::{
-    AccountBackup, AccountManifest, ManifestEntry, RestoreOptions,
-    RestoreTargets, ExtractFilesLocation,
+    AccountBackup, AccountManifest, ExtractFilesLocation, ManifestEntry,
+    RestoreOptions, RestoreTargets,
 };
 pub use builder::{AccountBuilder, ImportedAccount, NewAccount};
 pub use identity::{Identity, UserIdentity};

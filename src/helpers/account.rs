@@ -5,7 +5,8 @@ use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        AuthenticatedUser, LocalAccounts, Login, RestoreOptions, ExtractFilesLocation,
+        AuthenticatedUser, ExtractFilesLocation, LocalAccounts, Login,
+        RestoreOptions,
     },
     passwd::diceware::generate_passphrase,
     search::SearchIndex,

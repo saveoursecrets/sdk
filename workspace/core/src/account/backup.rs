@@ -36,13 +36,20 @@ use crate::{
 
 use secrecy::SecretString;
 
-/// Get the path to the file storage directory for the given 
+/// Get the path to the file storage directory for the given
 /// account address.
 type ExtractFilesBuilder = Box<dyn Fn(&str) -> Option<PathBuf>>;
 
 /// Known path or builder for a files directory.
+///
+/// When extracting an archive to restore an account a user 
+/// maybe authenticated. If the user is authenticated the file 
+/// extraction directory can be determined ahead of time, but 
+/// if we don't have an authenticated user then the files directory 
+/// should be determined by the address extracted from the archive 
+/// manifest.
 pub enum ExtractFilesLocation {
-    /// Known path.
+    /// Known path for the files directory.
     Path(PathBuf),
     /// Builder for the files directory.
     Builder(ExtractFilesBuilder),
@@ -539,19 +546,24 @@ impl AccountBackup {
         if let Some(files_dir) = &options.files_dir {
             match files_dir {
                 ExtractFilesLocation::Path(files_dir) => {
-                    reader.extract_files(files_dir, options.selected.as_slice())?;
+                    reader.extract_files(
+                        files_dir,
+                        options.selected.as_slice(),
+                    )?;
                 }
                 ExtractFilesLocation::Builder(builder) => {
                     if let Some(manifest) = reader.manifest() {
                         if let Some(files_dir) = builder(&manifest.address) {
-                            reader
-                                .extract_files(files_dir, options.selected.as_slice())?;
+                            reader.extract_files(
+                                files_dir,
+                                options.selected.as_slice(),
+                            )?;
                         }
                     }
                 }
             }
         }
-        
+
         /*
         if let Some(files_dir) = &options.files_dir {
             reader.extract_files(files_dir, options.selected.as_slice())?;
