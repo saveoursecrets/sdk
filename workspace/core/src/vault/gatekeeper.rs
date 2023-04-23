@@ -13,9 +13,9 @@ use crate::{
     },
     Error, Result,
 };
-use std::{collections::HashSet, sync::Arc};
-use secrecy::{SecretString, ExposeSecret};
 use parking_lot::RwLock;
+use secrecy::{ExposeSecret, SecretString};
+use std::{collections::HashSet, sync::Arc};
 
 use uuid::Uuid;
 
@@ -181,15 +181,15 @@ impl Gatekeeper {
     }
 
     /// Initialize the vault with the given label and password.
-    pub fn initialize<S: AsRef<str>>(
+    pub fn initialize(
         &mut self,
         name: String,
         label: String,
-        password: S,
+        password: SecretString,
         seed: Option<Seed>,
     ) -> Result<()> {
         // Initialize the private key and store the salt
-        let private_key = self.vault.initialize(password.as_ref(), seed)?;
+        let private_key = self.vault.initialize(password, seed)?;
         self.private_key = Some(private_key);
 
         // Assign the label to the meta data
@@ -453,14 +453,14 @@ impl Gatekeeper {
     /// Unlock the vault by setting the private key from a passphrase.
     ///
     /// The private key is stored in memory by this gatekeeper.
-    pub fn unlock<S: AsRef<str>>(
-        &mut self,
-        passphrase: S,
-    ) -> Result<VaultMeta> {
+    pub fn unlock(&mut self, passphrase: SecretString) -> Result<VaultMeta> {
         if let Some(salt) = self.vault.salt() {
             let salt = SecretKey::parse_salt(salt)?;
-            let private_key =
-                SecretKey::derive_32(passphrase, &salt, self.vault.seed())?;
+            let private_key = SecretKey::derive_32(
+                passphrase.expose_secret(),
+                &salt,
+                self.vault.seed(),
+            )?;
             self.private_key = Some(private_key);
             self.vault_meta()
         } else {
@@ -496,10 +496,11 @@ mod tests {
         vault::{secret::Secret, Vault},
     };
     use anyhow::Result;
+    use secrecy::SecretString;
 
     #[test]
     fn gatekeeper_secret_note() -> Result<()> {
-        let passphrase = "mock-passphrase";
+        let passphrase = SecretString::new("mock-passphrase".to_owned());
         let vault: Vault = Default::default();
         let mut keeper = Gatekeeper::new(vault, None);
 

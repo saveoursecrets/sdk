@@ -17,7 +17,7 @@ use crate::{
 
 use super::{DelegatedPassphrase, Identity, UserIdentity};
 
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 
 /// Newly created account information.
 pub struct NewAccount {
@@ -149,12 +149,12 @@ impl AccountBuilder {
             default_vault.set_name(name);
         }
         default_vault.set_default_flag(true);
-        default_vault.initialize(vault_passphrase.expose_secret(), None)?;
+        default_vault.initialize(vault_passphrase.clone(), None)?;
 
         // Save the master passphrase in the default vault
         if save_passphrase {
             let mut keeper = Gatekeeper::new(default_vault, None);
-            keeper.unlock(vault_passphrase.expose_secret())?;
+            keeper.unlock(vault_passphrase.clone())?;
 
             let secret = Secret::Account {
                 account: account_name,
@@ -172,7 +172,7 @@ impl AccountBuilder {
 
         // Store the vault passphrase in the identity vault
         let mut keeper = Gatekeeper::new(identity_vault, None);
-        keeper.unlock(passphrase.expose_secret())?;
+        keeper.unlock(passphrase)?;
 
         DelegatedPassphrase::save_vault_passphrase(
             &mut keeper,
@@ -204,7 +204,7 @@ impl AccountBuilder {
             let mut vault: Vault = Default::default();
             vault.set_name("Archive".to_string());
             vault.set_archive_flag(true);
-            vault.initialize(archive_passphrase.expose_secret(), None)?;
+            vault.initialize(archive_passphrase.clone(), None)?;
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
@@ -225,7 +225,7 @@ impl AccountBuilder {
             vault.set_name("Authenticator".to_string());
             vault.set_authenticator_flag(true);
             vault.set_no_sync_self_flag(true);
-            vault.initialize(auth_passphrase.expose_secret(), None)?;
+            vault.initialize(auth_passphrase.clone(), None)?;
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
@@ -245,7 +245,7 @@ impl AccountBuilder {
             let mut vault: Vault = Default::default();
             vault.set_name("Contacts".to_string());
             vault.set_contact_flag(true);
-            vault.initialize(auth_passphrase.expose_secret(), None)?;
+            vault.initialize(auth_passphrase.clone(), None)?;
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),

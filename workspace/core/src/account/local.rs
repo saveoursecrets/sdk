@@ -9,10 +9,7 @@ use crate::{
     sha2::Digest,
     signer::Signer,
     storage::StorageDirs,
-    vault::{
-        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultFileAccess,
-        VaultId,
-    },
+    vault::{Header, Summary, Vault, VaultId},
     wal::WalProvider,
 };
 

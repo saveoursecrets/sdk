@@ -3,7 +3,6 @@ use serial_test::serial;
 
 use crate::test_utils::*;
 
-use secrecy::ExposeSecret;
 use sos::commands::check::{keys, status, verify_vault, verify_wal};
 use sos_core::{
     constants::{LOCAL_DIR, VAULTS_DIR},
@@ -29,11 +28,7 @@ async fn integration_check_integrity() -> Result<()> {
     } = credentials;
 
     // Use the new vault
-    node_cache.open_vault(
-        &summary,
-        encryption_passphrase.expose_secret(),
-        None,
-    )?;
+    node_cache.open_vault(&summary, encryption_passphrase.clone(), None)?;
 
     // Create some secrets
     let _notes = create_secrets(&mut node_cache, &summary).await?;

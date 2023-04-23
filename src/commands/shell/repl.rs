@@ -553,7 +553,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             drop(state_reader);
 
             let mut writer = cache.write().await;
-            writer.open_vault(&summary, passphrase.expose_secret(), None)?;
+            writer.open_vault(&summary, passphrase, None)?;
             writer.create_search_index()?;
 
             Ok(())

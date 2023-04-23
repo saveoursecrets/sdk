@@ -35,7 +35,7 @@ use crate::{
     Error, Result,
 };
 
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 
 /// Options for a restore operation.
 pub struct RestoreOptions {
@@ -408,7 +408,7 @@ impl AccountBackup {
                 let identity_vault: Vault = decode(&identity_buffer)?;
                 let mut identity_keeper =
                     Gatekeeper::new(identity_vault, None);
-                identity_keeper.unlock(passphrase.expose_secret())?;
+                identity_keeper.unlock(passphrase.clone())?;
 
                 let search_index =
                     Arc::new(RwLock::new(SearchIndex::new(None)));
@@ -417,8 +417,7 @@ impl AccountBackup {
                     restored_identity,
                     Some(Arc::clone(&search_index)),
                 );
-                restored_identity_keeper
-                    .unlock(passphrase.expose_secret())?;
+                restored_identity_keeper.unlock(passphrase.clone())?;
                 restored_identity_keeper.create_search_index()?;
 
                 for (_, vault) in vaults {
@@ -561,7 +560,7 @@ impl AccountBackup {
             // Check the identity vault can be unlocked
             let vault: Vault = decode(&identity.1)?;
             let mut keeper = Gatekeeper::new(vault, None);
-            keeper.unlock(passphrase.expose_secret())?;
+            keeper.unlock(passphrase.clone())?;
 
             // Get the signing address from the identity vault and
             // verify it matches the manifest address
@@ -571,7 +570,7 @@ impl AccountBackup {
                 None,
                 None,
             )?;
-            if user.address() != &address {
+            if user.address() != address {
                 return Err(Error::ArchiveAddressMismatch);
             }
         }

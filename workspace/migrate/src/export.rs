@@ -172,7 +172,7 @@ pub struct PublicSecret {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use secrecy::ExposeSecret;
+
     use std::io::Cursor;
 
     use super::*;
@@ -189,11 +189,11 @@ mod test {
 
         let mut vault: Vault = Default::default();
         vault.set_default_flag(true);
-        vault.initialize(passphrase.expose_secret(), None)?;
+        vault.initialize(passphrase.clone(), None)?;
 
         let mut migration = PublicExport::new(writer);
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(passphrase.expose_secret())?;
+        keeper.unlock(passphrase)?;
 
         let (meta, secret, _, _) =
             mock_secret_note("Mock note", "Value for the mock note")?;

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use secrecy::ExposeSecret;
+
 use serial_test::serial;
 use std::{path::PathBuf, sync::Arc};
 
@@ -102,7 +102,7 @@ async fn integration_account_manager() -> Result<()> {
         LocalAccounts::find_local_vault(&address, summary.id(), false)?;
     let mut default_vault_keeper =
         Gatekeeper::new(default_vault, Some(default_index));
-    default_vault_keeper.unlock(default_vault_passphrase.expose_secret())?;
+    default_vault_keeper.unlock(default_vault_passphrase.clone())?;
 
     let file_passphrase =
         DelegatedPassphrase::find_file_encryption_passphrase(

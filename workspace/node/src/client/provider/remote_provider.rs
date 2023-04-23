@@ -106,7 +106,7 @@ where
     async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<String>,
+        passphrase: Option<SecretString>,
         is_account: bool,
     ) -> Result<(SecretString, Summary)> {
         let (passphrase, vault, buffer) =

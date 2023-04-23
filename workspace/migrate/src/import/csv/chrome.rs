@@ -100,7 +100,7 @@ mod test {
     use crate::Convert;
     use anyhow::Result;
     use parking_lot::RwLock;
-    use secrecy::ExposeSecret;
+
     use sos_core::{
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
@@ -140,7 +140,7 @@ mod test {
     fn chrome_passwords_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
-        vault.initialize(passphrase.expose_secret(), None)?;
+        vault.initialize(passphrase.clone(), None)?;
 
         let vault = ChromePasswordCsv.convert(
             "fixtures/chrome-export.csv".into(),
@@ -151,7 +151,7 @@ mod test {
         let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
-        keeper.unlock(passphrase.expose_secret())?;
+        keeper.unlock(passphrase)?;
         keeper.create_search_index()?;
 
         let search = search_index.read();

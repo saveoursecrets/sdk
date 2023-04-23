@@ -111,7 +111,7 @@ impl MemoryProvider {
     pub fn create_vault(
         cache: ArcProvider,
         name: String,
-        passphrase: String,
+        passphrase: SecretString,
     ) -> impl Future<Output = Result<Summary>> + 'static {
         async move {
             let mut writer = cache.write().unwrap();

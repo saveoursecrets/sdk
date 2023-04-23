@@ -8,7 +8,7 @@ pub mod macos;
 pub mod one_password;
 
 use parking_lot::RwLock;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -283,7 +283,7 @@ impl Convert for GenericCsvConvert {
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
 
-        keeper.unlock(password.expose_secret())?;
+        keeper.unlock(password)?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 

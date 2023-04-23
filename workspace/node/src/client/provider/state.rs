@@ -4,6 +4,7 @@ use super::{Error, Result};
 
 use sos_core::{
     search::SearchIndex,
+    secrecy::SecretString,
     vault::{secret::SecretRef, Gatekeeper, Summary, Vault, VaultFileAccess},
 };
 
@@ -91,7 +92,7 @@ impl ProviderState {
     /// Set the current vault and unlock it.
     pub fn open_vault(
         &mut self,
-        passphrase: &str,
+        passphrase: SecretString,
         vault: Vault,
         vault_path: PathBuf,
         index: Option<Arc<RwLock<SearchIndex>>>,

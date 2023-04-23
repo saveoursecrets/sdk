@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use parking_lot::RwLock;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 
 use sos_core::{
@@ -239,7 +239,7 @@ pub trait StorageProvider: Sync + Send {
     async fn create_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<String>,
+        passphrase: Option<SecretString>,
     ) -> Result<(SecretString, Summary)> {
         self.create_vault_or_account(name, passphrase, true).await
     }
@@ -248,7 +248,7 @@ pub trait StorageProvider: Sync + Send {
     async fn create_vault(
         &mut self,
         name: String,
-        passphrase: Option<String>,
+        passphrase: Option<SecretString>,
     ) -> Result<(SecretString, Summary)> {
         self.create_vault_or_account(Some(name), passphrase, false)
             .await
@@ -267,7 +267,7 @@ pub trait StorageProvider: Sync + Send {
     async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<String>,
+        passphrase: Option<SecretString>,
         _is_account: bool,
     ) -> Result<(SecretString, Summary)>;
 
@@ -288,7 +288,7 @@ pub trait StorageProvider: Sync + Send {
     fn open_vault(
         &mut self,
         summary: &Summary,
-        passphrase: &str,
+        passphrase: SecretString,
         index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<()>;
 
@@ -465,7 +465,7 @@ pub trait StorageProvider: Sync + Send {
 
         if let Some(keeper) = self.current_mut() {
             if keeper.summary().id() == vault.summary().id() {
-                keeper.unlock(new_passphrase.expose_secret())?;
+                keeper.unlock(new_passphrase.clone())?;
             }
         }
 
@@ -493,7 +493,7 @@ macro_rules! provider_impl {
         fn open_vault(
             &mut self,
             summary: &Summary,
-            passphrase: &str,
+            passphrase: SecretString,
             index: Option<std::sync::Arc<parking_lot::RwLock<SearchIndex>>>,
         ) -> Result<()> {
             let vault_path = self.vault_path(summary);

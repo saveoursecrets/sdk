@@ -94,11 +94,7 @@ impl AuthenticatedUser {
 
     /// Verify the passphrase for this account.
     pub fn verify(&self, passphrase: SecretString) -> bool {
-        let result = self
-            .identity()
-            .keeper()
-            .verify(passphrase)
-            .ok();
+        let result = self.identity().keeper().verify(passphrase).ok();
         result.is_some()
     }
 
@@ -209,7 +205,7 @@ impl Login {
             let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
             let mut device_keeper =
                 Gatekeeper::new(vault, Some(search_index));
-            device_keeper.unlock(device_passphrase.expose_secret())?;
+            device_keeper.unlock(device_passphrase)?;
             device_keeper.create_search_index()?;
             let index = device_keeper.index();
             let index_reader = index.read();
@@ -249,7 +245,7 @@ impl Login {
             vault.set_device_flag(true);
             vault.set_no_sync_self_flag(true);
             vault.set_no_sync_other_flag(true);
-            vault.initialize(device_passphrase.expose_secret(), None)?;
+            vault.initialize(device_passphrase.clone(), None)?;
 
             DelegatedPassphrase::save_vault_passphrase(
                 identity,
@@ -258,7 +254,7 @@ impl Login {
             )?;
 
             let mut device_keeper = Gatekeeper::new(vault, None);
-            device_keeper.unlock(device_passphrase.expose_secret())?;
+            device_keeper.unlock(device_passphrase)?;
 
             let key = ed25519::SingleParty::new_random();
             let device_address = key.address()?;

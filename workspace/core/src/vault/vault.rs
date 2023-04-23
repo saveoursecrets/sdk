@@ -741,11 +741,11 @@ impl Vault {
     /// Create a new vault and encode it into a buffer.
     pub fn new_buffer(
         name: Option<String>,
-        passphrase: Option<String>,
+        passphrase: Option<SecretString>,
         seed: Option<Seed>,
     ) -> Result<(SecretString, Vault, Vec<u8>)> {
         let passphrase = if let Some(passphrase) = passphrase {
-            secrecy::Secret::new(passphrase)
+            passphrase
         } else {
             let (passphrase, _) = generate_passphrase()?;
             passphrase
@@ -755,22 +755,25 @@ impl Vault {
         if let Some(name) = name {
             vault.set_name(name);
         }
-        vault.initialize(passphrase.expose_secret(), seed)?;
+        vault.initialize(passphrase.clone(), seed)?;
         let buffer = encode(&vault)?;
         Ok((passphrase, vault, buffer))
     }
 
     /// Initialize the vault with the given label and password.
-    pub fn initialize<S: AsRef<str>>(
+    pub fn initialize(
         &mut self,
-        password: S,
+        password: SecretString,
         seed: Option<Seed>,
     ) -> Result<SecretKey> {
         if self.header.auth.salt.is_none() {
             let salt = SecretKey::generate_salt();
 
-            let private_key =
-                SecretKey::derive_32(password, &salt, seed.as_ref())?;
+            let private_key = SecretKey::derive_32(
+                password.expose_secret(),
+                &salt,
+                seed.as_ref(),
+            )?;
 
             let default_meta: VaultMeta = Default::default();
             let meta_aead =

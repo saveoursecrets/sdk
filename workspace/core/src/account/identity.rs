@@ -95,13 +95,10 @@ impl Identity {
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
         vault.set_name(name);
-        vault.initialize(
-            master_passphrase.expose_secret(),
-            Some(generate_seed()),
-        )?;
+        vault.initialize(master_passphrase.clone(), Some(generate_seed()))?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(master_passphrase.expose_secret())?;
+        keeper.unlock(master_passphrase)?;
 
         // Store the signing key
         let signer = SingleParty::new_random();
@@ -169,7 +166,7 @@ impl Identity {
             Gatekeeper::new(vault, search_index)
         };
 
-        keeper.unlock(master_passphrase.expose_secret())?;
+        keeper.unlock(master_passphrase)?;
         // Must create the index so we can find by URN
         keeper.create_search_index()?;
 
@@ -266,7 +263,7 @@ mod tests {
         let (master_passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
-        vault.initialize(master_passphrase.expose_secret(), None)?;
+        vault.initialize(master_passphrase.clone(), None)?;
         let buffer = encode(&vault)?;
 
         let result =
@@ -284,7 +281,7 @@ mod tests {
 
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.expose_secret(), None)?;
+        vault.initialize(master_passphrase.clone(), None)?;
         let buffer = encode(&vault)?;
 
         let result =
@@ -302,10 +299,10 @@ mod tests {
 
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.expose_secret(), None)?;
+        vault.initialize(master_passphrase.clone(), None)?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(master_passphrase.expose_secret())?;
+        keeper.unlock(master_passphrase.clone())?;
 
         // Create a secret using the expected name but of the wrong kind
         let signer_secret = Secret::Note {
