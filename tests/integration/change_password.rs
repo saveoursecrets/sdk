@@ -84,7 +84,6 @@ async fn integration_change_password() -> Result<()> {
     let (new_passphrase, _) = generate_passphrase()?;
 
     let vault = keeper.vault().clone();
-    drop(keeper);
 
     node_cache
         .change_password(&vault, encryption_passphrase, new_passphrase)

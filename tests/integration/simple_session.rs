@@ -150,7 +150,6 @@ async fn integration_simple_session() -> Result<()> {
     let meta = index_reader.values();
     assert_eq!(2, meta.len());
     drop(index_reader);
-    drop(keeper);
 
     // Set the vault name
     node_cache
