@@ -17,16 +17,16 @@ use tokio::sync::{
     RwLock,
 };
 
-use sos_core::{crypto::AeadPack, decode, encode};
+use sos_core::{
+    crypto::{channel::EncryptedChannel, AeadPack},
+    decode, encode,
+};
 use uuid::Uuid;
 use web3_address::ethereum::Address;
 
-use crate::{
-    server::{
-        authenticate::{self, QueryMessage},
-        Result, State,
-    },
-    session::EncryptedChannel,
+use crate::server::{
+    authenticate::{self, QueryMessage},
+    Result, State,
 };
 
 const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;

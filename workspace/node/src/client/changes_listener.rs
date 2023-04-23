@@ -13,9 +13,10 @@ use super::{
     Error, Result,
 };
 
-use crate::session::ClientSession;
-
-use sos_core::{events::ChangeNotification, signer::ecdsa::BoxedEcdsaSigner};
+use sos_core::{
+    crypto::channel::ClientSession, events::ChangeNotification,
+    signer::ecdsa::BoxedEcdsaSigner,
+};
 
 const INTERVAL_MS: u64 = 15000;
 

@@ -35,6 +35,7 @@ url = { version = "2.2", features = ["serde"] }
 bitflags = "1"
 pem = { version = "1.1.0", features = ["serde"] }
 secrecy = { version = "0.8", features = ["serde"] }
+crypto-bigint = "0.4.8"
 tempfile = "3"
 log = "0.4"
 http = "0.2"

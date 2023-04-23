@@ -1,15 +1,15 @@
-//! Manages network sessions.
+//! Provides an encrypted channel using ECDSA and ECDH.
+use crate::{
+    signer::ecdsa::{verify_signature_address, BoxedEcdsaSigner},
+    Error, Result,
+};
 use crypto_bigint::{CheckedAdd, Encoding, U192};
-use rand::Rng;
-use sha3::{Digest, Keccak256};
-use sos_core::k256::{
+use k256::{
     ecdh::EphemeralSecret, elliptic_curve::ecdh::SharedSecret, EncodedPoint,
     PublicKey, Secp256k1,
 };
-use sos_core::{
-    crypto::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce},
-    signer::ecdsa::{verify_signature_address, BoxedEcdsaSigner},
-};
+use rand::Rng;
+use sha3::{Digest, Keccak256};
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
@@ -18,7 +18,7 @@ use uuid::Uuid;
 use web3_address::ethereum::Address;
 use web3_signature::Signature;
 
-use crate::{Error, Result};
+use super::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce};
 
 /// Generate a secret key suitable for symmetric encryption.
 fn derive_secret_key(
@@ -400,11 +400,9 @@ pub trait EncryptedChannel {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::signer::ecdsa::{BoxedEcdsaSigner, SingleParty};
     use anyhow::Result;
-    use sos_core::{
-        k256::ecdsa::SigningKey,
-        signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
-    };
+    use k256::ecdsa::SigningKey;
     use std::time::Duration;
 
     fn new_signer() -> BoxedEcdsaSigner {

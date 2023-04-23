@@ -22,9 +22,8 @@ use crate::{
     },
     crypto::{
         aesgcm256,
-        algorithms::*,
         secret_key::{SecretKey, Seed, SEED_SIZE},
-        xchacha20poly1305, AeadPack, Nonce,
+        xchacha20poly1305, AeadPack, Algorithm, Nonce, ALGORITHMS,
     },
     encode,
     events::SyncEvent,

@@ -8,6 +8,7 @@ use web3_address::ethereum::Address;
 
 use sos_core::{
     audit::AuditLogFile,
+    crypto::channel::SessionManager,
     events::SyncEvent,
     patch::PatchFile,
     vault::{
@@ -20,7 +21,6 @@ use sos_core::{
 use sos_node::{
     client::provider::{RemoteProvider, StorageProvider},
     server::{BackendHandler, Server, ServerConfig, ServerInfo, State},
-    session::SessionManager,
     FileLocks,
 };
 
