@@ -16,7 +16,7 @@
 //!
 use crate::{
     commit::{wal_commit_tree_file, CommitHash, CommitTree},
-    constants::{WAL_EXT, WAL_IDENTITY},
+    constants::WAL_IDENTITY,
     encode,
     events::WalEvent,
     formats::{wal_iter, FileItem, WalFileRecord},

@@ -2,7 +2,7 @@ use super::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     commit::{wal_commit_tree_file, CommitProof},
-    constants::{WAL_DELETED_EXT, VAULT_EXT, WAL_EXT},
+    constants::{VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
     decode, encode,
     events::{SyncEvent, WalEvent},
     formats::WalFileRecord,
@@ -253,8 +253,7 @@ impl FileSystemBackend {
                                 if ext == WAL_EXT {
                                     let mut vault_path =
                                         wal_path.to_path_buf();
-                                    vault_path
-                                        .set_extension(VAULT_EXT);
+                                    vault_path.set_extension(VAULT_EXT);
                                     if !vault_path.exists() {
                                         return Err(Error::NotFile(
                                             vault_path,
@@ -421,32 +420,31 @@ impl BackendHandler for FileSystemBackend {
             return Err(Error::NotDirectory(account_dir));
         }
 
-        let account = self.accounts.get_mut(owner).ok_or_else(|| Error::AccountNotExist(*owner))?;
+        let account = self
+            .accounts
+            .get_mut(owner)
+            .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
-        if account.get_mut(vault_id).is_some() {
-            let removed = account.remove(vault_id);
-            if let Some(_) = removed {
-                let wal_path = self.wal_file_path(owner, vault_id);
+        account
+            .get_mut(vault_id)
+            .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
+        account.remove(vault_id).ok_or(Error::VaultRemove)?;
 
-                // Remove the vault file and lock
-                let mut vault_path = wal_path.clone();
-                vault_path.set_extension(VAULT_EXT);
-                let _ = tokio::fs::remove_file(&vault_path).await?;
-                self.locks.remove(&vault_path)?;
+        let wal_path = self.wal_file_path(owner, vault_id);
 
-                // Keep a backup of the WAL file as .wal.deleted
-                let mut wal_backup = wal_path.clone();
-                wal_backup.set_extension(WAL_DELETED_EXT);
-                let _ = tokio::fs::rename(&wal_path, wal_backup).await?;
-                self.locks.remove(&wal_path)?;
+        // Remove the vault file and lock
+        let mut vault_path = wal_path.clone();
+        vault_path.set_extension(VAULT_EXT);
+        let _ = tokio::fs::remove_file(&vault_path).await?;
+        self.locks.remove(&vault_path)?;
 
-                Ok(())
-            } else {
-                Err(Error::VaultRemove)
-            }
-        } else {
-            Err(Error::VaultNotExist(*vault_id))
-        }
+        // Keep a backup of the WAL file as .wal.deleted
+        let mut wal_backup = wal_path.clone();
+        wal_backup.set_extension(WAL_DELETED_EXT);
+        let _ = tokio::fs::rename(&wal_path, wal_backup).await?;
+        self.locks.remove(&wal_path)?;
+
+        Ok(())
     }
 
     async fn account_exists(&self, owner: &Address) -> bool {

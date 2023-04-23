@@ -17,9 +17,7 @@ use uuid::Uuid;
 
 use crate::{
     commit::CommitHash,
-    constants::{
-        DEFAULT_VAULT_NAME, VAULT_EXT, VAULT_IDENTITY, VAULT_VERSION,
-    },
+    constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY, VAULT_VERSION},
     crypto::{
         aesgcm256,
         secret_key::{SecretKey, Seed, SEED_SIZE},

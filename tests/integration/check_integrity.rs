@@ -4,9 +4,7 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use sos::commands::check::{keys, status, verify_vault, verify_wal};
-use sos_core::{
-    constants::{LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
-};
+use sos_core::constants::{LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT};
 use sos_node::client::provider::StorageProvider;
 
 #[tokio::test]

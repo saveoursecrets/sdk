@@ -382,13 +382,13 @@ pub trait EncryptedChannel {
     fn encrypt(&mut self, message: &[u8]) -> Result<AeadPack> {
         let nonce = self.next_nonce()?;
         let key = self.private_key()?;
-        Ok(xchacha20poly1305::encrypt(key, message, Some(nonce))?)
+        xchacha20poly1305::encrypt(key, message, Some(nonce))
     }
 
     /// Decrypt a message.
     fn decrypt(&self, aead: &AeadPack) -> Result<Vec<u8>> {
         let key = self.private_key()?;
-        Ok(xchacha20poly1305::decrypt(key, aead)?)
+        xchacha20poly1305::decrypt(key, aead)
     }
 
     /// Determine if this session is ready.
