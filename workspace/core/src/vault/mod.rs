@@ -3,6 +3,7 @@
 mod file_access;
 mod gatekeeper;
 pub mod secret;
+#[allow(clippy::module_inception)]
 mod vault;
 
 pub use file_access::VaultFileAccess;

@@ -134,7 +134,7 @@ impl Convert for KeychainImport {
         let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
-        keeper.unlock(password.expose_secret())?;
+        keeper.unlock(password)?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 
@@ -380,7 +380,7 @@ mod test {
         // Assert on the data
         let keys: Vec<_> = vault.keys().copied().collect();
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(vault_password.expose_secret())?;
+        keeper.unlock(vault_password)?;
 
         for key in &keys {
             if let Some((_meta, secret, _)) = keeper.read(key)? {

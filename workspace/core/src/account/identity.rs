@@ -1,8 +1,8 @@
 //! Login identity vault.
 //!
 //! Identity provides access to a login vault containing
-//! a private signing key and master encryption passphrase
-//! using known identifiers for the secrets.
+//! the account signing key and delegated passwords used
+//! for folders managed by the account.
 //!
 //! This enables user interfaces to protect both the signing
 //! key and encryption passphrase using a single master
@@ -36,15 +36,56 @@ use crate::{
 #[cfg(not(target_arch = "wasm32"))]
 use crate::vault::VaultFileAccess;
 
-/// User information once authentication to a login vault succeeds.
-pub struct AuthenticatedUser {
+/// User identity containing the account signing keys.
+///
+/// Exposes access to the identity vault for access to
+/// delegated passwords.
+pub struct UserIdentity {
+    /// Address of the signing key.
+    address: String,
     /// Private signing key for the identity.
-    pub signer: BoxedEcdsaSigner,
+    signer: BoxedEcdsaSigner,
+    /// Gatekeeper for the identity vault.
+    keeper: Gatekeeper,
     /// AGE identity keypair.
-    pub identity: age::x25519::Identity,
+    #[allow(dead_code)]
+    shared_private: age::x25519::Identity,
+    /// AGE recipient public key.
+    shared_public: age::x25519::Recipient,
 }
 
-/// Represents an identity.
+impl UserIdentity {
+    /// Address of the signing key.
+    pub fn address(&self) -> &str {
+        &self.address
+    }
+
+    /// Signing key for this user.
+    pub fn signer(&self) -> &BoxedEcdsaSigner {
+        &self.signer
+    }
+
+    /// Reference to the gatekeeper for the identity vault.
+    pub fn keeper(&self) -> &Gatekeeper {
+        &self.keeper
+    }
+
+    /// Mutable reference to the gatekeeper for the identity vault.
+    pub fn keeper_mut(&mut self) -> &mut Gatekeeper {
+        &mut self.keeper
+    }
+
+    /// Recipient public key for sharing.
+    pub fn recipient(&self) -> &age::x25519::Recipient {
+        &self.shared_public
+    }
+}
+
+/// Provides access to the login vault used for account authentication.
+///
+/// A login vault is the master vault for an account. It stores the
+/// signing keys for the account and delegated passphrases for folders
+/// managed by the account.
 pub struct Identity;
 
 impl Identity {
@@ -60,13 +101,10 @@ impl Identity {
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
         vault.set_name(name);
-        vault.initialize(
-            master_passphrase.expose_secret(),
-            Some(generate_seed()),
-        )?;
+        vault.initialize(master_passphrase.clone(), Some(generate_seed()))?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(master_passphrase.expose_secret())?;
+        keeper.unlock(master_passphrase)?;
 
         // Store the signing key
         let signer = SingleParty::new_random();
@@ -104,7 +142,7 @@ impl Identity {
         file: P,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
-    ) -> Result<(AuthenticatedUser, Gatekeeper)> {
+    ) -> Result<UserIdentity> {
         let mirror = Box::new(VaultFileAccess::new(file.as_ref())?);
         let buffer = std::fs::read(file.as_ref())?;
         Identity::login_buffer(
@@ -121,7 +159,7 @@ impl Identity {
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
         mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
-    ) -> Result<(AuthenticatedUser, Gatekeeper)> {
+    ) -> Result<UserIdentity> {
         let vault: Vault = decode(buffer.as_ref())?;
 
         if !vault.flags().contains(VaultFlags::IDENTITY) {
@@ -134,7 +172,7 @@ impl Identity {
             Gatekeeper::new(vault, search_index)
         };
 
-        keeper.unlock(master_passphrase.expose_secret())?;
+        keeper.unlock(master_passphrase)?;
         // Must create the index so we can find by URN
         keeper.create_search_index()?;
 
@@ -158,6 +196,7 @@ impl Identity {
         };
         let signer = signer
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
+        let address = signer.address()?;
 
         let urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
         let document = reader
@@ -178,9 +217,15 @@ impl Identity {
         } else {
             None
         };
-        let identity = identity
+        let shared = identity
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
-        Ok((AuthenticatedUser { signer, identity }, keeper))
+        Ok(UserIdentity {
+            address: address.to_string(),
+            signer,
+            shared_public: shared.to_public(),
+            shared_private: shared,
+            keeper,
+        })
     }
 }
 
@@ -224,7 +269,7 @@ mod tests {
         let (master_passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
-        vault.initialize(master_passphrase.expose_secret(), None)?;
+        vault.initialize(master_passphrase.clone(), None)?;
         let buffer = encode(&vault)?;
 
         let result =
@@ -242,7 +287,7 @@ mod tests {
 
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.expose_secret(), None)?;
+        vault.initialize(master_passphrase.clone(), None)?;
         let buffer = encode(&vault)?;
 
         let result =
@@ -260,10 +305,10 @@ mod tests {
 
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.expose_secret(), None)?;
+        vault.initialize(master_passphrase.clone(), None)?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(master_passphrase.expose_secret())?;
+        keeper.unlock(master_passphrase.clone())?;
 
         // Create a secret using the expected name but of the wrong kind
         let signer_secret = Secret::Note {

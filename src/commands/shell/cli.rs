@@ -4,10 +4,7 @@ use super::{exec, ShellState};
 use sos_core::storage::StorageDirs;
 use terminal_banner::{Banner, Padding};
 
-use sos_node::{
-    client::provider::{spawn_changes_listener, ProviderFactory},
-    FileLocks,
-};
+use sos_node::{client::provider::ProviderFactory, FileLocks};
 
 use tokio::sync::RwLock;
 
@@ -43,11 +40,11 @@ pub async fn run(
     let mut locks = FileLocks::new();
     locks.add(&cache_lock)?;
 
-    let (info, user, identity_keeper, _device_signer, identity_index, _) =
-        sign_in(&account_name).await?;
+    let (user, _) = sign_in(&account_name)?;
 
     let factory = provider.unwrap_or_default();
-    let (provider, address) = factory.create_provider(user.signer.clone())?;
+    let (provider, address) =
+        factory.create_provider(user.identity().signer().clone())?;
 
     let provider = Arc::new(RwLock::new(provider));
 
@@ -73,10 +70,7 @@ pub async fn run(
         provider: shell_cache,
         address,
         factory,
-        info,
         user,
-        identity_keeper,
-        identity_index,
     }));
 
     // Authenticate and load initial vaults

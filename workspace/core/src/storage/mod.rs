@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::constants::{
-    DEVICES_DIR, FILES_DIR, IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, VAULTS_DIR,
-    VAULT_EXT,
+    DEVICES_DIR, FILES_DIR, IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, TRASH_DIR,
+    VAULTS_DIR, VAULT_EXT,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -117,6 +117,16 @@ impl StorageDirs {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn local_dir() -> Result<PathBuf> {
         Ok(Self::cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR))
+    }
+
+    /// Get the trash directory.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn trash_dir() -> Result<PathBuf> {
+        let trash = Self::local_dir()?.join(TRASH_DIR);
+        if !trash.exists() {
+            std::fs::create_dir_all(&trash)?;
+        }
+        Ok(trash)
     }
 
     /// Get the temporary directory.

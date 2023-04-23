@@ -102,10 +102,7 @@ pub async fn new(
     let mut swarm = SwarmBuilder::with_tokio_executor(
         transport::build(&local_key)?,
         ComposedBehaviour {
-            kademlia: Kademlia::new(
-                peer_id.clone(),
-                MemoryStore::new(peer_id.clone()),
-            ),
+            kademlia: Kademlia::new(peer_id, MemoryStore::new(peer_id)),
             request_response: request_response::Behaviour::new(
                 RpcExchangeCodec(),
                 iter::once((RpcExchangeProtocol(), ProtocolSupport::Full)),
@@ -540,7 +537,7 @@ impl EventLoop {
             SwarmEvent::NewListenAddr { address, .. } => {
                 self.event_sender
                     .send(NetworkEvent::Change(ChangeEvent::NewListenAddr {
-                        peer_id: self.peer_id.clone(),
+                        peer_id: self.peer_id,
                         address,
                     }))
                     .await

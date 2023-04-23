@@ -26,8 +26,8 @@ async fn changes_stream(
 
 /// Start a monitor listening for events on the SSE stream.
 pub async fn run(server: Url, account_name: String) -> Result<()> {
-    let (_, user, _, _, _, _) = sign_in(&account_name).await?;
-    let signer = user.signer;
+    let (user, _) = sign_in(&account_name)?;
+    let signer = user.identity().signer().clone();
     if let Err(e) = changes_stream(server, signer).await {
         tracing::error!("{}", e);
         std::process::exit(1);

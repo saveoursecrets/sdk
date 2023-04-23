@@ -8,7 +8,10 @@ use sos_core::{
         VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_PATCH,
         WAL_SAVE, WAL_STATUS, X_SESSION,
     },
-    crypto::AeadPack,
+    crypto::{
+        channel::{ClientSession, EncryptedChannel},
+        AeadPack,
+    },
     decode, encode,
     patch::Patch,
     rpc::{Packet, RequestMessage, ResponseMessage},
@@ -25,10 +28,7 @@ use std::{
 use url::Url;
 use uuid::Uuid;
 
-use crate::{
-    client::{Error, Result},
-    session::{ClientSession, EncryptedChannel},
-};
+use crate::client::{Error, Result};
 
 use super::{bearer_prefix, encode_signature, AUTHORIZATION};
 

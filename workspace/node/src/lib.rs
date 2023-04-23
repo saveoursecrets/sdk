@@ -16,8 +16,6 @@ pub mod peer;
 pub mod server;
 
 mod error;
-pub mod session;
-pub mod sync;
 
 /// Result type for the node module.
 pub type Result<T> = std::result::Result<T, error::Error>;

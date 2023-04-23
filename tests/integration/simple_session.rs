@@ -10,7 +10,6 @@ use std::{
 };
 use url::Url;
 
-use secrecy::ExposeSecret;
 use sos_core::{
     commit::CommitRelationship,
     constants::DEFAULT_VAULT_NAME,
@@ -118,11 +117,7 @@ async fn integration_simple_session() -> Result<()> {
     assert_eq!(1, node_cache.vaults().len());
 
     // Use the new vault
-    node_cache.open_vault(
-        &new_vault_summary,
-        new_passphrase.expose_secret(),
-        None,
-    )?;
+    node_cache.open_vault(&new_vault_summary, new_passphrase, None)?;
 
     // Create some secrets
     let notes = create_secrets(&mut node_cache, &new_vault_summary).await?;
@@ -155,7 +150,6 @@ async fn integration_simple_session() -> Result<()> {
     let meta = index_reader.values();
     assert_eq!(2, meta.len());
     drop(index_reader);
-    drop(keeper);
 
     // Set the vault name
     node_cache

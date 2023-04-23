@@ -86,8 +86,7 @@ impl<'a> ChangePassword<'a> {
         //
         // Must clear the existing salt so we can re-initialize.
         new_vault.header_mut().clear_salt();
-        new_vault
-            .initialize(self.new_passphrase.expose_secret(), self.seed)?;
+        new_vault.initialize(self.new_passphrase.clone(), self.seed)?;
 
         // Get a new secret key after we have initialized the new salt
         let new_private_key = self.new_private_key(&new_vault)?;
@@ -151,10 +150,10 @@ mod test {
     fn change_password() -> Result<()> {
         let (_, _, current_passphrase) = mock_encryption_key()?;
         let mut mock_vault = mock_vault();
-        mock_vault.initialize(current_passphrase.expose_secret(), None)?;
+        mock_vault.initialize(current_passphrase.clone(), None)?;
 
         let mut keeper = Gatekeeper::new(mock_vault, None);
-        keeper.unlock(current_passphrase.expose_secret())?;
+        keeper.unlock(current_passphrase.clone())?;
 
         // Propagate some secrets
         let notes = vec![

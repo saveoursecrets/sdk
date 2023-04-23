@@ -41,7 +41,7 @@ impl<'a> TryFrom<Packet<'a>> for RequestMessage<'a> {
     fn try_from(packet: Packet<'a>) -> Result<Self> {
         match packet.payload {
             Payload::Request(val) => Ok(val),
-            _ => Err(Error::Message("expected a request payload".to_owned())),
+            _ => Err(Error::RpcRequestPayload),
         }
     }
 }
@@ -51,9 +51,7 @@ impl<'a> TryFrom<Packet<'a>> for ResponseMessage<'a> {
     fn try_from(packet: Packet<'a>) -> Result<Self> {
         match packet.payload {
             Payload::Response(val) => Ok(val),
-            _ => {
-                Err(Error::Message("expected a response payload".to_owned()))
-            }
+            _ => Err(Error::RpcResponsePayload),
         }
     }
 }
@@ -376,7 +374,7 @@ impl Decode for ResponseMessage<'_> {
 
             if has_error {
                 let err_msg = reader.read_string()?;
-                self.result = Some(Err(Error::Message(err_msg)))
+                self.result = Some(Err(Error::RpcError(err_msg)))
             } else {
                 let value_len = reader.read_u32()?;
 
@@ -420,7 +418,7 @@ impl From<(StatusCode, Option<u64>)> for ResponseMessage<'_> {
         ResponseMessage::new_reply::<()>(
             value.1,
             value.0,
-            Some(Err(Error::Message(message))),
+            Some(Err(Error::RpcError(message))),
         )
         .expect("failed to encode error response message")
     }

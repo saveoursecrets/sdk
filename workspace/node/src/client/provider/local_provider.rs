@@ -5,7 +5,10 @@ use async_trait::async_trait;
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit::{CommitHash, CommitPair, CommitRelationship, CommitTree},
+    commit::{
+        CommitHash, CommitPair, CommitRelationship, CommitTree, SyncInfo,
+        SyncKind,
+    },
     constants::VAULT_EXT,
     crypto::secret_key::SecretKey,
     decode, encode,
@@ -29,7 +32,6 @@ use std::{
 use crate::{
     client::provider::{fs_adapter, sync, ProviderState, StorageProvider},
     provider_impl,
-    sync::{SyncInfo, SyncKind},
 };
 
 /// Local storage for a node.
@@ -96,7 +98,7 @@ where
     async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<String>,
+        passphrase: Option<SecretString>,
         _is_account: bool,
     ) -> Result<(SecretString, Summary)> {
         let (passphrase, vault, buffer) =

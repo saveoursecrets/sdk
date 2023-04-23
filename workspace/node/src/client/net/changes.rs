@@ -17,14 +17,16 @@ use tokio::net::TcpStream;
 use url::{Origin, Url};
 
 use sos_core::{
-    crypto::AeadPack, decode, events::ChangeNotification,
+    crypto::{
+        channel::{ClientSession, EncryptedChannel},
+        AeadPack,
+    },
+    decode,
+    events::ChangeNotification,
     signer::ecdsa::BoxedEcdsaSigner,
 };
 
-use crate::{
-    client::{net::RpcClient, Result},
-    session::{ClientSession, EncryptedChannel},
-};
+use crate::client::{net::RpcClient, Result};
 
 use super::changes_uri;
 

@@ -9,7 +9,6 @@ use std::{
     time::Duration,
 };
 
-use secrecy::ExposeSecret;
 use sos_core::{
     events::{ChangeEvent, ChangeNotification},
     passwd::diceware::generate_passphrase,
@@ -66,11 +65,7 @@ async fn integration_change_password() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Use the new vault
-    node_cache.open_vault(
-        &summary,
-        encryption_passphrase.expose_secret(),
-        None,
-    )?;
+    node_cache.open_vault(&summary, encryption_passphrase.clone(), None)?;
 
     // Create some secrets
     let _notes = create_secrets(&mut node_cache, &summary).await?;
@@ -89,7 +84,6 @@ async fn integration_change_password() -> Result<()> {
     let (new_passphrase, _) = generate_passphrase()?;
 
     let vault = keeper.vault().clone();
-    drop(keeper);
 
     node_cache
         .change_password(&vault, encryption_passphrase, new_passphrase)

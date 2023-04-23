@@ -1,9 +1,8 @@
-use sos_core::audit::AuditLogFile;
+use sos_core::{audit::AuditLogFile, crypto::channel::SessionManager};
 use sos_node::{
     server::{
         BackendHandler, Result, Server, ServerConfig, ServerInfo, State,
     },
-    session::SessionManager,
     FileLocks,
 };
 

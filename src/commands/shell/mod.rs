@@ -1,8 +1,7 @@
 pub(crate) mod cli;
 mod editor;
 mod print;
-mod shell;
+mod repl;
 
 pub use cli::run;
-pub use shell::exec;
-pub use shell::ShellState;
+pub use repl::{exec, ShellState};

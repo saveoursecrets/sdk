@@ -1,6 +1,7 @@
 //! HTTP transport trait and implementations.
 
 use sos_core::{
+    crypto::channel::{ClientSession, EncryptedChannel},
     encode,
     signer::ecdsa::{BinarySignature, BoxedEcdsaSigner},
 };
@@ -10,7 +11,6 @@ use uuid::Uuid;
 use web3_signature::Signature;
 
 use super::Result;
-use crate::session::{ClientSession, EncryptedChannel};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod changes;

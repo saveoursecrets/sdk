@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit::{CommitHash, CommitRelationship, CommitTree},
+    commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
@@ -34,7 +34,6 @@ use uuid::Uuid;
 use crate::{
     client::provider::{fs_adapter, sync, ProviderState, StorageProvider},
     patch, provider_impl, retry,
-    sync::SyncInfo,
 };
 
 /// Local data cache for a node.
@@ -107,7 +106,7 @@ where
     async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<String>,
+        passphrase: Option<SecretString>,
         is_account: bool,
     ) -> Result<(SecretString, Summary)> {
         let (passphrase, vault, buffer) =

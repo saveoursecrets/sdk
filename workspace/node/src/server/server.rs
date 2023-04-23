@@ -20,15 +20,13 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use serde::Serialize;
-use sos_core::audit::AuditLogFile;
+use sos_core::{audit::AuditLogFile, crypto::channel::SessionManager};
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_stream::wrappers::IntervalStream;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use web3_address::ethereum::Address;
-
-use crate::session::SessionManager;
 
 async fn session_reaper(state: Arc<RwLock<State>>, interval_secs: u64) {
     let interval = tokio::time::interval(Duration::from_secs(interval_secs));

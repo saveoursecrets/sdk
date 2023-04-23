@@ -4,17 +4,13 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_core::{
-    commit::{CommitProof, Comparison},
+    commit::{CommitProof, Comparison, SyncInfo, SyncKind},
     patch::PatchProvider,
     vault::Summary,
     wal::WalProvider,
 };
 
-use crate::{
-    client::provider::assert_proofs_eq,
-    retry,
-    sync::{SyncInfo, SyncKind},
-};
+use crate::{client::provider::assert_proofs_eq, retry};
 
 use super::apply_patch_file;
 

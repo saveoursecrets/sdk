@@ -12,27 +12,20 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
+    account::{AuthenticatedUser, DelegatedPassphrase},
+    commit::SyncKind,
     hex,
-    identity::AuthenticatedUser,
     passwd::diceware::generate_passphrase,
-    search::{Document, SearchIndex},
+    search::Document,
     secrecy,
     sha3::{Digest, Sha3_256},
     url::Url,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef},
-        Gatekeeper, Vault, VaultAccess, VaultCommit, VaultEntry,
+        Vault, VaultAccess, VaultCommit, VaultEntry,
     },
 };
-use sos_node::{
-    client::{
-        account_manager::{AccountInfo, AccountManager},
-        provider::{BoxedProvider, ProviderFactory},
-    },
-    sync::SyncKind,
-};
-
-use parking_lot::RwLock as SyncRwLock;
+use sos_node::client::provider::{BoxedProvider, ProviderFactory};
 
 use crate::helpers::{
     account::switch,
@@ -54,10 +47,7 @@ pub struct ShellState {
     pub provider: ShellProvider,
     pub address: Address,
     pub factory: ProviderFactory,
-    pub info: AccountInfo,
     pub user: AuthenticatedUser,
-    pub identity_keeper: Gatekeeper,
-    pub identity_index: Arc<SyncRwLock<SearchIndex>>,
 }
 
 /// Type for the root shell data.
@@ -82,28 +72,28 @@ enum ShellCommand {
     /// Renew session authentication.
     #[clap(alias = "auth")]
     Authenticate,
-    /// List vaults.
-    Vaults,
-    /// Create a new vault.
+    /// List folders.
+    Folders,
+    /// Create a new folder.
     Create {
-        /// Name for the new vault.
+        /// Name for the new folder.
         name: String,
     },
-    /// Delete a vault.
+    /// Delete a folder.
     Remove {
-        /// Vault reference, it's name or identifier.
+        /// Folder reference, it's name or identifier.
         vault: SecretRef,
     },
-    /// Select a vault.
+    /// Select a folder.
     Use {
         /// Vault reference, it's name or identifier.
         vault: SecretRef,
     },
-    /// Print information about the selected vault.
+    /// Print information about the selected folder.
     Info,
-    /// Get or set the name of the selected vault.
+    /// Get or set the name of the selected folder.
     Name {
-        /// A new name for the vault.
+        /// A new name for the folder.
         name: Option<String>,
     },
     /// Print commit status.
@@ -112,11 +102,11 @@ enum ShellCommand {
         #[clap(short, long)]
         verbose: bool,
     },
-    /// Print commit tree leaves for the current vault.
+    /// Print commit tree leaves for the current folder.
     Tree,
-    /// Print secret keys for the selected vault.
+    /// Print secret keys for the current folder.
     Keys,
-    /// List secrets for the selected vault.
+    /// List secrets in the current folder.
     #[clap(alias = "ls")]
     List {
         /// Print more information
@@ -150,7 +140,7 @@ enum ShellCommand {
         /// New label for the secret.
         label: Option<String>,
     },
-    /// Inspect the history for the selected vault.
+    /// Inspect the history for the current folder.
     History {
         #[clap(subcommand)]
         cmd: History,
@@ -178,7 +168,7 @@ enum ShellCommand {
     },
     /// Print the current identity.
     Whoami,
-    /// Close the selected vault.
+    /// Close the selected folder.
     Close,
     /// Exit the shell.
     #[clap(alias = "q")]
@@ -509,7 +499,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             println!("session renewed ✓");
             Ok(())
         }
-        ShellCommand::Vaults => {
+        ShellCommand::Folders => {
             let mut writer = cache.write().await;
             let summaries = writer.load_vaults().await?;
             print::summaries_list(summaries);
@@ -556,14 +546,14 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             drop(reader);
 
             let state_reader = state.read().await;
-            let passphrase = AccountManager::find_vault_passphrase(
-                &state_reader.identity_keeper,
+            let passphrase = DelegatedPassphrase::find_vault_passphrase(
+                state_reader.user.identity().keeper(),
                 summary.id(),
             )?;
             drop(state_reader);
 
             let mut writer = cache.write().await;
-            writer.open_vault(&summary, passphrase.expose_secret(), None)?;
+            writer.open_vault(&summary, passphrase, None)?;
             writer.create_search_index()?;
 
             Ok(())
@@ -949,7 +939,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
                 // Basic quick verification
                 keeper
-                    .verify(passphrase.expose_secret())
+                    .verify(passphrase.clone())
                     .map_err(|_| Error::InvalidPassphrase)?;
 
                 // We need a clone of the vault to avoid borrowing whilst

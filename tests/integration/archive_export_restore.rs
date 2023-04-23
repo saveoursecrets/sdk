@@ -8,17 +8,14 @@ use secrecy::SecretString;
 use tempfile::tempdir;
 
 use sos_core::{
-    archive::Writer,
+    account::{archive::Writer, AccountBackup, Identity, RestoreOptions},
     encode,
     events::SyncEvent,
-    identity::Identity,
     signer::{ecdsa::SingleParty, Signer},
     storage::StorageDirs,
     vault::{Gatekeeper, Vault},
 };
-use sos_node::client::provider::{
-    LocalProvider, RestoreOptions, StorageProvider,
-};
+use sos_node::client::provider::{LocalProvider, StorageProvider};
 
 fn create_archive(
     passphrase: SecretString,
@@ -54,19 +51,19 @@ async fn integration_archive_local_provider() -> Result<()> {
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
     let dirs = StorageDirs::new(dir.path(), &user_id);
-    let passphrase = "mock-password";
+    let passphrase = SecretString::new("mock-password".to_owned());
     let mut storage = LocalProvider::new_file_storage(dirs)?;
 
     // Prepare a vault to add to the archive
     let mut default_vault: Vault = Default::default();
     default_vault.set_default_flag(true);
-    default_vault.initialize(passphrase, None)?;
+    default_vault.initialize(passphrase.clone(), None)?;
     let vault_id = *default_vault.id();
     let (meta, secret) = mock_note("Archived note", "Archived note value");
     let expected_meta = meta.clone();
     let expected_secret = secret.clone();
     let mut keeper = Gatekeeper::new(default_vault, None);
-    keeper.unlock(passphrase)?;
+    keeper.unlock(passphrase.clone())?;
     let secret_id = if let SyncEvent::CreateSecret(id, _) =
         keeper.create(meta, secret)?
     {
@@ -81,19 +78,16 @@ async fn integration_archive_local_provider() -> Result<()> {
 
     let options = RestoreOptions {
         selected: vec![vault.summary().clone()],
-        passphrase: Some(SecretString::new(passphrase.to_string())),
+        passphrase: Some(passphrase.clone()),
         files_dir: None,
-        files_dir_builder: None,
     };
 
     // Create the archive
-    let (address, _identity_vault, archive) = create_archive(
-        SecretString::new(passphrase.to_string()),
-        vec![vault],
-    )?;
+    let (address, _identity_vault, archive) =
+        create_archive(passphrase.clone(), vec![vault])?;
 
     // Restore from the archive into the provider
-    let targets = storage.extract_verify_archive(archive, &options)?;
+    let targets = AccountBackup::extract_verify_archive(archive, &options)?;
     assert_eq!(address, targets.address);
 
     storage.restore_archive(&targets).await?;
@@ -101,7 +95,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     // Check the vault exists and has the right identifier
     let summaries = storage.load_vaults().await?;
     assert_eq!(1, summaries.len());
-    let vault_summary = (&summaries[0]).clone();
+    let vault_summary = summaries[0].clone();
     assert_eq!(&vault_id, vault_summary.id());
 
     drop(summaries);

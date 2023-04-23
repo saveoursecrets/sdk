@@ -2,18 +2,17 @@
 
 use async_trait::async_trait;
 use parking_lot::RwLock;
-use secrecy::{ExposeSecret, SecretString};
-use std::{
-    borrow::Cow, collections::HashSet, io::Cursor, path::PathBuf, sync::Arc,
-};
+use secrecy::SecretString;
+use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 
 use sos_core::{
-    archive::{ArchiveItem, Reader},
-    commit::{CommitHash, CommitProof, CommitRelationship, CommitTree},
+    account::{ImportedAccount, NewAccount},
+    commit::{
+        CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
+    },
     constants::{PATCH_EXT, VAULT_EXT, WAL_EXT},
-    decode,
+    encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
-    identity::Identity,
     passwd::ChangePassword,
     search::SearchIndex,
     storage::StorageDirs,
@@ -24,10 +23,10 @@ use sos_core::{
     Timestamp,
 };
 
-use crate::{
-    client::{Error, Result},
-    sync::SyncInfo,
-};
+#[cfg(not(target_arch = "wasm32"))]
+use sos_core::account::RestoreTargets;
+
+use crate::client::{Error, Result};
 
 pub(crate) fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -69,30 +68,6 @@ pub use state::ProviderState;
 /// Generic boxed provider.
 pub type BoxedProvider = Box<dyn StorageProvider + Send + Sync + 'static>;
 
-/// Options for a restore operation.
-pub struct RestoreOptions {
-    /// Vaults that the user selected to be imported.
-    pub selected: Vec<Summary>,
-    /// Passphrase for the identity vault in the archive to copy
-    /// the passphrases for imported folders.
-    pub passphrase: Option<SecretString>,
-    /// Target directory for files.
-    pub files_dir: Option<PathBuf>,
-    /// Builder for the files directory.
-    pub files_dir_builder: Option<Box<dyn Fn(&str) -> Option<PathBuf>>>,
-}
-
-/// Buffers of data to restore after selected options
-/// have been applied to the data in an archive.
-pub struct RestoreTargets {
-    /// The address for the identity.
-    pub address: String,
-    /// Archive item for the identity vault.
-    pub identity: ArchiveItem,
-    /// List of vaults to restore.
-    pub vaults: Vec<(Vec<u8>, Vault)>,
-}
-
 /// Trait for storage providers.
 ///
 /// Note we need `Sync` and `Send` super traits as we want
@@ -116,9 +91,52 @@ pub trait StorageProvider: Sync + Send {
     /// Compute the storage directory for the user.
     fn dirs(&self) -> &StorageDirs;
 
+    /// Import the vaults for a new account.
+    async fn import_new_account(
+        &mut self,
+        account: &NewAccount,
+    ) -> Result<ImportedAccount> {
+        // Save the default vault
+        let buffer = encode(&account.default_vault)?;
+        let summary = self.create_account_with_buffer(buffer).await?;
+
+        let archive = if let Some(archive_vault) = &account.archive {
+            let buffer = encode(archive_vault)?;
+            let summary = self.import_vault(buffer).await?;
+            Some(summary)
+        } else {
+            None
+        };
+
+        let authenticator =
+            if let Some(authenticator_vault) = &account.authenticator {
+                let buffer = encode(authenticator_vault)?;
+                let summary = self.import_vault(buffer).await?;
+                Some(summary)
+            } else {
+                None
+            };
+
+        let contacts = if let Some(contact_vault) = &account.contacts {
+            let buffer = encode(contact_vault)?;
+            let summary = self.import_vault(buffer).await?;
+            Some(summary)
+        } else {
+            None
+        };
+
+        Ok(ImportedAccount {
+            summary,
+            archive,
+            authenticator,
+            contacts,
+        })
+    }
+
     /// Restore vaults from an archive.
     ///
     /// Buffer is the compressed archive contents.
+    #[cfg(not(target_arch = "wasm32"))]
     async fn restore_archive(
         &mut self,
         targets: &RestoreTargets,
@@ -147,70 +165,6 @@ pub trait StorageProvider: Sync + Send {
         }
 
         Ok(())
-    }
-
-    /// Helper to extract from an archive and verify the archive
-    /// contents against the restore options.
-    fn extract_verify_archive(
-        &self,
-        mut archive: Vec<u8>,
-        options: &RestoreOptions,
-    ) -> Result<RestoreTargets> {
-        let mut reader = Reader::new(Cursor::new(&mut archive))?.prepare()?;
-
-        if let Some(files_dir) = &options.files_dir {
-            reader.extract_files(files_dir, options.selected.as_slice())?;
-        } else if let (Some(builder), Some(manifest)) =
-            (&options.files_dir_builder, reader.manifest())
-        {
-            if let Some(files_dir) = builder(&manifest.address) {
-                reader
-                    .extract_files(files_dir, options.selected.as_slice())?;
-            }
-        }
-
-        let (address, identity, vaults) = reader.finish()?;
-
-        // Filter extracted vaults to those selected by the user
-        let vaults = vaults
-            .into_iter()
-            .filter(|item| {
-                options.selected.iter().any(|s| s.id() == item.0.id())
-            })
-            .collect::<Vec<_>>();
-
-        // Check each target vault can be decoded
-        let mut decoded: Vec<(Vec<u8>, Vault)> = Vec::new();
-        for item in vaults {
-            let vault: Vault = decode(&item.1)?;
-            decoded.push((item.1, vault));
-        }
-
-        // Check all the decoded vaults can be decrypted
-        if let Some(passphrase) = &options.passphrase {
-            // Check the identity vault can be unlocked
-            let vault: Vault = decode(&identity.1)?;
-            let mut keeper = Gatekeeper::new(vault, None);
-            keeper.unlock(passphrase.expose_secret())?;
-
-            // Get the signing address from the identity vault and
-            // verify it matches the manifest address
-            let (user, _) = Identity::login_buffer(
-                &identity.1,
-                passphrase.clone(),
-                None,
-                None,
-            )?;
-            if user.signer.address()?.to_string() != address {
-                return Err(Error::ArchiveAddressMismatch);
-            }
-        }
-
-        Ok(RestoreTargets {
-            address,
-            identity,
-            vaults: decoded,
-        })
     }
 
     /// Attempt to open an authenticated, encrypted session.
@@ -285,7 +239,7 @@ pub trait StorageProvider: Sync + Send {
     async fn create_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<String>,
+        passphrase: Option<SecretString>,
     ) -> Result<(SecretString, Summary)> {
         self.create_vault_or_account(name, passphrase, true).await
     }
@@ -294,7 +248,7 @@ pub trait StorageProvider: Sync + Send {
     async fn create_vault(
         &mut self,
         name: String,
-        passphrase: Option<String>,
+        passphrase: Option<SecretString>,
     ) -> Result<(SecretString, Summary)> {
         self.create_vault_or_account(Some(name), passphrase, false)
             .await
@@ -313,7 +267,7 @@ pub trait StorageProvider: Sync + Send {
     async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<String>,
+        passphrase: Option<SecretString>,
         _is_account: bool,
     ) -> Result<(SecretString, Summary)>;
 
@@ -334,7 +288,7 @@ pub trait StorageProvider: Sync + Send {
     fn open_vault(
         &mut self,
         summary: &Summary,
-        passphrase: &str,
+        passphrase: SecretString,
         index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<()>;
 
@@ -511,7 +465,7 @@ pub trait StorageProvider: Sync + Send {
 
         if let Some(keeper) = self.current_mut() {
             if keeper.summary().id() == vault.summary().id() {
-                keeper.unlock(new_passphrase.expose_secret())?;
+                keeper.unlock(new_passphrase.clone())?;
             }
         }
 
@@ -523,6 +477,7 @@ pub trait StorageProvider: Sync + Send {
 #[macro_export]
 macro_rules! provider_impl {
     () => {
+
         fn state(&self) -> &ProviderState {
             &self.state
         }
@@ -538,7 +493,7 @@ macro_rules! provider_impl {
         fn open_vault(
             &mut self,
             summary: &Summary,
-            passphrase: &str,
+            passphrase: SecretString,
             index: Option<std::sync::Arc<parking_lot::RwLock<SearchIndex>>>,
         ) -> Result<()> {
             let vault_path = self.vault_path(summary);

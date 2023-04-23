@@ -40,7 +40,6 @@ parking_lot = "0.12"
 [dev-dependencies]
 http = "0.2"
 tempfile = "3.3"
-urn = { version = "0.5", features = ["serde"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sos-node = { path = "workspace/node", version = "0.1.0" , features = ["client", "server", "peer"]}

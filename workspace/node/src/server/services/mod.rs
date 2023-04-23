@@ -6,7 +6,7 @@ use axum::{
 
 use sos_core::{
     audit::{AuditEvent, AuditProvider},
-    crypto::AeadPack,
+    crypto::{channel::EncryptedChannel, AeadPack},
     decode, encode,
     events::ChangeNotification,
     rpc::{Packet, RequestMessage, Service},
@@ -17,10 +17,7 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 use uuid::Uuid;
 
-use crate::{
-    server::{authenticate, State},
-    session::EncryptedChannel,
-};
+use crate::server::{authenticate, State};
 
 /// Type to represent the caller of a service request.
 pub struct Caller {

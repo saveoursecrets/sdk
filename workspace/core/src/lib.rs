@@ -1,12 +1,17 @@
 #![deny(missing_docs)]
-//! Core library for the distributed, encrypted database.
+//! High-level software development kit (SDK) for a
+//! distributed encrypted database that can be used
+//! to build password managers, cryptocurrency wallets
+//! or other applications that require storing secrets
+//! securely.
+//!
 
 use binary_stream::{
     BinaryReader, BinaryWriter, Decode, Encode, Endian, MemoryStream,
     SliceStream,
 };
 
-pub mod archive;
+pub mod account;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod audit;
 pub mod commit;
@@ -15,7 +20,6 @@ pub mod crypto;
 mod error;
 pub mod events;
 pub mod formats;
-pub mod identity;
 pub mod passwd;
 pub mod patch;
 pub mod rpc;
@@ -41,6 +45,7 @@ pub use sha2;
 pub use sha3;
 pub use time;
 pub use url;
+pub use urn;
 pub use uuid;
 pub use vcard4;
 

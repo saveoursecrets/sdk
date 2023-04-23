@@ -114,7 +114,9 @@ impl Service for AccountService {
 
                 Ok(reply)
             }
-            _ => Err(sos_core::Error::Message("unknown method".to_owned())),
+            _ => Err(sos_core::Error::RpcUnknownMethod(
+                request.method().to_owned(),
+            )),
         }
     }
 }
