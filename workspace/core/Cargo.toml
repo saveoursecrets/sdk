@@ -23,7 +23,7 @@ serde = { version = "1", features = ["derive"] }
 hex = { version = "0.4", features = ["serde"] }
 serde_json = "1"
 k256 = { version = "0.13.1", features = ["ecdsa", "ecdh"] }
-subtle = "2.4"
+subtle = "2"
 zeroize = { version = "1.4", features = ["zeroize_derive"] }
 argon2 = { version = "0.5", features = ["std"]}
 # matches the version in k256
@@ -35,7 +35,7 @@ url = { version = "2.2", features = ["serde"] }
 bitflags = "1"
 pem = { version = "1.1.0", features = ["serde"] }
 secrecy = { version = "0.8", features = ["serde"] }
-crypto-bigint = "0.4.8"
+crypto-bigint = "0.5"
 tempfile = "3"
 log = "0.4"
 http = "0.2"

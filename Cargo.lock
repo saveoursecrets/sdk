@@ -5029,7 +5029,7 @@ dependencies = [
  "bs58",
  "chacha20poly1305 0.10.1",
  "chbs",
- "crypto-bigint 0.4.9",
+ "crypto-bigint 0.5.1",
  "dirs",
  "ed25519-dalek 2.0.0-rc.2",
  "filetime",
