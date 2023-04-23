@@ -3,8 +3,8 @@ use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
+    account::AccountBuilder,
     archive::Inventory,
-    encode,
     identity::AuthenticatedUser,
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
@@ -13,10 +13,7 @@ use sos_core::{
     vault::Gatekeeper,
 };
 use sos_node::client::{
-    account_manager::{
-        AccountInfo, AccountManager, DeviceSigner, NewAccountRequest,
-        NewAccountResponse,
-    },
+    account_manager::{AccountInfo, AccountManager, DeviceSigner},
     provider::{BoxedProvider, ProviderFactory, RestoreOptions},
 };
 use terminal_banner::{Banner, Padding};
@@ -181,27 +178,19 @@ pub async fn local_signup(
     // Generate a master passphrase
     let (passphrase, _) = generate_passphrase()?;
 
-    let account = NewAccountRequest {
-        account_name: account_name.clone(),
-        passphrase: passphrase.clone(),
-        save_passphrase: true,
-        create_archive: true,
-        create_authenticator: true,
-        create_contact: true,
-        create_file_password: true,
-        default_folder_name: folder_name,
-    };
+    let (identity_vault, new_account) =
+        AccountBuilder::new(account_name.clone(), passphrase.clone())
+            .save_passphrase(true)
+            .create_archive(true)
+            .create_authenticator(true)
+            .create_contacts(true)
+            .create_file_password(true)
+            .default_folder_name(folder_name)
+            .build()?;
 
-    let NewAccountResponse {
-        address,
-        user,
-        summary,
-        default_vault: vault,
-        ..
-    } = AccountManager::new_account(account).await?;
+    let address = new_account.address.clone();
 
     // Get the signing key for the authenticated user
-    let signer = user.signer;
     let identity_dir = StorageDirs::identity_dir()?;
     println!("{}", identity_dir.display());
 
@@ -210,7 +199,7 @@ pub async fn local_signup(
 * Create a default folder called "{}"
 * Master passphrase will be displayed"#,
         account_name,
-        summary.name(),
+        new_account.default_vault.summary().name(),
     );
 
     let banner = Banner::new()
@@ -239,15 +228,16 @@ pub async fn local_signup(
             "Are you sure you want to create a new account (y/n)? ",
         ))?;
         if confirmed {
-            // Prepare a provider for account creation
+            let new_account =
+                AccountBuilder::write(identity_vault, new_account)?;
+
+            // Create local provider
             let factory = ProviderFactory::Local;
-            let (mut provider, _) = factory.create_provider(signer)?;
+            let (mut provider, _) =
+                factory.create_provider(new_account.user.signer.clone())?;
             provider.authenticate().await?;
 
-            // Send the default vault for account creation
-            let buffer = encode(&vault)?;
-            let _summary =
-                provider.create_account_with_buffer(buffer).await?;
+            let _ = provider.import_new_account(&new_account).await?;
 
             let cache_dir =
                 StorageDirs::cache_dir().ok_or(Error::NoCacheDir)?;

@@ -5,6 +5,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
+    account::{AccountBuilder, ImportedAccount, NewAccount},
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     hex,
     passwd::diceware::generate_passphrase,
@@ -13,9 +14,7 @@ use sos_core::{
     vault::{secret::SecretId, Gatekeeper, VaultId},
 };
 use sos_node::client::{
-    account_manager::{
-        AccountManager, NewAccountRequest, NewAccountResponse,
-    },
+    account_manager::AccountManager,
     provider::{ProviderFactory, RestoreOptions},
 };
 
@@ -37,20 +36,25 @@ async fn integration_account_manager() -> Result<()> {
     let folder_name = Some("Default folder".to_string());
     let (passphrase, _) = generate_passphrase()?;
 
-    let account = NewAccountRequest {
-        account_name: account_name.clone(),
-        passphrase: passphrase.clone(),
-        save_passphrase: true,
-        create_archive: true,
-        create_authenticator: true,
-        create_contact: true,
-        create_file_password: true,
-        default_folder_name: folder_name,
-    };
+    let new_account =
+        AccountBuilder::new(account_name.clone(), passphrase.clone())
+            .save_passphrase(true)
+            .create_archive(true)
+            .create_authenticator(true)
+            .create_contacts(true)
+            .create_file_password(true)
+            .default_folder_name(folder_name)
+            .finish()?;
 
-    let NewAccountResponse {
-        address, summary, ..
-    } = AccountManager::new_account(account).await?;
+    // Create local provider
+    let factory = ProviderFactory::Local;
+    let (mut provider, _) =
+        factory.create_provider(new_account.user.signer.clone())?;
+
+    let imported_account = provider.import_new_account(&new_account).await?;
+
+    let NewAccount { address, .. } = new_account;
+    let ImportedAccount { summary, .. } = imported_account;
 
     let accounts = AccountManager::list_accounts()?;
     assert_eq!(1, accounts.len());

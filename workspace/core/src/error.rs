@@ -224,6 +224,11 @@ pub enum Error {
     #[error("failed to parse AGE identity: {0}")]
     AgeIdentityParse(String),
 
+    /// Error generated when a vault entry in the identity vault could not
+    /// be located.
+    #[error("could not find vault entry for {0}")]
+    NoVaultEntry(String),
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

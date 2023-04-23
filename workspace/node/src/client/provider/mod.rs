@@ -8,12 +8,13 @@ use std::{
 };
 
 use sos_core::{
+    account::{ImportedAccount, NewAccount},
     archive::{ArchiveItem, Reader},
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
     constants::{PATCH_EXT, VAULT_EXT, WAL_EXT},
-    decode,
+    decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
     identity::Identity,
     passwd::ChangePassword,
@@ -114,6 +115,48 @@ pub trait StorageProvider: Sync + Send {
 
     /// Compute the storage directory for the user.
     fn dirs(&self) -> &StorageDirs;
+
+    /// Import the vaults for a new account.
+    async fn import_new_account(
+        &mut self,
+        account: &NewAccount,
+    ) -> Result<ImportedAccount> {
+        // Save the default vault
+        let buffer = encode(&account.default_vault)?;
+        let summary = self.create_account_with_buffer(buffer).await?;
+
+        let archive = if let Some(archive_vault) = &account.archive {
+            let buffer = encode(archive_vault)?;
+            let summary = self.import_vault(buffer).await?;
+            Some(summary)
+        } else {
+            None
+        };
+
+        let authenticator =
+            if let Some(authenticator_vault) = &account.authenticator {
+                let buffer = encode(authenticator_vault)?;
+                let summary = self.import_vault(buffer).await?;
+                Some(summary)
+            } else {
+                None
+            };
+
+        let contacts = if let Some(contact_vault) = &account.contact {
+            let buffer = encode(contact_vault)?;
+            let summary = self.import_vault(buffer).await?;
+            Some(summary)
+        } else {
+            None
+        };
+
+        Ok(ImportedAccount {
+            summary,
+            archive,
+            authenticator,
+            contacts,
+        })
+    }
 
     /// Restore vaults from an archive.
     ///
@@ -522,6 +565,7 @@ pub trait StorageProvider: Sync + Send {
 #[macro_export]
 macro_rules! provider_impl {
     () => {
+
         fn state(&self) -> &ProviderState {
             &self.state
         }
