@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    commit::{CommitHash, CommitRelationship, CommitTree},
+    commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
@@ -34,7 +34,6 @@ use uuid::Uuid;
 use crate::{
     client::provider::{fs_adapter, sync, ProviderState, StorageProvider},
     patch, provider_impl, retry,
-    sync::SyncInfo,
 };
 
 /// Local data cache for a node.

@@ -23,9 +23,9 @@ use urn::Urn;
 
 use crate::test_utils::*;
 
+#[tokio::test]
 #[serial]
-#[test]
-fn integration_account_manager() -> Result<()> {
+async fn integration_account_manager() -> Result<()> {
     let dirs = setup(1)?;
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
@@ -50,7 +50,7 @@ fn integration_account_manager() -> Result<()> {
 
     let NewAccountResponse {
         address, summary, ..
-    } = AccountManager::new_account(account)?;
+    } = AccountManager::new_account(account).await?;
 
     let accounts = AccountManager::list_accounts()?;
     assert_eq!(1, accounts.len());
@@ -61,7 +61,8 @@ fn integration_account_manager() -> Result<()> {
             &address,
             passphrase.clone(),
             Arc::clone(&identity_index),
-        )?;
+        )
+        .await?;
 
     AccountManager::rename_identity(
         &address,
@@ -148,7 +149,8 @@ fn integration_account_manager() -> Result<()> {
         archive_buffer.clone(),
         options,
         Some(&mut provider),
-    )?;
+    )
+    .await?;
 
     // Remove the account
     AccountManager::delete_account(&address)?;
@@ -161,7 +163,8 @@ fn integration_account_manager() -> Result<()> {
         files_dir: Some(files_dir),
         files_dir_builder: None,
     };
-    AccountManager::restore_archive_buffer(archive_buffer, options, None)?;
+    AccountManager::restore_archive_buffer(archive_buffer, options, None)
+        .await?;
 
     // Reset the cache dir so we don't interfere
     // with other tests

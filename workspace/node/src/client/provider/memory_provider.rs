@@ -8,6 +8,7 @@ use crate::client::{
 };
 use secrecy::SecretString;
 use sos_core::{
+    commit::SyncInfo,
     events::{ChangeAction, ChangeNotification, SyncEvent},
     signer::ecdsa::BoxedEcdsaSigner,
     vault::{
@@ -21,8 +22,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 use url::Url;
-
-use crate::sync::SyncInfo;
 
 /// Client that communicates with a single server and
 /// writes it's cache to memory.

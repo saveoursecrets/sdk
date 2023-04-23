@@ -9,7 +9,9 @@ use std::{
 
 use sos_core::{
     archive::{ArchiveItem, Reader},
-    commit::{CommitHash, CommitProof, CommitRelationship, CommitTree},
+    commit::{
+        CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
+    },
     constants::{PATCH_EXT, VAULT_EXT, WAL_EXT},
     decode,
     events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
@@ -24,10 +26,7 @@ use sos_core::{
     Timestamp,
 };
 
-use crate::{
-    client::{Error, Result},
-    sync::SyncInfo,
-};
+use crate::client::{Error, Result};
 
 pub(crate) fn assert_proofs_eq(
     client_proof: &CommitProof,

@@ -12,6 +12,7 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
+    commit::SyncKind,
     hex,
     identity::AuthenticatedUser,
     passwd::diceware::generate_passphrase,
@@ -24,12 +25,9 @@ use sos_core::{
         Gatekeeper, Vault, VaultAccess, VaultCommit, VaultEntry,
     },
 };
-use sos_node::{
-    client::{
-        account_manager::{AccountInfo, AccountManager},
-        provider::{BoxedProvider, ProviderFactory},
-    },
-    sync::SyncKind,
+use sos_node::client::{
+    account_manager::{AccountInfo, AccountManager},
+    provider::{BoxedProvider, ProviderFactory},
 };
 
 use parking_lot::RwLock as SyncRwLock;
