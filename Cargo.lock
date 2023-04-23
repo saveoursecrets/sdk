@@ -5010,7 +5010,6 @@ dependencies = [
  "tracing-subscriber",
  "unicode-width",
  "url",
- "urn",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "web3-address",
@@ -5061,6 +5060,7 @@ dependencies = [
  "urn",
  "uuid",
  "vcard4",
+ "walkdir",
  "web3-address",
  "web3-signature",
  "zeroize",
@@ -5992,9 +5992,9 @@ checksum = "e8db7427f936968176eaa7cdf81b7f98b980b18495ec28f1b5791ac3bfe3eea9"
 
 [[package]]
 name = "urn"
-version = "0.5.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67eaf234b821412d224e5853b50374f6250b5bad13016bc7897952a99c8d011e"
+checksum = "88dcfb3ddf58a741e39d7206b8fb08d2856c0db0e22d41b226fbc34889d2158c"
 dependencies = [
  "serde",
 ]

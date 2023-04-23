@@ -12,6 +12,7 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
+    account::{AccountInfo, DelegatedPassphrase},
     commit::SyncKind,
     hex,
     identity::AuthenticatedUser,
@@ -25,10 +26,7 @@ use sos_core::{
         Gatekeeper, Vault, VaultAccess, VaultCommit, VaultEntry,
     },
 };
-use sos_node::client::{
-    account_manager::{AccountInfo, AccountManager},
-    provider::{BoxedProvider, ProviderFactory},
-};
+use sos_node::client::provider::{BoxedProvider, ProviderFactory};
 
 use parking_lot::RwLock as SyncRwLock;
 
@@ -554,7 +552,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             drop(reader);
 
             let state_reader = state.read().await;
-            let passphrase = AccountManager::find_vault_passphrase(
+            let passphrase = DelegatedPassphrase::find_vault_passphrase(
                 &state_reader.identity_keeper,
                 summary.id(),
             )?;

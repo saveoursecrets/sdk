@@ -101,7 +101,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     // Check the vault exists and has the right identifier
     let summaries = storage.load_vaults().await?;
     assert_eq!(1, summaries.len());
-    let vault_summary = (&summaries[0]).clone();
+    let vault_summary = summaries[0].clone();
     assert_eq!(&vault_id, vault_summary.id());
 
     drop(summaries);

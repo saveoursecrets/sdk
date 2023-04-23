@@ -42,6 +42,7 @@ pub use sha2;
 pub use sha3;
 pub use time;
 pub use url;
+pub use urn;
 pub use uuid;
 pub use vcard4;
 

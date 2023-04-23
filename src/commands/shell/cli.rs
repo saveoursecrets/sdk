@@ -4,10 +4,7 @@ use super::{exec, ShellState};
 use sos_core::storage::StorageDirs;
 use terminal_banner::{Banner, Padding};
 
-use sos_node::{
-    client::provider::{spawn_changes_listener, ProviderFactory},
-    FileLocks,
-};
+use sos_node::{client::provider::ProviderFactory, FileLocks};
 
 use tokio::sync::RwLock;
 

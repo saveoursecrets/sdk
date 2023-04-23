@@ -34,7 +34,7 @@ crypto-bigint = "0.4.8"
 sha3 = "0.10"
 once_cell = "1"
 parking_lot = "0.12"
-urn = { version = "0.5", features = ["serde"] }
+urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
 ouroboros = "0.15"
 

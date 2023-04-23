@@ -58,8 +58,8 @@ async fn integration_check_integrity() -> Result<()> {
     assert!(expected_wal.exists());
     assert!(keys(expected_vault.clone()).is_ok());
     assert!(status(expected_vault.clone()).is_ok());
-    assert!(verify_vault(expected_vault.clone(), true, true).is_ok());
-    assert!(verify_wal(expected_wal.clone(), true, true).is_ok());
+    assert!(verify_vault(expected_vault, true, true).is_ok());
+    assert!(verify_wal(expected_wal, true, true).is_ok());
 
     // Close the vault
     node_cache.close_vault();

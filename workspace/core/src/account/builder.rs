@@ -1,41 +1,22 @@
 //! Account builder creates a new local account.
-use std::{
-    borrow::Cow,
-    fs::File,
-    io::Cursor,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
 
-use parking_lot::RwLock;
-use serde::{Deserialize, Serialize};
 use urn::Urn;
-use uuid::Uuid;
 
 use crate::{
-    archive::{Inventory, Reader, Writer},
-    constants::{DEVICE_KEY_URN, FILE_PASSWORD_URN, VAULT_EXT, WAL_EXT},
-    decode, encode,
-    events::WalEvent,
+    constants::FILE_PASSWORD_URN,
+    encode,
     identity::{AuthenticatedUser, Identity},
-    passwd::{diceware::generate_passphrase_words, ChangePassword},
-    search::SearchIndex,
-    sha2::{Digest, Sha256},
-    signer::{
-        ecdsa::SingleParty,
-        ed25519::{self, BoxedEd25519Signer},
-        Signer,
-    },
+    sha2::Digest,
+    signer::Signer,
     storage::StorageDirs,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretSigner, UserData},
-        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultFileAccess,
-        VaultId,
+        secret::{Secret, SecretMeta, UserData},
+        Gatekeeper, Summary, Vault, VaultAccess,
     },
-    Error, Result,
+    Result,
 };
 
-use super::{generate_vault_passphrase, save_vault_passphrase};
+use super::DelegatedPassphrase;
 
 use secrecy::{ExposeSecret, SecretString};
 
@@ -160,7 +141,8 @@ impl AccountBuilder {
             Identity::login_buffer(buffer, passphrase.clone(), None, None)?;
 
         // Prepare the passphrase for the default vault
-        let vault_passphrase = generate_vault_passphrase()?;
+        let vault_passphrase =
+            DelegatedPassphrase::generate_vault_passphrase()?;
 
         // Prepare the default vault
         let mut default_vault: Vault = Default::default();
@@ -193,14 +175,15 @@ impl AccountBuilder {
         let mut keeper = Gatekeeper::new(identity_vault, None);
         keeper.unlock(passphrase.expose_secret())?;
 
-        save_vault_passphrase(
+        DelegatedPassphrase::save_vault_passphrase(
             &mut keeper,
             default_vault.id(),
             vault_passphrase,
         )?;
 
         if create_file_password {
-            let file_passphrase = generate_vault_passphrase()?;
+            let file_passphrase =
+                DelegatedPassphrase::generate_vault_passphrase()?;
             let secret = Secret::Password {
                 password: file_passphrase,
                 name: None,
@@ -215,14 +198,15 @@ impl AccountBuilder {
 
         let archive = if create_archive {
             // Prepare the passphrase for the archive vault
-            let archive_passphrase = generate_vault_passphrase()?;
+            let archive_passphrase =
+                DelegatedPassphrase::generate_vault_passphrase()?;
 
             // Prepare the archive vault
             let mut vault: Vault = Default::default();
             vault.set_name("Archive".to_string());
             vault.set_archive_flag(true);
             vault.initialize(archive_passphrase.expose_secret(), None)?;
-            save_vault_passphrase(
+            DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
                 archive_passphrase,
@@ -234,7 +218,8 @@ impl AccountBuilder {
 
         let authenticator = if create_authenticator {
             // Prepare the passphrase for the authenticator vault
-            let auth_passphrase = generate_vault_passphrase()?;
+            let auth_passphrase =
+                DelegatedPassphrase::generate_vault_passphrase()?;
 
             // Prepare the authenticator vault
             let mut vault: Vault = Default::default();
@@ -242,7 +227,11 @@ impl AccountBuilder {
             vault.set_authenticator_flag(true);
             vault.set_no_sync_self_flag(true);
             vault.initialize(auth_passphrase.expose_secret(), None)?;
-            save_vault_passphrase(&mut keeper, vault.id(), auth_passphrase)?;
+            DelegatedPassphrase::save_vault_passphrase(
+                &mut keeper,
+                vault.id(),
+                auth_passphrase,
+            )?;
             Some(vault)
         } else {
             None
@@ -250,14 +239,19 @@ impl AccountBuilder {
 
         let contact = if create_contacts {
             // Prepare the passphrase for the authenticator vault
-            let auth_passphrase = generate_vault_passphrase()?;
+            let auth_passphrase =
+                DelegatedPassphrase::generate_vault_passphrase()?;
 
             // Prepare the authenticator vault
             let mut vault: Vault = Default::default();
             vault.set_name("Contacts".to_string());
             vault.set_contact_flag(true);
             vault.initialize(auth_passphrase.expose_secret(), None)?;
-            save_vault_passphrase(&mut keeper, vault.id(), auth_passphrase)?;
+            DelegatedPassphrase::save_vault_passphrase(
+                &mut keeper,
+                vault.id(),
+                auth_passphrase,
+            )?;
             Some(vault)
         } else {
             None

@@ -15,13 +15,13 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use sos_core::{
-    account::{AccountInfo, DelegatedPassphrase, LocalAccounts},
+    account::{DelegatedPassphrase, ImportedAccount, NewAccount},
     archive::{Inventory, Reader, Writer},
-    constants::{DEVICE_KEY_URN, VAULT_EXT, WAL_EXT},
+    constants::{DEVICE_KEY_URN, FILE_PASSWORD_URN, VAULT_EXT, WAL_EXT},
     decode, encode,
     events::WalEvent,
     identity::{AuthenticatedUser, Identity},
-    passwd::ChangePassword,
+    passwd::{diceware::generate_passphrase_words, ChangePassword},
     search::SearchIndex,
     sha2::{Digest, Sha256},
     signer::{
@@ -31,31 +31,17 @@ use sos_core::{
     },
     storage::StorageDirs,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretSigner},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultId,
+        secret::{Secret, SecretId, SecretMeta, SecretSigner, UserData},
+        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultFileAccess,
+        VaultId,
     },
     wal::{file::WalFile, WalProvider},
 };
 
-use crate::client::{
-    provider::{
-        BoxedProvider, ProviderFactory, RestoreOptions, RestoreTargets,
-    },
-    Error, Result,
-};
-
 use secrecy::{ExposeSecret, SecretString};
 
-/// Encapsulate device specific information for an account.
-#[derive(Clone)]
-pub struct DeviceSigner {
-    /// The vault containing device specific keys.
-    pub summary: Summary,
-    /// The signing key for this device.
-    pub signer: BoxedEd25519Signer,
-    /// The address of this device.
-    pub address: String,
-}
+use super::LocalAccounts;
+use crate::{Error, Result};
 
 /// Options to use when building an account manifest.
 pub struct AccountManifestOptions {
@@ -162,11 +148,11 @@ impl ManifestEntry {
     }
 }
 
-/// Manage accounts using the file system and a local provider.
+/// Backup accounts and export folders.
 #[derive(Default)]
-pub struct AccountManager {}
+pub struct AccountBackup {}
 
-impl AccountManager {
+impl AccountBackup {
     /// Build a manifest for an account.
     pub fn manifest(
         address: &str,
@@ -285,148 +271,6 @@ impl AccountManager {
         Ok((size, checksum.as_slice().try_into()?))
     }
 
-    /// Sign in a user.
-    pub async fn sign_in(
-        address: &str,
-        passphrase: SecretString,
-        index: Arc<RwLock<SearchIndex>>,
-    ) -> Result<(AccountInfo, AuthenticatedUser, Gatekeeper, DeviceSigner)>
-    {
-        let accounts = LocalAccounts::list_accounts()?;
-        let account = accounts
-            .into_iter()
-            .find(|a| a.address == address)
-            .ok_or_else(|| Error::NoAccount(address.to_string()))?;
-
-        let identity_path = StorageDirs::identity_vault(address)?;
-        let (user, mut keeper) =
-            Identity::login_file(identity_path, passphrase, Some(index))?;
-
-        // Lazily create or retrieve a device specific signing key
-        let device_info =
-            Self::ensure_device_vault(address, &user, &mut keeper).await?;
-
-        Ok((account, user, keeper, device_info))
-    }
-
-    /// Ensure that the account has a vault for storing device specific
-    /// information such as the private key used to identify a machine
-    /// on a peer to peer network.
-    async fn ensure_device_vault(
-        address: &str,
-        user: &AuthenticatedUser,
-        identity: &mut Gatekeeper,
-    ) -> Result<DeviceSigner> {
-        let vaults = LocalAccounts::list_local_vaults(address, true)?;
-        let device_vault = vaults.into_iter().find_map(|(summary, _)| {
-            if summary.flags().is_system() && summary.flags().is_device() {
-                Some(summary)
-            } else {
-                None
-            }
-        });
-
-        let urn: Urn = DEVICE_KEY_URN.parse()?;
-
-        if let Some(summary) = device_vault {
-            let device_passphrase =
-                DelegatedPassphrase::find_vault_passphrase(
-                    identity,
-                    summary.id(),
-                )?;
-
-            let (vault, _) =
-                LocalAccounts::find_local_vault(address, summary.id(), true)?;
-            let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
-            let mut device_keeper =
-                Gatekeeper::new(vault, Some(search_index));
-            device_keeper.unlock(device_passphrase.expose_secret())?;
-            device_keeper.create_search_index()?;
-            let index = device_keeper.index();
-            let index_reader = index.read();
-            let document = index_reader
-                .find_by_urn(summary.id(), &urn)
-                .ok_or(Error::NoVaultEntry(urn.to_string()))?;
-
-            if let Some((
-                _,
-                Secret::Signer {
-                    private_key: SecretSigner::SinglePartyEd25519(data),
-                    ..
-                },
-                _,
-            )) = device_keeper.read(document.id())?
-            {
-                let key: ed25519::SingleParty =
-                    data.expose_secret().as_slice().try_into()?;
-                let address = key.address()?;
-                Ok(DeviceSigner {
-                    summary,
-                    signer: Box::new(key),
-                    address,
-                })
-            } else {
-                Err(Error::VaultEntryKind(urn.to_string()))
-            }
-        } else {
-            // Prepare the passphrase for the device vault
-            let device_passphrase =
-                DelegatedPassphrase::generate_vault_passphrase()?;
-
-            // Prepare the device vault
-            let mut vault: Vault = Default::default();
-            vault.set_name("Device".to_string());
-            vault.set_system_flag(true);
-            vault.set_device_flag(true);
-            vault.set_no_sync_self_flag(true);
-            vault.set_no_sync_other_flag(true);
-            vault.initialize(device_passphrase.expose_secret(), None)?;
-
-            DelegatedPassphrase::save_vault_passphrase(
-                identity,
-                vault.id(),
-                device_passphrase.clone(),
-            )?;
-
-            let mut device_keeper = Gatekeeper::new(vault, None);
-            device_keeper.unlock(device_passphrase.expose_secret())?;
-
-            let key = ed25519::SingleParty::new_random();
-            let address = key.address()?;
-
-            let secret = Secret::Signer {
-                private_key: key.clone().into(),
-                user_data: Default::default(),
-            };
-            let mut meta =
-                SecretMeta::new("Device Key".to_string(), secret.kind());
-            meta.set_urn(Some(urn));
-            device_keeper.create(meta, secret)?;
-
-            // Write out the modified device vault to disc
-            let factory = ProviderFactory::Local;
-            let (mut provider, _) =
-                factory.create_provider(user.signer.clone())?;
-
-            let device_vault: Vault = device_keeper.into();
-            let buffer = encode(&device_vault)?;
-            let summary = provider.import_vault(buffer).await?;
-
-            Ok(DeviceSigner {
-                summary,
-                signer: Box::new(key),
-                address,
-            })
-        }
-    }
-
-    /// Verify the master passphrase for an account.
-    pub fn verify(address: &str, passphrase: SecretString) -> Result<bool> {
-        let identity_path = StorageDirs::identity_vault(address)?;
-        let result = Identity::login_file(identity_path, passphrase, None);
-        Ok(result.is_ok())
-    }
-
     /// Export a vault by changing the vault passphrase and
     /// converting it to a buffer.
     ///
@@ -443,8 +287,7 @@ impl AccountManager {
             DelegatedPassphrase::find_vault_passphrase(identity, vault_id)?;
 
         // Find the local vault for the account
-        let (vault, _) =
-            LocalAccounts::find_local_vault(address, vault_id, false)?;
+        let (vault, _) = LocalAccounts::find_local_vault(address, vault_id, false)?;
 
         // Change the password before exporting
         let (_, vault, _) = ChangePassword::new(

@@ -1,8 +1,12 @@
 //! Create and manage local accounts.
+//mod backup;
 mod builder;
+#[cfg(not(target_arch = "wasm32"))]
+mod local;
 mod passphrase;
 
+//pub use backup::AccountBackup;
 pub use builder::{AccountBuilder, ImportedAccount, NewAccount};
-pub use passphrase::{
-    generate_vault_passphrase, remove_vault_passphrase, save_vault_passphrase,
-};
+#[cfg(not(target_arch = "wasm32"))]
+pub use local::{AccountInfo, LocalAccounts};
+pub use passphrase::DelegatedPassphrase;

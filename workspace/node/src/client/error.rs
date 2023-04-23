@@ -133,25 +133,30 @@ pub enum Error {
     #[error("could not find vault entry for {0}")]
     NoVaultEntry(String),
 
+    // FIXME: remove
     /// Error generated when the default vault for an account could not be found.
     #[error("could not find the default vault for {0}")]
     NoDefaultVault(String),
 
+    // FIXME: remove
     /// Error generated when a vault file could not be located.
     #[error("could not find vault file for {0}")]
     NoVaultFile(String),
 
+    // FIXME: remove
     /// Error generated when a vault entry in an identity vault is of
     /// the wrong secret kind.
     #[error("vault entry for {0} is of an unexpected type")]
     VaultEntryKind(String),
 
+    // FIXME: remove
     /// Error generated when an archive is for an address that does
     /// not exist locally when we are expecting an archive to be imported
     /// in the context of an existing account.
     #[error("could not find account for archive address {0}")]
     NoArchiveAccount(String),
 
+    // FIXME: remove
     /// Error generated attempting to restore an account from an archive
     /// whilst not authenticated and the address for the archive matches
     /// an account that already exists.
@@ -223,10 +228,12 @@ pub enum Error {
     #[error(transparent)]
     Urn(#[from] urn::Error),
 
+    // FIXME: remove
     /// Error generated when walking a directory.
     #[error(transparent)]
     Walk(#[from] walkdir::Error),
 
+    // FIXME: remove
     /// Error generated when stripping a prefix from a path.
     #[error(transparent)]
     StripPrefix(#[from] std::path::StripPrefixError),

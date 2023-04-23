@@ -3,7 +3,7 @@ use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
-    account::AccountBuilder,
+    account::{AccountBuilder, AccountInfo, LocalAccounts},
     archive::Inventory,
     identity::AuthenticatedUser,
     passwd::diceware::generate_passphrase,
@@ -13,7 +13,7 @@ use sos_core::{
     vault::Gatekeeper,
 };
 use sos_node::client::{
-    account_manager::{AccountInfo, AccountManager, DeviceSigner},
+    account_manager::{AccountManager, DeviceSigner},
     provider::{BoxedProvider, ProviderFactory, RestoreOptions},
 };
 use terminal_banner::{Banner, Padding};
@@ -28,7 +28,7 @@ use crate::{Error, Result};
 
 /// List local accounts.
 pub fn list_accounts(verbose: bool) -> Result<()> {
-    let accounts = AccountManager::list_accounts()?;
+    let accounts = LocalAccounts::list_accounts()?;
     for account in accounts {
         if verbose {
             println!("{} {}", account.address, account.label);
@@ -46,7 +46,7 @@ pub async fn account_info(
     system: bool,
 ) -> Result<()> {
     let (info, _, _, _, _, _) = sign_in(account_name).await?;
-    let folders = AccountManager::list_local_vaults(&info.address, system)?;
+    let folders = LocalAccounts::list_local_vaults(&info.address, system)?;
     for (summary, _) in folders {
         if verbose {
             println!("{} {}", summary.id(), summary.name());
@@ -118,12 +118,12 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
 }
 
 fn find_account(account_name: &str) -> Result<Option<AccountInfo>> {
-    let accounts = AccountManager::list_accounts()?;
+    let accounts = LocalAccounts::list_accounts()?;
     Ok(accounts.into_iter().find(|a| a.label == account_name))
 }
 
 fn find_account_by_address(address: &str) -> Result<Option<AccountInfo>> {
-    let accounts = AccountManager::list_accounts()?;
+    let accounts = LocalAccounts::list_accounts()?;
     Ok(accounts.into_iter().find(|a| a.address == address))
 }
 

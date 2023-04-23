@@ -124,6 +124,6 @@ impl FileStorage {
         let path = StorageDirs::file_location(
             address, vault_id, secret_id, file_name,
         )?;
-        Ok(Self::decrypt_file_passphrase(path, password)?)
+        Self::decrypt_file_passphrase(path, password)
     }
 }

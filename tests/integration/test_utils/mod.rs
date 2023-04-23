@@ -63,7 +63,7 @@ impl MockServer {
         let mut backend = config.backend().await?;
 
         let mut locks = FileLocks::new();
-        let _ = locks.add(config.audit_file())?;
+        locks.add(config.audit_file())?;
         // Move into the backend so it can manage lock files too
         backend.handler_mut().set_file_locks(locks)?;
 
@@ -112,7 +112,6 @@ impl MockServer {
             runtime.block_on(async {
                 server.start().await.expect("failed to start server");
             });
-            ()
         });
 
         Ok(ShutdownHandle(user_handle))
