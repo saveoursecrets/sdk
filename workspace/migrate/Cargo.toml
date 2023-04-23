@@ -11,8 +11,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 hex = { version = "0.4", features = ["serde"] }
 dirs = "4"
-url = { version = "2.2", features = ["serde"] }
-csv = "1.1"
+url = { version = "2", features = ["serde"] }
+csv = "1"
 parking_lot = "0.12"
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 vcard4 = { version = "0.4.4", features = ["serde"] }
@@ -21,7 +21,7 @@ time = { version = "0.3.19", features = ["serde-human-readable", "local-offset",
 [target.'cfg(target_os="macos")'.dependencies]
 security-framework = "2.8"
 logos = "0.12"
-plist = "1.4"
+plist = "1"
 
 [dev-dependencies]
 sos-core = { path = "../core", version = "0.1.0", features = ["test-utils"] }

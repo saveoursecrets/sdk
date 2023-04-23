@@ -24,14 +24,14 @@ hex = { version = "0.4", features = ["serde"] }
 serde_json = "1"
 k256 = { version = "0.13.1", features = ["ecdsa", "ecdh"] }
 subtle = "2"
-zeroize = { version = "1.4", features = ["zeroize_derive"] }
+zeroize = { version = "1", features = ["zeroize_derive"] }
 argon2 = { version = "0.5", features = ["std"]}
 # matches the version in k256
 sha3 = "0.10.6"
 sha2 = "0.10.6"
 dirs = "4"
 uuid = { version = "1", features = ["serde", "v4"] }
-url = { version = "2.2", features = ["serde"] }
+url = { version = "2", features = ["serde"] }
 bitflags = "1"
 pem = { version = "1.1.0", features = ["serde"] }
 secrecy = { version = "0.8", features = ["serde"] }
@@ -49,15 +49,10 @@ ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
 bs58 = "0.4"
 urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
-
 binary-stream = { version = "3.4", features = ["32bit"] }
-
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
-
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
-
 unicode-segmentation = "1.10"
-
 anyhow = {version = "1", optional = true }
 
 [dependencies.probly-search]
