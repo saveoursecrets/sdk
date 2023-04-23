@@ -13,7 +13,7 @@ use crate::{
     search::SearchIndex,
     sha2::Digest,
     signer::{
-        ed25519::{self, BoxedEd25519Signer},
+        ed25519::{self, BoxedEd25519Signer, VerifyingKey},
         Signer,
     },
     storage::StorageDirs,
@@ -34,11 +34,34 @@ use crate::{Error, Result};
 #[derive(Clone)]
 pub struct DeviceSigner {
     /// The vault containing device specific keys.
-    pub summary: Summary,
+    summary: Summary,
     /// The signing key for this device.
-    pub signer: BoxedEd25519Signer,
+    signer: BoxedEd25519Signer,
     /// The address of this device.
-    pub address: String,
+    address: String,
+}
+
+impl DeviceSigner {
+    /// Summary of the vault containing the device 
+    /// signing key.
+    pub fn summary(&self) -> &Summary {
+        &self.summary
+    }
+    
+    /// Device signing key.
+    pub fn signer(&self) -> &BoxedEd25519Signer {
+        &self.signer
+    }
+    
+    /// Address of the device signing key.
+    pub fn address(&self) -> &str {
+        &self.address
+    }
+
+    /// Get the verifying key.
+    pub fn verifying_key(&self) -> VerifyingKey {
+        self.signer.verifying_key()
+    }
 }
 
 /// Authenticated user, account and device information.

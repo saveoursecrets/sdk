@@ -225,7 +225,7 @@ pub mod ecdsa {
 /// ED25519 signer using the ed25519-dalek library.
 pub mod ed25519 {
     use async_trait::async_trait;
-    use ed25519_dalek::{
+    pub use ed25519_dalek::{
         Signature, Signer as Ed25519Signer, SigningKey, VerifyingKey,
         SECRET_KEY_LENGTH,
     };
