@@ -9,9 +9,21 @@ use crate::vault::{secret::SecretId, VaultId};
 /// Error thrown by the core library.
 #[derive(Debug, Error)]
 pub enum Error {
-    /// Generic error message variant.
+    /// Expected a request payload.
+    #[error("expected a request payload")]
+    RpcRequestPayload,
+
+    /// Expected a response payload.
+    #[error("expected a response payload")]
+    RpcResponsePayload,
+
+    /// Error encapsulated in RPC messages.
     #[error("{0}")]
-    Message(String),
+    RpcError(String),
+
+    /// Error generated when an RPC method is not supported.
+    #[error("unknown rpc method '{0}'")]
+    RpcUnknownMethod(String),
 
     /// Error generated when a path is not a file.
     #[error("path {0} is not a file")]

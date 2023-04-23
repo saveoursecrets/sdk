@@ -400,7 +400,9 @@ impl Service for WalService {
                     (request.id(), server_proof).try_into()?;
                 Ok(reply)
             }
-            _ => Err(sos_core::Error::Message("unknown method".to_owned())),
+            _ => Err(sos_core::Error::RpcUnknownMethod(
+                request.method().to_owned(),
+            )),
         }
     }
 }

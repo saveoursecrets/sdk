@@ -28,7 +28,9 @@ pub enum Error {
     #[error("failed to create account, got status code {0}")]
     AccountCreate(u16),
 
-    #[error(r#"folder "{0}" not found, run "folders" to load the folder list"#)]
+    #[error(
+        r#"folder "{0}" not found, run "folders" to load the folder list"#
+    )]
     VaultNotAvailable(SecretRef),
 
     #[error(r#"no folder selected, run "use" to select a folder"#)]
