@@ -99,7 +99,7 @@ pub struct Login {}
 
 impl Login {
     /// Sign in a user.
-    pub async fn sign_in(
+    pub fn sign_in(
         address: &str,
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
@@ -116,7 +116,7 @@ impl Login {
 
         // Lazily create or retrieve a device specific signing key
         let device =
-            Self::ensure_device_vault(address, &mut identity).await?;
+            Self::ensure_device_vault(address, &mut identity)?;
 
         Ok(AuthenticatedUser {
             account,
@@ -128,7 +128,7 @@ impl Login {
     /// Ensure that the account has a vault for storing device specific
     /// information such as the private key used to identify a machine
     /// on a peer to peer network.
-    async fn ensure_device_vault(
+    fn ensure_device_vault(
         address: &str,
         user: &mut UserIdentity,
     ) -> Result<DeviceSigner> {
@@ -229,17 +229,6 @@ impl Login {
                 vaults_dir.join(summary.id().to_string());
             device_vault_file.set_extension(VAULT_EXT);
             std::fs::write(device_vault_file, buffer)?;
-
-            /*
-            // Write out the modified device vault to disc
-            let factory = ProviderFactory::Local;
-            let (mut provider, _) =
-                factory.create_provider(user.signer.clone())?;
-
-            let device_vault: Vault = device_keeper.into();
-            let buffer = encode(&device_vault)?;
-            let summary = provider.import_vault(buffer).await?;
-            */
 
             Ok(DeviceSigner {
                 summary,

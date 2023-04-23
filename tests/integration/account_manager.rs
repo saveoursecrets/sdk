@@ -63,8 +63,7 @@ async fn integration_account_manager() -> Result<()> {
         &address,
         passphrase.clone(),
         Arc::clone(&identity_index),
-    )
-    .await?;
+    )?;
 
     LocalAccounts::rename_account(
         &address,

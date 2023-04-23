@@ -40,7 +40,7 @@ pub async fn run(
     let mut locks = FileLocks::new();
     locks.add(&cache_lock)?;
 
-    let (user, _) = sign_in(&account_name).await?;
+    let (user, _) = sign_in(&account_name)?;
 
     let factory = provider.unwrap_or_default();
     let (provider, address) =

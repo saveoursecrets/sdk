@@ -42,7 +42,7 @@ pub async fn account_info(
     verbose: bool,
     system: bool,
 ) -> Result<()> {
-    let (user, _) = sign_in(account_name).await?;
+    let (user, _) = sign_in(account_name)?;
     let folders =
         LocalAccounts::list_local_vaults(user.identity().address(), system)?;
     for (summary, _) in folders {
@@ -90,7 +90,7 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
             return Ok(None);
         }
 
-        let (user, _) = sign_in(&account.label).await?;
+        let (user, _) = sign_in(&account.label)?;
         let factory = ProviderFactory::Local;
         let (provider, _) =
             factory.create_provider(user.identity().signer().clone())?;
@@ -130,7 +130,7 @@ fn find_account_by_address(address: &str) -> Result<Option<AccountInfo>> {
 }
 
 /// Helper to sign in to an account.
-pub async fn sign_in(
+pub fn sign_in(
     account_name: &str,
 ) -> Result<(AuthenticatedUser, SecretString)> {
     let account = find_account(account_name)?
@@ -143,8 +143,7 @@ pub async fn sign_in(
         &account.address,
         passphrase.clone(),
         Arc::clone(&identity_index),
-    )
-    .await?;
+    )?;
 
     Ok((user, passphrase))
 }
@@ -154,7 +153,7 @@ pub async fn switch(
     factory: &ProviderFactory,
     account_name: String,
 ) -> Result<(BoxedProvider, Address)> {
-    let (user, _) = sign_in(&account_name).await?;
+    let (user, _) = sign_in(&account_name)?;
     Ok(factory.create_provider(user.identity().signer().clone())?)
 }
 
