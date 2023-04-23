@@ -79,7 +79,7 @@ pub async fn run(
     writer.load_vaults().await?;
     drop(writer);
 
-    let mut rl = rustyline::Editor::<()>::new()?;
+    let mut rl = crate::helpers::readline::basic_editor()?;
     loop {
         let prompt_value = {
             let cache = provider.read().await;
@@ -92,7 +92,7 @@ pub async fn run(
         let readline = rl.readline(&prompt_value);
         match readline {
             Ok(line) => {
-                rl.add_history_entry(line.as_str());
+                rl.add_history_entry(line.as_str())?;
                 let provider = Arc::clone(&state);
                 if let Err(e) = exec(&line, provider).await {
                     tracing::error!("{}", e);

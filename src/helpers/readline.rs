@@ -1,10 +1,9 @@
 use std::borrow::Cow::{self, Borrowed, Owned};
 
-use rustyline::config::Configurer;
-use rustyline::error::ReadlineError;
-use rustyline::highlight::Highlighter;
-use rustyline::{ColorMode, Editor};
-
+use rustyline::{
+    config::Configurer, error::ReadlineError, highlight::Highlighter,
+    history::MemHistory, ColorMode, Editor,
+};
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
 use sos_core::secrecy::{Secret, SecretString};
 
@@ -50,9 +49,16 @@ pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {
     Ok(Secret::new(passwd))
 }
 
+pub(crate) fn basic_editor() -> Result<Editor<(), MemHistory>> {
+    Ok(Editor::<(), MemHistory>::with_history(
+        Default::default(),
+        MemHistory::new(),
+    )?)
+}
+
 /// Read a multi-line string.
 pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
-    let mut rl = rustyline::Editor::<()>::new()?;
+    let mut rl = basic_editor()?;
 
     let mut value = String::new();
     loop {
@@ -86,7 +92,7 @@ fn read_line_value(
     prompt: Option<&str>,
     allows_empty: bool,
 ) -> Result<String> {
-    let mut rl = rustyline::Editor::<()>::new()?;
+    let mut rl = basic_editor()?;
     loop {
         let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
         match readline {
@@ -106,7 +112,7 @@ fn read_line_value(
 
 /// Read an optional string.
 pub fn read_option(prompt: Option<&str>) -> Result<Option<String>> {
-    let mut rl = rustyline::Editor::<()>::new()?;
+    let mut rl = basic_editor()?;
     let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
     match readline {
         Ok(line) => {
@@ -122,7 +128,7 @@ pub fn read_option(prompt: Option<&str>) -> Result<Option<String>> {
 
 /// Read a flag value (y/n).
 pub fn read_flag(prompt: Option<&str>) -> Result<bool> {
-    let mut rl = rustyline::Editor::<()>::new()?;
+    let mut rl = basic_editor()?;
     let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
     match readline {
         Ok(ref line) => {
