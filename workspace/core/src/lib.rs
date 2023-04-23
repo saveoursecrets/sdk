@@ -16,7 +16,6 @@ pub mod crypto;
 mod error;
 pub mod events;
 pub mod formats;
-pub mod identity;
 pub mod passwd;
 pub mod patch;
 pub mod rpc;

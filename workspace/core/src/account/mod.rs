@@ -2,6 +2,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod backup;
 mod builder;
+mod identity;
 #[cfg(not(target_arch = "wasm32"))]
 mod local;
 #[cfg(not(target_arch = "wasm32"))]
@@ -14,6 +15,7 @@ pub use backup::{
     RestoreTargets,
 };
 pub use builder::{AccountBuilder, ImportedAccount, NewAccount};
+pub use identity::{Identity, AuthenticatedUser};
 #[cfg(not(target_arch = "wasm32"))]
 pub use local::{AccountInfo, LocalAccounts};
 #[cfg(not(target_arch = "wasm32"))]

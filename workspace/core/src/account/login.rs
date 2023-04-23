@@ -10,7 +10,6 @@ use crate::{
     account::{AccountInfo, DelegatedPassphrase, LocalAccounts},
     constants::{DEVICE_KEY_URN, VAULT_EXT},
     encode,
-    identity::{AuthenticatedUser, Identity},
     search::SearchIndex,
     sha2::Digest,
     signer::{
@@ -26,6 +25,8 @@ use crate::{
 };
 
 use secrecy::{ExposeSecret, SecretString};
+
+use super::{AuthenticatedUser, Identity};
 
 use crate::{Error, Result};
 

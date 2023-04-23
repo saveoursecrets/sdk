@@ -8,11 +8,10 @@ use secrecy::SecretString;
 use tempfile::tempdir;
 
 use sos_core::{
-    account::{AccountBackup, RestoreOptions},
+    account::{AccountBackup, RestoreOptions, Identity},
     archive::Writer,
     encode,
     events::SyncEvent,
-    identity::Identity,
     signer::{ecdsa::SingleParty, Signer},
     storage::StorageDirs,
     vault::{Gatekeeper, Vault},

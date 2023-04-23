@@ -5,7 +5,6 @@ use urn::Urn;
 use crate::{
     constants::FILE_PASSWORD_URN,
     encode,
-    identity::{AuthenticatedUser, Identity},
     sha2::Digest,
     signer::Signer,
     storage::StorageDirs,
@@ -16,7 +15,7 @@ use crate::{
     Result,
 };
 
-use super::DelegatedPassphrase;
+use super::{DelegatedPassphrase, Identity, AuthenticatedUser};
 
 use secrecy::{ExposeSecret, SecretString};
 

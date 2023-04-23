@@ -15,12 +15,11 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::{
-    account::{AccountInfo, DelegatedPassphrase, LocalAccounts},
+    account::{AccountInfo, DelegatedPassphrase, LocalAccounts, Identity},
     archive::{ArchiveItem, Inventory, Reader, Writer},
     constants::{VAULT_EXT, WAL_EXT},
     decode, encode,
     events::WalEvent,
-    identity::Identity,
     passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
@@ -435,8 +434,6 @@ impl AccountBackup {
                 let buffer = encode(identity_keeper.vault())?;
                 std::fs::write(identity_vault_file, buffer)?;
             }
-
-            //provider.restore_archive(&targets).await?;
 
             (targets, account)
         // No provider available so the user is not signed in
