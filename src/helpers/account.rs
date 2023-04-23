@@ -5,14 +5,12 @@ use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        VerifiedUser, DeviceSigner, LocalAccounts, Login,
-        RestoreOptions,
+        AuthenticatedUser, LocalAccounts, Login, RestoreOptions,
     },
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
     secrecy::{ExposeSecret, SecretString},
     storage::StorageDirs,
-    vault::Gatekeeper,
 };
 use sos_node::client::provider::{BoxedProvider, ProviderFactory};
 use terminal_banner::{Banner, Padding};
@@ -44,8 +42,9 @@ pub async fn account_info(
     verbose: bool,
     system: bool,
 ) -> Result<()> {
-    let (info, _, _, _, _) = sign_in(account_name).await?;
-    let folders = LocalAccounts::list_local_vaults(&info.address, system)?;
+    let (user, _) = sign_in(account_name).await?;
+    let folders =
+        LocalAccounts::list_local_vaults(user.identity().address(), system)?;
     for (summary, _) in folders {
         if verbose {
             println!("{} {}", summary.id(), summary.name());
@@ -91,9 +90,10 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
             return Ok(None);
         }
 
-        let (_, user, _, _, _) = sign_in(&account.label).await?;
+        let (user, _) = sign_in(&account.label).await?;
         let factory = ProviderFactory::Local;
-        let (provider, _) = factory.create_provider(user.signer().clone())?;
+        let (provider, _) =
+            factory.create_provider(user.identity().signer().clone())?;
         (Some(provider), None)
     } else {
         (None, None)
@@ -133,27 +133,21 @@ fn find_account_by_address(address: &str) -> Result<Option<AccountInfo>> {
 /// Helper to sign in to an account.
 pub async fn sign_in(
     account_name: &str,
-) -> Result<(
-    AccountInfo,
-    VerifiedUser,
-    DeviceSigner,
-    Arc<SyncRwLock<SearchIndex>>,
-    SecretString,
-)> {
+) -> Result<(AuthenticatedUser, SecretString)> {
     let account = find_account(account_name)?
         .ok_or(Error::NoAccount(account_name.to_string()))?;
 
     let passphrase = read_password(Some("Password: "))?;
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
     // Verify the identity vault can be unlocked
-    let (info, user, device_signer) = Login::sign_in(
+    let user = Login::sign_in(
         &account.address,
         passphrase.clone(),
         Arc::clone(&identity_index),
     )
     .await?;
 
-    Ok((info, user, device_signer, identity_index, passphrase))
+    Ok((user, passphrase))
 }
 
 /// Switch to a different account.
@@ -161,8 +155,8 @@ pub async fn switch(
     factory: &ProviderFactory,
     account_name: String,
 ) -> Result<(BoxedProvider, Address)> {
-    let (_, user, _, _, _) = sign_in(&account_name).await?;
-    Ok(factory.create_provider(user.signer().clone())?)
+    let (user, _) = sign_in(&account_name).await?;
+    Ok(factory.create_provider(user.identity().signer().clone())?)
 }
 
 /// Create a new local account.

@@ -36,20 +36,23 @@ use crate::{
 #[cfg(not(target_arch = "wasm32"))]
 use crate::vault::VaultFileAccess;
 
-/// User information once password verification using 
+/// User information once password verification using
 /// an identity vault succeeds.
-pub struct VerifiedUser {
+pub struct UserIdentity {
     /// Address of the signing key.
     address: String,
     /// Private signing key for the identity.
     signer: BoxedEcdsaSigner,
-    /// AGE identity keypair.
-    identity: age::x25519::Identity,
     /// Gatekeeper for the identity vault.
     keeper: Gatekeeper,
+
+    /// AGE identity keypair.
+    shared_private: age::x25519::Identity,
+    /// AGE recipient public key.
+    shared_public: age::x25519::Recipient,
 }
 
-impl VerifiedUser {
+impl UserIdentity {
     /// Address of the signing key.
     pub fn address(&self) -> &str {
         &self.address
@@ -60,11 +63,6 @@ impl VerifiedUser {
         &self.signer
     }
 
-    /// Identity key for this user.
-    pub fn identity(&self) -> &age::x25519::Identity {
-        &self.identity
-    }
-
     /// Reference to the gatekeeper for the identity vault.
     pub fn keeper(&self) -> &Gatekeeper {
         &self.keeper
@@ -73,6 +71,11 @@ impl VerifiedUser {
     /// Mutable reference to the gatekeeper for the identity vault.
     pub fn keeper_mut(&mut self) -> &mut Gatekeeper {
         &mut self.keeper
+    }
+
+    /// Recipient public key for sharing.
+    pub fn recipient(&self) -> &age::x25519::Recipient {
+        &self.shared_public
     }
 }
 
@@ -136,7 +139,7 @@ impl Identity {
         file: P,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
-    ) -> Result<VerifiedUser> {
+    ) -> Result<UserIdentity> {
         let mirror = Box::new(VaultFileAccess::new(file.as_ref())?);
         let buffer = std::fs::read(file.as_ref())?;
         Identity::login_buffer(
@@ -153,7 +156,7 @@ impl Identity {
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
         mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
-    ) -> Result<VerifiedUser> {
+    ) -> Result<UserIdentity> {
         let vault: Vault = decode(buffer.as_ref())?;
 
         if !vault.flags().contains(VaultFlags::IDENTITY) {
@@ -211,12 +214,13 @@ impl Identity {
         } else {
             None
         };
-        let identity = identity
+        let shared = identity
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
-        Ok(VerifiedUser {
+        Ok(UserIdentity {
             address: address.to_string(),
             signer,
-            identity,
+            shared_public: shared.to_public(),
+            shared_private: shared,
             keeper,
         })
     }

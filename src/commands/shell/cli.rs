@@ -40,12 +40,11 @@ pub async fn run(
     let mut locks = FileLocks::new();
     locks.add(&cache_lock)?;
 
-    let (info, user, _device_signer, identity_index, _) =
-        sign_in(&account_name).await?;
+    let (user, _) = sign_in(&account_name).await?;
 
     let factory = provider.unwrap_or_default();
     let (provider, address) =
-        factory.create_provider(user.signer().clone())?;
+        factory.create_provider(user.identity().signer().clone())?;
 
     let provider = Arc::new(RwLock::new(provider));
 
@@ -71,9 +70,7 @@ pub async fn run(
         provider: shell_cache,
         address,
         factory,
-        info,
         user,
-        identity_index,
     }));
 
     // Authenticate and load initial vaults

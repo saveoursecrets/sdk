@@ -26,7 +26,7 @@ use crate::{
 
 use secrecy::{ExposeSecret, SecretString};
 
-use super::{VerifiedUser, Identity};
+use super::{Identity, UserIdentity};
 
 use crate::{Error, Result};
 
@@ -41,6 +41,35 @@ pub struct DeviceSigner {
     pub address: String,
 }
 
+/// Authenticated user, account and device information.
+pub struct AuthenticatedUser {
+    account: AccountInfo,
+    identity: UserIdentity,
+    device: DeviceSigner,
+}
+
+impl AuthenticatedUser {
+    /// Account information.
+    pub fn account(&self) -> &AccountInfo {
+        &self.account
+    }
+
+    /// User identity reference.
+    pub fn identity(&self) -> &UserIdentity {
+        &self.identity
+    }
+
+    /// Mutable user identity.
+    pub fn identity_mut(&mut self) -> &mut UserIdentity {
+        &mut self.identity
+    }
+
+    /// The device signing key.
+    pub fn device(&self) -> &DeviceSigner {
+        &self.device
+    }
+}
+
 /// Login to an account.
 #[derive(Default)]
 pub struct Login {}
@@ -51,7 +80,7 @@ impl Login {
         address: &str,
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
-    ) -> Result<(AccountInfo, VerifiedUser, DeviceSigner)> {
+    ) -> Result<AuthenticatedUser> {
         let accounts = LocalAccounts::list_accounts()?;
         let account = accounts
             .into_iter()
@@ -59,14 +88,18 @@ impl Login {
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
 
         let identity_path = StorageDirs::identity_vault(address)?;
-        let mut user =
+        let mut identity =
             Identity::login_file(identity_path, passphrase, Some(index))?;
 
         // Lazily create or retrieve a device specific signing key
-        let device_info =
-            Self::ensure_device_vault(address, &mut user).await?;
+        let device =
+            Self::ensure_device_vault(address, &mut identity).await?;
 
-        Ok((account, user, device_info))
+        Ok(AuthenticatedUser {
+            account,
+            identity,
+            device,
+        })
     }
 
     /// Ensure that the account has a vault for storing device specific
@@ -74,7 +107,7 @@ impl Login {
     /// on a peer to peer network.
     async fn ensure_device_vault(
         address: &str,
-        user: &mut VerifiedUser,
+        user: &mut UserIdentity,
     ) -> Result<DeviceSigner> {
         let identity = user.keeper_mut();
 

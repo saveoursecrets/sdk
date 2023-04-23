@@ -12,22 +12,20 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    account::{AccountInfo, VerifiedUser, DelegatedPassphrase},
+    account::{AuthenticatedUser, DelegatedPassphrase},
     commit::SyncKind,
     hex,
     passwd::diceware::generate_passphrase,
-    search::{Document, SearchIndex},
+    search::Document,
     secrecy,
     sha3::{Digest, Sha3_256},
     url::Url,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef},
-        Gatekeeper, Vault, VaultAccess, VaultCommit, VaultEntry,
+        Vault, VaultAccess, VaultCommit, VaultEntry,
     },
 };
 use sos_node::client::provider::{BoxedProvider, ProviderFactory};
-
-use parking_lot::RwLock as SyncRwLock;
 
 use crate::helpers::{
     account::switch,
@@ -49,9 +47,7 @@ pub struct ShellState {
     pub provider: ShellProvider,
     pub address: Address,
     pub factory: ProviderFactory,
-    pub info: AccountInfo,
-    pub user: VerifiedUser,
-    pub identity_index: Arc<SyncRwLock<SearchIndex>>,
+    pub user: AuthenticatedUser,
 }
 
 /// Type for the root shell data.
@@ -551,7 +547,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             let state_reader = state.read().await;
             let passphrase = DelegatedPassphrase::find_vault_passphrase(
-                state_reader.user.keeper(),
+                state_reader.user.identity().keeper(),
                 summary.id(),
             )?;
             drop(state_reader);
