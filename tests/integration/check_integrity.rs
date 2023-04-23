@@ -5,9 +5,7 @@ use crate::test_utils::*;
 
 use sos::commands::check::{keys, status, verify_vault, verify_wal};
 use sos_core::{
-    constants::{LOCAL_DIR, VAULTS_DIR},
-    vault::Vault,
-    wal::file::WalFile,
+    constants::{LOCAL_DIR, VAULTS_DIR, VAULT_EXT, WAL_EXT},
 };
 use sos_node::client::provider::StorageProvider;
 
@@ -40,14 +38,14 @@ async fn integration_check_integrity() -> Result<()> {
         .join(LOCAL_DIR)
         .join(address.to_string())
         .join(VAULTS_DIR)
-        .join(format!("{}.{}", summary.id(), Vault::extension()));
+        .join(format!("{}.{}", summary.id(), VAULT_EXT));
 
     // WAL for the local data
     let expected_wal = expected_dir
         .join(LOCAL_DIR)
         .join(address.to_string())
         .join(VAULTS_DIR)
-        .join(format!("{}.{}", summary.id(), WalFile::extension()));
+        .join(format!("{}.{}", summary.id(), WAL_EXT));
 
     assert!(expected_vault.exists());
     assert!(expected_wal.exists());

@@ -5,6 +5,7 @@ edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
 license = "GPL-3.0"
+categories = ["cryptography::cryptocurrencies", "authentication"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

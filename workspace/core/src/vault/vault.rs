@@ -939,11 +939,6 @@ impl Vault {
         self.header.auth.seed.as_ref()
     }
 
-    /// The file extension for vault files.
-    pub fn extension() -> &'static str {
-        VAULT_EXT
-    }
-
     /// Get the summary for this vault.
     pub fn summary(&self) -> &Summary {
         &self.header.summary

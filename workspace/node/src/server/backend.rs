@@ -2,7 +2,7 @@ use super::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     commit::{wal_commit_tree_file, CommitProof},
-    constants::WAL_DELETED_EXT,
+    constants::{WAL_DELETED_EXT, VAULT_EXT, WAL_EXT},
     decode, encode,
     events::{SyncEvent, WalEvent},
     formats::WalFileRecord,
@@ -250,11 +250,11 @@ impl FileSystemBackend {
                             let entry = entry?;
                             let wal_path = entry.path();
                             if let Some(ext) = wal_path.extension() {
-                                if ext == WalFile::extension() {
+                                if ext == WAL_EXT {
                                     let mut vault_path =
                                         wal_path.to_path_buf();
                                     vault_path
-                                        .set_extension(Vault::extension());
+                                        .set_extension(VAULT_EXT);
                                     if !vault_path.exists() {
                                         return Err(Error::NotFile(
                                             vault_path,
@@ -307,7 +307,7 @@ impl FileSystemBackend {
         // Write out the vault for so that we can easily
         // list summaries
         let mut vault_path = wal_path.clone();
-        vault_path.set_extension(Vault::extension());
+        vault_path.set_extension(VAULT_EXT);
         tokio::fs::write(&vault_path, vault).await?;
 
         // Create the WAL file
@@ -324,13 +324,13 @@ impl FileSystemBackend {
     fn wal_file_path(&self, owner: &Address, vault_id: &Uuid) -> PathBuf {
         let account_dir = self.directory.join(owner.to_string());
         let mut wal_file = account_dir.join(vault_id.to_string());
-        wal_file.set_extension(WalFile::extension());
+        wal_file.set_extension(WAL_EXT);
         wal_file
     }
 
     fn vault_file_path(&self, owner: &Address, vault_id: &Uuid) -> PathBuf {
         let mut vault_path = self.wal_file_path(owner, vault_id);
-        vault_path.set_extension(Vault::extension());
+        vault_path.set_extension(VAULT_EXT);
         vault_path
     }
 
@@ -421,33 +421,31 @@ impl BackendHandler for FileSystemBackend {
             return Err(Error::NotDirectory(account_dir));
         }
 
-        if let Some(account) = self.accounts.get_mut(owner) {
-            if account.get_mut(vault_id).is_some() {
-                let removed = account.remove(vault_id);
-                if let Some(_) = removed {
-                    let wal_path = self.wal_file_path(owner, vault_id);
+        let account = self.accounts.get_mut(owner).ok_or_else(|| Error::AccountNotExist(*owner))?;
 
-                    // Remove the vault file and lock
-                    let mut vault_path = wal_path.clone();
-                    vault_path.set_extension(Vault::extension());
-                    let _ = tokio::fs::remove_file(&vault_path).await?;
-                    self.locks.remove(&vault_path)?;
+        if account.get_mut(vault_id).is_some() {
+            let removed = account.remove(vault_id);
+            if let Some(_) = removed {
+                let wal_path = self.wal_file_path(owner, vault_id);
 
-                    // Keep a backup of the WAL file as .wal.deleted
-                    let mut wal_backup = wal_path.clone();
-                    wal_backup.set_extension(WAL_DELETED_EXT);
-                    let _ = tokio::fs::rename(&wal_path, wal_backup).await?;
-                    self.locks.remove(&wal_path)?;
+                // Remove the vault file and lock
+                let mut vault_path = wal_path.clone();
+                vault_path.set_extension(VAULT_EXT);
+                let _ = tokio::fs::remove_file(&vault_path).await?;
+                self.locks.remove(&vault_path)?;
 
-                    Ok(())
-                } else {
-                    Err(Error::VaultRemove)
-                }
+                // Keep a backup of the WAL file as .wal.deleted
+                let mut wal_backup = wal_path.clone();
+                wal_backup.set_extension(WAL_DELETED_EXT);
+                let _ = tokio::fs::rename(&wal_path, wal_backup).await?;
+                self.locks.remove(&wal_path)?;
+
+                Ok(())
             } else {
-                Err(Error::VaultNotExist(*vault_id))
+                Err(Error::VaultRemove)
             }
         } else {
-            Err(Error::AccountNotExist(*owner))
+            Err(Error::VaultNotExist(*vault_id))
         }
     }
 
@@ -473,7 +471,7 @@ impl BackendHandler for FileSystemBackend {
         if let Some(account) = self.accounts.get(owner) {
             for (id, _) in account {
                 let mut vault_path = self.wal_file_path(owner, id);
-                vault_path.set_extension(Vault::extension());
+                vault_path.set_extension(VAULT_EXT);
                 let summary = Header::read_summary_file(&vault_path)?;
                 summaries.push(summary);
             }

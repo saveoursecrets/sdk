@@ -1,5 +1,4 @@
-//! Search provides a search index for the meta data
-//! of an open vault.
+//! Search provides an in-memory index for secret meta data.
 use probly_search::{score::bm25, Index, QueryResult};
 use serde::Serialize;
 use std::{
