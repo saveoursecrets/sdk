@@ -44,6 +44,8 @@ pub struct AuthenticatedUser {
     signer: BoxedEcdsaSigner,
     /// AGE identity keypair.
     identity: age::x25519::Identity,
+    /// Gatekeeper for the identity vault.
+    keeper: Gatekeeper,
 }
 
 impl AuthenticatedUser {
@@ -60,6 +62,16 @@ impl AuthenticatedUser {
     /// Identity key for this user.
     pub fn identity(&self) -> &age::x25519::Identity {
         &self.identity
+    }
+
+    /// Reference to the gatekeeper for the identity vault.
+    pub fn keeper(&self) -> &Gatekeeper {
+        &self.keeper
+    }
+
+    /// Mutable reference to the gatekeeper for the identity vault.
+    pub fn keeper_mut(&mut self) -> &mut Gatekeeper {
+        &mut self.keeper
     }
 }
 
@@ -123,7 +135,7 @@ impl Identity {
         file: P,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
-    ) -> Result<(AuthenticatedUser, Gatekeeper)> {
+    ) -> Result<AuthenticatedUser> {
         let mirror = Box::new(VaultFileAccess::new(file.as_ref())?);
         let buffer = std::fs::read(file.as_ref())?;
         Identity::login_buffer(
@@ -140,7 +152,7 @@ impl Identity {
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
         mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
-    ) -> Result<(AuthenticatedUser, Gatekeeper)> {
+    ) -> Result<AuthenticatedUser> {
         let vault: Vault = decode(buffer.as_ref())?;
 
         if !vault.flags().contains(VaultFlags::IDENTITY) {
@@ -200,14 +212,12 @@ impl Identity {
         };
         let identity = identity
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
-        Ok((
-            AuthenticatedUser {
-                address: address.to_string(),
-                signer,
-                identity,
-            },
+        Ok(AuthenticatedUser {
+            address: address.to_string(),
+            signer,
+            identity,
             keeper,
-        ))
+        })
     }
 }
 

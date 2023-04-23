@@ -44,7 +44,7 @@ pub async fn account_info(
     verbose: bool,
     system: bool,
 ) -> Result<()> {
-    let (info, _, _, _, _, _) = sign_in(account_name).await?;
+    let (info, _, _, _, _) = sign_in(account_name).await?;
     let folders = LocalAccounts::list_local_vaults(&info.address, system)?;
     for (summary, _) in folders {
         if verbose {
@@ -91,7 +91,7 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
             return Ok(None);
         }
 
-        let (_, user, _, _, _, _) = sign_in(&account.label).await?;
+        let (_, user, _, _, _) = sign_in(&account.label).await?;
         let factory = ProviderFactory::Local;
         let (provider, _) = factory.create_provider(user.signer().clone())?;
         (Some(provider), None)
@@ -136,7 +136,6 @@ pub async fn sign_in(
 ) -> Result<(
     AccountInfo,
     AuthenticatedUser,
-    Gatekeeper,
     DeviceSigner,
     Arc<SyncRwLock<SearchIndex>>,
     SecretString,
@@ -147,21 +146,14 @@ pub async fn sign_in(
     let passphrase = read_password(Some("Password: "))?;
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
     // Verify the identity vault can be unlocked
-    let (info, user, keeper, device_signer) = Login::sign_in(
+    let (info, user, device_signer) = Login::sign_in(
         &account.address,
         passphrase.clone(),
         Arc::clone(&identity_index),
     )
     .await?;
 
-    Ok((
-        info,
-        user,
-        keeper,
-        device_signer,
-        identity_index,
-        passphrase,
-    ))
+    Ok((info, user, device_signer, identity_index, passphrase))
 }
 
 /// Switch to a different account.
@@ -169,7 +161,7 @@ pub async fn switch(
     factory: &ProviderFactory,
     account_name: String,
 ) -> Result<(BoxedProvider, Address)> {
-    let (_, user, _, _, _, _) = sign_in(&account_name).await?;
+    let (_, user, _, _, _) = sign_in(&account_name).await?;
     Ok(factory.create_provider(user.signer().clone())?)
 }
 

@@ -560,7 +560,7 @@ impl AccountBackup {
 
             // Get the signing address from the identity vault and
             // verify it matches the manifest address
-            let (user, _) = Identity::login_buffer(
+            let user = Identity::login_buffer(
                 &identity.1,
                 passphrase.clone(),
                 None,

@@ -51,8 +51,7 @@ impl Login {
         address: &str,
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
-    ) -> Result<(AccountInfo, AuthenticatedUser, Gatekeeper, DeviceSigner)>
-    {
+    ) -> Result<(AccountInfo, AuthenticatedUser, DeviceSigner)> {
         let accounts = LocalAccounts::list_accounts()?;
         let account = accounts
             .into_iter()
@@ -60,14 +59,14 @@ impl Login {
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
 
         let identity_path = StorageDirs::identity_vault(address)?;
-        let (user, mut keeper) =
+        let mut user =
             Identity::login_file(identity_path, passphrase, Some(index))?;
 
         // Lazily create or retrieve a device specific signing key
         let device_info =
-            Self::ensure_device_vault(address, &user, &mut keeper).await?;
+            Self::ensure_device_vault(address, &mut user).await?;
 
-        Ok((account, user, keeper, device_info))
+        Ok((account, user, device_info))
     }
 
     /// Ensure that the account has a vault for storing device specific
@@ -75,9 +74,10 @@ impl Login {
     /// on a peer to peer network.
     async fn ensure_device_vault(
         address: &str,
-        _user: &AuthenticatedUser,
-        identity: &mut Gatekeeper,
+        user: &mut AuthenticatedUser,
     ) -> Result<DeviceSigner> {
+        let identity = user.keeper_mut();
+
         let vaults = LocalAccounts::list_local_vaults(address, true)?;
         let device_vault = vaults.into_iter().find_map(|(summary, _)| {
             if summary.flags().is_system() && summary.flags().is_device() {

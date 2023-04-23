@@ -59,7 +59,7 @@ async fn integration_account_manager() -> Result<()> {
     assert_eq!(1, accounts.len());
 
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
-    let (_info, user, mut identity_keeper, _device_signer) = Login::sign_in(
+    let (_info, mut user, _device_signer) = Login::sign_in(
         &address,
         passphrase.clone(),
         Arc::clone(&identity_index),
@@ -69,9 +69,9 @@ async fn integration_account_manager() -> Result<()> {
     LocalAccounts::rename_account(
         &address,
         "New account name".to_string(),
-        Some(&mut identity_keeper),
+        Some(user.keeper_mut()),
     )?;
-    assert_eq!("New account name", identity_keeper.vault().name());
+    assert_eq!("New account name", user.keeper().vault().name());
 
     let vaults = LocalAccounts::list_local_vaults(&address, false)?;
     // Default, Contacts, Authenticator and Archive vaults
@@ -82,18 +82,18 @@ async fn integration_account_manager() -> Result<()> {
     // Check we can find the signing key
     let signing_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
     let signing_key =
-        identity_reader.find_by_urn(identity_keeper.id(), &signing_urn);
+        identity_reader.find_by_urn(user.keeper().id(), &signing_urn);
     assert!(signing_key.is_some());
 
     // Check AGE key
     let age_urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
-    let age_key = identity_reader.find_by_urn(identity_keeper.id(), &age_urn);
+    let age_key = identity_reader.find_by_urn(user.keeper().id(), &age_urn);
     assert!(age_key.is_some());
 
     // Make sure we can find a vault passphrase and unlock it
     let default_vault_passphrase =
         DelegatedPassphrase::find_vault_passphrase(
-            &identity_keeper,
+            user.keeper(),
             summary.id(),
         )?;
 
@@ -109,9 +109,7 @@ async fn integration_account_manager() -> Result<()> {
     default_vault_keeper.unlock(default_vault_passphrase.expose_secret())?;
 
     let file_passphrase =
-        DelegatedPassphrase::find_file_encryption_passphrase(
-            &identity_keeper,
-        )?;
+        DelegatedPassphrase::find_file_encryption_passphrase(user.keeper())?;
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
 
     // Encrypt

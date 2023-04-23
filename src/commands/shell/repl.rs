@@ -51,7 +51,6 @@ pub struct ShellState {
     pub factory: ProviderFactory,
     pub info: AccountInfo,
     pub user: AuthenticatedUser,
-    pub identity_keeper: Gatekeeper,
     pub identity_index: Arc<SyncRwLock<SearchIndex>>,
 }
 
@@ -552,7 +551,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             let state_reader = state.read().await;
             let passphrase = DelegatedPassphrase::find_vault_passphrase(
-                &state_reader.identity_keeper,
+                state_reader.user.keeper(),
                 summary.id(),
             )?;
             drop(state_reader);
