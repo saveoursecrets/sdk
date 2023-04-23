@@ -7,7 +7,6 @@ use binary_stream::{
 };
 
 pub mod account;
-pub mod archive;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod audit;
 pub mod commit;

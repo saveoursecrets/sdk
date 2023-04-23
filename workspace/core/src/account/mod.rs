@@ -1,4 +1,5 @@
 //! Create and manage local accounts.
+pub mod archive;
 #[cfg(not(target_arch = "wasm32"))]
 mod backup;
 mod builder;

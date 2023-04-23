@@ -6,8 +6,8 @@ use sos_core::{
     account::{
         AccountBackup, AccountBuilder, AccountInfo, DeviceSigner,
         LocalAccounts, Login, RestoreOptions, AuthenticatedUser,
+        archive::Inventory,
     },
-    archive::Inventory,
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
     secrecy::{ExposeSecret, SecretString},

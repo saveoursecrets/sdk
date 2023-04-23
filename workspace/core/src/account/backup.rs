@@ -15,8 +15,9 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::{
-    account::{AccountInfo, DelegatedPassphrase, LocalAccounts, Identity},
-    archive::{ArchiveItem, Inventory, Reader, Writer},
+    account::{AccountInfo, DelegatedPassphrase, LocalAccounts, Identity,
+        archive::{ArchiveItem, Inventory, Reader, Writer},
+    },
     constants::{VAULT_EXT, WAL_EXT},
     decode, encode,
     events::WalEvent,
