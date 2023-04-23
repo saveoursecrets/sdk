@@ -15,7 +15,7 @@ use crate::{
     Result,
 };
 
-use super::{AuthenticatedUser, DelegatedPassphrase, Identity};
+use super::{VerifiedUser, DelegatedPassphrase, Identity};
 
 use secrecy::{ExposeSecret, SecretString};
 
@@ -24,7 +24,7 @@ pub struct NewAccount {
     /// Address of the account signing key.
     pub address: String,
     /// Authenticated user.
-    pub user: AuthenticatedUser,
+    pub user: VerifiedUser,
     /// Default vault.
     pub default_vault: Vault,
     /// Archive vault.

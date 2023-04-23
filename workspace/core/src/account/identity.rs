@@ -36,8 +36,9 @@ use crate::{
 #[cfg(not(target_arch = "wasm32"))]
 use crate::vault::VaultFileAccess;
 
-/// User information once authentication to a login vault succeeds.
-pub struct AuthenticatedUser {
+/// User information once password verification using 
+/// an identity vault succeeds.
+pub struct VerifiedUser {
     /// Address of the signing key.
     address: String,
     /// Private signing key for the identity.
@@ -48,7 +49,7 @@ pub struct AuthenticatedUser {
     keeper: Gatekeeper,
 }
 
-impl AuthenticatedUser {
+impl VerifiedUser {
     /// Address of the signing key.
     pub fn address(&self) -> &str {
         &self.address
@@ -135,7 +136,7 @@ impl Identity {
         file: P,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
-    ) -> Result<AuthenticatedUser> {
+    ) -> Result<VerifiedUser> {
         let mirror = Box::new(VaultFileAccess::new(file.as_ref())?);
         let buffer = std::fs::read(file.as_ref())?;
         Identity::login_buffer(
@@ -152,7 +153,7 @@ impl Identity {
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
         mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
-    ) -> Result<AuthenticatedUser> {
+    ) -> Result<VerifiedUser> {
         let vault: Vault = decode(buffer.as_ref())?;
 
         if !vault.flags().contains(VaultFlags::IDENTITY) {
@@ -212,7 +213,7 @@ impl Identity {
         };
         let identity = identity
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
-        Ok(AuthenticatedUser {
+        Ok(VerifiedUser {
             address: address.to_string(),
             signer,
             identity,

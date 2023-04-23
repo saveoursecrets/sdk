@@ -5,7 +5,7 @@ use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        AuthenticatedUser, DeviceSigner, LocalAccounts, Login,
+        VerifiedUser, DeviceSigner, LocalAccounts, Login,
         RestoreOptions,
     },
     passwd::diceware::generate_passphrase,
@@ -135,7 +135,7 @@ pub async fn sign_in(
     account_name: &str,
 ) -> Result<(
     AccountInfo,
-    AuthenticatedUser,
+    VerifiedUser,
     DeviceSigner,
     Arc<SyncRwLock<SearchIndex>>,
     SecretString,

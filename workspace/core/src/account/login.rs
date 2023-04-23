@@ -26,7 +26,7 @@ use crate::{
 
 use secrecy::{ExposeSecret, SecretString};
 
-use super::{AuthenticatedUser, Identity};
+use super::{VerifiedUser, Identity};
 
 use crate::{Error, Result};
 
@@ -51,7 +51,7 @@ impl Login {
         address: &str,
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
-    ) -> Result<(AccountInfo, AuthenticatedUser, DeviceSigner)> {
+    ) -> Result<(AccountInfo, VerifiedUser, DeviceSigner)> {
         let accounts = LocalAccounts::list_accounts()?;
         let account = accounts
             .into_iter()
@@ -74,7 +74,7 @@ impl Login {
     /// on a peer to peer network.
     async fn ensure_device_vault(
         address: &str,
-        user: &mut AuthenticatedUser,
+        user: &mut VerifiedUser,
     ) -> Result<DeviceSigner> {
         let identity = user.keeper_mut();
 

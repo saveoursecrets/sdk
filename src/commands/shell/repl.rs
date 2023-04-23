@@ -12,7 +12,7 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    account::{AccountInfo, AuthenticatedUser, DelegatedPassphrase},
+    account::{AccountInfo, VerifiedUser, DelegatedPassphrase},
     commit::SyncKind,
     hex,
     passwd::diceware::generate_passphrase,
@@ -50,7 +50,7 @@ pub struct ShellState {
     pub address: Address,
     pub factory: ProviderFactory,
     pub info: AccountInfo,
-    pub user: AuthenticatedUser,
+    pub user: VerifiedUser,
     pub identity_index: Arc<SyncRwLock<SearchIndex>>,
 }
 

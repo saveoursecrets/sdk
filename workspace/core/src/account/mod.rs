@@ -16,7 +16,7 @@ pub use backup::{
     RestoreTargets,
 };
 pub use builder::{AccountBuilder, ImportedAccount, NewAccount};
-pub use identity::{AuthenticatedUser, Identity};
+pub use identity::{VerifiedUser, Identity};
 #[cfg(not(target_arch = "wasm32"))]
 pub use local::{AccountInfo, LocalAccounts};
 #[cfg(not(target_arch = "wasm32"))]
