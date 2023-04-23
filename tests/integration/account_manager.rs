@@ -157,8 +157,7 @@ async fn integration_account_manager() -> Result<()> {
         archive_buffer.clone(),
         options,
         true,
-    )
-    .await?;
+    )?;
 
     provider.restore_archive(&targets).await?;
 
@@ -173,8 +172,7 @@ async fn integration_account_manager() -> Result<()> {
         files_dir: Some(files_dir),
         files_dir_builder: None,
     };
-    AccountBackup::restore_archive_buffer(archive_buffer, options, false)
-        .await?;
+    AccountBackup::restore_archive_buffer(archive_buffer, options, false)?;
 
     // Reset the cache dir so we don't interfere
     // with other tests

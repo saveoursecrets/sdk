@@ -110,8 +110,7 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         buffer,
         options,
         provider.is_some(),
-    )
-    .await?;
+    )?;
 
     if let Some(mut provider) = provider {
         provider.restore_archive(&targets).await?;

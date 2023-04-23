@@ -373,7 +373,7 @@ impl AccountBackup {
     }
 
     /// Import from an archive.
-    pub async fn restore_archive_buffer(
+    pub fn restore_archive_buffer(
         buffer: Vec<u8>,
         options: RestoreOptions,
         existing_account: bool,
