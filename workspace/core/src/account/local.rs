@@ -37,40 +37,6 @@ pub struct AccountInfo {
 pub struct LocalAccounts {}
 
 impl LocalAccounts {
-    /// Rename an account by changing the name of the identity vault.
-    ///
-    /// The caller should take care to ensure this is only allowed on the
-    /// identity vault for the currently authenticated account.
-    pub fn rename_account(
-        address: &str,
-        account_name: String,
-        identity: Option<&mut Gatekeeper>,
-    ) -> Result<()> {
-        // Update in-memory vault
-        if let Some(identity) = identity {
-            identity.vault_mut().set_name(account_name.clone());
-        }
-        // Update vault file on disc
-        let identity_vault_file = StorageDirs::identity_vault(address)?;
-        let mut access = VaultFileAccess::new(identity_vault_file)?;
-        access.set_vault_name(account_name)?;
-        Ok(())
-    }
-
-    /// Permanently delete the identity vault and local vaults for an account.
-    pub fn delete_account(address: &str) -> Result<()> {
-        let identity_vault_file = StorageDirs::identity_vault(address)?;
-
-        let local_dir = StorageDirs::local_dir()?;
-        let identity_data_dir = local_dir.join(address);
-
-        // FIXME: move to a trash folder
-        std::fs::remove_file(identity_vault_file)?;
-        std::fs::remove_dir_all(identity_data_dir)?;
-
-        Ok(())
-    }
-
     /// Find and load a vault for a local file.
     pub fn find_local_vault(
         address: &str,

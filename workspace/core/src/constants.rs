@@ -137,6 +137,9 @@ mod folders {
 
     /// Directory to store temporary files.
     pub const TEMP_DIR: &str = "temp";
+
+    /// Directory to store deleted files.
+    pub const TRASH_DIR: &str = "trash";
 }
 
 mod archive {

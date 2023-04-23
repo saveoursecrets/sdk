@@ -27,7 +27,10 @@ use crate::{
     sha2::{Digest, Sha256},
     signer::Signer,
     storage::StorageDirs,
-    vault::{secret::SecretId, Gatekeeper, Summary, Vault, VaultId},
+    vault::{
+        secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess,
+        VaultFileAccess, VaultId,
+    },
     wal::{file::WalFile, WalProvider},
     Error, Result,
 };
@@ -464,17 +467,19 @@ impl AccountBackup {
             let existing_name = keys
                 .iter()
                 .find(|k| k.label == restore_targets.identity.0.name());
+
             let label = if existing_name.is_some() {
                 let name = format!(
                     "{} ({})",
                     restore_targets.identity.0.name(),
                     &restore_targets.address
                 );
-                LocalAccounts::rename_account(
-                    &restore_targets.address,
-                    name.clone(),
-                    None,
-                )?;
+
+                let identity_vault_file =
+                    StorageDirs::identity_vault(&restore_targets.address)?;
+                let mut access = VaultFileAccess::new(identity_vault_file)?;
+                access.set_vault_name(name.clone())?;
+
                 name
             } else {
                 restore_targets.identity.0.name().to_owned()

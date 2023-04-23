@@ -14,7 +14,7 @@ use crate::{
     Error, Result,
 };
 use std::{collections::HashSet, sync::Arc};
-
+use secrecy::{SecretString, ExposeSecret};
 use parking_lot::RwLock;
 
 use uuid::Uuid;
@@ -427,8 +427,8 @@ impl Gatekeeper {
     }
 
     /// Verify an encryption passphrase.
-    pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
-        self.vault.verify(passphrase)
+    pub fn verify(&self, passphrase: SecretString) -> Result<()> {
+        self.vault.verify(passphrase.expose_secret())
     }
 
     /// Add the meta data for the vault entries to a search index..

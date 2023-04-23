@@ -19,7 +19,7 @@ use crate::{
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
-        Gatekeeper, Summary, Vault, VaultAccess,
+        Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess,
     },
     wal::WalProvider,
 };
@@ -42,17 +42,17 @@ pub struct DeviceSigner {
 }
 
 impl DeviceSigner {
-    /// Summary of the vault containing the device 
+    /// Summary of the vault containing the device
     /// signing key.
     pub fn summary(&self) -> &Summary {
         &self.summary
     }
-    
+
     /// Device signing key.
     pub fn signer(&self) -> &BoxedEd25519Signer {
         &self.signer
     }
-    
+
     /// Address of the device signing key.
     pub fn address(&self) -> &str {
         &self.address
@@ -91,6 +91,59 @@ impl AuthenticatedUser {
     pub fn device(&self) -> &DeviceSigner {
         &self.device
     }
+
+    /// Verify the passphrase for this account.
+    pub fn verify(&self, passphrase: SecretString) -> bool {
+        let result = self
+            .identity()
+            .keeper()
+            .verify(passphrase)
+            .ok();
+        result.is_some()
+    }
+
+    /// Delete the account for this user.
+    ///
+    /// Moves the account identity vault and data directory to the
+    /// trash directory.
+    pub fn delete_account(&self) -> Result<()> {
+        let identity_vault_file =
+            StorageDirs::identity_vault(self.identity.address())?;
+
+        let local_dir = StorageDirs::local_dir()?;
+        let identity_data_dir = local_dir.join(self.identity.address());
+
+        let trash_dir = StorageDirs::trash_dir()?;
+        let mut deleted_identity_vault_file =
+            trash_dir.join(self.identity.address());
+        deleted_identity_vault_file.set_extension(VAULT_EXT);
+
+        let deleted_identity_data_dir =
+            trash_dir.join(self.identity.address());
+
+        std::fs::rename(identity_vault_file, deleted_identity_vault_file)?;
+        std::fs::rename(identity_data_dir, deleted_identity_data_dir)?;
+
+        Ok(())
+    }
+
+    /// Rename an account by changing the name of the identity vault.
+    ///
+    /// The caller should take care to ensure this is only allowed on the
+    /// identity vault for the currently authenticated account.
+    pub fn rename_account(&mut self, account_name: String) -> Result<()> {
+        // Update in-memory vault
+        self.identity
+            .keeper_mut()
+            .vault_mut()
+            .set_name(account_name.clone());
+        // Update vault file on disc
+        let identity_vault_file =
+            StorageDirs::identity_vault(self.identity.address())?;
+        let mut access = VaultFileAccess::new(identity_vault_file)?;
+        access.set_vault_name(account_name)?;
+        Ok(())
+    }
 }
 
 /// Login to an account.
@@ -115,8 +168,7 @@ impl Login {
             Identity::login_file(identity_path, passphrase, Some(index))?;
 
         // Lazily create or retrieve a device specific signing key
-        let device =
-            Self::ensure_device_vault(address, &mut identity)?;
+        let device = Self::ensure_device_vault(address, &mut identity)?;
 
         Ok(AuthenticatedUser {
             account,
@@ -236,12 +288,5 @@ impl Login {
                 address: device_address,
             })
         }
-    }
-
-    /// Verify the master passphrase for an account.
-    pub fn verify(address: &str, passphrase: SecretString) -> Result<bool> {
-        let identity_path = StorageDirs::identity_vault(address)?;
-        let result = Identity::login_file(identity_path, passphrase, None);
-        Ok(result.is_ok())
     }
 }

@@ -65,11 +65,7 @@ async fn integration_account_manager() -> Result<()> {
         Arc::clone(&identity_index),
     )?;
 
-    LocalAccounts::rename_account(
-        &address,
-        "New account name".to_string(),
-        Some(user.identity_mut().keeper_mut()),
-    )?;
+    user.rename_account("New account name".to_string())?;
     assert_eq!("New account name", user.identity().keeper().vault().name());
 
     let vaults = LocalAccounts::list_local_vaults(&address, false)?;
@@ -161,7 +157,7 @@ async fn integration_account_manager() -> Result<()> {
     provider.restore_archive(&targets).await?;
 
     // Remove the account
-    LocalAccounts::delete_account(&address)?;
+    user.delete_account()?;
 
     // Restore when not signed in - the account must not exist,
     // equivalent to importing an account

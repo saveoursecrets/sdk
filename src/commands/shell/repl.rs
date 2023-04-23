@@ -939,7 +939,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
                 // Basic quick verification
                 keeper
-                    .verify(passphrase.expose_secret())
+                    .verify(passphrase.clone())
                     .map_err(|_| Error::InvalidPassphrase)?;
 
                 // We need a clone of the vault to avoid borrowing whilst
