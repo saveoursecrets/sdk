@@ -58,7 +58,9 @@ either = { version = "1.8", optional = true }
 
 [dependencies.libp2p]
 version = "0.51"
-path = "../../../../forks/libp2p/libp2p"
+git = "https://github.com/tmpfs/rust-libp2p"
+branch = "snow-hacks"
+#path = "../../../../forks/libp2p/libp2p"
 optional = true
 features = [
   "tokio", 
@@ -75,7 +77,9 @@ features = [
 
 [dependencies.libp2p-quic]
 version = "0.7.0-alpha.3"
-path = "../../../../forks/libp2p/transports/quic"
+git = "https://github.com/tmpfs/rust-libp2p"
+branch = "snow-hacks"
+#path = "../../../../forks/libp2p/transports/quic"
 features = ["tokio"]
 optional = true
 
