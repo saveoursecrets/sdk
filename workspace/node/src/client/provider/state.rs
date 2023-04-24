@@ -79,7 +79,12 @@ impl ProviderState {
         }
     }
 
-    /// Attempt to find a summary in this state.
+    /// Find a default vault in this state.
+    pub fn find_default_vault(&self) -> Option<&Summary> {
+        self.summaries.iter().find(|s| s.flags().is_default())
+    }
+
+    /// Find a summary in this state.
     pub fn find_vault(&self, vault: &SecretRef) -> Option<&Summary> {
         match vault {
             SecretRef::Name(name) => {

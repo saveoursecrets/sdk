@@ -28,6 +28,9 @@ pub enum Error {
     #[error("failed to create account, got status code {0}")]
     AccountCreate(u16),
 
+    #[error("no folder was found")]
+    NoVault,
+
     #[error(
         r#"folder "{0}" not found, run "folders" to load the folder list"#
     )]

@@ -87,7 +87,7 @@ enum ShellCommand {
     /// Select a folder.
     Use {
         /// Vault reference, it's name or identifier.
-        vault: SecretRef,
+        vault: Option<SecretRef>,
     },
     /// Print information about the selected folder.
     Info,
@@ -538,11 +538,18 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::Use { vault } => {
             let reader = cache.read().await;
-            let summary = reader
-                .state()
-                .find_vault(&vault)
-                .cloned()
-                .ok_or(Error::VaultNotAvailable(vault))?;
+
+            let summary  = if let Some(vault) = vault {
+                Some(reader
+                    .state()
+                    .find_vault(&vault)
+                    .cloned()
+                    .ok_or(Error::VaultNotAvailable(vault))?)
+            } else {
+                reader.state().find_default_vault().cloned()
+            };
+
+            let summary = summary.ok_or(Error::NoVault)?;
             drop(reader);
 
             let state_reader = state.read().await;
