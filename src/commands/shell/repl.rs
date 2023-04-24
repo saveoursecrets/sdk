@@ -27,12 +27,15 @@ use sos_core::{
 };
 use sos_node::client::provider::{BoxedProvider, ProviderFactory};
 
-use crate::helpers::{
-    account::switch,
-    display_passphrase,
-    readline::{
-        choose, read_flag, read_line, read_line_allow_empty, read_multiline,
-        read_option, read_password, Choice,
+use crate::{
+    commands::AccountCommand,
+    helpers::{
+        account::switch,
+        display_passphrase,
+        readline::{
+            choose, read_flag, read_line, read_line_allow_empty, read_multiline,
+            read_option, read_password, Choice,
+        },
     },
 };
 
@@ -72,6 +75,13 @@ enum ShellCommand {
     /// Renew session authentication.
     #[clap(alias = "auth")]
     Authenticate,
+    
+    /// Manage local accounts.
+    Account {
+        #[clap(subcommand)]
+        cmd: AccountCommand,
+    },
+
     /// Rename this account.
     Rename {
         /// Name for the account.
@@ -504,6 +514,17 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             println!("session renewed ✓");
             Ok(())
         }
+        ShellCommand::Account { cmd } => {
+            crate::commands::account::run(cmd).await?;
+
+            /*
+            let mut writer = state.write().await;
+            writer.user.rename_account(name)?;
+            println!("account renamed ✓");
+            */
+            Ok(())
+        }
+
         ShellCommand::Rename { name } => {
             let mut writer = state.write().await;
             writer.user.rename_account(name)?;
