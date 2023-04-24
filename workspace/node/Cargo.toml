@@ -93,7 +93,7 @@ tokio-tungstenite = { version = "0.17.2", features = ["rustls-tls-native-roots"]
 [target.'cfg(target_arch="wasm32")'.dependencies]
 tokio = { version = "1", features = ["rt", "time", "sync"] }
 
-[target.'cfg(any(target_os="macos",target_os="windows"))'.dependencies]
+[target.'cfg(any(target_family="unix",target_family="windows"))'.dependencies]
 reqwest = { version = "0.11", default-features = true, features = ["json", "rustls-tls"], optional = true }
 
 # NOTE: Must disable default-features so that openssl
