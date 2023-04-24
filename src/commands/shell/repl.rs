@@ -72,6 +72,11 @@ enum ShellCommand {
     /// Renew session authentication.
     #[clap(alias = "auth")]
     Authenticate,
+    /// Rename this account.
+    Rename {
+        /// Name for the account.
+        name: String,
+    },
     /// List folders.
     Folders,
     /// Create a new folder.
@@ -499,6 +504,12 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             println!("session renewed ✓");
             Ok(())
         }
+        ShellCommand::Rename { name } => {
+            let mut writer = state.write().await;
+            writer.user.rename_account(name)?;
+            println!("account renamed ✓");
+            Ok(())
+        }
         ShellCommand::Folders => {
             let mut writer = cache.write().await;
             let summaries = writer.load_vaults().await?;
@@ -539,12 +550,14 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         ShellCommand::Use { vault } => {
             let reader = cache.read().await;
 
-            let summary  = if let Some(vault) = vault {
-                Some(reader
-                    .state()
-                    .find_vault(&vault)
-                    .cloned()
-                    .ok_or(Error::VaultNotAvailable(vault))?)
+            let summary = if let Some(vault) = vault {
+                Some(
+                    reader
+                        .state()
+                        .find_vault(&vault)
+                        .cloned()
+                        .ok_or(Error::VaultNotAvailable(vault))?,
+                )
             } else {
                 reader.state().find_default_vault().cloned()
             };
@@ -1002,7 +1015,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::Whoami => {
             let reader = state.read().await;
-            println!("{}", &reader.address);
+            println!("{} {}", reader.user.account().label(), &reader.address);
             Ok(())
         }
         ShellCommand::Close => {

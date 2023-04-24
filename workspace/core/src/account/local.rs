@@ -19,11 +19,32 @@ pub struct AccountInfo {
     ///
     /// This corresponds to the address of the signing key
     /// for the account.
-    pub address: String,
+    address: String,
     /// User label for the account.
     ///
     /// This is the name given to the identity vault.
-    pub label: String,
+    label: String,
+}
+
+impl AccountInfo {
+    /// Create new account information.
+    pub fn new(label: String, address: String) -> Self {
+        Self { label, address }
+    }
+
+    /// Get the address of this account.
+    pub fn address(&self) -> &str {
+        &self.address
+    }
+
+    /// Get the label of this account.
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    pub(crate) fn set_label(&mut self, label: String) {
+        self.label = label;
+    }
 }
 
 /// Inspect the local accounts directory.

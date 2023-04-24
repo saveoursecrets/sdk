@@ -85,7 +85,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         }
         Command::Restore { input } => {
             if let Some(account) = account_restore(input).await? {
-                println!("{} ({}) ✓", account.label, account.address);
+                println!("{} ({}) ✓", account.label(), account.address());
             }
         }
     }

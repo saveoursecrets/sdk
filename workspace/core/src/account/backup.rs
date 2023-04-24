@@ -412,8 +412,9 @@ impl AccountBackup {
             // The GUI should check the identity already exists
             // but we will double check here to be safe
             let keys = LocalAccounts::list_accounts()?;
-            let existing_key = keys.iter().find(|k| &k.address == address);
-            let account = existing_key
+            let existing_account =
+                keys.iter().find(|k| k.address() == address);
+            let account = existing_account
                 .ok_or_else(|| Error::NoArchiveAccount(address.to_owned()))?
                 .clone();
 
@@ -464,9 +465,9 @@ impl AccountBackup {
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
             let keys = LocalAccounts::list_accounts()?;
-            let existing_key =
-                keys.iter().find(|k| k.address == restore_targets.address);
-            if existing_key.is_some() {
+            let existing_account =
+                keys.iter().find(|k| k.address() == restore_targets.address);
+            if existing_account.is_some() {
                 return Err(Error::ArchiveAccountAlreadyExists(
                     restore_targets.address,
                 ));
@@ -481,7 +482,7 @@ impl AccountBackup {
             // and rename the identity being imported if necessary
             let existing_name = keys
                 .iter()
-                .find(|k| k.label == restore_targets.identity.0.name());
+                .find(|k| k.label() == restore_targets.identity.0.name());
 
             let label = if existing_name.is_some() {
                 let name = format!(
@@ -524,10 +525,8 @@ impl AccountBackup {
                 wal.apply(wal_events, None)?;
             }
 
-            let account = AccountInfo {
-                address: restore_targets.address.clone(),
-                label,
-            };
+            let account =
+                AccountInfo::new(label, restore_targets.address.clone());
 
             (restore_targets, account)
         };

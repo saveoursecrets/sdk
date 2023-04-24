@@ -128,11 +128,16 @@ impl AuthenticatedUser {
             .keeper_mut()
             .vault_mut()
             .set_name(account_name.clone());
+
         // Update vault file on disc
         let identity_vault_file =
             StorageDirs::identity_vault(self.identity.address())?;
         let mut access = VaultFileAccess::new(identity_vault_file)?;
-        access.set_vault_name(account_name)?;
+        access.set_vault_name(account_name.clone())?;
+
+        // Update in-memory account information
+        self.account.set_label(account_name);
+
         Ok(())
     }
 
@@ -156,7 +161,7 @@ impl Login {
         let accounts = LocalAccounts::list_accounts()?;
         let account = accounts
             .into_iter()
-            .find(|a| a.address == address)
+            .find(|a| a.address() == address)
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
 
         let identity_path = StorageDirs::identity_vault(address)?;

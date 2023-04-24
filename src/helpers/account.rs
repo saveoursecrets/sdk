@@ -29,9 +29,9 @@ pub fn list_accounts(verbose: bool) -> Result<()> {
     let accounts = LocalAccounts::list_accounts()?;
     for account in accounts {
         if verbose {
-            println!("{} {}", account.address, account.label);
+            println!("{} {}", account.address(), account.label());
         } else {
-            println!("{}", account.label);
+            println!("{}", account.label());
         }
     }
     Ok(())
@@ -68,7 +68,7 @@ pub fn account_backup(
 
     let account = find_account(account_name)?
         .ok_or(Error::NoAccount(account_name.to_string()))?;
-    AccountBackup::export_archive_file(&output, &account.address)?;
+    AccountBackup::export_archive_file(&output, account.address())?;
     Ok(())
 }
 
@@ -91,7 +91,7 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
             return Ok(None);
         }
 
-        let (user, _) = sign_in(&account.label)?;
+        let (user, _) = sign_in(account.label())?;
         let factory = ProviderFactory::Local;
         let (provider, _) =
             factory.create_provider(user.identity().signer().clone())?;
@@ -121,12 +121,12 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
 
 fn find_account(account_name: &str) -> Result<Option<AccountInfo>> {
     let accounts = LocalAccounts::list_accounts()?;
-    Ok(accounts.into_iter().find(|a| a.label == account_name))
+    Ok(accounts.into_iter().find(|a| a.label() == account_name))
 }
 
 fn find_account_by_address(address: &str) -> Result<Option<AccountInfo>> {
     let accounts = LocalAccounts::list_accounts()?;
-    Ok(accounts.into_iter().find(|a| a.address == address))
+    Ok(accounts.into_iter().find(|a| a.address() == address))
 }
 
 /// Helper to sign in to an account.
@@ -140,7 +140,7 @@ pub fn sign_in(
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
     // Verify the identity vault can be unlocked
     let user = Login::sign_in(
-        &account.address,
+        account.address(),
         passphrase.clone(),
         Arc::clone(&identity_index),
     )?;
