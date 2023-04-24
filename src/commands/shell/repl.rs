@@ -1024,6 +1024,8 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             Ok(())
         }
         ShellCommand::Quit => {
+            let mut writer = state.write().await;
+            writer.user.sign_out();
             std::process::exit(0);
         }
     }
