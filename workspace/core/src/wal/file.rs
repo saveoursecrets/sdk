@@ -18,7 +18,7 @@ use crate::{
     commit::{wal_commit_tree_file, CommitHash, CommitTree},
     constants::WAL_IDENTITY,
     encode,
-    events::WalEvent,
+    events::SyncEvent,
     formats::{wal_iter, FileItem, WalFileRecord},
     timestamp::Timestamp,
     Error, Result,
@@ -64,7 +64,7 @@ impl WalFile {
 
     fn encode_event(
         &self,
-        event: WalEvent<'_>,
+        event: SyncEvent<'_>,
         last_commit: Option<CommitHash>,
     ) -> Result<(CommitHash, WalRecord)> {
         let time: Timestamp = Default::default();
@@ -190,7 +190,7 @@ impl WalProvider for WalFile {
 
     fn apply(
         &mut self,
-        events: Vec<WalEvent<'_>>,
+        events: Vec<SyncEvent<'_>>,
         expect: Option<CommitHash>,
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
@@ -247,7 +247,7 @@ impl WalProvider for WalFile {
         }
     }
 
-    fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash> {
+    fn append_event(&mut self, event: SyncEvent<'_>) -> Result<CommitHash> {
         let (commit, record) = self.encode_event(event, None)?;
         let buffer = encode(&record)?;
         self.file.write_all(&buffer)?;
@@ -256,7 +256,7 @@ impl WalProvider for WalFile {
         Ok(commit)
     }
 
-    fn event_data(&self, item: &Self::Item) -> Result<WalEvent<'_>> {
+    fn event_data(&self, item: &Self::Item) -> Result<SyncEvent<'_>> {
         let value = item.value();
 
         // Use a different file handle as the owned `file` should
@@ -269,7 +269,7 @@ impl WalProvider for WalFile {
 
         let mut stream = SliceStream::new(&buffer);
         let mut reader = BinaryReader::new(&mut stream, Endian::Little);
-        let mut event: WalEvent = Default::default();
+        let mut event: SyncEvent = Default::default();
         event.decode(&mut reader)?;
         Ok(event)
     }
@@ -308,7 +308,7 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{events::WalEvent, test_utils::*};
+    use crate::{events::SyncEvent, test_utils::*};
 
     fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
         let (encryption_key, _, _) = mock_encryption_key()?;
@@ -320,7 +320,7 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = WalEvent::CreateVault(Cow::Owned(buffer));
+        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
         commits.push(wal.append_event(event)?);
 
         // Create a secret
@@ -330,7 +330,7 @@ mod test {
             "WAL Note",
             "This a WAL note secret.",
         )?;
-        commits.push(wal.append_event(event.try_into()?)?);
+        commits.push(wal.append_event(event)?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -341,7 +341,7 @@ mod test {
             "This a WAL note secret that was edited.",
         )?;
         if let Some(event) = event {
-            commits.push(wal.append_event(event.try_into()?)?);
+            commits.push(wal.append_event(event)?);
         }
 
         Ok((temp, wal, commits))

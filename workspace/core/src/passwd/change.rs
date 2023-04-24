@@ -3,7 +3,7 @@
 use crate::{
     crypto::secret_key::{SecretKey, Seed},
     encode,
-    events::WalEvent,
+    events::SyncEvent,
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
@@ -67,7 +67,7 @@ impl<'a> ChangePassword<'a> {
     /// be used to generate a fresh write-ahead log file.
     pub fn build(
         self,
-    ) -> Result<(SecretString, Vault, Vec<WalEvent<'static>>)> {
+    ) -> Result<(SecretString, Vault, Vec<SyncEvent<'static>>)> {
         // Decrypt current vault meta data blob
         let current_private_key = self.current_private_key()?;
         let vault_meta_aead =
@@ -100,7 +100,7 @@ impl<'a> ChangePassword<'a> {
         let mut wal_events = Vec::new();
 
         let buffer = encode(&new_vault)?;
-        let create_vault = WalEvent::CreateVault(Cow::Owned(buffer));
+        let create_vault = SyncEvent::CreateVault(Cow::Owned(buffer));
         wal_events.push(create_vault);
 
         // Iterate the current vault and decrypt the secrets
@@ -129,8 +129,8 @@ impl<'a> ChangePassword<'a> {
             )?;
 
             let sync_event = sync_event.into_owned();
-            let wal_event: WalEvent<'static> = sync_event.try_into()?;
-            wal_events.push(wal_event);
+            //let wal_event: SyncEvent<'static> = sync_event.try_into()?;
+            wal_events.push(sync_event);
         }
 
         wal_events.sort();

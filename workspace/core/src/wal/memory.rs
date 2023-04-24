@@ -13,7 +13,7 @@ use crate::{
     commit::{CommitHash, CommitTree},
     constants::WAL_IDENTITY,
     decode, encode,
-    events::WalEvent,
+    events::SyncEvent,
     formats::{FileItem, ReadStreamIterator, WalFileRecord},
     timestamp::Timestamp,
     Result,
@@ -63,7 +63,7 @@ impl Default for WalMemory {
 impl WalMemory {
     fn encode_event(
         &self,
-        event: WalEvent<'_>,
+        event: SyncEvent<'_>,
         offset: usize,
     ) -> Result<(CommitHash, WalMemoryRecord)> {
         let time: Timestamp = Default::default();
@@ -186,7 +186,7 @@ impl WalProvider for WalMemory {
 
     fn apply(
         &mut self,
-        events: Vec<WalEvent<'_>>,
+        events: Vec<SyncEvent<'_>>,
         expect: Option<CommitHash>,
     ) -> Result<Vec<CommitHash>> {
         let mut records = Vec::new();
@@ -219,7 +219,7 @@ impl WalProvider for WalMemory {
         Ok(commits)
     }
 
-    fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash> {
+    fn append_event(&mut self, event: SyncEvent<'_>) -> Result<CommitHash> {
         let (commit, record) =
             self.encode_event(event, self.records.len())?;
         self.records.push(record);
@@ -228,8 +228,8 @@ impl WalProvider for WalMemory {
         Ok(commit)
     }
 
-    fn event_data(&self, item: &Self::Item) -> Result<WalEvent<'_>> {
-        let event: WalEvent = decode(&item.1 .3)?;
+    fn event_data(&self, item: &Self::Item) -> Result<SyncEvent<'_>> {
+        let event: SyncEvent = decode(&item.1 .3)?;
         Ok(event)
     }
 

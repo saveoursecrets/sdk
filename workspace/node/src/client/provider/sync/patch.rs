@@ -4,11 +4,8 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_core::{
-    commit::CommitHash,
-    events::{SyncEvent, WalEvent},
-    patch::PatchProvider,
-    vault::Summary,
-    wal::WalProvider,
+    commit::CommitHash, events::SyncEvent, patch::PatchProvider,
+    vault::Summary, wal::WalProvider,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -66,11 +63,7 @@ where
             // Apply changes to the local WAL file
             let mut changes = Vec::new();
             for event in patch.0 {
-                if let Ok::<WalEvent<'_>, sos_core::Error>(wal_event) =
-                    event.try_into()
-                {
-                    changes.push(wal_event);
-                }
+                changes.push(event);
             }
 
             // Pass the expected root hash so changes are reverted

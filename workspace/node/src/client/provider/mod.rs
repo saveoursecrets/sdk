@@ -12,7 +12,7 @@ use sos_core::{
     },
     constants::{PATCH_EXT, VAULT_EXT, WAL_EXT},
     encode,
-    events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    events::{ChangeAction, ChangeNotification, SyncEvent},
     passwd::ChangePassword,
     search::SearchIndex,
     storage::StorageDirs,
@@ -154,7 +154,7 @@ pub trait StorageProvider: Sync + Send {
         for (buffer, vault) in vaults {
             // Prepare a fresh log of WAL events
             let mut wal_events = Vec::new();
-            let create_vault = WalEvent::CreateVault(Cow::Borrowed(buffer));
+            let create_vault = SyncEvent::CreateVault(Cow::Borrowed(buffer));
             wal_events.push(create_vault);
 
             self.update_vault(vault.summary(), vault, wal_events)
@@ -214,14 +214,14 @@ pub trait StorageProvider: Sync + Send {
     fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(CommitHash, Timestamp, WalEvent<'_>)>>;
+    ) -> Result<Vec<(CommitHash, Timestamp, SyncEvent<'_>)>>;
 
     /// Update an existing vault by replacing it with a new vault.
     async fn update_vault<'a>(
         &mut self,
         summary: &Summary,
         vault: &Vault,
-        events: Vec<WalEvent<'a>>,
+        events: Vec<SyncEvent<'a>>,
     ) -> Result<()>;
 
     /// Compact a WAL file.
@@ -539,7 +539,7 @@ macro_rules! provider_impl {
 
             if let Some(vault) = &vault {
                 let encoded = encode(vault)?;
-                let event = WalEvent::CreateVault(Cow::Owned(encoded));
+                let event = SyncEvent::CreateVault(Cow::Owned(encoded));
                 wal.append_event(event)?;
             }
             wal.load_tree()?;
@@ -602,7 +602,7 @@ macro_rules! provider_impl {
             Ok(())
         }
 
-        fn history(&self, summary: &Summary) -> Result<Vec<(CommitHash, Timestamp, WalEvent<'_>)>> {
+        fn history(&self, summary: &Summary) -> Result<Vec<(CommitHash, Timestamp, SyncEvent<'_>)>> {
             let (wal, _) = self
                 .cache
                 .get(summary.id())

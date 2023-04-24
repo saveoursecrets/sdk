@@ -38,6 +38,22 @@ use super::{
     transport,
 };
 
+type PendingRequests = HashMap<
+    RequestId,
+    oneshot::Sender<Result<(RequestId, PeerId, ResponseMessage<'static>)>>,
+>;
+
+type PeerEvent = SwarmEvent<
+    ComposedEvent,
+    Either<
+        Either<
+            Either<ConnectionHandlerUpgrErr<io::Error>, io::Error>,
+            void::Void,
+        >,
+        io::Error,
+    >,
+>;
+
 /// Location of a rendezvous server.
 #[derive(Debug, Clone)]
 pub struct RendezvousLocation {
@@ -272,12 +288,7 @@ pub struct EventLoop {
     command_receiver: mpsc::Receiver<Command>,
     event_sender: mpsc::Sender<NetworkEvent>,
     pending_dial: HashMap<PeerId, oneshot::Sender<Result<()>>>,
-    pending_request: HashMap<
-        RequestId,
-        oneshot::Sender<
-            Result<(RequestId, PeerId, ResponseMessage<'static>)>,
-        >,
-    >,
+    pending_request: PendingRequests,
     pending_register: HashMap<Namespace, oneshot::Sender<Result<()>>>,
     pending_discover: HashMap<
         Option<Namespace>,
@@ -508,23 +519,11 @@ impl EventLoop {
         }
     }
 
-    async fn handle_event(
-        &mut self,
-        event: SwarmEvent<
-            ComposedEvent,
-            Either<
-                Either<
-                    Either<ConnectionHandlerUpgrErr<io::Error>, io::Error>,
-                    void::Void,
-                >,
-                io::Error,
-            >,
-        >,
-    ) {
+    async fn handle_event(&mut self, event: PeerEvent) {
         match event {
             SwarmEvent::Behaviour(ComposedEvent::Identify(event)) => {
                 self.identify
-                    .send(event)
+                    .send(*event)
                     .await
                     .expect("identify channel to be open");
             }

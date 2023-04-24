@@ -87,13 +87,8 @@ pub async fn handle_change(
                 }
                 _ => {}
             }
-        } else {
-            match action {
-                ChangeAction::Create(summary) => {
-                    provider.add_local_cache(summary.clone())?;
-                }
-                _ => {}
-            }
+        } else if let ChangeAction::Create(summary) = action {
+            provider.add_local_cache(summary.clone())?;
         }
     }
 

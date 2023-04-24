@@ -7,7 +7,7 @@ env:
 
 jobs:
   library:
-    if: ${{ false }}
+    #if: ${{ false }}
     name: library
     runs-on: ubuntu-latest
     steps:

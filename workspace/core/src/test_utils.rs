@@ -122,7 +122,7 @@ mod file {
         commit::CommitHash,
         crypto::secret_key::SecretKey,
         encode,
-        events::WalEvent,
+        events::SyncEvent,
         vault::Vault,
         wal::{file::WalFile, WalProvider},
     };
@@ -151,7 +151,7 @@ mod file {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = WalEvent::CreateVault(Cow::Owned(buffer));
+        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
         commits.push(wal.append_event(event)?);
 
         // Create a secret
@@ -161,7 +161,7 @@ mod file {
             "WAL Note",
             "This a WAL note secret.",
         )?;
-        commits.push(wal.append_event(event.try_into()?)?);
+        commits.push(wal.append_event(event)?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -172,7 +172,7 @@ mod file {
             "This a WAL note secret that was edited.",
         )?;
         if let Some(event) = event {
-            commits.push(wal.append_event(event.try_into()?)?);
+            commits.push(wal.append_event(event)?);
         }
 
         Ok((temp, wal, commits, encryption_key))

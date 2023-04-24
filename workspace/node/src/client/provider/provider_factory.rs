@@ -1,9 +1,6 @@
 //! Factory for creating providers.
 use sos_core::{signer::ecdsa::BoxedEcdsaSigner, storage::StorageDirs};
-use std::{
-    fmt,
-    sync::{Arc, RwLock},
-};
+use std::{fmt, sync::Arc};
 use url::Url;
 use web3_address::ethereum::Address;
 
@@ -12,6 +9,8 @@ use crate::client::{
     provider::{BoxedProvider, RemoteProvider},
     Error, Result,
 };
+
+use tokio::sync::RwLock;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::client::provider::LocalProvider;
@@ -232,7 +231,7 @@ pub fn spawn_changes_listener(
         let cache = Arc::clone(&cache);
         async move {
             //println!("{:#?}", notification);
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             let _ = writer.handle_change(notification).await;
         }
     });

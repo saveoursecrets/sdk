@@ -34,7 +34,7 @@ pub(crate) enum ComposedEvent {
     ),
     Kademlia(KademliaEvent),
     Rendezvous(rendezvous::client::Event),
-    Identify(identify::Event),
+    Identify(Box<identify::Event>),
 }
 
 impl
@@ -69,7 +69,7 @@ impl From<rendezvous::client::Event> for ComposedEvent {
 
 impl From<identify::Event> for ComposedEvent {
     fn from(event: identify::Event) -> Self {
-        ComposedEvent::Identify(event)
+        ComposedEvent::Identify(Box::new(event))
     }
 }
 

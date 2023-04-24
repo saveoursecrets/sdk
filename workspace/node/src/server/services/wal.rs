@@ -4,9 +4,7 @@ use sos_core::{
     commit::{CommitHash, CommitProof, Comparison},
     constants::{WAL_LOAD, WAL_PATCH, WAL_SAVE, WAL_STATUS},
     decode,
-    events::{
-        ChangeEvent, ChangeNotification, EventKind, SyncEvent, WalEvent,
-    },
+    events::{ChangeEvent, ChangeNotification, EventKind, SyncEvent},
     patch::Patch,
     rpc::{RequestMessage, ResponseMessage, Service},
     wal::WalProvider,
@@ -266,12 +264,7 @@ impl Service for WalService {
                             // Changes to apply to the WAL log
                             let mut changes = Vec::new();
                             for event in change_set {
-                                if let Ok::<WalEvent<'_>, sos_core::Error>(
-                                    wal_event,
-                                ) = event.try_into()
-                                {
-                                    changes.push(wal_event);
-                                }
+                                changes.push(event);
                             }
 
                             // Apply the change set of WAL events to the log

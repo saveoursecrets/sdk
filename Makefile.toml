@@ -27,7 +27,7 @@ args = ["check"]
 [tasks.clippy]
 workspace = true
 command = "cargo"
-args = ["clippy"]
+args = ["clippy", "--all-features"]
 
 [tasks.clean]
 workspace = true

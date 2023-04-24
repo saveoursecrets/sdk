@@ -1,7 +1,7 @@
 //! Write ahead log types and traits.
 use crate::{
     commit::{CommitHash, CommitTree},
-    events::WalEvent,
+    events::SyncEvent,
     formats::WalFileRecord,
     timestamp::Timestamp,
     Result,
@@ -88,16 +88,16 @@ pub trait WalProvider {
     /// WAL to it's previous state.
     fn apply(
         &mut self,
-        events: Vec<WalEvent<'_>>,
+        events: Vec<SyncEvent<'_>>,
         expect: Option<CommitHash>,
     ) -> Result<Vec<CommitHash>>;
 
     /// Append a log event to the write ahead log and commit
     /// the hash to the commit tree.
-    fn append_event(&mut self, event: WalEvent<'_>) -> Result<CommitHash>;
+    fn append_event(&mut self, event: SyncEvent<'_>) -> Result<CommitHash>;
 
     /// Read the event data from an item.
-    fn event_data(&self, item: &Self::Item) -> Result<WalEvent<'_>>;
+    fn event_data(&self, item: &Self::Item) -> Result<SyncEvent<'_>>;
 
     /// Get the commit tree for the log records.
     fn tree(&self) -> &CommitTree;
@@ -241,7 +241,7 @@ mod test {
     use crate::{
         commit::{CommitHash, CommitTree, Comparison},
         encode,
-        events::WalEvent,
+        events::SyncEvent,
         vault::{secret::SecretId, Vault, VaultCommit, VaultEntry},
     };
 
@@ -265,8 +265,8 @@ mod test {
         let mut server: WalMemory = Default::default();
         server.apply(
             vec![
-                WalEvent::CreateVault(Cow::Owned(vault_buffer)),
-                WalEvent::CreateSecret(id, data),
+                SyncEvent::CreateVault(Cow::Owned(vault_buffer)),
+                SyncEvent::CreateSecret(id, data),
             ],
             None,
         )?;
@@ -284,8 +284,8 @@ mod test {
         let mut server: WalMemory = Default::default();
         server.apply(
             vec![
-                WalEvent::CreateVault(Cow::Owned(vault_buffer)),
-                WalEvent::CreateSecret(id, data),
+                SyncEvent::CreateVault(Cow::Owned(vault_buffer)),
+                SyncEvent::CreateSecret(id, data),
             ],
             None,
         )?;
@@ -311,7 +311,7 @@ mod test {
         let (mut server, client, id) = mock_wal_server_client()?;
 
         // Add another event to the server from another client.
-        server.append_event(WalEvent::DeleteSecret(id))?;
+        server.append_event(SyncEvent::DeleteSecret(id))?;
 
         // Check that the server contains the client proof
         let proof = client.tree().head()?;
@@ -346,7 +346,7 @@ mod test {
         let (mut server, client, id) = mock_wal_server_client()?;
 
         // Add another event to the server from another client.
-        server.append_event(WalEvent::DeleteSecret(id))?;
+        server.append_event(SyncEvent::DeleteSecret(id))?;
 
         // Get the last record for our assertion
         let record = server.iter()?.next_back().unwrap()?;

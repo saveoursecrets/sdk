@@ -16,11 +16,8 @@ use sos_core::{
         Summary, Vault,
     },
 };
-use std::{
-    collections::HashSet,
-    future::Future,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashSet, future::Future, sync::Arc};
+use tokio::sync::RwLock;
 use url::Url;
 
 /// Client that communicates with a single server and
@@ -78,7 +75,7 @@ impl MemoryProvider {
         cache: ArcProvider,
     ) -> impl Future<Output = Result<()>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             writer.authenticate().await?;
             Ok::<(), Error>(())
         }
@@ -90,7 +87,7 @@ impl MemoryProvider {
         buffer: Vec<u8>,
     ) -> impl Future<Output = Result<Summary>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             let summary = writer.create_account_with_buffer(buffer).await?;
             Ok(summary)
         }
@@ -101,7 +98,7 @@ impl MemoryProvider {
         cache: ArcProvider,
     ) -> impl Future<Output = Result<Vec<Summary>>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             let vaults = writer.load_vaults().await?;
             Ok::<Vec<Summary>, Error>(vaults.to_vec())
         }
@@ -114,7 +111,7 @@ impl MemoryProvider {
         passphrase: SecretString,
     ) -> impl Future<Output = Result<Summary>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             let (_, summary) =
                 writer.create_vault(name, Some(passphrase)).await?;
             Ok::<Summary, Error>(summary)
@@ -127,7 +124,7 @@ impl MemoryProvider {
         summary: Summary,
     ) -> impl Future<Output = Result<()>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             writer.remove_vault(&summary).await?;
             Ok::<(), Error>(())
         }
@@ -140,7 +137,7 @@ impl MemoryProvider {
         force: bool,
     ) -> impl Future<Output = Result<SyncInfo>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             let info = writer.pull(&summary, force).await?;
             Ok::<SyncInfo, Error>(info)
         }
@@ -154,7 +151,7 @@ impl MemoryProvider {
         new_passphrase: SecretString,
     ) -> impl Future<Output = Result<()>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             writer
                 .change_password(&vault, current_passphrase, new_passphrase)
                 .await?;
@@ -169,7 +166,7 @@ impl MemoryProvider {
         name: String,
     ) -> impl Future<Output = Result<()>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             writer.set_vault_name(&summary, &name).await?;
             Ok::<(), Error>(())
         }
@@ -182,7 +179,7 @@ impl MemoryProvider {
         events: Vec<SyncEvent<'static>>,
     ) -> impl Future<Output = Result<()>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             writer.patch(&summary, events).await?;
             Ok::<(), Error>(())
         }
@@ -195,7 +192,7 @@ impl MemoryProvider {
     ) -> impl Future<Output = Result<(bool, HashSet<ChangeAction>)>> + 'static
     {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             let result = writer.handle_change(change).await?;
             Ok::<_, Error>(result)
         }
@@ -208,7 +205,7 @@ impl MemoryProvider {
         secret: Secret,
     ) -> impl Future<Output = Result<SyncEvent<'static>>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             let event = writer.create_secret(meta, secret).await?;
             Ok::<_, Error>(event.into_owned())
         }
@@ -221,7 +218,7 @@ impl MemoryProvider {
     ) -> impl Future<Output = Result<(SecretMeta, Secret, SyncEvent<'static>)>>
            + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             let (meta, secret, event) = writer.read_secret(&id).await?;
             let event = event.into_owned();
             Ok::<_, Error>((meta, secret, event))
@@ -236,7 +233,7 @@ impl MemoryProvider {
         secret: Secret,
     ) -> impl Future<Output = Result<SyncEvent<'static>>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             let event = writer.update_secret(&id, meta, secret).await?;
             Ok::<_, Error>(event.into_owned())
         }
@@ -248,7 +245,7 @@ impl MemoryProvider {
         id: SecretId,
     ) -> impl Future<Output = Result<SyncEvent<'static>>> + 'static {
         async move {
-            let mut writer = cache.write().unwrap();
+            let mut writer = cache.write().await;
             let event = writer.delete_secret(&id).await?;
             Ok::<_, Error>(event.into_owned())
         }

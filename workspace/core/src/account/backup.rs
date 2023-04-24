@@ -21,7 +21,7 @@ use crate::{
     },
     constants::{VAULT_EXT, WAL_EXT},
     decode, encode,
-    events::WalEvent,
+    events::SyncEvent,
     passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
@@ -518,7 +518,7 @@ impl AccountBackup {
                 // Write out the WAL file
                 let mut wal_events = Vec::new();
                 let create_vault =
-                    WalEvent::CreateVault(Cow::Borrowed(buffer));
+                    SyncEvent::CreateVault(Cow::Borrowed(buffer));
                 wal_events.push(create_vault);
                 let mut wal = WalFile::new(wal_path)?;
                 wal.apply(wal_events, None)?;
