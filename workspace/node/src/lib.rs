@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+#![allow(clippy::module_inception)]
 #![deny(missing_docs)]
 //! Library for network communication.
 

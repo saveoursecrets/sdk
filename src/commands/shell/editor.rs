@@ -179,7 +179,7 @@ fn edit_secret<'a>(
 }
 
 /// Edit a secret.
-pub fn edit<'a>(secret: &'a Secret) -> Result<EditResult<'a>> {
+pub fn edit(secret: &Secret) -> Result<EditResult<'_>> {
     let (content, suffix) = to_bytes(secret)?;
     edit_secret(secret, content, &suffix)
 }

@@ -115,13 +115,13 @@ where
         let status = if is_account {
             let (status, _) = retry!(
                 || self.client.create_account(buffer.clone()),
-                &mut self.client
+                self.client
             );
             status
         } else {
             let (status, _) = retry!(
                 || self.client.create_vault(buffer.clone()),
-                &mut self.client
+                self.client
             );
             status
         };
@@ -150,10 +150,8 @@ where
         let vault: Vault = decode(&buffer)?;
         let summary = vault.summary().clone();
 
-        let (status, _) = retry!(
-            || self.client.create_vault(buffer.clone()),
-            &mut self.client
-        );
+        let (status, _) =
+            retry!(|| self.client.create_vault(buffer.clone()), self.client);
 
         status
             .is_success()
@@ -182,7 +180,7 @@ where
 
         let (status, _) = retry!(
             || self.client.create_account(buffer.clone()),
-            &mut self.client
+            self.client
         );
 
         status
@@ -209,7 +207,7 @@ where
 
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
         let (_, summaries) =
-            retry!(|| self.client.list_vaults(), &mut self.client);
+            retry!(|| self.client.list_vaults(), self.client);
 
         self.load_caches(&summaries)?;
 
@@ -270,10 +268,8 @@ where
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Attempt to delete on the remote server
-        let (status, _) = retry!(
-            || self.client.delete_vault(summary.id()),
-            &mut self.client
-        );
+        let (status, _) =
+            retry!(|| self.client.delete_vault(summary.id()), self.client);
         status
             .is_success()
             .then_some(())
@@ -325,7 +321,7 @@ where
         let buffer = encode(vault)?;
         let (status, server_proof) = retry!(
             || self.client.save_vault(summary.id(), buffer.clone()),
-            &mut self.client
+            self.client
         );
         status
             .is_success()

@@ -38,10 +38,7 @@ where
     let equals = client_proof.root() == server_proof.root();
 
     let comparison = wal_file.tree().compare(&server_proof)?;
-    let can_push_safely = match comparison {
-        Comparison::Contains(_, _) => true,
-        _ => false,
-    };
+    let can_push_safely = matches!(comparison, Comparison::Contains(_, _));
 
     let status = if force {
         SyncKind::Force

@@ -63,10 +63,7 @@ where
         CommitRelationship::Behind(pair, diff)
     } else {
         let comparison = wal_file.tree().compare(&server_proof)?;
-        let is_ahead = match comparison {
-            Comparison::Contains(_, _) => true,
-            _ => false,
-        };
+        let is_ahead = matches!(comparison, Comparison::Contains(_, _));
 
         if is_ahead {
             let (diff, _) =

@@ -50,8 +50,8 @@ async fn append_audit_logs<'a>(
 }
 
 /// Send change notifications to connected clients.
-fn send_notification<'a>(
-    writer: &mut RwLockWriteGuard<'a, State>,
+fn send_notification(
+    writer: &mut RwLockWriteGuard<'_, State>,
     _caller: &Caller,
     notification: ChangeNotification,
 ) {

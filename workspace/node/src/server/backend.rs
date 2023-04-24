@@ -467,7 +467,7 @@ impl BackendHandler for FileSystemBackend {
     async fn list(&self, owner: &Address) -> Result<Vec<Summary>> {
         let mut summaries = Vec::new();
         if let Some(account) = self.accounts.get(owner) {
-            for (id, _) in account {
+            for id in account.keys() {
                 let mut vault_path = self.wal_file_path(owner, id);
                 vault_path.set_extension(VAULT_EXT);
                 let summary = Header::read_summary_file(&vault_path)?;
