@@ -1,7 +1,8 @@
 //! List local accounts and find folders.
-use std::path::PathBuf;
+use std::{path::PathBuf, fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
+use web3_address::ethereum::Address;
 
 use crate::{
     constants::VAULT_EXT,
@@ -46,6 +47,36 @@ impl AccountInfo {
         self.label = label;
     }
 }
+
+/// Reference to an account using an address or a named label.
+#[derive(Debug, Clone)]
+pub enum AccountRef {
+    /// Account identifier.
+    Address(Address),
+    /// Account label.
+    Name(String),
+}
+
+impl fmt::Display for AccountRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Address(address) => write!(f, "{}", address),
+            Self::Name(name) => write!(f, "{}", name),
+        }
+    }
+}
+
+impl FromStr for AccountRef {
+    type Err = Error;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        if let Ok(address) = s.parse::<Address>() {
+            Ok(Self::Address(address))
+        } else {
+            Ok(Self::Name(s.to_string()))
+        }
+    }
+}
+
 
 /// Inspect the local accounts directory.
 #[derive(Default)]

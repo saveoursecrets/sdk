@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use super::{exec, ShellState};
-use sos_core::storage::StorageDirs;
+use sos_core::{storage::StorageDirs, account::AccountRef};
 use terminal_banner::{Banner, Padding};
 
 use sos_node::{client::provider::ProviderFactory, FileLocks};
@@ -29,7 +29,7 @@ Type "quit" or "q" to exit"#;
 
 pub async fn run(
     provider: Option<ProviderFactory>,
-    account_name: String,
+    account: AccountRef,
 ) -> Result<()> {
     let cache_dir = StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
     if !cache_dir.is_dir() {
@@ -40,7 +40,7 @@ pub async fn run(
     let mut locks = FileLocks::new();
     locks.add(&cache_lock)?;
 
-    let (user, _) = sign_in(&account_name)?;
+    let (user, _) = sign_in(&account)?;
 
     let factory = provider.unwrap_or_default();
     let (provider, address) =

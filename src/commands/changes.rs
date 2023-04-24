@@ -1,6 +1,6 @@
 //! Listen for changes events on the server sent events channel.
 use futures::stream::StreamExt;
-use sos_core::{signer::ecdsa::BoxedEcdsaSigner, url::Url};
+use sos_core::{signer::ecdsa::BoxedEcdsaSigner, url::Url, account::AccountRef};
 use sos_node::client::net::changes::{changes, connect};
 
 use crate::helpers::account::sign_in;
@@ -25,8 +25,8 @@ async fn changes_stream(
 }
 
 /// Start a monitor listening for events on the SSE stream.
-pub async fn run(server: Url, account_name: String) -> Result<()> {
-    let (user, _) = sign_in(&account_name)?;
+pub async fn run(server: Url, account: AccountRef) -> Result<()> {
+    let (user, _) = sign_in(&account)?;
     let signer = user.identity().signer().clone();
     if let Err(e) = changes_stream(server, signer).await {
         tracing::error!("{}", e);

@@ -6,7 +6,7 @@ use sos::{
     },
     Result,
 };
-use sos_core::url::Url;
+use sos_core::{url::Url, account::AccountRef};
 use sos_node::client::provider::ProviderFactory;
 use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -37,9 +37,9 @@ enum Command {
         #[clap(short, long)]
         server: Url,
 
-        /// Account name.
+        /// Account name or address.
         #[clap(short, long)]
-        account_name: String,
+        account: AccountRef,
     },
     /// Check file status and integrity.
     Check {
@@ -84,8 +84,8 @@ enum Command {
         #[clap(short, long)]
         provider: Option<ProviderFactory>,
 
-        /// Account name.
-        account_name: String,
+        /// Account name or address.
+        account: AccountRef,
     },
 }
 
@@ -96,13 +96,13 @@ async fn run() -> Result<()> {
         Command::Audit { cmd } => audit::run(cmd)?,
         Command::Changes {
             server,
-            account_name,
-        } => changes::run(server, account_name).await?,
+            account,
+        } => changes::run(server, account).await?,
         Command::Check { cmd } => check::run(cmd)?,
         Command::Shell {
             provider,
-            account_name,
-        } => shell::run(provider, account_name).await?,
+            account,
+        } => shell::run(provider, account).await?,
         Command::Server {
             audit_log,
             reap_interval,

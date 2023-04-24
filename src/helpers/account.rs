@@ -6,7 +6,7 @@ use sos_core::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
         AuthenticatedUser, ExtractFilesLocation, LocalAccounts, Login,
-        RestoreOptions,
+        RestoreOptions, AccountRef,
     },
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
@@ -39,13 +39,15 @@ pub fn list_accounts(verbose: bool) -> Result<()> {
 
 /// Print account info.
 pub async fn account_info(
-    account_name: &str,
+    account: &AccountRef,
     verbose: bool,
     system: bool,
 ) -> Result<()> {
-    let (user, _) = sign_in(account_name)?;
+    let (user, _) = sign_in(account)?;
     let folders =
         LocalAccounts::list_local_vaults(user.identity().address(), system)?;
+
+    println!("{} {}", user.account().address(), user.account().label());
     for (summary, _) in folders {
         if verbose {
             println!("{} {}", summary.id(), summary.name());
@@ -56,9 +58,19 @@ pub async fn account_info(
     Ok(())
 }
 
+/// Rename an account.
+pub fn account_rename(
+    account: &AccountRef,
+    name: String,
+) -> Result<()> {
+    let (mut user, _) = sign_in(account)?;
+    user.rename_account(name)?;
+    Ok(())
+}
+
 /// Create a backup zip archive.
 pub fn account_backup(
-    account_name: &str,
+    account: &AccountRef,
     output: PathBuf,
     force: bool,
 ) -> Result<()> {
@@ -66,8 +78,8 @@ pub fn account_backup(
         return Err(Error::FileExists(output));
     }
 
-    let account = find_account(account_name)?
-        .ok_or(Error::NoAccount(account_name.to_string()))?;
+    let account = find_account(account)?
+        .ok_or(Error::NoAccount(account.to_string()))?;
     AccountBackup::export_archive_file(&output, account.address())?;
     Ok(())
 }
@@ -91,7 +103,7 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
             return Ok(None);
         }
 
-        let (user, _) = sign_in(account.label())?;
+        let (user, _) = sign_in(&AccountRef::Name(account.label().to_owned()))?;
         let factory = ProviderFactory::Local;
         let (provider, _) =
             factory.create_provider(user.identity().signer().clone())?;
@@ -119,9 +131,17 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     Ok(Some(account))
 }
 
-fn find_account(account_name: &str) -> Result<Option<AccountInfo>> {
+fn find_account(account: &AccountRef) -> Result<Option<AccountInfo>> {
     let accounts = LocalAccounts::list_accounts()?;
-    Ok(accounts.into_iter().find(|a| a.label() == account_name))
+    match account {
+        AccountRef::Address(address) => {
+            let address = address.to_string();
+            Ok(accounts.into_iter().find(|a| a.address() == address))
+        }
+        AccountRef::Name(label) => {
+            Ok(accounts.into_iter().find(|a| a.label() == label))
+        }
+    }
 }
 
 fn find_account_by_address(address: &str) -> Result<Option<AccountInfo>> {
@@ -131,10 +151,10 @@ fn find_account_by_address(address: &str) -> Result<Option<AccountInfo>> {
 
 /// Helper to sign in to an account.
 pub fn sign_in(
-    account_name: &str,
+    account: &AccountRef,
 ) -> Result<(AuthenticatedUser, SecretString)> {
-    let account = find_account(account_name)?
-        .ok_or(Error::NoAccount(account_name.to_string()))?;
+    let account = find_account(account)?
+        .ok_or(Error::NoAccount(account.to_string()))?;
 
     let passphrase = read_password(Some("Password: "))?;
     let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
@@ -151,9 +171,9 @@ pub fn sign_in(
 /// Switch to a different account.
 pub async fn switch(
     factory: &ProviderFactory,
-    account_name: String,
+    account: &AccountRef,
 ) -> Result<(BoxedProvider, Address)> {
-    let (user, _) = sign_in(&account_name)?;
+    let (user, _) = sign_in(account)?;
     Ok(factory.create_provider(user.identity().signer().clone())?)
 }
 

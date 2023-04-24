@@ -12,7 +12,7 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    account::{AuthenticatedUser, DelegatedPassphrase},
+    account::{AuthenticatedUser, DelegatedPassphrase, AccountRef},
     commit::SyncKind,
     hex,
     passwd::diceware::generate_passphrase,
@@ -82,11 +82,6 @@ enum ShellCommand {
         cmd: AccountCommand,
     },
 
-    /// Rename this account.
-    Rename {
-        /// Name for the account.
-        name: String,
-    },
     /// List folders.
     Folders,
     /// Create a new folder.
@@ -178,8 +173,8 @@ enum ShellCommand {
     /// Switch identity.
     #[clap(alias = "su")]
     Switch {
-        /// Account name.
-        account_name: String,
+        /// Account name or address.
+        account: AccountRef,
     },
     /// Print the current identity.
     Whoami,
@@ -515,22 +510,24 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             Ok(())
         }
         ShellCommand::Account { cmd } => {
+            let mut new_name: Option<String> = None;
+            match &cmd {
+                AccountCommand::Rename { name, .. } => {
+                    new_name = Some(name.to_owned());
+                }
+                _ => {}
+            }
+
             crate::commands::account::run(cmd).await?;
 
-            /*
-            let mut writer = state.write().await;
-            writer.user.rename_account(name)?;
-            println!("account renamed ✓");
-            */
+            if let Some(new_name) = new_name {
+                let mut writer = state.write().await;
+                writer.user.rename_account(new_name)?;
+            }
+
             Ok(())
         }
 
-        ShellCommand::Rename { name } => {
-            let mut writer = state.write().await;
-            writer.user.rename_account(name)?;
-            println!("account renamed ✓");
-            Ok(())
-        }
         ShellCommand::Folders => {
             let mut writer = cache.write().await;
             let summaries = writer.load_vaults().await?;
@@ -1015,12 +1012,12 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             Ok(())
         }
-        ShellCommand::Switch { account_name } => {
+        ShellCommand::Switch { account } => {
             let reader = state.read().await;
             let factory = &reader.factory;
 
             let (mut provider, address) =
-                switch(factory, account_name).await?;
+                switch(factory, &account).await?;
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately

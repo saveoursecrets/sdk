@@ -1,10 +1,11 @@
 use clap::Subcommand;
 use std::path::PathBuf;
 
+use sos_core::account::AccountRef;
+
 use crate::{
     helpers::account::{
-        account_backup, account_info, account_restore, list_accounts,
-        local_signup,
+        account_backup, account_info, account_restore, list_accounts, account_rename, local_signup,
     },
     Result,
 };
@@ -37,8 +38,8 @@ pub enum Command {
         #[clap(short, long)]
         system: bool,
 
-        /// Account name.
-        account_name: String,
+        /// Account name or address.
+        account: AccountRef,
     },
     /// Create secure backup as a zip archive.
     Backup {
@@ -50,14 +51,23 @@ pub enum Command {
         #[clap(short, long)]
         force: bool,
 
-        /// Account name.
-        account_name: String,
+        /// Account name or address.
+        account: AccountRef,
     },
     /// Restore account from secure backup.
     Restore {
         /// Input zip archive.
         #[clap(short, long)]
         input: PathBuf,
+    },
+    /// Rename an account.
+    Rename {
+        /// Name for the account.
+        #[clap(short, long)]
+        name: String,
+
+        /// Account name or address.
+        account: AccountRef,
     },
 }
 
@@ -70,23 +80,27 @@ pub async fn run(cmd: Command) -> Result<()> {
             list_accounts(verbose)?;
         }
         Command::Info {
-            account_name,
+            account,
             verbose,
             system,
         } => {
-            account_info(&account_name, verbose, system).await?;
+            account_info(&account, verbose, system).await?;
         }
         Command::Backup {
-            account_name,
+            account,
             output,
             force,
         } => {
-            account_backup(&account_name, output, force)?;
+            account_backup(&account, output, force)?;
         }
         Command::Restore { input } => {
             if let Some(account) = account_restore(input).await? {
                 println!("{} ({}) ✓", account.label(), account.address());
             }
+        }
+        Command::Rename { name, account } => {
+            account_rename(&account, name)?;
+            println!("account renamed ✓");
         }
     }
 
