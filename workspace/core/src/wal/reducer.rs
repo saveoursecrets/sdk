@@ -12,7 +12,7 @@ use std::{borrow::Cow, collections::HashMap};
 use crate::{
     crypto::AeadPack,
     decode, encode,
-    events::WalEvent,
+    events::SyncEvent,
     vault::{secret::SecretId, Vault, VaultCommit},
     wal::{WalItem, WalProvider},
     Error, Result,
@@ -42,15 +42,15 @@ impl<'a> WalReducer<'a> {
     ///
     /// The truncated vault represents the header of the vault and
     /// has no contents.
-    pub fn split(vault: Vault) -> Result<(Vault, Vec<WalEvent<'static>>)> {
+    pub fn split(vault: Vault) -> Result<(Vault, Vec<SyncEvent<'static>>)> {
         let mut events = Vec::with_capacity(vault.len() + 1);
         let header = vault.header().clone();
         let head = Vault::from(header);
 
         let buffer = encode(&head)?;
-        events.push(WalEvent::CreateVault(Cow::Owned(buffer)));
+        events.push(SyncEvent::CreateVault(Cow::Owned(buffer)));
         for (id, entry) in vault {
-            let event = WalEvent::CreateSecret(id, Cow::Owned(entry));
+            let event = SyncEvent::CreateSecret(id, Cow::Owned(entry));
             events.push(event);
         }
 
@@ -69,31 +69,32 @@ impl<'a> WalReducer<'a> {
             let log = first?;
             let event = wal.event_data(&log)?;
 
-            if let WalEvent::CreateVault(vault) = event {
+            if let SyncEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
                 for record in it {
                     let log = record?;
                     let event = wal.event_data(&log)?;
                     match event {
-                        WalEvent::Noop => unreachable!(),
-                        WalEvent::CreateVault(_) => {
+                        SyncEvent::Noop => unreachable!(),
+                        SyncEvent::CreateVault(_) => {
                             return Err(Error::WalCreateEventOnlyFirst)
                         }
-                        WalEvent::SetVaultName(name) => {
+                        SyncEvent::SetVaultName(name) => {
                             self.vault_name = Some(name.clone());
                         }
-                        WalEvent::SetVaultMeta(meta) => {
+                        SyncEvent::SetVaultMeta(meta) => {
                             self.vault_meta = Some(meta.clone());
                         }
-                        WalEvent::CreateSecret(id, entry) => {
+                        SyncEvent::CreateSecret(id, entry) => {
                             self.secrets.insert(id, entry.clone());
                         }
-                        WalEvent::UpdateSecret(id, entry) => {
+                        SyncEvent::UpdateSecret(id, entry) => {
                             self.secrets.insert(id, entry.clone());
                         }
-                        WalEvent::DeleteSecret(id) => {
+                        SyncEvent::DeleteSecret(id) => {
                             self.secrets.remove(&id);
                         }
+                        _ => {}
                     }
                 }
             } else {
@@ -118,7 +119,7 @@ impl<'a> WalReducer<'a> {
     /// the new series of events have been applied so callers
     /// must generate a new commit tree once the new WAL log has
     /// been created.
-    pub fn compact(self) -> Result<Vec<WalEvent<'a>>> {
+    pub fn compact(self) -> Result<Vec<SyncEvent<'a>>> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();
 
@@ -132,10 +133,10 @@ impl<'a> WalReducer<'a> {
             }
 
             let buffer = encode(&vault)?;
-            events.push(WalEvent::CreateVault(Cow::Owned(buffer)));
+            events.push(SyncEvent::CreateVault(Cow::Owned(buffer)));
             for (id, entry) in self.secrets {
                 let entry = entry.into_owned();
-                events.push(WalEvent::CreateSecret(id, Cow::Owned(entry)));
+                events.push(SyncEvent::CreateSecret(id, Cow::Owned(entry)));
             }
             Ok(events)
         } else {
@@ -196,7 +197,7 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = WalEvent::CreateVault(Cow::Owned(buffer));
+        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
         commits.push(wal.append_event(event)?);
 
         // Create a secret

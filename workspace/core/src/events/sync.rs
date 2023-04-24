@@ -9,7 +9,7 @@ use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
+use std::{borrow::Cow, cmp::Ordering};
 
 use crate::{
     crypto::AeadPack,
@@ -26,7 +26,7 @@ use super::EventKind;
 /// it on the server side to make changes to a vault
 /// we should decode to owned data hence the use of `Cow`
 /// to distinguish between borrowed and owned.
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum SyncEvent<'a> {
     /// Default variant, should never be used.
     ///
@@ -71,22 +71,34 @@ pub enum SyncEvent<'a> {
     DeleteSecret(SecretId),
 }
 
-/*
-/// SyncEvent with an attached signature.
-pub struct SignedSyncEvent([u8; 65], Vec<u8>);
-*/
+impl Ord for SyncEvent<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, &other) {
+            // NOTE: This sorting is important when we send a vault
+            // NOTE: to the server and it is split into a header-only
+            // NOTE: vault and WAL event records the sort order must
+            // NOTE: match the client order otherwise the root hashes
+            // NOTE: will be different.
+            //
+            // NOTE: We only care about the `CreateSecret` variant as
+            // NOTE: we know in this scenario that it is the only variant
+            // NOTE: in addition to the `CreateVault` start record.
+            (
+                SyncEvent::CreateSecret(a, _),
+                SyncEvent::CreateSecret(b, _),
+            ) => a.cmp(b),
+            _ => Ordering::Greater,
+        }
+    }
+}
+
+impl PartialOrd for SyncEvent<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 impl SyncEvent<'_> {
-    /*
-    /// Append a signature to a payload.
-    pub async fn sign(&self, signer: impl Signer) -> Result<SignedSyncEvent> {
-        let encoded = encode(self)?;
-        let signature = signer.sign(&encoded).await?;
-        let signature_bytes: [u8; 65] = signature.to_bytes();
-        Ok(SignedSyncEvent(signature_bytes, encoded))
-    }
-    */
-
     /// Determine if this payload would mutate state.
     ///
     /// Some payloads are purely for auditing and do not

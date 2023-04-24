@@ -10,7 +10,7 @@ use sos_core::{
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     crypto::secret_key::SecretKey,
     decode, encode,
-    events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    events::{ChangeAction, ChangeNotification, SyncEvent},
     patch::{PatchMemory, PatchProvider},
     search::SearchIndex,
     storage::StorageDirs,
@@ -314,7 +314,7 @@ where
         &mut self,
         summary: &Summary,
         vault: &Vault,
-        events: Vec<WalEvent<'a>>,
+        events: Vec<SyncEvent<'a>>,
     ) -> Result<()> {
         let (wal, _) = self
             .cache

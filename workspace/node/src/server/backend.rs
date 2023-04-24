@@ -4,7 +4,7 @@ use sos_core::{
     commit::{wal_commit_tree_file, CommitProof},
     constants::{VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
     decode, encode,
-    events::{SyncEvent, WalEvent},
+    events::SyncEvent,
     formats::WalFileRecord,
     vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
@@ -311,7 +311,7 @@ impl FileSystemBackend {
 
         // Create the WAL file
         let mut wal = WalFile::new(&wal_path)?;
-        let event = WalEvent::CreateVault(Cow::Borrowed(vault));
+        let event = SyncEvent::CreateVault(Cow::Borrowed(vault));
         wal.append_event(event)?;
 
         self.locks.add(&vault_path)?;

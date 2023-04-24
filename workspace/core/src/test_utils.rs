@@ -122,7 +122,7 @@ mod file {
         commit::CommitHash,
         crypto::secret_key::SecretKey,
         encode,
-        events::WalEvent,
+        events::SyncEvent,
         vault::Vault,
         wal::{file::WalFile, WalProvider},
     };
@@ -151,7 +151,7 @@ mod file {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = WalEvent::CreateVault(Cow::Owned(buffer));
+        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
         commits.push(wal.append_event(event)?);
 
         // Create a secret

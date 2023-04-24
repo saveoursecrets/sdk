@@ -12,7 +12,7 @@ use sos_core::{
     constants::VAULT_EXT,
     crypto::secret_key::SecretKey,
     decode, encode,
-    events::{ChangeAction, ChangeNotification, SyncEvent, WalEvent},
+    events::{ChangeAction, ChangeNotification, SyncEvent},
     patch::{PatchMemory, PatchProvider},
     search::SearchIndex,
     storage::StorageDirs,
@@ -154,7 +154,7 @@ where
         &mut self,
         summary: &Summary,
         vault: &Vault,
-        events: Vec<WalEvent<'a>>,
+        events: Vec<SyncEvent<'a>>,
     ) -> Result<()> {
         if self.state().mirror() {
             // Write the vault to disc
@@ -268,14 +268,13 @@ where
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
+        // FIXME: remove this
         // Store events in a patch file so networking
         // logic can see which events need to be synced
         let _patch = patch_file.append(events.clone())?;
 
-        // Append to the WAL file
-        for event in events {
-            wal.append_event(event.try_into()?)?;
-        }
+        // Apply events to the WAL file
+        wal.apply(events, None)?;
 
         Ok(())
     }
