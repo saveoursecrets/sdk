@@ -4,7 +4,6 @@ use sos_core::{
     secrecy,
     vault::{
         secret::{Secret, SecretMeta},
-        Summary,
     },
 };
 

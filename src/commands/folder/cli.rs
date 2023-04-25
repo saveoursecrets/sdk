@@ -318,14 +318,12 @@ async fn resolve_folder(
                 .cloned()
                 .ok_or(Error::VaultNotAvailable(vault))?,
         ))
+    } else if let Some(owner) = USER.get() {
+        let reader = owner.read().await;
+        let keeper =
+            reader.storage.current().ok_or(Error::NoVaultSelected)?;
+        Ok(Some(keeper.summary().clone()))
     } else {
-        if let Some(owner) = USER.get() {
-            let reader = owner.read().await;
-            let keeper =
-                reader.storage.current().ok_or(Error::NoVaultSelected)?;
-            Ok(Some(keeper.summary().clone()))
-        } else {
-            Ok(reader.storage.state().find_default_vault().cloned())
-        }
+        Ok(reader.storage.state().find_default_vault().cloned())
     }
 }
