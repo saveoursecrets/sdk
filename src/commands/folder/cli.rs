@@ -4,10 +4,7 @@ use std::path::PathBuf;
 use sos_core::account::AccountRef;
 use sos_core::vault::VaultRef;
 
-use crate::{
-    helpers::account::{},
-    Result,
-};
+use crate::Result;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -75,37 +72,37 @@ pub async fn run(cmd: Command) -> Result<()> {
 
     //match cmd {
 
-        /*
-        Command::New { name, folder_name } => {
-            local_signup(name, folder_name).await?;
+    /*
+    Command::New { name, folder_name } => {
+        local_signup(name, folder_name).await?;
+    }
+    Command::List { verbose } => {
+        list_accounts(verbose)?;
+    }
+    Command::Info {
+        account,
+        verbose,
+        system,
+    } => {
+        account_info(account, verbose, system).await?;
+    }
+    Command::Backup {
+        account,
+        output,
+        force,
+    } => {
+        account_backup(account, output, force)?;
+    }
+    Command::Restore { input } => {
+        if let Some(account) = account_restore(input).await? {
+            println!("{} ({}) ✓", account.label(), account.address());
         }
-        Command::List { verbose } => {
-            list_accounts(verbose)?;
-        }
-        Command::Info {
-            account,
-            verbose,
-            system,
-        } => {
-            account_info(account, verbose, system).await?;
-        }
-        Command::Backup {
-            account,
-            output,
-            force,
-        } => {
-            account_backup(account, output, force)?;
-        }
-        Command::Restore { input } => {
-            if let Some(account) = account_restore(input).await? {
-                println!("{} ({}) ✓", account.label(), account.address());
-            }
-        }
-        Command::Rename { name, account } => {
-            account_rename(account, name)?;
-            println!("account renamed ✓");
-        }
-        */
+    }
+    Command::Rename { name, account } => {
+        account_rename(account, name)?;
+        println!("account renamed ✓");
+    }
+    */
     //}
 
     Ok(())

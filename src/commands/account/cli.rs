@@ -92,7 +92,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             output,
             force,
         } => {
-            account_backup(account, output, force)?;
+            account_backup(account, output, force).await?;
         }
         Command::Restore { input } => {
             if let Some(account) = account_restore(input).await? {
@@ -100,7 +100,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
         }
         Command::Rename { name, account } => {
-            account_rename(account, name)?;
+            account_rename(account, name).await?;
             println!("account renamed ✓");
         }
     }

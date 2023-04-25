@@ -14,8 +14,8 @@ pub use error::Error;
 /// Result type for the client module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 
-use sos_core::account::AuthenticatedUser;
 use provider::{BoxedProvider, ProviderFactory};
+use sos_core::account::AuthenticatedUser;
 
 /// Authenticated user with storage provider.
 pub struct UserStorage {

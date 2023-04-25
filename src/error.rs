@@ -1,4 +1,7 @@
-use sos_core::{vault::{secret::SecretRef, VaultRef}, vcard4};
+use sos_core::{
+    vault::{secret::SecretRef, VaultRef},
+    vcard4,
+};
 use std::path::PathBuf;
 use thiserror::Error;
 

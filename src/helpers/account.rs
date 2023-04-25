@@ -13,44 +13,44 @@ use sos_core::{
     secrecy::{ExposeSecret, SecretString},
     storage::StorageDirs,
 };
-use sos_node::{client::{provider::{BoxedProvider, ProviderFactory}, UserStorage}, peer::convert_libp2p_identity};
+use sos_node::{
+    client::{
+        provider::{BoxedProvider, ProviderFactory},
+        UserStorage,
+    },
+    peer::convert_libp2p_identity,
+};
 use terminal_banner::{Banner, Padding};
+use tokio::sync::RwLock;
 use web3_address::ethereum::Address;
-
-use parking_lot::RwLock;
 
 use crate::helpers::{
     display_passphrase,
     readline::{read_flag, read_password},
 };
 
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 
 use crate::{Error, Result};
 
-/// A current account reference so that commands executed from the shell
-/// REPL context can use the current authenticated account for commands
-/// that require an account option.
-static CURRENT_ACCOUNT: Lazy<RwLock<Option<AccountRef>>> =
-    Lazy::new(|| RwLock::new(None));
-
-/// Set the current account reference.
-pub fn set_current_account(account: AccountRef) {
-    let mut writer = CURRENT_ACCOUNT.write();
-    *writer = Some(account);
-}
+/// Current user for the shell REPL.
+pub(crate) static USER: OnceCell<Arc<RwLock<UserStorage>>> = OnceCell::new();
 
 /// Take the optional account reference and resolve it.
 ///
 /// If the argument was given use it, otherwise look for an explicit
-/// account using CURRENT_ACCOUNT otherwise if there is only a single
+/// account using the current shell USER otherwise if there is only a single
 /// account use it.
-pub fn resolve_account(account: Option<AccountRef>) -> Option<AccountRef> {
+pub async fn resolve_account(
+    account: Option<AccountRef>,
+) -> Option<AccountRef> {
     if account.is_none() {
-        let reader = CURRENT_ACCOUNT.read();
-        if reader.is_some() {
-            return reader.as_ref().cloned();
+        if let Some(owner) = USER.get() {
+            let reader = owner.read().await;
+            let account: AccountRef = reader.user.account().into();
+            return Some(account);
         }
+
         if let Ok(mut accounts) = LocalAccounts::list_accounts() {
             if accounts.len() == 1 {
                 return Some(accounts.remove(0).into());
@@ -79,8 +79,9 @@ pub async fn account_info(
     verbose: bool,
     system: bool,
 ) -> Result<()> {
-    let account =
-        resolve_account(account).ok_or_else(|| Error::NoAccountFound)?;
+    let account = resolve_account(account)
+        .await
+        .ok_or_else(|| Error::NoAccountFound)?;
 
     let (user, _) = sign_in(&account)?;
     let folders =
@@ -98,12 +99,13 @@ pub async fn account_info(
 }
 
 /// Rename an account.
-pub fn account_rename(
+pub async fn account_rename(
     account: Option<AccountRef>,
     name: String,
 ) -> Result<()> {
-    let account =
-        resolve_account(account).ok_or_else(|| Error::NoAccountFound)?;
+    let account = resolve_account(account)
+        .await
+        .ok_or_else(|| Error::NoAccountFound)?;
 
     let (mut user, _) = sign_in(&account)?;
     user.rename_account(name)?;
@@ -111,13 +113,14 @@ pub fn account_rename(
 }
 
 /// Create a backup zip archive.
-pub fn account_backup(
+pub async fn account_backup(
     account: Option<AccountRef>,
     output: PathBuf,
     force: bool,
 ) -> Result<()> {
-    let account =
-        resolve_account(account).ok_or_else(|| Error::NoAccountFound)?;
+    let account = resolve_account(account)
+        .await
+        .ok_or_else(|| Error::NoAccountFound)?;
 
     if !force && output.exists() {
         return Err(Error::FileExists(output));
@@ -218,14 +221,21 @@ pub fn sign_in(
 pub async fn switch(
     factory: ProviderFactory,
     account: &AccountRef,
-) -> Result<UserStorage> {
+) -> Result<Arc<RwLock<UserStorage>>> {
     let (user, _) = sign_in(account)?;
-    let (storage, _) = factory.create_provider(user.identity().signer().clone())?;
+    let (storage, _) =
+        factory.create_provider(user.identity().signer().clone())?;
     let peer_key = convert_libp2p_identity(user.device().signer())?;
-    let owner = UserStorage { user, storage, peer_key, factory };
 
-    //set_current_account(user.account().into());
+    let mut writer = USER.get().unwrap().write().await;
+    *writer = UserStorage {
+        user,
+        storage,
+        peer_key,
+        factory,
+    };
 
+    let owner = Arc::clone(USER.get().unwrap());
     Ok(owner)
 }
 

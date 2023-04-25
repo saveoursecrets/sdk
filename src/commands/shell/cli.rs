@@ -6,14 +6,17 @@ use terminal_banner::{Banner, Padding};
 
 use sos_node::{
     client::{provider::ProviderFactory, UserStorage},
-    FileLocks,
     peer::convert_libp2p_identity,
+    FileLocks,
 };
 
 use tokio::sync::RwLock;
 
 use crate::{
-    helpers::{account::{set_current_account, sign_in}, readline},
+    helpers::{
+        account::{sign_in, USER},
+        readline,
+    },
     Error, Result,
 };
 
@@ -48,7 +51,6 @@ pub async fn run(
     locks.add(&cache_lock)?;
 
     let (user, _) = sign_in(&account)?;
-    set_current_account(user.account().into());
 
     let factory = provider.unwrap_or_default();
     let (mut storage, _) =
@@ -58,8 +60,8 @@ pub async fn run(
     // Authenticate and load initial vaults
     storage.authenticate().await?;
     storage.load_vaults().await?;
-    
-    // FIXME: support ephemeral device signer for when the CLI 
+
+    // FIXME: support ephemeral device signer for when the CLI
     // FIXME: is running on the same device as a GUI
     let peer_key = convert_libp2p_identity(user.device().signer())?;
 
@@ -85,7 +87,7 @@ pub async fn run(
     */
 
     // Prepare state for shell execution
-    let state = Arc::new(RwLock::new(owner));
+    let state = USER.get_or_init(|| Arc::new(RwLock::new(owner)));
 
     let mut rl = readline::basic_editor()?;
     loop {
