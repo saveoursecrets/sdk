@@ -1,6 +1,5 @@
 use clap::Subcommand;
 
-
 use sos_core::account::AccountRef;
 use sos_core::vault::VaultRef;
 

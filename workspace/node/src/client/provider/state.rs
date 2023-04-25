@@ -5,10 +5,7 @@ use super::{Error, Result};
 use sos_core::{
     search::SearchIndex,
     secrecy::SecretString,
-    vault::{
-        Gatekeeper, Summary, Vault, VaultFileAccess,
-        VaultRef,
-    },
+    vault::{Gatekeeper, Summary, Vault, VaultFileAccess, VaultRef},
 };
 
 use std::{path::PathBuf, sync::Arc};

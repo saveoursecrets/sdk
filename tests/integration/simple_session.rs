@@ -15,7 +15,7 @@ use sos_core::{
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
     storage::StorageDirs,
-    vault::{VaultRef},
+    vault::VaultRef,
 };
 use sos_node::client::{
     net::{

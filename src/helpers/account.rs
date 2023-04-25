@@ -14,15 +14,11 @@ use sos_core::{
     storage::StorageDirs,
 };
 use sos_node::{
-    client::{
-        provider::{ProviderFactory},
-        UserStorage,
-    },
+    client::{provider::ProviderFactory, UserStorage},
     peer::convert_libp2p_identity,
 };
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
-
 
 use crate::helpers::{
     display_passphrase,

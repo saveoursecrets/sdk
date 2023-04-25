@@ -36,8 +36,8 @@ pub struct DeviceSigner {
     summary: Summary,
     /// The signing key for this device.
     signer: BoxedEd25519Signer,
-    /// The address of this device.
-    address: String,
+    /// The id of this device; Base58 encoded device public key.
+    public_id: String,
 }
 
 impl DeviceSigner {
@@ -52,9 +52,9 @@ impl DeviceSigner {
         &self.signer
     }
 
-    /// Address of the device signing key.
-    pub fn address(&self) -> &str {
-        &self.address
+    /// Identifier of the device public key.
+    pub fn public_id(&self) -> &str {
+        &self.public_id
     }
 
     /// Get the verifying key.
@@ -228,11 +228,11 @@ impl Login {
             {
                 let key: ed25519::SingleParty =
                     data.expose_secret().as_slice().try_into()?;
-                let address = key.address()?;
+                let public_id = key.address()?;
                 Ok(DeviceSigner {
                     summary,
                     signer: Box::new(key),
-                    address,
+                    public_id,
                 })
             } else {
                 Err(Error::VaultEntryKind(urn.to_string()))
@@ -261,7 +261,7 @@ impl Login {
             device_keeper.unlock(device_passphrase)?;
 
             let key = ed25519::SingleParty::new_random();
-            let device_address = key.address()?;
+            let public_id = key.address()?;
 
             let secret = Secret::Signer {
                 private_key: key.clone().into(),
@@ -286,7 +286,7 @@ impl Login {
             Ok(DeviceSigner {
                 summary,
                 signer: Box::new(key),
-                address: device_address,
+                public_id,
             })
         }
     }

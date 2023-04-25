@@ -8,7 +8,6 @@ use clap::{CommandFactory, Parser, Subcommand};
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
 
-
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
@@ -25,9 +24,7 @@ use sos_core::{
         Vault, VaultAccess, VaultCommit, VaultEntry, VaultRef,
     },
 };
-use sos_node::client::{
-    UserStorage,
-};
+use sos_node::client::UserStorage;
 
 use crate::{
     commands::AccountCommand,
