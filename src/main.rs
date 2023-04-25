@@ -58,7 +58,7 @@ enum Command {
     /// Peer to peer rendezvous server.
     Rendezvous {
         /// Hex encoded 32 byte Ed25519 secret key.
-        #[clap(short, long, env, hide_env_values = true)]
+        #[clap(short, long, env = "SOS_IDENTITY", hide_env_values = true)]
         identity: Option<String>,
 
         /// Bind address.
