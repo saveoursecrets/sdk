@@ -1,4 +1,4 @@
-use sos_core::{vault::secret::SecretRef, vcard4};
+use sos_core::{vault::{secret::SecretRef, VaultRef}, vcard4};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -37,7 +37,7 @@ pub enum Error {
     #[error(
         r#"folder "{0}" not found, run "folders" to load the folder list"#
     )]
-    VaultNotAvailable(SecretRef),
+    VaultNotAvailable(VaultRef),
 
     #[error(r#"no folder selected, run "use" to select a folder"#)]
     NoVaultSelected,

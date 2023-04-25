@@ -5,7 +5,7 @@ use super::{Error, Result};
 use sos_core::{
     search::SearchIndex,
     secrecy::SecretString,
-    vault::{secret::SecretRef, Gatekeeper, Summary, Vault, VaultFileAccess},
+    vault::{secret::SecretRef, Gatekeeper, Summary, Vault, VaultFileAccess, VaultRef},
 };
 
 use std::{path::PathBuf, sync::Arc};
@@ -85,12 +85,12 @@ impl ProviderState {
     }
 
     /// Find a summary in this state.
-    pub fn find_vault(&self, vault: &SecretRef) -> Option<&Summary> {
+    pub fn find_vault(&self, vault: &VaultRef) -> Option<&Summary> {
         match vault {
-            SecretRef::Name(name) => {
+            VaultRef::Name(name) => {
                 self.summaries.iter().find(|s| s.name() == name)
             }
-            SecretRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
+            VaultRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
         }
     }
 

@@ -220,10 +220,13 @@ pub async fn switch(
     account: &AccountRef,
 ) -> Result<UserStorage> {
     let (user, _) = sign_in(account)?;
-    set_current_account(user.account().into());
     let (storage, _) = factory.create_provider(user.identity().signer().clone())?;
     let peer_key = convert_libp2p_identity(user.device().signer())?;
-    Ok(UserStorage { user, storage, peer_key } )
+    let owner = UserStorage { user, storage, peer_key, factory };
+
+    //set_current_account(user.account().into());
+
+    Ok(owner)
 }
 
 /// Create a new local account.

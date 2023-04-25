@@ -5,7 +5,7 @@ use super::Result;
 use sos_core::{
     commit::CommitRelationship,
     events::{ChangeAction, ChangeEvent, ChangeNotification},
-    vault::secret::SecretRef,
+    vault::{secret::SecretRef, VaultRef},
 };
 
 use crate::client::provider::StorageProvider;
@@ -39,7 +39,7 @@ pub async fn handle_change(
     for action in &actions {
         let summary = provider
             .state()
-            .find_vault(&SecretRef::Id(*change.vault_id()))
+            .find_vault(&VaultRef::Id(*change.vault_id()))
             .cloned();
 
         if let Some(summary) = &summary {

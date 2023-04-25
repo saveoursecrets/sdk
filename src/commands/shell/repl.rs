@@ -22,7 +22,7 @@ use sos_core::{
     url::Url,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef},
-        Vault, VaultAccess, VaultCommit, VaultEntry,
+        Vault, VaultAccess, VaultCommit, VaultEntry, VaultRef,
     },
 };
 use sos_node::client::{provider::{BoxedProvider, ProviderFactory}, UserStorage};
@@ -43,14 +43,8 @@ use crate::{Error, Result};
 
 use super::{editor, print};
 
-/// Encapsulates the state for the shell REPL.
-pub struct ShellState {
-    pub factory: ProviderFactory,
-    pub owner: UserStorage,
-}
-
 /// Type for the root shell data.
-pub type ShellData = Arc<RwLock<ShellState>>;
+type ShellData = Arc<RwLock<UserStorage>>;
 
 enum ConflictChoice {
     Push,
@@ -81,7 +75,7 @@ enum ShellCommand {
     /// Select a folder.
     Use {
         /// Vault reference, it's name or identifier.
-        vault: Option<SecretRef>,
+        vault: Option<VaultRef>,
     },
 
     /// List folders.
@@ -94,7 +88,7 @@ enum ShellCommand {
     /// Delete a folder.
     Remove {
         /// Folder reference, it's name or identifier.
-        vault: SecretRef,
+        vault: VaultRef,
     },
     /// Print information about the selected folder.
     Info,
@@ -221,7 +215,7 @@ async fn find_secret_meta(
     secret: &SecretRef,
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let reader = state.read().await;
-    let keeper = reader.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+    let keeper = reader.storage.current().ok_or(Error::NoVaultSelected)?;
     let index = keeper.index();
     let index_reader = index.read();
     if let Some(Document {
@@ -476,11 +470,11 @@ where
                 match choose(prompt, &options)? {
                     Some(choice) => match choice {
                         ConflictChoice::Pull => {
-                            writer.owner.storage.pull(&summary, true).await?;
+                            writer.storage.pull(&summary, true).await?;
                             Ok(())
                         }
                         ConflictChoice::Push => {
-                            writer.owner.storage.push(&summary, true).await?;
+                            writer.storage.push(&summary, true).await?;
                             Ok(())
                         }
                         ConflictChoice::Noop => Ok(()),
@@ -498,7 +492,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
     match program.cmd {
         ShellCommand::Authenticate => {
             let mut writer = state.write().await;
-            writer.owner.storage.authenticate().await?;
+            writer.storage.authenticate().await?;
             println!("session renewed ✓");
             Ok(())
         }
@@ -515,7 +509,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             if let Some(new_name) = new_name {
                 let mut writer = state.write().await;
-                writer.owner.user.rename_account(new_name)?;
+                writer.user.rename_account(new_name)?;
             }
 
             Ok(())
@@ -523,14 +517,14 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
         ShellCommand::Folders => {
             let mut writer = state.write().await;
-            let summaries = writer.owner.storage.load_vaults().await?;
+            let summaries = writer.storage.load_vaults().await?;
             print::summaries_list(summaries);
             Ok(())
         }
         ShellCommand::Create { name } => {
             let mut writer = state.write().await;
             let (passphrase, _summary) =
-                writer.owner.storage.create_vault(name, None).await?;
+                writer.storage.create_vault(name, None).await?;
             display_passphrase(
                 "ENCRYPTION PASSPHRASE",
                 passphrase.expose_secret(),
@@ -540,7 +534,6 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         ShellCommand::Remove { vault } => {
             let reader = state.read().await;
             let summary = reader
-                .owner
                 .storage
                 .state()
                 .find_vault(&vault)
@@ -555,7 +548,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             if read_flag(Some(&prompt))? {
                 let mut writer = state.write().await;
-                writer.owner.storage.remove_vault(&summary).await?;
+                writer.storage.remove_vault(&summary).await?;
             }
 
             Ok(())
@@ -566,7 +559,6 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let summary = if let Some(vault) = vault {
                 Some(
                     reader
-                        .owner
                         .storage
                         .state()
                         .find_vault(&vault)
@@ -574,7 +566,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                         .ok_or(Error::VaultNotAvailable(vault))?,
                 )
             } else {
-                reader.owner.storage.state().find_default_vault().cloned()
+                reader.storage.state().find_default_vault().cloned()
             };
 
             let summary = summary.ok_or(Error::NoVault)?;
@@ -582,27 +574,27 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             let state_reader = state.read().await;
             let passphrase = DelegatedPassphrase::find_vault_passphrase(
-                state_reader.owner.user.identity().keeper(),
+                state_reader.user.identity().keeper(),
                 summary.id(),
             )?;
             drop(state_reader);
 
             let mut writer = state.write().await;
-            writer.owner.storage.open_vault(&summary, passphrase, None)?;
-            writer.owner.storage.create_search_index()?;
+            writer.storage.open_vault(&summary, passphrase, None)?;
+            writer.storage.create_search_index()?;
 
             Ok(())
         }
         ShellCommand::Info => {
             let reader = state.read().await;
-            let keeper = reader.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+            let keeper = reader.storage.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary();
             println!("{}", summary);
             Ok(())
         }
         ShellCommand::Keys => {
             let reader = state.read().await;
-            let keeper = reader.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+            let keeper = reader.storage.current().ok_or(Error::NoVaultSelected)?;
             for uuid in keeper.vault().keys() {
                 println!("{}", uuid);
             }
@@ -610,7 +602,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::List { long } => {
             let reader = state.read().await;
-            if let Some(keeper) = reader.owner.storage.current() {
+            if let Some(keeper) = reader.storage.current() {
                 let index = keeper.index();
                 let index_reader = index.read();
                 let meta = index_reader.values();
@@ -635,7 +627,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         ShellCommand::Name { name } => {
             let mut writer = state.write().await;
             let keeper =
-                writer.owner.storage.current_mut().ok_or(Error::NoVaultSelected)?;
+                writer.storage.current_mut().ok_or(Error::NoVaultSelected)?;
             let (renamed, summary, name) = if let Some(name) = name {
                 keeper.set_vault_name(name.clone())?;
                 (true, keeper.summary().clone(), name)
@@ -649,7 +641,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             if renamed {
                 maybe_conflict(Arc::clone(&state), || async move {
                     let mut writer = state.write().await;
-                    writer.owner.storage.set_vault_name(&summary, &name).await
+                    writer.storage.set_vault_name(&summary, &name).await
                 })
                 .await
             } else {
@@ -658,12 +650,12 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::Status { verbose } => {
             let reader = state.read().await;
-            let keeper = reader.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+            let keeper = reader.storage.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
             drop(reader);
 
             let mut writer = state.write().await;
-            let (status, pending_events) = writer.owner.storage.status(&summary).await?;
+            let (status, pending_events) = writer.storage.status(&summary).await?;
             if verbose {
                 let pair = status.pair();
                 println!("local  = {}", pair.local.root_hex());
@@ -677,9 +669,9 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::Tree => {
             let reader = state.read().await;
-            let keeper = reader.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+            let keeper = reader.storage.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary();
-            if let Some(tree) = reader.owner.storage.commit_tree(summary) {
+            if let Some(tree) = reader.storage.commit_tree(summary) {
                 if let Some(leaves) = tree.leaves() {
                     for leaf in &leaves {
                         println!("{}", hex::encode(leaf));
@@ -695,7 +687,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         ShellCommand::Add { cmd } => {
             let mut writer = state.write().await;
             let _keeper =
-                writer.owner.storage.current_mut().ok_or(Error::NoVaultSelected)?;
+                writer.storage.current_mut().ok_or(Error::NoVaultSelected)?;
             let result = match cmd {
                 Add::Note { label } => add_note(label)?,
                 Add::List { label } => add_credentials(label)?,
@@ -710,7 +702,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             if let Some((meta, secret)) = result {
                 maybe_conflict(Arc::clone(&state), || async move {
                     let mut writer = state.write().await;
-                    writer.owner.storage.create_secret(meta, secret).await?;
+                    writer.storage.create_secret(meta, secret).await?;
                     Ok(())
                 })
                 .await
@@ -723,7 +715,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 .await?
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
             let mut writer = state.write().await;
-            let (meta, secret, _) = writer.owner.storage.read_secret(&uuid).await?;
+            let (meta, secret, _) = writer.storage.read_secret(&uuid).await?;
             print::secret(&meta, &secret)?;
             Ok(())
         }
@@ -735,7 +727,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             // Read in secret data for editing.
             let reader = state.read().await;
-            let keeper = reader.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+            let keeper = reader.storage.current().ok_or(Error::NoVaultSelected)?;
             let result =
                 if let Some((secret_meta, secret, _)) = keeper.read(&uuid)? {
                     Some((uuid, secret_meta, secret))
@@ -772,7 +764,6 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 maybe_conflict(Arc::clone(&state), || async move {
                     let mut writer = state.write().await;
                     writer
-                        .owner
                         .storage
                         .update_secret(&uuid, secret_meta, edited_secret)
                         .await?;
@@ -796,12 +787,12 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             if read_flag(Some(&prompt))? {
                 let mut writer = state.write().await;
                 let _keeper =
-                    writer.owner.storage.current_mut().ok_or(Error::NoVaultSelected)?;
+                    writer.storage.current_mut().ok_or(Error::NoVaultSelected)?;
                 drop(writer);
 
                 maybe_conflict(Arc::clone(&state), || async move {
                     let mut writer = state.write().await;
-                    writer.owner.storage.delete_secret(&uuid).await?;
+                    writer.storage.delete_secret(&uuid).await?;
                     Ok(())
                 })
                 .await
@@ -815,7 +806,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let reader = state.read().await;
-            let keeper = reader.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+            let keeper = reader.storage.current().ok_or(Error::NoVaultSelected)?;
             let result =
                 if let (Some(value), _) = keeper.vault().read(&uuid)? {
                     let VaultCommit(_, VaultEntry(meta_aead, secret_aead)) =
@@ -832,7 +823,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             let mut writer = state.write().await;
             let keeper =
-                writer.owner.storage.current_mut().ok_or(Error::NoVaultSelected)?;
+                writer.storage.current_mut().ok_or(Error::NoVaultSelected)?;
             let label = get_label(label)?;
             let summary = keeper.summary().clone();
 
@@ -853,7 +844,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             drop(writer);
             maybe_conflict(Arc::clone(&state), || async move {
                 let mut writer = state.write().await;
-                writer.owner.storage.patch(&summary, vec![event]).await
+                writer.storage.patch(&summary, vec![event]).await
             })
             .await
         }
@@ -862,7 +853,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 History::Compact => {
                     let reader = state.read().await;
                     let keeper =
-                        reader.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+                        reader.storage.current().ok_or(Error::NoVaultSelected)?;
                     let summary = keeper.summary().clone();
                     drop(reader);
 
@@ -870,7 +861,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                     if read_flag(prompt)? {
                         let mut writer = state.write().await;
                         let (old_size, new_size) =
-                            writer.owner.storage.compact(&summary).await?;
+                            writer.storage.compact(&summary).await?;
                         println!("Old: {}", human_bytes(old_size as f64));
                         println!("New: {}", human_bytes(new_size as f64));
                     }
@@ -879,17 +870,17 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 History::Check => {
                     let reader = state.read().await;
                     let keeper =
-                        reader.owner.storage.current().ok_or(Error::NoVaultSelected)?;
-                    reader.owner.storage.verify(keeper.summary())?;
+                        reader.storage.current().ok_or(Error::NoVaultSelected)?;
+                    reader.storage.verify(keeper.summary())?;
                     println!("Verified ✓");
                     Ok(())
                 }
                 History::List { long } => {
                     let reader = state.read().await;
                     let keeper =
-                        reader.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+                        reader.storage.current().ok_or(Error::NoVaultSelected)?;
 
-                    let records = reader.owner.storage.history(keeper.summary())?;
+                    let records = reader.storage.history(keeper.summary())?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if long {
@@ -904,9 +895,9 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::Pull { force } => {
             let mut writer = state.write().await;
-            let keeper = writer.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+            let keeper = writer.storage.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
-            let result = writer.owner.storage.pull(&summary, force).await?;
+            let result = writer.storage.pull(&summary, force).await?;
             match result.status {
                 SyncKind::Equal => println!("Up to date"),
                 SyncKind::Safe => {
@@ -927,9 +918,9 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::Push { force } => {
             let mut writer = state.write().await;
-            let keeper = writer.owner.storage.current().ok_or(Error::NoVaultSelected)?;
+            let keeper = writer.storage.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
-            let result = writer.owner.storage.push(&summary, force).await?;
+            let result = writer.storage.push(&summary, force).await?;
             match result.status {
                 SyncKind::Equal => println!("Up to date"),
                 SyncKind::Safe => {
@@ -951,7 +942,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         ShellCommand::Password => {
             let mut writer = state.write().await;
             let keeper =
-                writer.owner.storage.current_mut()
+                writer.storage.current_mut()
                     .ok_or(Error::NoVaultSelected)?;
 
             let banner = Banner::new()
@@ -984,7 +975,6 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
                 let vault: Vault = keeper.vault().clone();
 
                 let new_passphrase = writer
-                    .owner
                     .storage
                     .change_password(&vault, passphrase, new_passphrase)
                     .await?;
@@ -1025,23 +1015,23 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             owner.storage.load_vaults().await?;
 
             let mut writer = state.write().await;
-            writer.owner = owner;
+            *writer = owner;
 
             Ok(())
         }
         ShellCommand::Whoami => {
             let reader = state.read().await;
-            println!("{} {}", reader.owner.user.account().label(), reader.owner.user.identity().address());
+            println!("{} {}", reader.user.account().label(), reader.user.identity().address());
             Ok(())
         }
         ShellCommand::Close => {
             let mut writer = state.write().await;
-            writer.owner.storage.close_vault();
+            writer.storage.close_vault();
             Ok(())
         }
         ShellCommand::Quit => {
             let mut writer = state.write().await;
-            writer.owner.user.sign_out();
+            writer.user.sign_out();
             std::process::exit(0);
         }
     }

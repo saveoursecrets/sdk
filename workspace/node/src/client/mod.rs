@@ -15,7 +15,7 @@ pub use error::Error;
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 use sos_core::account::AuthenticatedUser;
-use provider::BoxedProvider;
+use provider::{BoxedProvider, ProviderFactory};
 
 /// Authenticated user with storage provider.
 pub struct UserStorage {
@@ -26,4 +26,6 @@ pub struct UserStorage {
     /// Key pair for peer to peer connections.
     #[cfg(feature = "peer")]
     pub peer_key: libp2p::identity::Keypair,
+    /// Factory user to create the storage provider.
+    pub factory: ProviderFactory,
 }

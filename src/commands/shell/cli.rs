@@ -1,6 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
-use super::{exec, ShellState};
+use super::exec;
 use sos_core::{account::AccountRef, storage::StorageDirs};
 use terminal_banner::{Banner, Padding};
 
@@ -13,7 +13,7 @@ use sos_node::{
 use tokio::sync::RwLock;
 
 use crate::{
-    helpers::account::{set_current_account, sign_in},
+    helpers::{account::{set_current_account, sign_in}, readline},
     Error, Result,
 };
 
@@ -53,18 +53,21 @@ pub async fn run(
     let factory = provider.unwrap_or_default();
     let (mut storage, _) =
         factory.create_provider(user.identity().signer().clone())?;
-
     welcome(&factory)?;
 
     // Authenticate and load initial vaults
     storage.authenticate().await?;
     storage.load_vaults().await?;
-
+    
+    // FIXME: support ephemeral device signer for when the CLI 
+    // FIXME: is running on the same device as a GUI
     let peer_key = convert_libp2p_identity(user.device().signer())?;
+
     let owner = UserStorage {
         user,
         storage,
         peer_key,
+        factory,
     };
 
     /*
@@ -81,20 +84,14 @@ pub async fn run(
     }
     */
 
-
     // Prepare state for shell execution
-    //let shell_cache = Arc::clone(&provider);
-    let state = Arc::new(RwLock::new(ShellState {
-        //provider: shell_cache,
-        factory,
-        owner,
-    }));
+    let state = Arc::new(RwLock::new(owner));
 
-    let mut rl = crate::helpers::readline::basic_editor()?;
+    let mut rl = readline::basic_editor()?;
     loop {
         let prompt_value = {
-            let cache = state.read().await;
-            if let Some(current) = cache.owner.storage.current() {
+            let owner = state.read().await;
+            if let Some(current) = owner.storage.current() {
                 format!("sos@{}> ", current.name())
             } else {
                 "sos> ".to_string()
