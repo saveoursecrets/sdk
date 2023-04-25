@@ -86,9 +86,15 @@ version = "0.1.1"
 [features]
 test-utils = ["dep:anyhow"]
 
+[build-dependencies]
+rustc_version = "0.4.0"
+
 [dev-dependencies]
 anyhow = "1"
 
 [package.metadata.release]
 tag = false
 shared-version = true
+
+[package.metadata.docs.rs]
+all-features = true

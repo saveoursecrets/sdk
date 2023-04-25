@@ -1,6 +1,7 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::module_inception)]
 #![deny(missing_docs)]
+#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Library for network communication.
 
 #[cfg(not(target_arch = "wasm32"))]

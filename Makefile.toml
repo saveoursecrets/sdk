@@ -52,9 +52,10 @@ args = ["build", "--bins", "--all", "--release", "--target", "aarch64-apple-darw
 command = "cargo"
 args = ["build", "--bins", "--all", "--release", "--target", "x86_64-apple-darwin"]
 
-[tasks.docs]
+[tasks.doc]
+toolchain = "nightly"
 command = "cargo"
-args = ["doc", "--all", "--open", "--no-deps"]
+args = ["doc", "--workspace", "--open", "--no-deps", "--all-features"]
 
 [tasks.unit]
 command = "cargo"

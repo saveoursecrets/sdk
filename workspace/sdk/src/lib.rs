@@ -1,6 +1,7 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::module_inception)]
 #![deny(missing_docs)]
+#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! High-level software development kit (SDK) for a
 //! distributed encrypted database that can be used
 //! to build password managers, cryptocurrency wallets
