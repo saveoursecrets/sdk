@@ -7,7 +7,7 @@ homepage = "https://saveoursecrets.com"
 license = "GPL-3.0"
 
 [dependencies]
-sos-core = { path = "../core", version = "0.1.0" }
+sos-core = { path = "../sdk", version = "0.1.0" }
 
 thiserror = "1"
 tracing = "0.1"

@@ -11,13 +11,13 @@ categories = ["command-line-utilities", "cryptography::cryptocurrencies", "authe
 
 [workspace]
 members = [
-  "workspace/core",
+  "workspace/sdk",
   "workspace/migrate",
   "workspace/node",
 ]
 
 [dependencies]
-sos-core = { path = "workspace/core" }
+sos-core = { path = "workspace/sdk" }
 thiserror = "1"
 clap = { version = "4", features = ["derive", "wrap_help", "env"] }
 tracing = "0.1"

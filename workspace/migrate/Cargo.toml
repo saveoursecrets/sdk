@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sos-core = { path = "../core", version = "0.1.0" }
+sos-core = { path = "../sdk", version = "0.1.0" }
 thiserror = "1"
 secrecy = { version = "0.8", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
@@ -24,7 +24,7 @@ logos = "0.12"
 plist = "1"
 
 [dev-dependencies]
-sos-core = { path = "../core", version = "0.1.0", features = ["test-utils"] }
+sos-core = { path = "../sdk", version = "0.1.0", features = ["test-utils"] }
 anyhow = "1"
 
 [features]
