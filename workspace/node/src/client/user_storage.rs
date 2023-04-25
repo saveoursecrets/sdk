@@ -1,6 +1,6 @@
 use sos_core::{
     account::{AuthenticatedUser, DelegatedPassphrase},
-    vault::Summary,
+    vault::{Summary, VaultAccess, VaultFileAccess},
 };
 
 use super::{
@@ -55,6 +55,30 @@ impl UserStorage {
             index.as_mut().ok_or(Error::NoSearchIndex)?.write();
         index_writer.remove_vault(summary.id());
         */
+
+        Ok(())
+    }
+
+    /// Rename a folder (vault).
+    pub async fn rename_folder(
+        &mut self,
+        summary: &Summary,
+        name: String,
+    ) -> Result<()> {
+        // Update the provider
+        self.storage.set_vault_name(summary, &name).await?;
+
+        // Now update the in-memory name for the current selected vault
+        if let Some(keeper) = self.storage.current_mut() {
+            if keeper.vault().id() == summary.id() {
+                keeper.set_vault_name(name.clone())?;
+            }
+        }
+
+        // Update the vault on disc
+        let vault_path = self.storage.vault_path(summary);
+        let mut access = VaultFileAccess::new(vault_path)?;
+        access.set_vault_name(name)?;
 
         Ok(())
     }

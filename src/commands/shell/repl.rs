@@ -30,7 +30,6 @@ use crate::{
     commands::{AccountCommand, FolderCommand},
     helpers::{
         account::switch,
-        display_passphrase,
         readline::{
             choose, read_flag, read_line, read_line_allow_empty,
             read_multiline, read_option, read_password, Choice,
@@ -82,23 +81,12 @@ enum ShellCommand {
         /// Vault reference, it's name or identifier.
         vault: Option<VaultRef>,
     },
-    /// Print information about the selected folder.
-    Info,
-    /// Get or set the name of the selected folder.
-    Name {
-        /// A new name for the folder.
-        name: Option<String>,
-    },
     /// Print commit status.
     Status {
         /// Print more information; include commit tree root hashes.
         #[clap(short, long)]
         verbose: bool,
     },
-    /// Print commit tree leaves for the current folder.
-    Tree,
-    /// Print secret keys for the current folder.
-    Keys,
     /// List secrets in the current folder.
     List {
         /// Print more information
@@ -160,7 +148,7 @@ enum ShellCommand {
     },
     /// Print the current identity.
     Whoami,
-    /// Close the selected folder.
+    /// Close the current folder.
     Close,
     /// Exit the shell.
     #[clap(alias = "q")]
@@ -541,23 +529,6 @@ async fn exec_program(
 
             Ok(())
         }
-        ShellCommand::Info => {
-            let reader = state.read().await;
-            let keeper =
-                reader.storage.current().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary();
-            println!("{}", summary);
-            Ok(())
-        }
-        ShellCommand::Keys => {
-            let reader = state.read().await;
-            let keeper =
-                reader.storage.current().ok_or(Error::NoVaultSelected)?;
-            for uuid in keeper.vault().keys() {
-                println!("{}", uuid);
-            }
-            Ok(())
-        }
         ShellCommand::List { long } => {
             let reader = state.read().await;
             if let Some(keeper) = reader.storage.current() {
@@ -582,30 +553,6 @@ async fn exec_program(
                 Err(Error::NoVaultSelected)
             }
         }
-        ShellCommand::Name { name } => {
-            let mut writer = state.write().await;
-            let keeper =
-                writer.storage.current_mut().ok_or(Error::NoVaultSelected)?;
-            let (renamed, summary, name) = if let Some(name) = name {
-                keeper.set_vault_name(name.clone())?;
-                (true, keeper.summary().clone(), name)
-            } else {
-                let name = keeper.name();
-                println!("{}", name);
-                (false, keeper.summary().clone(), name.to_string())
-            };
-            drop(writer);
-
-            if renamed {
-                maybe_conflict(Arc::clone(&state), || async move {
-                    let mut writer = state.write().await;
-                    writer.storage.set_vault_name(&summary, &name).await
-                })
-                .await
-            } else {
-                Ok(())
-            }
-        }
         ShellCommand::Status { verbose } => {
             let reader = state.read().await;
             let keeper =
@@ -625,24 +572,6 @@ async fn exec_program(
                 println!("{} event(s) have not been saved", pending_events);
             }
             println!("{}", status);
-            Ok(())
-        }
-        ShellCommand::Tree => {
-            let reader = state.read().await;
-            let keeper =
-                reader.storage.current().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary();
-            if let Some(tree) = reader.storage.commit_tree(summary) {
-                if let Some(leaves) = tree.leaves() {
-                    for leaf in &leaves {
-                        println!("{}", hex::encode(leaf));
-                    }
-                    println!("leaves = {}", leaves.len());
-                }
-                if let Some(root) = tree.root() {
-                    println!("root = {}", hex::encode(root));
-                }
-            }
             Ok(())
         }
         ShellCommand::Add { cmd } => {

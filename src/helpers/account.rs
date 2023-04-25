@@ -55,12 +55,18 @@ pub async fn resolve_user(
     let (storage, _) =
         factory.create_provider(user.identity().signer().clone())?;
     let peer_key = convert_libp2p_identity(user.device().signer())?;
-    let owner = UserStorage {
+    let mut owner = UserStorage {
         user,
         storage,
         peer_key,
         factory,
     };
+    
+    if USER.get().is_none() {
+        owner.storage.authenticate().await?;
+        owner.storage.load_vaults().await?;
+    }
+
     Ok(Arc::new(RwLock::new(owner)))
 }
 

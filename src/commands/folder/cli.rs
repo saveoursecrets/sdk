@@ -1,14 +1,15 @@
 use clap::Subcommand;
 
 use sos_core::{
-    account::AccountRef,
+    hex,
+    account::{AccountRef, DelegatedPassphrase},
     vault::{Summary, VaultRef},
 };
 use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::{
-        account::{resolve_user, Owner},
+        account::{resolve_user, Owner, USER},
         readline::read_flag,
     },
     Error, Result,
@@ -49,10 +50,31 @@ pub enum Command {
     },
     /// Print folder information.
     Info {
+        /*
         /// Print more information.
         #[clap(short, long)]
         verbose: bool,
+        */
 
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        folder: Option<VaultRef>,
+    },
+    /// Print secret keys for a folder.
+    Keys {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        folder: Option<VaultRef>,
+    },
+
+    /// Print commit tree leaves for a folder.
+    Commits {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -77,6 +99,8 @@ pub enum Command {
 }
 
 pub async fn run(factory: ProviderFactory, cmd: Command) -> Result<()> {
+    let is_shell = USER.get().is_some();
+
     match cmd {
         Command::New { account, name } => {
             let user = resolve_user(factory, account).await?;
@@ -89,10 +113,8 @@ pub async fn run(factory: ProviderFactory, cmd: Command) -> Result<()> {
             let summary = resolve_folder(&user, folder)
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
-            let prompt = format!(
-                r#"Delete folder "{}" (y/n)? "#,
-                summary.name(),
-            );
+            let prompt =
+                format!(r#"Delete folder "{}" (y/n)? "#, summary.name(),);
             if read_flag(Some(&prompt))? {
                 let mut writer = user.write().await;
                 writer.remove_folder(&summary).await?;
@@ -114,16 +136,75 @@ pub async fn run(factory: ProviderFactory, cmd: Command) -> Result<()> {
         Command::Info {
             account,
             folder,
-            verbose,
+            //verbose,
         } => {
-            todo!()
+            let user = resolve_user(factory, account).await?;
+            let summary = resolve_folder(&user, folder)
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?;
+            println!("{}", summary);
         }
+        Command::Keys {
+            account,
+            folder,
+        } => {
+            let user = resolve_user(factory, account).await?;
+            let summary = resolve_folder(&user, folder)
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?;
+
+            let mut writer = user.write().await;
+
+            if !is_shell {
+                let passphrase = DelegatedPassphrase::find_vault_passphrase(
+                    writer.user.identity().keeper(),
+                    summary.id(),
+                )?;
+                writer.storage.open_vault(&summary, passphrase, None)?;
+            }
+
+            let keeper =
+                writer.storage.current().ok_or(Error::NoVaultSelected)?;
+            for uuid in keeper.vault().keys() {
+                println!("{}", uuid);
+            }
+        }
+        Command::Commits {
+            account,
+            folder,
+        } => {
+            let user = resolve_user(factory, account).await?;
+            let summary = resolve_folder(&user, folder)
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?;
+            
+            let reader = user.read().await;
+            if let Some(tree) = reader.storage.commit_tree(&summary) {
+                if let Some(leaves) = tree.leaves() {
+                    for leaf in &leaves {
+                        println!("{}", hex::encode(leaf));
+                    }
+                    println!("size = {}", leaves.len());
+                }
+                if let Some(root) = tree.root_hex() {
+                    println!("root = {}", root);
+                }
+            }
+        },
+
         Command::Rename {
             account,
             folder,
             name,
         } => {
-            todo!()
+            let user = resolve_user(factory, account).await?;
+            let summary = resolve_folder(&user, folder)
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?;
+            
+            let mut writer = user.write().await;
+            writer.rename_folder(&summary, name.clone()).await?;
+            println!("{} -> {} ✓", summary.name(), name);
         }
     }
 
@@ -145,6 +226,13 @@ async fn resolve_folder(
                 .ok_or(Error::VaultNotAvailable(vault))?,
         ))
     } else {
-        Ok(reader.storage.state().find_default_vault().cloned())
+        if let Some(owner) = USER.get() {
+            let reader = owner.read().await;
+            let keeper =
+                reader.storage.current().ok_or(Error::NoVaultSelected)?;
+            Ok(Some(keeper.summary().clone()))
+        } else {
+            Ok(reader.storage.state().find_default_vault().cloned())
+        }
     }
 }
