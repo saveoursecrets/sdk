@@ -12,7 +12,7 @@ use web3_address::ethereum::Address;
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    account::{AuthenticatedUser, DelegatedPassphrase, AccountRef},
+    account::{AccountRef, AuthenticatedUser, DelegatedPassphrase},
     commit::SyncKind,
     hex,
     passwd::diceware::generate_passphrase,
@@ -33,8 +33,8 @@ use crate::{
         account::switch,
         display_passphrase,
         readline::{
-            choose, read_flag, read_line, read_line_allow_empty, read_multiline,
-            read_option, read_password, Choice,
+            choose, read_flag, read_line, read_line_allow_empty,
+            read_multiline, read_option, read_password, Choice,
         },
     },
 };
@@ -75,11 +75,17 @@ enum ShellCommand {
     /// Renew session authentication.
     #[clap(alias = "auth")]
     Authenticate,
-    
+
     /// Manage local accounts.
     Account {
         #[clap(subcommand)]
         cmd: AccountCommand,
+    },
+
+    /// Select a folder.
+    Use {
+        /// Vault reference, it's name or identifier.
+        vault: Option<SecretRef>,
     },
 
     /// List folders.
@@ -93,11 +99,6 @@ enum ShellCommand {
     Remove {
         /// Folder reference, it's name or identifier.
         vault: SecretRef,
-    },
-    /// Select a folder.
-    Use {
-        /// Vault reference, it's name or identifier.
-        vault: Option<SecretRef>,
     },
     /// Print information about the selected folder.
     Info,
@@ -167,7 +168,7 @@ enum ShellCommand {
         #[clap(short, long)]
         force: bool,
     },
-    /// Change encrpytion password for the selected vault.
+    /// Change encryption password for the selected vault.
     #[clap(alias = "passwd")]
     Password,
     /// Switch identity.
@@ -1016,8 +1017,7 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
             let reader = state.read().await;
             let factory = &reader.factory;
 
-            let (mut provider, address) =
-                switch(factory, &account).await?;
+            let (mut provider, address) = switch(factory, &account).await?;
 
             // Ensure the vault summaries are loaded
             // so that "use" is effective immediately

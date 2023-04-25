@@ -10,7 +10,7 @@ use bitflags::bitflags;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, fs::File,
-    path::Path,
+    path::Path, str::FromStr,
 };
 use urn::Urn;
 use uuid::Uuid;
@@ -122,6 +122,35 @@ impl VaultFlags {
 
 /// Identifier for vaults.
 pub type VaultId = Uuid;
+
+/// Reference to a vault using an id or a named label.
+#[derive(Debug, Clone)]
+pub enum VaultRef {
+    /// Vault identifier.
+    Id(VaultId),
+    /// Vault label.
+    Name(String),
+}
+
+impl fmt::Display for VaultRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Id(id) => write!(f, "{}", id),
+            Self::Name(name) => write!(f, "{}", name),
+        }
+    }
+}
+
+impl FromStr for VaultRef {
+    type Err = Error;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        if let Ok(id) = Uuid::parse_str(s) {
+            Ok(Self::Id(id))
+        } else {
+            Ok(Self::Name(s.to_string()))
+        }
+    }
+}
 
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.

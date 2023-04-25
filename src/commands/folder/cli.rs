@@ -2,34 +2,45 @@ use clap::Subcommand;
 use std::path::PathBuf;
 
 use sos_core::account::AccountRef;
+use sos_core::vault::VaultRef;
 
 use crate::{
-    helpers::account::{
-        account_backup, account_info, account_rename, account_restore,
-        list_accounts, local_signup,
-    },
+    helpers::account::{},
     Result,
 };
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Create an account.
+    /// Create a folder.
     New {
-        /// Name for the new account.
+        /// Name for the new folder.
         name: String,
 
-        /// Name for the default folder.
-        #[clap(short, long)]
-        folder_name: Option<String>,
+        /// Account name or address.
+        account: Option<AccountRef>,
     },
-    /// List accounts.
+
+    /// Remove a folder.
+    #[clap(alias = "ls")]
+    Remove {
+        /// Account name or address.
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        folder: Option<VaultRef>,
+    },
+
+    /// List folders.
     #[clap(alias = "ls")]
     List {
         /// Print more information.
         #[clap(short, long)]
         verbose: bool,
+
+        /// Account name or address.
+        account: Option<AccountRef>,
     },
-    /// Print account information.
+    /// Print folder information.
     Info {
         /// Print more information.
         #[clap(short, long)]
@@ -41,39 +52,30 @@ pub enum Command {
 
         /// Account name or address.
         account: Option<AccountRef>,
-    },
-    /// Create secure backup as a zip archive.
-    Backup {
-        /// Output zip archive.
-        #[clap(short, long)]
-        output: PathBuf,
 
-        /// Force overwrite of existing file.
-        #[clap(short, long)]
-        force: bool,
-
-        /// Account name or address.
-        account: Option<AccountRef>,
+        /// Folder name or id.
+        folder: Option<VaultRef>,
     },
-    /// Restore account from secure backup.
-    Restore {
-        /// Input zip archive.
-        #[clap(short, long)]
-        input: PathBuf,
-    },
-    /// Rename an account.
+    /// Rename a folder.
     Rename {
-        /// Name for the account.
+        /// Name for the folder.
         #[clap(short, long)]
         name: String,
 
         /// Account name or address.
         account: Option<AccountRef>,
+
+        /// Folder name or id.
+        folder: Option<VaultRef>,
     },
 }
 
 pub async fn run(cmd: Command) -> Result<()> {
-    match cmd {
+    todo!();
+
+    //match cmd {
+
+        /*
         Command::New { name, folder_name } => {
             local_signup(name, folder_name).await?;
         }
@@ -103,7 +105,8 @@ pub async fn run(cmd: Command) -> Result<()> {
             account_rename(account, name)?;
             println!("account renamed ✓");
         }
-    }
+        */
+    //}
 
     Ok(())
 }

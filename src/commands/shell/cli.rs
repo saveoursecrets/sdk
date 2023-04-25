@@ -1,14 +1,17 @@
 use std::{borrow::Cow, sync::Arc};
 
 use super::{exec, ShellState};
-use sos_core::{storage::StorageDirs, account::AccountRef};
+use sos_core::{account::AccountRef, storage::StorageDirs};
 use terminal_banner::{Banner, Padding};
 
 use sos_node::{client::provider::ProviderFactory, FileLocks};
 
 use tokio::sync::RwLock;
 
-use crate::{helpers::account::sign_in, Error, Result};
+use crate::{
+    helpers::account::{set_current_account, sign_in},
+    Error, Result,
+};
 
 const WELCOME: &str = include_str!("welcome.txt");
 
@@ -41,6 +44,7 @@ pub async fn run(
     locks.add(&cache_lock)?;
 
     let (user, _) = sign_in(&account)?;
+    set_current_account(user.account().into());
 
     let factory = provider.unwrap_or_default();
     let (provider, address) =

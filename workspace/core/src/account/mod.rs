@@ -18,7 +18,7 @@ pub use backup::{
 pub use builder::{AccountBuilder, ImportedAccount, NewAccount};
 pub use identity::{Identity, UserIdentity};
 #[cfg(not(target_arch = "wasm32"))]
-pub use local::{LocalAccounts};
+pub use local::LocalAccounts;
 #[cfg(not(target_arch = "wasm32"))]
 pub use login::{AuthenticatedUser, DeviceSigner, Login};
 pub use passphrase::DelegatedPassphrase;

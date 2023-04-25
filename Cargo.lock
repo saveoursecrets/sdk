@@ -5095,6 +5095,7 @@ dependencies = [
  "http",
  "human_bytes",
  "mime_guess",
+ "once_cell",
  "parking_lot 0.12.1",
  "rustyline",
  "rustyline-derive",

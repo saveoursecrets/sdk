@@ -5,8 +5,8 @@ use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        AuthenticatedUser, ExtractFilesLocation, LocalAccounts, Login,
-        RestoreOptions, AccountRef,
+        AccountRef, AuthenticatedUser, ExtractFilesLocation, LocalAccounts,
+        Login, RestoreOptions,
     },
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
@@ -17,12 +17,48 @@ use sos_node::client::provider::{BoxedProvider, ProviderFactory};
 use terminal_banner::{Banner, Padding};
 use web3_address::ethereum::Address;
 
+use parking_lot::RwLock;
+
 use crate::helpers::{
     display_passphrase,
     readline::{read_flag, read_password},
 };
 
+use once_cell::sync::Lazy;
+
 use crate::{Error, Result};
+
+/// A current account reference so that commands executed from the shell
+/// REPL context can use the current authenticated account for commands
+/// that require an account option.
+static CURRENT_ACCOUNT: Lazy<RwLock<Option<AccountRef>>> =
+    Lazy::new(|| RwLock::new(None));
+
+/// Set the current account reference.
+pub fn set_current_account(account: AccountRef) {
+    let mut writer = CURRENT_ACCOUNT.write();
+    *writer = Some(account);
+}
+
+/// Take the optional account reference and resolve it.
+///
+/// If the argument was given use it, otherwise look for an explicit
+/// account using CURRENT_ACCOUNT otherwise if there is only a single
+/// account use it.
+pub fn resolve_account(account: Option<AccountRef>) -> Option<AccountRef> {
+    if account.is_none() {
+        let reader = CURRENT_ACCOUNT.read();
+        if reader.is_some() {
+            return reader.as_ref().cloned();
+        }
+        if let Ok(mut accounts) = LocalAccounts::list_accounts() {
+            if accounts.len() == 1 {
+                return Some(accounts.remove(0).into());
+            }
+        }
+    }
+    account
+}
 
 /// List local accounts.
 pub fn list_accounts(verbose: bool) -> Result<()> {
@@ -39,11 +75,14 @@ pub fn list_accounts(verbose: bool) -> Result<()> {
 
 /// Print account info.
 pub async fn account_info(
-    account: &AccountRef,
+    account: Option<AccountRef>,
     verbose: bool,
     system: bool,
 ) -> Result<()> {
-    let (user, _) = sign_in(account)?;
+    let account =
+        resolve_account(account).ok_or_else(|| Error::NoAccountFound)?;
+
+    let (user, _) = sign_in(&account)?;
     let folders =
         LocalAccounts::list_local_vaults(user.identity().address(), system)?;
 
@@ -60,25 +99,31 @@ pub async fn account_info(
 
 /// Rename an account.
 pub fn account_rename(
-    account: &AccountRef,
+    account: Option<AccountRef>,
     name: String,
 ) -> Result<()> {
-    let (mut user, _) = sign_in(account)?;
+    let account =
+        resolve_account(account).ok_or_else(|| Error::NoAccountFound)?;
+
+    let (mut user, _) = sign_in(&account)?;
     user.rename_account(name)?;
     Ok(())
 }
 
 /// Create a backup zip archive.
 pub fn account_backup(
-    account: &AccountRef,
+    account: Option<AccountRef>,
     output: PathBuf,
     force: bool,
 ) -> Result<()> {
+    let account =
+        resolve_account(account).ok_or_else(|| Error::NoAccountFound)?;
+
     if !force && output.exists() {
         return Err(Error::FileExists(output));
     }
 
-    let account = find_account(account)?
+    let account = find_account(&account)?
         .ok_or(Error::NoAccount(account.to_string()))?;
     AccountBackup::export_archive_file(&output, account.address())?;
     Ok(())
@@ -103,7 +148,8 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
             return Ok(None);
         }
 
-        let (user, _) = sign_in(&AccountRef::Name(account.label().to_owned()))?;
+        let (user, _) =
+            sign_in(&AccountRef::Name(account.label().to_owned()))?;
         let factory = ProviderFactory::Local;
         let (provider, _) =
             factory.create_provider(user.identity().signer().clone())?;
@@ -174,6 +220,7 @@ pub async fn switch(
     account: &AccountRef,
 ) -> Result<(BoxedProvider, Address)> {
     let (user, _) = sign_in(account)?;
+    set_current_account(user.account().into());
     Ok(factory.create_provider(user.identity().signer().clone())?)
 }
 

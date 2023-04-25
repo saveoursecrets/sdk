@@ -1,5 +1,5 @@
 //! List local accounts and find folders.
-use std::{path::PathBuf, fmt, str::FromStr};
+use std::{fmt, path::PathBuf, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 use web3_address::ethereum::Address;
@@ -48,6 +48,22 @@ impl AccountInfo {
     }
 }
 
+impl From<&AccountInfo> for AccountRef {
+    fn from(value: &AccountInfo) -> Self {
+        if let Ok(address) = value.address().parse::<Address>() {
+            AccountRef::Address(address)
+        } else {
+            AccountRef::Name(value.label().to_owned())
+        }
+    }
+}
+
+impl From<AccountInfo> for AccountRef {
+    fn from(value: AccountInfo) -> Self {
+        (&value).into()
+    }
+}
+
 /// Reference to an account using an address or a named label.
 #[derive(Debug, Clone)]
 pub enum AccountRef {
@@ -76,7 +92,6 @@ impl FromStr for AccountRef {
         }
     }
 }
-
 
 /// Inspect the local accounts directory.
 #[derive(Default)]

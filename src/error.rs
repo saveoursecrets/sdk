@@ -4,6 +4,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("could not infer account, use --account to specify account")]
+    NoAccountFound,
+
     #[error("could not determine cache directory")]
     NoCache,
 

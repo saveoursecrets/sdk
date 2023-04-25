@@ -6,7 +6,7 @@ use sos::{
     },
     Result,
 };
-use sos_core::{url::Url, account::AccountRef};
+use sos_core::{account::AccountRef, url::Url};
 use sos_node::client::provider::ProviderFactory;
 use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -94,15 +94,13 @@ async fn run() -> Result<()> {
     match args.cmd {
         Command::Account { cmd } => account::run(cmd).await?,
         Command::Audit { cmd } => audit::run(cmd)?,
-        Command::Changes {
-            server,
-            account,
-        } => changes::run(server, account).await?,
+        Command::Changes { server, account } => {
+            changes::run(server, account).await?
+        }
         Command::Check { cmd } => check::run(cmd)?,
-        Command::Shell {
-            provider,
-            account,
-        } => shell::run(provider, account).await?,
+        Command::Shell { provider, account } => {
+            shell::run(provider, account).await?
+        }
         Command::Server {
             audit_log,
             reap_interval,
