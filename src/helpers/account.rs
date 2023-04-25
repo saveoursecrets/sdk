@@ -13,7 +13,7 @@ use sos_core::{
     secrecy::{ExposeSecret, SecretString},
     storage::StorageDirs,
 };
-use sos_node::client::provider::{BoxedProvider, ProviderFactory};
+use sos_node::{client::{provider::{BoxedProvider, ProviderFactory}, UserStorage}, peer::convert_libp2p_identity};
 use terminal_banner::{Banner, Padding};
 use web3_address::ethereum::Address;
 
@@ -216,12 +216,14 @@ pub fn sign_in(
 
 /// Switch to a different account.
 pub async fn switch(
-    factory: &ProviderFactory,
+    factory: ProviderFactory,
     account: &AccountRef,
-) -> Result<(BoxedProvider, Address)> {
+) -> Result<UserStorage> {
     let (user, _) = sign_in(account)?;
     set_current_account(user.account().into());
-    Ok(factory.create_provider(user.identity().signer().clone())?)
+    let (storage, _) = factory.create_provider(user.identity().signer().clone())?;
+    let peer_key = convert_libp2p_identity(user.device().signer())?;
+    Ok(UserStorage { user, storage, peer_key } )
 }
 
 /// Create a new local account.

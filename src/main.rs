@@ -80,7 +80,7 @@ enum Command {
     },
     /// Start an interactive login shell.
     Shell {
-        /// Provider factory.
+        /// Storage provider factory.
         #[clap(short, long)]
         provider: Option<ProviderFactory>,
 

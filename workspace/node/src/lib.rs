@@ -24,16 +24,3 @@ pub use error::Error;
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_locks::FileLocks;
 
-use sos_core::account::AuthenticatedUser;
-use client::provider::BoxedProvider;
-
-/// Authenticated user with storage provider.
-pub struct UserStorage {
-    /// Authenticated user.
-    pub user: AuthenticatedUser,
-    /// Storage provider.
-    pub storage: BoxedProvider,
-    /// Key pair for peer to peer connections.
-    #[cfg(feature = "peer")]
-    pub peer_key: libp2p::identity::Keypair,
-}

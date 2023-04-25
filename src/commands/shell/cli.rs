@@ -4,7 +4,11 @@ use super::{exec, ShellState};
 use sos_core::{account::AccountRef, storage::StorageDirs};
 use terminal_banner::{Banner, Padding};
 
-use sos_node::{client::provider::ProviderFactory, FileLocks};
+use sos_node::{
+    client::{provider::ProviderFactory, UserStorage},
+    FileLocks,
+    peer::convert_libp2p_identity,
+};
 
 use tokio::sync::RwLock;
 
@@ -47,10 +51,21 @@ pub async fn run(
     set_current_account(user.account().into());
 
     let factory = provider.unwrap_or_default();
-    let (provider, address) =
+    let (mut storage, _) =
         factory.create_provider(user.identity().signer().clone())?;
 
-    let provider = Arc::new(RwLock::new(provider));
+    welcome(&factory)?;
+
+    // Authenticate and load initial vaults
+    storage.authenticate().await?;
+    storage.load_vaults().await?;
+
+    let peer_key = convert_libp2p_identity(user.device().signer())?;
+    let owner = UserStorage {
+        user,
+        storage,
+        peer_key,
+    };
 
     /*
     match &factory {
@@ -66,28 +81,20 @@ pub async fn run(
     }
     */
 
-    welcome(&factory)?;
 
     // Prepare state for shell execution
-    let shell_cache = Arc::clone(&provider);
+    //let shell_cache = Arc::clone(&provider);
     let state = Arc::new(RwLock::new(ShellState {
-        provider: shell_cache,
-        address,
+        //provider: shell_cache,
         factory,
-        user,
+        owner,
     }));
-
-    // Authenticate and load initial vaults
-    let mut writer = provider.write().await;
-    writer.authenticate().await?;
-    writer.load_vaults().await?;
-    drop(writer);
 
     let mut rl = crate::helpers::readline::basic_editor()?;
     loop {
         let prompt_value = {
-            let cache = provider.read().await;
-            if let Some(current) = cache.current() {
+            let cache = state.read().await;
+            if let Some(current) = cache.owner.storage.current() {
                 format!("sos@{}> ", current.name())
             } else {
                 "sos> ".to_string()
