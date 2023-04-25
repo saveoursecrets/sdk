@@ -137,14 +137,14 @@ impl StorageDirs {
 
     /// Get the local directory for storing devices.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn devices_dir<S: AsRef<Path>>(address: S) -> Result<PathBuf> {
+    pub fn devices_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         Ok(local_dir.join(address).join(DEVICES_DIR))
     }
 
     /// Get the local directory for storing vaults.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn local_vaults_dir<S: AsRef<Path>>(address: S) -> Result<PathBuf> {
+    pub fn local_vaults_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         Ok(local_dir.join(address).join(VAULTS_DIR))
     }
@@ -200,7 +200,7 @@ impl StorageDirs {
 
     /// Get the path to the identity vault file for an account identifier.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn identity_vault<S: AsRef<str>>(address: S) -> Result<PathBuf> {
+    pub fn identity_vault<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let identity_dir = Self::identity_dir()?;
         let mut identity_vault_file = identity_dir.join(address.as_ref());
         identity_vault_file.set_extension(VAULT_EXT);

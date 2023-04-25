@@ -5,7 +5,7 @@ use super::Result;
 use sos_core::{
     commit::CommitRelationship,
     events::{ChangeAction, ChangeEvent, ChangeNotification},
-    vault::{secret::SecretRef, VaultRef},
+    vault::{VaultRef},
 };
 
 use crate::client::provider::StorageProvider;

@@ -50,7 +50,7 @@ impl AccountInfo {
 
 impl From<&AccountInfo> for AccountRef {
     fn from(value: &AccountInfo) -> Self {
-        AccountRef::Address(value.address().clone())
+        AccountRef::Address(*value.address())
     }
 }
 

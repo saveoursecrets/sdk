@@ -7,12 +7,12 @@ use clap::{CommandFactory, Parser, Subcommand};
 
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
-use web3_address::ethereum::Address;
+
 
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
-    account::{AccountRef, AuthenticatedUser, DelegatedPassphrase},
+    account::{AccountRef, DelegatedPassphrase},
     commit::SyncKind,
     hex,
     passwd::diceware::generate_passphrase,
@@ -26,7 +26,6 @@ use sos_core::{
     },
 };
 use sos_node::client::{
-    provider::{BoxedProvider, ProviderFactory},
     UserStorage,
 };
 
@@ -501,11 +500,8 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
         }
         ShellCommand::Account { cmd } => {
             let mut new_name: Option<String> = None;
-            match &cmd {
-                AccountCommand::Rename { name, .. } => {
-                    new_name = Some(name.to_owned());
-                }
-                _ => {}
+            if let AccountCommand::Rename { name, .. } = &cmd {
+                new_name = Some(name.to_owned());
             }
 
             crate::commands::account::run(cmd).await?;

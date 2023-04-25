@@ -15,7 +15,7 @@ use sos_core::{
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
     storage::StorageDirs,
-    vault::{secret::SecretRef, VaultRef},
+    vault::{VaultRef},
 };
 use sos_node::client::{
     net::{
@@ -131,11 +131,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Check the vault status
     let (status, _) = node_cache.status(&new_vault_summary).await?;
-    let equals = if let CommitRelationship::Equal(_) = status {
-        true
-    } else {
-        false
-    };
+    let equals = matches!(status, CommitRelationship::Equal(_));
     assert!(equals);
 
     // Delete a secret

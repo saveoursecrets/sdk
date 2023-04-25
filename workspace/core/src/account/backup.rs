@@ -194,7 +194,7 @@ impl AccountBackup {
         options: AccountManifestOptions,
     ) -> Result<(AccountManifest, u64)> {
         let mut total_size: u64 = 0;
-        let mut manifest = AccountManifest::new(address.clone());
+        let mut manifest = AccountManifest::new(*address);
         let path = StorageDirs::identity_vault(address.to_string())?;
         let (size, checksum) = Self::read_file_entry(path, None)?;
         let entry = ManifestEntry::Identity {

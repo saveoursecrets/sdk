@@ -99,8 +99,6 @@ async fn integration_archive_local_provider() -> Result<()> {
     let vault_summary = summaries[0].clone();
     assert_eq!(&vault_id, vault_summary.id());
 
-    drop(summaries);
-
     // Open the vault so we can check the secret has been restored
     storage.open_vault(&vault_summary, passphrase, None)?;
 

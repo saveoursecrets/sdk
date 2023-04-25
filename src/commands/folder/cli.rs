@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use std::path::PathBuf;
+
 
 use sos_core::account::AccountRef;
 use sos_core::vault::VaultRef;
@@ -67,7 +67,7 @@ pub enum Command {
     },
 }
 
-pub async fn run(cmd: Command) -> Result<()> {
+pub async fn run(_cmd: Command) -> Result<()> {
     todo!();
 
     //match cmd {

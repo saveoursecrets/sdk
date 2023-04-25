@@ -78,7 +78,6 @@ async fn integration_change_password() -> Result<()> {
     let meta = index_reader.values();
     assert_eq!(3, meta.len());
     drop(index_reader);
-    drop(keeper);
 
     let keeper = node_cache.current_mut().unwrap();
     let (new_passphrase, _) = generate_passphrase()?;

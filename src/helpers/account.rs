@@ -15,14 +15,14 @@ use sos_core::{
 };
 use sos_node::{
     client::{
-        provider::{BoxedProvider, ProviderFactory},
+        provider::{ProviderFactory},
         UserStorage,
     },
     peer::convert_libp2p_identity,
 };
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
-use web3_address::ethereum::Address;
+
 
 use crate::helpers::{
     display_passphrase,
@@ -141,7 +141,7 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     let buffer = std::fs::read(input)?;
     let inventory: Inventory =
         AccountBackup::restore_archive_inventory(buffer.as_slice())?;
-    let account_ref = AccountRef::Address(inventory.manifest.address.clone());
+    let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref)?;
 
     let (provider, passphrase) = if let Some(account) = account {
@@ -253,7 +253,7 @@ pub async fn local_signup(
             .default_folder_name(folder_name)
             .build()?;
 
-    let address = new_account.address.clone();
+    let address = new_account.address;
 
     // Get the signing key for the authenticated user
     let identity_dir = StorageDirs::identity_dir()?;

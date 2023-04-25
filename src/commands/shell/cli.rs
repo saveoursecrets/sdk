@@ -103,7 +103,7 @@ pub async fn run(
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
-                let provider = Arc::clone(&state);
+                let provider = Arc::clone(state);
                 if let Err(e) = exec(&line, provider).await {
                     tracing::error!("{}", e);
                 }

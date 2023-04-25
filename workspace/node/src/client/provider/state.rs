@@ -6,7 +6,7 @@ use sos_core::{
     search::SearchIndex,
     secrecy::SecretString,
     vault::{
-        secret::SecretRef, Gatekeeper, Summary, Vault, VaultFileAccess,
+        Gatekeeper, Summary, Vault, VaultFileAccess,
         VaultRef,
     },
 };
