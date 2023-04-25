@@ -13,7 +13,6 @@ use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     account::{AccountRef, DelegatedPassphrase},
     commit::SyncKind,
-    hex,
     passwd::diceware::generate_passphrase,
     search::Document,
     secrecy,
@@ -63,24 +62,22 @@ enum ShellCommand {
     /// Renew session authentication.
     #[clap(alias = "auth")]
     Authenticate,
-
+    /// Select a folder.
+    Use {
+        /// Folder name or id.
+        folder: Option<VaultRef>,
+    },
     /// Manage local accounts.
     Account {
         #[clap(subcommand)]
         cmd: AccountCommand,
     },
-
     /// Manage account folders.
     Folder {
         #[clap(subcommand)]
         cmd: FolderCommand,
     },
 
-    /// Select a folder.
-    Use {
-        /// Vault reference, it's name or identifier.
-        vault: Option<VaultRef>,
-    },
     /// Print commit status.
     Status {
         /// Print more information; include commit tree root hashes.
@@ -119,11 +116,6 @@ enum ShellCommand {
         secret: SecretRef,
         /// New label for the secret.
         label: Option<String>,
-    },
-    /// Inspect the history for the current folder.
-    History {
-        #[clap(subcommand)]
-        cmd: History,
     },
     /// Download changes from the remote server.
     Pull {
@@ -171,21 +163,6 @@ enum Add {
     /// Add a personal identification number.
     Pin { label: Option<String> },
     */
-}
-
-#[derive(Subcommand, Debug)]
-enum History {
-    /// Compact the history for the currently selected vault.
-    Compact,
-    /// Verify the integrity of the vault history.
-    Check,
-    /// List history events.
-    #[clap(alias = "ls")]
-    List {
-        /// Print more information.
-        #[clap(short, long)]
-        long: bool,
-    },
 }
 
 /// Attempt to read secret meta data for a reference.
@@ -497,10 +474,10 @@ async fn exec_program(
         ShellCommand::Folder { cmd } => {
             crate::commands::folder::run(factory, cmd).await
         }
-        ShellCommand::Use { vault } => {
+        ShellCommand::Use { folder } => {
             let reader = state.read().await;
 
-            let summary = if let Some(vault) = vault {
+            let summary = if let Some(vault) = folder {
                 Some(
                     reader
                         .storage
@@ -742,51 +719,6 @@ async fn exec_program(
             })
             .await
         }
-        ShellCommand::History { cmd } => match cmd {
-            History::Compact => {
-                let reader = state.read().await;
-                let keeper =
-                    reader.storage.current().ok_or(Error::NoVaultSelected)?;
-                let summary = keeper.summary().clone();
-                drop(reader);
-
-                let prompt = Some(
-                    "Compaction will remove history, are you sure (y/n)? ",
-                );
-                if read_flag(prompt)? {
-                    let mut writer = state.write().await;
-                    let (old_size, new_size) =
-                        writer.storage.compact(&summary).await?;
-                    println!("Old: {}", human_bytes(old_size as f64));
-                    println!("New: {}", human_bytes(new_size as f64));
-                }
-                Ok(())
-            }
-            History::Check => {
-                let reader = state.read().await;
-                let keeper =
-                    reader.storage.current().ok_or(Error::NoVaultSelected)?;
-                reader.storage.verify(keeper.summary())?;
-                println!("Verified ✓");
-                Ok(())
-            }
-            History::List { long } => {
-                let reader = state.read().await;
-                let keeper =
-                    reader.storage.current().ok_or(Error::NoVaultSelected)?;
-
-                let records = reader.storage.history(keeper.summary())?;
-                for (commit, time, event) in records {
-                    print!("{} {} ", event.event_kind(), time);
-                    if long {
-                        println!("{}", commit);
-                    } else {
-                        println!();
-                    }
-                }
-                Ok(())
-            }
-        },
         ShellCommand::Pull { force } => {
             let mut writer = state.write().await;
             let keeper =

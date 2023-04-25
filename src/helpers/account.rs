@@ -61,7 +61,7 @@ pub async fn resolve_user(
         peer_key,
         factory,
     };
-    
+
     if USER.get().is_none() {
         owner.storage.authenticate().await?;
         owner.storage.load_vaults().await?;

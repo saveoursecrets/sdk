@@ -1,8 +1,9 @@
 use clap::Subcommand;
 
+use human_bytes::human_bytes;
 use sos_core::{
-    hex,
     account::{AccountRef, DelegatedPassphrase},
+    hex,
     vault::{Summary, VaultRef},
 };
 use sos_node::client::provider::ProviderFactory;
@@ -55,7 +56,6 @@ pub enum Command {
         #[clap(short, long)]
         verbose: bool,
         */
-
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -95,6 +95,34 @@ pub enum Command {
 
         /// Folder name or id.
         folder: Option<VaultRef>,
+    },
+    /// Manage the history for a folder.
+    History {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        folder: Option<VaultRef>,
+
+        #[clap(subcommand)]
+        cmd: History,
+    },
+}
+
+/// Folder history.
+#[derive(Subcommand, Debug)]
+pub enum History {
+    /// Compact the history for this folder.
+    Compact,
+    /// Verify the integrity of the folder history.
+    Check,
+    /// List history events.
+    #[clap(alias = "ls")]
+    List {
+        /// Print more information.
+        #[clap(short, long)]
+        verbose: bool,
     },
 }
 
@@ -144,10 +172,7 @@ pub async fn run(factory: ProviderFactory, cmd: Command) -> Result<()> {
                 .ok_or_else(|| Error::NoFolderFound)?;
             println!("{}", summary);
         }
-        Command::Keys {
-            account,
-            folder,
-        } => {
+        Command::Keys { account, folder } => {
             let user = resolve_user(factory, account).await?;
             let summary = resolve_folder(&user, folder)
                 .await?
@@ -169,15 +194,12 @@ pub async fn run(factory: ProviderFactory, cmd: Command) -> Result<()> {
                 println!("{}", uuid);
             }
         }
-        Command::Commits {
-            account,
-            folder,
-        } => {
+        Command::Commits { account, folder } => {
             let user = resolve_user(factory, account).await?;
             let summary = resolve_folder(&user, folder)
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
-            
+
             let reader = user.read().await;
             if let Some(tree) = reader.storage.commit_tree(&summary) {
                 if let Some(leaves) = tree.leaves() {
@@ -190,7 +212,7 @@ pub async fn run(factory: ProviderFactory, cmd: Command) -> Result<()> {
                     println!("root = {}", root);
                 }
             }
-        },
+        }
 
         Command::Rename {
             account,
@@ -201,10 +223,81 @@ pub async fn run(factory: ProviderFactory, cmd: Command) -> Result<()> {
             let summary = resolve_folder(&user, folder)
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
-            
+
             let mut writer = user.write().await;
             writer.rename_folder(&summary, name.clone()).await?;
             println!("{} -> {} ✓", summary.name(), name);
+        }
+
+        Command::History {
+            account,
+            folder,
+            cmd,
+        } => {
+            let user = resolve_user(factory, account).await?;
+            let summary = resolve_folder(&user, folder)
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?;
+
+            {
+                let mut writer = user.write().await;
+                if !is_shell {
+                    let passphrase =
+                        DelegatedPassphrase::find_vault_passphrase(
+                            writer.user.identity().keeper(),
+                            summary.id(),
+                        )?;
+                    writer.storage.open_vault(&summary, passphrase, None)?;
+                }
+            }
+
+            match cmd {
+                History::Compact => {
+                    let reader = user.read().await;
+                    let keeper = reader
+                        .storage
+                        .current()
+                        .ok_or(Error::NoVaultSelected)?;
+                    let summary = keeper.summary().clone();
+                    drop(reader);
+
+                    let prompt = Some(
+                        "Compaction will remove history, are you sure (y/n)? ",
+                    );
+                    if read_flag(prompt)? {
+                        let mut writer = user.write().await;
+                        let (old_size, new_size) =
+                            writer.storage.compact(&summary).await?;
+                        println!("Old: {}", human_bytes(old_size as f64));
+                        println!("New: {}", human_bytes(new_size as f64));
+                    }
+                }
+                History::Check => {
+                    let reader = user.read().await;
+                    let keeper = reader
+                        .storage
+                        .current()
+                        .ok_or(Error::NoVaultSelected)?;
+                    reader.storage.verify(keeper.summary())?;
+                    println!("Verified ✓");
+                }
+                History::List { verbose } => {
+                    let reader = user.read().await;
+                    let keeper = reader
+                        .storage
+                        .current()
+                        .ok_or(Error::NoVaultSelected)?;
+                    let records = reader.storage.history(keeper.summary())?;
+                    for (commit, time, event) in records {
+                        print!("{} {} ", event.event_kind(), time);
+                        if verbose {
+                            println!("{}", commit);
+                        } else {
+                            println!();
+                        }
+                    }
+                }
+            }
         }
     }
 

@@ -29,7 +29,7 @@ enum Command {
         #[clap(subcommand)]
         cmd: AccountCommand,
     },
-    /// Manage folders in an account.
+    /// Inspect and modify folders.
     Folder {
         #[clap(subcommand)]
         cmd: FolderCommand,
@@ -40,7 +40,7 @@ enum Command {
         cmd: AuditCommand,
     },
 
-    /// Listen to events on a server changes stream.
+    /// Listen to changes event stream.
     Changes {
         /// Server URL.
         #[clap(short, long)]
@@ -65,7 +65,7 @@ enum Command {
         #[clap(short, long, default_value = "0.0.0.0:3505")]
         bind: String,
     },
-    /// Run a web server.
+    /// Storage web service.
     Server {
         /// Override the audit log file path.
         #[clap(short, long)]
