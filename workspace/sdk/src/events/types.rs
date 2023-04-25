@@ -1,4 +1,4 @@
-//! Constants for the type of events.
+//! Event types for audit and log events.
 
 use crate::Error;
 use serde::{Deserialize, Serialize};
@@ -15,38 +15,34 @@ pub const NOOP: u16 = 0;
 pub const CREATE_ACCOUNT: u16 = 1;
 /// Type identifier for the delete account operation.
 pub const DELETE_ACCOUNT: u16 = 2;
-/// Type identifier for the login challenge operation.
-pub const LOGIN_CHALLENGE: u16 = 3;
 /// Type identifier for the login response operation.
-pub const LOGIN_RESPONSE: u16 = 4;
+#[deprecated]
+pub const LOGIN_RESPONSE: u16 = 3;
 /// Type identifier for the create vault operation.
-pub const CREATE_VAULT: u16 = 5;
+pub const CREATE_VAULT: u16 = 4;
 /// Type identifier for the read vault operation.
-pub const READ_VAULT: u16 = 6;
+pub const READ_VAULT: u16 = 5;
 /// Type identifier for the update vault operation.
-pub const UPDATE_VAULT: u16 = 7;
+pub const UPDATE_VAULT: u16 = 6;
 /// Type identifier for the delete vault operation.
-pub const DELETE_VAULT: u16 = 8;
+pub const DELETE_VAULT: u16 = 7;
 /// Type identifier for the get vault name operation.
-pub const GET_VAULT_NAME: u16 = 9;
+pub const GET_VAULT_NAME: u16 = 8;
 /// Type identifier for the set vault name operation.
-pub const SET_VAULT_NAME: u16 = 10;
+pub const SET_VAULT_NAME: u16 = 9;
 /// Type identifier for the set vault meta operation.
-pub const SET_VAULT_META: u16 = 11;
+pub const SET_VAULT_META: u16 = 10;
 /// Type identifier for the create secret operation.
-pub const CREATE_SECRET: u16 = 12;
+pub const CREATE_SECRET: u16 = 11;
 /// Type identifier for the read secret operation.
-pub const READ_SECRET: u16 = 13;
+pub const READ_SECRET: u16 = 12;
 /// Type identifier for the update secret operation.
-pub const UPDATE_SECRET: u16 = 14;
+pub const UPDATE_SECRET: u16 = 13;
 /// Type identifier for the delete secret operation.
-pub const DELETE_SECRET: u16 = 15;
-
-/// Type identifier for the read WAL operation.
-pub const READ_WAL: u16 = 16;
+pub const DELETE_SECRET: u16 = 14;
 
 /// EventKind wraps an event type identifier and
-/// provides a `Display` implementation used for printing.
+/// provides a `Display` implementation.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum EventKind {
     /// No operation.
@@ -55,8 +51,6 @@ pub enum EventKind {
     CreateAccount,
     /// EventKind to delete an account.
     DeleteAccount,
-    /// EventKind to create a login challenge.
-    LoginChallenge,
     /// EventKind to create a login response.
     LoginResponse,
     /// EventKind to create a vault.
@@ -81,9 +75,6 @@ pub enum EventKind {
     UpdateSecret,
     /// EventKind to delete a secret.
     DeleteSecret,
-
-    /// EventKind to read a WAL log.
-    ReadWal,
 }
 
 impl Default for EventKind {
@@ -117,7 +108,6 @@ impl TryFrom<u16> for EventKind {
             NOOP => Ok(EventKind::Noop),
             CREATE_ACCOUNT => Ok(EventKind::CreateAccount),
             DELETE_ACCOUNT => Ok(EventKind::DeleteAccount),
-            LOGIN_CHALLENGE => Ok(EventKind::LoginChallenge),
             LOGIN_RESPONSE => Ok(EventKind::LoginResponse),
             CREATE_VAULT => Ok(EventKind::CreateVault),
             READ_VAULT => Ok(EventKind::ReadVault),
@@ -130,7 +120,6 @@ impl TryFrom<u16> for EventKind {
             READ_SECRET => Ok(EventKind::ReadSecret),
             UPDATE_SECRET => Ok(EventKind::UpdateSecret),
             DELETE_SECRET => Ok(EventKind::DeleteSecret),
-            READ_WAL => Ok(EventKind::ReadWal),
             _ => Err(Error::UnknownEventKind(value)),
         }
     }
@@ -142,7 +131,6 @@ impl From<&EventKind> for u16 {
             EventKind::Noop => NOOP,
             EventKind::CreateAccount => CREATE_ACCOUNT,
             EventKind::DeleteAccount => DELETE_ACCOUNT,
-            EventKind::LoginChallenge => LOGIN_CHALLENGE,
             EventKind::LoginResponse => LOGIN_RESPONSE,
             EventKind::CreateVault => CREATE_VAULT,
             EventKind::ReadVault => READ_VAULT,
@@ -155,7 +143,6 @@ impl From<&EventKind> for u16 {
             EventKind::ReadSecret => READ_SECRET,
             EventKind::UpdateSecret => UPDATE_SECRET,
             EventKind::DeleteSecret => DELETE_SECRET,
-            EventKind::ReadWal => READ_WAL,
         }
     }
 }
@@ -167,7 +154,6 @@ impl fmt::Display for EventKind {
                 EventKind::Noop => "NOOP",
                 EventKind::CreateAccount => "CREATE_ACCOUNT",
                 EventKind::DeleteAccount => "DELETE_ACCOUNT",
-                EventKind::LoginChallenge => "LOGIN_CHALLENGE",
                 EventKind::LoginResponse => "LOGIN_RESPONSE",
                 EventKind::CreateVault => "CREATE_VAULT",
                 EventKind::ReadVault => "READ_VAULT",
@@ -180,7 +166,6 @@ impl fmt::Display for EventKind {
                 EventKind::ReadSecret => "READ_SECRET",
                 EventKind::UpdateSecret => "UPDATE_SECRET",
                 EventKind::DeleteSecret => "DELETE_SECRET",
-                EventKind::ReadWal => "READ_WAL",
             }
         })
     }
