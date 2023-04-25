@@ -2,9 +2,7 @@
 
 use sos_core::{
     secrecy,
-    vault::{
-        secret::{Secret, SecretMeta},
-    },
+    vault::secret::{Secret, SecretMeta},
 };
 
 use crate::Result;

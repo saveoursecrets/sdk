@@ -1,10 +1,13 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use sos_core::{
     account::{
         AccountBackup, AuthenticatedUser, DelegatedPassphrase, LocalAccounts,
+        Login,
     },
     decode, encode,
+    search::SearchIndex,
+    signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretMeta},
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess,
@@ -12,12 +15,16 @@ use sos_core::{
     Timestamp,
 };
 
+use parking_lot::RwLock as SyncRwLock;
 use secrecy::{ExposeSecret, SecretString};
 
 use super::{
     provider::{BoxedProvider, ProviderFactory},
     Result,
 };
+
+#[cfg(feature = "peer")]
+use crate::peer::convert_libp2p_identity;
 
 /// Authenticated user with storage provider.
 pub struct UserStorage {
@@ -33,6 +40,32 @@ pub struct UserStorage {
 }
 
 impl UserStorage {
+    /// Create new user storage by signing in to an account.
+    pub fn new(
+        address: &Address,
+        passphrase: SecretString,
+        factory: ProviderFactory,
+    ) -> Result<Self> {
+        let identity_index =
+            Arc::new(SyncRwLock::new(SearchIndex::new(None)));
+        let user = Login::sign_in(&address, passphrase, identity_index)?;
+
+        // Signing key for the storage provider
+        let signer = user.identity().signer().clone();
+        let (storage, _) = factory.create_provider(signer)?;
+
+        #[cfg(feature = "peer")]
+        let peer_key = convert_libp2p_identity(user.device().signer())?;
+
+        Ok(Self {
+            user,
+            storage,
+            factory,
+            #[cfg(feature = "peer")]
+            peer_key,
+        })
+    }
+
     /// Create a folder (vault).
     pub async fn create_folder(&mut self, name: String) -> Result<Summary> {
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
