@@ -8,6 +8,7 @@ use sos_core::{
     decode, encode,
     search::SearchIndex,
     signer::ecdsa::Address,
+    storage::StorageDirs,
     vault::{
         secret::{Secret, SecretMeta},
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess,
@@ -26,6 +27,9 @@ use super::{
 #[cfg(feature = "peer")]
 use crate::peer::convert_libp2p_identity;
 
+#[cfg(feature = "device")]
+use crate::device::{self, TrustedDevice};
+
 /// Authenticated user with storage provider.
 pub struct UserStorage {
     /// Authenticated user.
@@ -41,7 +45,7 @@ pub struct UserStorage {
 
 impl UserStorage {
     /// Create new user storage by signing in to an account.
-    pub fn new(
+    pub async fn new(
         address: &Address,
         passphrase: SecretString,
         factory: ProviderFactory,
@@ -52,7 +56,8 @@ impl UserStorage {
 
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
-        let (storage, _) = factory.create_provider(signer)?;
+        let (mut storage, _) = factory.create_provider(signer)?;
+        storage.authenticate().await?;
 
         #[cfg(feature = "peer")]
         let peer_key = convert_libp2p_identity(user.device().signer())?;
@@ -64,6 +69,12 @@ impl UserStorage {
             #[cfg(feature = "peer")]
             peer_key,
         })
+    }
+
+    /// Sign out of the account.
+    pub fn sign_out(&mut self) {
+        self.storage.close_vault();
+        self.user.sign_out();
     }
 
     /// Create a folder (vault).
@@ -274,5 +285,39 @@ impl UserStorage {
         )?;
 
         Ok((summary, vault))
+    }
+
+    /// Load trusted devices.
+    #[cfg(feature = "device")]
+    pub fn load_devices(&self) -> Result<Vec<TrustedDevice>> {
+        let device_dir = StorageDirs::devices_dir(
+            self.user.identity().address().to_string(),
+        )?;
+        let devices = device::TrustedDevice::load_devices(device_dir)?;
+        let mut trusted = Vec::new();
+        for device in devices {
+            trusted.push(device);
+        }
+        Ok(trusted)
+    }
+
+    /// Add a trusted device.
+    #[cfg(feature = "device")]
+    pub fn add_device(&mut self, device: TrustedDevice) -> Result<()> {
+        let device_dir = StorageDirs::devices_dir(
+            self.user.identity().address().to_string(),
+        )?;
+        device::TrustedDevice::add_device(device_dir, device)?;
+        Ok(())
+    }
+
+    /// Remove a trusted device.
+    #[cfg(feature = "device")]
+    pub fn remove_device(&mut self, device: TrustedDevice) -> Result<()> {
+        let device_dir = StorageDirs::devices_dir(
+            self.user.identity().address().to_string(),
+        )?;
+        device::TrustedDevice::remove_device(device_dir, &device)?;
+        Ok(())
     }
 }
