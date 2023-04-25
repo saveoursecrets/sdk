@@ -10,6 +10,9 @@ pub enum Error {
     #[error("could not infer account, use --account to specify account")]
     NoAccountFound,
 
+    #[error("could not find folder, use --folder to specify folder")]
+    NoFolderFound,
+
     #[error("could not determine cache directory")]
     NoCache,
 

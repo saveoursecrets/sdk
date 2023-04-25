@@ -29,8 +29,40 @@ use once_cell::sync::OnceCell;
 
 use crate::{Error, Result};
 
+/// Account owner.
+pub type Owner = Arc<RwLock<UserStorage>>;
+
 /// Current user for the shell REPL.
-pub(crate) static USER: OnceCell<Arc<RwLock<UserStorage>>> = OnceCell::new();
+pub(crate) static USER: OnceCell<Owner> = OnceCell::new();
+
+/// Attempt to resolve a user.
+///
+/// For the shell REPL this will equal the current USER otherwise
+/// the user must sign in to the target account.
+pub async fn resolve_user(
+    factory: ProviderFactory,
+    account: Option<AccountRef>,
+) -> Result<Owner> {
+    let account = resolve_account(account)
+        .await
+        .ok_or_else(|| Error::NoAccountFound)?;
+
+    if let Some(owner) = USER.get() {
+        return Ok(Arc::clone(owner));
+    }
+
+    let (user, _) = sign_in(&account)?;
+    let (storage, _) =
+        factory.create_provider(user.identity().signer().clone())?;
+    let peer_key = convert_libp2p_identity(user.device().signer())?;
+    let owner = UserStorage {
+        user,
+        storage,
+        peer_key,
+        factory,
+    };
+    Ok(Arc::new(RwLock::new(owner)))
+}
 
 /// Take the optional account reference and resolve it.
 ///

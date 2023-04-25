@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 use sos::{
     commands::{
-        account, audit, changes, check, rendezvous, server, shell,
-        AccountCommand, AuditCommand, CheckCommand,
+        account, audit, changes, check, folder, rendezvous, server, shell,
+        AccountCommand, AuditCommand, CheckCommand, FolderCommand,
     },
     Result,
 };
@@ -14,6 +14,10 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Sos {
+    /// Storage provider factory.
+    #[clap(short, long)]
+    provider: Option<ProviderFactory>,
+
     #[clap(subcommand)]
     cmd: Command,
 }
@@ -24,6 +28,11 @@ enum Command {
     Account {
         #[clap(subcommand)]
         cmd: AccountCommand,
+    },
+    /// Manage folders in an account.
+    Folder {
+        #[clap(subcommand)]
+        cmd: FolderCommand,
     },
     /// Print and monitor audit logs.
     Audit {
@@ -80,10 +89,6 @@ enum Command {
     },
     /// Start an interactive login shell.
     Shell {
-        /// Storage provider factory.
-        #[clap(short, long)]
-        provider: Option<ProviderFactory>,
-
         /// Account name or address.
         account: AccountRef,
     },
@@ -91,16 +96,16 @@ enum Command {
 
 async fn run() -> Result<()> {
     let args = Sos::parse();
+    let factory = args.provider.unwrap_or_default();
     match args.cmd {
         Command::Account { cmd } => account::run(cmd).await?,
+        Command::Folder { cmd } => folder::run(factory, cmd).await?,
         Command::Audit { cmd } => audit::run(cmd)?,
         Command::Changes { server, account } => {
             changes::run(server, account).await?
         }
         Command::Check { cmd } => check::run(cmd)?,
-        Command::Shell { provider, account } => {
-            shell::run(provider, account).await?
-        }
+        Command::Shell { account } => shell::run(factory, account).await?,
         Command::Server {
             audit_log,
             reap_interval,

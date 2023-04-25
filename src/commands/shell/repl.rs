@@ -24,10 +24,10 @@ use sos_core::{
         Vault, VaultAccess, VaultCommit, VaultEntry, VaultRef,
     },
 };
-use sos_node::client::UserStorage;
+use sos_node::client::{provider::ProviderFactory, UserStorage};
 
 use crate::{
-    commands::AccountCommand,
+    commands::{AccountCommand, FolderCommand},
     helpers::{
         account::switch,
         display_passphrase,
@@ -71,23 +71,16 @@ enum ShellCommand {
         cmd: AccountCommand,
     },
 
+    /// Manage account folders.
+    Folder {
+        #[clap(subcommand)]
+        cmd: FolderCommand,
+    },
+
     /// Select a folder.
     Use {
         /// Vault reference, it's name or identifier.
         vault: Option<VaultRef>,
-    },
-
-    /// List folders.
-    Folders,
-    /// Create a new folder.
-    Create {
-        /// Name for the new folder.
-        name: String,
-    },
-    /// Delete a folder.
-    Remove {
-        /// Folder reference, it's name or identifier.
-        vault: VaultRef,
     },
     /// Print information about the selected folder.
     Info,
@@ -107,7 +100,6 @@ enum ShellCommand {
     /// Print secret keys for the current folder.
     Keys,
     /// List secrets in the current folder.
-    #[clap(alias = "ls")]
     List {
         /// Print more information
         #[clap(short, long)]
@@ -160,7 +152,7 @@ enum ShellCommand {
     /// Change encryption password for the selected vault.
     #[clap(alias = "passwd")]
     Password,
-    /// Switch identity.
+    /// Switch account.
     #[clap(alias = "su")]
     Switch {
         /// Account name or address.
@@ -487,7 +479,11 @@ where
 }
 
 /// Execute the program command.
-async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
+async fn exec_program(
+    program: Shell,
+    factory: ProviderFactory,
+    state: ShellData,
+) -> Result<()> {
     match program.cmd {
         ShellCommand::Authenticate => {
             let mut writer = state.write().await;
@@ -510,44 +506,8 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 
             Ok(())
         }
-
-        ShellCommand::Folders => {
-            let mut writer = state.write().await;
-            let summaries = writer.storage.load_vaults().await?;
-            print::summaries_list(summaries);
-            Ok(())
-        }
-        ShellCommand::Create { name } => {
-            let mut writer = state.write().await;
-            let (passphrase, _summary) =
-                writer.storage.create_vault(name, None).await?;
-            display_passphrase(
-                "ENCRYPTION PASSPHRASE",
-                passphrase.expose_secret(),
-            );
-            Ok(())
-        }
-        ShellCommand::Remove { vault } => {
-            let reader = state.read().await;
-            let summary = reader
-                .storage
-                .state()
-                .find_vault(&vault)
-                .ok_or(Error::VaultNotAvailable(vault.clone()))?
-                .clone();
-            let prompt = format!(
-                r#"Permanently delete vault "{}" (y/n)? "#,
-                summary.name(),
-            );
-
-            drop(reader);
-
-            if read_flag(Some(&prompt))? {
-                let mut writer = state.write().await;
-                writer.storage.remove_vault(&summary).await?;
-            }
-
-            Ok(())
+        ShellCommand::Folder { cmd } => {
+            crate::commands::folder::run(factory, cmd).await
         }
         ShellCommand::Use { vault } => {
             let reader = state.read().await;
@@ -1046,20 +1006,28 @@ async fn exec_program(program: Shell, state: ShellData) -> Result<()> {
 }
 
 /// Intermediary to pretty print clap parse errors.
-async fn exec_args<I, T>(it: I, state: ShellData) -> Result<()>
+async fn exec_args<I, T>(
+    it: I,
+    factory: ProviderFactory,
+    state: ShellData,
+) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
     match Shell::try_parse_from(it) {
-        Ok(program) => exec_program(program, state).await?,
+        Ok(program) => exec_program(program, factory, state).await?,
         Err(e) => e.print().expect("unable to write error output"),
     }
     Ok(())
 }
 
 /// Execute a line of input in the context of the shell program.
-pub async fn exec(line: &str, state: ShellData) -> Result<()> {
+pub async fn exec(
+    line: &str,
+    factory: ProviderFactory,
+    state: ShellData,
+) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));
@@ -1076,7 +1044,7 @@ pub async fn exec(line: &str, state: ShellData) -> Result<()> {
         } else if line == "help" || line == "--help" {
             cmd.print_long_help()?;
         } else {
-            exec_args(it, state).await?;
+            exec_args(it, factory, state).await?;
         }
     }
     Ok(())

@@ -15,12 +15,6 @@ use human_bytes::human_bytes;
 use secrecy::ExposeSecret;
 use terminal_banner::{Banner, Padding};
 
-pub(super) fn summaries_list(summaries: &[Summary]) {
-    for (index, summary) in summaries.iter().enumerate() {
-        println!("{}) {} {}", index + 1, summary.name(), summary.id());
-    }
-}
-
 pub(super) fn secret(
     secret_meta: &SecretMeta,
     secret_data: &Secret,

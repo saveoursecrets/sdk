@@ -38,7 +38,7 @@ Type "quit" or "q" to exit"#;
 }
 
 pub async fn run(
-    provider: Option<ProviderFactory>,
+    factory: ProviderFactory,
     account: AccountRef,
 ) -> Result<()> {
     let cache_dir = StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
@@ -52,7 +52,6 @@ pub async fn run(
 
     let (user, _) = sign_in(&account)?;
 
-    let factory = provider.unwrap_or_default();
     let (mut storage, _) =
         factory.create_provider(user.identity().signer().clone())?;
     welcome(&factory)?;
@@ -69,7 +68,7 @@ pub async fn run(
         user,
         storage,
         peer_key,
-        factory,
+        factory: factory.clone(),
     };
 
     /*
@@ -104,7 +103,7 @@ pub async fn run(
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
                 let provider = Arc::clone(state);
-                if let Err(e) = exec(&line, provider).await {
+                if let Err(e) = exec(&line, factory.clone(), provider).await {
                     tracing::error!("{}", e);
                 }
             }
