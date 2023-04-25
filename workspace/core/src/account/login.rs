@@ -5,6 +5,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 
 use urn::Urn;
+use web3_address::ethereum::Address;
 
 use crate::{
     account::{AccountInfo, DelegatedPassphrase, LocalAccounts},
@@ -101,19 +102,17 @@ impl AuthenticatedUser {
     /// Moves the account identity vault and data directory to the
     /// trash directory.
     pub fn delete_account(&self) -> Result<()> {
-        let identity_vault_file =
-            StorageDirs::identity_vault(self.identity.address())?;
+        let address = self.identity.address().to_string();
+        let identity_vault_file = StorageDirs::identity_vault(&address)?;
 
         let local_dir = StorageDirs::local_dir()?;
-        let identity_data_dir = local_dir.join(self.identity.address());
+        let identity_data_dir = local_dir.join(&address);
 
         let trash_dir = StorageDirs::trash_dir()?;
-        let mut deleted_identity_vault_file =
-            trash_dir.join(self.identity.address());
+        let mut deleted_identity_vault_file = trash_dir.join(&address);
         deleted_identity_vault_file.set_extension(VAULT_EXT);
 
-        let deleted_identity_data_dir =
-            trash_dir.join(self.identity.address());
+        let deleted_identity_data_dir = trash_dir.join(&address);
 
         std::fs::rename(identity_vault_file, deleted_identity_vault_file)?;
         std::fs::rename(identity_data_dir, deleted_identity_data_dir)?;
@@ -131,7 +130,7 @@ impl AuthenticatedUser {
 
         // Update vault file on disc
         let identity_vault_file =
-            StorageDirs::identity_vault(self.identity.address())?;
+            StorageDirs::identity_vault(self.identity.address().to_string())?;
         let mut access = VaultFileAccess::new(identity_vault_file)?;
         access.set_vault_name(account_name.clone())?;
 
@@ -154,7 +153,7 @@ pub struct Login;
 impl Login {
     /// Sign in a user.
     pub fn sign_in(
-        address: &str,
+        address: &Address,
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
     ) -> Result<AuthenticatedUser> {
@@ -164,7 +163,7 @@ impl Login {
             .find(|a| a.address() == address)
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
 
-        let identity_path = StorageDirs::identity_vault(address)?;
+        let identity_path = StorageDirs::identity_vault(address.to_string())?;
         let mut identity =
             Identity::login_file(identity_path, passphrase, Some(index))?;
 
@@ -182,7 +181,7 @@ impl Login {
     /// information such as the private key used to identify a machine
     /// on a peer to peer network.
     fn ensure_device_vault(
-        address: &str,
+        address: &Address,
         user: &mut UserIdentity,
     ) -> Result<DeviceSigner> {
         let identity = user.keeper_mut();
@@ -277,7 +276,8 @@ impl Login {
             let summary = device_vault.summary().clone();
 
             let buffer = encode(&device_vault)?;
-            let vaults_dir = StorageDirs::local_vaults_dir(address)?;
+            let vaults_dir =
+                StorageDirs::local_vaults_dir(address.to_string())?;
             let mut device_vault_file =
                 vaults_dir.join(summary.id().to_string());
             device_vault_file.set_extension(VAULT_EXT);

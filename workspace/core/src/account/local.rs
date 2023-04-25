@@ -20,7 +20,7 @@ pub struct AccountInfo {
     ///
     /// This corresponds to the address of the signing key
     /// for the account.
-    address: String,
+    address: Address,
     /// User label for the account.
     ///
     /// This is the name given to the identity vault.
@@ -29,12 +29,12 @@ pub struct AccountInfo {
 
 impl AccountInfo {
     /// Create new account information.
-    pub fn new(label: String, address: String) -> Self {
+    pub fn new(label: String, address: Address) -> Self {
         Self { label, address }
     }
 
     /// Get the address of this account.
-    pub fn address(&self) -> &str {
+    pub fn address(&self) -> &Address {
         &self.address
     }
 
@@ -50,11 +50,7 @@ impl AccountInfo {
 
 impl From<&AccountInfo> for AccountRef {
     fn from(value: &AccountInfo) -> Self {
-        if let Ok(address) = value.address().parse::<Address>() {
-            AccountRef::Address(address)
-        } else {
-            AccountRef::Name(value.label().to_owned())
-        }
+        AccountRef::Address(value.address().clone())
     }
 }
 
@@ -100,7 +96,7 @@ pub struct LocalAccounts;
 impl LocalAccounts {
     /// Find and load a vault for a local file.
     pub fn find_local_vault(
-        address: &str,
+        address: &Address,
         id: &VaultId,
         include_system: bool,
     ) -> Result<(Vault, PathBuf)> {
@@ -116,7 +112,9 @@ impl LocalAccounts {
     }
 
     /// Find the default vault for an account.
-    pub fn find_default_vault(address: &str) -> Result<(Summary, PathBuf)> {
+    pub fn find_default_vault(
+        address: &Address,
+    ) -> Result<(Summary, PathBuf)> {
         let vaults = Self::list_local_vaults(address, false)?;
         let (summary, path) = vaults
             .into_iter()
@@ -127,10 +125,10 @@ impl LocalAccounts {
 
     /// Get a list of the vaults for an account directly from the file system.
     pub fn list_local_vaults(
-        address: &str,
+        address: &Address,
         include_system: bool,
     ) -> Result<Vec<(Summary, PathBuf)>> {
-        let vaults_dir = StorageDirs::local_vaults_dir(address)?;
+        let vaults_dir = StorageDirs::local_vaults_dir(address.to_string())?;
         let mut vaults = Vec::new();
         for entry in std::fs::read_dir(vaults_dir)? {
             let entry = entry?;
@@ -159,7 +157,7 @@ impl LocalAccounts {
                 if extension == VAULT_EXT {
                     let summary = Header::read_summary_file(entry.path())?;
                     keys.push(AccountInfo {
-                        address: file_stem.to_string_lossy().into_owned(),
+                        address: file_stem.to_string_lossy().parse()?,
                         label: summary.name().to_owned(),
                     });
                 }

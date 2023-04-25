@@ -15,6 +15,8 @@ use std::{
 use time::OffsetDateTime;
 use zip::{write::FileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
+use web3_address::ethereum::Address;
+
 use crate::{
     constants::{ARCHIVE_MANIFEST, FILES_DIR, VAULT_EXT},
     vault::{Header as VaultHeader, Summary, VaultId},
@@ -26,7 +28,7 @@ use crate::{
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Manifest {
     /// Address of the identity file.
-    pub address: String,
+    pub address: Address,
 
     /// Checksum of the identity vault.
     pub checksum: String,
@@ -80,13 +82,13 @@ impl<W: Write + Seek> Writer<W> {
     /// Set the identity vault for the archive.
     pub fn set_identity(
         mut self,
-        address: String,
+        address: &Address,
         vault: &[u8],
     ) -> Result<Self> {
-        let mut path = PathBuf::from(&address);
+        let mut path = PathBuf::from(address.to_string());
         path.set_extension(VAULT_EXT);
 
-        self.manifest.address = address;
+        self.manifest.address = *address;
         self.manifest.checksum =
             hex::encode(Sha256::digest(vault).as_slice());
         self.append_file_buffer(
@@ -287,7 +289,7 @@ impl<R: Read + Seek> Reader<R> {
     /// each buffer is a valid vault.
     pub fn finish(
         mut self,
-    ) -> Result<(String, ArchiveItem, Vec<ArchiveItem>)> {
+    ) -> Result<(Address, ArchiveItem, Vec<ArchiveItem>)> {
         let manifest =
             self.manifest.take().ok_or(Error::NoArchiveManifest)?;
         let entry_name = format!("{}.{}", manifest.address, VAULT_EXT);
@@ -328,7 +330,7 @@ mod test {
         let vault_buffer = encode(&vault)?;
 
         let zip = writer
-            .set_identity(address.clone(), &identity)?
+            .set_identity(&address, &identity)?
             .add_vault(*vault.id(), &vault_buffer)?
             .finish()?;
 

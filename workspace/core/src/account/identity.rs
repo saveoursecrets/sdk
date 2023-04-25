@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::path::Path;
 
 use urn::Urn;
+use web3_address::ethereum::Address;
 
 use crate::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
@@ -42,7 +43,7 @@ use crate::vault::VaultFileAccess;
 /// delegated passwords.
 pub struct UserIdentity {
     /// Address of the signing key.
-    address: String,
+    address: Address,
     /// Private signing key for the identity.
     signer: BoxedEcdsaSigner,
     /// Gatekeeper for the identity vault.
@@ -56,7 +57,7 @@ pub struct UserIdentity {
 
 impl UserIdentity {
     /// Address of the signing key.
-    pub fn address(&self) -> &str {
+    pub fn address(&self) -> &Address {
         &self.address
     }
 
@@ -97,7 +98,7 @@ impl Identity {
     pub fn new_login_vault(
         name: String,
         master_passphrase: SecretString,
-    ) -> Result<(String, Vault)> {
+    ) -> Result<(Address, Vault)> {
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
         vault.set_name(name);
@@ -108,7 +109,7 @@ impl Identity {
 
         // Store the signing key
         let signer = SingleParty::new_random();
-        let address = signer.address()?.to_string();
+        let address = signer.address()?;
         let private_key =
             SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
         let signer_secret = Secret::Signer {
@@ -220,7 +221,7 @@ impl Identity {
         let shared = identity
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
         Ok(UserIdentity {
-            address: address.to_string(),
+            address,
             signer,
             shared_public: shared.to_public(),
             shared_private: shared,

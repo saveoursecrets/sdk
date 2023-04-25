@@ -12,6 +12,7 @@ use crate::{
     },
     Result,
 };
+use web3_address::ethereum::Address;
 
 use super::{DelegatedPassphrase, Identity, UserIdentity};
 
@@ -20,7 +21,7 @@ use secrecy::SecretString;
 /// Newly created account information.
 pub struct NewAccount {
     /// Address of the account signing key.
-    pub address: String,
+    pub address: Address,
     /// Authenticated user.
     pub user: UserIdentity,
     /// Default vault.
@@ -158,7 +159,7 @@ impl AccountBuilder {
                 account: account_name,
                 password: passphrase.clone(),
                 url: None,
-                user_data: UserData::new_comment(address.to_owned()),
+                user_data: UserData::new_comment(address.to_string()),
             };
             let mut meta =
                 SecretMeta::new("Master Password".to_string(), secret.kind());
@@ -184,7 +185,7 @@ impl AccountBuilder {
             let secret = Secret::Password {
                 password: file_passphrase,
                 name: None,
-                user_data: UserData::new_comment(address.to_owned()),
+                user_data: UserData::new_comment(address.to_string()),
             };
             let mut meta =
                 SecretMeta::new("File Encryption".to_string(), secret.kind());
@@ -273,15 +274,15 @@ impl AccountBuilder {
         identity_vault: Vault,
         account: NewAccount,
     ) -> Result<NewAccount> {
+        let address = account.address.to_string();
         // Persist the identity vault to disc, MUST re-encode the buffer
         // as we have modified the identity vault
-        let identity_vault_file =
-            StorageDirs::identity_vault(&account.address)?;
+        let identity_vault_file = StorageDirs::identity_vault(&address)?;
         let buffer = encode(&identity_vault)?;
         std::fs::write(identity_vault_file, buffer)?;
 
         // Ensure the files directory exists
-        StorageDirs::files_dir(&account.address)?;
+        StorageDirs::files_dir(&address)?;
 
         Ok(account)
     }

@@ -29,7 +29,7 @@ use crate::helpers::{
     readline::{read_flag, read_password},
 };
 
-use once_cell::sync::{Lazy, OnceCell};
+use once_cell::sync::OnceCell;
 
 use crate::{Error, Result};
 
@@ -141,7 +141,8 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     let buffer = std::fs::read(input)?;
     let inventory: Inventory =
         AccountBackup::restore_archive_inventory(buffer.as_slice())?;
-    let account = find_account_by_address(&inventory.manifest.address)?;
+    let account_ref = AccountRef::Address(inventory.manifest.address.clone());
+    let account = find_account(&account_ref)?;
 
     let (provider, passphrase) = if let Some(account) = account {
         let confirmed = read_flag(Some(
@@ -161,7 +162,8 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         (None, None)
     };
 
-    let files_dir = StorageDirs::files_dir(&inventory.manifest.address)?;
+    let files_dir =
+        StorageDirs::files_dir(inventory.manifest.address.to_string())?;
     let options = RestoreOptions {
         selected: inventory.vaults,
         passphrase,
@@ -184,18 +186,12 @@ fn find_account(account: &AccountRef) -> Result<Option<AccountInfo>> {
     let accounts = LocalAccounts::list_accounts()?;
     match account {
         AccountRef::Address(address) => {
-            let address = address.to_string();
             Ok(accounts.into_iter().find(|a| a.address() == address))
         }
         AccountRef::Name(label) => {
             Ok(accounts.into_iter().find(|a| a.label() == label))
         }
     }
-}
-
-fn find_account_by_address(address: &str) -> Result<Option<AccountInfo>> {
-    let accounts = LocalAccounts::list_accounts()?;
-    Ok(accounts.into_iter().find(|a| a.address() == address))
 }
 
 /// Helper to sign in to an account.

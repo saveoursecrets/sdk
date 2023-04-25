@@ -15,9 +15,12 @@ pub use error::Error;
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 use provider::{BoxedProvider, ProviderFactory};
+
+#[cfg(not(target_arch = "wasm32"))]
 use sos_core::account::AuthenticatedUser;
 
 /// Authenticated user with storage provider.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct UserStorage {
     /// Authenticated user.
     pub user: AuthenticatedUser,

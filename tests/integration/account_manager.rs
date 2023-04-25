@@ -112,7 +112,7 @@ async fn integration_account_manager() -> Result<()> {
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
 
     // Encrypt
-    let files_dir = StorageDirs::files_dir(&address)?;
+    let files_dir = StorageDirs::files_dir(address.to_string())?;
     let vault_id = VaultId::new_v4();
     let secret_id = SecretId::new_v4();
     let target = files_dir

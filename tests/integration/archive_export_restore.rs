@@ -16,11 +16,12 @@ use sos_core::{
     vault::{Gatekeeper, Vault},
 };
 use sos_node::client::provider::{LocalProvider, StorageProvider};
+use web3_address::ethereum::Address;
 
 fn create_archive(
     passphrase: SecretString,
     vaults: Vec<Vault>,
-) -> Result<(String, Vault, Vec<u8>)> {
+) -> Result<(Address, Vault, Vec<u8>)> {
     let mut archive = Vec::new();
     let mut writer = Writer::new(Cursor::new(&mut archive));
 
@@ -29,7 +30,7 @@ fn create_archive(
 
     let identity = encode(&identity_vault)?;
 
-    writer = writer.set_identity(address.clone(), &identity)?;
+    writer = writer.set_identity(&address, &identity)?;
 
     for vault in vaults {
         let buffer = encode(&vault)?;

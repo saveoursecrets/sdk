@@ -10,6 +10,7 @@ use std::{
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use web3_address::ethereum::Address;
 
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -70,7 +71,7 @@ pub struct RestoreOptions {
 /// have been applied to the data in an archive.
 pub struct RestoreTargets {
     /// The address for the identity.
-    pub address: String,
+    pub address: Address,
     /// Archive item for the identity vault.
     pub identity: ArchiveItem,
     /// List of vaults to restore.
@@ -95,14 +96,14 @@ pub struct AccountManifest {
     /// Identifier for this manifest.
     pub id: Uuid,
     /// Account address.
-    pub address: String,
+    pub address: Address,
     /// Manifest entries.
     pub entries: Vec<ManifestEntry>,
 }
 
 impl AccountManifest {
     /// Create a new account manifest.
-    pub fn new(address: String) -> Self {
+    pub fn new(address: Address) -> Self {
         Self {
             id: Uuid::new_v4(),
             address,
@@ -189,16 +190,16 @@ pub struct AccountBackup;
 impl AccountBackup {
     /// Build a manifest for an account.
     pub fn manifest(
-        address: &str,
+        address: &Address,
         options: AccountManifestOptions,
     ) -> Result<(AccountManifest, u64)> {
         let mut total_size: u64 = 0;
-        let mut manifest = AccountManifest::new(address.to_owned());
-        let path = StorageDirs::identity_vault(address)?;
+        let mut manifest = AccountManifest::new(address.clone());
+        let path = StorageDirs::identity_vault(address.to_string())?;
         let (size, checksum) = Self::read_file_entry(path, None)?;
         let entry = ManifestEntry::Identity {
             id: Uuid::new_v4(),
-            label: address.to_owned(),
+            label: address.to_string(),
             size,
             checksum: checksum.as_slice().try_into()?,
         };
@@ -222,7 +223,7 @@ impl AccountBackup {
             total_size += size;
         }
 
-        let files = StorageDirs::files_dir(address)?;
+        let files = StorageDirs::files_dir(address.to_string())?;
         for entry in WalkDir::new(&files) {
             let entry = entry?;
             if entry.path().is_file() {
@@ -261,16 +262,17 @@ impl AccountBackup {
 
     /// Resolve a manifest entry to a path.
     pub fn resolve_manifest_entry(
-        address: &str,
+        address: &Address,
         entry: &ManifestEntry,
     ) -> Result<PathBuf> {
         match entry {
             ManifestEntry::Identity { .. } => {
-                Ok(StorageDirs::identity_vault(address)?)
+                Ok(StorageDirs::identity_vault(address.to_string())?)
             }
             ManifestEntry::Vault { id, .. } => {
-                let mut path = StorageDirs::local_vaults_dir(address)?
-                    .join(id.to_string());
+                let mut path =
+                    StorageDirs::local_vaults_dir(address.to_string())?
+                        .join(id.to_string());
                 path.set_extension(VAULT_EXT);
                 Ok(path)
             }
@@ -279,7 +281,7 @@ impl AccountBackup {
                 secret_id,
                 label,
                 ..
-            } => Ok(StorageDirs::files_dir(address)?
+            } => Ok(StorageDirs::files_dir(address.to_string())?
                 .join(vault_id.to_string())
                 .join(secret_id.to_string())
                 .join(label)),
@@ -311,7 +313,7 @@ impl AccountBackup {
     /// The identity vault must be unlocked so we can retrieve
     /// the passphrase for the target vault.
     pub fn export_vault(
-        address: &str,
+        address: &Address,
         identity: &Gatekeeper,
         vault_id: &VaultId,
         new_passphrase: SecretString,
@@ -338,8 +340,8 @@ impl AccountBackup {
 
     /// Create a buffer for a zip archive including the
     /// identity vault and all user vaults.
-    pub fn export_archive_buffer(address: &str) -> Result<Vec<u8>> {
-        let identity_path = StorageDirs::identity_vault(address)?;
+    pub fn export_archive_buffer(address: &Address) -> Result<Vec<u8>> {
+        let identity_path = StorageDirs::identity_vault(address.to_string())?;
         if !identity_path.exists() {
             return Err(Error::NotFile(identity_path));
         }
@@ -349,15 +351,14 @@ impl AccountBackup {
 
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
-        let mut writer =
-            writer.set_identity(address.to_owned(), &identity)?;
+        let mut writer = writer.set_identity(address, &identity)?;
 
         for (summary, path) in vaults {
             let buffer = std::fs::read(path)?;
             writer = writer.add_vault(*summary.id(), &buffer)?;
         }
 
-        let files = StorageDirs::files_dir(address)?;
+        let files = StorageDirs::files_dir(address.to_string())?;
         for entry in WalkDir::new(&files) {
             let entry = entry?;
             if entry.path().is_file() {
@@ -376,7 +377,7 @@ impl AccountBackup {
     /// Export an archive of the account to disc.
     pub fn export_archive_file<P: AsRef<Path>>(
         path: P,
-        address: &str,
+        address: &Address,
     ) -> Result<()> {
         let buffer = Self::export_archive_buffer(address)?;
         std::fs::write(path.as_ref(), buffer)?;
@@ -415,12 +416,14 @@ impl AccountBackup {
             let existing_account =
                 keys.iter().find(|k| k.address() == address);
             let account = existing_account
-                .ok_or_else(|| Error::NoArchiveAccount(address.to_owned()))?
+                .ok_or_else(|| Error::NoArchiveAccount(address.to_string()))?
                 .clone();
+
+            let address = address.to_string();
 
             if let Some(passphrase) = &options.passphrase {
                 let identity_vault_file =
-                    StorageDirs::identity_vault(address)?;
+                    StorageDirs::identity_vault(&address)?;
                 let identity_buffer = std::fs::read(&identity_vault_file)?;
                 let identity_vault: Vault = decode(&identity_buffer)?;
                 let mut identity_keeper =
@@ -465,17 +468,20 @@ impl AccountBackup {
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
             let keys = LocalAccounts::list_accounts()?;
-            let existing_account =
-                keys.iter().find(|k| k.address() == restore_targets.address);
+            let existing_account = keys
+                .iter()
+                .find(|k| k.address() == &restore_targets.address);
             if existing_account.is_some() {
                 return Err(Error::ArchiveAccountAlreadyExists(
-                    restore_targets.address,
+                    restore_targets.address.to_string(),
                 ));
             }
 
+            let address_path = restore_targets.address.to_string();
+
             // Write out the identity vault
             let identity_vault_file =
-                StorageDirs::identity_vault(&restore_targets.address)?;
+                StorageDirs::identity_vault(&address_path)?;
             std::fs::write(identity_vault_file, &restore_targets.identity.1)?;
 
             // Check if the identity name already exists
@@ -492,7 +498,7 @@ impl AccountBackup {
                 );
 
                 let identity_vault_file =
-                    StorageDirs::identity_vault(&restore_targets.address)?;
+                    StorageDirs::identity_vault(&address_path)?;
                 let mut access = VaultFileAccess::new(identity_vault_file)?;
                 access.set_vault_name(name.clone())?;
 
@@ -502,8 +508,7 @@ impl AccountBackup {
             };
 
             // Prepare the vaults directory
-            let vaults_dir =
-                StorageDirs::local_vaults_dir(&restore_targets.address)?;
+            let vaults_dir = StorageDirs::local_vaults_dir(&address_path)?;
             std::fs::create_dir_all(&vaults_dir)?;
 
             // Write out each vault and the WAL log
@@ -525,8 +530,7 @@ impl AccountBackup {
                 wal.apply(wal_events, None)?;
             }
 
-            let account =
-                AccountInfo::new(label, restore_targets.address.clone());
+            let account = AccountInfo::new(label, restore_targets.address);
 
             (restore_targets, account)
         };
@@ -552,7 +556,8 @@ impl AccountBackup {
                 }
                 ExtractFilesLocation::Builder(builder) => {
                     if let Some(manifest) = reader.manifest() {
-                        if let Some(files_dir) = builder(&manifest.address) {
+                        let address = manifest.address.to_string();
+                        if let Some(files_dir) = builder(&address) {
                             reader.extract_files(
                                 files_dir,
                                 options.selected.as_slice(),
@@ -608,7 +613,7 @@ impl AccountBackup {
                 None,
                 None,
             )?;
-            if user.address() != address {
+            if user.address() != &address {
                 return Err(Error::ArchiveAddressMismatch);
             }
         }
