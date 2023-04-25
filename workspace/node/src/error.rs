@@ -9,45 +9,6 @@ pub enum Error {
     #[error("could not determine cache directory")]
     NoCache,
 
-    // FIXME: remove
-    /// Error generated when a session does not exist.
-    #[error("session does not exist")]
-    NoSession,
-
-    // FIXME: remove
-    /// Error generated when a session identity signature does not
-    /// match the initial address.
-    #[error("bad session identity signature")]
-    BadSessionIdentity,
-
-    // FIXME: remove
-    /// Error generated when attempting to compute a shared secret
-    /// before a session identity has been proven.
-    #[error("session identity has not been proven")]
-    NoSessionIdentity,
-
-    // FIXME: remove
-    /// Error generated when a session does not yet have a salt.
-    #[error("session salt has not been set")]
-    NoSessionSalt,
-
-    // FIXME: remove
-    /// Error generated when a session shared secret has not yet been
-    /// created.
-    #[error("session shared secret has not been set")]
-    NoSessionSharedSecret,
-
-    // FIXME: remove
-    /// Error generated when a session key does not exist.
-    #[error("session key does not exist")]
-    NoSessionKey,
-
-    // FIXME: remove
-    /// Error generated when a session receives a nonce that is equal to
-    /// or less than the current server session nonce.
-    #[error("bad nonce, possible replay attack")]
-    BadNonce,
-
     /// Error generated attempting acquire a lock on a file that is already locked.
     #[error("file {0} is already locked")]
     FileLocked(PathBuf),
