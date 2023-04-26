@@ -1,24 +1,21 @@
 //! Helpers for creating and switching accounts.
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
-use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        AccountRef, AuthenticatedUser, ExtractFilesLocation, LocalAccounts,
-        Login, RestoreOptions,
+        AccountRef, ExtractFilesLocation, LocalAccounts,
+        RestoreOptions,
     },
     passwd::diceware::generate_passphrase,
-    search::SearchIndex,
     secrecy::{ExposeSecret, SecretString},
     storage::StorageDirs,
 };
 use sos_node::{
     client::{
         provider::ProviderFactory,
-        user::{UserIndex, UserStorage},
+        user::UserStorage,
     },
-    peer::convert_libp2p_identity,
 };
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
@@ -54,18 +51,7 @@ pub async fn resolve_user(
         return Ok(Arc::clone(owner));
     }
 
-    let (user, _) = sign_in(&account)?;
-    let (storage, _) =
-        factory.create_provider(user.identity().signer().clone())?;
-    let peer_key = convert_libp2p_identity(user.device().signer())?;
-    let mut owner = UserStorage {
-        user,
-        storage,
-        index: UserIndex::new(),
-        peer_key,
-        factory,
-    };
-
+    let (mut owner, _) = sign_in(&account, factory).await?;
     if USER.get().is_none() {
         owner.storage.authenticate().await?;
         owner.storage.load_vaults().await?;
@@ -121,11 +107,11 @@ pub async fn account_info(
         .await
         .ok_or_else(|| Error::NoAccountFound)?;
 
-    let (user, _) = sign_in(&account)?;
+    let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
     let folders =
-        LocalAccounts::list_local_vaults(user.identity().address(), system)?;
+        LocalAccounts::list_local_vaults(owner.user.identity().address(), system)?;
 
-    println!("{} {}", user.account().address(), user.account().label());
+    println!("{} {}", owner.user.account().address(), owner.user.account().label());
     for (summary, _) in folders {
         if verbose {
             println!("{} {}", summary.id(), summary.name());
@@ -145,8 +131,8 @@ pub async fn account_rename(
         .await
         .ok_or_else(|| Error::NoAccountFound)?;
 
-    let (mut user, _) = sign_in(&account)?;
-    user.rename_account(name)?;
+    let (mut owner, _) = sign_in(&account, ProviderFactory::Local).await?;
+    owner.user.rename_account(name)?;
     Ok(())
 }
 
@@ -189,13 +175,10 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         if !confirmed {
             return Ok(None);
         }
-
-        let (user, _) =
-            sign_in(&AccountRef::Name(account.label().to_owned()))?;
-        let factory = ProviderFactory::Local;
-        let (provider, _) =
-            factory.create_provider(user.identity().signer().clone())?;
-        (Some(provider), None)
+        
+        let account = AccountRef::Name(account.label().to_owned());
+        let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
+        (Some(owner.storage), None)
     } else {
         (None, None)
     };
@@ -233,45 +216,26 @@ fn find_account(account: &AccountRef) -> Result<Option<AccountInfo>> {
 }
 
 /// Helper to sign in to an account.
-pub fn sign_in(
+pub async fn sign_in(
     account: &AccountRef,
-) -> Result<(AuthenticatedUser, SecretString)> {
+    factory: ProviderFactory,
+) -> Result<(UserStorage, SecretString)> {
     let account = find_account(account)?
         .ok_or(Error::NoAccount(account.to_string()))?;
-
     let passphrase = read_password(Some("Password: "))?;
-    let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
-    // Verify the identity vault can be unlocked
-    let user = Login::sign_in(
-        account.address(),
-        passphrase.clone(),
-        Arc::clone(&identity_index),
-    )?;
-
-    Ok((user, passphrase))
+    let owner = UserStorage::new(account.address(), passphrase.clone(), factory).await?;
+    Ok((owner, passphrase))
 }
 
 /// Switch to a different account.
 pub async fn switch(
-    factory: ProviderFactory,
     account: &AccountRef,
+    factory: ProviderFactory,
 ) -> Result<Arc<RwLock<UserStorage>>> {
-    let (user, _) = sign_in(account)?;
-    let (storage, _) =
-        factory.create_provider(user.identity().signer().clone())?;
-    let peer_key = convert_libp2p_identity(user.device().signer())?;
-
+    let (owner, _) = sign_in(account, factory).await?;
     let mut writer = USER.get().unwrap().write().await;
-    *writer = UserStorage {
-        user,
-        storage,
-        index: UserIndex::new(),
-        peer_key,
-        factory,
-    };
-
-    let owner = Arc::clone(USER.get().unwrap());
-    Ok(owner)
+    *writer = owner;
+    Ok(Arc::clone(USER.get().unwrap()))
 }
 
 /// Create a new local account.

@@ -7,9 +7,7 @@ use terminal_banner::{Banner, Padding};
 use sos_node::{
     client::{
         provider::ProviderFactory,
-        user::{UserIndex, UserStorage},
     },
-    peer::convert_libp2p_identity,
     FileLocks,
 };
 
@@ -53,27 +51,15 @@ pub async fn run(
     let mut locks = FileLocks::new();
     locks.add(&cache_lock)?;
 
-    let (user, _) = sign_in(&account)?;
+    // FIXME: support ephemeral device signer for when the CLI
+    // FIXME: is running on the same device as a GUI
 
-    let (mut storage, _) =
-        factory.create_provider(user.identity().signer().clone())?;
+    let (mut owner, _) = sign_in(&account, factory.clone()).await?;
     welcome(&factory)?;
 
     // Authenticate and load initial vaults
-    storage.authenticate().await?;
-    storage.load_vaults().await?;
-
-    // FIXME: support ephemeral device signer for when the CLI
-    // FIXME: is running on the same device as a GUI
-    let peer_key = convert_libp2p_identity(user.device().signer())?;
-
-    let owner = UserStorage {
-        user,
-        storage,
-        index: UserIndex::new(),
-        peer_key,
-        factory: factory.clone(),
-    };
+    owner.storage.authenticate().await?;
+    owner.storage.load_vaults().await?;
 
     /*
     match &factory {

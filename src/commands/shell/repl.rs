@@ -85,6 +85,7 @@ enum ShellCommand {
         verbose: bool,
     },
     /// List secrets in the current folder.
+    #[clap(alias = "ls")]
     List {
         /// Print more information
         #[clap(short, long)]
@@ -835,7 +836,7 @@ async fn exec_program(
             let factory = reader.factory.clone();
             drop(reader);
 
-            let state = switch(factory, &account).await?;
+            let state = switch(&account, factory).await?;
             let mut writer = state.write().await;
 
             // Ensure the vault summaries are loaded
