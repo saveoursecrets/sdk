@@ -10,6 +10,19 @@ RUST_BACKTRACE = 0
 BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 BINARIES = "sos"
 
+[tasks.fix-all]
+workspace = true
+command = "cargo"
+args = ["fix", "--all-features", "--allow-dirty"]
+
+[tasks.fix-clippy]
+workspace = true
+command = "cargo"
+args = ["clippy", "--fix", "--all-features"]
+
+[tasks.fix]
+dependencies = ["fix-all", "fix-clippy", "format"]
+
 [tasks.format]
 workspace = true
 command = "cargo"

@@ -2,6 +2,7 @@
 
 /// Retry a request after renewing a session if an
 /// UNAUTHORIZED response is returned,
+#[doc(hidden)]
 #[macro_export]
 macro_rules! retry {
     ($future:expr, $client:expr) => {{
@@ -43,6 +44,7 @@ macro_rules! retry {
 ///
 /// When local is behind remote attempt to pull changes from
 /// remote and apply the patch if the pull succeeds.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! patch {
     ($provider:expr, $summary:expr, $events:expr) => {{

@@ -1,5 +1,5 @@
 //! Network aware user storage and search index.
-use std::{collections::HashSet, path::{Path, PathBuf}, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use sos_core::{
     account::{
@@ -7,13 +7,13 @@ use sos_core::{
         Login,
     },
     decode, encode,
-    search::{Document, DocumentCount, SearchIndex},
+    search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     vault::{
-        secret::{kind::CONTACT, Secret, SecretId, SecretMeta},
+        secret::{Secret, SecretMeta},
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess, VaultId,
     },
-    vcard4, Timestamp,
+    Timestamp,
 };
 
 use parking_lot::RwLock as SyncRwLock;
@@ -28,7 +28,13 @@ use super::{
 use crate::peer::convert_libp2p_identity;
 
 #[cfg(feature = "device")]
-use crate::device::{self, TrustedDevice};
+mod devices;
+mod search_index;
+
+#[cfg(feature = "device")]
+pub use devices::DeviceManager;
+
+pub use search_index::*;
 
 /// Authenticated user with storage provider.
 pub struct UserStorage {
@@ -42,7 +48,7 @@ pub struct UserStorage {
     index: UserIndex,
     /// Devices for this user.
     #[cfg(feature = "device")]
-    devices: UserDevices,
+    devices: DeviceManager,
     /// Key pair for peer to peer connections.
     #[cfg(feature = "peer")]
     pub peer_key: libp2p::identity::Keypair,
@@ -73,19 +79,21 @@ impl UserStorage {
             factory,
             index: UserIndex::new(),
             #[cfg(feature = "device")]
-            devices: UserDevices::new(address)?,
+            devices: DeviceManager::new(address)?,
             #[cfg(feature = "peer")]
             peer_key,
         })
     }
-    
+
     /// Users devices reference.
-    pub fn devices(&self) -> &UserDevices {
+    #[cfg(feature = "device")]
+    pub fn devices(&self) -> &DeviceManager {
         &self.devices
     }
 
     /// Users devices mutable reference.
-    pub fn devices_mut(&mut self) -> &mut UserDevices {
+    #[cfg(feature = "device")]
+    pub fn devices_mut(&mut self) -> &mut DeviceManager {
         &mut self.devices
     }
 
@@ -396,271 +404,4 @@ impl UserStorage {
 
         Ok(self.index.document_count())
     }
-}
-
-/// Manages the devices for a user.
-#[cfg(feature = "device")]
-pub struct UserDevices {
-    device_dir: PathBuf,
-}
-
-#[cfg(feature = "device")]
-impl UserDevices {
-    /// Create a new devices manager.
-    fn new(address: &Address) -> Result<Self> {
-        use sos_core::storage::StorageDirs;
-        let device_dir = StorageDirs::devices_dir(
-            address.to_string(),
-        )?;
-        Ok(Self { device_dir })
-    }
-
-    /// Load trusted devices.
-    pub fn load(&self) -> Result<Vec<TrustedDevice>> {
-        let devices = device::TrustedDevice::load_devices(&self.device_dir)?;
-        let mut trusted = Vec::new();
-        for device in devices {
-            trusted.push(device);
-        }
-        Ok(trusted)
-    }
-
-    /// Add a trusted device.
-    pub fn add(&mut self, device: TrustedDevice) -> Result<()> {
-        device::TrustedDevice::add_device(&self.device_dir, device)?;
-        Ok(())
-    }
-
-    /// Remove a trusted device.
-    pub fn remove(&mut self, device: TrustedDevice) -> Result<()> {
-        device::TrustedDevice::remove_device(&self.device_dir, &device)?;
-        Ok(())
-    }
-}
-
-/// Modify and query a search index.
-pub struct UserIndex {
-    /// Search index.
-    search_index: Arc<SyncRwLock<SearchIndex>>,
-}
-
-impl UserIndex {
-    /// Create a new user search index.
-    pub fn new() -> Self {
-        Self {
-            search_index: Arc::new(SyncRwLock::new(SearchIndex::new(None))),
-        }
-    }
-
-    /// Clear the entire search index.
-    pub fn clear(&mut self) {
-        let mut writer = self.search_index.write();
-        writer.remove_all();
-    }
-
-    /// Remove a folder from the search index.
-    pub fn remove_folder_from_search_index(&self, vault_id: &VaultId) {
-        // Clean entries from the search index
-        let mut writer = self.search_index.write();
-        writer.remove_vault(vault_id);
-    }
-
-    /// Add a folder to the search index.
-    pub fn add_folder_to_search_index(
-        &self,
-        vault: Vault,
-        passphrase: SecretString,
-    ) -> Result<()> {
-        let index = Arc::clone(&self.search_index);
-        let mut keeper = Gatekeeper::new(vault, Some(index));
-        keeper.unlock(passphrase)?;
-        keeper.create_search_index()?;
-        keeper.lock();
-        Ok(())
-    }
-
-    /// Get the search index document count statistics.
-    pub fn document_count(&self) -> DocumentCount {
-        let reader = self.search_index.read();
-        reader.statistics().count().clone()
-    }
-
-    /// Determine if a document exists in a folder.
-    pub fn document_exists_in_folder(
-        &self,
-        vault_id: &VaultId,
-        label: &str,
-        id: Option<&SecretId>,
-    ) -> bool {
-        let reader = self.search_index.read();
-        reader.find_by_label(vault_id, label, id).is_some()
-    }
-
-    /// Query with document views.
-    pub fn query_view(
-        &self,
-        views: Vec<DocumentView>,
-        archive: Option<ArchiveFilter>,
-    ) -> Result<Vec<Document>> {
-        let index_reader = self.search_index.read();
-        let mut docs = Vec::with_capacity(index_reader.len());
-        for doc in index_reader.values_iter() {
-            for view in &views {
-                if view.test(doc, archive.as_ref()) {
-                    docs.push(doc.clone());
-                }
-            }
-        }
-        Ok(docs)
-    }
-
-    /// Query the search index.
-    pub fn query_map(
-        &self,
-        query: &str,
-        filter: QueryFilter,
-    ) -> Result<Vec<Document>> {
-        let index_reader = self.search_index.read();
-        let mut docs = Vec::new();
-        let tags: HashSet<_> = filter.tags.iter().cloned().collect();
-        let predicate = self.query_predicate(filter, tags, None);
-        if !query.is_empty() {
-            for doc in index_reader.query_map(query, predicate) {
-                docs.push(doc.clone());
-            }
-        } else {
-            for doc in index_reader.values_iter() {
-                if predicate(doc) {
-                    docs.push(doc.clone());
-                }
-            }
-        }
-        Ok(docs)
-    }
-
-    fn query_predicate(
-        &self,
-        filter: QueryFilter,
-        tags: HashSet<String>,
-        _archive: Option<ArchiveFilter>,
-    ) -> impl Fn(&Document) -> bool {
-        move |doc| {
-            let tag_match = filter.tags.is_empty() || {
-                !tags
-                    .intersection(doc.meta().tags())
-                    .collect::<HashSet<_>>()
-                    .is_empty()
-            };
-
-            let vault_id = doc.vault_id();
-            let folder_match = filter.folders.is_empty()
-                || filter.folders.contains(vault_id);
-
-            let type_match = filter.types.is_empty()
-                || filter.types.contains(doc.meta().kind());
-
-            tag_match && folder_match && type_match
-        }
-    }
-}
-
-/// View of documents in the search index.
-pub enum DocumentView {
-    /// View all documents in the search index.
-    All {
-        /// List of secret types to ignore.
-        ignored_types: Option<Vec<u8>>,
-    },
-    /// View all the documents for a folder.
-    Vault(VaultId),
-    /// View documents across all vaults by type identifier.
-    TypeId(u8),
-    /// View for all favorites.
-    Favorites,
-    /// View documents that have one or more tags.
-    Tags(Vec<String>),
-    /// Contacts of the given types.
-    Contact {
-        /// Contact types to include in the results.
-        include_types: Option<Vec<vcard4::property::Kind>>,
-    },
-    /// Documents with the specific identifiers.
-    Documents {
-        /// Vault identifier.
-        vault_id: VaultId,
-        /// Secret identifiers.
-        identifiers: Vec<SecretId>,
-    },
-}
-
-impl DocumentView {
-    /// Test this view against a search result document.
-    pub fn test(
-        &self,
-        doc: &Document,
-        archive: Option<&ArchiveFilter>,
-    ) -> bool {
-        if let Some(filter) = archive {
-            if !filter.include_documents && doc.vault_id() == &filter.id {
-                return false;
-            }
-        }
-
-        match self {
-            DocumentView::All { ignored_types } => {
-                if let Some(ignored_types) = ignored_types {
-                    return !ignored_types.contains(doc.meta().kind());
-                }
-                true
-            }
-            DocumentView::Vault(vault_id) => doc.vault_id() == vault_id,
-            DocumentView::TypeId(type_id) => doc.meta().kind() == type_id,
-            DocumentView::Favorites => doc.meta().favorite(),
-            DocumentView::Tags(tags) => {
-                let tags: HashSet<_> = tags.iter().cloned().collect();
-                !tags
-                    .intersection(doc.meta().tags())
-                    .collect::<HashSet<_>>()
-                    .is_empty()
-            }
-            DocumentView::Contact { include_types } => {
-                if doc.meta().kind() == &CONTACT {
-                    if let Some(include_types) = include_types {
-                        if let Some(contact_type) = &doc.extra().contact_type
-                        {
-                            let contact_type: vcard4::property::Kind =
-                                contact_type.clone();
-                            return include_types.contains(&contact_type);
-                        } else {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-                false
-            }
-            DocumentView::Documents {
-                vault_id,
-                identifiers,
-            } => doc.vault_id() == vault_id && identifiers.contains(doc.id()),
-        }
-    }
-}
-
-/// Filter for a search query.
-pub struct QueryFilter {
-    /// List of tags.
-    pub tags: Vec<String>,
-    /// List of vault identifiers.
-    pub folders: Vec<VaultId>,
-    /// List of type identifiers.
-    pub types: Vec<u8>,
-}
-
-/// Filter for archived documents.
-pub struct ArchiveFilter {
-    /// Identifier of the archive vault.
-    pub id: VaultId,
-    /// Whether to include archived documents.
-    pub include_documents: bool,
 }

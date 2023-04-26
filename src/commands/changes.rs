@@ -3,7 +3,10 @@ use futures::stream::StreamExt;
 use sos_core::{
     account::AccountRef, signer::ecdsa::BoxedEcdsaSigner, url::Url,
 };
-use sos_node::client::{net::changes::{changes, connect}, provider::ProviderFactory};
+use sos_node::client::{
+    net::changes::{changes, connect},
+    provider::ProviderFactory,
+};
 
 use crate::helpers::account::sign_in;
 use crate::Result;

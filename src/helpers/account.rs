@@ -4,19 +4,13 @@ use std::{borrow::Cow, path::PathBuf, sync::Arc};
 use sos_core::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        AccountRef, ExtractFilesLocation, LocalAccounts,
-        RestoreOptions,
+        AccountRef, ExtractFilesLocation, LocalAccounts, RestoreOptions,
     },
     passwd::diceware::generate_passphrase,
     secrecy::{ExposeSecret, SecretString},
     storage::StorageDirs,
 };
-use sos_node::{
-    client::{
-        provider::ProviderFactory,
-        user::UserStorage,
-    },
-};
+use sos_node::client::{provider::ProviderFactory, user::UserStorage};
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
 
@@ -108,10 +102,16 @@ pub async fn account_info(
         .ok_or_else(|| Error::NoAccountFound)?;
 
     let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
-    let folders =
-        LocalAccounts::list_local_vaults(owner.user.identity().address(), system)?;
+    let folders = LocalAccounts::list_local_vaults(
+        owner.user.identity().address(),
+        system,
+    )?;
 
-    println!("{} {}", owner.user.account().address(), owner.user.account().label());
+    println!(
+        "{} {}",
+        owner.user.account().address(),
+        owner.user.account().label()
+    );
     for (summary, _) in folders {
         if verbose {
             println!("{} {}", summary.id(), summary.name());
@@ -175,7 +175,7 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         if !confirmed {
             return Ok(None);
         }
-        
+
         let account = AccountRef::Name(account.label().to_owned());
         let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
         (Some(owner.storage), None)
@@ -223,7 +223,9 @@ pub async fn sign_in(
     let account = find_account(account)?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
-    let owner = UserStorage::new(account.address(), passphrase.clone(), factory).await?;
+    let owner =
+        UserStorage::new(account.address(), passphrase.clone(), factory)
+            .await?;
     Ok((owner, passphrase))
 }
 

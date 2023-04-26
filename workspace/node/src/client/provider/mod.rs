@@ -73,7 +73,7 @@ pub type BoxedProvider = Box<dyn StorageProvider + Send + Sync + 'static>;
 /// Note we need `Sync` and `Send` super traits as we want
 /// to refer to `dyn StorageProvider`.
 ///
-/// See: https://docs.rs/async-trait/latest/async_trait/#dyn-traits
+/// See <https://docs.rs/async-trait/latest/async_trait/#dyn-traits>
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait StorageProvider: Sync + Send {
@@ -474,6 +474,7 @@ pub trait StorageProvider: Sync + Send {
 }
 
 /// Shared provider implementation.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! provider_impl {
     () => {

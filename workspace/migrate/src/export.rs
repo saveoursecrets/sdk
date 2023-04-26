@@ -1,5 +1,6 @@
-//! Defines types that expose all secrets insecurely and unencrypted
-//! as a compressed archive for migrating to another service.
+//! Export an archive of unencrypted secrets.
+//!
+//! Used to migrate to another service.
 
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
