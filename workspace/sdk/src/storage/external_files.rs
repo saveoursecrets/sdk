@@ -20,6 +20,14 @@ use std::{
 
 use crate::{storage::StorageDirs, Error, Result};
 
+/// Result of encrypting a file.
+pub struct EncryptedFile {
+    /// Size of the original file in bytes.
+    pub size: u64,
+    /// Sha256 digest of the original file.
+    pub digest: Vec<u8>,
+}
+
 /// Manage encrypted file storage.
 pub struct FileStorage;
 
@@ -89,7 +97,7 @@ impl FileStorage {
         address: A,
         vault_id: V,
         secret_id: S,
-    ) -> Result<(Vec<u8>, u64)> {
+    ) -> Result<EncryptedFile> {
         let file = std::fs::File::open(path.as_ref())?;
         let size: u64 = file.metadata()?.len();
         drop(file);
@@ -104,7 +112,7 @@ impl FileStorage {
 
         // Encrypt the file and write it to the storage location
         let digest = Self::encrypt_file_passphrase(path, target, password)?;
-        Ok((digest, size))
+        Ok(EncryptedFile { digest, size })
     }
 
     /// Decrypt a file in the storage location and return the buffer.

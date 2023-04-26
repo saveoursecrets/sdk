@@ -17,7 +17,7 @@ static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
 
 mod external_files;
 
-pub use external_files::FileStorage;
+pub use external_files::{EncryptedFile, FileStorage};
 
 /// Encapsulates the paths for vault storage.
 #[derive(Default, Debug)]

@@ -1,5 +1,8 @@
 //! Network aware user storage and search index.
-use std::{path::Path, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use sos_core::{
     account::{
@@ -10,6 +13,7 @@ use sos_core::{
     events::SyncEvent,
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
+    storage::{EncryptedFile, FileStorage, StorageDirs},
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess, VaultId,
@@ -47,6 +51,10 @@ pub struct UserStorage {
     pub factory: ProviderFactory,
     /// Search index.
     index: UserIndex,
+
+    /// Files directory.
+    files_dir: PathBuf,
+
     /// Devices for this user.
     #[cfg(feature = "device")]
     devices: DeviceManager,
@@ -74,10 +82,14 @@ impl UserStorage {
         #[cfg(feature = "peer")]
         let peer_key = convert_libp2p_identity(user.device().signer())?;
 
+        let files_dir =
+            StorageDirs::files_dir(user.identity().address().to_string())?;
+
         Ok(Self {
             user,
             storage,
             factory,
+            files_dir,
             index: UserIndex::new(),
             #[cfg(feature = "device")]
             devices: DeviceManager::new(address)?,
@@ -519,5 +531,130 @@ impl UserStorage {
         }
 
         Ok(self.index.document_count())
+    }
+
+    /// Get the expected location for a file.
+    pub fn file_location(
+        &self,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: &str,
+    ) -> Result<PathBuf> {
+        Ok(StorageDirs::file_location(
+            self.user.identity().address().to_string(),
+            vault_id.to_string(),
+            secret_id.to_string(),
+            file_name,
+        )?)
+    }
+
+    /// Encrypt a file and move it to the external file storage location.
+    pub fn encrypt_file_storage<P: AsRef<Path>>(
+        &self,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        source: P,
+    ) -> Result<EncryptedFile> {
+        // Find the file encryption password
+        let password = DelegatedPassphrase::find_file_encryption_passphrase(
+            self.user.identity().keeper(),
+        )?;
+
+        // Encrypt and write to disc
+        Ok(FileStorage::encrypt_file_storage(
+            password,
+            source,
+            self.user.identity().address().to_string(),
+            vault_id.to_string(),
+            secret_id.to_string(),
+        )?)
+    }
+
+    /// Decrypt a file in the storage location and return the buffer.
+    pub fn decrypt_file_storage(
+        &self,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: &str,
+    ) -> Result<Vec<u8>> {
+        // Find the file encryption password
+        let password = DelegatedPassphrase::find_file_encryption_passphrase(
+            self.user.identity().keeper(),
+        )?;
+
+        Ok(FileStorage::decrypt_file_storage(
+            &password,
+            self.user.identity().address().to_string(),
+            vault_id.to_string(),
+            secret_id.to_string(),
+            file_name,
+        )?)
+    }
+
+    /// Delete a file from the storage location.
+    pub fn delete_file_storage(
+        &self,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: &str,
+    ) -> Result<()> {
+        let vault_path = self.files_dir.join(vault_id.to_string());
+        let secret_path = vault_path.join(secret_id.to_string());
+        let path = secret_path.join(file_name);
+
+        std::fs::remove_file(path)?;
+
+        // Prune empty directories
+        let secret_dir_is_empty = secret_path.read_dir()?.next().is_none();
+        if secret_dir_is_empty {
+            std::fs::remove_dir(secret_path)?;
+        }
+        let vault_dir_is_empty = vault_path.read_dir()?.next().is_none();
+        if vault_dir_is_empty {
+            std::fs::remove_dir(vault_path)?;
+        }
+
+        Ok(())
+    }
+
+    /// Move the encrypted file for an external storage.
+    pub fn move_file_storage(
+        &self,
+        old_vault_id: &VaultId,
+        new_vault_id: &VaultId,
+        old_secret_id: &SecretId,
+        new_secret_id: &SecretId,
+        file_name: &str,
+    ) -> Result<()> {
+        let old_vault_path = self.files_dir.join(old_vault_id.to_string());
+        let old_secret_path = old_vault_path.join(old_secret_id.to_string());
+        let old_path = old_secret_path.join(file_name);
+
+        let new_path = self
+            .files_dir
+            .join(new_vault_id.to_string())
+            .join(new_secret_id.to_string())
+            .join(file_name);
+
+        if let Some(parent) = new_path.parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(parent)?;
+            }
+        }
+
+        std::fs::rename(old_path, new_path)?;
+
+        // Prune empty directories
+        let secret_dir_is_empty =
+            old_secret_path.read_dir()?.next().is_none();
+        if secret_dir_is_empty {
+            std::fs::remove_dir(old_secret_path)?;
+        }
+        let vault_dir_is_empty = old_vault_path.read_dir()?.next().is_none();
+        if vault_dir_is_empty {
+            std::fs::remove_dir(old_vault_path)?;
+        }
+
+        Ok(())
     }
 }
