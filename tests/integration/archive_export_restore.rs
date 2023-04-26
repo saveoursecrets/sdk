@@ -84,11 +84,13 @@ async fn integration_archive_local_provider() -> Result<()> {
     };
 
     // Create the archive
-    let (address, _identity_vault, archive) =
+    let (address, _identity_vault, mut archive) =
         create_archive(passphrase.clone(), vec![vault])?;
 
+    let reader = Cursor::new(&mut archive);
+
     // Restore from the archive into the provider
-    let targets = AccountBackup::extract_verify_archive(archive, &options)?;
+    let targets = AccountBackup::extract_verify_archive(reader, &options)?;
     assert_eq!(address, targets.address);
 
     storage.restore_archive(&targets).await?;

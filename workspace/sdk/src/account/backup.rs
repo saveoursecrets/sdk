@@ -3,7 +3,7 @@
 use std::{
     borrow::Cow,
     fs::File,
-    io::Cursor,
+    io::{Cursor, Read, Seek},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -379,22 +379,22 @@ impl AccountBackup {
         path: P,
         address: &Address,
     ) -> Result<()> {
-        let buffer = Self::export_archive_buffer(address)?;
-        std::fs::write(path.as_ref(), buffer)?;
+        let mut buffer = Self::export_archive_buffer(address)?;
+        std::fs::write(path.as_ref(), &mut buffer)?;
         Ok(())
     }
 
     /// Read the inventory from an archive.
-    pub fn restore_archive_inventory<B: AsRef<[u8]>>(
-        mut archive: B,
+    pub fn restore_archive_inventory<R: Read + Seek>(
+        archive: R,
     ) -> Result<Inventory> {
-        let mut reader = Reader::new(Cursor::new(&mut archive))?;
+        let mut reader = Reader::new(archive)?;
         reader.inventory()
     }
 
     /// Import from an archive.
-    pub fn restore_archive_buffer(
-        buffer: Vec<u8>,
+    pub fn restore_archive_buffer<R: Read + Seek>(
+        buffer: R,
         options: RestoreOptions,
         existing_account: bool,
     ) -> Result<(RestoreTargets, AccountInfo)> {
@@ -540,11 +540,11 @@ impl AccountBackup {
 
     /// Helper to extract from an archive and verify the archive
     /// contents against the restore options.
-    pub fn extract_verify_archive(
-        mut archive: Vec<u8>,
+    pub fn extract_verify_archive<R: Read + Seek>(
+        archive: R,
         options: &RestoreOptions,
     ) -> Result<RestoreTargets> {
-        let mut reader = Reader::new(Cursor::new(&mut archive))?.prepare()?;
+        let mut reader = Reader::new(archive)?.prepare()?;
 
         if let Some(files_dir) = &options.files_dir {
             match files_dir {

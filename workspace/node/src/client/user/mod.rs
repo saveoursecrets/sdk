@@ -1,13 +1,15 @@
 //! Network aware user storage and search index.
 use std::{
+    io::{Read, Seek},
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use sos_core::{
     account::{
-        AccountBackup, AuthenticatedUser, DelegatedPassphrase, LocalAccounts,
-        Login,
+        archive::Inventory, AccountBackup, AccountInfo, AuthenticatedUser,
+        DelegatedPassphrase, ExtractFilesLocation, LocalAccounts, Login,
+        RestoreOptions,
     },
     decode, encode,
     events::SyncEvent,
@@ -958,5 +960,70 @@ impl UserStorage {
         }
 
         Ok(())
+    }
+
+    /// Create a backup archive containing the
+    /// encrypted data for the account.
+    pub fn export_archive_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        Ok(AccountBackup::export_archive_file(
+            path,
+            self.user.identity().address(),
+        )?)
+    }
+
+    /// Read the inventory from an archive.
+    pub fn restore_archive_inventory<R: Read + Seek>(
+        &self,
+        buffer: R,
+    ) -> Result<Inventory> {
+        let mut inventory = AccountBackup::restore_archive_inventory(buffer)?;
+        let accounts = LocalAccounts::list_accounts()?;
+        let exists_local = accounts
+            .iter()
+            .any(|account| account.address() == &inventory.manifest.address);
+        inventory.exists_local = exists_local;
+        Ok(inventory)
+    }
+
+    /// Import from an archive file.
+    pub async fn restore_archive_file<P: AsRef<Path>>(
+        owner: Option<&mut UserStorage>,
+        path: P,
+        options: RestoreOptions,
+    ) -> Result<AccountInfo> {
+        let file = std::fs::File::open(path)?;
+        Self::restore_archive_reader(owner, file, options).await
+    }
+
+    /// Import from an archive buffer.
+    pub async fn restore_archive_reader<R: Read + Seek>(
+        mut owner: Option<&mut UserStorage>,
+        buffer: R,
+        mut options: RestoreOptions,
+    ) -> Result<AccountInfo> {
+        let files_dir = if let Some(owner) = owner.as_ref() {
+            ExtractFilesLocation::Path(StorageDirs::files_dir(
+                owner.user.identity().address().to_string(),
+            )?)
+        } else {
+            ExtractFilesLocation::Builder(Box::new(|address| {
+                StorageDirs::files_dir(address).ok()
+            }))
+        };
+
+        options.files_dir = Some(files_dir);
+
+        let (targets, account) = AccountBackup::restore_archive_buffer(
+            buffer,
+            options,
+            owner.is_some(),
+        )?;
+
+        if let Some(owner) = owner.as_mut() {
+            owner.storage.restore_archive(&targets).await?;
+            owner.build_search_index().await?;
+        }
+
+        Ok(account)
     }
 }

@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use serial_test::serial;
-use std::{path::PathBuf, sync::Arc};
+use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use parking_lot::RwLock as SyncRwLock;
 use sos_core::{
@@ -133,9 +133,9 @@ async fn integration_account_manager() -> Result<()> {
     let expected = std::fs::read(source_file)?;
     assert_eq!(expected, buffer);
 
-    let archive_buffer = AccountBackup::export_archive_buffer(&address)?;
-    let _inventory =
-        AccountBackup::restore_archive_inventory(archive_buffer.clone())?;
+    let mut archive_buffer = AccountBackup::export_archive_buffer(&address)?;
+    let reader = Cursor::new(&mut archive_buffer);
+    let _inventory = AccountBackup::restore_archive_inventory(reader)?;
 
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)
@@ -148,11 +148,9 @@ async fn integration_account_manager() -> Result<()> {
         files_dir: Some(ExtractFilesLocation::Path(files_dir.clone())),
     };
 
-    let (targets, _) = AccountBackup::restore_archive_buffer(
-        archive_buffer.clone(),
-        options,
-        true,
-    )?;
+    let reader = Cursor::new(&mut archive_buffer);
+    let (targets, _) =
+        AccountBackup::restore_archive_buffer(reader, options, true)?;
 
     provider.restore_archive(&targets).await?;
 
@@ -166,7 +164,8 @@ async fn integration_account_manager() -> Result<()> {
         passphrase: Some(passphrase),
         files_dir: Some(ExtractFilesLocation::Path(files_dir)),
     };
-    AccountBackup::restore_archive_buffer(archive_buffer, options, false)?;
+    let reader = Cursor::new(&mut archive_buffer);
+    AccountBackup::restore_archive_buffer(reader, options, false)?;
 
     // Reset the cache dir so we don't interfere
     // with other tests

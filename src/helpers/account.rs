@@ -161,9 +161,9 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         return Err(Error::NotFile(input));
     }
 
-    let buffer = std::fs::read(input)?;
+    let reader = std::fs::File::open(&input)?;
     let inventory: Inventory =
-        AccountBackup::restore_archive_inventory(buffer.as_slice())?;
+        AccountBackup::restore_archive_inventory(reader)?;
     let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref)?;
 
@@ -189,8 +189,9 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         passphrase,
         files_dir: Some(ExtractFilesLocation::Path(files_dir)),
     };
+    let reader = std::fs::File::open(&input)?;
     let (targets, account) = AccountBackup::restore_archive_buffer(
-        buffer,
+        reader,
         options,
         provider.is_some(),
     )?;

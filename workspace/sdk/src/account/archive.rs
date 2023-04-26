@@ -146,6 +146,9 @@ pub struct Inventory {
     pub identity: Summary,
     /// Summaries for the archived vaults.
     pub vaults: Vec<Summary>,
+    /// Flag indicating whether the account referenced
+    /// in the manifest already exists locally.
+    pub exists_local: bool,
 }
 
 /// Read from an archive.
@@ -195,6 +198,7 @@ impl<R: Read + Seek> Reader<R> {
             manifest,
             identity,
             vaults,
+            exists_local: false,
         })
     }
 
