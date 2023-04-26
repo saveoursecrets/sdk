@@ -5234,6 +5234,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "sos-core",
+ "sos-migrate",
  "tempfile",
  "thiserror",
  "tokio",

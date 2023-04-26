@@ -21,7 +21,7 @@ command = "cargo"
 args = ["clippy", "--fix", "--all-features"]
 
 [tasks.fix]
-dependencies = ["fix-all", "fix-clippy", "format"]
+dependencies = ["fix-clippy", "fix-all", "format"]
 
 [tasks.format]
 workspace = true

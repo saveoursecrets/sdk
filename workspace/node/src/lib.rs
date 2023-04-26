@@ -24,3 +24,6 @@ pub use error::Error;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_locks::FileLocks;
+
+#[cfg(feature = "migrate")]
+pub use sos_migrate as migrate;

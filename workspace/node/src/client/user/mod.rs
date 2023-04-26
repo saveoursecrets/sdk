@@ -39,7 +39,30 @@ mod search_index;
 #[cfg(feature = "device")]
 pub use devices::DeviceManager;
 
+#[cfg(feature = "migrate")]
+pub use sos_migrate::{
+    import::{ImportFormat, ImportTarget},
+    Convert,
+};
+
 pub use search_index::*;
+
+#[cfg(feature = "contacts")]
+/// Progress event when importing contacts.
+pub enum ContactImportProgress {
+    /// Progress event when the number of contacts is known.
+    Ready {
+        /// Total number of contacts.
+        total: usize,
+    },
+    /// Progress event when a contact is being imported.
+    Item {
+        /// Label of the contact.
+        label: String,
+        /// Index of the contact.
+        index: usize,
+    },
+}
 
 /// Authenticated user with storage provider.
 pub struct UserStorage {
@@ -653,6 +676,285 @@ impl UserStorage {
         let vault_dir_is_empty = old_vault_path.read_dir()?.next().is_none();
         if vault_dir_is_empty {
             std::fs::remove_dir(old_vault_path)?;
+        }
+
+        Ok(())
+    }
+
+    /// Write a zip archive containing all the secrets
+    /// for the account unencrypted.
+    ///
+    /// Used to migrate an account to another provider.
+    #[cfg(feature = "migrate")]
+    pub fn export_unsafe_archive<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<()> {
+        use sos_migrate::export::PublicExport;
+        use std::collections::HashMap;
+        use std::io::Cursor;
+
+        let mut archive = Vec::new();
+        let mut migration = PublicExport::new(Cursor::new(&mut archive));
+        let vaults = LocalAccounts::list_local_vaults(
+            self.user.identity().address(),
+            false,
+        )?;
+
+        for (summary, _) in vaults {
+            let (vault, _) = LocalAccounts::find_local_vault(
+                self.user.identity().address(),
+                summary.id(),
+                false,
+            )?;
+            let vault_passphrase =
+                DelegatedPassphrase::find_vault_passphrase(
+                    self.user.identity().keeper(),
+                    summary.id(),
+                )?;
+
+            let mut keeper = Gatekeeper::new(vault, None);
+            keeper.unlock(vault_passphrase)?;
+
+            // Add the secrets for the vault to the migration
+            migration.add(&keeper)?;
+
+            keeper.lock();
+        }
+
+        let mut files = HashMap::new();
+        let buffer = serde_json::to_vec_pretty(self.user.account())?;
+        files.insert("account.json", buffer.as_slice());
+        migration.append_files(files)?;
+        migration.finish()?;
+
+        std::fs::write(path.as_ref(), &archive)?;
+
+        Ok(())
+    }
+
+    /// Import secrets from another app.
+    #[cfg(feature = "migrate")]
+    pub async fn import_file(
+        &mut self,
+        target: ImportTarget,
+    ) -> Result<Summary> {
+        use sos_migrate::import::csv::{
+            bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
+            dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
+            macos::MacPasswordCsv, one_password::OnePasswordCsv,
+        };
+
+        match target.format {
+            ImportFormat::OnePasswordCsv => {
+                self.import_csv(
+                    target.path,
+                    target.folder_name,
+                    OnePasswordCsv,
+                )
+                .await
+            }
+            ImportFormat::DashlaneZip => {
+                self.import_csv(
+                    target.path,
+                    target.folder_name,
+                    DashlaneCsvZip,
+                )
+                .await
+            }
+            ImportFormat::BitwardenCsv => {
+                self.import_csv(target.path, target.folder_name, BitwardenCsv)
+                    .await
+            }
+            ImportFormat::ChromeCsv => {
+                self.import_csv(
+                    target.path,
+                    target.folder_name,
+                    ChromePasswordCsv,
+                )
+                .await
+            }
+            ImportFormat::FirefoxCsv => {
+                self.import_csv(
+                    target.path,
+                    target.folder_name,
+                    FirefoxPasswordCsv,
+                )
+                .await
+            }
+            ImportFormat::MacosCsv => {
+                self.import_csv(
+                    target.path,
+                    target.folder_name,
+                    MacPasswordCsv,
+                )
+                .await
+            }
+        }
+    }
+
+    /// Generic CSV import implementation.
+    #[cfg(feature = "migrate")]
+    async fn import_csv<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        folder_name: String,
+        converter: impl Convert<Input = PathBuf>,
+    ) -> Result<Summary> {
+        let vaults = LocalAccounts::list_local_vaults(
+            self.user.identity().address(),
+            false,
+        )?;
+        let existing_name =
+            vaults.iter().find(|(s, _)| s.name() == &folder_name);
+
+        let vault_passphrase =
+            DelegatedPassphrase::generate_vault_passphrase()?;
+
+        let mut vault: Vault = Default::default();
+        let name = if existing_name.is_some() {
+            format!("{} ({})", folder_name, vault.id())
+        } else {
+            folder_name
+        };
+        vault.set_name(name);
+        vault.initialize(vault_passphrase.clone(), None)?;
+
+        // Parse the CSV records into the vault
+        let vault = converter.convert(
+            path.as_ref().to_path_buf(),
+            vault,
+            vault_passphrase.clone(),
+        )?;
+
+        let buffer = encode(&vault)?;
+        self.storage.import_vault(buffer).await?;
+
+        DelegatedPassphrase::save_vault_passphrase(
+            self.user.identity_mut().keeper_mut(),
+            vault.id(),
+            vault_passphrase.clone(),
+        )?;
+
+        let summary = vault.summary().clone();
+
+        // Ensure the imported secrets are in the search index
+        self.index_mut()
+            .add_folder_to_search_index(vault, vault_passphrase)?;
+
+        Ok(summary)
+    }
+
+    /// Get an avatar JPEG image for a contact in the current
+    /// open folder.
+    #[cfg(feature = "contacts")]
+    pub async fn load_avatar(
+        &mut self,
+        secret_id: &SecretId,
+    ) -> Result<Option<Vec<u8>>> {
+        let (data, _) = self.read_secret(secret_id).await?;
+        if let Secret::Contact { vcard, .. } = &data.secret {
+            let jpeg = if let Ok(mut jpegs) = vcard.parse_photo_jpeg() {
+                if !jpegs.is_empty() {
+                    Some(jpegs.remove(0))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            return Ok(jpeg);
+        }
+        Ok(None)
+    }
+
+    /// Export a contact secret to vCard file.
+    ///
+    /// The folder containing the secret should already be open.
+    #[cfg(feature = "contacts")]
+    pub async fn export_vcard_file<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        secret_id: &SecretId,
+    ) -> Result<()> {
+        let (data, _) = self.read_secret(secret_id).await?;
+        if let Secret::Contact { vcard, .. } = &data.secret {
+            let content = vcard.to_string();
+            std::fs::write(&path, content)?;
+        } else {
+            return Err(Error::NotContact);
+        }
+        Ok(())
+    }
+
+    /// Export all contacts to a single vCard.
+    #[cfg(feature = "contacts")]
+    pub async fn export_all_vcards<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<()> {
+        let summaries = self.list_folders().await?;
+        let contacts = summaries.iter().find(|s| s.flags().is_contact());
+        let contacts = contacts.ok_or_else(|| Error::NoContactsFolder)?;
+
+        let contacts_passphrase = DelegatedPassphrase::find_vault_passphrase(
+            self.user.identity().keeper(),
+            contacts.id(),
+        )?;
+        let (vault, _) = LocalAccounts::find_local_vault(
+            self.user.identity().address(),
+            contacts.id(),
+            false,
+        )?;
+        let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(contacts_passphrase)?;
+
+        let mut vcf = String::new();
+        let keys: Vec<&SecretId> = keeper.vault().keys().collect();
+        for key in keys {
+            if let Some((_, secret, _)) = keeper.read(key)? {
+                if let Secret::Contact { vcard, .. } = secret {
+                    vcf.push_str(&vcard.to_string());
+                }
+            }
+        }
+        std::fs::write(path, vcf.as_bytes())?;
+        Ok(())
+    }
+
+    /// Import vCards from a string buffer.
+    ///
+    /// The contacts folder should already be the current open folder.
+    #[cfg(feature = "contacts")]
+    pub async fn import_vcard(
+        &mut self,
+        content: &str,
+        progress: impl Fn(ContactImportProgress) -> (),
+    ) -> Result<()> {
+        use sos_core::vcard4::parse;
+        let cards = parse(content)?;
+
+        progress(ContactImportProgress::Ready { total: cards.len() });
+
+        for (index, vcard) in cards.into_iter().enumerate() {
+            let label = vcard
+                .formatted_name
+                .get(0)
+                .as_ref()
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+            let secret = Secret::Contact {
+                vcard: Box::new(vcard),
+                user_data: Default::default(),
+            };
+
+            progress(ContactImportProgress::Item {
+                label: label.clone(),
+                index,
+            });
+
+            let meta = SecretMeta::new(label, secret.kind());
+            self.storage.create_secret(meta, secret).await?;
         }
 
         Ok(())
