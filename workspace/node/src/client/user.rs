@@ -1,5 +1,5 @@
 //! Network aware user storage and search index.
-use std::{collections::HashSet, path::Path, sync::Arc};
+use std::{collections::HashSet, path::{Path, PathBuf}, sync::Arc};
 
 use sos_core::{
     account::{
@@ -39,7 +39,10 @@ pub struct UserStorage {
     /// Factory user to create the storage provider.
     pub factory: ProviderFactory,
     /// Search index.
-    pub index: UserIndex,
+    index: UserIndex,
+    /// Devices for this user.
+    #[cfg(feature = "device")]
+    devices: UserDevices,
     /// Key pair for peer to peer connections.
     #[cfg(feature = "peer")]
     pub peer_key: libp2p::identity::Keypair,
@@ -69,9 +72,21 @@ impl UserStorage {
             storage,
             factory,
             index: UserIndex::new(),
+            #[cfg(feature = "device")]
+            devices: UserDevices::new(address)?,
             #[cfg(feature = "peer")]
             peer_key,
         })
+    }
+    
+    /// Users devices reference.
+    pub fn devices(&self) -> &UserDevices {
+        &self.devices
+    }
+
+    /// Users devices mutable reference.
+    pub fn devices_mut(&mut self) -> &mut UserDevices {
+        &mut self.devices
     }
 
     /// List folders.
@@ -307,43 +322,6 @@ impl UserStorage {
         Ok(summary)
     }
 
-    /// Load trusted devices.
-    #[cfg(feature = "device")]
-    pub fn load_devices(&self) -> Result<Vec<TrustedDevice>> {
-        use sos_core::storage::StorageDirs;
-        let device_dir = StorageDirs::devices_dir(
-            self.user.identity().address().to_string(),
-        )?;
-        let devices = device::TrustedDevice::load_devices(device_dir)?;
-        let mut trusted = Vec::new();
-        for device in devices {
-            trusted.push(device);
-        }
-        Ok(trusted)
-    }
-
-    /// Add a trusted device.
-    #[cfg(feature = "device")]
-    pub fn add_device(&mut self, device: TrustedDevice) -> Result<()> {
-        use sos_core::storage::StorageDirs;
-        let device_dir = StorageDirs::devices_dir(
-            self.user.identity().address().to_string(),
-        )?;
-        device::TrustedDevice::add_device(device_dir, device)?;
-        Ok(())
-    }
-
-    /// Remove a trusted device.
-    #[cfg(feature = "device")]
-    pub fn remove_device(&mut self, device: TrustedDevice) -> Result<()> {
-        use sos_core::storage::StorageDirs;
-        let device_dir = StorageDirs::devices_dir(
-            self.user.identity().address().to_string(),
-        )?;
-        device::TrustedDevice::remove_device(device_dir, &device)?;
-        Ok(())
-    }
-
     /// Open a vault.
     pub fn open_folder(&mut self, summary: &Summary) -> Result<()> {
         let passphrase = DelegatedPassphrase::find_vault_passphrase(
@@ -417,6 +395,46 @@ impl UserStorage {
         }
 
         Ok(self.index.document_count())
+    }
+}
+
+/// Manages the devices for a user.
+#[cfg(feature = "device")]
+pub struct UserDevices {
+    device_dir: PathBuf,
+}
+
+#[cfg(feature = "device")]
+impl UserDevices {
+    /// Create a new devices manager.
+    fn new(address: &Address) -> Result<Self> {
+        use sos_core::storage::StorageDirs;
+        let device_dir = StorageDirs::devices_dir(
+            address.to_string(),
+        )?;
+        Ok(Self { device_dir })
+    }
+
+    /// Load trusted devices.
+    pub fn load(&self) -> Result<Vec<TrustedDevice>> {
+        let devices = device::TrustedDevice::load_devices(&self.device_dir)?;
+        let mut trusted = Vec::new();
+        for device in devices {
+            trusted.push(device);
+        }
+        Ok(trusted)
+    }
+
+    /// Add a trusted device.
+    pub fn add(&mut self, device: TrustedDevice) -> Result<()> {
+        device::TrustedDevice::add_device(&self.device_dir, device)?;
+        Ok(())
+    }
+
+    /// Remove a trusted device.
+    pub fn remove(&mut self, device: TrustedDevice) -> Result<()> {
+        device::TrustedDevice::remove_device(&self.device_dir, &device)?;
+        Ok(())
     }
 }
 
