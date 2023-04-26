@@ -5,7 +5,10 @@ use sos_core::{account::AccountRef, storage::StorageDirs};
 use terminal_banner::{Banner, Padding};
 
 use sos_node::{
-    client::{provider::ProviderFactory, UserStorage},
+    client::{
+        provider::ProviderFactory,
+        user::{UserIndex, UserStorage},
+    },
     peer::convert_libp2p_identity,
     FileLocks,
 };
@@ -67,6 +70,7 @@ pub async fn run(
     let owner = UserStorage {
         user,
         storage,
+        index: UserIndex::new(),
         peer_key,
         factory: factory.clone(),
     };

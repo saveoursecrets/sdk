@@ -5,7 +5,7 @@ mod changes_listener;
 pub mod net;
 pub mod provider;
 #[cfg(not(target_arch = "wasm32"))]
-mod user_storage;
+pub mod user;
 
 mod error;
 
@@ -15,6 +15,3 @@ pub use error::Error;
 
 /// Result type for the client module.
 pub type Result<T> = std::result::Result<T, error::Error>;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use user_storage::UserStorage;

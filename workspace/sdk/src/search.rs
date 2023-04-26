@@ -73,7 +73,7 @@ fn tags_extract(d: &Document) -> Vec<&str> {
 }
 
 /// Count of documents by vault identitier and secret kind.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DocumentCount {
     /// Count number of documents in each vault.
     vaults: HashMap<VaultId, usize>,
@@ -101,6 +101,11 @@ impl DocumentCount {
             favorites: Default::default(),
             archive,
         }
+    }
+
+    /// Set the identifier for an archive vault.
+    pub fn set_archive_id(&mut self, archive: Option<VaultId>) {
+        self.archive = archive;
     }
 
     /// Get the counts by vault.
@@ -228,6 +233,11 @@ impl SearchStatistics {
         }
     }
 
+    /// Set the identifier for an archive vault.
+    pub fn set_archive_id(&mut self, archive: Option<VaultId>) {
+        self.count.set_archive_id(archive);
+    }
+
     /// Get the statistics count.
     pub fn count(&self) -> &DocumentCount {
         &self.count
@@ -237,7 +247,7 @@ impl SearchStatistics {
 /// Additional fields that can exposed via search results
 /// that are extracted from the secret data but safe to
 /// be exposed.
-#[derive(Default, Debug, Serialize)]
+#[derive(Default, Debug, Serialize, Clone)]
 pub struct ExtraFields {
     /// The contact type for contact secrets.
     pub contact_type: Option<vcard4::property::Kind>,
@@ -258,7 +268,7 @@ impl From<&Secret> for ExtraFields {
 }
 
 /// Document that can be indexed.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Document {
     /// The vault identifier.
     pub vault_id: VaultId,
@@ -315,6 +325,11 @@ impl SearchIndex {
             documents: Default::default(),
             statistics: SearchStatistics::new(archive),
         }
+    }
+
+    /// Set the identifier for an archive vault.
+    pub fn set_archive_id(&mut self, archive: Option<VaultId>) {
+        self.statistics.set_archive_id(archive);
     }
 
     /// Get the search index statistics.

@@ -911,6 +911,7 @@ impl Vault {
     }
 
     /// Verify an encryption passphrase.
+    // FIXME: use SecretString here
     pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;

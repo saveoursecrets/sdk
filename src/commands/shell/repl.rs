@@ -23,7 +23,7 @@ use sos_core::{
         Vault, VaultAccess, VaultCommit, VaultEntry, VaultRef,
     },
 };
-use sos_node::client::{provider::ProviderFactory, UserStorage};
+use sos_node::client::{provider::ProviderFactory, user::UserStorage};
 
 use crate::{
     commands::{AccountCommand, FolderCommand},

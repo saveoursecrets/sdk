@@ -14,7 +14,10 @@ use sos_core::{
     storage::StorageDirs,
 };
 use sos_node::{
-    client::{provider::ProviderFactory, UserStorage},
+    client::{
+        provider::ProviderFactory,
+        user::{UserIndex, UserStorage},
+    },
     peer::convert_libp2p_identity,
 };
 use terminal_banner::{Banner, Padding};
@@ -58,6 +61,7 @@ pub async fn resolve_user(
     let mut owner = UserStorage {
         user,
         storage,
+        index: UserIndex::new(),
         peer_key,
         factory,
     };
@@ -261,6 +265,7 @@ pub async fn switch(
     *writer = UserStorage {
         user,
         storage,
+        index: UserIndex::new(),
         peer_key,
         factory,
     };
