@@ -47,7 +47,6 @@ pub async fn resolve_user(
 
     let (mut owner, _) = sign_in(&account, factory).await?;
     if USER.get().is_none() {
-        owner.storage.authenticate().await?;
         owner.storage.load_vaults().await?;
     }
 

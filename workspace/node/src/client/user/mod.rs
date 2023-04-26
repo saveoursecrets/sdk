@@ -7,10 +7,11 @@ use sos_core::{
         Login,
     },
     decode, encode,
+    events::SyncEvent,
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     vault::{
-        secret::{Secret, SecretMeta},
+        secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess, VaultId,
     },
     Timestamp,
@@ -19,9 +20,9 @@ use sos_core::{
 use parking_lot::RwLock as SyncRwLock;
 use secrecy::{ExposeSecret, SecretString};
 
-use super::{
+use crate::client::{
     provider::{BoxedProvider, ProviderFactory},
-    Result,
+    Error, Result,
 };
 
 #[cfg(feature = "peer")]
@@ -348,6 +349,121 @@ impl UserStorage {
         let index = Arc::clone(&self.index.search_index);
         self.storage.open_vault(summary, passphrase, Some(index))?;
         Ok(())
+    }
+
+    /// Create a secret in the current open folder.
+    pub async fn create_secret(
+        &mut self,
+        meta: SecretMeta,
+        secret: Secret,
+    ) -> Result<(SecretId, SyncEvent<'static>)> {
+        if let Secret::Pem { certificates, .. } = &secret {
+            if certificates.is_empty() {
+                return Err(Error::PemEncoding);
+            }
+        }
+
+        let event =
+            self.storage.create_secret(meta, secret).await?.into_owned();
+
+        let id = if let SyncEvent::CreateSecret(id, _) = &event {
+            *id
+        } else {
+            unreachable!();
+        };
+
+        Ok((id, event))
+    }
+
+    /// Read a secret in the current open folder.
+    pub async fn read_secret(
+        &mut self,
+        secret_id: &SecretId,
+    ) -> Result<(SecretData, SyncEvent<'static>)> {
+        let (meta, secret, event) =
+            self.storage.read_secret(secret_id).await?;
+        Ok((
+            SecretData {
+                id: Some(*secret_id),
+                meta,
+                secret,
+            },
+            event.into_owned(),
+        ))
+    }
+
+    /// Update a secret in the current open folder.
+    pub async fn update_secret(
+        &mut self,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        secret: Option<Secret>,
+        mut destination: Option<&Summary>,
+    ) -> Result<(SecretId, SyncEvent<'static>)> {
+        let secret = if let Some(secret) = secret {
+            secret
+        } else {
+            let (data, _) = self.read_secret(secret_id).await?;
+            data.secret
+        };
+
+        if let Secret::Pem { certificates, .. } = &secret {
+            if certificates.is_empty() {
+                return Err(Error::PemEncoding);
+            }
+        }
+
+        let current_folder =
+            self.storage.current().map(|g| g.vault().summary().clone());
+
+        let event =
+            self.storage.update_secret(secret_id, meta, secret).await?;
+
+        if let (Some(summary), Some(destination)) =
+            (current_folder, destination.take())
+        {
+            let (new_id, _, create_event, _) =
+                self.move_secret(&summary, destination, secret_id).await?;
+            return Ok((new_id, create_event));
+        }
+
+        Ok((*secret_id, event.into_owned()))
+    }
+
+    /// Move a secret between folders.
+    ///
+    /// The from folder must already be open.
+    pub async fn move_secret(
+        &mut self,
+        from: &Summary,
+        to: &Summary,
+        secret_id: &SecretId,
+    ) -> Result<(
+        SecretId,
+        SyncEvent<'static>,
+        SyncEvent<'static>,
+        SyncEvent<'static>,
+    )> {
+        let (data, read_event) = self.read_secret(secret_id).await?;
+        self.open_folder(to)?;
+        let (new_id, create_event) =
+            self.create_secret(data.meta, data.secret).await?;
+        self.open_folder(from)?;
+        let delete_event = self.delete_secret(secret_id).await?;
+        Ok((
+            new_id,
+            read_event.into_owned(),
+            create_event.into_owned(),
+            delete_event.into_owned(),
+        ))
+    }
+
+    /// Delete a secret.
+    pub async fn delete_secret(
+        &mut self,
+        secret_id: &SecretId,
+    ) -> Result<SyncEvent<'_>> {
+        Ok(self.storage.delete_secret(secret_id).await?)
     }
 
     /// Search index reference.

@@ -23,6 +23,10 @@ pub enum Error {
     #[error("path {0} is not a file")]
     NotFile(PathBuf),
 
+    /// Error generated when a PEM-encoded certificate is invalid.
+    #[error("invalid PEM encoding")]
+    PemEncoding,
+
     /// Error generated when a provider is not valid.
     #[error("provider {0} is not valid")]
     InvalidProvider(String),

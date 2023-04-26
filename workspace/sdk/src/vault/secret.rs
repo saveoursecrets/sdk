@@ -134,6 +134,16 @@ impl FromStr for SecretRef {
     }
 }
 
+/// Group secret data with a possible identifier.
+pub struct SecretData {
+    /// Secret identifier.
+    pub id: Option<SecretId>,
+    /// Secret meta data.
+    pub meta: SecretMeta,
+    /// Secret information.
+    pub secret: Secret,
+}
+
 /// Vault meta data.
 #[derive(Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
