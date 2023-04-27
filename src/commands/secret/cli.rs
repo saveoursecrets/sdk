@@ -120,15 +120,32 @@ pub enum Command {
 #[derive(Subcommand, Debug)]
 pub enum AddCommand {
     /// Add a note.
-    Note { label: Option<String> },
+    Note {
+        /// Name of the secret.
+        name: Option<String>,
+    },
     /// Add a list of credentials.
-    List { label: Option<String> },
+    List {
+        /// Name of the secret.
+        name: Option<String>,
+    },
     /// Add an account password.
-    Account { label: Option<String> },
+    Account {
+        /// Name of the secret.
+        name: Option<String>,
+    },
     /// Add a file.
-    File { path: String, label: Option<String> },
+    File {
+        /// Name of the secret.
+        name: Option<String>,
+        /// File path.
+        file: String,
+    },
     /// Add a page.
-    Page { label: Option<String> },
+    Page {
+        /// Name of the secret.
+        name: Option<String>,
+    },
 }
 
 pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
@@ -187,11 +204,11 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             let mut owner = user.write().await;
             let result = match cmd {
-                AddCommand::Note { label } => add_note(label)?,
-                AddCommand::List { label } => add_credentials(label)?,
-                AddCommand::Account { label } => add_account(label)?,
-                AddCommand::File { path, label } => add_file(path, label)?,
-                AddCommand::Page { label } => add_page(label)?,
+                AddCommand::Note { name} => add_note(name)?,
+                AddCommand::List { name } => add_credentials(name)?,
+                AddCommand::Account { name} => add_account(name)?,
+                AddCommand::File { file, name} => add_file(file, name)?,
+                AddCommand::Page { name } => add_page(name)?,
             };
 
             if let Some((meta, secret)) = result {
