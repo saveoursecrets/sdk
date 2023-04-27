@@ -38,8 +38,6 @@ use crate::{
 
 use crate::{Error, Result};
 
-use super::editor;
-
 /// Type for the root shell data.
 type ShellData = Arc<RwLock<UserStorage>>;
 
@@ -85,11 +83,6 @@ enum ShellCommand {
         #[clap(subcommand)]
         cmd: SecretCommand,
     },
-    /// Update a secret.
-    Set {
-        /// Secret name or identifier.
-        secret: SecretRef,
-    },
     /// Print commit status.
     Status {
         /// Print more information; include commit tree root hashes.
@@ -126,67 +119,7 @@ enum ShellCommand {
     Quit,
 }
 
-/// Attempt to read secret meta data for a reference.
-#[deprecated]
-async fn find_secret_meta(
-    state: ShellData,
-    secret: &SecretRef,
-) -> Result<Option<(SecretId, SecretMeta)>> {
-    let reader = state.read().await;
-    let keeper = reader.storage.current().ok_or(Error::NoVaultSelected)?;
-    let index = keeper.index();
-    let index_reader = index.read();
-    if let Some(Document {
-        secret_id, meta, ..
-    }) = index_reader.find_by_uuid_or_label(keeper.vault().id(), secret)
-    {
-        Ok(Some((*secret_id, meta.clone())))
-    } else {
-        Ok(None)
-    }
-}
-
-fn get_label(label: Option<String>) -> Result<String> {
-    if let Some(label) = label {
-        Ok(label)
-    } else {
-        Ok(read_line(Some("Label: "))?)
-    }
-}
-
-pub fn read_file_secret(path: &str) -> Result<Secret> {
-    let file = PathBuf::from(path);
-
-    if !file.is_file() {
-        return Err(Error::NotFile(file));
-    }
-
-    let name = if let Some(name) = file.file_name() {
-        name.to_string_lossy().into_owned()
-    } else {
-        return Err(Error::FileName(file));
-    };
-
-    let mime = mime_guess::from_path(&name)
-        .first()
-        .map(|m| m.to_string())
-        .unwrap_or_else(|| "application/octet-stream".to_string());
-
-    let buffer = std::fs::read(file)?;
-    let size = buffer.len() as u64;
-    let checksum = Sha256::digest(&buffer);
-    let buffer = secrecy::Secret::new(buffer);
-    Ok(Secret::File {
-        name,
-        mime,
-        buffer,
-        checksum: checksum.as_slice().try_into()?,
-        external: false,
-        size,
-        user_data: Default::default(),
-    })
-}
-
+/*
 async fn maybe_conflict<F, R>(state: ShellData, func: F) -> Result<()>
 where
     F: FnOnce() -> R,
@@ -250,6 +183,7 @@ where
         },
     }
 }
+*/
 
 /// Execute the program command.
 async fn exec_program(
@@ -337,63 +271,6 @@ async fn exec_program(
             }
             println!("{}", status);
             Ok(())
-        }
-        ShellCommand::Set { secret } => {
-            let (uuid, _) = find_secret_meta(Arc::clone(&state), &secret)
-                .await?
-                .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-
-            // Read in secret data for editing.
-            let reader = state.read().await;
-            let keeper =
-                reader.storage.current().ok_or(Error::NoVaultSelected)?;
-            let result =
-                if let Some((secret_meta, secret, _)) = keeper.read(&uuid)? {
-                    Some((uuid, secret_meta, secret))
-                } else {
-                    None
-                };
-
-            drop(reader);
-
-            let (uuid, secret_meta, secret_data) =
-                result.ok_or(Error::SecretNotAvailable(secret))?;
-
-            let result = if let Secret::File {
-                name, mime, buffer, ..
-            } = &secret_data
-            {
-                if mime.starts_with("text/") {
-                    editor::edit(&secret_data)?
-                } else {
-                    println!(
-                        "Binary {} {} {}",
-                        name,
-                        mime,
-                        human_bytes(buffer.expose_secret().len() as f64)
-                    );
-                    let file_path = read_line(Some("File path: "))?;
-                    Cow::Owned(read_file_secret(&file_path)?)
-                }
-            } else {
-                editor::edit(&secret_data)?
-            };
-
-            if let Cow::Owned(edited_secret) = result {
-                maybe_conflict(Arc::clone(&state), || async move {
-                    let mut writer = state.write().await;
-                    writer
-                        .storage
-                        .update_secret(&uuid, secret_meta, edited_secret)
-                        .await?;
-                    Ok(())
-                })
-                .await
-            // If the edited result was borrowed
-            // it indicates that no changes were made
-            } else {
-                Ok(())
-            }
         }
         ShellCommand::Pull { force } => {
             let mut writer = state.write().await;

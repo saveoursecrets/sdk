@@ -1,26 +1,30 @@
 use clap::Subcommand;
 
-use std::sync::Arc;
+use std::{sync::Arc, borrow::Cow};
 
 use sos_core::{
     account::AccountRef,
     search::Document,
-    vault::{secret::SecretRef, VaultRef},
+    vault::{secret::{Secret, SecretRef}, VaultRef},
+    secrecy::ExposeSecret,
 };
 use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::{
         account::{resolve_user, USER},
+        editor,
         folder::resolve_folder,
-        readline::read_flag,
+        readline::{read_flag, read_line},
         secret::{
             add_account, add_credentials, add_file, add_note, add_page,
-            print_secret, resolve_secret,
+            print_secret, resolve_secret, read_file_secret,
         },
     },
     Error, Result,
 };
+
+use human_bytes::human_bytes;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -65,7 +69,20 @@ pub enum Command {
         /// Secret name or identifier.
         secret: SecretRef,
     },
+    /// Update a secret.
+    #[clap(alias = "set")]
+    Update {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
 
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Rename a secret.
     Rename {
         /// Account name or address.
@@ -195,16 +212,69 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 owner.open_folder(&summary)?;
             }
 
-            let (uuid, _) =
+            let (secret_id, _) =
                 resolve_secret(Arc::clone(&user), &summary, &secret)
                     .await?
                     .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let mut owner = user.write().await;
-            let (data, _) = owner.read_secret(&uuid).await?;
+            let (data, _) = owner.read_secret(&secret_id).await?;
             print_secret(&data.meta, &data.secret)?;
         }
+        Command::Update {
+            account,
+            folder,
+            secret,
+        } => {
+            let user = resolve_user(factory, account).await?;
+            let summary = resolve_folder(&user, folder.as_ref())
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?;
 
+            if !is_shell || folder.is_some() {
+                let mut owner = user.write().await;
+                owner.open_folder(&summary)?;
+            }
+
+            let (secret_id, _) =
+                resolve_secret(Arc::clone(&user), &summary, &secret)
+                    .await?
+                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+
+            let mut owner = user.write().await;
+            let (data, _) = owner.read_secret(&secret_id).await?;
+
+            let result = if let Secret::File {
+                name, mime, buffer, ..
+            } = &data.secret
+            {
+                if mime.starts_with("text/") {
+                    editor::edit(&data.secret)?
+                } else {
+                    println!(
+                        "Binary {} {} {}",
+                        name,
+                        mime,
+                        human_bytes(buffer.expose_secret().len() as f64)
+                    );
+                    let file_path = read_line(Some("File path: "))?;
+                    Cow::Owned(read_file_secret(&file_path)?)
+                }
+            } else {
+                editor::edit(&data.secret)?
+            };
+
+            if let Cow::Owned(edited_secret) = result {
+               owner 
+                    .update_secret(&secret_id, data.meta, Some(edited_secret), None)
+                    .await?;
+                println!("Secret updated ✓");
+            // If the edited result was borrowed
+            // it indicates that no changes were made
+            } else {
+                println!("No changes detected");
+            }
+        }
         Command::Rename {
             account,
             folder,
@@ -221,14 +291,14 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 owner.open_folder(&summary)?;
             }
 
-            let (uuid, mut meta) =
+            let (secret_id, mut meta) =
                 resolve_secret(Arc::clone(&user), &summary, &secret)
                     .await?
                     .ok_or(Error::SecretNotAvailable(secret.clone()))?;
             meta.set_label(name);
 
             let mut owner = user.write().await;
-            owner.update_secret(&uuid, meta, None, None).await?;
+            owner.update_secret(&secret_id, meta, None, None).await?;
             println!("Secret renamed ✓");
         }
         Command::Del {
@@ -246,7 +316,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 owner.open_folder(&summary)?;
             }
 
-            let (uuid, meta) =
+            let (secret_id, meta) =
                 resolve_secret(Arc::clone(&user), &summary, &secret)
                     .await?
                     .ok_or(Error::SecretNotAvailable(secret.clone()))?;
@@ -254,7 +324,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let prompt = format!(r#"Delete "{}" (y/n)? "#, meta.label());
             if read_flag(Some(&prompt))? {
                 let mut owner = user.write().await;
-                owner.delete_secret(&uuid).await?;
+                owner.delete_secret(&secret_id).await?;
                 println!("Secret deleted ✓");
             }
         }
