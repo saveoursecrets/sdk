@@ -123,6 +123,18 @@ impl UserStorage {
         })
     }
 
+    /// Delete the account for this user and sign out.
+    pub fn delete_account(&mut self) -> Result<()> {
+        self.user.delete_account()?;
+        self.sign_out();
+        Ok(())
+    }
+
+    /// Rename this account.
+    pub fn rename_account(&mut self, account_name: String) -> Result<()> {
+        Ok(self.user.rename_account(account_name)?)
+    }
+
     /// Users devices reference.
     #[cfg(feature = "device")]
     pub fn devices(&self) -> &DeviceManager {
@@ -973,7 +985,6 @@ impl UserStorage {
 
     /// Read the inventory from an archive.
     pub fn restore_archive_inventory<R: Read + Seek>(
-        &self,
         buffer: R,
     ) -> Result<Inventory> {
         let mut inventory = AccountBackup::restore_archive_inventory(buffer)?;
