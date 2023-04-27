@@ -85,23 +85,16 @@ enum ShellCommand {
         #[clap(subcommand)]
         cmd: SecretCommand,
     },
-    /// Print commit status.
-    Status {
-        /// Print more information; include commit tree root hashes.
-        #[clap(short, long)]
-        verbose: bool,
-    },
     /// Update a secret.
     Set {
         /// Secret name or identifier.
         secret: SecretRef,
     },
-    /// Rename a secret.
-    Mv {
-        /// Secret name or identifier.
-        secret: SecretRef,
-        /// New label for the secret.
-        label: Option<String>,
+    /// Print commit status.
+    Status {
+        /// Print more information; include commit tree root hashes.
+        #[clap(short, long)]
+        verbose: bool,
     },
     /// Download changes from the remote server.
     Pull {
@@ -401,55 +394,6 @@ async fn exec_program(
             } else {
                 Ok(())
             }
-        }
-        ShellCommand::Mv { secret, label } => {
-            let (uuid, _) = find_secret_meta(Arc::clone(&state), &secret)
-                .await?
-                .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-
-            let reader = state.read().await;
-            let keeper =
-                reader.storage.current().ok_or(Error::NoVaultSelected)?;
-            let result =
-                if let (Some(value), _) = keeper.vault().read(&uuid)? {
-                    let VaultCommit(_, VaultEntry(meta_aead, secret_aead)) =
-                        value.as_ref().clone();
-                    Some((uuid, meta_aead, secret_aead))
-                } else {
-                    None
-                };
-
-            drop(reader);
-
-            let (uuid, meta_aead, secret_aead) =
-                result.ok_or(Error::SecretNotAvailable(secret.clone()))?;
-
-            let mut writer = state.write().await;
-            let keeper =
-                writer.storage.current_mut().ok_or(Error::NoVaultSelected)?;
-            let label = get_label(label)?;
-            let summary = keeper.summary().clone();
-
-            let mut secret_meta = keeper.decrypt_meta(&meta_aead)?;
-            secret_meta.set_label(label);
-            secret_meta.touch();
-            let meta_aead = keeper.encrypt_meta(&secret_meta)?;
-
-            let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
-
-            let event = keeper
-                .vault_mut()
-                .update(&uuid, commit, VaultEntry(meta_aead, secret_aead))?
-                .ok_or(Error::SecretNotAvailable(secret))?;
-
-            let event = event.into_owned();
-
-            drop(writer);
-            maybe_conflict(Arc::clone(&state), || async move {
-                let mut writer = state.write().await;
-                writer.storage.patch(&summary, vec![event]).await
-            })
-            .await
         }
         ShellCommand::Pull { force } => {
             let mut writer = state.write().await;

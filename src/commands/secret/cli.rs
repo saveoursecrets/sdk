@@ -65,6 +65,24 @@ pub enum Command {
         /// Secret name or identifier.
         secret: SecretRef,
     },
+
+    /// Rename a secret.
+    Rename {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// New name for the secret.
+        #[clap(short, long)]
+        name: String,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Delete a secret.
     Del {
         /// Account name or address.
@@ -159,14 +177,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             if let Some((meta, secret)) = result {
                 owner.create_secret(meta, secret).await?;
-                /*
-                maybe_conflict(Arc::clone(&state), || async move {
-                    let mut writer = state.write().await;
-                    writer.storage.create_secret(meta, secret).await?;
-                    Ok(())
-                })
-                .await
-                */
+                println!("Secret created ✓");
             }
         }
         Command::Get {
@@ -194,6 +205,32 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             print_secret(&data.meta, &data.secret)?;
         }
 
+        Command::Rename {
+            account,
+            folder,
+            name,
+            secret,
+        } => {
+            let user = resolve_user(factory, account).await?;
+            let summary = resolve_folder(&user, folder.as_ref())
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?;
+
+            if !is_shell || folder.is_some() {
+                let mut owner = user.write().await;
+                owner.open_folder(&summary)?;
+            }
+
+            let (uuid, mut meta) =
+                resolve_secret(Arc::clone(&user), &summary, &secret)
+                    .await?
+                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+            meta.set_label(name);
+
+            let mut owner = user.write().await;
+            owner.update_secret(&uuid, meta, None, None).await?;
+            println!("Secret renamed ✓");
+        }
         Command::Del {
             account,
             folder,
