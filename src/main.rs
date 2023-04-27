@@ -6,7 +6,7 @@ use sos::{
     },
     Result,
 };
-use sos_core::{account::AccountRef, url::Url};
+use sos_core::{account::AccountRef, storage::StorageDirs, url::Url};
 use sos_node::client::provider::ProviderFactory;
 use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -15,8 +15,12 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[clap(author, version, about, long_about = None)]
 struct Sos {
     /// Storage provider factory.
-    #[clap(short, long)]
+    #[clap(long, env = "SOS_PROVIDER")]
     provider: Option<ProviderFactory>,
+
+    /// Local storage directory.
+    #[clap(long, env = "SOS_CACHE")]
+    cache: Option<PathBuf>,
 
     #[clap(subcommand)]
     cmd: Command,
@@ -97,9 +101,14 @@ enum Command {
 async fn run() -> Result<()> {
     let args = Sos::parse();
     let factory = args.provider.unwrap_or_default();
+
+    if let Some(cache) = args.cache {
+        StorageDirs::set_cache_dir(cache);
+    }
+
     match args.cmd {
-        Command::Account { cmd } => account::run(cmd).await?,
-        Command::Folder { cmd } => folder::run(factory, cmd).await?,
+        Command::Account { cmd } => account::run(cmd, factory).await?,
+        Command::Folder { cmd } => folder::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd)?,
         Command::Changes { server, account } => {
             changes::run(server, account).await?

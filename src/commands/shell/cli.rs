@@ -50,11 +50,8 @@ pub async fn run(
     // FIXME: is running on the same device as a GUI
 
     let (mut owner, _) = sign_in(&account, factory.clone()).await?;
+    owner.initialize_search_index().await?;
     welcome(&factory)?;
-
-    // Authenticate and load initial vaults
-    owner.storage.authenticate().await?;
-    owner.storage.load_vaults().await?;
 
     /*
     match &factory {

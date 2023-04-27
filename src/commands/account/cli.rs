@@ -2,11 +2,12 @@ use clap::Subcommand;
 use std::path::PathBuf;
 
 use sos_core::account::AccountRef;
+use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::account::{
-        account_backup, account_info, account_rename, account_restore,
-        list_accounts, local_signup,
+        account_backup, account_delete, account_info, account_rename,
+        account_restore, list_accounts, local_signup, USER,
     },
     Result,
 };
@@ -70,9 +71,15 @@ pub enum Command {
         /// Account name or address.
         account: Option<AccountRef>,
     },
+    /// Delete an account.
+    Delete {
+        /// Account name or address.
+        account: Option<AccountRef>,
+    },
 }
 
-pub async fn run(cmd: Command) -> Result<()> {
+pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
+    let is_shell = USER.get().is_some();
     match cmd {
         Command::New { name, folder_name } => {
             local_signup(name, folder_name).await?;
@@ -100,8 +107,17 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
         }
         Command::Rename { name, account } => {
-            account_rename(account, name).await?;
+            account_rename(account, name, factory).await?;
             println!("account renamed ✓");
+        }
+        Command::Delete { account } => {
+            let deleted = account_delete(account, factory).await?;
+            if deleted {
+                println!("account deleted ✓");
+                if is_shell {
+                    std::process::exit(0);
+                }
+            }
         }
     }
 

@@ -125,14 +125,55 @@ pub async fn account_info(
 pub async fn account_rename(
     account: Option<AccountRef>,
     name: String,
+    factory: ProviderFactory,
 ) -> Result<()> {
     let account = resolve_account(account)
         .await
         .ok_or_else(|| Error::NoAccountFound)?;
 
-    let (mut owner, _) = sign_in(&account, ProviderFactory::Local).await?;
+    let (mut owner, _) = sign_in(&account, factory).await?;
     owner.user.rename_account(name)?;
     Ok(())
+}
+
+/// Delete an account.
+pub async fn account_delete(
+    account: Option<AccountRef>,
+    factory: ProviderFactory,
+) -> Result<bool> {
+    let is_shell = USER.get().is_some();
+
+    let account = if !is_shell {
+        // For deletion we don't accept account inference, it must
+        // be specified explicitly
+        account.as_ref().ok_or_else(|| Error::ExplicitAccount)?;
+
+        resolve_account(account)
+            .await
+            .ok_or_else(|| Error::NoAccountFound)?
+    } else {
+        // Shell users can only delete their own account
+        if account.is_some() {
+            return Err(Error::NotShellAccount);
+        }
+
+        let user = USER.get().unwrap();
+        let owner = user.read().await;
+        owner.user.account().into()
+    };
+
+    let (mut owner, _) = sign_in(&account, factory).await?;
+
+    let prompt = format!(
+        r#"Delete account "{}" (y/n)? "#,
+        owner.user.account().label(),
+    );
+    if read_flag(Some(&prompt))? {
+        owner.delete_account()?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 /// Create a backup zip archive.

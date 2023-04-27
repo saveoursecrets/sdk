@@ -126,7 +126,7 @@ pub enum History {
     },
 }
 
-pub async fn run(factory: ProviderFactory, cmd: Command) -> Result<()> {
+pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
     let is_shell = USER.get().is_some();
 
     match cmd {

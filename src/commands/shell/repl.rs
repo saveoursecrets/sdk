@@ -463,7 +463,7 @@ async fn exec_program(
                 new_name = Some(name.to_owned());
             }
 
-            crate::commands::account::run(cmd).await?;
+            crate::commands::account::run(cmd, factory).await?;
 
             if let Some(new_name) = new_name {
                 let mut writer = state.write().await;
@@ -473,7 +473,7 @@ async fn exec_program(
             Ok(())
         }
         ShellCommand::Folder { cmd } => {
-            crate::commands::folder::run(factory, cmd).await
+            crate::commands::folder::run(cmd, factory).await
         }
         ShellCommand::Use { folder } => {
             let reader = state.read().await;

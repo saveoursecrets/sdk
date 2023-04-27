@@ -10,8 +10,14 @@ pub enum Error {
     #[error("could not infer account, use --account to specify account")]
     NoAccountFound,
 
+    #[error("account required, specify target account name")]
+    ExplicitAccount,
+
     #[error("could not find folder, use --folder to specify folder")]
     NoFolderFound,
+
+    #[error("operation is only permitted on the current account")]
+    NotShellAccount,
 
     #[error("could not determine cache directory")]
     NoCache,

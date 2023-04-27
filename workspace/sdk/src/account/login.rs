@@ -113,11 +113,11 @@ impl AuthenticatedUser {
         deleted_identity_vault_file.set_extension(VAULT_EXT);
 
         let deleted_identity_data_dir = trash_dir.join(&address);
-        
+
         // If the trash targets exist delete them first.
         //
-        // This can only happen if somebody has manually restored 
-        // items from the trash using `cp` and then decides to delete 
+        // This can only happen if somebody has manually restored
+        // items from the trash using `cp` and then decides to delete
         // the accout again, so the rule is last deleted account wins.
         if deleted_identity_vault_file.exists() {
             std::fs::remove_file(&deleted_identity_vault_file)?;
