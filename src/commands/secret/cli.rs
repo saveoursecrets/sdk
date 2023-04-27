@@ -13,7 +13,7 @@ use crate::{
     helpers::{
         account::{resolve_user, USER},
         folder::resolve_folder,
-        secret::{find_secret_meta, print_secret},
+        secret::{resolve_secret, print_secret},
     },
     Error, Result,
 };
@@ -105,7 +105,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 owner.open_folder(&summary)?;
             }
 
-            let (uuid, _) = find_secret_meta(Arc::clone(&user), &secret)
+            let (uuid, _) = resolve_secret(Arc::clone(&user), &summary, &secret)
                 .await?
                 .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 

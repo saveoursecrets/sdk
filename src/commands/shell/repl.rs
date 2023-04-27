@@ -38,7 +38,7 @@ use crate::{
 
 use crate::{Error, Result};
 
-use super::{editor, print};
+use super::editor;
 
 /// Type for the root shell data.
 type ShellData = Arc<RwLock<UserStorage>>;

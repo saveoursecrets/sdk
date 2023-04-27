@@ -28,6 +28,11 @@ impl UserIndex {
             search_index: Arc::new(SyncRwLock::new(SearchIndex::new(None))),
         }
     }
+    
+    /// Get a reference to the search index.
+    pub fn search(&self) -> &Arc<SyncRwLock<SearchIndex>> {
+        &self.search_index
+    }
 
     /// Clear the entire search index.
     pub fn clear(&mut self) {

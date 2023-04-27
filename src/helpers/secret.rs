@@ -8,7 +8,7 @@ use sos_core::{
     search::Document,
     secrecy,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRef},
+        secret::{Secret, SecretId, SecretMeta, SecretRef}, Summary,
     },
 };
 
@@ -16,18 +16,17 @@ use crate::{Error, Result};
 
 use super::account::Owner;
 
-/// Attempt to read secret meta data for a reference.
-pub async fn find_secret_meta(
+/// Try to resolve a secret.
+pub async fn resolve_secret(
     user: Owner,
+    summary: &Summary,
     secret: &SecretRef,
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let owner = user.read().await;
-    let keeper = owner.storage.current().ok_or(Error::NoVaultSelected)?;
-    let index = keeper.index();
-    let index_reader = index.read();
+    let index_reader = owner.index().search().read();
     if let Some(Document {
         secret_id, meta, ..
-    }) = index_reader.find_by_uuid_or_label(keeper.vault().id(), secret)
+    }) = index_reader.find_by_uuid_or_label(summary.id(), secret)
     {
         Ok(Some((*secret_id, meta.clone())))
     } else {
