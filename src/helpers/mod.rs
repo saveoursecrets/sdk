@@ -2,7 +2,9 @@ use std::borrow::Cow;
 use terminal_banner::{Banner, Padding};
 
 pub(crate) mod account;
+pub(crate) mod folder;
 pub(crate) mod readline;
+pub(crate) mod secret;
 
 pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {
     let banner = Banner::new()

@@ -26,7 +26,7 @@ use sos_core::{
 use sos_node::client::{provider::ProviderFactory, user::UserStorage};
 
 use crate::{
-    commands::{AccountCommand, FolderCommand},
+    commands::{AccountCommand, FolderCommand, SecretCommand},
     helpers::{
         account::switch,
         readline::{
@@ -68,16 +68,23 @@ enum ShellCommand {
         folder: Option<VaultRef>,
     },
     /// Manage local accounts.
+    #[clap(alias = "a")]
     Account {
         #[clap(subcommand)]
         cmd: AccountCommand,
     },
     /// Manage account folders.
+    #[clap(alias = "f")]
     Folder {
         #[clap(subcommand)]
         cmd: FolderCommand,
     },
-
+    /// Create edit and delete secrets.
+    #[clap(alias = "s")]
+    Secret {
+        #[clap(subcommand)]
+        cmd: SecretCommand,
+    },
     /// Print commit status.
     Status {
         /// Print more information; include commit tree root hashes.
@@ -95,11 +102,6 @@ enum ShellCommand {
     Add {
         #[clap(subcommand)]
         cmd: Add,
-    },
-    /// Print a secret.
-    Get {
-        /// Secret name or identifier.
-        secret: SecretRef,
     },
     /// Update a secret.
     Set {
@@ -167,6 +169,7 @@ enum Add {
 }
 
 /// Attempt to read secret meta data for a reference.
+#[deprecated]
 async fn find_secret_meta(
     state: ShellData,
     secret: &SecretRef,
@@ -475,6 +478,9 @@ async fn exec_program(
         ShellCommand::Folder { cmd } => {
             crate::commands::folder::run(cmd, factory).await
         }
+        ShellCommand::Secret { cmd } => {
+            crate::commands::secret::run(cmd, factory).await
+        }
         ShellCommand::Use { folder } => {
             let reader = state.read().await;
 
@@ -578,16 +584,6 @@ async fn exec_program(
                 Ok(())
             }
         }
-        ShellCommand::Get { secret } => {
-            let (uuid, _) = find_secret_meta(Arc::clone(&state), &secret)
-                .await?
-                .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-            let mut writer = state.write().await;
-            let (meta, secret, _) = writer.storage.read_secret(&uuid).await?;
-            print::secret(&meta, &secret)?;
-            Ok(())
-        }
-
         ShellCommand::Set { secret } => {
             let (uuid, _) = find_secret_meta(Arc::clone(&state), &secret)
                 .await?

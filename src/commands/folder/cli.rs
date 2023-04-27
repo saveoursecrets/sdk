@@ -4,13 +4,14 @@ use human_bytes::human_bytes;
 use sos_core::{
     account::{AccountRef, DelegatedPassphrase},
     hex,
-    vault::{Summary, VaultRef},
+    vault::VaultRef,
 };
 use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::{
-        account::{resolve_user, Owner, USER},
+        account::{resolve_user, USER},
+        folder::resolve_folder,
         readline::read_flag,
     },
     Error, Result,
@@ -302,28 +303,4 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
     }
 
     Ok(())
-}
-
-async fn resolve_folder(
-    owner: &Owner,
-    folder: Option<VaultRef>,
-) -> Result<Option<Summary>> {
-    let reader = owner.read().await;
-    if let Some(vault) = folder {
-        Ok(Some(
-            reader
-                .storage
-                .state()
-                .find_vault(&vault)
-                .cloned()
-                .ok_or(Error::VaultNotAvailable(vault))?,
-        ))
-    } else if let Some(owner) = USER.get() {
-        let reader = owner.read().await;
-        let keeper =
-            reader.storage.current().ok_or(Error::NoVaultSelected)?;
-        Ok(Some(keeper.summary().clone()))
-    } else {
-        Ok(reader.storage.state().find_default_vault().cloned())
-    }
 }

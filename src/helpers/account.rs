@@ -46,8 +46,10 @@ pub async fn resolve_user(
     }
 
     let (mut owner, _) = sign_in(&account, factory).await?;
+
+    // For non-shell we need to initialize the search index
     if USER.get().is_none() {
-        owner.storage.load_vaults().await?;
+        owner.initialize_search_index().await?;
     }
 
     Ok(Arc::new(RwLock::new(owner)))

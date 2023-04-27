@@ -1,8 +1,9 @@
 use clap::{Parser, Subcommand};
 use sos::{
     commands::{
-        account, audit, changes, check, folder, rendezvous, server, shell,
-        AccountCommand, AuditCommand, CheckCommand, FolderCommand,
+        account, audit, changes, check, folder, rendezvous, secret, server,
+        shell, AccountCommand, AuditCommand, CheckCommand, FolderCommand,
+        SecretCommand,
     },
     Result,
 };
@@ -37,6 +38,11 @@ enum Command {
     Folder {
         #[clap(subcommand)]
         cmd: FolderCommand,
+    },
+    /// Create, edit and delete secrets.
+    Secret {
+        #[clap(subcommand)]
+        cmd: SecretCommand,
     },
     /// Print and monitor audit logs.
     Audit {
@@ -109,6 +115,7 @@ async fn run() -> Result<()> {
     match args.cmd {
         Command::Account { cmd } => account::run(cmd, factory).await?,
         Command::Folder { cmd } => folder::run(cmd, factory).await?,
+        Command::Secret { cmd } => secret::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd)?,
         Command::Changes { server, account } => {
             changes::run(server, account).await?

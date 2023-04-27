@@ -1,19 +1,42 @@
-//! Functions for printing private data.
-
-use sos_core::{
-    secrecy,
-    vault::secret::{Secret, SecretMeta},
-};
-
-use crate::Result;
 use std::borrow::Cow;
 
 use human_bytes::human_bytes;
-use secrecy::ExposeSecret;
 use terminal_banner::{Banner, Padding};
 
-#[deprecated]
-pub(super) fn secret(
+use secrecy::ExposeSecret;
+use sos_core::{
+    search::Document,
+    secrecy,
+    vault::{
+        secret::{Secret, SecretId, SecretMeta, SecretRef},
+    },
+};
+
+use crate::{Error, Result};
+
+use super::account::Owner;
+
+/// Attempt to read secret meta data for a reference.
+pub async fn find_secret_meta(
+    user: Owner,
+    secret: &SecretRef,
+) -> Result<Option<(SecretId, SecretMeta)>> {
+    let owner = user.read().await;
+    let keeper = owner.storage.current().ok_or(Error::NoVaultSelected)?;
+    let index = keeper.index();
+    let index_reader = index.read();
+    if let Some(Document {
+        secret_id, meta, ..
+    }) = index_reader.find_by_uuid_or_label(keeper.vault().id(), secret)
+    {
+        Ok(Some((*secret_id, meta.clone())))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Print secret information.
+pub fn print_secret(
     secret_meta: &SecretMeta,
     secret_data: &Secret,
 ) -> Result<()> {
