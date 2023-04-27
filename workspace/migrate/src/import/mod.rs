@@ -1,5 +1,7 @@
 //! Import secrets from other providers and software.
-use std::path::PathBuf;
+use std::{fmt, path::PathBuf, str::FromStr};
+
+use crate::Error;
 
 pub mod csv;
 #[cfg(target_os = "macos")]
@@ -20,6 +22,34 @@ pub enum ImportFormat {
     FirefoxCsv,
     /// MacOS CSV file.
     MacosCsv,
+}
+
+impl fmt::Display for ImportFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Self::OnePasswordCsv => "onepassword.csv",
+            Self::DashlaneZip => "dashlane.zip",
+            Self::BitwardenCsv => "bitwarden.csv",
+            Self::ChromeCsv => "chrome.csv",
+            Self::FirefoxCsv => "firefox.csv",
+            Self::MacosCsv => "macos.csv",
+        })
+    }
+}
+
+impl FromStr for ImportFormat {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "onepassword.csv" => Self::OnePasswordCsv,
+            "dashlane.zip" => Self::DashlaneZip,
+            "bitwarden.csv" => Self::BitwardenCsv,
+            "chrome.csv" => Self::ChromeCsv,
+            "firefox.csv" => Self::FirefoxCsv,
+            "macos.csv" => Self::MacosCsv,
+            _ => todo!(),
+        })
+    }
 }
 
 /// Target for an import operation.

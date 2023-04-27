@@ -8,7 +8,10 @@ use sos_core::{
     },
     storage::StorageDirs,
 };
-use sos_node::client::provider::ProviderFactory;
+use sos_node::{
+    client::provider::ProviderFactory,
+    migrate::import::{ImportFormat, ImportTarget},
+};
 
 use crate::{
     helpers::{
@@ -113,6 +116,14 @@ pub enum MigrateCommand {
     },
     /// Import unencrypted secrets.
     Import {
+        /// Format of the file to import.
+        #[clap(long)]
+        format: ImportFormat,
+        
+        /// Name for the new folder.
+        #[clap(short, long)]
+        name: Option<String>,
+
         /// Input file to import.
         input: PathBuf,
     },
@@ -168,7 +179,10 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                         println!("account exported ✓");
                     }
                 }
-                MigrateCommand::Import { input: _ } => {}
+                MigrateCommand::Import { input, format, name } => {
+                    migrate_import(user, input, format, name).await?;
+                    println!("file imported ✓");
+                }
             }
         }
     }
@@ -356,4 +370,21 @@ pub async fn migrate_export(
     };
     
     Ok(result)
+}
+
+/// Import data from another app.
+pub async fn migrate_import(
+    user: Owner,
+    input: PathBuf,
+    format: ImportFormat,
+    name: Option<String>,
+) -> Result<()> {
+    let target = ImportTarget {
+        path: input,
+        folder_name: name.unwrap_or_else(|| format.to_string()),
+        format,
+    };
+    let mut owner = user.write().await;
+    let _ = owner.import_file(target).await?;
+    Ok(())
 }
