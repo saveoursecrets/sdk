@@ -1,45 +1,30 @@
-use std::{
-    borrow::Cow, collections::HashMap, ffi::OsString, path::PathBuf,
-    sync::Arc,
-};
+use std::{borrow::Cow, ffi::OsString, sync::Arc};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
 
-use human_bytes::human_bytes;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::ExposeSecret;
 use sos_core::{
     account::{AccountRef, DelegatedPassphrase},
     commit::SyncKind,
     passwd::diceware::generate_passphrase,
-    search::Document,
     secrecy,
-    sha2::{Sha256, Digest},
-    url::Url,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRef},
-        Vault, VaultAccess, VaultCommit, VaultEntry, VaultRef,
-    },
+    sha2::Digest,
+    vault::{Vault, VaultAccess, VaultRef},
 };
 use sos_node::client::{provider::ProviderFactory, user::UserStorage};
 
 use crate::{
     commands::{AccountCommand, FolderCommand, SecretCommand},
     helpers::{
-        account::switch,
-        readline::{
-            choose, read_flag, read_line, read_line_allow_empty,
-            read_multiline, read_option, read_password, Choice,
-        },
+        account::{switch, Owner},
+        readline::{read_flag, read_password},
     },
 };
 
 use crate::{Error, Result};
-
-/// Type for the root shell data.
-type ShellData = Arc<RwLock<UserStorage>>;
 
 enum ConflictChoice {
     Push,
@@ -120,7 +105,7 @@ enum ShellCommand {
 }
 
 /*
-async fn maybe_conflict<F, R>(state: ShellData, func: F) -> Result<()>
+async fn maybe_conflict<F, R>(state: Owner, func: F) -> Result<()>
 where
     F: FnOnce() -> R,
     R: futures::Future<Output = sos_node::client::Result<()>>,
@@ -189,7 +174,7 @@ where
 async fn exec_program(
     program: Shell,
     factory: ProviderFactory,
-    state: ShellData,
+    state: Owner,
 ) -> Result<()> {
     match program.cmd {
         ShellCommand::Authenticate => {
@@ -423,7 +408,7 @@ async fn exec_program(
 async fn exec_args<I, T>(
     it: I,
     factory: ProviderFactory,
-    state: ShellData,
+    state: Owner,
 ) -> Result<()>
 where
     I: IntoIterator<Item = T>,
@@ -440,7 +425,7 @@ where
 pub async fn exec(
     line: &str,
     factory: ProviderFactory,
-    state: ShellData,
+    state: Owner,
 ) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;

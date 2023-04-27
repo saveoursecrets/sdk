@@ -1,24 +1,26 @@
 use clap::Subcommand;
 
-use std::{sync::Arc, borrow::Cow};
+use std::{borrow::Cow, sync::Arc};
 
 use sos_core::{
     account::AccountRef,
     search::Document,
-    vault::{secret::{Secret, SecretRef}, VaultRef},
     secrecy::ExposeSecret,
+    vault::{
+        secret::{Secret, SecretRef},
+        VaultRef,
+    },
 };
 use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::{
-        account::{resolve_user, USER},
+        account::{resolve_user, resolve_folder, USER},
         editor,
-        folder::resolve_folder,
         readline::{read_flag, read_line},
         secret::{
             add_account, add_credentials, add_file, add_note, add_page,
-            print_secret, resolve_secret, read_file_secret,
+            print_secret, read_file_secret, resolve_secret,
         },
     },
     Error, Result,
@@ -138,7 +140,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             verbose,
         } => {
-            let user = resolve_user(factory, account).await?;
+            let user = resolve_user(account, factory, true).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -173,7 +175,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             cmd,
         } => {
-            let user = resolve_user(factory, account).await?;
+            let user = resolve_user(account, factory, true).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -202,7 +204,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             secret,
         } => {
-            let user = resolve_user(factory, account).await?;
+            let user = resolve_user(account, factory, true).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -226,7 +228,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             secret,
         } => {
-            let user = resolve_user(factory, account).await?;
+            let user = resolve_user(account, factory, true).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -265,8 +267,13 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             };
 
             if let Cow::Owned(edited_secret) = result {
-               owner 
-                    .update_secret(&secret_id, data.meta, Some(edited_secret), None)
+                owner
+                    .update_secret(
+                        &secret_id,
+                        data.meta,
+                        Some(edited_secret),
+                        None,
+                    )
                     .await?;
                 println!("Secret updated ✓");
             // If the edited result was borrowed
@@ -281,7 +288,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             name,
             secret,
         } => {
-            let user = resolve_user(factory, account).await?;
+            let user = resolve_user(account, factory, true).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -306,7 +313,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             secret,
         } => {
-            let user = resolve_user(factory, account).await?;
+            let user = resolve_user(account, factory, true).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;

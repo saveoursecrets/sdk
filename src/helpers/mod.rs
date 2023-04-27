@@ -3,7 +3,6 @@ use terminal_banner::{Banner, Padding};
 
 pub(crate) mod account;
 pub(crate) mod editor;
-pub(crate) mod folder;
 pub(crate) mod readline;
 pub(crate) mod secret;
 

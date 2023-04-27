@@ -1,14 +1,12 @@
 //! Helpers for creating and switching accounts.
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
 use sos_core::{
-    account::{
-        archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        AccountRef, ExtractFilesLocation, LocalAccounts, RestoreOptions,
-    },
+    account::{AccountBuilder, AccountInfo, AccountRef, LocalAccounts},
     passwd::diceware::generate_passphrase,
     secrecy::{ExposeSecret, SecretString},
     storage::StorageDirs,
+    vault::{Summary, VaultRef},
 };
 use sos_node::client::{provider::ProviderFactory, user::UserStorage};
 use terminal_banner::{Banner, Padding};
@@ -34,8 +32,9 @@ pub(crate) static USER: OnceCell<Owner> = OnceCell::new();
 /// For the shell REPL this will equal the current USER otherwise
 /// the user must sign in to the target account.
 pub async fn resolve_user(
-    factory: ProviderFactory,
     account: Option<AccountRef>,
+    factory: ProviderFactory,
+    build_search_index: bool,
 ) -> Result<Owner> {
     let account = resolve_account(account)
         .await
@@ -48,7 +47,7 @@ pub async fn resolve_user(
     let (mut owner, _) = sign_in(&account, factory).await?;
 
     // For non-shell we need to initialize the search index
-    if USER.get().is_none() {
+    if USER.get().is_none() && build_search_index {
         owner.initialize_search_index().await?;
     }
 
@@ -79,6 +78,30 @@ pub async fn resolve_account(
     account
 }
 
+pub async fn resolve_folder(
+    owner: &Owner,
+    folder: Option<&VaultRef>,
+) -> Result<Option<Summary>> {
+    let reader = owner.read().await;
+    if let Some(vault) = folder {
+        Ok(Some(
+            reader
+                .storage
+                .state()
+                .find_vault(&vault)
+                .cloned()
+                .ok_or(Error::VaultNotAvailable(vault.clone()))?,
+        ))
+    } else if let Some(owner) = USER.get() {
+        let reader = owner.read().await;
+        let keeper =
+            reader.storage.current().ok_or(Error::NoVaultSelected)?;
+        Ok(Some(keeper.summary().clone()))
+    } else {
+        Ok(reader.storage.state().find_default_vault().cloned())
+    }
+}
+
 /// List local accounts.
 pub fn list_accounts(verbose: bool) -> Result<()> {
     let accounts = LocalAccounts::list_accounts()?;
@@ -92,161 +115,7 @@ pub fn list_accounts(verbose: bool) -> Result<()> {
     Ok(())
 }
 
-/// Print account info.
-pub async fn account_info(
-    account: Option<AccountRef>,
-    verbose: bool,
-    system: bool,
-) -> Result<()> {
-    let account = resolve_account(account)
-        .await
-        .ok_or_else(|| Error::NoAccountFound)?;
-
-    let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
-    let folders = LocalAccounts::list_local_vaults(
-        owner.user.identity().address(),
-        system,
-    )?;
-
-    println!(
-        "{} {}",
-        owner.user.account().address(),
-        owner.user.account().label()
-    );
-    for (summary, _) in folders {
-        if verbose {
-            println!("{} {}", summary.id(), summary.name());
-        } else {
-            println!("{}", summary.name());
-        }
-    }
-    Ok(())
-}
-
-/// Rename an account.
-pub async fn account_rename(
-    account: Option<AccountRef>,
-    name: String,
-    factory: ProviderFactory,
-) -> Result<()> {
-    let account = resolve_account(account)
-        .await
-        .ok_or_else(|| Error::NoAccountFound)?;
-
-    let (mut owner, _) = sign_in(&account, factory).await?;
-    owner.user.rename_account(name)?;
-    Ok(())
-}
-
-/// Delete an account.
-pub async fn account_delete(
-    account: Option<AccountRef>,
-    factory: ProviderFactory,
-) -> Result<bool> {
-    let is_shell = USER.get().is_some();
-
-    let account = if !is_shell {
-        // For deletion we don't accept account inference, it must
-        // be specified explicitly
-        account.as_ref().ok_or_else(|| Error::ExplicitAccount)?;
-
-        resolve_account(account)
-            .await
-            .ok_or_else(|| Error::NoAccountFound)?
-    } else {
-        // Shell users can only delete their own account
-        if account.is_some() {
-            return Err(Error::NotShellAccount);
-        }
-
-        let user = USER.get().unwrap();
-        let owner = user.read().await;
-        owner.user.account().into()
-    };
-
-    let (mut owner, _) = sign_in(&account, factory).await?;
-
-    let prompt = format!(
-        r#"Delete account "{}" (y/n)? "#,
-        owner.user.account().label(),
-    );
-    if read_flag(Some(&prompt))? {
-        owner.delete_account()?;
-        Ok(true)
-    } else {
-        Ok(false)
-    }
-}
-
-/// Create a backup zip archive.
-pub async fn account_backup(
-    account: Option<AccountRef>,
-    output: PathBuf,
-    force: bool,
-) -> Result<()> {
-    let account = resolve_account(account)
-        .await
-        .ok_or_else(|| Error::NoAccountFound)?;
-
-    if !force && output.exists() {
-        return Err(Error::FileExists(output));
-    }
-
-    let account = find_account(&account)?
-        .ok_or(Error::NoAccount(account.to_string()))?;
-    AccountBackup::export_archive_file(&output, account.address())?;
-    Ok(())
-}
-
-/// Restore from a zip archive.
-pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
-    if !input.exists() || !input.is_file() {
-        return Err(Error::NotFile(input));
-    }
-
-    let reader = std::fs::File::open(&input)?;
-    let inventory: Inventory =
-        AccountBackup::restore_archive_inventory(reader)?;
-    let account_ref = AccountRef::Address(inventory.manifest.address);
-    let account = find_account(&account_ref)?;
-
-    let (provider, passphrase) = if let Some(account) = account {
-        let confirmed = read_flag(Some(
-            "Overwrite all account data from backup? (y/n) ",
-        ))?;
-        if !confirmed {
-            return Ok(None);
-        }
-
-        let account = AccountRef::Name(account.label().to_owned());
-        let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
-        (Some(owner.storage), None)
-    } else {
-        (None, None)
-    };
-
-    let files_dir =
-        StorageDirs::files_dir(inventory.manifest.address.to_string())?;
-    let options = RestoreOptions {
-        selected: inventory.vaults,
-        passphrase,
-        files_dir: Some(ExtractFilesLocation::Path(files_dir)),
-    };
-    let reader = std::fs::File::open(&input)?;
-    let (targets, account) = AccountBackup::restore_archive_buffer(
-        reader,
-        options,
-        provider.is_some(),
-    )?;
-
-    if let Some(mut provider) = provider {
-        provider.restore_archive(&targets).await?;
-    }
-
-    Ok(Some(account))
-}
-
-fn find_account(account: &AccountRef) -> Result<Option<AccountInfo>> {
+pub fn find_account(account: &AccountRef) -> Result<Option<AccountInfo>> {
     let accounts = LocalAccounts::list_accounts()?;
     match account {
         AccountRef::Address(address) => {
@@ -284,7 +153,7 @@ pub async fn switch(
 }
 
 /// Create a new local account.
-pub async fn local_signup(
+pub async fn new_account(
     account_name: String,
     folder_name: Option<String>,
 ) -> Result<()> {
