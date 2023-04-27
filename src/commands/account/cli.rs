@@ -163,7 +163,10 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let user = resolve_user(account, factory, false).await?;
             match cmd {
                 MigrateCommand::Export { output, force } => {
-                    migrate_export(user, output, force).await?;
+                    let exported = migrate_export(user, output, force).await?;
+                    if exported {
+                        println!("account exported ✓");
+                    }
                 }
                 MigrateCommand::Import { input: _ } => {}
             }
@@ -319,12 +322,14 @@ pub async fn account_delete(
         r#"Delete account "{}" (y/n)? "#,
         owner.user.account().label(),
     );
-    if read_flag(Some(&prompt))? {
+    let result = if read_flag(Some(&prompt))? {
         owner.delete_account()?;
-        Ok(true)
+        true
     } else {
-        Ok(false)
-    }
+        false
+    };
+
+    Ok(result)
 }
 
 /// Export a migration archive.
@@ -332,11 +337,23 @@ pub async fn migrate_export(
     user: Owner,
     output: PathBuf,
     force: bool,
-) -> Result<()> {
+) -> Result<bool> {
     if !force && output.exists() {
         return Err(Error::FileExists(output));
     }
+
     let owner = user.read().await;
-    owner.export_unsafe_archive(output)?;
-    Ok(())
+    let prompt = format!(
+        r#"Export UNENCRYPTED account "{}" (y/n)? "#,
+        owner.user.account().label(),
+    );
+
+    let result = if read_flag(Some(&prompt))? {
+        owner.export_unsafe_archive(output)?;
+        true
+    } else {
+        false
+    };
+    
+    Ok(result)
 }
