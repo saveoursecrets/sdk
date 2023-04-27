@@ -1,18 +1,27 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 
 use human_bytes::human_bytes;
 use terminal_banner::{Banner, Padding};
 
-use secrecy::ExposeSecret;
+use secrecy::{ExposeSecret, SecretString};
 use sos_core::{
     search::Document,
     secrecy,
+    sha2::{Digest, Sha256},
+    url::Url,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRef}, Summary,
+        secret::{Secret, SecretId, SecretMeta, SecretRef},
+        Summary,
     },
 };
 
-use crate::{Error, Result};
+use crate::{
+    helpers::readline::{
+        read_flag, read_line, read_line_allow_empty, read_multiline,
+        read_option, read_password,
+    },
+    Error, Result,
+};
 
 use super::account::Owner;
 
@@ -188,4 +197,186 @@ pub fn print_secret(
     println!("{}", result);
 
     Ok(())
+}
+
+fn get_label(label: Option<String>) -> Result<String> {
+    if let Some(label) = label {
+        Ok(label)
+    } else {
+        Ok(read_line(Some("Label: "))?)
+    }
+}
+
+fn multiline_banner(kind: &str, label: &str) {
+    let banner = Banner::new()
+        .padding(Padding::one())
+        .text(Cow::Owned(format!("[{}] {}", kind, label)))
+        .text(Cow::Borrowed(
+            r#"To abort enter Ctrl+C
+To save enter Ctrl+D on a newline"#,
+        ))
+        .render();
+    println!("{}", banner);
+}
+
+pub fn add_note(
+    label: Option<String>,
+) -> Result<Option<(SecretMeta, Secret)>> {
+    let label = get_label(label)?;
+    multiline_banner("NOTE", &label);
+
+    if let Some(note) = read_multiline(None)? {
+        let note =
+            secrecy::Secret::new(note.trim_end_matches('\n').to_string());
+        let secret = Secret::Note {
+            text: note,
+            user_data: Default::default(),
+        };
+        let secret_meta = SecretMeta::new(label, secret.kind());
+        Ok(Some((secret_meta, secret)))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn add_page(
+    label: Option<String>,
+) -> Result<Option<(SecretMeta, Secret)>> {
+    let label = get_label(label)?;
+    let title = read_line(Some("Page title: "))?;
+    let mime = "text/markdown".to_string();
+
+    multiline_banner("PAGE", &label);
+
+    if let Some(document) = read_multiline(None)? {
+        let document =
+            secrecy::Secret::new(document.trim_end_matches('\n').to_string());
+        let secret = Secret::Page {
+            title,
+            mime,
+            document,
+            user_data: Default::default(),
+        };
+        let secret_meta = SecretMeta::new(label, secret.kind());
+        Ok(Some((secret_meta, secret)))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn add_credentials(
+    label: Option<String>,
+) -> Result<Option<(SecretMeta, Secret)>> {
+    let label = get_label(label)?;
+
+    let mut credentials: HashMap<String, SecretString> = HashMap::new();
+    loop {
+        let mut name = read_line(Some("Name: "))?;
+        while credentials.get(&name).is_some() {
+            tracing::error!("name '{}' already exists", &name);
+            name = read_line(Some("Name: "))?;
+        }
+        let value = read_password(Some("Value: "))?;
+        credentials.insert(name, value);
+        let prompt = Some("Add more credentials (y/n)? ");
+        if !read_flag(prompt)? {
+            break;
+        }
+    }
+
+    if !credentials.is_empty() {
+        let secret = Secret::List {
+            items: credentials,
+            user_data: Default::default(),
+        };
+        let secret_meta = SecretMeta::new(label, secret.kind());
+        Ok(Some((secret_meta, secret)))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn add_account(
+    label: Option<String>,
+) -> Result<Option<(SecretMeta, Secret)>> {
+    let label = get_label(label)?;
+
+    let account = read_line(Some("Account name: "))?;
+    let url = read_option(Some("Website URL: "))?;
+    let password = read_password(Some("Password: "))?;
+
+    let url: Option<Url> = if let Some(url) = url {
+        Some(url.parse()?)
+    } else {
+        None
+    };
+
+    let secret = Secret::Account {
+        account,
+        url,
+        password,
+        user_data: Default::default(),
+    };
+    let secret_meta = SecretMeta::new(label, secret.kind());
+    Ok(Some((secret_meta, secret)))
+}
+
+pub fn add_file(
+    path: String,
+    label: Option<String>,
+) -> Result<Option<(SecretMeta, Secret)>> {
+    let file = PathBuf::from(&path);
+
+    let name = if let Some(name) = file.file_name() {
+        name.to_string_lossy().into_owned()
+    } else {
+        return Err(Error::FileName(file));
+    };
+
+    let mut label = if let Some(label) = label {
+        label
+    } else {
+        read_line_allow_empty(Some("Label: "))?
+    };
+
+    if label.is_empty() {
+        label = name;
+    }
+
+    let secret = read_file_secret(&path)?;
+    let secret_meta = SecretMeta::new(label, secret.kind());
+    Ok(Some((secret_meta, secret)))
+}
+
+pub fn read_file_secret(path: &str) -> Result<Secret> {
+    let file = PathBuf::from(path);
+
+    if !file.is_file() {
+        return Err(Error::NotFile(file));
+    }
+
+    let name = if let Some(name) = file.file_name() {
+        name.to_string_lossy().into_owned()
+    } else {
+        return Err(Error::FileName(file));
+    };
+
+    let mime = mime_guess::from_path(&name)
+        .first()
+        .map(|m| m.to_string())
+        .unwrap_or_else(|| "application/octet-stream".to_string());
+
+    let buffer = std::fs::read(file)?;
+    let size = buffer.len() as u64;
+    let checksum = Sha256::digest(&buffer);
+    let buffer = secrecy::Secret::new(buffer);
+    Ok(Secret::File {
+        name,
+        mime,
+        buffer,
+        checksum: checksum.as_slice().try_into()?,
+        external: false,
+        size,
+        user_data: Default::default(),
+    })
 }

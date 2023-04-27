@@ -13,7 +13,11 @@ use crate::{
     helpers::{
         account::{resolve_user, USER},
         folder::resolve_folder,
-        secret::{resolve_secret, print_secret},
+        readline::read_flag,
+        secret::{
+            add_account, add_credentials, add_file, add_note, add_page,
+            print_secret, resolve_secret,
+        },
     },
     Error, Result,
 };
@@ -35,6 +39,19 @@ pub enum Command {
         #[clap(short, long)]
         verbose: bool,
     },
+    /// Add a secret.
+    Add {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        #[clap(subcommand)]
+        cmd: AddCommand,
+    },
     /// Print a secret.
     Get {
         /// Account name or address.
@@ -48,6 +65,33 @@ pub enum Command {
         /// Secret name or identifier.
         secret: SecretRef,
     },
+    /// Delete a secret.
+    Del {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AddCommand {
+    /// Add a note.
+    Note { label: Option<String> },
+    /// Add a list of credentials.
+    List { label: Option<String> },
+    /// Add an account password.
+    Account { label: Option<String> },
+    /// Add a file.
+    File { path: String, label: Option<String> },
+    /// Add a page.
+    Page { label: Option<String> },
 }
 
 pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
@@ -70,8 +114,8 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
 
             let owner = user.read().await;
-            let keeper = owner.storage.current().ok_or(
-                Error::NoVaultSelected)?;
+            let keeper =
+                owner.storage.current().ok_or(Error::NoVaultSelected)?;
             let index = keeper.index();
             let index_reader = index.read();
             let meta = index_reader.values();
@@ -88,7 +132,42 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     println!("{}", label);
                 }
             }
+        }
+        Command::Add {
+            account,
+            folder,
+            cmd,
+        } => {
+            let user = resolve_user(factory, account).await?;
+            let summary = resolve_folder(&user, folder.as_ref())
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?;
 
+            if !is_shell || folder.is_some() {
+                let mut owner = user.write().await;
+                owner.open_folder(&summary)?;
+            }
+
+            let mut owner = user.write().await;
+            let result = match cmd {
+                AddCommand::Note { label } => add_note(label)?,
+                AddCommand::List { label } => add_credentials(label)?,
+                AddCommand::Account { label } => add_account(label)?,
+                AddCommand::File { path, label } => add_file(path, label)?,
+                AddCommand::Page { label } => add_page(label)?,
+            };
+
+            if let Some((meta, secret)) = result {
+                owner.create_secret(meta, secret).await?;
+                /*
+                maybe_conflict(Arc::clone(&state), || async move {
+                    let mut writer = state.write().await;
+                    writer.storage.create_secret(meta, secret).await?;
+                    Ok(())
+                })
+                .await
+                */
+            }
         }
         Command::Get {
             account,
@@ -105,13 +184,42 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 owner.open_folder(&summary)?;
             }
 
-            let (uuid, _) = resolve_secret(Arc::clone(&user), &summary, &secret)
-                .await?
-                .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+            let (uuid, _) =
+                resolve_secret(Arc::clone(&user), &summary, &secret)
+                    .await?
+                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
             let mut owner = user.write().await;
-            let (meta, secret, _) = owner.storage.read_secret(&uuid).await?;
-            print_secret(&meta, &secret)?;
+            let (data, _) = owner.read_secret(&uuid).await?;
+            print_secret(&data.meta, &data.secret)?;
+        }
+
+        Command::Del {
+            account,
+            folder,
+            secret,
+        } => {
+            let user = resolve_user(factory, account).await?;
+            let summary = resolve_folder(&user, folder.as_ref())
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?;
+
+            if !is_shell || folder.is_some() {
+                let mut owner = user.write().await;
+                owner.open_folder(&summary)?;
+            }
+
+            let (uuid, meta) =
+                resolve_secret(Arc::clone(&user), &summary, &secret)
+                    .await?
+                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+
+            let prompt = format!(r#"Delete "{}" (y/n)? "#, meta.label());
+            if read_flag(Some(&prompt))? {
+                let mut owner = user.write().await;
+                owner.delete_secret(&uuid).await?;
+                println!("Secret deleted ✓");
+            }
         }
     }
 

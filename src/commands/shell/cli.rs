@@ -74,11 +74,11 @@ pub async fn run(
     loop {
         let prompt_value = {
             let owner = state.read().await;
+            let account_name = owner.user.account().label();
             if let Some(current) = owner.storage.current() {
-                let account_name = owner.user.account().label();
                 format!("{}@{}> ", account_name, current.name())
             } else {
-                "sos> ".to_string()
+                format!("{}> ", account_name)
             }
         };
         let readline = rl.readline(&prompt_value);

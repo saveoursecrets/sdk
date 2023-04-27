@@ -16,7 +16,7 @@ use sos_core::{
     passwd::diceware::generate_passphrase,
     search::Document,
     secrecy,
-    sha3::{Digest, Sha3_256},
+    sha2::{Sha256, Digest},
     url::Url,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef},
@@ -91,18 +91,8 @@ enum ShellCommand {
         #[clap(short, long)]
         verbose: bool,
     },
-    /// Add a secret.
-    Add {
-        #[clap(subcommand)]
-        cmd: Add,
-    },
     /// Update a secret.
     Set {
-        /// Secret name or identifier.
-        secret: SecretRef,
-    },
-    /// Delete a secret.
-    Del {
         /// Secret name or identifier.
         secret: SecretRef,
     },
@@ -143,24 +133,6 @@ enum ShellCommand {
     Quit,
 }
 
-#[derive(Subcommand, Debug)]
-enum Add {
-    /// Add a note.
-    Note { label: Option<String> },
-    /// Add a list of credentials.
-    List { label: Option<String> },
-    /// Add an account password.
-    Account { label: Option<String> },
-    /// Add a file.
-    File { path: String, label: Option<String> },
-    /// Add a page.
-    Page { label: Option<String> },
-    /*
-    /// Add a personal identification number.
-    Pin { label: Option<String> },
-    */
-}
-
 /// Attempt to read secret meta data for a reference.
 #[deprecated]
 async fn find_secret_meta(
@@ -189,161 +161,7 @@ fn get_label(label: Option<String>) -> Result<String> {
     }
 }
 
-fn multiline_banner(kind: &str, label: &str) {
-    let banner = Banner::new()
-        .padding(Padding::one())
-        .text(Cow::Owned(format!("[{}] {}", kind, label)))
-        .text(Cow::Borrowed(
-            r#"To abort enter Ctrl+C
-To save enter Ctrl+D on a newline"#,
-        ))
-        .render();
-    println!("{}", banner);
-}
-
-fn add_note(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = get_label(label)?;
-    multiline_banner("NOTE", &label);
-
-    if let Some(note) = read_multiline(None)? {
-        let note =
-            secrecy::Secret::new(note.trim_end_matches('\n').to_string());
-        let secret = Secret::Note {
-            text: note,
-            user_data: Default::default(),
-        };
-        let secret_meta = SecretMeta::new(label, secret.kind());
-        Ok(Some((secret_meta, secret)))
-    } else {
-        Ok(None)
-    }
-}
-
-fn add_page(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = get_label(label)?;
-    let title = read_line(Some("Page title: "))?;
-    let mime = "text/markdown".to_string();
-
-    multiline_banner("PAGE", &label);
-
-    if let Some(document) = read_multiline(None)? {
-        let document =
-            secrecy::Secret::new(document.trim_end_matches('\n').to_string());
-        let secret = Secret::Page {
-            title,
-            mime,
-            document,
-            user_data: Default::default(),
-        };
-        let secret_meta = SecretMeta::new(label, secret.kind());
-        Ok(Some((secret_meta, secret)))
-    } else {
-        Ok(None)
-    }
-}
-
-/*
-fn add_pin(label: Option<String>) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = get_label(label)?;
-
-    let number = read_password(Some("PIN: "))?;
-
-    Secret::ensure_ascii_digits(number.expose_secret())?;
-
-    let secret = Secret::Pin {
-        number,
-        user_data: Default::default(),
-    };
-    let secret_meta = SecretMeta::new(label, secret.kind());
-    Ok(Some((secret_meta, secret)))
-}
-*/
-
-fn add_credentials(
-    label: Option<String>,
-) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = get_label(label)?;
-
-    let mut credentials: HashMap<String, SecretString> = HashMap::new();
-    loop {
-        let mut name = read_line(Some("Name: "))?;
-        while credentials.get(&name).is_some() {
-            tracing::error!("name '{}' already exists", &name);
-            name = read_line(Some("Name: "))?;
-        }
-        let value = read_password(Some("Value: "))?;
-        credentials.insert(name, value);
-        let prompt = Some("Add more credentials (y/n)? ");
-        if !read_flag(prompt)? {
-            break;
-        }
-    }
-
-    if !credentials.is_empty() {
-        let secret = Secret::List {
-            items: credentials,
-            user_data: Default::default(),
-        };
-        let secret_meta = SecretMeta::new(label, secret.kind());
-        Ok(Some((secret_meta, secret)))
-    } else {
-        Ok(None)
-    }
-}
-
-fn add_account(
-    label: Option<String>,
-) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = get_label(label)?;
-
-    let account = read_line(Some("Account name: "))?;
-    let url = read_option(Some("Website URL: "))?;
-    let password = read_password(Some("Password: "))?;
-
-    let url: Option<Url> = if let Some(url) = url {
-        Some(url.parse()?)
-    } else {
-        None
-    };
-
-    let secret = Secret::Account {
-        account,
-        url,
-        password,
-        user_data: Default::default(),
-    };
-    let secret_meta = SecretMeta::new(label, secret.kind());
-    Ok(Some((secret_meta, secret)))
-}
-
-fn add_file(
-    path: String,
-    label: Option<String>,
-) -> Result<Option<(SecretMeta, Secret)>> {
-    let file = PathBuf::from(&path);
-
-    let name = if let Some(name) = file.file_name() {
-        name.to_string_lossy().into_owned()
-    } else {
-        return Err(Error::FileName(file));
-    };
-
-    let mut label = if let Some(label) = label {
-        label
-    } else {
-        read_line_allow_empty(Some("Label: "))?
-    };
-
-    if label.is_empty() {
-        label = name;
-    }
-
-    let secret = read_file_secret(&path)?;
-    let secret_meta = SecretMeta::new(label, secret.kind());
-    Ok(Some((secret_meta, secret)))
-}
-
-fn read_file_secret(path: &str) -> Result<Secret> {
+pub fn read_file_secret(path: &str) -> Result<Secret> {
     let file = PathBuf::from(path);
 
     if !file.is_file() {
@@ -363,7 +181,7 @@ fn read_file_secret(path: &str) -> Result<Secret> {
 
     let buffer = std::fs::read(file)?;
     let size = buffer.len() as u64;
-    let checksum = Sha3_256::digest(&buffer);
+    let checksum = Sha256::digest(&buffer);
     let buffer = secrecy::Secret::new(buffer);
     Ok(Secret::File {
         name,
@@ -527,32 +345,6 @@ async fn exec_program(
             println!("{}", status);
             Ok(())
         }
-        ShellCommand::Add { cmd } => {
-            let mut writer = state.write().await;
-            let _keeper =
-                writer.storage.current_mut().ok_or(Error::NoVaultSelected)?;
-            let result = match cmd {
-                Add::Note { label } => add_note(label)?,
-                Add::List { label } => add_credentials(label)?,
-                Add::Account { label } => add_account(label)?,
-                Add::File { path, label } => add_file(path, label)?,
-                Add::Page { label } => add_page(label)?,
-                //Add::Pin { label } => add_pin(label)?,
-            };
-
-            drop(writer);
-
-            if let Some((meta, secret)) = result {
-                maybe_conflict(Arc::clone(&state), || async move {
-                    let mut writer = state.write().await;
-                    writer.storage.create_secret(meta, secret).await?;
-                    Ok(())
-                })
-                .await
-            } else {
-                Ok(())
-            }
-        }
         ShellCommand::Set { secret } => {
             let (uuid, _) = find_secret_meta(Arc::clone(&state), &secret)
                 .await?
@@ -606,32 +398,6 @@ async fn exec_program(
                 .await
             // If the edited result was borrowed
             // it indicates that no changes were made
-            } else {
-                Ok(())
-            }
-        }
-        ShellCommand::Del { secret } => {
-            let (uuid, secret_meta) =
-                find_secret_meta(Arc::clone(&state), &secret)
-                    .await?
-                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-
-            let prompt =
-                format!(r#"Delete "{}" (y/n)? "#, secret_meta.label());
-            if read_flag(Some(&prompt))? {
-                let mut writer = state.write().await;
-                let _keeper = writer
-                    .storage
-                    .current_mut()
-                    .ok_or(Error::NoVaultSelected)?;
-                drop(writer);
-
-                maybe_conflict(Arc::clone(&state), || async move {
-                    let mut writer = state.write().await;
-                    writer.storage.delete_secret(&uuid).await?;
-                    Ok(())
-                })
-                .await
             } else {
                 Ok(())
             }
