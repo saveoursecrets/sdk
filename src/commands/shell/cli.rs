@@ -75,7 +75,8 @@ pub async fn run(
         let prompt_value = {
             let owner = state.read().await;
             if let Some(current) = owner.storage.current() {
-                format!("sos@{}> ", current.name())
+                let account_name = owner.user.account().label();
+                format!("{}@{}> ", account_name, current.name())
             } else {
                 "sos> ".to_string()
             }

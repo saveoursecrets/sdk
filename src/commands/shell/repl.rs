@@ -91,13 +91,6 @@ enum ShellCommand {
         #[clap(short, long)]
         verbose: bool,
     },
-    /// List secrets in the current folder.
-    #[clap(alias = "ls")]
-    List {
-        /// Print more information
-        #[clap(short, long)]
-        long: bool,
-    },
     /// Add a secret.
     Add {
         #[clap(subcommand)]
@@ -512,30 +505,6 @@ async fn exec_program(
             writer.storage.create_search_index()?;
 
             Ok(())
-        }
-        ShellCommand::List { long } => {
-            let reader = state.read().await;
-            if let Some(keeper) = reader.storage.current() {
-                let index = keeper.index();
-                let index_reader = index.read();
-                let meta = index_reader.values();
-                for doc in meta {
-                    let Document {
-                        secret_id, meta, ..
-                    } = doc;
-                    let label = meta.label();
-                    let short_name = meta.short_name();
-                    print!("[{}] ", short_name);
-                    if long {
-                        println!("{} {}", label, secret_id);
-                    } else {
-                        println!("{}", label);
-                    }
-                }
-                Ok(())
-            } else {
-                Err(Error::NoVaultSelected)
-            }
         }
         ShellCommand::Status { verbose } => {
             let reader = state.read().await;

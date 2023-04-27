@@ -73,8 +73,7 @@ pub enum Command {
         /// Folder name or id.
         folder: Option<VaultRef>,
     },
-
-    /// Print commit tree leaves for a folder.
+    /// Print commits for a folder.
     Commits {
         /// Account name or address.
         #[clap(short, long)]
@@ -139,7 +138,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         }
         Command::Remove { account, folder } => {
             let user = resolve_user(factory, account).await?;
-            let summary = resolve_folder(&user, folder)
+            let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
             let prompt =
@@ -168,14 +167,14 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             //verbose,
         } => {
             let user = resolve_user(factory, account).await?;
-            let summary = resolve_folder(&user, folder)
+            let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
             println!("{}", summary);
         }
         Command::Keys { account, folder } => {
             let user = resolve_user(factory, account).await?;
-            let summary = resolve_folder(&user, folder)
+            let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
 
@@ -197,7 +196,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         }
         Command::Commits { account, folder } => {
             let user = resolve_user(factory, account).await?;
-            let summary = resolve_folder(&user, folder)
+            let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
 
@@ -221,7 +220,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             name,
         } => {
             let user = resolve_user(factory, account).await?;
-            let summary = resolve_folder(&user, folder)
+            let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
 
@@ -236,7 +235,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             cmd,
         } => {
             let user = resolve_user(factory, account).await?;
-            let summary = resolve_folder(&user, folder)
+            let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
 

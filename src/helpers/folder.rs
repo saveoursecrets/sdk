@@ -7,7 +7,7 @@ use crate::{
 
 pub async fn resolve_folder(
     owner: &Owner,
-    folder: Option<VaultRef>,
+    folder: Option<&VaultRef>,
 ) -> Result<Option<Summary>> {
     let reader = owner.read().await;
     if let Some(vault) = folder {
@@ -17,7 +17,7 @@ pub async fn resolve_folder(
                 .state()
                 .find_vault(&vault)
                 .cloned()
-                .ok_or(Error::VaultNotAvailable(vault))?,
+                .ok_or(Error::VaultNotAvailable(vault.clone()))?,
         ))
     } else if let Some(owner) = USER.get() {
         let reader = owner.read().await;
