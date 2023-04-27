@@ -83,7 +83,7 @@ async fn integration_handle_change() -> Result<()> {
     });
 
     // Give the websocket client some time to connect
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Create some secrets in the creator
     // to trigger a change notification

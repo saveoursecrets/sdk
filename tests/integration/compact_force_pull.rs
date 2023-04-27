@@ -15,7 +15,7 @@ use sos_node::client::{
 
 #[tokio::test]
 #[serial]
-#[ignore = "flaky"]
+//#[ignore = "flaky"]
 // SEE: https://github.com/saveoursecrets/sdk/issues/126
 async fn integration_compact_force_pull() -> Result<()> {
     let dirs = setup(2)?;
@@ -84,7 +84,7 @@ async fn integration_compact_force_pull() -> Result<()> {
     });
 
     // Give the websocket client some time to connect
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Create some secrets in the creator
     let notes = create_secrets(&mut creator, &summary).await?;
@@ -101,7 +101,7 @@ async fn integration_compact_force_pull() -> Result<()> {
 
     // Delay a while so the change notification SSE events
     // can be received
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Verify our spawned task handled the notification
     let updated_head = listener_change.read().await;
