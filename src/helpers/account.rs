@@ -102,6 +102,13 @@ pub async fn resolve_folder(
     }
 }
 
+/// Verify the master password for an account.
+pub async fn verify(user: Owner) -> Result<bool> {
+    let passphrase = read_password(Some("Password: "))?;
+    let owner = user.read().await;
+    Ok(owner.verify(passphrase))
+}
+
 /// List local accounts.
 pub fn list_accounts(verbose: bool) -> Result<()> {
     let accounts = LocalAccounts::list_accounts()?;

@@ -40,7 +40,13 @@ bitflags! {
         /// before revealing this secret.
         const VERIFY            =        0b00000001;
     }
+}
 
+impl SecretFlags {
+    /// Determine if this secret requires verification to access.
+    pub fn must_verify(&self) -> bool {
+        self.contains(SecretFlags::VERIFY)
+    }
 }
 
 fn serialize_secret_string<S>(

@@ -1,9 +1,8 @@
-use std::{borrow::Cow, ffi::OsString, sync::Arc};
+use std::{borrow::Cow, ffi::OsString};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
 use terminal_banner::{Banner, Padding};
-use tokio::sync::RwLock;
 
 use secrecy::ExposeSecret;
 use sos_core::{
@@ -11,10 +10,9 @@ use sos_core::{
     commit::SyncKind,
     passwd::diceware::generate_passphrase,
     secrecy,
-    sha2::Digest,
-    vault::{Vault, VaultAccess, VaultRef},
+    vault::{Vault, VaultRef},
 };
-use sos_node::client::{provider::ProviderFactory, user::UserStorage};
+use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     commands::{AccountCommand, FolderCommand, SecretCommand},
@@ -34,7 +32,7 @@ enum ConflictChoice {
 
 /// Secret storage shell.
 #[derive(Parser, Debug)]
-#[clap(name = "sos-shell", author, version, about, long_about = None)]
+#[clap(name = "shell", author, version, about, long_about = None)]
 struct Shell {
     #[clap(subcommand)]
     cmd: ShellCommand,

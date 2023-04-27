@@ -140,6 +140,11 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
+            
+            if summary.flags().is_default() {
+                return Err(Error::NoRemoveDefaultFolder);
+            }
+
             let prompt =
                 format!(r#"Delete folder "{}" (y/n)? "#, summary.name(),);
             if read_flag(Some(&prompt))? {

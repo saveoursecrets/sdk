@@ -15,7 +15,7 @@ use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::{
-        account::{resolve_user, resolve_folder, USER},
+        account::{resolve_user, resolve_folder, USER, verify},
         editor,
         readline::{read_flag, read_line},
         secret::{
@@ -231,14 +231,20 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 owner.open_folder(&summary)?;
             }
 
-            let (secret_id, _) =
+            let (secret_id, meta) =
                 resolve_secret(Arc::clone(&user), &summary, &secret)
                     .await?
                     .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
-            let mut owner = user.write().await;
-            let (data, _) = owner.read_secret(&secret_id).await?;
-            print_secret(&data.meta, &data.secret)?;
+            let verified = if meta.flags().must_verify() {
+                verify(Arc::clone(&user)).await?
+            } else { true };
+            
+            if verified {
+                let mut owner = user.write().await;
+                let (data, _) = owner.read_secret(&secret_id).await?;
+                print_secret(&data.meta, &data.secret)?;
+            }
         }
         Command::Update {
             account,
@@ -255,48 +261,54 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 owner.open_folder(&summary)?;
             }
 
-            let (secret_id, _) =
+            let (secret_id, meta) =
                 resolve_secret(Arc::clone(&user), &summary, &secret)
                     .await?
                     .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
-            let mut owner = user.write().await;
-            let (data, _) = owner.read_secret(&secret_id).await?;
+            let verified = if meta.flags().must_verify() {
+                verify(Arc::clone(&user)).await?
+            } else { true };
+            
+            if verified {
+                let mut owner = user.write().await;
+                let (data, _) = owner.read_secret(&secret_id).await?;
 
-            let result = if let Secret::File {
-                name, mime, buffer, ..
-            } = &data.secret
-            {
-                if mime.starts_with("text/") {
-                    editor::edit(&data.secret)?
+                let result = if let Secret::File {
+                    name, mime, buffer, ..
+                } = &data.secret
+                {
+                    if mime.starts_with("text/") {
+                        editor::edit(&data.secret)?
+                    } else {
+                        println!(
+                            "Binary {} {} {}",
+                            name,
+                            mime,
+                            human_bytes(buffer.expose_secret().len() as f64)
+                        );
+                        let file_path = read_line(Some("File path: "))?;
+                        Cow::Owned(read_file_secret(&file_path)?)
+                    }
                 } else {
-                    println!(
-                        "Binary {} {} {}",
-                        name,
-                        mime,
-                        human_bytes(buffer.expose_secret().len() as f64)
-                    );
-                    let file_path = read_line(Some("File path: "))?;
-                    Cow::Owned(read_file_secret(&file_path)?)
-                }
-            } else {
-                editor::edit(&data.secret)?
-            };
+                    editor::edit(&data.secret)?
+                };
 
-            if let Cow::Owned(edited_secret) = result {
-                owner
-                    .update_secret(
-                        &secret_id,
-                        data.meta,
-                        Some(edited_secret),
-                        None,
-                    )
-                    .await?;
-                println!("Secret updated ✓");
-            // If the edited result was borrowed
-            // it indicates that no changes were made
-            } else {
-                println!("No changes detected");
+                if let Cow::Owned(edited_secret) = result {
+                    owner
+                        .update_secret(
+                            &secret_id,
+                            data.meta,
+                            Some(edited_secret),
+                            None,
+                        )
+                        .await?;
+                    println!("Secret updated ✓");
+                // If the edited result was borrowed
+                // it indicates that no changes were made
+                } else {
+                    println!("No changes detected");
+                }
             }
         }
         Command::Rename {
@@ -319,11 +331,18 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 resolve_secret(Arc::clone(&user), &summary, &secret)
                     .await?
                     .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-            meta.set_label(name);
 
-            let mut owner = user.write().await;
-            owner.update_secret(&secret_id, meta, None, None).await?;
-            println!("Secret renamed ✓");
+            let verified = if meta.flags().must_verify() {
+                verify(Arc::clone(&user)).await?
+            } else { true };
+
+            if verified {
+                meta.set_label(name);
+
+                let mut owner = user.write().await;
+                owner.update_secret(&secret_id, meta, None, None).await?;
+                println!("Secret renamed ✓");
+            }
         }
         Command::Del {
             account,
@@ -345,11 +364,17 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     .await?
                     .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
-            let prompt = format!(r#"Delete "{}" (y/n)? "#, meta.label());
-            if read_flag(Some(&prompt))? {
-                let mut owner = user.write().await;
-                owner.delete_secret(&secret_id).await?;
-                println!("Secret deleted ✓");
+            let verified = if meta.flags().must_verify() {
+                verify(Arc::clone(&user)).await?
+            } else { true };
+            
+            if verified {
+                let prompt = format!(r#"Delete "{}" (y/n)? "#, meta.label());
+                if read_flag(Some(&prompt))? {
+                    let mut owner = user.write().await;
+                    owner.delete_secret(&secret_id).await?;
+                    println!("Secret deleted ✓");
+                }
             }
         }
     }

@@ -16,6 +16,9 @@ pub enum Error {
     #[error("could not find folder, use --folder to specify folder")]
     NoFolderFound,
 
+    #[error("permission denied; default folder cannot be deleted")]
+    NoRemoveDefaultFolder,
+
     #[error("operation is only permitted on the current account")]
     NotShellAccount,
 

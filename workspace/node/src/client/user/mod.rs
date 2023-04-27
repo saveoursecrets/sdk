@@ -123,6 +123,11 @@ impl UserStorage {
         })
     }
 
+    /// Verify the master password for this account.
+    pub fn verify(&self, passphrase: SecretString) -> bool {
+        self.user.verify(passphrase)
+    }
+
     /// Delete the account for this user and sign out.
     pub fn delete_account(&mut self) -> Result<()> {
         self.user.delete_account()?;
