@@ -7,11 +7,18 @@ homepage = "https://saveoursecrets.com"
 license = "GPL-3.0"
 
 [features]
-default = ["node"]
+default = ["peer"]
+full = [
+  "client",
+  "server",
+  "peer",
+  "migrate",
+  "contacts",
+  "device",
+]
 client = [
   "reqwest",
 ]
-node = ["client", "server"]
 peer = ["libp2p", "libp2p-quic", "either", "void"]
 server = [
   "toml",
