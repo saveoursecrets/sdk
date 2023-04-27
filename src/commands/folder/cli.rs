@@ -10,7 +10,7 @@ use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::{
-        account::{resolve_user, resolve_folder, USER},
+        account::{resolve_folder, resolve_user, USER},
         readline::read_flag,
     },
     Error, Result,
@@ -140,7 +140,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
-            
+
             if summary.flags().is_default() {
                 return Err(Error::NoRemoveDefaultFolder);
             }

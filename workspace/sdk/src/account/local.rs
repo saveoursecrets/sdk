@@ -111,18 +111,6 @@ impl LocalAccounts {
         Ok((vault, path))
     }
 
-    /// Find the default vault for an account.
-    pub fn find_default_vault(
-        address: &Address,
-    ) -> Result<(Summary, PathBuf)> {
-        let vaults = Self::list_local_vaults(address, false)?;
-        let (summary, path) = vaults
-            .into_iter()
-            .find(|(s, _)| s.flags().is_default())
-            .ok_or_else(|| Error::NoDefaultVault(address.to_string()))?;
-        Ok((summary, path))
-    }
-
     /// Get a list of the vaults for an account directly from the file system.
     pub fn list_local_vaults(
         address: &Address,

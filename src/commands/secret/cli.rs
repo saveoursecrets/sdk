@@ -15,7 +15,7 @@ use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::{
-        account::{resolve_user, resolve_folder, USER, verify},
+        account::{resolve_folder, resolve_user, verify, USER},
         editor,
         readline::{read_flag, read_line},
         secret::{
@@ -204,10 +204,10 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             let mut owner = user.write().await;
             let result = match cmd {
-                AddCommand::Note { name} => add_note(name)?,
+                AddCommand::Note { name } => add_note(name)?,
                 AddCommand::List { name } => add_credentials(name)?,
-                AddCommand::Account { name} => add_account(name)?,
-                AddCommand::File { file, name} => add_file(file, name)?,
+                AddCommand::Account { name } => add_account(name)?,
+                AddCommand::File { file, name } => add_file(file, name)?,
                 AddCommand::Page { name } => add_page(name)?,
             };
 
@@ -238,8 +238,10 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             let verified = if meta.flags().must_verify() {
                 verify(Arc::clone(&user)).await?
-            } else { true };
-            
+            } else {
+                true
+            };
+
             if verified {
                 let mut owner = user.write().await;
                 let (data, _) = owner.read_secret(&secret_id).await?;
@@ -268,8 +270,10 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             let verified = if meta.flags().must_verify() {
                 verify(Arc::clone(&user)).await?
-            } else { true };
-            
+            } else {
+                true
+            };
+
             if verified {
                 let mut owner = user.write().await;
                 let (data, _) = owner.read_secret(&secret_id).await?;
@@ -334,7 +338,9 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             let verified = if meta.flags().must_verify() {
                 verify(Arc::clone(&user)).await?
-            } else { true };
+            } else {
+                true
+            };
 
             if verified {
                 meta.set_label(name);
@@ -366,8 +372,10 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             let verified = if meta.flags().must_verify() {
                 verify(Arc::clone(&user)).await?
-            } else { true };
-            
+            } else {
+                true
+            };
+
             if verified {
                 let prompt = format!(r#"Delete "{}" (y/n)? "#, meta.label());
                 if read_flag(Some(&prompt))? {

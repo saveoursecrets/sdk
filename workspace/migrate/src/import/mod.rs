@@ -26,14 +26,18 @@ pub enum ImportFormat {
 
 impl fmt::Display for ImportFormat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Self::OnePasswordCsv => "onepassword.csv",
-            Self::DashlaneZip => "dashlane.zip",
-            Self::BitwardenCsv => "bitwarden.csv",
-            Self::ChromeCsv => "chrome.csv",
-            Self::FirefoxCsv => "firefox.csv",
-            Self::MacosCsv => "macos.csv",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::OnePasswordCsv => "onepassword.csv",
+                Self::DashlaneZip => "dashlane.zip",
+                Self::BitwardenCsv => "bitwarden.csv",
+                Self::ChromeCsv => "chrome.csv",
+                Self::FirefoxCsv => "firefox.csv",
+                Self::MacosCsv => "macos.csv",
+            }
+        )
     }
 }
 

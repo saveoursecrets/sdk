@@ -215,7 +215,11 @@ async fn exec_program(
                         .ok_or(Error::VaultNotAvailable(vault))?,
                 )
             } else {
-                reader.storage.state().find_default_vault().cloned()
+                reader
+                    .storage
+                    .state()
+                    .find(|s| s.flags().is_default())
+                    .cloned()
             };
 
             let summary = summary.ok_or(Error::NoVault)?;

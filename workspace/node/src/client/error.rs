@@ -23,6 +23,10 @@ pub enum Error {
     #[error("path {0} is not a file")]
     NotFile(PathBuf),
 
+    /// Error generated when no default folder is available.
+    #[error("no default folder")]
+    NoDefaultFolder,
+
     /// Error generated when a secret is not a contact secret.
     #[cfg(feature = "contacts")]
     #[error("not a contact")]

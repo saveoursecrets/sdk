@@ -101,6 +101,15 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: MigrateCommand,
     },
+    /// Export and import contacts (vCard).
+    Contacts {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        #[clap(subcommand)]
+        cmd: ContactsCommand,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -119,11 +128,29 @@ pub enum MigrateCommand {
         /// Format of the file to import.
         #[clap(long)]
         format: ImportFormat,
-        
+
         /// Name for the new folder.
         #[clap(short, long)]
         name: Option<String>,
 
+        /// Input file to import.
+        input: PathBuf,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ContactsCommand {
+    /// Export all contacts to a vCard.
+    Export {
+        /// Force overwrite of existing file.
+        #[clap(long)]
+        force: bool,
+
+        /// Output file for the export.
+        output: PathBuf,
+    },
+    /// Import contacts from a vCard.
+    Import {
         /// Input file to import.
         input: PathBuf,
     },
@@ -174,14 +201,41 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let user = resolve_user(account, factory, false).await?;
             match cmd {
                 MigrateCommand::Export { output, force } => {
-                    let exported = migrate_export(user, output, force).await?;
+                    let exported =
+                        migrate_export(user, output, force).await?;
                     if exported {
                         println!("account exported ✓");
                     }
                 }
-                MigrateCommand::Import { input, format, name } => {
+                MigrateCommand::Import {
+                    input,
+                    format,
+                    name,
+                } => {
                     migrate_import(user, input, format, name).await?;
                     println!("file imported ✓");
+                }
+            }
+        }
+        Command::Contacts { account, cmd } => {
+            let user = resolve_user(account, factory, false).await?;
+
+            {
+                let mut owner = user.write().await;
+                let contacts = owner
+                    .contacts()
+                    .ok_or_else(|| Error::NoContactsFolder)?;
+                owner.open_folder(&contacts)?;
+            }
+
+            match cmd {
+                ContactsCommand::Export { output, force } => {
+                    contacts_export(user, output, force).await?;
+                    println!("contacts exported ✓");
+                }
+                ContactsCommand::Import { input } => {
+                    contacts_import(user, input).await?;
+                    println!("contacts imported ✓");
                 }
             }
         }
@@ -368,7 +422,7 @@ pub async fn migrate_export(
     } else {
         false
     };
-    
+
     Ok(result)
 }
 
@@ -386,5 +440,27 @@ pub async fn migrate_import(
     };
     let mut owner = user.write().await;
     let _ = owner.import_file(target).await?;
+    Ok(())
+}
+
+/// Export contacts to a vCard.
+pub async fn contacts_export(
+    user: Owner,
+    output: PathBuf,
+    force: bool,
+) -> Result<()> {
+    if !force && output.exists() {
+        return Err(Error::FileExists(output));
+    }
+    let mut owner = user.write().await;
+    owner.export_all_vcards(output).await?;
+    Ok(())
+}
+
+/// Import contacts from a vCard.
+pub async fn contacts_import(user: Owner, input: PathBuf) -> Result<()> {
+    let mut owner = user.write().await;
+    let content = std::fs::read_to_string(&input)?;
+    owner.import_vcard(&content, |_| {}).await?;
     Ok(())
 }

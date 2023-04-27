@@ -233,11 +233,13 @@ impl UserStorage {
             new_passphrase.clone(),
         )?;
 
-        let address = self.user.identity().address().to_owned();
-
         if save_passphrase {
-            let (default_summary, _) =
-                LocalAccounts::find_default_vault(&address)?;
+            let default_summary = self
+                .storage
+                .state()
+                .find(|s| s.flags().is_default())
+                .cloned()
+                .ok_or_else(|| Error::NoDefaultFolder)?;
 
             let passphrase = DelegatedPassphrase::find_vault_passphrase(
                 self.user.identity().keeper(),
@@ -862,6 +864,15 @@ impl UserStorage {
             .add_folder_to_search_index(vault, vault_passphrase)?;
 
         Ok(summary)
+    }
+
+    #[cfg(feature = "contacts")]
+    /// Find the contacts folder.
+    pub fn contacts(&self) -> Option<Summary> {
+        self.storage
+            .state()
+            .find(|s| s.flags().is_contact())
+            .cloned()
     }
 
     /// Get an avatar JPEG image for a contact in the current

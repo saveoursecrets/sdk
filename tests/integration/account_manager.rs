@@ -94,10 +94,6 @@ async fn integration_account_manager() -> Result<()> {
             summary.id(),
         )?;
 
-    let (default_vault_summary, _) =
-        LocalAccounts::find_default_vault(&address)?;
-    assert_eq!(summary, default_vault_summary);
-
     let default_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
     let (default_vault, _) =
         LocalAccounts::find_local_vault(&address, summary.id(), false)?;

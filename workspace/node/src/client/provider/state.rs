@@ -79,12 +79,7 @@ impl ProviderState {
         }
     }
 
-    /// Find a default vault in this state.
-    pub fn find_default_vault(&self) -> Option<&Summary> {
-        self.summaries.iter().find(|s| s.flags().is_default())
-    }
-
-    /// Find a summary in this state.
+    /// Find a summary in this state by reference.
     pub fn find_vault(&self, vault: &VaultRef) -> Option<&Summary> {
         match vault {
             VaultRef::Name(name) => {
@@ -92,6 +87,14 @@ impl ProviderState {
             }
             VaultRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
         }
+    }
+
+    /// Find a summary in this state.
+    pub fn find<F>(&self, predicate: F) -> Option<&Summary>
+    where
+        F: FnMut(&&Summary) -> bool,
+    {
+        self.summaries.iter().find(predicate)
     }
 
     /// Set the current vault and unlock it.

@@ -47,8 +47,12 @@ pub async fn resolve_user(
     let (mut owner, _) = sign_in(&account, factory).await?;
 
     // For non-shell we need to initialize the search index
-    if USER.get().is_none() && build_search_index {
-        owner.initialize_search_index().await?;
+    if USER.get().is_none() {
+        if build_search_index {
+            owner.initialize_search_index().await?;
+        } else {
+            owner.list_folders().await?;
+        }
     }
 
     Ok(Arc::new(RwLock::new(owner)))
@@ -98,7 +102,11 @@ pub async fn resolve_folder(
             reader.storage.current().ok_or(Error::NoVaultSelected)?;
         Ok(Some(keeper.summary().clone()))
     } else {
-        Ok(reader.storage.state().find_default_vault().cloned())
+        Ok(reader
+            .storage
+            .state()
+            .find(|s| s.flags().is_default())
+            .cloned())
     }
 }
 

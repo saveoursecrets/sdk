@@ -22,6 +22,9 @@ pub enum Error {
     #[error("operation is only permitted on the current account")]
     NotShellAccount,
 
+    #[error("could not find contacts folder")]
+    NoContactsFolder,
+
     #[error("could not determine cache directory")]
     NoCache,
 
