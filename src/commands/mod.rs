@@ -8,8 +8,8 @@ pub mod secret;
 pub mod server;
 pub mod shell;
 
-pub use account::cli::Command as AccountCommand;
-pub use audit::cli::Command as AuditCommand;
-pub use check::cli::Command as CheckCommand;
-pub use folder::cli::Command as FolderCommand;
-pub use secret::cli::Command as SecretCommand;
+pub use account::Command as AccountCommand;
+pub use audit::Command as AuditCommand;
+pub use check::Command as CheckCommand;
+pub use folder::Command as FolderCommand;
+pub use secret::Command as SecretCommand;

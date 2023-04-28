@@ -17,7 +17,7 @@ use sos_node::client::provider::ProviderFactory;
 use crate::{
     commands::{AccountCommand, FolderCommand, SecretCommand},
     helpers::{
-        account::{switch, Owner, use_folder},
+        account::{switch, use_folder, Owner},
         readline::{read_flag, read_password},
     },
 };
@@ -90,7 +90,6 @@ enum ShellCommand {
     #[clap(alias = "passwd")]
     Password,
     */
-
     /// Switch account.
     #[clap(alias = "su")]
     Switch {

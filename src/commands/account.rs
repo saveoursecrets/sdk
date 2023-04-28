@@ -245,7 +245,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 }
 
 /// Print account info.
-pub async fn account_info(
+async fn account_info(
     account: Option<AccountRef>,
     verbose: bool,
     system: bool,
@@ -276,7 +276,7 @@ pub async fn account_info(
 }
 
 /// Create a backup zip archive.
-pub async fn account_backup(
+async fn account_backup(
     account: Option<AccountRef>,
     output: PathBuf,
     force: bool,
@@ -296,7 +296,7 @@ pub async fn account_backup(
 }
 
 /// Restore from a zip archive.
-pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
+async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     if !input.exists() || !input.is_file() {
         return Err(Error::NotFile(input));
     }
@@ -344,7 +344,7 @@ pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
 }
 
 /// Rename an account.
-pub async fn account_rename(
+async fn account_rename(
     account: Option<AccountRef>,
     name: String,
     factory: ProviderFactory,
@@ -359,7 +359,7 @@ pub async fn account_rename(
 }
 
 /// Delete an account.
-pub async fn account_delete(
+async fn account_delete(
     account: Option<AccountRef>,
     factory: ProviderFactory,
 ) -> Result<bool> {
@@ -401,7 +401,7 @@ pub async fn account_delete(
 }
 
 /// Export a migration archive.
-pub async fn migrate_export(
+async fn migrate_export(
     user: Owner,
     output: PathBuf,
     force: bool,
@@ -427,7 +427,7 @@ pub async fn migrate_export(
 }
 
 /// Import data from another app.
-pub async fn migrate_import(
+async fn migrate_import(
     user: Owner,
     input: PathBuf,
     format: ImportFormat,
@@ -444,7 +444,7 @@ pub async fn migrate_import(
 }
 
 /// Export contacts to a vCard.
-pub async fn contacts_export(
+async fn contacts_export(
     user: Owner,
     output: PathBuf,
     force: bool,
@@ -458,7 +458,7 @@ pub async fn contacts_export(
 }
 
 /// Import contacts from a vCard.
-pub async fn contacts_import(user: Owner, input: PathBuf) -> Result<()> {
+async fn contacts_import(user: Owner, input: PathBuf) -> Result<()> {
     let mut owner = user.write().await;
     let content = std::fs::read_to_string(&input)?;
     owner.import_vcard(&content, |_| {}).await?;

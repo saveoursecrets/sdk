@@ -1,6 +1,5 @@
 use std::{borrow::Cow, sync::Arc};
 
-use super::exec;
 use sos_core::{account::AccountRef, storage::StorageDirs, vault::VaultRef};
 use terminal_banner::{Banner, Padding};
 
@@ -10,11 +9,13 @@ use tokio::sync::RwLock;
 
 use crate::{
     helpers::{
-        account::{sign_in, USER, use_folder},
+        account::{sign_in, use_folder, USER},
         readline,
     },
     Error, Result,
 };
+
+use super::repl::exec;
 
 const WELCOME: &str = include_str!("welcome.txt");
 

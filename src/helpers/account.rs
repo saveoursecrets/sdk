@@ -98,8 +98,7 @@ pub async fn resolve_folder(
         ))
     } else if let Some(owner) = USER.get() {
         let owner = owner.read().await;
-        let keeper =
-            owner.storage.current().ok_or(Error::NoVaultSelected)?;
+        let keeper = owner.storage.current().ok_or(Error::NoVaultSelected)?;
         Ok(Some(keeper.summary().clone()))
     } else {
         Ok(owner
@@ -110,7 +109,10 @@ pub async fn resolve_folder(
     }
 }
 
-pub async fn use_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
+pub async fn use_folder(
+    user: Owner,
+    folder: Option<&VaultRef>,
+) -> Result<()> {
     let mut owner = user.write().await;
     let summary = if let Some(vault) = folder {
         Some(

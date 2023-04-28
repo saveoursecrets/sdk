@@ -163,7 +163,13 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
     let is_shell = USER.get().is_some();
 
     match cmd {
-        Command::List { account, folder, verbose, all, favorites } => {
+        Command::List {
+            account,
+            folder,
+            verbose,
+            all,
+            favorites,
+        } => {
             let user = resolve_user(account, factory, true).await?;
             let owner = user.read().await;
             let archive_folder = owner

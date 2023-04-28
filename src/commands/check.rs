@@ -1,21 +1,92 @@
-use std::path::{Path, PathBuf};
-use uuid::Uuid;
+use std::path::{PathBuf, Path};
+use clap::Subcommand;
 
 use sos_core::{
     commit::{vault_commit_tree_file, wal_commit_tree_file, CommitTree},
     formats::vault_iter,
-    hex, uuid,
+    hex, uuid::Uuid,
     vault::Header,
     wal::WalItem,
 };
 
 use crate::{Error, Result};
 
-pub(crate) mod cli;
-pub use cli::run;
+#[derive(Subcommand, Debug)]
+pub enum Command {
+    /// Verify the integrity of a vault.
+    Verify {
+        /// Print the root commit hash.
+        #[clap(short, long)]
+        root: bool,
+
+        /// Print the commit hash for each row.
+        #[clap(short, long)]
+        commits: bool,
+
+        /// Vault file path.
+        file: PathBuf,
+    },
+    /// Print the vault header and root commit hash.
+    Status {
+        /// Vault file path.
+        file: PathBuf,
+    },
+    /// Print the vault keys.
+    Keys {
+        /// Vault file path.
+        file: PathBuf,
+    },
+    /// Write ahead log tools.
+    Wal {
+        #[clap(subcommand)]
+        cmd: Wal,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum Wal {
+    /// Verify the integrity of a WAL file.
+    Verify {
+        /// Print the root commit hash.
+        #[clap(short, long)]
+        root: bool,
+
+        /// Print the commit hash for each row.
+        #[clap(short, long)]
+        commits: bool,
+
+        /// Write ahead log file path.
+        file: PathBuf,
+    },
+}
+
+pub fn run(cmd: Command) -> Result<()> {
+    match cmd {
+        Command::Verify {
+            file,
+            root,
+            commits,
+        } => {
+            verify_vault(file, root, commits)?;
+        }
+        Command::Status { file } => status(file)?,
+        Command::Keys { file } => keys(file)?,
+        Command::Wal { cmd } => match cmd {
+            Wal::Verify {
+                file,
+                root,
+                commits,
+            } => {
+                verify_wal(file, root, commits)?;
+            }
+        },
+    }
+
+    Ok(())
+}
 
 /// Verify the integrity of a vault.
-pub fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
+fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
@@ -34,7 +105,7 @@ pub fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
 }
 
 /// Verify the integrity of a WAL file.
-pub fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
+fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
@@ -53,7 +124,7 @@ pub fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
 }
 
 /// Print the vault header and root commit.
-pub fn status(vault: PathBuf) -> Result<()> {
+fn status(vault: PathBuf) -> Result<()> {
     if !vault.is_file() {
         return Err(Error::NotFile(vault));
     }
@@ -69,7 +140,7 @@ pub fn status(vault: PathBuf) -> Result<()> {
 }
 
 /// Print the vault keys.
-pub fn keys(vault: PathBuf) -> Result<()> {
+fn keys(vault: PathBuf) -> Result<()> {
     if !vault.is_file() {
         return Err(Error::NotFile(vault));
     }

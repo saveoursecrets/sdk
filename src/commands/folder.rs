@@ -10,7 +10,7 @@ use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::{
-        account::{resolve_folder, resolve_user, USER, use_folder},
+        account::{resolve_folder, resolve_user, use_folder, USER},
         readline::read_flag,
     },
     Error, Result,
@@ -132,7 +132,11 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
     let is_shell = USER.get().is_some();
 
     match cmd {
-        Command::New { account, name, r#use } => {
+        Command::New {
+            account,
+            name,
+            r#use,
+        } => {
             let user = resolve_user(account, factory, false).await?;
             let mut writer = user.write().await;
             let summary = writer.create_folder(name).await?;
@@ -156,7 +160,9 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut owner = user.write().await;
             let is_current = if let Some(current) = owner.storage.current() {
                 current.id() == summary.id()
-            } else { false };
+            } else {
+                false
+            };
 
             let prompt =
                 format!(r#"Delete folder "{}" (y/n)? "#, summary.name(),);
@@ -165,7 +171,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 println!("{} removed ✓", summary.name());
 
                 drop(owner);
-                // Removing current folder so try to use 
+                // Removing current folder so try to use
                 // the default folder
                 if is_current {
                     use_folder(user, None).await?;
