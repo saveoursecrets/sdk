@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use super::exec;
-use sos_core::{account::AccountRef, storage::StorageDirs};
+use sos_core::{account::AccountRef, storage::StorageDirs, vault::VaultRef};
 use terminal_banner::{Banner, Padding};
 
 use sos_node::{client::provider::ProviderFactory, FileLocks};
@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     helpers::{
-        account::{sign_in, USER},
+        account::{sign_in, USER, use_folder},
         readline,
     },
     Error, Result,
@@ -36,6 +36,7 @@ Type "quit" or "q" to exit"#;
 pub async fn run(
     factory: ProviderFactory,
     account: AccountRef,
+    folder: Option<VaultRef>,
 ) -> Result<()> {
     let cache_dir = StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
     if !cache_dir.is_dir() {
@@ -68,12 +69,13 @@ pub async fn run(
     */
 
     // Prepare state for shell execution
-    let state = USER.get_or_init(|| Arc::new(RwLock::new(owner)));
+    let user = USER.get_or_init(|| Arc::new(RwLock::new(owner)));
+    use_folder(Arc::clone(user), folder.as_ref()).await?;
 
     let mut rl = readline::basic_editor()?;
     loop {
         let prompt_value = {
-            let owner = state.read().await;
+            let owner = user.read().await;
             let account_name = owner.user.account().label();
             if let Some(current) = owner.storage.current() {
                 format!("{}@{}> ", account_name, current.name())
@@ -85,7 +87,7 @@ pub async fn run(
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
-                let provider = Arc::clone(state);
+                let provider = Arc::clone(user);
                 if let Err(e) = exec(&line, factory.clone(), provider).await {
                     tracing::error!("{}", e);
                 }

@@ -11,7 +11,10 @@ use sos_core::{
         VaultRef,
     },
 };
-use sos_node::client::provider::ProviderFactory;
+use sos_node::client::{
+    provider::ProviderFactory,
+    user::{ArchiveFilter, DocumentView},
+};
 
 use crate::{
     helpers::{
@@ -44,6 +47,16 @@ pub enum Command {
         /// Print more information
         #[clap(short, long)]
         verbose: bool,
+    },
+    /// Find secrets by view.
+    Find {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
     },
     /// Add a secret.
     Add {
@@ -158,34 +171,51 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             verbose,
         } => {
             let user = resolve_user(account, factory, true).await?;
+            let owner = user.read().await;
+            let archive_folder = owner
+                .storage
+                .state()
+                .find(|s| s.flags().is_archive())
+                .cloned();
+
+            let archive_filter = archive_folder.map(|s| ArchiveFilter {
+                id: *s.id(),
+                include_documents: false,
+            });
+
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
 
-            if !is_shell || folder.is_some() {
-                let mut owner = user.write().await;
-                owner.open_folder(&summary)?;
-            }
+            let mut views = vec![DocumentView::Vault(*summary.id())];
 
+            let documents =
+                owner.index().query_view(views, archive_filter)?;
+            let docs: Vec<&Document> = documents.iter().collect();
+            print_documents(&docs, false)?;
+        }
+        Command::Find { account, folder: _ } => {
+            let user = resolve_user(account, factory, true).await?;
             let owner = user.read().await;
-            let keeper =
-                owner.storage.current().ok_or(Error::NoVaultSelected)?;
-            let index = keeper.index();
-            let index_reader = index.read();
-            let meta = index_reader.values();
-            for doc in meta {
-                let Document {
-                    secret_id, meta, ..
-                } = doc;
-                let label = meta.label();
-                let short_name = meta.short_name();
-                print!("[{}] ", short_name);
-                if verbose {
-                    println!("{} {}", secret_id, label);
-                } else {
-                    println!("{}", label);
-                }
-            }
+            let archive_folder = owner
+                .storage
+                .state()
+                .find(|s| s.flags().is_archive())
+                .cloned();
+
+            let archive_filter = archive_folder.map(|s| ArchiveFilter {
+                id: *s.id(),
+                include_documents: false,
+            });
+
+            let mut views = vec![DocumentView::All {
+                ignored_types: None,
+            }];
+
+            let documents =
+                owner.index().query_view(views, archive_filter)?;
+            let docs: Vec<&Document> = documents.iter().collect();
+            print_documents(&docs, false)?;
         }
         Command::Add {
             account,
@@ -387,5 +417,22 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+fn print_documents(docs: &[&Document], verbose: bool) -> Result<()> {
+    for doc in docs {
+        let Document {
+            secret_id, meta, ..
+        } = doc;
+        let label = meta.label();
+        let short_name = meta.short_name();
+        print!("[{}] ", short_name);
+        if verbose {
+            println!("{} {}", secret_id, label);
+        } else {
+            println!("{}", label);
+        }
+    }
     Ok(())
 }

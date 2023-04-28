@@ -17,7 +17,7 @@ use sos_node::client::provider::ProviderFactory;
 use crate::{
     commands::{AccountCommand, FolderCommand, SecretCommand},
     helpers::{
-        account::{switch, Owner},
+        account::{switch, Owner, use_folder},
         readline::{read_flag, read_password},
     },
 };
@@ -203,40 +203,7 @@ async fn exec_program(
             crate::commands::secret::run(cmd, factory).await
         }
         ShellCommand::Use { folder } => {
-            let reader = state.read().await;
-
-            let summary = if let Some(vault) = folder {
-                Some(
-                    reader
-                        .storage
-                        .state()
-                        .find_vault(&vault)
-                        .cloned()
-                        .ok_or(Error::VaultNotAvailable(vault))?,
-                )
-            } else {
-                reader
-                    .storage
-                    .state()
-                    .find(|s| s.flags().is_default())
-                    .cloned()
-            };
-
-            let summary = summary.ok_or(Error::NoVault)?;
-            drop(reader);
-
-            let state_reader = state.read().await;
-            let passphrase = DelegatedPassphrase::find_vault_passphrase(
-                state_reader.user.identity().keeper(),
-                summary.id(),
-            )?;
-            drop(state_reader);
-
-            let mut writer = state.write().await;
-            writer.storage.open_vault(&summary, passphrase, None)?;
-            writer.storage.create_search_index()?;
-
-            Ok(())
+            use_folder(state, folder.as_ref()).await
         }
         ShellCommand::Status { verbose } => {
             let reader = state.read().await;

@@ -110,6 +110,30 @@ pub async fn resolve_folder(
     }
 }
 
+pub async fn use_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
+    let mut owner = user.write().await;
+    let summary = if let Some(vault) = folder {
+        Some(
+            owner
+                .storage
+                .state()
+                .find_vault(vault)
+                .cloned()
+                .ok_or(Error::VaultNotAvailable(vault.clone()))?,
+        )
+    } else {
+        owner
+            .storage
+            .state()
+            .find(|s| s.flags().is_default())
+            .cloned()
+    };
+
+    let summary = summary.ok_or(Error::NoVault)?;
+    owner.open_folder(&summary)?;
+    Ok(())
+}
+
 /// Verify the master password for an account.
 pub async fn verify(user: Owner) -> Result<bool> {
     let passphrase = read_password(Some("Password: "))?;

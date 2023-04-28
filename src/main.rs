@@ -7,7 +7,7 @@ use sos::{
     },
     Result,
 };
-use sos_core::{account::AccountRef, storage::StorageDirs, url::Url};
+use sos_core::{account::AccountRef, storage::StorageDirs, url::Url, vault::VaultRef};
 use sos_node::client::provider::ProviderFactory;
 use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -99,6 +99,10 @@ enum Command {
     },
     /// Start an interactive login shell.
     Shell {
+        /// Folder name or identifier.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
         /// Account name or address.
         account: AccountRef,
     },
@@ -121,7 +125,7 @@ async fn run() -> Result<()> {
             changes::run(server, account).await?
         }
         Command::Check { cmd } => check::run(cmd)?,
-        Command::Shell { account } => shell::run(factory, account).await?,
+        Command::Shell { account, folder } => shell::run(factory, account, folder).await?,
         Command::Server {
             audit_log,
             reap_interval,
