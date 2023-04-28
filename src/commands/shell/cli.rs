@@ -3,7 +3,10 @@ use std::{borrow::Cow, sync::Arc};
 use sos_core::{account::AccountRef, storage::StorageDirs, vault::VaultRef};
 use terminal_banner::{Banner, Padding};
 
-use sos_node::{client::{provider::ProviderFactory, user::UserStorage}, FileLocks};
+use sos_node::{
+    client::{provider::ProviderFactory, user::UserStorage},
+    FileLocks,
+};
 
 use tokio::sync::RwLock;
 
@@ -47,7 +50,7 @@ async fn auth(
                 if e.is_interrupted() {
                     std::process::exit(0);
                 }
-            },
+            }
         }
     }
 }
@@ -77,7 +80,7 @@ pub async fn run(
         account.into()
     };
 
-    let mut owner  = auth(&account, factory.clone()).await?;
+    let mut owner = auth(&account, factory.clone()).await?;
     owner.initialize_search_index().await?;
     welcome(&factory)?;
 

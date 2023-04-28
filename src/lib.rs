@@ -1,3 +1,4 @@
+pub mod cli;
 pub mod commands;
 mod error;
 pub(crate) mod helpers;

@@ -118,8 +118,10 @@ pub enum Error {
 }
 
 impl Error {
-
     pub fn is_interrupted(&self) -> bool {
-        matches!(self, Error::Readline(rustyline::error::ReadlineError::Interrupted))
+        matches!(
+            self,
+            Error::Readline(rustyline::error::ReadlineError::Interrupted)
+        )
     }
 }
