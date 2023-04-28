@@ -100,7 +100,6 @@ dependencies = ["check-wasm-node-client"]
 [tasks.server-release]
 command = "cargo"
 args = ["build", "--release", "--target", "${BUILD_TARGET}", "-p", "sos-server"]
-dependencies = ["browser-gui"]
 
 [tasks.dist]
 command = "cargo"
@@ -118,22 +117,9 @@ command -v mkcert && cd sandbox &&
   mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1
 '''
 
-[tasks.browser-gui]
-script = '''
-rm -rf target/browser
-rm -rf workspace/node/public
-cd target
-git clone git@github.com:saveoursecrets/browser.git
-cd browser
-cargo make wasm
-(cd app && yarn install --frozen-lockfile)
-cargo make dist
-cp -rv app/dist ../../workspace/node/public
-'''
-
 [tasks.genhtml]
 script = '''
-grcov ${COVERAGE_PROF_OUTPUT} -s ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY} --binary-path ./target/cover/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore 'src/*' --ignore 'tests/*' --ignore 'target/*'
+grcov ${COVERAGE_PROF_OUTPUT} -s . --binary-path ./target/cover/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore 'tests/*' --ignore 'target/*'
 
 #genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/lcov.info
 '''

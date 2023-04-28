@@ -76,7 +76,7 @@ script = '''
 set -eux
 
 grcov ${COVERAGE_PROF_OUTPUT} \
-  -b ${COVERAGE_BINARIES} -s ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY} \
+  -b ${COVERAGE_BINARIES} -s . \
   -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target/lcov.info
 '''
 dependencies=["coverage_grcov_build_stable", "coverage_grcov_prepare_outdir", "coverage_grcov_run_test_stable"]

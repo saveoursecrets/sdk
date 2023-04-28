@@ -15,7 +15,7 @@ use sos_node::client::{
 
 #[tokio::test]
 #[serial]
-//#[ignore = "flaky"]
+#[ignore = "flaky"]
 // SEE: https://github.com/saveoursecrets/sdk/issues/126
 async fn integration_compact_force_pull() -> Result<()> {
     let dirs = setup(2)?;

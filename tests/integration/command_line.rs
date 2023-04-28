@@ -1,16 +1,10 @@
 use anyhow::Result;
 use serial_test::serial;
-use std::{path::PathBuf, ffi::OsStr, process::Stdio};
-
-use futures::Future;
-use tokio::io::{self, AsyncBufReadExt, BufReader};
-use tokio::process::Command;
+use std::path::PathBuf;
 
 use sos_core::{
     passwd::diceware::generate_passphrase, secrecy::ExposeSecret,
 };
-
-use sos::cli::run;
 
 use rexpect::spawn;
 
@@ -29,7 +23,13 @@ async fn integration_command_line() -> Result<()> {
     let cache_dir = cache_dir.canonicalize()?;
     std::env::set_var("SOS_CACHE", cache_dir);
 
-    let exe = "target/debug/sos";
+    let is_coverage = std::env::var("COVERAGE_BINARIES").is_ok();
+    let exe = if is_coverage {
+       PathBuf::from(std::env::var("COVERAGE_BINARIES")?)
+           .join("sos").to_string_lossy().into_owned()
+    } else {
+        "target/debug/sos".to_owned()
+    };
     let cmd = format!("{} account new mock-account-1", exe);
     let mut p = spawn(&cmd, Some(10000))?;
     p.exp_regex("memorize my master")?;

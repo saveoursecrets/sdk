@@ -33,11 +33,6 @@ impl Highlighter for MaskingHighlighter {
 
 /// Read a passphrase from stdin prompt.
 pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {
-    #[cfg(any(test, debug_assertions))]
-    if let Ok(password) = std::env::var("SOS_PASSWORD") {
-        return Ok(SecretString::new(password));
-    }
-
     let h = MaskingHighlighter { masking: true };
     let mut rl = Editor::new()?;
     rl.set_helper(Some(h));

@@ -47,7 +47,8 @@ async fn auth(
             Ok((owner, _)) => return Ok(owner),
             Err(e) => {
                 tracing::error!("{}", e);
-                if e.is_interrupted() || std::env::var("SOS_PASSWORD").is_ok() {
+                if e.is_interrupted() || std::env::var("SOS_PASSWORD").is_ok()
+                {
                     std::process::exit(0);
                 }
             }
