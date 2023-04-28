@@ -83,13 +83,13 @@ pub async fn resolve_account(
 }
 
 pub async fn resolve_folder(
-    owner: &Owner,
+    user: &Owner,
     folder: Option<&VaultRef>,
 ) -> Result<Option<Summary>> {
-    let reader = owner.read().await;
+    let owner = user.read().await;
     if let Some(vault) = folder {
         Ok(Some(
-            reader
+            owner
                 .storage
                 .state()
                 .find_vault(&vault)
@@ -97,12 +97,12 @@ pub async fn resolve_folder(
                 .ok_or(Error::VaultNotAvailable(vault.clone()))?,
         ))
     } else if let Some(owner) = USER.get() {
-        let reader = owner.read().await;
+        let owner = owner.read().await;
         let keeper =
-            reader.storage.current().ok_or(Error::NoVaultSelected)?;
+            owner.storage.current().ok_or(Error::NoVaultSelected)?;
         Ok(Some(keeper.summary().clone()))
     } else {
-        Ok(reader
+        Ok(owner
             .storage
             .state()
             .find(|s| s.flags().is_default())

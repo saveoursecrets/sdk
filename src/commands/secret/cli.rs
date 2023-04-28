@@ -33,7 +33,7 @@ use human_bytes::human_bytes;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// List secrets in a folder.
+    /// List secrets.
     #[clap(alias = "ls")]
     List {
         /// Account name or address.
@@ -44,19 +44,17 @@ pub enum Command {
         #[clap(short, long)]
         folder: Option<VaultRef>,
 
-        /// Print more information
+        /// Print more information.
         #[clap(short, long)]
         verbose: bool,
-    },
-    /// Find secrets by view.
-    Find {
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
 
-        /// Folder name or id.
-        #[clap(short, long)]
-        folder: Option<VaultRef>,
+        /// Show all secrets.
+        #[clap(long)]
+        all: bool,
+
+        /// Show favorites only.
+        #[clap(long)]
+        favorites: bool,
     },
     /// Add a secret.
     Add {
@@ -165,11 +163,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
     let is_shell = USER.get().is_some();
 
     match cmd {
-        Command::List {
-            account,
-            folder,
-            verbose,
-        } => {
+        Command::List { account, folder, verbose, all, favorites } => {
             let user = resolve_user(account, factory, true).await?;
             let owner = user.read().await;
             let archive_folder = owner
@@ -189,33 +183,26 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             let mut views = vec![DocumentView::Vault(*summary.id())];
 
-            let documents =
-                owner.index().query_view(views, archive_filter)?;
-            let docs: Vec<&Document> = documents.iter().collect();
-            print_documents(&docs, false)?;
-        }
-        Command::Find { account, folder: _ } => {
-            let user = resolve_user(account, factory, true).await?;
-            let owner = user.read().await;
-            let archive_folder = owner
-                .storage
-                .state()
-                .find(|s| s.flags().is_archive())
-                .cloned();
-
-            let archive_filter = archive_folder.map(|s| ArchiveFilter {
-                id: *s.id(),
-                include_documents: false,
-            });
-
-            let mut views = vec![DocumentView::All {
-                ignored_types: None,
-            }];
+            if all {
+                views = vec![DocumentView::All {
+                    ignored_types: None,
+                }];
+            } else if let Some(folder) = &folder {
+                let summary = owner
+                    .storage
+                    .state()
+                    .find_vault(folder)
+                    .cloned()
+                    .ok_or(Error::VaultNotAvailable(folder.clone()))?;
+                views = vec![DocumentView::Vault(*summary.id())];
+            } else if favorites {
+                views = vec![DocumentView::Favorites];
+            }
 
             let documents =
                 owner.index().query_view(views, archive_filter)?;
             let docs: Vec<&Document> = documents.iter().collect();
-            print_documents(&docs, false)?;
+            print_documents(&docs, verbose)?;
         }
         Command::Add {
             account,
