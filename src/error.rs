@@ -7,6 +7,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error(r#"no accounts found, use "account new" to create an account "#)]
+    NoAccounts,
+
     #[error("could not infer account, use --account to specify account")]
     NoAccountFound,
 

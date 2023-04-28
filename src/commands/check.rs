@@ -1,10 +1,11 @@
-use std::path::{PathBuf, Path};
 use clap::Subcommand;
+use std::path::{Path, PathBuf};
 
 use sos_core::{
     commit::{vault_commit_tree_file, wal_commit_tree_file, CommitTree},
     formats::vault_iter,
-    hex, uuid::Uuid,
+    hex,
+    uuid::Uuid,
     vault::Header,
     wal::WalItem,
 };

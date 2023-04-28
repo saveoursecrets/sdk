@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     helpers::{
-        account::{sign_in, use_folder, USER},
+        account::{choose_account, sign_in, use_folder, USER},
         readline,
     },
     Error, Result,
@@ -36,7 +36,7 @@ Type "quit" or "q" to exit"#;
 
 pub async fn run(
     factory: ProviderFactory,
-    account: AccountRef,
+    mut account: Option<AccountRef>,
     folder: Option<VaultRef>,
 ) -> Result<()> {
     let cache_dir = StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
@@ -50,6 +50,14 @@ pub async fn run(
 
     // FIXME: support ephemeral device signer for when the CLI
     // FIXME: is running on the same device as a GUI
+
+    let account = if let Some(account) = account.take() {
+        account
+    } else {
+        let account = choose_account().await?;
+        let account = account.ok_or_else(|| Error::NoAccounts)?;
+        account.into()
+    };
 
     let (mut owner, _) = sign_in(&account, factory.clone()).await?;
     owner.initialize_search_index().await?;

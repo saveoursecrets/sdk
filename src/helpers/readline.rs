@@ -140,7 +140,7 @@ pub fn read_flag(prompt: Option<&str>) -> Result<bool> {
 }
 
 /// Represents a choice message and associated type.
-pub struct Choice<'a, T>(pub &'a str, pub T);
+pub struct Choice<'a, T>(pub Cow<'a, str>, pub T);
 
 /// Choose from a list of options.
 pub fn choose<'a, T>(

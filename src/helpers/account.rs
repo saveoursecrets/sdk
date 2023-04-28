@@ -14,7 +14,7 @@ use tokio::sync::RwLock;
 
 use crate::helpers::{
     display_passphrase,
-    readline::{read_flag, read_password},
+    readline::{choose, read_flag, read_password, Choice},
 };
 
 use once_cell::sync::OnceCell;
@@ -26,6 +26,27 @@ pub type Owner = Arc<RwLock<UserStorage>>;
 
 /// Current user for the shell REPL.
 pub(crate) static USER: OnceCell<Owner> = OnceCell::new();
+
+/// Choose an account.
+pub async fn choose_account() -> Result<Option<AccountInfo>> {
+    let mut accounts = LocalAccounts::list_accounts()?;
+    if accounts.is_empty() {
+        Ok(None)
+    } else if accounts.len() == 1 {
+        Ok(Some(accounts.remove(0)))
+    } else {
+        let options: Vec<Choice<'_, AccountInfo>> = accounts
+            .into_iter()
+            .map(|a| Choice(Cow::Owned(a.label().to_string()), a))
+            .collect();
+        let prompt = Some("Choose account: ");
+        loop {
+            if let Some(account) = choose(prompt, &options)? {
+                return Ok(Some(account.clone()));
+            }
+        }
+    }
+}
 
 /// Attempt to resolve a user.
 ///

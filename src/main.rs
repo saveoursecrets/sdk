@@ -106,7 +106,7 @@ enum Command {
         folder: Option<VaultRef>,
 
         /// Account name or address.
-        account: AccountRef,
+        account: Option<AccountRef>,
     },
 }
 
