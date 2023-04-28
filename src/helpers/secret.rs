@@ -120,7 +120,9 @@ pub fn print_secret(
             banner.text(Cow::Borrowed("[REDACTED PRIVATE SIGNING KEY]"))
         }
         Secret::Contact { vcard, .. } => {
-            banner.text(Cow::Owned(vcard.to_string()))
+            let vcard = vcard.to_string();
+            let vcard = vcard.trim().replace('\r', "");
+            banner.text(Cow::Owned(vcard))
         }
         Secret::Totp { totp, .. } => {
             let mut details =
