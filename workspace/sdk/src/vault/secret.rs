@@ -349,14 +349,14 @@ impl SecretMeta {
             kind::FILE => "FILE",
             kind::PEM => "CERT",
             kind::PAGE => "PAGE",
-            kind::IDENTIFICATION => "ID",
-            kind::SIGNER => "SIGNER",
-            kind::CONTACT => "CONTACT",
+            kind::IDENTIFICATION => "IDEN",
+            kind::SIGNER => "SIGN",
+            kind::CONTACT => "CONT",
             kind::TOTP => "TOTP",
             kind::CARD => "CARD",
             kind::BANK => "BANK",
             kind::LINK => "LINK",
-            kind::PASSWORD => "PASSWORD",
+            kind::PASSWORD => "PASS",
             _ => unreachable!("unknown kind encountered in short name"),
         }
     }

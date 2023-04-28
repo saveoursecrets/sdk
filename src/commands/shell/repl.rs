@@ -95,8 +95,6 @@ enum ShellCommand {
     },
     /// Print the current identity.
     Whoami,
-    /// Close the current folder.
-    Close,
     /// Exit the shell.
     #[clap(alias = "q")]
     Quit,
@@ -358,11 +356,6 @@ async fn exec_program(
                 reader.user.account().label(),
                 reader.user.identity().address()
             );
-            Ok(())
-        }
-        ShellCommand::Close => {
-            let mut writer = state.write().await;
-            writer.storage.close_vault();
             Ok(())
         }
         ShellCommand::Quit => {
