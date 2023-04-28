@@ -16,6 +16,9 @@ mod change_password;
 mod check_integrity;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod command_line;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod compact_force_pull;
 
 #[cfg(not(target_arch = "wasm32"))]

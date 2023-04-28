@@ -1,9 +1,9 @@
-use std::{path::PathBuf, ffi::OsString};
 use clap::{Parser, Subcommand};
 use sos_core::{
     account::AccountRef, storage::StorageDirs, url::Url, vault::VaultRef,
 };
 use sos_node::client::provider::ProviderFactory;
+use std::{ffi::OsString, path::PathBuf};
 
 use super::{
     commands::{
@@ -129,10 +129,10 @@ pub enum Command {
 }
 
 pub async fn run<I, T>(args: I) -> Result<()>
-    where
-        I: IntoIterator<Item = T>,
-        T: Into<OsString> + Clone {
-
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
     let mut args = Sos::parse_from(args);
     let factory = args.provider.unwrap_or_default();
 

@@ -86,8 +86,12 @@ pub fn run(cmd: Command) -> Result<()> {
     Ok(())
 }
 
+// FIXME: when the check_integrity test has been replaced
+// FIXME: with the command_line test these functions can be
+// FIXME: private again
+
 /// Verify the integrity of a vault.
-fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
+pub fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
@@ -106,7 +110,7 @@ fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
 }
 
 /// Verify the integrity of a WAL file.
-fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
+pub fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
@@ -125,7 +129,7 @@ fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
 }
 
 /// Print the vault header and root commit.
-fn status(vault: PathBuf) -> Result<()> {
+pub fn status(vault: PathBuf) -> Result<()> {
     if !vault.is_file() {
         return Err(Error::NotFile(vault));
     }
@@ -141,7 +145,7 @@ fn status(vault: PathBuf) -> Result<()> {
 }
 
 /// Print the vault keys.
-fn keys(vault: PathBuf) -> Result<()> {
+pub fn keys(vault: PathBuf) -> Result<()> {
     if !vault.is_file() {
         return Err(Error::NotFile(vault));
     }

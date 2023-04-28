@@ -47,6 +47,7 @@ sos-node = { path = "workspace/node", default-features = false, features = ["cli
 [dev-dependencies]
 http = "0.2"
 tempfile = "3.3"
+rexpect = "0.5"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow = "1"

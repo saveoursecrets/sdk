@@ -220,7 +220,12 @@ pub async fn new_account(
     folder_name: Option<String>,
 ) -> Result<()> {
     // Generate a master passphrase
-    let (passphrase, _) = generate_passphrase()?;
+    let passphrase = if let Ok(password) = std::env::var("SOS_PASSWORD") {
+        SecretString::new(password)
+    } else {
+        let (passphrase, _) = generate_passphrase()?;
+        passphrase
+    };
 
     let (identity_vault, new_account) =
         AccountBuilder::new(account_name.clone(), passphrase.clone())
