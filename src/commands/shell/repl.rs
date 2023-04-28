@@ -66,6 +66,8 @@ enum ShellCommand {
         #[clap(subcommand)]
         cmd: SecretCommand,
     },
+
+    /*
     /// Print commit status.
     Status {
         /// Print more information; include commit tree root hashes.
@@ -87,6 +89,8 @@ enum ShellCommand {
     /// Change encryption password for the selected vault.
     #[clap(alias = "passwd")]
     Password,
+    */
+
     /// Switch account.
     #[clap(alias = "su")]
     Switch {
@@ -203,6 +207,8 @@ async fn exec_program(
         ShellCommand::Use { folder } => {
             use_folder(state, folder.as_ref()).await
         }
+
+        /*
         ShellCommand::Status { verbose } => {
             let reader = state.read().await;
             let keeper =
@@ -335,6 +341,7 @@ async fn exec_program(
 
             Ok(())
         }
+        */
         ShellCommand::Switch { account } => {
             let reader = state.read().await;
             let factory = reader.factory.clone();

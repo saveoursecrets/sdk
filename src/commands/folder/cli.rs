@@ -10,7 +10,7 @@ use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::{
-        account::{resolve_folder, resolve_user, USER},
+        account::{resolve_folder, resolve_user, USER, use_folder},
         readline::read_flag,
     },
     Error, Result,
@@ -23,6 +23,9 @@ pub enum Command {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
+
+        #[clap(long)]
+        r#use: bool,
 
         /// Name for the new folder.
         name: String,
@@ -129,11 +132,16 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
     let is_shell = USER.get().is_some();
 
     match cmd {
-        Command::New { account, name } => {
+        Command::New { account, name, r#use } => {
             let user = resolve_user(account, factory, false).await?;
             let mut writer = user.write().await;
             let summary = writer.create_folder(name).await?;
             println!("{} created ✓", summary.name());
+            drop(writer);
+            if r#use {
+                let target = Some(VaultRef::Id(*summary.id()));
+                use_folder(user, target.as_ref()).await?;
+            }
         }
         Command::Remove { account, folder } => {
             let user = resolve_user(account, factory, false).await?;
@@ -145,12 +153,23 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 return Err(Error::NoRemoveDefaultFolder);
             }
 
+            let mut owner = user.write().await;
+            let is_current = if let Some(current) = owner.storage.current() {
+                current.id() == summary.id()
+            } else { false };
+
             let prompt =
                 format!(r#"Delete folder "{}" (y/n)? "#, summary.name(),);
             if read_flag(Some(&prompt))? {
-                let mut writer = user.write().await;
-                writer.remove_folder(&summary).await?;
+                owner.remove_folder(&summary).await?;
                 println!("{} removed ✓", summary.name());
+
+                drop(owner);
+                // Removing current folder so try to use 
+                // the default folder
+                if is_current {
+                    use_folder(user, None).await?;
+                }
             }
         }
         Command::List { account, verbose } => {
