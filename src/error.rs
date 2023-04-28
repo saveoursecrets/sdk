@@ -116,3 +116,10 @@ pub enum Error {
     #[error(transparent)]
     Peer(#[from] sos_node::peer::Error),
 }
+
+impl Error {
+
+    pub fn is_interrupted(&self) -> bool {
+        matches!(self, Error::Readline(rustyline::error::ReadlineError::Interrupted))
+    }
+}
