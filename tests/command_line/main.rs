@@ -3,8 +3,8 @@ use serial_test::serial;
 use std::path::PathBuf;
 
 use sos_core::{
-    signer::ecdsa::Address,
     passwd::diceware::generate_passphrase, secrecy::ExposeSecret,
+    signer::ecdsa::Address,
 };
 
 use rexpect::spawn;
@@ -46,7 +46,7 @@ async fn command_line() -> Result<()> {
     p.exp_regex("you want to create a new account")?;
     p.send_line("y")?;
     p.exp_eof()?;
-    
+
     let cmd = format!("{} account ls", exe);
     let mut p = spawn(&cmd, timeout)?;
     p.exp_string(account_name)?;
@@ -66,14 +66,20 @@ async fn command_line() -> Result<()> {
 
     let backup_file = cache_dir.join(format!("{}-backup.zip", &address));
 
-    let cmd = format!("{} account backup -o {}",
-        exe, backup_file.to_string_lossy());
+    let cmd = format!(
+        "{} account backup -o {}",
+        exe,
+        backup_file.to_string_lossy()
+    );
     let mut p = spawn(&cmd, timeout)?;
     p.exp_regex("backup archive created")?;
     p.exp_eof()?;
 
-    let cmd = format!("{} account restore -i {}",
-        exe, backup_file.to_string_lossy());
+    let cmd = format!(
+        "{} account restore -i {}",
+        exe,
+        backup_file.to_string_lossy()
+    );
     let mut p = spawn(&cmd, timeout)?;
     p.exp_regex("Overwrite all account")?;
     p.send_line("y")?;
@@ -81,7 +87,7 @@ async fn command_line() -> Result<()> {
     p.send_line(password.expose_secret())?;
     p.exp_regex(&format!("restored {}", account_name))?;
     p.exp_eof()?;
-    
+
     std::env::remove_var("SOS_CACHE");
     Ok(())
 }
