@@ -3,6 +3,7 @@ use serial_test::serial;
 use std::path::PathBuf;
 
 use sos_core::{
+    signer::ecdsa::Address,
     passwd::diceware::generate_passphrase, secrecy::ExposeSecret,
 };
 
@@ -43,7 +44,24 @@ async fn integration_command_line() -> Result<()> {
     p.exp_regex("you want to create a new account")?;
     p.send_line("y")?;
     p.exp_eof()?;
+    
+    let cmd = format!("{} account ls", exe);
+    let mut p = spawn(&cmd, None)?;
+    p.exp_string(account_name)?;
+    p.exp_eof()?;
 
+    let cmd = format!("{} account ls -v", exe);
+    let mut p = spawn(&cmd, None)?;
+    let result = p.read_line()?;
+    p.exp_eof()?;
+
+    let mut parts: Vec<&str> = result.split(' ').collect();
+    let address: &str = parts.remove(0);
+    let name: &str = parts.remove(0);
+
+    assert!(address.parse::<Address>().is_ok());
+    assert_eq!(account_name, name);
+    
     std::env::remove_var("SOS_CACHE");
     Ok(())
 }
