@@ -22,7 +22,7 @@ async fn integration_command_line() -> Result<()> {
     std::fs::create_dir_all(&cache_dir)?;
 
     let cache_dir = cache_dir.canonicalize()?;
-    std::env::set_var("SOS_CACHE", cache_dir);
+    std::env::set_var("SOS_CACHE", cache_dir.clone());
 
     let is_coverage = std::env::var("COVERAGE_BINARIES").is_ok();
     let exe = if is_coverage {
@@ -61,6 +61,24 @@ async fn integration_command_line() -> Result<()> {
 
     assert!(address.parse::<Address>().is_ok());
     assert_eq!(account_name, name);
+
+    let backup_file = cache_dir.join(format!("{}-backup.zip", &address));
+
+    let cmd = format!("{} account backup -o {}",
+        exe, backup_file.to_string_lossy());
+    let mut p = spawn(&cmd, None)?;
+    p.exp_regex("backup archive created")?;
+    p.exp_eof()?;
+
+    let cmd = format!("{} account restore -i {}",
+        exe, backup_file.to_string_lossy());
+    let mut p = spawn(&cmd, None)?;
+    p.exp_regex("Overwrite all account")?;
+    p.send_line("y")?;
+    p.exp_regex("Password:")?;
+    p.send_line(password.expose_secret())?;
+    p.exp_regex(&format!("restored {}", account_name))?;
+    p.exp_eof()?;
     
     std::env::remove_var("SOS_CACHE");
     Ok(())

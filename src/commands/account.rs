@@ -21,7 +21,7 @@ use crate::{
         },
         readline::read_flag,
     },
-    Error, Result,
+    Error, Result, TARGET,
 };
 
 #[derive(Subcommand, Debug)]
@@ -178,20 +178,29 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             force,
         } => {
             account_backup(account, output, force).await?;
+            tracing::info!(
+                target: TARGET,
+                "backup archive created ✓");
         }
         Command::Restore { input } => {
             if let Some(account) = account_restore(input).await? {
-                println!("{} ({}) ✓", account.label(), account.address());
+                tracing::info!(
+                    target: TARGET,
+                    "restored {} ({}) ✓", account.label(), account.address());
             }
         }
         Command::Rename { name, account } => {
             account_rename(account, name, factory).await?;
-            println!("account renamed ✓");
+            tracing::info!(
+                target: TARGET,
+                "account renamed ✓");
         }
         Command::Delete { account } => {
             let deleted = account_delete(account, factory).await?;
             if deleted {
-                println!("account deleted ✓");
+                tracing::info!(
+                    target: TARGET,
+                    "account deleted ✓");
                 if is_shell {
                     std::process::exit(0);
                 }
@@ -204,7 +213,9 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     let exported =
                         migrate_export(user, output, force).await?;
                     if exported {
-                        println!("account exported ✓");
+                        tracing::info!(
+                            target: TARGET,
+                            "account exported ✓");
                     }
                 }
                 MigrateCommand::Import {
@@ -213,7 +224,9 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     name,
                 } => {
                     migrate_import(user, input, format, name).await?;
-                    println!("file imported ✓");
+                    tracing::info!(
+                        target: TARGET,
+                        "file imported ✓");
                 }
             }
         }
@@ -231,11 +244,15 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             match cmd {
                 ContactsCommand::Export { output, force } => {
                     contacts_export(user, output, force).await?;
-                    println!("contacts exported ✓");
+                    tracing::info!(
+                        target: TARGET,
+                        "contacts exported ✓");
                 }
                 ContactsCommand::Import { input } => {
                     contacts_import(user, input).await?;
-                    println!("contacts imported ✓");
+                    tracing::info!(
+                        target: TARGET,
+                        "contacts imported ✓");
                 }
             }
         }
