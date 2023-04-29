@@ -500,7 +500,7 @@ impl SearchIndex {
 
             self.statistics.count.add(
                 *vault_id,
-                kind,
+                kind.into(),
                 doc.meta().tags(),
                 doc.meta().favorite(),
             );
@@ -529,11 +529,8 @@ impl SearchIndex {
         let doc_info = if let Some(key) = &key {
             let doc = self.documents.remove(key);
             doc.map(|doc| {
-                (
-                    *doc.meta().kind(),
-                    doc.meta().tags().clone(),
-                    doc.meta().favorite(),
-                )
+                let kind: u8 = doc.meta().kind().into();
+                (kind, doc.meta().tags().clone(), doc.meta().favorite())
             })
         } else {
             None
@@ -604,7 +601,7 @@ impl SearchIndex {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::vault::secret::SecretMeta;
+    use crate::vault::secret::{SecretMeta, SecretType};
     use secrecy::SecretString;
     use uuid::Uuid;
 
@@ -614,7 +611,8 @@ mod test {
 
         let mut idx = SearchIndex::new(None);
 
-        let secret_kind = 1;
+        let secret_kind = SecretType::Link;
+        let expected_secret_kind: u8 = secret_kind.into();
 
         let id1 = Uuid::new_v4();
         let meta1 = SecretMeta::new("mock secret".to_owned(), secret_kind);
@@ -641,7 +639,14 @@ mod test {
         assert_eq!(2, idx.documents().len());
 
         assert_eq!(2, *idx.statistics.count.vaults.get(&vault_id).unwrap());
-        assert_eq!(2, *idx.statistics.count.kinds.get(&secret_kind).unwrap());
+        assert_eq!(
+            2,
+            *idx.statistics
+                .count
+                .kinds
+                .get(&expected_secret_kind)
+                .unwrap()
+        );
 
         let docs = idx.query("mock");
         assert_eq!(1, docs.len());
@@ -652,7 +657,14 @@ mod test {
         idx.remove(&vault_id, &id1);
 
         assert_eq!(1, *idx.statistics.count.vaults.get(&vault_id).unwrap());
-        assert_eq!(1, *idx.statistics.count.kinds.get(&secret_kind).unwrap());
+        assert_eq!(
+            1,
+            *idx.statistics
+                .count
+                .kinds
+                .get(&expected_secret_kind)
+                .unwrap()
+        );
 
         let docs = idx.query("mock");
         assert_eq!(0, docs.len());
@@ -668,7 +680,14 @@ mod test {
         assert_eq!(0, idx.documents.len());
 
         assert_eq!(0, *idx.statistics.count.vaults.get(&vault_id).unwrap());
-        assert_eq!(0, *idx.statistics.count.kinds.get(&secret_kind).unwrap());
+        assert_eq!(
+            0,
+            *idx.statistics
+                .count
+                .kinds
+                .get(&expected_secret_kind)
+                .unwrap()
+        );
 
         // Duplicate removal when no more documents
         // to ensure it does not panic

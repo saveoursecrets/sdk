@@ -315,6 +315,14 @@ pub enum Error {
     #[error("bad nonce, possible replay attack")]
     BadNonce,
 
+    /// Error generated when an ECDSA signing key is expected.
+    #[error("not ECDSA signing key")]
+    NotEcdsaKey,
+
+    /// Error generated when an Ed25519 signing key is expected.
+    #[error("not Ed25519 signing key")]
+    NotEd25519Key,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

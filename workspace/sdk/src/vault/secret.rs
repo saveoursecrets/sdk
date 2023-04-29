@@ -152,13 +152,16 @@ impl FromStr for SecretRef {
 
 /// Type of secret assigned to the secret meta data.
 ///
-/// Matches the enum variants for a secret and is used 
-/// so we can know the type of secret from the meta data 
+/// Matches the enum variants for a secret and is used
+/// so we can know the type of secret from the meta data
 /// before secret data has been decrypted.
-#[derive(Clone, Debug, Copy, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(
+    Default, Clone, Debug, Copy, Serialize, Deserialize, Eq, PartialEq,
+)]
 #[serde(untagged, rename_all = "lowercase")]
 pub enum SecretType {
     /// UTF-8 encoded note.
+    #[default]
     Note,
     /// Binary blob.
     File,
@@ -168,11 +171,11 @@ pub enum SecretType {
     List,
     /// PEM encoded binary data.
     Pem,
-    /// A UTF-8 text document.
+    /// UTF-8 text document.
     Page,
     /// Private signing key.
     Signer,
-    /// Contact for an organization or person.
+    /// Contact for an organization, person, group or location.
     Contact,
     /// Two-factor authentication using a TOTP.
     Totp,
@@ -218,7 +221,7 @@ impl fmt::Display for SecretType {
         write!(
             f,
             "{}",
-            match self{
+            match self {
                 Self::Note => "Note",
                 Self::File => "File",
                 Self::Account => "Account",
@@ -297,7 +300,7 @@ impl TryFrom<u8> for SecretType {
 #[serde(rename_all = "camelCase")]
 pub struct SecretMeta {
     /// Kind of the secret.
-    kind: u8,
+    kind: SecretType,
     /// Flags for the secret.
     flags: SecretFlags,
     /// Date created timestamp.
@@ -347,7 +350,7 @@ impl PartialOrd for SecretMeta {
 
 impl SecretMeta {
     /// Create new meta data for a secret.
-    pub fn new(label: String, kind: u8) -> Self {
+    pub fn new(label: String, kind: SecretType) -> Self {
         Self {
             kind,
             flags: Default::default(),
@@ -372,7 +375,7 @@ impl SecretMeta {
     }
 
     /// The kind of the secret.
-    pub fn kind(&self) -> &u8 {
+    pub fn kind(&self) -> &SecretType {
         &self.kind
     }
 
@@ -435,34 +438,12 @@ impl SecretMeta {
     pub fn flags_mut(&mut self) -> &mut SecretFlags {
         &mut self.flags
     }
-
-    /// Get an abbreviated short name based
-    /// on the kind of secret.
-    #[deprecated]
-    pub fn short_name(&self) -> &str {
-        match self.kind {
-            kind::ACCOUNT => "ACCT",
-            kind::NOTE => "NOTE",
-            kind::LIST => "LIST",
-            kind::FILE => "FILE",
-            kind::PEM => "CERT",
-            kind::PAGE => "PAGE",
-            kind::IDENTIFICATION => "IDEN",
-            kind::SIGNER => "SIGN",
-            kind::CONTACT => "CONT",
-            kind::TOTP => "TOTP",
-            kind::CARD => "CARD",
-            kind::BANK => "BANK",
-            kind::LINK => "LINK",
-            kind::PASSWORD => "PASS",
-            _ => unreachable!("unknown kind encountered in short name"),
-        }
-    }
 }
 
 impl Encode for SecretMeta {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        writer.write_u8(self.kind)?;
+        let kind: u8 = self.kind.into();
+        writer.write_u8(kind)?;
         writer.write_u32(self.flags.bits())?;
         self.date_created.encode(&mut *writer)?;
         self.last_updated.encode(&mut *writer)?;
@@ -486,7 +467,8 @@ impl Encode for SecretMeta {
 
 impl Decode for SecretMeta {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        self.kind = reader.read_u8()?;
+        let kind = reader.read_u8()?;
+        self.kind = kind.try_into().map_err(Box::from)?;
         self.flags = SecretFlags::from_bits(reader.read_u32()?)
             .ok_or(Error::InvalidSecretFlags)
             .map_err(Box::from)?;
@@ -555,8 +537,7 @@ impl SecretSigner {
                 let signer: ecdsa::SingleParty = private_key.try_into()?;
                 Ok(Box::new(signer))
             }
-            _ => panic!(),
-            //_ => Err(Error::NotEcdsaKey),
+            _ => Err(Error::NotEcdsaKey),
         }
     }
 
@@ -569,8 +550,7 @@ impl SecretSigner {
                 let signer: ed25519::SingleParty = keypair.try_into()?;
                 Ok(Box::new(signer))
             }
-            _ => panic!(),
-            //_ => Err(Error::NotEd25519Key),
+            _ => Err(Error::NotEd25519Key),
         }
     }
 }
@@ -1467,46 +1447,24 @@ impl Secret {
         Ok(())
     }
 
-    /// Get a human readable name for the type of secret.
-    #[deprecated]
-    pub fn type_name(kind: u8) -> &'static str {
-        match kind {
-            kind::NOTE => "Note",
-            kind::FILE => "File",
-            kind::ACCOUNT => "Account",
-            kind::LIST => "List",
-            kind::PEM => "Certificate",
-            kind::PAGE => "Page",
-            kind::IDENTIFICATION => "Identity",
-            kind::SIGNER => "Signer",
-            kind::CONTACT => "Contact",
-            kind::TOTP => "Authenticator",
-            kind::CARD => "Card",
-            kind::BANK => "Bank",
-            kind::LINK => "Link",
-            kind::PASSWORD => "Password",
-            _ => unreachable!(),
-        }
-    }
-
-    /// Get the kind identifier for this secret.
-    pub fn kind(&self) -> u8 {
+    /// Get the type of this secret.
+    pub fn kind(&self) -> SecretType {
         match self {
-            Secret::Note { .. } => kind::NOTE,
-            Secret::File { .. } => kind::FILE,
-            Secret::Account { .. } => kind::ACCOUNT,
-            Secret::List { .. } => kind::LIST,
-            Secret::Pem { .. } => kind::PEM,
-            Secret::Page { .. } => kind::PAGE,
-            Secret::Identity { .. } => kind::IDENTIFICATION,
-            Secret::Signer { .. } => kind::SIGNER,
-            Secret::Contact { .. } => kind::CONTACT,
-            Secret::Totp { .. } => kind::TOTP,
-            Secret::Card { .. } => kind::CARD,
-            Secret::Bank { .. } => kind::BANK,
-            Secret::Link { .. } => kind::LINK,
-            Secret::Password { .. } => kind::PASSWORD,
-            Secret::Age { .. } => kind::AGE,
+            Secret::Note { .. } => SecretType::Note,
+            Secret::File { .. } => SecretType::File,
+            Secret::Account { .. } => SecretType::Account,
+            Secret::List { .. } => SecretType::List,
+            Secret::Pem { .. } => SecretType::Pem,
+            Secret::Page { .. } => SecretType::Page,
+            Secret::Identity { .. } => SecretType::Identity,
+            Secret::Signer { .. } => SecretType::Signer,
+            Secret::Contact { .. } => SecretType::Contact,
+            Secret::Totp { .. } => SecretType::Totp,
+            Secret::Card { .. } => SecretType::Card,
+            Secret::Bank { .. } => SecretType::Bank,
+            Secret::Link { .. } => SecretType::Link,
+            Secret::Password { .. } => SecretType::Password,
+            Secret::Age { .. } => SecretType::Age,
         }
     }
 
@@ -1892,23 +1850,7 @@ pub mod kind {
 
 impl Encode for Secret {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        let kind = match self {
-            Self::Note { .. } => kind::NOTE,
-            Self::File { .. } => kind::FILE,
-            Self::Account { .. } => kind::ACCOUNT,
-            Self::List { .. } => kind::LIST,
-            Self::Pem { .. } => kind::PEM,
-            Self::Page { .. } => kind::PAGE,
-            Self::Identity { .. } => kind::IDENTIFICATION,
-            Self::Signer { .. } => kind::SIGNER,
-            Self::Contact { .. } => kind::CONTACT,
-            Self::Totp { .. } => kind::TOTP,
-            Self::Card { .. } => kind::CARD,
-            Self::Bank { .. } => kind::BANK,
-            Self::Link { .. } => kind::LINK,
-            Self::Password { .. } => kind::PASSWORD,
-            Self::Age { .. } => kind::AGE,
-        };
+        let kind: u8 = self.kind().into();
         writer.write_u8(kind)?;
 
         match self {
@@ -2125,9 +2067,10 @@ impl Encode for Secret {
 
 impl Decode for Secret {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let kind = reader.read_u8()?;
+        let kind: SecretType =
+            reader.read_u8()?.try_into().map_err(Box::from)?;
         match kind {
-            kind::NOTE => {
+            SecretType::Note => {
                 let text = reader.read_string()?;
                 let user_data = read_user_data(reader)?;
                 *self = Self::Note {
@@ -2135,7 +2078,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::FILE => {
+            SecretType::File => {
                 let name = reader.read_string()?;
                 let mime = reader.read_string()?;
                 let buffer_len = reader.read_u32()?;
@@ -2157,7 +2100,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::ACCOUNT => {
+            SecretType::Account => {
                 let account = reader.read_string()?;
                 let password = secrecy::Secret::new(reader.read_string()?);
                 let has_url = reader.read_bool()?;
@@ -2178,7 +2121,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::LIST => {
+            SecretType::List => {
                 let items_len = reader.read_u32()?;
                 let mut items = HashMap::with_capacity(items_len as usize);
                 for _ in 0..items_len {
@@ -2189,7 +2132,7 @@ impl Decode for Secret {
                 let user_data = read_user_data(reader)?;
                 *self = Self::List { items, user_data };
             }
-            kind::PEM => {
+            SecretType::Pem => {
                 let value = reader.read_string()?;
                 let user_data = read_user_data(reader)?;
                 *self = Self::Pem {
@@ -2198,7 +2141,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::PAGE => {
+            SecretType::Page => {
                 let title = reader.read_string()?;
                 let mime = reader.read_string()?;
                 let document = secrecy::Secret::new(reader.read_string()?);
@@ -2210,7 +2153,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::IDENTIFICATION => {
+            SecretType::Identity => {
                 let id_kind = reader.read_u8()?;
                 let id_kind: IdentityKind =
                     id_kind.try_into().map_err(Box::from)?;
@@ -2252,7 +2195,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::SIGNER => {
+            SecretType::Signer => {
                 let mut private_key: SecretSigner = Default::default();
                 private_key.decode(reader)?;
                 let user_data = read_user_data(reader)?;
@@ -2261,7 +2204,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::CONTACT => {
+            SecretType::Contact => {
                 let vcard = reader.read_string()?;
                 let mut cards = vcard4::parse(vcard).map_err(Box::from)?;
                 let vcard = cards.remove(0);
@@ -2271,7 +2214,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::TOTP => {
+            SecretType::Totp => {
                 let buffer_len = reader.read_u32()?;
                 let buffer = reader.read_bytes(buffer_len as usize)?;
                 let totp: TOTP =
@@ -2279,7 +2222,7 @@ impl Decode for Secret {
                 let user_data = read_user_data(reader)?;
                 *self = Self::Totp { totp, user_data };
             }
-            kind::CARD => {
+            SecretType::Card => {
                 let number = SecretString::new(reader.read_string()?);
                 let has_expiry = reader.read_bool()?;
                 let expiry = if has_expiry {
@@ -2315,7 +2258,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::BANK => {
+            SecretType::Bank => {
                 let number = SecretString::new(reader.read_string()?);
                 let routing = SecretString::new(reader.read_string()?);
 
@@ -2350,7 +2293,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::LINK => {
+            SecretType::Link => {
                 let url = SecretString::new(reader.read_string()?);
 
                 let has_label = reader.read_bool()?;
@@ -2375,7 +2318,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-            kind::PASSWORD => {
+            SecretType::Password => {
                 let password = SecretString::new(reader.read_string()?);
 
                 let has_name = reader.read_bool()?;
@@ -2392,8 +2335,7 @@ impl Decode for Secret {
                     user_data,
                 };
             }
-
-            kind::AGE => {
+            SecretType::Age => {
                 let mut version: AgeVersion = Default::default();
                 version.decode(reader)?;
                 let key = SecretString::new(reader.read_string()?);
@@ -2404,11 +2346,6 @@ impl Decode for Secret {
                     key,
                     user_data,
                 };
-            }
-            _ => {
-                return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownSecretKind(kind),
-                )))
             }
         }
         Ok(())

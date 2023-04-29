@@ -4,7 +4,7 @@ use std::{collections::HashSet, sync::Arc};
 use sos_core::{
     search::{Document, DocumentCount, SearchIndex},
     vault::{
-        secret::{kind::CONTACT, SecretId},
+        secret::{SecretId, SecretType},
         Gatekeeper, Vault, VaultId,
     },
     vcard4,
@@ -151,12 +151,12 @@ pub enum DocumentView {
     /// View all documents in the search index.
     All {
         /// List of secret types to ignore.
-        ignored_types: Option<Vec<u8>>,
+        ignored_types: Option<Vec<SecretType>>,
     },
     /// View all the documents for a folder.
     Vault(VaultId),
     /// View documents across all vaults by type identifier.
-    TypeId(u8),
+    TypeId(SecretType),
     /// View for all favorites.
     Favorites,
     /// View documents that have one or more tags.
@@ -206,7 +206,7 @@ impl DocumentView {
                     .is_empty()
             }
             DocumentView::Contact { include_types } => {
-                if doc.meta().kind() == &CONTACT {
+                if doc.meta().kind() == &SecretType::Contact {
                     if let Some(include_types) = include_types {
                         if let Some(contact_type) = &doc.extra().contact_type
                         {
@@ -236,7 +236,7 @@ pub struct QueryFilter {
     /// List of vault identifiers.
     pub folders: Vec<VaultId>,
     /// List of type identifiers.
-    pub types: Vec<u8>,
+    pub types: Vec<SecretType>,
 }
 
 /// Filter for archived documents.

@@ -9,7 +9,8 @@ use crate::{
     search::SearchIndex,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
-        Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId, VaultMeta,
+        Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId,
+        VaultMeta,
     },
     Error, Result,
 };

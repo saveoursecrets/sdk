@@ -50,7 +50,7 @@ pub fn print_secret(
 ) -> Result<()> {
     let heading = format!(
         "[{}] {}",
-        secret_meta.short_name(),
+        secret_meta.kind().short_name(),
         secret_meta.last_updated().to_date_time()?
     );
 

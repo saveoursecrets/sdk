@@ -28,8 +28,7 @@ use crate::{
     formats::FileIdentity,
     passwd::diceware::generate_passphrase,
     vault::secret::SecretId,
-    Timestamp,
-    Error, Result,
+    Error, Result, Timestamp,
 };
 
 /// Identifier for vaults.
@@ -168,7 +167,6 @@ impl Decode for VaultMeta {
         Ok(())
     }
 }
-
 
 /// Reference to a vault using an id or a named label.
 #[derive(Debug, Clone)]

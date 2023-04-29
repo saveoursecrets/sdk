@@ -12,8 +12,8 @@ use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 use sos_core::{
     vault::{
-        secret::{Secret, SecretId, SecretMeta, UserField, VaultMeta},
-        Gatekeeper, Summary, VaultId,
+        secret::{Secret, SecretId, SecretMeta, UserField},
+        Gatekeeper, Summary, VaultId, VaultMeta,
     },
     Result,
 };

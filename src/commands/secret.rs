@@ -419,7 +419,7 @@ fn print_documents(docs: &[&Document], verbose: bool) -> Result<()> {
             secret_id, meta, ..
         } = doc;
         let label = meta.label();
-        let short_name = meta.short_name();
+        let short_name = meta.kind().short_name();
         print!("[{}] ", short_name);
         if verbose {
             println!("{} {}", secret_id, label);

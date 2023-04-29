@@ -9,7 +9,7 @@ pub use file_access::VaultFileAccess;
 pub use gatekeeper::Gatekeeper;
 pub use vault::{
     Header, Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultFlags,
-    VaultId, VaultRef, VaultMeta,
+    VaultId, VaultMeta, VaultRef,
 };
 
 pub(crate) use vault::Contents;
