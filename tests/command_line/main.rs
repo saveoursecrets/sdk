@@ -11,7 +11,9 @@ use rexpect::spawn;
 
 #[tokio::test]
 #[serial]
-async fn integration_command_line() -> Result<()> {
+async fn command_line() -> Result<()> {
+    let timeout = Some(30000);
+
     let account_name = "mock-account";
     let (password, _) = generate_passphrase()?;
 
@@ -34,7 +36,7 @@ async fn integration_command_line() -> Result<()> {
         "target/debug/sos".to_owned()
     };
     let cmd = format!("{} account new {}", exe, account_name);
-    let mut p = spawn(&cmd, None)?;
+    let mut p = spawn(&cmd, timeout)?;
     p.exp_regex("2[)] Choose a password")?;
     p.send_line("2")?;
     p.exp_regex("Password:")?;
@@ -46,12 +48,12 @@ async fn integration_command_line() -> Result<()> {
     p.exp_eof()?;
     
     let cmd = format!("{} account ls", exe);
-    let mut p = spawn(&cmd, None)?;
+    let mut p = spawn(&cmd, timeout)?;
     p.exp_string(account_name)?;
     p.exp_eof()?;
 
     let cmd = format!("{} account ls -v", exe);
-    let mut p = spawn(&cmd, None)?;
+    let mut p = spawn(&cmd, timeout)?;
     let result = p.read_line()?;
     p.exp_eof()?;
 
@@ -66,13 +68,13 @@ async fn integration_command_line() -> Result<()> {
 
     let cmd = format!("{} account backup -o {}",
         exe, backup_file.to_string_lossy());
-    let mut p = spawn(&cmd, None)?;
+    let mut p = spawn(&cmd, timeout)?;
     p.exp_regex("backup archive created")?;
     p.exp_eof()?;
 
     let cmd = format!("{} account restore -i {}",
         exe, backup_file.to_string_lossy());
-    let mut p = spawn(&cmd, None)?;
+    let mut p = spawn(&cmd, timeout)?;
     p.exp_regex("Overwrite all account")?;
     p.send_line("y")?;
     p.exp_regex("Password:")?;
