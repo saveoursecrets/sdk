@@ -22,7 +22,7 @@ use totp_sos::TOTP;
 use url::Url;
 use urn::Urn;
 use uuid::Uuid;
-use vcard4::{parse as parse_to_vcards, Vcard};
+use vcard4::{self, Vcard};
 
 use crate::{
     signer::{
@@ -31,6 +31,16 @@ use crate::{
     },
     Error, Result, Timestamp,
 };
+
+/// Secret with meta data and possibly an identifier.
+pub struct SecretData {
+    /// Secret identifier.
+    pub id: Option<SecretId>,
+    /// Secret meta data.
+    pub meta: SecretMeta,
+    /// Secret information.
+    pub secret: Secret,
+}
 
 bitflags! {
     /// Bit flags for a secret.
@@ -140,58 +150,145 @@ impl FromStr for SecretRef {
     }
 }
 
-/// Group secret data with a possible identifier.
-pub struct SecretData {
-    /// Secret identifier.
-    pub id: Option<SecretId>,
-    /// Secret meta data.
-    pub meta: SecretMeta,
-    /// Secret information.
-    pub secret: Secret,
+/// Type of secret assigned to the secret meta data.
+///
+/// Matches the enum variants for a secret and is used 
+/// so we can know the type of secret from the meta data 
+/// before secret data has been decrypted.
+#[derive(Clone, Debug, Copy, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(untagged, rename_all = "lowercase")]
+pub enum SecretType {
+    /// UTF-8 encoded note.
+    Note,
+    /// Binary blob.
+    File,
+    /// Account with login password.
+    Account,
+    /// Collection of credentials as key/value pairs.
+    List,
+    /// PEM encoded binary data.
+    Pem,
+    /// A UTF-8 text document.
+    Page,
+    /// Private signing key.
+    Signer,
+    /// Contact for an organization or person.
+    Contact,
+    /// Two-factor authentication using a TOTP.
+    Totp,
+    /// Credit or debit card.
+    Card,
+    /// Bank account.
+    Bank,
+    /// External link; intended to be used in embedded user fields.
+    Link,
+    /// Standalone password; intended to be used in embedded user fields.
+    Password,
+    /// Identity secret for passports, driving licenses etc.
+    Identity,
+    /// AGE encryption standard.
+    Age,
 }
 
-/// Vault meta data.
-#[derive(Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct VaultMeta {
-    /// Date created timestamp.
-    date_created: Timestamp,
-    /// Private human-friendly description of the vault.
-    #[serde(skip_serializing_if = "String::is_empty")]
-    label: String,
-}
-
-impl VaultMeta {
-    /// Get the vault label.
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
-    /// Get the vault label.
-    pub fn set_label(&mut self, label: String) {
-        self.label = label;
-    }
-
-    /// Date this vault was initialized.
-    pub fn date_created(&self) -> &Timestamp {
-        &self.date_created
+impl SecretType {
+    /// Get an abbreviated short name.
+    pub fn short_name(&self) -> &str {
+        match self {
+            Self::Note => "note",
+            Self::File => "file",
+            Self::Account => "acct",
+            Self::List => "list",
+            Self::Pem => "cert",
+            Self::Page => "page",
+            Self::Identity => "iden",
+            Self::Signer => "sign",
+            Self::Contact => "cont",
+            Self::Totp => "totp",
+            Self::Card => "card",
+            Self::Bank => "bank",
+            Self::Link => "link",
+            Self::Password => "pass",
+            Self::Age => "age",
+        }
     }
 }
 
-impl Encode for VaultMeta {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        self.date_created.encode(&mut *writer)?;
-        writer.write_string(&self.label)?;
-        Ok(())
+impl fmt::Display for SecretType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self{
+                Self::Note => "Note",
+                Self::File => "File",
+                Self::Account => "Account",
+                Self::List => "List",
+                Self::Pem => "Certificate",
+                Self::Page => "Page",
+                Self::Identity => "Identity",
+                Self::Signer => "Signer",
+                Self::Contact => "Contact",
+                Self::Totp => "Authenticator",
+                Self::Card => "Card",
+                Self::Bank => "Bank",
+                Self::Link => "Link",
+                Self::Password => "Password",
+                Self::Age => "Age",
+            }
+        )
     }
 }
 
-impl Decode for VaultMeta {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let mut date_created: Timestamp = Default::default();
-        date_created.decode(&mut *reader)?;
-        self.label = reader.read_string()?;
-        Ok(())
+impl From<&SecretType> for u8 {
+    fn from(value: &SecretType) -> Self {
+        match value {
+            SecretType::Note => kind::NOTE,
+            SecretType::File => kind::FILE,
+            SecretType::Account => kind::ACCOUNT,
+            SecretType::List => kind::LIST,
+            SecretType::Pem => kind::PEM,
+            SecretType::Page => kind::PAGE,
+            SecretType::Identity => kind::IDENTIFICATION,
+            SecretType::Signer => kind::SIGNER,
+            SecretType::Contact => kind::CONTACT,
+            SecretType::Totp => kind::TOTP,
+            SecretType::Card => kind::CARD,
+            SecretType::Bank => kind::BANK,
+            SecretType::Link => kind::LINK,
+            SecretType::Password => kind::PASSWORD,
+            SecretType::Age => kind::AGE,
+        }
+    }
+}
+
+impl From<SecretType> for u8 {
+    fn from(value: SecretType) -> Self {
+        (&value).into()
+    }
+}
+
+impl TryFrom<u8> for SecretType {
+    type Error = Error;
+
+    fn try_from(value: u8) -> Result<Self> {
+        Ok(match value {
+            kind::NOTE => Self::Note,
+            kind::FILE => Self::File,
+            kind::ACCOUNT => Self::Account,
+            kind::LIST => Self::List,
+            kind::PEM => Self::Pem,
+            kind::PAGE => Self::Page,
+            kind::IDENTIFICATION => Self::Identity,
+            kind::SIGNER => Self::Signer,
+            kind::CONTACT => Self::Contact,
+            kind::TOTP => Self::Totp,
+            kind::CARD => Self::Card,
+            kind::BANK => Self::Bank,
+            kind::LINK => Self::Link,
+            kind::PASSWORD => Self::Password,
+            kind::AGE => Self::Age,
+            _ => return Err(Error::UnknownSecretKind(value)),
+        })
     }
 }
 
@@ -341,6 +438,7 @@ impl SecretMeta {
 
     /// Get an abbreviated short name based
     /// on the kind of secret.
+    #[deprecated]
     pub fn short_name(&self) -> &str {
         match self.kind {
             kind::ACCOUNT => "ACCT",
@@ -1370,6 +1468,7 @@ impl Secret {
     }
 
     /// Get a human readable name for the type of secret.
+    #[deprecated]
     pub fn type_name(kind: u8) -> &'static str {
         match kind {
             kind::NOTE => "Note",
@@ -2164,7 +2263,7 @@ impl Decode for Secret {
             }
             kind::CONTACT => {
                 let vcard = reader.read_string()?;
-                let mut cards = parse_to_vcards(vcard).map_err(Box::from)?;
+                let mut cards = vcard4::parse(vcard).map_err(Box::from)?;
                 let vcard = cards.remove(0);
                 let user_data = read_user_data(reader)?;
                 *self = Self::Contact {

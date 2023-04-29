@@ -8,8 +8,8 @@ use crate::{
     events::SyncEvent,
     search::SearchIndex,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, VaultMeta},
-        Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId,
+        secret::{Secret, SecretId, SecretMeta},
+        Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId, VaultMeta,
     },
     Error, Result,
 };

@@ -27,9 +27,13 @@ use crate::{
     events::SyncEvent,
     formats::FileIdentity,
     passwd::diceware::generate_passphrase,
-    vault::secret::{SecretId, VaultMeta},
+    vault::secret::SecretId,
+    Timestamp,
     Error, Result,
 };
+
+/// Identifier for vaults.
+pub type VaultId = Uuid;
 
 bitflags! {
     /// Bit flags for a vault.
@@ -120,8 +124,51 @@ impl VaultFlags {
     }
 }
 
-/// Identifier for vaults.
-pub type VaultId = Uuid;
+/// Vault meta data.
+#[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultMeta {
+    /// Date created timestamp.
+    date_created: Timestamp,
+    /// Private human-friendly description of the vault.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    label: String,
+}
+
+impl VaultMeta {
+    /// Get the vault label.
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    /// Get the vault label.
+    pub fn set_label(&mut self, label: String) {
+        self.label = label;
+    }
+
+    /// Date this vault was initialized.
+    pub fn date_created(&self) -> &Timestamp {
+        &self.date_created
+    }
+}
+
+impl Encode for VaultMeta {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        self.date_created.encode(&mut *writer)?;
+        writer.write_string(&self.label)?;
+        Ok(())
+    }
+}
+
+impl Decode for VaultMeta {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let mut date_created: Timestamp = Default::default();
+        date_created.decode(&mut *reader)?;
+        self.label = reader.read_string()?;
+        Ok(())
+    }
+}
+
 
 /// Reference to a vault using an id or a named label.
 #[derive(Debug, Clone)]
