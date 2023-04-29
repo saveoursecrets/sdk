@@ -39,7 +39,7 @@ use secrecy::SecretString;
 
 /// Get the path to the file storage directory for the given
 /// account address.
-type ExtractFilesBuilder = Box<dyn Fn(String) -> Option<PathBuf>>;
+type ExtractFilesBuilder = Box<dyn Fn(&str) -> Option<PathBuf>>;
 
 /// Known path or builder for a files directory.
 ///
@@ -557,7 +557,7 @@ impl AccountBackup {
                 ExtractFilesLocation::Builder(builder) => {
                     if let Some(manifest) = reader.manifest() {
                         let address = manifest.address.to_string();
-                        if let Some(files_dir) = builder(address) {
+                        if let Some(files_dir) = builder(&address) {
                             reader.extract_files(
                                 files_dir,
                                 options.selected.as_slice(),
@@ -567,19 +567,6 @@ impl AccountBackup {
                 }
             }
         }
-
-        /*
-        if let Some(files_dir) = &options.files_dir {
-            reader.extract_files(files_dir, options.selected.as_slice())?;
-        } else if let (Some(builder), Some(manifest)) =
-            (&options.files_dir_builder, reader.manifest())
-        {
-            if let Some(files_dir) = builder(&manifest.address) {
-                reader
-                    .extract_files(files_dir, options.selected.as_slice())?;
-            }
-        }
-        */
 
         let (address, identity, vaults) = reader.finish()?;
 

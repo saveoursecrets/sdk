@@ -7,7 +7,16 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error(r#"no accounts found, use "account new" to create an account "#)]
+    #[error(r#"account "{0}" already exists"#)]
+    AccountExists(String),
+
+    #[error(r#"password is not strong enough"#)]
+    PasswordStrength,
+
+    #[error(r#"passwords do not match"#)]
+    PasswordMismatch,
+
+    #[error(r#"no accounts found, use "account new" to create an account"#)]
     NoAccounts,
 
     #[error("could not infer account, use --account to specify account")]

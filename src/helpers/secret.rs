@@ -20,7 +20,7 @@ use crate::{
         read_flag, read_line, read_line_allow_empty, read_multiline,
         read_option, read_password,
     },
-    Error, Result,
+    Error, Result, TARGET,
 };
 
 use super::account::Owner;
@@ -275,7 +275,11 @@ pub fn add_credentials(
     loop {
         let mut name = read_line(Some("Name: "))?;
         while credentials.get(&name).is_some() {
-            tracing::error!("name '{}' already exists", &name);
+            tracing::error!(
+                target: TARGET,
+                "name '{}' already exists",
+                &name
+            );
             name = read_line(Some("Name: "))?;
         }
         let value = read_password(Some("Value: "))?;

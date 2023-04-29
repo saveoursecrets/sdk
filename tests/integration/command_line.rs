@@ -11,8 +11,8 @@ use rexpect::spawn;
 #[tokio::test]
 #[serial]
 async fn integration_command_line() -> Result<()> {
+    let account_name = "mock-account";
     let (password, _) = generate_passphrase()?;
-    std::env::set_var("SOS_PASSWORD", password.expose_secret().to_owned());
 
     let cache_dir = PathBuf::from("target/command_line_test");
     if cache_dir.exists() {
@@ -25,20 +25,25 @@ async fn integration_command_line() -> Result<()> {
 
     let is_coverage = std::env::var("COVERAGE_BINARIES").is_ok();
     let exe = if is_coverage {
-       PathBuf::from(std::env::var("COVERAGE_BINARIES")?)
-           .join("sos").to_string_lossy().into_owned()
+        PathBuf::from(std::env::var("COVERAGE_BINARIES")?)
+            .join("sos")
+            .to_string_lossy()
+            .into_owned()
     } else {
         "target/debug/sos".to_owned()
     };
-    let cmd = format!("{} account new mock-account-1", exe);
-    let mut p = spawn(&cmd, Some(10000))?;
-    p.exp_regex("memorize my master")?;
-    p.send_line("y")?;
-    p.exp_regex("create a new account")?;
+    let cmd = format!("{} account new {}", exe, account_name);
+    let mut p = spawn(&cmd, None)?;
+    p.exp_regex("2[)] Choose a password")?;
+    p.send_line("2")?;
+    p.exp_regex("Password:")?;
+    p.send_line(password.expose_secret())?;
+    p.exp_regex("Confirm password:")?;
+    p.send_line(password.expose_secret())?;
+    p.exp_regex("you want to create a new account")?;
     p.send_line("y")?;
     p.exp_eof()?;
 
-    std::env::remove_var("SOS_PASSWORD");
     std::env::remove_var("SOS_CACHE");
     Ok(())
 }

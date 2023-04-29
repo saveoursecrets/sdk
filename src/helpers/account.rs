@@ -14,7 +14,7 @@ use tokio::sync::RwLock;
 
 use crate::helpers::{
     display_passphrase,
-    readline::{choose, read_flag, read_password, Choice},
+    readline::{choose, choose_password, read_flag, read_password, Choice},
 };
 
 use once_cell::sync::OnceCell;
@@ -26,6 +26,11 @@ pub type Owner = Arc<RwLock<UserStorage>>;
 
 /// Current user for the shell REPL.
 pub(crate) static USER: OnceCell<Owner> = OnceCell::new();
+
+enum AccountPasswordOption {
+    Generated,
+    Manual,
+}
 
 /// Choose an account.
 pub async fn choose_account() -> Result<Option<AccountInfo>> {
@@ -40,11 +45,9 @@ pub async fn choose_account() -> Result<Option<AccountInfo>> {
             .map(|a| Choice(Cow::Owned(a.label().to_string()), a))
             .collect();
         let prompt = Some("Choose account: ");
-        loop {
-            if let Some(account) = choose(prompt, &options)? {
-                return Ok(Some(account.clone()));
-            }
-        }
+        let result =
+            choose(prompt, &options, true)?.expect("choice to be required");
+        return Ok(Some(result.clone()));
     }
 }
 
@@ -219,12 +222,50 @@ pub async fn new_account(
     account_name: String,
     folder_name: Option<String>,
 ) -> Result<()> {
-    // Generate a master passphrase
-    let passphrase = if let Ok(password) = std::env::var("SOS_PASSWORD") {
-        SecretString::new(password)
-    } else {
-        let (passphrase, _) = generate_passphrase()?;
-        passphrase
+    let account = AccountRef::Name(account_name.clone());
+    let account = find_account(&account)?;
+
+    if account.is_some() {
+        return Err(Error::AccountExists(account_name));
+    }
+
+    let banner = Banner::new()
+        .padding(Padding::one())
+        .text(Cow::Borrowed(
+            "WELCOME",
+        ))
+        .text(Cow::Borrowed(
+            "Your new account requires a master password; you must memorize this password or you will lose access to your secrets.",
+        ))
+        .text(Cow::Borrowed(
+            "You may generate a strong diceware password or choose your own password; if you choose a password it must be excellent strength.",
+        ))
+        .render();
+    println!("{}", banner);
+
+    let options = vec![
+        Choice(
+            Cow::Borrowed("Generated password (recommended)"),
+            AccountPasswordOption::Generated,
+        ),
+        Choice(
+            Cow::Borrowed("Choose a password"),
+            AccountPasswordOption::Manual,
+        ),
+    ];
+
+    let password_option =
+        choose(None, &options, true)?.expect("choice to be required");
+    let is_generated =
+        matches!(password_option, AccountPasswordOption::Generated);
+
+    // Generate a master password
+    let passphrase = match password_option {
+        AccountPasswordOption::Generated => {
+            let (passphrase, _) = generate_passphrase()?;
+            passphrase
+        }
+        AccountPasswordOption::Manual => choose_password()?,
     };
 
     let (identity_vault, new_account) =
@@ -239,27 +280,21 @@ pub async fn new_account(
 
     let address = new_account.address;
 
-    // Get the signing key for the authenticated user
-    let identity_dir = StorageDirs::identity_dir()?;
-    println!("{}", identity_dir.display());
-
-    let message = format!(
-        r#"* Write identity vault called "{}"
-* Create a default folder called "{}"
-* Master passphrase will be displayed"#,
+    let mut message = format!(
+        r#"* Write identity vault "{}"
+* Create default folder "{}""#,
         account_name,
         new_account.default_vault.summary().name(),
     );
 
+    if is_generated {
+        message.push_str("\n* Master password will be displayed");
+    }
+
     let banner = Banner::new()
         .padding(Padding::one())
-        .text(Cow::Borrowed(
-            "PLEASE READ CAREFULLY",
-        ))
-        .text(Cow::Owned(format!("Identity: {} ({})", account_name, address)))
-        .text(Cow::Borrowed(
-            "Your new account will be assigned a master passphrase, you must memorize this passphrase or you will lose access to your secrets.",
-        ))
+        .text(Cow::Borrowed("NEW ACCOUNT"))
+        .text(Cow::Owned(format!("{} ({})", account_name, address)))
         .text(Cow::Borrowed(
             "Creating a new account will perform the following actions:",
         ))
@@ -267,44 +302,39 @@ pub async fn new_account(
         .render();
     println!("{}", banner);
 
-    let accepted =
-        read_flag(Some("I will memorize my master passphrase (y/n)? "))?;
-
-    if accepted {
-        display_passphrase("MASTER PASSPHRASE", passphrase.expose_secret());
-
-        let confirmed = read_flag(Some(
-            "Are you sure you want to create a new account (y/n)? ",
-        ))?;
-        if confirmed {
-            let new_account =
-                AccountBuilder::write(identity_vault, new_account)?;
-
-            // Create local provider
-            let factory = ProviderFactory::Local;
-            let (mut provider, _) =
-                factory.create_provider(new_account.user.signer().clone())?;
-            provider.authenticate().await?;
-
-            let _ = provider.import_new_account(&new_account).await?;
-
-            let cache_dir =
-                StorageDirs::cache_dir().ok_or(Error::NoCacheDir)?;
-            let message = format!(
-                r#"* Identity: {} ({})
-* Storage: {}"#,
-                account_name,
-                address,
-                cache_dir.display(),
-            );
-
-            let banner = Banner::new()
-                .padding(Padding::one())
-                .text(Cow::Borrowed("Account created ✓"))
-                .text(Cow::Owned(message))
-                .render();
-            println!("{}", banner);
+    let confirmed = read_flag(Some(
+        "Are you sure you want to create a new account (y/n)? ",
+    ))?;
+    if confirmed {
+        if is_generated {
+            display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
+
+        let new_account = AccountBuilder::write(identity_vault, new_account)?;
+
+        // Create local provider
+        let factory = ProviderFactory::Local;
+        let (mut provider, _) =
+            factory.create_provider(new_account.user.signer().clone())?;
+        provider.authenticate().await?;
+
+        let _ = provider.import_new_account(&new_account).await?;
+
+        let cache_dir = StorageDirs::cache_dir().ok_or(Error::NoCacheDir)?;
+        let message = format!(
+            r#"* Account: {} ({})
+* Storage: {}"#,
+            account_name,
+            address,
+            cache_dir.display(),
+        );
+
+        let banner = Banner::new()
+            .padding(Padding::one())
+            .text(Cow::Borrowed("Account created ✓"))
+            .text(Cow::Owned(message))
+            .render();
+        println!("{}", banner);
     }
 
     Ok(())

@@ -331,7 +331,6 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     };
     let reader = std::fs::File::open(&input)?;
 
-    /*
     let (targets, account) = AccountBackup::restore_archive_buffer(
         reader,
         options,
@@ -343,9 +342,6 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     }
 
     Ok(Some(account))
-    */
-
-    todo!("fixme");
 }
 
 /// Rename an account.

@@ -8,8 +8,7 @@ use sos_node::client::{
     provider::ProviderFactory,
 };
 
-use crate::helpers::account::sign_in;
-use crate::Result;
+use crate::{helpers::account::sign_in, Result, TARGET};
 
 /// Creates a changes stream and calls handler for every change notification.
 async fn changes_stream(
@@ -21,6 +20,7 @@ async fn changes_stream(
     while let Some(notification) = stream.next().await {
         let notification = notification?;
         tracing::info!(
+            target: TARGET,
             changes = ?notification.changes(),
             vault_id = %notification.vault_id());
     }
@@ -33,7 +33,7 @@ pub async fn run(server: Url, account: AccountRef) -> Result<()> {
     let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
     let signer = owner.user.identity().signer().clone();
     if let Err(e) = changes_stream(server, signer).await {
-        tracing::error!("{}", e);
+        tracing::error!(target: TARGET, "{}", e);
         std::process::exit(1);
     }
     Ok(())

@@ -18,7 +18,7 @@ use sos_core::{
 };
 use tempfile::Builder;
 
-use crate::{Error, Result};
+use crate::{Error, Result, TARGET};
 
 /// The result of editing a secret.
 ///
@@ -162,7 +162,11 @@ fn edit_secret<'a>(
                 // Parse error, launch the editor again so the user
                 // gets the chance to correct the mistake.
                 Err(e) => {
-                    tracing::error!("secret data is not valid: {}", e);
+                    tracing::error!(
+                        target: TARGET,
+                        "secret data is not valid: {}",
+                        e
+                    );
                     file.close()?;
                     return edit_secret(secret, content, suffix);
                 }

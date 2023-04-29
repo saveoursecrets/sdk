@@ -133,12 +133,16 @@ script = '''
 rm *.profraw
 '''
 
+[tasks.clean-coverage]
+command = "cargo"
+args = ["clean", "--target-dir", "target/coverage"]
+
 [tasks.clean-cover]
 command = "cargo"
 args = ["clean", "--target-dir", "target/cover"]
 
 [tasks.cover]
-dependencies = ["clean-cover", "coverage", "genhtml", "clean-profraw"]
+dependencies = ["clean-cover", "clean-coverage", "coverage", "genhtml", "clean-profraw"]
 
 [tasks.brew]
 script = '''

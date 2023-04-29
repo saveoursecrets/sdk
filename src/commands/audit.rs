@@ -1,6 +1,6 @@
 use clap::Subcommand;
 
-use crate::{Error, Result};
+use crate::{Error, Result, TARGET};
 use sos_core::{
     audit::{AuditData, AuditEvent, AuditLogFile},
     signer::ecdsa::Address,
@@ -162,6 +162,7 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
         match data {
             AuditData::Vault(vault_id) => {
                 tracing::info!(
+                    target: TARGET,
                     vault = ?vault_id,
                     "{} {} by {}",
                     event.time().to_rfc3339()?,
@@ -171,6 +172,7 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
             }
             AuditData::Secret(vault_id, secret_id) => {
                 tracing::info!(
+                    target: TARGET,
                     vault = ?vault_id,
                     secret = ?secret_id,
                     "{} {} by {}",
@@ -182,6 +184,7 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
         }
     } else {
         tracing::info!(
+            target: TARGET,
             "{} {} by {}",
             event.time().to_rfc3339()?,
             event.event_kind(),

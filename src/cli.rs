@@ -17,24 +17,6 @@ use super::{
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 pub struct Sos {
-    /// Set the account password.
-    ///
-    /// Used for debugging and test purposes,
-    /// not available in a release build to
-    /// prevent misue and passwords appearing in
-    /// shell history.
-    #[cfg(any(test, debug_assertions))]
-    #[clap(
-        long,
-        env = "SOS_PASSWORD",
-        hide = true,
-        hide_env = true,
-        hide_env_values = true,
-        hide_short_help = true,
-        hide_long_help = true
-    )]
-    password: Option<String>,
-
     /// Storage provider factory.
     #[clap(long, env = "SOS_PROVIDER")]
     provider: Option<ProviderFactory>,
@@ -128,21 +110,12 @@ pub enum Command {
     },
 }
 
-pub async fn run<I, T>(args: I) -> Result<()>
-where
-    I: IntoIterator<Item = T>,
-    T: Into<OsString> + Clone,
-{
-    let mut args = Sos::parse_from(args);
+pub async fn run() -> Result<()> {
+    let mut args = Sos::parse();
     let factory = args.provider.unwrap_or_default();
 
     if let Some(cache) = args.cache.take() {
         StorageDirs::set_cache_dir(cache);
-    }
-
-    #[cfg(any(test, debug_assertions))]
-    if let Some(password) = args.password.take() {
-        std::env::set_var("SOS_PASSWORD", password);
     }
 
     match args.cmd {

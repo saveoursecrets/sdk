@@ -5,9 +5,12 @@ use rustyline::{
     history::MemHistory, ColorMode, Editor,
 };
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
-use sos_core::secrecy::{Secret, SecretString};
+use sos_core::{
+    passwd::generator::measure_entropy,
+    secrecy::{ExposeSecret, SecretString},
+};
 
-use crate::{Error, Result};
+use crate::{Error, Result, TARGET};
 
 const DEFAULT_PROMPT: &str = ">> ";
 
@@ -46,7 +49,7 @@ pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {
         .trim_end_matches('\n')
         .to_string();
 
-    Ok(Secret::new(passwd))
+    Ok(SecretString::new(passwd))
 }
 
 pub(crate) fn basic_editor() -> Result<Editor<(), MemHistory>> {
@@ -146,17 +149,84 @@ pub struct Choice<'a, T>(pub Cow<'a, str>, pub T);
 pub fn choose<'a, T>(
     prompt: Option<&str>,
     options: &'a [Choice<T>],
+    required: bool,
 ) -> Result<Option<&'a T>> {
+    if let Some(prompt) = prompt {
+        println!("{}", prompt);
+    }
     for (index, option) in options.iter().enumerate() {
         println!("{}) {}", index + 1, option.0);
     }
 
-    let value = read_line(prompt)?;
-    match value.parse::<usize>() {
-        Ok(num) => {
-            let num = if num > 0 { num - 1 } else { num };
-            Ok(options.get(num).as_ref().map(|result| &result.1))
+    let values = "> ".to_owned();
+
+    loop {
+        let value = read_line(Some(&values))?;
+        match value.parse::<usize>() {
+            Ok(num) => {
+                let result = if num > 0 {
+                    options.get(num - 1).as_ref().map(|result| &result.1)
+                } else {
+                    None
+                };
+
+                if result.is_some() || !required {
+                    return Ok(result);
+                } else {
+                    tracing::error!(
+                        target: TARGET,
+                        "enter a number between 1-{}",
+                        options.len()
+                    );
+                }
+            }
+            Err(_) => {
+                if !required {
+                    return Ok(None);
+                } else {
+                    tracing::error!(
+                        target: TARGET,
+                        "enter a number between 1-{}",
+                        options.len()
+                    );
+                }
+            }
         }
-        Err(_) => Ok(None),
     }
+}
+
+pub fn choose_password() -> Result<SecretString> {
+    #[allow(unused_assignments)]
+    let mut passwd1 = SecretString::new(String::new());
+    #[allow(unused_assignments)]
+    let mut passwd2 = SecretString::new(String::new());
+
+    loop {
+        passwd1 = read_password(Some("Password: "))?;
+        if passwd1.expose_secret().trim().is_empty() {
+            continue;
+        }
+
+        let entropy = measure_entropy(passwd1.expose_secret(), &[])?;
+        if entropy.score() < 4 {
+            tracing::error!(target: TARGET, "{}", Error::PasswordStrength);
+            continue;
+        }
+        break;
+    }
+
+    loop {
+        passwd2 = read_password(Some("Confirm password: "))?;
+        if passwd2.expose_secret().trim().is_empty() {
+            continue;
+        }
+
+        if passwd1.expose_secret() != passwd2.expose_secret() {
+            tracing::error!(target: TARGET, "{}", Error::PasswordMismatch);
+            continue;
+        }
+        break;
+    }
+
+    Ok(passwd1)
 }

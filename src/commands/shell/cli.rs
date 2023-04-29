@@ -15,7 +15,7 @@ use crate::{
         account::{choose_account, sign_in, use_folder, USER},
         readline,
     },
-    Error, Result,
+    Error, Result, TARGET,
 };
 
 use super::repl::exec;
@@ -46,9 +46,8 @@ async fn auth(
         match sign_in(&account, factory.clone()).await {
             Ok((owner, _)) => return Ok(owner),
             Err(e) => {
-                tracing::error!("{}", e);
-                if e.is_interrupted() || std::env::var("SOS_PASSWORD").is_ok()
-                {
+                tracing::error!(target: TARGET, "{}", e);
+                if e.is_interrupted() {
                     std::process::exit(0);
                 }
             }
@@ -120,7 +119,7 @@ pub async fn run(
                 rl.add_history_entry(line.as_str())?;
                 let provider = Arc::clone(user);
                 if let Err(e) = exec(&line, factory.clone(), provider).await {
-                    tracing::error!("{}", e);
+                    tracing::error!(target: TARGET, "{}", e);
                 }
             }
             Err(e) => return Err(Error::Readline(e)),
