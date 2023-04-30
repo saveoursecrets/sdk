@@ -255,8 +255,8 @@ pub async fn new_account(
         ),
     ];
 
-    let is_ci = cfg!(any(test, debug_assertions))
-        && std::env::var("CI").is_ok();
+    let is_ci =
+        cfg!(any(test, debug_assertions)) && std::env::var("CI").is_ok();
 
     let password_option = if is_ci {
         AccountPasswordOption::Generated
@@ -269,10 +269,9 @@ pub async fn new_account(
     // Generate a master password
     let passphrase = match password_option {
         AccountPasswordOption::Generated => {
-            
             // Support for CI environments choosing the account password
             if let Ok(password) = std::env::var("SOS_PASSWORD") {
-                SecretString::new(password)    
+                SecretString::new(password)
             } else {
                 let (passphrase, _) = generate_passphrase()?;
                 passphrase

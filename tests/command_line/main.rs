@@ -4,8 +4,7 @@ use std::path::PathBuf;
 
 use sos_core::{
     passwd::diceware::generate_passphrase, secrecy::ExposeSecret,
-    signer::ecdsa::Address,
-    storage::StorageDirs,
+    signer::ecdsa::Address, storage::StorageDirs,
 };
 
 use secrecy::SecretString;
@@ -40,10 +39,12 @@ async fn command_line() -> Result<()> {
     // Set so test functions can access
     StorageDirs::set_cache_dir(cache_dir);
 
-    
     if is_ci() {
         std::env::set_var("SOS_YES", true.to_string());
-        std::env::set_var("SOS_PASSWORD", password.expose_secret().to_owned());
+        std::env::set_var(
+            "SOS_PASSWORD",
+            password.expose_secret().to_owned(),
+        );
     }
 
     let exe = if is_coverage() {

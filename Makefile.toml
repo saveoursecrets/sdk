@@ -5,6 +5,9 @@ extend= [
 default_to_workspace = false
 
 [env]
+# for the command_line tests to work
+# see: https://github.com/sagiegurari/cargo-make/issues/842
+CI=1 
 RUST_BACKTRACE = 0
 #RUST_LOG = 0
 BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
