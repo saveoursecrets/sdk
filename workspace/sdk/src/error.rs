@@ -110,11 +110,11 @@ pub enum Error {
     #[error("too few words for diceware passphrase generation, got {0} but minimum is {1}")]
     DicewareWordsTooFew(usize, u8),
 
-    /// Error generated when attempting to verify a passphrase fails.
+    /// Error generated when attempting to verify a password fails.
     ///
     /// This can happen when calling `verify()` on a `Vault` or `unlock()`
     /// on a `Gatekeeper`.
-    #[error("passphrase verification failed")]
+    #[error("password verification failed")]
     PassphraseVerification,
 
     /// Error generated when a login vault does not contain

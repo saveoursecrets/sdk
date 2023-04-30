@@ -36,6 +36,12 @@ impl Highlighter for MaskingHighlighter {
 
 /// Read a passphrase from stdin prompt.
 pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {
+    
+    #[cfg(any(test, debug_assertions))]
+    if let Ok(password) = std::env::var("SOS_PASSWORD") {
+        return Ok(SecretString::new(password));
+    }
+
     let h = MaskingHighlighter { masking: true };
     let mut rl = Editor::new()?;
     rl.set_helper(Some(h));
@@ -131,6 +137,10 @@ pub fn read_option(prompt: Option<&str>) -> Result<Option<String>> {
 
 /// Read a flag value (y/n).
 pub fn read_flag(prompt: Option<&str>) -> Result<bool> {
+    if std::env::var("SOS_YES").is_ok() {
+        return Ok(true);
+    }
+
     let mut rl = basic_editor()?;
     let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
     match readline {

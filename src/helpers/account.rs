@@ -27,6 +27,7 @@ pub type Owner = Arc<RwLock<UserStorage>>;
 /// Current user for the shell REPL.
 pub(crate) static USER: OnceCell<Owner> = OnceCell::new();
 
+#[derive(Copy, Clone)]
 enum AccountPasswordOption {
     Generated,
     Manual,
@@ -254,16 +255,28 @@ pub async fn new_account(
         ),
     ];
 
-    let password_option =
-        choose(None, &options, true)?.expect("choice to be required");
+    let is_ci = cfg!(any(test, debug_assertions))
+        && std::env::var("CI").is_ok();
+
+    let password_option = if is_ci {
+        AccountPasswordOption::Generated
+    } else {
+        *choose(None, &options, true)?.expect("choice to be required")
+    };
     let is_generated =
         matches!(password_option, AccountPasswordOption::Generated);
 
     // Generate a master password
     let passphrase = match password_option {
         AccountPasswordOption::Generated => {
-            let (passphrase, _) = generate_passphrase()?;
-            passphrase
+            
+            // Support for CI environments choosing the account password
+            if let Ok(password) = std::env::var("SOS_PASSWORD") {
+                SecretString::new(password)    
+            } else {
+                let (passphrase, _) = generate_passphrase()?;
+                passphrase
+            }
         }
         AccountPasswordOption::Manual => choose_password()?,
     };
