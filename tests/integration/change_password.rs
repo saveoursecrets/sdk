@@ -62,7 +62,7 @@ async fn integration_change_password() -> Result<()> {
     });
 
     // Give the websocket client some time to connect
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Use the new vault
     node_cache.open_vault(&summary, encryption_passphrase.clone(), None)?;
@@ -95,7 +95,7 @@ async fn integration_change_password() -> Result<()> {
 
     // Delay a little to ensure all the change notifications
     // have been received
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Assert on all the change notifications
     let mut changes = notifications.write().unwrap();

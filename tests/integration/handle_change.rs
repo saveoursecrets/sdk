@@ -93,7 +93,7 @@ async fn integration_handle_change() -> Result<()> {
 
     // Delay a while so the change notification SSE events
     // can be received
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Verify our spawned task handled the notification
     let updated_head = listener_change.read().await;

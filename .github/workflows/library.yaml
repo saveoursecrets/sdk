@@ -2,8 +2,8 @@ name: Library
 
 on: [pull_request]
 
-#env:
-  #RUST_LOG: ""
+env:
+  RUST_BACKTRACE: 1
 
 jobs:
   library:
