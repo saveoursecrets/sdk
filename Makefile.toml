@@ -5,13 +5,11 @@ extend= [
 default_to_workspace = false
 
 [env]
-# for the command_line tests to work
-# see: https://github.com/sagiegurari/cargo-make/issues/842
-CI=1 
 RUST_BACKTRACE = 0
 #RUST_LOG = 0
 BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 BINARIES = "sos"
+#CARGO_MAKE_UNSTABLE_FEATURE_CTRL_C_HANDLING = 1
 
 [tasks.fix-all]
 workspace = true
@@ -76,6 +74,10 @@ args = ["doc", "--workspace", "--open", "--no-deps", "--all-features"]
 [tasks.unit]
 command = "cargo"
 args = ["test", "--all", "--lib", "--", "--nocapture"]
+
+[tasks.cli]
+command = "cargo"
+args = ["test", "command_line", "--", "--nocapture"]
 
 [tasks.integration]
 command = "cargo"
@@ -146,6 +148,9 @@ args = ["clean", "--target-dir", "target/cover"]
 
 [tasks.cover]
 dependencies = ["clean-cover", "clean-coverage", "coverage", "genhtml", "clean-profraw"]
+
+[tasks.cover.env]
+COVERAGE = "1"
 
 [tasks.brew]
 script = '''

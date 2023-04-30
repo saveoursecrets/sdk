@@ -15,16 +15,20 @@ const ACCOUNT_NAME: &str = "mock-account";
 const TIMEOUT: Option<u64> = Some(30000);
 
 fn is_coverage() -> bool {
-    std::env::var("COVERAGE_BINARIES").is_ok()
+    env_is_set("COVERAGE")
 }
 
 fn is_ci() -> bool {
-    std::env::var("CI").is_ok()
+    env_is_set("CI")
 }
 
-#[tokio::test]
+fn env_is_set(name: &str) -> bool {
+    std::env::var(name).is_ok() && !std::env::var(name).unwrap().is_empty()
+}
+
+#[test]
 #[serial]
-async fn command_line() -> Result<()> {
+fn integration_command_line() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
     let cache_dir = PathBuf::from("target/command_line_test");
