@@ -4,7 +4,7 @@ use serial_test::serial;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use parking_lot::RwLock as SyncRwLock;
-use sos_core::{
+use sos_sdk::{
     account::{
         AccountBackup, AccountBuilder, DelegatedPassphrase,
         ExtractFilesLocation, ImportedAccount, LocalAccounts, Login,

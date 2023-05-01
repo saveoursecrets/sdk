@@ -2,7 +2,7 @@ use clap::Subcommand;
 
 use std::{borrow::Cow, sync::Arc};
 
-use sos_core::{
+use sos_sdk::{
     account::AccountRef,
     search::Document,
     secrecy::ExposeSecret,

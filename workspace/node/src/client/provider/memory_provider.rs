@@ -7,7 +7,7 @@ use crate::client::{
     Error, Result,
 };
 use secrecy::SecretString;
-use sos_core::{
+use sos_sdk::{
     commit::SyncInfo,
     events::{ChangeAction, ChangeNotification, SyncEvent},
     signer::ecdsa::BoxedEcdsaSigner,

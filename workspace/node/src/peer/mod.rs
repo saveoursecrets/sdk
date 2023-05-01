@@ -1,7 +1,7 @@
 //! Peer to peer networking.
 
 use libp2p::{identity, multiaddr::Protocol, Multiaddr, PeerId};
-use sos_core::signer::ed25519::BoxedEd25519Signer;
+use sos_sdk::signer::ed25519::BoxedEd25519Signer;
 
 mod behaviour;
 pub mod error;

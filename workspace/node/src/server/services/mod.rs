@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
 };
 
-use sos_core::{
+use sos_sdk::{
     audit::{AuditEvent, AuditProvider},
     crypto::{channel::EncryptedChannel, AeadPack},
     decode, encode,

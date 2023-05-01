@@ -6,7 +6,7 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{
+use sos_sdk::{
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     crypto::secret_key::SecretKey,
     decode, encode,
@@ -23,7 +23,7 @@ use sos_core::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use sos_core::{patch::PatchFile, wal::file::WalFile};
+use sos_sdk::{patch::PatchFile, wal::file::WalFile};
 
 use std::{
     borrow::Cow,

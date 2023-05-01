@@ -5316,8 +5316,8 @@ dependencies = [
  "serde_json",
  "serial_test",
  "shell-words",
- "sos-core",
  "sos-node",
+ "sos-sdk",
  "tempfile",
  "terminal-banner",
  "thiserror",
@@ -5332,7 +5332,88 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-core"
+name = "sos-migrate"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "csv",
+ "dirs",
+ "hex",
+ "logos",
+ "parking_lot 0.12.1",
+ "plist",
+ "rustc_version",
+ "secrecy",
+ "security-framework",
+ "serde",
+ "serde_json",
+ "sos-sdk",
+ "thiserror",
+ "time",
+ "url",
+ "vcard4",
+ "zip",
+]
+
+[[package]]
+name = "sos-node"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-recursion",
+ "async-stream",
+ "async-trait",
+ "axum",
+ "axum-macros",
+ "axum-server",
+ "bs58",
+ "crypto-bigint 0.4.9",
+ "dirs",
+ "either",
+ "file-guard",
+ "futures",
+ "hex",
+ "http",
+ "hyper",
+ "if-addrs 0.10.1",
+ "libp2p",
+ "libp2p-quic",
+ "log",
+ "mime_guess",
+ "once_cell",
+ "ouroboros",
+ "parking_lot 0.12.1",
+ "pin-project-lite",
+ "rand 0.8.5",
+ "reqwest",
+ "rustc_version",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "sha3",
+ "sos-migrate",
+ "sos-sdk",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "toml",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "void",
+ "web3-address",
+ "web3-signature",
+ "whoami",
+]
+
+[[package]]
+name = "sos-sdk"
 version = "0.1.0"
 dependencies = [
  "aes-gcm 0.10.1",
@@ -5384,87 +5465,6 @@ dependencies = [
  "zeroize",
  "zip",
  "zxcvbn",
-]
-
-[[package]]
-name = "sos-migrate"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "csv",
- "dirs",
- "hex",
- "logos",
- "parking_lot 0.12.1",
- "plist",
- "rustc_version",
- "secrecy",
- "security-framework",
- "serde",
- "serde_json",
- "sos-core",
- "thiserror",
- "time",
- "url",
- "vcard4",
- "zip",
-]
-
-[[package]]
-name = "sos-node"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-recursion",
- "async-stream",
- "async-trait",
- "axum",
- "axum-macros",
- "axum-server",
- "bs58",
- "crypto-bigint 0.4.9",
- "dirs",
- "either",
- "file-guard",
- "futures",
- "hex",
- "http",
- "hyper",
- "if-addrs 0.10.1",
- "libp2p",
- "libp2p-quic",
- "log",
- "mime_guess",
- "once_cell",
- "ouroboros",
- "parking_lot 0.12.1",
- "pin-project-lite",
- "rand 0.8.5",
- "reqwest",
- "rustc_version",
- "secrecy",
- "serde",
- "serde_json",
- "serde_with",
- "sha3",
- "sos-core",
- "sos-migrate",
- "tempfile",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "toml",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
- "void",
- "web3-address",
- "web3-signature",
- "whoami",
 ]
 
 [[package]]

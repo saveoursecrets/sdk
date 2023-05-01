@@ -6,7 +6,7 @@ use crate::test_utils::*;
 use tempfile::tempdir;
 
 use secrecy::ExposeSecret;
-use sos_core::{
+use sos_sdk::{
     events::SyncEvent,
     patch::PatchProvider,
     signer::{ecdsa::SingleParty, Signer},

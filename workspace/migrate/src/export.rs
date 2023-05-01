@@ -10,7 +10,7 @@ use std::{
 };
 use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
-use sos_core::{
+use sos_sdk::{
     vault::{
         secret::{Secret, SecretId, SecretMeta, UserField},
         Gatekeeper, Summary, VaultId, VaultMeta,
@@ -177,7 +177,7 @@ mod test {
     use std::io::Cursor;
 
     use super::*;
-    use sos_core::{
+    use sos_sdk::{
         passwd::diceware::generate_passphrase,
         test_utils::*,
         vault::{Gatekeeper, Vault},

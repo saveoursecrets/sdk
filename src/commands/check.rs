@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use std::path::{Path, PathBuf};
 
-use sos_core::{
+use sos_sdk::{
     commit::{vault_commit_tree_file, wal_commit_tree_file, CommitTree},
     formats::vault_iter,
     hex,

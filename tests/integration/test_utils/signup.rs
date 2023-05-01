@@ -3,7 +3,7 @@ use anyhow::{bail, Result};
 use std::path::PathBuf;
 use url::Url;
 
-use sos_core::{
+use sos_sdk::{
     patch::PatchFile,
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},

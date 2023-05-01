@@ -1,7 +1,7 @@
 //! User search index.
 use std::{collections::HashSet, sync::Arc};
 
-use sos_core::{
+use sos_sdk::{
     search::{Document, DocumentCount, SearchIndex},
     vault::{
         secret::{SecretId, SecretType},

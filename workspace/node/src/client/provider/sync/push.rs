@@ -3,7 +3,7 @@ use crate::client::net::{MaybeRetry, RpcClient};
 
 use http::StatusCode;
 
-use sos_core::{
+use sos_sdk::{
     commit::{CommitProof, Comparison, SyncInfo, SyncKind},
     patch::PatchProvider,
     vault::Summary,

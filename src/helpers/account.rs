@@ -1,7 +1,7 @@
 //! Helpers for creating and switching accounts.
 use std::{borrow::Cow, sync::Arc};
 
-use sos_core::{
+use sos_sdk::{
     account::{AccountBuilder, AccountInfo, AccountRef, LocalAccounts},
     passwd::diceware::generate_passphrase,
     secrecy::{ExposeSecret, SecretString},

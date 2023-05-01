@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use secrecy::SecretString;
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 
-use sos_core::{
+use sos_sdk::{
     account::{ImportedAccount, NewAccount},
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
@@ -24,7 +24,7 @@ use sos_core::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use sos_core::account::RestoreTargets;
+use sos_sdk::account::RestoreTargets;
 
 use crate::client::{Error, Result};
 
@@ -590,7 +590,7 @@ macro_rules! provider_impl {
 
         #[cfg(not(target_arch = "wasm32"))]
         fn verify(&self, summary: &Summary) -> Result<()> {
-            use sos_core::commit::wal_commit_tree_file;
+            use sos_sdk::commit::wal_commit_tree_file;
             let wal_path = self.wal_path(summary);
             wal_commit_tree_file(&wal_path, true, |_| {})?;
             Ok(())
@@ -692,7 +692,7 @@ macro_rules! provider_impl {
         /// Create a backup of a vault file.
         #[cfg(not(target_arch = "wasm32"))]
         fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
-            use sos_core::constants::VAULT_BACKUP_EXT;
+            use sos_sdk::constants::VAULT_BACKUP_EXT;
 
             // Move our cached vault to a backup
             let vault_path = self.vault_path(summary);
@@ -717,7 +717,7 @@ macro_rules! provider_impl {
         /// Remove a vault file and WAL file.
         #[cfg(not(target_arch = "wasm32"))]
         fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
-            use sos_core::constants::WAL_DELETED_EXT;
+            use sos_sdk::constants::WAL_DELETED_EXT;
 
             // Remove local vault mirror if it exists
             let vault_path = self.vault_path(summary);

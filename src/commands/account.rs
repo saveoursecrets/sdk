@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use std::path::PathBuf;
 
-use sos_core::{
+use sos_sdk::{
     account::{
         archive::Inventory, AccountBackup, AccountInfo, AccountRef,
         ExtractFilesLocation, LocalAccounts, RestoreOptions,

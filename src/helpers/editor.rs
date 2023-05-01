@@ -10,7 +10,7 @@ use std::{
 };
 
 use secrecy::ExposeSecret;
-use sos_core::{
+use sos_sdk::{
     secrecy,
     sha3::{Digest, Keccak256},
     vault::secret::Secret,

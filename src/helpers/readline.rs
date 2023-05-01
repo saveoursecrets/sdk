@@ -5,7 +5,7 @@ use rustyline::{
     history::MemHistory, ColorMode, Editor,
 };
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
-use sos_core::{
+use sos_sdk::{
     passwd::generator::measure_entropy,
     secrecy::{ExposeSecret, SecretString},
 };

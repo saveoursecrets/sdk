@@ -1,7 +1,7 @@
 use clap::Subcommand;
 
 use crate::{Error, Result, TARGET};
-use sos_core::{
+use sos_sdk::{
     audit::{AuditData, AuditEvent, AuditLogFile},
     signer::ecdsa::Address,
 };

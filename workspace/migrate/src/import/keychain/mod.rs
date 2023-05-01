@@ -18,7 +18,7 @@ use std::{
     },
 };
 
-use sos_core::{
+use sos_sdk::{
     search::SearchIndex,
     vault::{
         secret::{Secret, SecretMeta},

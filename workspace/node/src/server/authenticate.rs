@@ -3,7 +3,7 @@
 use axum::headers::{authorization::Bearer, Authorization};
 use serde::Deserialize;
 
-use sos_core::{
+use sos_sdk::{
     decode,
     signer::ecdsa::{recover_address, BinarySignature},
 };

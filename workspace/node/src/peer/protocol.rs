@@ -9,7 +9,7 @@ use libp2p::{
 };
 use std::io::{self, ErrorKind};
 
-use sos_core::{
+use sos_sdk::{
     decode, encode,
     rpc::{RequestMessage, ResponseMessage},
 };

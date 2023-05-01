@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use super::Result;
 
-use sos_core::{
+use sos_sdk::{
     commit::CommitRelationship,
     events::{ChangeAction, ChangeEvent, ChangeNotification},
     vault::VaultRef,
@@ -47,7 +47,7 @@ pub async fn handle_change(
                 ChangeAction::Pull(_) => {
                     let tree = provider
                         .commit_tree(summary)
-                        .ok_or(sos_core::Error::NoRootCommit)?;
+                        .ok_or(sos_sdk::Error::NoRootCommit)?;
                     let head = tree.head()?;
 
                     tracing::debug!(

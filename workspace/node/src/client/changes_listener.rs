@@ -13,7 +13,7 @@ use super::{
     Error, Result,
 };
 
-use sos_core::{
+use sos_sdk::{
     crypto::channel::ClientSession, events::ChangeNotification,
     signer::ecdsa::BoxedEcdsaSigner,
 };

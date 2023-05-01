@@ -11,7 +11,7 @@ use std::{
 };
 use url::Url;
 
-use sos_core::vault::Vault;
+use sos_sdk::vault::Vault;
 
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericNoteRecord,
@@ -157,7 +157,7 @@ mod test {
     use anyhow::Result;
     use parking_lot::RwLock;
 
-    use sos_core::{
+    use sos_sdk::{
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
         vault::{Gatekeeper, Vault},

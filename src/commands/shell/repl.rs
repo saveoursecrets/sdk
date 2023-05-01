@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use terminal_banner::{Banner, Padding};
 
 use secrecy::ExposeSecret;
-use sos_core::{
+use sos_sdk::{
     account::{AccountRef, DelegatedPassphrase},
     commit::SyncKind,
     passwd::diceware::generate_passphrase,

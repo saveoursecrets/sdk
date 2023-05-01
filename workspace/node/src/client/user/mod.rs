@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use sos_core::{
+use sos_sdk::{
     account::{
         archive::Inventory, AccountBackup, AccountInfo, AuthenticatedUser,
         DelegatedPassphrase, ExtractFilesLocation, LocalAccounts, Login,
@@ -996,7 +996,7 @@ impl UserStorage {
         content: &str,
         progress: impl Fn(ContactImportProgress) -> (),
     ) -> Result<()> {
-        use sos_core::vcard4::parse;
+        use sos_sdk::vcard4::parse;
         let cards = parse(content)?;
 
         progress(ContactImportProgress::Ready { total: cards.len() });

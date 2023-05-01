@@ -1,6 +1,6 @@
 //! HTTP transport trait and implementations.
 
-use sos_core::{
+use sos_sdk::{
     crypto::channel::{ClientSession, EncryptedChannel},
     encode,
     signer::ecdsa::{BinarySignature, BoxedEcdsaSigner},

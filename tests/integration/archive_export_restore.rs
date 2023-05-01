@@ -7,7 +7,7 @@ use crate::test_utils::*;
 use secrecy::SecretString;
 use tempfile::tempdir;
 
-use sos_core::{
+use sos_sdk::{
     account::{archive::Writer, AccountBackup, Identity, RestoreOptions},
     encode,
     events::SyncEvent,

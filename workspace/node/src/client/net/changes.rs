@@ -16,7 +16,7 @@ use tokio::net::TcpStream;
 
 use url::{Origin, Url};
 
-use sos_core::{
+use sos_sdk::{
     crypto::{
         channel::{ClientSession, EncryptedChannel},
         AeadPack,

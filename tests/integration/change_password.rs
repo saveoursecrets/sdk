@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 
-use sos_core::{
+use sos_sdk::{
     events::{ChangeEvent, ChangeNotification},
     passwd::diceware::generate_passphrase,
 };

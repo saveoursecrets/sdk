@@ -2,7 +2,7 @@ use anyhow::Result;
 use serial_test::serial;
 use std::path::PathBuf;
 
-use sos_core::{
+use sos_sdk::{
     passwd::diceware::generate_passphrase, secrecy::ExposeSecret,
     signer::ecdsa::Address, storage::StorageDirs,
 };

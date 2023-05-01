@@ -1,6 +1,6 @@
 //! Listen for changes events on the server sent events channel.
 use futures::stream::StreamExt;
-use sos_core::{
+use sos_sdk::{
     account::AccountRef, signer::ecdsa::BoxedEcdsaSigner, url::Url,
 };
 use sos_node::client::{

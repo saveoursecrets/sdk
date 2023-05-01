@@ -1,5 +1,5 @@
 use axum::http::StatusCode;
-use sos_core::{
+use sos_sdk::{
     audit::{AuditData, AuditEvent},
     commit::{CommitHash, CommitProof, Comparison},
     constants::{WAL_LOAD, WAL_PATCH, WAL_SAVE, WAL_STATUS},
@@ -46,7 +46,7 @@ impl Service for WalService {
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
-    ) -> sos_core::Result<ResponseMessage<'a>> {
+    ) -> sos_sdk::Result<ResponseMessage<'a>> {
         let (caller, state) = state;
 
         match request.method() {
@@ -205,7 +205,7 @@ impl Service for WalService {
                     return Ok((StatusCode::NOT_FOUND, request.id()).into());
                 }
 
-                let result: sos_core::Result<PatchResult> = {
+                let result: sos_sdk::Result<PatchResult> = {
                     let mut writer = state.write().await;
 
                     let wal = writer
@@ -393,7 +393,7 @@ impl Service for WalService {
                     (request.id(), server_proof).try_into()?;
                 Ok(reply)
             }
-            _ => Err(sos_core::Error::RpcUnknownMethod(
+            _ => Err(sos_sdk::Error::RpcUnknownMethod(
                 request.method().to_owned(),
             )),
         }

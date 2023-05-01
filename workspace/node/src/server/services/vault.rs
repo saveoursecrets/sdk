@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 
-use sos_core::{
+use sos_sdk::{
     audit::{AuditData, AuditEvent},
     constants::{VAULT_CREATE, VAULT_DELETE, VAULT_SAVE},
     events::{ChangeEvent, ChangeNotification, EventKind},
@@ -30,7 +30,7 @@ impl Service for VaultService {
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
-    ) -> sos_core::Result<ResponseMessage<'a>> {
+    ) -> sos_sdk::Result<ResponseMessage<'a>> {
         let (caller, state) = state;
 
         match request.method() {
@@ -196,7 +196,7 @@ impl Service for VaultService {
 
                 Ok(reply)
             }
-            _ => Err(sos_core::Error::RpcUnknownMethod(
+            _ => Err(sos_sdk::Error::RpcUnknownMethod(
                 request.method().to_owned(),
             )),
         }

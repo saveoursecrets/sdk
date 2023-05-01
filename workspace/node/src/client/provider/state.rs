@@ -2,7 +2,7 @@
 //! of vault summaries and a currently selected vault.
 use super::{Error, Result};
 
-use sos_core::{
+use sos_sdk::{
     search::SearchIndex,
     secrecy::SecretString,
     vault::{Gatekeeper, Summary, Vault, VaultFileAccess, VaultRef},

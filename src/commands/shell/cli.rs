@@ -1,6 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
-use sos_core::{account::AccountRef, storage::StorageDirs, vault::VaultRef};
+use sos_sdk::{account::AccountRef, storage::StorageDirs, vault::VaultRef};
 use terminal_banner::{Banner, Padding};
 
 use sos_node::{

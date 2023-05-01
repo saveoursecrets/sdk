@@ -6,7 +6,7 @@
 //! Used to move between different software providers.
 
 use secrecy::SecretString;
-use sos_core::vault::Vault;
+use sos_sdk::vault::Vault;
 
 mod error;
 

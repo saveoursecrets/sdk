@@ -1,4 +1,4 @@
-use sos_core::{
+use sos_sdk::{
     constants::{SESSION_OFFER, SESSION_VERIFY},
     rpc::{RequestMessage, ResponseMessage, Service},
 };
@@ -27,7 +27,7 @@ impl Service for SessionService {
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
-    ) -> sos_core::Result<ResponseMessage<'a>> {
+    ) -> sos_sdk::Result<ResponseMessage<'a>> {
         match request.method() {
             SESSION_OFFER => {
                 let mut writer = state.write().await;
@@ -60,7 +60,7 @@ impl Service for SessionService {
                     (request.id(), ()).try_into()?;
                 Ok(reply)
             }
-            _ => Err(sos_core::Error::RpcUnknownMethod(
+            _ => Err(sos_sdk::Error::RpcUnknownMethod(
                 request.method().to_owned(),
             )),
         }

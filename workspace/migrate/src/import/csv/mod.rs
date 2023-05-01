@@ -16,7 +16,7 @@ use std::{
 use url::Url;
 use vcard4::Vcard;
 
-use sos_core::{
+use sos_sdk::{
     search::SearchIndex,
     vault::{
         secret::{IdentityKind, Secret, SecretMeta},

@@ -17,7 +17,7 @@ members = [
 ]
 
 [dependencies]
-sos-core = { path = "workspace/sdk" }
+sos-sdk = { path = "workspace/sdk" }
 thiserror = "1"
 clap = { version = "4", features = ["derive", "wrap_help", "env"] }
 tracing = "0.1"

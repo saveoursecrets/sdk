@@ -7,7 +7,7 @@ use libp2p::{
     swarm::{keep_alive, NetworkBehaviour},
 };
 
-use sos_core::rpc::{RequestMessage, ResponseMessage};
+use sos_sdk::rpc::{RequestMessage, ResponseMessage};
 
 use super::protocol::RpcExchangeCodec;
 

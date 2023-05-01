@@ -40,7 +40,7 @@ device = [
 ]
 
 [dependencies]
-sos-core = { path = "../sdk", version = "0.1.0" }
+sos-sdk = { path = "../sdk", version = "0.1.0" }
 sos-migrate = { path = "../migrate", version = "0.1.0", optional = true }
 
 thiserror = "1"

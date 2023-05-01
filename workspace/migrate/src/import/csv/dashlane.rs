@@ -12,7 +12,7 @@ use time::{Date, Month};
 use url::Url;
 use vcard4::{property::DeliveryAddress, uriparse::URI as Uri, VcardBuilder};
 
-use sos_core::{
+use sos_sdk::{
     vault::{secret::IdentityKind, Vault},
     Timestamp,
 };
@@ -614,7 +614,7 @@ mod test {
     use anyhow::Result;
     use parking_lot::RwLock;
 
-    use sos_core::{
+    use sos_sdk::{
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
         vault::{secret::Secret, Gatekeeper, Vault},

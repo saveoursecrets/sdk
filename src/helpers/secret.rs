@@ -4,7 +4,7 @@ use human_bytes::human_bytes;
 use terminal_banner::{Banner, Padding};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{
+use sos_sdk::{
     search::Document,
     secrecy,
     sha2::{Digest, Sha256},

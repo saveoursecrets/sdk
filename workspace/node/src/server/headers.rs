@@ -6,7 +6,7 @@ use uuid::Uuid;
 use once_cell::sync::Lazy;
 
 pub static X_SESSION: Lazy<HeaderName> =
-    Lazy::new(|| HeaderName::from_static(sos_core::constants::X_SESSION));
+    Lazy::new(|| HeaderName::from_static(sos_sdk::constants::X_SESSION));
 
 /// Represents the `x-session` header.
 pub struct Session(Uuid);

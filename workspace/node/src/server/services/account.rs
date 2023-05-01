@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 
-use sos_core::{
+use sos_sdk::{
     audit::AuditEvent,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS},
     events::{ChangeEvent, ChangeNotification, EventKind},
@@ -28,7 +28,7 @@ impl Service for AccountService {
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
-    ) -> sos_core::Result<ResponseMessage<'a>> {
+    ) -> sos_sdk::Result<ResponseMessage<'a>> {
         let (caller, state) = state;
 
         let mut writer = state.write().await;
@@ -114,7 +114,7 @@ impl Service for AccountService {
 
                 Ok(reply)
             }
-            _ => Err(sos_core::Error::RpcUnknownMethod(
+            _ => Err(sos_sdk::Error::RpcUnknownMethod(
                 request.method().to_owned(),
             )),
         }

@@ -20,7 +20,7 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use serde::Serialize;
-use sos_core::{audit::AuditLogFile, crypto::channel::SessionManager};
+use sos_sdk::{audit::AuditLogFile, crypto::channel::SessionManager};
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};

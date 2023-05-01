@@ -1,4 +1,4 @@
-use sos_core::hex;
+use sos_sdk::hex;
 use sos_node::peer::{libp2p::identity::Keypair, rendezvous::Server, Result};
 use std::{net::SocketAddr, str::FromStr};
 

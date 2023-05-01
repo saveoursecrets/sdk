@@ -1,7 +1,7 @@
 use clap::Subcommand;
 
 use human_bytes::human_bytes;
-use sos_core::{
+use sos_sdk::{
     account::{AccountRef, DelegatedPassphrase},
     hex,
     vault::VaultRef,

@@ -1,4 +1,4 @@
-use sos_core::{
+use sos_sdk::{
     vault::{secret::SecretRef, VaultRef},
     vcard4,
 };
@@ -93,7 +93,7 @@ pub enum Error {
     Json(#[from] serde_json::Error),
 
     #[error(transparent)]
-    Core(#[from] sos_core::Error),
+    Core(#[from] sos_sdk::Error),
 
     #[error(transparent)]
     Node(#[from] sos_node::Error),
@@ -102,7 +102,7 @@ pub enum Error {
     NodeClient(#[from] sos_node::client::Error),
 
     #[error(transparent)]
-    UrlParse(#[from] sos_core::url::ParseError),
+    UrlParse(#[from] sos_sdk::url::ParseError),
 
     #[error(transparent)]
     Clap(#[from] clap::Error),

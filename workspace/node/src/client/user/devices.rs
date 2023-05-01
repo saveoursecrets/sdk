@@ -1,7 +1,7 @@
 //! User device manager.
 use std::path::PathBuf;
 
-use sos_core::signer::ecdsa::Address;
+use sos_sdk::signer::ecdsa::Address;
 
 use crate::client::Result;
 
@@ -18,7 +18,7 @@ pub struct DeviceManager {
 impl DeviceManager {
     /// Create a new devices manager.
     pub(super) fn new(address: &Address) -> Result<Self> {
-        use sos_core::storage::StorageDirs;
+        use sos_sdk::storage::StorageDirs;
         let device_dir = StorageDirs::devices_dir(address.to_string())?;
         Ok(Self { device_dir })
     }

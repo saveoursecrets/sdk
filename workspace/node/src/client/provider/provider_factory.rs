@@ -1,5 +1,5 @@
 //! Factory for creating providers.
-use sos_core::{signer::ecdsa::BoxedEcdsaSigner, storage::StorageDirs};
+use sos_sdk::{signer::ecdsa::BoxedEcdsaSigner, storage::StorageDirs};
 use std::{fmt, sync::Arc};
 use url::Url;
 use web3_address::ethereum::Address;

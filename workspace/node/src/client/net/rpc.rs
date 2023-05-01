@@ -1,7 +1,7 @@
 //! Remote procedure call (RPC) client implementation.
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
-use sos_core::{
+use sos_sdk::{
     commit::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
@@ -446,7 +446,7 @@ impl RpcClient {
         &self,
         status: StatusCode,
         buffer: &[u8],
-    ) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
+    ) -> Result<(StatusCode, sos_sdk::Result<T>, Vec<u8>)> {
         status
             .is_success()
             .then_some(())
@@ -465,7 +465,7 @@ impl RpcClient {
         http_status: StatusCode,
         buffer: &[u8],
     ) -> Result<RetryResponse<T>> {
-        //) -> Result<(StatusCode, sos_core::Result<T>, Vec<u8>)> {
+        //) -> Result<(StatusCode, sos_sdk::Result<T>, Vec<u8>)> {
         // Unauthorized means the session could not be found
         // or has expired
         if http_status == StatusCode::UNAUTHORIZED {
@@ -503,13 +503,13 @@ impl RpcClient {
 /// Enumeration for a response that allows for retrying the request.
 enum RetryResponse<T> {
     Retry(StatusCode),
-    Complete(StatusCode, sos_core::Result<T>, Vec<u8>),
+    Complete(StatusCode, sos_sdk::Result<T>, Vec<u8>),
 }
 
 impl<T> RetryResponse<T> {
     fn map<E>(
         self,
-        func: impl FnOnce(sos_core::Result<T>, Vec<u8>) -> Result<E>,
+        func: impl FnOnce(sos_sdk::Result<T>, Vec<u8>) -> Result<E>,
     ) -> Result<MaybeRetry<E>> {
         match self {
             RetryResponse::Retry(status) => Ok(MaybeRetry::Retry(status)),

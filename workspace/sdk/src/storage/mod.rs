@@ -240,7 +240,7 @@ fn default_storage_dir() -> Option<PathBuf> {
 
 #[cfg(target_os = "windows")]
 fn default_storage_dir() -> Option<PathBuf> {
-    use sos_core::constants::BUNDLE_ID;
+    use sos_sdk::constants::BUNDLE_ID;
     dirs::home_dir().and_then(|v| {
         let d = v.join("AppData").join("Local").join(BUNDLE_ID);
         Some(d)

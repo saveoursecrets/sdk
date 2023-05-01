@@ -17,7 +17,7 @@ use tokio::sync::{
     RwLock,
 };
 
-use sos_core::{
+use sos_sdk::{
     crypto::{channel::EncryptedChannel, AeadPack},
     decode, encode,
 };

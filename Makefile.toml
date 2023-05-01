@@ -99,7 +99,7 @@ args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-node", "--no-d
 
 [tasks.check-wasm]
 command = "cargo"
-args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-core"]
+args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-sdk"]
 dependencies = ["check-wasm-node-client"]
 
 [tasks.server-release]

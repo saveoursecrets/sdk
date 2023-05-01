@@ -1,6 +1,6 @@
 use super::{Error, Result};
 use async_trait::async_trait;
-use sos_core::{
+use sos_sdk::{
     commit::{wal_commit_tree_file, CommitProof},
     constants::{VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
     decode, encode,
@@ -498,7 +498,7 @@ impl BackendHandler for FileSystemBackend {
         let expected_root = temp_wal
             .tree()
             .root()
-            .ok_or_else(|| sos_core::Error::NoRootCommit)?;
+            .ok_or_else(|| sos_sdk::Error::NoRootCommit)?;
 
         // Prepare the buffer for the vault file
         let vault_path = self.vault_file_path(owner, vault.id());
@@ -585,7 +585,7 @@ impl BackendHandler for FileSystemBackend {
         // each leaf node hash
         let tree = wal_commit_tree_file(&temp_path, true, |_| {})?;
 
-        let tree_root = tree.root().ok_or(sos_core::Error::NoRootCommit)?;
+        let tree_root = tree.root().ok_or(sos_sdk::Error::NoRootCommit)?;
 
         tracing::debug!(root = ?hex::encode(tree_root),
             "replace_wal computed a new tree root");
@@ -610,7 +610,7 @@ impl BackendHandler for FileSystemBackend {
         wal.load_tree()?;
 
         let new_tree_root =
-            wal.tree().root().ok_or(sos_core::Error::NoRootCommit)?;
+            wal.tree().root().ok_or(sos_sdk::Error::NoRootCommit)?;
 
         tracing::debug!(root = ?hex::encode(new_tree_root),
             "replace_wal loaded a new tree root");

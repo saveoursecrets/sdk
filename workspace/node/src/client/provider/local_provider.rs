@@ -4,7 +4,7 @@ use super::{Error, Result};
 use async_trait::async_trait;
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_core::{
+use sos_sdk::{
     commit::{
         CommitHash, CommitPair, CommitRelationship, CommitTree, SyncInfo,
         SyncKind,
@@ -22,7 +22,7 @@ use sos_core::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use sos_core::{patch::PatchFile, wal::file::WalFile};
+use sos_sdk::{patch::PatchFile, wal::file::WalFile};
 
 use std::{
     borrow::Cow,

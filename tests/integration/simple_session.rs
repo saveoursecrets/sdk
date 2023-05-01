@@ -10,7 +10,7 @@ use std::{
 };
 use url::Url;
 
-use sos_core::{
+use sos_sdk::{
     commit::CommitRelationship,
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
