@@ -75,9 +75,8 @@ pub async fn resolve_user(
     if USER.get().is_none() {
         if build_search_index {
             owner.initialize_search_index().await?;
-        } else {
-            owner.list_folders().await?;
         }
+        owner.list_folders().await?;
     }
 
     Ok(Arc::new(RwLock::new(owner)))

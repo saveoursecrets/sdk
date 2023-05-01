@@ -48,9 +48,9 @@ pub enum Command {
         #[clap(short, long)]
         verbose: bool,
 
-        /// Include system folders.
+        /// JSON output.
         #[clap(short, long)]
-        system: bool,
+        json: bool,
 
         /// Account name or address.
         #[clap(short, long)]
@@ -168,9 +168,9 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         Command::Info {
             account,
             verbose,
-            system,
+            json,
         } => {
-            account_info(account, verbose, system).await?;
+            account_info(account, verbose, json).await?;
         }
         Command::Backup {
             account,
@@ -254,28 +254,22 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 async fn account_info(
     account: Option<AccountRef>,
     verbose: bool,
-    system: bool,
+    json: bool,
 ) -> Result<()> {
-    let account = resolve_account(account)
-        .await
-        .ok_or_else(|| Error::NoAccountFound)?;
+    let user = resolve_user(account, ProviderFactory::Local, false).await?;
+    let owner = user.read().await;
+    let data = owner.account_data()?;
 
-    let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
-    let folders = LocalAccounts::list_local_vaults(
-        owner.user.identity().address(),
-        system,
-    )?;
-
-    println!(
-        "{} {}",
-        owner.user.account().address(),
-        owner.user.account().label()
-    );
-    for (summary, _) in folders {
-        if verbose {
-            println!("{} {}", summary.id(), summary.name());
-        } else {
-            println!("{}", summary.name());
+    if json {
+        serde_json::to_writer_pretty(&mut std::io::stdout(), &data)?;
+    } else {
+        println!("{} {}", data.account.address(), data.account.label());
+        for summary in &data.folders {
+            if verbose {
+                println!("{} {}", summary.id(), summary.name());
+            } else {
+                println!("{}", summary.name());
+            }
         }
     }
     Ok(())
@@ -356,11 +350,8 @@ async fn account_rename(
     name: String,
     factory: ProviderFactory,
 ) -> Result<()> {
-    let account = resolve_account(account)
-        .await
-        .ok_or_else(|| Error::NoAccountFound)?;
-
-    let (mut owner, _) = sign_in(&account, factory).await?;
+    let user = resolve_user(account, factory, false).await?;
+    let mut owner = user.write().await;
     owner.user.rename_account(name)?;
     Ok(())
 }
@@ -391,7 +382,8 @@ async fn account_delete(
         owner.user.account().into()
     };
 
-    let (mut owner, _) = sign_in(&account, factory).await?;
+    let user = resolve_user(Some(account), factory, false).await?;
+    let mut owner = user.write().await;
 
     let prompt = format!(
         r#"Delete account "{}" (y/n)? "#,

@@ -25,6 +25,8 @@ use sos_core::{
 
 use parking_lot::RwLock as SyncRwLock;
 use secrecy::{ExposeSecret, SecretString};
+use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 
 use crate::client::{
     provider::{BoxedProvider, ProviderFactory},
@@ -64,6 +66,26 @@ pub enum ContactImportProgress {
         /// Index of the contact.
         index: usize,
     },
+}
+
+/// Data about an account.
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountData {
+    /// Main account information.
+    #[serde(flatten)]
+    pub account: AccountInfo,
+    /// AGE identity public recipient.
+    pub identity: String,
+    /// Account folders.
+    pub folders: Vec<Summary>,
+    #[cfg(feature = "device")]
+    /// Address of the device public key.
+    pub device_address: String,
+    #[cfg(feature = "peer")]
+    #[serde_as(as = "DisplayFromStr")]
+    /// The peer id for the libp2p network.
+    pub peer_id: libp2p::PeerId,
 }
 
 /// Authenticated user with storage provider.
@@ -120,6 +142,19 @@ impl UserStorage {
             devices: DeviceManager::new(address)?,
             #[cfg(feature = "peer")]
             peer_key,
+        })
+    }
+
+    /// Account data.
+    pub fn account_data(&self) -> Result<AccountData> {
+        Ok(AccountData {
+            account: self.user.account().clone(),
+            identity: self.user.identity().recipient().to_string(),
+            folders: self.storage.state().summaries().to_vec(),
+            #[cfg(feature = "device")]
+            device_address: self.user.device().public_id().to_owned(),
+            #[cfg(feature = "peer")]
+            peer_id: libp2p::PeerId::from(&self.peer_key.public()),
         })
     }
 
