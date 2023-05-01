@@ -22,7 +22,7 @@ use crate::{
     },
 };
 
-use crate::{Error, Result};
+use crate::Result;
 
 enum ConflictChoice {
     Push,

@@ -69,6 +69,7 @@ fn integration_command_line() -> Result<()> {
     account_info(&exe, &address, &password)?;
     account_rename(&exe, &address, &password)?;
     account_migrate(&exe, &address, &password)?;
+    account_contacts(&exe, &address, &password)?;
 
     StorageDirs::clear_cache_dir();
     std::env::remove_var("SOS_CACHE");
@@ -349,6 +350,47 @@ fn account_migrate(
         p.send_line(password.expose_secret())?;
     }
     p.exp_regex("file imported")?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
+fn account_contacts(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let import_file = PathBuf::from("tests/fixtures/contacts.vcf");
+
+    let cache_dir = StorageDirs::cache_dir().unwrap();
+    let export_file = cache_dir.join(format!("{}-contacts.vcf", address));
+
+    let cmd = format!(
+        "{} account contacts -a {} import {}",
+        exe,
+        address,
+        import_file.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("contacts imported")?;
+    p.exp_eof()?;
+
+    let cmd = format!(
+        "{} account contacts -a {} export {}",
+        exe,
+        address,
+        export_file.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("contacts exported")?;
     p.exp_eof()?;
 
     Ok(())

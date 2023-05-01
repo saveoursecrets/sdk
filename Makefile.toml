@@ -6,10 +6,11 @@ default_to_workspace = false
 
 [env]
 RUST_BACKTRACE = 0
-#RUST_LOG = 0
 BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 BINARIES = "sos"
-#CARGO_MAKE_UNSTABLE_FEATURE_CTRL_C_HANDLING = 1
+# Increase time for integration tests as the CLI
+# tests take a while due to so many exec calls
+RUST_TEST_TIME_INTEGRATION = "120000,240000"
 
 [tasks.fix-all]
 workspace = true
@@ -95,7 +96,7 @@ dependencies = ["check-wasm", "test", "format"]
 
 [tasks.check-wasm-node-client]
 command = "cargo"
-args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-node", "--no-default-features", "--features", "client"]
+args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-net", "--no-default-features", "--features", "client"]
 
 [tasks.check-wasm]
 command = "cargo"

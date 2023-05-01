@@ -1,0 +1,18 @@
+BEGIN:VCARD
+VERSION:3.0
+N:;Jane;;;
+FN:Jane
+ORG:Jane Doe;
+EMAIL;type=INTERNET;type=WORK;type=pref:janedoe@gmail.com
+TEL;type=IPHONE;type=CELL;type=VOICE;type=pref:004412345667890
+item1.ADR;type=HOME;type=pref:;;Flat 404\, 100 Main RD;London;;NW1\, 1AA;UK
+item1.X-ABADR:se
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+N:;John;;;
+FN:John
+ORG:John Doe;
+EMAIL;type=INTERNET;type=WORK;type=pref:johndoe@gmail.com
+TEL;type=IPHONE;type=CELL;type=VOICE;type=pref:004412345667890
+END:VCARD
