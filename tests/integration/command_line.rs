@@ -12,6 +12,7 @@ use secrecy::SecretString;
 use rexpect::{spawn, ReadUntil};
 
 const ACCOUNT_NAME: &str = "mock-account";
+const NEW_NAME: &str = "mock-account-renamed";
 const TIMEOUT: Option<u64> = Some(30000);
 
 fn is_coverage() -> bool {
@@ -64,6 +65,7 @@ fn integration_command_line() -> Result<()> {
     let address = account_list(&exe)?;
     account_backup_restore(&exe, &address, &password)?;
     account_info(&exe, &address, &password)?;
+    account_rename(&exe, &address, &password)?;
 
     StorageDirs::clear_cache_dir();
     std::env::remove_var("SOS_CACHE");
@@ -175,6 +177,36 @@ fn account_info(
         p.send_line(password.expose_secret())?;
     }
     p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn account_rename(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd =
+        format!("{} account rename -a {} --name {}", exe, address, NEW_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("account renamed")?;
+    p.exp_eof()?;
+
+    let cmd = format!(
+        "{} account rename -a {} --name {}",
+        exe, address, ACCOUNT_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("account renamed")?;
+    p.exp_eof()?;
 
     Ok(())
 }
