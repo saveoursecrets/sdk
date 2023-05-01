@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
+use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{
     account::AccountRef, storage::StorageDirs, url::Url, vault::VaultRef,
 };
-use sos_node::client::provider::ProviderFactory;
 use std::{ffi::OsString, path::PathBuf};
 
 use super::{

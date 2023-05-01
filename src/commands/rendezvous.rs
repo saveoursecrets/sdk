@@ -1,5 +1,5 @@
+use sos_net::peer::{libp2p::identity::Keypair, rendezvous::Server, Result};
 use sos_sdk::hex;
-use sos_node::peer::{libp2p::identity::Keypair, rendezvous::Server, Result};
 use std::{net::SocketAddr, str::FromStr};
 
 pub async fn run(identity: Option<String>, bind: String) -> Result<()> {

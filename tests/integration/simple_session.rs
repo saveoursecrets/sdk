@@ -10,19 +10,19 @@ use std::{
 };
 use url::Url;
 
+use sos_net::client::{
+    net::{
+        changes::{changes, connect},
+        RequestClient,
+    },
+    provider::StorageProvider,
+};
 use sos_sdk::{
     commit::CommitRelationship,
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
     storage::StorageDirs,
     vault::VaultRef,
-};
-use sos_node::client::{
-    net::{
-        changes::{changes, connect},
-        RequestClient,
-    },
-    provider::StorageProvider,
 };
 
 #[tokio::test]

@@ -96,10 +96,10 @@ pub enum Error {
     Core(#[from] sos_sdk::Error),
 
     #[error(transparent)]
-    Node(#[from] sos_node::Error),
+    Node(#[from] sos_net::Error),
 
     #[error(transparent)]
-    NodeClient(#[from] sos_node::client::Error),
+    NodeClient(#[from] sos_net::client::Error),
 
     #[error(transparent)]
     UrlParse(#[from] sos_sdk::url::ParseError),
@@ -120,10 +120,10 @@ pub enum Error {
     Vcard(#[from] vcard4::Error),
 
     #[error(transparent)]
-    Server(#[from] sos_node::server::Error),
+    Server(#[from] sos_net::server::Error),
 
     #[error(transparent)]
-    Peer(#[from] sos_node::peer::Error),
+    Peer(#[from] sos_net::peer::Error),
 }
 
 impl Error {

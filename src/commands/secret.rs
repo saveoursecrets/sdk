@@ -2,6 +2,10 @@ use clap::Subcommand;
 
 use std::{borrow::Cow, sync::Arc};
 
+use sos_net::client::{
+    provider::ProviderFactory,
+    user::{ArchiveFilter, DocumentView},
+};
 use sos_sdk::{
     account::AccountRef,
     search::Document,
@@ -10,10 +14,6 @@ use sos_sdk::{
         secret::{Secret, SecretRef},
         VaultRef,
     },
-};
-use sos_node::client::{
-    provider::ProviderFactory,
-    user::{ArchiveFilter, DocumentView},
 };
 
 use crate::{

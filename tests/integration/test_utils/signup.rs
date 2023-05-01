@@ -16,7 +16,7 @@ use sos_sdk::{
 use web3_address::ethereum::Address;
 
 use secrecy::ExposeSecret;
-use sos_node::client::{
+use sos_net::client::{
     net::RpcClient,
     provider::{RemoteProvider, StorageProvider},
 };

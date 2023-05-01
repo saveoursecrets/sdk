@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 rust-version = "1.68.2"
 description = "Distributed, encrypted database for private secrets."
@@ -11,9 +11,9 @@ categories = ["command-line-utilities", "cryptography::cryptocurrencies", "authe
 
 [workspace]
 members = [
-  "workspace/sdk",
   "workspace/migrate",
-  "workspace/node",
+  "workspace/net",
+  "workspace/sdk",
 ]
 
 [dependencies]
@@ -39,10 +39,10 @@ parking_lot = "0.12"
 once_cell = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-sos-node = { path = "workspace/node", version = "0.1.0" , features = ["full"]}
+sos-net = { path = "workspace/net", version = "0.5" , features = ["full"]}
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-sos-node = { path = "workspace/node", default-features = false, features = ["client"] }
+sos-net = { path = "workspace/net", version = "0.5", default-features = false, features = ["client"] }
 
 [dev-dependencies]
 http = "0.2"

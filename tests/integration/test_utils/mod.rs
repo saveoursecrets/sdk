@@ -18,7 +18,7 @@ use sos_sdk::{
     wal::file::WalFile,
 };
 
-use sos_node::{
+use sos_net::{
     client::provider::{RemoteProvider, StorageProvider},
     server::{BackendHandler, Server, ServerConfig, ServerInfo, State},
     FileLocks,

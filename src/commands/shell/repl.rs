@@ -5,6 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use terminal_banner::{Banner, Padding};
 
 use secrecy::ExposeSecret;
+use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{
     account::{AccountRef, DelegatedPassphrase},
     commit::SyncKind,
@@ -12,7 +13,6 @@ use sos_sdk::{
     secrecy,
     vault::{Vault, VaultRef},
 };
-use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     commands::{AccountCommand, FolderCommand, SecretCommand},
@@ -107,12 +107,12 @@ enum ShellCommand {
 async fn maybe_conflict<F, R>(state: Owner, func: F) -> Result<()>
 where
     F: FnOnce() -> R,
-    R: futures::Future<Output = sos_node::client::Result<()>>,
+    R: futures::Future<Output = sos_net::client::Result<()>>,
 {
     match func().await {
         Ok(_) => Ok(()),
         Err(e) => match e {
-            sos_node::client::Error::Conflict {
+            sos_net::client::Error::Conflict {
                 summary,
                 local,
                 remote,

@@ -4,6 +4,7 @@ use serial_test::serial;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use parking_lot::RwLock as SyncRwLock;
+use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{
     account::{
         AccountBackup, AccountBuilder, DelegatedPassphrase,
@@ -18,7 +19,6 @@ use sos_sdk::{
     urn::Urn,
     vault::{secret::SecretId, Gatekeeper, VaultId},
 };
-use sos_node::client::provider::ProviderFactory;
 
 use crate::test_utils::*;
 

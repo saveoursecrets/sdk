@@ -1,6 +1,7 @@
 //! Helpers for creating and switching accounts.
 use std::{borrow::Cow, sync::Arc};
 
+use sos_net::client::{provider::ProviderFactory, user::UserStorage};
 use sos_sdk::{
     account::{AccountBuilder, AccountInfo, AccountRef, LocalAccounts},
     passwd::diceware::generate_passphrase,
@@ -8,7 +9,6 @@ use sos_sdk::{
     storage::StorageDirs,
     vault::{Summary, VaultRef},
 };
-use sos_node::client::{provider::ProviderFactory, user::UserStorage};
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
 

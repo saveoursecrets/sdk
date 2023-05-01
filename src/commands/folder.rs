@@ -1,12 +1,12 @@
 use clap::Subcommand;
 
 use human_bytes::human_bytes;
+use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{
     account::{AccountRef, DelegatedPassphrase},
     hex,
     vault::VaultRef,
 };
-use sos_node::client::provider::ProviderFactory;
 
 use crate::{
     helpers::{

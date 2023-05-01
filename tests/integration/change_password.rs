@@ -9,13 +9,13 @@ use std::{
     time::Duration,
 };
 
+use sos_net::client::{
+    net::changes::{changes, connect},
+    provider::StorageProvider,
+};
 use sos_sdk::{
     events::{ChangeEvent, ChangeNotification},
     passwd::diceware::generate_passphrase,
-};
-use sos_node::client::{
-    net::changes::{changes, connect},
-    provider::StorageProvider,
 };
 
 #[tokio::test]

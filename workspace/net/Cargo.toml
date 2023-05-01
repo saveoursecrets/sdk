@@ -1,8 +1,8 @@
 [package]
-name = "sos-node"
-version = "0.1.0"
+name = "sos-net"
+version = "0.5.0"
 edition = "2021"
-description = "Distributed, encrypted database for private secrets."
+description = "Networking library for the SOS SDK."
 homepage = "https://saveoursecrets.com"
 license = "GPL-3.0"
 
@@ -40,8 +40,8 @@ device = [
 ]
 
 [dependencies]
-sos-sdk = { path = "../sdk", version = "0.1.0" }
-sos-migrate = { path = "../migrate", version = "0.1.0", optional = true }
+sos-sdk = { path = "../sdk", version = "0.5" }
+sos-migrate = { path = "../migrate", version = "0.5", optional = true }
 
 thiserror = "1"
 tracing = "0.1"

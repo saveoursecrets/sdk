@@ -2,7 +2,7 @@
 #![allow(clippy::module_inception)]
 #![deny(missing_docs)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Library for network communication.
+//! Networking library for the SOS SDK.
 
 #[cfg(not(target_arch = "wasm32"))]
 mod file_locks;
@@ -18,7 +18,7 @@ pub mod server;
 
 mod error;
 
-/// Result type for the node module.
+/// Result type for the network module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub use error::Error;
 

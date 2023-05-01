@@ -7,6 +7,7 @@ use crate::test_utils::*;
 use secrecy::SecretString;
 use tempfile::tempdir;
 
+use sos_net::client::provider::{LocalProvider, StorageProvider};
 use sos_sdk::{
     account::{archive::Writer, AccountBackup, Identity, RestoreOptions},
     encode,
@@ -15,7 +16,6 @@ use sos_sdk::{
     storage::StorageDirs,
     vault::{Gatekeeper, Vault},
 };
-use sos_node::client::provider::{LocalProvider, StorageProvider};
 use web3_address::ethereum::Address;
 
 fn create_archive(

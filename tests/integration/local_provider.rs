@@ -6,6 +6,7 @@ use crate::test_utils::*;
 use tempfile::tempdir;
 
 use secrecy::ExposeSecret;
+use sos_net::client::provider::{LocalProvider, StorageProvider};
 use sos_sdk::{
     events::SyncEvent,
     patch::PatchProvider,
@@ -14,7 +15,6 @@ use sos_sdk::{
     vault::secret::Secret,
     wal::WalProvider,
 };
-use sos_node::client::provider::{LocalProvider, StorageProvider};
 
 macro_rules! commit_count {
     ($storage:expr, $summary:expr, $amount:expr) => {{

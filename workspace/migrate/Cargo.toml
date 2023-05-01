@@ -1,10 +1,10 @@
 [package]
 name = "sos-migrate"
-version = "0.1.0"
+version = "0.5.0"
 edition = "2021"
 
 [dependencies]
-sos-sdk = { path = "../sdk", version = "0.1.0" }
+sos-sdk = { path = "../sdk", version = "0.5" }
 thiserror = "1"
 secrecy = { version = "0.8", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
@@ -24,7 +24,7 @@ logos = "0.12"
 plist = "1"
 
 [dev-dependencies]
-sos-sdk = { path = "../sdk", version = "0.1.0", features = ["test-utils"] }
+sos-sdk = { path = "../sdk", version = "0.5", features = ["test-utils"] }
 anyhow = "1"
 
 [features]
