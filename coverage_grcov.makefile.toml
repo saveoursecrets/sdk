@@ -51,9 +51,10 @@ args = ["build"]
 condition = { rust_version = { min = "1.60.0" } }
 private=true
 command = "cargo"
-args = ["test", "--all"]
+args = ["test", "--all", "--", "--nocapture"]
 
 [tasks.coverage_grcov_run_test_stable.env]
+"COVERAGE" = "1"
 "CARGO_BUILD_TARGET_DIR"="${COVERAGE_TARGET_DIRECTORY}"
 "LLVM_PROFILE_FILE"="${COVERAGE_PROF_OUTPUT}/coverage-%p-%m.profraw"
 

@@ -152,9 +152,6 @@ args = ["clean", "--target-dir", "target/cover"]
 [tasks.cover]
 dependencies = ["clean-cover", "clean-coverage", "coverage", "genhtml", "clean-profraw"]
 
-[tasks.cover.env]
-COVERAGE = "1"
-
 [tasks.brew]
 script = '''
 cd target && rm -rf homebrew && mkdir homebrew && cd homebrew

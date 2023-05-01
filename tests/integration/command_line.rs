@@ -16,7 +16,7 @@ const NEW_NAME: &str = "mock-account-renamed";
 const TIMEOUT: Option<u64> = Some(30000);
 
 fn is_coverage() -> bool {
-    env_is_set("COVERAGE")
+    env_is_set("COVERAGE") && env_is_set("COVERAGE_BINARIES")
 }
 
 fn is_ci() -> bool {
