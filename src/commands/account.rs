@@ -86,12 +86,6 @@ pub enum Command {
         #[clap(short, long)]
         account: Option<AccountRef>,
     },
-    /// Delete an account.
-    Delete {
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
-    },
     /// Export and import unencrypted secrets.
     Migrate {
         /// Account name or address.
@@ -109,6 +103,12 @@ pub enum Command {
 
         #[clap(subcommand)]
         cmd: ContactsCommand,
+    },
+    /// Delete an account.
+    Delete {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
     },
 }
 

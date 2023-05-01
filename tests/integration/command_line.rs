@@ -66,6 +66,7 @@ fn integration_command_line() -> Result<()> {
     account_backup_restore(&exe, &address, &password)?;
     account_info(&exe, &address, &password)?;
     account_rename(&exe, &address, &password)?;
+    account_migrate(&exe, &address, &password)?;
 
     StorageDirs::clear_cache_dir();
     std::env::remove_var("SOS_CACHE");
@@ -206,6 +207,49 @@ fn account_rename(
         p.send_line(password.expose_secret())?;
     }
     p.exp_regex("account renamed")?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
+fn account_migrate(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cache_dir = StorageDirs::cache_dir().unwrap();
+    let export_file = cache_dir.join(format!("{}-export.zip", address));
+
+    let cmd = format!(
+        "{} account migrate -a {} export {}",
+        exe,
+        address,
+        export_file.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+        p.exp_regex("Export UNENCRYPTED account")?;
+        p.send_line("y")?;
+    }
+    p.exp_regex("account exported")?;
+    p.exp_eof()?;
+
+    let cmd = format!(
+        "{} account migrate -a {} export --force {}",
+        exe,
+        address,
+        export_file.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+        p.exp_regex("Export UNENCRYPTED account")?;
+        p.send_line("y")?;
+    }
+    p.exp_regex("account exported")?;
     p.exp_eof()?;
 
     Ok(())
