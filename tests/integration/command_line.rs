@@ -7,6 +7,8 @@ use sos_sdk::{
     signer::ecdsa::Address, storage::StorageDirs,
 };
 
+use sos_net::migrate::import::ImportFormat;
+
 use secrecy::SecretString;
 
 use rexpect::{spawn, ReadUntil};
@@ -219,6 +221,7 @@ fn account_migrate(
 ) -> Result<()> {
     let cache_dir = StorageDirs::cache_dir().unwrap();
     let export_file = cache_dir.join(format!("{}-export.zip", address));
+    let fixtures = PathBuf::from("workspace/migrate/fixtures");
 
     let cmd = format!(
         "{} account migrate -a {} export {}",
@@ -250,6 +253,102 @@ fn account_migrate(
         p.send_line("y")?;
     }
     p.exp_regex("account exported")?;
+    p.exp_eof()?;
+
+    let file = fixtures.join("1password-export.csv");
+    let cmd = format!(
+        "{} account migrate -a {} import --format {} {}",
+        exe,
+        address,
+        ImportFormat::OnePasswordCsv.to_string(),
+        file.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("file imported")?;
+    p.exp_eof()?;
+
+    let file = fixtures.join("dashlane-export.zip");
+    let cmd = format!(
+        "{} account migrate -a {} import --format {} {}",
+        exe,
+        address,
+        ImportFormat::DashlaneZip.to_string(),
+        file.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("file imported")?;
+    p.exp_eof()?;
+
+    let file = fixtures.join("bitwarden-export.csv");
+    let cmd = format!(
+        "{} account migrate -a {} import --format {} {}",
+        exe,
+        address,
+        ImportFormat::BitwardenCsv.to_string(),
+        file.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("file imported")?;
+    p.exp_eof()?;
+
+    let file = fixtures.join("chrome-export.csv");
+    let cmd = format!(
+        "{} account migrate -a {} import --format {} {}",
+        exe,
+        address,
+        ImportFormat::ChromeCsv.to_string(),
+        file.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("file imported")?;
+    p.exp_eof()?;
+
+    let file = fixtures.join("firefox-export.csv");
+    let cmd = format!(
+        "{} account migrate -a {} import --format {} {}",
+        exe,
+        address,
+        ImportFormat::FirefoxCsv.to_string(),
+        file.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("file imported")?;
+    p.exp_eof()?;
+
+    let file = fixtures.join("macos-export.csv");
+    let cmd = format!(
+        "{} account migrate -a {} import --format {} {}",
+        exe,
+        address,
+        ImportFormat::MacosCsv.to_string(),
+        file.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("file imported")?;
     p.exp_eof()?;
 
     Ok(())

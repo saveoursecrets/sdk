@@ -51,7 +51,7 @@ impl FromStr for ImportFormat {
             "chrome.csv" => Self::ChromeCsv,
             "firefox.csv" => Self::FirefoxCsv,
             "macos.csv" => Self::MacosCsv,
-            _ => todo!(),
+            _ => return Err(Error::UnknownImportFormat(s.to_owned())),
         })
     }
 }
