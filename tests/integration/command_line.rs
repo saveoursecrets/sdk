@@ -71,6 +71,8 @@ fn integration_command_line() -> Result<()> {
     account_migrate(&exe, &address, &password)?;
     account_contacts(&exe, &address, &password)?;
 
+    account_delete(&exe, &address, &password)?;
+
     StorageDirs::clear_cache_dir();
     std::env::remove_var("SOS_CACHE");
     std::env::remove_var("SOS_YES");
@@ -391,6 +393,25 @@ fn account_contacts(
         p.send_line(password.expose_secret())?;
     }
     p.exp_regex("contacts exported")?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
+fn account_delete(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!("{} account delete -a {}", exe, address);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+        p.exp_regex("Delete account")?;
+        p.send_line("y")?;
+    }
+    p.exp_regex("account deleted")?;
     p.exp_eof()?;
 
     Ok(())
