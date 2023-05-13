@@ -13,9 +13,11 @@ use secrecy::SecretString;
 
 use rexpect::{spawn, ReadUntil};
 
+const TIMEOUT: Option<u64> = Some(30000);
+
 const ACCOUNT_NAME: &str = "mock-account";
 const NEW_NAME: &str = "mock-account-renamed";
-const TIMEOUT: Option<u64> = Some(30000);
+const MOCK_FOLDER: &str = "mock-folder";
 
 fn is_coverage() -> bool {
     env_is_set("COVERAGE") && env_is_set("COVERAGE_BINARIES")
@@ -70,6 +72,9 @@ fn integration_command_line() -> Result<()> {
     account_rename(&exe, &address, &password)?;
     account_migrate(&exe, &address, &password)?;
     account_contacts(&exe, &address, &password)?;
+
+    folder_list(&exe, &address, &password)?;
+    folder_new(&exe, &address, &password)?;
 
     account_delete(&exe, &address, &password)?;
 
@@ -393,6 +398,63 @@ fn account_contacts(
         p.send_line(password.expose_secret())?;
     }
     p.exp_regex("contacts exported")?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
+fn folder_list(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!(
+        "{} folder list -a {}",
+        exe,
+        address,
+    );
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!(
+        "{} folder list --verbose -a {}",
+        exe,
+        address,
+    );
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn folder_new(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!(
+        "{} folder new -a {} {}",
+        exe,
+        address,
+        MOCK_FOLDER,
+    );
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex(&format!("{} created", MOCK_FOLDER))?;
     p.exp_eof()?;
 
     Ok(())

@@ -23,7 +23,8 @@ pub enum Command {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
-
+        
+        /// Use this folder when interactive shell.
         #[clap(long)]
         r#use: bool,
 
