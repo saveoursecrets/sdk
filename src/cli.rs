@@ -3,7 +3,7 @@ use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{
     account::AccountRef, storage::StorageDirs, url::Url, vault::VaultRef,
 };
-use std::{ffi::OsString, path::PathBuf};
+use std::path::PathBuf;
 
 use super::{
     commands::{

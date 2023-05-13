@@ -1,25 +1,13 @@
-use std::{borrow::Cow, ffi::OsString};
+use std::ffi::OsString;
 
 use clap::{CommandFactory, Parser, Subcommand};
 
-use terminal_banner::{Banner, Padding};
-
-use secrecy::ExposeSecret;
 use sos_net::client::provider::ProviderFactory;
-use sos_sdk::{
-    account::{AccountRef, DelegatedPassphrase},
-    commit::SyncKind,
-    passwd::diceware::generate_passphrase,
-    secrecy,
-    vault::{Vault, VaultRef},
-};
+use sos_sdk::{account::AccountRef, vault::VaultRef};
 
 use crate::{
     commands::{AccountCommand, FolderCommand, SecretCommand},
-    helpers::{
-        account::{switch, use_folder, Owner},
-        readline::{read_flag, read_password},
-    },
+    helpers::account::{switch, use_folder, Owner},
 };
 
 use crate::Result;

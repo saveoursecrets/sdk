@@ -16,8 +16,9 @@ use rexpect::{spawn, ReadUntil};
 const TIMEOUT: Option<u64> = Some(30000);
 
 const ACCOUNT_NAME: &str = "mock-account";
-const NEW_NAME: &str = "mock-account-renamed";
-const MOCK_FOLDER: &str = "mock-folder";
+const NEW_ACCOUNT_NAME: &str = "mock-account-renamed";
+const FOLDER_NAME: &str = "mock-folder";
+const NEW_FOLDER_NAME: &str = "mock-folder-renamed";
 
 fn is_coverage() -> bool {
     env_is_set("COVERAGE") && env_is_set("COVERAGE_BINARIES")
@@ -73,8 +74,16 @@ fn integration_command_line() -> Result<()> {
     account_migrate(&exe, &address, &password)?;
     account_contacts(&exe, &address, &password)?;
 
-    folder_list(&exe, &address, &password)?;
     folder_new(&exe, &address, &password)?;
+    folder_list(&exe, &address, &password)?;
+    folder_info(&exe, &address, &password)?;
+    folder_keys(&exe, &address, &password)?;
+    folder_commits(&exe, &address, &password)?;
+    folder_rename(&exe, &address, &password)?;
+    folder_history_compact(&exe, &address, &password)?;
+    folder_history_check(&exe, &address, &password)?;
+    folder_history_list(&exe, &address, &password)?;
+    folder_remove(&exe, &address, &password)?;
 
     account_delete(&exe, &address, &password)?;
 
@@ -197,8 +206,10 @@ fn account_rename(
     address: &str,
     password: &SecretString,
 ) -> Result<()> {
-    let cmd =
-        format!("{} account rename -a {} --name {}", exe, address, NEW_NAME);
+    let cmd = format!(
+        "{} account rename -a {} --name {}",
+        exe, address, NEW_ACCOUNT_NAME
+    );
     let mut p = spawn(&cmd, TIMEOUT)?;
     if !is_ci() {
         p.exp_regex("Password:")?;
@@ -403,16 +414,30 @@ fn account_contacts(
     Ok(())
 }
 
+fn folder_new(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!("{} folder new -a {} {}", exe, address, FOLDER_NAME);
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex(&format!("{} created", FOLDER_NAME))?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
 fn folder_list(
     exe: &str,
     address: &str,
     password: &SecretString,
 ) -> Result<()> {
-    let cmd = format!(
-        "{} folder list -a {}",
-        exe,
-        address,
-    );
+    let cmd = format!("{} folder list -a {}", exe, address);
 
     let mut p = spawn(&cmd, TIMEOUT)?;
     if !is_ci() {
@@ -421,10 +446,131 @@ fn folder_list(
     }
     p.exp_any(vec![ReadUntil::EOF])?;
 
+    let cmd = format!("{} folder list --verbose -a {}", exe, address);
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn folder_info(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!("{} folder info -a {} {}", exe, address, FOLDER_NAME);
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn folder_keys(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!("{} folder keys -a {} {}", exe, address, FOLDER_NAME);
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn folder_commits(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd =
+        format!("{} folder commits -a {} {}", exe, address, FOLDER_NAME);
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn folder_rename(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
     let cmd = format!(
-        "{} folder list --verbose -a {}",
-        exe,
-        address,
+        "{} folder rename -a {} -n {} {}",
+        exe, address, NEW_FOLDER_NAME, FOLDER_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!(
+        "{} folder rename -a {} -n {} {}",
+        exe, address, FOLDER_NAME, NEW_FOLDER_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn folder_history_compact(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!(
+        "{} folder history compact -a {} {}",
+        exe, address, FOLDER_NAME
+    );
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+
+        p.exp_regex("Compaction will remove history")?;
+        p.send_line("y")?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn folder_history_check(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!(
+        "{} folder history check -a {} {}",
+        exe, address, FOLDER_NAME
     );
 
     let mut p = spawn(&cmd, TIMEOUT)?;
@@ -437,24 +583,52 @@ fn folder_list(
     Ok(())
 }
 
-fn folder_new(
+fn folder_history_list(
     exe: &str,
     address: &str,
     password: &SecretString,
 ) -> Result<()> {
     let cmd = format!(
-        "{} folder new -a {} {}",
-        exe,
-        address,
-        MOCK_FOLDER,
+        "{} folder history list -a {} {}",
+        exe, address, FOLDER_NAME
     );
-
     let mut p = spawn(&cmd, TIMEOUT)?;
     if !is_ci() {
         p.exp_regex("Password:")?;
         p.send_line(password.expose_secret())?;
     }
-    p.exp_regex(&format!("{} created", MOCK_FOLDER))?;
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!(
+        "{} folder history list --verbose -a {} {}",
+        exe, address, FOLDER_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn folder_remove(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!("{} folder remove -a {} {}", exe, address, FOLDER_NAME);
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+
+        p.exp_regex("Delete folder")?;
+        p.send_line("y")?;
+    }
+    p.exp_regex(&format!("{} removed", FOLDER_NAME))?;
     p.exp_eof()?;
 
     Ok(())

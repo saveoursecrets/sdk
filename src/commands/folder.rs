@@ -23,7 +23,7 @@ pub enum Command {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
-        
+
         /// Use this folder when interactive shell.
         #[clap(long)]
         r#use: bool,
@@ -55,11 +55,6 @@ pub enum Command {
     },
     /// Print folder information.
     Info {
-        /*
-        /// Print more information.
-        #[clap(short, long)]
-        verbose: bool,
-        */
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -101,13 +96,6 @@ pub enum Command {
     },
     /// Manage the history for a folder.
     History {
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
-
-        /// Folder name or id.
-        folder: Option<VaultRef>,
-
         #[clap(subcommand)]
         cmd: History,
     },
@@ -117,15 +105,36 @@ pub enum Command {
 #[derive(Subcommand, Debug)]
 pub enum History {
     /// Compact the history for this folder.
-    Compact,
+    Compact {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        folder: Option<VaultRef>,
+    },
     /// Verify the integrity of the folder history.
-    Check,
+    Check {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        folder: Option<VaultRef>,
+    },
     /// List history events.
     #[clap(alias = "ls")]
     List {
         /// Print more information.
         #[clap(short, long)]
         verbose: bool,
+
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        folder: Option<VaultRef>,
     },
 }
 
@@ -260,10 +269,20 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         }
 
         Command::History {
-            account,
-            folder,
             cmd,
         } => {
+            let (account, folder) = match &cmd {
+                History::Compact { account, folder } => {
+                    (account.clone(), folder)
+                }
+                History::Check { account, folder } => {
+                    (account.clone(), folder)
+                }
+                History::List { account, folder, .. } => {
+                    (account.clone(), folder)
+                }
+            };
+
             let user = resolve_user(account, factory, false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
@@ -282,7 +301,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
 
             match cmd {
-                History::Compact => {
+                History::Compact { .. } => {
                     let reader = user.read().await;
                     let keeper = reader
                         .storage
@@ -302,7 +321,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                         println!("New: {}", human_bytes(new_size as f64));
                     }
                 }
-                History::Check => {
+                History::Check { .. } => {
                     let reader = user.read().await;
                     let keeper = reader
                         .storage
@@ -311,7 +330,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     reader.storage.verify(keeper.summary())?;
                     println!("Verified ✓");
                 }
-                History::List { verbose } => {
+                History::List { verbose, .. } => {
                     let reader = user.read().await;
                     let keeper = reader
                         .storage
