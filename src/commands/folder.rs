@@ -268,9 +268,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             println!("{} -> {} ✓", summary.name(), name);
         }
 
-        Command::History {
-            cmd,
-        } => {
+        Command::History { cmd } => {
             let (account, folder) = match &cmd {
                 History::Compact { account, folder } => {
                     (account.clone(), folder)
@@ -278,9 +276,9 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 History::Check { account, folder } => {
                     (account.clone(), folder)
                 }
-                History::List { account, folder, .. } => {
-                    (account.clone(), folder)
-                }
+                History::List {
+                    account, folder, ..
+                } => (account.clone(), folder),
             };
 
             let user = resolve_user(account, factory, false).await?;

@@ -588,10 +588,8 @@ fn folder_history_list(
     address: &str,
     password: &SecretString,
 ) -> Result<()> {
-    let cmd = format!(
-        "{} folder history list -a {} {}",
-        exe, address, FOLDER_NAME
-    );
+    let cmd =
+        format!("{} folder history list -a {} {}", exe, address, FOLDER_NAME);
     let mut p = spawn(&cmd, TIMEOUT)?;
     if !is_ci() {
         p.exp_regex("Password:")?;
