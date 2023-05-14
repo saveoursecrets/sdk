@@ -86,7 +86,7 @@ pub enum Command {
         secret: SecretRef,
     },
     /// Print secret meta data.
-    Meta {
+    Info {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -364,7 +364,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 print_secret(&data.meta, &data.secret)?;
             }
         }
-        Command::Meta {
+        Command::Info {
             account,
             folder,
             secret,
