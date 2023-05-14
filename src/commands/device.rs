@@ -8,7 +8,10 @@ use sos_net::{
 };
 use sos_sdk::account::AccountRef;
 
-use crate::{helpers::{account::resolve_user, readline::read_flag}, Error, Result};
+use crate::{
+    helpers::{account::resolve_user, readline::read_flag},
+    Error, Result,
+};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -68,14 +71,12 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             if let Some(device) =
                 resolve_device(Arc::clone(&user), &id).await?
             {
-                let prompt =
-                    format!(r#"Remove device "{}" (y/n)? "#, &id);
+                let prompt = format!(r#"Remove device "{}" (y/n)? "#, &id);
                 if read_flag(Some(&prompt))? {
                     let mut owner = user.write().await;
                     owner.devices_mut().remove(&device)?;
                     println!("Device removed ✓");
                 }
-
             } else {
                 return Err(Error::DeviceNotFound(id));
             }

@@ -229,7 +229,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             {
                 let mut owner = user.write().await;
                 let contacts = owner
-                    .contacts()
+                    .contacts_folder()
                     .ok_or_else(|| Error::NoContactsFolder)?;
                 owner.open_folder(&contacts)?;
             }

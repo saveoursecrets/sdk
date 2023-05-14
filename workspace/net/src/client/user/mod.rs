@@ -187,10 +187,41 @@ impl UserStorage {
         &mut self.devices
     }
 
+    /// Find the default folder.
+    pub fn default_folder(&self) -> Option<Summary> {
+        self.storage
+            .state()
+            .find(|s| s.flags().is_default())
+            .cloned()
+    }
+
+    /// Find the authenticator folder.
+    pub fn authenticator_folder(&self) -> Option<Summary> {
+        self.storage
+            .state()
+            .find(|s| s.flags().is_authenticator())
+            .cloned()
+    }
+
+    /// Find the contacts folder.
+    pub fn contacts_folder(&self) -> Option<Summary> {
+        self.storage
+            .state()
+            .find(|s| s.flags().is_contact())
+            .cloned()
+    }
+
+    /// Find the archive folder.
+    pub fn archive_folder(&self) -> Option<Summary> {
+        self.storage
+            .state()
+            .find(|s| s.flags().is_archive())
+            .cloned()
+    }
+
     /// List folders.
     pub async fn list_folders(&mut self) -> Result<Vec<Summary>> {
-        let summaries = self.storage.load_vaults().await?;
-        Ok(summaries.to_vec())
+        Ok(self.storage.load_vaults().await?.to_vec())
     }
 
     /// Sign out of the account.
@@ -270,10 +301,7 @@ impl UserStorage {
 
         if save_passphrase {
             let default_summary = self
-                .storage
-                .state()
-                .find(|s| s.flags().is_default())
-                .cloned()
+                .default_folder()
                 .ok_or_else(|| Error::NoDefaultFolder)?;
 
             let passphrase = DelegatedPassphrase::find_vault_passphrase(
@@ -899,15 +927,6 @@ impl UserStorage {
             .add_folder_to_search_index(vault, vault_passphrase)?;
 
         Ok(summary)
-    }
-
-    #[cfg(feature = "contacts")]
-    /// Find the contacts folder.
-    pub fn contacts(&self) -> Option<Summary> {
-        self.storage
-            .state()
-            .find(|s| s.flags().is_contact())
-            .cloned()
     }
 
     /// Get an avatar JPEG image for a contact in the current

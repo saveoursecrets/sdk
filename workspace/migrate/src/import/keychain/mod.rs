@@ -367,7 +367,7 @@ mod test {
             SecretString::new("mock-vault-password".to_owned());
 
         let mut vault: Vault = Default::default();
-        vault.initialize(vault_password.expose_secret(), None)?;
+        vault.initialize(vault_password.clone(), None)?;
 
         let vault = KeychainImport.convert(
             data_dump.unwrap(),
