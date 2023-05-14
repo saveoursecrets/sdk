@@ -19,6 +19,16 @@ pub enum Error {
     #[error("archive folder does not exist")]
     NoArchive,
 
+    /// Error generated when attempting to archive a secret that
+    /// is already archived.
+    #[error("cannot move to archive, already archived")]
+    AlreadyArchived,
+
+    /// Error generated when attempting to unarchive a secret that
+    /// is not archived.
+    #[error("cannot unarchive, not archived")]
+    NotArchived,
+
     /// Error generated when a path is not a directory.
     #[error("path {0} is not a directory")]
     NotDirectory(PathBuf),

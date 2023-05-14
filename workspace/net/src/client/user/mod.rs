@@ -17,7 +17,7 @@ use sos_sdk::{
     signer::ecdsa::Address,
     storage::{EncryptedFile, FileStorage, StorageDirs},
     vault::{
-        secret::{Secret, SecretData, SecretId, SecretMeta},
+        secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess, VaultId,
     },
     Timestamp,
@@ -562,9 +562,48 @@ impl UserStorage {
         SyncEvent<'static>,
         SyncEvent<'static>,
     )> {
+        if from.flags().is_archive() {
+            return Err(Error::AlreadyArchived);
+        }
         self.open_folder(from)?;
         let to = self.archive_folder().ok_or_else(|| Error::NoArchive)?;
         self.move_secret(from, &to, secret_id).await
+    }
+
+    /// Move a secret out of the archive.
+    ///
+    /// The secret must be inside a folder with the archive flag set.
+    pub async fn unarchive(
+        &mut self,
+        from: &Summary,
+        secret_id: &SecretId,
+        secret_meta: &SecretMeta,
+    ) -> Result<(
+        Summary,
+        SecretId,
+        SyncEvent<'static>,
+        SyncEvent<'static>,
+        SyncEvent<'static>,
+    )> {
+        if !from.flags().is_archive() {
+            return Err(Error::NotArchived);
+        }
+        self.open_folder(from)?;
+        let mut to = self
+            .default_folder()
+            .ok_or_else(|| Error::NoDefaultFolder)?;
+        let authenticator = self.authenticator_folder();
+        let contacts = self.contacts_folder();
+        if secret_meta.kind() == &SecretType::Totp && authenticator.is_some()
+        {
+            to = authenticator.unwrap();
+        } else if secret_meta.kind() == &SecretType::Contact
+            && contacts.is_some()
+        {
+            to = contacts.unwrap();
+        }
+        let (id, e1, e2, e3) = self.move_secret(from, &to, secret_id).await?;
+        Ok((to, id, e1, e2, e3))
     }
 
     /// Move a secret between folders.
