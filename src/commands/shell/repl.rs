@@ -12,12 +12,6 @@ use crate::{
 
 use crate::Result;
 
-enum ConflictChoice {
-    Push,
-    Pull,
-    Noop,
-}
-
 /// Secret storage shell.
 #[derive(Parser, Debug)]
 #[clap(name = "shell", author, version, about, long_about = None)]
@@ -28,9 +22,6 @@ struct Shell {
 
 #[derive(Subcommand, Debug)]
 enum ShellCommand {
-    /// Renew session authentication.
-    #[clap(alias = "auth")]
-    Authenticate,
     /// Set a folder as the current working directory.
     Cd {
         /// Folder name or id.
@@ -48,7 +39,7 @@ enum ShellCommand {
         #[clap(subcommand)]
         cmd: FolderCommand,
     },
-    /// Create edit and delete secrets.
+    /// Create, edit and delete secrets.
     #[clap(alias = "s")]
     Secret {
         #[clap(subcommand)]
@@ -90,6 +81,14 @@ enum ShellCommand {
     #[clap(alias = "q")]
     Quit,
 }
+
+/*
+enum ConflictChoice {
+    Push,
+    Pull,
+    Noop,
+}
+*/
 
 /*
 async fn maybe_conflict<F, R>(state: Owner, func: F) -> Result<()>
@@ -164,12 +163,6 @@ async fn exec_program(
     state: Owner,
 ) -> Result<()> {
     match program.cmd {
-        ShellCommand::Authenticate => {
-            let mut writer = state.write().await;
-            writer.storage.authenticate().await?;
-            println!("session renewed ✓");
-            Ok(())
-        }
         ShellCommand::Account { cmd } => {
             let mut new_name: Option<String> = None;
             if let AccountCommand::Rename { name, .. } = &cmd {
