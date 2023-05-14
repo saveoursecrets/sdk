@@ -3,18 +3,19 @@ use clap::Subcommand;
 use std::{borrow::Cow, sync::Arc};
 
 use terminal_banner::{Banner, Padding};
+use tokio::sync::RwLock;
 
 use sos_net::client::{
     provider::ProviderFactory,
-    user::{ArchiveFilter, DocumentView},
+    user::{ArchiveFilter, DocumentView, UserStorage},
 };
 use sos_sdk::{
     account::AccountRef,
     search::Document,
     secrecy::ExposeSecret,
     vault::{
-        secret::{Secret, SecretRef},
-        VaultRef,
+        secret::{Secret, SecretId, SecretMeta, SecretRef},
+        Summary, VaultRef,
     },
 };
 
@@ -119,6 +120,20 @@ pub enum Command {
         /// Secret name or identifier.
         secret: SecretRef,
     },
+    /// Toggle favorite flag.
+    #[clap(alias = "fav")]
+    Favorite {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Rename a secret.
     Rename {
         /// Account name or address.
@@ -201,6 +216,52 @@ pub enum AddCommand {
         /// Name of the secret.
         name: Option<String>,
     },
+}
+
+struct ResolvedSecret {
+    user: Arc<RwLock<UserStorage>>,
+    secret_id: SecretId,
+    meta: SecretMeta,
+    verified: bool,
+    summary: Summary,
+}
+
+async fn resolve_verify(
+    factory: ProviderFactory,
+    account: Option<AccountRef>,
+    folder: Option<VaultRef>,
+    secret: SecretRef,
+) -> Result<ResolvedSecret> {
+    let is_shell = USER.get().is_some();
+
+    let user = resolve_user(account, factory, true).await?;
+    let summary = resolve_folder(&user, folder.as_ref())
+        .await?
+        .ok_or_else(|| Error::NoFolderFound)?;
+
+    if !is_shell || folder.is_some() {
+        let mut owner = user.write().await;
+        owner.open_folder(&summary)?;
+    }
+
+    let (secret_id, meta) =
+        resolve_secret(Arc::clone(&user), &summary, &secret)
+            .await?
+            .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+
+    let verified = if meta.flags().must_verify() {
+        verify(Arc::clone(&user)).await?
+    } else {
+        true
+    };
+
+    Ok(ResolvedSecret {
+        user,
+        secret_id,
+        meta,
+        summary,
+        verified,
+    })
 }
 
 pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
@@ -294,30 +355,12 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             secret,
         } => {
-            let user = resolve_user(account, factory, true).await?;
-            let summary = resolve_folder(&user, folder.as_ref())
-                .await?
-                .ok_or_else(|| Error::NoFolderFound)?;
-
-            if !is_shell || folder.is_some() {
-                let mut owner = user.write().await;
-                owner.open_folder(&summary)?;
-            }
-
-            let (secret_id, meta) =
-                resolve_secret(Arc::clone(&user), &summary, &secret)
-                    .await?
-                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-
-            let verified = if meta.flags().must_verify() {
-                verify(Arc::clone(&user)).await?
-            } else {
-                true
-            };
-
-            if verified {
-                let mut owner = user.write().await;
-                let (data, _) = owner.read_secret(&secret_id).await?;
+            let resolved =
+                resolve_verify(factory, account, folder, secret).await?;
+            if resolved.verified {
+                let mut owner = resolved.user.write().await;
+                let (data, _) =
+                    owner.read_secret(&resolved.secret_id).await?;
                 print_secret(&data.meta, &data.secret)?;
             }
         }
@@ -328,28 +371,11 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             debug,
             json,
         } => {
-            let user = resolve_user(account, factory, true).await?;
-            let summary = resolve_folder(&user, folder.as_ref())
-                .await?
-                .ok_or_else(|| Error::NoFolderFound)?;
+            let resolved =
+                resolve_verify(factory, account, folder, secret).await?;
+            if resolved.verified {
+                let meta = resolved.meta;
 
-            if !is_shell || folder.is_some() {
-                let mut owner = user.write().await;
-                owner.open_folder(&summary)?;
-            }
-
-            let (_secret_id, meta) =
-                resolve_secret(Arc::clone(&user), &summary, &secret)
-                    .await?
-                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-
-            let verified = if meta.flags().must_verify() {
-                verify(Arc::clone(&user)).await?
-            } else {
-                true
-            };
-
-            if verified {
                 if debug {
                     println!("{:#?}", meta);
                 } else if json {
@@ -372,30 +398,12 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             secret,
         } => {
-            let user = resolve_user(account, factory, true).await?;
-            let summary = resolve_folder(&user, folder.as_ref())
-                .await?
-                .ok_or_else(|| Error::NoFolderFound)?;
-
-            if !is_shell || folder.is_some() {
-                let mut owner = user.write().await;
-                owner.open_folder(&summary)?;
-            }
-
-            let (secret_id, meta) =
-                resolve_secret(Arc::clone(&user), &summary, &secret)
-                    .await?
-                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-
-            let verified = if meta.flags().must_verify() {
-                verify(Arc::clone(&user)).await?
-            } else {
-                true
-            };
-
-            if verified {
-                let mut owner = user.write().await;
-                let (data, _) = owner.read_secret(&secret_id).await?;
+            let resolved =
+                resolve_verify(factory, account, folder, secret).await?;
+            if resolved.verified {
+                let mut owner = resolved.user.write().await;
+                let (data, _) =
+                    owner.read_secret(&resolved.secret_id).await?;
 
                 let result = if let Secret::File {
                     name, mime, buffer, ..
@@ -420,7 +428,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 if let Cow::Owned(edited_secret) = result {
                     owner
                         .update_secret(
-                            &secret_id,
+                            &resolved.secret_id,
                             data.meta,
                             Some(edited_secret),
                             None,
@@ -434,38 +442,50 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 }
             }
         }
+        Command::Favorite {
+            account,
+            folder,
+            secret,
+        } => {
+            let mut resolved =
+                resolve_verify(factory, account, folder, secret).await?;
+            if resolved.verified {
+                let value = !resolved.meta.favorite();
+                resolved.meta.set_favorite(value);
+
+                let mut owner = resolved.user.write().await;
+                owner
+                    .update_secret(
+                        &resolved.secret_id,
+                        resolved.meta,
+                        None,
+                        None,
+                    )
+                    .await?;
+                let state = if value { "on" } else { "off" };
+                println!("Favorite {} ✓", state);
+            }
+        }
         Command::Rename {
             account,
             folder,
             name,
             secret,
         } => {
-            let user = resolve_user(account, factory, true).await?;
-            let summary = resolve_folder(&user, folder.as_ref())
-                .await?
-                .ok_or_else(|| Error::NoFolderFound)?;
+            let mut resolved =
+                resolve_verify(factory, account, folder, secret).await?;
+            if resolved.verified {
+                resolved.meta.set_label(name);
 
-            if !is_shell || folder.is_some() {
-                let mut owner = user.write().await;
-                owner.open_folder(&summary)?;
-            }
-
-            let (secret_id, mut meta) =
-                resolve_secret(Arc::clone(&user), &summary, &secret)
-                    .await?
-                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-
-            let verified = if meta.flags().must_verify() {
-                verify(Arc::clone(&user)).await?
-            } else {
-                true
-            };
-
-            if verified {
-                meta.set_label(name);
-
-                let mut owner = user.write().await;
-                owner.update_secret(&secret_id, meta, None, None).await?;
+                let mut owner = resolved.user.write().await;
+                owner
+                    .update_secret(
+                        &resolved.secret_id,
+                        resolved.meta,
+                        None,
+                        None,
+                    )
+                    .await?;
                 println!("Secret renamed ✓");
             }
         }
@@ -474,32 +494,14 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             secret,
         } => {
-            let user = resolve_user(account, factory, true).await?;
-            let summary = resolve_folder(&user, folder.as_ref())
-                .await?
-                .ok_or_else(|| Error::NoFolderFound)?;
-
-            if !is_shell || folder.is_some() {
-                let mut owner = user.write().await;
-                owner.open_folder(&summary)?;
-            }
-
-            let (secret_id, meta) =
-                resolve_secret(Arc::clone(&user), &summary, &secret)
-                    .await?
-                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
-
-            let verified = if meta.flags().must_verify() {
-                verify(Arc::clone(&user)).await?
-            } else {
-                true
-            };
-
-            if verified {
-                let prompt = format!(r#"Delete "{}" (y/n)? "#, meta.label());
+            let resolved =
+                resolve_verify(factory, account, folder, secret).await?;
+            if resolved.verified {
+                let prompt =
+                    format!(r#"Delete "{}" (y/n)? "#, resolved.meta.label());
                 if read_flag(Some(&prompt))? {
-                    let mut owner = user.write().await;
-                    owner.delete_secret(&secret_id).await?;
+                    let mut owner = resolved.user.write().await;
+                    owner.delete_secret(&resolved.secret_id).await?;
                     println!("Secret deleted ✓");
                 }
             }
