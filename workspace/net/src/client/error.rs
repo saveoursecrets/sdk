@@ -15,6 +15,10 @@ pub enum Error {
     #[error("could not determine cache directory")]
     NoCache,
 
+    /// Error generated when an archive folder is not available.
+    #[error("archive folder does not exist")]
+    NoArchive,
+
     /// Error generated when a path is not a directory.
     #[error("path {0} is not a directory")]
     NotDirectory(PathBuf),

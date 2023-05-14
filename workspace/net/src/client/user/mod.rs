@@ -549,6 +549,24 @@ impl UserStorage {
         Ok((*secret_id, event.into_owned()))
     }
 
+    /// Move a secret to the archive.
+    ///
+    /// An archive folder must exist.
+    pub async fn archive(
+        &mut self,
+        from: &Summary,
+        secret_id: &SecretId,
+    ) -> Result<(
+        SecretId,
+        SyncEvent<'static>,
+        SyncEvent<'static>,
+        SyncEvent<'static>,
+    )> {
+        self.open_folder(from)?;
+        let to = self.archive_folder().ok_or_else(|| Error::NoArchive)?;
+        self.move_secret(from, &to, secret_id).await
+    }
+
     /// Move a secret between folders.
     ///
     /// The from folder must already be open.
