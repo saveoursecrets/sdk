@@ -433,6 +433,11 @@ impl SecretMeta {
         self.tags = tags;
     }
 
+    /// Mutable tags reference.
+    pub fn tags_mut(&mut self) -> &mut HashSet<String> {
+        &mut self.tags
+    }
+
     /// Get the URN for this secret.
     pub fn urn(&self) -> Option<&Urn> {
         self.urn.as_ref()

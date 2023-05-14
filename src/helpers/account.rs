@@ -57,7 +57,7 @@ pub async fn choose_account() -> Result<Option<AccountInfo>> {
 /// For the shell REPL this will equal the current USER otherwise
 /// the user must sign in to the target account.
 pub async fn resolve_user(
-    account: Option<AccountRef>,
+    account: Option<&AccountRef>,
     factory: ProviderFactory,
     build_search_index: bool,
 ) -> Result<Owner> {
@@ -88,7 +88,7 @@ pub async fn resolve_user(
 /// account using the current shell USER otherwise if there is only a single
 /// account use it.
 pub async fn resolve_account(
-    account: Option<AccountRef>,
+    account: Option<&AccountRef>,
 ) -> Option<AccountRef> {
     if account.is_none() {
         if let Some(owner) = USER.get() {
@@ -103,7 +103,7 @@ pub async fn resolve_account(
             }
         }
     }
-    account
+    account.cloned()
 }
 
 pub async fn resolve_folder(

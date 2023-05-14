@@ -1,6 +1,6 @@
 use clap::Subcommand;
 
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
@@ -26,7 +26,7 @@ use crate::{
         readline::{read_flag, read_line},
         secret::{
             add_account, add_credentials, add_file, add_note, add_page,
-            print_secret, read_file_secret, resolve_secret,
+            normalize_tags, print_secret, read_file_secret, resolve_secret,
         },
     },
     Error, Result,
@@ -61,14 +61,6 @@ pub enum Command {
     },
     /// Add a secret.
     Add {
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
-
-        /// Folder name or id.
-        #[clap(short, long)]
-        folder: Option<VaultRef>,
-
         #[clap(subcommand)]
         cmd: AddCommand,
     },
@@ -105,6 +97,12 @@ pub enum Command {
 
         /// Secret name or identifier.
         secret: SecretRef,
+    },
+    /// Manage tags for a secret.
+    #[clap(alias = "tag")]
+    Tags {
+        #[clap(subcommand)]
+        cmd: TagCommand,
     },
     /// Update a secret.
     #[clap(alias = "set")]
@@ -167,9 +165,83 @@ pub enum Command {
 }
 
 #[derive(Subcommand, Debug)]
+pub enum TagCommand {
+    /// List tags.
+    #[clap(alias = "ls")]
+    List {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Add tags.
+    Add {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Comma separated tags.
+        #[clap(short, long)]
+        tags: String,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Remove tags.
+    #[clap(alias = "rm")]
+    Remove {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Comma separated tags.
+        #[clap(short, long)]
+        tags: String,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Remove all tags.
+    Clear {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 pub enum AddCommand {
     /// Add a note.
     Note {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
         /// Comma separated tags.
         #[clap(short, long)]
         tags: Option<String>,
@@ -179,6 +251,14 @@ pub enum AddCommand {
     },
     /// Add a list of credentials.
     List {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
         /// Comma separated tags.
         #[clap(short, long)]
         tags: Option<String>,
@@ -188,6 +268,14 @@ pub enum AddCommand {
     },
     /// Add an account password.
     Account {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
         /// Comma separated tags.
         #[clap(short, long)]
         tags: Option<String>,
@@ -197,6 +285,14 @@ pub enum AddCommand {
     },
     /// Add a file.
     File {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
         /// Comma separated tags.
         #[clap(short, long)]
         tags: Option<String>,
@@ -209,6 +305,14 @@ pub enum AddCommand {
     },
     /// Add a page.
     Page {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
         /// Comma separated tags.
         #[clap(short, long)]
         tags: Option<String>,
@@ -229,14 +333,14 @@ struct ResolvedSecret {
 
 async fn resolve_verify(
     factory: ProviderFactory,
-    account: Option<AccountRef>,
-    folder: Option<VaultRef>,
-    secret: SecretRef,
+    account: Option<&AccountRef>,
+    folder: Option<&VaultRef>,
+    secret: &SecretRef,
 ) -> Result<ResolvedSecret> {
     let is_shell = USER.get().is_some();
 
     let user = resolve_user(account, factory, true).await?;
-    let summary = resolve_folder(&user, folder.as_ref())
+    let summary = resolve_folder(&user, folder)
         .await?
         .ok_or_else(|| Error::NoFolderFound)?;
 
@@ -246,7 +350,7 @@ async fn resolve_verify(
     }
 
     let (secret_id, meta) =
-        resolve_secret(Arc::clone(&user), &summary, &secret)
+        resolve_secret(Arc::clone(&user), &summary, secret)
             .await?
             .ok_or(Error::SecretNotAvailable(secret.clone()))?;
 
@@ -276,7 +380,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             all,
             favorites,
         } => {
-            let user = resolve_user(account, factory, true).await?;
+            let user = resolve_user(account.as_ref(), factory, true).await?;
             let owner = user.read().await;
             let archive_folder = owner
                 .storage
@@ -316,12 +420,26 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let docs: Vec<&Document> = documents.iter().collect();
             print_documents(&docs, verbose)?;
         }
-        Command::Add {
-            account,
-            folder,
-            cmd,
-        } => {
-            let user = resolve_user(account, factory, true).await?;
+        Command::Add { cmd } => {
+            let (account, folder) = match &cmd {
+                AddCommand::Note {
+                    account, folder, ..
+                } => (account, folder),
+                AddCommand::List {
+                    account, folder, ..
+                } => (account, folder),
+                AddCommand::Account {
+                    account, folder, ..
+                } => (account, folder),
+                AddCommand::File {
+                    account, folder, ..
+                } => (account, folder),
+                AddCommand::Page {
+                    account, folder, ..
+                } => (account, folder),
+            };
+
+            let user = resolve_user(account.as_ref(), factory, true).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -333,17 +451,17 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             let mut owner = user.write().await;
             let result = match cmd {
-                AddCommand::Note { name, tags } => add_note(name, tags)?,
-                AddCommand::List { name, tags } => {
+                AddCommand::Note { name, tags, .. } => add_note(name, tags)?,
+                AddCommand::List { name, tags, .. } => {
                     add_credentials(name, tags)?
                 }
-                AddCommand::Account { name, tags } => {
+                AddCommand::Account { name, tags, .. } => {
                     add_account(name, tags)?
                 }
-                AddCommand::File { file, name, tags } => {
-                    add_file(file, name, tags)?
-                }
-                AddCommand::Page { name, tags } => add_page(name, tags)?,
+                AddCommand::File {
+                    file, name, tags, ..
+                } => add_file(file, name, tags)?,
+                AddCommand::Page { name, tags, .. } => add_page(name, tags)?,
             };
 
             if let Some((meta, secret)) = result {
@@ -356,8 +474,13 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             secret,
         } => {
-            let resolved =
-                resolve_verify(factory, account, folder, secret).await?;
+            let resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
                 let (data, _) =
@@ -372,8 +495,13 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             debug,
             json,
         } => {
-            let resolved =
-                resolve_verify(factory, account, folder, secret).await?;
+            let resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
             if resolved.verified {
                 let meta = resolved.meta;
 
@@ -394,13 +522,104 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 }
             }
         }
+        Command::Tags { cmd } => {
+            let (account, folder, secret) = match &cmd {
+                TagCommand::List {
+                    account,
+                    folder,
+                    secret,
+                } => (account, folder, secret),
+                TagCommand::Add {
+                    account,
+                    folder,
+                    secret,
+                    ..
+                } => (account, folder, secret),
+                TagCommand::Remove {
+                    account,
+                    folder,
+                    secret,
+                    ..
+                } => (account, folder, secret),
+                TagCommand::Clear {
+                    account,
+                    folder,
+                    secret,
+                } => (account, folder, secret),
+            };
+
+            let mut resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                secret,
+            )
+            .await?;
+            if resolved.verified {
+                let save_updates = match cmd {
+                    TagCommand::List { .. } => {
+                        let mut tags: Vec<_> =
+                            resolved.meta.tags().into_iter().collect();
+                        tags.sort();
+                        for tag in tags {
+                            println!("{}", tag);
+                        }
+                        false
+                    }
+                    TagCommand::Add { tags, .. } => {
+                        let tags = normalize_tags(Some(tags));
+                        if let Some(tags) = &tags {
+                            let union: HashSet<_> = resolved
+                                .meta
+                                .tags()
+                                .union(tags)
+                                .cloned()
+                                .collect();
+                            resolved.meta.set_tags(union);
+                        }
+                        true
+                    }
+                    TagCommand::Remove { tags, .. } => {
+                        let tags = normalize_tags(Some(tags));
+                        if let Some(tags) = &tags {
+                            resolved
+                                .meta
+                                .tags_mut()
+                                .retain(|t| !tags.contains(t));
+                        }
+                        true
+                    }
+                    TagCommand::Clear { .. } => {
+                        resolved.meta.set_tags(HashSet::new());
+                        true
+                    }
+                };
+
+                if save_updates {
+                    let mut owner = resolved.user.write().await;
+                    owner
+                        .update_secret(
+                            &resolved.secret_id,
+                            resolved.meta,
+                            None,
+                            None,
+                        )
+                        .await?;
+                }
+            }
+        }
         Command::Update {
             account,
             folder,
             secret,
         } => {
-            let resolved =
-                resolve_verify(factory, account, folder, secret).await?;
+            let resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
                 let (data, _) =
@@ -448,8 +667,13 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             secret,
         } => {
-            let mut resolved =
-                resolve_verify(factory, account, folder, secret).await?;
+            let mut resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
             if resolved.verified {
                 let value = !resolved.meta.favorite();
                 resolved.meta.set_favorite(value);
@@ -473,8 +697,13 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             name,
             secret,
         } => {
-            let mut resolved =
-                resolve_verify(factory, account, folder, secret).await?;
+            let mut resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
             if resolved.verified {
                 resolved.meta.set_label(name);
 
@@ -495,8 +724,13 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             secret,
         } => {
-            let resolved =
-                resolve_verify(factory, account, folder, secret).await?;
+            let resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
             if resolved.verified {
                 let prompt =
                     format!(r#"Delete "{}" (y/n)? "#, resolved.meta.label());

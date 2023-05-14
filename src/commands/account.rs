@@ -204,7 +204,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Migrate { account, cmd } => {
-            let user = resolve_user(account, factory, false).await?;
+            let user = resolve_user(account.as_ref(), factory, false).await?;
             match cmd {
                 MigrateCommand::Export { output, force } => {
                     let exported =
@@ -224,7 +224,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Contacts { account, cmd } => {
-            let user = resolve_user(account, factory, false).await?;
+            let user = resolve_user(account.as_ref(), factory, false).await?;
 
             {
                 let mut owner = user.write().await;
@@ -256,7 +256,8 @@ async fn account_info(
     verbose: bool,
     json: bool,
 ) -> Result<()> {
-    let user = resolve_user(account, ProviderFactory::Local, false).await?;
+    let user =
+        resolve_user(account.as_ref(), ProviderFactory::Local, false).await?;
     let owner = user.read().await;
     let data = owner.account_data()?;
 
@@ -281,7 +282,7 @@ async fn account_backup(
     output: PathBuf,
     force: bool,
 ) -> Result<()> {
-    let account = resolve_account(account)
+    let account = resolve_account(account.as_ref())
         .await
         .ok_or_else(|| Error::NoAccountFound)?;
 
@@ -350,7 +351,7 @@ async fn account_rename(
     name: String,
     factory: ProviderFactory,
 ) -> Result<()> {
-    let user = resolve_user(account, factory, false).await?;
+    let user = resolve_user(account.as_ref(), factory, false).await?;
     let mut owner = user.write().await;
     owner.user.rename_account(name)?;
     Ok(())
@@ -368,7 +369,7 @@ async fn account_delete(
         // be specified explicitly
         account.as_ref().ok_or_else(|| Error::ExplicitAccount)?;
 
-        resolve_account(account)
+        resolve_account(account.as_ref())
             .await
             .ok_or_else(|| Error::NoAccountFound)?
     } else {
@@ -382,7 +383,7 @@ async fn account_delete(
         owner.user.account().into()
     };
 
-    let user = resolve_user(Some(account), factory, false).await?;
+    let user = resolve_user(Some(&account), factory, false).await?;
     let mut owner = user.write().await;
 
     let prompt = format!(

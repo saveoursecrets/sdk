@@ -147,7 +147,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
     match cmd {
         Command::New { account, name, cwd } => {
-            let user = resolve_user(account, factory, false).await?;
+            let user = resolve_user(account.as_ref(), factory, false).await?;
             let mut writer = user.write().await;
             let summary = writer.create_folder(name).await?;
             println!("{} created ✓", summary.name());
@@ -158,7 +158,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Remove { account, folder } => {
-            let user = resolve_user(account, factory, false).await?;
+            let user = resolve_user(account.as_ref(), factory, false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -189,7 +189,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::List { account, verbose } => {
-            let user = resolve_user(account, factory, false).await?;
+            let user = resolve_user(account.as_ref(), factory, false).await?;
             let mut writer = user.write().await;
             let folders = writer.storage.load_vaults().await?;
             for summary in folders {
@@ -205,7 +205,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             verbose,
         } => {
-            let user = resolve_user(account, factory, false).await?;
+            let user = resolve_user(account.as_ref(), factory, false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -216,7 +216,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Keys { account, folder } => {
-            let user = resolve_user(account, factory, false).await?;
+            let user = resolve_user(account.as_ref(), factory, false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -238,7 +238,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Commits { account, folder } => {
-            let user = resolve_user(account, factory, false).await?;
+            let user = resolve_user(account.as_ref(), factory, false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -262,7 +262,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             name,
         } => {
-            let user = resolve_user(account, factory, false).await?;
+            let user = resolve_user(account.as_ref(), factory, false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -285,7 +285,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 } => (account.clone(), folder),
             };
 
-            let user = resolve_user(account, factory, false).await?;
+            let user = resolve_user(account.as_ref(), factory, false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;

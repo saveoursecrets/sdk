@@ -213,7 +213,7 @@ fn get_label(label: Option<String>) -> Result<String> {
     }
 }
 
-fn normalize_tags(mut tags: Option<String>) -> Option<HashSet<String>> {
+pub fn normalize_tags(mut tags: Option<String>) -> Option<HashSet<String>> {
     if let Some(tags) = tags.take() {
         let tags: HashMap<_, _> = tags
             .split(",")
