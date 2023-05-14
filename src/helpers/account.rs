@@ -133,10 +133,7 @@ pub async fn resolve_folder(
     }
 }
 
-pub async fn use_folder(
-    user: Owner,
-    folder: Option<&VaultRef>,
-) -> Result<()> {
+pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
     let mut owner = user.write().await;
     let summary = if let Some(vault) = folder {
         Some(

@@ -223,6 +223,7 @@ struct ResolvedSecret {
     secret_id: SecretId,
     meta: SecretMeta,
     verified: bool,
+    #[allow(dead_code)]
     summary: Summary,
 }
 

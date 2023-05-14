@@ -7,7 +7,7 @@ use sos_sdk::{account::AccountRef, vault::VaultRef};
 
 use crate::{
     commands::{AccountCommand, FolderCommand, SecretCommand},
-    helpers::account::{switch, use_folder, Owner},
+    helpers::account::{cd_folder, switch, Owner},
 };
 
 use crate::Result;
@@ -31,8 +31,8 @@ enum ShellCommand {
     /// Renew session authentication.
     #[clap(alias = "auth")]
     Authenticate,
-    /// Select a folder.
-    Use {
+    /// Set a folder as the current working directory.
+    Cd {
         /// Folder name or id.
         folder: Option<VaultRef>,
     },
@@ -191,8 +191,8 @@ async fn exec_program(
         ShellCommand::Secret { cmd } => {
             crate::commands::secret::run(cmd, factory).await
         }
-        ShellCommand::Use { folder } => {
-            use_folder(state, folder.as_ref()).await
+        ShellCommand::Cd { folder } => {
+            cd_folder(state, folder.as_ref()).await
         }
 
         /*

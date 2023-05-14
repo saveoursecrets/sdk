@@ -10,7 +10,7 @@ use sos_sdk::{
 
 use crate::{
     helpers::{
-        account::{resolve_folder, resolve_user, use_folder, USER},
+        account::{cd_folder, resolve_folder, resolve_user, USER},
         readline::read_flag,
     },
     Error, Result,
@@ -24,9 +24,9 @@ pub enum Command {
         #[clap(short, long)]
         account: Option<AccountRef>,
 
-        /// Use this folder when interactive shell.
+        /// Set this folder as current working directory.
         #[clap(long)]
-        r#use: bool,
+        cwd: bool,
 
         /// Name for the new folder.
         name: String,
@@ -146,19 +146,15 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
     let is_shell = USER.get().is_some();
 
     match cmd {
-        Command::New {
-            account,
-            name,
-            r#use,
-        } => {
+        Command::New { account, name, cwd } => {
             let user = resolve_user(account, factory, false).await?;
             let mut writer = user.write().await;
             let summary = writer.create_folder(name).await?;
             println!("{} created ✓", summary.name());
             drop(writer);
-            if r#use {
+            if cwd {
                 let target = Some(VaultRef::Id(*summary.id()));
-                use_folder(user, target.as_ref()).await?;
+                cd_folder(user, target.as_ref()).await?;
             }
         }
         Command::Remove { account, folder } => {
@@ -188,7 +184,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 // Removing current folder so try to use
                 // the default folder
                 if is_current {
-                    use_folder(user, None).await?;
+                    cd_folder(user, None).await?;
                 }
             }
         }

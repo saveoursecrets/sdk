@@ -12,7 +12,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     helpers::{
-        account::{choose_account, sign_in, use_folder, USER},
+        account::{cd_folder, choose_account, sign_in, USER},
         readline,
     },
     Error, Result, TARGET,
@@ -100,7 +100,7 @@ pub async fn run(
 
     // Prepare state for shell execution
     let user = USER.get_or_init(|| Arc::new(RwLock::new(owner)));
-    use_folder(Arc::clone(user), folder.as_ref()).await?;
+    cd_folder(Arc::clone(user), folder.as_ref()).await?;
 
     let mut rl = readline::basic_editor()?;
     loop {
