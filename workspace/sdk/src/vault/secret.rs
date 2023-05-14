@@ -158,7 +158,7 @@ impl FromStr for SecretRef {
 #[derive(
     Default, Clone, Debug, Copy, Serialize, Deserialize, Eq, PartialEq,
 )]
-#[serde(untagged, rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum SecretType {
     /// UTF-8 encoded note.
     #[default]
@@ -303,17 +303,14 @@ pub struct SecretMeta {
     kind: SecretType,
     /// Flags for the secret.
     flags: SecretFlags,
-    /// Date created timestamp.
-    date_created: Timestamp,
-    /// Last updated timestamp.
-    #[serde(skip_deserializing)]
-    last_updated: Timestamp,
     /// Human-friendly label for the secret.
     #[serde(skip_serializing_if = "String::is_empty")]
     label: String,
     /// Collection of tags.
     #[serde(skip_serializing_if = "HashSet::is_empty")]
     tags: HashSet<String>,
+    /// Whether this secret is a favorite.
+    favorite: bool,
     /// A URN identifier for this secret.
     ///
     /// This is used when an identity vault stores passphrases
@@ -328,8 +325,40 @@ pub struct SecretMeta {
     /// of the third-party application.
     #[serde(skip_serializing_if = "Option::is_none")]
     owner_id: Option<String>,
-    /// Whether this secret is a favorite.
-    favorite: bool,
+    /// Date created timestamp.
+    date_created: Timestamp,
+    /// Last updated timestamp.
+    #[serde(skip_deserializing)]
+    last_updated: Timestamp,
+}
+
+impl fmt::Display for SecretMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "[{}] {}", self.kind, self.label)?;
+        if let Some(urn) = &self.urn {
+            writeln!(f, "{}", urn)?;
+        }
+        writeln!(f)?;
+
+        if !self.tags.is_empty() {
+            let mut list = Vec::new();
+            for tag in &self.tags {
+                list.push(&tag[..]);
+            }
+            list.sort();
+            let tags = list.join(", ");
+            writeln!(f, "Tags: {}", tags)?;
+        }
+        writeln!(
+            f,
+            "Favorite: {}",
+            if self.favorite { "yes" } else { "no" }
+        )?;
+
+        writeln!(f)?;
+        writeln!(f, "Created: {}", self.date_created)?;
+        write!(f, "Updated: {}", self.last_updated)
+    }
 }
 
 impl PartialEq for SecretMeta {
@@ -377,6 +406,11 @@ impl SecretMeta {
     /// The kind of the secret.
     pub fn kind(&self) -> &SecretType {
         &self.kind
+    }
+
+    /// The created date and time.
+    pub fn date_created(&self) -> &Timestamp {
+        &self.date_created
     }
 
     /// Update the last updated timestamp to now.
@@ -474,6 +508,7 @@ impl Decode for SecretMeta {
             .map_err(Box::from)?;
         let mut date_created: Timestamp = Default::default();
         date_created.decode(&mut *reader)?;
+        self.date_created = date_created;
         let mut last_updated: Timestamp = Default::default();
         last_updated.decode(&mut *reader)?;
         self.last_updated = last_updated;

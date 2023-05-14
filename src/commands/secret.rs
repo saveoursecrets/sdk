@@ -2,6 +2,8 @@ use clap::Subcommand;
 
 use std::{borrow::Cow, sync::Arc};
 
+use terminal_banner::{Banner, Padding};
+
 use sos_net::client::{
     provider::ProviderFactory,
     user::{ArchiveFilter, DocumentView},
@@ -78,6 +80,27 @@ pub enum Command {
         /// Folder name or id.
         #[clap(short, long)]
         folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Print secret meta data.
+    Meta {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Print debug representation.
+        #[clap(short, long)]
+        debug: bool,
+
+        /// Print as JSON.
+        #[clap(short, long)]
+        json: bool,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -296,6 +319,52 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 let mut owner = user.write().await;
                 let (data, _) = owner.read_secret(&secret_id).await?;
                 print_secret(&data.meta, &data.secret)?;
+            }
+        }
+        Command::Meta {
+            account,
+            folder,
+            secret,
+            debug,
+            json,
+        } => {
+            let user = resolve_user(account, factory, true).await?;
+            let summary = resolve_folder(&user, folder.as_ref())
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?;
+
+            if !is_shell || folder.is_some() {
+                let mut owner = user.write().await;
+                owner.open_folder(&summary)?;
+            }
+
+            let (_secret_id, meta) =
+                resolve_secret(Arc::clone(&user), &summary, &secret)
+                    .await?
+                    .ok_or(Error::SecretNotAvailable(secret.clone()))?;
+
+            let verified = if meta.flags().must_verify() {
+                verify(Arc::clone(&user)).await?
+            } else {
+                true
+            };
+
+            if verified {
+                if debug {
+                    println!("{:#?}", meta);
+                } else if json {
+                    serde_json::to_writer_pretty(
+                        &mut std::io::stdout(),
+                        &meta,
+                    )?;
+                    println!();
+                } else {
+                    let banner = Banner::new()
+                        .padding(Padding::one())
+                        .text(Cow::Owned(meta.to_string()));
+                    let result = banner.render();
+                    println!("{}", result);
+                }
             }
         }
         Command::Update {

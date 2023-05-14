@@ -475,6 +475,7 @@ impl SearchIndex {
         // Prevent duplicates
         if self.find_by_id(vault_id, id).is_none() {
             let kind = *meta.kind();
+
             let doc = Document {
                 vault_id: *vault_id,
                 secret_id: *id,
