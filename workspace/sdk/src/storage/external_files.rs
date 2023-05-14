@@ -24,7 +24,7 @@ use crate::{storage::StorageDirs, Error, Result};
 pub struct EncryptedFile {
     /// Size of the original file in bytes.
     pub size: u64,
-    /// Sha256 digest of the original file.
+    /// Sha256 digest of the encrypted buffer.
     pub digest: Vec<u8>,
 }
 
