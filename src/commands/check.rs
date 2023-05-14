@@ -14,21 +14,17 @@ use crate::{Error, Result};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Verify the integrity of a vault.
-    Verify {
-        /// Print the root commit hash.
+    /// Verify vault row checksums.
+    Vault {
+        /// Print the checksums for each row.
         #[clap(short, long)]
-        root: bool,
-
-        /// Print the commit hash for each row.
-        #[clap(short, long)]
-        commits: bool,
+        verbose: bool,
 
         /// Vault file path.
         file: PathBuf,
     },
-    /// Print the vault header and root commit hash.
-    Status {
+    /// Print a vault file header.
+    Header {
         /// Vault file path.
         file: PathBuf,
     },
@@ -37,89 +33,57 @@ pub enum Command {
         /// Vault file path.
         file: PathBuf,
     },
-    /// Write ahead log tools.
-    Wal {
-        #[clap(subcommand)]
-        cmd: Wal,
-    },
-}
-
-#[derive(Subcommand, Debug)]
-pub enum Wal {
-    /// Verify the integrity of a WAL file.
-    Verify {
-        /// Print the root commit hash.
+    /// Verify log file checksums.
+    Log {
+        /// Print more information.
         #[clap(short, long)]
-        root: bool,
+        verbose: bool,
 
-        /// Print the commit hash for each row.
-        #[clap(short, long)]
-        commits: bool,
-
-        /// Write ahead log file path.
+        /// Log file path.
         file: PathBuf,
     },
 }
 
 pub fn run(cmd: Command) -> Result<()> {
     match cmd {
-        Command::Verify {
-            file,
-            root,
-            commits,
-        } => {
-            verify_vault(file, root, commits)?;
+        Command::Vault { file, verbose } => {
+            verify_vault(file, verbose)?;
         }
-        Command::Status { file } => status(file)?,
+        Command::Header { file } => header(file)?,
         Command::Keys { file } => keys(file)?,
-        Command::Wal { cmd } => match cmd {
-            Wal::Verify {
-                file,
-                root,
-                commits,
-            } => {
-                verify_wal(file, root, commits)?;
-            }
-        },
+        Command::Log { verbose, file } => {
+            verify_log(file, verbose)?;
+        }
     }
 
     Ok(())
 }
 
-// FIXME: when the check_integrity test has been replaced
-// FIXME: with the command_line test these functions can be
-// FIXME: private again
-
 /// Verify the integrity of a vault.
-pub fn verify_vault(file: PathBuf, root: bool, commits: bool) -> Result<()> {
+fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
     let tree = vault_commit_tree_file(&file, true, |row_info| {
-        if commits {
+        if verbose {
             println!("{}", hex::encode(row_info.commit()));
         }
     })?;
-    if root {
-        if let Some(root) = tree.root_hex() {
-            println!("{}", root);
-        }
-    }
     println!("Verified ✓");
     Ok(())
 }
 
-/// Verify the integrity of a WAL file.
-pub fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
+/// Verify the integrity of a log file.
+fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
     let tree = wal_commit_tree_file(&file, true, |row_info| {
-        if commits {
+        if verbose {
             println!("{}", hex::encode(row_info.commit()));
         }
     })?;
-    if root {
+    if verbose {
         if let Some(root) = tree.root_hex() {
             println!("{}", root);
         }
@@ -128,19 +92,14 @@ pub fn verify_wal(file: PathBuf, root: bool, commits: bool) -> Result<()> {
     Ok(())
 }
 
-/// Print the vault header and root commit.
-pub fn status(vault: PathBuf) -> Result<()> {
+/// Print a vault header.
+pub fn header(vault: PathBuf) -> Result<()> {
     if !vault.is_file() {
         return Err(Error::NotFile(vault));
     }
 
     let header = Header::read_header_file(&vault)?;
-    let tree = build_tree(&vault)?;
-
     println!("{}", header);
-    if let Some(root) = tree.root_hex() {
-        println!("Commit: {}", root);
-    }
     Ok(())
 }
 
@@ -157,16 +116,4 @@ pub fn keys(vault: PathBuf) -> Result<()> {
         println!("{}", id);
     }
     Ok(())
-}
-
-/// Build a commit tree from the commit hashes in a vault file.
-fn build_tree<P: AsRef<Path>>(path: P) -> Result<CommitTree> {
-    let mut commit_tree = CommitTree::new();
-    let it = vault_iter(path.as_ref())?;
-    for record in it {
-        let record = record?;
-        commit_tree.insert(record.commit());
-    }
-    commit_tree.commit();
-    Ok(commit_tree)
 }

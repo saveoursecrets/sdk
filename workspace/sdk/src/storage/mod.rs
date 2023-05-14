@@ -8,7 +8,7 @@ use std::{
 
 use crate::constants::{
     DEVICES_DIR, FILES_DIR, IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, TRASH_DIR,
-    VAULTS_DIR, VAULT_EXT,
+    VAULTS_DIR, VAULT_EXT, WAL_EXT,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -147,6 +147,30 @@ impl StorageDirs {
     pub fn local_vaults_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         Ok(local_dir.join(address).join(VAULTS_DIR))
+    }
+
+    /// Get the path to a vault file from it's identifier.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn vault_path<A: AsRef<Path>, V: AsRef<Path>>(
+        address: A,
+        id: V,
+    ) -> Result<PathBuf> {
+        let vaults_dir = Self::local_vaults_dir(address)?;
+        let mut vault_path = vaults_dir.join(id);
+        vault_path.set_extension(VAULT_EXT);
+        Ok(vault_path)
+    }
+
+    /// Get the path to a log file from it's identifier.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn log_path<A: AsRef<Path>, V: AsRef<Path>>(
+        address: A,
+        id: V,
+    ) -> Result<PathBuf> {
+        let vaults_dir = Self::local_vaults_dir(address)?;
+        let mut vault_path = vaults_dir.join(id);
+        vault_path.set_extension(WAL_EXT);
+        Ok(vault_path)
     }
 
     /// Get the path to the directory used to store files.

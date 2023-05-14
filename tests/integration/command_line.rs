@@ -3,8 +3,9 @@ use serial_test::serial;
 use std::path::PathBuf;
 
 use sos_sdk::{
-    passwd::diceware::generate_passphrase, secrecy::ExposeSecret,
-    signer::ecdsa::Address, storage::StorageDirs,
+    constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
+    secrecy::ExposeSecret, signer::ecdsa::Address, storage::StorageDirs,
+    vault::VaultId,
 };
 
 use sos_net::migrate::import::ImportFormat;
@@ -67,7 +68,15 @@ fn integration_command_line() -> Result<()> {
     };
 
     account_new(&exe, &password)?;
+
     let address = account_list(&exe)?;
+    let default_id = default_folder_id(&exe, &address, &password)?;
+
+    check_vault(&exe, &address, &default_id)?;
+    check_keys(&exe, &address, &default_id)?;
+    check_header(&exe, &address, &default_id)?;
+    check_log(&exe, &address, &default_id)?;
+
     account_backup_restore(&exe, &address, &password)?;
     account_info(&exe, &address, &password)?;
     account_rename(&exe, &address, &password)?;
@@ -132,6 +141,80 @@ fn account_list(exe: &str) -> Result<String> {
     assert!(address.parse::<Address>().is_ok());
     assert_eq!(ACCOUNT_NAME, name);
     Ok(address.to_owned())
+}
+
+/// Get the id of the default folder so we can
+/// use it to execute the check subcommand which requires
+/// paths to the files to check.
+fn default_folder_id(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<VaultId> {
+    let cmd =
+        format!("{} folder info -a {} {}", exe, address, DEFAULT_VAULT_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+        p.read_line()?;
+    }
+
+    let result = p.read_line()?;
+    p.exp_eof()?;
+
+    Ok(result.parse()?)
+}
+
+fn check_vault(exe: &str, address: &str, vault_id: &VaultId) -> Result<()> {
+    let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
+
+    let cmd = format!("{} check vault {}", exe, vault_path.display());
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    p.exp_any(vec![
+        ReadUntil::String(String::from("Verified")),
+        ReadUntil::EOF,
+    ])?;
+
+    let cmd =
+        format!("{} check vault --verbose {}", exe, vault_path.display());
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    p.exp_any(vec![
+        ReadUntil::String(String::from("Verified")),
+        ReadUntil::EOF,
+    ])?;
+
+    Ok(())
+}
+
+fn check_keys(exe: &str, address: &str, vault_id: &VaultId) -> Result<()> {
+    let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
+    let cmd = format!("{} check keys {}", exe, vault_path.display());
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    p.exp_any(vec![ReadUntil::EOF])?;
+    Ok(())
+}
+
+fn check_header(exe: &str, address: &str, vault_id: &VaultId) -> Result<()> {
+    let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
+    let cmd = format!("{} check header {}", exe, vault_path.display());
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    p.exp_any(vec![ReadUntil::EOF])?;
+    Ok(())
+}
+
+fn check_log(exe: &str, address: &str, vault_id: &VaultId) -> Result<()> {
+    let log_path = StorageDirs::log_path(address, vault_id.to_string())?;
+
+    let cmd = format!("{} check log {}", exe, log_path.display());
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!("{} check log --verbose {}", exe, log_path.display());
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
 }
 
 fn account_backup_restore(
