@@ -7,9 +7,9 @@ use std::path::PathBuf;
 
 use super::{
     commands::{
-        account, audit, changes, check, folder, rendezvous, secret, server,
-        shell, AccountCommand, AuditCommand, CheckCommand, FolderCommand,
-        SecretCommand,
+        account, audit, changes, check, device, folder, rendezvous, secret,
+        server, shell, AccountCommand, AuditCommand, CheckCommand,
+        DeviceCommand, FolderCommand, SecretCommand,
     },
     Result,
 };
@@ -21,8 +21,8 @@ pub struct Sos {
     ///
     /// Used for debugging and test purposes,
     /// not available in a release build to
-    /// prevent misue and passwords appearing in
-    /// shell history.
+    /// prevent misuse (passwords appearing in
+    /// shell history).
     #[cfg(any(test, debug_assertions))]
     #[clap(
         long,
@@ -57,6 +57,11 @@ pub enum Command {
     Account {
         #[clap(subcommand)]
         cmd: AccountCommand,
+    },
+    /// Trusted device management
+    Device {
+        #[clap(subcommand)]
+        cmd: DeviceCommand,
     },
     /// Inspect and modify folders.
     Folder {
@@ -121,7 +126,7 @@ pub enum Command {
         #[clap(short, long)]
         config: PathBuf,
     },
-    /// Start an interactive login shell.
+    /// Interactive login shell.
     Shell {
         /// Folder name or identifier.
         #[clap(short, long)]
@@ -147,6 +152,7 @@ pub async fn run() -> Result<()> {
 
     match args.cmd {
         Command::Account { cmd } => account::run(cmd, factory).await?,
+        Command::Device { cmd } => device::run(cmd, factory).await?,
         Command::Folder { cmd } => folder::run(cmd, factory).await?,
         Command::Secret { cmd } => secret::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd)?,

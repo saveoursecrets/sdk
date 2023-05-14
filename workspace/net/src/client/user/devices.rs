@@ -40,8 +40,8 @@ impl DeviceManager {
     }
 
     /// Remove a trusted device.
-    pub fn remove(&mut self, device: TrustedDevice) -> Result<()> {
-        device::TrustedDevice::remove_device(&self.device_dir, &device)?;
+    pub fn remove(&mut self, device: &TrustedDevice) -> Result<()> {
+        device::TrustedDevice::remove_device(&self.device_dir, device)?;
         Ok(())
     }
 }

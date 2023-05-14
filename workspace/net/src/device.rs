@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::HashMap,
+    fmt,
     fs::File,
     path::{Path, PathBuf},
 };
@@ -83,6 +84,21 @@ impl DeviceInfo {
 pub struct ExtraDeviceInfo {
     #[serde(flatten)]
     info: HashMap<String, Value>,
+}
+
+impl fmt::Display for ExtraDeviceInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (o, v) in &self.info {
+            if let Value::Object(map) = v {
+                for (k, v) in map {
+                    if let Value::String(s) = v {
+                        writeln!(f, "[{}] {}: {}", o, k, s)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Device that has been trusted.

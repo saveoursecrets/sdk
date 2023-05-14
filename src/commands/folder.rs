@@ -175,7 +175,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             };
 
             let prompt =
-                format!(r#"Delete folder "{}" (y/n)? "#, summary.name(),);
+                format!(r#"Delete folder "{}" (y/n)? "#, summary.name());
             if read_flag(Some(&prompt))? {
                 owner.remove_folder(&summary).await?;
                 println!("{} removed ✓", summary.name());
