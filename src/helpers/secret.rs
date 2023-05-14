@@ -1,4 +1,8 @@
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 
 use human_bytes::human_bytes;
 use terminal_banner::{Banner, Padding};
@@ -209,6 +213,22 @@ fn get_label(label: Option<String>) -> Result<String> {
     }
 }
 
+fn normalize_tags(mut tags: Option<String>) -> Option<HashSet<String>> {
+    if let Some(tags) = tags.take() {
+        let tags: HashMap<_, _> = tags
+            .split(",")
+            .map(|s| (s.trim().to_lowercase(), s.trim()))
+            .collect();
+        let mut set = HashSet::new();
+        for (_, v) in tags {
+            set.insert(v.to_string());
+        }
+        Some(set)
+    } else {
+        None
+    }
+}
+
 fn multiline_banner(kind: &str, label: &str) {
     let banner = Banner::new()
         .padding(Padding::one())
@@ -223,6 +243,7 @@ To save enter Ctrl+D on a newline"#,
 
 pub fn add_note(
     label: Option<String>,
+    tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let label = get_label(label)?;
     multiline_banner("NOTE", &label);
@@ -234,7 +255,10 @@ pub fn add_note(
             text: note,
             user_data: Default::default(),
         };
-        let secret_meta = SecretMeta::new(label, secret.kind());
+        let mut secret_meta = SecretMeta::new(label, secret.kind());
+        if let Some(tags) = normalize_tags(tags) {
+            secret_meta.set_tags(tags);
+        }
         Ok(Some((secret_meta, secret)))
     } else {
         Ok(None)
@@ -243,6 +267,7 @@ pub fn add_note(
 
 pub fn add_page(
     label: Option<String>,
+    tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let label = get_label(label)?;
     let title = read_line(Some("Page title: "))?;
@@ -259,7 +284,10 @@ pub fn add_page(
             document,
             user_data: Default::default(),
         };
-        let secret_meta = SecretMeta::new(label, secret.kind());
+        let mut secret_meta = SecretMeta::new(label, secret.kind());
+        if let Some(tags) = normalize_tags(tags) {
+            secret_meta.set_tags(tags);
+        }
         Ok(Some((secret_meta, secret)))
     } else {
         Ok(None)
@@ -268,6 +296,7 @@ pub fn add_page(
 
 pub fn add_credentials(
     label: Option<String>,
+    tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let label = get_label(label)?;
 
@@ -295,7 +324,10 @@ pub fn add_credentials(
             items: credentials,
             user_data: Default::default(),
         };
-        let secret_meta = SecretMeta::new(label, secret.kind());
+        let mut secret_meta = SecretMeta::new(label, secret.kind());
+        if let Some(tags) = normalize_tags(tags) {
+            secret_meta.set_tags(tags);
+        }
         Ok(Some((secret_meta, secret)))
     } else {
         Ok(None)
@@ -304,6 +336,7 @@ pub fn add_credentials(
 
 pub fn add_account(
     label: Option<String>,
+    tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let label = get_label(label)?;
 
@@ -323,13 +356,17 @@ pub fn add_account(
         password,
         user_data: Default::default(),
     };
-    let secret_meta = SecretMeta::new(label, secret.kind());
+    let mut secret_meta = SecretMeta::new(label, secret.kind());
+    if let Some(tags) = normalize_tags(tags) {
+        secret_meta.set_tags(tags);
+    }
     Ok(Some((secret_meta, secret)))
 }
 
 pub fn add_file(
     path: String,
     label: Option<String>,
+    tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let file = PathBuf::from(&path);
 
@@ -350,7 +387,10 @@ pub fn add_file(
     }
 
     let secret = read_file_secret(&path)?;
-    let secret_meta = SecretMeta::new(label, secret.kind());
+    let mut secret_meta = SecretMeta::new(label, secret.kind());
+    if let Some(tags) = normalize_tags(tags) {
+        secret_meta.set_tags(tags);
+    }
     Ok(Some((secret_meta, secret)))
 }
 

@@ -132,28 +132,49 @@ pub enum Command {
 pub enum AddCommand {
     /// Add a note.
     Note {
+        /// Comma separated tags.
+        #[clap(short, long)]
+        tags: Option<String>,
+
         /// Name of the secret.
         name: Option<String>,
     },
     /// Add a list of credentials.
     List {
+        /// Comma separated tags.
+        #[clap(short, long)]
+        tags: Option<String>,
+
         /// Name of the secret.
         name: Option<String>,
     },
     /// Add an account password.
     Account {
+        /// Comma separated tags.
+        #[clap(short, long)]
+        tags: Option<String>,
+
         /// Name of the secret.
         name: Option<String>,
     },
     /// Add a file.
     File {
+        /// Comma separated tags.
+        #[clap(short, long)]
+        tags: Option<String>,
+
         /// Name of the secret.
         name: Option<String>,
+
         /// File path.
         file: String,
     },
     /// Add a page.
     Page {
+        /// Comma separated tags.
+        #[clap(short, long)]
+        tags: Option<String>,
+
         /// Name of the secret.
         name: Option<String>,
     },
@@ -227,11 +248,17 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             let mut owner = user.write().await;
             let result = match cmd {
-                AddCommand::Note { name } => add_note(name)?,
-                AddCommand::List { name } => add_credentials(name)?,
-                AddCommand::Account { name } => add_account(name)?,
-                AddCommand::File { file, name } => add_file(file, name)?,
-                AddCommand::Page { name } => add_page(name)?,
+                AddCommand::Note { name, tags } => add_note(name, tags)?,
+                AddCommand::List { name, tags } => {
+                    add_credentials(name, tags)?
+                }
+                AddCommand::Account { name, tags } => {
+                    add_account(name, tags)?
+                }
+                AddCommand::File { file, name, tags } => {
+                    add_file(file, name, tags)?
+                }
+                AddCommand::Page { name, tags } => add_page(name, tags)?,
             };
 
             if let Some((meta, secret)) = result {
