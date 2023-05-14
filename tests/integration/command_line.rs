@@ -472,6 +472,18 @@ fn folder_info(
     }
     p.exp_any(vec![ReadUntil::EOF])?;
 
+    let cmd = format!(
+        "{} folder info --verbose -a {} {}",
+        exe, address, FOLDER_NAME
+    );
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
     Ok(())
 }
 

@@ -55,6 +55,10 @@ pub enum Command {
     },
     /// Print folder information.
     Info {
+        /// Print more information.
+        #[clap(short, long)]
+        verbose: bool,
+
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -203,13 +207,17 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         Command::Info {
             account,
             folder,
-            //verbose,
+            verbose,
         } => {
             let user = resolve_user(account, factory, false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
-            println!("{}", summary);
+            if verbose {
+                println!("{}", summary);
+            } else {
+                println!("{}", summary.id());
+            }
         }
         Command::Keys { account, folder } => {
             let user = resolve_user(account, factory, false).await?;
