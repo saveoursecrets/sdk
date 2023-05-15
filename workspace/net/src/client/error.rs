@@ -19,6 +19,19 @@ pub enum Error {
     #[error("archive folder does not exist")]
     NoArchive,
 
+    /// Error generated when an open folder is expected.
+    #[error("no open folder")]
+    NoOpenFolder,
+
+    /// Error generated when secret data does not have an identifier
+    /// but an existing secret is expected.
+    #[error("secret does not have an identifier")]
+    NoSecretId,
+
+    /// Error generated when a file secret is expected.
+    #[error("not a file secret")]
+    NotFileSecret,
+
     /// Error generated when attempting to archive a secret that
     /// is already archived.
     #[error("cannot move to archive, already archived")]

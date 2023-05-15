@@ -16,6 +16,7 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     fmt,
+    path::PathBuf,
     str::FromStr,
 };
 use totp_sos::TOTP;
@@ -33,6 +34,7 @@ use crate::{
 };
 
 /// Secret with meta data and possibly an identifier.
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SecretData {
     /// Secret identifier.
     pub id: Option<SecretId>,
@@ -1069,6 +1071,10 @@ pub enum Secret {
         /// Size of the unencrypted file content.
         size: u64,
 
+        /// Optional path to a source file; never encoded or serialized.
+        #[serde(skip)]
+        path: Option<PathBuf>,
+
         /// Custom user data.
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,
@@ -1283,6 +1289,7 @@ impl Clone for Secret {
                 checksum,
                 external,
                 size,
+                path,
                 user_data,
             } => Secret::File {
                 name: name.to_owned(),
@@ -1291,6 +1298,7 @@ impl Clone for Secret {
                 checksum: *checksum,
                 external: *external,
                 size: *size,
+                path: path.clone(),
                 user_data: user_data.clone(),
             },
             Secret::Account {
@@ -1595,6 +1603,7 @@ impl PartialEq for Secret {
                     checksum: checksum_a,
                     external: external_a,
                     size: size_a,
+                    path: path_a,
                     user_data: user_data_a,
                 },
                 Self::File {
@@ -1604,6 +1613,7 @@ impl PartialEq for Secret {
                     checksum: checksum_b,
                     external: external_b,
                     size: size_b,
+                    path: path_b,
                     user_data: user_data_b,
                 },
             ) => {
@@ -1613,6 +1623,7 @@ impl PartialEq for Secret {
                     && checksum_a == checksum_b
                     && external_a == external_b
                     && size_a == size_b
+                    && path_a == path_b
                     && user_data_a == user_data_b
             }
             (
@@ -1920,6 +1931,7 @@ impl Encode for Secret {
                 external,
                 size,
                 user_data,
+                ..
             } => {
                 writer.write_string(name)?;
                 writer.write_string(mime)?;
@@ -2137,6 +2149,7 @@ impl Decode for Secret {
                     checksum,
                     external,
                     size,
+                    path: None,
                     user_data,
                 };
             }

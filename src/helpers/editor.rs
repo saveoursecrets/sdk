@@ -109,6 +109,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
             checksum: *checksum,
             external: false,
             size: content.len() as u64,
+            path: None,
             user_data: user_data.clone(),
         },
         Secret::Page {

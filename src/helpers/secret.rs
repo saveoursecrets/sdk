@@ -412,7 +412,7 @@ pub fn read_file_secret(path: &str) -> Result<Secret> {
         .map(|m| m.to_string())
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
-    let buffer = std::fs::read(file)?;
+    let buffer = std::fs::read(&file)?;
     let size = buffer.len() as u64;
     let checksum = Sha256::digest(&buffer);
     let buffer = secrecy::Secret::new(buffer);
@@ -423,6 +423,7 @@ pub fn read_file_secret(path: &str) -> Result<Secret> {
         checksum: checksum.as_slice().try_into()?,
         external: false,
         size,
+        path: Some(file),
         user_data: Default::default(),
     })
 }
