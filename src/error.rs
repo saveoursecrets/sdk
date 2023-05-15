@@ -13,10 +13,13 @@ pub enum Error {
     #[error(r#"device "{0}" not found"#)]
     DeviceNotFound(String),
 
-    #[error(r#"password is not strong enough"#)]
+    #[error("archive folder not found")]
+    NoArchiveFolder,
+
+    #[error("password is not strong enough")]
     PasswordStrength,
 
-    #[error(r#"passwords do not match"#)]
+    #[error("passwords do not match")]
     PasswordMismatch,
 
     #[error(r#"no accounts found, use "account new" to create an account"#)]

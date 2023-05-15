@@ -162,6 +162,28 @@ pub enum Command {
         /// Secret name or identifier.
         secret: SecretRef,
     },
+    /// Move to the archive.
+    Archive {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Restore from the archive.
+    Unarchive {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -327,7 +349,6 @@ struct ResolvedSecret {
     secret_id: SecretId,
     meta: SecretMeta,
     verified: bool,
-    #[allow(dead_code)]
     summary: Summary,
 }
 
@@ -388,14 +409,14 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 .find(|s| s.flags().is_archive())
                 .cloned();
 
-            let archive_filter = archive_folder.map(|s| ArchiveFilter {
-                id: *s.id(),
-                include_documents: false,
-            });
-
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
+
+            let archive_filter = archive_folder.map(|s| ArchiveFilter {
+                id: *s.id(),
+                include_documents: summary.flags().is_archive(),
+            });
 
             let mut views = vec![DocumentView::Vault(*summary.id())];
 
@@ -739,6 +760,59 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     owner.delete_secret(&resolved.secret_id).await?;
                     println!("Secret deleted ✓");
                 }
+            }
+        }
+        Command::Archive {
+            account,
+            folder,
+            secret,
+        } => {
+            let resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
+            if resolved.verified {
+                let mut owner = resolved.user.write().await;
+                owner
+                    .archive(&resolved.summary, &resolved.secret_id)
+                    .await?;
+                println!("Moved to archive ✓");
+            }
+        }
+        Command::Unarchive { account, secret } => {
+            // Always use the archive folder as the secret
+            // must already be archived
+            let archive_folder = {
+                let user =
+                    resolve_user(account.as_ref(), factory.clone(), true)
+                        .await?;
+                let owner = user.read().await;
+                owner
+                    .archive_folder()
+                    .ok_or_else(|| Error::NoArchiveFolder)?
+            };
+            let folder = Some(VaultRef::Id(*archive_folder.id()));
+
+            let resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
+            if resolved.verified {
+                let mut owner = resolved.user.write().await;
+                owner
+                    .unarchive(
+                        &resolved.summary,
+                        &resolved.secret_id,
+                        &resolved.meta,
+                    )
+                    .await?;
+                println!("Restored from archive ✓");
             }
         }
     }
