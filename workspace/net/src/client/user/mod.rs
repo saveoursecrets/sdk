@@ -1,5 +1,6 @@
 //! Network aware user storage and search index.
 use std::{
+    collections::HashMap,
     io::{Read, Seek},
     path::{Path, PathBuf},
     sync::Arc,
@@ -88,6 +89,21 @@ pub struct AccountData {
     pub peer_id: libp2p::PeerId,
 }
 
+/// User statistics structure derived from the search index.
+#[derive(Serialize, Deserialize)]
+pub struct UserStatistics {
+    /// Number of documents in the search index.
+    pub documents: usize,
+    /// Folder counts.
+    pub folders: Vec<(Summary, usize)>,
+    /// Tag counts.
+    pub tags: HashMap<String, usize>,
+    /// Types.
+    pub types: HashMap<SecretType, usize>,
+    /// Number of favorites.
+    pub favorites: usize,
+}
+
 /// Authenticated user with storage provider.
 pub struct UserStorage {
     /// Authenticated user.
@@ -96,6 +112,7 @@ pub struct UserStorage {
     pub storage: BoxedProvider,
     /// Factory user to create the storage provider.
     pub factory: ProviderFactory,
+
     /// Search index.
     index: UserIndex,
 
@@ -142,6 +159,39 @@ impl UserStorage {
             #[cfg(feature = "peer")]
             peer_key,
         })
+    }
+
+    /// Compute the user statistics.
+    pub fn statistics(&self) -> UserStatistics {
+        let search_index = self.index.search();
+        let index = search_index.read();
+        let statistics = index.statistics();
+        let count = statistics.count();
+
+        let documents: usize = count.vaults().values().sum();
+        let mut folders = Vec::new();
+        let mut types = HashMap::new();
+
+        for (id, v) in count.vaults() {
+            if let Some(summary) = self.storage.state().find(|s| s.id() == id)
+            {
+                folders.push((summary.clone(), *v));
+            }
+        }
+
+        for (k, v) in count.kinds() {
+            if let Ok(kind) = SecretType::try_from(*k) {
+                types.insert(kind, *v);
+            }
+        }
+
+        UserStatistics {
+            documents,
+            folders,
+            types,
+            tags: count.tags().clone(),
+            favorites: count.favorites(),
+        }
     }
 
     /// Account data.
@@ -831,7 +881,6 @@ impl UserStorage {
         path: P,
     ) -> Result<()> {
         use sos_migrate::export::PublicExport;
-        use std::collections::HashMap;
         use std::io::Cursor;
 
         let mut archive = Vec::new();

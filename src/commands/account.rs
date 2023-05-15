@@ -104,6 +104,29 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: ContactsCommand,
     },
+    /// Print search index statistics.
+    #[clap(alias = "stats")]
+    Statistics {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Print as JSON.
+        #[clap(short, long)]
+        json: bool,
+
+        /// Show tag counts.
+        #[clap(long)]
+        tags: bool,
+
+        /// Show folder counts.
+        #[clap(short, long)]
+        folders: bool,
+
+        /// Show type counts.
+        #[clap(short, long)]
+        types: bool,
+    },
     /// Delete an account.
     Delete {
         /// Account name or address.
@@ -194,15 +217,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             account_rename(account, name, factory).await?;
             tracing::info!(target: TARGET, "account renamed ✓");
         }
-        Command::Delete { account } => {
-            let deleted = account_delete(account, factory).await?;
-            if deleted {
-                tracing::info!(target: TARGET, "account deleted ✓");
-                if is_shell {
-                    std::process::exit(0);
-                }
-            }
-        }
         Command::Migrate { account, cmd } => {
             let user = resolve_user(account.as_ref(), factory, false).await?;
             match cmd {
@@ -242,6 +256,60 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 ContactsCommand::Import { input } => {
                     contacts_import(user, input).await?;
                     tracing::info!(target: TARGET, "contacts imported ✓");
+                }
+            }
+        }
+        Command::Statistics {
+            account,
+            json,
+            tags,
+            folders,
+            types,
+        } => {
+            let user = resolve_user(account.as_ref(), factory, true).await?;
+            let owner = user.read().await;
+            let statistics = owner.statistics();
+
+            if json {
+                serde_json::to_writer_pretty(
+                    &mut std::io::stdout(),
+                    &statistics,
+                )?;
+                println!();
+            } else {
+                if tags && !statistics.tags.is_empty() {
+                    println!("[TAGS]");
+                    for (k, v) in &statistics.tags {
+                        println!(" {}: {}", k, v);
+                    }
+                }
+
+                if types && !statistics.types.is_empty() {
+                    println!("[TYPES]");
+                    for (k, v) in &statistics.types {
+                        println!(" {}: {}", k, v);
+                    }
+                }
+
+                if folders && !statistics.folders.is_empty() {
+                    println!("[FOLDERS]");
+                    for (s, v) in &statistics.folders {
+                        println!(" {}: {}", s.name(), v);
+                    }
+                }
+
+                println!("[INDEX]");
+                println!(" Documents: {}", statistics.documents);
+                println!(" Folders: {}", statistics.folders.len());
+                println!(" Favorites: {}", statistics.favorites);
+            }
+        }
+        Command::Delete { account } => {
+            let deleted = account_delete(account, factory).await?;
+            if deleted {
+                tracing::info!(target: TARGET, "account deleted ✓");
+                if is_shell {
+                    std::process::exit(0);
                 }
             }
         }

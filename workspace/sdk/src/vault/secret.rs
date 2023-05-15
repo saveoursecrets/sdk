@@ -156,7 +156,7 @@ impl FromStr for SecretRef {
 /// so we can know the type of secret from the meta data
 /// before secret data has been decrypted.
 #[derive(
-    Default, Clone, Debug, Copy, Serialize, Deserialize, Eq, PartialEq,
+    Default, Clone, Debug, Copy, Serialize, Deserialize, Eq, PartialEq, Hash,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum SecretType {
