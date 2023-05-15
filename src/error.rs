@@ -10,6 +10,9 @@ pub enum Error {
     #[error(r#"account "{0}" already exists"#)]
     AccountExists(String),
 
+    #[error(r#"folder "{0}" already exists"#)]
+    FolderExists(String),
+
     #[error(r#"device "{0}" not found"#)]
     DeviceNotFound(String),
 

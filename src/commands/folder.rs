@@ -149,6 +149,12 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         Command::New { account, name, cwd } => {
             let user = resolve_user(account.as_ref(), factory, false).await?;
             let mut writer = user.write().await;
+
+            let existing = writer.find(|s| s.name() == name);
+            if existing.is_some() {
+                return Err(Error::FolderExists(name));
+            }
+
             let summary = writer.create_folder(name).await?;
             println!("{} created ✓", summary.name());
             drop(writer);

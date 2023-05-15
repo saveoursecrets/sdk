@@ -149,6 +149,24 @@ pub enum Command {
         /// Secret name or identifier.
         secret: SecretRef,
     },
+    /// Move a secret.
+    #[clap(alias = "mv")]
+    Move {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Target folder name or id.
+        #[clap(short, long)]
+        target: VaultRef,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Delete a secret.
     Del {
         /// Account name or address.
@@ -738,6 +756,25 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     )
                     .await?;
                 println!("Secret renamed ✓");
+            }
+        }
+
+        Command::Move {
+            account,
+            folder,
+            target,
+            secret,
+        } => {
+            let mut resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
+            if resolved.verified {
+                let mut owner = resolved.user.write().await;
+                todo!();
             }
         }
         Command::Del {

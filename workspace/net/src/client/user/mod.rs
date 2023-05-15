@@ -173,8 +173,7 @@ impl UserStorage {
         let mut types = HashMap::new();
 
         for (id, v) in count.vaults() {
-            if let Some(summary) = self.storage.state().find(|s| s.id() == id)
-            {
+            if let Some(summary) = self.find(|s| s.id() == id) {
                 folders.push((summary.clone(), *v));
             }
         }
@@ -236,36 +235,32 @@ impl UserStorage {
         &mut self.devices
     }
 
+    /// Try to find a folder using a predicate.
+    pub fn find<F>(&self, predicate: F) -> Option<&Summary>
+    where
+        F: FnMut(&&Summary) -> bool,
+    {
+        self.storage.state().find(predicate)
+    }
+
     /// Find the default folder.
     pub fn default_folder(&self) -> Option<Summary> {
-        self.storage
-            .state()
-            .find(|s| s.flags().is_default())
-            .cloned()
+        self.find(|s| s.flags().is_default()).cloned()
     }
 
     /// Find the authenticator folder.
     pub fn authenticator_folder(&self) -> Option<Summary> {
-        self.storage
-            .state()
-            .find(|s| s.flags().is_authenticator())
-            .cloned()
+        self.find(|s| s.flags().is_authenticator()).cloned()
     }
 
     /// Find the contacts folder.
     pub fn contacts_folder(&self) -> Option<Summary> {
-        self.storage
-            .state()
-            .find(|s| s.flags().is_contact())
-            .cloned()
+        self.find(|s| s.flags().is_contact()).cloned()
     }
 
     /// Find the archive folder.
     pub fn archive_folder(&self) -> Option<Summary> {
-        self.storage
-            .state()
-            .find(|s| s.flags().is_archive())
-            .cloned()
+        self.find(|s| s.flags().is_archive()).cloned()
     }
 
     /// List folders.
