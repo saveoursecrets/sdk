@@ -3,11 +3,10 @@ use clap::Subcommand;
 use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use terminal_banner::{Banner, Padding};
-use tokio::sync::RwLock;
 
 use sos_net::client::{
     provider::ProviderFactory,
-    user::{ArchiveFilter, DocumentView, UserStorage},
+    user::{ArchiveFilter, DocumentView},
 };
 use sos_sdk::{
     account::AccountRef,
@@ -21,7 +20,7 @@ use sos_sdk::{
 
 use crate::{
     helpers::{
-        account::{resolve_folder, resolve_user, verify, USER},
+        account::{resolve_folder, resolve_user, verify, Owner, USER},
         editor,
         readline::{read_flag, read_line},
         secret::{
@@ -363,7 +362,7 @@ pub enum AddCommand {
 }
 
 struct ResolvedSecret {
-    user: Arc<RwLock<UserStorage>>,
+    user: Owner,
     secret_id: SecretId,
     meta: SecretMeta,
     verified: bool,
@@ -448,7 +447,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     .state()
                     .find_vault(folder)
                     .cloned()
-                    .ok_or(Error::VaultNotAvailable(folder.clone()))?;
+                    .ok_or(Error::FolderNotFound(folder.to_string()))?;
                 views = vec![DocumentView::Vault(*summary.id())];
             } else if favorites {
                 views = vec![DocumentView::Favorites];
@@ -758,23 +757,30 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 println!("Secret renamed ✓");
             }
         }
-
         Command::Move {
             account,
             folder,
             target,
             secret,
         } => {
-            let mut resolved = resolve_verify(
+            let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
                 folder.as_ref(),
                 &secret,
             )
             .await?;
+
+            let to = Some(target.clone());
+            let to = resolve_folder(&resolved.user, to.as_ref()).await?;
+            let to =
+                to.ok_or_else(|| Error::FolderNotFound(target.to_string()))?;
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
-                todo!();
+                owner
+                    .move_secret(&resolved.summary, &to, &resolved.secret_id)
+                    .await?;
+                println!("Secret moved ✓");
             }
         }
         Command::Del {

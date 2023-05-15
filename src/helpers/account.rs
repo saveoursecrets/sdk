@@ -118,7 +118,7 @@ pub async fn resolve_folder(
                 .state()
                 .find_vault(&vault)
                 .cloned()
-                .ok_or(Error::VaultNotAvailable(vault.clone()))?,
+                .ok_or(Error::FolderNotFound(vault.to_string()))?,
         ))
     } else if let Some(owner) = USER.get() {
         let owner = owner.read().await;
@@ -142,7 +142,7 @@ pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
                 .state()
                 .find_vault(vault)
                 .cloned()
-                .ok_or(Error::VaultNotAvailable(vault.clone()))?,
+                .ok_or(Error::FolderNotFound(vault.to_string()))?,
         )
     } else {
         owner
