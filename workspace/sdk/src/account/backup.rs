@@ -430,8 +430,7 @@ impl AccountBackup {
                     Gatekeeper::new(identity_vault, None);
                 identity_keeper.unlock(passphrase.clone())?;
 
-                let search_index =
-                    Arc::new(RwLock::new(SearchIndex::new(None)));
+                let search_index = Arc::new(RwLock::new(SearchIndex::new()));
                 let restored_identity: Vault = decode(&identity.1)?;
                 let mut restored_identity_keeper = Gatekeeper::new(
                     restored_identity,

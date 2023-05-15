@@ -59,7 +59,7 @@ async fn integration_account_manager() -> Result<()> {
     let accounts = LocalAccounts::list_accounts()?;
     assert_eq!(1, accounts.len());
 
-    let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
+    let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
     let mut user = Login::sign_in(
         &address,
         passphrase.clone(),
@@ -94,7 +94,7 @@ async fn integration_account_manager() -> Result<()> {
             summary.id(),
         )?;
 
-    let default_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
+    let default_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
     let (default_vault, _) =
         LocalAccounts::find_local_vault(&address, summary.id(), false)?;
     let mut default_vault_keeper =

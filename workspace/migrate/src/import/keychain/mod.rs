@@ -131,7 +131,7 @@ impl Convert for KeychainImport {
         let parser = KeychainParser::new(&source);
         let list = parser.parse()?;
 
-        let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
+        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
         keeper.unlock(password)?;

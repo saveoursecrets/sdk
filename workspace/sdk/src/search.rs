@@ -311,19 +311,19 @@ pub struct SearchIndex {
 
 impl Default for SearchIndex {
     fn default() -> Self {
-        Self::new(None)
+        Self::new()
     }
 }
 
 impl SearchIndex {
     /// Create a new search index.
-    pub fn new(archive: Option<VaultId>) -> Self {
+    pub fn new() -> Self {
         // Create index with N fields
         let index = Index::<(VaultId, SecretId)>::new(2);
         Self {
             index,
             documents: Default::default(),
-            statistics: SearchStatistics::new(archive),
+            statistics: SearchStatistics::new(None),
         }
     }
 
@@ -332,27 +332,27 @@ impl SearchIndex {
         self.statistics.set_archive_id(archive);
     }
 
-    /// Get the search index statistics.
+    /// Search index statistics.
     pub fn statistics(&self) -> &SearchStatistics {
         &self.statistics
     }
 
-    /// Get the collection of documents.
+    /// Collection of documents.
     pub fn documents(&self) -> &BTreeMap<DocumentKey, Document> {
         &self.documents
     }
 
-    /// Get a list of the document values.
+    /// List of the document values.
     pub fn values(&self) -> Vec<&Document> {
         self.documents.values().collect::<Vec<_>>()
     }
 
-    /// Get an iterator over all the values.
+    /// Iterator over all the values.
     pub fn values_iter(&self) -> Values<'_, DocumentKey, Document> {
         self.documents.values()
     }
 
-    /// Get the number of documents in the index.
+    /// Number of documents in the index.
     pub fn len(&self) -> usize {
         self.documents.len()
     }
@@ -610,7 +610,7 @@ mod test {
     fn search_index() {
         let vault_id = Uuid::new_v4();
 
-        let mut idx = SearchIndex::new(None);
+        let mut idx = SearchIndex::new();
 
         let secret_kind = SecretType::Link;
         let expected_secret_kind: u8 = secret_kind.into();

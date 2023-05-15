@@ -218,7 +218,7 @@ impl Login {
 
             let (vault, _) =
                 LocalAccounts::find_local_vault(address, summary.id(), true)?;
-            let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
+            let search_index = Arc::new(RwLock::new(SearchIndex::new()));
             let mut device_keeper =
                 Gatekeeper::new(vault, Some(search_index));
             device_keeper.unlock(device_passphrase)?;

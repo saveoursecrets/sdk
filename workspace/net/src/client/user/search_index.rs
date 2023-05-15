@@ -25,7 +25,7 @@ impl UserIndex {
     /// Create a new user search index.
     pub fn new() -> Self {
         Self {
-            search_index: Arc::new(SyncRwLock::new(SearchIndex::new(None))),
+            search_index: Arc::new(SyncRwLock::new(SearchIndex::new())),
         }
     }
 

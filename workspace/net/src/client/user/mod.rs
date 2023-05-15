@@ -117,8 +117,7 @@ impl UserStorage {
         passphrase: SecretString,
         factory: ProviderFactory,
     ) -> Result<Self> {
-        let identity_index =
-            Arc::new(SyncRwLock::new(SearchIndex::new(None)));
+        let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
         let user = Login::sign_in(address, passphrase, identity_index)?;
 
         // Signing key for the storage provider

@@ -56,9 +56,8 @@ impl Gatekeeper {
             vault,
             private_key: None,
             mirror: None,
-            index: index.unwrap_or_else(|| {
-                Arc::new(RwLock::new(SearchIndex::new(None)))
-            }),
+            index: index
+                .unwrap_or_else(|| Arc::new(RwLock::new(SearchIndex::new()))),
         }
     }
 
@@ -72,9 +71,8 @@ impl Gatekeeper {
             vault,
             private_key: None,
             mirror: Some(mirror),
-            index: index.unwrap_or_else(|| {
-                Arc::new(RwLock::new(SearchIndex::new(None)))
-            }),
+            index: index
+                .unwrap_or_else(|| Arc::new(RwLock::new(SearchIndex::new()))),
         }
     }
 

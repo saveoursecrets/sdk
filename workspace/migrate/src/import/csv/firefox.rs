@@ -150,7 +150,7 @@ mod test {
             passphrase.clone(),
         )?;
 
-        let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
+        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
         keeper.unlock(passphrase)?;
