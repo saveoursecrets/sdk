@@ -632,6 +632,11 @@ impl UserStorage {
             .write_secret(secret_id, secret_data.clone(), None)
             .await?;
 
+        // Must update the files before moving so checksums are correct
+        //let new_folder = destination.unwrap_or_else(|| &folder);
+        self.update_files(&folder, &folder, &old_secret_data, secret_data)
+            .await?;
+
         let (id, create_event) = if let Some(to) = destination.as_ref() {
             let (new_id, _, create_event, _) =
                 self.move_secret(secret_id, &folder, to).await?;
@@ -639,10 +644,6 @@ impl UserStorage {
         } else {
             (*secret_id, event)
         };
-
-        let new_folder = destination.unwrap_or_else(|| &folder);
-        self.update_files(&folder, new_folder, &old_secret_data, secret_data)
-            .await?;
 
         Ok((id, create_event))
     }

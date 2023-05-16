@@ -201,17 +201,13 @@ impl UserStorage {
             get_file_secret_diff(&old_secret.secret, &new_secret.secret);
 
         let changed_files = get_file_sources(&new_secret.secret);
-        let deleted_attachments = diff.deleted;
+        let deleted = diff.deleted;
         let unchanged_files = diff.unchanged;
 
         // Delete any attachments that no longer exist
-        if !deleted_attachments.is_empty() {
-            self.delete_files(
-                old_summary,
-                old_secret,
-                Some(deleted_attachments),
-            )
-            .await?;
+        if !deleted.is_empty() {
+            self.delete_files(old_summary, old_secret, Some(deleted))
+                .await?;
         }
 
         // Move unchanged files
