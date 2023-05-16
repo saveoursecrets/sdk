@@ -581,6 +581,25 @@ impl UserStorage {
         ))
     }
 
+    /// Update a file secret.
+    ///
+    /// If the secret is not the `File` variant that it will be
+    /// converted to a `File` variant to ensure this is only called
+    /// on file secrets.
+    pub async fn update_file<P: AsRef<Path>>(
+        &mut self,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        path: P,
+        folder: Option<Summary>,
+        destination: Option<&Summary>,
+    ) -> Result<(SecretId, SyncEvent<'static>)> {
+        let path = path.as_ref().to_path_buf();
+        let secret: Secret = path.try_into()?;
+        self.update_secret(secret_id, meta, Some(secret), folder, destination)
+            .await
+    }
+
     /// Update a secret in the current open folder or a specific folder.
     pub async fn update_secret(
         &mut self,

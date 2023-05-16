@@ -422,6 +422,14 @@ fn get_file_secret_diff<'a>(
         }
     }
 
+    // Check if the top-level secret will be overwritten
+    // so we delete the old files
+    if let Secret::File { external, path, .. } = new_secret {
+        if *external && path.is_some() {
+            deleted.push(old_secret);
+        }
+    }
+
     // Find attachments that are unchanged
     for field in new_secret.user_data().fields() {
         if let UserField::Embedded { secret, .. } = field {
