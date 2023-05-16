@@ -782,7 +782,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
                 owner
-                    .move_secret(&resolved.summary, &to, &resolved.secret_id)
+                    .move_secret(&resolved.secret_id, &resolved.summary, &to)
                     .await?;
                 println!("Secret moved ✓");
             }

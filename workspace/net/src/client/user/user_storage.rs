@@ -634,7 +634,7 @@ impl UserStorage {
 
         let (id, create_event) = if let Some(to) = destination.as_ref() {
             let (new_id, _, create_event, _) =
-                self.move_secret(&folder, to, secret_id).await?;
+                self.move_secret(secret_id, &folder, to).await?;
             (new_id, create_event)
         } else {
             (*secret_id, event)
@@ -697,7 +697,7 @@ impl UserStorage {
         }
         self.open_folder(from)?;
         let to = self.archive_folder().ok_or_else(|| Error::NoArchive)?;
-        self.move_secret(from, &to, secret_id).await
+        self.move_secret(secret_id, from, &to).await
     }
 
     /// Move a secret out of the archive.
@@ -732,7 +732,7 @@ impl UserStorage {
         {
             to = contacts.unwrap();
         }
-        let (id, e1, e2, e3) = self.move_secret(from, &to, secret_id).await?;
+        let (id, e1, e2, e3) = self.move_secret(secret_id, from, &to).await?;
         Ok((to, id, e1, e2, e3))
     }
 
@@ -741,9 +741,9 @@ impl UserStorage {
     /// The from folder must already be open.
     pub async fn move_secret(
         &mut self,
+        secret_id: &SecretId,
         from: &Summary,
         to: &Summary,
-        secret_id: &SecretId,
     ) -> Result<(
         SecretId,
         SyncEvent<'static>,
@@ -759,7 +759,10 @@ impl UserStorage {
             .create_secret(secret_data.meta, secret_data.secret, None)
             .await?;
         self.open_folder(from)?;
-        let delete_event = self.delete_secret(secret_id, None).await?;
+
+        // Note that we call `remove_secret()` and not `delete_secret()`
+        // as we need to original external files for the move operation.
+        let delete_event = self.remove_secret(secret_id, None).await?;
 
         let read_event = read_event.into_owned();
         let create_event = create_event.into_owned();
@@ -778,7 +781,7 @@ impl UserStorage {
         Ok((new_id, read_event, create_event, delete_event))
     }
 
-    /// Delete a secret.
+    /// Delete a secret and remove any external files.
     pub async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
@@ -790,9 +793,24 @@ impl UserStorage {
         self.open_folder(&folder)?;
 
         let (secret_data, _) = self.read_secret(secret_id, None).await?;
-        let event = self.storage.delete_secret(secret_id).await?.into_owned();
+        let event = self.remove_secret(secret_id, None).await?;
         self.delete_files(&folder, &secret_data, None).await?;
         Ok(event)
+    }
+
+    /// Remove a secret.
+    ///
+    /// Any external files for the secret are left intact.
+    pub(crate) async fn remove_secret(
+        &mut self,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+    ) -> Result<SyncEvent<'static>> {
+        let folder = folder
+            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
+            .ok_or(Error::NoOpenFolder)?;
+        self.open_folder(&folder)?;
+        Ok(self.storage.delete_secret(secret_id).await?.into_owned())
     }
 
     /// Search index reference.

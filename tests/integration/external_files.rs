@@ -105,7 +105,7 @@ async fn integration_external_files() -> Result<()> {
     let (new_secret_data, _) =
         owner.read_secret(&id, Some(summary.clone())).await?;
 
-    let _updated_checksum = if let Secret::File {
+    let updated_checksum = if let Secret::File {
         mime,
         external,
         size,
@@ -128,6 +128,47 @@ async fn integration_external_files() -> Result<()> {
         let old_file_name = hex::encode(original_checksum);
         let old_file_path =
             owner.file_location(summary.id(), &id, &old_file_name)?;
+        assert!(!old_file_path.exists());
+
+        checksum
+    } else {
+        panic!("expecting file secret variant");
+    };
+
+    let new_folder_name = "Mock folder".to_string();
+    let destination = owner.create_folder(new_folder_name).await?;
+
+    let (new_id, _, _, _) =
+        owner.move_secret(&id, &summary, &destination).await?;
+
+    let (moved_secret_data, _) = owner
+        .read_secret(&new_id, Some(destination.clone()))
+        .await?;
+
+    let moved_checksum = if let Secret::File {
+        mime,
+        external,
+        size,
+        checksum,
+        path,
+        ..
+    } = &moved_secret_data.secret
+    {
+        assert!(path.is_none());
+        assert!(*size > 0);
+        assert!(external);
+        assert_ne!(&zero_checksum, checksum);
+        assert_eq!("text/plain", mime);
+
+        assert_eq!(updated_checksum, checksum);
+
+        let file_name = hex::encode(checksum);
+        let expected_file_path =
+            owner.file_location(destination.id(), &new_id, &file_name)?;
+        assert!(expected_file_path.exists());
+
+        let old_file_path =
+            owner.file_location(summary.id(), &id, &file_name)?;
         assert!(!old_file_path.exists());
 
         checksum

@@ -279,6 +279,7 @@ impl UserStorage {
         for target in targets {
             if let Secret::File { checksum, .. } = target {
                 let file_name = hex::encode(checksum);
+
                 self.move_file(
                     old_vault_id,
                     new_vault_id,
