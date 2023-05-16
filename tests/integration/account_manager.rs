@@ -115,7 +115,7 @@ async fn integration_account_manager() -> Result<()> {
         .join(vault_id.to_string())
         .join(secret_id.to_string());
     std::fs::create_dir_all(&target)?;
-    let digest = FileStorage::encrypt_file_passphrase(
+    let (digest, _) = FileStorage::encrypt_file_passphrase(
         &source_file,
         &target,
         file_passphrase.clone(),

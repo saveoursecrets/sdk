@@ -68,7 +68,6 @@ async fn integration_external_files() -> Result<()> {
             &mut owner,
             &summary,
             &new_id,
-            &new_secret_data,
             &updated_checksum,
         )
         .await?;
@@ -245,7 +244,6 @@ async fn assert_move_file_secret(
     owner: &mut UserStorage,
     default_folder: &Summary,
     id: &SecretId,
-    secret_data: &SecretData,
     updated_checksum: &[u8; 32],
 ) -> Result<(SecretId, SecretData, [u8; 32], Summary)> {
     let new_folder_name = "Mock folder".to_string();
@@ -338,7 +336,7 @@ async fn assert_create_update_move_file_secret(
     let new_id = new_secret_data.id.as_ref().unwrap();
 
     let zero_checksum = [0; 32];
-    let checksum = if let Secret::File {
+    if let Secret::File {
         mime,
         external,
         size,
@@ -362,8 +360,6 @@ async fn assert_create_update_move_file_secret(
         let old_file_path =
             owner.file_location(default_folder.id(), &id, &old_file_name)?;
         assert!(!old_file_path.exists());
-
-        *checksum
     } else {
         panic!("expecting file secret variant");
     };

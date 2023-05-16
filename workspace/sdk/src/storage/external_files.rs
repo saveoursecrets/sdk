@@ -23,7 +23,7 @@ use crate::{storage::StorageDirs, Error, Result};
 /// Result of encrypting a file.
 #[derive(Clone)]
 pub struct EncryptedFile {
-    /// Size of the original file in bytes.
+    /// Size of the encrypted data in bytes.
     pub size: u64,
     /// Sha256 digest of the encrypted buffer.
     pub digest: Vec<u8>,
@@ -43,7 +43,7 @@ impl FileStorage {
         source: S,
         target: T,
         passphrase: SecretString,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<(Vec<u8>, u64)> {
         let mut file = std::fs::File::open(source)?;
         let encryptor = Encryptor::with_user_passphrase(passphrase);
 
@@ -57,10 +57,11 @@ impl FileStorage {
         let digest = hasher.finalize();
         let file_name = hex::encode(digest);
         let dest = PathBuf::from(target.as_ref()).join(file_name);
+        let size = encrypted.len() as u64;
 
         std::fs::write(dest, encrypted)?;
 
-        Ok(digest.to_vec())
+        Ok((digest.to_vec(), size))
     }
 
     /// Decrypt a file using AGE passphrase encryption.
@@ -99,10 +100,6 @@ impl FileStorage {
         vault_id: V,
         secret_id: S,
     ) -> Result<EncryptedFile> {
-        let file = std::fs::File::open(path.as_ref())?;
-        let size: u64 = file.metadata()?.len();
-        drop(file);
-
         let target = StorageDirs::files_dir(address)?
             .join(vault_id)
             .join(secret_id);
@@ -112,7 +109,8 @@ impl FileStorage {
         }
 
         // Encrypt the file and write it to the storage location
-        let digest = Self::encrypt_file_passphrase(path, target, password)?;
+        let (digest, size) =
+            Self::encrypt_file_passphrase(path, target, password)?;
         Ok(EncryptedFile { digest, size })
     }
 
