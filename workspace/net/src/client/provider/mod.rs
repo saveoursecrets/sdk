@@ -17,7 +17,7 @@ use sos_sdk::{
     search::SearchIndex,
     storage::StorageDirs,
     vault::{
-        secret::{Secret, SecretId, SecretMeta},
+        secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Summary, Vault,
     },
     Timestamp,
@@ -411,14 +411,15 @@ pub trait StorageProvider: Sync + Send {
     async fn update_secret(
         &mut self,
         id: &SecretId,
-        mut meta: SecretMeta,
-        secret: Secret,
+        mut secret_data: SecretData,
+        //mut meta: SecretMeta,
+        //secret: Secret,
     ) -> Result<SyncEvent<'_>> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
-        meta.touch();
+        secret_data.meta.touch();
         let event = keeper
-            .update(id, meta, secret)?
+            .update(id, secret_data.meta, secret_data.secret)?
             .ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
         self.patch(&summary, vec![event.clone()]).await?;

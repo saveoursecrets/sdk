@@ -503,7 +503,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             };
 
             if let Some((meta, secret)) = result {
-                owner.create_secret(meta, secret).await?;
+                owner.create_secret(meta, secret, None).await?;
                 println!("Secret created ✓");
             }
         }
@@ -641,6 +641,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                             resolved.meta,
                             None,
                             None,
+                            None,
                         )
                         .await?;
                 }
@@ -690,6 +691,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                             data.meta,
                             Some(edited_secret),
                             None,
+                            None,
                         )
                         .await?;
                     println!("Secret updated ✓");
@@ -723,6 +725,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                         resolved.meta,
                         None,
                         None,
+                        None,
                     )
                     .await?;
                 let state = if value { "on" } else { "off" };
@@ -750,6 +753,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     .update_secret(
                         &resolved.secret_id,
                         resolved.meta,
+                        None,
                         None,
                         None,
                     )
@@ -800,7 +804,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     format!(r#"Delete "{}" (y/n)? "#, resolved.meta.label());
                 if read_flag(Some(&prompt))? {
                     let mut owner = resolved.user.write().await;
-                    owner.delete_secret(&resolved.secret_id).await?;
+                    owner.delete_secret(&resolved.secret_id, None).await?;
                     println!("Secret deleted ✓");
                 }
             }

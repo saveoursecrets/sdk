@@ -510,12 +510,18 @@ impl UserStorage {
         Ok(())
     }
 
-    /// Create a secret in the current open folder.
+    /// Create a secret in the current open folder or a specific folder.
     pub async fn create_secret(
         &mut self,
         meta: SecretMeta,
         secret: Secret,
+        folder: Option<Summary>,
     ) -> Result<(SecretId, SyncEvent<'static>)> {
+        let folder = folder
+            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
+            .ok_or(Error::NoOpenFolder)?;
+        self.open_folder(&folder)?;
+
         if let Secret::Pem { certificates, .. } = &secret {
             if certificates.is_empty() {
                 return Err(Error::PemEncoding);
@@ -575,49 +581,53 @@ impl UserStorage {
         secret_id: &SecretId,
         meta: SecretMeta,
         secret: Option<Secret>,
-        mut destination: Option<&Summary>,
+        folder: Option<Summary>,
+        destination: Option<&Summary>,
     ) -> Result<(SecretId, SyncEvent<'static>)> {
-        let secret = if let Some(secret) = secret {
-            secret
+        let folder = folder
+            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
+            .ok_or(Error::NoOpenFolder)?;
+        self.open_folder(&folder)?;
+
+        let (old_secret_data, _) = self.read_secret(secret_id).await?;
+
+        let secret_data = if let Some(secret) = secret {
+            SecretData {
+                id: Some(*secret_id),
+                meta,
+                secret,
+            }
         } else {
-            let (data, _) = self.read_secret(secret_id).await?;
-            data.secret
+            let mut secret_data = old_secret_data.clone();
+            secret_data.meta = meta;
+            secret_data
         };
 
-        if let Secret::Pem { certificates, .. } = &secret {
+        if let Secret::Pem { certificates, .. } = &secret_data.secret {
             if certificates.is_empty() {
                 return Err(Error::PemEncoding);
             }
         }
 
-        let current_folder =
-            self.storage.current().map(|g| g.summary().clone());
+        let event = self
+            .storage
+            .update_secret(secret_id, secret_data.clone())
+            .await?
+            .into_owned();
 
-        let event =
-            self.storage.update_secret(secret_id, meta, secret).await?;
-
-        todo!("update files");
-        //self.update_files().await?;
-
-        /*
-        await updateStorageFiles(
-          context,
-          summary,
-          newSummary,
-          secretData,
-          newSecretData,
-        );
-        */
-
-        if let (Some(summary), Some(destination)) =
-            (current_folder, destination.take())
-        {
+        let (id, create_event) = if let Some(to) = destination.as_ref() {
             let (new_id, _, create_event, _) =
-                self.move_secret(&summary, destination, secret_id).await?;
-            return Ok((new_id, create_event));
-        }
+                self.move_secret(&folder, to, secret_id).await?;
+            (new_id, create_event)
+        } else {
+            (*secret_id, event)
+        };
 
-        Ok((*secret_id, event.into_owned()))
+        let new_folder = destination.unwrap_or_else(|| &folder);
+        self.update_files(&folder, new_folder, &old_secret_data, secret_data)
+            .await?;
+
+        Ok((id, create_event))
     }
 
     /// Move a secret to the archive.
@@ -696,10 +706,10 @@ impl UserStorage {
 
         self.open_folder(to)?;
         let (new_id, create_event) = self
-            .create_secret(secret_data.meta, secret_data.secret)
+            .create_secret(secret_data.meta, secret_data.secret, None)
             .await?;
         self.open_folder(from)?;
-        let delete_event = self.delete_secret(secret_id).await?;
+        let delete_event = self.delete_secret(secret_id, None).await?;
 
         let read_event = read_event.into_owned();
         let create_event = create_event.into_owned();
@@ -722,13 +732,16 @@ impl UserStorage {
     pub async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-    ) -> Result<SyncEvent<'_>> {
-        let event = self.storage.delete_secret(secret_id).await?;
+        folder: Option<Summary>,
+    ) -> Result<SyncEvent<'static>> {
+        let folder = folder
+            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
+            .ok_or(Error::NoOpenFolder)?;
+        self.open_folder(&folder)?;
 
-        todo!("delete files");
-        //self.delete_files().await?;
-        // await deleteStorageFiles(context, summary, secretData);
-
+        let (secret_data, _) = self.read_secret(secret_id).await?;
+        let event = self.storage.delete_secret(secret_id).await?.into_owned();
+        self.delete_files(&folder, &secret_data, None).await?;
         Ok(event)
     }
 

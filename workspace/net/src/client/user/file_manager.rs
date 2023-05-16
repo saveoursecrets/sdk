@@ -7,7 +7,6 @@ use async_recursion::async_recursion;
 
 use sos_sdk::{
     secrecy::{ExposeSecret, SecretVec},
-    signer::ecdsa::Address,
     storage::EncryptedFile,
     storage::StorageDirs,
     vault::{
@@ -131,7 +130,7 @@ impl UserStorage {
 
     /// Create external files when a file secret is created.
     #[async_recursion(?Send)]
-    pub async fn create_files(
+    pub(crate) async fn create_files(
         &mut self,
         summary: &Summary,
         secret_data: SecretData,
@@ -141,7 +140,7 @@ impl UserStorage {
 
     /// Update external files when a file secret is updated.
     #[async_recursion(?Send)]
-    pub async fn update_files(
+    pub(crate) async fn update_files(
         &mut self,
         old_summary: &Summary,
         new_summary: &Summary,
@@ -204,7 +203,7 @@ impl UserStorage {
     }
 
     /// Delete a collection of files from the external storage.
-    pub async fn delete_files(
+    pub(crate) async fn delete_files(
         &self,
         summary: &Summary,
         secret_data: &SecretData,
@@ -224,7 +223,7 @@ impl UserStorage {
     }
 
     /// Move a collection of external storage files.
-    pub async fn move_files(
+    pub(crate) async fn move_files(
         &self,
         secret_data: &SecretData,
         old_vault_id: &VaultId,
@@ -233,7 +232,6 @@ impl UserStorage {
         new_secret_id: &SecretId,
         targets: Option<Vec<&Secret>>,
     ) -> Result<()> {
-        let id = secret_data.id.as_ref().ok_or_else(|| Error::NoSecretId)?;
         let targets = targets.unwrap_or_else(|| {
             get_external_file_secrets(&secret_data.secret)
         });
@@ -358,9 +356,14 @@ impl UserStorage {
         };
 
         // Update with new checksum(s)
-        self.open_folder(&summary)?;
-        self.update_secret(id, secret_data.meta, Some(new_secret), None)
-            .await?;
+        self.update_secret(
+            id,
+            secret_data.meta,
+            Some(new_secret),
+            Some(summary.clone()),
+            None,
+        )
+        .await?;
 
         Ok(results)
     }
@@ -390,8 +393,7 @@ fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
 
     let mut files = Vec::new();
     add_file_source(&secret, &mut files);
-    for (index, field) in secret.user_data().fields().into_iter().enumerate()
-    {
+    for field in secret.user_data().fields() {
         if let UserField::Embedded { secret, .. } = field {
             add_file_source(secret, &mut files);
         }

@@ -12,7 +12,7 @@ use sos_sdk::{
     events::{ChangeAction, ChangeNotification, SyncEvent},
     signer::ecdsa::BoxedEcdsaSigner,
     vault::{
-        secret::{Secret, SecretId, SecretMeta},
+        secret::{Secret, SecretData, SecretId, SecretMeta},
         Summary, Vault,
     },
 };
@@ -234,7 +234,12 @@ impl MemoryProvider {
     ) -> impl Future<Output = Result<SyncEvent<'static>>> + 'static {
         async move {
             let mut writer = cache.write().await;
-            let event = writer.update_secret(&id, meta, secret).await?;
+            let secret_data = SecretData {
+                id: Some(id),
+                meta,
+                secret,
+            };
+            let event = writer.update_secret(&id, secret_data).await?;
             Ok::<_, Error>(event.into_owned())
         }
     }
