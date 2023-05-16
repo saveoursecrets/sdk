@@ -105,7 +105,7 @@ async fn integration_external_files() -> Result<()> {
     let (new_secret_data, _) =
         owner.read_secret(&id, Some(summary.clone())).await?;
 
-    let updated_checksum = if let Secret::File {
+    let _updated_checksum = if let Secret::File {
         mime,
         external,
         size,

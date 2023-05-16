@@ -16,7 +16,7 @@ use sos_sdk::{
     events::SyncEvent,
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
-    storage::{EncryptedFile, FileStorage, StorageDirs},
+    storage::StorageDirs,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess, VaultId,
@@ -848,49 +848,6 @@ impl UserStorage {
         }
 
         Ok(self.index.document_count())
-    }
-
-    /// Encrypt a file and move it to the external file storage location.
-    pub fn encrypt_file_storage<P: AsRef<Path>>(
-        &self,
-        vault_id: &VaultId,
-        secret_id: &SecretId,
-        source: P,
-    ) -> Result<EncryptedFile> {
-        // Find the file encryption password
-        let password = DelegatedPassphrase::find_file_encryption_passphrase(
-            self.user.identity().keeper(),
-        )?;
-
-        // Encrypt and write to disc
-        Ok(FileStorage::encrypt_file_storage(
-            password,
-            source,
-            self.user.identity().address().to_string(),
-            vault_id.to_string(),
-            secret_id.to_string(),
-        )?)
-    }
-
-    /// Decrypt a file in the storage location and return the buffer.
-    pub fn decrypt_file_storage(
-        &self,
-        vault_id: &VaultId,
-        secret_id: &SecretId,
-        file_name: &str,
-    ) -> Result<Vec<u8>> {
-        // Find the file encryption password
-        let password = DelegatedPassphrase::find_file_encryption_passphrase(
-            self.user.identity().keeper(),
-        )?;
-
-        Ok(FileStorage::decrypt_file_storage(
-            &password,
-            self.user.identity().address().to_string(),
-            vault_id.to_string(),
-            secret_id.to_string(),
-            file_name,
-        )?)
     }
 
     /// Write a zip archive containing all the secrets
