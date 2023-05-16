@@ -20,6 +20,9 @@ mod command_line;
 mod compact_force_pull;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod external_files;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod handle_change;
 
 #[cfg(not(target_arch = "wasm32"))]

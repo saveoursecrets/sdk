@@ -522,7 +522,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
                 let (data, _) =
-                    owner.read_secret(&resolved.secret_id).await?;
+                    owner.read_secret(&resolved.secret_id, None).await?;
                 print_secret(&data.meta, &data.secret)?;
             }
         }
@@ -662,7 +662,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
                 let (data, _) =
-                    owner.read_secret(&resolved.secret_id).await?;
+                    owner.read_secret(&resolved.secret_id, None).await?;
 
                 let result = if let Secret::File {
                     name, mime, buffer, ..

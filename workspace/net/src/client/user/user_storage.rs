@@ -562,7 +562,13 @@ impl UserStorage {
     pub async fn read_secret(
         &mut self,
         secret_id: &SecretId,
+        folder: Option<Summary>,
     ) -> Result<(SecretData, SyncEvent<'static>)> {
+        let folder = folder
+            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
+            .ok_or(Error::NoOpenFolder)?;
+        self.open_folder(&folder)?;
+
         let (meta, secret, event) =
             self.storage.read_secret(secret_id).await?;
         Ok((
@@ -575,7 +581,7 @@ impl UserStorage {
         ))
     }
 
-    /// Update a secret in the current open folder.
+    /// Update a secret in the current open folder or a specific folder.
     pub async fn update_secret(
         &mut self,
         secret_id: &SecretId,
@@ -589,7 +595,7 @@ impl UserStorage {
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder)?;
 
-        let (old_secret_data, _) = self.read_secret(secret_id).await?;
+        let (old_secret_data, _) = self.read_secret(secret_id, None).await?;
 
         let secret_data = if let Some(secret) = secret {
             SecretData {
@@ -603,17 +609,9 @@ impl UserStorage {
             secret_data
         };
 
-        if let Secret::Pem { certificates, .. } = &secret_data.secret {
-            if certificates.is_empty() {
-                return Err(Error::PemEncoding);
-            }
-        }
-
         let event = self
-            .storage
-            .update_secret(secret_id, secret_data.clone())
-            .await?
-            .into_owned();
+            .write_secret(secret_id, secret_data.clone(), None)
+            .await?;
 
         let (id, create_event) = if let Some(to) = destination.as_ref() {
             let (new_id, _, create_event, _) =
@@ -628,6 +626,38 @@ impl UserStorage {
             .await?;
 
         Ok((id, create_event))
+    }
+
+    /// Write a secret in the current open folder or a specific folder.
+    ///
+    /// Unlike `update_secret()` this function does not support moving
+    /// between folders or managing external files which allows us
+    /// to avoid recursion when handling embedded file secrets which
+    /// require rewriting the secret once the files have been encrypted.
+    pub(crate) async fn write_secret(
+        &mut self,
+        secret_id: &SecretId,
+        secret_data: SecretData,
+        folder: Option<Summary>,
+    ) -> Result<SyncEvent<'static>> {
+        let folder = folder
+            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
+            .ok_or(Error::NoOpenFolder)?;
+        self.open_folder(&folder)?;
+
+        if let Secret::Pem { certificates, .. } = &secret_data.secret {
+            if certificates.is_empty() {
+                return Err(Error::PemEncoding);
+            }
+        }
+
+        let event = self
+            .storage
+            .update_secret(secret_id, secret_data)
+            .await?
+            .into_owned();
+
+        Ok(event)
     }
 
     /// Move a secret to the archive.
@@ -701,7 +731,8 @@ impl UserStorage {
         SyncEvent<'static>,
         SyncEvent<'static>,
     )> {
-        let (secret_data, read_event) = self.read_secret(secret_id).await?;
+        let (secret_data, read_event) =
+            self.read_secret(secret_id, None).await?;
         let move_secret_data = secret_data.clone();
 
         self.open_folder(to)?;
@@ -739,7 +770,7 @@ impl UserStorage {
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder)?;
 
-        let (secret_data, _) = self.read_secret(secret_id).await?;
+        let (secret_data, _) = self.read_secret(secret_id, None).await?;
         let event = self.storage.delete_secret(secret_id).await?.into_owned();
         self.delete_files(&folder, &secret_data, None).await?;
         Ok(event)
@@ -1012,8 +1043,9 @@ impl UserStorage {
     pub async fn load_avatar(
         &mut self,
         secret_id: &SecretId,
+        folder: Option<Summary>,
     ) -> Result<Option<Vec<u8>>> {
-        let (data, _) = self.read_secret(secret_id).await?;
+        let (data, _) = self.read_secret(secret_id, folder).await?;
         if let Secret::Contact { vcard, .. } = &data.secret {
             let jpeg = if let Ok(mut jpegs) = vcard.parse_photo_jpeg() {
                 if !jpegs.is_empty() {
@@ -1030,15 +1062,14 @@ impl UserStorage {
     }
 
     /// Export a contact secret to vCard file.
-    ///
-    /// The folder containing the secret should already be open.
     #[cfg(feature = "contacts")]
     pub async fn export_vcard_file<P: AsRef<Path>>(
         &mut self,
         path: P,
         secret_id: &SecretId,
+        folder: Option<Summary>,
     ) -> Result<()> {
-        let (data, _) = self.read_secret(secret_id).await?;
+        let (data, _) = self.read_secret(secret_id, folder).await?;
         if let Secret::Contact { vcard, .. } = &data.secret {
             let content = vcard.to_string();
             std::fs::write(&path, content)?;

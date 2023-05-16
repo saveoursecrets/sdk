@@ -30,6 +30,7 @@ use crate::{
         ecdsa::{self, BoxedEcdsaSigner},
         ed25519::{self, BoxedEd25519Signer},
     },
+    storage::{basename, guess_mime},
     Error, Result, Timestamp,
 };
 
@@ -2402,6 +2403,22 @@ impl Decode for Secret {
             }
         }
         Ok(())
+    }
+}
+
+impl TryFrom<PathBuf> for Secret {
+    type Error = Error;
+    fn try_from(path: PathBuf) -> Result<Self> {
+        Ok(Secret::File {
+            name: basename(&path),
+            buffer: SecretVec::new(vec![]),
+            size: 0,
+            checksum: [0; 32],
+            external: true,
+            mime: guess_mime(&path)?,
+            path: Some(path),
+            user_data: Default::default(),
+        })
     }
 }
 

@@ -54,6 +54,7 @@ binary-stream = { version = "3.4", features = ["32bit"] }
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 unicode-segmentation = "1.10"
+mime_guess = { version = "2" }
 anyhow = {version = "1", optional = true }
 
 [dependencies.probly-search]

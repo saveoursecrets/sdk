@@ -1,14 +1,12 @@
 //! File manager to keep external files in sync
 //! as secrets are created, updated and moved.
 
-use std::path::{Path, PathBuf};
-
-use async_recursion::async_recursion;
+use std::path::PathBuf;
 
 use sos_sdk::{
     secrecy::{ExposeSecret, SecretVec},
     storage::EncryptedFile,
-    storage::StorageDirs,
+    storage::{basename, StorageDirs},
     vault::{
         secret::{Secret, SecretData, SecretId, UserData, UserField},
         Summary, VaultId,
@@ -129,7 +127,6 @@ impl UserStorage {
     }
 
     /// Create external files when a file secret is created.
-    #[async_recursion(?Send)]
     pub(crate) async fn create_files(
         &mut self,
         summary: &Summary,
@@ -139,7 +136,6 @@ impl UserStorage {
     }
 
     /// Update external files when a file secret is updated.
-    #[async_recursion(?Send)]
     pub(crate) async fn update_files(
         &mut self,
         old_summary: &Summary,
@@ -355,26 +351,18 @@ impl UserStorage {
             }
         };
 
+        let secret_data = SecretData {
+            id: Some(*id),
+            meta: secret_data.meta,
+            secret: new_secret,
+        };
+
         // Update with new checksum(s)
-        self.update_secret(
-            id,
-            secret_data.meta,
-            Some(new_secret),
-            Some(summary.clone()),
-            None,
-        )
-        .await?;
+        self.write_secret(id, secret_data, Some(summary.clone()))
+            .await?;
 
         Ok(results)
     }
-}
-
-fn basename<P: AsRef<Path>>(path: P) -> String {
-    path.as_ref()
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .into_owned()
 }
 
 fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
