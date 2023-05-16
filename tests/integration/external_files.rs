@@ -176,6 +176,16 @@ async fn integration_external_files() -> Result<()> {
         panic!("expecting file secret variant");
     };
 
+    owner
+        .delete_secret(&new_id, Some(destination.clone()))
+        .await?;
+
+    // Check deleting the secret also removed the external file
+    let file_name = hex::encode(moved_checksum);
+    let deleted_file_path =
+        owner.file_location(destination.id(), &new_id, &file_name)?;
+    assert!(!deleted_file_path.exists());
+
     // Reset the cache dir so we don't interfere
     // with other tests
     StorageDirs::clear_cache_dir();
