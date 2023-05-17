@@ -21,7 +21,7 @@ use std::{
 use crate::{storage::StorageDirs, Error, Result};
 
 /// Result of encrypting a file.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct EncryptedFile {
     /// Size of the encrypted data in bytes.
     pub size: u64,

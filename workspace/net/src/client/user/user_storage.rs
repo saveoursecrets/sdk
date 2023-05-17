@@ -634,7 +634,6 @@ impl UserStorage {
             .await?;
 
         // Must update the files before moving so checksums are correct
-        //let new_folder = destination.unwrap_or_else(|| &folder);
         self.update_files(&folder, &folder, &old_secret_data, secret_data)
             .await?;
 

@@ -850,6 +850,7 @@ fn write_user_data(
 fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
     let mut user_data: UserData = Default::default();
     let count = reader.read_u32()?;
+
     for _ in 0..count {
         let mut field: SecretRow = Default::default();
         field.decode(reader)?;
@@ -1557,6 +1558,26 @@ impl Secret {
             Secret::Password { user_data, .. } => user_data,
             Secret::Age { user_data, .. } => user_data,
         }
+    }
+
+    /// Attach a secret to this secret's user data.
+    pub fn attach(&mut self, row: SecretRow) {
+        self.user_data_mut().fields_mut().push(row);
+    }
+
+    /// Remove a secret from this secret's user data.
+    pub fn detach(&mut self, id: &SecretId) {
+        self.user_data_mut()
+            .fields_mut()
+            .retain(|row| row.id() != id);
+    }
+
+    /// Find an attachment by identifier.
+    pub fn find_attachment(&self, id: &SecretId) -> Option<&SecretRow> {
+        self.user_data()
+            .fields()
+            .into_iter()
+            .find(|row| row.id() == id)
     }
 }
 

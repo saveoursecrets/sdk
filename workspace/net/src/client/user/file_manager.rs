@@ -17,6 +17,7 @@ use sos_sdk::{
 use crate::client::{user::UserStorage, Error, Result};
 
 /// Diff of file secrets.
+#[derive(Debug)]
 struct FileStorageDiff<'a> {
     /// File secrets that have been deleted.
     deleted: Vec<&'a Secret>,
@@ -25,7 +26,7 @@ struct FileStorageDiff<'a> {
 }
 
 /// Source path to a file.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct FileSource {
     /// Path to the source file.
     path: PathBuf,
@@ -36,7 +37,7 @@ struct FileSource {
 }
 
 /// Result of encrypting an external file.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct FileStorageResult {
     /// Source for the file.
     source: FileSource,
@@ -387,9 +388,12 @@ impl UserStorage {
                             None,
                         )?,
                     ));
+                } else {
+                    fields.push(field.clone());
                 }
             }
 
+            *user_data.fields_mut() = fields;
             Some(user_data)
         } else {
             None
@@ -428,23 +432,28 @@ impl UserStorage {
 }
 
 fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
-    fn add_file_source(secret: &Secret, files: &mut Vec<FileSource>) {
+    fn add_file_source(
+        secret: &Secret,
+        files: &mut Vec<FileSource>,
+        field_index: Option<usize>,
+    ) {
         if let Secret::File { external, path, .. } = secret {
             if *external && path.is_some() {
                 let name = basename(path.as_ref().unwrap());
                 files.push(FileSource {
                     path: path.clone().unwrap(),
                     name,
-                    field_index: None,
+                    field_index,
                 });
             }
         }
     }
 
     let mut files = Vec::new();
-    add_file_source(&secret, &mut files);
-    for field in secret.user_data().fields() {
-        add_file_source(field.secret(), &mut files);
+    add_file_source(&secret, &mut files, None);
+    for (index, field) in secret.user_data().fields().into_iter().enumerate()
+    {
+        add_file_source(field.secret(), &mut files, Some(index));
     }
     files
 }
