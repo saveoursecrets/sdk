@@ -1019,9 +1019,14 @@ impl Decode for AgeVersion {
 
 /// Represents the various types of secret.
 ///
-/// This implements the serde traits for the webassembly bindings
-/// and so that the shell edit command can present a JSON representation
-/// when a user wants to edit a secret.
+/// Some variants can be created from other types 
+/// using a `From` or `TryFrom` implementation:
+///
+/// * `String`  -> `Secret::Note`
+/// * `SecretString`  -> `Secret::Password`
+/// * `PathBuf` -> `Secret::File`
+/// * `Url`     -> `Secret::Link`
+///
 #[derive(Serialize, Deserialize)]
 #[serde(untagged, rename_all = "lowercase")]
 pub enum Secret {
@@ -2456,6 +2461,36 @@ impl TryFrom<PathBuf> for Secret {
             path: Some(path),
             user_data: Default::default(),
         })
+    }
+}
+
+impl From<SecretString> for Secret {
+    fn from(password: SecretString) -> Self {
+        Secret::Password {
+            password,
+            name: None,
+            user_data: Default::default(),
+        }
+    }
+}
+
+impl From<Url> for Secret {
+    fn from(url: Url) -> Self {
+        Secret::Link {
+            url: SecretString::new(url.to_string()),
+            label: None,
+            title: None,
+            user_data: Default::default(),
+        }
+    }
+}
+
+impl From<String> for Secret {
+    fn from(text: String) -> Self {
+        Secret::Note {
+            text: SecretString::new(text),
+            user_data: Default::default(),
+        }
     }
 }
 
