@@ -680,9 +680,9 @@ impl Decode for SecretSigner {
     }
 }
 
-/// User defined field.
+/// Secret with it's associated meta data and identifier.
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct UserField {
+pub struct SecretRow {
     /// Identifier for the secret.
     id: SecretId,
     /// Meta data for the secret.
@@ -691,14 +691,10 @@ pub struct UserField {
     secret: Secret,
 }
 
-impl UserField {
-    /// Create a new secret row with generated identifier.
-    pub fn new(meta: SecretMeta, secret: Secret) -> Self {
-        Self {
-            id: SecretId::new_v4(),
-            meta,
-            secret,
-        }
+impl SecretRow {
+    /// Create a new secret row with known identifier.
+    pub fn new(id: SecretId, meta: SecretMeta, secret: Secret) -> Self {
+        Self { id, meta, secret }
     }
 
     /// Identifier for the row.
@@ -727,7 +723,13 @@ impl UserField {
     }
 }
 
-impl Encode for UserField {
+impl From<SecretRow> for (SecretId, SecretMeta, Secret) {
+    fn from(value: SecretRow) -> Self {
+        (value.id, value.meta, value.secret)
+    }
+}
+
+impl Encode for SecretRow {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         writer.write_bytes(self.id.as_bytes())?;
         self.meta.encode(&mut *writer)?;
@@ -736,7 +738,7 @@ impl Encode for UserField {
     }
 }
 
-impl Decode for UserField {
+impl Decode for SecretRow {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let uuid: [u8; 16] = reader.read_bytes(16)?.as_slice().try_into()?;
         self.id = Uuid::from_bytes(uuid);
@@ -751,7 +753,7 @@ impl Decode for UserField {
 pub struct UserData {
     /// Collection of custom user_data.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    fields: Vec<UserField>,
+    fields: Vec<SecretRow>,
     /// Comment for the secret.
     #[serde(skip_serializing_if = "Option::is_none")]
     comment: Option<String>,
@@ -791,17 +793,17 @@ impl UserData {
     }
 
     /// Get the user fields.
-    pub fn fields(&self) -> &Vec<UserField> {
+    pub fn fields(&self) -> &Vec<SecretRow> {
         &self.fields
     }
 
     /// Get a mutable reference to the user fields.
-    pub fn fields_mut(&mut self) -> &mut Vec<UserField> {
+    pub fn fields_mut(&mut self) -> &mut Vec<SecretRow> {
         &mut self.fields
     }
 
     /// Add a custom field to this collection.
-    pub fn push(&mut self, field: UserField) {
+    pub fn push(&mut self, field: SecretRow) {
         self.fields.push(field);
     }
 
@@ -849,7 +851,7 @@ fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
     let mut user_data: UserData = Default::default();
     let count = reader.read_u32()?;
     for _ in 0..count {
-        let mut field: UserField = Default::default();
+        let mut field: SecretRow = Default::default();
         field.decode(reader)?;
         user_data.push(field);
     }
@@ -2472,8 +2474,8 @@ mod test {
         let bank_meta =
             SecretMeta::new("Embedded bank".to_string(), bank.kind());
 
-        user_data.push(UserField::new(card_meta, card));
-        user_data.push(UserField::new(bank_meta, bank));
+        user_data.push(SecretRow::new(SecretId::new_v4(), card_meta, card));
+        user_data.push(SecretRow::new(SecretId::new_v4(), bank_meta, bank));
 
         let text = r#"BEGIN:VCARD
 VERSION:4.0

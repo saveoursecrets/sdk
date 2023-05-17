@@ -12,7 +12,7 @@ use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 use sos_sdk::{
     vault::{
-        secret::{Secret, SecretId, SecretMeta, UserField},
+        secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Summary, VaultId, VaultMeta,
     },
     Result,

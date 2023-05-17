@@ -9,7 +9,7 @@ use sos_sdk::{
     storage::EncryptedFile,
     storage::{basename, FileStorage, StorageDirs},
     vault::{
-        secret::{Secret, SecretData, SecretId, UserData, UserField},
+        secret::{Secret, SecretData, SecretId, SecretRow, UserData},
         Summary, VaultId,
     },
 };
@@ -377,7 +377,8 @@ impl UserStorage {
                     .iter()
                     .find(|a| a.source.field_index == Some(index))
                 {
-                    fields.push(UserField::new(
+                    fields.push(SecretRow::new(
+                        *field.id(),
                         field.meta().clone(),
                         copy_file_secret(
                             field.secret(),
