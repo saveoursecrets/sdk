@@ -102,13 +102,26 @@ async fn integration_external_files() -> Result<()> {
     Ok(())
 }
 
+fn get_image_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
+    let file_path = PathBuf::from("tests/fixtures/sample.heic");
+    let secret: Secret = file_path.clone().try_into()?;
+    let meta =
+        SecretMeta::new("Sample image file".to_string(), secret.kind());
+    Ok((meta, secret, file_path))
+}
+
+fn get_text_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
+    let file_path = PathBuf::from("tests/fixtures/test-file.txt");
+    let secret: Secret = file_path.clone().try_into()?;
+    let meta = SecretMeta::new("Sample text file".to_string(), secret.kind());
+    Ok((meta, secret, file_path))
+}
+
 async fn create_file_secret(
     owner: &mut UserStorage,
     default_folder: &Summary,
 ) -> Result<(SecretId, SecretData, PathBuf)> {
-    let file_path = PathBuf::from("tests/fixtures/sample.heic");
-    let secret: Secret = file_path.clone().try_into()?;
-    let meta = SecretMeta::new("Sample HEIC".to_string(), secret.kind());
+    let (meta, secret, file_path) = get_image_secret()?;
 
     // Create the file secret in the default folder
     let (id, _) = owner
@@ -118,14 +131,6 @@ async fn create_file_secret(
         owner.read_secret(&id, Some(default_folder.clone())).await?;
 
     Ok((id, secret_data, file_path))
-}
-
-fn get_attachment_secret() -> Result<(SecretMeta, Secret)> {
-    let file_path = PathBuf::from("tests/fixtures/test-file.txt");
-    let secret: Secret = file_path.clone().try_into()?;
-    let meta =
-        SecretMeta::new("Sample text attachment".to_string(), secret.kind());
-    Ok((meta, secret))
 }
 
 async fn update_file_secret(
@@ -390,7 +395,7 @@ async fn assert_attach_file_secret(
 ) -> Result<()> {
     let (id, mut secret_data, _) = create_file_secret(owner, folder).await?;
 
-    let (meta, secret) = get_attachment_secret()?;
+    let (meta, secret, _) = get_text_secret()?;
     let attachment_id = SecretId::new_v4();
     let attachment = SecretRow::new(attachment_id.clone(), meta, secret);
     secret_data.secret.attach(attachment);
@@ -405,7 +410,7 @@ async fn assert_attach_file_secret(
         )
         .await?;
 
-    let (secret_data, _) =
+    let (mut secret_data, _) =
         owner.read_secret(&id, Some(folder.clone())).await?;
 
     if let Secret::File {
@@ -432,7 +437,7 @@ async fn assert_attach_file_secret(
             .find_attachment(&attachment_id)
             .expect("attachment to exist");
 
-        if let Secret::File {
+        let attachment_checksum = if let Secret::File {
             mime,
             external,
             size,
@@ -451,9 +456,62 @@ async fn assert_attach_file_secret(
             let file_path =
                 owner.file_location(folder.id(), &id, &file_name)?;
             assert!(file_path.exists());
+
+            *checksum
         } else {
             panic!("expecting file secret variant (attachment)");
-        }
+        };
+
+        // Now update the attachment
+        let (meta, secret, _) = get_image_secret()?;
+        let new_attachment = SecretRow::new(*attached.id(), meta, secret);
+        secret_data.secret.update_attachment(new_attachment)?;
+        owner
+            .update_secret(
+                &id,
+                secret_data.meta,
+                Some(secret_data.secret),
+                Some(folder.clone()),
+                None,
+            )
+            .await?;
+
+        let (updated_secret_data, _) =
+            owner.read_secret(&id, Some(folder.clone())).await?;
+        assert_eq!(1, updated_secret_data.secret.user_data().len());
+
+        let updated_attachment = updated_secret_data
+            .secret
+            .find_attachment(&attachment_id)
+            .expect("attachment to exist");
+
+        if let Secret::File {
+            mime,
+            external,
+            size,
+            checksum,
+            path,
+            ..
+        } = updated_attachment.secret()
+        {
+            assert!(path.is_none());
+            assert!(*size > 0);
+            assert!(external);
+            assert_ne!(&ZERO_CHECKSUM, checksum);
+            assert_eq!("image/heic", mime);
+
+            let file_name = hex::encode(checksum);
+            let file_path =
+                owner.file_location(folder.id(), &id, &file_name)?;
+            assert!(file_path.exists());
+
+            let old_file_name = hex::encode(attachment_checksum);
+            let old_file_path =
+                owner.file_location(folder.id(), &id, &old_file_name)?;
+            assert!(!old_file_path.exists());
+        } else {
+            panic!("expecting file secret variant (attachment)");
+        };
     } else {
         panic!("expecting file secret variant");
     };

@@ -518,7 +518,6 @@ fn get_file_secret_diff<'a>(
                             // the fields would result in deleting the file
                             // when an attachment is renamed
                             return field.secret() == other.secret();
-                            false
                         },
                     );
 

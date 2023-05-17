@@ -1561,8 +1561,8 @@ impl Secret {
     }
 
     /// Attach a secret to this secret's user data.
-    pub fn attach(&mut self, row: SecretRow) {
-        self.user_data_mut().fields_mut().push(row);
+    pub fn attach(&mut self, attachment: SecretRow) {
+        self.user_data_mut().fields_mut().push(attachment);
     }
 
     /// Remove a secret from this secret's user data.
@@ -1578,6 +1578,22 @@ impl Secret {
             .fields()
             .into_iter()
             .find(|row| row.id() == id)
+    }
+
+    /// Update an attached secret.
+    pub fn update_attachment(&mut self, attachment: SecretRow) -> Result<()> {
+        let existing = self
+            .user_data_mut()
+            .fields_mut()
+            .into_iter()
+            .find(|row| row.id() == attachment.id());
+
+        if let Some(existing) = existing {
+            *existing = attachment;
+            Ok(())
+        } else {
+            Err(Error::AttachmentNotFound(*attachment.id()))
+        }
     }
 }
 

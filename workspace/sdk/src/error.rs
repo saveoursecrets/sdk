@@ -319,6 +319,10 @@ pub enum Error {
     #[error("not Ed25519 signing key")]
     NotEd25519Key,
 
+    /// Error generated when an attachment could not be found.
+    #[error(r#"attachment "{0}" not found"#)]
+    AttachmentNotFound(SecretId),
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
