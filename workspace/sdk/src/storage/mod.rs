@@ -225,6 +225,17 @@ impl StorageDirs {
         Ok(files_dir)
     }
 
+    /// Get the expected location for the directory containing
+    /// all the external files for a folder.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn file_folder_location<A: AsRef<Path>, V: AsRef<Path>>(
+        address: A,
+        vault_id: V,
+    ) -> Result<PathBuf> {
+        let path = Self::files_dir(address)?.join(vault_id);
+        Ok(path)
+    }
+
     /// Get the expected location for a file.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn file_location<
@@ -238,8 +249,7 @@ impl StorageDirs {
         secret_id: S,
         file_name: F,
     ) -> Result<PathBuf> {
-        let path = Self::files_dir(address)?
-            .join(vault_id)
+        let path = Self::file_folder_location(address, vault_id)?
             .join(secret_id)
             .join(file_name);
         Ok(path)

@@ -88,6 +88,18 @@ impl UserStorage {
         )?)
     }
 
+    /// Expected location for the directory containing all the
+    /// external files for a folder.
+    pub(crate) fn file_folder_location(
+        &self,
+        vault_id: &VaultId,
+    ) -> Result<PathBuf> {
+        Ok(StorageDirs::file_folder_location(
+            self.user.identity().address().to_string(),
+            vault_id.to_string(),
+        )?)
+    }
+
     /// Expected location for a file by convention.
     pub fn file_location(
         &self,
@@ -103,8 +115,20 @@ impl UserStorage {
         )?)
     }
 
+    /// Remove the directory containing all the files for a folder.
+    pub(crate) async fn delete_folder_files(
+        &self,
+        summary: &Summary,
+    ) -> Result<()> {
+        let folder_files = self.file_folder_location(summary.id())?;
+        if folder_files.exists() {
+            std::fs::remove_dir_all(&folder_files)?;
+        }
+        Ok(())
+    }
+
     /// Move the encrypted file for external file storage.
-    pub fn move_file(
+    pub(crate) fn move_file(
         &self,
         old_vault_id: &VaultId,
         new_vault_id: &VaultId,
@@ -145,7 +169,7 @@ impl UserStorage {
     }
 
     /// Delete a file from the storage location.
-    pub fn delete_file(
+    pub(crate) fn delete_file(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,

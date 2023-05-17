@@ -290,13 +290,14 @@ impl UserStorage {
     }
 
     /// Delete a folder.
-    pub async fn remove_folder(&mut self, summary: &Summary) -> Result<()> {
+    pub async fn delete_folder(&mut self, summary: &Summary) -> Result<()> {
         self.storage.remove_vault(summary).await?;
         DelegatedPassphrase::remove_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
             summary.id(),
         )?;
         self.index.remove_folder_from_search_index(summary.id());
+        self.delete_folder_files(summary).await?;
         Ok(())
     }
 
