@@ -377,15 +377,15 @@ impl UserStorage {
                     .iter()
                     .find(|a| a.source.field_index == Some(index))
                 {
-                    fields.push(UserField {
-                        meta: field.meta.clone(),
-                        secret: copy_file_secret(
-                            &field.secret,
+                    fields.push(UserField::new(
+                        field.meta().clone(),
+                        copy_file_secret(
+                            field.secret(),
                             Some(attachment.encrypted_file.digest.clone()),
                             Some(attachment.encrypted_file.size),
                             None,
                         )?,
-                    });
+                    ));
                 }
             }
 
@@ -443,7 +443,7 @@ fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
     let mut files = Vec::new();
     add_file_source(&secret, &mut files);
     for field in secret.user_data().fields() {
-        add_file_source(&field.secret, &mut files);
+        add_file_source(field.secret(), &mut files);
     }
     files
 }
@@ -456,7 +456,7 @@ fn get_external_file_secrets(secret: &Secret) -> Vec<&Secret> {
         }
     }
     for field in secret.user_data().fields() {
-        if let Secret::File { external, .. } = &field.secret {
+        if let Secret::File { external, .. } = field.secret() {
             if *external {
                 secrets.push(secret);
             }
@@ -489,16 +489,16 @@ fn get_file_secret_diff<'a>(
 
     // Find attachments that are unchanged
     for field in new_secret.user_data().fields() {
-        if let Secret::File { external, path, .. } = &field.secret {
+        if let Secret::File { external, path, .. } = field.secret() {
             if *external && path.is_none() {
-                unchanged.push(&field.secret);
+                unchanged.push(field.secret());
             }
         }
     }
 
     // Find deleted attachments
     for field in old_secret.user_data().fields() {
-        if let Secret::File { external, path, .. } = &field.secret {
+        if let Secret::File { external, path, .. } = field.secret() {
             if *external && path.is_none() {
                 let existing =
                     new_secret.user_data().fields().into_iter().find(
@@ -507,13 +507,13 @@ fn get_file_secret_diff<'a>(
                             // be changed in a rename operation so comparing
                             // the fields would result in deleting the file
                             // when an attachment is renamed
-                            return field.secret == other.secret;
+                            return field.secret() == other.secret();
                             false
                         },
                     );
 
                 if existing.is_none() {
-                    deleted.push(&field.secret);
+                    deleted.push(field.secret());
                 }
             }
         }

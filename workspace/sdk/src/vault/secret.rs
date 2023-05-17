@@ -680,36 +680,56 @@ impl Decode for SecretSigner {
     }
 }
 
-/*
-mod user_data {
-    /// Constant for the embedded secret variant.
-    pub const EMBEDDED: u8 = 1;
-}
-*/
-
 /// User defined field.
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UserField {
-    /// Meta data for the embedded secret.
-    pub meta: SecretMeta,
-    /// The data for the embedded secret.
-    pub secret: Secret,
+    /// Identifier for the secret.
+    id: SecretId,
+    /// Meta data for the secret.
+    meta: SecretMeta,
+    /// The data for the secret.
+    secret: Secret,
 }
 
-/*
 impl UserField {
-    /// Get the kind of this field.
-    pub fn kind(&self) -> u8 {
-        match self {
-            Self::Embedded { .. } => user_data::EMBEDDED,
-            _ => unreachable!(),
+    /// Create a new secret row with generated identifier.
+    pub fn new(meta: SecretMeta, secret: Secret) -> Self {
+        Self {
+            id: SecretId::new_v4(),
+            meta,
+            secret,
         }
     }
+
+    /// Identifier for the row.
+    pub fn id(&self) -> &SecretId {
+        &self.id
+    }
+
+    /// Meta data for the secret.
+    pub fn meta(&self) -> &SecretMeta {
+        &self.meta
+    }
+
+    /// Mutable meta data for the secret.
+    pub fn meta_mut(&mut self) -> &mut SecretMeta {
+        &mut self.meta
+    }
+
+    /// Secret data.
+    pub fn secret(&self) -> &Secret {
+        &self.secret
+    }
+
+    /// Mutable secret data.
+    pub fn secret_mut(&mut self) -> &mut Secret {
+        &mut self.secret
+    }
 }
-*/
 
 impl Encode for UserField {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        writer.write_bytes(self.id.as_bytes())?;
         self.meta.encode(&mut *writer)?;
         self.secret.encode(&mut *writer)?;
         Ok(())
@@ -718,6 +738,8 @@ impl Encode for UserField {
 
 impl Decode for UserField {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let uuid: [u8; 16] = reader.read_bytes(16)?.as_slice().try_into()?;
+        self.id = Uuid::from_bytes(uuid);
         self.meta.decode(&mut *reader)?;
         self.secret.decode(&mut *reader)?;
         Ok(())
@@ -2450,14 +2472,8 @@ mod test {
         let bank_meta =
             SecretMeta::new("Embedded bank".to_string(), bank.kind());
 
-        user_data.push(UserField {
-            meta: card_meta,
-            secret: card,
-        });
-        user_data.push(UserField {
-            meta: bank_meta,
-            secret: bank,
-        });
+        user_data.push(UserField::new(card_meta, card));
+        user_data.push(UserField::new(bank_meta, bank));
 
         let text = r#"BEGIN:VCARD
 VERSION:4.0

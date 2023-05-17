@@ -78,7 +78,7 @@ impl<W: Write + Seek> PublicExport<W> {
 
                 // Move contents for file attachments
                 for field in secret.user_data_mut().fields_mut() {
-                    self.move_file_buffer(&file_path, &mut field.secret)?;
+                    self.move_file_buffer(&file_path, field.secret_mut())?;
                 }
 
                 let path = format!("{}/{}.json", base_path, id);
