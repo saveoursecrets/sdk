@@ -680,27 +680,23 @@ impl Decode for SecretSigner {
     }
 }
 
+/*
 mod user_data {
     /// Constant for the embedded secret variant.
     pub const EMBEDDED: u8 = 1;
 }
+*/
 
 /// User defined field.
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(untagged)]
-pub enum UserField {
-    /// Default variant for a user defined field.
-    #[default]
-    Noop,
-    /// Embedded secret.
-    Embedded {
-        /// Meta data for the embedded secret.
-        meta: SecretMeta,
-        /// The data for the embedded secret.
-        secret: Secret,
-    },
+pub struct UserField {
+    /// Meta data for the embedded secret.
+    pub meta: SecretMeta,
+    /// The data for the embedded secret.
+    pub secret: Secret,
 }
 
+/*
 impl UserField {
     /// Get the kind of this field.
     pub fn kind(&self) -> u8 {
@@ -710,40 +706,20 @@ impl UserField {
         }
     }
 }
+*/
 
 impl Encode for UserField {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        let kind = self.kind();
-        writer.write_u8(kind)?;
-        match self {
-            Self::Embedded { meta, secret } => {
-                meta.encode(writer)?;
-                secret.encode(writer)?;
-            }
-            _ => unreachable!(),
-        }
+        self.meta.encode(&mut *writer)?;
+        self.secret.encode(&mut *writer)?;
         Ok(())
     }
 }
 
 impl Decode for UserField {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let kind = reader.read_u8()?;
-        match kind {
-            user_data::EMBEDDED => {
-                let mut meta: SecretMeta = Default::default();
-                meta.decode(reader)?;
-
-                let mut secret: Secret = Default::default();
-                secret.decode(reader)?;
-                *self = Self::Embedded { meta, secret };
-            }
-            _ => {
-                return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownUserFieldKind(kind),
-                )))
-            }
-        }
+        self.meta.decode(&mut *reader)?;
+        self.secret.decode(&mut *reader)?;
         Ok(())
     }
 }
@@ -2474,11 +2450,11 @@ mod test {
         let bank_meta =
             SecretMeta::new("Embedded bank".to_string(), bank.kind());
 
-        user_data.push(UserField::Embedded {
+        user_data.push(UserField {
             meta: card_meta,
             secret: card,
         });
-        user_data.push(UserField::Embedded {
+        user_data.push(UserField {
             meta: bank_meta,
             secret: bank,
         });
@@ -2504,16 +2480,6 @@ END:VCARD"#;
         assert!(matches!(
             decoded.user_data().recovery_note(),
             Some("Recovery")
-        ));
-
-        assert!(matches!(
-            decoded.user_data().fields().get(0).unwrap(),
-            UserField::Embedded { .. }
-        ));
-
-        assert!(matches!(
-            decoded.user_data().fields().get(1).unwrap(),
-            UserField::Embedded { .. }
         ));
 
         Ok(())
