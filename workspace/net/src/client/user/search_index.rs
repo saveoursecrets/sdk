@@ -146,6 +146,12 @@ impl UserIndex {
     }
 }
 
+impl Default for UserIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// View of documents in the search index.
 pub enum DocumentView {
     /// View all documents in the search index.

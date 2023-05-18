@@ -181,6 +181,19 @@ pub enum Command {
         /// Secret name or identifier.
         secret: SecretRef,
     },
+    /// Edit the comment for a secret.
+    Comment {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
     /// Decrypt and download a file secret.
     #[clap(alias = "dl")]
     Download {
@@ -783,7 +796,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 let save_updates = match cmd {
                     TagCommand::List { .. } => {
                         let mut tags: Vec<_> =
-                            resolved.meta.tags().into_iter().collect();
+                            resolved.meta.tags().iter().collect();
                         tags.sort();
                         for tag in tags {
                             println!("{}", tag);
@@ -995,6 +1008,56 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 }
             }
         }
+        Command::Comment {
+            account,
+            folder,
+            secret,
+        } => {
+            let resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
+            if resolved.verified {
+                let mut data = {
+                    let mut owner = resolved.user.write().await;
+                    let (data, _) =
+                        owner.read_secret(&resolved.secret_id, None).await?;
+                    data
+                };
+
+                let comment_text =
+                    data.secret.user_data().comment().unwrap_or("");
+                let (update, value) = match editor::edit_text(comment_text)? {
+                    Cow::Owned(s) => {
+                        let comment =
+                            if !s.is_empty() { Some(s) } else { None };
+                        (true, comment)
+                    }
+                    Cow::Borrowed(_) => {
+                        println!("No changes detected");
+                        (false, None)
+                    }
+                };
+
+                if update {
+                    data.secret.user_data_mut().set_comment(value);
+                    let mut owner = resolved.user.write().await;
+                    owner
+                        .update_secret(
+                            &resolved.secret_id,
+                            resolved.meta,
+                            Some(data.secret),
+                            None,
+                            None,
+                        )
+                        .await?;
+                    println!("Secret updated ✓");
+                }
+            }
+        }
         Command::Download {
             account,
             folder,
@@ -1144,7 +1207,7 @@ async fn attachment(
         factory.clone(),
         account.as_ref(),
         folder.as_ref(),
-        &secret,
+        secret,
     )
     .await?;
     if resolved.verified {
@@ -1158,7 +1221,7 @@ async fn attachment(
         let new_secret = match cmd {
             AttachCommand::List { verbose, .. } => {
                 for (index, row) in
-                    data.secret.user_data().fields().into_iter().enumerate()
+                    data.secret.user_data().fields().iter().enumerate()
                 {
                     if verbose {
                         println!(

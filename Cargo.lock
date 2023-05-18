@@ -5647,9 +5647,9 @@ dependencies = [
 
 [[package]]
 name = "terminal-banner"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b98d4c2fd9c1ca7324b6dfed4af56f12e05b7850b9bf788d5c824ba3941e20b"
+checksum = "1c86354d3c1fed22890faf9f8f203b3338d2c669cad3d2f10369f8c86d9846cf"
 dependencies = [
  "textwrap",
 ]

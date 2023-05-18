@@ -146,7 +146,7 @@ async fn update_file_secret(
 
     let (new_id, _) = owner
         .update_file(
-            &id,
+            id,
             new_meta,
             "tests/fixtures/test-file.txt",
             None,
@@ -155,7 +155,7 @@ async fn update_file_secret(
         .await?;
 
     let folder = destination
-        .map(|s| s.clone())
+        .cloned()
         .unwrap_or_else(|| default_folder.clone());
     let (new_secret_data, _) =
         owner.read_secret(&new_id, Some(folder)).await?;
@@ -191,7 +191,7 @@ async fn assert_create_file_secret(
 
         assert!(expected_file_path.exists());
 
-        let source_buffer = std::fs::read(&file_path)?;
+        let source_buffer = std::fs::read(file_path)?;
         let encrypted_buffer = std::fs::read(&expected_file_path)?;
 
         assert_ne!(source_buffer, encrypted_buffer);
@@ -231,12 +231,12 @@ async fn assert_update_file_secret(
 
         let file_name = hex::encode(checksum);
         let expected_file_path =
-            owner.file_location(default_folder.id(), &id, &file_name)?;
+            owner.file_location(default_folder.id(), id, &file_name)?;
         assert!(expected_file_path.exists());
 
         let old_file_name = hex::encode(original_checksum);
         let old_file_path =
-            owner.file_location(default_folder.id(), &id, &old_file_name)?;
+            owner.file_location(default_folder.id(), id, &old_file_name)?;
         assert!(!old_file_path.exists());
 
         *checksum
@@ -256,9 +256,8 @@ async fn assert_move_file_secret(
     let new_folder_name = "Mock folder".to_string();
     let destination = owner.create_folder(new_folder_name).await?;
 
-    let (new_id, _, _, _) = owner
-        .move_secret(&id, &default_folder, &destination)
-        .await?;
+    let (new_id, _, _, _) =
+        owner.move_secret(id, default_folder, &destination).await?;
 
     let (moved_secret_data, _) = owner
         .read_secret(&new_id, Some(destination.clone()))
@@ -287,7 +286,7 @@ async fn assert_move_file_secret(
         assert!(expected_file_path.exists());
 
         let old_file_path =
-            owner.file_location(default_folder.id(), &id, &file_name)?;
+            owner.file_location(default_folder.id(), id, &file_name)?;
         assert!(!old_file_path.exists());
 
         *checksum
@@ -304,12 +303,12 @@ async fn assert_delete_file_secret(
     id: &SecretId,
     checksum: &[u8; 32],
 ) -> Result<()> {
-    owner.delete_secret(&id, Some(folder.clone())).await?;
+    owner.delete_secret(id, Some(folder.clone())).await?;
 
     // Check deleting the secret also removed the external file
     let file_name = hex::encode(checksum);
     let deleted_file_path =
-        owner.file_location(folder.id(), &id, &file_name)?;
+        owner.file_location(folder.id(), id, &file_name)?;
     assert!(!deleted_file_path.exists());
 
     Ok(())
@@ -358,7 +357,7 @@ async fn assert_create_update_move_file_secret(
 
         let file_name = hex::encode(checksum);
         let expected_file_path =
-            owner.file_location(destination.id(), &new_id, &file_name)?;
+            owner.file_location(destination.id(), new_id, &file_name)?;
         assert!(expected_file_path.exists());
 
         let old_file_name = hex::encode(original_checksum);
@@ -383,7 +382,7 @@ async fn assert_delete_folder_file_secrets(
     owner.delete_folder(folder).await?;
 
     let file_name = hex::encode(checksum);
-    let file_path = owner.file_location(folder.id(), &id, &file_name)?;
+    let file_path = owner.file_location(folder.id(), id, &file_name)?;
     assert!(!file_path.exists());
 
     Ok(())
@@ -398,7 +397,7 @@ async fn assert_attach_file_secret(
     // Add an attachment
     let (meta, secret, _) = get_text_secret()?;
     let attachment_id = SecretId::new_v4();
-    let attachment = SecretRow::new(attachment_id.clone(), meta, secret);
+    let attachment = SecretRow::new(attachment_id, meta, secret);
     secret_data.secret.attach(attachment);
 
     owner
@@ -439,7 +438,7 @@ async fn assert_attach_file_secret(
 
             let file_name = hex::encode(checksum);
             let file_path =
-                owner.file_location(folder.id(), &id, &file_name)?;
+                owner.file_location(folder.id(), id, &file_name)?;
             assert!(file_path.exists());
         } else {
             panic!("expecting file secret variant");
@@ -450,7 +449,7 @@ async fn assert_attach_file_secret(
     let checksums = if let Secret::File { checksum, .. } = &secret_data.secret
     {
         let file_checksum = *checksum;
-        assert_root_file_secret(owner, &folder, &id, &secret_data.secret)?;
+        assert_root_file_secret(owner, folder, &id, &secret_data.secret)?;
 
         // Verify the attachment file exists
         let attached = secret_data
@@ -497,7 +496,7 @@ async fn assert_attach_file_secret(
             )
             .await?;
 
-        assert_root_file_secret(owner, &folder, &id, &secret_data.secret)?;
+        assert_root_file_secret(owner, folder, &id, &secret_data.secret)?;
 
         let (mut updated_secret_data, _) =
             owner.read_secret(&id, Some(folder.clone())).await?;
@@ -541,8 +540,7 @@ async fn assert_attach_file_secret(
         // Now insert an attachment before the previous one
         let (meta, secret, _) = get_text_secret()?;
         let new_attachment_id = SecretId::new_v4();
-        let attachment =
-            SecretRow::new(new_attachment_id.clone(), meta, secret);
+        let attachment = SecretRow::new(new_attachment_id, meta, secret);
         updated_secret_data.secret.insert_attachment(0, attachment);
 
         owner
@@ -555,7 +553,7 @@ async fn assert_attach_file_secret(
             )
             .await?;
 
-        assert_root_file_secret(owner, &folder, &id, &secret_data.secret)?;
+        assert_root_file_secret(owner, folder, &id, &secret_data.secret)?;
 
         let (mut insert_attachment_secret_data, _) =
             owner.read_secret(&id, Some(folder.clone())).await?;
@@ -609,7 +607,7 @@ async fn assert_attach_file_secret(
             )
             .await?;
 
-        assert_root_file_secret(owner, &folder, &id, &secret_data.secret)?;
+        assert_root_file_secret(owner, folder, &id, &secret_data.secret)?;
 
         let (delete_attachment_secret_data, _) =
             owner.read_secret(&id, Some(folder.clone())).await?;

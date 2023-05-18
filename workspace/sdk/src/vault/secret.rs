@@ -1605,17 +1605,14 @@ impl Secret {
 
     /// Find an attachment by identifier.
     pub fn find_attachment_by_id(&self, id: &SecretId) -> Option<&SecretRow> {
-        self.user_data()
-            .fields()
-            .into_iter()
-            .find(|row| row.id() == id)
+        self.user_data().fields().iter().find(|row| row.id() == id)
     }
 
     /// Find an attachment by name.
     pub fn find_attachment_by_name(&self, label: &str) -> Option<&SecretRow> {
         self.user_data()
             .fields()
-            .into_iter()
+            .iter()
             .find(|row| row.meta().label() == label)
     }
 
@@ -1624,7 +1621,7 @@ impl Secret {
         let existing = self
             .user_data_mut()
             .fields_mut()
-            .into_iter()
+            .iter_mut()
             .find(|row| row.id() == attachment.id());
 
         if let Some(existing) = existing {

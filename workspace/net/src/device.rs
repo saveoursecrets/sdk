@@ -78,6 +78,12 @@ impl DeviceInfo {
     }
 }
 
+impl Default for DeviceInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Default, Clone, Serialize, Deserialize)]
 /// Additional information about the device such as the
 /// device name, manufacturer and model.
@@ -168,7 +174,7 @@ impl TrustedDevice {
         device_dir: P,
         device: &TrustedDevice,
     ) -> Result<()> {
-        let device_path = Self::device_path(device_dir, &device)?;
+        let device_path = Self::device_path(device_dir, device)?;
         std::fs::remove_file(device_path)?;
         Ok(())
     }

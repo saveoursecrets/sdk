@@ -24,7 +24,7 @@ use crate::{Error, Result, TARGET};
 ///
 /// A borrowed value indicates that no changes were made
 /// whilst an owned value indicates the user made some edits.
-pub type EditResult<'a> = Cow<'a, Secret>;
+pub type EditSecretResult<'a> = Cow<'a, Secret>;
 
 /// Spawn the editor passing the file path and wait for it to exit.
 fn spawn_editor<P: AsRef<Path>>(cmd: String, file: P) -> Result<ExitStatus> {
@@ -140,25 +140,49 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
     })
 }
 
+fn editor<'a>(content: &'a [u8], suffix: &str) -> Result<Cow<'a, [u8]>> {
+    let editor_cmd = std::env::var("EDITOR").unwrap_or_else(|_| "vim".into());
+    let hash = digest(content);
+    let file = Builder::new().suffix(suffix).tempfile()?;
+    std::fs::write(file.path(), content)?;
+    let status = spawn_editor(editor_cmd, file.path())?;
+    let result = if status.success() {
+        let edited_content = std::fs::read(file.path())?;
+        let edited_hash = digest(&edited_content);
+        if edited_hash == hash {
+            Ok(Cow::Borrowed(content))
+        } else {
+            Ok(Cow::Owned(edited_content))
+        }
+    } else {
+        // Use default exit code if one is not available
+        // for example if the command was terminated by a signal
+        Err(Error::EditorExit(status.code().unwrap_or(-1)))
+    };
+    file.close()?;
+    result
+}
+
+fn digest<B: AsRef<[u8]>>(bytes: B) -> Vec<u8> {
+    Keccak256::digest(bytes).to_vec()
+}
+
+/// Edit a secret.
+pub fn edit(secret: &Secret) -> Result<EditSecretResult<'_>> {
+    let (content, suffix) = to_bytes(secret)?;
+    edit_secret(secret, content, &suffix)
+}
+
 fn edit_secret<'a>(
     secret: &'a Secret,
     content: Vec<u8>,
     suffix: &str,
-) -> Result<EditResult<'a>> {
-    let editor_cmd = std::env::var("EDITOR").unwrap_or_else(|_| "vim".into());
-    let hash = Keccak256::digest(&content);
-    let file = Builder::new().suffix(suffix).tempfile()?;
-    std::fs::write(file.path(), content)?;
-
-    let status = spawn_editor(editor_cmd, file.path())?;
-    let result = if status.success() {
-        let content = std::fs::read(file.path())?;
-        let edited_hash = Keccak256::digest(&content);
-
-        if edited_hash == hash {
-            Ok(Cow::Borrowed(secret))
-        } else {
-            match from_bytes(secret, &content) {
+) -> Result<EditSecretResult<'a>> {
+    let result = editor(&content, suffix)?;
+    match result {
+        Cow::Borrowed(_) => Ok(Cow::Borrowed(secret)),
+        Cow::Owned(b) => {
+            match from_bytes(secret, &b) {
                 Ok(edited_secret) => Ok(Cow::Owned(edited_secret)),
                 // Parse error, launch the editor again so the user
                 // gets the chance to correct the mistake.
@@ -168,23 +192,18 @@ fn edit_secret<'a>(
                         "secret data is not valid: {}",
                         e
                     );
-                    file.close()?;
                     return edit_secret(secret, content, suffix);
                 }
             }
         }
-    } else {
-        // Use default exit code if one is not available
-        // for example if the command was terminated by a signal
-        Err(Error::EditorExit(status.code().unwrap_or(-1)))
-    };
-
-    file.close()?;
-    result
+    }
 }
 
-/// Edit a secret.
-pub fn edit(secret: &Secret) -> Result<EditResult<'_>> {
-    let (content, suffix) = to_bytes(secret)?;
-    edit_secret(secret, content, &suffix)
+/// Edit text.
+pub fn edit_text(text: &str) -> Result<Cow<str>> {
+    let result = editor(text.as_bytes(), ".txt")?;
+    match result {
+        Cow::Borrowed(_) => Ok(Cow::Borrowed(text)),
+        Cow::Owned(b) => Ok(Cow::Owned(String::from_utf8(b)?)),
+    }
 }

@@ -43,7 +43,7 @@ async fn auth(
     factory: ProviderFactory,
 ) -> Result<UserStorage> {
     loop {
-        match sign_in(&account, factory.clone()).await {
+        match sign_in(account, factory.clone()).await {
             Ok((owner, _)) => return Ok(owner),
             Err(e) => {
                 tracing::error!(target: TARGET, "{}", e);

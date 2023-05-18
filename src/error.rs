@@ -123,8 +123,13 @@ pub enum Error {
     #[error(transparent)]
     Clap(#[from] clap::Error),
 
+    /// Error generated converting from UTF8.
     #[error(transparent)]
-    Utf8(#[from] std::str::Utf8Error),
+    Utf8Str(#[from] std::str::Utf8Error),
+
+    /// Error generated converting from UTF8.
+    #[error(transparent)]
+    Utf8String(#[from] std::string::FromUtf8Error),
 
     #[error(transparent)]
     Readline(#[from] rustyline::error::ReadlineError),

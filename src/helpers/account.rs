@@ -116,7 +116,7 @@ pub async fn resolve_folder(
             owner
                 .storage
                 .state()
-                .find_vault(&vault)
+                .find_vault(vault)
                 .cloned()
                 .ok_or(Error::FolderNotFound(vault.to_string()))?,
         ))

@@ -993,7 +993,7 @@ impl UserStorage {
             false,
         )?;
         let existing_name =
-            vaults.iter().find(|(s, _)| s.name() == &folder_name);
+            vaults.iter().find(|(s, _)| s.name() == folder_name);
 
         let vault_passphrase =
             DelegatedPassphrase::generate_vault_passphrase()?;
@@ -1099,10 +1099,10 @@ impl UserStorage {
         let mut vcf = String::new();
         let keys: Vec<&SecretId> = keeper.vault().keys().collect();
         for key in keys {
-            if let Some((_, secret, _)) = keeper.read(key)? {
-                if let Secret::Contact { vcard, .. } = secret {
-                    vcf.push_str(&vcard.to_string());
-                }
+            if let Some((_, Secret::Contact { vcard, .. }, _)) =
+                keeper.read(key)?
+            {
+                vcf.push_str(&vcard.to_string());
             }
         }
         std::fs::write(path, vcf.as_bytes())?;
@@ -1116,7 +1116,7 @@ impl UserStorage {
     pub async fn import_vcard(
         &mut self,
         content: &str,
-        progress: impl Fn(ContactImportProgress) -> (),
+        progress: impl Fn(ContactImportProgress),
     ) -> Result<()> {
         use sos_sdk::vcard4::parse;
         let cards = parse(content)?;

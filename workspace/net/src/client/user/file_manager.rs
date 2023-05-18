@@ -385,12 +385,8 @@ impl UserStorage {
             );
 
             let mut fields = Vec::new();
-            for (index, field) in secret_data
-                .secret
-                .user_data()
-                .fields()
-                .into_iter()
-                .enumerate()
+            for (index, field) in
+                secret_data.secret.user_data().fields().iter().enumerate()
             {
                 if let Some(attachment) = attachments
                     .iter()
@@ -426,13 +422,11 @@ impl UserStorage {
                 file.as_ref().map(|f| f.encrypted_file.size),
                 new_user_data,
             )?
+        } else if let Some(new_user_data) = new_user_data {
+            *secret_data.secret.user_data_mut() = new_user_data;
+            secret_data.secret
         } else {
-            if let Some(new_user_data) = new_user_data {
-                *secret_data.secret.user_data_mut() = new_user_data;
-                secret_data.secret
-            } else {
-                secret_data.secret
-            }
+            secret_data.secret
         };
 
         let secret_data = SecretData {
@@ -468,9 +462,8 @@ fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
     }
 
     let mut files = Vec::new();
-    add_file_source(&secret, &mut files, None);
-    for (index, field) in secret.user_data().fields().into_iter().enumerate()
-    {
+    add_file_source(secret, &mut files, None);
+    for (index, field) in secret.user_data().fields().iter().enumerate() {
         add_file_source(field.secret(), &mut files, Some(index));
     }
     files
@@ -529,15 +522,13 @@ fn get_file_secret_diff<'a>(
         if let Secret::File { external, path, .. } = field.secret() {
             if *external && path.is_none() {
                 let existing =
-                    new_secret.user_data().fields().into_iter().find(
-                        |other| {
-                            // Must compare on secret as the label can
-                            // be changed in a rename operation so comparing
-                            // the fields would result in deleting the file
-                            // when an attachment is renamed
-                            return field.secret() == other.secret();
-                        },
-                    );
+                    new_secret.user_data().fields().iter().find(|other| {
+                        // Must compare on secret as the label can
+                        // be changed in a rename operation so comparing
+                        // the fields would result in deleting the file
+                        // when an attachment is renamed
+                        return field.secret() == other.secret();
+                    });
 
                 if existing.is_none() {
                     deleted.push(field.secret());
@@ -579,7 +570,7 @@ fn copy_file_secret(
             buffer: SecretVec::new(buffer.expose_secret().to_vec()),
             checksum,
             external: *external,
-            size: new_size.unwrap_or_else(|| *size),
+            size: new_size.unwrap_or(*size),
             path: path.clone(),
             user_data: new_user_data.unwrap_or_else(|| user_data.clone()),
         })

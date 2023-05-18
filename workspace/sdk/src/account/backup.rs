@@ -379,8 +379,8 @@ impl AccountBackup {
         path: P,
         address: &Address,
     ) -> Result<()> {
-        let mut buffer = Self::export_archive_buffer(address)?;
-        std::fs::write(path.as_ref(), &mut buffer)?;
+        let buffer = Self::export_archive_buffer(address)?;
+        std::fs::write(path.as_ref(), buffer)?;
         Ok(())
     }
 

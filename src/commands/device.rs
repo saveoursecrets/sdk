@@ -46,7 +46,7 @@ async fn resolve_device(
     let devices = owner.devices().load()?;
     for device in devices {
         let address = device.address()?;
-        if &address == id {
+        if address == id {
             return Ok(Some(device));
         }
     }

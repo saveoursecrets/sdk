@@ -52,10 +52,7 @@ fn integration_command_line() -> Result<()> {
 
     if is_ci() {
         std::env::set_var("SOS_YES", true.to_string());
-        std::env::set_var(
-            "SOS_PASSWORD",
-            password.expose_secret().to_owned(),
-        );
+        std::env::set_var("SOS_PASSWORD", password.expose_secret());
     }
 
     let exe = if is_coverage() {
@@ -362,7 +359,7 @@ fn account_migrate(
         "{} account migrate -a {} import --format {} {}",
         exe,
         address,
-        ImportFormat::OnePasswordCsv.to_string(),
+        ImportFormat::OnePasswordCsv,
         file.display()
     );
     let mut p = spawn(&cmd, TIMEOUT)?;
@@ -378,7 +375,7 @@ fn account_migrate(
         "{} account migrate -a {} import --format {} {}",
         exe,
         address,
-        ImportFormat::DashlaneZip.to_string(),
+        ImportFormat::DashlaneZip,
         file.display()
     );
     let mut p = spawn(&cmd, TIMEOUT)?;
@@ -394,7 +391,7 @@ fn account_migrate(
         "{} account migrate -a {} import --format {} {}",
         exe,
         address,
-        ImportFormat::BitwardenCsv.to_string(),
+        ImportFormat::BitwardenCsv,
         file.display()
     );
     let mut p = spawn(&cmd, TIMEOUT)?;
@@ -410,7 +407,7 @@ fn account_migrate(
         "{} account migrate -a {} import --format {} {}",
         exe,
         address,
-        ImportFormat::ChromeCsv.to_string(),
+        ImportFormat::ChromeCsv,
         file.display()
     );
     let mut p = spawn(&cmd, TIMEOUT)?;
@@ -426,7 +423,7 @@ fn account_migrate(
         "{} account migrate -a {} import --format {} {}",
         exe,
         address,
-        ImportFormat::FirefoxCsv.to_string(),
+        ImportFormat::FirefoxCsv,
         file.display()
     );
     let mut p = spawn(&cmd, TIMEOUT)?;
@@ -442,7 +439,7 @@ fn account_migrate(
         "{} account migrate -a {} import --format {} {}",
         exe,
         address,
-        ImportFormat::MacosCsv.to_string(),
+        ImportFormat::MacosCsv,
         file.display()
     );
     let mut p = spawn(&cmd, TIMEOUT)?;

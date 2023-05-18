@@ -73,7 +73,7 @@ pub fn print_secret(
         .text(Cow::Owned(heading))
         .text(Cow::Borrowed(secret_meta.label()));
 
-    let banner = match secret_data {
+    let mut banner = match secret_data {
         Secret::Note { text, .. } => {
             banner.text(Cow::Borrowed(text.expose_secret()))
         }
@@ -209,6 +209,11 @@ pub fn print_secret(
         }
     };
 
+    if let Some(comment) = secret_data.user_data().comment() {
+        banner = banner.divider();
+        banner = banner.text(Cow::Borrowed(comment.trim()));
+    }
+
     let result = banner.render();
     println!("{}", result);
 
@@ -226,7 +231,7 @@ pub(crate) fn read_name(name: Option<String>) -> Result<String> {
 pub fn normalize_tags(mut tags: Option<String>) -> Option<HashSet<String>> {
     if let Some(tags) = tags.take() {
         let tags: HashMap<_, _> = tags
-            .split(",")
+            .split(',')
             .map(|s| (s.trim().to_lowercase(), s.trim()))
             .collect();
         let mut set = HashSet::new();
