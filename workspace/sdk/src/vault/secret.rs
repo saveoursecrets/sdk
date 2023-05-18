@@ -1019,7 +1019,7 @@ impl Decode for AgeVersion {
 
 /// Represents the various types of secret.
 ///
-/// Some variants can be created from other types 
+/// Some variants can be created from other types
 /// using a `From` or `TryFrom` implementation:
 ///
 /// * `String`  -> `Secret::Note`
@@ -1599,6 +1599,15 @@ impl Secret {
         } else {
             Err(Error::AttachmentNotFound(*attachment.id()))
         }
+    }
+
+    /// Insert an attached secret at an index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index > len`.
+    pub fn insert_attachment(&mut self, index: usize, attachment: SecretRow) {
+        self.user_data_mut().fields_mut().insert(index, attachment);
     }
 }
 

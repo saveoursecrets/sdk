@@ -476,7 +476,7 @@ async fn assert_attach_file_secret(
             )
             .await?;
 
-        let (updated_secret_data, _) =
+        let (mut updated_secret_data, _) =
             owner.read_secret(&id, Some(folder.clone())).await?;
         assert_eq!(1, updated_secret_data.secret.user_data().len());
 
@@ -485,7 +485,7 @@ async fn assert_attach_file_secret(
             .find_attachment(&attachment_id)
             .expect("attachment to exist");
 
-        if let Secret::File {
+        let updated_attachment_checksum = if let Secret::File {
             mime,
             external,
             size,
@@ -509,9 +509,79 @@ async fn assert_attach_file_secret(
             let old_file_path =
                 owner.file_location(folder.id(), &id, &old_file_name)?;
             assert!(!old_file_path.exists());
+
+            *checksum
         } else {
             panic!("expecting file secret variant (attachment)");
         };
+
+        // Now insert an attachment before the previous one
+        let (meta, secret, _) = get_text_secret()?;
+        let new_attachment_id = SecretId::new_v4();
+        let attachment =
+            SecretRow::new(new_attachment_id.clone(), meta, secret);
+        updated_secret_data.secret.insert_attachment(0, attachment);
+
+        owner
+            .update_secret(
+                &id,
+                updated_secret_data.meta,
+                Some(updated_secret_data.secret),
+                Some(folder.clone()),
+                None,
+            )
+            .await?;
+
+        let (mut insert_attachment_secret_data, _) =
+            owner.read_secret(&id, Some(folder.clone())).await?;
+        assert_eq!(2, insert_attachment_secret_data.secret.user_data().len());
+
+        let inserted_attachment = insert_attachment_secret_data
+            .secret
+            .find_attachment(&new_attachment_id)
+            .expect("attachment to exist");
+
+        let original_attachment = insert_attachment_secret_data
+            .secret
+            .find_attachment(&attachment_id)
+            .expect("attachment to exist");
+
+        if let Secret::File { checksum, .. } = inserted_attachment.secret() {
+            assert_ne!(&ZERO_CHECKSUM, checksum);
+            let file_name = hex::encode(checksum);
+            let file_path =
+                owner.file_location(folder.id(), &id, &file_name)?;
+            assert!(file_path.exists());
+        } else {
+            panic!("expecting file secret variant (attachment)");
+        };
+
+        if let Secret::File { checksum, .. } = original_attachment.secret() {
+            assert_eq!(&updated_attachment_checksum, checksum);
+            let file_name = hex::encode(checksum);
+            let file_path =
+                owner.file_location(folder.id(), &id, &file_name)?;
+            assert!(file_path.exists());
+        } else {
+            panic!("expecting file secret variant (attachment)");
+        };
+
+        // Delete the original attachment (index 1)
+        insert_attachment_secret_data.secret.detach(&attachment_id);
+
+        owner
+            .update_secret(
+                &id,
+                insert_attachment_secret_data.meta,
+                Some(insert_attachment_secret_data.secret),
+                Some(folder.clone()),
+                None,
+            )
+            .await?;
+
+        let (delete_attachment_secret_data, _) =
+            owner.read_secret(&id, Some(folder.clone())).await?;
+        assert_eq!(1, delete_attachment_secret_data.secret.user_data().len());
     } else {
         panic!("expecting file secret variant");
     };
