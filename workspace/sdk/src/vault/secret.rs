@@ -34,6 +34,9 @@ use crate::{
     Error, Result, Timestamp,
 };
 
+const EMBEDDED_FILE: u8 = 1;
+const EXTERNAL_FILE: u8 = 2;
+
 /// Secret with meta data and possibly an identifier.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SecretData {
@@ -1031,6 +1034,176 @@ impl Decode for AgeVersion {
                 )))
             }
         };
+        Ok(())
+    }
+}
+
+/// Variants for embedded and external file secrets.
+#[derive(Serialize, Deserialize)]
+pub enum FileSecret {
+    /// Embedded file buffer.
+    Embedded {
+        /// File name.
+        name: String,
+
+        /// Mime type for the data.
+        ///
+        /// Use application/octet-stream if no mime-type is available.
+        mime: String,
+
+        /// The binary data.
+        #[serde(
+            default = "default_secret_vec",
+            serialize_with = "serialize_secret_buffer",
+            skip_serializing_if = "is_empty_secret_vec"
+        )]
+        buffer: SecretVec<u8>,
+
+        /// The SHA-256 digest of the buffer.
+        ///
+        /// Using the SHA-256 digest allows the checksum to be computed
+        /// using the Javascript SubtleCrypto API and in Dart using the
+        /// crypto package.
+        ///
+        /// This is used primarily during the public migration export
+        /// to identify files that have been extracted to another location
+        /// in the archive rather than embedding the binary data.
+        #[serde(with = "hex::serde")]
+        checksum: [u8; 32],
+    },
+    /// Encrypted data is stored in an external file.
+    External {
+        /// File name.
+        name: String,
+
+        /// Mime type for the data.
+        ///
+        /// Use application/octet-stream if no mime-type is available.
+        mime: String,
+
+        /// The SHA-256 digest of the buffer.
+        ///
+        /// Using the SHA-256 digest allows the checksum to be computed
+        /// using the Javascript SubtleCrypto API and in Dart using the
+        /// crypto package.
+        ///
+        /// This is used primarily during the public migration export
+        /// to identify files that have been extracted to another location
+        /// in the archive rather than embedding the binary data.
+        #[serde(with = "hex::serde")]
+        checksum: [u8; 32],
+
+        /// Size of the encrypted file content.
+        size: u64,
+
+        /// Optional path to a source file; never encoded or serialized.
+        #[serde(skip)]
+        path: Option<PathBuf>,
+    }
+}
+
+impl Clone for FileSecret {
+    fn clone(&self) -> Self {
+        match self {
+            FileSecret::Embedded {
+                name,
+                mime,
+                buffer,
+                checksum,
+            } => FileSecret::Embedded {
+                name: name.to_owned(),
+                mime: mime.to_owned(),
+                buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
+                checksum: *checksum,
+            },
+            FileSecret::External {
+                name,
+                mime,
+                checksum,
+                size,
+                path,
+            } => FileSecret::External {
+                name: name.to_owned(),
+                mime: mime.to_owned(),
+                checksum: *checksum,
+                size: *size,
+                path: path.clone(),
+            },
+        }
+    }
+}
+
+impl Encode for FileSecret {
+    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        match self {
+            Self::Embedded {
+                name,
+                mime,
+                buffer,
+                checksum,
+            } => {
+                writer.write_u8(EMBEDDED_FILE)?;
+                writer.write_string(name)?;
+                writer.write_string(mime)?;
+                writer.write_u32(buffer.expose_secret().len() as u32)?;
+                writer.write_bytes(buffer.expose_secret())?;
+                writer.write_bytes(checksum)?;
+            }
+            Self::External {
+                name,
+                mime,
+                checksum,
+                size,
+                ..
+            } => {
+                writer.write_u8(EXTERNAL_FILE)?;
+                writer.write_string(name)?;
+                writer.write_string(mime)?;
+                writer.write_bytes(checksum)?;
+                writer.write_u64(size)?;
+            }
+
+        }
+        Ok(())
+    }
+}
+
+impl Decode for FileSecret {
+    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        let kind = reader.read_u8()?;
+        match kind {
+            EMBEDDED => {
+                let name = reader.read_string()?;
+                let mime = reader.read_string()?;
+                let buffer_len = reader.read_u32()?;
+                let buffer = secrecy::Secret::new(
+                    reader.read_bytes(buffer_len as usize)?,
+                );
+                let checksum: [u8; 32] =
+                    reader.read_bytes(32)?.as_slice().try_into()?;
+                *self = Self::Embedded {
+                    name,
+                    mime,
+                    buffer,
+                    checksum,
+                };
+            }
+            EXTERNAL => {
+                let name = reader.read_string()?;
+                let mime = reader.read_string()?;
+                let checksum: [u8; 32] =
+                    reader.read_bytes(32)?.as_slice().try_into()?;
+                let size = reader.read_u64()?;
+                *self = Self::External {
+                    name,
+                    mime,
+                    checksum,
+                    size,
+                    path: None,
+                };
+            }
+            _ => unreachable!(),
+        }
         Ok(())
     }
 }
