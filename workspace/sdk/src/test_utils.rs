@@ -6,7 +6,7 @@ use crate::{
     events::SyncEvent,
     passwd::diceware::generate_passphrase,
     vault::{
-        secret::{Secret, SecretId, SecretMeta},
+        secret::{FileContent, Secret, SecretId, SecretMeta},
         Vault, VaultAccess, VaultEntry,
     },
 };
@@ -59,13 +59,12 @@ pub fn mock_secret_file(
 ) -> Result<(SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
     let checksum = Sha3_256::digest(&buffer);
     let secret_value = Secret::File {
-        name: name.to_string(),
-        mime: mime.to_string(),
-        checksum: checksum.try_into()?,
-        external: false,
-        size: buffer.len() as u64,
-        buffer: secrecy::Secret::new(buffer),
-        path: None,
+        content: FileContent::Embedded {
+            name: name.to_string(),
+            mime: mime.to_string(),
+            checksum: checksum.try_into()?,
+            buffer: secrecy::Secret::new(buffer),
+        },
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());

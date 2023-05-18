@@ -30,7 +30,7 @@ pub enum Error {
 
     /// Error generated when a file secret is expected.
     #[error("not a file secret")]
-    NotFileSecret,
+    NotFileContent,
 
     /// Error generated when attempting to archive a secret that
     /// is already archived.

@@ -12,10 +12,9 @@ use sos_sdk::{
     hex,
     search::Document,
     secrecy,
-    sha2::{Digest, Sha256},
     url::Url,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRef},
+        secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
         Summary,
     },
 };
@@ -105,15 +104,13 @@ pub fn print_secret(
             }
             banner.text(Cow::Owned(credentials))
         }
-        Secret::File {
-            name, buffer, mime, ..
-        } => {
+        Secret::File { content, .. } => {
             let mut file = format!(
                 "{} {}\n",
-                name,
-                human_bytes(buffer.expose_secret().len() as f64)
+                content.name(),
+                human_bytes(content.size() as f64)
             );
-            file.push_str(mime);
+            file.push_str(content.mime());
             banner.text(Cow::Owned(file))
         }
         Secret::Pem { certificates, .. } => {
@@ -416,31 +413,7 @@ pub fn read_file_secret(path: &str) -> Result<Secret> {
         return Err(Error::NotFile(file));
     }
 
-    let name = if let Some(name) = file.file_name() {
-        name.to_string_lossy().into_owned()
-    } else {
-        return Err(Error::FileName(file));
-    };
-
-    let mime = mime_guess::from_path(&name)
-        .first()
-        .map(|m| m.to_string())
-        .unwrap_or_else(|| "application/octet-stream".to_string());
-
-    let buffer = std::fs::read(&file)?;
-    let size = buffer.len() as u64;
-    let checksum = Sha256::digest(&buffer);
-    let buffer = secrecy::Secret::new(buffer);
-    Ok(Secret::File {
-        name,
-        mime,
-        buffer,
-        checksum: checksum.as_slice().try_into()?,
-        external: false,
-        size,
-        path: Some(file),
-        user_data: Default::default(),
-    })
+    Ok(file.try_into()?)
 }
 
 pub(crate) async fn download_file_secret(
@@ -449,27 +422,24 @@ pub(crate) async fn download_file_secret(
     secret: Secret,
 ) -> Result<()> {
     let owner = resolved.user.read().await;
-    if let Secret::File {
-        buffer,
-        external,
-        checksum,
-        ..
-    } = secret
-    {
-        if external {
-            let file_name = hex::encode(checksum);
-            let buffer = owner.decrypt_file_storage(
-                resolved.summary.id(),
-                &resolved.secret_id,
-                &file_name,
-            )?;
-            std::fs::write(file, buffer)?;
-        } else {
-            std::fs::write(file, buffer.expose_secret())?;
+    if let Secret::File { content, .. } = secret {
+        match content {
+            FileContent::External { checksum, .. } => {
+                let file_name = hex::encode(checksum);
+                let buffer = owner.decrypt_file_storage(
+                    resolved.summary.id(),
+                    &resolved.secret_id,
+                    &file_name,
+                )?;
+                std::fs::write(file, buffer)?;
+            }
+            FileContent::Embedded { buffer, .. } => {
+                std::fs::write(file, buffer.expose_secret())?;
+            }
         }
         println!("Download complete ✓");
         Ok(())
     } else {
-        Err(Error::NotFileSecret)
+        Err(Error::NotFileContent)
     }
 }

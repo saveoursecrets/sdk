@@ -26,7 +26,10 @@ pub enum Error {
     NoArchiveFolder,
 
     #[error("not a file secret")]
-    NotFileSecret,
+    NotFileContent,
+
+    #[error("external files cannot be edited")]
+    EditExternalFile,
 
     #[error("invalid URL, please check the syntax")]
     InvalidUrl,

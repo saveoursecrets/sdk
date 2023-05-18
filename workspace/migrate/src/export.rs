@@ -12,7 +12,7 @@ use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 use sos_sdk::{
     vault::{
-        secret::{Secret, SecretId, SecretMeta},
+        secret::{FileContent, Secret, SecretId, SecretMeta},
         Gatekeeper, Summary, VaultId, VaultMeta,
     },
     Result,
@@ -97,27 +97,29 @@ impl<W: Write + Seek> PublicExport<W> {
         Ok(())
     }
 
-    /// Take a file secret and move the buffer to an entry in the archive.
+    /// Take an embedded file secret and move the buffer to an entry in the archive.
     fn move_file_buffer(
         &mut self,
         file_path: &str,
         secret: &mut Secret,
     ) -> Result<()> {
-        if let Secret::File {
-            buffer, checksum, ..
-        } = secret
-        {
-            let path = format!("{}/{}", file_path, hex::encode(checksum));
+        if let Secret::File { content, .. } = secret {
+            if let FileContent::Embedded {
+                buffer, checksum, ..
+            } = content
+            {
+                let path = format!("{}/{}", file_path, hex::encode(checksum));
 
-            // Write the file buffer to the archive
-            self.append_file_buffer(
-                &path,
-                buffer.expose_secret().as_slice(),
-            )?;
+                // Write the file buffer to the archive
+                self.append_file_buffer(
+                    &path,
+                    buffer.expose_secret().as_slice(),
+                )?;
 
-            // Clear the buffer so the export does not encode the bytes
-            // in the JSON document
-            *buffer = secrecy::Secret::new(vec![]);
+                // Clear the buffer so the export does not encode the bytes
+                // in the JSON document
+                *buffer = secrecy::Secret::new(vec![]);
+            }
         }
         Ok(())
     }
