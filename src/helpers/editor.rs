@@ -13,7 +13,7 @@ use secrecy::ExposeSecret;
 use sos_sdk::{
     secrecy,
     sha3::{Digest, Keccak256},
-    vault::secret::Secret,
+    vault::secret::{FileContent, Secret},
     vcard4::Vcard,
 };
 use tempfile::Builder;
@@ -51,15 +51,20 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
         | Secret::Identity { .. } => {
             (serde_json::to_vec_pretty(secret)?, ".json".to_string())
         }
-        Secret::File { name, buffer, .. } => {
-            let file_path = PathBuf::from(name);
-            let suffix = if let Some(ext) = file_path.extension() {
-                format!(".{}", ext.to_string_lossy())
-            } else {
-                ".txt".to_string()
-            };
-            (buffer.expose_secret().to_vec(), suffix)
-        }
+        Secret::File { content, .. } => match content {
+            FileContent::Embedded { name, buffer, .. } => {
+                let file_path = PathBuf::from(name);
+                let suffix = if let Some(ext) = file_path.extension() {
+                    format!(".{}", ext.to_string_lossy())
+                } else {
+                    ".txt".to_string()
+                };
+                (buffer.expose_secret().to_vec(), suffix)
+            }
+            FileContent::External { .. } => {
+                return Err(Error::EditExternalFile);
+            }
+        },
         Secret::Page { document, .. } => (
             document.expose_secret().as_bytes().to_vec(),
             ".md".to_string(),
@@ -97,20 +102,27 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
             serde_json::from_slice::<Secret>(content)?
         }
         Secret::File {
-            name,
-            mime,
-            checksum,
+            content: file_content,
             user_data,
             ..
-        } => Secret::File {
-            name: name.clone(),
-            mime: mime.clone(),
-            buffer: secrecy::Secret::new(content.to_vec()),
-            checksum: *checksum,
-            external: false,
-            size: content.len() as u64,
-            path: None,
-            user_data: user_data.clone(),
+        } => match file_content {
+            FileContent::Embedded {
+                name,
+                mime,
+                checksum,
+                ..
+            } => Secret::File {
+                content: FileContent::Embedded {
+                    name: name.clone(),
+                    mime: mime.clone(),
+                    buffer: secrecy::Secret::new(content.to_vec()),
+                    checksum: *checksum,
+                },
+                user_data: user_data.clone(),
+            },
+            FileContent::External { .. } => {
+                return Err(Error::EditExternalFile);
+            }
         },
         Secret::Page {
             title,

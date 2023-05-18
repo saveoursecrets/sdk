@@ -11,7 +11,6 @@ use sos_net::client::{
 use sos_sdk::{
     account::AccountRef,
     search::Document,
-    secrecy::ExposeSecret,
     url::Url,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
@@ -863,25 +862,23 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 let (data, _) =
                     owner.read_secret(&resolved.secret_id, None).await?;
 
-                let result = if let Secret::File {
-                    name, mime, buffer, ..
-                } = &data.secret
-                {
-                    if mime.starts_with("text/") {
-                        editor::edit(&data.secret)?
+                let result =
+                    if let Secret::File { content, .. } = &data.secret {
+                        if content.mime().starts_with("text/") {
+                            editor::edit(&data.secret)?
+                        } else {
+                            println!(
+                                "Binary {} {} {}",
+                                content.name(),
+                                content.mime(),
+                                human_bytes(content.size() as f64)
+                            );
+                            let file_path = read_line(Some("File path: "))?;
+                            Cow::Owned(read_file_secret(&file_path)?)
+                        }
                     } else {
-                        println!(
-                            "Binary {} {} {}",
-                            name,
-                            mime,
-                            human_bytes(buffer.expose_secret().len() as f64)
-                        );
-                        let file_path = read_line(Some("File path: "))?;
-                        Cow::Owned(read_file_secret(&file_path)?)
-                    }
-                } else {
-                    editor::edit(&data.secret)?
-                };
+                        editor::edit(&data.secret)?
+                    };
 
                 if let Cow::Owned(edited_secret) = result {
                     owner

@@ -8,11 +8,12 @@ use std::{
 
 use sos_sdk::{
     account::DelegatedPassphrase,
-    secrecy::{ExposeSecret, SecretVec},
     storage::EncryptedFile,
     storage::{basename, FileStorage, StorageDirs},
     vault::{
-        secret::{Secret, SecretData, SecretId, SecretRow, UserData},
+        secret::{
+            FileContent, Secret, SecretData, SecretId, SecretRow, UserData,
+        },
         Summary, VaultId,
     },
 };
@@ -221,7 +222,11 @@ impl UserStorage {
         // so remove duplicate checksums before deletion.
         let mut checksums = HashSet::new();
         for target in targets {
-            if let Secret::File { checksum, .. } = target {
+            if let Secret::File {
+                content: FileContent::External { checksum, .. },
+                ..
+            } = target
+            {
                 checksums.insert(checksum);
             }
         }
@@ -275,7 +280,11 @@ impl UserStorage {
         });
 
         for target in targets {
-            if let Secret::File { checksum, .. } = target {
+            if let Secret::File {
+                content: FileContent::External { checksum, .. },
+                ..
+            } = target
+            {
                 let file_name = hex::encode(checksum);
 
                 self.move_file(
@@ -449,8 +458,12 @@ fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
         files: &mut Vec<FileSource>,
         field_index: Option<usize>,
     ) {
-        if let Secret::File { external, path, .. } = secret {
-            if *external && path.is_some() {
+        if let Secret::File {
+            content: FileContent::External { path, .. },
+            ..
+        } = secret
+        {
+            if path.is_some() {
                 let name = basename(path.as_ref().unwrap());
                 files.push(FileSource {
                     path: path.clone().unwrap(),
@@ -471,16 +484,20 @@ fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
 
 fn get_external_file_secrets(secret: &Secret) -> Vec<&Secret> {
     let mut secrets = Vec::new();
-    if let Secret::File { external, .. } = secret {
-        if *external {
-            secrets.push(secret);
-        }
+    if let Secret::File {
+        content: FileContent::External { .. },
+        ..
+    } = secret
+    {
+        secrets.push(secret);
     }
     for field in secret.user_data().fields() {
-        if let Secret::File { external, .. } = field.secret() {
-            if *external {
-                secrets.push(field.secret());
-            }
+        if let Secret::File {
+            content: FileContent::External { .. },
+            ..
+        } = field.secret()
+        {
+            secrets.push(field.secret());
         }
     }
     secrets
@@ -494,24 +511,36 @@ fn get_file_secret_diff<'a>(
     let mut unchanged = Vec::new();
 
     // Check if the top-level secret was unchanged
-    if let Secret::File { external, path, .. } = new_secret {
-        if *external && path.is_none() {
+    if let Secret::File {
+        content: FileContent::External { path, .. },
+        ..
+    } = new_secret
+    {
+        if path.is_none() {
             unchanged.push(new_secret);
         }
     }
 
     // Check if the top-level secret will be overwritten
     // so we delete the old files
-    if let Secret::File { external, path, .. } = new_secret {
-        if *external && path.is_some() {
+    if let Secret::File {
+        content: FileContent::External { path, .. },
+        ..
+    } = new_secret
+    {
+        if path.is_some() {
             deleted.push(old_secret);
         }
     }
 
     // Find attachments that are unchanged
     for field in new_secret.user_data().fields() {
-        if let Secret::File { external, path, .. } = field.secret() {
-            if *external && path.is_none() {
+        if let Secret::File {
+            content: FileContent::External { path, .. },
+            ..
+        } = field.secret()
+        {
+            if path.is_none() {
                 unchanged.push(field.secret());
             }
         }
@@ -519,8 +548,12 @@ fn get_file_secret_diff<'a>(
 
     // Find deleted attachments
     for field in old_secret.user_data().fields() {
-        if let Secret::File { external, path, .. } = field.secret() {
-            if *external && path.is_none() {
+        if let Secret::File {
+            content: FileContent::External { path, .. },
+            ..
+        } = field.secret()
+        {
+            if path.is_none() {
                 let existing =
                     new_secret.user_data().fields().iter().find(|other| {
                         // Must compare on secret as the label can
@@ -548,13 +581,14 @@ fn copy_file_secret(
     new_user_data: Option<UserData>,
 ) -> Result<Secret> {
     if let Secret::File {
-        name,
-        mime,
-        buffer,
-        checksum,
-        external,
-        size,
-        path,
+        content:
+            FileContent::External {
+                name,
+                mime,
+                checksum,
+                size,
+                path,
+            },
         user_data,
     } = secret
     {
@@ -565,16 +599,16 @@ fn copy_file_secret(
         };
 
         Ok(Secret::File {
-            name: name.clone(),
-            mime: mime.clone(),
-            buffer: SecretVec::new(buffer.expose_secret().to_vec()),
-            checksum,
-            external: *external,
-            size: new_size.unwrap_or(*size),
-            path: path.clone(),
+            content: FileContent::External {
+                name: name.clone(),
+                mime: mime.clone(),
+                checksum,
+                size: new_size.unwrap_or(*size),
+                path: path.clone(),
+            },
             user_data: new_user_data.unwrap_or_else(|| user_data.clone()),
         })
     } else {
-        Err(Error::NotFileSecret)
+        Err(Error::NotFileContent)
     }
 }

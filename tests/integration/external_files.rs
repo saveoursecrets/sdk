@@ -10,7 +10,9 @@ use sos_sdk::{
     passwd::diceware::generate_passphrase,
     storage::StorageDirs,
     vault::{
-        secret::{Secret, SecretData, SecretId, SecretMeta, SecretRow},
+        secret::{
+            FileContent, Secret, SecretData, SecretId, SecretMeta, SecretRow,
+        },
         Summary,
     },
 };
@@ -171,17 +173,19 @@ async fn assert_create_file_secret(
         create_file_secret(owner, default_folder).await?;
 
     let checksum = if let Secret::File {
-        mime,
-        external,
-        size,
-        checksum,
-        path,
+        content:
+            FileContent::External {
+                mime,
+                size,
+                checksum,
+                path,
+                ..
+            },
         ..
     } = &secret_data.secret
     {
         assert!(path.is_none());
         assert!(*size > 0);
-        assert!(external);
         assert_ne!(&ZERO_CHECKSUM, checksum);
         assert_eq!("image/heic", mime);
 
@@ -215,17 +219,19 @@ async fn assert_update_file_secret(
         update_file_secret(owner, default_folder, secret_data, None).await?;
 
     let checksum = if let Secret::File {
-        mime,
-        external,
-        size,
-        checksum,
-        path,
+        content:
+            FileContent::External {
+                mime,
+                size,
+                checksum,
+                path,
+                ..
+            },
         ..
     } = &new_secret_data.secret
     {
         assert!(path.is_none());
         assert!(*size > 0);
-        assert!(external);
         assert_ne!(&ZERO_CHECKSUM, checksum);
         assert_eq!("text/plain", mime);
 
@@ -264,17 +270,19 @@ async fn assert_move_file_secret(
         .await?;
 
     let checksum = if let Secret::File {
-        mime,
-        external,
-        size,
-        checksum,
-        path,
+        content:
+            FileContent::External {
+                mime,
+                size,
+                checksum,
+                path,
+                ..
+            },
         ..
     } = &moved_secret_data.secret
     {
         assert!(path.is_none());
         assert!(*size > 0);
-        assert!(external);
         assert_ne!(&ZERO_CHECKSUM, checksum);
         assert_eq!("text/plain", mime);
 
@@ -321,12 +329,15 @@ async fn assert_create_update_move_file_secret(
     let (id, secret_data, _) =
         create_file_secret(owner, default_folder).await?;
 
-    let original_checksum =
-        if let Secret::File { checksum, .. } = &secret_data.secret {
-            checksum
-        } else {
-            panic!("expecting file secret variant");
-        };
+    let original_checksum = if let Secret::File {
+        content: FileContent::External { checksum, .. },
+        ..
+    } = &secret_data.secret
+    {
+        checksum
+    } else {
+        panic!("expecting file secret variant");
+    };
 
     let new_folder_name = "Mock folder".to_string();
     let destination = owner.create_folder(new_folder_name).await?;
@@ -341,17 +352,19 @@ async fn assert_create_update_move_file_secret(
     let new_id = new_secret_data.id.as_ref().unwrap();
 
     let checksum = if let Secret::File {
-        mime,
-        external,
-        size,
-        checksum,
-        path,
+        content:
+            FileContent::External {
+                mime,
+                size,
+                checksum,
+                path,
+                ..
+            },
         ..
     } = &new_secret_data.secret
     {
         assert!(path.is_none());
         assert!(*size > 0);
-        assert!(external);
         assert_ne!(&ZERO_CHECKSUM, checksum);
         assert_eq!("text/plain", mime);
 
@@ -422,17 +435,19 @@ async fn assert_attach_file_secret(
         root: &Secret,
     ) -> Result<()> {
         if let Secret::File {
-            mime,
-            external,
-            size,
-            checksum,
-            path,
+            content:
+                FileContent::External {
+                    mime,
+                    size,
+                    checksum,
+                    path,
+                    ..
+                },
             ..
         } = root
         {
             assert!(path.is_none());
             assert!(*size > 0);
-            assert!(external);
             assert_ne!(&ZERO_CHECKSUM, checksum);
             assert_eq!("image/heic", mime);
 
@@ -446,7 +461,10 @@ async fn assert_attach_file_secret(
         Ok(())
     }
 
-    let checksums = if let Secret::File { checksum, .. } = &secret_data.secret
+    let checksums = if let Secret::File {
+        content: FileContent::External { checksum, .. },
+        ..
+    } = &secret_data.secret
     {
         let file_checksum = *checksum;
         assert_root_file_secret(owner, folder, &id, &secret_data.secret)?;
@@ -458,17 +476,19 @@ async fn assert_attach_file_secret(
             .expect("attachment to exist");
 
         let attachment_checksum = if let Secret::File {
-            mime,
-            external,
-            size,
-            checksum,
-            path,
+            content:
+                FileContent::External {
+                    mime,
+                    size,
+                    checksum,
+                    path,
+                    ..
+                },
             ..
         } = attached.secret()
         {
             assert!(path.is_none());
             assert!(*size > 0);
-            assert!(external);
             assert_ne!(&ZERO_CHECKSUM, checksum);
             assert_eq!("text/plain", mime);
 
@@ -508,17 +528,19 @@ async fn assert_attach_file_secret(
             .expect("attachment to exist");
 
         let updated_attachment_checksum = if let Secret::File {
-            mime,
-            external,
-            size,
-            checksum,
-            path,
+            content:
+                FileContent::External {
+                    mime,
+                    size,
+                    checksum,
+                    path,
+                    ..
+                },
             ..
         } = updated_attachment.secret()
         {
             assert!(path.is_none());
             assert!(*size > 0);
-            assert!(external);
             assert_ne!(&ZERO_CHECKSUM, checksum);
             assert_eq!("image/heic", mime);
 
@@ -569,22 +591,27 @@ async fn assert_attach_file_secret(
             .find_attachment_by_id(&attachment_id)
             .expect("attachment to exist");
 
-        let inserted_attachment_checksum =
-            if let Secret::File { checksum, .. } =
-                inserted_attachment.secret()
-            {
-                assert_ne!(&ZERO_CHECKSUM, checksum);
-                let file_name = hex::encode(checksum);
-                let file_path =
-                    owner.file_location(folder.id(), &id, &file_name)?;
-                assert!(file_path.exists());
+        let inserted_attachment_checksum = if let Secret::File {
+            content: FileContent::External { checksum, .. },
+            ..
+        } = inserted_attachment.secret()
+        {
+            assert_ne!(&ZERO_CHECKSUM, checksum);
+            let file_name = hex::encode(checksum);
+            let file_path =
+                owner.file_location(folder.id(), &id, &file_name)?;
+            assert!(file_path.exists());
 
-                *checksum
-            } else {
-                panic!("expecting file secret variant (attachment)");
-            };
+            *checksum
+        } else {
+            panic!("expecting file secret variant (attachment)");
+        };
 
-        if let Secret::File { checksum, .. } = original_attachment.secret() {
+        if let Secret::File {
+            content: FileContent::External { checksum, .. },
+            ..
+        } = original_attachment.secret()
+        {
             assert_eq!(&updated_attachment_checksum, checksum);
             let file_name = hex::encode(checksum);
             let file_path =
@@ -618,8 +645,10 @@ async fn assert_attach_file_secret(
             .find_attachment_by_id(&new_attachment_id)
             .expect("attachment to exist");
 
-        if let Secret::File { checksum, .. } =
-            updated_inserted_attachment.secret()
+        if let Secret::File {
+            content: FileContent::External { checksum, .. },
+            ..
+        } = updated_inserted_attachment.secret()
         {
             assert_ne!(&file_checksum, checksum);
             let file_name = hex::encode(checksum);

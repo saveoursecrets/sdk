@@ -1040,7 +1040,7 @@ impl Decode for AgeVersion {
 
 /// Variants for embedded and external file secrets.
 #[derive(Serialize, Deserialize)]
-pub enum FileSecret {
+pub enum FileContent {
     /// Embedded file buffer.
     Embedded {
         /// File name.
@@ -1099,30 +1099,126 @@ pub enum FileSecret {
         /// Optional path to a source file; never encoded or serialized.
         #[serde(skip)]
         path: Option<PathBuf>,
+    },
+}
+
+impl FileContent {
+    /// File name.
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Embedded { name, .. } => name,
+            Self::External { name, .. } => name,
+        }
+    }
+
+    /// File mime type.
+    pub fn mime(&self) -> &str {
+        match self {
+            Self::Embedded { mime, .. } => mime,
+            Self::External { mime, .. } => mime,
+        }
+    }
+
+    /// File checksum.
+    pub fn checksum(&self) -> &[u8; 32] {
+        match self {
+            Self::Embedded { checksum, .. } => checksum,
+            Self::External { checksum, .. } => checksum,
+        }
+    }
+
+    /// File size.
+    pub fn size(&self) -> u64 {
+        match self {
+            Self::Embedded { buffer, .. } => {
+                buffer.expose_secret().len() as u64
+            }
+            Self::External { size, .. } => *size,
+        }
     }
 }
 
-impl Clone for FileSecret {
+impl Default for FileContent {
+    fn default() -> Self {
+        Self::Embedded {
+            name: String::new(),
+            mime: String::new(),
+            buffer: SecretVec::new(vec![]),
+            checksum: [0; 32],
+        }
+    }
+}
+
+impl PartialEq for FileContent {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Self::Embedded {
+                    name: name_a,
+                    mime: mime_a,
+                    buffer: buffer_a,
+                    checksum: checksum_a,
+                },
+                Self::Embedded {
+                    name: name_b,
+                    mime: mime_b,
+                    buffer: buffer_b,
+                    checksum: checksum_b,
+                },
+            ) => {
+                name_a == name_b
+                    && mime_a == mime_b
+                    && buffer_a.expose_secret() == buffer_b.expose_secret()
+                    && checksum_a == checksum_b
+            }
+            (
+                Self::External {
+                    name: name_a,
+                    mime: mime_a,
+                    checksum: checksum_a,
+                    size: size_a,
+                    path: path_a,
+                },
+                Self::External {
+                    name: name_b,
+                    mime: mime_b,
+                    checksum: checksum_b,
+                    size: size_b,
+                    path: path_b,
+                },
+            ) => {
+                name_a == name_b
+                    && mime_a == mime_b
+                    && checksum_a == checksum_b
+                    && size_a == size_b
+                    && path_a == path_b
+            }
+            _ => false,
+        }
+    }
+}
+
+impl Clone for FileContent {
     fn clone(&self) -> Self {
         match self {
-            FileSecret::Embedded {
+            FileContent::Embedded {
                 name,
                 mime,
                 buffer,
                 checksum,
-            } => FileSecret::Embedded {
+            } => FileContent::Embedded {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
                 checksum: *checksum,
             },
-            FileSecret::External {
+            FileContent::External {
                 name,
                 mime,
                 checksum,
                 size,
                 path,
-            } => FileSecret::External {
+            } => FileContent::External {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
                 checksum: *checksum,
@@ -1133,7 +1229,7 @@ impl Clone for FileSecret {
     }
 }
 
-impl Encode for FileSecret {
+impl Encode for FileContent {
     fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
         match self {
             Self::Embedded {
@@ -1162,17 +1258,16 @@ impl Encode for FileSecret {
                 writer.write_bytes(checksum)?;
                 writer.write_u64(size)?;
             }
-
         }
         Ok(())
     }
 }
 
-impl Decode for FileSecret {
+impl Decode for FileContent {
     fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
         let kind = reader.read_u8()?;
         match kind {
-            EMBEDDED => {
+            EMBEDDED_FILE => {
                 let name = reader.read_string()?;
                 let mime = reader.read_string()?;
                 let buffer_len = reader.read_u32()?;
@@ -1188,7 +1283,7 @@ impl Decode for FileSecret {
                     checksum,
                 };
             }
-            EXTERNAL => {
+            EXTERNAL_FILE => {
                 let name = reader.read_string()?;
                 let mime = reader.read_string()?;
                 let checksum: [u8; 32] =
@@ -1234,44 +1329,8 @@ pub enum Secret {
     /// A binary blob.
     #[serde(rename_all = "camelCase")]
     File {
-        /// File name.
-        name: String,
-        /// Mime type for the data.
-        ///
-        /// Use application/octet-stream if no mime-type is available.
-        mime: String,
-        /// The binary data.
-        #[serde(
-            default = "default_secret_vec",
-            serialize_with = "serialize_secret_buffer",
-            skip_serializing_if = "is_empty_secret_vec"
-        )]
-        buffer: SecretVec<u8>,
-        /// The SHA-256 digest of the buffer.
-        ///
-        /// Using the SHA-256 digest allows the checksum to be computed
-        /// using the Javascript SubtleCrypto API and in Dart using the
-        /// crypto package.
-        ///
-        /// This is used primarily during the public migration export
-        /// to identify files that have been extracted to another location
-        /// in the archive rather than embedding the binary data.
-        #[serde(with = "hex::serde")]
-        checksum: [u8; 32],
-
-        /// Whether this file is external or embedded.
-        ///
-        /// If the file is embedded then `buffer` should contain
-        /// the file content otherwise callers should encrypt the
-        /// file and store it on disc outside of the vault.
-        external: bool,
-
-        /// Size of the unencrypted file content.
-        size: u64,
-
-        /// Optional path to a source file; never encoded or serialized.
-        #[serde(skip)]
-        path: Option<PathBuf>,
+        /// File secret data.
+        content: FileContent,
 
         /// Custom user data.
         #[serde(default, skip_serializing_if = "UserData::is_default")]
@@ -1480,23 +1539,8 @@ impl Clone for Secret {
                 text: secrecy::Secret::new(text.expose_secret().to_owned()),
                 user_data: user_data.clone(),
             },
-            Secret::File {
-                name,
-                mime,
-                buffer,
-                checksum,
-                external,
-                size,
-                path,
-                user_data,
-            } => Secret::File {
-                name: name.to_owned(),
-                mime: mime.to_owned(),
-                buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
-                checksum: *checksum,
-                external: *external,
-                size: *size,
-                path: path.clone(),
+            Secret::File { content, user_data } => Secret::File {
+                content: content.clone(),
                 user_data: user_data.clone(),
             },
             Secret::Account {
@@ -1646,10 +1690,10 @@ impl fmt::Debug for Secret {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Secret::Note { .. } => f.debug_struct("Note").finish(),
-            Secret::File { name, mime, .. } => f
+            Secret::File { content, .. } => f
                 .debug_struct("File")
-                .field("name", name)
-                .field("mime", mime)
+                .field("name", &content.name())
+                .field("mime", &content.mime())
                 .finish(),
             Secret::Account { account, url, .. } => f
                 .debug_struct("Account")
@@ -1853,35 +1897,14 @@ impl PartialEq for Secret {
             }
             (
                 Self::File {
-                    name: name_a,
-                    mime: mime_a,
-                    buffer: buffer_a,
-                    checksum: checksum_a,
-                    external: external_a,
-                    size: size_a,
-                    path: path_a,
+                    content: content_a,
                     user_data: user_data_a,
                 },
                 Self::File {
-                    name: name_b,
-                    mime: mime_b,
-                    buffer: buffer_b,
-                    checksum: checksum_b,
-                    external: external_b,
-                    size: size_b,
-                    path: path_b,
+                    content: content_b,
                     user_data: user_data_b,
                 },
-            ) => {
-                name_a == name_b
-                    && mime_a == mime_b
-                    && buffer_a.expose_secret() == buffer_b.expose_secret()
-                    && checksum_a == checksum_b
-                    && external_a == external_b
-                    && size_a == size_b
-                    && path_a == path_b
-                    && user_data_a == user_data_b
-            }
+            ) => content_a == content_b && user_data_a == user_data_b,
             (
                 Self::List {
                     items: items_a,
@@ -2180,22 +2203,9 @@ impl Encode for Secret {
                 write_user_data(user_data, writer)?;
             }
             Self::File {
-                name,
-                mime,
-                buffer,
-                checksum,
-                external,
-                size,
-                user_data,
-                ..
+                content, user_data, ..
             } => {
-                writer.write_string(name)?;
-                writer.write_string(mime)?;
-                writer.write_u32(buffer.expose_secret().len() as u32)?;
-                writer.write_bytes(buffer.expose_secret())?;
-                writer.write_bytes(checksum)?;
-                writer.write_bool(external)?;
-                writer.write_u64(size)?;
+                content.encode(&mut *writer)?;
                 write_user_data(user_data, writer)?;
             }
             Self::List { items, user_data } => {
@@ -2387,27 +2397,10 @@ impl Decode for Secret {
                 };
             }
             SecretType::File => {
-                let name = reader.read_string()?;
-                let mime = reader.read_string()?;
-                let buffer_len = reader.read_u32()?;
-                let buffer = secrecy::Secret::new(
-                    reader.read_bytes(buffer_len as usize)?,
-                );
-                let checksum: [u8; 32] =
-                    reader.read_bytes(32)?.as_slice().try_into()?;
-                let external = reader.read_bool()?;
-                let size = reader.read_u64()?;
+                let mut content: FileContent = Default::default();
+                content.decode(&mut *reader)?;
                 let user_data = read_user_data(reader)?;
-                *self = Self::File {
-                    name,
-                    mime,
-                    buffer,
-                    checksum,
-                    external,
-                    size,
-                    path: None,
-                    user_data,
-                };
+                *self = Self::File { content, user_data };
             }
             SecretType::Account => {
                 let account = reader.read_string()?;
@@ -2665,13 +2658,13 @@ impl TryFrom<PathBuf> for Secret {
     type Error = Error;
     fn try_from(path: PathBuf) -> Result<Self> {
         Ok(Secret::File {
-            name: basename(&path),
-            buffer: SecretVec::new(vec![]),
-            size: 0,
-            checksum: [0; 32],
-            external: true,
-            mime: guess_mime(&path)?,
-            path: Some(path),
+            content: FileContent::External {
+                name: basename(&path),
+                size: 0,
+                checksum: [0; 32],
+                mime: guess_mime(&path)?,
+                path: Some(path),
+            },
             user_data: Default::default(),
         })
     }
