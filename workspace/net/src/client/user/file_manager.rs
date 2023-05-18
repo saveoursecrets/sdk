@@ -1,7 +1,10 @@
 //! File manager to keep external files in sync
 //! as secrets are created, updated and moved.
 
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 
 use sos_sdk::{
     account::DelegatedPassphrase,
@@ -128,73 +131,6 @@ impl UserStorage {
         Ok(())
     }
 
-    /// Move the encrypted file for external file storage.
-    pub(crate) fn move_file(
-        &self,
-        old_vault_id: &VaultId,
-        new_vault_id: &VaultId,
-        old_secret_id: &SecretId,
-        new_secret_id: &SecretId,
-        file_name: &str,
-    ) -> Result<()> {
-        let old_vault_path = self.files_dir.join(old_vault_id.to_string());
-        let old_secret_path = old_vault_path.join(old_secret_id.to_string());
-        let old_path = old_secret_path.join(file_name);
-
-        let new_path = self
-            .files_dir
-            .join(new_vault_id.to_string())
-            .join(new_secret_id.to_string())
-            .join(file_name);
-
-        if let Some(parent) = new_path.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(parent)?;
-            }
-        }
-
-        std::fs::rename(old_path, new_path)?;
-
-        // Prune empty directories
-        let secret_dir_is_empty =
-            old_secret_path.read_dir()?.next().is_none();
-        if secret_dir_is_empty {
-            std::fs::remove_dir(old_secret_path)?;
-        }
-        let vault_dir_is_empty = old_vault_path.read_dir()?.next().is_none();
-        if vault_dir_is_empty {
-            std::fs::remove_dir(old_vault_path)?;
-        }
-
-        Ok(())
-    }
-
-    /// Delete a file from the storage location.
-    pub(crate) fn delete_file(
-        &self,
-        vault_id: &VaultId,
-        secret_id: &SecretId,
-        file_name: &str,
-    ) -> Result<()> {
-        let vault_path = self.files_dir.join(vault_id.to_string());
-        let secret_path = vault_path.join(secret_id.to_string());
-        let path = secret_path.join(file_name);
-
-        std::fs::remove_file(path)?;
-
-        // Prune empty directories
-        let secret_dir_is_empty = secret_path.read_dir()?.next().is_none();
-        if secret_dir_is_empty {
-            std::fs::remove_dir(secret_path)?;
-        }
-        let vault_dir_is_empty = vault_path.read_dir()?.next().is_none();
-        if vault_dir_is_empty {
-            std::fs::remove_dir(vault_path)?;
-        }
-
-        Ok(())
-    }
-
     /// Create external files when a file secret is created.
     pub(crate) async fn create_files(
         &mut self,
@@ -274,12 +210,53 @@ impl UserStorage {
         let targets = targets.unwrap_or_else(|| {
             get_external_file_secrets(&secret_data.secret)
         });
+
+        // Whilst highly unlikely as the files are encrypted and
+        // non-deterministic it is possible for multiple files to
+        // have the same checksum and attempting to remove multiple
+        // files with the same checksum would fail as the first
+        // deletion would already have removed the file.
+        //
+        // However we don't want to treat this as an error condition
+        // so remove duplicate checksums before deletion.
+        let mut checksums = HashSet::new();
         for target in targets {
             if let Secret::File { checksum, .. } = target {
-                let file_name = hex::encode(checksum);
-                self.delete_file(summary.id(), id, &file_name)?;
+                checksums.insert(checksum);
             }
         }
+
+        for checksum in checksums {
+            let file_name = hex::encode(checksum);
+            self.delete_file(summary.id(), id, &file_name)?;
+        }
+
+        Ok(())
+    }
+
+    /// Delete a file from the storage location.
+    pub(crate) fn delete_file(
+        &self,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: &str,
+    ) -> Result<()> {
+        let vault_path = self.files_dir.join(vault_id.to_string());
+        let secret_path = vault_path.join(secret_id.to_string());
+        let path = secret_path.join(file_name);
+
+        std::fs::remove_file(path)?;
+
+        // Prune empty directories
+        let secret_dir_is_empty = secret_path.read_dir()?.next().is_none();
+        if secret_dir_is_empty {
+            std::fs::remove_dir(secret_path)?;
+        }
+        let vault_dir_is_empty = vault_path.read_dir()?.next().is_none();
+        if vault_dir_is_empty {
+            std::fs::remove_dir(vault_path)?;
+        }
+
         Ok(())
     }
 
@@ -310,6 +287,47 @@ impl UserStorage {
                 )?;
             }
         }
+        Ok(())
+    }
+
+    /// Move the encrypted file for external file storage.
+    pub(crate) fn move_file(
+        &self,
+        old_vault_id: &VaultId,
+        new_vault_id: &VaultId,
+        old_secret_id: &SecretId,
+        new_secret_id: &SecretId,
+        file_name: &str,
+    ) -> Result<()> {
+        let old_vault_path = self.files_dir.join(old_vault_id.to_string());
+        let old_secret_path = old_vault_path.join(old_secret_id.to_string());
+        let old_path = old_secret_path.join(file_name);
+
+        let new_path = self
+            .files_dir
+            .join(new_vault_id.to_string())
+            .join(new_secret_id.to_string())
+            .join(file_name);
+
+        if let Some(parent) = new_path.parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(parent)?;
+            }
+        }
+
+        std::fs::rename(old_path, new_path)?;
+
+        // Prune empty directories
+        let secret_dir_is_empty =
+            old_secret_path.read_dir()?.next().is_none();
+        if secret_dir_is_empty {
+            std::fs::remove_dir(old_secret_path)?;
+        }
+        let vault_dir_is_empty = old_vault_path.read_dir()?.next().is_none();
+        if vault_dir_is_empty {
+            std::fs::remove_dir(old_vault_path)?;
+        }
+
         Ok(())
     }
 
@@ -468,7 +486,7 @@ fn get_external_file_secrets(secret: &Secret) -> Vec<&Secret> {
     for field in secret.user_data().fields() {
         if let Secret::File { external, .. } = field.secret() {
             if *external {
-                secrets.push(secret);
+                secrets.push(field.secret());
             }
         }
     }
