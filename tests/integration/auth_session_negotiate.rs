@@ -4,8 +4,8 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use http::StatusCode;
-use sos_core::{encode, vault::Vault};
-use sos_node::client::net::RpcClient;
+use sos_net::client::net::RpcClient;
+use sos_sdk::{encode, vault::Vault};
 
 #[tokio::test]
 #[serial]

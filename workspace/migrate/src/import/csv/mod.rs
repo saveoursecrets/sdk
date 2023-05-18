@@ -16,7 +16,7 @@ use std::{
 use url::Url;
 use vcard4::Vcard;
 
-use sos_core::{
+use sos_sdk::{
     search::SearchIndex,
     vault::{
         secret::{IdentityKind, Secret, SecretMeta},
@@ -279,7 +279,7 @@ impl Convert for GenericCsvConvert {
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
-        let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
+        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
 

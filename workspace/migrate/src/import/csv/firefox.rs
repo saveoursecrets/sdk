@@ -8,7 +8,7 @@ use std::{
 };
 use url::Url;
 
-use sos_core::vault::Vault;
+use sos_sdk::vault::Vault;
 
 use super::{GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord};
 use crate::{Convert, Result};
@@ -111,7 +111,7 @@ mod test {
     use anyhow::Result;
     use parking_lot::RwLock;
 
-    use sos_core::{
+    use sos_sdk::{
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
         vault::{Gatekeeper, Vault},
@@ -150,7 +150,7 @@ mod test {
             passphrase.clone(),
         )?;
 
-        let search_index = Arc::new(RwLock::new(SearchIndex::new(None)));
+        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
         keeper.unlock(passphrase)?;

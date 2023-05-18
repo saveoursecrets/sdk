@@ -6,9 +6,24 @@ default_to_workspace = false
 
 [env]
 RUST_BACKTRACE = 0
-#RUST_LOG = 0
 BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 BINARIES = "sos"
+# Increase time for integration tests as the CLI
+# tests take a while due to so many exec calls
+RUST_TEST_TIME_INTEGRATION = "120000,240000"
+
+[tasks.fix-all]
+workspace = true
+command = "cargo"
+args = ["fix", "--all-features", "--allow-dirty"]
+
+[tasks.fix-clippy]
+workspace = true
+command = "cargo"
+args = ["clippy", "--fix", "--all-features"]
+
+[tasks.fix]
+dependencies = ["fix-clippy", "fix-all", "format"]
 
 [tasks.format]
 workspace = true
@@ -52,13 +67,18 @@ args = ["build", "--bins", "--all", "--release", "--target", "aarch64-apple-darw
 command = "cargo"
 args = ["build", "--bins", "--all", "--release", "--target", "x86_64-apple-darwin"]
 
-[tasks.docs]
+[tasks.doc]
+toolchain = "nightly"
 command = "cargo"
-args = ["doc", "--all", "--open", "--no-deps"]
+args = ["doc", "--workspace", "--open", "--no-deps", "--all-features"]
 
 [tasks.unit]
 command = "cargo"
 args = ["test", "--all", "--lib", "--", "--nocapture"]
+
+[tasks.cli]
+command = "cargo"
+args = ["test", "command_line", "--", "--nocapture"]
 
 [tasks.integration]
 command = "cargo"
@@ -76,17 +96,16 @@ dependencies = ["check-wasm", "test", "format"]
 
 [tasks.check-wasm-node-client]
 command = "cargo"
-args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-node", "--no-default-features", "--features", "client"]
+args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-net", "--no-default-features", "--features", "client"]
 
 [tasks.check-wasm]
 command = "cargo"
-args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-core"]
+args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-sdk"]
 dependencies = ["check-wasm-node-client"]
 
 [tasks.server-release]
 command = "cargo"
 args = ["build", "--release", "--target", "${BUILD_TARGET}", "-p", "sos-server"]
-dependencies = ["browser-gui"]
 
 [tasks.dist]
 command = "cargo"
@@ -104,22 +123,9 @@ command -v mkcert && cd sandbox &&
   mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1
 '''
 
-[tasks.browser-gui]
-script = '''
-rm -rf target/browser
-rm -rf workspace/node/public
-cd target
-git clone git@github.com:saveoursecrets/browser.git
-cd browser
-cargo make wasm
-(cd app && yarn install --frozen-lockfile)
-cargo make dist
-cp -rv app/dist ../../workspace/node/public
-'''
-
 [tasks.genhtml]
 script = '''
-grcov ${COVERAGE_PROF_OUTPUT} -s ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY} --binary-path ./target/cover/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore 'src/*' --ignore 'tests/*' --ignore 'target/*'
+grcov ${COVERAGE_PROF_OUTPUT} -s . --binary-path ./target/cover/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore 'tests/*' --ignore 'target/*'
 
 #genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/lcov.info
 '''
@@ -131,14 +137,21 @@ dependencies = ["clean-profraw"]
 [tasks.clean-profraw]
 script = '''
 rm *.profraw
+rm workspace/net/*.profraw
+rm workspace/migrate/*.profraw
+rm workspace/sdk/*.profraw
 '''
+
+[tasks.clean-coverage]
+command = "cargo"
+args = ["clean", "--target-dir", "target/coverage"]
 
 [tasks.clean-cover]
 command = "cargo"
 args = ["clean", "--target-dir", "target/cover"]
 
 [tasks.cover]
-dependencies = ["clean-cover", "coverage", "genhtml", "clean-profraw"]
+dependencies = ["clean-cover", "clean-coverage", "coverage", "genhtml", "clean-profraw"]
 
 [tasks.brew]
 script = '''

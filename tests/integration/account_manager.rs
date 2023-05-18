@@ -1,10 +1,11 @@
 use anyhow::Result;
 
 use serial_test::serial;
-use std::{path::PathBuf, sync::Arc};
+use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use parking_lot::RwLock as SyncRwLock;
-use sos_core::{
+use sos_net::client::provider::ProviderFactory;
+use sos_sdk::{
     account::{
         AccountBackup, AccountBuilder, DelegatedPassphrase,
         ExtractFilesLocation, ImportedAccount, LocalAccounts, Login,
@@ -18,7 +19,6 @@ use sos_core::{
     urn::Urn,
     vault::{secret::SecretId, Gatekeeper, VaultId},
 };
-use sos_node::client::provider::ProviderFactory;
 
 use crate::test_utils::*;
 
@@ -59,7 +59,7 @@ async fn integration_account_manager() -> Result<()> {
     let accounts = LocalAccounts::list_accounts()?;
     assert_eq!(1, accounts.len());
 
-    let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
+    let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
     let mut user = Login::sign_in(
         &address,
         passphrase.clone(),
@@ -94,11 +94,7 @@ async fn integration_account_manager() -> Result<()> {
             summary.id(),
         )?;
 
-    let (default_vault_summary, _) =
-        LocalAccounts::find_default_vault(&address)?;
-    assert_eq!(summary, default_vault_summary);
-
-    let default_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
+    let default_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
     let (default_vault, _) =
         LocalAccounts::find_local_vault(&address, summary.id(), false)?;
     let mut default_vault_keeper =
@@ -112,14 +108,14 @@ async fn integration_account_manager() -> Result<()> {
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
 
     // Encrypt
-    let files_dir = StorageDirs::files_dir(&address)?;
+    let files_dir = StorageDirs::files_dir(address.to_string())?;
     let vault_id = VaultId::new_v4();
     let secret_id = SecretId::new_v4();
     let target = files_dir
         .join(vault_id.to_string())
         .join(secret_id.to_string());
     std::fs::create_dir_all(&target)?;
-    let digest = FileStorage::encrypt_file_passphrase(
+    let (digest, _) = FileStorage::encrypt_file_passphrase(
         &source_file,
         &target,
         file_passphrase.clone(),
@@ -133,9 +129,9 @@ async fn integration_account_manager() -> Result<()> {
     let expected = std::fs::read(source_file)?;
     assert_eq!(expected, buffer);
 
-    let archive_buffer = AccountBackup::export_archive_buffer(&address)?;
-    let _inventory =
-        AccountBackup::restore_archive_inventory(archive_buffer.clone())?;
+    let mut archive_buffer = AccountBackup::export_archive_buffer(&address)?;
+    let reader = Cursor::new(&mut archive_buffer);
+    let _inventory = AccountBackup::restore_archive_inventory(reader)?;
 
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)
@@ -148,11 +144,9 @@ async fn integration_account_manager() -> Result<()> {
         files_dir: Some(ExtractFilesLocation::Path(files_dir.clone())),
     };
 
-    let (targets, _) = AccountBackup::restore_archive_buffer(
-        archive_buffer.clone(),
-        options,
-        true,
-    )?;
+    let reader = Cursor::new(&mut archive_buffer);
+    let (targets, _) =
+        AccountBackup::restore_archive_buffer(reader, options, true)?;
 
     provider.restore_archive(&targets).await?;
 
@@ -166,7 +160,8 @@ async fn integration_account_manager() -> Result<()> {
         passphrase: Some(passphrase),
         files_dir: Some(ExtractFilesLocation::Path(files_dir)),
     };
-    AccountBackup::restore_archive_buffer(archive_buffer, options, false)?;
+    let reader = Cursor::new(&mut archive_buffer);
+    AccountBackup::restore_archive_buffer(reader, options, false)?;
 
     // Reset the cache dir so we don't interfere
     // with other tests

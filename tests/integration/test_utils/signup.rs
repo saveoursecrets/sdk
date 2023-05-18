@@ -3,7 +3,7 @@ use anyhow::{bail, Result};
 use std::path::PathBuf;
 use url::Url;
 
-use sos_core::{
+use sos_sdk::{
     patch::PatchFile,
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
@@ -16,7 +16,7 @@ use sos_core::{
 use web3_address::ethereum::Address;
 
 use secrecy::ExposeSecret;
-use sos_node::client::{
+use sos_net::client::{
     net::RpcClient,
     provider::{RemoteProvider, StorageProvider},
 };

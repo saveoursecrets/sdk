@@ -3,7 +3,7 @@ name: Library
 on: [pull_request]
 
 env:
-  RUST_LOG: "0"
+  RUST_BACKTRACE: 1
 
 jobs:
   library:

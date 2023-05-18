@@ -1,9 +1,63 @@
-use sos_core::{vault::secret::SecretRef, vcard4};
+use sos_sdk::{vault::secret::SecretRef, vcard4};
 use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error(r#"account "{0}" already exists"#)]
+    AccountExists(String),
+
+    #[error(r#"folder "{0}" already exists"#)]
+    FolderExists(String),
+
+    #[error(r#"attachment "{0}" already exists"#)]
+    AttachmentExists(String),
+
+    #[error(r#"folder "{0}" not found"#)]
+    FolderNotFound(String),
+
+    #[error(r#"device "{0}" not found"#)]
+    DeviceNotFound(String),
+
+    #[error(r#"attachment "{0}" not found"#)]
+    AttachmentNotFound(SecretRef),
+
+    #[error("archive folder not found")]
+    NoArchiveFolder,
+
+    #[error("not a file secret")]
+    NotFileSecret,
+
+    #[error("invalid URL, please check the syntax")]
+    InvalidUrl,
+
+    #[error("password is not strong enough")]
+    PasswordStrength,
+
+    #[error("passwords do not match")]
+    PasswordMismatch,
+
+    #[error(r#"no accounts found, use "account new" to create an account"#)]
+    NoAccounts,
+
+    #[error("could not infer account, use --account to specify account")]
+    NoAccountFound,
+
+    #[error("account required, specify target account name")]
+    ExplicitAccount,
+
+    #[error("could not find folder, use --folder to specify folder")]
+    NoFolderFound,
+
+    #[error("permission denied; default folder cannot be deleted")]
+    NoRemoveDefaultFolder,
+
+    #[error("operation is only permitted on the current account")]
+    NotShellAccount,
+
+    #[error("could not find contacts folder")]
+    NoContactsFolder,
+
     #[error("could not determine cache directory")]
     NoCache,
 
@@ -28,10 +82,8 @@ pub enum Error {
     #[error("failed to create account, got status code {0}")]
     AccountCreate(u16),
 
-    #[error(
-        r#"folder "{0}" not found, run "folders" to load the folder list"#
-    )]
-    VaultNotAvailable(SecretRef),
+    #[error("no folder was found")]
+    NoVault,
 
     #[error(r#"no folder selected, run "use" to select a folder"#)]
     NoVaultSelected,
@@ -57,22 +109,27 @@ pub enum Error {
     Json(#[from] serde_json::Error),
 
     #[error(transparent)]
-    Core(#[from] sos_core::Error),
+    Core(#[from] sos_sdk::Error),
 
     #[error(transparent)]
-    Node(#[from] sos_node::Error),
+    Node(#[from] sos_net::Error),
 
     #[error(transparent)]
-    NodeClient(#[from] sos_node::client::Error),
+    NodeClient(#[from] sos_net::client::Error),
 
     #[error(transparent)]
-    UrlParse(#[from] sos_core::url::ParseError),
+    UrlParse(#[from] sos_sdk::url::ParseError),
 
     #[error(transparent)]
     Clap(#[from] clap::Error),
 
+    /// Error generated converting from UTF8.
     #[error(transparent)]
-    Utf8(#[from] std::str::Utf8Error),
+    Utf8Str(#[from] std::str::Utf8Error),
+
+    /// Error generated converting from UTF8.
+    #[error(transparent)]
+    Utf8String(#[from] std::string::FromUtf8Error),
 
     #[error(transparent)]
     Readline(#[from] rustyline::error::ReadlineError),
@@ -84,8 +141,17 @@ pub enum Error {
     Vcard(#[from] vcard4::Error),
 
     #[error(transparent)]
-    Server(#[from] sos_node::server::Error),
+    Server(#[from] sos_net::server::Error),
 
     #[error(transparent)]
-    Peer(#[from] sos_node::peer::Error),
+    Peer(#[from] sos_net::peer::Error),
+}
+
+impl Error {
+    pub fn is_interrupted(&self) -> bool {
+        matches!(
+            self,
+            Error::Readline(rustyline::error::ReadlineError::Interrupted)
+        )
+    }
 }

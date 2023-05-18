@@ -1,169 +1,280 @@
 //! Helpers for creating and switching accounts.
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
-use parking_lot::RwLock as SyncRwLock;
-use sos_core::{
-    account::{
-        archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        AuthenticatedUser, ExtractFilesLocation, LocalAccounts, Login,
-        RestoreOptions,
-    },
+use sos_net::client::{provider::ProviderFactory, user::UserStorage};
+use sos_sdk::{
+    account::{AccountBuilder, AccountInfo, AccountRef, LocalAccounts},
     passwd::diceware::generate_passphrase,
-    search::SearchIndex,
     secrecy::{ExposeSecret, SecretString},
     storage::StorageDirs,
+    vault::{Summary, VaultRef},
 };
-use sos_node::client::provider::{BoxedProvider, ProviderFactory};
 use terminal_banner::{Banner, Padding};
-use web3_address::ethereum::Address;
+use tokio::sync::RwLock;
 
 use crate::helpers::{
     display_passphrase,
-    readline::{read_flag, read_password},
+    readline::{choose, choose_password, read_flag, read_password, Choice},
 };
 
+use once_cell::sync::OnceCell;
+
 use crate::{Error, Result};
+
+/// Account owner.
+pub type Owner = Arc<RwLock<UserStorage>>;
+
+/// Current user for the shell REPL.
+pub(crate) static USER: OnceCell<Owner> = OnceCell::new();
+
+#[derive(Copy, Clone)]
+enum AccountPasswordOption {
+    Generated,
+    Manual,
+}
+
+/// Choose an account.
+pub async fn choose_account() -> Result<Option<AccountInfo>> {
+    let mut accounts = LocalAccounts::list_accounts()?;
+    if accounts.is_empty() {
+        Ok(None)
+    } else if accounts.len() == 1 {
+        Ok(Some(accounts.remove(0)))
+    } else {
+        let options: Vec<Choice<'_, AccountInfo>> = accounts
+            .into_iter()
+            .map(|a| Choice(Cow::Owned(a.label().to_string()), a))
+            .collect();
+        let prompt = Some("Choose account: ");
+        let result =
+            choose(prompt, &options, true)?.expect("choice to be required");
+        return Ok(Some(result.clone()));
+    }
+}
+
+/// Attempt to resolve a user.
+///
+/// For the shell REPL this will equal the current USER otherwise
+/// the user must sign in to the target account.
+pub async fn resolve_user(
+    account: Option<&AccountRef>,
+    factory: ProviderFactory,
+    build_search_index: bool,
+) -> Result<Owner> {
+    let account = resolve_account(account)
+        .await
+        .ok_or_else(|| Error::NoAccountFound)?;
+
+    if let Some(owner) = USER.get() {
+        return Ok(Arc::clone(owner));
+    }
+
+    let (mut owner, _) = sign_in(&account, factory).await?;
+
+    // For non-shell we need to initialize the search index
+    if USER.get().is_none() {
+        if build_search_index {
+            owner.initialize_search_index().await?;
+        }
+        owner.list_folders().await?;
+    }
+
+    Ok(Arc::new(RwLock::new(owner)))
+}
+
+/// Take the optional account reference and resolve it.
+///
+/// If the argument was given use it, otherwise look for an explicit
+/// account using the current shell USER otherwise if there is only a single
+/// account use it.
+pub async fn resolve_account(
+    account: Option<&AccountRef>,
+) -> Option<AccountRef> {
+    if account.is_none() {
+        if let Some(owner) = USER.get() {
+            let reader = owner.read().await;
+            let account: AccountRef = reader.user.account().into();
+            return Some(account);
+        }
+
+        if let Ok(mut accounts) = LocalAccounts::list_accounts() {
+            if accounts.len() == 1 {
+                return Some(accounts.remove(0).into());
+            }
+        }
+    }
+    account.cloned()
+}
+
+pub async fn resolve_folder(
+    user: &Owner,
+    folder: Option<&VaultRef>,
+) -> Result<Option<Summary>> {
+    let owner = user.read().await;
+    if let Some(vault) = folder {
+        Ok(Some(
+            owner
+                .storage
+                .state()
+                .find_vault(vault)
+                .cloned()
+                .ok_or(Error::FolderNotFound(vault.to_string()))?,
+        ))
+    } else if let Some(owner) = USER.get() {
+        let owner = owner.read().await;
+        let keeper = owner.storage.current().ok_or(Error::NoVaultSelected)?;
+        Ok(Some(keeper.summary().clone()))
+    } else {
+        Ok(owner
+            .storage
+            .state()
+            .find(|s| s.flags().is_default())
+            .cloned())
+    }
+}
+
+pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
+    let mut owner = user.write().await;
+    let summary = if let Some(vault) = folder {
+        Some(
+            owner
+                .storage
+                .state()
+                .find_vault(vault)
+                .cloned()
+                .ok_or(Error::FolderNotFound(vault.to_string()))?,
+        )
+    } else {
+        owner
+            .storage
+            .state()
+            .find(|s| s.flags().is_default())
+            .cloned()
+    };
+
+    let summary = summary.ok_or(Error::NoVault)?;
+    owner.open_folder(&summary)?;
+    Ok(())
+}
+
+/// Verify the master password for an account.
+pub async fn verify(user: Owner) -> Result<bool> {
+    let passphrase = read_password(Some("Password: "))?;
+    let owner = user.read().await;
+    Ok(owner.verify(passphrase))
+}
 
 /// List local accounts.
 pub fn list_accounts(verbose: bool) -> Result<()> {
     let accounts = LocalAccounts::list_accounts()?;
     for account in accounts {
         if verbose {
-            println!("{} {}", account.address, account.label);
+            println!("{} {}", account.address(), account.label());
         } else {
-            println!("{}", account.label);
+            println!("{}", account.label());
         }
     }
     Ok(())
 }
 
-/// Print account info.
-pub async fn account_info(
-    account_name: &str,
-    verbose: bool,
-    system: bool,
-) -> Result<()> {
-    let (user, _) = sign_in(account_name)?;
-    let folders =
-        LocalAccounts::list_local_vaults(user.identity().address(), system)?;
-    for (summary, _) in folders {
-        if verbose {
-            println!("{} {}", summary.id(), summary.name());
-        } else {
-            println!("{}", summary.name());
-        }
-    }
-    Ok(())
-}
-
-/// Create a backup zip archive.
-pub fn account_backup(
-    account_name: &str,
-    output: PathBuf,
-    force: bool,
-) -> Result<()> {
-    if !force && output.exists() {
-        return Err(Error::FileExists(output));
-    }
-
-    let account = find_account(account_name)?
-        .ok_or(Error::NoAccount(account_name.to_string()))?;
-    AccountBackup::export_archive_file(&output, &account.address)?;
-    Ok(())
-}
-
-/// Restore from a zip archive.
-pub async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
-    if !input.exists() || !input.is_file() {
-        return Err(Error::NotFile(input));
-    }
-
-    let buffer = std::fs::read(input)?;
-    let inventory: Inventory =
-        AccountBackup::restore_archive_inventory(buffer.as_slice())?;
-    let account = find_account_by_address(&inventory.manifest.address)?;
-
-    let (provider, passphrase) = if let Some(account) = account {
-        let confirmed = read_flag(Some(
-            "Overwrite all account data from backup? (y/n) ",
-        ))?;
-        if !confirmed {
-            return Ok(None);
-        }
-
-        let (user, _) = sign_in(&account.label)?;
-        let factory = ProviderFactory::Local;
-        let (provider, _) =
-            factory.create_provider(user.identity().signer().clone())?;
-        (Some(provider), None)
-    } else {
-        (None, None)
-    };
-
-    let files_dir = StorageDirs::files_dir(&inventory.manifest.address)?;
-    let options = RestoreOptions {
-        selected: inventory.vaults,
-        passphrase,
-        files_dir: Some(ExtractFilesLocation::Path(files_dir)),
-    };
-    let (targets, account) = AccountBackup::restore_archive_buffer(
-        buffer,
-        options,
-        provider.is_some(),
-    )?;
-
-    if let Some(mut provider) = provider {
-        provider.restore_archive(&targets).await?;
-    }
-
-    Ok(Some(account))
-}
-
-fn find_account(account_name: &str) -> Result<Option<AccountInfo>> {
+pub fn find_account(account: &AccountRef) -> Result<Option<AccountInfo>> {
     let accounts = LocalAccounts::list_accounts()?;
-    Ok(accounts.into_iter().find(|a| a.label == account_name))
-}
-
-fn find_account_by_address(address: &str) -> Result<Option<AccountInfo>> {
-    let accounts = LocalAccounts::list_accounts()?;
-    Ok(accounts.into_iter().find(|a| a.address == address))
+    match account {
+        AccountRef::Address(address) => {
+            Ok(accounts.into_iter().find(|a| a.address() == address))
+        }
+        AccountRef::Name(label) => {
+            Ok(accounts.into_iter().find(|a| a.label() == label))
+        }
+    }
 }
 
 /// Helper to sign in to an account.
-pub fn sign_in(
-    account_name: &str,
-) -> Result<(AuthenticatedUser, SecretString)> {
-    let account = find_account(account_name)?
-        .ok_or(Error::NoAccount(account_name.to_string()))?;
-
+pub async fn sign_in(
+    account: &AccountRef,
+    factory: ProviderFactory,
+) -> Result<(UserStorage, SecretString)> {
+    let account = find_account(account)?
+        .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
-    let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new(None)));
-    // Verify the identity vault can be unlocked
-    let user = Login::sign_in(
-        &account.address,
-        passphrase.clone(),
-        Arc::clone(&identity_index),
-    )?;
-
-    Ok((user, passphrase))
+    let owner =
+        UserStorage::new(account.address(), passphrase.clone(), factory)
+            .await?;
+    Ok((owner, passphrase))
 }
 
 /// Switch to a different account.
 pub async fn switch(
-    factory: &ProviderFactory,
-    account_name: String,
-) -> Result<(BoxedProvider, Address)> {
-    let (user, _) = sign_in(&account_name)?;
-    Ok(factory.create_provider(user.identity().signer().clone())?)
+    account: &AccountRef,
+    factory: ProviderFactory,
+) -> Result<Arc<RwLock<UserStorage>>> {
+    let (owner, _) = sign_in(account, factory).await?;
+    let mut writer = USER.get().unwrap().write().await;
+    *writer = owner;
+    Ok(Arc::clone(USER.get().unwrap()))
 }
 
 /// Create a new local account.
-pub async fn local_signup(
+pub async fn new_account(
     account_name: String,
     folder_name: Option<String>,
 ) -> Result<()> {
-    // Generate a master passphrase
-    let (passphrase, _) = generate_passphrase()?;
+    let account = AccountRef::Name(account_name.clone());
+    let account = find_account(&account)?;
+
+    if account.is_some() {
+        return Err(Error::AccountExists(account_name));
+    }
+
+    let banner = Banner::new()
+        .padding(Padding::one())
+        .text(Cow::Borrowed(
+            "WELCOME",
+        ))
+        .text(Cow::Borrowed(
+            "Your new account requires a master password; you must memorize this password or you will lose access to your secrets.",
+        ))
+        .text(Cow::Borrowed(
+            "You may generate a strong diceware password or choose your own password; if you choose a password it must be excellent strength.",
+        ))
+        .render();
+    println!("{}", banner);
+
+    let options = vec![
+        Choice(
+            Cow::Borrowed("Generated password (recommended)"),
+            AccountPasswordOption::Generated,
+        ),
+        Choice(
+            Cow::Borrowed("Choose a password"),
+            AccountPasswordOption::Manual,
+        ),
+    ];
+
+    let is_ci =
+        cfg!(any(test, debug_assertions)) && std::env::var("CI").is_ok();
+
+    let password_option = if is_ci {
+        AccountPasswordOption::Generated
+    } else {
+        *choose(None, &options, true)?.expect("choice to be required")
+    };
+    let is_generated =
+        matches!(password_option, AccountPasswordOption::Generated);
+
+    // Generate a master password
+    let passphrase = match password_option {
+        AccountPasswordOption::Generated => {
+            // Support for CI environments choosing the account password
+            if let Ok(password) = std::env::var("SOS_PASSWORD") {
+                SecretString::new(password)
+            } else {
+                let (passphrase, _) = generate_passphrase()?;
+                passphrase
+            }
+        }
+        AccountPasswordOption::Manual => choose_password()?,
+    };
 
     let (identity_vault, new_account) =
         AccountBuilder::new(account_name.clone(), passphrase.clone())
@@ -175,29 +286,23 @@ pub async fn local_signup(
             .default_folder_name(folder_name)
             .build()?;
 
-    let address = new_account.address.clone();
+    let address = new_account.address;
 
-    // Get the signing key for the authenticated user
-    let identity_dir = StorageDirs::identity_dir()?;
-    println!("{}", identity_dir.display());
-
-    let message = format!(
-        r#"* Write identity vault called "{}"
-* Create a default folder called "{}"
-* Master passphrase will be displayed"#,
+    let mut message = format!(
+        r#"* Write identity vault "{}"
+* Create default folder "{}""#,
         account_name,
         new_account.default_vault.summary().name(),
     );
 
+    if is_generated {
+        message.push_str("\n* Master password will be displayed");
+    }
+
     let banner = Banner::new()
         .padding(Padding::one())
-        .text(Cow::Borrowed(
-            "PLEASE READ CAREFULLY",
-        ))
-        .text(Cow::Owned(format!("Identity: {} ({})", account_name, address)))
-        .text(Cow::Borrowed(
-            "Your new account will be assigned a master passphrase, you must memorize this passphrase or you will lose access to your secrets.",
-        ))
+        .text(Cow::Borrowed("NEW ACCOUNT"))
+        .text(Cow::Owned(format!("{} ({})", account_name, address)))
         .text(Cow::Borrowed(
             "Creating a new account will perform the following actions:",
         ))
@@ -205,44 +310,39 @@ pub async fn local_signup(
         .render();
     println!("{}", banner);
 
-    let accepted =
-        read_flag(Some("I will memorize my master passphrase (y/n)? "))?;
-
-    if accepted {
-        display_passphrase("MASTER PASSPHRASE", passphrase.expose_secret());
-
-        let confirmed = read_flag(Some(
-            "Are you sure you want to create a new account (y/n)? ",
-        ))?;
-        if confirmed {
-            let new_account =
-                AccountBuilder::write(identity_vault, new_account)?;
-
-            // Create local provider
-            let factory = ProviderFactory::Local;
-            let (mut provider, _) =
-                factory.create_provider(new_account.user.signer().clone())?;
-            provider.authenticate().await?;
-
-            let _ = provider.import_new_account(&new_account).await?;
-
-            let cache_dir =
-                StorageDirs::cache_dir().ok_or(Error::NoCacheDir)?;
-            let message = format!(
-                r#"* Identity: {} ({})
-* Storage: {}"#,
-                account_name,
-                address,
-                cache_dir.display(),
-            );
-
-            let banner = Banner::new()
-                .padding(Padding::one())
-                .text(Cow::Borrowed("Account created ✓"))
-                .text(Cow::Owned(message))
-                .render();
-            println!("{}", banner);
+    let confirmed = read_flag(Some(
+        "Are you sure you want to create a new account (y/n)? ",
+    ))?;
+    if confirmed {
+        if is_generated {
+            display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
+
+        let new_account = AccountBuilder::write(identity_vault, new_account)?;
+
+        // Create local provider
+        let factory = ProviderFactory::Local;
+        let (mut provider, _) =
+            factory.create_provider(new_account.user.signer().clone())?;
+        provider.authenticate().await?;
+
+        let _ = provider.import_new_account(&new_account).await?;
+
+        let cache_dir = StorageDirs::cache_dir().ok_or(Error::NoCacheDir)?;
+        let message = format!(
+            r#"* Account: {} ({})
+* Storage: {}"#,
+            account_name,
+            address,
+            cache_dir.display(),
+        );
+
+        let banner = Banner::new()
+            .padding(Padding::one())
+            .text(Cow::Borrowed("Account created ✓"))
+            .text(Cow::Owned(message))
+            .render();
+        println!("{}", banner);
     }
 
     Ok(())

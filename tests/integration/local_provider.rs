@@ -6,15 +6,15 @@ use crate::test_utils::*;
 use tempfile::tempdir;
 
 use secrecy::ExposeSecret;
-use sos_core::{
+use sos_net::client::provider::{LocalProvider, StorageProvider};
+use sos_sdk::{
     events::SyncEvent,
     patch::PatchProvider,
     signer::{ecdsa::SingleParty, Signer},
     storage::StorageDirs,
-    vault::secret::Secret,
+    vault::secret::{Secret, SecretData},
     wal::WalProvider,
 };
-use sos_node::client::provider::{LocalProvider, StorageProvider};
 
 macro_rules! commit_count {
     ($storage:expr, $summary:expr, $amount:expr) => {{
@@ -78,7 +78,13 @@ where
 
     let (_, updated_secret) = mock_note("", "New mock note content.");
 
-    let _event = storage.update_secret(&id, meta, updated_secret).await?;
+    let secret_data = SecretData {
+        id: Some(id),
+        meta,
+        secret: updated_secret,
+    };
+
+    let _event = storage.update_secret(&id, secret_data).await?;
 
     // Commit for secret edit
     commit_count!(storage, &summary, 4);

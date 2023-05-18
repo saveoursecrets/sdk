@@ -6,7 +6,7 @@ use tokio::sync::{oneshot, RwLock};
 use url::Url;
 use web3_address::ethereum::Address;
 
-use sos_core::{
+use sos_sdk::{
     audit::AuditLogFile,
     crypto::channel::SessionManager,
     events::SyncEvent,
@@ -18,7 +18,7 @@ use sos_core::{
     wal::file::WalFile,
 };
 
-use sos_node::{
+use sos_net::{
     client::provider::{RemoteProvider, StorageProvider},
     server::{BackendHandler, Server, ServerConfig, ServerInfo, State},
     FileLocks,

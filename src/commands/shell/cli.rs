@@ -1,14 +1,24 @@
 use std::{borrow::Cow, sync::Arc};
 
-use super::{exec, ShellState};
-use sos_core::storage::StorageDirs;
+use sos_sdk::{account::AccountRef, storage::StorageDirs, vault::VaultRef};
 use terminal_banner::{Banner, Padding};
 
-use sos_node::{client::provider::ProviderFactory, FileLocks};
+use sos_net::{
+    client::{provider::ProviderFactory, user::UserStorage},
+    FileLocks,
+};
 
 use tokio::sync::RwLock;
 
-use crate::{helpers::account::sign_in, Error, Result};
+use crate::{
+    helpers::{
+        account::{cd_folder, choose_account, sign_in, USER},
+        readline,
+    },
+    Error, Result, TARGET,
+};
+
+use super::repl::exec;
 
 const WELCOME: &str = include_str!("welcome.txt");
 
@@ -27,9 +37,28 @@ Type "quit" or "q" to exit"#;
     Ok(())
 }
 
+/// Loop sign in for shell authentication.
+async fn auth(
+    account: &AccountRef,
+    factory: ProviderFactory,
+) -> Result<UserStorage> {
+    loop {
+        match sign_in(account, factory.clone()).await {
+            Ok((owner, _)) => return Ok(owner),
+            Err(e) => {
+                tracing::error!(target: TARGET, "{}", e);
+                if e.is_interrupted() {
+                    std::process::exit(0);
+                }
+            }
+        }
+    }
+}
+
 pub async fn run(
-    provider: Option<ProviderFactory>,
-    account_name: String,
+    factory: ProviderFactory,
+    mut account: Option<AccountRef>,
+    folder: Option<VaultRef>,
 ) -> Result<()> {
     let cache_dir = StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
     if !cache_dir.is_dir() {
@@ -40,13 +69,20 @@ pub async fn run(
     let mut locks = FileLocks::new();
     locks.add(&cache_lock)?;
 
-    let (user, _) = sign_in(&account_name)?;
+    // FIXME: support ephemeral device signer for when the CLI
+    // FIXME: is running on the same device as a GUI
 
-    let factory = provider.unwrap_or_default();
-    let (provider, address) =
-        factory.create_provider(user.identity().signer().clone())?;
+    let account = if let Some(account) = account.take() {
+        account
+    } else {
+        let account = choose_account().await?;
+        let account = account.ok_or_else(|| Error::NoAccounts)?;
+        account.into()
+    };
 
-    let provider = Arc::new(RwLock::new(provider));
+    let mut owner = auth(&account, factory.clone()).await?;
+    owner.initialize_search_index().await?;
+    welcome(&factory)?;
 
     /*
     match &factory {
@@ -62,40 +98,28 @@ pub async fn run(
     }
     */
 
-    welcome(&factory)?;
-
     // Prepare state for shell execution
-    let shell_cache = Arc::clone(&provider);
-    let state = Arc::new(RwLock::new(ShellState {
-        provider: shell_cache,
-        address,
-        factory,
-        user,
-    }));
+    let user = USER.get_or_init(|| Arc::new(RwLock::new(owner)));
+    cd_folder(Arc::clone(user), folder.as_ref()).await?;
 
-    // Authenticate and load initial vaults
-    let mut writer = provider.write().await;
-    writer.authenticate().await?;
-    writer.load_vaults().await?;
-    drop(writer);
-
-    let mut rl = crate::helpers::readline::basic_editor()?;
+    let mut rl = readline::basic_editor()?;
     loop {
         let prompt_value = {
-            let cache = provider.read().await;
-            if let Some(current) = cache.current() {
-                format!("sos@{}> ", current.name())
+            let owner = user.read().await;
+            let account_name = owner.user.account().label();
+            if let Some(current) = owner.storage.current() {
+                format!("{}@{}> ", account_name, current.name())
             } else {
-                "sos> ".to_string()
+                format!("{}> ", account_name)
             }
         };
         let readline = rl.readline(&prompt_value);
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
-                let provider = Arc::clone(&state);
-                if let Err(e) = exec(&line, provider).await {
-                    tracing::error!("{}", e);
+                let provider = Arc::clone(user);
+                if let Err(e) = exec(&line, factory.clone(), provider).await {
+                    tracing::error!(target: TARGET, "{}", e);
                 }
             }
             Err(e) => return Err(Error::Readline(e)),

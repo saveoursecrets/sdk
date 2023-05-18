@@ -7,7 +7,8 @@ use crate::test_utils::*;
 use secrecy::SecretString;
 use tempfile::tempdir;
 
-use sos_core::{
+use sos_net::client::provider::{LocalProvider, StorageProvider};
+use sos_sdk::{
     account::{archive::Writer, AccountBackup, Identity, RestoreOptions},
     encode,
     events::SyncEvent,
@@ -15,12 +16,12 @@ use sos_core::{
     storage::StorageDirs,
     vault::{Gatekeeper, Vault},
 };
-use sos_node::client::provider::{LocalProvider, StorageProvider};
+use web3_address::ethereum::Address;
 
 fn create_archive(
     passphrase: SecretString,
     vaults: Vec<Vault>,
-) -> Result<(String, Vault, Vec<u8>)> {
+) -> Result<(Address, Vault, Vec<u8>)> {
     let mut archive = Vec::new();
     let mut writer = Writer::new(Cursor::new(&mut archive));
 
@@ -29,7 +30,7 @@ fn create_archive(
 
     let identity = encode(&identity_vault)?;
 
-    writer = writer.set_identity(address.clone(), &identity)?;
+    writer = writer.set_identity(&address, &identity)?;
 
     for vault in vaults {
         let buffer = encode(&vault)?;
@@ -83,11 +84,13 @@ async fn integration_archive_local_provider() -> Result<()> {
     };
 
     // Create the archive
-    let (address, _identity_vault, archive) =
+    let (address, _identity_vault, mut archive) =
         create_archive(passphrase.clone(), vec![vault])?;
 
+    let reader = Cursor::new(&mut archive);
+
     // Restore from the archive into the provider
-    let targets = AccountBackup::extract_verify_archive(archive, &options)?;
+    let targets = AccountBackup::extract_verify_archive(reader, &options)?;
     assert_eq!(address, targets.address);
 
     storage.restore_archive(&targets).await?;
@@ -97,8 +100,6 @@ async fn integration_archive_local_provider() -> Result<()> {
     assert_eq!(1, summaries.len());
     let vault_summary = summaries[0].clone();
     assert_eq!(&vault_id, vault_summary.id());
-
-    drop(summaries);
 
     // Open the vault so we can check the secret has been restored
     storage.open_vault(&vault_summary, passphrase, None)?;

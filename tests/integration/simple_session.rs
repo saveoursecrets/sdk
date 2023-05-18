@@ -10,19 +10,19 @@ use std::{
 };
 use url::Url;
 
-use sos_core::{
-    commit::CommitRelationship,
-    constants::DEFAULT_VAULT_NAME,
-    events::{ChangeEvent, ChangeNotification},
-    storage::StorageDirs,
-    vault::secret::SecretRef,
-};
-use sos_node::client::{
+use sos_net::client::{
     net::{
         changes::{changes, connect},
         RequestClient,
     },
     provider::StorageProvider,
+};
+use sos_sdk::{
+    commit::CommitRelationship,
+    constants::DEFAULT_VAULT_NAME,
+    events::{ChangeEvent, ChangeNotification},
+    storage::StorageDirs,
+    vault::VaultRef,
 };
 
 #[tokio::test]
@@ -67,7 +67,7 @@ async fn integration_simple_session() -> Result<()> {
     });
 
     // Give the websocket client some time to connect
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     let _ = StorageDirs::cache_dir().unwrap();
 
@@ -87,7 +87,7 @@ async fn integration_simple_session() -> Result<()> {
         .await?;
 
     // Check our new vault is found in the local cache
-    let vault_ref = SecretRef::Name(new_vault_name.clone());
+    let vault_ref = VaultRef::Name(new_vault_name.clone());
     let new_vault_summary =
         node_cache.state().find_vault(&vault_ref).unwrap().clone();
     assert_eq!(&new_vault_name, new_vault_summary.name());
@@ -96,7 +96,7 @@ async fn integration_simple_session() -> Result<()> {
     let new_vault_id = *new_vault_summary.id();
 
     // Trigger code path for finding by id
-    let id_ref = SecretRef::Id(*new_vault_summary.id());
+    let id_ref = VaultRef::Id(*new_vault_summary.id());
     let new_vault_summary_by_id =
         node_cache.state().find_vault(&id_ref).unwrap().clone();
     assert_eq!(new_vault_summary_by_id, new_vault_summary);
@@ -108,7 +108,7 @@ async fn integration_simple_session() -> Result<()> {
     assert_eq!(&cached_vaults, &vaults);
 
     // Remove the default vault
-    let default_ref = SecretRef::Name(DEFAULT_VAULT_NAME.to_owned());
+    let default_ref = VaultRef::Name(DEFAULT_VAULT_NAME.to_owned());
     let default_vault_summary =
         node_cache.state().find_vault(&default_ref).unwrap().clone();
     node_cache.remove_vault(&default_vault_summary).await?;
@@ -131,11 +131,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Check the vault status
     let (status, _) = node_cache.status(&new_vault_summary).await?;
-    let equals = if let CommitRelationship::Equal(_) = status {
-        true
-    } else {
-        false
-    };
+    let equals = matches!(status, CommitRelationship::Equal(_));
     assert!(equals);
 
     // Delete a secret

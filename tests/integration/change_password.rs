@@ -9,13 +9,13 @@ use std::{
     time::Duration,
 };
 
-use sos_core::{
-    events::{ChangeEvent, ChangeNotification},
-    passwd::diceware::generate_passphrase,
-};
-use sos_node::client::{
+use sos_net::client::{
     net::changes::{changes, connect},
     provider::StorageProvider,
+};
+use sos_sdk::{
+    events::{ChangeEvent, ChangeNotification},
+    passwd::diceware::generate_passphrase,
 };
 
 #[tokio::test]
@@ -62,7 +62,7 @@ async fn integration_change_password() -> Result<()> {
     });
 
     // Give the websocket client some time to connect
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Use the new vault
     node_cache.open_vault(&summary, encryption_passphrase.clone(), None)?;
@@ -78,7 +78,6 @@ async fn integration_change_password() -> Result<()> {
     let meta = index_reader.values();
     assert_eq!(3, meta.len());
     drop(index_reader);
-    drop(keeper);
 
     let keeper = node_cache.current_mut().unwrap();
     let (new_passphrase, _) = generate_passphrase()?;
@@ -96,7 +95,7 @@ async fn integration_change_password() -> Result<()> {
 
     // Delay a little to ensure all the change notifications
     // have been received
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Assert on all the change notifications
     let mut changes = notifications.write().unwrap();

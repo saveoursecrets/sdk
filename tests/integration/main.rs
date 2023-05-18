@@ -12,11 +12,15 @@ mod auth_session_negotiate;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod change_password;
+
 #[cfg(not(target_arch = "wasm32"))]
-mod check_integrity;
+mod command_line;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod compact_force_pull;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod external_files;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod handle_change;

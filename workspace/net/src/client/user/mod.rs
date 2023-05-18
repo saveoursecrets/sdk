@@ -1,0 +1,22 @@
+//! Network aware user storage and search index.
+
+#[cfg(feature = "device")]
+mod devices;
+
+mod file_manager;
+mod search_index;
+mod user_storage;
+
+#[cfg(feature = "device")]
+pub use devices::DeviceManager;
+
+#[cfg(feature = "migrate")]
+pub use sos_migrate::{
+    import::{ImportFormat, ImportTarget},
+    Convert,
+};
+
+pub use search_index::{ArchiveFilter, DocumentView, QueryFilter, UserIndex};
+pub use user_storage::{
+    AccountData, ContactImportProgress, UserStatistics, UserStorage,
+};

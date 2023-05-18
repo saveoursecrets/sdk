@@ -1,5 +1,6 @@
-//! Defines types that expose all secrets insecurely and unencrypted
-//! as a compressed archive for migrating to another service.
+//! Export an archive of unencrypted secrets.
+//!
+//! Used to migrate to another service.
 
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
@@ -9,10 +10,10 @@ use std::{
 };
 use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
-use sos_core::{
+use sos_sdk::{
     vault::{
-        secret::{Secret, SecretId, SecretMeta, UserField, VaultMeta},
-        Gatekeeper, Summary, VaultId,
+        secret::{Secret, SecretId, SecretMeta},
+        Gatekeeper, Summary, VaultId, VaultMeta,
     },
     Result,
 };
@@ -77,9 +78,7 @@ impl<W: Write + Seek> PublicExport<W> {
 
                 // Move contents for file attachments
                 for field in secret.user_data_mut().fields_mut() {
-                    if let UserField::Embedded { secret, .. } = field {
-                        self.move_file_buffer(&file_path, secret)?;
-                    }
+                    self.move_file_buffer(&file_path, field.secret_mut())?;
                 }
 
                 let path = format!("{}/{}.json", base_path, id);
@@ -176,7 +175,7 @@ mod test {
     use std::io::Cursor;
 
     use super::*;
-    use sos_core::{
+    use sos_sdk::{
         passwd::diceware::generate_passphrase,
         test_utils::*,
         vault::{Gatekeeper, Vault},

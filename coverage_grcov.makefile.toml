@@ -51,9 +51,10 @@ args = ["build"]
 condition = { rust_version = { min = "1.60.0" } }
 private=true
 command = "cargo"
-args = ["test", "--all"]
+args = ["test", "--all", "--", "--nocapture"]
 
 [tasks.coverage_grcov_run_test_stable.env]
+"COVERAGE" = "1"
 "CARGO_BUILD_TARGET_DIR"="${COVERAGE_TARGET_DIRECTORY}"
 "LLVM_PROFILE_FILE"="${COVERAGE_PROF_OUTPUT}/coverage-%p-%m.profraw"
 
@@ -76,7 +77,7 @@ script = '''
 set -eux
 
 grcov ${COVERAGE_PROF_OUTPUT} \
-  -b ${COVERAGE_BINARIES} -s ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY} \
+  -b ${COVERAGE_BINARIES} -s . \
   -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target/lcov.info
 '''
 dependencies=["coverage_grcov_build_stable", "coverage_grcov_prepare_outdir", "coverage_grcov_run_test_stable"]

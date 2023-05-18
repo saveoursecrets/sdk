@@ -1,14 +1,16 @@
-use sos_core::{audit::AuditLogFile, crypto::channel::SessionManager};
-use sos_node::{
+use sos_net::{
     server::{
         BackendHandler, Result, Server, ServerConfig, ServerInfo, State,
     },
     FileLocks,
 };
+use sos_sdk::{audit::AuditLogFile, crypto::channel::SessionManager};
 
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
+
+use crate::TARGET;
 
 /// Run a web server.
 pub async fn run(
@@ -45,6 +47,7 @@ pub async fn run(
     backend.handler_mut().set_file_locks(locks)?;
 
     tracing::debug!(
+        target: TARGET,
         "lock files {:#?}",
         backend.handler().file_locks().paths()
     );

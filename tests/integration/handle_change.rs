@@ -7,11 +7,11 @@ use futures::stream::StreamExt;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
-use sos_core::commit::CommitProof;
-use sos_node::client::{
+use sos_net::client::{
     net::changes::{changes, connect},
     provider::StorageProvider,
 };
+use sos_sdk::commit::CommitProof;
 
 #[tokio::test]
 #[serial]
@@ -83,7 +83,7 @@ async fn integration_handle_change() -> Result<()> {
     });
 
     // Give the websocket client some time to connect
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Create some secrets in the creator
     // to trigger a change notification
@@ -93,7 +93,7 @@ async fn integration_handle_change() -> Result<()> {
 
     // Delay a while so the change notification SSE events
     // can be received
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Verify our spawned task handled the notification
     let updated_head = listener_change.read().await;
