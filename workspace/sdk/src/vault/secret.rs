@@ -142,6 +142,18 @@ impl fmt::Display for SecretRef {
     }
 }
 
+impl From<SecretId> for SecretRef {
+    fn from(value: SecretId) -> Self {
+        Self::Id(value)
+    }
+}
+
+impl From<String> for SecretRef {
+    fn from(value: String) -> Self {
+        Self::Name(value)
+    }
+}
+
 impl FromStr for SecretRef {
     type Err = Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
@@ -726,6 +738,12 @@ impl SecretRow {
 impl From<SecretRow> for (SecretId, SecretMeta, Secret) {
     fn from(value: SecretRow) -> Self {
         (value.id, value.meta, value.secret)
+    }
+}
+
+impl From<SecretRow> for Secret {
+    fn from(value: SecretRow) -> Self {
+        value.secret
     }
 }
 
@@ -1577,12 +1595,28 @@ impl Secret {
             .retain(|row| row.id() != id);
     }
 
+    /// Find an attachment by reference.
+    pub fn find_attachment(&self, target: &SecretRef) -> Option<&SecretRow> {
+        match target {
+            SecretRef::Id(id) => self.find_attachment_by_id(id),
+            SecretRef::Name(name) => self.find_attachment_by_name(name),
+        }
+    }
+
     /// Find an attachment by identifier.
-    pub fn find_attachment(&self, id: &SecretId) -> Option<&SecretRow> {
+    pub fn find_attachment_by_id(&self, id: &SecretId) -> Option<&SecretRow> {
         self.user_data()
             .fields()
             .into_iter()
             .find(|row| row.id() == id)
+    }
+
+    /// Find an attachment by name.
+    pub fn find_attachment_by_name(&self, label: &str) -> Option<&SecretRow> {
+        self.user_data()
+            .fields()
+            .into_iter()
+            .find(|row| row.meta().label() == label)
     }
 
     /// Update an attached secret.

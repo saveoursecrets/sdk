@@ -10,14 +10,26 @@ pub enum Error {
     #[error(r#"folder "{0}" already exists"#)]
     FolderExists(String),
 
+    #[error(r#"attachment "{0}" already exists"#)]
+    AttachmentExists(String),
+
     #[error(r#"folder "{0}" not found"#)]
     FolderNotFound(String),
 
     #[error(r#"device "{0}" not found"#)]
     DeviceNotFound(String),
 
+    #[error(r#"attachment "{0}" not found"#)]
+    AttachmentNotFound(SecretRef),
+
     #[error("archive folder not found")]
     NoArchiveFolder,
+
+    #[error("not a file secret")]
+    NotFileSecret,
+
+    #[error("invalid URL, please check the syntax")]
+    InvalidUrl,
 
     #[error("password is not strong enough")]
     PasswordStrength,

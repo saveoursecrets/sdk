@@ -9,6 +9,7 @@ use terminal_banner::{Banner, Padding};
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_sdk::{
+    hex,
     search::Document,
     secrecy,
     sha2::{Digest, Sha256},
@@ -28,6 +29,15 @@ use crate::{
 };
 
 use super::account::Owner;
+
+/// Resolved secret data.
+pub(crate) struct ResolvedSecret {
+    pub user: Owner,
+    pub secret_id: SecretId,
+    pub meta: SecretMeta,
+    pub verified: bool,
+    pub summary: Summary,
+}
 
 /// Try to resolve a secret.
 pub async fn resolve_secret(
@@ -205,11 +215,11 @@ pub fn print_secret(
     Ok(())
 }
 
-fn get_label(label: Option<String>) -> Result<String> {
-    if let Some(label) = label {
-        Ok(label)
+pub(crate) fn read_name(name: Option<String>) -> Result<String> {
+    if let Some(name) = name {
+        Ok(name)
     } else {
-        Ok(read_line(Some("Label: "))?)
+        Ok(read_line(Some("Name: "))?)
     }
 }
 
@@ -245,7 +255,7 @@ pub fn add_note(
     label: Option<String>,
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = get_label(label)?;
+    let label = read_name(label)?;
     multiline_banner("NOTE", &label);
 
     if let Some(note) = read_multiline(None)? {
@@ -269,7 +279,7 @@ pub fn add_page(
     label: Option<String>,
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = get_label(label)?;
+    let label = read_name(label)?;
     let title = read_line(Some("Page title: "))?;
     let mime = "text/markdown".to_string();
 
@@ -298,7 +308,7 @@ pub fn add_credentials(
     label: Option<String>,
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = get_label(label)?;
+    let label = read_name(label)?;
 
     let mut credentials: HashMap<String, SecretString> = HashMap::new();
     loop {
@@ -338,7 +348,7 @@ pub fn add_account(
     label: Option<String>,
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = get_label(label)?;
+    let label = read_name(label)?;
 
     let account = read_line(Some("Account name: "))?;
     let url = read_option(Some("Website URL: "))?;
@@ -426,4 +436,35 @@ pub fn read_file_secret(path: &str) -> Result<Secret> {
         path: Some(file),
         user_data: Default::default(),
     })
+}
+
+pub(crate) async fn download_file_secret(
+    resolved: &ResolvedSecret,
+    file: PathBuf,
+    secret: Secret,
+) -> Result<()> {
+    let owner = resolved.user.read().await;
+    if let Secret::File {
+        buffer,
+        external,
+        checksum,
+        ..
+    } = secret
+    {
+        if external {
+            let file_name = hex::encode(checksum);
+            let buffer = owner.decrypt_file_storage(
+                resolved.summary.id(),
+                &resolved.secret_id,
+                &file_name,
+            )?;
+            std::fs::write(file, buffer)?;
+        } else {
+            std::fs::write(file, buffer.expose_secret())?;
+        }
+        println!("Download complete ✓");
+        Ok(())
+    } else {
+        Err(Error::NotFileSecret)
+    }
 }

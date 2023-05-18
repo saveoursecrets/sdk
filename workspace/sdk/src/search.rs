@@ -374,6 +374,8 @@ impl SearchIndex {
     }
 
     /// Find document by label.
+    ///
+    // FIXME: use _name suffix to be consistent with attachment handling
     pub fn find_by_label<'a>(
         &'a self,
         vault_id: &VaultId,
@@ -419,6 +421,8 @@ impl SearchIndex {
 
     /// Find all documents with the given label ignoring
     /// a particular identifier.
+    ///
+    // FIXME: use _name suffix to be consistent with attachment handling
     pub fn find_all_by_label<'a>(
         &'a self,
         label: &str,
@@ -453,6 +457,8 @@ impl SearchIndex {
     }
 
     /// Find secret meta by uuid or label.
+    ///
+    // FIXME: use _name suffix to be consistent with attachment handling
     pub fn find_by_uuid_or_label<'a>(
         &'a self,
         vault_id: &VaultId,

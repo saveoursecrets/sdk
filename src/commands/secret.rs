@@ -1,6 +1,6 @@
 use clap::Subcommand;
 
-use std::{borrow::Cow, collections::HashSet, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 
 use terminal_banner::{Banner, Padding};
 
@@ -12,20 +12,22 @@ use sos_sdk::{
     account::AccountRef,
     search::Document,
     secrecy::ExposeSecret,
+    url::Url,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRef},
-        Summary, VaultRef,
+        secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
+        VaultRef,
     },
 };
 
 use crate::{
     helpers::{
-        account::{resolve_folder, resolve_user, verify, Owner, USER},
+        account::{resolve_folder, resolve_user, verify, USER},
         editor,
-        readline::{read_flag, read_line},
+        readline::{read_flag, read_line, read_multiline, read_password},
         secret::{
             add_account, add_credentials, add_file, add_note, add_page,
-            normalize_tags, print_secret, read_file_secret, resolve_secret,
+            download_file_secret, normalize_tags, print_secret,
+            read_file_secret, read_name, resolve_secret, ResolvedSecret,
         },
     },
     Error, Result,
@@ -179,6 +181,27 @@ pub enum Command {
         /// Secret name or identifier.
         secret: SecretRef,
     },
+    /// Decrypt and download a file secret.
+    #[clap(alias = "dl")]
+    Download {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Overwrite an existing file.
+        #[clap(long)]
+        force: bool,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+
+        /// Path for the decrypted file.
+        file: PathBuf,
+    },
     /// Move to the archive.
     Archive {
         /// Account name or address.
@@ -197,6 +220,172 @@ pub enum Command {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Manage secret attachments.
+    #[clap(alias = "att")]
+    Attach {
+        #[clap(subcommand)]
+        cmd: AttachCommand,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AttachCommand {
+    /// List attachments.
+    #[clap(alias = "ls")]
+    List {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Print more information.
+        #[clap(short, long)]
+        verbose: bool,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Add an attachment.
+    Add {
+        #[clap(subcommand)]
+        cmd: AttachAddCommand,
+    },
+    /// Print an attachment.
+    Get {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+
+        /// Attachment name or identifier.
+        attachment: SecretRef,
+    },
+    /// Decrypt and download a file attachment.
+    #[clap(alias = "dl")]
+    Download {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Overwrite an existing file.
+        #[clap(long)]
+        force: bool,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+
+        /// Attachment name or identifier.
+        attachment: SecretRef,
+
+        /// Path for the decrypted file.
+        file: PathBuf,
+    },
+    /// Remove an attachment.
+    #[clap(alias = "rm")]
+    Remove {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+
+        /// Attachment name or identifier.
+        attachment: SecretRef,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AttachAddCommand {
+    /// Add a file attachment.
+    File {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Name of the attachment.
+        #[clap(short, long)]
+        name: Option<String>,
+
+        /// File path to attach.
+        #[clap(short, long)]
+        path: Option<PathBuf>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Add a note attachment.
+    Note {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Name of the attachment.
+        #[clap(short, long)]
+        name: Option<String>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Add a link attachment.
+    Link {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Name of the attachment.
+        #[clap(short, long)]
+        name: Option<String>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Add a password attachment.
+    Password {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Name of the attachment.
+        #[clap(short, long)]
+        name: Option<String>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -286,6 +475,7 @@ pub enum AddCommand {
         tags: Option<String>,
 
         /// Name of the secret.
+        #[clap(short, long)]
         name: Option<String>,
     },
     /// Add a list of credentials.
@@ -303,6 +493,7 @@ pub enum AddCommand {
         tags: Option<String>,
 
         /// Name of the secret.
+        #[clap(short, long)]
         name: Option<String>,
     },
     /// Add an account password.
@@ -320,6 +511,7 @@ pub enum AddCommand {
         tags: Option<String>,
 
         /// Name of the secret.
+        #[clap(short, long)]
         name: Option<String>,
     },
     /// Add a file.
@@ -337,6 +529,7 @@ pub enum AddCommand {
         tags: Option<String>,
 
         /// Name of the secret.
+        #[clap(short, long)]
         name: Option<String>,
 
         /// File path.
@@ -357,16 +550,9 @@ pub enum AddCommand {
         tags: Option<String>,
 
         /// Name of the secret.
+        #[clap(short, long)]
         name: Option<String>,
     },
-}
-
-struct ResolvedSecret {
-    user: Owner,
-    secret_id: SecretId,
-    meta: SecretMeta,
-    verified: bool,
-    summary: Summary,
 }
 
 async fn resolve_verify(
@@ -809,6 +995,35 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 }
             }
         }
+        Command::Download {
+            account,
+            folder,
+            secret,
+            force,
+            file,
+        } => {
+            let resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                folder.as_ref(),
+                &secret,
+            )
+            .await?;
+            if resolved.verified {
+                if file.exists() && !force {
+                    return Err(Error::FileExists(file));
+                }
+
+                let data = {
+                    let mut owner = resolved.user.write().await;
+                    let (data, _) =
+                        owner.read_secret(&resolved.secret_id, None).await?;
+                    data
+                };
+
+                download_file_secret(&resolved, file, data.secret).await?;
+            }
+        }
         Command::Archive {
             account,
             folder,
@@ -861,6 +1076,225 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     .await?;
                 println!("Restored from archive ✓");
             }
+        }
+        Command::Attach { cmd } => attachment(factory, cmd).await?,
+    }
+
+    Ok(())
+}
+
+async fn attachment(
+    factory: ProviderFactory,
+    cmd: AttachCommand,
+) -> Result<()> {
+    let (account, folder, secret) = match &cmd {
+        AttachCommand::List {
+            account,
+            folder,
+            secret,
+            ..
+        } => (account, folder, secret),
+        AttachCommand::Add { cmd } => match cmd {
+            AttachAddCommand::File {
+                account,
+                folder,
+                secret,
+                ..
+            } => (account, folder, secret),
+            AttachAddCommand::Note {
+                account,
+                folder,
+                secret,
+                ..
+            } => (account, folder, secret),
+            AttachAddCommand::Link {
+                account,
+                folder,
+                secret,
+                ..
+            } => (account, folder, secret),
+            AttachAddCommand::Password {
+                account,
+                folder,
+                secret,
+                ..
+            } => (account, folder, secret),
+        },
+        AttachCommand::Get {
+            account,
+            folder,
+            secret,
+            ..
+        } => (account, folder, secret),
+        AttachCommand::Download {
+            account,
+            folder,
+            secret,
+            ..
+        } => (account, folder, secret),
+        AttachCommand::Remove {
+            account,
+            folder,
+            secret,
+            ..
+        } => (account, folder, secret),
+    };
+
+    let resolved = resolve_verify(
+        factory.clone(),
+        account.as_ref(),
+        folder.as_ref(),
+        &secret,
+    )
+    .await?;
+    if resolved.verified {
+        let mut data = {
+            let mut owner = resolved.user.write().await;
+            let (data, _) =
+                owner.read_secret(&resolved.secret_id, None).await?;
+            data
+        };
+
+        let new_secret = match cmd {
+            AttachCommand::List { verbose, .. } => {
+                for (index, row) in
+                    data.secret.user_data().fields().into_iter().enumerate()
+                {
+                    if verbose {
+                        println!(
+                            "{}) {} {}",
+                            index + 1,
+                            row.id(),
+                            row.meta().label()
+                        );
+                    } else {
+                        println!("{}) {}", index + 1, row.meta().label());
+                    }
+                }
+                None
+            }
+            AttachCommand::Add { cmd } => match cmd {
+                AttachAddCommand::File { name, path, .. } => {
+                    let name = read_name(name)?;
+                    if data.secret.find_attachment_by_name(&name).is_some() {
+                        return Err(Error::AttachmentExists(name));
+                    }
+
+                    let file = if let Some(file) = path {
+                        file
+                    } else {
+                        PathBuf::from(read_line(Some("File: "))?)
+                    };
+
+                    let secret: Secret = file.try_into()?;
+                    let meta = SecretMeta::new(name, secret.kind());
+                    let attachment =
+                        SecretRow::new(SecretId::new_v4(), meta, secret);
+                    data.secret.attach(attachment);
+                    Some(data.secret)
+                }
+                AttachAddCommand::Note { name, .. } => {
+                    let name = read_name(name)?;
+                    if data.secret.find_attachment_by_name(&name).is_some() {
+                        return Err(Error::AttachmentExists(name));
+                    }
+
+                    let text = read_multiline(None)?;
+                    if let Some(text) = text {
+                        let secret: Secret = text.into();
+                        let meta = SecretMeta::new(name, secret.kind());
+                        let attachment =
+                            SecretRow::new(SecretId::new_v4(), meta, secret);
+                        data.secret.attach(attachment);
+                        Some(data.secret)
+                    } else {
+                        None
+                    }
+                }
+                AttachAddCommand::Link { name, .. } => {
+                    let name = read_name(name)?;
+                    if data.secret.find_attachment_by_name(&name).is_some() {
+                        return Err(Error::AttachmentExists(name));
+                    }
+
+                    let link = read_line(Some("URL: "))?;
+                    let url: Url =
+                        link.parse().map_err(|_| Error::InvalidUrl)?;
+                    let secret: Secret = url.into();
+                    let meta = SecretMeta::new(name, secret.kind());
+                    let attachment =
+                        SecretRow::new(SecretId::new_v4(), meta, secret);
+                    data.secret.attach(attachment);
+                    Some(data.secret)
+                }
+                AttachAddCommand::Password { name, .. } => {
+                    let name = read_name(name)?;
+                    if data.secret.find_attachment_by_name(&name).is_some() {
+                        return Err(Error::AttachmentExists(name));
+                    }
+
+                    let password = read_password(None)?;
+                    let secret: Secret = password.into();
+                    let meta = SecretMeta::new(name, secret.kind());
+                    let attachment =
+                        SecretRow::new(SecretId::new_v4(), meta, secret);
+                    data.secret.attach(attachment);
+                    Some(data.secret)
+                }
+            },
+            AttachCommand::Get { attachment, .. } => {
+                let existing = data.secret.find_attachment(&attachment);
+                if let Some(existing) = existing {
+                    print_secret(existing.meta(), existing.secret())?;
+                    None
+                } else {
+                    return Err(Error::AttachmentNotFound(attachment));
+                }
+            }
+            AttachCommand::Download {
+                force,
+                file,
+                attachment,
+                ..
+            } => {
+                if file.exists() && !force {
+                    return Err(Error::FileExists(file));
+                }
+
+                let existing =
+                    data.secret.find_attachment(&attachment).cloned();
+                if let Some(existing) = existing {
+                    download_file_secret(&resolved, file, existing.into())
+                        .await?;
+                    None
+                } else {
+                    return Err(Error::AttachmentNotFound(attachment));
+                }
+            }
+            AttachCommand::Remove { attachment, .. } => {
+                let existing =
+                    data.secret.find_attachment(&attachment).cloned();
+                if let Some(existing) = existing {
+                    data.secret.detach(existing.id());
+                    Some(data.secret)
+                } else {
+                    return Err(Error::AttachmentNotFound(attachment));
+                }
+            }
+        };
+
+        if let Some(new_secret) = new_secret {
+            let mut owner = resolved.user.write().await;
+            owner
+                .update_secret(
+                    &resolved.secret_id,
+                    resolved.meta,
+                    Some(new_secret),
+                    None,
+                    None,
+                )
+                .await?;
+            println!("Secret updated ✓");
         }
     }
 

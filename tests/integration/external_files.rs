@@ -455,7 +455,7 @@ async fn assert_attach_file_secret(
         // Verify the attachment file exists
         let attached = secret_data
             .secret
-            .find_attachment(&attachment_id)
+            .find_attachment_by_id(&attachment_id)
             .expect("attachment to exist");
 
         let attachment_checksum = if let Secret::File {
@@ -505,7 +505,7 @@ async fn assert_attach_file_secret(
 
         let updated_attachment = updated_secret_data
             .secret
-            .find_attachment(&attachment_id)
+            .find_attachment_by_id(&attachment_id)
             .expect("attachment to exist");
 
         let updated_attachment_checksum = if let Secret::File {
@@ -563,12 +563,12 @@ async fn assert_attach_file_secret(
 
         let inserted_attachment = insert_attachment_secret_data
             .secret
-            .find_attachment(&new_attachment_id)
+            .find_attachment_by_id(&new_attachment_id)
             .expect("attachment to exist");
 
         let original_attachment = insert_attachment_secret_data
             .secret
-            .find_attachment(&attachment_id)
+            .find_attachment_by_id(&attachment_id)
             .expect("attachment to exist");
 
         let inserted_attachment_checksum =
@@ -617,7 +617,7 @@ async fn assert_attach_file_secret(
 
         let updated_inserted_attachment = delete_attachment_secret_data
             .secret
-            .find_attachment(&new_attachment_id)
+            .find_attachment_by_id(&new_attachment_id)
             .expect("attachment to exist");
 
         if let Secret::File { checksum, .. } =
