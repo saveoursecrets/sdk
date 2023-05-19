@@ -24,6 +24,8 @@ const NEW_FOLDER_NAME: &str = "mock-folder-renamed";
 const NOTE_NAME: &str = "mock-note";
 const NOTE_VALUE: &str = "Mock note value";
 
+const NEW_NOTE_NAME: &str = "mock-note-renamed";
+
 const FILE_NAME: &str = "mock-file";
 
 const LOGIN_NAME: &str = "mock-login";
@@ -113,6 +115,8 @@ fn integration_command_line() -> Result<()> {
     secret_get(&exe, &address, &password)?;
     secret_info(&exe, &address, &password)?;
     secret_tags(&exe, &address, &password)?;
+    secret_favorite(&exe, &address, &password)?;
+    secret_rename(&exe, &address, &password)?;
 
     account_delete(&exe, &address, &password)?;
 
@@ -1020,6 +1024,62 @@ fn secret_tags(
 
     let cmd =
         format!("{} secret tags clear -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn secret_favorite(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    // Add to favorites with first toggle
+    let cmd = format!("{} secret favorite -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    // Remove from favorites with second toggle
+    let cmd = format!("{} secret favorite -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn secret_rename(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!(
+        "{} secret rename -a {} --name {} {}",
+        exe, address, NEW_NOTE_NAME, NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!(
+        "{} secret rename -a {} --name {} {}",
+        exe, address, NOTE_NAME, NEW_NOTE_NAME
+    );
     let mut p = spawn(&cmd, TIMEOUT)?;
     if !is_ci() {
         p.exp_regex("Password:")?;
