@@ -6,7 +6,7 @@ use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{account::AccountRef, vault::VaultRef};
 
 use crate::{
-    commands::{AccountCommand, FolderCommand, SecretCommand},
+    commands::{AccountCommand, CheckCommand, FolderCommand, SecretCommand},
     helpers::account::{cd_folder, switch, Owner},
 };
 
@@ -74,6 +74,11 @@ enum ShellCommand {
     Switch {
         /// Account name or address.
         account: AccountRef,
+    },
+    /// Check file status and integrity.
+    Check {
+        #[clap(subcommand)]
+        cmd: CheckCommand,
     },
     /// Print the current identity.
     Whoami,
@@ -336,6 +341,7 @@ async fn exec_program(
 
             Ok(())
         }
+        ShellCommand::Check { cmd } => crate::commands::check::run(cmd),
         ShellCommand::Whoami => {
             let reader = state.read().await;
             println!(

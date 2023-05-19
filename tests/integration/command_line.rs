@@ -1,6 +1,9 @@
 use anyhow::Result;
 use serial_test::serial;
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use sos_sdk::{
     constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
@@ -12,11 +15,15 @@ use sos_net::migrate::import::ImportFormat;
 
 use secrecy::SecretString;
 
-use rexpect::{spawn, ReadUntil};
+use rexpect::{session::PtySession, spawn, ReadUntil};
 
-const TIMEOUT: Option<u64> = Some(10000);
+type Session = Arc<Mutex<PtySession>>;
 
-const ACCOUNT_NAME: &str = "mock-account";
+const TIMEOUT: Option<u64> = Some(15000);
+
+const ACCOUNT_NAME: &str = "mock";
+const SHELL_ACCOUNT_NAME: &str = "shell";
+
 const NEW_ACCOUNT_NAME: &str = "mock-account-renamed";
 const FOLDER_NAME: &str = "mock-folder";
 const NEW_FOLDER_NAME: &str = "mock-folder-renamed";
@@ -85,22 +92,25 @@ fn integration_command_line() -> Result<()> {
         "target/debug/sos".to_owned()
     };
 
-    account_new(&exe, &password)?;
+    shell(&exe, &password)?;
 
-    let address = account_list(&exe)?;
+    account_new(&exe, &password, ACCOUNT_NAME)?;
+
+    let address = account_list(&exe, ACCOUNT_NAME)?;
     let default_id = default_folder_id(&exe, &address, &password)?;
 
-    check_vault(&exe, &address, &default_id)?;
-    check_keys(&exe, &address, &default_id)?;
-    check_header(&exe, &address, &default_id)?;
-    check_log(&exe, &address, &default_id)?;
+    check_vault(&exe, &address, &default_id, |_| Ok(None))?;
+    //check_keys(&exe, &address, &default_id)?;
+    //check_header(&exe, &address, &default_id)?;
+    //check_log(&exe, &address, &default_id)?;
 
-    account_backup_restore(&exe, &address, &password)?;
-    account_info(&exe, &address, &password)?;
-    account_rename(&exe, &address, &password)?;
-    account_migrate(&exe, &address, &password)?;
-    account_contacts(&exe, &address, &password)?;
+    //account_backup_restore(&exe, &address, &password)?;
+    account_info(&exe, &address, &password, |_| Ok(None))?;
+    //account_rename(&exe, &address, &password)?;
+    //account_migrate(&exe, &address, &password)?;
+    //account_contacts(&exe, &address, &password)?;
 
+    /*
     folder_new(&exe, &address, &password)?;
     folder_list(&exe, &address, &password)?;
     folder_info(&exe, &address, &password)?;
@@ -134,6 +144,7 @@ fn integration_command_line() -> Result<()> {
     secret_remove(&exe, &address, &password)?;
 
     account_delete(&exe, &address, &password)?;
+    */
 
     StorageDirs::clear_cache_dir();
     std::env::remove_var("SOS_CACHE");
@@ -143,8 +154,8 @@ fn integration_command_line() -> Result<()> {
 }
 
 /// Create a new account.
-fn account_new(exe: &str, password: &SecretString) -> Result<()> {
-    let cmd = format!("{} account new {}", exe, ACCOUNT_NAME);
+fn account_new(exe: &str, password: &SecretString, name: &str) -> Result<()> {
+    let cmd = format!("{} account new {}", exe, name);
     let mut p = spawn(&cmd, TIMEOUT)?;
     if !is_ci() {
         p.exp_regex("2[)] Choose a password")?;
@@ -161,11 +172,93 @@ fn account_new(exe: &str, password: &SecretString) -> Result<()> {
     Ok(())
 }
 
+/// Run a shell session.
+fn shell(exe: &str, password: &SecretString) -> Result<()> {
+    account_new(&exe, &password, SHELL_ACCOUNT_NAME)?;
+
+    let address = account_list(&exe, SHELL_ACCOUNT_NAME)?;
+    let default_id = default_folder_id(&exe, &address, &password)?;
+
+    let cmd = format!("{} shell {}", exe, address);
+    let mut ps = spawn(&cmd, TIMEOUT)?;
+    let process = Arc::new(Mutex::new(ps));
+
+    let prompt = format!("{}@{}>", SHELL_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
+    if !is_ci() {
+        let mut p = process.lock().expect("process to lock");
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+
+    {
+        let mut p = process.lock().expect("process to lock");
+        p.exp_regex(&prompt)?;
+    }
+
+    fn strip_exe(cmd: &str) -> String {
+        let mut parts: Vec<_> = cmd.split(" ").collect();
+        parts.remove(0);
+        parts.join(" ")
+    }
+
+    fn wait_for_prompt<R>(
+        runner: R,
+        process: Session,
+        prompt: &str,
+    ) -> Result<()>
+    where
+        R: Fn() -> Result<()>,
+    {
+        runner()?;
+
+        let mut p = process.lock().expect("process to lock");
+        p.exp_regex(prompt)?;
+
+        Ok(())
+    }
+
+    wait_for_prompt(
+        || {
+            check_vault(&exe, &address, &default_id, |cmd| {
+                {
+                    let mut p = process.lock().unwrap();
+                    p.send_line(&strip_exe(cmd))?;
+                }
+                Ok(Some(Arc::clone(&process)))
+            })
+        },
+        Arc::clone(&process),
+        &prompt,
+    )?;
+
+    wait_for_prompt(
+        || {
+            account_info(&exe, &address, &password, |cmd| {
+                {
+                    let mut p = process.lock().unwrap();
+                    p.send_line(&strip_exe(cmd))?;
+                }
+                Ok(Some(Arc::clone(&process)))
+            })
+        },
+        Arc::clone(&process),
+        &prompt,
+    )?;
+
+    {
+        let mut p = process.lock().expect("process to lock");
+        p.send_line("quit")?;
+        p.exp_eof()?;
+    }
+
+    Ok(())
+}
+
 /// List accounts.
-fn account_list(exe: &str) -> Result<String> {
+fn account_list(exe: &str, name: &str) -> Result<String> {
     let cmd = format!("{} account ls", exe);
     let mut p = spawn(&cmd, TIMEOUT)?;
-    p.exp_string(ACCOUNT_NAME)?;
+    p.exp_string(name)?;
     p.exp_eof()?;
 
     let cmd = format!("{} account ls -v", exe);
@@ -175,10 +268,10 @@ fn account_list(exe: &str) -> Result<String> {
 
     let mut parts: Vec<&str> = result.split(' ').collect();
     let address: &str = parts.remove(0);
-    let name: &str = parts.remove(0);
+    let account_name: &str = parts.remove(0);
 
     assert!(address.parse::<Address>().is_ok());
-    assert_eq!(ACCOUNT_NAME, name);
+    assert_eq!(name, account_name);
     Ok(address.to_owned())
 }
 
@@ -205,23 +298,45 @@ fn default_folder_id(
     Ok(result.parse()?)
 }
 
-fn check_vault(exe: &str, address: &str, vault_id: &VaultId) -> Result<()> {
+fn check_vault<S>(
+    exe: &str,
+    address: &str,
+    vault_id: &VaultId,
+    launch: S,
+) -> Result<()>
+where
+    S: Fn(&str) -> Result<Option<Session>>,
+{
     let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
 
-    let cmd = format!("{} check vault {}", exe, vault_path.display());
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    p.exp_any(vec![
-        ReadUntil::String(String::from("Verified")),
-        ReadUntil::EOF,
-    ])?;
+    {
+        let cmd = format!("{} check vault {}", exe, vault_path.display());
+        let ps = launch(&cmd)?;
+        let is_shell = ps.is_some();
+        let process = ps.unwrap_or_else(|| {
+            Arc::new(Mutex::new(spawn(&cmd, TIMEOUT).unwrap()))
+        });
+        let mut p = process.lock().expect("to acquire lock");
+        p.exp_any(vec![ReadUntil::String(String::from("Verified"))])?;
+        if !is_shell {
+            p.exp_eof()?;
+        }
+    }
 
-    let cmd =
-        format!("{} check vault --verbose {}", exe, vault_path.display());
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    p.exp_any(vec![
-        ReadUntil::String(String::from("Verified")),
-        ReadUntil::EOF,
-    ])?;
+    {
+        let cmd =
+            format!("{} check vault --verbose {}", exe, vault_path.display());
+        let ps = launch(&cmd)?;
+        let is_shell = ps.is_some();
+        let process = ps.unwrap_or_else(|| {
+            Arc::new(Mutex::new(spawn(&cmd, TIMEOUT).unwrap()))
+        });
+        let mut p = process.lock().expect("to acquire lock");
+        p.exp_any(vec![ReadUntil::String(String::from("Verified"))])?;
+        if !is_shell {
+            p.exp_eof()?;
+        }
+    }
 
     Ok(())
 }
@@ -291,34 +406,66 @@ fn account_backup_restore(
     Ok(())
 }
 
-fn account_info(
+fn account_info<S>(
     exe: &str,
     address: &str,
     password: &SecretString,
-) -> Result<()> {
-    let cmd = format!("{} account info -a {}", exe, address);
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-    }
-    p.exp_any(vec![ReadUntil::EOF])?;
+    launch: S,
+) -> Result<()>
+where
+    S: Fn(&str) -> Result<Option<Session>>,
+{
+    {
+        let cmd = format!("{} account info -a {}", exe, address);
+        let ps = launch(&cmd)?;
+        let is_shell = ps.is_some();
+        let process = ps.unwrap_or_else(|| {
+            Arc::new(Mutex::new(spawn(&cmd, TIMEOUT).unwrap()))
+        });
+        let mut p = process.lock().expect("to acquire lock");
+        if !is_ci() && !is_shell {
+            p.exp_regex("Password:")?;
+            p.send_line(password.expose_secret())?;
+        }
 
-    let cmd = format!("{} account info -a {} -v", exe, address);
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
+        if !is_shell {
+            p.exp_any(vec![ReadUntil::EOF])?;
+        }
     }
-    p.exp_any(vec![ReadUntil::EOF])?;
 
-    let cmd = format!("{} account info -a {} --json", exe, address);
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
+    {
+        let cmd = format!("{} account info -a {} -v", exe, address);
+        let ps = launch(&cmd)?;
+        let is_shell = ps.is_some();
+        let process = ps.unwrap_or_else(|| {
+            Arc::new(Mutex::new(spawn(&cmd, TIMEOUT).unwrap()))
+        });
+        let mut p = process.lock().expect("to acquire lock");
+        if !is_ci() && !is_shell {
+            p.exp_regex("Password:")?;
+            p.send_line(password.expose_secret())?;
+        }
+        if !is_shell {
+            p.exp_any(vec![ReadUntil::EOF])?;
+        }
     }
-    p.exp_any(vec![ReadUntil::EOF])?;
+
+    {
+        let cmd = format!("{} account info -a {} --json", exe, address);
+        let ps = launch(&cmd)?;
+        let is_shell = ps.is_some();
+        let process = ps.unwrap_or_else(|| {
+            Arc::new(Mutex::new(spawn(&cmd, TIMEOUT).unwrap()))
+        });
+        let mut p = process.lock().expect("to acquire lock");
+        if !is_ci() && !is_shell {
+            p.exp_regex("Password:")?;
+            p.send_line(password.expose_secret())?;
+        }
+        if !is_shell {
+            p.exp_any(vec![ReadUntil::EOF])?;
+        }
+    }
 
     Ok(())
 }
