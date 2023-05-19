@@ -119,6 +119,13 @@ fn integration_command_line() -> Result<()> {
     secret_rename(&exe, &address, &password)?;
     secret_move(&exe, &address, &password)?;
     secret_comment(&exe, &address, &password)?;
+    secret_archive_unarchive(&exe, &address, &password)?;
+    secret_download(&exe, &address, &password)?;
+
+    // TODO: update
+    // TODO: attach
+
+    secret_remove(&exe, &address, &password)?;
 
     account_delete(&exe, &address, &password)?;
 
@@ -535,7 +542,7 @@ fn folder_new(
         p.exp_regex("Password:")?;
         p.send_line(password.expose_secret())?;
     }
-    p.exp_regex(&format!("Folder created"))?;
+    p.exp_regex("Folder created")?;
     p.exp_eof()?;
 
     Ok(())
@@ -746,7 +753,7 @@ fn folder_remove(
         p.exp_regex("Delete folder")?;
         p.send_line("y")?;
     }
-    p.exp_regex(&format!("Folder deleted"))?;
+    p.exp_regex("Folder deleted")?;
     p.exp_eof()?;
 
     Ok(())
@@ -770,7 +777,7 @@ fn secret_add_note(
         p.send_control('d')?;
     }
 
-    p.exp_regex(&format!("Secret created"))?;
+    p.exp_regex("Secret created")?;
     p.exp_eof()?;
 
     Ok(())
@@ -796,7 +803,7 @@ fn secret_add_file(
         p.send_line(password.expose_secret())?;
     }
 
-    p.exp_regex(&format!("Secret created"))?;
+    p.exp_regex("Secret created")?;
     p.exp_eof()?;
 
     Ok(())
@@ -825,7 +832,7 @@ fn secret_add_login(
         p.send_line(account_password.expose_secret())?;
     }
 
-    p.exp_regex(&format!("Secret created"))?;
+    p.exp_regex("Secret created")?;
     p.exp_eof()?;
 
     Ok(())
@@ -865,7 +872,7 @@ fn secret_add_list(
         p.send_line("n")?;
     }
 
-    p.exp_regex(&format!("Secret created"))?;
+    p.exp_regex("Secret created")?;
     p.exp_eof()?;
 
     Ok(())
@@ -1106,7 +1113,7 @@ fn secret_move(
         p.exp_regex("Password:")?;
         p.send_line(password.expose_secret())?;
     }
-    p.exp_regex(&format!("Folder created"))?;
+    p.exp_regex("Folder created")?;
     p.exp_eof()?;
 
     // Move to the new folder
@@ -1119,7 +1126,7 @@ fn secret_move(
         p.exp_regex("Password:")?;
         p.send_line(password.expose_secret())?;
     }
-    p.exp_regex(&format!("Secret moved"))?;
+    p.exp_regex("Secret moved")?;
     p.exp_eof()?;
 
     // Move back to the default folder
@@ -1132,7 +1139,7 @@ fn secret_move(
         p.exp_regex("Password:")?;
         p.send_line(password.expose_secret())?;
     }
-    p.exp_regex(&format!("Secret moved"))?;
+    p.exp_regex("Secret moved")?;
     p.exp_eof()?;
 
     // Clean up the temporary folder
@@ -1146,7 +1153,7 @@ fn secret_move(
         p.exp_regex("Delete folder")?;
         p.send_line("y")?;
     }
-    p.exp_regex(&format!("Folder deleted"))?;
+    p.exp_regex("Folder deleted")?;
     p.exp_eof()?;
 
     Ok(())
@@ -1180,6 +1187,82 @@ fn secret_comment(
         p.send_line(password.expose_secret())?;
     }
     p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn secret_archive_unarchive(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    // Move to archive
+    let cmd = format!("{} secret archive -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("Moved to archive")?;
+    p.exp_eof()?;
+
+    // Restore from archive
+    let cmd =
+        format!("{} secret unarchive -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("Restored from archive")?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
+fn secret_download(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cache_dir = StorageDirs::cache_dir().unwrap();
+    let output = cache_dir.join("sample.heic");
+
+    let cmd = format!(
+        "{} secret download -a {} {} {}",
+        exe,
+        address,
+        FILE_NAME,
+        output.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("Download complete")?;
+    p.exp_eof()?;
+
+    assert!(output.exists());
+
+    Ok(())
+}
+
+fn secret_remove(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!("{} secret remove -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+        p.exp_regex("Delete secret")?;
+        p.send_line("y")?;
+    }
+    p.exp_regex("Secret deleted")?;
+    p.exp_eof()?;
 
     Ok(())
 }

@@ -2,6 +2,7 @@ use clap::Subcommand;
 
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 
+use futures::future::LocalBoxFuture;
 use terminal_banner::{Banner, Padding};
 
 use sos_net::client::{
@@ -14,13 +15,13 @@ use sos_sdk::{
     url::Url,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
-        VaultRef,
+        Summary, VaultRef,
     },
 };
 
 use crate::{
     helpers::{
-        account::{resolve_folder, resolve_user, verify, USER},
+        account::{resolve_folder, resolve_user, verify, Owner, USER},
         editor,
         readline::{read_flag, read_line, read_multiline, read_password},
         secret::{
@@ -234,7 +235,8 @@ pub enum Command {
         cmd: AttachCommand,
     },
     /// Delete a secret.
-    Del {
+    #[clap(alias = "rm")]
+    Remove {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -573,20 +575,41 @@ pub enum AddCommand {
     */
 }
 
-async fn resolve_verify(
+/// Predicate used to locate a folder.
+enum FolderPredicate<'a> {
+    /// User supplied reference to a folder.
+    Ref(Option<&'a VaultRef>),
+    /// Closure that can be used to selected a specific folder.
+    ///
+    /// Particularly useful for commands such as `unarchive` which
+    /// must always use the special archive folder.
+    Func(Box<dyn Fn(&mut Owner) -> LocalBoxFuture<Result<Summary>>>),
+}
+
+async fn resolve_verify<'a>(
     factory: ProviderFactory,
     account: Option<&AccountRef>,
-    folder: Option<&VaultRef>,
+    predicate: FolderPredicate<'a>,
     secret: &SecretRef,
 ) -> Result<ResolvedSecret> {
     let is_shell = USER.get().is_some();
 
-    let user = resolve_user(account, factory, true).await?;
-    let summary = resolve_folder(&user, folder)
-        .await?
-        .ok_or_else(|| Error::NoFolderFound)?;
+    let mut user = resolve_user(account, factory, true).await?;
 
-    if !is_shell || folder.is_some() {
+    let (summary, should_open) = match predicate {
+        FolderPredicate::Ref(folder) => (
+            resolve_folder(&user, folder)
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?,
+            true,
+        ),
+        FolderPredicate::Func(closure) => {
+            let summary = closure(&mut user).await?;
+            (summary, false)
+        }
+    };
+
+    if !is_shell || should_open {
         let mut owner = user.write().await;
         owner.open_folder(&summary)?;
     }
@@ -719,7 +742,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -740,7 +763,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -793,7 +816,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 secret,
             )
             .await?;
@@ -859,7 +882,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -912,7 +935,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -943,7 +966,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -972,7 +995,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -989,7 +1012,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 println!("Secret moved ✓");
             }
         }
-        Command::Del {
+        Command::Remove {
             account,
             folder,
             secret,
@@ -997,13 +1020,15 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
             if resolved.verified {
-                let prompt =
-                    format!(r#"Delete "{}" (y/n)? "#, resolved.meta.label());
+                let prompt = format!(
+                    r#"Delete secret "{}" (y/n)? "#,
+                    resolved.meta.label()
+                );
                 if read_flag(Some(&prompt))? {
                     let mut owner = resolved.user.write().await;
                     owner.delete_secret(&resolved.secret_id, None).await?;
@@ -1020,7 +1045,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -1082,7 +1107,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -1109,7 +1134,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -1122,26 +1147,21 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Unarchive { account, secret } => {
-            // Always use the archive folder as the secret
-            // must already be archived
-            let archive_folder = {
-                let user =
-                    resolve_user(account.as_ref(), factory.clone(), true)
-                        .await?;
-                let owner = user.read().await;
-                owner
-                    .archive_folder()
-                    .ok_or_else(|| Error::NoArchiveFolder)?
-            };
-            let folder = Some(VaultRef::Id(*archive_folder.id()));
-
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Func(Box::new(|user| {
+                    Box::pin(async {
+                        let owner = user.write().await;
+                        Ok(owner
+                            .archive_folder()
+                            .ok_or_else(|| Error::NoArchiveFolder)?)
+                    })
+                })),
                 &secret,
             )
             .await?;
+
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
                 owner
@@ -1220,7 +1240,7 @@ async fn attachment(
     let resolved = resolve_verify(
         factory.clone(),
         account.as_ref(),
-        folder.as_ref(),
+        FolderPredicate::Ref(folder.as_ref()),
         secret,
     )
     .await?;
