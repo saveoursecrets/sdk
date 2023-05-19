@@ -109,6 +109,8 @@ fn integration_command_line() -> Result<()> {
     secret_add_login(&exe, &address, &password)?;
     secret_add_list(&exe, &address, &password)?;
 
+    secret_list(&exe, &address, &password)?;
+
     account_delete(&exe, &address, &password)?;
 
     StorageDirs::clear_cache_dir();
@@ -857,6 +859,46 @@ fn secret_add_list(
 
     p.exp_regex(&format!("Secret created"))?;
     p.exp_eof()?;
+
+    Ok(())
+}
+
+fn secret_list(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!("{} secret list -a {}", exe, address);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!("{} secret list --verbose -a {}", exe, address);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!("{} secret list --all -a {}", exe, address);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!("{} secret list --favorites -a {}", exe, address);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
 
     Ok(())
 }

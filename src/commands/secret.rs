@@ -24,9 +24,9 @@ use crate::{
         editor,
         readline::{read_flag, read_line, read_multiline, read_password},
         secret::{
-            add_login, add_list, add_file, add_note,
-            download_file_secret, normalize_tags, print_secret,
-            read_file_secret, read_name, resolve_secret, ResolvedSecret,
+            add_file, add_list, add_login, add_note, download_file_secret,
+            normalize_tags, print_secret, read_file_secret, read_name,
+            resolve_secret, ResolvedSecret,
         },
     },
     Error, Result,
@@ -36,6 +36,11 @@ use human_bytes::human_bytes;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    /// Add a secret.
+    Add {
+        #[clap(subcommand)]
+        cmd: AddCommand,
+    },
     /// List secrets.
     #[clap(alias = "ls")]
     List {
@@ -58,11 +63,6 @@ pub enum Command {
         /// Show favorites only.
         #[clap(long)]
         favorites: bool,
-    },
-    /// Add a secret.
-    Add {
-        #[clap(subcommand)]
-        cmd: AddCommand,
     },
     /// Print a secret.
     Get {
@@ -547,7 +547,6 @@ pub enum AddCommand {
         /// File path.
         file: String,
     },
-
     /*
     /// Add a page.
     Page {
@@ -673,7 +672,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 AddCommand::File {
                     account, folder, ..
                 } => (account, folder),
-
                 /*
                 AddCommand::Page {
                     account, folder, ..
@@ -694,9 +692,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut owner = user.write().await;
             let result = match cmd {
                 AddCommand::Note { name, tags, .. } => add_note(name, tags)?,
-                AddCommand::List { name, tags, .. } => {
-                    add_list(name, tags)?
-                }
+                AddCommand::List { name, tags, .. } => add_list(name, tags)?,
                 AddCommand::Login { name, tags, .. } => {
                     add_login(name, tags)?
                 }
