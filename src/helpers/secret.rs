@@ -254,11 +254,11 @@ To save enter Ctrl+D on a newline"#,
 }
 
 pub fn add_note(
-    label: Option<String>,
+    name: Option<String>,
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = read_name(label)?;
-    multiline_banner("NOTE", &label);
+    let name = read_name(name)?;
+    multiline_banner("NOTE", &name);
 
     let text = if option_env!("CI").is_some() {
         std::env::var("SOS_NOTE").ok()
@@ -271,13 +271,60 @@ pub fn add_note(
     };
 
     if let Some(note) = text {
-        let note =
-            secrecy::Secret::new(note.trim_end_matches('\n').to_string());
-        let secret = Secret::Note {
-            text: note,
-            user_data: Default::default(),
-        };
-        let mut secret_meta = SecretMeta::new(label, secret.kind());
+        let text = note.trim_end_matches('\n').to_string();
+        let secret: Secret = text.into();
+        let mut secret_meta = SecretMeta::new(name, secret.kind());
+        if let Some(tags) = normalize_tags(tags) {
+            secret_meta.set_tags(tags);
+        }
+        Ok(Some((secret_meta, secret)))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn add_link(
+    name: Option<String>,
+    tags: Option<String>,
+) -> Result<Option<(SecretMeta, Secret)>> {
+    let name = read_name(name)?;
+
+    let link = if option_env!("CI").is_some() {
+        std::env::var("SOS_LINK").ok()
+    } else {
+        Some(read_line(Some("URL: "))?)
+    };
+
+    if let Some(link) = link {
+        let url: Url = link.parse().map_err(|_| Error::InvalidUrl)?;
+        let secret: Secret = url.into();
+        let mut secret_meta = SecretMeta::new(name, secret.kind());
+        if let Some(tags) = normalize_tags(tags) {
+            secret_meta.set_tags(tags);
+        }
+        Ok(Some((secret_meta, secret)))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn add_password(
+    name: Option<String>,
+    tags: Option<String>,
+) -> Result<Option<(SecretMeta, Secret)>> {
+    let name = read_name(name)?;
+
+    let password = if option_env!("CI").is_some() {
+        std::env::var("SOS_PASSWORD_VALUE")
+            .ok()
+            .map(SecretString::new)
+    } else {
+        Some(read_password(None)?)
+    };
+
+    if let Some(password) = password {
+        let secret: Secret = password.into();
+        let mut secret_meta = SecretMeta::new(name, secret.kind());
         if let Some(tags) = normalize_tags(tags) {
             secret_meta.set_tags(tags);
         }
@@ -319,10 +366,10 @@ pub fn add_page(
 */
 
 pub fn add_list(
-    label: Option<String>,
+    name: Option<String>,
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = read_name(label)?;
+    let name = read_name(name)?;
 
     let credentials = if option_env!("CI").is_some() {
         let list = std::env::var("SOS_LIST").ok().unwrap_or_default();
@@ -351,7 +398,7 @@ pub fn add_list(
 
     if !credentials.is_empty() {
         let secret: Secret = credentials.into();
-        let mut secret_meta = SecretMeta::new(label, secret.kind());
+        let mut secret_meta = SecretMeta::new(name, secret.kind());
         if let Some(tags) = normalize_tags(tags) {
             secret_meta.set_tags(tags);
         }
@@ -362,10 +409,10 @@ pub fn add_list(
 }
 
 pub fn add_login(
-    label: Option<String>,
+    name: Option<String>,
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
-    let label = read_name(label)?;
+    let name = read_name(name)?;
 
     let (account, url, password) = if option_env!("CI").is_some() {
         (
@@ -394,7 +441,7 @@ pub fn add_login(
         password,
         user_data: Default::default(),
     };
-    let mut secret_meta = SecretMeta::new(label, secret.kind());
+    let mut secret_meta = SecretMeta::new(name, secret.kind());
     if let Some(tags) = normalize_tags(tags) {
         secret_meta.set_tags(tags);
     }
@@ -403,29 +450,29 @@ pub fn add_login(
 
 pub fn add_file(
     path: String,
-    label: Option<String>,
+    name: Option<String>,
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let file = PathBuf::from(&path);
 
-    let name = if let Some(name) = file.file_name() {
+    let file_name = if let Some(name) = file.file_name() {
         name.to_string_lossy().into_owned()
     } else {
         return Err(Error::FileName(file));
     };
 
-    let mut label = if let Some(label) = label {
-        label
+    let mut name = if let Some(name) = name {
+        name
     } else {
-        read_line_allow_empty(Some("Label: "))?
+        read_line_allow_empty(Some("Name: "))?
     };
 
-    if label.is_empty() {
-        label = name;
+    if name.is_empty() {
+        name = file_name;
     }
 
     let secret = read_file_secret(&path)?;
-    let mut secret_meta = SecretMeta::new(label, secret.kind());
+    let mut secret_meta = SecretMeta::new(name, secret.kind());
     if let Some(tags) = normalize_tags(tags) {
         secret_meta.set_tags(tags);
     }

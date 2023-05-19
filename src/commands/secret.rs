@@ -12,7 +12,6 @@ use sos_net::client::{
 use sos_sdk::{
     account::AccountRef,
     search::Document,
-    url::Url,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
         Summary, VaultRef,
@@ -23,11 +22,11 @@ use crate::{
     helpers::{
         account::{resolve_folder, resolve_user, verify, Owner, USER},
         editor,
-        readline::{read_flag, read_line, read_multiline, read_password},
+        readline::{read_flag, read_line},
         secret::{
-            add_file, add_list, add_login, add_note, download_file_secret,
-            normalize_tags, print_secret, read_file_secret, read_name,
-            resolve_secret, ResolvedSecret,
+            add_file, add_link, add_list, add_login, add_note, add_password,
+            download_file_secret, normalize_tags, print_secret,
+            read_file_secret, read_name, resolve_secret, ResolvedSecret,
         },
     },
     Error, Result,
@@ -252,6 +251,11 @@ pub enum Command {
 
 #[derive(Subcommand, Debug)]
 pub enum AttachCommand {
+    /// Add an attachment.
+    Add {
+        #[clap(subcommand)]
+        cmd: AttachAddCommand,
+    },
     /// List attachments.
     #[clap(alias = "ls")]
     List {
@@ -269,11 +273,6 @@ pub enum AttachCommand {
 
         /// Secret name or identifier.
         secret: SecretRef,
-    },
-    /// Add an attachment.
-    Add {
-        #[clap(subcommand)]
-        cmd: AttachAddCommand,
     },
     /// Print an attachment.
     Get {
@@ -1296,10 +1295,8 @@ async fn attachment(
                         return Err(Error::AttachmentExists(name));
                     }
 
-                    let text = read_multiline(None)?;
-                    if let Some(text) = text {
-                        let secret: Secret = text.into();
-                        let meta = SecretMeta::new(name, secret.kind());
+                    if let Some((meta, secret)) = add_note(Some(name), None)?
+                    {
                         let attachment =
                             SecretRow::new(SecretId::new_v4(), meta, secret);
                         data.secret.attach(attachment);
@@ -1314,15 +1311,15 @@ async fn attachment(
                         return Err(Error::AttachmentExists(name));
                     }
 
-                    let link = read_line(Some("URL: "))?;
-                    let url: Url =
-                        link.parse().map_err(|_| Error::InvalidUrl)?;
-                    let secret: Secret = url.into();
-                    let meta = SecretMeta::new(name, secret.kind());
-                    let attachment =
-                        SecretRow::new(SecretId::new_v4(), meta, secret);
-                    data.secret.attach(attachment);
-                    Some(data.secret)
+                    if let Some((meta, secret)) = add_link(Some(name), None)?
+                    {
+                        let attachment =
+                            SecretRow::new(SecretId::new_v4(), meta, secret);
+                        data.secret.attach(attachment);
+                        Some(data.secret)
+                    } else {
+                        None
+                    }
                 }
                 AttachAddCommand::Password { name, .. } => {
                     let name = read_name(name)?;
@@ -1330,13 +1327,16 @@ async fn attachment(
                         return Err(Error::AttachmentExists(name));
                     }
 
-                    let password = read_password(None)?;
-                    let secret: Secret = password.into();
-                    let meta = SecretMeta::new(name, secret.kind());
-                    let attachment =
-                        SecretRow::new(SecretId::new_v4(), meta, secret);
-                    data.secret.attach(attachment);
-                    Some(data.secret)
+                    if let Some((meta, secret)) =
+                        add_password(Some(name), None)?
+                    {
+                        let attachment =
+                            SecretRow::new(SecretId::new_v4(), meta, secret);
+                        data.secret.attach(attachment);
+                        Some(data.secret)
+                    } else {
+                        None
+                    }
                 }
             },
             AttachCommand::Get { attachment, .. } => {

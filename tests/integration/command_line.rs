@@ -14,7 +14,7 @@ use secrecy::SecretString;
 
 use rexpect::{spawn, ReadUntil};
 
-const TIMEOUT: Option<u64> = Some(30000);
+const TIMEOUT: Option<u64> = Some(10000);
 
 const ACCOUNT_NAME: &str = "mock-account";
 const NEW_ACCOUNT_NAME: &str = "mock-account-renamed";
@@ -22,7 +22,7 @@ const FOLDER_NAME: &str = "mock-folder";
 const NEW_FOLDER_NAME: &str = "mock-folder-renamed";
 
 const NOTE_NAME: &str = "mock-note";
-const NOTE_VALUE: &str = "Mock note value";
+const NOTE_VALUE: &str = "Mock note value\n";
 
 const NEW_NOTE_NAME: &str = "mock-note-renamed";
 
@@ -35,6 +35,12 @@ const LOGIN_URL: &str = "https://example.com";
 const LIST_NAME: &str = "mock-list";
 const LIST_KEY_1: &str = "SERVICE_1_API";
 const LIST_KEY_2: &str = "SERVICE_2_API";
+
+const FILE_ATTACHMENT: &str = "file-attachment";
+const NOTE_ATTACHMENT: &str = "note-attachment";
+const LINK_ATTACHMENT: &str = "link-attachment";
+const PASSWORD_ATTACHMENT: &str = "password-attachment";
+const LINK_VALUE: &str = "https://example.com";
 
 fn is_coverage() -> bool {
     env_is_set("COVERAGE") && env_is_set("COVERAGE_BINARIES")
@@ -123,8 +129,8 @@ fn integration_command_line() -> Result<()> {
     secret_download(&exe, &address, &password)?;
 
     // TODO: update
-    // TODO: attach
 
+    secret_attach(&exe, &address, &password)?;
     secret_remove(&exe, &address, &password)?;
 
     account_delete(&exe, &address, &password)?;
@@ -778,6 +784,7 @@ fn secret_add_note(
 
         p.exp_regex(">> ")?;
         p.send_line(NOTE_VALUE)?;
+        p.exp_regex(">> ")?;
         p.send_control('d')?;
     }
 
@@ -1288,6 +1295,170 @@ fn secret_download(
     p.exp_eof()?;
 
     assert!(output.exists());
+
+    Ok(())
+}
+
+fn secret_attach(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cache_dir = StorageDirs::cache_dir().unwrap();
+    let input = PathBuf::from("tests/fixtures/sample.heic").canonicalize()?;
+    let output = cache_dir.join("sample-attachment.heic");
+
+    // Create file attachment
+    let cmd = format!(
+        "{} secret attach add file -a {} --name {} --path {} {}",
+        exe,
+        address,
+        FILE_ATTACHMENT,
+        input.display(),
+        NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("Secret updated")?;
+    p.exp_eof()?;
+
+    // Create note attachment
+    if is_ci() {
+        std::env::set_var("SOS_NOTE", NOTE_VALUE.to_string());
+    }
+    let cmd = format!(
+        "{} secret attach add note -a {} --name {} {}",
+        exe, address, NOTE_ATTACHMENT, NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+
+        p.exp_regex(">> ")?;
+        p.send_line(NOTE_VALUE)?;
+        p.exp_regex(">> ")?;
+        p.send_control('d')?;
+    }
+    p.exp_regex("Secret updated")?;
+    p.exp_eof()?;
+    if is_ci() {
+        std::env::remove_var("SOS_NOTE");
+    }
+
+    // Create link attachment
+    if is_ci() {
+        std::env::set_var("SOS_LINK", LINK_VALUE.to_string());
+    }
+    let cmd = format!(
+        "{} secret attach add link -a {} --name {} {}",
+        exe, address, LINK_ATTACHMENT, NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+
+        p.exp_regex("URL:")?;
+        p.send_line(LINK_VALUE)?;
+    }
+    p.exp_regex("Secret updated")?;
+    p.exp_eof()?;
+    if is_ci() {
+        std::env::remove_var("SOS_LINK");
+    }
+
+    // Create password attachment
+    let (attachment_password, _) = generate_passphrase()?;
+    if is_ci() {
+        std::env::set_var(
+            "SOS_PASSWORD_VALUE",
+            attachment_password.expose_secret().to_string(),
+        );
+    }
+    let cmd = format!(
+        "{} secret attach add password -a {} --name {} {}",
+        exe, address, PASSWORD_ATTACHMENT, NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+
+        p.exp_regex("Password:")?;
+        p.send_line(attachment_password.expose_secret())?;
+    }
+    p.exp_regex("Secret updated")?;
+    p.exp_eof()?;
+    if is_ci() {
+        std::env::remove_var("SOS_PASSWORD_VALUE");
+    }
+
+    // Get an attachment
+    let cmd = format!(
+        "{} secret attach get -a {} {} {}",
+        exe, address, NOTE_NAME, NOTE_ATTACHMENT,
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    // List attachments
+    let cmd =
+        format!("{} secret attach ls -a {} {}", exe, address, NOTE_NAME,);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!(
+        "{} secret attach ls --verbose -a {} {}",
+        exe, address, NOTE_NAME,
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    // Download file attachment
+    let cmd = format!(
+        "{} secret attach download -a {} {} {} {}",
+        exe,
+        address,
+        NOTE_NAME,
+        FILE_ATTACHMENT,
+        output.display()
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex("Download complete")?;
+    p.exp_eof()?;
+    assert!(output.exists());
+
+    // Remove an attachment
+    let cmd = format!(
+        "{} secret attach remove -a {} {} {}",
+        exe, address, NOTE_NAME, NOTE_ATTACHMENT,
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
 
     Ok(())
 }
