@@ -260,7 +260,17 @@ pub fn add_note(
     let label = read_name(label)?;
     multiline_banner("NOTE", &label);
 
-    if let Some(note) = read_multiline(None)? {
+    let text = if option_env!("CI").is_some() {
+        std::env::var("SOS_NOTE").ok()
+    } else {
+        if let Some(note) = read_multiline(None)? {
+            Some(note)
+        } else {
+            None
+        }
+    };
+
+    if let Some(note) = text {
         let note =
             secrecy::Secret::new(note.trim_end_matches('\n').to_string());
         let secret = Secret::Note {
@@ -314,30 +324,33 @@ pub fn add_list(
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let label = read_name(label)?;
 
-    let mut credentials: HashMap<String, SecretString> = HashMap::new();
-    loop {
-        let mut name = read_line(Some("Key: "))?;
-        while credentials.get(&name).is_some() {
-            tracing::error!(
-                target: TARGET,
-                "name '{}' already exists",
-                &name
-            );
-            name = read_line(Some("Key: "))?;
+    let credentials = if option_env!("CI").is_some() {
+        let list = std::env::var("SOS_LIST").ok().unwrap_or_default();
+        Secret::parse_list(&list)?
+    } else {
+        let mut credentials: HashMap<String, SecretString> = HashMap::new();
+        loop {
+            let mut name = read_line(Some("Key: "))?;
+            while credentials.get(&name).is_some() {
+                tracing::error!(
+                    target: TARGET,
+                    "name '{}' already exists",
+                    &name
+                );
+                name = read_line(Some("Key: "))?;
+            }
+            let value = read_password(Some("Value: "))?;
+            credentials.insert(name, value);
+            let prompt = Some("Add more credentials (y/n)? ");
+            if !read_flag(prompt)? {
+                break;
+            }
         }
-        let value = read_password(Some("Value: "))?;
-        credentials.insert(name, value);
-        let prompt = Some("Add more credentials (y/n)? ");
-        if !read_flag(prompt)? {
-            break;
-        }
-    }
+        credentials
+    };
 
     if !credentials.is_empty() {
-        let secret = Secret::List {
-            items: credentials,
-            user_data: Default::default(),
-        };
+        let secret: Secret = credentials.into();
         let mut secret_meta = SecretMeta::new(label, secret.kind());
         if let Some(tags) = normalize_tags(tags) {
             secret_meta.set_tags(tags);
@@ -354,9 +367,20 @@ pub fn add_login(
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let label = read_name(label)?;
 
-    let account = read_line(Some("Username: "))?;
-    let url = read_option(Some("Website: "))?;
-    let password = read_password(Some("Password: "))?;
+    let (account, url, password) = if option_env!("CI").is_some() {
+        (
+            std::env::var("SOS_LOGIN_USERNAME").ok().unwrap_or_default(),
+            std::env::var("SOS_LOGIN_URL").ok(),
+            SecretString::new(
+                std::env::var("SOS_LOGIN_PASSWORD").ok().unwrap_or_default(),
+            ),
+        )
+    } else {
+        let account = read_line(Some("Username: "))?;
+        let url = read_option(Some("Website: "))?;
+        let password = read_password(Some("Password: "))?;
+        (account, url, password)
+    };
 
     let url: Option<Url> = if let Some(url) = url {
         Some(url.parse().map_err(|_| Error::InvalidUrl)?)

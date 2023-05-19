@@ -764,6 +764,10 @@ fn secret_add_note(
     address: &str,
     password: &SecretString,
 ) -> Result<()> {
+    if is_ci() {
+        std::env::set_var("SOS_NOTE", NOTE_VALUE.to_string());
+    }
+
     let cmd =
         format!("{} secret add note -a {} -n {}", exe, address, NOTE_NAME);
 
@@ -779,6 +783,10 @@ fn secret_add_note(
 
     p.exp_regex("Secret created")?;
     p.exp_eof()?;
+
+    if is_ci() {
+        std::env::remove_var("SOS_NOTE");
+    }
 
     Ok(())
 }
@@ -815,6 +823,19 @@ fn secret_add_login(
     password: &SecretString,
 ) -> Result<()> {
     let (account_password, _) = generate_passphrase()?;
+
+    if is_ci() {
+        std::env::set_var(
+            "SOS_LOGIN_USERNAME",
+            LOGIN_SERVICE_NAME.to_string(),
+        );
+        std::env::set_var("SOS_LOGIN_URL", LOGIN_URL.to_string());
+        std::env::set_var(
+            "SOS_LOGIN_PASSWORD",
+            account_password.expose_secret().to_string(),
+        );
+    }
+
     let cmd =
         format!("{} secret add login -a {} -n {}", exe, address, LOGIN_NAME);
     let mut p = spawn(&cmd, TIMEOUT)?;
@@ -835,6 +856,12 @@ fn secret_add_login(
     p.exp_regex("Secret created")?;
     p.exp_eof()?;
 
+    if is_ci() {
+        std::env::remove_var("SOS_LOGIN_USERNAME");
+        std::env::remove_var("SOS_LOGIN_URL");
+        std::env::remove_var("SOS_LOGIN_PASSWORD");
+    }
+
     Ok(())
 }
 
@@ -845,6 +872,19 @@ fn secret_add_list(
 ) -> Result<()> {
     let (value_1, _) = generate_passphrase()?;
     let (value_2, _) = generate_passphrase()?;
+
+    if is_ci() {
+        std::env::set_var(
+            "SOS_LIST",
+            format!(
+                "{}={}\n{}={}\n",
+                LIST_KEY_1,
+                value_1.expose_secret(),
+                LIST_KEY_2,
+                value_2.expose_secret()
+            ),
+        );
+    }
 
     let cmd =
         format!("{} secret add list -a {} -n {}", exe, address, LIST_NAME);
@@ -874,6 +914,10 @@ fn secret_add_list(
 
     p.exp_regex("Secret created")?;
     p.exp_eof()?;
+
+    if is_ci() {
+        std::env::remove_var("SOS_LIST");
+    }
 
     Ok(())
 }

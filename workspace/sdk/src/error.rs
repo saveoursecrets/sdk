@@ -42,6 +42,10 @@ pub enum Error {
     #[error("path {0} is not a directory")]
     NotDirectory(PathBuf),
 
+    /// Error generated when attempting to parse a key/value pair.
+    #[error(r#"invalid key value "{0}""#)]
+    InvalidKeyValue(String),
+
     /// Error generated when a vault identity byte is wrong.
     #[error("bad identity byte {0}")]
     BadIdentity(u8),
