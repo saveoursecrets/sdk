@@ -112,6 +112,7 @@ fn integration_command_line() -> Result<()> {
     secret_list(&exe, &address, &password)?;
     secret_get(&exe, &address, &password)?;
     secret_info(&exe, &address, &password)?;
+    secret_tags(&exe, &address, &password)?;
 
     account_delete(&exe, &address, &password)?;
 
@@ -969,6 +970,56 @@ fn secret_info(
 
     let cmd =
         format!("{} secret info --json -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn secret_tags(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let tags = "foo,bar,qux";
+
+    let cmd = format!(
+        "{} secret tags add -a {} --tags {} {}",
+        exe, address, tags, NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd =
+        format!("{} secret tags list -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!(
+        "{} secret tags rm -a {} --tags {} {}",
+        exe, address, "foo,bar", NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd =
+        format!("{} secret tags clear -a {} {}", exe, address, NOTE_NAME);
     let mut p = spawn(&cmd, TIMEOUT)?;
     if !is_ci() {
         p.exp_regex("Password:")?;

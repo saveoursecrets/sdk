@@ -406,20 +406,6 @@ pub enum AttachAddCommand {
 
 #[derive(Subcommand, Debug)]
 pub enum TagCommand {
-    /// List tags.
-    #[clap(alias = "ls")]
-    List {
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
-
-        /// Folder name or id.
-        #[clap(short, long)]
-        folder: Option<VaultRef>,
-
-        /// Secret name or identifier.
-        secret: SecretRef,
-    },
     /// Add tags.
     Add {
         /// Account name or address.
@@ -433,6 +419,20 @@ pub enum TagCommand {
         /// Comma separated tags.
         #[clap(short, long)]
         tags: String,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// List tags.
+    #[clap(alias = "ls")]
+    List {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
