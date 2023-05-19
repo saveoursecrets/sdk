@@ -277,6 +277,7 @@ pub fn add_note(
     }
 }
 
+/*
 pub fn add_page(
     label: Option<String>,
     tags: Option<String>,
@@ -305,8 +306,9 @@ pub fn add_page(
         Ok(None)
     }
 }
+*/
 
-pub fn add_credentials(
+pub fn add_list(
     label: Option<String>,
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
@@ -314,14 +316,14 @@ pub fn add_credentials(
 
     let mut credentials: HashMap<String, SecretString> = HashMap::new();
     loop {
-        let mut name = read_line(Some("Name: "))?;
+        let mut name = read_line(Some("Key: "))?;
         while credentials.get(&name).is_some() {
             tracing::error!(
                 target: TARGET,
                 "name '{}' already exists",
                 &name
             );
-            name = read_line(Some("Name: "))?;
+            name = read_line(Some("Key: "))?;
         }
         let value = read_password(Some("Value: "))?;
         credentials.insert(name, value);
@@ -346,18 +348,18 @@ pub fn add_credentials(
     }
 }
 
-pub fn add_account(
+pub fn add_login(
     label: Option<String>,
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let label = read_name(label)?;
 
-    let account = read_line(Some("Account name: "))?;
-    let url = read_option(Some("Website URL: "))?;
+    let account = read_line(Some("Username: "))?;
+    let url = read_option(Some("Website: "))?;
     let password = read_password(Some("Password: "))?;
 
     let url: Option<Url> = if let Some(url) = url {
-        Some(url.parse()?)
+        Some(url.parse().map_err(|_| Error::InvalidUrl)?)
     } else {
         None
     };

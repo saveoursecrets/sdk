@@ -1297,7 +1297,11 @@ impl Decode for FileContent {
                     path: None,
                 };
             }
-            _ => unreachable!(),
+            _ => {
+                return Err(BinaryError::Boxed(Box::from(
+                    Error::UnknownFileContentType(kind),
+                )))
+            }
         }
         Ok(())
     }

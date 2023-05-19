@@ -59,6 +59,10 @@ pub enum Error {
     #[error("unknown AGE version {0}")]
     UnknownAgeVersion(u8),
 
+    /// Error generated when a file content type id is not supported.
+    #[error("unknown file content type {0}")]
+    UnknownFileContentType(u8),
+
     /// Error generated when a vault algorithm string identifier is wrong.
     #[error("invalid algorithm {0}")]
     InvalidAlgorithm(String),

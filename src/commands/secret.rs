@@ -24,7 +24,7 @@ use crate::{
         editor,
         readline::{read_flag, read_line, read_multiline, read_password},
         secret::{
-            add_account, add_credentials, add_file, add_note, add_page,
+            add_login, add_list, add_file, add_note,
             download_file_secret, normalize_tags, print_secret,
             read_file_secret, read_name, resolve_secret, ResolvedSecret,
         },
@@ -508,8 +508,8 @@ pub enum AddCommand {
         #[clap(short, long)]
         name: Option<String>,
     },
-    /// Add an account password.
-    Account {
+    /// Add a service login password.
+    Login {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -547,6 +547,8 @@ pub enum AddCommand {
         /// File path.
         file: String,
     },
+
+    /*
     /// Add a page.
     Page {
         /// Account name or address.
@@ -565,6 +567,7 @@ pub enum AddCommand {
         #[clap(short, long)]
         name: Option<String>,
     },
+    */
 }
 
 async fn resolve_verify(
@@ -664,15 +667,18 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 AddCommand::List {
                     account, folder, ..
                 } => (account, folder),
-                AddCommand::Account {
+                AddCommand::Login {
                     account, folder, ..
                 } => (account, folder),
                 AddCommand::File {
                     account, folder, ..
                 } => (account, folder),
+
+                /*
                 AddCommand::Page {
                     account, folder, ..
                 } => (account, folder),
+                */
             };
 
             let user = resolve_user(account.as_ref(), factory, true).await?;
@@ -689,15 +695,15 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let result = match cmd {
                 AddCommand::Note { name, tags, .. } => add_note(name, tags)?,
                 AddCommand::List { name, tags, .. } => {
-                    add_credentials(name, tags)?
+                    add_list(name, tags)?
                 }
-                AddCommand::Account { name, tags, .. } => {
-                    add_account(name, tags)?
+                AddCommand::Login { name, tags, .. } => {
+                    add_login(name, tags)?
                 }
                 AddCommand::File {
                     file, name, tags, ..
                 } => add_file(file, name, tags)?,
-                AddCommand::Page { name, tags, .. } => add_page(name, tags)?,
+                //AddCommand::Page { name, tags, .. } => add_page(name, tags)?,
             };
 
             if let Some((meta, secret)) = result {

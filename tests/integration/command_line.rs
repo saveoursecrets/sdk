@@ -21,6 +21,19 @@ const NEW_ACCOUNT_NAME: &str = "mock-account-renamed";
 const FOLDER_NAME: &str = "mock-folder";
 const NEW_FOLDER_NAME: &str = "mock-folder-renamed";
 
+const NOTE_NAME: &str = "mock-note";
+const NOTE_VALUE: &str = "Mock note value";
+
+const FILE_NAME: &str = "mock-file";
+
+const LOGIN_NAME: &str = "mock-login";
+const LOGIN_SERVICE_NAME: &str = "mock-service";
+const LOGIN_URL: &str = "https://example.com";
+
+const LIST_NAME: &str = "mock-list";
+const LIST_KEY_1: &str = "SERVICE_1_API";
+const LIST_KEY_2: &str = "SERVICE_2_API";
+
 fn is_coverage() -> bool {
     env_is_set("COVERAGE") && env_is_set("COVERAGE_BINARIES")
 }
@@ -90,6 +103,11 @@ fn integration_command_line() -> Result<()> {
     folder_history_check(&exe, &address, &password)?;
     folder_history_list(&exe, &address, &password)?;
     folder_remove(&exe, &address, &password)?;
+
+    secret_add_note(&exe, &address, &password)?;
+    secret_add_file(&exe, &address, &password)?;
+    secret_add_login(&exe, &address, &password)?;
+    secret_add_list(&exe, &address, &password)?;
 
     account_delete(&exe, &address, &password)?;
 
@@ -719,6 +737,125 @@ fn folder_remove(
         p.send_line("y")?;
     }
     p.exp_regex(&format!("{} removed", FOLDER_NAME))?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
+fn secret_add_note(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd =
+        format!("{} secret add note -a {} -n {}", exe, address, NOTE_NAME);
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+
+        p.exp_regex(">> ")?;
+        p.send_line(NOTE_VALUE)?;
+        p.send_control('d')?;
+    }
+
+    p.exp_regex(&format!("Secret created"))?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
+fn secret_add_file(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let file = PathBuf::from("tests/fixtures/sample.heic").canonicalize()?;
+    let cmd = format!(
+        "{} secret add file -a {} -n {} {}",
+        exe,
+        address,
+        FILE_NAME,
+        file.display()
+    );
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+
+    p.exp_regex(&format!("Secret created"))?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
+fn secret_add_login(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let (account_password, _) = generate_passphrase()?;
+    let cmd =
+        format!("{} secret add login -a {} -n {}", exe, address, LOGIN_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+
+        p.exp_regex("Username:")?;
+        p.send_line(LOGIN_SERVICE_NAME)?;
+
+        p.exp_regex("Website:")?;
+        p.send_line(LOGIN_URL)?;
+
+        p.exp_regex("Password:")?;
+        p.send_line(account_password.expose_secret())?;
+    }
+
+    p.exp_regex(&format!("Secret created"))?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
+fn secret_add_list(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let (value_1, _) = generate_passphrase()?;
+    let (value_2, _) = generate_passphrase()?;
+
+    let cmd =
+        format!("{} secret add list -a {} -n {}", exe, address, LIST_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+
+        p.exp_regex("Key:")?;
+        p.send_line(LIST_KEY_1)?;
+
+        p.exp_regex("Value:")?;
+        p.send_line(value_1.expose_secret())?;
+
+        p.exp_regex("Add more")?;
+        p.send_line("y")?;
+
+        p.exp_regex("Key:")?;
+        p.send_line(LIST_KEY_2)?;
+
+        p.exp_regex("Value:")?;
+        p.send_line(value_2.expose_secret())?;
+
+        p.exp_regex("Add more")?;
+        p.send_line("n")?;
+    }
+
+    p.exp_regex(&format!("Secret created"))?;
     p.exp_eof()?;
 
     Ok(())
