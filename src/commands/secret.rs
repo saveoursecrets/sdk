@@ -167,19 +167,6 @@ pub enum Command {
         /// Secret name or identifier.
         secret: SecretRef,
     },
-    /// Delete a secret.
-    Del {
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
-
-        /// Folder name or id.
-        #[clap(short, long)]
-        folder: Option<VaultRef>,
-
-        /// Secret name or identifier.
-        secret: SecretRef,
-    },
     /// Edit the comment for a secret.
     Comment {
         /// Account name or address.
@@ -189,6 +176,10 @@ pub enum Command {
         /// Folder name or id.
         #[clap(short, long)]
         folder: Option<VaultRef>,
+
+        /// Text for the comment.
+        #[clap(short, long)]
+        text: Option<String>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -241,6 +232,19 @@ pub enum Command {
     Attach {
         #[clap(subcommand)]
         cmd: AttachCommand,
+    },
+    /// Delete a secret.
+    Del {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
     },
 }
 
@@ -1011,6 +1015,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             account,
             folder,
             secret,
+            text,
         } => {
             let resolved = resolve_verify(
                 factory,
@@ -1027,21 +1032,31 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     data
                 };
 
-                let comment_text =
-                    data.secret.user_data().comment().unwrap_or("");
-                let (update, value) = match editor::edit_text(comment_text)? {
-                    Cow::Owned(s) => {
-                        let comment =
-                            if !s.is_empty() { Some(s) } else { None };
-                        (true, comment)
-                    }
-                    Cow::Borrowed(_) => {
-                        println!("No changes detected");
-                        (false, None)
+                let (update, value) = if let Some(text) = text {
+                    (true, Some(text))
+                } else {
+                    let comment_text =
+                        data.secret.user_data().comment().unwrap_or("");
+                    match editor::edit_text(comment_text)? {
+                        Cow::Owned(s) => (true, Some(s)),
+                        Cow::Borrowed(_) => {
+                            println!("No changes detected");
+                            (false, None)
+                        }
                     }
                 };
 
                 if update {
+                    // Treat the empty string as None
+                    let value = if let Some(value) = value {
+                        if value.is_empty() {
+                            None
+                        } else {
+                            Some(value)
+                        }
+                    } else {
+                        None
+                    };
                     data.secret.user_data_mut().set_comment(value);
                     let mut owner = resolved.user.write().await;
                     owner

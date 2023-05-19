@@ -117,6 +117,8 @@ fn integration_command_line() -> Result<()> {
     secret_tags(&exe, &address, &password)?;
     secret_favorite(&exe, &address, &password)?;
     secret_rename(&exe, &address, &password)?;
+    secret_move(&exe, &address, &password)?;
+    secret_comment(&exe, &address, &password)?;
 
     account_delete(&exe, &address, &password)?;
 
@@ -533,7 +535,7 @@ fn folder_new(
         p.exp_regex("Password:")?;
         p.send_line(password.expose_secret())?;
     }
-    p.exp_regex(&format!("{} created", FOLDER_NAME))?;
+    p.exp_regex(&format!("Folder created"))?;
     p.exp_eof()?;
 
     Ok(())
@@ -736,7 +738,6 @@ fn folder_remove(
     password: &SecretString,
 ) -> Result<()> {
     let cmd = format!("{} folder remove -a {} {}", exe, address, FOLDER_NAME);
-
     let mut p = spawn(&cmd, TIMEOUT)?;
     if !is_ci() {
         p.exp_regex("Password:")?;
@@ -745,7 +746,7 @@ fn folder_remove(
         p.exp_regex("Delete folder")?;
         p.send_line("y")?;
     }
-    p.exp_regex(&format!("{} removed", FOLDER_NAME))?;
+    p.exp_regex(&format!("Folder deleted"))?;
     p.exp_eof()?;
 
     Ok(())
@@ -1079,6 +1080,99 @@ fn secret_rename(
     let cmd = format!(
         "{} secret rename -a {} --name {} {}",
         exe, address, NOTE_NAME, NEW_NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn secret_move(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let target_folder = "moved-secret-folder";
+
+    // Create temporary folder
+    let cmd = format!("{} folder new -a {} {}", exe, address, target_folder);
+
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex(&format!("Folder created"))?;
+    p.exp_eof()?;
+
+    // Move to the new folder
+    let cmd = format!(
+        "{} secret move -a {} --target {} {}",
+        exe, address, target_folder, NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex(&format!("Secret moved"))?;
+    p.exp_eof()?;
+
+    // Move back to the default folder
+    let cmd = format!(
+        "{} secret move -a {} --target {} --folder {} {}",
+        exe, address, DEFAULT_VAULT_NAME, target_folder, NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_regex(&format!("Secret moved"))?;
+    p.exp_eof()?;
+
+    // Clean up the temporary folder
+    let cmd =
+        format!("{} folder remove -a {} {}", exe, address, target_folder);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+
+        p.exp_regex("Delete folder")?;
+        p.send_line("y")?;
+    }
+    p.exp_regex(&format!("Folder deleted"))?;
+    p.exp_eof()?;
+
+    Ok(())
+}
+
+fn secret_comment(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    // Set a comment
+    let cmd = format!(
+        "{} secret comment -a {} --text {} {}",
+        exe, address, "mock-comment", NOTE_NAME
+    );
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    // Clear the comment
+    let cmd = format!(
+        "{} secret comment -a {} --text '' {}",
+        exe, address, NOTE_NAME
     );
     let mut p = spawn(&cmd, TIMEOUT)?;
     if !is_ci() {
