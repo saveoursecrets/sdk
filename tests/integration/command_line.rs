@@ -110,6 +110,8 @@ fn integration_command_line() -> Result<()> {
     secret_add_list(&exe, &address, &password)?;
 
     secret_list(&exe, &address, &password)?;
+    secret_get(&exe, &address, &password)?;
+    secret_info(&exe, &address, &password)?;
 
     account_delete(&exe, &address, &password)?;
 
@@ -893,6 +895,80 @@ fn secret_list(
     p.exp_any(vec![ReadUntil::EOF])?;
 
     let cmd = format!("{} secret list --favorites -a {}", exe, address);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn secret_get(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!("{} secret get -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!("{} secret get -a {} {}", exe, address, FILE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!("{} secret get -a {} {}", exe, address, LOGIN_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd = format!("{} secret get -a {} {}", exe, address, LIST_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    Ok(())
+}
+
+fn secret_info(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+) -> Result<()> {
+    let cmd = format!("{} secret info -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd =
+        format!("{} secret info --debug -a {} {}", exe, address, NOTE_NAME);
+    let mut p = spawn(&cmd, TIMEOUT)?;
+    if !is_ci() {
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+    p.exp_any(vec![ReadUntil::EOF])?;
+
+    let cmd =
+        format!("{} secret info --json -a {} {}", exe, address, NOTE_NAME);
     let mut p = spawn(&cmd, TIMEOUT)?;
     if !is_ci() {
         p.exp_regex("Password:")?;
