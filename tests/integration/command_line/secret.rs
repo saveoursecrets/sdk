@@ -14,8 +14,8 @@ pub fn add_note(
     password: &SecretString,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    if is_ci() {
-        std::env::set_var("SOS_NOTE", NOTE_VALUE.to_string());
+    if is_ci() && repl.is_none() {
+        helpers::set_note_ci_vars();
     }
 
     let cmd =
@@ -37,8 +37,8 @@ pub fn add_note(
         Ok(())
     });
 
-    if is_ci() {
-        std::env::remove_var("SOS_NOTE");
+    if is_ci() && repl.is_none() {
+        helpers::clear_note_ci_vars();
     }
 
     Ok(())
@@ -80,16 +80,8 @@ pub fn add_login(
 ) -> Result<()> {
     let (account_password, _) = generate_passphrase()?;
 
-    if is_ci() {
-        std::env::set_var(
-            "SOS_LOGIN_USERNAME",
-            LOGIN_SERVICE_NAME.to_string(),
-        );
-        std::env::set_var("SOS_LOGIN_URL", LOGIN_URL.to_string());
-        std::env::set_var(
-            "SOS_LOGIN_PASSWORD",
-            account_password.expose_secret().to_string(),
-        );
+    if is_ci() && repl.is_none() {
+        helpers::set_login_ci_vars(&account_password);
     }
 
     let cmd =
@@ -115,10 +107,8 @@ pub fn add_login(
         Ok(())
     });
 
-    if is_ci() {
-        std::env::remove_var("SOS_LOGIN_USERNAME");
-        std::env::remove_var("SOS_LOGIN_URL");
-        std::env::remove_var("SOS_LOGIN_PASSWORD");
+    if is_ci() && repl.is_none() {
+        helpers::clear_login_ci_vars();
     }
 
     Ok(())
@@ -133,17 +123,8 @@ pub fn add_list(
     let (value_1, _) = generate_passphrase()?;
     let (value_2, _) = generate_passphrase()?;
 
-    if is_ci() {
-        std::env::set_var(
-            "SOS_LIST",
-            format!(
-                "{}={}\n{}={}\n",
-                LIST_KEY_1,
-                value_1.expose_secret(),
-                LIST_KEY_2,
-                value_2.expose_secret()
-            ),
-        );
+    if is_ci() && repl.is_none() {
+        helpers::set_list_ci_vars(&value_1, &value_2);
     }
 
     let cmd =
@@ -178,8 +159,8 @@ pub fn add_list(
         Ok(())
     });
 
-    if is_ci() {
-        std::env::remove_var("SOS_LIST");
+    if is_ci() && repl.is_none() {
+        helpers::clear_list_ci_vars();
     }
 
     Ok(())
@@ -528,8 +509,8 @@ pub fn attach(
     }
 
     // Create note attachment
-    if is_ci() {
-        std::env::set_var("SOS_NOTE", NOTE_VALUE.to_string());
+    if is_ci() && repl.is_none() {
+        helpers::set_note_ci_vars();
     }
     let cmd = format!(
         "{} secret attach add note -a {} --name {} {}",
@@ -558,12 +539,12 @@ pub fn attach(
     }
 
     if is_ci() {
-        std::env::remove_var("SOS_NOTE");
+        helpers::clear_note_ci_vars();
     }
 
     // Create link attachment
     if is_ci() {
-        std::env::set_var("SOS_LINK", LINK_VALUE.to_string());
+        helpers::set_link_ci_vars();
     }
     let cmd = format!(
         "{} secret attach add link -a {} --name {} {}",
@@ -591,16 +572,13 @@ pub fn attach(
     }
 
     if is_ci() {
-        std::env::remove_var("SOS_LINK");
+        helpers::clear_link_ci_vars();
     }
 
     // Create password attachment
     let (attachment_password, _) = generate_passphrase()?;
     if is_ci() {
-        std::env::set_var(
-            "SOS_PASSWORD_VALUE",
-            attachment_password.expose_secret().to_string(),
-        );
+        helpers::set_password_ci_vars(&attachment_password);
     }
     let cmd = format!(
         "{} secret attach add password -a {} --name {} {}",
@@ -628,7 +606,7 @@ pub fn attach(
     }
 
     if is_ci() {
-        std::env::remove_var("SOS_PASSWORD_VALUE");
+        helpers::clear_password_ci_vars();
     }
 
     // Get an attachment

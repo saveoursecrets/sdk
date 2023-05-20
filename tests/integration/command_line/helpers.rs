@@ -45,3 +45,62 @@ pub fn first_account_address(exe: &str, name: &str) -> Result<String> {
     assert_eq!(name, account_name);
     Ok(address.to_owned())
 }
+
+pub fn set_note_ci_vars() {
+    std::env::set_var("SOS_NOTE", NOTE_VALUE.to_string());
+}
+
+pub fn clear_note_ci_vars() {
+    std::env::remove_var("SOS_NOTE");
+}
+
+pub fn set_login_ci_vars(account_password: &SecretString) {
+    std::env::set_var("SOS_LOGIN_USERNAME", LOGIN_SERVICE_NAME.to_string());
+    std::env::set_var("SOS_LOGIN_URL", LOGIN_URL.to_string());
+    std::env::set_var(
+        "SOS_LOGIN_PASSWORD",
+        account_password.expose_secret().to_string(),
+    );
+}
+
+pub fn clear_login_ci_vars() {
+    std::env::remove_var("SOS_LOGIN_USERNAME");
+    std::env::remove_var("SOS_LOGIN_URL");
+    std::env::remove_var("SOS_LOGIN_PASSWORD");
+}
+
+pub fn set_list_ci_vars(value_1: &SecretString, value_2: &SecretString) {
+    std::env::set_var(
+        "SOS_LIST",
+        format!(
+            "{}={}\n{}={}\n",
+            LIST_KEY_1,
+            value_1.expose_secret(),
+            LIST_KEY_2,
+            value_2.expose_secret()
+        ),
+    );
+}
+
+pub fn clear_list_ci_vars() {
+    std::env::remove_var("SOS_LIST");
+}
+
+pub fn set_link_ci_vars() {
+    std::env::set_var("SOS_LINK", LINK_VALUE.to_string());
+}
+
+pub fn clear_link_ci_vars() {
+    std::env::remove_var("SOS_LINK");
+}
+
+pub fn set_password_ci_vars(attachment_password: &SecretString) {
+    std::env::set_var(
+        "SOS_PASSWORD_VALUE",
+        attachment_password.expose_secret().to_string(),
+    );
+}
+
+pub fn clear_password_ci_vars() {
+    std::env::remove_var("SOS_PASSWORD_VALUE");
+}

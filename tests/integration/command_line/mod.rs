@@ -212,6 +212,7 @@ fn integration_command_line() -> Result<()> {
     account::list(&exe, ACCOUNT_NAME, None)?;
     account::backup_restore(&exe, &address, &password, ACCOUNT_NAME, None)?;
     account::info(&exe, &address, &password, None)?;
+    account::statistics(&exe, &address, &password, None)?;
     account::rename(&exe, &address, &password, ACCOUNT_NAME, None)?;
     account::migrate(&exe, &address, &password, None)?;
     account::contacts(&exe, &address, &password, None)?;
@@ -286,6 +287,18 @@ fn login(
 
 /// Run a shell session.
 fn shell(exe: &str, password: &SecretString) -> Result<()> {
+    // Prepare variables for CI input
+    helpers::set_note_ci_vars();
+    let (account_password, _) = generate_passphrase()?;
+    helpers::set_login_ci_vars(&account_password);
+    let (value_1, _) = generate_passphrase()?;
+    let (value_2, _) = generate_passphrase()?;
+    helpers::set_list_ci_vars(&value_1, &value_2);
+
+    helpers::set_link_ci_vars();
+    let (attachment_password, _) = generate_passphrase()?;
+    helpers::set_password_ci_vars(&attachment_password);
+
     account::new(&exe, &password, SHELL_ACCOUNT_NAME, None)?;
 
     let address = helpers::first_account_address(&exe, SHELL_ACCOUNT_NAME)?;
@@ -298,8 +311,9 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
     // TODO: whoami
 
     // Issue commands
+    //
 
-    /* CHECK */
+    // Check
     check::vault(
         &exe,
         &address,
@@ -325,7 +339,7 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         Some((Arc::clone(&process), &prompt)),
     )?;
 
-    /* ACCOUNT */
+    // Account
     account::list(
         &exe,
         SHELL_ACCOUNT_NAME,
@@ -339,6 +353,12 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         Some((Arc::clone(&process), &prompt)),
     )?;
     account::info(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    account::statistics(
         &exe,
         &address,
         &password,
@@ -364,6 +384,7 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         Some((Arc::clone(&process), &prompt)),
     )?;
 
+    // Folder
     folder::new(
         &exe,
         &address,
@@ -425,6 +446,7 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         Some((Arc::clone(&process), &prompt)),
     )?;
 
+    // Secret
     secret::add_note(
         &exe,
         &address,
@@ -528,6 +550,12 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
+
+    helpers::clear_note_ci_vars();
+    helpers::clear_login_ci_vars();
+    helpers::clear_list_ci_vars();
+    helpers::clear_link_ci_vars();
+    helpers::clear_password_ci_vars();
 
     // Quit the shell session
     {

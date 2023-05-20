@@ -152,6 +152,25 @@ pub fn info(
     Ok(())
 }
 
+pub fn statistics(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+    repl: Option<(Session, &str)>,
+) -> Result<()> {
+    let cmd = format!("{} account statistics -a {}", exe, address);
+    read_until_eof(cmd, Some(password), repl.clone())?;
+
+    let cmd = format!(
+        "{} account statistics --tags --folders --types -a {}",
+        exe, address
+    );
+    read_until_eof(cmd, Some(password), repl.clone())?;
+
+    let cmd = format!("{} account statistics --json -a {}", exe, address);
+    read_until_eof(cmd, Some(password), repl)
+}
+
 pub fn rename(
     exe: &str,
     address: &str,
