@@ -496,11 +496,13 @@ pub fn attach(
     exe: &str,
     address: &str,
     password: &SecretString,
+    account_name: &str,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
     let cache_dir = StorageDirs::cache_dir().unwrap();
     let input = PathBuf::from("tests/fixtures/sample.heic").canonicalize()?;
-    let output = cache_dir.join("sample-attachment.heic");
+    let output =
+        cache_dir.join(format!("sample-attachment-{}.heic", account_name));
 
     // Create file attachment
     let cmd = format!(

@@ -245,7 +245,7 @@ fn integration_command_line() -> Result<()> {
 
     // TODO: update
 
-    secret::attach(&exe, &address, &password, None)?;
+    secret::attach(&exe, &address, &password, ACCOUNT_NAME, None)?;
     secret::remove(&exe, &address, &password, None)?;
 
     account::delete(&exe, &address, &password, None)?;
@@ -519,6 +519,7 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &exe,
         &address,
         &password,
+        SHELL_ACCOUNT_NAME,
         Some((Arc::clone(&process), &prompt)),
     )?;
     secret::remove(
