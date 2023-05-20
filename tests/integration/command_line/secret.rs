@@ -451,7 +451,7 @@ pub fn download(
     let output = cache_dir.join("sample.heic");
 
     let cmd = format!(
-        "{} secret download -a {} {} {}",
+        "{} secret download -a {} --force {} {}",
         exe,
         address,
         FILE_NAME,
