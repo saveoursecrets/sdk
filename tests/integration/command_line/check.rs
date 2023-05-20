@@ -1,23 +1,10 @@
 use anyhow::Result;
-use serial_test::serial;
 use std::{
     ops::DerefMut,
-    path::PathBuf,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
 };
-
-use sos_sdk::{
-    constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
-    secrecy::ExposeSecret, signer::ecdsa::Address, storage::StorageDirs,
-    vault::VaultId,
-};
-
-use sos_net::migrate::import::ImportFormat;
-
-use secrecy::SecretString;
-
-use rexpect::{reader::Regex, session::PtySession, spawn, ReadUntil};
-
+use sos_sdk::{storage::StorageDirs, vault::VaultId};
+use rexpect::{session::PtySession, spawn, ReadUntil};
 use super::*;
 
 pub fn vault(
@@ -30,7 +17,7 @@ pub fn vault(
 
     let cmd = format!("{} check vault {}", exe, vault_path.display());
     run!(launch, cmd, true, |ps: &mut PtySession,
-                             prompt: Option<&str>|
+                             _prompt: Option<&str>|
      -> Result<()> {
         ps.exp_any(vec![ReadUntil::String(String::from("Verified"))])?;
         Ok(())
@@ -39,7 +26,7 @@ pub fn vault(
     let cmd =
         format!("{} check vault --verbose {}", exe, vault_path.display());
     run!(launch, cmd, true, |ps: &mut PtySession,
-                             prompt: Option<&str>|
+                             _prompt: Option<&str>|
      -> Result<()> {
         ps.exp_any(vec![ReadUntil::String(String::from("Verified"))])?;
         Ok(())

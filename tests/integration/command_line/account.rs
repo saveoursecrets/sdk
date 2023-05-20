@@ -1,40 +1,38 @@
 use anyhow::Result;
-use serial_test::serial;
 use std::{
     ops::DerefMut,
     path::PathBuf,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
 };
-
 use sos_sdk::{
-    constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
-    secrecy::ExposeSecret, signer::ecdsa::Address, storage::StorageDirs,
-    vault::VaultId,
+    constants::DEFAULT_VAULT_NAME, secrecy::ExposeSecret,
+    storage::StorageDirs,
 };
-
 use sos_net::migrate::import::ImportFormat;
-
 use secrecy::SecretString;
-
-use rexpect::{reader::Regex, session::PtySession, spawn, ReadUntil};
-
+use rexpect::{session::PtySession, spawn};
 use super::*;
 
 /// Create a new account.
-pub fn new(exe: &str, password: &SecretString, name: &str) -> Result<()> {
+pub fn new(exe: &str, password: &SecretString, name: &str,
+    launch: Option<(Session, &str)>,
+    ) -> Result<()> {
     let cmd = format!("{} account new {}", exe, name);
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("2[)] Choose a password")?;
-        p.send_line("2")?;
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-        p.exp_regex("Confirm password:")?;
-        p.send_line(password.expose_secret())?;
-        p.exp_regex("you want to create a new account")?;
-        p.send_line("y")?;
-    }
-    p.exp_eof()?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             _prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() {
+            ps.exp_regex("2[)] Choose a password")?;
+            ps.send_line("2")?;
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+            ps.exp_regex("Confirm password:")?;
+            ps.send_line(password.expose_secret())?;
+            ps.exp_regex("you want to create a new account")?;
+            ps.send_line("y")?;
+        }
+        Ok(())
+    });
 
     Ok(())
 }
@@ -47,7 +45,7 @@ pub fn list(
 ) -> Result<()> {
     let cmd = format!("{} account ls", exe);
     run!(launch, cmd, true, |ps: &mut PtySession,
-                             prompt: Option<&str>|
+                             _prompt: Option<&str>|
      -> Result<()> {
         ps.exp_string(name)?;
         Ok(())
@@ -55,7 +53,7 @@ pub fn list(
 
     let cmd = format!("{} account ls -v", exe);
     run!(launch, cmd, true, |ps: &mut PtySession,
-                             prompt: Option<&str>|
+                             _prompt: Option<&str>|
      -> Result<()> {
         ps.exp_regex(name)?;
         Ok(())
@@ -81,7 +79,7 @@ pub fn backup_restore(
         backup_file.to_string_lossy()
     );
     run!(launch, cmd, true, |ps: &mut PtySession,
-                             prompt: Option<&str>|
+                             _prompt: Option<&str>|
      -> Result<()> {
         ps.exp_regex("backup archive created")?;
         Ok(())
@@ -93,7 +91,7 @@ pub fn backup_restore(
         backup_file.to_string_lossy()
     );
     run!(launch, cmd, true, |ps: &mut PtySession,
-                             prompt: Option<&str>|
+                             _prompt: Option<&str>|
      -> Result<()> {
         if !is_ci() {
             ps.exp_regex("Overwrite all account")?;
@@ -160,7 +158,7 @@ pub fn rename(
 ) -> Result<()> {
     // Must update expected prompt
     let new_prompt = format_prompt(NEW_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
-    let renamed = launch.clone().map(|(s, p)| (s, &new_prompt[..]));
+    let renamed = launch.clone().map(|(s, _p)| (s, &new_prompt[..]));
 
     // Rename account
     let cmd = format!(
@@ -202,6 +200,7 @@ pub fn migrate(
     exe: &str,
     address: &str,
     password: &SecretString,
+    launch: Option<(Session, &str)>,
 ) -> Result<()> {
     let cache_dir = StorageDirs::cache_dir().unwrap();
     let export_file = cache_dir.join(format!("{}-export.zip", address));
@@ -213,15 +212,20 @@ pub fn migrate(
         address,
         export_file.display()
     );
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-        p.exp_regex("Export UNENCRYPTED account")?;
-        p.send_line("y")?;
-    }
-    p.exp_regex("account exported")?;
-    p.exp_eof()?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        if !is_ci() {
+            ps.exp_regex("Export UNENCRYPTED account")?;
+            ps.send_line("y")?;
+        }
+        ps.exp_regex("account exported")?;
+        Ok(())
+    });
 
     let cmd = format!(
         "{} account migrate -a {} export --force {}",
@@ -229,15 +233,20 @@ pub fn migrate(
         address,
         export_file.display()
     );
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-        p.exp_regex("Export UNENCRYPTED account")?;
-        p.send_line("y")?;
-    }
-    p.exp_regex("account exported")?;
-    p.exp_eof()?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        if !is_ci() {
+            ps.exp_regex("Export UNENCRYPTED account")?;
+            ps.send_line("y")?;
+        }
+        ps.exp_regex("account exported")?;
+        Ok(())
+    });
 
     let file = fixtures.join("1password-export.csv");
     let cmd = format!(
@@ -247,13 +256,16 @@ pub fn migrate(
         ImportFormat::OnePasswordCsv,
         file.display()
     );
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-    }
-    p.exp_regex("file imported")?;
-    p.exp_eof()?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        ps.exp_regex("file imported")?;
+        Ok(())
+    });
 
     let file = fixtures.join("dashlane-export.zip");
     let cmd = format!(
@@ -263,13 +275,16 @@ pub fn migrate(
         ImportFormat::DashlaneZip,
         file.display()
     );
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-    }
-    p.exp_regex("file imported")?;
-    p.exp_eof()?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        ps.exp_regex("file imported")?;
+        Ok(())
+    });
 
     let file = fixtures.join("bitwarden-export.csv");
     let cmd = format!(
@@ -279,13 +294,16 @@ pub fn migrate(
         ImportFormat::BitwardenCsv,
         file.display()
     );
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-    }
-    p.exp_regex("file imported")?;
-    p.exp_eof()?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        ps.exp_regex("file imported")?;
+        Ok(())
+    });
 
     let file = fixtures.join("chrome-export.csv");
     let cmd = format!(
@@ -295,13 +313,16 @@ pub fn migrate(
         ImportFormat::ChromeCsv,
         file.display()
     );
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-    }
-    p.exp_regex("file imported")?;
-    p.exp_eof()?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        ps.exp_regex("file imported")?;
+        Ok(())
+    });
 
     let file = fixtures.join("firefox-export.csv");
     let cmd = format!(
@@ -311,13 +332,16 @@ pub fn migrate(
         ImportFormat::FirefoxCsv,
         file.display()
     );
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-    }
-    p.exp_regex("file imported")?;
-    p.exp_eof()?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        ps.exp_regex("file imported")?;
+        Ok(())
+    });
 
     let file = fixtures.join("macos-export.csv");
     let cmd = format!(
@@ -327,13 +351,16 @@ pub fn migrate(
         ImportFormat::MacosCsv,
         file.display()
     );
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-    }
-    p.exp_regex("file imported")?;
-    p.exp_eof()?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        ps.exp_regex("file imported")?;
+        Ok(())
+    });
 
     Ok(())
 }
@@ -391,7 +418,7 @@ pub fn delete(
         format!("{} account delete -a {}", exe, address)
     };
     run!(launch, cmd, false, |ps: &mut PtySession,
-                              prompt: Option<&str>|
+                              _prompt: Option<&str>|
      -> Result<()> {
         if !is_ci() {
             ps.exp_regex("Password:")?;

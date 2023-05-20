@@ -1,23 +1,10 @@
 use anyhow::Result;
-use serial_test::serial;
-use std::{
-    ops::DerefMut,
-    path::PathBuf,
-    sync::{Arc, Mutex, MutexGuard},
-};
-
 use sos_sdk::{
-    constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
-    secrecy::ExposeSecret, signer::ecdsa::Address, storage::StorageDirs,
-    vault::VaultId,
+    constants::DEFAULT_VAULT_NAME, secrecy::ExposeSecret,
+    signer::ecdsa::Address, vault::VaultId,
 };
-
-use sos_net::migrate::import::ImportFormat;
-
 use secrecy::SecretString;
-
-use rexpect::{reader::Regex, session::PtySession, spawn, ReadUntil};
-
+use rexpect::spawn;
 use super::*;
 
 /// Get the id of the default folder so we can

@@ -1,22 +1,15 @@
 use anyhow::Result;
 use serial_test::serial;
 use std::{
-    ops::DerefMut,
     path::PathBuf,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
 };
-
 use sos_sdk::{
     constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
-    secrecy::ExposeSecret, signer::ecdsa::Address, storage::StorageDirs,
-    vault::VaultId,
+    secrecy::ExposeSecret, storage::StorageDirs,
 };
-
-use sos_net::migrate::import::ImportFormat;
-
 use secrecy::SecretString;
-
-use rexpect::{reader::Regex, session::PtySession, spawn, ReadUntil};
+use rexpect::{session::PtySession, spawn, ReadUntil};
 
 mod account;
 mod check;
@@ -177,10 +170,10 @@ fn integration_command_line() -> Result<()> {
     } else {
         "target/debug/sos".to_owned()
     };
-    
+
     shell(&exe, &password)?;
 
-    account::new(&exe, &password, ACCOUNT_NAME)?;
+    account::new(&exe, &password, ACCOUNT_NAME, None)?;
 
     let address = helpers::first_account_address(&exe, ACCOUNT_NAME)?;
     let default_id = helpers::default_folder_id(&exe, &address, &password)?;
@@ -194,7 +187,7 @@ fn integration_command_line() -> Result<()> {
     account::backup_restore(&exe, &address, &password, ACCOUNT_NAME, None)?;
     account::info(&exe, &address, &password, None)?;
     account::rename(&exe, &address, &password, ACCOUNT_NAME, None)?;
-    //account::migrate(&exe, &address, &password)?;
+    account::migrate(&exe, &address, &password, None)?;
     //account::contacts(&exe, &address, &password)?;
 
     folder::new(&exe, &address, &password, None)?;
@@ -240,13 +233,13 @@ fn integration_command_line() -> Result<()> {
 
 /// Run a shell session.
 fn shell(exe: &str, password: &SecretString) -> Result<()> {
-    account::new(&exe, &password, SHELL_ACCOUNT_NAME)?;
+    account::new(&exe, &password, SHELL_ACCOUNT_NAME, None)?;
 
     let address = helpers::first_account_address(&exe, SHELL_ACCOUNT_NAME)?;
     let default_id = helpers::default_folder_id(&exe, &address, &password)?;
 
     let cmd = format!("{} shell {}", exe, address);
-    let mut ps = spawn(&cmd, TIMEOUT)?;
+    let ps = spawn(&cmd, TIMEOUT)?;
     let process = Arc::new(Mutex::new(ps));
 
     let prompt = format_prompt(SHELL_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
@@ -319,6 +312,12 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &address,
         &password,
         SHELL_ACCOUNT_NAME,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    account::migrate(
+        &exe,
+        &address,
+        &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
 

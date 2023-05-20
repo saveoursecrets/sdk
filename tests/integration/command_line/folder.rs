@@ -1,23 +1,11 @@
 use anyhow::Result;
-use serial_test::serial;
 use std::{
     ops::DerefMut,
-    path::PathBuf,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
 };
-
-use sos_sdk::{
-    constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
-    secrecy::ExposeSecret, signer::ecdsa::Address, storage::StorageDirs,
-    vault::VaultId,
-};
-
-use sos_net::migrate::import::ImportFormat;
-
+use sos_sdk::secrecy::ExposeSecret;
 use secrecy::SecretString;
-
-use rexpect::{reader::Regex, session::PtySession, spawn, ReadUntil};
-
+use rexpect::{session::PtySession, spawn};
 use super::*;
 
 pub fn new(
