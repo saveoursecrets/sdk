@@ -215,7 +215,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         }
         Command::Rename { name, account } => {
             account_rename(account, name, factory).await?;
-            println!("account renamed ✓");
+            tracing::info!(target: TARGET, "account renamed ✓");
         }
         Command::Migrate { account, cmd } => {
             let user = resolve_user(account.as_ref(), factory, false).await?;
@@ -240,22 +240,35 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         Command::Contacts { account, cmd } => {
             let user = resolve_user(account.as_ref(), factory, false).await?;
 
-            {
+            // Get the current folder so that the shell client
+            // does not lose context when importing and exporting contacts
+            let original_folder = {
                 let mut owner = user.write().await;
+                let current =
+                    owner.storage.current().map(|g| g.summary().clone());
                 let contacts = owner
                     .contacts_folder()
                     .ok_or_else(|| Error::NoContactsFolder)?;
                 owner.open_folder(&contacts)?;
-            }
+                current
+            };
 
             match cmd {
                 ContactsCommand::Export { output, force } => {
-                    contacts_export(user, output, force).await?;
+                    contacts_export(Arc::clone(&user), output, force).await?;
                     tracing::info!(target: TARGET, "contacts exported ✓");
+                    if let Some(folder) = original_folder {
+                        let mut owner = user.write().await;
+                        owner.open_folder(&folder)?;
+                    }
                 }
                 ContactsCommand::Import { input } => {
-                    contacts_import(user, input).await?;
+                    contacts_import(Arc::clone(&user), input).await?;
                     tracing::info!(target: TARGET, "contacts imported ✓");
+                    if let Some(folder) = original_folder {
+                        let mut owner = user.write().await;
+                        owner.open_folder(&folder)?;
+                    }
                 }
             }
         }

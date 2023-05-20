@@ -1,15 +1,16 @@
 use anyhow::Result;
+use rexpect::{session::PtySession, spawn, ReadUntil};
+use secrecy::SecretString;
 use serial_test::serial;
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
 use sos_sdk::{
     constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret, storage::StorageDirs,
 };
-use secrecy::SecretString;
-use rexpect::{session::PtySession, spawn, ReadUntil};
+use std::{
+    ops::DerefMut,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 mod account;
 mod check;
@@ -60,7 +61,7 @@ macro_rules! run {
 
         println!(
             "{}{}",
-            if is_shell { ">> " } else { "" },
+            if is_shell { "$ " } else { "" },
             if is_shell {
                 strip_exe(&$cmd)
             } else {
@@ -140,6 +141,31 @@ pub(crate) fn env_is_set(name: &str) -> bool {
     std::env::var(name).is_ok() && !std::env::var(name).unwrap().is_empty()
 }
 
+pub(crate) fn read_until_eof(
+    cmd: String,
+    password: Option<&SecretString>,
+    repl: Option<(Session, &str)>,
+) -> Result<()> {
+    run!(repl, cmd, false, |ps: &mut PtySession,
+                            prompt: Option<&str>|
+     -> Result<()> {
+        if let Some(password) = password {
+            if !is_ci() && prompt.is_none() {
+                ps.exp_regex("Password:")?;
+                ps.send_line(password.expose_secret())?;
+            }
+        }
+        if let Some(prompt) = prompt {
+            wait_for_prompt(ps, prompt)?;
+        } else {
+            wait_for_eof(ps)?;
+        }
+        Ok(())
+    });
+
+    Ok(())
+}
+
 #[test]
 #[serial]
 fn integration_command_line() -> Result<()> {
@@ -188,7 +214,7 @@ fn integration_command_line() -> Result<()> {
     account::info(&exe, &address, &password, None)?;
     account::rename(&exe, &address, &password, ACCOUNT_NAME, None)?;
     account::migrate(&exe, &address, &password, None)?;
-    //account::contacts(&exe, &address, &password)?;
+    account::contacts(&exe, &address, &password, None)?;
 
     folder::new(&exe, &address, &password, None)?;
     folder::list(&exe, &address, &password, None)?;
@@ -201,26 +227,26 @@ fn integration_command_line() -> Result<()> {
     folder::history_list(&exe, &address, &password, None)?;
     folder::remove(&exe, &address, &password, None)?;
 
-    secret::add_note(&exe, &address, &password)?;
-    secret::add_file(&exe, &address, &password)?;
-    secret::add_login(&exe, &address, &password)?;
-    secret::add_list(&exe, &address, &password)?;
+    secret::add_note(&exe, &address, &password, None)?;
+    secret::add_file(&exe, &address, &password, None)?;
+    secret::add_login(&exe, &address, &password, None)?;
+    secret::add_list(&exe, &address, &password, None)?;
 
-    secret::list(&exe, &address, &password)?;
-    secret::get(&exe, &address, &password)?;
-    secret::info(&exe, &address, &password)?;
-    secret::tags(&exe, &address, &password)?;
-    secret::favorite(&exe, &address, &password)?;
-    secret::rename(&exe, &address, &password)?;
-    secret::mv(&exe, &address, &password)?;
-    secret::comment(&exe, &address, &password)?;
-    secret::archive_unarchive(&exe, &address, &password)?;
-    secret::download(&exe, &address, &password)?;
+    secret::list(&exe, &address, &password, None)?;
+    secret::get(&exe, &address, &password, None)?;
+    secret::info(&exe, &address, &password, None)?;
+    secret::tags(&exe, &address, &password, None)?;
+    secret::favorite(&exe, &address, &password, None)?;
+    secret::rename(&exe, &address, &password, None)?;
+    secret::mv(&exe, &address, &password, ACCOUNT_NAME, None)?;
+    secret::comment(&exe, &address, &password, None)?;
+    secret::archive_unarchive(&exe, &address, &password, None)?;
+    secret::download(&exe, &address, &password, None)?;
 
     // TODO: update
 
-    secret::attach(&exe, &address, &password)?;
-    secret::remove(&exe, &address, &password)?;
+    secret::attach(&exe, &address, &password, None)?;
+    secret::remove(&exe, &address, &password, None)?;
 
     account::delete(&exe, &address, &password, None)?;
 
@@ -231,6 +257,33 @@ fn integration_command_line() -> Result<()> {
     Ok(())
 }
 
+/// Login to a shell session.
+fn login(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+    prompt: &str,
+) -> Result<Session> {
+    let cmd = format!("{} shell {}", exe, address);
+    let ps = spawn(&cmd, TIMEOUT)?;
+    let process = Arc::new(Mutex::new(ps));
+
+    // Authenticate the user
+    if !is_ci() {
+        let mut p = process.lock().expect("to acquire lock");
+        p.exp_regex("Password:")?;
+        p.send_line(password.expose_secret())?;
+    }
+
+    // Wait for initial prompt
+    {
+        let mut p = process.lock().expect("to acquire lock");
+        p.exp_regex(prompt)?;
+    }
+
+    Ok(process)
+}
+
 /// Run a shell session.
 fn shell(exe: &str, password: &SecretString) -> Result<()> {
     account::new(&exe, &password, SHELL_ACCOUNT_NAME, None)?;
@@ -238,24 +291,8 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
     let address = helpers::first_account_address(&exe, SHELL_ACCOUNT_NAME)?;
     let default_id = helpers::default_folder_id(&exe, &address, &password)?;
 
-    let cmd = format!("{} shell {}", exe, address);
-    let ps = spawn(&cmd, TIMEOUT)?;
-    let process = Arc::new(Mutex::new(ps));
-
     let prompt = format_prompt(SHELL_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
-
-    // Authenticate the user
-    if !is_ci() {
-        let mut p = process.lock().expect("process to lock");
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-    }
-
-    // Wait for initial prompt
-    {
-        let mut p = process.lock().expect("process to lock");
-        p.exp_regex(&prompt)?;
-    }
+    let process = login(exe, &address, password, &prompt)?;
 
     // TODO: cd
     // TODO: whoami
@@ -315,6 +352,12 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         Some((Arc::clone(&process), &prompt)),
     )?;
     account::migrate(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    account::contacts(
         &exe,
         &address,
         &password,
@@ -382,22 +425,125 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         Some((Arc::clone(&process), &prompt)),
     )?;
 
-    /* DELETE ACCOUNT */
-    account::delete(
+    secret::add_note(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::add_file(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::add_login(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::add_list(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::list(
         &exe,
         &address,
         &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
 
-    /*
+    secret::get(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::info(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::tags(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::favorite(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::rename(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::mv(
+        &exe,
+        &address,
+        &password,
+        SHELL_ACCOUNT_NAME,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::comment(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::archive_unarchive(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::download(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+
+    // TODO: update
+
+    secret::attach(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::remove(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+
     // Quit the shell session
     {
-        let mut p = process.lock().expect("process to lock");
+        let mut p = process.lock().expect("to acquire lock");
         p.send_line("quit")?;
         p.exp_eof()?;
     }
-    */
+
+    /* DELETE ACCOUNT */
+    {
+        let process = login(exe, &address, password, &prompt)?;
+        account::delete(
+            &exe,
+            &address,
+            &password,
+            Some((Arc::clone(&process), &prompt)),
+        )?;
+    }
 
     Ok(())
 }

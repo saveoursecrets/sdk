@@ -1,11 +1,11 @@
+use super::*;
 use anyhow::Result;
+use rexpect::spawn;
+use secrecy::SecretString;
 use sos_sdk::{
     constants::DEFAULT_VAULT_NAME, secrecy::ExposeSecret,
     signer::ecdsa::Address, vault::VaultId,
 };
-use secrecy::SecretString;
-use rexpect::spawn;
-use super::*;
 
 /// Get the id of the default folder so we can
 /// use it to execute the check subcommand which requires

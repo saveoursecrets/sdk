@@ -1146,6 +1146,16 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Unarchive { account, secret } => {
+            let original_folder = if is_shell {
+                let user =
+                    resolve_user(account.as_ref(), factory.clone(), false)
+                        .await?;
+                let owner = user.read().await;
+                owner.storage.current().map(|g| g.summary().clone())
+            } else {
+                None
+            };
+
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
@@ -1171,6 +1181,9 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     )
                     .await?;
                 println!("Restored from archive ✓");
+                if let Some(folder) = original_folder {
+                    owner.open_folder(&folder)?;
+                }
             }
         }
         Command::Attach { cmd } => attachment(factory, cmd).await?,
