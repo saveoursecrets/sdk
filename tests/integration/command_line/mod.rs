@@ -97,7 +97,7 @@ macro_rules! run {
         if is_shell {
             // Leave a little time for data to flush otherwise
             // some tests will fail
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }};
 }
