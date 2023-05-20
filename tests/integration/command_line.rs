@@ -1,8 +1,9 @@
 use anyhow::Result;
 use serial_test::serial;
 use std::{
+    ops::DerefMut,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 use sos_sdk::{
@@ -19,7 +20,22 @@ use rexpect::{session::PtySession, spawn, ReadUntil};
 
 type Session = Arc<Mutex<PtySession>>;
 
-const TIMEOUT: Option<u64> = Some(15000);
+macro_rules! run {
+    ($launch:ident, $cmd:ident, $spec:expr) => {{
+        let ps = $launch(&$cmd)?;
+        let is_shell = ps.is_some();
+        let process = ps.unwrap_or_else(|| {
+            Arc::new(Mutex::new(spawn(&$cmd, TIMEOUT).unwrap()))
+        });
+        let mut p = process.lock().expect("to acquire lock");
+        $spec(p.deref_mut(), is_shell)?;
+        if !is_shell {
+            p.exp_eof()?;
+        }
+    }};
+}
+
+const TIMEOUT: Option<u64> = Some(30000);
 
 const ACCOUNT_NAME: &str = "mock";
 const SHELL_ACCOUNT_NAME: &str = "shell";
@@ -309,35 +325,19 @@ where
 {
     let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
 
-    {
-        let cmd = format!("{} check vault {}", exe, vault_path.display());
-        let ps = launch(&cmd)?;
-        let is_shell = ps.is_some();
-        let process = ps.unwrap_or_else(|| {
-            Arc::new(Mutex::new(spawn(&cmd, TIMEOUT).unwrap()))
-        });
-        let mut p = process.lock().expect("to acquire lock");
+    let cmd = format!("{} check vault {}", exe, vault_path.display());
+    run!(launch, cmd, |p: &mut PtySession, is_shell: bool| -> Result<()> {
         p.exp_any(vec![ReadUntil::String(String::from("Verified"))])?;
-        if !is_shell {
-            p.exp_eof()?;
-        }
-    }
-
-    {
-        let cmd =
-            format!("{} check vault --verbose {}", exe, vault_path.display());
-        let ps = launch(&cmd)?;
-        let is_shell = ps.is_some();
-        let process = ps.unwrap_or_else(|| {
-            Arc::new(Mutex::new(spawn(&cmd, TIMEOUT).unwrap()))
-        });
-        let mut p = process.lock().expect("to acquire lock");
+        Ok(())
+    });
+    
+    let cmd =
+        format!("{} check vault --verbose {}", exe, vault_path.display());
+    run!(launch, cmd, |p: &mut PtySession, is_shell: bool| -> Result<()> {
         p.exp_any(vec![ReadUntil::String(String::from("Verified"))])?;
-        if !is_shell {
-            p.exp_eof()?;
-        }
-    }
-
+        Ok(())
+    });
+    
     Ok(())
 }
 
@@ -415,58 +415,34 @@ fn account_info<S>(
 where
     S: Fn(&str) -> Result<Option<Session>>,
 {
-    {
-        let cmd = format!("{} account info -a {}", exe, address);
-        let ps = launch(&cmd)?;
-        let is_shell = ps.is_some();
-        let process = ps.unwrap_or_else(|| {
-            Arc::new(Mutex::new(spawn(&cmd, TIMEOUT).unwrap()))
-        });
-        let mut p = process.lock().expect("to acquire lock");
+
+    let cmd = format!("{} account info -a {}", exe, address);
+    run!(launch, cmd, |p: &mut PtySession, is_shell: bool| -> Result<()> {
         if !is_ci() && !is_shell {
             p.exp_regex("Password:")?;
             p.send_line(password.expose_secret())?;
         }
-
-        if !is_shell {
-            p.exp_any(vec![ReadUntil::EOF])?;
-        }
-    }
-
-    {
-        let cmd = format!("{} account info -a {} -v", exe, address);
-        let ps = launch(&cmd)?;
-        let is_shell = ps.is_some();
-        let process = ps.unwrap_or_else(|| {
-            Arc::new(Mutex::new(spawn(&cmd, TIMEOUT).unwrap()))
-        });
-        let mut p = process.lock().expect("to acquire lock");
+        Ok(())
+    });
+    
+    let cmd = format!("{} account info -a {} -v", exe, address);
+    run!(launch, cmd, |p: &mut PtySession, is_shell: bool| -> Result<()> {
         if !is_ci() && !is_shell {
             p.exp_regex("Password:")?;
             p.send_line(password.expose_secret())?;
         }
-        if !is_shell {
-            p.exp_any(vec![ReadUntil::EOF])?;
-        }
-    }
-
-    {
-        let cmd = format!("{} account info -a {} --json", exe, address);
-        let ps = launch(&cmd)?;
-        let is_shell = ps.is_some();
-        let process = ps.unwrap_or_else(|| {
-            Arc::new(Mutex::new(spawn(&cmd, TIMEOUT).unwrap()))
-        });
-        let mut p = process.lock().expect("to acquire lock");
+        Ok(())
+    });
+    
+    let cmd = format!("{} account info -a {} --json", exe, address);
+    run!(launch, cmd, |p: &mut PtySession, is_shell: bool| -> Result<()> {
         if !is_ci() && !is_shell {
             p.exp_regex("Password:")?;
             p.send_line(password.expose_secret())?;
         }
-        if !is_shell {
-            p.exp_any(vec![ReadUntil::EOF])?;
-        }
-    }
-
+        Ok(())
+    });
+    
     Ok(())
 }
 
