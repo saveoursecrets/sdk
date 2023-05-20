@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
     client::provider::ProviderFactory,
@@ -17,7 +17,7 @@ use crate::{
     helpers::{
         account::{
             find_account, list_accounts, new_account, resolve_account,
-            resolve_user, sign_in, Owner, USER,
+            resolve_user, sign_in, verify, Owner, USER,
         },
         readline::read_flag,
     },
@@ -215,7 +215,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         }
         Command::Rename { name, account } => {
             account_rename(account, name, factory).await?;
-            tracing::info!(target: TARGET, "account renamed ✓");
+            println!("account renamed ✓");
         }
         Command::Migrate { account, cmd } => {
             let user = resolve_user(account.as_ref(), factory, false).await?;
@@ -447,6 +447,11 @@ async fn account_delete(
         }
 
         let user = USER.get().unwrap();
+
+        // Verify the password for shell users
+        // before deletion
+        verify(Arc::clone(&user)).await?;
+
         let owner = user.read().await;
         owner.user.account().into()
     };

@@ -16,24 +16,9 @@ use sos_net::migrate::import::ImportFormat;
 
 use secrecy::SecretString;
 
-use rexpect::{session::PtySession, spawn, ReadUntil};
+use rexpect::{reader::Regex, session::PtySession, spawn, ReadUntil};
 
 type Session = Arc<Mutex<PtySession>>;
-
-macro_rules! run {
-    ($launch:ident, $cmd:ident, $spec:expr) => {{
-        let ps = $launch(&$cmd)?;
-        let is_shell = ps.is_some();
-        let process = ps.unwrap_or_else(|| {
-            Arc::new(Mutex::new(spawn(&$cmd, TIMEOUT).unwrap()))
-        });
-        let mut p = process.lock().expect("to acquire lock");
-        $spec(p.deref_mut(), is_shell)?;
-        if !is_shell {
-            p.exp_eof()?;
-        }
-    }};
-}
 
 const TIMEOUT: Option<u64> = Some(30000);
 
@@ -64,6 +49,74 @@ const NOTE_ATTACHMENT: &str = "note-attachment";
 const LINK_ATTACHMENT: &str = "link-attachment";
 const PASSWORD_ATTACHMENT: &str = "password-attachment";
 const LINK_VALUE: &str = "https://example.com";
+
+// Run a test spec handling the differences between
+// executing a process and entering a line in a shell session.
+macro_rules! run {
+    ($launch:ident, $cmd:ident, $eof:expr, $spec:expr) => {{
+        // Get a PtySession which is either an existing session
+        // in the case of the shell command otherwise we spawn
+        // a new process/session
+        let is_shell = $launch.is_some();
+
+        println!(
+            "{}{}",
+            if is_shell { ">> " } else { "" },
+            if is_shell {
+                strip_exe(&$cmd)
+            } else {
+                $cmd.clone()
+            }
+        );
+
+        let (process, prompt) = if let Some((session, prompt)) = &$launch {
+            (Arc::clone(session), Some(prompt))
+        } else {
+            (Arc::new(Mutex::new(spawn(&$cmd, TIMEOUT).unwrap())), None)
+        };
+
+        let mut p = process.lock().expect("to acquire lock");
+
+        // Run the shell command
+        if is_shell {
+            p.send_line(&strip_exe(&$cmd))?;
+        }
+
+        // Execute the test spec
+        $spec(p.deref_mut(), prompt.copied())?;
+
+        // Wait for the prompt (shell) or expect EOF
+        if $eof {
+            if let Some(prompt) = prompt {
+                p.exp_regex(prompt)?;
+            } else {
+                p.exp_eof()?;
+            }
+        }
+
+        // Leave a little time for data to flush otherwise
+        // some tests will fail
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }};
+}
+
+/// Strip executable name from a command, used when executing
+/// in the context of a shell.
+fn strip_exe(cmd: &str) -> String {
+    let mut parts: Vec<_> = cmd.split(" ").collect();
+    parts.remove(0);
+    parts.join(" ")
+}
+
+fn wait_for_prompt(ps: &mut PtySession, prompt: &str) -> Result<()> {
+    ps.exp_any(vec![ReadUntil::String(prompt.to_string())])?;
+    Ok(())
+}
+
+fn wait_for_eof(ps: &mut PtySession) -> Result<()> {
+    ps.exp_any(vec![ReadUntil::EOF])?;
+    Ok(())
+}
 
 fn is_coverage() -> bool {
     env_is_set("COVERAGE") && env_is_set("COVERAGE_BINARIES")
@@ -112,17 +165,17 @@ fn integration_command_line() -> Result<()> {
 
     account_new(&exe, &password, ACCOUNT_NAME)?;
 
-    let address = account_list(&exe, ACCOUNT_NAME)?;
+    let address = account_list(&exe, ACCOUNT_NAME, None)?;
     let default_id = default_folder_id(&exe, &address, &password)?;
 
-    check_vault(&exe, &address, &default_id, |_| Ok(None))?;
-    //check_keys(&exe, &address, &default_id)?;
-    //check_header(&exe, &address, &default_id)?;
-    //check_log(&exe, &address, &default_id)?;
+    check_vault(&exe, &address, &default_id, None)?;
+    check_keys(&exe, &address, &default_id, None)?;
+    check_header(&exe, &address, &default_id, None)?;
+    check_log(&exe, &address, &default_id, None)?;
 
-    //account_backup_restore(&exe, &address, &password)?;
-    account_info(&exe, &address, &password, |_| Ok(None))?;
-    //account_rename(&exe, &address, &password)?;
+    account_backup_restore(&exe, &address, &password, ACCOUNT_NAME, None)?;
+    account_info(&exe, &address, &password, None)?;
+    account_rename(&exe, &address, &password, ACCOUNT_NAME, None)?;
     //account_migrate(&exe, &address, &password)?;
     //account_contacts(&exe, &address, &password)?;
 
@@ -159,8 +212,9 @@ fn integration_command_line() -> Result<()> {
     secret_attach(&exe, &address, &password)?;
     secret_remove(&exe, &address, &password)?;
 
-    account_delete(&exe, &address, &password)?;
     */
+
+    account_delete(&exe, &address, &password, None)?;
 
     StorageDirs::clear_cache_dir();
     std::env::remove_var("SOS_CACHE");
@@ -192,7 +246,7 @@ fn account_new(exe: &str, password: &SecretString, name: &str) -> Result<()> {
 fn shell(exe: &str, password: &SecretString) -> Result<()> {
     account_new(&exe, &password, SHELL_ACCOUNT_NAME)?;
 
-    let address = account_list(&exe, SHELL_ACCOUNT_NAME)?;
+    let address = account_list(&exe, SHELL_ACCOUNT_NAME, None)?;
     let default_id = default_folder_id(&exe, &address, &password)?;
 
     let cmd = format!("{} shell {}", exe, address);
@@ -200,82 +254,99 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
     let process = Arc::new(Mutex::new(ps));
 
     let prompt = format!("{}@{}>", SHELL_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
+
+    // Authenticate the user
     if !is_ci() {
         let mut p = process.lock().expect("process to lock");
         p.exp_regex("Password:")?;
         p.send_line(password.expose_secret())?;
     }
 
+    // Wait for initial prompt
     {
         let mut p = process.lock().expect("process to lock");
         p.exp_regex(&prompt)?;
     }
 
-    fn strip_exe(cmd: &str) -> String {
-        let mut parts: Vec<_> = cmd.split(" ").collect();
-        parts.remove(0);
-        parts.join(" ")
-    }
+    // TODO: cd
+    // TODO: whoami
 
-    fn wait_for_prompt<R>(
-        runner: R,
-        process: Session,
-        prompt: &str,
-    ) -> Result<()>
-    where
-        R: Fn() -> Result<()>,
-    {
-        runner()?;
+    // Issue commands
 
-        let mut p = process.lock().expect("process to lock");
-        p.exp_regex(prompt)?;
-
-        Ok(())
-    }
-
-    wait_for_prompt(
-        || {
-            check_vault(&exe, &address, &default_id, |cmd| {
-                {
-                    let mut p = process.lock().unwrap();
-                    p.send_line(&strip_exe(cmd))?;
-                }
-                Ok(Some(Arc::clone(&process)))
-            })
-        },
-        Arc::clone(&process),
-        &prompt,
+    /* CHECK */
+    check_vault(
+        &exe,
+        &address,
+        &default_id,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    check_keys(
+        &exe,
+        &address,
+        &default_id,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    check_header(
+        &exe,
+        &address,
+        &default_id,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    check_log(
+        &exe,
+        &address,
+        &default_id,
+        Some((Arc::clone(&process), &prompt)),
     )?;
 
-    wait_for_prompt(
-        || {
-            account_info(&exe, &address, &password, |cmd| {
-                {
-                    let mut p = process.lock().unwrap();
-                    p.send_line(&strip_exe(cmd))?;
-                }
-                Ok(Some(Arc::clone(&process)))
-            })
-        },
-        Arc::clone(&process),
-        &prompt,
+    /* ACCOUNT */
+    account_info(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    account_rename(
+        &exe,
+        &address,
+        &password,
+        SHELL_ACCOUNT_NAME,
+        Some((Arc::clone(&process), &prompt)),
     )?;
 
+    /* DELETE ACCOUNT */
+    account_delete(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+
+    /*
+    // Quit the shell session
     {
         let mut p = process.lock().expect("process to lock");
         p.send_line("quit")?;
         p.exp_eof()?;
     }
+    */
 
     Ok(())
 }
 
 /// List accounts.
-fn account_list(exe: &str, name: &str) -> Result<String> {
+fn account_list(
+    exe: &str,
+    name: &str,
+    launch: Option<(Session, &str)>,
+) -> Result<String> {
     let cmd = format!("{} account ls", exe);
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    p.exp_string(name)?;
-    p.exp_eof()?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        ps.exp_string(name)?;
+        Ok(())
+    });
 
     let cmd = format!("{} account ls -v", exe);
     let mut p = spawn(&cmd, TIMEOUT)?;
@@ -314,59 +385,108 @@ fn default_folder_id(
     Ok(result.parse()?)
 }
 
-fn check_vault<S>(
+fn check_vault(
     exe: &str,
     address: &str,
     vault_id: &VaultId,
-    launch: S,
-) -> Result<()>
-where
-    S: Fn(&str) -> Result<Option<Session>>,
-{
+    launch: Option<(Session, &str)>,
+) -> Result<()> {
     let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
 
     let cmd = format!("{} check vault {}", exe, vault_path.display());
-    run!(launch, cmd, |p: &mut PtySession, is_shell: bool| -> Result<()> {
-        p.exp_any(vec![ReadUntil::String(String::from("Verified"))])?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        ps.exp_any(vec![ReadUntil::String(String::from("Verified"))])?;
         Ok(())
     });
-    
+
     let cmd =
         format!("{} check vault --verbose {}", exe, vault_path.display());
-    run!(launch, cmd, |p: &mut PtySession, is_shell: bool| -> Result<()> {
-        p.exp_any(vec![ReadUntil::String(String::from("Verified"))])?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        ps.exp_any(vec![ReadUntil::String(String::from("Verified"))])?;
         Ok(())
     });
-    
+
     Ok(())
 }
 
-fn check_keys(exe: &str, address: &str, vault_id: &VaultId) -> Result<()> {
+fn check_keys(
+    exe: &str,
+    address: &str,
+    vault_id: &VaultId,
+    launch: Option<(Session, &str)>,
+) -> Result<()> {
     let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
     let cmd = format!("{} check keys {}", exe, vault_path.display());
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    p.exp_any(vec![ReadUntil::EOF])?;
+    run!(launch, cmd, false, |ps: &mut PtySession,
+                              prompt: Option<&str>|
+     -> Result<()> {
+        if let Some(prompt) = prompt {
+            wait_for_prompt(ps, prompt)?;
+        } else {
+            wait_for_eof(ps)?;
+        }
+        Ok(())
+    });
     Ok(())
 }
 
-fn check_header(exe: &str, address: &str, vault_id: &VaultId) -> Result<()> {
+fn check_header(
+    exe: &str,
+    address: &str,
+    vault_id: &VaultId,
+    launch: Option<(Session, &str)>,
+) -> Result<()> {
     let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
     let cmd = format!("{} check header {}", exe, vault_path.display());
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    p.exp_any(vec![ReadUntil::EOF])?;
+    run!(launch, cmd, false, |ps: &mut PtySession,
+                              prompt: Option<&str>|
+     -> Result<()> {
+        if let Some(prompt) = prompt {
+            wait_for_prompt(ps, prompt)?;
+        } else {
+            wait_for_eof(ps)?;
+        }
+        Ok(())
+    });
+
     Ok(())
 }
 
-fn check_log(exe: &str, address: &str, vault_id: &VaultId) -> Result<()> {
+fn check_log(
+    exe: &str,
+    address: &str,
+    vault_id: &VaultId,
+    launch: Option<(Session, &str)>,
+) -> Result<()> {
     let log_path = StorageDirs::log_path(address, vault_id.to_string())?;
 
     let cmd = format!("{} check log {}", exe, log_path.display());
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    p.exp_any(vec![ReadUntil::EOF])?;
+    run!(launch, cmd, false, |ps: &mut PtySession,
+                              prompt: Option<&str>|
+     -> Result<()> {
+        if let Some(prompt) = prompt {
+            wait_for_prompt(ps, prompt)?;
+        } else {
+            wait_for_eof(ps)?;
+        }
+        Ok(())
+    });
 
     let cmd = format!("{} check log --verbose {}", exe, log_path.display());
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    p.exp_any(vec![ReadUntil::EOF])?;
+    run!(launch, cmd, false, |ps: &mut PtySession,
+                              prompt: Option<&str>|
+     -> Result<()> {
+        if let Some(prompt) = prompt {
+            wait_for_prompt(ps, prompt)?;
+        } else {
+            wait_for_eof(ps)?;
+        }
+        Ok(())
+    });
 
     Ok(())
 }
@@ -375,13 +495,16 @@ fn account_backup_restore(
     exe: &str,
     address: &str,
     password: &SecretString,
+    account_name: &str,
+    launch: Option<(Session, &str)>,
 ) -> Result<()> {
     let cache_dir = StorageDirs::cache_dir().unwrap();
     let backup_file = cache_dir.join(format!("{}-backup.zip", address));
 
     let cmd = format!(
-        "{} account backup -o {}",
+        "{} account backup -a {} -o {}",
         exe,
+        address,
         backup_file.to_string_lossy()
     );
     let mut p = spawn(&cmd, TIMEOUT)?;
@@ -400,49 +523,51 @@ fn account_backup_restore(
         p.exp_regex("Password:")?;
         p.send_line(password.expose_secret())?;
     }
-    p.exp_regex(&format!("restored {}", ACCOUNT_NAME))?;
+    p.exp_regex(&format!("restored {}", account_name))?;
     p.exp_eof()?;
 
     Ok(())
 }
 
-fn account_info<S>(
+fn account_info(
     exe: &str,
     address: &str,
     password: &SecretString,
-    launch: S,
-) -> Result<()>
-where
-    S: Fn(&str) -> Result<Option<Session>>,
-{
-
+    launch: Option<(Session, &str)>,
+) -> Result<()> {
     let cmd = format!("{} account info -a {}", exe, address);
-    run!(launch, cmd, |p: &mut PtySession, is_shell: bool| -> Result<()> {
-        if !is_ci() && !is_shell {
-            p.exp_regex("Password:")?;
-            p.send_line(password.expose_secret())?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
         }
         Ok(())
     });
-    
+
     let cmd = format!("{} account info -a {} -v", exe, address);
-    run!(launch, cmd, |p: &mut PtySession, is_shell: bool| -> Result<()> {
-        if !is_ci() && !is_shell {
-            p.exp_regex("Password:")?;
-            p.send_line(password.expose_secret())?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
         }
         Ok(())
     });
-    
+
     let cmd = format!("{} account info -a {} --json", exe, address);
-    run!(launch, cmd, |p: &mut PtySession, is_shell: bool| -> Result<()> {
-        if !is_ci() && !is_shell {
-            p.exp_regex("Password:")?;
-            p.send_line(password.expose_secret())?;
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
         }
         Ok(())
     });
-    
+
     Ok(())
 }
 
@@ -450,30 +575,44 @@ fn account_rename(
     exe: &str,
     address: &str,
     password: &SecretString,
+    account_name: &str,
+    launch: Option<(Session, &str)>,
 ) -> Result<()> {
+    // Must update expected prompt
+    let renamed = launch.clone().map(|(s, p)| (s, NEW_ACCOUNT_NAME));
+
+    // Rename account
     let cmd = format!(
         "{} account rename -a {} --name {}",
         exe, address, NEW_ACCOUNT_NAME
     );
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-    }
-    p.exp_regex("account renamed")?;
-    p.exp_eof()?;
+    run!(renamed, cmd, true, |ps: &mut PtySession,
+                              prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        ps.exp_regex("account renamed")?;
+        Ok(())
+    });
 
+    // Rename again to revert
     let cmd = format!(
         "{} account rename -a {} --name {}",
-        exe, address, ACCOUNT_NAME
+        exe, address, account_name
     );
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-    }
-    p.exp_regex("account renamed")?;
-    p.exp_eof()?;
+
+    run!(launch, cmd, true, |ps: &mut PtySession,
+                             prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        ps.exp_regex("account renamed")?;
+        Ok(())
+    });
 
     Ok(())
 }
@@ -1609,17 +1748,29 @@ fn account_delete(
     exe: &str,
     address: &str,
     password: &SecretString,
+    launch: Option<(Session, &str)>,
 ) -> Result<()> {
-    let cmd = format!("{} account delete -a {}", exe, address);
-    let mut p = spawn(&cmd, TIMEOUT)?;
-    if !is_ci() {
-        p.exp_regex("Password:")?;
-        p.send_line(password.expose_secret())?;
-        p.exp_regex("Delete account")?;
-        p.send_line("y")?;
-    }
-    p.exp_regex("account deleted")?;
-    p.exp_eof()?;
+    let cmd = if launch.is_some() {
+        format!("{} account delete", exe)
+    } else {
+        format!("{} account delete -a {}", exe, address)
+    };
+    run!(launch, cmd, false, |ps: &mut PtySession,
+                              prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+            ps.exp_regex("Delete account")?;
+            ps.send_line("y")?;
+        }
 
+        ps.exp_regex("account deleted")?;
+        // Delete the account kills the process
+        // so now we expect EOF for the shell and
+        // normal execution
+        ps.exp_eof()?;
+        Ok(())
+    });
     Ok(())
 }
