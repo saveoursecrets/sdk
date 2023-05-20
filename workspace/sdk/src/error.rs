@@ -42,6 +42,10 @@ pub enum Error {
     #[error("path {0} is not a directory")]
     NotDirectory(PathBuf),
 
+    /// Error generated when attempting to parse a key/value pair.
+    #[error(r#"invalid key value "{0}""#)]
+    InvalidKeyValue(String),
+
     /// Error generated when a vault identity byte is wrong.
     #[error("bad identity byte {0}")]
     BadIdentity(u8),
@@ -58,6 +62,10 @@ pub enum Error {
     /// Error generated when an AGE version is not supported.
     #[error("unknown AGE version {0}")]
     UnknownAgeVersion(u8),
+
+    /// Error generated when a file content type id is not supported.
+    #[error("unknown file content type {0}")]
+    UnknownFileContentType(u8),
 
     /// Error generated when a vault algorithm string identifier is wrong.
     #[error("invalid algorithm {0}")]

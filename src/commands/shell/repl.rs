@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::{ffi::OsString, sync::Arc};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
@@ -6,7 +6,7 @@ use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{account::AccountRef, vault::VaultRef};
 
 use crate::{
-    commands::{AccountCommand, FolderCommand, SecretCommand},
+    commands::{AccountCommand, CheckCommand, FolderCommand, SecretCommand},
     helpers::account::{cd_folder, switch, Owner},
 };
 
@@ -22,11 +22,6 @@ struct Shell {
 
 #[derive(Subcommand, Debug)]
 enum ShellCommand {
-    /// Set a folder as the current working directory.
-    Cd {
-        /// Folder name or id.
-        folder: Option<VaultRef>,
-    },
     /// Manage local accounts.
     #[clap(alias = "a")]
     Account {
@@ -69,14 +64,26 @@ enum ShellCommand {
     #[clap(alias = "passwd")]
     Password,
     */
+    /// Set a folder as the current working directory.
+    Cd {
+        /// Folder name or id.
+        folder: Option<VaultRef>,
+    },
     /// Switch account.
     #[clap(alias = "su")]
     Switch {
         /// Account name or address.
         account: AccountRef,
     },
+    /// Check file status and integrity.
+    Check {
+        #[clap(subcommand)]
+        cmd: CheckCommand,
+    },
     /// Print the current identity.
     Whoami,
+    /// Print the current folder.
+    Pwd,
     /// Exit the shell.
     #[clap(alias = "q")]
     Quit,
@@ -91,7 +98,7 @@ enum ConflictChoice {
 */
 
 /*
-async fn maybe_conflict<F, R>(state: Owner, func: F) -> Result<()>
+async fn maybe_conflict<F, R>(user: Owner, func: F) -> Result<()>
 where
     F: FnOnce() -> R,
     R: futures::Future<Output = sos_net::client::Result<()>>,
@@ -134,15 +141,15 @@ where
 
                 let prompt =
                     Some("Choose an action to resolve the conflict: ");
-                let mut writer = state.write().await;
+                let mut owner = user.write().await;
                 match choose(prompt, &options)? {
                     Some(choice) => match choice {
                         ConflictChoice::Pull => {
-                            writer.storage.pull(&summary, true).await?;
+                            owner.storage.pull(&summary, true).await?;
                             Ok(())
                         }
                         ConflictChoice::Push => {
-                            writer.storage.push(&summary, true).await?;
+                            owner.storage.push(&summary, true).await?;
                             Ok(())
                         }
                         ConflictChoice::Noop => Ok(()),
@@ -160,7 +167,7 @@ where
 async fn exec_program(
     program: Shell,
     factory: ProviderFactory,
-    state: Owner,
+    user: Owner,
 ) -> Result<()> {
     match program.cmd {
         ShellCommand::Account { cmd } => {
@@ -172,8 +179,8 @@ async fn exec_program(
             crate::commands::account::run(cmd, factory).await?;
 
             if let Some(new_name) = new_name {
-                let mut writer = state.write().await;
-                writer.user.rename_account(new_name)?;
+                let mut owner = user.write().await;
+                owner.user.rename_account(new_name)?;
             }
 
             Ok(())
@@ -184,21 +191,19 @@ async fn exec_program(
         ShellCommand::Secret { cmd } => {
             crate::commands::secret::run(cmd, factory).await
         }
-        ShellCommand::Cd { folder } => {
-            cd_folder(state, folder.as_ref()).await
-        }
+        ShellCommand::Cd { folder } => cd_folder(user, folder.as_ref()).await,
 
         /*
         ShellCommand::Status { verbose } => {
-            let reader = state.read().await;
+            let owner = user.read().await;
             let keeper =
-                reader.storage.current().ok_or(Error::NoVaultSelected)?;
+                owner.storage.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
-            drop(reader);
+            drop(owner);
 
-            let mut writer = state.write().await;
+            let mut owner = user.write().await;
             let (status, pending_events) =
-                writer.storage.status(&summary).await?;
+                owner.storage.status(&summary).await?;
             if verbose {
                 let pair = status.pair();
                 println!("local  = {}", pair.local.root_hex());
@@ -211,11 +216,11 @@ async fn exec_program(
             Ok(())
         }
         ShellCommand::Pull { force } => {
-            let mut writer = state.write().await;
+            let mut owner = user.write().await;
             let keeper =
-                writer.storage.current().ok_or(Error::NoVaultSelected)?;
+                owner.storage.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
-            let result = writer.storage.pull(&summary, force).await?;
+            let result = owner.storage.pull(&summary, force).await?;
             match result.status {
                 SyncKind::Equal => println!("Up to date"),
                 SyncKind::Safe => {
@@ -235,11 +240,11 @@ async fn exec_program(
             Ok(())
         }
         ShellCommand::Push { force } => {
-            let mut writer = state.write().await;
+            let mut owner = user.write().await;
             let keeper =
-                writer.storage.current().ok_or(Error::NoVaultSelected)?;
+                owner.storage.current().ok_or(Error::NoVaultSelected)?;
             let summary = keeper.summary().clone();
-            let result = writer.storage.push(&summary, force).await?;
+            let result = owner.storage.push(&summary, force).await?;
             match result.status {
                 SyncKind::Equal => println!("Up to date"),
                 SyncKind::Safe => {
@@ -259,9 +264,9 @@ async fn exec_program(
             Ok(())
         }
         ShellCommand::Password => {
-            let mut writer = state.write().await;
+            let mut owner = user.write().await;
             let keeper =
-                writer.storage.current_mut().ok_or(Error::NoVaultSelected)?;
+                owner.storage.current_mut().ok_or(Error::NoVaultSelected)?;
 
             let banner = Banner::new()
                 .padding(Padding::one())
@@ -292,12 +297,12 @@ async fn exec_program(
                 // already mutably borrowed
                 let vault: Vault = keeper.vault().clone();
 
-                let new_passphrase = writer
+                let new_passphrase = owner
                     .storage
                     .change_password(&vault, passphrase, new_passphrase)
                     .await?;
 
-                drop(writer);
+                drop(owner);
 
                 let banner = Banner::new()
                     .padding(Padding::one())
@@ -323,31 +328,50 @@ async fn exec_program(
         }
         */
         ShellCommand::Switch { account } => {
-            let reader = state.read().await;
-            let factory = reader.factory.clone();
-            drop(reader);
+            let factory = {
+                let owner = user.read().await;
+                let factory = owner.factory.clone();
+                factory
+            };
 
-            let state = switch(&account, factory).await?;
-            let mut writer = state.write().await;
+            let user = switch(&account, factory).await?;
 
-            // Ensure the vault summaries are loaded
-            // so that "use" is effective immediately
-            writer.storage.load_vaults().await?;
+            // Try to select the default folder
+            let default_folder = {
+                let owner = user.read().await;
+                owner.default_folder()
+            };
+            if let Some(summary) = default_folder {
+                let folder = Some(VaultRef::Id(*summary.id()));
+                cd_folder(Arc::clone(&user), folder.as_ref()).await?;
+            }
 
             Ok(())
         }
+        ShellCommand::Check { cmd } => crate::commands::check::run(cmd),
         ShellCommand::Whoami => {
-            let reader = state.read().await;
+            let owner = user.read().await;
             println!(
                 "{} {}",
-                reader.user.account().label(),
-                reader.user.identity().address()
+                owner.user.account().label(),
+                owner.user.identity().address()
             );
             Ok(())
         }
+        ShellCommand::Pwd => {
+            let owner = user.read().await;
+            if let Some(current) = owner.storage.current() {
+                println!(
+                    "{} {}",
+                    current.summary().name(),
+                    current.summary().id(),
+                );
+            }
+            Ok(())
+        }
         ShellCommand::Quit => {
-            let mut writer = state.write().await;
-            writer.user.sign_out();
+            let mut owner = user.write().await;
+            owner.user.sign_out();
             std::process::exit(0);
         }
     }
@@ -357,14 +381,14 @@ async fn exec_program(
 async fn exec_args<I, T>(
     it: I,
     factory: ProviderFactory,
-    state: Owner,
+    user: Owner,
 ) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
     match Shell::try_parse_from(it) {
-        Ok(program) => exec_program(program, factory, state).await?,
+        Ok(program) => exec_program(program, factory, user).await?,
         Err(e) => e.print().expect("unable to write error output"),
     }
     Ok(())
@@ -374,7 +398,7 @@ where
 pub async fn exec(
     line: &str,
     factory: ProviderFactory,
-    state: Owner,
+    user: Owner,
 ) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
@@ -392,7 +416,7 @@ pub async fn exec(
         } else if line == "help" || line == "--help" {
             cmd.print_long_help()?;
         } else {
-            exec_args(it, factory, state).await?;
+            exec_args(it, factory, user).await?;
         }
     }
     Ok(())

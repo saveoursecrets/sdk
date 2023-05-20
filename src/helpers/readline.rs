@@ -66,9 +66,8 @@ pub(crate) fn basic_editor() -> Result<Editor<(), MemHistory>> {
 
 /// Read a multi-line string.
 pub fn read_multiline(prompt: Option<&str>) -> Result<Option<String>> {
-    let mut rl = basic_editor()?;
-
     let mut value = String::new();
+    let mut rl = basic_editor()?;
     loop {
         let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
         match readline {

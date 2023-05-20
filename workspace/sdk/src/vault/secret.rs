@@ -1297,7 +1297,11 @@ impl Decode for FileContent {
                     path: None,
                 };
             }
-            _ => unreachable!(),
+            _ => {
+                return Err(BinaryError::Boxed(Box::from(
+                    Error::UnknownFileContentType(kind),
+                )))
+            }
         }
         Ok(())
     }
@@ -1308,10 +1312,11 @@ impl Decode for FileContent {
 /// Some variants can be created from other types
 /// using a `From` or `TryFrom` implementation:
 ///
-/// * `String`  -> `Secret::Note`
-/// * `SecretString`  -> `Secret::Password`
-/// * `PathBuf` -> `Secret::File`
-/// * `Url`     -> `Secret::Link`
+/// * `String`                              -> `Secret::Note`
+/// * `HashMap<String, SecretString>`       -> `Secret::List`
+/// * `SecretString`                        -> `Secret::Password`
+/// * `PathBuf`                             -> `Secret::File`
+/// * `Url`                                 -> `Secret::Link`
 ///
 #[derive(Serialize, Deserialize)]
 #[serde(untagged, rename_all = "lowercase")]
@@ -1727,6 +1732,25 @@ impl fmt::Debug for Secret {
 }
 
 impl Secret {
+    /// Parse key value pairs into a map.
+    pub fn parse_list<S: AsRef<str>>(
+        list: S,
+    ) -> Result<HashMap<String, SecretString>> {
+        let mut credentials = HashMap::new();
+        for line in list.as_ref().lines() {
+            let key_value = line.split_once('=');
+            if let Some((key, value)) = key_value {
+                credentials.insert(
+                    key.to_string(),
+                    SecretString::new(value.to_string()),
+                );
+            } else {
+                return Err(Error::InvalidKeyValue(line.to_string()));
+            }
+        }
+        Ok(credentials)
+    }
+
     /// Ensure all the bytes are ASCII digits.
     pub fn ensure_ascii_digits<B: AsRef<[u8]>>(bytes: B) -> Result<()> {
         for byte in bytes.as_ref() {
@@ -2695,6 +2719,15 @@ impl From<String> for Secret {
     fn from(text: String) -> Self {
         Secret::Note {
             text: SecretString::new(text),
+            user_data: Default::default(),
+        }
+    }
+}
+
+impl From<HashMap<String, SecretString>> for Secret {
+    fn from(items: HashMap<String, SecretString>) -> Self {
+        Secret::List {
+            items,
             user_data: Default::default(),
         }
     }

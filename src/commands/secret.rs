@@ -2,6 +2,7 @@ use clap::Subcommand;
 
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 
+use futures::future::LocalBoxFuture;
 use terminal_banner::{Banner, Padding};
 
 use sos_net::client::{
@@ -11,20 +12,19 @@ use sos_net::client::{
 use sos_sdk::{
     account::AccountRef,
     search::Document,
-    url::Url,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
-        VaultRef,
+        Summary, VaultRef,
     },
 };
 
 use crate::{
     helpers::{
-        account::{resolve_folder, resolve_user, verify, USER},
+        account::{resolve_folder, resolve_user, verify, Owner, USER},
         editor,
-        readline::{read_flag, read_line, read_multiline, read_password},
+        readline::{read_flag, read_line},
         secret::{
-            add_account, add_credentials, add_file, add_note, add_page,
+            add_file, add_link, add_list, add_login, add_note, add_password,
             download_file_secret, normalize_tags, print_secret,
             read_file_secret, read_name, resolve_secret, ResolvedSecret,
         },
@@ -36,6 +36,11 @@ use human_bytes::human_bytes;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    /// Add a secret.
+    Add {
+        #[clap(subcommand)]
+        cmd: AddCommand,
+    },
     /// List secrets.
     #[clap(alias = "ls")]
     List {
@@ -58,11 +63,6 @@ pub enum Command {
         /// Show favorites only.
         #[clap(long)]
         favorites: bool,
-    },
-    /// Add a secret.
-    Add {
-        #[clap(subcommand)]
-        cmd: AddCommand,
     },
     /// Print a secret.
     Get {
@@ -167,19 +167,6 @@ pub enum Command {
         /// Secret name or identifier.
         secret: SecretRef,
     },
-    /// Delete a secret.
-    Del {
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
-
-        /// Folder name or id.
-        #[clap(short, long)]
-        folder: Option<VaultRef>,
-
-        /// Secret name or identifier.
-        secret: SecretRef,
-    },
     /// Edit the comment for a secret.
     Comment {
         /// Account name or address.
@@ -189,6 +176,10 @@ pub enum Command {
         /// Folder name or id.
         #[clap(short, long)]
         folder: Option<VaultRef>,
+
+        /// Text for the comment.
+        #[clap(short, long)]
+        text: Option<String>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -242,10 +233,29 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: AttachCommand,
     },
+    /// Delete a secret.
+    #[clap(alias = "rm")]
+    Remove {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
 }
 
 #[derive(Subcommand, Debug)]
 pub enum AttachCommand {
+    /// Add an attachment.
+    Add {
+        #[clap(subcommand)]
+        cmd: AttachAddCommand,
+    },
     /// List attachments.
     #[clap(alias = "ls")]
     List {
@@ -263,11 +273,6 @@ pub enum AttachCommand {
 
         /// Secret name or identifier.
         secret: SecretRef,
-    },
-    /// Add an attachment.
-    Add {
-        #[clap(subcommand)]
-        cmd: AttachAddCommand,
     },
     /// Print an attachment.
     Get {
@@ -406,20 +411,6 @@ pub enum AttachAddCommand {
 
 #[derive(Subcommand, Debug)]
 pub enum TagCommand {
-    /// List tags.
-    #[clap(alias = "ls")]
-    List {
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
-
-        /// Folder name or id.
-        #[clap(short, long)]
-        folder: Option<VaultRef>,
-
-        /// Secret name or identifier.
-        secret: SecretRef,
-    },
     /// Add tags.
     Add {
         /// Account name or address.
@@ -433,6 +424,20 @@ pub enum TagCommand {
         /// Comma separated tags.
         #[clap(short, long)]
         tags: String,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// List tags.
+    #[clap(alias = "ls")]
+    List {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -508,8 +513,8 @@ pub enum AddCommand {
         #[clap(short, long)]
         name: Option<String>,
     },
-    /// Add an account password.
-    Account {
+    /// Add a service login password.
+    Login {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -547,6 +552,7 @@ pub enum AddCommand {
         /// File path.
         file: String,
     },
+    /*
     /// Add a page.
     Page {
         /// Account name or address.
@@ -565,22 +571,44 @@ pub enum AddCommand {
         #[clap(short, long)]
         name: Option<String>,
     },
+    */
 }
 
-async fn resolve_verify(
+/// Predicate used to locate a folder.
+enum FolderPredicate<'a> {
+    /// User supplied reference to a folder.
+    Ref(Option<&'a VaultRef>),
+    /// Closure that can be used to selected a specific folder.
+    ///
+    /// Particularly useful for commands such as `unarchive` which
+    /// must always use the special archive folder.
+    Func(Box<dyn Fn(&mut Owner) -> LocalBoxFuture<Result<Summary>>>),
+}
+
+async fn resolve_verify<'a>(
     factory: ProviderFactory,
     account: Option<&AccountRef>,
-    folder: Option<&VaultRef>,
+    predicate: FolderPredicate<'a>,
     secret: &SecretRef,
 ) -> Result<ResolvedSecret> {
     let is_shell = USER.get().is_some();
 
-    let user = resolve_user(account, factory, true).await?;
-    let summary = resolve_folder(&user, folder)
-        .await?
-        .ok_or_else(|| Error::NoFolderFound)?;
+    let mut user = resolve_user(account, factory, true).await?;
 
-    if !is_shell || folder.is_some() {
+    let (summary, should_open) = match predicate {
+        FolderPredicate::Ref(folder) => (
+            resolve_folder(&user, folder)
+                .await?
+                .ok_or_else(|| Error::NoFolderFound)?,
+            true,
+        ),
+        FolderPredicate::Func(closure) => {
+            let summary = closure(&mut user).await?;
+            (summary, false)
+        }
+    };
+
+    if !is_shell || should_open {
         let mut owner = user.write().await;
         owner.open_folder(&summary)?;
     }
@@ -664,15 +692,17 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 AddCommand::List {
                     account, folder, ..
                 } => (account, folder),
-                AddCommand::Account {
+                AddCommand::Login {
                     account, folder, ..
                 } => (account, folder),
                 AddCommand::File {
                     account, folder, ..
                 } => (account, folder),
+                /*
                 AddCommand::Page {
                     account, folder, ..
                 } => (account, folder),
+                */
             };
 
             let user = resolve_user(account.as_ref(), factory, true).await?;
@@ -688,16 +718,14 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut owner = user.write().await;
             let result = match cmd {
                 AddCommand::Note { name, tags, .. } => add_note(name, tags)?,
-                AddCommand::List { name, tags, .. } => {
-                    add_credentials(name, tags)?
-                }
-                AddCommand::Account { name, tags, .. } => {
-                    add_account(name, tags)?
+                AddCommand::List { name, tags, .. } => add_list(name, tags)?,
+                AddCommand::Login { name, tags, .. } => {
+                    add_login(name, tags)?
                 }
                 AddCommand::File {
                     file, name, tags, ..
                 } => add_file(file, name, tags)?,
-                AddCommand::Page { name, tags, .. } => add_page(name, tags)?,
+                //AddCommand::Page { name, tags, .. } => add_page(name, tags)?,
             };
 
             if let Some((meta, secret)) = result {
@@ -713,7 +741,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -734,7 +762,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -787,7 +815,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 secret,
             )
             .await?;
@@ -853,7 +881,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -906,7 +934,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -937,7 +965,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -966,7 +994,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -983,7 +1011,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 println!("Secret moved ✓");
             }
         }
-        Command::Del {
+        Command::Remove {
             account,
             folder,
             secret,
@@ -991,13 +1019,15 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
             if resolved.verified {
-                let prompt =
-                    format!(r#"Delete "{}" (y/n)? "#, resolved.meta.label());
+                let prompt = format!(
+                    r#"Delete secret "{}" (y/n)? "#,
+                    resolved.meta.label()
+                );
                 if read_flag(Some(&prompt))? {
                     let mut owner = resolved.user.write().await;
                     owner.delete_secret(&resolved.secret_id, None).await?;
@@ -1009,11 +1039,12 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             account,
             folder,
             secret,
+            text,
         } => {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -1025,21 +1056,31 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     data
                 };
 
-                let comment_text =
-                    data.secret.user_data().comment().unwrap_or("");
-                let (update, value) = match editor::edit_text(comment_text)? {
-                    Cow::Owned(s) => {
-                        let comment =
-                            if !s.is_empty() { Some(s) } else { None };
-                        (true, comment)
-                    }
-                    Cow::Borrowed(_) => {
-                        println!("No changes detected");
-                        (false, None)
+                let (update, value) = if let Some(text) = text {
+                    (true, Some(text))
+                } else {
+                    let comment_text =
+                        data.secret.user_data().comment().unwrap_or("");
+                    match editor::edit_text(comment_text)? {
+                        Cow::Owned(s) => (true, Some(s)),
+                        Cow::Borrowed(_) => {
+                            println!("No changes detected");
+                            (false, None)
+                        }
                     }
                 };
 
                 if update {
+                    // Treat the empty string as None
+                    let value = if let Some(value) = value {
+                        if value.is_empty() {
+                            None
+                        } else {
+                            Some(value)
+                        }
+                    } else {
+                        None
+                    };
                     data.secret.user_data_mut().set_comment(value);
                     let mut owner = resolved.user.write().await;
                     owner
@@ -1065,7 +1106,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -1092,7 +1133,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
                 &secret,
             )
             .await?;
@@ -1105,26 +1146,31 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Unarchive { account, secret } => {
-            // Always use the archive folder as the secret
-            // must already be archived
-            let archive_folder = {
+            let original_folder = if is_shell {
                 let user =
-                    resolve_user(account.as_ref(), factory.clone(), true)
+                    resolve_user(account.as_ref(), factory.clone(), false)
                         .await?;
                 let owner = user.read().await;
-                owner
-                    .archive_folder()
-                    .ok_or_else(|| Error::NoArchiveFolder)?
+                owner.storage.current().map(|g| g.summary().clone())
+            } else {
+                None
             };
-            let folder = Some(VaultRef::Id(*archive_folder.id()));
 
             let resolved = resolve_verify(
                 factory,
                 account.as_ref(),
-                folder.as_ref(),
+                FolderPredicate::Func(Box::new(|user| {
+                    Box::pin(async {
+                        let owner = user.write().await;
+                        Ok(owner
+                            .archive_folder()
+                            .ok_or_else(|| Error::NoArchiveFolder)?)
+                    })
+                })),
                 &secret,
             )
             .await?;
+
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
                 owner
@@ -1135,6 +1181,9 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     )
                     .await?;
                 println!("Restored from archive ✓");
+                if let Some(folder) = original_folder {
+                    owner.open_folder(&folder)?;
+                }
             }
         }
         Command::Attach { cmd } => attachment(factory, cmd).await?,
@@ -1203,7 +1252,7 @@ async fn attachment(
     let resolved = resolve_verify(
         factory.clone(),
         account.as_ref(),
-        folder.as_ref(),
+        FolderPredicate::Ref(folder.as_ref()),
         secret,
     )
     .await?;
@@ -1259,10 +1308,8 @@ async fn attachment(
                         return Err(Error::AttachmentExists(name));
                     }
 
-                    let text = read_multiline(None)?;
-                    if let Some(text) = text {
-                        let secret: Secret = text.into();
-                        let meta = SecretMeta::new(name, secret.kind());
+                    if let Some((meta, secret)) = add_note(Some(name), None)?
+                    {
                         let attachment =
                             SecretRow::new(SecretId::new_v4(), meta, secret);
                         data.secret.attach(attachment);
@@ -1277,15 +1324,15 @@ async fn attachment(
                         return Err(Error::AttachmentExists(name));
                     }
 
-                    let link = read_line(Some("URL: "))?;
-                    let url: Url =
-                        link.parse().map_err(|_| Error::InvalidUrl)?;
-                    let secret: Secret = url.into();
-                    let meta = SecretMeta::new(name, secret.kind());
-                    let attachment =
-                        SecretRow::new(SecretId::new_v4(), meta, secret);
-                    data.secret.attach(attachment);
-                    Some(data.secret)
+                    if let Some((meta, secret)) = add_link(Some(name), None)?
+                    {
+                        let attachment =
+                            SecretRow::new(SecretId::new_v4(), meta, secret);
+                        data.secret.attach(attachment);
+                        Some(data.secret)
+                    } else {
+                        None
+                    }
                 }
                 AttachAddCommand::Password { name, .. } => {
                     let name = read_name(name)?;
@@ -1293,13 +1340,16 @@ async fn attachment(
                         return Err(Error::AttachmentExists(name));
                     }
 
-                    let password = read_password(None)?;
-                    let secret: Secret = password.into();
-                    let meta = SecretMeta::new(name, secret.kind());
-                    let attachment =
-                        SecretRow::new(SecretId::new_v4(), meta, secret);
-                    data.secret.attach(attachment);
-                    Some(data.secret)
+                    if let Some((meta, secret)) =
+                        add_password(Some(name), None)?
+                    {
+                        let attachment =
+                            SecretRow::new(SecretId::new_v4(), meta, secret);
+                        data.secret.attach(attachment);
+                        Some(data.secret)
+                    } else {
+                        None
+                    }
                 }
             },
             AttachCommand::Get { attachment, .. } => {

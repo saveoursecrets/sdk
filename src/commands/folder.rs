@@ -156,7 +156,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
 
             let summary = writer.create_folder(name).await?;
-            println!("{} created ✓", summary.name());
+            println!("Folder created ✓");
             drop(writer);
             if cwd {
                 let target = Some(VaultRef::Id(*summary.id()));
@@ -184,7 +184,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 format!(r#"Delete folder "{}" (y/n)? "#, summary.name());
             if read_flag(Some(&prompt))? {
                 owner.delete_folder(&summary).await?;
-                println!("{} removed ✓", summary.name());
+                println!("Folder deleted ✓");
 
                 drop(owner);
                 // Removing current folder so try to use
