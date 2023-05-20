@@ -208,7 +208,11 @@ pub async fn switch(
     account: &AccountRef,
     factory: ProviderFactory,
 ) -> Result<Arc<RwLock<UserStorage>>> {
-    let (owner, _) = sign_in(account, factory).await?;
+    let (mut owner, _) = sign_in(account, factory).await?;
+
+    owner.initialize_search_index().await?;
+    owner.list_folders().await?;
+
     let mut writer = USER.get().unwrap().write().await;
     *writer = owner;
     Ok(Arc::clone(USER.get().unwrap()))

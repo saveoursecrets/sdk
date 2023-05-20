@@ -3,7 +3,10 @@
 use urn::Urn;
 
 use crate::{
-    constants::FILE_PASSWORD_URN,
+    constants::{
+        DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
+        DEFAULT_CONTACTS_VAULT_NAME, FILE_PASSWORD_URN,
+    },
     encode,
     storage::StorageDirs,
     vault::{
@@ -201,7 +204,7 @@ impl AccountBuilder {
 
             // Prepare the archive vault
             let mut vault: Vault = Default::default();
-            vault.set_name("Archive".to_string());
+            vault.set_name(DEFAULT_ARCHIVE_VAULT_NAME.to_string());
             vault.set_archive_flag(true);
             vault.initialize(archive_passphrase.clone(), None)?;
             DelegatedPassphrase::save_vault_passphrase(
@@ -221,7 +224,7 @@ impl AccountBuilder {
 
             // Prepare the authenticator vault
             let mut vault: Vault = Default::default();
-            vault.set_name("Authenticator".to_string());
+            vault.set_name(DEFAULT_AUTHENTICATOR_VAULT_NAME.to_string());
             vault.set_authenticator_flag(true);
             vault.set_no_sync_self_flag(true);
             vault.initialize(auth_passphrase.clone(), None)?;
@@ -242,7 +245,7 @@ impl AccountBuilder {
 
             // Prepare the authenticator vault
             let mut vault: Vault = Default::default();
-            vault.set_name("Contacts".to_string());
+            vault.set_name(DEFAULT_CONTACTS_VAULT_NAME.to_string());
             vault.set_contact_flag(true);
             vault.initialize(auth_passphrase.clone(), None)?;
             DelegatedPassphrase::save_vault_passphrase(

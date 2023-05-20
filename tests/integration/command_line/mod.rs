@@ -3,8 +3,10 @@ use rexpect::{session::PtySession, spawn, ReadUntil};
 use secrecy::SecretString;
 use serial_test::serial;
 use sos_sdk::{
-    constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
-    secrecy::ExposeSecret, storage::StorageDirs,
+    constants::{DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_VAULT_NAME},
+    passwd::diceware::generate_passphrase,
+    secrecy::ExposeSecret,
+    storage::StorageDirs,
 };
 use std::{
     ops::DerefMut,
@@ -24,6 +26,7 @@ const TIMEOUT: Option<u64> = Some(30000);
 
 const ACCOUNT_NAME: &str = "mock";
 const SHELL_ACCOUNT_NAME: &str = "shell";
+const ALT_SHELL_ACCOUNT_NAME: &str = "alt-shell";
 
 const NEW_ACCOUNT_NAME: &str = "mock-account-renamed";
 const FOLDER_NAME: &str = "mock-folder";
@@ -300,18 +303,20 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
     helpers::set_password_ci_vars(&attachment_password);
 
     account::new(&exe, &password, SHELL_ACCOUNT_NAME, None)?;
-
     let address = helpers::first_account_address(&exe, SHELL_ACCOUNT_NAME)?;
     let default_id = helpers::default_folder_id(&exe, &address, &password)?;
 
     let prompt = format_prompt(SHELL_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
     let process = login(exe, &address, password, &prompt)?;
 
-    // TODO: cd
-    // TODO: whoami
+    // Login shell specific commands
+    whoami(exe, &password, Some((Arc::clone(&process), &prompt)))?;
+    pwd(exe, &password, Some((Arc::clone(&process), &prompt)))?;
+    cd(exe, &password, Some((Arc::clone(&process), &prompt)))?;
 
-    // Issue commands
-    //
+    // Create alternative account so we can test the switch command
+    account::new(&exe, &password, ALT_SHELL_ACCOUNT_NAME, None)?;
+    switch(exe, &password, Some((Arc::clone(&process), &prompt)))?;
 
     // Check
     check::vault(
@@ -574,6 +579,86 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
             Some((Arc::clone(&process), &prompt)),
         )?;
     }
+
+    Ok(())
+}
+
+fn whoami(
+    exe: &str,
+    password: &SecretString,
+    repl: Option<(Session, &str)>,
+) -> Result<()> {
+    let cmd = format!("{} whoami", exe);
+    read_until_eof(cmd, Some(password), repl)
+}
+
+fn pwd(
+    exe: &str,
+    password: &SecretString,
+    repl: Option<(Session, &str)>,
+) -> Result<()> {
+    let cmd = format!("{} pwd", exe);
+    read_until_eof(cmd, Some(password), repl)
+}
+
+fn cd(
+    exe: &str,
+    password: &SecretString,
+    repl: Option<(Session, &str)>,
+) -> Result<()> {
+    // Must update expected prompt
+    let new_prompt =
+        format_prompt(SHELL_ACCOUNT_NAME, DEFAULT_ARCHIVE_VAULT_NAME);
+    let renamed = repl.clone().map(|(s, _p)| (s, &new_prompt[..]));
+
+    let cmd = format!("{} cd {}", exe, DEFAULT_ARCHIVE_VAULT_NAME);
+    read_until_eof(cmd, Some(password), renamed)?;
+
+    let cmd = format!("{} cd {}", exe, DEFAULT_VAULT_NAME);
+    read_until_eof(cmd, Some(password), repl)
+}
+
+fn switch(
+    exe: &str,
+    password: &SecretString,
+    repl: Option<(Session, &str)>,
+) -> Result<()> {
+    // Must update expected prompt
+    let new_prompt =
+        format_prompt(ALT_SHELL_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
+    let renamed = repl.clone().map(|(s, _p)| (s, &new_prompt[..]));
+
+    let cmd = format!("{} switch {}", exe, ALT_SHELL_ACCOUNT_NAME);
+    run!(renamed, cmd, false, |ps: &mut PtySession,
+                               prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        if let Some(prompt) = prompt {
+            wait_for_prompt(ps, prompt)?;
+        } else {
+            wait_for_eof(ps)?;
+        }
+        Ok(())
+    });
+
+    let cmd = format!("{} switch {}", exe, SHELL_ACCOUNT_NAME);
+    run!(repl, cmd, false, |ps: &mut PtySession,
+                            prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        if let Some(prompt) = prompt {
+            wait_for_prompt(ps, prompt)?;
+        } else {
+            wait_for_eof(ps)?;
+        }
+        Ok(())
+    });
 
     Ok(())
 }

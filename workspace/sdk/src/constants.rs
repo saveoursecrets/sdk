@@ -59,6 +59,15 @@ mod vault {
     /// Default public name for a vault.
     pub const DEFAULT_VAULT_NAME: &str = "Documents";
 
+    /// Default name for the archive vault.
+    pub const DEFAULT_ARCHIVE_VAULT_NAME: &str = "Archive";
+
+    /// Default name for the contacts vault.
+    pub const DEFAULT_CONTACTS_VAULT_NAME: &str = "Contacts";
+
+    /// Default name for the authenticator vault.
+    pub const DEFAULT_AUTHENTICATOR_VAULT_NAME: &str = "Authenticator";
+
     /// Login vault signing key name.
     pub const LOGIN_SIGNING_KEY_URN: &str = "urn:sos:identity:signer";
 
