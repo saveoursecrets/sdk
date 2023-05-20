@@ -241,7 +241,7 @@ fn integration_command_line() -> Result<()> {
     secret::mv(&exe, &address, &password, ACCOUNT_NAME, None)?;
     secret::comment(&exe, &address, &password, None)?;
     secret::archive_unarchive(&exe, &address, &password, None)?;
-    secret::download(&exe, &address, &password, None)?;
+    secret::download(&exe, &address, &password, ACCOUNT_NAME, None)?;
 
     // TODO: update
 
@@ -509,6 +509,7 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &exe,
         &address,
         &password,
+        SHELL_ACCOUNT_NAME,
         Some((Arc::clone(&process), &prompt)),
     )?;
 

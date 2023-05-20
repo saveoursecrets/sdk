@@ -445,10 +445,30 @@ pub fn download(
     exe: &str,
     address: &str,
     password: &SecretString,
+    account_name: &str,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
     let cache_dir = StorageDirs::cache_dir().unwrap();
-    let output = cache_dir.join("sample.heic");
+    let output = cache_dir.join(format!("sample-{}.heic", account_name));
+
+    let cmd = format!(
+        "{} secret download -a {} {} {}",
+        exe,
+        address,
+        FILE_NAME,
+        output.display()
+    );
+    run!(repl, cmd, true, |ps: &mut PtySession,
+                           prompt: Option<&str>|
+     -> Result<()> {
+        if !is_ci() && prompt.is_none() {
+            ps.exp_regex("Password:")?;
+            ps.send_line(password.expose_secret())?;
+        }
+        ps.exp_regex("Download complete")?;
+        Ok(())
+    });
+    assert!(output.exists());
 
     let cmd = format!(
         "{} secret download -a {} --force {} {}",
