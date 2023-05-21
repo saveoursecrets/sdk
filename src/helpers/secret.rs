@@ -9,7 +9,7 @@ use terminal_banner::{Banner, Padding};
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_sdk::{
-    hex,
+    hex, pem,
     search::Document,
     secrecy,
     url::Url,
@@ -527,6 +527,9 @@ pub(crate) fn secret_text(secret: &Secret) -> Result<Option<String>> {
         }
         Secret::List { items, .. } => Some(Secret::encode_list(items)),
         Secret::Link { url, .. } => Some(url.expose_secret().to_string()),
+        Secret::Pem { certificates, .. } => {
+            Some(pem::encode_many(certificates))
+        }
         Secret::Page { document, .. } => {
             Some(document.expose_secret().to_string())
         }
