@@ -18,6 +18,7 @@ use crate::{
     timestamp::Timestamp,
     Result,
 };
+use async_trait::async_trait;
 
 use binary_stream::{BinaryReader, Endian, MemoryStream};
 
@@ -105,6 +106,8 @@ impl WalMemory {
     }
 }
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl WalProvider for WalMemory {
     type Item = WalMemoryRecord;
     type Partial = Vec<WalMemoryRecord>;
@@ -135,7 +138,7 @@ impl WalProvider for WalMemory {
         Ok((temp_wal, old_size, new_size))
     }
 
-    fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
+    async fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
         let records = self.decode_file_records(buffer, 0)?;
         self.records = records;
         self.load_tree()?;

@@ -130,7 +130,7 @@ where
 
                     // Check the identity looks good
                     FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
-                    wal_file.write_buffer(buffer)?;
+                    wal_file.write_buffer(buffer).await?;
                     wal_file.tree().head()?
                 }
             };

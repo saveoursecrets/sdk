@@ -373,7 +373,7 @@ async fn account_backup(
 
     let account = find_account(&account)?
         .ok_or(Error::NoAccount(account.to_string()))?;
-    AccountBackup::export_archive_file(&output, account.address())?;
+    AccountBackup::export_archive_file(&output, account.address()).await?;
     Ok(())
 }
 
@@ -503,7 +503,7 @@ async fn migrate_export(
     );
 
     let result = if read_flag(Some(&prompt))? {
-        owner.export_unsafe_archive(output)?;
+        owner.export_unsafe_archive(output).await?;
         true
     } else {
         false

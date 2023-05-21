@@ -7,6 +7,7 @@ use crate::{
     Result,
 };
 use std::path::{Path, PathBuf};
+use async_trait::async_trait;
 
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, SeekStream,
@@ -19,6 +20,9 @@ pub mod memory;
 pub mod reducer;
 
 /// Trait for implementations that provide access to a write-ahead log (WAL).
+
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait WalProvider {
     /// The item yielded by the iterator implementation.
     type Item: WalItem;
@@ -65,7 +69,7 @@ pub trait WalProvider {
     /// Replace this WAL with the contents of the buffer.
     ///
     /// The buffer should start with the WAL identity bytes.
-    fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()>;
+    async fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()>;
 
     /// Append the buffer to the contents of this WAL.
     ///
@@ -384,11 +388,11 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn wal_memory_parse() {
+    #[tokio::test]
+    async fn wal_memory_parse() {
         let buffer =
             include_bytes!("../../../../tests/fixtures/simple-vault.wal");
         let mut wal = WalMemory::new(PathBuf::from("")).unwrap();
-        wal.write_buffer(buffer.to_vec()).unwrap();
+        wal.write_buffer(buffer.to_vec()).await.unwrap();
     }
 }

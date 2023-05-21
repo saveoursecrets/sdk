@@ -31,6 +31,7 @@ use crate::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess,
         VaultFileAccess, VaultId,
     },
+    vfs,
     wal::{file::WalFile, WalProvider},
     Error, Result,
 };
@@ -375,12 +376,12 @@ impl AccountBackup {
     }
 
     /// Export an archive of the account to disc.
-    pub fn export_archive_file<P: AsRef<Path>>(
+    pub async fn export_archive_file<P: AsRef<Path>>(
         path: P,
         address: &Address,
     ) -> Result<()> {
         let buffer = Self::export_archive_buffer(address)?;
-        std::fs::write(path.as_ref(), buffer)?;
+        vfs::write(path.as_ref(), buffer).await?;
         Ok(())
     }
 

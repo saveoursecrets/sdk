@@ -21,6 +21,7 @@ use crate::{
     events::SyncEvent,
     formats::{wal_iter, FileItem, WalFileRecord},
     timestamp::Timestamp,
+    vfs,
     Error, Result,
 };
 use std::{
@@ -28,6 +29,7 @@ use std::{
     io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
+use async_trait::async_trait;
 
 use binary_stream::{BinaryReader, Decode, Endian, SliceStream};
 use tempfile::NamedTempFile;
@@ -82,6 +84,8 @@ impl WalFile {
     }
 }
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl WalProvider for WalFile {
     type Item = WalFileRecord;
     type Partial = Vec<u8>;
@@ -124,8 +128,8 @@ impl WalProvider for WalFile {
         Ok((new_wal, old_size, new_size))
     }
 
-    fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
-        std::fs::write(self.path(), buffer)?;
+    async fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
+        vfs::write(self.path(), buffer).await?;
         self.load_tree()?;
         Ok(())
     }

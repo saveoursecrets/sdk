@@ -44,7 +44,7 @@ async fn integration_account_manager() -> Result<()> {
             .create_contacts(true)
             .create_file_password(true)
             .default_folder_name(folder_name)
-            .finish()?;
+            .finish().await?;
 
     // Create local provider
     let factory = ProviderFactory::Local;
@@ -119,7 +119,7 @@ async fn integration_account_manager() -> Result<()> {
         &source_file,
         &target,
         file_passphrase.clone(),
-    )?;
+    ).await?;
 
     // Decrypt
     let destination = target.join(hex::encode(digest));

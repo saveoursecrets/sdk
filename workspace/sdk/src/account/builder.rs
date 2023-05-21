@@ -13,6 +13,7 @@ use crate::{
         secret::{Secret, SecretMeta, UserData},
         Gatekeeper, Summary, Vault,
     },
+    vfs,
     Result,
 };
 use web3_address::ethereum::Address;
@@ -273,7 +274,7 @@ impl AccountBuilder {
 
     #[cfg(not(target_arch = "wasm32"))]
     /// Write the identity vault to disc and prepare storage directories.
-    pub fn write(
+    pub async fn write(
         identity_vault: Vault,
         account: NewAccount,
     ) -> Result<NewAccount> {
@@ -282,7 +283,7 @@ impl AccountBuilder {
         // as we have modified the identity vault
         let identity_vault_file = StorageDirs::identity_vault(&address)?;
         let buffer = encode(&identity_vault)?;
-        std::fs::write(identity_vault_file, buffer)?;
+        vfs::write(identity_vault_file, buffer).await?;
 
         // Ensure the files directory exists
         StorageDirs::files_dir(&address)?;
@@ -292,8 +293,8 @@ impl AccountBuilder {
 
     /// Create a new account and write the identity vault to disc.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn finish(self) -> Result<NewAccount> {
+    pub async fn finish(self) -> Result<NewAccount> {
         let (identity_vault, account) = self.build()?;
-        Self::write(identity_vault, account)
+        Self::write(identity_vault, account).await
     }
 }

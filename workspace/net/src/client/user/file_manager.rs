@@ -51,7 +51,7 @@ pub struct FileStorageResult {
 
 impl UserStorage {
     /// Encrypt a file and move it to the external file storage location.
-    pub fn encrypt_file_storage<P: AsRef<Path>>(
+    pub async fn encrypt_file_storage<P: AsRef<Path>>(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
@@ -69,7 +69,7 @@ impl UserStorage {
             self.user.identity().address().to_string(),
             vault_id.to_string(),
             secret_id.to_string(),
-        )?)
+        ).await?)
     }
 
     /// Decrypt a file in the storage location and return the buffer.
@@ -360,7 +360,7 @@ impl UserStorage {
                     summary.id(),
                     id,
                     &source.path,
-                )?;
+                ).await?;
                 results.push(FileStorageResult {
                     source,
                     encrypted_file,

@@ -22,6 +22,7 @@ use sos_sdk::{
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess, VaultId,
     },
     Timestamp,
+    vfs,
 };
 
 use parking_lot::RwLock as SyncRwLock;
@@ -378,7 +379,7 @@ impl UserStorage {
             // FIXME: storage log
         }
 
-        std::fs::write(path, buffer)?;
+        vfs::write(path, buffer).await?;
 
         Ok(())
     }
@@ -874,7 +875,7 @@ impl UserStorage {
     ///
     /// Used to migrate an account to another provider.
     #[cfg(feature = "migrate")]
-    pub fn export_unsafe_archive<P: AsRef<Path>>(
+    pub async fn export_unsafe_archive<P: AsRef<Path>>(
         &self,
         path: P,
     ) -> Result<()> {
@@ -915,7 +916,7 @@ impl UserStorage {
         migration.append_files(files)?;
         migration.finish()?;
 
-        std::fs::write(path.as_ref(), &archive)?;
+        vfs::write(path.as_ref(), &archive).await?;
 
         Ok(())
     }
@@ -1067,7 +1068,7 @@ impl UserStorage {
         let (data, _) = self.read_secret(secret_id, folder).await?;
         if let Secret::Contact { vcard, .. } = &data.secret {
             let content = vcard.to_string();
-            std::fs::write(&path, content)?;
+            vfs::write(&path, content).await?;
         } else {
             return Err(Error::NotContact);
         }
@@ -1105,7 +1106,7 @@ impl UserStorage {
                 vcf.push_str(&vcard.to_string());
             }
         }
-        std::fs::write(path, vcf.as_bytes())?;
+        vfs::write(path, vcf.as_bytes()).await?;
         Ok(())
     }
 
@@ -1149,11 +1150,11 @@ impl UserStorage {
 
     /// Create a backup archive containing the
     /// encrypted data for the account.
-    pub fn export_archive_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+    pub async fn export_archive_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         Ok(AccountBackup::export_archive_file(
             path,
             self.user.identity().address(),
-        )?)
+        ).await?)
     }
 
     /// Read the inventory from an archive.

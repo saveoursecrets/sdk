@@ -18,7 +18,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{storage::StorageDirs, Error, Result};
+use crate::{storage::StorageDirs, Error, Result, vfs};
 
 /// Result of encrypting a file.
 #[derive(Debug, Clone)]
@@ -39,7 +39,7 @@ impl FileStorage {
     ///
     /// The file name is the Sha256 digest of the encrypted data
     /// encoded to hexdecimal.
-    pub fn encrypt_file_passphrase<S: AsRef<Path>, T: AsRef<Path>>(
+    pub async fn encrypt_file_passphrase<S: AsRef<Path>, T: AsRef<Path>>(
         source: S,
         target: T,
         passphrase: SecretString,
@@ -59,7 +59,7 @@ impl FileStorage {
         let dest = PathBuf::from(target.as_ref()).join(file_name);
         let size = encrypted.len() as u64;
 
-        std::fs::write(dest, encrypted)?;
+        vfs::write(dest, encrypted).await?;
 
         Ok((digest.to_vec(), size))
     }
@@ -88,7 +88,7 @@ impl FileStorage {
     /// Returns an SHA256 digest of the encrypted data
     /// and the size of the original file.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn encrypt_file_storage<
+    pub async fn encrypt_file_storage<
         P: AsRef<Path>,
         A: AsRef<Path>,
         V: AsRef<Path>,
@@ -110,7 +110,7 @@ impl FileStorage {
 
         // Encrypt the file and write it to the storage location
         let (digest, size) =
-            Self::encrypt_file_passphrase(path, target, password)?;
+            Self::encrypt_file_passphrase(path, target, password).await?;
         Ok(EncryptedFile { digest, size })
     }
 
