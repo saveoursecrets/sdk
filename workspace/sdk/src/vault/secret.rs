@@ -1732,8 +1732,59 @@ impl fmt::Debug for Secret {
 }
 
 impl Secret {
-    /// Parse key value pairs into a map.
-    pub fn parse_list<S: AsRef<str>>(
+    /// Plain text unencrypted display for secrets
+    /// that can be represented as UTF-8 text.
+    ///
+    /// Typically used to copy secrets to the
+    /// clipboard.
+    ///
+    /// This method is preferred over implementing the
+    /// `Display` trait to make it easier to audit where
+    /// secrets may be exposed as plain text.
+    ///
+    /// For some secrets where it may be ambiguous which field
+    /// to expose we keep it simple, for example, the `Card` variant
+    /// exposes the card number. An exception is the `Bank` variant
+    /// where we expose the bank number and routing number delimited
+    /// by a newline.
+    ///
+    /// The `Signer`, `File` and `Age` secret variants
+    /// are not supported.
+    pub fn display_unsafe(&self) -> Option<String> {
+        match self {
+            Secret::Note { text, .. } => {
+                Some(text.expose_secret().to_string())
+            }
+            Secret::Account { password, .. }
+            | Secret::Password { password, .. } => {
+                Some(password.expose_secret().to_string())
+            }
+            Secret::List { items, .. } => Some(Secret::encode_list(items)),
+            Secret::Link { url, .. } => Some(url.expose_secret().to_string()),
+            Secret::Pem { certificates, .. } => {
+                Some(pem::encode_many(certificates))
+            }
+            Secret::Page { document, .. } => {
+                Some(document.expose_secret().to_string())
+            }
+            Secret::Card { number, .. } | Secret::Identity { number, .. } => {
+                Some(number.expose_secret().to_string())
+            }
+            Secret::Bank {
+                number, routing, ..
+            } => Some(format!(
+                "{}\n{}",
+                number.expose_secret().to_string(),
+                routing.expose_secret().to_string()
+            )),
+            Secret::Contact { vcard, .. } => Some(vcard.to_string()),
+            Secret::Totp { totp, .. } => Some(totp.get_url()),
+            _ => None,
+        }
+    }
+
+    /// Decode key value pairs into a map.
+    pub fn decode_list<S: AsRef<str>>(
         list: S,
     ) -> Result<HashMap<String, SecretString>> {
         let mut credentials = HashMap::new();
@@ -1749,6 +1800,16 @@ impl Secret {
             }
         }
         Ok(credentials)
+    }
+
+    /// Encode a map into key value pairs.
+    pub fn encode_list(list: &HashMap<String, SecretString>) -> String {
+        let mut output = String::new();
+        for (k, v) in list {
+            output.push_str(&format!("{}={}", k, v.expose_secret()));
+            output.push('\n');
+        }
+        output
     }
 
     /// Ensure all the bytes are ASCII digits.
@@ -1953,11 +2014,11 @@ impl PartialEq for Secret {
                     user_data: user_data_b,
                 },
             ) => {
-                certificates_a
-                    .iter()
-                    .zip(certificates_b.iter())
-                    .all(|(a, b)| a.tag == b.tag && a.contents == b.contents)
-                    && user_data_a == user_data_b
+                certificates_a.iter().zip(certificates_b.iter()).all(
+                    |(a, b)| {
+                        a.tag() == b.tag() && a.contents() == b.contents()
+                    },
+                ) && user_data_a == user_data_b
             }
             (
                 Self::Page {

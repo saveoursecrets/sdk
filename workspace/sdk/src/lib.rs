@@ -42,6 +42,7 @@ pub use timestamp::Timestamp;
 pub use age;
 pub use hex;
 pub use k256;
+pub use pem;
 pub use secrecy;
 pub use sha2;
 pub use sha3;

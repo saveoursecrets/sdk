@@ -25,8 +25,9 @@ use crate::{
         readline::{read_flag, read_line},
         secret::{
             add_file, add_link, add_list, add_login, add_note, add_password,
-            download_file_secret, normalize_tags, print_secret,
-            read_file_secret, read_name, resolve_secret, ResolvedSecret,
+            copy_secret_text, download_file_secret, normalize_tags,
+            print_secret, read_file_secret, read_name, resolve_secret,
+            ResolvedSecret,
         },
     },
     Error, Result,
@@ -66,6 +67,20 @@ pub enum Command {
     },
     /// Print a secret.
     Get {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Folder name or id.
+        #[clap(short, long)]
+        folder: Option<VaultRef>,
+
+        /// Secret name or identifier.
+        secret: SecretRef,
+    },
+    /// Copy to the clipboard.
+    #[clap(alias = "cp")]
+    Copy {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -750,6 +765,30 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 let (data, _) =
                     owner.read_secret(&resolved.secret_id, None).await?;
                 print_secret(&data.meta, &data.secret)?;
+            }
+        }
+        Command::Copy {
+            account,
+            folder,
+            secret,
+        } => {
+            let resolved = resolve_verify(
+                factory,
+                account.as_ref(),
+                FolderPredicate::Ref(folder.as_ref()),
+                &secret,
+            )
+            .await?;
+            if resolved.verified {
+                let mut owner = resolved.user.write().await;
+                let (data, _) =
+                    owner.read_secret(&resolved.secret_id, None).await?;
+                let copied = copy_secret_text(&data.secret)?;
+                if copied {
+                    println!("Copied to clipboard ✓");
+                } else {
+                    return Err(Error::ClipboardCopy);
+                }
             }
         }
         Command::Info {

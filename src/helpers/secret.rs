@@ -27,7 +27,7 @@ use crate::{
     Error, Result, TARGET,
 };
 
-use super::account::Owner;
+use super::{account::Owner, set_clipboard_text};
 
 /// Resolved secret data.
 pub(crate) struct ResolvedSecret {
@@ -373,7 +373,7 @@ pub fn add_list(
 
     let credentials = if option_env!("CI").is_some() {
         let list = std::env::var("SOS_LIST").ok().unwrap_or_default();
-        Secret::parse_list(&list)?
+        Secret::decode_list(&list)?
     } else {
         let mut credentials: HashMap<String, SecretString> = HashMap::new();
         loop {
@@ -514,5 +514,13 @@ pub(crate) async fn download_file_secret(
         Ok(())
     } else {
         Err(Error::NotFileContent)
+    }
+}
+
+pub(crate) fn copy_secret_text(secret: &Secret) -> Result<bool> {
+    if let Some(text) = secret.display_unsafe() {
+        set_clipboard_text(&text)
+    } else {
+        Ok(false)
     }
 }

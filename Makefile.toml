@@ -125,7 +125,7 @@ command -v mkcert && cd sandbox &&
 
 [tasks.genhtml]
 script = '''
-grcov ${COVERAGE_PROF_OUTPUT} -s . --binary-path ./target/cover/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore 'tests/*' --ignore 'target/*'
+grcov ${COVERAGE_PROF_OUTPUT} -s . --binary-path ./target/cover/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore '*/src/build.rs' --ignore 'tests/*' --ignore 'target/*'
 
 #genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/lcov.info
 '''
@@ -136,10 +136,10 @@ dependencies = ["clean-profraw"]
 
 [tasks.clean-profraw]
 script = '''
-rm *.profraw
-rm workspace/net/*.profraw
-rm workspace/migrate/*.profraw
-rm workspace/sdk/*.profraw
+rm -f *.profraw
+rm -f workspace/net/*.profraw
+rm -f workspace/migrate/*.profraw
+rm -f workspace/sdk/*.profraw
 '''
 
 [tasks.clean-coverage]

@@ -27,8 +27,8 @@ const TIMEOUT: Option<u64> = Some(30000);
 const ACCOUNT_NAME: &str = "mock";
 const SHELL_ACCOUNT_NAME: &str = "shell";
 
-// Note we choose a name that sorts after all the 
-// other account names otherwise this account may 
+// Note we choose a name that sorts after all the
+// other account names otherwise this account may
 // appear first in the list as we parse the account
 // address from the first in the list so if it sorts
 // beforehand there be dragons.
@@ -244,6 +244,7 @@ fn integration_command_line() -> Result<()> {
 
     secret::list(&exe, &address, &password, None)?;
     secret::get(&exe, &address, &password, None)?;
+    secret::cp(&exe, &address, &password, None)?;
     secret::info(&exe, &address, &password, None)?;
     secret::tags(&exe, &address, &password, None)?;
     secret::favorite(&exe, &address, &password, None)?;
@@ -488,8 +489,13 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
-
     secret::get(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::cp(
         &exe,
         &address,
         &password,
