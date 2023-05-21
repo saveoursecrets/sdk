@@ -50,7 +50,6 @@ pub fn vault_iter(
 }
 
 /// Get an iterator for a WAL file.
-#[cfg(not(target_arch = "wasm32"))]
 pub fn wal_iter<P: AsRef<Path>>(
     path: P,
 ) -> Result<ReadStreamIterator<WalFileRecord>> {
@@ -62,6 +61,7 @@ pub fn wal_iter<P: AsRef<Path>>(
     )
 }
 
+/*
 /// Get an iterator for a WAL file.
 #[cfg(target_arch = "wasm32")]
 pub fn wal_iter(
@@ -74,6 +74,7 @@ pub fn wal_iter(
         None,
     )
 }
+*/
 
 /// Get an iterator for a patch file.
 #[cfg(not(target_arch = "wasm32"))]

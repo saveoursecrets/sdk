@@ -117,7 +117,9 @@ async fn integration_simple_session() -> Result<()> {
     assert_eq!(1, node_cache.vaults().len());
 
     // Use the new vault
-    node_cache.open_vault(&new_vault_summary, new_passphrase, None)?;
+    node_cache
+        .open_vault(&new_vault_summary, new_passphrase, None)
+        .await?;
 
     // Create some secrets
     let notes = create_secrets(&mut node_cache, &new_vault_summary).await?;

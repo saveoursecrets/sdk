@@ -249,7 +249,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 let contacts = owner
                     .contacts_folder()
                     .ok_or_else(|| Error::NoContactsFolder)?;
-                owner.open_folder(&contacts)?;
+                owner.open_folder(&contacts).await?;
                 current
             };
 
@@ -259,7 +259,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     tracing::info!(target: TARGET, "contacts exported ✓");
                     if let Some(folder) = original_folder {
                         let mut owner = user.write().await;
-                        owner.open_folder(&folder)?;
+                        owner.open_folder(&folder).await?;
                     }
                 }
                 ContactsCommand::Import { input } => {
@@ -267,7 +267,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     tracing::info!(target: TARGET, "contacts imported ✓");
                     if let Some(folder) = original_folder {
                         let mut owner = user.write().await;
-                        owner.open_folder(&folder)?;
+                        owner.open_folder(&folder).await?;
                     }
                 }
             }

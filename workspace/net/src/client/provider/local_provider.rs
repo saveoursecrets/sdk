@@ -3,18 +3,16 @@ use super::{Error, Result};
 
 use async_trait::async_trait;
 
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use sos_sdk::{
     commit::{
         CommitHash, CommitPair, CommitRelationship, CommitTree, SyncInfo,
         SyncKind,
     },
     constants::VAULT_EXT,
-    crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
     patch::{PatchMemory, PatchProvider},
-    search::SearchIndex,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
     wal::{memory::WalMemory, reducer::WalReducer, WalItem, WalProvider},
@@ -30,7 +28,7 @@ use std::{
 };
 
 use crate::{
-    client::provider::{fs_adapter, sync, ProviderState, StorageProvider},
+    client::provider::{sync, ProviderState, StorageProvider},
     provider_impl,
 };
 
@@ -63,7 +61,7 @@ impl LocalProvider<WalFile, PatchFile> {
             ));
         }
 
-        dirs.ensure()?;
+        //dirs.ensure()?;
 
         Ok(Self {
             state: ProviderState::new(true),
@@ -106,7 +104,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            self.write_vault_file(&summary, &buffer)?;
+            self.write_vault_file(&summary, &buffer).await?;
         }
 
         // Add the summary to the vaults we are managing
@@ -130,7 +128,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            self.write_vault_file(&summary, &buffer)?;
+            self.write_vault_file(&summary, &buffer).await?;
         }
 
         // Add the summary to the vaults we are managing
@@ -159,7 +157,7 @@ where
         if self.state().mirror() {
             // Write the vault to disc
             let buffer = encode(vault)?;
-            self.write_vault_file(summary, &buffer)?;
+            self.write_vault_file(summary, &buffer).await?;
         }
 
         // Apply events to the WAL
@@ -214,7 +212,7 @@ where
         *wal_file = compact_wal;
 
         // Refresh in-memory vault and mirrored copy
-        self.refresh_vault(summary, None)?;
+        self.refresh_vault(summary, None).await?;
 
         Ok((old_size, new_size))
     }
@@ -231,7 +229,7 @@ where
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Remove the files
-        self.remove_vault_file(summary)?;
+        self.remove_vault_file(summary).await?;
 
         // Remove local state
         self.remove_local_cache(summary)?;

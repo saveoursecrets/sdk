@@ -12,7 +12,6 @@ use secrecy::{ExposeSecret, SecretString, SecretVec};
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
 use urn::Urn;
@@ -34,7 +33,6 @@ use crate::{
     Error, Result,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
 use crate::vault::VaultFileAccess;
 
 /// User identity containing the account signing keys.
@@ -138,7 +136,6 @@ impl Identity {
     }
 
     /// Attempt to login using a file path.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn login_file<P: AsRef<Path>>(
         file: P,
         master_passphrase: SecretString,

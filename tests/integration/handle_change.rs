@@ -37,9 +37,13 @@ async fn integration_handle_change() -> Result<()> {
     let _ = listener.load_vaults().await?;
 
     // Both clients use the login vault
-    creator.open_vault(&summary, encryption_passphrase.clone(), None)?;
+    creator
+        .open_vault(&summary, encryption_passphrase.clone(), None)
+        .await?;
 
-    listener.open_vault(&summary, encryption_passphrase.clone(), None)?;
+    listener
+        .open_vault(&summary, encryption_passphrase.clone(), None)
+        .await?;
 
     let listener_cache = Arc::new(RwLock::new(listener));
     let listener_summary = summary.clone();

@@ -1,9 +1,9 @@
 //! Storage provider trait.
 
 use async_trait::async_trait;
-use parking_lot::RwLock;
+
 use secrecy::SecretString;
-use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, path::PathBuf};
 
 use sos_sdk::{
     account::{ImportedAccount, NewAccount},
@@ -11,7 +11,8 @@ use sos_sdk::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
     constants::{PATCH_EXT, VAULT_EXT, WAL_EXT},
-    encode,
+    crypto::secret_key::SecretKey,
+    decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
     passwd::ChangePassword,
     search::SearchIndex,
@@ -20,10 +21,11 @@ use sos_sdk::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Summary, Vault,
     },
-    Timestamp,
+    vfs, Timestamp,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
+use secrecy::ExposeSecret;
+
 use sos_sdk::account::RestoreTargets;
 
 use crate::client::{Error, Result};
@@ -41,27 +43,20 @@ pub(crate) fn assert_proofs_eq(
     }
 }
 
-mod fs_adapter;
-
-#[cfg(not(target_arch = "wasm32"))]
 mod local_provider;
 mod macros;
-#[cfg(target_arch = "wasm32")]
 mod memory_provider;
 mod provider_factory;
 mod remote_provider;
 mod state;
 mod sync;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub use local_provider::LocalProvider;
+pub use memory_provider::MemoryProvider;
 #[cfg(not(target_arch = "wasm32"))]
 pub use provider_factory::spawn_changes_listener;
 pub use provider_factory::{ArcProvider, ProviderFactory};
 pub use remote_provider::RemoteProvider;
-
-#[cfg(target_arch = "wasm32")]
-pub use memory_provider::MemoryProvider;
 
 pub use state::ProviderState;
 
@@ -161,7 +156,7 @@ pub trait StorageProvider: Sync + Send {
                 .await?;
 
             // Refresh the in-memory and disc-based mirror
-            self.refresh_vault(vault.summary(), None)?;
+            self.refresh_vault(vault.summary(), None).await?;
         }
 
         Ok(())
@@ -229,11 +224,43 @@ pub trait StorageProvider: Sync + Send {
 
     /// Refresh the in-memory vault of the current selection
     /// from the contents of the current WAL file.
-    fn refresh_vault(
+    async fn refresh_vault(
         &mut self,
         summary: &Summary,
         new_passphrase: Option<&SecretString>,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let vault = self.reduce_wal(summary)?;
+
+        // Rewrite the on-disc version if we are mirroring
+        if self.state().mirror() {
+            let buffer = encode(&vault)?;
+            self.write_vault_file(summary, &buffer).await?;
+        }
+
+        if let Some(keeper) = self.current_mut() {
+            if keeper.id() == summary.id() {
+                // Update the in-memory version
+                let new_key = if let Some(new_passphrase) = new_passphrase {
+                    if let Some(salt) = vault.salt() {
+                        let salt = SecretKey::parse_salt(salt)?;
+                        let private_key = SecretKey::derive_32(
+                            new_passphrase.expose_secret(),
+                            &salt,
+                            keeper.vault().seed(),
+                        )?;
+                        Some(private_key)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                keeper.replace_vault(vault, new_key)?;
+            }
+        }
+        Ok(())
+    }
 
     /// Create a new account and default login vault.
     async fn create_account(
@@ -285,12 +312,32 @@ pub trait StorageProvider: Sync + Send {
     ) -> Result<()>;
 
     /// Load a vault, unlock it and set it as the current vault.
-    fn open_vault(
+    async fn open_vault(
         &mut self,
         summary: &Summary,
         passphrase: SecretString,
-        index: Option<Arc<RwLock<SearchIndex>>>,
-    ) -> Result<()>;
+        index: Option<std::sync::Arc<parking_lot::RwLock<SearchIndex>>>,
+    ) -> Result<()> {
+        let vault_path = self.vault_path(summary);
+        let vault = if self.state().mirror() {
+            if !vault_path.exists() {
+                let vault = self.reduce_wal(summary)?;
+                let buffer = encode(&vault)?;
+                self.write_vault_file(summary, &buffer).await?;
+                vault
+            } else {
+                let buffer = vfs::read(&vault_path).await?;
+                let vault: Vault = decode(&buffer)?;
+                vault
+            }
+        } else {
+            self.reduce_wal(summary)?
+        };
+
+        self.state_mut()
+            .open_vault(passphrase, vault, vault_path, index)?;
+        Ok(())
+    }
 
     /// Load a vault by reducing it from the WAL stored on disc.
     ///
@@ -370,18 +417,54 @@ pub trait StorageProvider: Sync + Send {
     /// Verify a WAL log.
     fn verify(&self, summary: &Summary) -> Result<()>;
 
-    /// Create a backup of a vault file.
-    fn backup_vault_file(&self, summary: &Summary) -> Result<()>;
-
     /// Remove a vault file and WAL file.
-    fn remove_vault_file(&self, summary: &Summary) -> Result<()>;
+    async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
+        use sos_sdk::constants::WAL_DELETED_EXT;
+
+        // Remove local vault mirror if it exists
+        let vault_path = self.vault_path(summary);
+        if vault_path.exists() {
+            vfs::remove_file(&vault_path).await?;
+        }
+
+        // Rename the local WAL file so recovery is still possible
+        let wal_path = self.wal_path(summary);
+        if wal_path.exists() {
+            let mut wal_path_backup = wal_path.clone();
+            wal_path_backup.set_extension(WAL_DELETED_EXT);
+            vfs::rename(wal_path, wal_path_backup).await?;
+        }
+        Ok(())
+    }
+
+    /// Create a backup of a vault file.
+    async fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
+        use sos_sdk::constants::VAULT_BACKUP_EXT;
+
+        // Move our cached vault to a backup
+        let vault_path = self.vault_path(summary);
+
+        if vault_path.exists() {
+            let mut vault_backup = vault_path.clone();
+            vault_backup.set_extension(VAULT_BACKUP_EXT);
+            vfs::rename(&vault_path, &vault_backup).await?;
+            tracing::debug!(
+                vault = ?vault_path, backup = ?vault_backup, "vault backup");
+        }
+
+        Ok(())
+    }
 
     /// Write the buffer for a vault to disc.
-    fn write_vault_file(
+    async fn write_vault_file(
         &self,
         summary: &Summary,
         buffer: &[u8],
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let vault_path = self.vault_path(&summary);
+        vfs::write(vault_path, buffer).await?;
+        Ok(())
+    }
 
     /// Create a secret in the currently open vault.
     async fn create_secret(
@@ -462,7 +545,8 @@ pub trait StorageProvider: Sync + Send {
             .await?;
 
         // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), Some(&new_passphrase))?;
+        self.refresh_vault(vault.summary(), Some(&new_passphrase))
+            .await?;
 
         if let Some(keeper) = self.current_mut() {
             if keeper.summary().id() == vault.summary().id() {
@@ -479,7 +563,6 @@ pub trait StorageProvider: Sync + Send {
 #[macro_export]
 macro_rules! provider_impl {
     () => {
-
         fn state(&self) -> &ProviderState {
             &self.state
         }
@@ -490,34 +573,6 @@ macro_rules! provider_impl {
 
         fn dirs(&self) -> &StorageDirs {
             &self.dirs
-        }
-
-        fn open_vault(
-            &mut self,
-            summary: &Summary,
-            passphrase: SecretString,
-            index: Option<std::sync::Arc<parking_lot::RwLock<SearchIndex>>>,
-        ) -> Result<()> {
-            let vault_path = self.vault_path(summary);
-            let vault = if self.state().mirror() {
-                if !vault_path.exists() {
-                    let vault = self.reduce_wal(summary)?;
-                    let buffer = encode(&vault)?;
-                    self.write_vault_file(summary, &buffer)?;
-                    vault
-                } else {
-                    let buffer = std::fs::read(&vault_path)?;
-                    let vault: Vault = decode(&buffer)?;
-                    vault
-                }
-            } else {
-                self.reduce_wal(summary)?
-            };
-
-            self
-                .state_mut()
-                .open_vault(passphrase, vault, vault_path, index)?;
-            Ok(())
         }
 
         fn close_vault(&mut self) {
@@ -604,7 +659,10 @@ macro_rules! provider_impl {
             Ok(())
         }
 
-        fn history(&self, summary: &Summary) -> Result<Vec<(CommitHash, Timestamp, SyncEvent<'_>)>> {
+        fn history(
+            &self,
+            summary: &Summary,
+        ) -> Result<Vec<(CommitHash, Timestamp, SyncEvent<'_>)>> {
             let (wal, _) = self
                 .cache
                 .get(summary.id())
@@ -618,128 +676,6 @@ macro_rules! provider_impl {
                 records.push((commit, time, event));
             }
             Ok(records)
-        }
-
-        /// Refresh the in-memory vault of the current selection
-        /// from the contents of the current WAL file.
-        fn refresh_vault(
-            &mut self,
-            summary: &Summary,
-            new_passphrase: Option<&SecretString>,
-        ) -> Result<()> {
-            let wal = self
-                .cache
-                .get_mut(summary.id())
-                .map(|(w, _)| w)
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            let vault = WalReducer::new().reduce(wal)?.build()?;
-
-            // Rewrite the on-disc version if we are mirroring
-            if self.state().mirror() {
-                let buffer = encode(&vault)?;
-                self.write_vault_file(summary, &buffer)?;
-            }
-
-            if let Some(keeper) = self.current_mut() {
-                if keeper.id() == summary.id() {
-                    // Update the in-memory version
-                    let new_key = if let Some(new_passphrase) = new_passphrase {
-                        if let Some(salt) = vault.salt() {
-                            let salt = SecretKey::parse_salt(salt)?;
-                            let private_key = SecretKey::derive_32(
-                                new_passphrase.expose_secret(),
-                                &salt,
-                                keeper.vault().seed(),
-                            )?;
-                            Some(private_key)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-
-                    keeper.replace_vault(vault, new_key)?;
-                }
-            }
-            Ok(())
-        }
-
-
-        /// Write the buffer for a vault to disc.
-        #[cfg(not(target_arch = "wasm32"))]
-        fn write_vault_file(
-            &self,
-            summary: &Summary,
-            buffer: &[u8],
-        ) -> Result<()> {
-            use $crate::client::provider::fs_adapter;
-            let vault_path = self.vault_path(&summary);
-            fs_adapter::write(vault_path, buffer)?;
-            Ok(())
-        }
-
-        /// Write the buffer for a vault to disc.
-        #[cfg(target_arch = "wasm32")]
-        fn write_vault_file(
-            &self,
-            _summary: &Summary,
-            _buffer: &[u8],
-        ) -> Result<()> {
-            Ok(())
-        }
-
-
-        /// Create a backup of a vault file.
-        #[cfg(not(target_arch = "wasm32"))]
-        fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
-            use sos_sdk::constants::VAULT_BACKUP_EXT;
-
-            // Move our cached vault to a backup
-            let vault_path = self.vault_path(summary);
-
-            if vault_path.exists() {
-                let mut vault_backup = vault_path.clone();
-                vault_backup.set_extension(VAULT_BACKUP_EXT);
-                fs_adapter::rename(&vault_path, &vault_backup)?;
-                tracing::debug!(
-                    vault = ?vault_path, backup = ?vault_backup, "vault backup");
-            }
-
-            Ok(())
-        }
-
-        /// Create a backup of a vault file.
-        #[cfg(target_arch = "wasm32")]
-        fn backup_vault_file(&self, _summary: &Summary) -> Result<()> {
-            Ok(())
-        }
-
-        /// Remove a vault file and WAL file.
-        #[cfg(not(target_arch = "wasm32"))]
-        fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
-            use sos_sdk::constants::WAL_DELETED_EXT;
-
-            // Remove local vault mirror if it exists
-            let vault_path = self.vault_path(summary);
-            if vault_path.exists() {
-                fs_adapter::remove_file(&vault_path)?;
-            }
-
-            // Rename the local WAL file so recovery is still possible
-            let wal_path = self.wal_path(summary);
-            if wal_path.exists() {
-                let mut wal_path_backup = wal_path.clone();
-                wal_path_backup.set_extension(WAL_DELETED_EXT);
-                fs_adapter::rename(wal_path, wal_path_backup)?;
-            }
-            Ok(())
-        }
-
-        /// Remove a vault file and WAL file.
-        #[cfg(target_arch = "wasm32")]
-        fn remove_vault_file(&self, _summary: &Summary) -> Result<()> {
-            Ok(())
         }
     };
 }

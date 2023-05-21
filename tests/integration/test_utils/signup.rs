@@ -69,6 +69,7 @@ pub async fn login(
 ) -> Result<RemoteProvider<WalFile, PatchFile>> {
     let address = signer.address()?;
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
+    dirs.ensure().await?;
     let client = RpcClient::new(server, signer.clone());
 
     let mut cache = RemoteProvider::new_file_cache(client, dirs)?;
@@ -93,6 +94,7 @@ async fn create_account(
 
     let address = signer.address()?;
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
+    dirs.ensure().await?;
     let client = RpcClient::new(server, signer.clone());
 
     let mut cache = RemoteProvider::new_file_cache(client, dirs)?;

@@ -2,11 +2,7 @@ use clap::Subcommand;
 
 use human_bytes::human_bytes;
 use sos_net::client::provider::ProviderFactory;
-use sos_sdk::{
-    account::{AccountRef, DelegatedPassphrase},
-    hex,
-    vault::VaultRef,
-};
+use sos_sdk::{account::AccountRef, hex, vault::VaultRef};
 
 use crate::{
     helpers::{
@@ -230,11 +226,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut writer = user.write().await;
 
             if !is_shell {
-                let passphrase = DelegatedPassphrase::find_vault_passphrase(
-                    writer.user.identity().keeper(),
-                    summary.id(),
-                )?;
-                writer.storage.open_vault(&summary, passphrase, None)?;
+                writer.open_folder(&summary).await?;
             }
 
             let keeper =
@@ -299,12 +291,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             {
                 let mut writer = user.write().await;
                 if !is_shell {
-                    let passphrase =
-                        DelegatedPassphrase::find_vault_passphrase(
-                            writer.user.identity().keeper(),
-                            summary.id(),
-                        )?;
-                    writer.storage.open_vault(&summary, passphrase, None)?;
+                    writer.open_folder(&summary).await?;
                 }
             }
 

@@ -153,7 +153,7 @@ pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
     };
 
     let summary = summary.ok_or(Error::NoVault)?;
-    owner.open_folder(&summary)?;
+    owner.open_folder(&summary).await?;
     Ok(())
 }
 

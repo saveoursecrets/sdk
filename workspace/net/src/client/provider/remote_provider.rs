@@ -5,19 +5,18 @@ use crate::client::net::{MaybeRetry, RpcClient};
 
 use async_trait::async_trait;
 use http::StatusCode;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use sos_sdk::{
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
-    crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
     patch::{PatchMemory, PatchProvider},
-    search::SearchIndex,
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary, Vault,
     },
+    vfs,
     wal::{memory::WalMemory, reducer::WalReducer, WalItem, WalProvider},
     Timestamp,
 };
@@ -32,7 +31,7 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
-    client::provider::{fs_adapter, sync, ProviderState, StorageProvider},
+    client::provider::{sync, ProviderState, StorageProvider},
     patch, provider_impl, retry,
 };
 
@@ -69,7 +68,7 @@ impl RemoteProvider<WalFile, PatchFile> {
             ));
         }
 
-        dirs.ensure()?;
+        //dirs.ensure()?;
 
         Ok(Self {
             state: ProviderState::new(true),
@@ -134,7 +133,7 @@ where
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
-            self.write_vault_file(&summary, &buffer)?;
+            self.write_vault_file(&summary, &buffer).await?;
         }
 
         // Add the summary to the vaults we are managing
@@ -159,7 +158,7 @@ where
             .ok_or(Error::ResponseCode(status.into()))?;
 
         if self.state().mirror() {
-            self.write_vault_file(&summary, &buffer)?;
+            self.write_vault_file(&summary, &buffer).await?;
         }
 
         // Add the summary to the vaults we are managing
@@ -189,7 +188,7 @@ where
             .ok_or(Error::ResponseCode(status.into()))?;
 
         if self.state().mirror() {
-            self.write_vault_file(&summary, &buffer)?;
+            self.write_vault_file(&summary, &buffer).await?;
         }
 
         // Add the summary to the vaults we are managing
@@ -276,7 +275,7 @@ where
             .ok_or(Error::ResponseCode(status.into()))?;
 
         // Remove the files
-        self.remove_vault_file(summary)?;
+        self.remove_vault_file(summary).await?;
 
         // Remove local state
         self.remove_local_cache(summary)?;
@@ -296,7 +295,7 @@ where
         *wal_file = compact_wal;
 
         // Refresh in-memory vault and mirrored copy
-        self.refresh_vault(summary, None)?;
+        self.refresh_vault(summary, None).await?;
 
         // Push changes to the remote
         self.push(summary, true).await?;
@@ -353,8 +352,7 @@ where
         force: bool,
     ) -> Result<SyncInfo> {
         if force {
-            // Noop on wasm32
-            self.backup_vault_file(summary)?;
+            self.backup_vault_file(summary).await?;
         }
 
         let (wal_file, patch_file) = self
@@ -363,8 +361,7 @@ where
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         if force {
-            // Noop on wasm32
-            fs_adapter::remove_file(wal_file.path())?;
+            vfs::remove_file(wal_file.path()).await?;
         }
 
         sync::pull(&mut self.client, summary, wal_file, patch_file, force)

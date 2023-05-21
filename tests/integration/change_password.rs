@@ -65,7 +65,9 @@ async fn integration_change_password() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Use the new vault
-    node_cache.open_vault(&summary, encryption_passphrase.clone(), None)?;
+    node_cache
+        .open_vault(&summary, encryption_passphrase.clone(), None)
+        .await?;
 
     // Create some secrets
     let _notes = create_secrets(&mut node_cache, &summary).await?;

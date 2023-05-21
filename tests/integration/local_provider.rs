@@ -53,7 +53,9 @@ where
     commit_count!(storage, &summary, 2);
 
     // Open the vault
-    storage.open_vault(&summary, passphrase.clone(), None)?;
+    storage
+        .open_vault(&summary, passphrase.clone(), None)
+        .await?;
 
     let (meta, secret) = mock_note("Test Note", "Mock note content.");
     let event = storage.create_secret(meta, secret).await?;
@@ -137,6 +139,8 @@ async fn integration_local_provider_file() -> Result<()> {
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
     let dirs = StorageDirs::new(dir.path(), &user_id);
+    dirs.ensure().await?;
+
     let mut storage = LocalProvider::new_file_storage(dirs)?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())

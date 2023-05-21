@@ -625,7 +625,7 @@ async fn resolve_verify<'a>(
 
     if !is_shell || should_open {
         let mut owner = user.write().await;
-        owner.open_folder(&summary)?;
+        owner.open_folder(&summary).await?;
     }
 
     let (secret_id, meta) =
@@ -727,7 +727,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             if !is_shell || folder.is_some() {
                 let mut owner = user.write().await;
-                owner.open_folder(&summary)?;
+                owner.open_folder(&summary).await?;
             }
 
             let mut owner = user.write().await;
@@ -1221,7 +1221,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     .await?;
                 println!("Restored from archive ✓");
                 if let Some(folder) = original_folder {
-                    owner.open_folder(&folder)?;
+                    owner.open_folder(&folder).await?;
                 }
             }
         }

@@ -52,6 +52,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
     let dirs = StorageDirs::new(dir.path(), &user_id);
+    dirs.ensure().await?;
     let passphrase = SecretString::new("mock-password".to_owned());
     let mut storage = LocalProvider::new_file_storage(dirs)?;
 
@@ -102,7 +103,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     assert_eq!(&vault_id, vault_summary.id());
 
     // Open the vault so we can check the secret has been restored
-    storage.open_vault(&vault_summary, passphrase, None)?;
+    storage.open_vault(&vault_summary, passphrase, None).await?;
 
     if let Some((archive_meta, archive_secret, _)) =
         storage.current().as_ref().unwrap().read(&secret_id)?

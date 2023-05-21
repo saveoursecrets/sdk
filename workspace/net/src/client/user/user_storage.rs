@@ -137,6 +137,7 @@ impl UserStorage {
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
         let (mut storage, _) = factory.create_provider(signer)?;
+        storage.dirs().ensure().await?;
         storage.authenticate().await?;
 
         #[cfg(feature = "peer")]
@@ -493,7 +494,7 @@ impl UserStorage {
     }
 
     /// Open a vault.
-    pub fn open_folder(&mut self, summary: &Summary) -> Result<()> {
+    pub async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
         let passphrase = DelegatedPassphrase::find_vault_passphrase(
             self.user.identity().keeper(),
             summary.id(),
@@ -508,7 +509,9 @@ impl UserStorage {
         }
 
         let index = Arc::clone(&self.index.search_index);
-        self.storage.open_vault(summary, passphrase, Some(index))?;
+        self.storage
+            .open_vault(summary, passphrase, Some(index))
+            .await?;
         Ok(())
     }
 
@@ -522,7 +525,7 @@ impl UserStorage {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
-        self.open_folder(&folder)?;
+        self.open_folder(&folder).await?;
 
         if let Secret::Pem { certificates, .. } = &secret {
             if certificates.is_empty() {
@@ -569,7 +572,7 @@ impl UserStorage {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
-        self.open_folder(&folder)?;
+        self.open_folder(&folder).await?;
 
         let (meta, secret, event) =
             self.storage.read_secret(secret_id).await?;
@@ -614,7 +617,7 @@ impl UserStorage {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
-        self.open_folder(&folder)?;
+        self.open_folder(&folder).await?;
 
         let (old_secret_data, _) = self.read_secret(secret_id, None).await?;
 
@@ -664,7 +667,7 @@ impl UserStorage {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
-        self.open_folder(&folder)?;
+        self.open_folder(&folder).await?;
 
         if let Secret::Pem { certificates, .. } = &secret_data.secret {
             if certificates.is_empty() {
@@ -697,7 +700,7 @@ impl UserStorage {
         if from.flags().is_archive() {
             return Err(Error::AlreadyArchived);
         }
-        self.open_folder(from)?;
+        self.open_folder(from).await?;
         let to = self.archive_folder().ok_or_else(|| Error::NoArchive)?;
         self.move_secret(secret_id, from, &to).await
     }
@@ -720,7 +723,7 @@ impl UserStorage {
         if !from.flags().is_archive() {
             return Err(Error::NotArchived);
         }
-        self.open_folder(from)?;
+        self.open_folder(from).await?;
         let mut to = self
             .default_folder()
             .ok_or_else(|| Error::NoDefaultFolder)?;
@@ -739,8 +742,6 @@ impl UserStorage {
     }
 
     /// Move a secret between folders.
-    ///
-    /// The from folder must already be open.
     pub async fn move_secret(
         &mut self,
         secret_id: &SecretId,
@@ -752,15 +753,16 @@ impl UserStorage {
         SyncEvent<'static>,
         SyncEvent<'static>,
     )> {
+        self.open_folder(from).await?;
         let (secret_data, read_event) =
             self.read_secret(secret_id, None).await?;
         let move_secret_data = secret_data.clone();
 
-        self.open_folder(to)?;
+        self.open_folder(to).await?;
         let (new_id, create_event) = self
             .create_secret(secret_data.meta, secret_data.secret, None)
             .await?;
-        self.open_folder(from)?;
+        self.open_folder(from).await?;
 
         // Note that we call `remove_secret()` and not `delete_secret()`
         // as we need to original external files for the move operation.
@@ -792,7 +794,7 @@ impl UserStorage {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
-        self.open_folder(&folder)?;
+        self.open_folder(&folder).await?;
 
         let (secret_data, _) = self.read_secret(secret_id, None).await?;
         let event = self.remove_secret(secret_id, None).await?;
@@ -811,7 +813,7 @@ impl UserStorage {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
-        self.open_folder(&folder)?;
+        self.open_folder(&folder).await?;
         Ok(self.storage.delete_secret(secret_id).await?.into_owned())
     }
 
@@ -859,7 +861,7 @@ impl UserStorage {
         for summary in summaries {
             // Must open the vault so the provider state unlocks
             // the vault
-            self.open_folder(&summary)?;
+            self.open_folder(&summary).await?;
 
             // Add the vault meta data to the search index
             self.storage.create_search_index()?;

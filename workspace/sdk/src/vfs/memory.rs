@@ -85,3 +85,29 @@ pub async fn remove_file(path: impl AsRef<Path>) -> Result<()> {
         Err(ErrorKind::NotFound.into())
     }
 }
+
+/// Renames a file or directory to a new name, replacing
+/// the original file if to already exists.
+pub async fn rename(
+    from: impl AsRef<Path>,
+    to: impl AsRef<Path>,
+) -> Result<()> {
+    let mut fs = FILE_SYSTEM.write().await;
+    if let Some(fd) = fs.remove(from.as_ref()) {
+        fs.insert(to.as_ref().to_path_buf(), fd);
+        Ok(())
+    } else {
+        Err(ErrorKind::NotFound.into())
+    }
+}
+
+/// Creates a new, empty directory at the provided path.
+pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
+    todo!();
+}
+
+/// Recursively creates a directory and all of its parent
+/// components if they are missing.
+pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<()> {
+    todo!();
+}
