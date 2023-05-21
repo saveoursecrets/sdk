@@ -1,13 +1,10 @@
 //! Create and compare commits in an underlying merkle tree.
 use serde::{Deserialize, Serialize};
 
+mod integrity;
 mod proof;
 mod tree;
 
-#[cfg(not(target_arch = "wasm32"))]
-mod integrity;
-
-#[cfg(not(target_arch = "wasm32"))]
 pub use integrity::{vault_commit_tree_file, wal_commit_tree_file};
 
 pub use proof::{

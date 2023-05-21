@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use sos_sdk::time::OffsetDateTime;
+use sos_sdk::{time::OffsetDateTime, vfs};
 
 use crate::{Error, Result};
 
@@ -159,33 +159,33 @@ impl TrustedDevice {
     /// Add a device to the trusted devices for an account.
     ///
     /// If a device already exists it is overwritten.
-    pub fn add_device<P: AsRef<Path>>(
+    pub async fn add_device<P: AsRef<Path>>(
         device_dir: P,
         device: TrustedDevice,
     ) -> Result<()> {
-        let device_path = Self::device_path(device_dir, &device)?;
+        let device_path = Self::device_path(device_dir, &device).await?;
         let mut file = File::create(device_path)?;
         serde_json::to_writer_pretty(&mut file, &device)?;
         Ok(())
     }
 
     /// Remove a device from the trusted devices for an account.
-    pub fn remove_device<P: AsRef<Path>>(
+    pub async fn remove_device<P: AsRef<Path>>(
         device_dir: P,
         device: &TrustedDevice,
     ) -> Result<()> {
-        let device_path = Self::device_path(device_dir, device)?;
-        std::fs::remove_file(device_path)?;
+        let device_path = Self::device_path(device_dir, device).await?;
+        vfs::remove_file(device_path).await?;
         Ok(())
     }
 
     /// Load all trusted devices for an account.
-    pub fn load_devices<P: AsRef<Path>>(
+    pub async fn load_devices<P: AsRef<Path>>(
         device_dir: P,
     ) -> Result<Vec<TrustedDevice>> {
         let mut devices = Vec::new();
         if !device_dir.as_ref().exists() {
-            std::fs::create_dir_all(device_dir.as_ref())?;
+            vfs::create_dir_all(device_dir.as_ref()).await?;
         }
         for entry in std::fs::read_dir(device_dir.as_ref())? {
             let entry = entry?;
@@ -196,7 +196,7 @@ impl TrustedDevice {
         Ok(devices)
     }
 
-    fn device_path<P: AsRef<Path>>(
+    async fn device_path<P: AsRef<Path>>(
         device_dir: P,
         device: &TrustedDevice,
     ) -> Result<PathBuf> {
@@ -205,7 +205,7 @@ impl TrustedDevice {
         device_path.set_extension("json");
         if let Some(parent) = device_path.parent() {
             if !parent.exists() {
-                std::fs::create_dir_all(parent)?;
+                vfs::create_dir_all(parent).await?;
             }
         }
         Ok(device_path)

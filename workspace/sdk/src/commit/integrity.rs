@@ -18,7 +18,6 @@ use std::{fs::File, path::Path};
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
-#[cfg(not(target_arch = "wasm32"))]
 pub fn vault_commit_tree_file<P: AsRef<Path>, F>(
     vault: P,
     verify: bool,
@@ -63,7 +62,6 @@ where
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
-#[cfg(not(target_arch = "wasm32"))]
 pub fn wal_commit_tree_file<P: AsRef<Path>, F>(
     wal_file: P,
     verify: bool,

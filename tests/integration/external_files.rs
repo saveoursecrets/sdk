@@ -28,8 +28,8 @@ async fn integration_external_files() -> Result<()> {
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
     StorageDirs::set_cache_dir(test_cache_dir.clone());
-
     assert_eq!(StorageDirs::cache_dir(), Some(test_cache_dir.clone()));
+    StorageDirs::skeleton().await?;
 
     let account_name = "External files test".to_string();
     let (passphrase, _) = generate_passphrase()?;
@@ -47,6 +47,7 @@ async fn integration_external_files() -> Result<()> {
     let factory = ProviderFactory::Local;
     let (mut provider, _) =
         factory.create_provider(new_account.user.signer().clone())?;
+    provider.dirs().ensure().await?;
 
     let imported_account = provider.import_new_account(&new_account).await?;
     let NewAccount { address, .. } = new_account;

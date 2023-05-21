@@ -93,27 +93,25 @@ impl StorageDirs {
         }
     }
 
-    /// Ensure all the directories exist.
-    pub async fn ensure(&self) -> Result<()> {
+    /// Ensure the skeleton directories exist.
+    pub async fn skeleton() -> Result<()> {
         if let Some(cache_dir) = Self::cache_dir() {
             vfs::create_dir_all(&cache_dir).await?;
 
             let identity_dir = cache_dir.join(IDENTITY_DIR);
             vfs::create_dir_all(&identity_dir).await?;
         }
+        Ok(())
+    }
 
+    /// Ensure all the user directories exist.
+    pub async fn ensure(&self) -> Result<()> {
         vfs::create_dir_all(&self.documents_dir).await?;
         vfs::create_dir_all(&self.local_dir).await?;
         vfs::create_dir_all(&self.trash_dir).await?;
         vfs::create_dir_all(&self.user_dir).await?;
         vfs::create_dir_all(&self.files_dir).await?;
         vfs::create_dir_all(&self.vaults_dir).await?;
-
-        let identity_dir = Self::identity_dir()?;
-        if !identity_dir.exists() {
-            vfs::create_dir(&identity_dir).await?;
-        }
-
         Ok(())
     }
 

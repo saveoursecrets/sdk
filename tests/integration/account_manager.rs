@@ -29,8 +29,8 @@ async fn integration_account_manager() -> Result<()> {
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
     StorageDirs::set_cache_dir(test_cache_dir.clone());
-
     assert_eq!(StorageDirs::cache_dir(), Some(test_cache_dir.clone()));
+    StorageDirs::skeleton().await?;
 
     let account_name = "Mock account name".to_string();
     let folder_name = Some("Default folder".to_string());
@@ -51,6 +51,7 @@ async fn integration_account_manager() -> Result<()> {
     let factory = ProviderFactory::Local;
     let (mut provider, _) =
         factory.create_provider(new_account.user.signer().clone())?;
+    provider.dirs().ensure().await?;
 
     let imported_account = provider.import_new_account(&new_account).await?;
 
@@ -141,6 +142,8 @@ async fn integration_account_manager() -> Result<()> {
     let factory = ProviderFactory::Local;
     let (mut provider, _) =
         factory.create_provider(user.identity().signer().clone())?;
+    provider.dirs().ensure().await?;
+
     let options = RestoreOptions {
         selected: vaults.clone().into_iter().map(|v| v.0).collect(),
         passphrase: Some(passphrase.clone()),

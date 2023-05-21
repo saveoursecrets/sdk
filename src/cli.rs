@@ -144,6 +144,7 @@ pub async fn run() -> Result<()> {
     if let Some(cache) = args.cache.take() {
         StorageDirs::set_cache_dir(cache);
     }
+    StorageDirs::skeleton().await?;
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {

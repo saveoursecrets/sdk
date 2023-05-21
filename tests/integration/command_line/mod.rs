@@ -175,22 +175,21 @@ pub(crate) fn read_until_eof(
     Ok(())
 }
 
-#[test]
+#[tokio::test]
 #[serial]
-fn integration_command_line() -> Result<()> {
+async fn integration_command_line() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
     let cache_dir = PathBuf::from("target/command_line_test");
     if cache_dir.exists() {
         std::fs::remove_dir_all(&cache_dir)?;
     }
-    std::fs::create_dir_all(&cache_dir)?;
 
-    let cache_dir = cache_dir.canonicalize()?;
     // Set cache directory for child processes
     std::env::set_var("SOS_CACHE", cache_dir.clone());
     // Set so test functions can access
     StorageDirs::set_cache_dir(cache_dir);
+    StorageDirs::skeleton().await?;
 
     if is_ci() {
         std::env::set_var("SOS_YES", true.to_string());
