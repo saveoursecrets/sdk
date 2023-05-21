@@ -9,7 +9,7 @@ use terminal_banner::{Banner, Padding};
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_sdk::{
-    hex, pem,
+    hex,
     search::Document,
     secrecy,
     url::Url,
@@ -517,29 +517,8 @@ pub(crate) async fn download_file_secret(
     }
 }
 
-/// Get the default text for a secret.
-pub(crate) fn secret_text(secret: &Secret) -> Result<Option<String>> {
-    let text = match secret {
-        Secret::Note { text, .. } => Some(text.expose_secret().to_string()),
-        Secret::Account { password, .. }
-        | Secret::Password { password, .. } => {
-            Some(password.expose_secret().to_string())
-        }
-        Secret::List { items, .. } => Some(Secret::encode_list(items)),
-        Secret::Link { url, .. } => Some(url.expose_secret().to_string()),
-        Secret::Pem { certificates, .. } => {
-            Some(pem::encode_many(certificates))
-        }
-        Secret::Page { document, .. } => {
-            Some(document.expose_secret().to_string())
-        }
-        _ => None,
-    };
-    Ok(text)
-}
-
 pub(crate) fn copy_secret_text(secret: &Secret) -> Result<bool> {
-    if let Some(text) = secret_text(secret)? {
+    if let Some(text) = secret.display_unsafe() {
         set_clipboard_text(&text)
     } else {
         Ok(false)

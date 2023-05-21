@@ -244,6 +244,7 @@ fn integration_command_line() -> Result<()> {
 
     secret::list(&exe, &address, &password, None)?;
     secret::get(&exe, &address, &password, None)?;
+    secret::cp(&exe, &address, &password, None)?;
     secret::info(&exe, &address, &password, None)?;
     secret::tags(&exe, &address, &password, None)?;
     secret::favorite(&exe, &address, &password, None)?;
@@ -488,8 +489,13 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
-
     secret::get(
+        &exe,
+        &address,
+        &password,
+        Some((Arc::clone(&process), &prompt)),
+    )?;
+    secret::cp(
         &exe,
         &address,
         &password,

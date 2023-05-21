@@ -204,6 +204,19 @@ pub fn get(
     read_until_eof(cmd, Some(password), repl)
 }
 
+pub fn cp(
+    exe: &str,
+    address: &str,
+    password: &SecretString,
+    repl: Option<(Session, &str)>,
+) -> Result<()> {
+    let cmd = format!("{} secret cp -a {} {}", exe, address, NOTE_NAME);
+    read_until_eof(cmd, Some(password), repl.clone())?;
+
+    let cmd = format!("{} secret cp -a {} {}", exe, address, FILE_NAME);
+    read_until_eof(cmd, Some(password), repl)
+}
+
 pub fn info(
     exe: &str,
     address: &str,
