@@ -100,7 +100,8 @@ async fn integration_account_manager() -> Result<()> {
 
     let default_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
     let (default_vault, _) =
-        LocalAccounts::find_local_vault(&address, summary.id(), false)?;
+        LocalAccounts::find_local_vault(&address, summary.id(), false)
+            .await?;
     let mut default_vault_keeper =
         Gatekeeper::new(default_vault, Some(default_index));
     default_vault_keeper.unlock(default_vault_passphrase.clone())?;
@@ -134,7 +135,8 @@ async fn integration_account_manager() -> Result<()> {
     let expected = vfs::read(source_file).await?;
     assert_eq!(expected, buffer);
 
-    let mut archive_buffer = AccountBackup::export_archive_buffer(&address).await?;
+    let mut archive_buffer =
+        AccountBackup::export_archive_buffer(&address).await?;
     let reader = Cursor::new(&mut archive_buffer);
     let _inventory = AccountBackup::restore_archive_inventory(reader)?;
 
@@ -158,7 +160,7 @@ async fn integration_account_manager() -> Result<()> {
     provider.restore_archive(&targets).await?;
 
     // Remove the account
-    user.delete_account()?;
+    user.delete_account().await?;
 
     // Restore when not signed in - the account must not exist,
     // equivalent to importing an account

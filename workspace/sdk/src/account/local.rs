@@ -9,6 +9,7 @@ use crate::{
     decode,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
+    vfs,
 };
 
 use crate::{Error, Result};
@@ -95,7 +96,7 @@ pub struct LocalAccounts;
 
 impl LocalAccounts {
     /// Find and load a vault for a local file.
-    pub fn find_local_vault(
+    pub async fn find_local_vault(
         address: &Address,
         id: &VaultId,
         include_system: bool,
@@ -106,7 +107,7 @@ impl LocalAccounts {
             .find(|(s, _)| s.id() == id)
             .ok_or_else(|| Error::NoVaultFile(id.to_string()))?;
 
-        let buffer = std::fs::read(&path)?;
+        let buffer = vfs::read(&path).await?;
         let vault: Vault = decode(&buffer)?;
         Ok((vault, path))
     }

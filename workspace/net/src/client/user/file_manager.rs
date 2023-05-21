@@ -295,7 +295,8 @@ impl UserStorage {
                     old_secret_id,
                     new_secret_id,
                     &file_name,
-                ).await?;
+                )
+                .await?;
             }
         }
         Ok(())

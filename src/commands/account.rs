@@ -11,6 +11,7 @@ use sos_sdk::{
         ExtractFilesLocation, RestoreOptions,
     },
     storage::StorageDirs,
+    vfs,
 };
 
 use crate::{
@@ -417,7 +418,8 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         reader,
         options,
         provider.is_some(),
-    ).await?;
+    )
+    .await?;
 
     if let Some(mut provider) = provider {
         provider.restore_archive(&targets).await?;
@@ -477,7 +479,7 @@ async fn account_delete(
         owner.user.account().label(),
     );
     let result = if read_flag(Some(&prompt))? {
-        owner.delete_account()?;
+        owner.delete_account().await?;
         true
     } else {
         false
@@ -546,7 +548,7 @@ async fn contacts_export(
 /// Import contacts from a vCard.
 async fn contacts_import(user: Owner, input: PathBuf) -> Result<()> {
     let mut owner = user.write().await;
-    let content = std::fs::read_to_string(&input)?;
+    let content = vfs::read_to_string(&input).await?;
     owner.import_vcard(&content, |_| {}).await?;
     Ok(())
 }

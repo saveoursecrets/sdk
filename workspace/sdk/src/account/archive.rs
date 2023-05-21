@@ -20,7 +20,7 @@ use web3_address::ethereum::Address;
 use crate::{
     constants::{ARCHIVE_MANIFEST, FILES_DIR, VAULT_EXT},
     vault::{Header as VaultHeader, Summary, VaultId},
-    Error, Result,
+    vfs, Error, Result,
 };
 
 /// Manifest used to determine if the archive is supported
@@ -238,7 +238,7 @@ impl<R: Read + Seek> Reader<R> {
     }
 
     /// Extract files to a destination.
-    pub fn extract_files<P: AsRef<Path>>(
+    pub async fn extract_files<P: AsRef<Path>>(
         &mut self,
         target: P,
         selected: &[Summary],
@@ -269,7 +269,7 @@ impl<R: Read + Seek> Reader<R> {
                                     target.as_ref().join(relative);
                                 if let Some(parent) = destination.parent() {
                                     if !parent.exists() {
-                                        std::fs::create_dir_all(parent)?;
+                                        vfs::create_dir_all(parent).await?;
                                     }
                                 }
                                 let mut output = File::create(destination)?;
@@ -340,8 +340,6 @@ mod test {
 
         let expected_vault_entries =
             vec![(vault.summary().clone(), vault_buffer)];
-
-        //std::fs::write("mock.zip", zip.into_inner())?;
 
         // Decompress and extract
         let mut reader = Reader::new(Cursor::new(zip.into_inner().clone()))?;

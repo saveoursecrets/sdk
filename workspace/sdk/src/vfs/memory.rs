@@ -42,7 +42,10 @@ pub async fn write(
     let mut fs = FILE_SYSTEM.write().await;
     if let Some(parent) = path.parent() {
         if let Some(parent) = fs.get(parent) {
-            todo!("check parent is directory");
+            let is_dir = matches!(parent, MemoryFd::Dir(_));
+            if !is_dir {
+                return Err(ErrorKind::PermissionDenied.into());
+            }
         }
     }
     let fd = fs
@@ -103,11 +106,39 @@ pub async fn rename(
 
 /// Creates a new, empty directory at the provided path.
 pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
-    todo!();
+    let path = path.as_ref().to_path_buf();
+    let mut fs = FILE_SYSTEM.write().await;
+    if let Some(parent) = path.parent() {
+        if let Some(parent) = fs.get(parent) {
+            let is_dir = matches!(parent, MemoryFd::Dir(_));
+            if !is_dir {
+                return Err(ErrorKind::PermissionDenied.into());
+            }
+        }
+    }
+    let fd = fs
+        .entry(path)
+        .or_insert_with(|| MemoryFd::Dir(Default::default()));
+    Ok(())
 }
 
 /// Recursively creates a directory and all of its parent
 /// components if they are missing.
 pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<()> {
-    todo!();
+    let path = path.as_ref().to_path_buf();
+    let mut fs = FILE_SYSTEM.write().await;
+    let fd = fs
+        .entry(path)
+        .or_insert_with(|| MemoryFd::Dir(Default::default()));
+    Ok(())
+}
+
+/// Creates a future which will open a file for reading
+/// and read the entire contents into a string and return said string.
+pub async fn read_to_string(path: impl AsRef<Path>) -> Result<String> {
+    let contents = read(path).await?;
+    Ok(
+        String::from_utf8(contents)
+            .map_err(|_| ErrorKind::InvalidData.into()),
+    )
 }

@@ -91,7 +91,8 @@ async fn integration_archive_local_provider() -> Result<()> {
     let reader = Cursor::new(&mut archive);
 
     // Restore from the archive into the provider
-    let targets = AccountBackup::extract_verify_archive(reader, &options)?;
+    let targets =
+        AccountBackup::extract_verify_archive(reader, &options).await?;
     assert_eq!(address, targets.address);
 
     storage.restore_archive(&targets).await?;

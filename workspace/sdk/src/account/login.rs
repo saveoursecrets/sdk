@@ -102,7 +102,7 @@ impl AuthenticatedUser {
     ///
     /// Moves the account identity vault and data directory to the
     /// trash directory.
-    pub fn delete_account(&self) -> Result<()> {
+    pub async fn delete_account(&self) -> Result<()> {
         let address = self.identity.address().to_string();
         let identity_vault_file = StorageDirs::identity_vault(&address)?;
 
@@ -121,14 +121,14 @@ impl AuthenticatedUser {
         // items from the trash using `cp` and then decides to delete
         // the accout again, so the rule is last deleted account wins.
         if deleted_identity_vault_file.exists() {
-            std::fs::remove_file(&deleted_identity_vault_file)?;
+            vfs::remove_file(&deleted_identity_vault_file).await?;
         }
         if deleted_identity_data_dir.exists() {
-            std::fs::remove_dir_all(&deleted_identity_data_dir)?;
+            vfs::remove_dir_all(&deleted_identity_data_dir).await?;
         }
 
-        std::fs::rename(identity_vault_file, deleted_identity_vault_file)?;
-        std::fs::rename(identity_data_dir, deleted_identity_data_dir)?;
+        vfs::rename(identity_vault_file, deleted_identity_vault_file).await?;
+        vfs::rename(identity_data_dir, deleted_identity_data_dir).await?;
 
         Ok(())
     }
@@ -178,7 +178,8 @@ impl Login {
 
         let identity_path = StorageDirs::identity_vault(address.to_string())?;
         let mut identity =
-            Identity::login_file(identity_path, passphrase, Some(index))?;
+            Identity::login_file(identity_path, passphrase, Some(index))
+                .await?;
 
         // Lazily create or retrieve a device specific signing key
         let device =
@@ -219,7 +220,8 @@ impl Login {
                 )?;
 
             let (vault, _) =
-                LocalAccounts::find_local_vault(address, summary.id(), true)?;
+                LocalAccounts::find_local_vault(address, summary.id(), true)
+                    .await?;
             let search_index = Arc::new(RwLock::new(SearchIndex::new()));
             let mut device_keeper =
                 Gatekeeper::new(vault, Some(search_index));

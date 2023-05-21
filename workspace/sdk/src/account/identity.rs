@@ -30,7 +30,7 @@ use crate::{
         secret::{Secret, SecretMeta, SecretSigner},
         Gatekeeper, Vault, VaultAccess, VaultFlags,
     },
-    Error, Result,
+    vfs, Error, Result,
 };
 
 use crate::vault::VaultFileAccess;
@@ -136,13 +136,13 @@ impl Identity {
     }
 
     /// Attempt to login using a file path.
-    pub fn login_file<P: AsRef<Path>>(
+    pub async fn login_file<P: AsRef<Path>>(
         file: P,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<UserIdentity> {
         let mirror = Box::new(VaultFileAccess::new(file.as_ref())?);
-        let buffer = std::fs::read(file.as_ref())?;
+        let buffer = vfs::read(file.as_ref()).await?;
         Identity::login_buffer(
             buffer,
             master_passphrase,
@@ -247,8 +247,8 @@ mod tests {
         Error,
     };
 
-    #[test]
-    fn identity_create_login() -> Result<()> {
+    #[tokio::test]
+    async fn identity_create_login() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
         let auth_master_passphrase =
             SecretString::new(master_passphrase.expose_secret().to_owned());
@@ -258,7 +258,8 @@ mod tests {
         let temp = NamedTempFile::new()?;
         std::fs::write(temp.path(), buffer)?;
         let _ =
-            Identity::login_file(temp.path(), auth_master_passphrase, None)?;
+            Identity::login_file(temp.path(), auth_master_passphrase, None)
+                .await?;
         Ok(())
     }
 

@@ -210,8 +210,8 @@ impl UserStorage {
     }
 
     /// Delete the account for this user and sign out.
-    pub fn delete_account(&mut self) -> Result<()> {
-        self.user.delete_account()?;
+    pub async fn delete_account(&mut self) -> Result<()> {
+        self.user.delete_account().await?;
         self.sign_out();
         Ok(())
     }
@@ -340,7 +340,8 @@ impl UserStorage {
             self.user.identity().keeper(),
             summary.id(),
             new_passphrase.clone(),
-        )?;
+        )
+        .await?;
 
         if save_passphrase {
             let default_summary = self
@@ -370,7 +371,8 @@ impl UserStorage {
                 self.user.identity().address(),
                 default_summary.id(),
                 false,
-            )?;
+            )
+            .await?;
 
             let mut keeper = Gatekeeper::new(vault, None);
             keeper.unlock(passphrase)?;
@@ -896,7 +898,8 @@ impl UserStorage {
                 self.user.identity().address(),
                 summary.id(),
                 false,
-            )?;
+            )
+            .await?;
             let vault_passphrase =
                 DelegatedPassphrase::find_vault_passphrase(
                     self.user.identity().keeper(),
@@ -1095,7 +1098,8 @@ impl UserStorage {
             self.user.identity().address(),
             contacts.id(),
             false,
-        )?;
+        )
+        .await?;
         let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(contacts_passphrase)?;
 
@@ -1208,7 +1212,8 @@ impl UserStorage {
             buffer,
             options,
             owner.is_some(),
-        ).await?;
+        )
+        .await?;
 
         if let Some(owner) = owner.as_mut() {
             owner.storage.restore_archive(&targets).await?;

@@ -15,6 +15,7 @@ use sos_sdk::{
         },
         Summary,
     },
+    vfs,
 };
 
 use crate::test_utils::setup;
@@ -197,8 +198,8 @@ async fn assert_create_file_secret(
 
         assert!(expected_file_path.exists());
 
-        let source_buffer = std::fs::read(file_path)?;
-        let encrypted_buffer = std::fs::read(&expected_file_path)?;
+        let source_buffer = vfs::read(file_path).await?;
+        let encrypted_buffer = vfs::read(&expected_file_path).await?;
 
         assert_ne!(source_buffer, encrypted_buffer);
 

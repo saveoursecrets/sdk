@@ -313,7 +313,7 @@ impl AccountBackup {
     ///
     /// The identity vault must be unlocked so we can retrieve
     /// the passphrase for the target vault.
-    pub fn export_vault(
+    pub async fn export_vault(
         address: &Address,
         identity: &Gatekeeper,
         vault_id: &VaultId,
@@ -325,7 +325,7 @@ impl AccountBackup {
 
         // Find the local vault for the account
         let (vault, _) =
-            LocalAccounts::find_local_vault(address, vault_id, false)?;
+            LocalAccounts::find_local_vault(address, vault_id, false).await?;
 
         // Change the password before exporting
         let (_, vault, _) = ChangePassword::new(
@@ -403,7 +403,8 @@ impl AccountBackup {
 
         // Signed in so use the existing provider
         let (targets, account) = if existing_account {
-            let targets = Self::extract_verify_archive(buffer, &options)?;
+            let targets =
+                Self::extract_verify_archive(buffer, &options).await?;
 
             let RestoreTargets {
                 address,
@@ -463,7 +464,7 @@ impl AccountBackup {
         // No provider available so the user is not signed in
         } else {
             let restore_targets =
-                Self::extract_verify_archive(buffer, &options)?;
+                Self::extract_verify_archive(buffer, &options).await?;
 
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
@@ -482,7 +483,8 @@ impl AccountBackup {
             // Write out the identity vault
             let identity_vault_file =
                 StorageDirs::identity_vault(&address_path)?;
-            vfs::write(identity_vault_file, &restore_targets.identity.1).await?;
+            vfs::write(identity_vault_file, &restore_targets.identity.1)
+                .await?;
 
             // Check if the identity name already exists
             // and rename the identity being imported if necessary
@@ -540,7 +542,7 @@ impl AccountBackup {
 
     /// Helper to extract from an archive and verify the archive
     /// contents against the restore options.
-    pub fn extract_verify_archive<R: Read + Seek>(
+    pub async fn extract_verify_archive<R: Read + Seek>(
         archive: R,
         options: &RestoreOptions,
     ) -> Result<RestoreTargets> {
@@ -549,19 +551,20 @@ impl AccountBackup {
         if let Some(files_dir) = &options.files_dir {
             match files_dir {
                 ExtractFilesLocation::Path(files_dir) => {
-                    reader.extract_files(
-                        files_dir,
-                        options.selected.as_slice(),
-                    )?;
+                    reader
+                        .extract_files(files_dir, options.selected.as_slice())
+                        .await?;
                 }
                 ExtractFilesLocation::Builder(builder) => {
                     if let Some(manifest) = reader.manifest() {
                         let address = manifest.address.to_string();
                         if let Some(files_dir) = builder(&address) {
-                            reader.extract_files(
-                                files_dir,
-                                options.selected.as_slice(),
-                            )?;
+                            reader
+                                .extract_files(
+                                    files_dir,
+                                    options.selected.as_slice(),
+                                )
+                                .await?;
                         }
                     }
                 }
