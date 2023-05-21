@@ -1,11 +1,13 @@
 #[cfg(all(test, target_arch = "wasm32"))]
 mod wasm_tests {
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-
+    
+    use std::path::PathBuf;
     use sos_sdk::{
         decode, encode,
         vault::{Summary, Vault},
         wal::{memory::WalMemory, WalProvider},
+        vfs,
         Timestamp,
     };
     use wasm_bindgen::prelude::*;
@@ -47,5 +49,15 @@ mod wasm_tests {
         let buffer = include_bytes!("fixtures/simple-vault.wal");
         let mut wal = WalMemory::new(PathBuf::from("")).unwrap();
         wal.write_buffer(buffer.to_vec()).unwrap();
+    }
+
+    #[wasm_bindgen_test]
+    async fn vfs() {
+        let path = PathBuf::from("test.txt");
+        let contents = b"Mock content".to_vec();
+        vfs::write(&path, &contents).await.expect("to write file");
+
+        let file_contents = vfs::read(&path).await.expect("to read file");
+        assert_eq!(&contents, &file_contents);
     }
 }
