@@ -22,6 +22,9 @@ pub enum Error {
     #[error(r#"attachment "{0}" not found"#)]
     AttachmentNotFound(SecretRef),
 
+    #[error("unable to copy to the clipboard, secret type may not support copy operation")]
+    ClipboardCopy,
+
     #[error("archive folder not found")]
     NoArchiveFolder,
 
@@ -148,6 +151,9 @@ pub enum Error {
 
     #[error(transparent)]
     Peer(#[from] sos_net::peer::Error),
+
+    #[error(transparent)]
+    Clipboard(#[from] arboard::Error),
 }
 
 impl Error {

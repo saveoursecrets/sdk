@@ -27,7 +27,7 @@ use crate::{
     Error, Result, TARGET,
 };
 
-use super::account::Owner;
+use super::{account::Owner, set_clipboard_text};
 
 /// Resolved secret data.
 pub(crate) struct ResolvedSecret {
@@ -373,7 +373,7 @@ pub fn add_list(
 
     let credentials = if option_env!("CI").is_some() {
         let list = std::env::var("SOS_LIST").ok().unwrap_or_default();
-        Secret::parse_list(&list)?
+        Secret::decode_list(&list)?
     } else {
         let mut credentials: HashMap<String, SecretString> = HashMap::new();
         loop {
@@ -514,5 +514,31 @@ pub(crate) async fn download_file_secret(
         Ok(())
     } else {
         Err(Error::NotFileContent)
+    }
+}
+
+/// Get the default text for a secret.
+pub(crate) fn secret_text(secret: &Secret) -> Result<Option<String>> {
+    let text = match secret {
+        Secret::Note { text, .. } => Some(text.expose_secret().to_string()),
+        Secret::Account { password, .. }
+        | Secret::Password { password, .. } => {
+            Some(password.expose_secret().to_string())
+        }
+        Secret::List { items, .. } => Some(Secret::encode_list(items)),
+        Secret::Link { url, .. } => Some(url.expose_secret().to_string()),
+        Secret::Page { document, .. } => {
+            Some(document.expose_secret().to_string())
+        }
+        _ => None,
+    };
+    Ok(text)
+}
+
+pub(crate) fn copy_secret_text(secret: &Secret) -> Result<bool> {
+    if let Some(text) = secret_text(secret)? {
+        set_clipboard_text(&text)
+    } else {
+        Ok(false)
     }
 }

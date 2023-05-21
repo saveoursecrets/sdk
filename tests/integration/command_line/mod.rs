@@ -27,8 +27,8 @@ const TIMEOUT: Option<u64> = Some(30000);
 const ACCOUNT_NAME: &str = "mock";
 const SHELL_ACCOUNT_NAME: &str = "shell";
 
-// Note we choose a name that sorts after all the 
-// other account names otherwise this account may 
+// Note we choose a name that sorts after all the
+// other account names otherwise this account may
 // appear first in the list as we parse the account
 // address from the first in the list so if it sorts
 // beforehand there be dragons.

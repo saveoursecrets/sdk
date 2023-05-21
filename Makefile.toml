@@ -136,10 +136,10 @@ dependencies = ["clean-profraw"]
 
 [tasks.clean-profraw]
 script = '''
-rm *.profraw
-rm workspace/net/*.profraw
-rm workspace/migrate/*.profraw
-rm workspace/sdk/*.profraw
+rm -f *.profraw
+rm -f workspace/net/*.profraw
+rm -f workspace/migrate/*.profraw
+rm -f workspace/sdk/*.profraw
 '''
 
 [tasks.clean-coverage]

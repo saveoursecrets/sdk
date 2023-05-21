@@ -1732,8 +1732,8 @@ impl fmt::Debug for Secret {
 }
 
 impl Secret {
-    /// Parse key value pairs into a map.
-    pub fn parse_list<S: AsRef<str>>(
+    /// Decode key value pairs into a map.
+    pub fn decode_list<S: AsRef<str>>(
         list: S,
     ) -> Result<HashMap<String, SecretString>> {
         let mut credentials = HashMap::new();
@@ -1749,6 +1749,16 @@ impl Secret {
             }
         }
         Ok(credentials)
+    }
+
+    /// Encode a map into key value pairs.
+    pub fn encode_list(list: &HashMap<String, SecretString>) -> String {
+        let mut output = String::new();
+        for (k, v) in list {
+            output.push_str(&format!("{}={}", k, v.expose_secret()));
+            output.push('\n');
+        }
+        output
     }
 
     /// Ensure all the bytes are ASCII digits.
@@ -1953,11 +1963,11 @@ impl PartialEq for Secret {
                     user_data: user_data_b,
                 },
             ) => {
-                certificates_a
-                    .iter()
-                    .zip(certificates_b.iter())
-                    .all(|(a, b)| a.tag == b.tag && a.contents == b.contents)
-                    && user_data_a == user_data_b
+                certificates_a.iter().zip(certificates_b.iter()).all(
+                    |(a, b)| {
+                        a.tag() == b.tag() && a.contents() == b.contents()
+                    },
+                ) && user_data_a == user_data_b
             }
             (
                 Self::Page {

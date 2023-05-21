@@ -27,7 +27,6 @@ web3-address = { version = "0.6", features = ["ethereum"] }
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 axum-server = { version = "0.4", features = ["tls-rustls"] }
-mime_guess = "2"
 human_bytes = "0.3"
 tempfile = "3"
 shell-words = "1"
@@ -37,6 +36,7 @@ rustyline-derive = "0.8"
 unicode-width = "0.1"
 parking_lot = "0.12"
 once_cell = "1"
+arboard = "3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sos-net = { path = "workspace/net", version = "0.5" , features = ["full"]}
