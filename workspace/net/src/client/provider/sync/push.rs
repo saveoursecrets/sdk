@@ -7,6 +7,7 @@ use sos_sdk::{
     commit::{CommitProof, Comparison, SyncInfo, SyncKind},
     patch::PatchProvider,
     vault::Summary,
+    vfs,
     wal::WalProvider,
 };
 
@@ -85,7 +86,7 @@ where
     // TODO: apply them to the WAL!
 
     let client_proof = wal_file.tree().head()?;
-    let body = std::fs::read(wal_file.path())?;
+    let body = vfs::read(wal_file.path()).await?;
     let (status, server_proof) = retry!(
         || client.save_wal(summary.id(), client_proof.clone(), body.clone()),
         client

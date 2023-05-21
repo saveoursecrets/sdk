@@ -119,7 +119,7 @@ impl WalProvider for WalMemory {
         Ok(Default::default())
     }
 
-    fn compact(&self) -> Result<(Self, u64, u64)> {
+    async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.records.len() as u64;
 
         let path = self.path().clone();

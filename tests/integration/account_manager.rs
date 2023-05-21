@@ -18,6 +18,7 @@ use sos_sdk::{
     storage::{FileStorage, StorageDirs},
     urn::Urn,
     vault::{secret::SecretId, Gatekeeper, VaultId},
+    vfs,
 };
 
 use crate::test_utils::*;
@@ -117,7 +118,7 @@ async fn integration_account_manager() -> Result<()> {
     let target = files_dir
         .join(vault_id.to_string())
         .join(secret_id.to_string());
-    std::fs::create_dir_all(&target)?;
+    vfs::create_dir_all(&target).await?;
     let (digest, _) = FileStorage::encrypt_file_passphrase(
         &source_file,
         &target,
@@ -130,10 +131,10 @@ async fn integration_account_manager() -> Result<()> {
     let buffer =
         FileStorage::decrypt_file_passphrase(destination, &file_passphrase)?;
 
-    let expected = std::fs::read(source_file)?;
+    let expected = vfs::read(source_file).await?;
     assert_eq!(expected, buffer);
 
-    let mut archive_buffer = AccountBackup::export_archive_buffer(&address)?;
+    let mut archive_buffer = AccountBackup::export_archive_buffer(&address).await?;
     let reader = Cursor::new(&mut archive_buffer);
     let _inventory = AccountBackup::restore_archive_inventory(reader)?;
 
@@ -152,7 +153,7 @@ async fn integration_account_manager() -> Result<()> {
 
     let reader = Cursor::new(&mut archive_buffer);
     let (targets, _) =
-        AccountBackup::restore_archive_buffer(reader, options, true)?;
+        AccountBackup::restore_archive_buffer(reader, options, true).await?;
 
     provider.restore_archive(&targets).await?;
 
@@ -167,7 +168,7 @@ async fn integration_account_manager() -> Result<()> {
         files_dir: Some(ExtractFilesLocation::Path(files_dir)),
     };
     let reader = Cursor::new(&mut archive_buffer);
-    AccountBackup::restore_archive_buffer(reader, options, false)?;
+    AccountBackup::restore_archive_buffer(reader, options, false).await?;
 
     // Reset the cache dir so we don't interfere
     // with other tests

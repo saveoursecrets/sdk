@@ -341,12 +341,12 @@ impl AccountBackup {
 
     /// Create a buffer for a zip archive including the
     /// identity vault and all user vaults.
-    pub fn export_archive_buffer(address: &Address) -> Result<Vec<u8>> {
+    pub async fn export_archive_buffer(address: &Address) -> Result<Vec<u8>> {
         let identity_path = StorageDirs::identity_vault(address.to_string())?;
         if !identity_path.exists() {
             return Err(Error::NotFile(identity_path));
         }
-        let identity = std::fs::read(identity_path)?;
+        let identity = vfs::read(identity_path).await?;
 
         let vaults = LocalAccounts::list_local_vaults(address, false)?;
 
@@ -355,7 +355,7 @@ impl AccountBackup {
         let mut writer = writer.set_identity(address, &identity)?;
 
         for (summary, path) in vaults {
-            let buffer = std::fs::read(path)?;
+            let buffer = vfs::read(path).await?;
             writer = writer.add_vault(*summary.id(), &buffer)?;
         }
 
@@ -366,7 +366,7 @@ impl AccountBackup {
                 let relative = PathBuf::from("files")
                     .join(entry.path().strip_prefix(&files)?);
                 let relative = relative.to_string_lossy().into_owned();
-                let buffer = std::fs::read(entry.path())?;
+                let buffer = vfs::read(entry.path()).await?;
                 writer = writer.add_file(&relative, &buffer)?;
             }
         }
@@ -380,7 +380,7 @@ impl AccountBackup {
         path: P,
         address: &Address,
     ) -> Result<()> {
-        let buffer = Self::export_archive_buffer(address)?;
+        let buffer = Self::export_archive_buffer(address).await?;
         vfs::write(path.as_ref(), buffer).await?;
         Ok(())
     }
@@ -394,7 +394,7 @@ impl AccountBackup {
     }
 
     /// Import from an archive.
-    pub fn restore_archive_buffer<R: Read + Seek>(
+    pub async fn restore_archive_buffer<R: Read + Seek>(
         buffer: R,
         options: RestoreOptions,
         existing_account: bool,
@@ -425,7 +425,7 @@ impl AccountBackup {
             if let Some(passphrase) = &options.passphrase {
                 let identity_vault_file =
                     StorageDirs::identity_vault(&address)?;
-                let identity_buffer = std::fs::read(&identity_vault_file)?;
+                let identity_buffer = vfs::read(&identity_vault_file).await?;
                 let identity_vault: Vault = decode(&identity_buffer)?;
                 let mut identity_keeper =
                     Gatekeeper::new(identity_vault, None);
@@ -456,7 +456,7 @@ impl AccountBackup {
 
                 // Must re-write the identity vault
                 let buffer = encode(identity_keeper.vault())?;
-                std::fs::write(identity_vault_file, buffer)?;
+                vfs::write(identity_vault_file, buffer).await?;
             }
 
             (targets, account)
@@ -482,7 +482,7 @@ impl AccountBackup {
             // Write out the identity vault
             let identity_vault_file =
                 StorageDirs::identity_vault(&address_path)?;
-            std::fs::write(identity_vault_file, &restore_targets.identity.1)?;
+            vfs::write(identity_vault_file, &restore_targets.identity.1).await?;
 
             // Check if the identity name already exists
             // and rename the identity being imported if necessary
@@ -509,7 +509,7 @@ impl AccountBackup {
 
             // Prepare the vaults directory
             let vaults_dir = StorageDirs::local_vaults_dir(&address_path)?;
-            std::fs::create_dir_all(&vaults_dir)?;
+            vfs::create_dir_all(&vaults_dir).await?;
 
             // Write out each vault and the WAL log
             for (buffer, vault) in &restore_targets.vaults {
@@ -519,7 +519,7 @@ impl AccountBackup {
                 wal_path.set_extension(WAL_EXT);
 
                 // Write out the vault buffer
-                std::fs::write(&vault_path, buffer)?;
+                vfs::write(&vault_path, buffer).await?;
 
                 // Write out the WAL file
                 let mut wal_events = Vec::new();

@@ -98,7 +98,7 @@ impl WalProvider for WalFile {
         })
     }
 
-    fn compact(&self) -> Result<(Self, u64, u64)> {
+    async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.path().metadata()?.len();
 
         // Get the reduced set of events
@@ -112,9 +112,9 @@ impl WalProvider for WalFile {
         let new_size = temp_wal.path().metadata()?.len();
 
         // Remove the existing WAL file
-        std::fs::remove_file(self.path())?;
+        vfs::remove_file(self.path()).await?;
         // Move the temp file into place
-        std::fs::rename(temp.path(), self.path())?;
+        vfs::rename(temp.path(), self.path()).await?;
 
         let mut new_wal = Self::new(self.path())?;
         new_wal.load_tree()?;

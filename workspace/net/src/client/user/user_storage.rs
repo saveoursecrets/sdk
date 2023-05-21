@@ -392,7 +392,7 @@ impl UserStorage {
         passphrase: SecretString,
         overwrite: bool,
     ) -> Result<Summary> {
-        let buffer = std::fs::read(path.as_ref())?;
+        let buffer = vfs::read(path.as_ref()).await?;
 
         let mut vault: Vault = decode(&buffer)?;
 
@@ -1208,7 +1208,7 @@ impl UserStorage {
             buffer,
             options,
             owner.is_some(),
-        )?;
+        ).await?;
 
         if let Some(owner) = owner.as_mut() {
             owner.storage.restore_archive(&targets).await?;

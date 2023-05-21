@@ -205,7 +205,7 @@ where
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        let (compact_wal, old_size, new_size) = wal_file.compact()?;
+        let (compact_wal, old_size, new_size) = wal_file.compact().await?;
 
         // Need to recreate the WAL file and load the updated
         // commit tree

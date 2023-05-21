@@ -87,7 +87,6 @@ impl FileStorage {
     ///
     /// Returns an SHA256 digest of the encrypted data
     /// and the size of the original file.
-    #[cfg(not(target_arch = "wasm32"))]
     pub async fn encrypt_file_storage<
         P: AsRef<Path>,
         A: AsRef<Path>,
@@ -105,7 +104,7 @@ impl FileStorage {
             .join(secret_id);
 
         if !target.exists() {
-            std::fs::create_dir_all(&target)?;
+            vfs::create_dir_all(&target).await?;
         }
 
         // Encrypt the file and write it to the storage location
@@ -115,7 +114,6 @@ impl FileStorage {
     }
 
     /// Decrypt a file in the storage location and return the buffer.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn decrypt_file_storage<
         A: AsRef<Path>,
         V: AsRef<Path>,

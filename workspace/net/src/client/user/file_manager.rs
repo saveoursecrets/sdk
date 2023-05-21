@@ -16,6 +16,7 @@ use sos_sdk::{
         },
         Summary, VaultId,
     },
+    vfs,
 };
 
 use crate::client::{user::UserStorage, Error, Result};
@@ -128,7 +129,7 @@ impl UserStorage {
     ) -> Result<()> {
         let folder_files = self.file_folder_location(summary.id())?;
         if folder_files.exists() {
-            std::fs::remove_dir_all(&folder_files)?;
+            vfs::remove_dir_all(&folder_files).await?;
         }
         Ok(())
     }
@@ -234,14 +235,14 @@ impl UserStorage {
 
         for checksum in checksums {
             let file_name = hex::encode(checksum);
-            self.delete_file(summary.id(), id, &file_name)?;
+            self.delete_file(summary.id(), id, &file_name).await?;
         }
 
         Ok(())
     }
 
     /// Delete a file from the storage location.
-    pub(crate) fn delete_file(
+    pub(crate) async fn delete_file(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
@@ -251,16 +252,16 @@ impl UserStorage {
         let secret_path = vault_path.join(secret_id.to_string());
         let path = secret_path.join(file_name);
 
-        std::fs::remove_file(path)?;
+        vfs::remove_file(path).await?;
 
         // Prune empty directories
         let secret_dir_is_empty = secret_path.read_dir()?.next().is_none();
         if secret_dir_is_empty {
-            std::fs::remove_dir(secret_path)?;
+            vfs::remove_dir(secret_path).await?;
         }
         let vault_dir_is_empty = vault_path.read_dir()?.next().is_none();
         if vault_dir_is_empty {
-            std::fs::remove_dir(vault_path)?;
+            vfs::remove_dir(vault_path).await?;
         }
 
         Ok(())
@@ -294,14 +295,14 @@ impl UserStorage {
                     old_secret_id,
                     new_secret_id,
                     &file_name,
-                )?;
+                ).await?;
             }
         }
         Ok(())
     }
 
     /// Move the encrypted file for external file storage.
-    pub(crate) fn move_file(
+    pub(crate) async fn move_file(
         &self,
         old_vault_id: &VaultId,
         new_vault_id: &VaultId,
@@ -321,21 +322,21 @@ impl UserStorage {
 
         if let Some(parent) = new_path.parent() {
             if !parent.exists() {
-                std::fs::create_dir_all(parent)?;
+                vfs::create_dir_all(parent).await?;
             }
         }
 
-        std::fs::rename(old_path, new_path)?;
+        vfs::rename(old_path, new_path).await?;
 
         // Prune empty directories
         let secret_dir_is_empty =
             old_secret_path.read_dir()?.next().is_none();
         if secret_dir_is_empty {
-            std::fs::remove_dir(old_secret_path)?;
+            vfs::remove_dir(old_secret_path).await?;
         }
         let vault_dir_is_empty = old_vault_path.read_dir()?.next().is_none();
         if vault_dir_is_empty {
-            std::fs::remove_dir(old_vault_path)?;
+            vfs::remove_dir(old_vault_path).await?;
         }
 
         Ok(())

@@ -7,6 +7,7 @@ use sos_sdk::{
     events::SyncEvent,
     formats::WalFileRecord,
     vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
+    vfs,
     wal::{file::WalFile, reducer::WalReducer, WalProvider},
 };
 use std::{
@@ -600,10 +601,10 @@ impl BackendHandler for FileSystemBackend {
         let original_wal = self.wal_file_path(owner, vault_id);
 
         // Remove the existing WAL
-        std::fs::remove_file(&original_wal)?;
+        vfs::remove_file(&original_wal).await?;
 
         // Move the temp file with the new contents into place
-        std::fs::rename(&temp_path, &original_wal)?;
+        vfs::rename(&temp_path, &original_wal).await?;
 
         let wal = self.wal_write(owner, vault_id).await?;
         *wal = WalFile::new(&original_wal)?;

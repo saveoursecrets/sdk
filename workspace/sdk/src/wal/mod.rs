@@ -60,7 +60,7 @@ pub trait WalProvider {
         Self: Sized;
 
     /// Get a copy of this WAL compacted.
-    fn compact(&self) -> Result<(Self, u64, u64)>
+    async fn compact(&self) -> Result<(Self, u64, u64)>
     where
         Self: Sized;
 
