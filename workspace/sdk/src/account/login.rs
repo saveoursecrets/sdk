@@ -21,6 +21,7 @@ use crate::{
         secret::{Secret, SecretMeta, SecretSigner},
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess,
     },
+    vfs,
 };
 
 use secrecy::{ExposeSecret, SecretString};
@@ -164,7 +165,7 @@ pub struct Login;
 
 impl Login {
     /// Sign in a user.
-    pub fn sign_in(
+    pub async fn sign_in(
         address: &Address,
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
@@ -180,7 +181,8 @@ impl Login {
             Identity::login_file(identity_path, passphrase, Some(index))?;
 
         // Lazily create or retrieve a device specific signing key
-        let device = Self::ensure_device_vault(address, &mut identity)?;
+        let device =
+            Self::ensure_device_vault(address, &mut identity).await?;
 
         Ok(AuthenticatedUser {
             account,
@@ -192,7 +194,7 @@ impl Login {
     /// Ensure that the account has a vault for storing device specific
     /// information such as the private key used to identify a machine
     /// on a peer to peer network.
-    fn ensure_device_vault(
+    async fn ensure_device_vault(
         address: &Address,
         user: &mut UserIdentity,
     ) -> Result<DeviceSigner> {
@@ -293,7 +295,7 @@ impl Login {
             let mut device_vault_file =
                 vaults_dir.join(summary.id().to_string());
             device_vault_file.set_extension(VAULT_EXT);
-            std::fs::write(device_vault_file, buffer)?;
+            vfs::write(device_vault_file, buffer).await?;
 
             Ok(DeviceSigner {
                 summary,

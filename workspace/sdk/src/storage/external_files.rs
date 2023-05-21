@@ -18,7 +18,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{storage::StorageDirs, Error, Result, vfs};
+use crate::{storage::StorageDirs, vfs, Error, Result};
 
 /// Result of encrypting a file.
 #[derive(Debug, Clone)]

@@ -322,7 +322,8 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let new_account = AccountBuilder::write(identity_vault, new_account).await?;
+        let new_account =
+            AccountBuilder::write(identity_vault, new_account).await?;
 
         // Create local provider
         let factory = ProviderFactory::Local;

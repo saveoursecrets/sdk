@@ -125,7 +125,7 @@ pub enum Error {
 
     #[error(transparent)]
     UrlParse(#[from] sos_sdk::url::ParseError),
-    
+
     #[error(transparent)]
     Clap(#[from] clap::Error),
 

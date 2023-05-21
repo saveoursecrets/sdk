@@ -41,7 +41,8 @@ async fn integration_external_files() -> Result<()> {
             .create_authenticator(false)
             .create_contacts(false)
             .create_file_password(true)
-            .finish().await?;
+            .finish()
+            .await?;
 
     let factory = ProviderFactory::Local;
     let (mut provider, _) =

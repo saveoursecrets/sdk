@@ -69,7 +69,8 @@ impl UserStorage {
             self.user.identity().address().to_string(),
             vault_id.to_string(),
             secret_id.to_string(),
-        ).await?)
+        )
+        .await?)
     }
 
     /// Decrypt a file in the storage location and return the buffer.
@@ -356,11 +357,9 @@ impl UserStorage {
             sources.unwrap_or_else(|| get_file_sources(&secret_data.secret));
         if !files.is_empty() {
             for source in files {
-                let encrypted_file = self.encrypt_file_storage(
-                    summary.id(),
-                    id,
-                    &source.path,
-                ).await?;
+                let encrypted_file = self
+                    .encrypt_file_storage(summary.id(), id, &source.path)
+                    .await?;
                 results.push(FileStorageResult {
                     source,
                     encrypted_file,

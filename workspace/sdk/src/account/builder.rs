@@ -13,8 +13,7 @@ use crate::{
         secret::{Secret, SecretMeta, UserData},
         Gatekeeper, Summary, Vault,
     },
-    vfs,
-    Result,
+    vfs, Result,
 };
 use web3_address::ethereum::Address;
 

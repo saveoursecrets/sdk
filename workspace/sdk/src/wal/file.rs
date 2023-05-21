@@ -21,15 +21,14 @@ use crate::{
     events::SyncEvent,
     formats::{wal_iter, FileItem, WalFileRecord},
     timestamp::Timestamp,
-    vfs,
-    Error, Result,
+    vfs, Error, Result,
 };
+use async_trait::async_trait;
 use std::{
     fs::{File, OpenOptions},
     io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
-use async_trait::async_trait;
 
 use binary_stream::{BinaryReader, Decode, Endian, SliceStream};
 use tempfile::NamedTempFile;

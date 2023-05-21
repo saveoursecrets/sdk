@@ -67,3 +67,21 @@ pub async fn read(path: impl AsRef<Path>) -> Result<Vec<u8>> {
         Err(ErrorKind::NotFound.into())
     }
 }
+
+/// Removes a file from the filesystem.
+pub async fn remove_file(path: impl AsRef<Path>) -> Result<()> {
+    let mut fs = FILE_SYSTEM.write().await;
+    let fd = fs
+        .get(path.as_ref())
+        .map(|fd| matches!(fd, MemoryFd::File(_)));
+    if let Some(is_file) = fd {
+        if is_file {
+            fs.remove(path.as_ref());
+            Ok(())
+        } else {
+            Err(ErrorKind::PermissionDenied.into())
+        }
+    } else {
+        Err(ErrorKind::NotFound.into())
+    }
+}

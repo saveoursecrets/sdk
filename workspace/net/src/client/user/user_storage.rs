@@ -21,8 +21,7 @@ use sos_sdk::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
         Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess, VaultId,
     },
-    Timestamp,
-    vfs,
+    vfs, Timestamp,
 };
 
 use parking_lot::RwLock as SyncRwLock;
@@ -132,7 +131,8 @@ impl UserStorage {
         factory: ProviderFactory,
     ) -> Result<Self> {
         let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
-        let user = Login::sign_in(address, passphrase, identity_index)?;
+        let user =
+            Login::sign_in(address, passphrase, identity_index).await?;
 
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
@@ -1150,11 +1150,15 @@ impl UserStorage {
 
     /// Create a backup archive containing the
     /// encrypted data for the account.
-    pub async fn export_archive_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+    pub async fn export_archive_file<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<()> {
         Ok(AccountBackup::export_archive_file(
             path,
             self.user.identity().address(),
-        ).await?)
+        )
+        .await?)
     }
 
     /// Read the inventory from an archive.

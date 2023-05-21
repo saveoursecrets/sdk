@@ -44,7 +44,8 @@ async fn integration_account_manager() -> Result<()> {
             .create_contacts(true)
             .create_file_password(true)
             .default_folder_name(folder_name)
-            .finish().await?;
+            .finish()
+            .await?;
 
     // Create local provider
     let factory = ProviderFactory::Local;
@@ -64,7 +65,8 @@ async fn integration_account_manager() -> Result<()> {
         &address,
         passphrase.clone(),
         Arc::clone(&identity_index),
-    )?;
+    )
+    .await?;
 
     user.rename_account("New account name".to_string())?;
     assert_eq!("New account name", user.identity().keeper().vault().name());
@@ -119,7 +121,8 @@ async fn integration_account_manager() -> Result<()> {
         &source_file,
         &target,
         file_passphrase.clone(),
-    ).await?;
+    )
+    .await?;
 
     // Decrypt
     let destination = target.join(hex::encode(digest));

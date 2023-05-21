@@ -6,8 +6,8 @@ use crate::{
     timestamp::Timestamp,
     Result,
 };
-use std::path::{Path, PathBuf};
 use async_trait::async_trait;
+use std::path::{Path, PathBuf};
 
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, SeekStream,
