@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::{
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom, Write, Cursor},
     path::{Path, PathBuf},
 };
 use tokio::{fs::File, io::AsyncWriteExt};
@@ -15,7 +15,6 @@ use super::{AuditEvent, AuditProvider};
 
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, Endian,
-    MemoryStream, SeekStream, SliceStream,
 };
 
 /// Represents an audit log file.
@@ -72,7 +71,7 @@ impl AuditLogFile {
         let mut buf = vec![0u8; row_len as usize];
         file.read_exact(&mut buf)?;
 
-        let mut stream = SliceStream::new(&buf);
+        let mut stream = Cursor::new(&buf);
         let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         Ok(AuditLogFile::decode_row(&mut reader)?)
     }
@@ -126,12 +125,13 @@ impl AuditProvider for AuditLogFile {
         events: &[AuditEvent],
     ) -> std::result::Result<(), Self::Error> {
         let buffer: Vec<u8> = {
-            let mut stream = MemoryStream::new();
+            let mut buffer = Vec::new();
+            let mut stream = Cursor::new(&mut buffer);
             let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
             for event in events {
                 AuditLogFile::encode_row(&mut writer, event)?;
             }
-            stream.into()
+            buffer
         };
 
         self.file.write_all(&buffer).await?;

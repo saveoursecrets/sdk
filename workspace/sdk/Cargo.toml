@@ -50,7 +50,7 @@ ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
 bs58 = "0.4"
 urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
-binary-stream = { version = "3.4", features = ["32bit"] }
+binary-stream = { version = "4", features = ["32bit", "async-tokio"] }
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 unicode-segmentation = "1.10"
@@ -76,7 +76,6 @@ version = "1.2"
 git = "https://github.com/tmpfs/rs-merkle"
 branch = "sha2-update"
 #path = "../../../../forks/rs-merkle"
-
 
 [dependencies.chbs]
 version = "0.1.1"

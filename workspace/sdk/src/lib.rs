@@ -9,8 +9,7 @@
 //! securely.
 
 use binary_stream::{
-    BinaryReader, BinaryWriter, Decode, Encode, Endian, MemoryStream,
-    SliceStream,
+    BinaryReader, BinaryWriter, Decode, Encode, Endian,
 };
 
 pub mod account;
@@ -64,17 +63,20 @@ pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
 }
 
 fn encode_endian(encodable: &impl Encode, endian: Endian) -> Result<Vec<u8>> {
-    let mut stream = MemoryStream::new();
+    use std::io::Cursor;
+    let mut buffer = Vec::new();
+    let mut stream = Cursor::new(&mut buffer);
     let mut writer = BinaryWriter::new(&mut stream, endian);
     encodable.encode(&mut writer)?;
-    Ok(stream.into())
+    Ok(buffer)
 }
 
 fn decode_endian<T: Decode + Default>(
     buffer: &[u8],
     endian: Endian,
 ) -> Result<T> {
-    let mut stream = SliceStream::new(buffer);
+    use std::io::Cursor;
+    let mut stream = Cursor::new(buffer);
     let mut reader = BinaryReader::new(&mut stream, endian);
     let mut decoded: T = T::default();
     decoded.decode(&mut reader)?;

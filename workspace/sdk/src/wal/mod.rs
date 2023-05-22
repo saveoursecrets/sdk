@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 
 use binary_stream::{
-    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, SeekStream,
+    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 
 pub mod file;

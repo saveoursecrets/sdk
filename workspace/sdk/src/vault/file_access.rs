@@ -2,7 +2,7 @@
 use std::{
     borrow::Cow,
     fs::OpenOptions,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom, Write, Cursor},
     ops::Range,
     path::Path,
     path::PathBuf,
@@ -10,7 +10,7 @@ use std::{
 };
 
 use binary_stream::{
-    BinaryReader, BinaryWriter, Endian, FileStream, MemoryStream, SeekStream,
+    BinaryReader, BinaryWriter, Endian, 
 };
 
 use uuid::Uuid;
@@ -28,12 +28,12 @@ use crate::{
 };
 
 /// Implements access to an encrypted vault backed by a file on disc.
-pub struct VaultFileAccess {
+pub struct VaultFileAccess<W> where W: Write + Seek {
     file_path: PathBuf,
-    stream: Mutex<FileStream>,
+    stream: Mutex<W>,
 }
 
-impl VaultFileAccess {
+impl<W: Write + Seek> VaultFileAccess<W> {
     /// Create a new vault access.
     ///
     /// The underlying file should already exist and be a valid vault.
@@ -42,7 +42,7 @@ impl VaultFileAccess {
         let file =
             OpenOptions::new().read(true).write(true).open(&file_path)?;
         let _metadata = file.metadata()?;
-        let stream = Mutex::new(FileStream(file));
+        let stream = Mutex::new(file);
         Ok(Self { file_path, stream })
     }
 
@@ -240,12 +240,12 @@ impl VaultAccess for VaultFileAccess {
         let (_content_offset, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
-            let mut stream = MemoryStream::new();
+            let mut buffer = Vec::new();
+            let mut stream = Cursor::new(&mut buffer);
             let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
 
             let row = VaultCommit(commit, secret);
             Contents::encode_row(&mut writer, id, &row)?;
-            let encoded: Vec<u8> = stream.into();
 
             // Splice the row into the file
             let stream = self.stream.lock().unwrap();
@@ -257,7 +257,7 @@ impl VaultAccess for VaultFileAccess {
             // need to account for that too
             let tail = (row_offset + 8 + row_len as u64)..length;
 
-            self.splice(head, tail, Some(&encoded))?;
+            self.splice(head, tail, Some(&buffer))?;
 
             Ok(Some(SyncEvent::UpdateSecret(*id, Cow::Owned(row))))
         } else {
@@ -288,6 +288,7 @@ impl VaultAccess for VaultFileAccess {
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
+    use std::io::{Write, Seek};
     use super::VaultFileAccess;
     use crate::test_utils::*;
     use crate::{
@@ -302,8 +303,8 @@ mod tests {
 
     type SecureNoteResult = (SecretId, SecretMeta, Secret, Vec<u8>, Vec<u8>);
 
-    fn create_secure_note(
-        vault_access: &mut VaultFileAccess,
+    fn create_secure_note<W: Write + Seek>(
+        vault_access: &mut VaultFileAccess<W>,
         vault: &Vault,
         encryption_key: &SecretKey,
         secret_label: &str,

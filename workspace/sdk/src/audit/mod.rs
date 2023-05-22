@@ -1,4 +1,5 @@
 //! Audit logging.
+use std::io::{Write, Read, Seek};
 use async_trait::async_trait;
 use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
@@ -158,7 +159,7 @@ impl AuditEvent {
 }
 
 impl Encode for AuditEvent {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(&self, writer: &mut BinaryWriter<W>) -> BinaryResult<()> {
         // Context bit flags
         let flags = self.log_flags();
         writer.write_u16(flags.bits())?;
@@ -178,7 +179,7 @@ impl Encode for AuditEvent {
 }
 
 impl Decode for AuditEvent {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(&mut self, reader: &mut BinaryReader<R>) -> BinaryResult<()> {
         // Context bit flags
         let bits = reader.read_u16()?;
         // Time - the when

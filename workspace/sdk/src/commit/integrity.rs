@@ -3,14 +3,12 @@ use crate::{
     commit::CommitTree,
     formats::{vault_iter, FileItem, VaultRecord, WalFileRecord},
     wal::{WalItem, WalProvider},
+    vfs,
     Error, Result,
 };
-use binary_stream::{BinaryReader, Endian, FileStream};
+use binary_stream::{tokio::BinaryReader, Endian};
 
 use crate::wal::file::WalFile;
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::fs::File;
 
 use std::path::Path;
 
@@ -19,7 +17,7 @@ use std::path::Path;
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
-pub fn vault_commit_tree_file<P: AsRef<Path>, F>(
+pub async fn vault_commit_tree_file<P: AsRef<Path>, F>(
     vault: P,
     verify: bool,
     func: F,
@@ -30,8 +28,8 @@ where
     let mut tree = CommitTree::new();
     // Need an additional reader as we may also read in the
     // values for the rows
-    let mut stream = FileStream(File::open(vault.as_ref())?);
-    let mut reader = BinaryReader::new(&mut stream, Endian::Little);
+    let mut file = vfs::File::open(vault.as_ref()).await?;
+    let mut reader = BinaryReader::new(&mut file, Endian::Little);
     let it = vault_iter(vault.as_ref())?;
 
     for record in it {
@@ -63,7 +61,7 @@ where
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
-pub fn wal_commit_tree_file<P: AsRef<Path>, F>(
+pub async fn wal_commit_tree_file<P: AsRef<Path>, F>(
     wal_file: P,
     verify: bool,
     func: F,
@@ -75,8 +73,8 @@ where
 
     // Need an additional reader as we may also read in the
     // values for the rows
-    let mut value = FileStream(File::open(wal_file.as_ref())?);
-    let mut reader = BinaryReader::new(&mut value, Endian::Little);
+    let mut file = vfs::File::open(wal_file.as_ref()).await?;
+    let mut reader = BinaryReader::new(&mut file, Endian::Little);
 
     let wal = WalFile::new(wal_file.as_ref())?;
     let it = wal.iter()?;
@@ -132,16 +130,16 @@ mod test {
 
     // TODO: test for corrupt vault / WAL
 
-    #[test]
-    fn integrity_empty_vault() -> Result<()> {
+    #[tokio::test]
+    async fn integrity_empty_vault() -> Result<()> {
         let (temp, _, _) = mock_vault_file()?;
-        let commit_tree = vault_commit_tree_file(temp.path(), true, |_| {})?;
+        let commit_tree = vault_commit_tree_file(temp.path(), true, |_| {}).await?;
         assert!(commit_tree.root().is_none());
         Ok(())
     }
 
-    #[test]
-    fn integrity_vault() -> Result<()> {
+    #[tokio::test]
+    async fn integrity_vault() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, _) = mock_vault_file()?;
         let secret_label = "Test note";
@@ -157,15 +155,15 @@ mod test {
         let mut temp = NamedTempFile::new()?;
         temp.write_all(&buffer)?;
 
-        let commit_tree = vault_commit_tree_file(temp.path(), true, |_| {})?;
+        let commit_tree = vault_commit_tree_file(temp.path(), true, |_| {}).await?;
         assert!(commit_tree.root().is_some());
         Ok(())
     }
 
-    #[test]
-    fn integrity_wal() -> Result<()> {
+    #[tokio::test]
+    async fn integrity_wal() -> Result<()> {
         let (temp, _, _, _) = mock_wal_file()?;
-        let commit_tree = wal_commit_tree_file(temp.path(), true, |_| {})?;
+        let commit_tree = wal_commit_tree_file(temp.path(), true, |_| {}).await?;
         assert!(commit_tree.root().is_some());
         Ok(())
     }

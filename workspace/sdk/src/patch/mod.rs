@@ -1,7 +1,6 @@
 //! Patch represents a changeset of events to apply to a vault.
 use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-    SeekStream,
 };
 
 use std::path::Path;

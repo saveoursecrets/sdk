@@ -1,8 +1,8 @@
 //! File format iterators.
-use std::ops::Range;
+use std::{ops::Range, io::{Read, Seek}};
 
 use binary_stream::{
-    BinaryReader, BinaryResult, Decode, Endian, ReadStream, SeekStream,
+    BinaryReader, BinaryResult, Decode, Endian, 
 };
 
 use crate::{
@@ -19,9 +19,6 @@ use crate::{
 use std::fs::File;
 
 use std::path::Path;
-
-#[cfg(not(target_arch = "wasm32"))]
-use binary_stream::FileStream;
 
 /// Get an iterator for a vault file.
 pub fn vault_iter<P: AsRef<Path>>(
@@ -238,7 +235,7 @@ impl Decode for WalFileRecord {
 }
 
 /// Generic iterator for files.
-pub struct ReadStreamIterator<T: FileItem> {
+pub struct ReadStreamIterator<R, T: FileItem> where R: Read + Seek {
     /// Offset from the beginning of the stream where
     /// iteration should start and reverse iteration
     /// should complete.
@@ -259,7 +256,7 @@ pub struct ReadStreamIterator<T: FileItem> {
     /// but sometimes need to read the row data too.
     data_length_prefix: bool,
     /// The read stream.
-    read_stream: Box<dyn ReadStream>,
+    read_stream: Box<R>,
     /// Byte offset for forward iteration.
     forward: Option<u64>,
     /// Byte offset for backward iteration.
@@ -268,7 +265,7 @@ pub struct ReadStreamIterator<T: FileItem> {
     marker: std::marker::PhantomData<T>,
 }
 
-impl<T: FileItem> ReadStreamIterator<T> {
+impl<R: Read + Seek, T: FileItem> ReadStreamIterator<R, T> {
     /// Create a new file iterator.
     fn new_file<P: AsRef<Path>>(
         file_path: P,
@@ -277,8 +274,8 @@ impl<T: FileItem> ReadStreamIterator<T> {
         header_offset: Option<u64>,
     ) -> Result<Self> {
         FileIdentity::read_file(file_path.as_ref(), identity)?;
-        let mut read_stream: Box<dyn ReadStream> =
-            Box::new(FileStream(File::open(file_path.as_ref())?));
+        let mut read_stream: Box<R> =
+            Box::new(File::open(file_path.as_ref())?);
 
         let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(header_offset)?;

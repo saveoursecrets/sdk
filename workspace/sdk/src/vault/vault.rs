@@ -3,12 +3,13 @@ use serde::{Deserialize, Serialize};
 
 use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-    Endian, FileStream, ReadStream, SeekStream, SliceStream, WriteStream,
+    Endian, 
 };
 
 use bitflags::bitflags;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
+    io::{Read, Write, Seek, Cursor},
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, fs::File,
     path::Path, str::FromStr,
 };
@@ -552,21 +553,21 @@ impl Header {
     /// Read the content offset for a vault file verifying
     /// the identity bytes first.
     pub fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<u64> {
-        let mut stream = FileStream(File::open(path.as_ref())?);
+        let mut stream = File::open(path.as_ref())?;
         Header::read_content_offset_stream(&mut stream)
     }
 
     /// Read the content offset for a vault slice verifying
     /// the identity bytes first.
     pub fn read_content_offset_slice(buffer: &[u8]) -> Result<u64> {
-        let mut stream = SliceStream::new(buffer);
+        let mut stream = Cursor::new(buffer);
         Header::read_content_offset_stream(&mut stream)
     }
 
     /// Read the content offset for a stream verifying
     /// the identity bytes first.
-    pub fn read_content_offset_stream(
-        stream: &mut dyn ReadStream,
+    pub fn read_content_offset_stream<R: Read + Seek>(
+        stream: R,
     ) -> Result<u64> {
         let mut reader = BinaryReader::new(stream, Endian::Little);
         let identity = reader.read_bytes(VAULT_IDENTITY.len())?;
@@ -578,18 +579,18 @@ impl Header {
 
     /// Read the summary for a vault from a file.
     pub fn read_summary_file<P: AsRef<Path>>(file: P) -> Result<Summary> {
-        let mut stream = FileStream(File::open(file.as_ref())?);
+        let mut stream = File::open(file.as_ref())?;
         Header::read_summary_stream(&mut stream)
     }
 
     /// Read the summary for a slice of bytes.
     pub fn read_summary_slice(buffer: &[u8]) -> Result<Summary> {
-        let mut stream = SliceStream::new(buffer);
+        let mut stream = Cursor::new(buffer);
         Header::read_summary_stream(&mut stream)
     }
 
     /// Read the summary from a stream.
-    fn read_summary_stream(stream: &mut impl ReadStream) -> Result<Summary> {
+    fn read_summary_stream<R: Read + Seek>(stream: R) -> Result<Summary> {
         let mut reader = BinaryReader::new(stream, Endian::Little);
 
         // Read magic identity bytes
@@ -607,13 +608,13 @@ impl Header {
 
     /// Read the header for a vault from a file.
     pub fn read_header_file<P: AsRef<Path>>(file: P) -> Result<Header> {
-        let mut stream = FileStream(File::open(file.as_ref())?);
+        let mut stream = File::open(file.as_ref())?;
         Header::read_header_stream(&mut stream)
     }
 
     /// Read the header from a stream.
-    pub(crate) fn read_header_stream(
-        stream: &mut impl ReadStream,
+    pub(crate) fn read_header_stream<R: Read + Seek>(
+        stream: R,
     ) -> Result<Header> {
         let mut reader = BinaryReader::new(stream, Endian::Little);
         let mut header: Header = Default::default();
@@ -1066,34 +1067,18 @@ impl Vault {
             .collect::<HashMap<_, _>>()
     }
 
-    /// Encode a vault to binary.
-    pub fn encode(
-        stream: &mut impl WriteStream,
-        vault: &Vault,
-    ) -> Result<()> {
-        let mut writer = BinaryWriter::new(stream, Endian::Little);
-        vault.encode(&mut writer)?;
-        Ok(())
-    }
-
-    /// Decode a vault from binary.
-    pub fn decode(stream: &mut impl ReadStream) -> Result<Vault> {
-        let mut vault: Vault = Default::default();
-        let mut reader = BinaryReader::new(stream, Endian::Little);
-        vault.decode(&mut reader)?;
-        Ok(vault)
-    }
-
     /// Read a vault from a file.
     pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Vault> {
-        let mut stream = FileStream(File::open(path)?);
-        Vault::decode(&mut stream)
+        let mut stream = File::open(path)?;
+        let vault: Vault = decode(&mut stream)?;
+        Ok(vault)
     }
 
     /// Write this vault to a file.
     pub fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        let mut stream = FileStream(File::create(path)?);
-        Vault::encode(&mut stream, self)
+        let mut stream = File::create(path)?;
+        let buffer = encode(self)?;
+        stream.write_all(&buffer)?;
     }
 
     /// Compute the hash of the encoded encrypted buffer for the meta and secret data.
@@ -1216,20 +1201,16 @@ mod tests {
     use super::*;
     use crate::vault::secret::*;
 
-    use crate::{decode, test_utils::*};
+    use crate::{encode, decode, test_utils::*};
 
     use anyhow::Result;
-    use binary_stream::MemoryStream;
     use secrecy::ExposeSecret;
 
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
         let vault = mock_vault();
-        let mut stream = MemoryStream::new();
-        Vault::encode(&mut stream, &vault)?;
-
-        stream.seek(0)?;
-        let decoded = Vault::decode(&mut stream)?;
+        let mut buffer = encode(&vault)?;
+        let decoded = decode(&buffer)?;
         assert_eq!(vault, decoded);
         Ok(())
     }
@@ -1251,11 +1232,8 @@ mod tests {
                 secret_note,
             )?;
 
-        let mut stream = MemoryStream::new();
-        Vault::encode(&mut stream, &vault)?;
-
-        stream.seek(0)?;
-        let decoded = Vault::decode(&mut stream)?;
+        let buffer = encode(&vault)?;
+        let decoded: Vault = decode(&buffer)?;
         assert_eq!(vault, decoded);
 
         let (row, _) = decoded.read(&secret_id)?;

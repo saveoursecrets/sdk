@@ -668,11 +668,13 @@ checksum = "230c5f1ca6a325a32553f8640d31ac9b49f2411e901e427570154868b46da4f7"
 
 [[package]]
 name = "binary-stream"
-version = "3.4.0"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4ef03ef225ea9a0b680a5926a58cb45d8eb56abf23d8a8b5c5dbc61235e2dac"
+checksum = "22fd9d6aadf0226432e9322ff9de62200ebf51cf21568934314578ea4d53808a"
 dependencies = [
+ "rustc_version",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

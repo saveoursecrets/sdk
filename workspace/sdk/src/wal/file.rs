@@ -26,11 +26,11 @@ use crate::{
 use async_trait::async_trait;
 use std::{
     fs::{File, OpenOptions},
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom, Write, Cursor},
     path::{Path, PathBuf},
 };
 
-use binary_stream::{BinaryReader, Decode, Endian, SliceStream};
+use binary_stream::{BinaryReader, Decode, Endian};
 use tempfile::NamedTempFile;
 
 use super::{reducer::WalReducer, WalItem, WalProvider, WalRecord};
@@ -120,7 +120,7 @@ impl WalProvider for WalFile {
         new_wal.load_tree()?;
 
         // Verify the new WAL tree
-        wal_commit_tree_file(new_wal.path(), true, |_| {})?;
+        wal_commit_tree_file(new_wal.path(), true, |_| {}).await?;
 
         // Need to recreate the WAL file and load the updated
         // commit tree
@@ -270,7 +270,7 @@ impl WalProvider for WalFile {
         let mut buffer = vec![0; (value.end - value.start) as usize];
         file.read_exact(buffer.as_mut_slice())?;
 
-        let mut stream = SliceStream::new(&buffer);
+        let mut stream = Cursor::new(&mut buffer);
         let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         let mut event: SyncEvent = Default::default();
         event.decode(&mut reader)?;
