@@ -11,13 +11,11 @@ use crate::{
     Result,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
 mod file;
-#[cfg(not(target_arch = "wasm32"))]
 pub use file::PatchFile;
 
-mod memory;
-pub use memory::PatchMemory;
+//mod memory;
+//pub use memory::PatchMemory;
 
 /// Trait for types that cache events in a patch.
 pub trait PatchProvider {

@@ -127,7 +127,7 @@ impl WalProvider for WalFile {
         Ok((new_wal, old_size, new_size))
     }
 
-    async fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
+    async fn write_buffer(&mut self, buffer: &[u8]) -> Result<()> {
         vfs::write(self.path(), buffer).await?;
         self.load_tree()?;
         Ok(())

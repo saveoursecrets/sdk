@@ -7,11 +7,12 @@ use crate::{
 };
 use binary_stream::{BinaryReader, Endian, FileStream};
 
-#[cfg(not(target_arch = "wasm32"))]
 use crate::wal::file::WalFile;
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::{fs::File, path::Path};
+use std::fs::File;
+
+use std::path::Path;
 
 /// Build a commit tree from a vault file optionally
 /// verifying all the row checksums.

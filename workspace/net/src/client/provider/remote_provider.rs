@@ -10,18 +10,17 @@ use sos_sdk::{
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
-    patch::{PatchMemory, PatchProvider},
+    patch::PatchProvider,
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary, Vault,
     },
     vfs,
-    wal::{memory::WalMemory, reducer::WalReducer, WalItem, WalProvider},
+    wal::{reducer::WalReducer, WalItem, WalProvider},
     Timestamp,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
 use sos_sdk::{patch::PatchFile, wal::file::WalFile};
 
 use std::{
@@ -79,6 +78,7 @@ impl RemoteProvider<WalFile, PatchFile> {
     }
 }
 
+/*
 impl RemoteProvider<WalMemory, PatchMemory<'static>> {
     /// Create new node cache backed by memory.
     pub fn new_memory_cache(
@@ -92,6 +92,7 @@ impl RemoteProvider<WalMemory, PatchMemory<'static>> {
         }
     }
 }
+*/
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

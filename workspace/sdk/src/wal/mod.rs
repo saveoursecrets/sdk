@@ -14,7 +14,7 @@ use binary_stream::{
 };
 
 pub mod file;
-pub mod memory;
+//pub mod memory;
 pub mod reducer;
 
 /// Trait for implementations that provide access to a write-ahead log (WAL).
@@ -67,7 +67,7 @@ pub trait WalProvider {
     /// Replace this WAL with the contents of the buffer.
     ///
     /// The buffer should start with the WAL identity bytes.
-    async fn write_buffer(&mut self, buffer: Vec<u8>) -> Result<()>;
+    async fn write_buffer(&mut self, buffer: &[u8]) -> Result<()>;
 
     /// Append the buffer to the contents of this WAL.
     ///
@@ -236,13 +236,15 @@ impl Decode for WalRecord {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use std::{borrow::Cow, path::PathBuf};
+    use std::{borrow::Cow, io::Write, path::PathBuf};
+    use tempfile::NamedTempFile;
     use uuid::Uuid;
 
-    use super::{file::*, memory::*, *};
+    use super::{file::*, *};
     use crate::{
         commit::{CommitHash, CommitTree, Comparison},
-        encode,
+        constants::WAL_IDENTITY,
+        decode, encode,
         events::SyncEvent,
         vault::{secret::SecretId, Vault, VaultCommit, VaultEntry},
     };
@@ -256,7 +258,7 @@ mod test {
         Ok((id, Cow::Owned(result)))
     }
 
-    fn mock_wal_standalone() -> Result<(WalMemory, SecretId)> {
+    fn mock_wal_standalone() -> Result<(WalFile, SecretId)> {
         let mut vault: Vault = Default::default();
         vault.set_name(String::from("Standalone vault"));
         let vault_buffer = encode(&vault)?;
@@ -264,7 +266,7 @@ mod test {
         let (id, data) = mock_secret()?;
 
         // Create a simple WAL
-        let mut server: WalMemory = Default::default();
+        let mut server = WalFile::new("target/mock-wal-standalone.wal")?;
         server.apply(
             vec![
                 SyncEvent::CreateVault(Cow::Owned(vault_buffer)),
@@ -276,14 +278,23 @@ mod test {
         Ok((server, id))
     }
 
-    fn mock_wal_server_client() -> Result<(WalMemory, WalMemory, SecretId)> {
+    fn mock_wal_server_client() -> Result<(WalFile, WalFile, SecretId)> {
+        let server_file = PathBuf::from("target/mock-wal-server.wal");
+        let client_file = PathBuf::from("target/mock-wal-client.wal");
+        if server_file.exists() {
+            std::fs::remove_file(&server_file)?;
+        }
+        if client_file.exists() {
+            std::fs::remove_file(&client_file)?;
+        }
+
         let vault: Vault = Default::default();
         let vault_buffer = encode(&vault)?;
 
         let (id, data) = mock_secret()?;
 
         // Create a simple WAL
-        let mut server: WalMemory = Default::default();
+        let mut server = WalFile::new(&server_file)?;
         server.apply(
             vec![
                 SyncEvent::CreateVault(Cow::Owned(vault_buffer)),
@@ -293,7 +304,7 @@ mod test {
         )?;
 
         // Duplicate the server events on the client
-        let mut client: WalMemory = Default::default();
+        let mut client = WalFile::new(&client_file)?;
         for record in server.iter()? {
             let record = record?;
             let event = server.event_data(&record)?;
@@ -343,8 +354,13 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn wal_diff() -> Result<()> {
+    #[tokio::test]
+    async fn wal_diff() -> Result<()> {
+        let partial = PathBuf::from("target/mock-wal-partial.wal");
+        if partial.exists() {
+            std::fs::remove_file(&partial)?;
+        }
+
         let (mut server, client, id) = mock_wal_server_client()?;
 
         // Add another event to the server from another client.
@@ -360,9 +376,17 @@ mod test {
         if let Comparison::Contains(indices, leaves) = comparison {
             assert_eq!(vec![1], indices);
             let leaf = leaves.first().unwrap();
-            if let Some(records) = server.diff(*leaf)? {
+            if let Some(buffer) = server.diff(*leaf)? {
+                let mut partial_log = WalFile::new(&partial)?;
+                partial_log.write_buffer(&buffer).await?;
+                let records: Vec<_> = partial_log.iter()?.collect();
                 assert_eq!(1, records.len());
-                assert_eq!(&record, records.get(0).unwrap());
+                if let Some(diff_record) = records.get(0) {
+                    let diff_record = diff_record.as_ref().unwrap();
+                    assert_eq!(&record, diff_record);
+                } else {
+                    panic!("expecting record");
+                }
             } else {
                 panic!("expected records from diff result");
             }
@@ -386,6 +410,7 @@ mod test {
         Ok(())
     }
 
+    /*
     #[tokio::test]
     async fn wal_memory_parse() {
         let buffer =
@@ -393,4 +418,5 @@ mod test {
         let mut wal = WalMemory::new(PathBuf::from("")).unwrap();
         wal.write_buffer(buffer.to_vec()).await.unwrap();
     }
+    */
 }

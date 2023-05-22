@@ -16,33 +16,20 @@ use crate::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::{fs::File, path::Path};
+use std::fs::File;
+
+use std::path::Path;
 
 #[cfg(not(target_arch = "wasm32"))]
 use binary_stream::FileStream;
 
 /// Get an iterator for a vault file.
-#[cfg(not(target_arch = "wasm32"))]
 pub fn vault_iter<P: AsRef<Path>>(
     path: P,
 ) -> Result<ReadStreamIterator<VaultRecord>> {
     let content_offset = Header::read_content_offset(path.as_ref())?;
     ReadStreamIterator::<VaultRecord>::new_file(
         path.as_ref(),
-        &VAULT_IDENTITY,
-        true,
-        Some(content_offset),
-    )
-}
-
-/// Get an iterator for a vault buffer.
-#[cfg(target_arch = "wasm32")]
-pub fn vault_iter(
-    buffer: Vec<u8>,
-) -> Result<ReadStreamIterator<VaultRecord>> {
-    let content_offset = Header::read_content_offset_slice(&buffer)?;
-    ReadStreamIterator::<VaultRecord>::new_memory(
-        buffer,
         &VAULT_IDENTITY,
         true,
         Some(content_offset),
@@ -61,47 +48,18 @@ pub fn wal_iter<P: AsRef<Path>>(
     )
 }
 
-/*
-/// Get an iterator for a WAL file.
-#[cfg(target_arch = "wasm32")]
-pub fn wal_iter(
-    buffer: Vec<u8>,
-) -> Result<ReadStreamIterator<WalFileRecord>> {
-    ReadStreamIterator::<WalFileRecord>::new_memory(
-        buffer,
-        &WAL_IDENTITY,
-        true,
-        None,
-    )
-}
-*/
-
 /// Get an iterator for a patch file.
-#[cfg(not(target_arch = "wasm32"))]
 pub fn patch_iter<P: AsRef<Path>>(
     path: P,
 ) -> Result<ReadStreamIterator<FileRecord>> {
     ReadStreamIterator::new_file(path.as_ref(), &PATCH_IDENTITY, false, None)
 }
 
-/// Get an iterator for a patch file.
-#[cfg(target_arch = "wasm32")]
-pub fn patch_iter(buffer: Vec<u8>) -> Result<ReadStreamIterator<FileRecord>> {
-    ReadStreamIterator::new_memory(buffer, &PATCH_IDENTITY, false, None)
-}
-
 /// Get an iterator for an audit file.
-#[cfg(not(target_arch = "wasm32"))]
 pub fn audit_iter<P: AsRef<Path>>(
     path: P,
 ) -> Result<ReadStreamIterator<FileRecord>> {
     ReadStreamIterator::new_file(path.as_ref(), &AUDIT_IDENTITY, false, None)
-}
-
-/// Get an iterator for an audit file.
-#[cfg(target_arch = "wasm32")]
-pub fn audit_iter(buffer: Vec<u8>) -> Result<ReadStreamIterator<FileRecord>> {
-    ReadStreamIterator::new_memory(buffer, &AUDIT_IDENTITY, false, None)
 }
 
 /// Trait for types yielded by the file iterator.
@@ -216,7 +174,7 @@ impl Decode for VaultRecord {
 }
 
 /// Reference to a row in the write ahead log.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Eq)]
 pub struct WalFileRecord {
     /// Byte offset for the record.
     offset: Range<u64>,
@@ -228,6 +186,14 @@ pub struct WalFileRecord {
     pub(crate) last_commit: [u8; 32],
     /// The commit hash for the value.
     pub(crate) commit: [u8; 32],
+}
+
+impl PartialEq for WalFileRecord {
+    fn eq(&self, other: &Self) -> bool {
+        self.time == other.time
+            && self.commit == other.commit
+            && self.last_commit == other.last_commit
+    }
 }
 
 impl FileItem for WalFileRecord {
@@ -304,7 +270,6 @@ pub struct ReadStreamIterator<T: FileItem> {
 
 impl<T: FileItem> ReadStreamIterator<T> {
     /// Create a new file iterator.
-    #[cfg(not(target_arch = "wasm32"))]
     fn new_file<P: AsRef<Path>>(
         file_path: P,
         identity: &'static [u8],
@@ -328,6 +293,7 @@ impl<T: FileItem> ReadStreamIterator<T> {
         })
     }
 
+    /*
     /// Create a new memory iterator.
     pub fn new_memory(
         buffer: Vec<u8>,
@@ -353,6 +319,7 @@ impl<T: FileItem> ReadStreamIterator<T> {
             marker: std::marker::PhantomData,
         })
     }
+    */
 
     /// Set the byte offset that constrains iteration.
     ///

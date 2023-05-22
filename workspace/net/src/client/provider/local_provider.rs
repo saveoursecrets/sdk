@@ -12,10 +12,10 @@ use sos_sdk::{
     constants::VAULT_EXT,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
-    patch::{PatchMemory, PatchProvider},
+    patch::PatchProvider,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
-    wal::{memory::WalMemory, reducer::WalReducer, WalItem, WalProvider},
+    wal::{reducer::WalReducer, WalItem, WalProvider},
     Timestamp,
 };
 
@@ -49,7 +49,6 @@ pub struct LocalProvider<W, P> {
     cache: HashMap<VaultId, (W, P)>,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl LocalProvider<WalFile, PatchFile> {
     /// Create new node cache backed by files on disc.
     pub fn new_file_storage(
@@ -71,6 +70,7 @@ impl LocalProvider<WalFile, PatchFile> {
     }
 }
 
+/*
 impl LocalProvider<WalMemory, PatchMemory<'static>> {
     /// Create new local storage backed by memory.
     pub fn new_memory_storage(
@@ -82,6 +82,7 @@ impl LocalProvider<WalMemory, PatchMemory<'static>> {
         }
     }
 }
+*/
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

@@ -126,14 +126,6 @@ where
 
 #[tokio::test]
 #[serial]
-async fn integration_local_provider_memory() -> Result<()> {
-    let mut storage = LocalProvider::new_memory_storage();
-    run_local_storage_tests(&mut storage).await?;
-    Ok(())
-}
-
-#[tokio::test]
-#[serial]
 async fn integration_local_provider_file() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());

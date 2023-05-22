@@ -92,6 +92,7 @@ rustc_version = "0.4.0"
 
 [dev-dependencies]
 anyhow = "1"
+tokio = { version = "1", features = ["full"] }
 
 [package.metadata.release]
 tag = false

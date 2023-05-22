@@ -45,14 +45,12 @@ pub(crate) fn assert_proofs_eq(
 
 mod local_provider;
 mod macros;
-mod memory_provider;
 mod provider_factory;
 mod remote_provider;
 mod state;
 mod sync;
 
 pub use local_provider::LocalProvider;
-pub use memory_provider::MemoryProvider;
 #[cfg(not(target_arch = "wasm32"))]
 pub use provider_factory::spawn_changes_listener;
 pub use provider_factory::{ArcProvider, ProviderFactory};
