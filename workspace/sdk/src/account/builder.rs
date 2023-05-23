@@ -271,7 +271,6 @@ impl AccountBuilder {
         ))
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     /// Write the identity vault to disc and prepare storage directories.
     pub async fn write(
         identity_vault: Vault,
@@ -291,7 +290,6 @@ impl AccountBuilder {
     }
 
     /// Create a new account and write the identity vault to disc.
-    #[cfg(not(target_arch = "wasm32"))]
     pub async fn finish(self) -> Result<NewAccount> {
         let (identity_vault, account) = self.build()?;
         Self::write(identity_vault, account).await

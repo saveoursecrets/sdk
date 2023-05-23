@@ -390,22 +390,18 @@ pub enum Error {
     Merkle(#[from] rs_merkle::Error),
 
     /// Error generated converting time types.
-    //#[cfg(not(target_arch = "wasm32"))]
     #[error(transparent)]
     Time(#[from] time::error::ComponentRange),
 
     /// Error generated formatting time.
-    //#[cfg(not(target_arch = "wasm32"))]
     #[error(transparent)]
     TimeFormat(#[from] time::error::Format),
 
     /// Error generated parsing time.
-    //#[cfg(not(target_arch = "wasm32"))]
     #[error(transparent)]
     TimeParse(#[from] time::error::Parse),
 
     /// Error generated creating format descriptions for date formatting.
-    //#[cfg(not(target_arch = "wasm32"))]
     #[error(transparent)]
     InvalidFormat(#[from] time::error::InvalidFormatDescription),
 

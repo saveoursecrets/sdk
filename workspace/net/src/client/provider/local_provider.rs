@@ -55,8 +55,6 @@ impl LocalProvider {
             ));
         }
 
-        //dirs.ensure()?;
-
         Ok(Self {
             state: ProviderState::new(true),
             cache: Default::default(),

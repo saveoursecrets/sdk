@@ -129,7 +129,6 @@ pub trait StorageProvider: Sync + Send {
     /// Restore vaults from an archive.
     ///
     /// Buffer is the compressed archive contents.
-    #[cfg(not(target_arch = "wasm32"))]
     async fn restore_archive(
         &mut self,
         targets: &RestoreTargets,
