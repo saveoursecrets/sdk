@@ -603,6 +603,7 @@ impl AccountBackup {
                 &identity.1,
                 passphrase.clone(),
                 None,
+                None,
             )?;
             if user.address() != &address {
                 return Err(Error::ArchiveAddressMismatch);

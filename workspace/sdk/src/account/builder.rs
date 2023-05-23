@@ -11,7 +11,7 @@ use crate::{
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretMeta, UserData},
-        Gatekeeper, Summary, Vault,
+        Gatekeeper, Summary, Vault, VaultWriter,
     },
     vfs, Result,
 };
@@ -138,7 +138,7 @@ impl AccountBuilder {
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault)?;
-        let user = Identity::login_buffer(buffer, passphrase.clone(), None)?;
+        let user = Identity::login_buffer(buffer, passphrase.clone(), None, None)?;
 
         // Prepare the passphrase for the default vault
         let vault_passphrase =
@@ -172,7 +172,18 @@ impl AccountBuilder {
         }
 
         // Store the vault passphrase in the identity vault
-        let mut keeper = Gatekeeper::new(identity_vault, None);
+        /*
+        let identity_vault_path =
+            StorageDirs::identity_vault(user.address().to_string())?;
+        std::fs::File::create(&identity_vault_path)?;
+        let identity_vault_file =
+            VaultWriter::open(&identity_vault_path)?;
+        */
+        let mut keeper = Gatekeeper::new(
+            identity_vault,
+            //VaultWriter::new(identity_vault_path, identity_vault_file)?,
+            None,
+        );
         keeper.unlock(passphrase)?;
 
         DelegatedPassphrase::save_vault_passphrase(
@@ -190,7 +201,8 @@ impl AccountBuilder {
                 user_data: UserData::new_comment(address.to_string()),
             };
             let mut meta =
-                SecretMeta::new("File Encryption".to_string(), secret.kind());
+                SecretMeta::new(
+                    "File Encryption".to_string(), secret.kind());
             let urn: Urn = FILE_PASSWORD_URN.parse()?;
             meta.set_urn(Some(urn));
             keeper.create(meta, secret)?;
