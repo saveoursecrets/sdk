@@ -7,7 +7,6 @@ use sos_sdk::{
     events::{ChangeEvent, ChangeNotification, EventKind, SyncEvent},
     patch::Patch,
     rpc::{RequestMessage, ResponseMessage, Service},
-    wal::WalProvider,
 };
 use web3_address::ethereum::Address;
 

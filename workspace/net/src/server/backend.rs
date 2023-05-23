@@ -8,7 +8,7 @@ use sos_sdk::{
     formats::WalFileRecord,
     vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
     vfs,
-    wal::{file::WalFile, reducer::WalReducer, WalProvider},
+    wal::{file::WalFile, reducer::WalReducer},
 };
 use std::{
     borrow::Cow,
@@ -50,7 +50,7 @@ impl Backend {
         owner: &Address,
         vault_id: &Uuid,
     ) -> Result<
-        &(impl WalProvider<Item = WalFileRecord, Partial = Vec<u8>> + Send + Sync),
+        &WalFile
     > {
         match self {
             Self::FileSystem(handler) => {
@@ -65,9 +65,7 @@ impl Backend {
         owner: &Address,
         vault_id: &Uuid,
     ) -> Result<
-        &mut (impl WalProvider<Item = WalFileRecord, Partial = Vec<u8>>
-                  + Send
-                  + Sync),
+        &mut WalFile
     > {
         match self {
             Self::FileSystem(handler) => {

@@ -33,7 +33,7 @@ use std::{
 use binary_stream::{BinaryReader, Decode, Endian};
 use tempfile::NamedTempFile;
 
-use super::{reducer::WalReducer, WalItem, WalProvider, WalRecord};
+use super::{reducer::WalReducer, WalItem, WalRecord};
 
 /// A write ahead log that appends to a file.
 pub struct WalFile {
@@ -43,6 +43,17 @@ pub struct WalFile {
 }
 
 impl WalFile {
+
+    /// Create a new log file.
+    pub fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        let file = WalFile::create(file_path.as_ref())?;
+        Ok(Self {
+            file,
+            file_path: file_path.as_ref().to_path_buf(),
+            tree: Default::default(),
+        })
+    }
+
     /// Create the write ahead log file.
     fn create<P: AsRef<Path>>(path: P) -> Result<File> {
         let exists = path.as_ref().exists();
@@ -81,24 +92,9 @@ impl WalFile {
         let record = WalRecord(time, last_commit, commit, bytes);
         Ok((commit, record))
     }
-}
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl WalProvider for WalFile {
-    type Item = WalFileRecord;
-    type Partial = Vec<u8>;
-
-    fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let file = WalFile::create(file_path.as_ref())?;
-        Ok(Self {
-            file,
-            file_path: file_path.as_ref().to_path_buf(),
-            tree: Default::default(),
-        })
-    }
-
-    async fn compact(&self) -> Result<(Self, u64, u64)> {
+    /// Get a copy of this WAL compacted.
+    pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.path().metadata()?.len();
 
         // Get the reduced set of events
@@ -127,13 +123,19 @@ impl WalProvider for WalFile {
         Ok((new_wal, old_size, new_size))
     }
 
-    async fn write_buffer(&mut self, buffer: &[u8]) -> Result<()> {
+    /// Replace this WAL with the contents of the buffer.
+    ///
+    /// The buffer should start with the WAL identity bytes.
+    pub async fn write_buffer(&mut self, buffer: &[u8]) -> Result<()> {
         vfs::write(self.path(), buffer).await?;
         self.load_tree()?;
         Ok(())
     }
 
-    fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
+    /// Append the buffer to the contents of this WAL.
+    ///
+    /// The buffer should start with the WAL identity bytes.
+    pub fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
         // Get buffer of log records after the identity bytes
         let buffer = &buffer[WAL_IDENTITY.len()..];
 
@@ -153,7 +155,8 @@ impl WalProvider for WalFile {
         Ok(())
     }
 
-    fn tail(&self, item: Self::Item) -> Result<Self::Partial> {
+    /// Get the tail after the given item until the end of the log.
+    pub fn tail(&self, item: WalFileRecord) -> Result<Vec<u8>> {
         let mut partial = WAL_IDENTITY.to_vec();
         let start = item.offset().end as usize;
         let mut file = File::open(&self.file_path)?;
@@ -170,7 +173,8 @@ impl WalProvider for WalFile {
         }
     }
 
-    fn read_buffer(&self, record: &Self::Item) -> Result<Vec<u8>> {
+    /// Read or encode the bytes for the item.
+    pub fn read_buffer(&self, record: &WalFileRecord) -> Result<Vec<u8>> {
         let mut file = File::open(&self.file_path)?;
         let offset = record.offset();
         let row_len = offset.end - offset.start;
@@ -183,15 +187,22 @@ impl WalProvider for WalFile {
         Ok(buf)
     }
 
-    fn path(&self) -> &PathBuf {
+    /// Get the path for this provider.
+    pub fn path(&self) -> &PathBuf {
         &self.file_path
     }
 
-    fn tree(&self) -> &CommitTree {
+    /// Get the commit tree for the log records.
+    pub fn tree(&self) -> &CommitTree {
         &self.tree
     }
 
-    fn apply(
+    /// Append a collection of events and commit the tree hashes
+    /// only if all the events were successfully persisted.
+    ///
+    /// If any events fail this function will rollback the
+    /// WAL to it's previous state.
+    pub fn apply(
         &mut self,
         events: Vec<SyncEvent<'_>>,
         expect: Option<CommitHash>,
@@ -250,7 +261,9 @@ impl WalProvider for WalFile {
         }
     }
 
-    fn append_event(&mut self, event: SyncEvent<'_>) -> Result<CommitHash> {
+    /// Append a log event to the write ahead log and commit
+    /// the hash to the commit tree.
+    pub fn append_event(&mut self, event: SyncEvent<'_>) -> Result<CommitHash> {
         let (commit, record) = self.encode_event(event, None)?;
         let buffer = encode(&record)?;
         self.file.write_all(&buffer)?;
@@ -259,7 +272,8 @@ impl WalProvider for WalFile {
         Ok(commit)
     }
 
-    fn event_data(&self, item: &Self::Item) -> Result<SyncEvent<'_>> {
+    /// Read the event data from an item.
+    pub fn event_data(&self, item: &WalFileRecord) -> Result<SyncEvent<'_>> {
         let value = item.value();
 
         // Use a different file handle as the owned `file` should
@@ -277,7 +291,9 @@ impl WalProvider for WalFile {
         Ok(event)
     }
 
-    fn load_tree(&mut self) -> Result<()> {
+    /// Load any cached data into the WAL implementation
+    /// to build a commit tree in memory.
+    pub fn load_tree(&mut self) -> Result<()> {
         let mut commits = Vec::new();
         for record in self.iter()? {
             let record = record?;
@@ -289,19 +305,47 @@ impl WalProvider for WalFile {
         Ok(())
     }
 
-    fn clear(&mut self) -> Result<()> {
+    /// Clear all events from this log file.
+    pub fn clear(&mut self) -> Result<()> {
         self.file = File::create(&self.file_path)?;
         self.file.write_all(&WAL_IDENTITY)?;
         self.tree = CommitTree::new();
         Ok(())
     }
 
-    fn iter(
+    /// Get an iterator of the log records.
+    pub fn iter(
         &self,
     ) -> Result<
-        Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + Send + '_>,
+        Box<dyn DoubleEndedIterator<Item = Result<WalFileRecord>> + Send + '_>,
     > {
         Ok(Box::new(wal_iter(&self.file_path)?))
+    }
+
+    /// Get the last commit hash.
+    pub fn last_commit(&self) -> Result<Option<CommitHash>> {
+        let mut it = self.iter()?;
+        if let Some(record) = it.next_back() {
+            let record = record?;
+            let buffer = self.read_buffer(&record)?;
+            let last_record_hash = CommitTree::hash(&buffer);
+            Ok(Some(CommitHash(last_record_hash)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get a diff of the records after the record with the
+    /// given commit hash.
+    pub fn diff(&self, commit: [u8; 32]) -> Result<Option<Vec<u8>>> {
+        let it = self.iter()?.rev();
+        for record in it {
+            let record = record?;
+            if record.commit() == commit {
+                return Ok(Some(self.tail(record)?));
+            }
+        }
+        Ok(None)
     }
 }
 

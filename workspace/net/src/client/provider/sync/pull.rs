@@ -9,7 +9,7 @@ use sos_sdk::{
     formats::FileIdentity,
     patch::PatchFile,
     vault::Summary,
-    wal::WalProvider,
+    wal::file::WalFile,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -17,15 +17,13 @@ use crate::{client::provider::assert_proofs_eq, retry};
 use super::apply_patch_file;
 
 /// Download changes from the remote server.
-pub async fn pull<W>(
+pub async fn pull(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut W,
+    wal_file: &mut WalFile,
     patch_file: &mut PatchFile,
     force: bool,
 ) -> Result<SyncInfo>
-where
-    W: WalProvider + Send + Sync + 'static,
 {
     let client_proof = wal_file.tree().head()?;
 
@@ -76,13 +74,11 @@ where
 }
 
 /// Fetch the remote WAL file.
-pub async fn pull_wal<W>(
+pub async fn pull_wal(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut W,
+    wal_file: &mut WalFile,
 ) -> Result<CommitProof>
-where
-    W: WalProvider + Send + Sync + 'static,
 {
     let client_proof = if wal_file.tree().root().is_some() {
         let proof = wal_file.tree().head()?;
@@ -174,17 +170,15 @@ where
     }
 }
 
-pub async fn force_pull<W>(
+pub async fn force_pull(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut W,
+    wal_file: &mut WalFile,
 ) -> Result<CommitProof>
-where
-    W: WalProvider + Send + Sync + 'static,
 {
     // Need to recreate the WAL file correctly before pulling
     // as pull_wal() expects the file to exist
-    *wal_file = W::new(wal_file.path())?;
+    *wal_file = WalFile::new(wal_file.path())?;
     wal_file.load_tree()?;
 
     // Pull the remote WAL

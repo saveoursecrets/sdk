@@ -14,7 +14,7 @@ use crate::{
     decode, encode,
     events::SyncEvent,
     vault::{secret::SecretId, Vault, VaultCommit},
-    wal::{WalItem, WalProvider},
+    wal::{WalItem, file::WalFile},
     Error, Result,
 };
 
@@ -60,9 +60,9 @@ impl<'a> WalReducer<'a> {
     }
 
     /// Reduce the events in the given iterator.
-    pub fn reduce<T: WalItem>(
+    pub fn reduce(
         mut self,
-        wal: &'a (impl WalProvider<Item = T> + 'a),
+        wal: &'a WalFile,
     ) -> Result<Self> {
         let mut it = wal.iter()?;
         if let Some(first) = it.next() {

@@ -6,7 +6,6 @@ mod wasm_tests {
         decode, encode,
         vault::{Summary, Vault},
         vfs,
-        wal::{memory::WalMemory, WalProvider},
         Timestamp,
     };
     use std::path::PathBuf;
@@ -42,14 +41,16 @@ mod wasm_tests {
         let decoded: Timestamp = decode(&buffer).unwrap();
         assert_eq!(timestamp, decoded);
     }
-
+    
+    /*
     #[wasm_bindgen_test]
     async fn wal_memory_parse() {
         use std::path::PathBuf;
         let buffer = include_bytes!("fixtures/simple-vault.wal");
-        let mut wal = WalMemory::new(PathBuf::from("")).unwrap();
+        let mut wal = WalFile::new(PathBuf::from("")).unwrap();
         wal.write_buffer(buffer.to_vec()).await.unwrap();
     }
+    */
 
     #[wasm_bindgen_test]
     async fn vfs() {

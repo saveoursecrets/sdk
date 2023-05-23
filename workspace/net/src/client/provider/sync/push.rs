@@ -8,7 +8,7 @@ use sos_sdk::{
     patch::PatchFile,
     vault::Summary,
     vfs,
-    wal::WalProvider,
+    wal::file::WalFile,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -16,15 +16,13 @@ use crate::{client::provider::assert_proofs_eq, retry};
 use super::apply_patch_file;
 
 /// Upload changes to the remote server.
-pub async fn push<W>(
+pub async fn push(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut W,
+    wal_file: &mut WalFile,
     patch_file: &mut PatchFile,
     force: bool,
 ) -> Result<SyncInfo>
-where
-    W: WalProvider + Send + Sync + 'static,
 {
     let client_proof = wal_file.tree().head()?;
 
@@ -73,13 +71,11 @@ where
     }
 }
 
-pub async fn force_push<W>(
+pub async fn force_push(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut W,
+    wal_file: &mut WalFile,
 ) -> Result<CommitProof>
-where
-    W: WalProvider + Send + Sync + 'static,
 {
     // TODO: load any unsaved events from the patch file and
     // TODO: apply them to the WAL!

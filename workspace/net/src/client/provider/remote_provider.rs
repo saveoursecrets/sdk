@@ -17,7 +17,7 @@ use sos_sdk::{
         Summary, Vault,
     },
     vfs,
-    wal::{file::WalFile, reducer::WalReducer, WalItem, WalProvider},
+    wal::{file::WalFile, reducer::WalReducer, WalItem},
     Timestamp,
 };
 
@@ -36,7 +36,7 @@ use crate::{
 ///
 /// May be backed by files on disc or in-memory implementations
 /// for use in webassembly.
-pub struct RemoteProvider<W> {
+pub struct RemoteProvider {
     /// State of this node.
     state: ProviderState,
 
@@ -46,25 +46,23 @@ pub struct RemoteProvider<W> {
     dirs: StorageDirs,
 
     /// Data for the cache.
-    cache: HashMap<Uuid, (W, PatchFile)>,
+    cache: HashMap<Uuid, (WalFile, PatchFile)>,
 
     /// Client to use for remote communication.
     client: RpcClient,
 }
 
-impl RemoteProvider<WalFile> {
+impl RemoteProvider {
     /// Create new node cache backed by files on disc.
     pub fn new_file_cache(
         client: RpcClient,
         dirs: StorageDirs,
-    ) -> Result<RemoteProvider<WalFile>> {
+    ) -> Result<RemoteProvider> {
         if !dirs.documents_dir().is_dir() {
             return Err(Error::NotDirectory(
                 dirs.documents_dir().to_path_buf(),
             ));
         }
-
-        //dirs.ensure()?;
 
         Ok(Self {
             state: ProviderState::new(true),
@@ -77,9 +75,7 @@ impl RemoteProvider<WalFile> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<W> StorageProvider for RemoteProvider<W>
-where
-    W: WalProvider + Send + Sync + 'static,
+impl StorageProvider for RemoteProvider
 {
     provider_impl!();
 

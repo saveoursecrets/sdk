@@ -188,7 +188,7 @@ pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
 }
 
 pub async fn create_secrets(
-    provider: &mut RemoteProvider<WalFile>,
+    provider: &mut RemoteProvider,
     summary: &Summary,
 ) -> Result<Vec<(SecretId, &'static str)>> {
     let notes = vec![
@@ -229,7 +229,7 @@ pub async fn create_secrets(
 }
 
 pub async fn delete_secret(
-    provider: &mut RemoteProvider<WalFile>,
+    provider: &mut RemoteProvider,
     summary: &Summary,
     id: &SecretId,
 ) -> Result<()> {

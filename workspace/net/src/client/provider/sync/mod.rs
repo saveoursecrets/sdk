@@ -7,7 +7,7 @@ use sos_sdk::{
     commit::{CommitPair, CommitRelationship, Comparison},
     patch::PatchFile,
     vault::Summary,
-    wal::WalProvider,
+    wal::file::WalFile,
 };
 
 use crate::retry;
@@ -28,14 +28,12 @@ pub use status::*;
 ///
 /// If a patch file has unsaved events then the number
 /// of pending events is returned along with the `CommitRelationship`.
-pub async fn status<W>(
+pub async fn status(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &W,
+    wal_file: &WalFile,
     patch_file: &PatchFile,
 ) -> Result<(CommitRelationship, Option<usize>)>
-where
-    W: WalProvider + Send + Sync + 'static,
 {
     let client_proof = wal_file.tree().head()?;
     let (status, (server_proof, match_proof)) = retry!(

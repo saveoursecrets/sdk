@@ -124,7 +124,7 @@ mod file {
         encode,
         events::SyncEvent,
         vault::Vault,
-        wal::{file::WalFile, WalProvider},
+        wal::file::WalFile,
     };
     use tempfile::NamedTempFile;
 
