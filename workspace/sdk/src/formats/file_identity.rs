@@ -1,6 +1,10 @@
 //! Helper that reads and writes the magic identity bytes for file formats.
 use binary_stream::{BinaryReader, BinaryWriter};
-use std::{fs::File, io::Read, path::Path};
+use std::{
+    fs::File,
+    io::{Read, Seek, Write},
+    path::Path,
+};
 
 use crate::{Error, Result};
 
@@ -46,8 +50,8 @@ impl FileIdentity {
     }
 
     /// Read the identity magic bytes.
-    pub fn read_identity(
-        reader: &mut BinaryReader,
+    pub fn read_identity<R: Read + Seek>(
+        reader: &mut BinaryReader<R>,
         identity: &[u8],
     ) -> Result<()> {
         for ident in identity {
@@ -60,8 +64,8 @@ impl FileIdentity {
     }
 
     /// Write the identity magic bytes.
-    pub fn write_identity(
-        writer: &mut BinaryWriter,
+    pub fn write_identity<W: Write + Seek>(
+        writer: &mut BinaryWriter<W>,
         identity: &[u8],
     ) -> Result<()> {
         writer.write_bytes(identity)?;

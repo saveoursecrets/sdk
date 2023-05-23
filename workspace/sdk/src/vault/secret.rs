@@ -16,6 +16,7 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     fmt,
+    io::{Read, Seek, Write},
     path::PathBuf,
     str::FromStr,
 };
@@ -498,7 +499,10 @@ impl SecretMeta {
 }
 
 impl Encode for SecretMeta {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         let kind: u8 = self.kind.into();
         writer.write_u8(kind)?;
         writer.write_u32(self.flags.bits())?;
@@ -523,7 +527,10 @@ impl Encode for SecretMeta {
 }
 
 impl Decode for SecretMeta {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let kind = reader.read_u8()?;
         self.kind = kind.try_into().map_err(Box::from)?;
         self.flags = SecretFlags::from_bits(reader.read_u32()?)
@@ -647,7 +654,10 @@ impl PartialEq for SecretSigner {
 }
 
 impl Encode for SecretSigner {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         let kind = match self {
             Self::SinglePartyEcdsa(_) => signer_kind::SINGLE_PARTY_ECDSA,
             Self::SinglePartyEd25519(_) => signer_kind::SINGLE_PARTY_ED25519,
@@ -667,7 +677,10 @@ impl Encode for SecretSigner {
 }
 
 impl Decode for SecretSigner {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let kind = reader.read_u8()?;
         match kind {
             signer_kind::SINGLE_PARTY_ECDSA => {
@@ -751,7 +764,10 @@ impl From<SecretRow> for Secret {
 }
 
 impl Encode for SecretRow {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         writer.write_bytes(self.id.as_bytes())?;
         self.meta.encode(&mut *writer)?;
         self.secret.encode(&mut *writer)?;
@@ -760,7 +776,10 @@ impl Encode for SecretRow {
 }
 
 impl Decode for SecretRow {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let uuid: [u8; 16] = reader.read_bytes(16)?.as_slice().try_into()?;
         self.id = Uuid::from_bytes(uuid);
         self.meta.decode(&mut *reader)?;
@@ -849,9 +868,9 @@ impl UserData {
     }
 }
 
-fn write_user_data(
+fn write_user_data<W: Write + Seek>(
     user_data: &UserData,
-    writer: &mut BinaryWriter,
+    writer: &mut BinaryWriter<W>,
 ) -> BinaryResult<()> {
     writer.write_u32(user_data.len() as u32)?;
     for field in user_data.fields() {
@@ -868,7 +887,9 @@ fn write_user_data(
     Ok(())
 }
 
-fn read_user_data(reader: &mut BinaryReader) -> BinaryResult<UserData> {
+fn read_user_data<R: Read + Seek>(
+    reader: &mut BinaryReader<R>,
+) -> BinaryResult<UserData> {
     let mut user_data: UserData = Default::default();
     let count = reader.read_u32()?;
 
@@ -1013,7 +1034,10 @@ pub enum AgeVersion {
 }
 
 impl Encode for AgeVersion {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         match self {
             Self::Version1 => writer.write_u8(1)?,
         };
@@ -1022,7 +1046,10 @@ impl Encode for AgeVersion {
 }
 
 impl Decode for AgeVersion {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let kind = reader.read_u8()?;
         match kind {
             1 => {
@@ -1230,7 +1257,10 @@ impl Clone for FileContent {
 }
 
 impl Encode for FileContent {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         match self {
             Self::Embedded {
                 name,
@@ -1264,7 +1294,10 @@ impl Encode for FileContent {
 }
 
 impl Decode for FileContent {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let kind = reader.read_u8()?;
         match kind {
             EMBEDDED_FILE => {
@@ -2264,7 +2297,10 @@ pub mod kind {
 }
 
 impl Encode for Secret {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         let kind: u8 = self.kind().into();
         writer.write_u8(kind)?;
 
@@ -2469,7 +2505,10 @@ impl Encode for Secret {
 }
 
 impl Decode for Secret {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let kind: SecretType =
             reader.read_u8()?.try_into().map_err(Box::from)?;
         match kind {

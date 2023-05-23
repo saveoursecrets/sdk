@@ -9,7 +9,11 @@ use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, cmp::Ordering};
+use std::{
+    borrow::Cow,
+    cmp::Ordering,
+    io::{Read, Seek, Write},
+};
 
 use crate::{
     crypto::AeadPack,
@@ -159,7 +163,10 @@ impl SyncEvent<'_> {
 }
 
 impl<'a> Encode for SyncEvent<'a> {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         let op = self.event_kind();
         op.encode(&mut *writer)?;
 
@@ -199,7 +206,10 @@ impl<'a> Encode for SyncEvent<'a> {
 }
 
 impl<'a> Decode for SyncEvent<'a> {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let mut op: EventKind = Default::default();
         op.decode(&mut *reader)?;
         match op {

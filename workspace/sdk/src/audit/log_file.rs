@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::{
-    io::{Read, Seek, SeekFrom, Write, Cursor},
+    io::{Cursor, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 use tokio::{fs::File, io::AsyncWriteExt};
@@ -33,7 +33,7 @@ impl AuditLogFile {
     }
 
     /// Get an audit log file iterator.
-    pub fn iter(&self) -> Result<ReadStreamIterator<FileRecord>> {
+    pub fn iter(&self) -> Result<ReadStreamIterator<std::fs::File, FileRecord>> {
         audit_iter(&self.file_path)
     }
 
@@ -77,8 +77,8 @@ impl AuditLogFile {
     }
 
     /// Encode an audit log event record.
-    fn encode_row(
-        writer: &mut BinaryWriter,
+    fn encode_row<W: Write + Seek>(
+        writer: &mut BinaryWriter<W>,
         event: &AuditEvent,
     ) -> BinaryResult<()> {
         // Set up the leading row length
@@ -103,7 +103,9 @@ impl AuditLogFile {
     }
 
     /// Decode an audit log event record.
-    fn decode_row(reader: &mut BinaryReader) -> BinaryResult<AuditEvent> {
+    fn decode_row<R: Read + Seek>(
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<AuditEvent> {
         // Read in the row length
         let _ = reader.read_u32()?;
 

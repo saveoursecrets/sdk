@@ -160,7 +160,7 @@ pub async fn run() -> Result<()> {
         Command::Changes { server, account } => {
             changes::run(server, account).await?
         }
-        Command::Check { cmd } => check::run(cmd)?,
+        Command::Check { cmd } => check::run(cmd).await?,
         Command::Shell { account, folder } => {
             shell::run(factory, account, folder).await?
         }

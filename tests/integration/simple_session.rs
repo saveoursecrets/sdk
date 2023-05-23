@@ -165,7 +165,7 @@ async fn integration_simple_session() -> Result<()> {
     let _ = node_cache.push(&new_vault_summary, true).await?;
 
     // Verify local WAL ingegrity
-    node_cache.verify(&new_vault_summary)?;
+    node_cache.verify(&new_vault_summary).await?;
 
     // Close the vault
     node_cache.close_vault();

@@ -2,16 +2,14 @@
 use std::{
     borrow::Cow,
     fs::OpenOptions,
-    io::{Read, Seek, SeekFrom, Write, Cursor},
-    ops::Range,
+    io::{Cursor, Read, Seek, SeekFrom, Write},
+    ops::{Range, DerefMut},
     path::Path,
     path::PathBuf,
     sync::Mutex,
 };
 
-use binary_stream::{
-    BinaryReader, BinaryWriter, Endian, 
-};
+use binary_stream::{BinaryReader, BinaryWriter, Endian};
 
 use uuid::Uuid;
 
@@ -24,24 +22,38 @@ use crate::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
         VaultCommit, VaultEntry,
     },
+    stream_len,
     Result,
 };
 
 /// Implements access to an encrypted vault backed by a file on disc.
-pub struct VaultFileAccess<W> where W: Write + Seek {
+pub struct VaultFileAccess<F>
+where
+    F: Read + Write + Seek,
+{
     file_path: PathBuf,
-    stream: Mutex<W>,
+    stream: Mutex<F>,
 }
 
-impl<W: Write + Seek> VaultFileAccess<W> {
+impl VaultFileAccess<std::fs::File> {
+    /// Open a file in read and write mode suitable for passing 
+    /// to the new constructor.
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<std::fs::File> {
+        Ok(OpenOptions::new().read(true).write(true).open(path.as_ref())?)
+    }
+
+}
+
+impl<F: Read + Write + Seek> VaultFileAccess<F> {
+    
     /// Create a new vault access.
     ///
     /// The underlying file should already exist and be a valid vault.
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub fn new<P: AsRef<Path>>(path: P, file: F) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        let file =
-            OpenOptions::new().read(true).write(true).open(&file_path)?;
-        let _metadata = file.metadata()?;
+        //let file =
+            //OpenOptions::new().read(true).write(true).open(&file_path)?;
+        //let _metadata = file.metadata()?;
         let stream = Mutex::new(file);
         Ok(Self { file_path, stream })
     }
@@ -156,7 +168,7 @@ impl<W: Write + Seek> VaultFileAccess<W> {
     }
 }
 
-impl VaultAccess for VaultFileAccess {
+impl<F: Read + Write + Seek> VaultAccess for VaultFileAccess<F> {
     fn summary(&self) -> Result<Summary> {
         Header::read_summary_file(&self.file_path)
     }
@@ -202,7 +214,7 @@ impl VaultAccess for VaultFileAccess {
         secret: VaultEntry,
     ) -> Result<SyncEvent<'_>> {
         let mut stream = self.stream.lock().unwrap();
-        let length = stream.len()?;
+        let length = stream_len(stream.deref_mut())?;
         let mut writer = BinaryWriter::new(&mut *stream, Endian::Little);
         let row = VaultCommit(commit, secret);
 
@@ -248,8 +260,8 @@ impl VaultAccess for VaultFileAccess {
             Contents::encode_row(&mut writer, id, &row)?;
 
             // Splice the row into the file
-            let stream = self.stream.lock().unwrap();
-            let length = stream.len()?;
+            let mut stream = self.stream.lock().unwrap();
+            let length = stream_len(stream.deref_mut())?;
             drop(stream);
 
             let head = 0..row_offset;
@@ -268,8 +280,8 @@ impl VaultAccess for VaultFileAccess {
     fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent<'_>>> {
         let (_content_offset, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
-            let stream = self.stream.lock().unwrap();
-            let length = stream.len()?;
+            let mut stream = self.stream.lock().unwrap();
+            let length = stream_len(stream.deref_mut())?;
             drop(stream);
 
             let head = 0..row_offset;
@@ -288,7 +300,6 @@ impl VaultAccess for VaultFileAccess {
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
-    use std::io::{Write, Seek};
     use super::VaultFileAccess;
     use crate::test_utils::*;
     use crate::{
@@ -298,13 +309,14 @@ mod tests {
         vault::{secret::*, Header, Vault, VaultAccess, VaultEntry},
     };
     use anyhow::Result;
+    use std::io::{Seek, Write, Read};
 
     use uuid::Uuid;
 
     type SecureNoteResult = (SecretId, SecretMeta, Secret, Vec<u8>, Vec<u8>);
 
-    fn create_secure_note<W: Write + Seek>(
-        vault_access: &mut VaultFileAccess<W>,
+    fn create_secure_note<F: Read + Write + Seek>(
+        vault_access: &mut VaultFileAccess<F>,
         vault: &Vault,
         encryption_key: &SecretKey,
         secret_label: &str,
@@ -337,8 +349,9 @@ mod tests {
     fn vault_file_access() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (temp, vault, _) = mock_vault_file()?;
-
-        let mut vault_access = VaultFileAccess::new(temp.path())?;
+        
+        let vault_file = VaultFileAccess::open(temp.path())?;
+        let mut vault_access = VaultFileAccess::new(temp.path(), vault_file)?;
 
         // Missing row should not exist
         let missing_id = Uuid::new_v4();
@@ -428,7 +441,8 @@ mod tests {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (temp, vault, _) = mock_vault_file()?;
 
-        let mut vault_access = VaultFileAccess::new(temp.path())?;
+        let vault_file = VaultFileAccess::open(temp.path())?;
+        let mut vault_access = VaultFileAccess::new(temp.path(), vault_file)?;
 
         let secrets = [
             ("Note one", "First note"),

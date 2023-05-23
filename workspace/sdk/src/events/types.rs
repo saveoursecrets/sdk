@@ -7,7 +7,10 @@ use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 
-use std::fmt;
+use std::{
+    fmt,
+    io::{Read, Seek, Write},
+};
 
 /// Type identifier for a noop.
 pub const NOOP: u16 = 0;
@@ -88,7 +91,10 @@ impl Default for EventKind {
 }
 
 impl Encode for EventKind {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         let value: u16 = self.into();
         writer.write_u16(value)?;
         Ok(())
@@ -96,7 +102,10 @@ impl Encode for EventKind {
 }
 
 impl Decode for EventKind {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let op = reader.read_u16()?;
         *self = op.try_into().map_err(|_| {
             BinaryError::Boxed(Box::from(Error::UnknownEventKind(op)))

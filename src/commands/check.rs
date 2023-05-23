@@ -44,15 +44,15 @@ pub enum Command {
     },
 }
 
-pub fn run(cmd: Command) -> Result<()> {
+pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::Vault { file, verbose } => {
-            verify_vault(file, verbose)?;
+            verify_vault(file, verbose).await?;
         }
         Command::Header { file } => header(file)?,
         Command::Keys { file } => keys(file)?,
         Command::Log { verbose, file } => {
-            verify_log(file, verbose)?;
+            verify_log(file, verbose).await?;
         }
     }
 
@@ -60,7 +60,7 @@ pub fn run(cmd: Command) -> Result<()> {
 }
 
 /// Verify the integrity of a vault.
-fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
+async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
@@ -68,13 +68,13 @@ fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
         if verbose {
             println!("{}", hex::encode(row_info.commit()));
         }
-    })?;
+    }).await?;
     println!("Verified ✓");
     Ok(())
 }
 
 /// Verify the integrity of a log file.
-fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
+async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
@@ -82,7 +82,7 @@ fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
         if verbose {
             println!("{}", hex::encode(row_info.commit()));
         }
-    })?;
+    }).await?;
     if verbose {
         if let Some(root) = tree.root_hex() {
             println!("{}", root);

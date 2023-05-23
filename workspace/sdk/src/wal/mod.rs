@@ -2,12 +2,15 @@
 use crate::{
     commit::{CommitHash, CommitTree},
     events::SyncEvent,
-    formats::WalFileRecord,
+    formats::{WalFileRecord, ReadStreamIterator},
     timestamp::Timestamp,
     Result,
 };
 use async_trait::async_trait;
-use std::path::{Path, PathBuf};
+use std::{
+    io::{Read, Seek, Write},
+    path::{Path, PathBuf},
+};
 
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
@@ -110,7 +113,7 @@ pub trait WalProvider {
 
     /// Clear all events from this WAL.
     fn clear(&mut self) -> Result<()>;
-
+        
     /// Get an iterator of the log records.
     fn iter(
         &self,
@@ -167,7 +170,10 @@ impl From<(WalFileRecord, Vec<u8>)> for WalRecord {
 }
 
 impl Encode for WalRecord {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         // Prepare the bytes for the row length
         let size_pos = writer.tell()?;
         writer.write_u32(0)?;
@@ -203,7 +209,10 @@ impl Encode for WalRecord {
 }
 
 impl Decode for WalRecord {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         // Read in the row length
         let _ = reader.read_u32()?;
 

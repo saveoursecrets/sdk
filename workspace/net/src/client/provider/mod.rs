@@ -411,10 +411,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         summary: &Summary,
     ) -> Result<(CommitRelationship, Option<usize>)>;
-
-    /// Verify a WAL log.
-    fn verify(&self, summary: &Summary) -> Result<()>;
-
+    
     /// Remove a vault file and WAL file.
     async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
         use sos_sdk::constants::WAL_DELETED_EXT;
@@ -554,6 +551,14 @@ pub trait StorageProvider: Sync + Send {
 
         Ok(new_passphrase)
     }
+
+    /// Verify a WAL log.
+    async fn verify(&self, summary: &Summary) -> Result<()> {
+        use sos_sdk::commit::wal_commit_tree_file;
+        let wal_path = self.wal_path(summary);
+        wal_commit_tree_file(&wal_path, true, |_| {}).await?;
+        Ok(())
+    }
 }
 
 /// Shared provider implementation.
@@ -639,21 +644,6 @@ macro_rules! provider_impl {
                     self.create_cache_entry(summary, None)?;
                 }
             }
-            Ok(())
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        fn verify(&self, summary: &Summary) -> Result<()> {
-            use sos_sdk::commit::wal_commit_tree_file;
-            let wal_path = self.wal_path(summary);
-            wal_commit_tree_file(&wal_path, true, |_| {})?;
-            Ok(())
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        fn verify(&self, _summary: &Summary) -> Result<()> {
-            // NOTE: verify is a noop in WASM when the records
-            // NOTE: are stored in memory
             Ok(())
         }
 

@@ -59,6 +59,7 @@ pub mod ecdsa {
     use rand::rngs::OsRng;
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
+    use std::io::{Read, Seek, Write};
 
     use binary_stream::{
         BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
@@ -110,7 +111,10 @@ pub mod ecdsa {
     }
 
     impl Encode for BinarySignature {
-        fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+        fn encode<W: Write + Seek>(
+            &self,
+            writer: &mut BinaryWriter<W>,
+        ) -> BinaryResult<()> {
             // 65 byte signature
             let buffer = self.0.to_bytes();
             writer.write_bytes(buffer)?;
@@ -119,7 +123,10 @@ pub mod ecdsa {
     }
 
     impl Decode for BinarySignature {
-        fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+        fn decode<R: Read + Seek>(
+            &mut self,
+            reader: &mut BinaryReader<R>,
+        ) -> BinaryResult<()> {
             let buffer: [u8; 65] =
                 reader.read_bytes(65)?.as_slice().try_into()?;
             self.0 = buffer.into();

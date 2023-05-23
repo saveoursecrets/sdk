@@ -1,7 +1,7 @@
 //! Patch represents a changeset of events to apply to a vault.
 use std::{
     fs::{File, OpenOptions},
-    io::{Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 
@@ -37,7 +37,7 @@ impl PatchFile {
     }
 
     /// Get an iterator for the patch file.
-    pub fn iter(&self) -> Result<ReadStreamIterator<FileRecord>> {
+    pub fn iter(&self) -> Result<ReadStreamIterator<std::fs::File, FileRecord>> {
         patch_iter(&self.file_path)
     }
 }

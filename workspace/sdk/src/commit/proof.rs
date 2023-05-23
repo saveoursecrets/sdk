@@ -10,6 +10,7 @@ use serde::{
 use std::{
     fmt,
     hash::{Hash, Hasher as StdHasher},
+    io::{Read, Seek, Write},
     ops::Range,
 };
 
@@ -145,7 +146,10 @@ impl Default for CommitProof {
 }
 
 impl Encode for CommitProof {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         writer.write_bytes(self.root)?;
         let proof_bytes = self.proof.to_bytes();
         writer.write_u32(proof_bytes.len() as u32)?;
@@ -159,7 +163,10 @@ impl Encode for CommitProof {
 }
 
 impl Decode for CommitProof {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let root_hash: [u8; 32] =
             reader.read_bytes(32)?.as_slice().try_into()?;
         self.root = root_hash;

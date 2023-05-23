@@ -26,7 +26,7 @@ use crate::{
 use async_trait::async_trait;
 use std::{
     fs::{File, OpenOptions},
-    io::{Read, Seek, SeekFrom, Write, Cursor},
+    io::{Cursor, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 

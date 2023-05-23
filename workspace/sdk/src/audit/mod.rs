@@ -1,11 +1,11 @@
 //! Audit logging.
-use std::io::{Write, Read, Seek};
 use async_trait::async_trait;
 use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
+use std::io::{Read, Seek, Write};
 use uuid::Uuid;
 use web3_address::ethereum::Address;
 
@@ -159,7 +159,10 @@ impl AuditEvent {
 }
 
 impl Encode for AuditEvent {
-    fn encode<W: Write + Seek>(&self, writer: &mut BinaryWriter<W>) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         // Context bit flags
         let flags = self.log_flags();
         writer.write_u16(flags.bits())?;
@@ -179,7 +182,10 @@ impl Encode for AuditEvent {
 }
 
 impl Decode for AuditEvent {
-    fn decode<R: Read + Seek>(&mut self, reader: &mut BinaryReader<R>) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         // Context bit flags
         let bits = reader.read_u16()?;
         // Time - the when
@@ -237,7 +243,10 @@ impl Default for AuditData {
 }
 
 impl Encode for AuditData {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         match self {
             AuditData::Vault(vault_id) => {
                 writer.write_bytes(vault_id.as_bytes())?;

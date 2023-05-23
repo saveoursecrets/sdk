@@ -348,7 +348,7 @@ async fn exec_program(
 
             Ok(())
         }
-        ShellCommand::Check { cmd } => crate::commands::check::run(cmd),
+        ShellCommand::Check { cmd } => crate::commands::check::run(cmd).await,
         ShellCommand::Whoami => {
             let owner = user.read().await;
             println!(

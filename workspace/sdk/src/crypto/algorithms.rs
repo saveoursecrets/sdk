@@ -3,7 +3,12 @@ use crate::Error;
 use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
-use std::{convert::AsRef, fmt, str::FromStr};
+use std::{
+    convert::AsRef,
+    fmt,
+    io::{Read, Seek, Write},
+    str::FromStr,
+};
 
 /// Extended ChaCha20 Poly1305 cipher.
 pub const X_CHACHA20_POLY1305: u8 = 0x01;
@@ -91,14 +96,20 @@ impl Default for Algorithm {
 }
 
 impl Encode for Algorithm {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         writer.write_u8(*self.as_ref())?;
         Ok(())
     }
 }
 
 impl Decode for Algorithm {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let id = reader.read_u8()?;
         *self = match id {
             X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305(id),

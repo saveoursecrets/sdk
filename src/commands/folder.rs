@@ -322,7 +322,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                         .storage
                         .current()
                         .ok_or(Error::NoVaultSelected)?;
-                    reader.storage.verify(keeper.summary())?;
+                    reader.storage.verify(keeper.summary()).await?;
                     println!("Verified ✓");
                 }
                 History::List { verbose, .. } => {

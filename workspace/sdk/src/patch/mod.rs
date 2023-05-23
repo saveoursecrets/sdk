@@ -10,6 +10,8 @@ use crate::{
     Result,
 };
 
+use std::io::{Read, Seek, Write};
+
 mod file;
 pub use file::PatchFile;
 
@@ -64,8 +66,8 @@ impl Patch<'_> {
         Patch(events)
     }
 
-    fn encode_row(
-        writer: &mut BinaryWriter,
+    fn encode_row<W: Write + Seek>(
+        writer: &mut BinaryWriter<W>,
         event: &SyncEvent<'_>,
     ) -> BinaryResult<()> {
         // Set up the leading row length
@@ -89,8 +91,8 @@ impl Patch<'_> {
         Ok(())
     }
 
-    fn decode_row<'a>(
-        reader: &mut BinaryReader,
+    fn decode_row<'a, R: Read + Seek>(
+        reader: &mut BinaryReader<R>,
     ) -> BinaryResult<SyncEvent<'a>> {
         // Read in the row length
         let _ = reader.read_u32()?;
@@ -105,7 +107,10 @@ impl Patch<'_> {
 }
 
 impl Encode for Patch<'_> {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         writer.write_bytes(PATCH_IDENTITY)?;
         for event in self.0.iter() {
             Patch::encode_row(writer, event)?;
@@ -115,7 +120,10 @@ impl Encode for Patch<'_> {
 }
 
 impl Decode for Patch<'_> {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         FileIdentity::read_identity(reader, &PATCH_IDENTITY)
             .map_err(|e| BinaryError::Boxed(Box::from(e)))?;
         let mut pos = reader.tell()?;

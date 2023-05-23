@@ -10,7 +10,10 @@ use binary_stream::{
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
-use std::borrow::Cow;
+use std::{
+    borrow::Cow,
+    io::{Read, Seek, Write},
+};
 
 use async_trait::async_trait;
 
@@ -57,7 +60,10 @@ impl<'a> TryFrom<Packet<'a>> for ResponseMessage<'a> {
 }
 
 impl Encode for Packet<'_> {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         writer.write_bytes(RPC_IDENTITY)?;
         self.payload.encode(writer)?;
         Ok(())
@@ -65,7 +71,10 @@ impl Encode for Packet<'_> {
 }
 
 impl Decode for Packet<'_> {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         FileIdentity::read_identity(reader, &RPC_IDENTITY)
             .map_err(Box::from)?;
         let mut payload: Payload<'_> = Default::default();
@@ -89,7 +98,10 @@ pub enum Payload<'a> {
 }
 
 impl Encode for Payload<'_> {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         let is_response = matches!(self, Payload::Response(_));
         writer.write_bool(is_response)?;
         match self {
@@ -102,7 +114,10 @@ impl Encode for Payload<'_> {
 }
 
 impl Decode for Payload<'_> {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let is_response = reader.read_bool()?;
         *self = if is_response {
             let mut response: ResponseMessage<'_> = Default::default();
@@ -185,7 +200,10 @@ impl From<RequestMessage<'_>> for Vec<u8> {
 }
 
 impl Encode for RequestMessage<'_> {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         // Id
         writer.write_bool(self.id.is_some())?;
         if let Some(id) = &self.id {
@@ -210,7 +228,10 @@ impl Encode for RequestMessage<'_> {
 }
 
 impl Decode for RequestMessage<'_> {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         // Id
         let has_id = reader.read_bool()?;
         if has_id {
@@ -321,7 +342,10 @@ impl From<ResponseMessage<'_>> for Vec<u8> {
 }
 
 impl Encode for ResponseMessage<'_> {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         // Id
         writer.write_bool(self.id.is_some())?;
         if let Some(id) = &self.id {
@@ -357,7 +381,10 @@ impl Encode for ResponseMessage<'_> {
 }
 
 impl Decode for ResponseMessage<'_> {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         // Id
         let has_id = reader.read_bool()?;
         if has_id {

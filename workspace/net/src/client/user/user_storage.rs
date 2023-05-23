@@ -321,7 +321,8 @@ impl UserStorage {
 
         // Update the vault on disc
         let vault_path = self.storage.vault_path(summary);
-        let mut access = VaultFileAccess::new(vault_path)?;
+        let vault_file = VaultFileAccess::open(&vault_path)?;
+        let mut access = VaultFileAccess::new(vault_path, vault_file)?;
         access.set_vault_name(name)?;
 
         Ok(())

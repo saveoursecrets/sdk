@@ -5,6 +5,7 @@ use binary_stream::{
 };
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::io::{Read, Seek, Write};
 
 pub mod aesgcm256;
 mod algorithms;
@@ -62,7 +63,10 @@ pub struct AeadPack {
 }
 
 impl Encode for AeadPack {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         match &self.nonce {
             Nonce::Nonce12(ref bytes) => {
                 writer.write_u8(12)?;
@@ -80,7 +84,10 @@ impl Encode for AeadPack {
 }
 
 impl Decode for AeadPack {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let nonce_size = reader.read_u8()?;
         let nonce_buffer = reader.read_bytes(nonce_size as usize)?;
         match nonce_size {

@@ -6,7 +6,10 @@ use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{
+    fmt,
+    io::{Read, Seek, Write},
+};
 
 use filetime::FileTime;
 
@@ -130,7 +133,10 @@ impl fmt::Display for Timestamp {
 }
 
 impl Encode for Timestamp {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         let seconds = self.0.unix_timestamp();
         let nanos = self.0.nanosecond();
         writer.write_i64(seconds)?;
@@ -140,7 +146,10 @@ impl Encode for Timestamp {
 }
 
 impl Decode for Timestamp {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let seconds = reader.read_i64()?;
         let nanos = reader.read_u32()?;
 

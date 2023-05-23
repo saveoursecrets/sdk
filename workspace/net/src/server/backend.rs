@@ -460,7 +460,8 @@ impl BackendHandler for FileSystemBackend {
         name: String,
     ) -> Result<()> {
         let vault_path = self.vault_file_path(owner, vault_id);
-        let mut access = VaultFileAccess::new(vault_path)?;
+        let vault_file = VaultFileAccess::open(&vault_path)?;
+        let mut access = VaultFileAccess::new(vault_path, vault_file)?;
         let _ = access.set_vault_name(name)?;
         Ok(())
     }
@@ -584,7 +585,7 @@ impl BackendHandler for FileSystemBackend {
         // Compute the root hash of the submitted WAL file
         // and verify the integrity of each record event against
         // each leaf node hash
-        let tree = wal_commit_tree_file(&temp_path, true, |_| {})?;
+        let tree = wal_commit_tree_file(&temp_path, true, |_| {}).await?;
 
         let tree_root = tree.root().ok_or(sos_sdk::Error::NoRootCommit)?;
 

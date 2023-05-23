@@ -144,7 +144,9 @@ impl AuthenticatedUser {
         // Update vault file on disc
         let identity_vault_file =
             StorageDirs::identity_vault(self.identity.address().to_string())?;
-        let mut access = VaultFileAccess::new(identity_vault_file)?;
+
+        let vault_file = VaultFileAccess::open(&identity_vault_file)?;
+        let mut access = VaultFileAccess::new(identity_vault_file, vault_file)?;
         access.set_vault_name(account_name.clone())?;
 
         // Update in-memory account information

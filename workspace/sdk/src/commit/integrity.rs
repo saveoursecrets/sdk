@@ -2,15 +2,28 @@
 use crate::{
     commit::CommitTree,
     formats::{vault_iter, FileItem, VaultRecord, WalFileRecord},
-    wal::{WalItem, WalProvider},
     vfs,
+    wal::{WalItem, WalProvider},
     Error, Result,
 };
 use binary_stream::{tokio::BinaryReader, Endian};
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
 
 use crate::wal::file::WalFile;
 
-use std::path::Path;
+use std::{path::Path, ops::Range};
+
+/// Read the bytes for each entry into an owned buffer.
+macro_rules! read_iterator_item {
+    ($record:expr, $reader:expr) => {
+        {
+            let value = $record.value();
+            let length = value.end - value.start;
+            $reader.seek(value.start).await?;
+            $reader.read_bytes(length as usize).await?
+        };
+    };
+}
 
 /// Build a commit tree from a vault file optionally
 /// verifying all the row checksums.
@@ -37,9 +50,9 @@ where
 
         if verify {
             let commit = record.commit();
-            let value = record.read_bytes(&mut reader)?;
+            let buffer = read_iterator_item!(&record, &mut reader);
 
-            let checksum = CommitTree::hash(&value);
+            let checksum = CommitTree::hash(&buffer);
             if checksum != commit {
                 return Err(Error::HashMismatch {
                     commit: hex::encode(commit),
@@ -95,14 +108,15 @@ where
                     });
                 }
             }
-
+            
             // Verify the commit hash for the data
-            let value = record.read_bytes(&mut reader)?;
+            let commit = record.commit();
+            let buffer = read_iterator_item!(&record, &mut reader);
 
-            let checksum = CommitTree::hash(&value);
-            if checksum != record.commit() {
+            let checksum = CommitTree::hash(&buffer);
+            if checksum != commit {
                 return Err(Error::HashMismatch {
-                    commit: hex::encode(record.commit()),
+                    commit: hex::encode(commit),
                     value: hex::encode(checksum),
                 });
             }
@@ -133,7 +147,8 @@ mod test {
     #[tokio::test]
     async fn integrity_empty_vault() -> Result<()> {
         let (temp, _, _) = mock_vault_file()?;
-        let commit_tree = vault_commit_tree_file(temp.path(), true, |_| {}).await?;
+        let commit_tree =
+            vault_commit_tree_file(temp.path(), true, |_| {}).await?;
         assert!(commit_tree.root().is_none());
         Ok(())
     }
@@ -155,7 +170,8 @@ mod test {
         let mut temp = NamedTempFile::new()?;
         temp.write_all(&buffer)?;
 
-        let commit_tree = vault_commit_tree_file(temp.path(), true, |_| {}).await?;
+        let commit_tree =
+            vault_commit_tree_file(temp.path(), true, |_| {}).await?;
         assert!(commit_tree.root().is_some());
         Ok(())
     }
@@ -163,7 +179,8 @@ mod test {
     #[tokio::test]
     async fn integrity_wal() -> Result<()> {
         let (temp, _, _, _) = mock_wal_file()?;
-        let commit_tree = wal_commit_tree_file(temp.path(), true, |_| {}).await?;
+        let commit_tree =
+            wal_commit_tree_file(temp.path(), true, |_| {}).await?;
         assert!(commit_tree.root().is_some());
         Ok(())
     }

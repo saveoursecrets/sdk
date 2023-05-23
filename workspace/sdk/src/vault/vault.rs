@@ -3,15 +3,20 @@ use serde::{Deserialize, Serialize};
 
 use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-    Endian, 
+    Endian,
 };
 
 use bitflags::bitflags;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
-    io::{Read, Write, Seek, Cursor},
-    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, fs::File,
-    path::Path, str::FromStr,
+    borrow::Cow,
+    cmp::Ordering,
+    collections::HashMap,
+    fmt,
+    fs::File,
+    io::{Cursor, Read, Seek, Write},
+    path::Path,
+    str::FromStr,
 };
 use urn::Urn;
 use uuid::Uuid;
@@ -24,11 +29,12 @@ use crate::{
         secret_key::{SecretKey, Seed, SEED_SIZE},
         xchacha20poly1305, AeadPack, Algorithm, Nonce, ALGORITHMS,
     },
-    encode,
+    decode, encode,
     events::SyncEvent,
     formats::FileIdentity,
     passwd::diceware::generate_passphrase,
     vault::secret::SecretId,
+    vfs,
     Error, Result, Timestamp,
 };
 
@@ -153,7 +159,10 @@ impl VaultMeta {
 }
 
 impl Encode for VaultMeta {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         self.date_created.encode(&mut *writer)?;
         writer.write_string(&self.label)?;
         Ok(())
@@ -161,7 +170,10 @@ impl Encode for VaultMeta {
 }
 
 impl Decode for VaultMeta {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let mut date_created: Timestamp = Default::default();
         date_created.decode(&mut *reader)?;
         self.label = reader.read_string()?;
@@ -204,7 +216,10 @@ impl FromStr for VaultRef {
 pub struct VaultEntry(pub AeadPack, pub AeadPack);
 
 impl Encode for VaultEntry {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         self.0.encode(&mut *writer)?;
         self.1.encode(&mut *writer)?;
         Ok(())
@@ -212,7 +227,10 @@ impl Encode for VaultEntry {
 }
 
 impl Decode for VaultEntry {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let mut meta: AeadPack = Default::default();
         meta.decode(&mut *reader)?;
         let mut secret: AeadPack = Default::default();
@@ -227,7 +245,10 @@ impl Decode for VaultEntry {
 pub struct VaultCommit(pub CommitHash, pub VaultEntry);
 
 impl Encode for VaultCommit {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         writer.write_bytes(self.0.as_ref())?;
 
         let size_pos = writer.tell()?;
@@ -247,7 +268,10 @@ impl Encode for VaultCommit {
 }
 
 impl Decode for VaultCommit {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let commit: [u8; 32] =
             reader.read_bytes(32)?.as_slice().try_into()?;
         let commit = CommitHash(commit);
@@ -335,7 +359,10 @@ pub struct Auth {
 }
 
 impl Encode for Auth {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         writer.write_bool(self.salt.is_some())?;
         if let Some(salt) = &self.salt {
             writer.write_string(salt)?;
@@ -349,7 +376,10 @@ impl Encode for Auth {
 }
 
 impl Decode for Auth {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         let has_salt = reader.read_bool()?;
         if has_salt {
             self.salt = Some(reader.read_string()?);
@@ -468,7 +498,10 @@ impl Summary {
 }
 
 impl Encode for Summary {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         writer.write_u16(self.version)?;
         self.algorithm.encode(&mut *writer)?;
         writer.write_bytes(self.id.as_bytes())?;
@@ -479,7 +512,10 @@ impl Encode for Summary {
 }
 
 impl Decode for Summary {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         self.version = reader.read_u16()?;
         self.algorithm.decode(&mut *reader)?;
 
@@ -630,7 +666,10 @@ impl fmt::Display for Header {
 }
 
 impl Encode for Header {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         FileIdentity::write_identity(&mut *writer, &VAULT_IDENTITY)
             .map_err(Box::from)?;
 
@@ -659,7 +698,10 @@ impl Encode for Header {
 }
 
 impl Decode for Header {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         FileIdentity::read_identity(&mut *reader, &VAULT_IDENTITY)
             .map_err(Box::from)?;
 
@@ -689,8 +731,8 @@ pub struct Contents {
 
 impl Contents {
     /// Encode a single row into a serializer.
-    pub fn encode_row(
-        writer: &mut BinaryWriter,
+    pub fn encode_row<W: Write + Seek>(
+        writer: &mut BinaryWriter<W>,
         key: &SecretId,
         row: &VaultCommit,
     ) -> BinaryResult<()> {
@@ -715,8 +757,8 @@ impl Contents {
     }
 
     /// Decode a single row from a deserializer.
-    pub fn decode_row(
-        reader: &mut BinaryReader,
+    pub fn decode_row<R: Read + Seek>(
+        reader: &mut BinaryReader<R>,
     ) -> BinaryResult<(SecretId, VaultCommit)> {
         // Read in the row length
         let _ = reader.read_u32()?;
@@ -735,7 +777,10 @@ impl Contents {
 }
 
 impl Encode for Contents {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         //ser.writer.write_u32(self.data.len() as u32)?;
         for (key, row) in &self.data {
             Contents::encode_row(writer, key, row)?;
@@ -745,7 +790,10 @@ impl Encode for Contents {
 }
 
 impl Decode for Contents {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         //let length = de.reader.read_u32()?;
 
         /*
@@ -775,7 +823,10 @@ pub struct Vault {
 }
 
 impl Encode for Vault {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
         self.header.encode(writer)?;
         self.contents.encode(writer)?;
         Ok(())
@@ -783,7 +834,10 @@ impl Encode for Vault {
 }
 
 impl Decode for Vault {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
         self.header.decode(reader)?;
         self.contents.decode(reader)?;
         Ok(())
@@ -1069,8 +1123,8 @@ impl Vault {
 
     /// Read a vault from a file.
     pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Vault> {
-        let mut stream = File::open(path)?;
-        let vault: Vault = decode(&mut stream)?;
+        let buffer = std::fs::read(path.as_ref())?;
+        let vault: Vault = decode(&buffer)?;
         Ok(vault)
     }
 
@@ -1079,6 +1133,7 @@ impl Vault {
         let mut stream = File::create(path)?;
         let buffer = encode(self)?;
         stream.write_all(&buffer)?;
+        Ok(())
     }
 
     /// Compute the hash of the encoded encrypted buffer for the meta and secret data.
@@ -1201,7 +1256,7 @@ mod tests {
     use super::*;
     use crate::vault::secret::*;
 
-    use crate::{encode, decode, test_utils::*};
+    use crate::{decode, encode, test_utils::*};
 
     use anyhow::Result;
     use secrecy::ExposeSecret;

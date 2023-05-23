@@ -8,9 +8,8 @@
 //! or other applications that require storing secrets
 //! securely.
 
-use binary_stream::{
-    BinaryReader, BinaryWriter, Decode, Encode, Endian,
-};
+use binary_stream::{BinaryReader, BinaryWriter, Decode, Encode, Endian};
+use std::io::{SeekFrom, Seek, Cursor};
 
 pub mod account;
 #[cfg(not(target_arch = "wasm32"))]
@@ -52,6 +51,15 @@ pub use urn;
 pub use uuid;
 pub use vcard4;
 
+/// Get the length of this stream by seeking to the end
+/// and then restoring the previous cursor position.
+pub(crate) fn stream_len<S: Seek>(stream: &mut S) -> Result<u64> {
+    let position = stream.stream_position()?;
+    let length = stream.seek(SeekFrom::End(0))?;
+    stream.seek(SeekFrom::Start(position))?;
+    Ok(length)
+}
+
 /// Encode to a binary buffer.
 pub fn encode(encodable: &impl Encode) -> Result<Vec<u8>> {
     encode_endian(encodable, Endian::Little)
@@ -63,7 +71,6 @@ pub fn decode<T: Decode + Default>(buffer: &[u8]) -> Result<T> {
 }
 
 fn encode_endian(encodable: &impl Encode, endian: Endian) -> Result<Vec<u8>> {
-    use std::io::Cursor;
     let mut buffer = Vec::new();
     let mut stream = Cursor::new(&mut buffer);
     let mut writer = BinaryWriter::new(&mut stream, endian);
@@ -75,7 +82,6 @@ fn decode_endian<T: Decode + Default>(
     buffer: &[u8],
     endian: Endian,
 ) -> Result<T> {
-    use std::io::Cursor;
     let mut stream = Cursor::new(buffer);
     let mut reader = BinaryReader::new(&mut stream, endian);
     let mut decoded: T = T::default();
