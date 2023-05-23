@@ -70,7 +70,7 @@ pub async fn login(
     dirs.ensure().await?;
     let client = RpcClient::new(server, signer.clone());
 
-    let mut cache = RemoteProvider::new_file_cache(client, dirs)?;
+    let mut cache = RemoteProvider::new(client, dirs)?;
 
     // Prepare the client encrypted session channel
     cache.authenticate().await?;
@@ -95,7 +95,7 @@ async fn create_account(
     dirs.ensure().await?;
     let client = RpcClient::new(server, signer.clone());
 
-    let mut cache = RemoteProvider::new_file_cache(client, dirs)?;
+    let mut cache = RemoteProvider::new(client, dirs)?;
 
     // Prepare the client encrypted session channel
     cache.authenticate().await?;

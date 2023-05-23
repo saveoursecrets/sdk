@@ -48,7 +48,7 @@ pub struct LocalProvider {
 
 impl LocalProvider {
     /// Create new node cache backed by files on disc.
-    pub fn new_file_storage(dirs: StorageDirs) -> Result<LocalProvider> {
+    pub fn new(dirs: StorageDirs) -> Result<LocalProvider> {
         if !dirs.documents_dir().is_dir() {
             return Err(Error::NotDirectory(
                 dirs.documents_dir().to_path_buf(),
@@ -65,6 +65,8 @@ impl LocalProvider {
     }
 }
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl StorageProvider for LocalProvider {
     provider_impl!();
 

@@ -54,7 +54,7 @@ pub struct RemoteProvider {
 
 impl RemoteProvider {
     /// Create new node cache backed by files on disc.
-    pub fn new_file_cache(
+    pub fn new(
         client: RpcClient,
         dirs: StorageDirs,
     ) -> Result<RemoteProvider> {

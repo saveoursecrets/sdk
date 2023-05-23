@@ -54,7 +54,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     let dirs = StorageDirs::new(dir.path(), &user_id);
     dirs.ensure().await?;
     let passphrase = SecretString::new("mock-password".to_owned());
-    let mut storage = LocalProvider::new_file_storage(dirs)?;
+    let mut storage = LocalProvider::new(dirs)?;
 
     // Prepare a vault to add to the archive
     let mut default_vault: Vault = Default::default();

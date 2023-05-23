@@ -125,7 +125,7 @@ async fn integration_local_provider_file() -> Result<()> {
     let dirs = StorageDirs::new(dir.path(), &user_id);
     dirs.ensure().await?;
 
-    let mut storage = LocalProvider::new_file_storage(dirs)?;
+    let mut storage = LocalProvider::new(dirs)?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())
 }

@@ -64,7 +64,7 @@ impl ProviderFactory {
         let client = RpcClient::new(server, signer);
         let dirs = StorageDirs::new(cache_dir, &address.to_string());
         let provider: BoxedProvider =
-            Box::new(RemoteProvider::new_file_cache(client, dirs)?);
+            Box::new(RemoteProvider::new(client, dirs)?);
         Ok((provider, address))
     }
 
@@ -76,7 +76,7 @@ impl ProviderFactory {
         let address = signer.address()?;
         let dirs = StorageDirs::new(cache_dir, &address.to_string());
         let provider: BoxedProvider =
-            Box::new(LocalProvider::new_file_storage(dirs)?);
+            Box::new(LocalProvider::new(dirs)?);
         Ok((provider, address))
     }
 
