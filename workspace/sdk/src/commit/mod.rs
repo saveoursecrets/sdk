@@ -5,7 +5,7 @@ mod integrity;
 mod proof;
 mod tree;
 
-pub use integrity::{vault_commit_tree_file, wal_commit_tree_file};
+pub use integrity::{event_log_commit_tree_file, vault_commit_tree_file};
 
 pub use proof::{
     CommitHash, CommitPair, CommitProof, CommitRelationship, Comparison,

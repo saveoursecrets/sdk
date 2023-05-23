@@ -9,7 +9,7 @@ use std::{
 use crate::{
     constants::{
         DEVICES_DIR, FILES_DIR, IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, TRASH_DIR,
-        VAULTS_DIR, VAULT_EXT, WAL_EXT,
+        VAULTS_DIR, VAULT_EXT, EVENT_LOG_EXT,
     },
     vfs,
 };
@@ -240,7 +240,7 @@ impl StorageDirs {
     ) -> Result<PathBuf> {
         let vaults_dir = Self::local_vaults_dir(address)?;
         let mut vault_path = vaults_dir.join(id);
-        vault_path.set_extension(WAL_EXT);
+        vault_path.set_extension(EVENT_LOG_EXT);
         Ok(vault_path)
     }
 

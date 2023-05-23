@@ -223,7 +223,7 @@ mod test {
     }
 
     #[test]
-    fn wal_reduce_build() -> Result<()> {
+    fn event_log_reduce_build() -> Result<()> {
         let (temp, wal, _, encryption_key, secret_id) =
             mock_event_log_file()?;
 
@@ -258,7 +258,7 @@ mod test {
     }
 
     #[test]
-    fn wal_reduce_compact() -> Result<()> {
+    fn event_log_reduce_compact() -> Result<()> {
         let (_temp, wal, _, _encryption_key, _secret_id) =
             mock_event_log_file()?;
 

@@ -59,7 +59,7 @@ impl Service for EventLogService {
                 let (exists, _) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), &vault_id)
+                    .event_log_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -72,7 +72,7 @@ impl Service for EventLogService {
 
                 let wal = reader
                     .backend
-                    .wal_read(caller.address(), &vault_id)
+                    .event_log_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -164,7 +164,7 @@ impl Service for EventLogService {
                 let (exists, _) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), &vault_id)
+                    .event_log_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -174,7 +174,7 @@ impl Service for EventLogService {
 
                 let wal = reader
                     .backend
-                    .wal_read(caller.address(), &vault_id)
+                    .event_log_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -198,7 +198,7 @@ impl Service for EventLogService {
                 let (exists, _) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), &vault_id)
+                    .event_log_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -211,7 +211,7 @@ impl Service for EventLogService {
 
                     let wal = writer
                         .backend
-                        .wal_write(caller.address(), &vault_id)
+                        .event_log_write(caller.address(), &vault_id)
                         .await
                         .map_err(Box::from)?;
 
@@ -368,7 +368,7 @@ impl Service for EventLogService {
                 let (exists, _) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), &vault_id)
+                    .event_log_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
                 drop(reader);

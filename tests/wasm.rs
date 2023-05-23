@@ -43,7 +43,7 @@ mod wasm_tests {
 
     /*
     #[wasm_bindgen_test]
-    async fn wal_memory_parse() {
+    async fn event_log_memory_parse() {
         use std::path::PathBuf;
         let buffer = include_bytes!("fixtures/simple-vault.wal");
         let mut wal = EventLogFile::new(PathBuf::from("")).unwrap();

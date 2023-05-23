@@ -42,7 +42,7 @@ impl Service for VaultService {
                 let (exists, proof) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), summary.id())
+                    .event_log_exists(caller.address(), summary.id())
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -98,7 +98,7 @@ impl Service for VaultService {
                 let (exists, proof) = writer
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), &vault_id)
+                    .event_log_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -154,7 +154,7 @@ impl Service for VaultService {
                 let (exists, _) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), summary.id())
+                    .event_log_exists(caller.address(), summary.id())
                     .await
                     .map_err(Box::from)?;
 

@@ -97,11 +97,11 @@ impl<'a> ChangePassword<'a> {
             new_vault.encrypt(&new_private_key, &vault_meta_blob)?;
         new_vault.header_mut().set_meta(Some(vault_meta_aead));
 
-        let mut wal_events = Vec::new();
+        let mut event_log_events = Vec::new();
 
         let buffer = encode(&new_vault)?;
         let create_vault = SyncEvent::CreateVault(Cow::Owned(buffer));
-        wal_events.push(create_vault);
+        event_log_events.push(create_vault);
 
         // Iterate the current vault and decrypt the secrets
         // inserting freshly encrypted content into the new vault
@@ -129,13 +129,13 @@ impl<'a> ChangePassword<'a> {
             )?;
 
             let sync_event = sync_event.into_owned();
-            //let wal_event: SyncEvent<'static> = sync_event.try_into()?;
-            wal_events.push(sync_event);
+            //let event_log_event: SyncEvent<'static> = sync_event.try_into()?;
+            event_log_events.push(sync_event);
         }
 
-        wal_events.sort();
+        event_log_events.sort();
 
-        Ok((self.new_passphrase, new_vault, wal_events))
+        Ok((self.new_passphrase, new_vault, event_log_events))
     }
 }
 
@@ -186,20 +186,21 @@ mod test {
         .is_err());
 
         // Using a valid current passphrase should succeed
-        let (new_passphrase, new_vault, wal_events) = ChangePassword::new(
-            keeper.vault(),
-            current_passphrase,
-            new_passphrase,
-            None,
-        )
-        .build()?;
+        let (new_passphrase, new_vault, event_log_events) =
+            ChangePassword::new(
+                keeper.vault(),
+                current_passphrase,
+                new_passphrase,
+                None,
+            )
+            .build()?;
 
         assert_eq!(
             expected_passphrase.expose_secret(),
             new_passphrase.expose_secret()
         );
         assert_eq!(expected_len, new_vault.len());
-        assert_eq!(expected_len + 1, wal_events.len());
+        assert_eq!(expected_len + 1, event_log_events.len());
 
         Ok(())
     }

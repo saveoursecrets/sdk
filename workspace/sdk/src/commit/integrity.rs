@@ -69,7 +69,7 @@ where
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
-pub async fn wal_commit_tree_file<P: AsRef<Path>, F>(
+pub async fn event_log_commit_tree_file<P: AsRef<Path>, F>(
     event_log_file: P,
     verify: bool,
     func: F,
@@ -175,7 +175,7 @@ mod test {
     async fn integrity_event_log() -> Result<()> {
         let (temp, _, _, _) = mock_event_log_file()?;
         let commit_tree =
-            wal_commit_tree_file(temp.path(), true, |_| {}).await?;
+            event_log_commit_tree_file(temp.path(), true, |_| {}).await?;
         assert!(commit_tree.root().is_some());
         Ok(())
     }

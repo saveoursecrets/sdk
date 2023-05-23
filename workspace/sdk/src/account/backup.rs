@@ -20,7 +20,7 @@ use crate::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         AccountInfo, DelegatedPassphrase, Identity, LocalAccounts,
     },
-    constants::{VAULT_EXT, WAL_EXT},
+    constants::{VAULT_EXT, EVENT_LOG_EXT},
     decode, encode,
     events::EventLogFile,
     events::SyncEvent,
@@ -29,8 +29,8 @@ use crate::{
     sha2::{Digest, Sha256},
     storage::StorageDirs,
     vault::{
-        secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess,
-        VaultWriter, VaultId,
+        secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess, VaultId,
+        VaultWriter,
     },
     vfs, Error, Result,
 };
@@ -518,20 +518,20 @@ impl AccountBackup {
             // Write out each vault and the WAL log
             for (buffer, vault) in &restore_targets.vaults {
                 let mut vault_path = vaults_dir.join(vault.id().to_string());
-                let mut wal_path = vault_path.clone();
+                let mut event_log_path = vault_path.clone();
                 vault_path.set_extension(VAULT_EXT);
-                wal_path.set_extension(WAL_EXT);
+                event_log_path.set_extension(EVENT_LOG_EXT);
 
                 // Write out the vault buffer
                 vfs::write(&vault_path, buffer).await?;
 
                 // Write out the WAL file
-                let mut wal_events = Vec::new();
+                let mut event_log_events = Vec::new();
                 let create_vault =
                     SyncEvent::CreateVault(Cow::Borrowed(buffer));
-                wal_events.push(create_vault);
-                let mut wal = EventLogFile::new(wal_path)?;
-                wal.apply(wal_events, None)?;
+                event_log_events.push(create_vault);
+                let mut wal = EventLogFile::new(event_log_path)?;
+                wal.apply(event_log_events, None)?;
             }
 
             let account = AccountInfo::new(label, restore_targets.address);

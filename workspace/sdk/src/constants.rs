@@ -12,7 +12,7 @@ mod identity {
     pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 
     /// Write-ahead log identity magic bytes (SOSW).
-    pub const WAL_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+    pub const EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
 
     /// Patch file identity magic bytes (SOSP).
     pub const PATCH_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
@@ -30,10 +30,10 @@ mod identity {
 /// Constants for file extensions.
 mod extensions {
     /// File extension used for WAL files.
-    pub const WAL_EXT: &str = "wal";
+    pub const EVENT_LOG_EXT: &str = "wal";
 
     /// File extension used when deleting WAL files.
-    pub const WAL_DELETED_EXT: &str = "wal.deleted";
+    pub const EVENT_LOG_DELETED_EXT: &str = "wal.deleted";
 
     /// File extension used for vault files.
     pub const VAULT_EXT: &str = "vault";

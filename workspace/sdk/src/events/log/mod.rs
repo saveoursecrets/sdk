@@ -158,7 +158,7 @@ mod test {
         let (id, data) = mock_secret()?;
 
         // Create a simple WAL
-        let mut server = EventLogFile::new("target/mock-wal-standalone.wal")?;
+        let mut server = EventLogFile::new("target/mock-event-log-standalone.wal")?;
         server.apply(
             vec![
                 SyncEvent::CreateVault(Cow::Owned(vault_buffer)),
@@ -172,8 +172,8 @@ mod test {
 
     fn mock_event_log_server_client(
     ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
-        let server_file = PathBuf::from("target/mock-wal-server.wal");
-        let client_file = PathBuf::from("target/mock-wal-client.wal");
+        let server_file = PathBuf::from("target/mock-event-log-server.wal");
+        let client_file = PathBuf::from("target/mock-event-log-client.wal");
         if server_file.exists() {
             std::fs::remove_file(&server_file)?;
         }
@@ -214,7 +214,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn wal_compare() -> Result<()> {
+    async fn event_log_compare() -> Result<()> {
         let (mut server, client, id) = mock_event_log_server_client()?;
 
         // Add another event to the server from another client.
@@ -250,8 +250,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn wal_diff() -> Result<()> {
-        let partial = PathBuf::from("target/mock-wal-partial.wal");
+    async fn event_log_diff() -> Result<()> {
+        let partial = PathBuf::from("target/mock-event-log-partial.wal");
         if partial.exists() {
             std::fs::remove_file(&partial)?;
         }

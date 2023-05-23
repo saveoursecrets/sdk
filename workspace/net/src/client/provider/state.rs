@@ -5,7 +5,7 @@ use super::{Error, Result};
 use sos_sdk::{
     search::SearchIndex,
     secrecy::SecretString,
-    vault::{Gatekeeper, Summary, Vault, VaultWriter, VaultRef},
+    vault::{Gatekeeper, Summary, Vault, VaultRef, VaultWriter},
 };
 
 use std::{path::PathBuf, sync::Arc};

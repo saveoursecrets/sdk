@@ -8,7 +8,7 @@ use binary_stream::{BinaryReader, BinaryResult, Decode, Endian};
 
 use crate::{
     constants::{
-        AUDIT_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY, WAL_IDENTITY,
+        AUDIT_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY, EVENT_LOG_IDENTITY,
     },
     formats::FileIdentity,
     stream_len,
@@ -35,12 +35,12 @@ pub fn vault_iter<P: AsRef<Path>>(
 }
 
 /// Get an iterator for a WAL file.
-pub fn wal_iter<P: AsRef<Path>>(
+pub fn event_log_iter<P: AsRef<Path>>(
     path: P,
 ) -> Result<ReadStreamIterator<File, EventLogFileRecord>> {
     ReadStreamIterator::<File, EventLogFileRecord>::new_file(
         path.as_ref(),
-        &WAL_IDENTITY,
+        &EVENT_LOG_IDENTITY,
         true,
         None,
     )

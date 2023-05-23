@@ -15,11 +15,11 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit::{wal_commit_tree_file, CommitHash, CommitTree},
-    constants::WAL_IDENTITY,
+    commit::{event_log_commit_tree_file, CommitHash, CommitTree},
+    constants::EVENT_LOG_IDENTITY,
     encode,
     events::SyncEvent,
-    formats::{wal_iter, EventLogFileRecord, FileItem},
+    formats::{event_log_iter, EventLogFileRecord, FileItem},
     timestamp::Timestamp,
     vfs, Error, Result,
 };
@@ -68,7 +68,7 @@ impl EventLogFile {
 
         let size = file.metadata()?.len();
         if size == 0 {
-            file.write_all(&WAL_IDENTITY)?;
+            file.write_all(&EVENT_LOG_IDENTITY)?;
         }
         Ok(file)
     }
@@ -115,7 +115,8 @@ impl EventLogFile {
         new_event_log.load_tree()?;
 
         // Verify the new WAL tree
-        wal_commit_tree_file(new_event_log.path(), true, |_| {}).await?;
+        event_log_commit_tree_file(new_event_log.path(), true, |_| {})
+            .await?;
 
         // Need to recreate the WAL file and load the updated
         // commit tree
@@ -136,7 +137,7 @@ impl EventLogFile {
     /// The buffer should start with the WAL identity bytes.
     pub fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
         // Get buffer of log records after the identity bytes
-        let buffer = &buffer[WAL_IDENTITY.len()..];
+        let buffer = &buffer[EVENT_LOG_IDENTITY.len()..];
 
         let mut file = OpenOptions::new()
             .write(true)
@@ -156,7 +157,7 @@ impl EventLogFile {
 
     /// Get the tail after the given item until the end of the log.
     pub fn tail(&self, item: EventLogFileRecord) -> Result<Vec<u8>> {
-        let mut partial = WAL_IDENTITY.to_vec();
+        let mut partial = EVENT_LOG_IDENTITY.to_vec();
         let start = item.offset().end as usize;
         let mut file = File::open(&self.file_path)?;
         let end = file.metadata()?.len() as usize;
@@ -316,7 +317,7 @@ impl EventLogFile {
     /// Clear all events from this log file.
     pub fn clear(&mut self) -> Result<()> {
         self.file = File::create(&self.file_path)?;
-        self.file.write_all(&WAL_IDENTITY)?;
+        self.file.write_all(&EVENT_LOG_IDENTITY)?;
         self.tree = CommitTree::new();
         Ok(())
     }
@@ -331,7 +332,7 @@ impl EventLogFile {
                 + '_,
         >,
     > {
-        Ok(Box::new(wal_iter(&self.file_path)?))
+        Ok(Box::new(event_log_iter(&self.file_path)?))
     }
 
     /// Get the last commit hash.
@@ -409,7 +410,7 @@ mod test {
     }
 
     #[test]
-    fn wal_iter_forward() -> Result<()> {
+    fn event_log_iter_forward() -> Result<()> {
         let (temp, wal, commits) = mock_event_log_file()?;
         let mut it = wal.iter()?;
         let first_row = it.next().unwrap()?;
@@ -426,7 +427,7 @@ mod test {
     }
 
     #[test]
-    fn wal_iter_backward() -> Result<()> {
+    fn event_log_iter_backward() -> Result<()> {
         let (temp, wal, _) = mock_event_log_file()?;
         let mut it = wal.iter()?;
         let _third_row = it.next_back().unwrap();
@@ -438,7 +439,7 @@ mod test {
     }
 
     #[test]
-    fn wal_iter_mixed() -> Result<()> {
+    fn event_log_iter_mixed() -> Result<()> {
         let (temp, wal, _) = mock_event_log_file()?;
         let mut it = wal.iter()?;
         let _first_row = it.next().unwrap();

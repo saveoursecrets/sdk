@@ -10,7 +10,7 @@ use sos_sdk::{
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
-    constants::{PATCH_EXT, VAULT_EXT, WAL_EXT},
+    constants::{PATCH_EXT, VAULT_EXT, EVENT_LOG_EXT},
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
@@ -145,11 +145,11 @@ pub trait StorageProvider: Sync + Send {
 
         for (buffer, vault) in vaults {
             // Prepare a fresh log of WAL events
-            let mut wal_events = Vec::new();
+            let mut event_log_events = Vec::new();
             let create_vault = SyncEvent::CreateVault(Cow::Borrowed(buffer));
-            wal_events.push(create_vault);
+            event_log_events.push(create_vault);
 
-            self.update_vault(vault.summary(), vault, wal_events)
+            self.update_vault(vault.summary(), vault, event_log_events)
                 .await?;
 
             // Refresh the in-memory and disc-based mirror
@@ -170,8 +170,8 @@ pub trait StorageProvider: Sync + Send {
     }
 
     /// Get the path to a WAL file.
-    fn wal_path(&self, summary: &Summary) -> PathBuf {
-        let file_name = format!("{}.{}", summary.id(), WAL_EXT);
+    fn event_log_path(&self, summary: &Summary) -> PathBuf {
+        let file_name = format!("{}.{}", summary.id(), EVENT_LOG_EXT);
         self.dirs().vaults_dir().join(file_name)
     }
 
@@ -413,7 +413,7 @@ pub trait StorageProvider: Sync + Send {
 
     /// Remove a vault file and WAL file.
     async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
-        use sos_sdk::constants::WAL_DELETED_EXT;
+        use sos_sdk::constants::EVENT_LOG_DELETED_EXT;
 
         // Remove local vault mirror if it exists
         let vault_path = self.vault_path(summary);
@@ -422,11 +422,11 @@ pub trait StorageProvider: Sync + Send {
         }
 
         // Rename the local WAL file so recovery is still possible
-        let wal_path = self.wal_path(summary);
-        if wal_path.exists() {
-            let mut wal_path_backup = wal_path.clone();
-            wal_path_backup.set_extension(WAL_DELETED_EXT);
-            vfs::rename(wal_path, wal_path_backup).await?;
+        let event_log_path = self.event_log_path(summary);
+        if event_log_path.exists() {
+            let mut event_log_path_backup = event_log_path.clone();
+            event_log_path_backup.set_extension(EVENT_LOG_DELETED_EXT);
+            vfs::rename(event_log_path, event_log_path_backup).await?;
         }
         Ok(())
     }
@@ -527,15 +527,16 @@ pub trait StorageProvider: Sync + Send {
         current_passphrase: SecretString,
         new_passphrase: SecretString,
     ) -> Result<SecretString> {
-        let (new_passphrase, new_vault, wal_events) = ChangePassword::new(
-            vault,
-            current_passphrase,
-            new_passphrase,
-            None,
-        )
-        .build()?;
+        let (new_passphrase, new_vault, event_log_events) =
+            ChangePassword::new(
+                vault,
+                current_passphrase,
+                new_passphrase,
+                None,
+            )
+            .build()?;
 
-        self.update_vault(vault.summary(), &new_vault, wal_events)
+        self.update_vault(vault.summary(), &new_vault, event_log_events)
             .await?;
 
         // Refresh the in-memory and disc-based mirror
@@ -553,9 +554,9 @@ pub trait StorageProvider: Sync + Send {
 
     /// Verify a WAL log.
     async fn verify(&self, summary: &Summary) -> Result<()> {
-        use sos_sdk::commit::wal_commit_tree_file;
-        let wal_path = self.wal_path(summary);
-        wal_commit_tree_file(&wal_path, true, |_| {}).await?;
+        use sos_sdk::commit::event_log_commit_tree_file;
+        let event_log_path = self.event_log_path(summary);
+        event_log_commit_tree_file(&event_log_path, true, |_| {}).await?;
         Ok(())
     }
 }
@@ -593,8 +594,8 @@ macro_rules! provider_impl {
             let patch_path = self.patch_path(summary);
             let patch_file = PatchFile::new(patch_path)?;
 
-            let wal_path = self.wal_path(summary);
-            let mut wal = EventLogFile::new(&wal_path)?;
+            let event_log_path = self.event_log_path(summary);
+            let mut wal = EventLogFile::new(&event_log_path)?;
 
             if let Some(vault) = &vault {
                 let encoded = encode(vault)?;

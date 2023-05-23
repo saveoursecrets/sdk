@@ -2,7 +2,7 @@ use clap::Subcommand;
 use std::path::PathBuf;
 
 use sos_sdk::{
-    commit::{vault_commit_tree_file, wal_commit_tree_file},
+    commit::{event_log_commit_tree_file, vault_commit_tree_file},
     formats::vault_iter,
     hex,
     uuid::Uuid,
@@ -78,7 +78,7 @@ async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
     if !file.is_file() {
         return Err(Error::NotFile(file));
     }
-    let tree = wal_commit_tree_file(&file, true, |row_info| {
+    let tree = event_log_commit_tree_file(&file, true, |row_info| {
         if verbose {
             println!("{}", hex::encode(row_info.commit()));
         }

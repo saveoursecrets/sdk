@@ -1,8 +1,8 @@
 use super::{Error, Result};
 use async_trait::async_trait;
 use sos_sdk::{
-    commit::{wal_commit_tree_file, CommitProof},
-    constants::{VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
+    commit::{event_log_commit_tree_file, CommitProof},
+    constants::{VAULT_EXT, EVENT_LOG_DELETED_EXT, EVENT_LOG_EXT},
     decode, encode,
     events::SyncEvent,
     events::{EventLogFile, EventReducer},
@@ -44,27 +44,27 @@ impl Backend {
     }
 
     /// Get a read reference to the WAL implementation for the backend.
-    pub async fn wal_read(
+    pub async fn event_log_read(
         &self,
         owner: &Address,
         vault_id: &Uuid,
     ) -> Result<&EventLogFile> {
         match self {
             Self::FileSystem(handler) => {
-                handler.wal_read(owner, vault_id).await
+                handler.event_log_read(owner, vault_id).await
             }
         }
     }
 
     /// Get a write reference to the WAL implementation for the backend.
-    pub async fn wal_write(
+    pub async fn event_log_write(
         &mut self,
         owner: &Address,
         vault_id: &Uuid,
     ) -> Result<&mut EventLogFile> {
         match self {
             Self::FileSystem(handler) => {
-                handler.wal_write(owner, vault_id).await
+                handler.event_log_write(owner, vault_id).await
             }
         }
     }
@@ -143,7 +143,7 @@ pub trait BackendHandler {
 
     /// Determine if a vault exists and get it's commit proof
     /// if it already exists.
-    async fn wal_exists(
+    async fn event_log_exists(
         &self,
         owner: &Address,
         vault_id: &Uuid,
@@ -187,7 +187,7 @@ impl FileSystemBackend {
     }
 
     /// Get a read reference to a WAL file.
-    pub async fn wal_read(
+    pub async fn event_log_read(
         &self,
         owner: &Address,
         vault_id: &Uuid,
@@ -205,7 +205,7 @@ impl FileSystemBackend {
     }
 
     /// Get a write reference to a WAL file.
-    pub async fn wal_write(
+    pub async fn event_log_write(
         &mut self,
         owner: &Address,
         vault_id: &Uuid,
@@ -242,11 +242,11 @@ impl FileSystemBackend {
                             .or_insert(Default::default());
                         for entry in std::fs::read_dir(&path)? {
                             let entry = entry?;
-                            let wal_path = entry.path();
-                            if let Some(ext) = wal_path.extension() {
-                                if ext == WAL_EXT {
+                            let event_log_path = entry.path();
+                            if let Some(ext) = event_log_path.extension() {
+                                if ext == EVENT_LOG_EXT {
                                     let mut vault_path =
-                                        wal_path.to_path_buf();
+                                        event_log_path.to_path_buf();
                                     vault_path.set_extension(VAULT_EXT);
                                     if !vault_path.exists() {
                                         return Err(Error::NotFile(
@@ -260,7 +260,7 @@ impl FileSystemBackend {
                                     let id = *summary.id();
 
                                     let mut event_log_file =
-                                        EventLogFile::new(&wal_path)?;
+                                        EventLogFile::new(&event_log_path)?;
                                     event_log_file.load_tree()?;
 
                                     // Store these file paths so locks
@@ -268,12 +268,12 @@ impl FileSystemBackend {
                                     self.startup_files
                                         .push(vault_path.to_path_buf());
                                     self.startup_files
-                                        .push(wal_path.to_path_buf());
+                                        .push(event_log_path.to_path_buf());
 
                                     self.add_event_log_path(
                                         owner,
                                         id,
-                                        wal_path,
+                                        event_log_path,
                                         event_log_file,
                                     )
                                     .await?;
@@ -295,26 +295,26 @@ impl FileSystemBackend {
         vault_id: &Uuid,
         vault: &[u8],
     ) -> Result<(PathBuf, EventLogFile)> {
-        let wal_path = self.event_log_file_path(owner, vault_id);
-        if wal_path.exists() {
-            return Err(Error::FileExists(wal_path));
+        let event_log_path = self.event_log_file_path(owner, vault_id);
+        if event_log_path.exists() {
+            return Err(Error::FileExists(event_log_path));
         }
 
         // Write out the vault for so that we can easily
         // list summaries
-        let mut vault_path = wal_path.clone();
+        let mut vault_path = event_log_path.clone();
         vault_path.set_extension(VAULT_EXT);
         tokio::fs::write(&vault_path, vault).await?;
 
         // Create the WAL file
-        let mut wal = EventLogFile::new(&wal_path)?;
+        let mut wal = EventLogFile::new(&event_log_path)?;
         let event = SyncEvent::CreateVault(Cow::Borrowed(vault));
         wal.append_event(event)?;
 
         self.locks.add(&vault_path)?;
-        self.locks.add(&wal_path)?;
+        self.locks.add(&event_log_path)?;
 
-        Ok((wal_path, wal))
+        Ok((event_log_path, wal))
     }
 
     fn event_log_file_path(
@@ -324,7 +324,7 @@ impl FileSystemBackend {
     ) -> PathBuf {
         let account_dir = self.directory.join(owner.to_string());
         let mut event_log_file = account_dir.join(vault_id.to_string());
-        event_log_file.set_extension(WAL_EXT);
+        event_log_file.set_extension(EVENT_LOG_EXT);
         event_log_file
     }
 
@@ -378,13 +378,13 @@ impl BackendHandler for FileSystemBackend {
         let summary = Header::read_summary_slice(vault)?;
 
         tokio::fs::create_dir(account_dir).await?;
-        let (wal_path, event_log_file) =
+        let (event_log_path, event_log_file) =
             self.new_event_log_file(owner, vault_id, vault).await?;
         let proof = event_log_file.tree().head()?;
         self.add_event_log_path(
             *owner,
             *summary.id(),
-            wal_path,
+            event_log_path,
             event_log_file,
         )
         .await?;
@@ -406,14 +406,14 @@ impl BackendHandler for FileSystemBackend {
         // Check it looks like a vault payload
         let summary = Header::read_summary_slice(vault)?;
 
-        let (wal_path, event_log_file) =
+        let (event_log_path, event_log_file) =
             self.new_event_log_file(owner, vault_id, vault).await?;
 
         let proof = event_log_file.tree().head()?;
         self.add_event_log_path(
             *owner,
             *summary.id(),
-            wal_path,
+            event_log_path,
             event_log_file,
         )
         .await?;
@@ -441,19 +441,19 @@ impl BackendHandler for FileSystemBackend {
             .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
         account.remove(vault_id).ok_or(Error::VaultRemove)?;
 
-        let wal_path = self.event_log_file_path(owner, vault_id);
+        let event_log_path = self.event_log_file_path(owner, vault_id);
 
         // Remove the vault file and lock
-        let mut vault_path = wal_path.clone();
+        let mut vault_path = event_log_path.clone();
         vault_path.set_extension(VAULT_EXT);
         let _ = tokio::fs::remove_file(&vault_path).await?;
         self.locks.remove(&vault_path)?;
 
         // Keep a backup of the WAL file as .wal.deleted
-        let mut wal_backup = wal_path.clone();
-        wal_backup.set_extension(WAL_DELETED_EXT);
-        let _ = tokio::fs::rename(&wal_path, wal_backup).await?;
-        self.locks.remove(&wal_path)?;
+        let mut event_log_backup = event_log_path.clone();
+        event_log_backup.set_extension(EVENT_LOG_DELETED_EXT);
+        let _ = tokio::fs::rename(&event_log_path, event_log_backup).await?;
+        self.locks.remove(&event_log_path)?;
 
         Ok(())
     }
@@ -519,14 +519,19 @@ impl BackendHandler for FileSystemBackend {
 
         // Read in the buffer of the WAL data so we can replace
         // the existing WAL using the standard logic
-        let wal_buffer = tokio::fs::read(temp.path()).await?;
+        let event_log_buffer = tokio::fs::read(temp.path()).await?;
 
         // FIXME: make this transactional so we revert to the
         // FIXME: last WAL and vault file(s) on failure
 
         // Replace the WAL with the new buffer
         let commit_proof = self
-            .replace_event_log(owner, vault.id(), expected_root, &wal_buffer)
+            .replace_event_log(
+                owner,
+                vault.id(),
+                expected_root,
+                &event_log_buffer,
+            )
             .await?;
 
         // Write out the vault file (header only)
@@ -536,7 +541,7 @@ impl BackendHandler for FileSystemBackend {
         Ok((event, commit_proof))
     }
 
-    async fn wal_exists(
+    async fn event_log_exists(
         &self,
         owner: &Address,
         vault_id: &Uuid,
@@ -595,7 +600,8 @@ impl BackendHandler for FileSystemBackend {
         // Compute the root hash of the submitted WAL file
         // and verify the integrity of each record event against
         // each leaf node hash
-        let tree = wal_commit_tree_file(&temp_path, true, |_| {}).await?;
+        let tree =
+            event_log_commit_tree_file(&temp_path, true, |_| {}).await?;
 
         let tree_root = tree.root().ok_or(sos_sdk::Error::NoRootCommit)?;
 
@@ -617,7 +623,7 @@ impl BackendHandler for FileSystemBackend {
         // Move the temp file with the new contents into place
         vfs::rename(&temp_path, &original_event_log).await?;
 
-        let wal = self.wal_write(owner, vault_id).await?;
+        let wal = self.event_log_write(owner, vault_id).await?;
         *wal = EventLogFile::new(&original_event_log)?;
         wal.load_tree()?;
 

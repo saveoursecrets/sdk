@@ -19,7 +19,7 @@ use sos_sdk::{
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultWriter, VaultId,
+        Gatekeeper, Summary, Vault, VaultAccess, VaultId, VaultWriter,
     },
     vfs, Timestamp,
 };

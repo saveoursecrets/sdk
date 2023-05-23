@@ -5,7 +5,7 @@ use http::StatusCode;
 
 use sos_sdk::{
     commit::{CommitProof, SyncInfo, SyncKind},
-    constants::WAL_IDENTITY,
+    constants::EVENT_LOG_IDENTITY,
     events::EventLogFile,
     formats::FileIdentity,
     patch::PatchFile,
@@ -110,7 +110,7 @@ pub async fn pull_event_log(
                         "pull_event_log write diff WAL records");
 
                     // Check the identity looks good
-                    FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
+                    FileIdentity::read_slice(&buffer, &EVENT_LOG_IDENTITY)?;
 
                     // Append the diff bytes
                     event_log_file.append_buffer(buffer)?;
@@ -124,7 +124,7 @@ pub async fn pull_event_log(
                         "pull_event_log write entire WAL");
 
                     // Check the identity looks good
-                    FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
+                    FileIdentity::read_slice(&buffer, &EVENT_LOG_IDENTITY)?;
                     event_log_file.write_buffer(&buffer).await?;
                     event_log_file.tree().head()?
                 }
