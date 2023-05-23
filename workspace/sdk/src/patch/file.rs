@@ -1,7 +1,7 @@
 //! Patch represents a changeset of events to apply to a vault.
 use std::{
     fs::{File, OpenOptions},
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 

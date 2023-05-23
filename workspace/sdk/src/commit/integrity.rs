@@ -7,7 +7,7 @@ use crate::{
     Error, Result,
 };
 use binary_stream::{tokio::BinaryReader, Endian};
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use crate::wal::file::WalFile;
 
@@ -21,7 +21,7 @@ macro_rules! read_iterator_item {
             let length = value.end - value.start;
             $reader.seek(value.start).await?;
             $reader.read_bytes(length as usize).await?
-        };
+        }
     };
 }
 

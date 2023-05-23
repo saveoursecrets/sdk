@@ -298,7 +298,7 @@ impl WalProvider for WalFile {
 
     fn iter(
         &self,
-    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>
+    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + Send + '_>>
     {
         Ok(Box::new(wal_iter(&self.file_path)?))
     }

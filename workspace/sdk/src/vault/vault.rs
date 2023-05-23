@@ -1264,7 +1264,7 @@ mod tests {
     #[test]
     fn encode_decode_empty_vault() -> Result<()> {
         let vault = mock_vault();
-        let mut buffer = encode(&vault)?;
+        let buffer = encode(&vault)?;
         let decoded = decode(&buffer)?;
         assert_eq!(vault, decoded);
         Ok(())

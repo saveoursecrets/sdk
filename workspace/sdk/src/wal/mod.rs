@@ -26,7 +26,7 @@ pub mod reducer;
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait WalProvider {
     /// The item yielded by the iterator implementation.
-    type Item: WalItem;
+    type Item: WalItem + Send;
     /// Partial data yielded after an iterator item until
     /// the end of the log.
     type Partial;
@@ -117,7 +117,7 @@ pub trait WalProvider {
     /// Get an iterator of the log records.
     fn iter(
         &self,
-    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + '_>>;
+    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + Send + '_>>;
 }
 
 /// Trait for items yielded by the iterator.
