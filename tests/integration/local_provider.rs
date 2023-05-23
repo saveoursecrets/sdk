@@ -9,7 +9,6 @@ use secrecy::ExposeSecret;
 use sos_net::client::provider::{LocalProvider, StorageProvider};
 use sos_sdk::{
     events::SyncEvent,
-    patch::PatchFile,
     signer::{ecdsa::SingleParty, Signer},
     storage::StorageDirs,
     vault::secret::{Secret, SecretData},
@@ -24,10 +23,7 @@ macro_rules! commit_count {
     }};
 }
 
-async fn run_local_storage_tests(
-    storage: &mut LocalProvider,
-) -> Result<()>
-{
+async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
     // Create an account with default login vault
     let (passphrase, _) = storage.create_account(None, None).await?;
 

@@ -3,11 +3,8 @@ use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 
-use std::path::Path;
-
 use crate::{
     constants::PATCH_IDENTITY, events::SyncEvent, formats::FileIdentity,
-    Result,
 };
 
 use std::io::{Read, Seek, Write};

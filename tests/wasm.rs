@@ -5,8 +5,7 @@ mod wasm_tests {
     use sos_sdk::{
         decode, encode,
         vault::{Summary, Vault},
-        vfs,
-        Timestamp,
+        vfs, Timestamp,
     };
     use std::path::PathBuf;
     use wasm_bindgen::prelude::*;
@@ -41,7 +40,7 @@ mod wasm_tests {
         let decoded: Timestamp = decode(&buffer).unwrap();
         assert_eq!(timestamp, decoded);
     }
-    
+
     /*
     #[wasm_bindgen_test]
     async fn wal_memory_parse() {

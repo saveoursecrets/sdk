@@ -7,7 +7,7 @@ use sos_sdk::{
     commit::{CommitPair, CommitRelationship, Comparison},
     patch::PatchFile,
     vault::Summary,
-    wal::file::WalFile,
+    wal::WalFile,
 };
 
 use crate::retry;
@@ -33,8 +33,7 @@ pub async fn status(
     summary: &Summary,
     wal_file: &WalFile,
     patch_file: &PatchFile,
-) -> Result<(CommitRelationship, Option<usize>)>
-{
+) -> Result<(CommitRelationship, Option<usize>)> {
     let client_proof = wal_file.tree().head()?;
     let (status, (server_proof, match_proof)) = retry!(
         || client.status(summary.id(), Some(client_proof.clone())),

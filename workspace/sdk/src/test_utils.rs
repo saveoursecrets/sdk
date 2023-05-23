@@ -119,12 +119,8 @@ pub fn mock_vault_note_update<'a>(
 #[cfg(not(target_arch = "wasm32"))]
 mod file {
     use crate::{
-        commit::CommitHash,
-        crypto::secret_key::SecretKey,
-        encode,
-        events::SyncEvent,
-        vault::Vault,
-        wal::file::WalFile,
+        commit::CommitHash, crypto::secret_key::SecretKey, encode,
+        events::SyncEvent, vault::Vault, wal::WalFile,
     };
     use tempfile::NamedTempFile;
 

@@ -23,7 +23,7 @@ use crate::{
     timestamp::Timestamp,
     vfs, Error, Result,
 };
-use async_trait::async_trait;
+
 use std::{
     fs::{File, OpenOptions},
     io::{Cursor, Read, Seek, SeekFrom, Write},
@@ -33,7 +33,7 @@ use std::{
 use binary_stream::{BinaryReader, Decode, Endian};
 use tempfile::NamedTempFile;
 
-use super::{reducer::WalReducer, WalRecord};
+use super::{WalRecord, WalReducer};
 
 /// A write ahead log that appends to a file.
 pub struct WalFile {
@@ -43,7 +43,6 @@ pub struct WalFile {
 }
 
 impl WalFile {
-
     /// Create a new log file.
     pub fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         let file = WalFile::create(file_path.as_ref())?;
@@ -263,7 +262,10 @@ impl WalFile {
 
     /// Append a log event to the write ahead log and commit
     /// the hash to the commit tree.
-    pub fn append_event(&mut self, event: SyncEvent<'_>) -> Result<CommitHash> {
+    pub fn append_event(
+        &mut self,
+        event: SyncEvent<'_>,
+    ) -> Result<CommitHash> {
         let (commit, record) = self.encode_event(event, None)?;
         let buffer = encode(&record)?;
         self.file.write_all(&buffer)?;
@@ -317,7 +319,9 @@ impl WalFile {
     pub fn iter(
         &self,
     ) -> Result<
-        Box<dyn DoubleEndedIterator<Item = Result<WalFileRecord>> + Send + '_>,
+        Box<
+            dyn DoubleEndedIterator<Item = Result<WalFileRecord>> + Send + '_,
+        >,
     > {
         Ok(Box::new(wal_iter(&self.file_path)?))
     }

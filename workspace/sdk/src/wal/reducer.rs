@@ -14,7 +14,7 @@ use crate::{
     decode, encode,
     events::SyncEvent,
     vault::{secret::SecretId, Vault, VaultCommit},
-    wal::file::WalFile,
+    wal::WalFile,
     Error, Result,
 };
 
@@ -60,10 +60,7 @@ impl<'a> WalReducer<'a> {
     }
 
     /// Reduce the events in the given iterator.
-    pub fn reduce(
-        mut self,
-        wal: &'a WalFile,
-    ) -> Result<Self> {
+    pub fn reduce(mut self, wal: &'a WalFile) -> Result<Self> {
         let mut it = wal.iter()?;
         if let Some(first) = it.next() {
             let log = first?;
@@ -179,7 +176,7 @@ mod test {
             secret::{Secret, SecretId, SecretMeta},
             VaultAccess, VaultCommit, VaultEntry,
         },
-        wal::file::WalFile,
+        wal::WalFile,
     };
     use anyhow::Result;
     use secrecy::ExposeSecret;

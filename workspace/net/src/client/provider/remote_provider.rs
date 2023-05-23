@@ -17,7 +17,7 @@ use sos_sdk::{
         Summary, Vault,
     },
     vfs,
-    wal::{file::WalFile, reducer::WalReducer},
+    wal::{WalFile, WalReducer},
     Timestamp,
 };
 
@@ -75,8 +75,7 @@ impl RemoteProvider {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl StorageProvider for RemoteProvider
-{
+impl StorageProvider for RemoteProvider {
     provider_impl!();
 
     async fn create_vault_or_account(

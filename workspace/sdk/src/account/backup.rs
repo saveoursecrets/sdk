@@ -32,7 +32,7 @@ use crate::{
         VaultFileAccess, VaultId,
     },
     vfs,
-    wal::file::WalFile,
+    wal::WalFile,
     Error, Result,
 };
 

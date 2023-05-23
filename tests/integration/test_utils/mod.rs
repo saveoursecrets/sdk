@@ -10,12 +10,10 @@ use sos_sdk::{
     audit::AuditLogFile,
     crypto::channel::SessionManager,
     events::SyncEvent,
-    patch::PatchFile,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary,
     },
-    wal::file::WalFile,
 };
 
 use sos_net::{

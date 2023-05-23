@@ -1,23 +1,19 @@
 //! Write ahead log types and traits.
 use crate::{
-    commit::{CommitHash, CommitTree},
-    events::SyncEvent,
-    formats::WalFileRecord,
-    timestamp::Timestamp,
-    Result,
+    commit::CommitHash, formats::WalFileRecord, timestamp::Timestamp,
 };
-use async_trait::async_trait;
-use std::{
-    io::{Read, Seek, Write},
-    path::{Path, PathBuf},
-};
+
+use std::io::{Read, Seek, Write};
 
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 
-pub mod file;
-pub mod reducer;
+mod file;
+mod reducer;
+
+pub use file::WalFile;
+pub use reducer::WalReducer;
 
 /// Record for a row in the write ahead log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
@@ -137,7 +133,7 @@ mod test {
 
     use uuid::Uuid;
 
-    use super::{file::*, *};
+    use super::file::*;
     use crate::{
         commit::{CommitHash, CommitTree, Comparison},
         encode,

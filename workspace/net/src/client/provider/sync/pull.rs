@@ -9,7 +9,7 @@ use sos_sdk::{
     formats::FileIdentity,
     patch::PatchFile,
     vault::Summary,
-    wal::file::WalFile,
+    wal::WalFile,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -23,8 +23,7 @@ pub async fn pull(
     wal_file: &mut WalFile,
     patch_file: &mut PatchFile,
     force: bool,
-) -> Result<SyncInfo>
-{
+) -> Result<SyncInfo> {
     let client_proof = wal_file.tree().head()?;
 
     let (status, (server_proof, match_proof)) = retry!(
@@ -78,8 +77,7 @@ pub async fn pull_wal(
     client: &mut RpcClient,
     summary: &Summary,
     wal_file: &mut WalFile,
-) -> Result<CommitProof>
-{
+) -> Result<CommitProof> {
     let client_proof = if wal_file.tree().root().is_some() {
         let proof = wal_file.tree().head()?;
         tracing::debug!(root = %proof.root_hex(), "pull_wal wants diff");
@@ -174,8 +172,7 @@ pub async fn force_pull(
     client: &mut RpcClient,
     summary: &Summary,
     wal_file: &mut WalFile,
-) -> Result<CommitProof>
-{
+) -> Result<CommitProof> {
     // Need to recreate the WAL file correctly before pulling
     // as pull_wal() expects the file to exist
     *wal_file = WalFile::new(wal_file.path())?;

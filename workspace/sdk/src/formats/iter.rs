@@ -194,7 +194,7 @@ impl WalFileRecord {
     pub fn last_commit(&self) -> [u8; 32] {
         self.last_commit
     }
-    
+
     /// Time the row was appended.
     pub fn time(&self) -> &Timestamp {
         &self.time

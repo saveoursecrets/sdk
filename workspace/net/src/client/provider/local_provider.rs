@@ -15,7 +15,7 @@ use sos_sdk::{
     patch::PatchFile,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
-    wal::{file::WalFile, reducer::WalReducer},
+    wal::{WalFile, WalReducer},
     Timestamp,
 };
 
@@ -48,9 +48,7 @@ pub struct LocalProvider {
 
 impl LocalProvider {
     /// Create new node cache backed by files on disc.
-    pub fn new_file_storage(
-        dirs: StorageDirs,
-    ) -> Result<LocalProvider> {
+    pub fn new_file_storage(dirs: StorageDirs) -> Result<LocalProvider> {
         if !dirs.documents_dir().is_dir() {
             return Err(Error::NotDirectory(
                 dirs.documents_dir().to_path_buf(),

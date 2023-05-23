@@ -5,7 +5,7 @@ use http::StatusCode;
 
 use sos_sdk::{
     commit::CommitHash, events::SyncEvent, patch::PatchFile, vault::Summary,
-    wal::file::WalFile,
+    wal::WalFile,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -17,8 +17,7 @@ pub async fn patch(
     wal_file: &mut WalFile,
     patch_file: &mut PatchFile,
     events: Vec<SyncEvent<'static>>,
-) -> Result<()>
-{
+) -> Result<()> {
     let status =
         apply_patch(client, summary, wal_file, patch_file, events).await?;
     status
@@ -35,8 +34,7 @@ pub(crate) async fn apply_patch(
     wal_file: &mut WalFile,
     patch_file: &mut PatchFile,
     events: Vec<SyncEvent<'static>>,
-) -> Result<StatusCode>
-{
+) -> Result<StatusCode> {
     let patch = patch_file.append(events)?;
 
     let client_proof = wal_file.tree().head()?;
@@ -152,8 +150,7 @@ pub async fn apply_patch_file(
     summary: &Summary,
     wal_file: &mut WalFile,
     patch_file: &mut PatchFile,
-) -> Result<()>
-{
+) -> Result<()> {
     let has_events = patch_file.has_events()?;
 
     tracing::debug!(has_events, "apply patch file");

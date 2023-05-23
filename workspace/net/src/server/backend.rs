@@ -5,10 +5,9 @@ use sos_sdk::{
     constants::{VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
     decode, encode,
     events::SyncEvent,
-    formats::WalFileRecord,
     vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
     vfs,
-    wal::{file::WalFile, reducer::WalReducer},
+    wal::{WalFile, WalReducer},
 };
 use std::{
     borrow::Cow,
@@ -49,9 +48,7 @@ impl Backend {
         &self,
         owner: &Address,
         vault_id: &Uuid,
-    ) -> Result<
-        &WalFile
-    > {
+    ) -> Result<&WalFile> {
         match self {
             Self::FileSystem(handler) => {
                 handler.wal_read(owner, vault_id).await
@@ -64,9 +61,7 @@ impl Backend {
         &mut self,
         owner: &Address,
         vault_id: &Uuid,
-    ) -> Result<
-        &mut WalFile
-    > {
+    ) -> Result<&mut WalFile> {
         match self {
             Self::FileSystem(handler) => {
                 handler.wal_write(owner, vault_id).await

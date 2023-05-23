@@ -8,7 +8,7 @@ use sos_sdk::{
     patch::PatchFile,
     vault::Summary,
     vfs,
-    wal::file::WalFile,
+    wal::WalFile,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -22,8 +22,7 @@ pub async fn push(
     wal_file: &mut WalFile,
     patch_file: &mut PatchFile,
     force: bool,
-) -> Result<SyncInfo>
-{
+) -> Result<SyncInfo> {
     let client_proof = wal_file.tree().head()?;
 
     let (status, (server_proof, _match_proof)) =
@@ -75,8 +74,7 @@ pub async fn force_push(
     client: &mut RpcClient,
     summary: &Summary,
     wal_file: &mut WalFile,
-) -> Result<CommitProof>
-{
+) -> Result<CommitProof> {
     // TODO: load any unsaved events from the patch file and
     // TODO: apply them to the WAL!
 

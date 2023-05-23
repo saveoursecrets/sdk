@@ -2,12 +2,11 @@
 use crate::{
     commit::CommitTree,
     formats::{vault_iter, FileItem, VaultRecord, WalFileRecord},
-    vfs,
-    Error, Result,
+    vfs, Error, Result,
 };
 use binary_stream::{tokio::BinaryReader, Endian};
 
-use crate::wal::file::WalFile;
+use crate::wal::WalFile;
 
 use std::path::Path;
 
