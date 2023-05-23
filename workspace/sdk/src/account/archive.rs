@@ -1,8 +1,4 @@
 //! Read and write archives of vaults.
-//!
-//! Designed to avoid file system operations so it can
-//! also be used from webassembly.
-
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{

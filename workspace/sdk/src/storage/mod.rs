@@ -60,6 +60,8 @@ pub fn guess_mime<P: AsRef<Path>>(path: P) -> Result<String> {
 /// Encapsulates the paths for vault storage.
 #[derive(Default, Debug)]
 pub struct StorageDirs {
+    /// User identifier.
+    user_id: String,
     /// Top-level documents folder.
     documents_dir: PathBuf,
     /// Directory for local storage.
@@ -83,7 +85,9 @@ impl StorageDirs {
         let user_dir = local_dir.join(user_id);
         let files_dir = user_dir.join(FILES_DIR);
         let vaults_dir = user_dir.join(VAULTS_DIR);
+
         Self {
+            user_id: user_id.to_owned(),
             documents_dir,
             local_dir,
             trash_dir,
@@ -130,6 +134,14 @@ impl StorageDirs {
         &self.vaults_dir
     }
 
+    /// Get the path to the identity vault file for this account.
+    pub fn identity(&self) -> Result<PathBuf> {
+        let identity_dir = Self::identity_dir()?;
+        let mut identity_vault_file = identity_dir.join(&self.user_id);
+        identity_vault_file.set_extension(VAULT_EXT);
+        Ok(identity_vault_file)
+    }
+
     /// Set an explicit cache directory.
     pub fn set_cache_dir(path: PathBuf) {
         let mut writer = CACHE_DIR.write().unwrap();
@@ -168,35 +180,49 @@ impl StorageDirs {
         dir
     }
 
+    /// Get the path to the directory used to store identity vaults.
+    pub fn identity_dir() -> Result<PathBuf> {
+        let cache_dir = StorageDirs::cache_dir().ok_or(Error::NoCache)?;
+        let identity_dir = cache_dir.join(IDENTITY_DIR);
+        Ok(identity_dir)
+    }
+
+
     /// Get the local cache directory.
+    #[deprecated]
     pub fn local_dir() -> Result<PathBuf> {
         Ok(Self::cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR))
     }
 
     /// Get the trash directory.
+    #[deprecated]
     pub fn trash_dir() -> Result<PathBuf> {
         let trash = Self::local_dir()?.join(TRASH_DIR);
         Ok(trash)
     }
 
     /// Get the temporary directory.
+    #[deprecated]
     pub fn temp_dir() -> Result<PathBuf> {
         Ok(Self::local_dir()?.join(TEMP_DIR))
     }
 
     /// Get the local directory for storing devices.
+    #[deprecated]
     pub fn devices_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         Ok(local_dir.join(address).join(DEVICES_DIR))
     }
 
     /// Get the local directory for storing vaults.
+    #[deprecated]
     pub fn local_vaults_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         Ok(local_dir.join(address).join(VAULTS_DIR))
     }
 
     /// Get the path to a vault file from it's identifier.
+    #[deprecated]
     pub fn vault_path<A: AsRef<Path>, V: AsRef<Path>>(
         address: A,
         id: V,
@@ -208,6 +234,7 @@ impl StorageDirs {
     }
 
     /// Get the path to a log file from it's identifier.
+    #[deprecated]
     pub fn log_path<A: AsRef<Path>, V: AsRef<Path>>(
         address: A,
         id: V,
@@ -221,6 +248,7 @@ impl StorageDirs {
     /// Get the path to the directory used to store files.
     ///
     /// Ensure it exists if it does not already exist.
+    #[deprecated]
     pub fn files_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         let files_dir = local_dir.join(address).join(FILES_DIR);
@@ -229,6 +257,7 @@ impl StorageDirs {
 
     /// Get the expected location for the directory containing
     /// all the external files for a folder.
+    #[deprecated]
     pub fn file_folder_location<A: AsRef<Path>, V: AsRef<Path>>(
         address: A,
         vault_id: V,
@@ -238,6 +267,7 @@ impl StorageDirs {
     }
 
     /// Get the expected location for a file.
+    #[deprecated]
     pub fn file_location<
         A: AsRef<Path>,
         V: AsRef<Path>,
@@ -255,16 +285,8 @@ impl StorageDirs {
         Ok(path)
     }
 
-    /// Get the path to the directory used to store identity vaults.
-    ///
-    /// Ensure it exists if it does not already exist.
-    pub fn identity_dir() -> Result<PathBuf> {
-        let cache_dir = StorageDirs::cache_dir().ok_or(Error::NoCache)?;
-        let identity_dir = cache_dir.join(IDENTITY_DIR);
-        Ok(identity_dir)
-    }
-
     /// Get the path to the identity vault file for an account identifier.
+    #[deprecated(note = "Use identity() instead")]
     pub fn identity_vault<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let identity_dir = Self::identity_dir()?;
         let mut identity_vault_file = identity_dir.join(address.as_ref());

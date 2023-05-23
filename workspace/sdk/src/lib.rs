@@ -12,7 +12,6 @@ use binary_stream::{BinaryReader, BinaryWriter, Decode, Encode, Endian};
 use std::io::{Cursor, Seek, SeekFrom};
 
 pub mod account;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod audit;
 pub mod commit;
 pub mod constants;
