@@ -29,11 +29,11 @@ mod identity {
 
 /// Constants for file extensions.
 mod extensions {
-    /// File extension used for WAL files.
-    pub const EVENT_LOG_EXT: &str = "wal";
+    /// File extension used for event log files.
+    pub const EVENT_LOG_EXT: &str = "sos";
 
-    /// File extension used when deleting WAL files.
-    pub const EVENT_LOG_DELETED_EXT: &str = "wal.deleted";
+    /// File extension used when deleting event log files.
+    pub const EVENT_LOG_DELETED_EXT: &str = "sos.deleted";
 
     /// File extension used for vault files.
     pub const VAULT_EXT: &str = "vault";
@@ -114,16 +114,16 @@ mod rpc {
     /// Vault delete method call.
     pub const VAULT_DELETE: &str = "Vault.delete";
 
-    /// WAL load method call.
+    /// event log load method call.
     pub const EVENT_LOG_LOAD: &str = "Events.load";
 
-    /// WAL status method call.
+    /// event log status method call.
     pub const EVENT_LOG_STATUS: &str = "Events.status";
 
-    /// WAL patch method call.
+    /// event log patch method call.
     pub const EVENT_LOG_PATCH: &str = "Events.patch";
 
-    /// WAL save method call.
+    /// event log save method call.
     pub const EVENT_LOG_SAVE: &str = "Events.save";
 }
 

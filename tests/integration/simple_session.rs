@@ -127,7 +127,7 @@ async fn integration_simple_session() -> Result<()> {
     // Ensure we have a commit tree
     assert!(node_cache.commit_tree(&new_vault_summary).is_some());
 
-    // Check the WAL history has the right length
+    // Check the event log history has the right length
     let history = node_cache.history(&new_vault_summary)?;
     assert_eq!(4, history.len());
 
@@ -164,7 +164,7 @@ async fn integration_simple_session() -> Result<()> {
     // Now force a push
     let _ = node_cache.push(&new_vault_summary, true).await?;
 
-    // Verify local WAL ingegrity
+    // Verify local event log ingegrity
     node_cache.verify(&new_vault_summary).await?;
 
     // Close the vault

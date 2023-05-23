@@ -106,9 +106,9 @@ pub enum Error {
     ConflictBehind {
         /// Summary of the vault that triggered the conflict.
         summary: Summary,
-        /// Commit hash of the local WAL.
+        /// Commit hash of the local event log.
         local: (CommitHash, usize),
-        /// Commit hash of the remote WAL.
+        /// Commit hash of the remote event log.
         remote: (CommitHash, usize),
         /// Events that can be applied after a pull.
         events: Vec<SyncEvent<'static>>,
@@ -120,9 +120,9 @@ pub enum Error {
     Conflict {
         /// Summary of the vault that triggered the conflict.
         summary: Summary,
-        /// Commit hash of the local WAL.
+        /// Commit hash of the local event log.
         local: (CommitHash, usize),
-        /// Commit hash of the remote WAL.
+        /// Commit hash of the remote event log.
         remote: (CommitHash, usize),
     },
 

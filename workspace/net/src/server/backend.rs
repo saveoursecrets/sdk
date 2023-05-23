@@ -2,7 +2,7 @@ use super::{Error, Result};
 use async_trait::async_trait;
 use sos_sdk::{
     commit::{event_log_commit_tree_file, CommitProof},
-    constants::{VAULT_EXT, EVENT_LOG_DELETED_EXT, EVENT_LOG_EXT},
+    constants::{EVENT_LOG_DELETED_EXT, EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
     events::SyncEvent,
     events::{EventLogFile, EventReducer},
@@ -43,7 +43,7 @@ impl Backend {
         }
     }
 
-    /// Get a read reference to the WAL implementation for the backend.
+    /// Get a read reference to the event log implementation for the backend.
     pub async fn event_log_read(
         &self,
         owner: &Address,
@@ -56,7 +56,7 @@ impl Backend {
         }
     }
 
-    /// Get a write reference to the WAL implementation for the backend.
+    /// Get a write reference to the event log implementation for the backend.
     pub async fn event_log_write(
         &mut self,
         owner: &Address,
@@ -112,7 +112,7 @@ pub trait BackendHandler {
         name: String,
     ) -> Result<()>;
 
-    /// Overwrite the vault and WAL file from a buffer
+    /// Overwrite the vault and event log file from a buffer
     /// containing a new vault.
     ///
     /// This is used when a vault password has been changed.
@@ -122,9 +122,9 @@ pub trait BackendHandler {
         vault: &'a [u8],
     ) -> Result<(SyncEvent<'a>, CommitProof)>;
 
-    /* WAL */
+    /* event log */
 
-    /// Create a new WAL.
+    /// Create a new event log.
     ///
     /// The owner directory must already exist.
     async fn create_event_log<'a>(
@@ -134,7 +134,7 @@ pub trait BackendHandler {
         vault: &'a [u8],
     ) -> Result<(SyncEvent<'a>, CommitProof)>;
 
-    /// Delete a WAL log and corresponding vault.
+    /// Delete a event log log and corresponding vault.
     async fn delete_event_log(
         &mut self,
         owner: &Address,
@@ -149,14 +149,14 @@ pub trait BackendHandler {
         vault_id: &Uuid,
     ) -> Result<(bool, Option<CommitProof>)>;
 
-    /// Load a WAL buffer for an account.
+    /// Load a event log buffer for an account.
     async fn get_event_log(
         &self,
         owner: &Address,
         vault_id: &Uuid,
     ) -> Result<Vec<u8>>;
 
-    /// Replace a WAL file with a new buffer.
+    /// Replace a event log file with a new buffer.
     async fn replace_event_log(
         &mut self,
         owner: &Address,
@@ -186,7 +186,7 @@ impl FileSystemBackend {
         }
     }
 
-    /// Get a read reference to a WAL file.
+    /// Get a read reference to a event log file.
     pub async fn event_log_read(
         &self,
         owner: &Address,
@@ -204,7 +204,7 @@ impl FileSystemBackend {
         Ok(storage)
     }
 
-    /// Get a write reference to a WAL file.
+    /// Get a write reference to a event log file.
     pub async fn event_log_write(
         &mut self,
         owner: &Address,
@@ -288,7 +288,7 @@ impl FileSystemBackend {
         Ok(())
     }
 
-    /// Write a WAL file to disc for the given owner address.
+    /// Write a event log file to disc for the given owner address.
     async fn new_event_log_file(
         &mut self,
         owner: &Address,
@@ -306,15 +306,15 @@ impl FileSystemBackend {
         vault_path.set_extension(VAULT_EXT);
         tokio::fs::write(&vault_path, vault).await?;
 
-        // Create the WAL file
-        let mut wal = EventLogFile::new(&event_log_path)?;
+        // Create the event log file
+        let mut event_log = EventLogFile::new(&event_log_path)?;
         let event = SyncEvent::CreateVault(Cow::Borrowed(vault));
-        wal.append_event(event)?;
+        event_log.append_event(event)?;
 
         self.locks.add(&vault_path)?;
         self.locks.add(&event_log_path)?;
 
-        Ok((event_log_path, wal))
+        Ok((event_log_path, event_log))
     }
 
     fn event_log_file_path(
@@ -334,7 +334,7 @@ impl FileSystemBackend {
         vault_path
     }
 
-    /// Add a WAL file path to the in-memory account.
+    /// Add a event log file path to the in-memory account.
     async fn add_event_log_path(
         &mut self,
         owner: Address,
@@ -449,7 +449,7 @@ impl BackendHandler for FileSystemBackend {
         let _ = tokio::fs::remove_file(&vault_path).await?;
         self.locks.remove(&vault_path)?;
 
-        // Keep a backup of the WAL file as .wal.deleted
+        // Keep a backup of the event log file as .event_log.deleted
         let mut event_log_backup = event_log_path.clone();
         event_log_backup.set_extension(EVENT_LOG_DELETED_EXT);
         let _ = tokio::fs::rename(&event_log_path, event_log_backup).await?;
@@ -502,7 +502,7 @@ impl BackendHandler for FileSystemBackend {
         let vault: Vault = decode(vault)?;
         let (vault, events) = EventReducer::split(vault)?;
 
-        // Prepare a temp file with the new WAL records
+        // Prepare a temp file with the new event log records
         let temp = NamedTempFile::new()?;
         let mut temp_event_log = EventLogFile::new(temp.path())?;
         temp_event_log.apply(events, None)?;
@@ -517,14 +517,14 @@ impl BackendHandler for FileSystemBackend {
         // Re-encode with the new header-only vault
         let vault_buffer = encode(&vault)?;
 
-        // Read in the buffer of the WAL data so we can replace
-        // the existing WAL using the standard logic
+        // Read in the buffer of the event log data so we can replace
+        // the existing event log using the standard logic
         let event_log_buffer = tokio::fs::read(temp.path()).await?;
 
         // FIXME: make this transactional so we revert to the
-        // FIXME: last WAL and vault file(s) on failure
+        // FIXME: last event log and vault file(s) on failure
 
-        // Replace the WAL with the new buffer
+        // Replace the event log with the new buffer
         let commit_proof = self
             .replace_event_log(
                 owner,
@@ -547,8 +547,8 @@ impl BackendHandler for FileSystemBackend {
         vault_id: &Uuid,
     ) -> Result<(bool, Option<CommitProof>)> {
         if let Some(account) = self.accounts.get(owner) {
-            if let Some(wal) = account.get(vault_id) {
-                Ok((true, Some(wal.tree().head()?)))
+            if let Some(event_log) = account.get(vault_id) {
+                Ok((true, Some(event_log.tree().head()?)))
             } else {
                 Ok((false, None))
             }
@@ -597,7 +597,7 @@ impl BackendHandler for FileSystemBackend {
 
         tracing::debug!("replace_event_log copied to temp file");
 
-        // Compute the root hash of the submitted WAL file
+        // Compute the root hash of the submitted event log file
         // and verify the integrity of each record event against
         // each leaf node hash
         let tree =
@@ -617,18 +617,20 @@ impl BackendHandler for FileSystemBackend {
 
         let original_event_log = self.event_log_file_path(owner, vault_id);
 
-        // Remove the existing WAL
+        // Remove the existing event log
         vfs::remove_file(&original_event_log).await?;
 
         // Move the temp file with the new contents into place
         vfs::rename(&temp_path, &original_event_log).await?;
 
-        let wal = self.event_log_write(owner, vault_id).await?;
-        *wal = EventLogFile::new(&original_event_log)?;
-        wal.load_tree()?;
+        let event_log = self.event_log_write(owner, vault_id).await?;
+        *event_log = EventLogFile::new(&original_event_log)?;
+        event_log.load_tree()?;
 
-        let new_tree_root =
-            wal.tree().root().ok_or(sos_sdk::Error::NoRootCommit)?;
+        let new_tree_root = event_log
+            .tree()
+            .root()
+            .ok_or(sos_sdk::Error::NoRootCommit)?;
 
         tracing::debug!(root = ?hex::encode(new_tree_root),
             "replace_event_log loaded a new tree root");
@@ -636,6 +638,6 @@ impl BackendHandler for FileSystemBackend {
         if root_hash != new_tree_root {
             return Err(Error::EventValidateMismatch);
         }
-        Ok(wal.tree().head()?)
+        Ok(event_log.tree().head()?)
     }
 }

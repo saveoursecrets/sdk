@@ -8,8 +8,8 @@ use std::{
 
 use crate::{
     constants::{
-        DEVICES_DIR, FILES_DIR, IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, TRASH_DIR,
-        VAULTS_DIR, VAULT_EXT, EVENT_LOG_EXT,
+        DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR, LOCAL_DIR,
+        TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
     },
     vfs,
 };

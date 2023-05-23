@@ -78,7 +78,7 @@ pub async fn force_push(
     event_log_file: &mut EventLogFile,
 ) -> Result<CommitProof> {
     // TODO: load any unsaved events from the patch file and
-    // TODO: apply them to the WAL!
+    // TODO: apply them to the event log!
 
     let client_proof = event_log_file.tree().head()?;
     let body = vfs::read(event_log_file.path()).await?;

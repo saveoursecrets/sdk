@@ -53,8 +53,8 @@ impl ServiceHandler {
         private_service(service, state, bearer, session_id.id(), body).await
     }
 
-    /// Handle requests for the WAL service.
-    pub(crate) async fn wal(
+    /// Handle requests for the events service.
+    pub(crate) async fn events(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         TypedHeader(session_id): TypedHeader<Session>,

@@ -157,8 +157,9 @@ mod test {
 
         let (id, data) = mock_secret()?;
 
-        // Create a simple WAL
-        let mut server = EventLogFile::new("target/mock-event-log-standalone.wal")?;
+        // Create a simple event log
+        let mut server =
+            EventLogFile::new("target/mock-event-log-standalone.event_log")?;
         server.apply(
             vec![
                 SyncEvent::CreateVault(Cow::Owned(vault_buffer)),
@@ -172,8 +173,10 @@ mod test {
 
     fn mock_event_log_server_client(
     ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
-        let server_file = PathBuf::from("target/mock-event-log-server.wal");
-        let client_file = PathBuf::from("target/mock-event-log-client.wal");
+        let server_file =
+            PathBuf::from("target/mock-event-log-server.event_log");
+        let client_file =
+            PathBuf::from("target/mock-event-log-client.event_log");
         if server_file.exists() {
             std::fs::remove_file(&server_file)?;
         }
@@ -186,7 +189,7 @@ mod test {
 
         let (id, data) = mock_secret()?;
 
-        // Create a simple WAL
+        // Create a simple event log
         let mut server = EventLogFile::new(&server_file)?;
         server.apply(
             vec![
@@ -238,7 +241,7 @@ mod test {
 
         // A completely different tree should also be unknown to the server.
         //
-        // This can happen if a client compacts its WAL which would create
+        // This can happen if a client compacts its event log which would create
         // a new commit tree.
         let (standalone, _) = mock_event_log_standalone()?;
         let proof = standalone.tree().head()?;
@@ -251,7 +254,8 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn event_log_diff() -> Result<()> {
-        let partial = PathBuf::from("target/mock-event-log-partial.wal");
+        let partial =
+            PathBuf::from("target/mock-event-log-partial.event_log");
         if partial.exists() {
             std::fs::remove_file(&partial)?;
         }
@@ -294,12 +298,13 @@ mod test {
 
     #[test]
     fn event_log_file_load() -> Result<()> {
-        let path = PathBuf::from("../../tests/fixtures/simple-vault.wal");
-        let wal = EventLogFile::new(path)?;
-        let it = wal.iter()?;
+        let path =
+            PathBuf::from("../../tests/fixtures/simple-vault.event_log");
+        let event_log = EventLogFile::new(path)?;
+        let it = event_log.iter()?;
         for record in it {
             let record = record?;
-            let _event = wal.event_data(&record)?;
+            let _event = event_log.event_data(&record)?;
         }
 
         Ok(())

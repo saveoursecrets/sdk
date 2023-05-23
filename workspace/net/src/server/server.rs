@@ -171,7 +171,7 @@ impl Server {
             .route("/api/account", post(ServiceHandler::account))
             .route("/api/session", post(ServiceHandler::session))
             .route("/api/vault", post(ServiceHandler::vault))
-            .route("/api/wal", post(ServiceHandler::wal));
+            .route("/api/events", post(ServiceHandler::events));
 
         app = app
             .layer(cors)

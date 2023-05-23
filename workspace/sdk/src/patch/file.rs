@@ -119,7 +119,7 @@ impl PatchFile {
     /// Truncate the patch backing storage to an empty list.
     ///
     /// This should be called when a client has successfully
-    /// applied a patch to the remote and local WAL files to
+    /// applied a patch to the remote and local event log files to
     /// remove any pending events.
     pub fn truncate(&mut self) -> Result<()> {
         // Workaround for set_len(0) failing with "Access Denied" on Windows

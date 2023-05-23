@@ -1,6 +1,6 @@
 //! Write ahead log file.
 //!
-//! WAL files consist of a 4 identity bytes followed by one or more
+//! event log files consist of a 4 identity bytes followed by one or more
 //! rows of log records.
 //!
 //! Each row contains the row length prepended and appended so that
@@ -92,7 +92,7 @@ impl EventLogFile {
         Ok((commit, record))
     }
 
-    /// Get a copy of this WAL compacted.
+    /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.path().metadata()?.len();
 
@@ -100,13 +100,13 @@ impl EventLogFile {
         let events = EventReducer::new().reduce(self)?.compact()?;
         let temp = NamedTempFile::new()?;
 
-        // Apply them to a temporary WAL file
+        // Apply them to a temporary event log file
         let mut temp_event_log = EventLogFile::new(temp.path())?;
         temp_event_log.apply(events, None)?;
 
         let new_size = temp_event_log.path().metadata()?.len();
 
-        // Remove the existing WAL file
+        // Remove the existing event log file
         vfs::remove_file(self.path()).await?;
         // Move the temp file into place
         vfs::rename(temp.path(), self.path()).await?;
@@ -114,27 +114,27 @@ impl EventLogFile {
         let mut new_event_log = Self::new(self.path())?;
         new_event_log.load_tree()?;
 
-        // Verify the new WAL tree
+        // Verify the new event log tree
         event_log_commit_tree_file(new_event_log.path(), true, |_| {})
             .await?;
 
-        // Need to recreate the WAL file and load the updated
+        // Need to recreate the event log file and load the updated
         // commit tree
         Ok((new_event_log, old_size, new_size))
     }
 
-    /// Replace this WAL with the contents of the buffer.
+    /// Replace this event log with the contents of the buffer.
     ///
-    /// The buffer should start with the WAL identity bytes.
+    /// The buffer should start with the event log identity bytes.
     pub async fn write_buffer(&mut self, buffer: &[u8]) -> Result<()> {
         vfs::write(self.path(), buffer).await?;
         self.load_tree()?;
         Ok(())
     }
 
-    /// Append the buffer to the contents of this WAL.
+    /// Append the buffer to the contents of this event log.
     ///
-    /// The buffer should start with the WAL identity bytes.
+    /// The buffer should start with the event log identity bytes.
     pub fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
         // Get buffer of log records after the identity bytes
         let buffer = &buffer[EVENT_LOG_IDENTITY.len()..];
@@ -204,7 +204,7 @@ impl EventLogFile {
     /// only if all the events were successfully persisted.
     ///
     /// If any events fail this function will rollback the
-    /// WAL to it's previous state.
+    /// event log to it's previous state.
     pub fn apply(
         &mut self,
         events: Vec<SyncEvent<'_>>,
@@ -241,7 +241,7 @@ impl EventLogFile {
                     if other_root != root {
                         tracing::debug!(
                             length = len,
-                            "WAL rollback on expected root hash mismatch"
+                            "event log rollback on expected root hash mismatch"
                         );
                         self.file.set_len(len)?;
                         self.tree.rollback();
@@ -253,11 +253,11 @@ impl EventLogFile {
             Err(e) => {
                 tracing::debug!(
                     length = len,
-                    "WAL rollback on buffer write error"
+                    "event log rollback on buffer write error"
                 );
                 // In case of partial write attempt to truncate
                 // to the previous file length restoring to the
-                // previous state of the WAL log
+                // previous state of the event log log
                 self.file.set_len(len)?;
                 Err(Error::from(e))
             }
@@ -300,7 +300,7 @@ impl EventLogFile {
         Ok(event)
     }
 
-    /// Load any cached data into the WAL implementation
+    /// Load any cached data into the event log implementation
     /// to build a commit tree in memory.
     pub fn load_tree(&mut self) -> Result<()> {
         let mut commits = Vec::new();
@@ -377,42 +377,42 @@ mod test {
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;
-        let mut wal = EventLogFile::new(temp.path())?;
+        let mut event_log = EventLogFile::new(temp.path())?;
 
         let mut commits = Vec::new();
 
         // Create the vault
         let event = SyncEvent::CreateVault(Cow::Owned(buffer));
-        commits.push(wal.append_event(event)?);
+        commits.push(event_log.append_event(event)?);
 
         // Create a secret
         let (secret_id, _, _, _, event) = mock_vault_note(
             &mut vault,
             &encryption_key,
-            "WAL Note",
-            "This a WAL note secret.",
+            "event log Note",
+            "This a event log note secret.",
         )?;
-        commits.push(wal.append_event(event)?);
+        commits.push(event_log.append_event(event)?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
             &mut vault,
             &encryption_key,
             &secret_id,
-            "WAL Note Edited",
-            "This a WAL note secret that was edited.",
+            "event log Note Edited",
+            "This a event log note secret that was edited.",
         )?;
         if let Some(event) = event {
-            commits.push(wal.append_event(event)?);
+            commits.push(event_log.append_event(event)?);
         }
 
-        Ok((temp, wal, commits))
+        Ok((temp, event_log, commits))
     }
 
     #[test]
     fn event_log_iter_forward() -> Result<()> {
-        let (temp, wal, commits) = mock_event_log_file()?;
-        let mut it = wal.iter()?;
+        let (temp, event_log, commits) = mock_event_log_file()?;
+        let mut it = event_log.iter()?;
         let first_row = it.next().unwrap()?;
         let second_row = it.next().unwrap()?;
         let third_row = it.next().unwrap()?;
@@ -428,8 +428,8 @@ mod test {
 
     #[test]
     fn event_log_iter_backward() -> Result<()> {
-        let (temp, wal, _) = mock_event_log_file()?;
-        let mut it = wal.iter()?;
+        let (temp, event_log, _) = mock_event_log_file()?;
+        let mut it = event_log.iter()?;
         let _third_row = it.next_back().unwrap();
         let _second_row = it.next_back().unwrap();
         let _first_row = it.next_back().unwrap();
@@ -440,8 +440,8 @@ mod test {
 
     #[test]
     fn event_log_iter_mixed() -> Result<()> {
-        let (temp, wal, _) = mock_event_log_file()?;
-        let mut it = wal.iter()?;
+        let (temp, event_log, _) = mock_event_log_file()?;
+        let mut it = event_log.iter()?;
         let _first_row = it.next().unwrap();
         let _third_row = it.next_back().unwrap();
         let _second_row = it.next_back().unwrap();

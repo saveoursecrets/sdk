@@ -20,7 +20,7 @@ use crate::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         AccountInfo, DelegatedPassphrase, Identity, LocalAccounts,
     },
-    constants::{VAULT_EXT, EVENT_LOG_EXT},
+    constants::{EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
     events::EventLogFile,
     events::SyncEvent,
@@ -515,7 +515,7 @@ impl AccountBackup {
             let vaults_dir = StorageDirs::local_vaults_dir(&address_path)?;
             vfs::create_dir_all(&vaults_dir).await?;
 
-            // Write out each vault and the WAL log
+            // Write out each vault and the event log log
             for (buffer, vault) in &restore_targets.vaults {
                 let mut vault_path = vaults_dir.join(vault.id().to_string());
                 let mut event_log_path = vault_path.clone();
@@ -525,13 +525,13 @@ impl AccountBackup {
                 // Write out the vault buffer
                 vfs::write(&vault_path, buffer).await?;
 
-                // Write out the WAL file
+                // Write out the event log file
                 let mut event_log_events = Vec::new();
                 let create_vault =
                     SyncEvent::CreateVault(Cow::Borrowed(buffer));
                 event_log_events.push(create_vault);
-                let mut wal = EventLogFile::new(event_log_path)?;
-                wal.apply(event_log_events, None)?;
+                let mut event_log = EventLogFile::new(event_log_path)?;
+                event_log.apply(event_log_events, None)?;
             }
 
             let account = AccountInfo::new(label, restore_targets.address);

@@ -39,7 +39,7 @@ pub struct LocalProvider {
     /// For memory based storage the paths will be empty.
     dirs: StorageDirs,
 
-    /// Cache for WAL and patch providers.
+    /// Cache for event log and patch providers.
     cache: HashMap<VaultId, (EventLogFile, PatchFile)>,
 }
 
@@ -83,7 +83,7 @@ impl StorageProvider for LocalProvider {
         // Add the summary to the vaults we are managing
         self.state_mut().add_summary(summary.clone());
 
-        // Initialize the local cache for WAL and Patch
+        // Initialize the local cache for event log and Patch
         self.create_cache_entry(&summary, Some(vault))?;
 
         Ok((passphrase, summary))
@@ -107,7 +107,7 @@ impl StorageProvider for LocalProvider {
         // Add the summary to the vaults we are managing
         self.state_mut().add_summary(summary.clone());
 
-        // Initialize the local cache for WAL and Patch
+        // Initialize the local cache for event log and Patch
         self.create_cache_entry(&summary, Some(vault))?;
 
         Ok(summary)
@@ -133,13 +133,13 @@ impl StorageProvider for LocalProvider {
             self.write_vault_file(summary, &buffer).await?;
         }
 
-        // Apply events to the WAL
-        let (wal, _) = self
+        // Apply events to the event log
+        let (event_log, _) = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        wal.clear()?;
-        wal.apply(events, None)?;
+        event_log.clear()?;
+        event_log.apply(events, None)?;
 
         Ok(())
     }
@@ -175,7 +175,7 @@ impl StorageProvider for LocalProvider {
         let (compact_event_log, old_size, new_size) =
             event_log_file.compact().await?;
 
-        // Need to recreate the WAL file and load the updated
+        // Need to recreate the event log file and load the updated
         // commit tree
         *event_log_file = compact_event_log;
 
@@ -210,7 +210,7 @@ impl StorageProvider for LocalProvider {
         summary: &Summary,
         name: &str,
     ) -> Result<()> {
-        // Log the WAL event
+        // Log the event log event
         let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
         self.patch(summary, vec![event.into_owned()]).await?;
 
@@ -229,7 +229,7 @@ impl StorageProvider for LocalProvider {
         summary: &Summary,
         events: Vec<SyncEvent<'static>>,
     ) -> Result<()> {
-        let (wal, patch_file) = self
+        let (event_log, patch_file) = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
@@ -239,8 +239,8 @@ impl StorageProvider for LocalProvider {
         // logic can see which events need to be synced
         let _patch = patch_file.append(events.clone())?;
 
-        // Apply events to the WAL file
-        wal.apply(events, None)?;
+        // Apply events to the event log file
+        event_log.apply(events, None)?;
 
         Ok(())
     }

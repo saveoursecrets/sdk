@@ -288,7 +288,7 @@ impl StorageProvider for RemoteProvider {
         vault: &Vault,
         events: Vec<SyncEvent<'a>>,
     ) -> Result<()> {
-        let (wal, _) = self
+        let (event_log, _) = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
@@ -306,9 +306,9 @@ impl StorageProvider for RemoteProvider {
 
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
 
-        // Apply the new WAL events to our local WAL log
-        wal.clear()?;
-        wal.apply(events, Some(CommitHash(*server_proof.root())))?;
+        // Apply the new event log events to our local event log log
+        event_log.clear()?;
+        event_log.apply(events, Some(CommitHash(*server_proof.root())))?;
 
         Ok(())
     }
@@ -412,7 +412,7 @@ impl StorageProvider for RemoteProvider {
 
         // If patching fails then we drop an audit log entry
         // however we don't want this failure to interrupt the client
-        // so we swallow the error in this case
+        // so we sevent_loglow the error in this case
         let _ = self.patch(&summary, vec![event.clone()]).await;
 
         Ok((meta, secret, event))

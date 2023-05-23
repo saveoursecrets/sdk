@@ -135,7 +135,7 @@ mod file {
         Ok((temp, vault, buffer))
     }
 
-    /// Create a mock WAL in a temp file.
+    /// Create a mock event log in a temp file.
     pub fn mock_event_log_file(
     ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>, SecretKey)>
     {
@@ -143,36 +143,36 @@ mod file {
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;
-        let mut wal = EventLogFile::new(temp.path())?;
+        let mut event_log = EventLogFile::new(temp.path())?;
 
         let mut commits = Vec::new();
 
         // Create the vault
         let event = SyncEvent::CreateVault(Cow::Owned(buffer));
-        commits.push(wal.append_event(event)?);
+        commits.push(event_log.append_event(event)?);
 
         // Create a secret
         let (secret_id, _, _, _, event) = mock_vault_note(
             &mut vault,
             &encryption_key,
-            "WAL Note",
-            "This a WAL note secret.",
+            "event log Note",
+            "This a event log note secret.",
         )?;
-        commits.push(wal.append_event(event)?);
+        commits.push(event_log.append_event(event)?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
             &mut vault,
             &encryption_key,
             &secret_id,
-            "WAL Note Edited",
-            "This a WAL note secret that was edited.",
+            "event log Note Edited",
+            "This a event log note secret that was edited.",
         )?;
         if let Some(event) = event {
-            commits.push(wal.append_event(event)?);
+            commits.push(event_log.append_event(event)?);
         }
 
-        Ok((temp, wal, commits, encryption_key))
+        Ok((temp, event_log, commits, encryption_key))
     }
 }
 

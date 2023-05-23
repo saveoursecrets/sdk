@@ -64,7 +64,7 @@ where
     Ok(tree)
 }
 
-/// Build a commit tree from a WAL file optionally
+/// Build a commit tree from a event log file optionally
 /// verifying all the row checksums.
 ///
 /// The `func` is invoked with the row information so
@@ -84,8 +84,8 @@ where
     let mut file = vfs::File::open(event_log_file.as_ref()).await?;
     let mut reader = BinaryReader::new(&mut file, Endian::Little);
 
-    let wal = EventLogFile::new(event_log_file.as_ref())?;
-    let it = wal.iter()?;
+    let event_log = EventLogFile::new(event_log_file.as_ref())?;
+    let it = event_log.iter()?;
     let mut last_checksum: Option<[u8; 32]> = None;
 
     for record in it {
@@ -116,7 +116,7 @@ where
                 });
             }
 
-            let buffer = wal.read_buffer(&record)?;
+            let buffer = event_log.read_buffer(&record)?;
             last_checksum = Some(CommitTree::hash(&buffer));
         }
 
@@ -137,7 +137,7 @@ mod test {
     use super::*;
     use crate::{encode, test_utils::*};
 
-    // TODO: test for corrupt vault / WAL
+    // TODO: test for corrupt vault / event log
 
     #[tokio::test]
     async fn integrity_empty_vault() -> Result<()> {

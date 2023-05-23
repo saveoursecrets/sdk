@@ -74,7 +74,7 @@ pub async fn pull(
     }
 }
 
-/// Fetch the remote WAL file.
+/// Fetch the remote event log file.
 pub async fn pull_event_log(
     client: &mut RpcClient,
     summary: &Summary,
@@ -107,7 +107,7 @@ pub async fn pull_event_log(
                 // are expecting a diff of records
                 Some(_proof) => {
                     tracing::debug!(bytes = ?buffer.len(),
-                        "pull_event_log write diff WAL records");
+                        "pull_event_log write diff event log records");
 
                     // Check the identity looks good
                     FileIdentity::read_slice(&buffer, &EVENT_LOG_IDENTITY)?;
@@ -118,10 +118,10 @@ pub async fn pull_event_log(
                     event_log_file.tree().head()?
                 }
                 // Otherwise the server should send us the entire
-                // WAL file
+                // event log file
                 None => {
                     tracing::debug!(bytes = ?buffer.len(),
-                        "pull_event_log write entire WAL");
+                        "pull_event_log write entire event log");
 
                     // Check the identity looks good
                     FileIdentity::read_slice(&buffer, &EVENT_LOG_IDENTITY)?;
@@ -135,13 +135,6 @@ pub async fn pull_event_log(
             Ok(client_proof)
         }
         StatusCode::NOT_MODIFIED => {
-            /*
-            // Verify that both proofs are equal
-            let (wal, _) = self
-                .cache
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            */
             let server_proof = server_proof.ok_or(Error::ServerProof)?;
             let client_proof = event_log_file.tree().head()?;
             assert_proofs_eq(&client_proof, &server_proof)?;
@@ -175,12 +168,12 @@ pub async fn force_pull(
     summary: &Summary,
     event_log_file: &mut EventLogFile,
 ) -> Result<CommitProof> {
-    // Need to recreate the WAL file correctly before pulling
+    // Need to recreate the event log file correctly before pulling
     // as pull_event_log() expects the file to exist
     *event_log_file = EventLogFile::new(event_log_file.path())?;
     event_log_file.load_tree()?;
 
-    // Pull the remote WAL
+    // Pull the remote event log
     pull_event_log(client, summary, event_log_file).await?;
 
     let proof = event_log_file.tree().head()?;

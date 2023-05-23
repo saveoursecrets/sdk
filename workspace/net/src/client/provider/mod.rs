@@ -10,7 +10,7 @@ use sos_sdk::{
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
-    constants::{PATCH_EXT, VAULT_EXT, EVENT_LOG_EXT},
+    constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
@@ -144,7 +144,7 @@ pub trait StorageProvider: Sync + Send {
         self.load_caches(&summaries)?;
 
         for (buffer, vault) in vaults {
-            // Prepare a fresh log of WAL events
+            // Prepare a fresh log of event log events
             let mut event_log_events = Vec::new();
             let create_vault = SyncEvent::CreateVault(Cow::Borrowed(buffer));
             event_log_events.push(create_vault);
@@ -169,7 +169,7 @@ pub trait StorageProvider: Sync + Send {
         Ok(())
     }
 
-    /// Get the path to a WAL file.
+    /// Get the path to a event log file.
     fn event_log_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), EVENT_LOG_EXT);
         self.dirs().vaults_dir().join(file_name)
@@ -216,11 +216,11 @@ pub trait StorageProvider: Sync + Send {
         events: Vec<SyncEvent<'a>>,
     ) -> Result<()>;
 
-    /// Compact a WAL file.
+    /// Compact a event log file.
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)>;
 
     /// Refresh the in-memory vault of the current selection
-    /// from the contents of the current WAL file.
+    /// from the contents of the current event log file.
     async fn refresh_vault(
         &mut self,
         summary: &Summary,
@@ -336,7 +336,7 @@ pub trait StorageProvider: Sync + Send {
         Ok(())
     }
 
-    /// Load a vault by reducing it from the WAL stored on disc.
+    /// Load a vault by reducing it from the event log stored on disc.
     ///
     /// Remote providers may pull changes beforehand.
     fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault>;
@@ -351,10 +351,10 @@ pub trait StorageProvider: Sync + Send {
     /// Close the currently selected vault.
     fn close_vault(&mut self);
 
-    /// Get a reference to the commit tree for a WAL file.
+    /// Get a reference to the commit tree for a event log file.
     fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree>;
 
-    /// Create new patch and WAL cache entries.
+    /// Create new patch and event log cache entries.
     fn create_cache_entry(
         &mut self,
         summary: &Summary,
@@ -411,7 +411,7 @@ pub trait StorageProvider: Sync + Send {
         summary: &Summary,
     ) -> Result<(CommitRelationship, Option<usize>)>;
 
-    /// Remove a vault file and WAL file.
+    /// Remove a vault file and event log file.
     async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
         use sos_sdk::constants::EVENT_LOG_DELETED_EXT;
 
@@ -421,7 +421,7 @@ pub trait StorageProvider: Sync + Send {
             vfs::remove_file(&vault_path).await?;
         }
 
-        // Rename the local WAL file so recovery is still possible
+        // Rename the local event log file so recovery is still possible
         let event_log_path = self.event_log_path(summary);
         if event_log_path.exists() {
             let mut event_log_path_backup = event_log_path.clone();
@@ -552,7 +552,7 @@ pub trait StorageProvider: Sync + Send {
         Ok(new_passphrase)
     }
 
-    /// Verify a WAL log.
+    /// Verify a event log log.
     async fn verify(&self, summary: &Summary) -> Result<()> {
         use sos_sdk::commit::event_log_commit_tree_file;
         let event_log_path = self.event_log_path(summary);
@@ -583,7 +583,9 @@ macro_rules! provider_impl {
         }
 
         fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree> {
-            self.cache.get(summary.id()).map(|(wal, _)| wal.tree())
+            self.cache
+                .get(summary.id())
+                .map(|(event_log, _)| event_log.tree())
         }
 
         fn create_cache_entry(
@@ -595,16 +597,16 @@ macro_rules! provider_impl {
             let patch_file = PatchFile::new(patch_path)?;
 
             let event_log_path = self.event_log_path(summary);
-            let mut wal = EventLogFile::new(&event_log_path)?;
+            let mut event_log = EventLogFile::new(&event_log_path)?;
 
             if let Some(vault) = &vault {
                 let encoded = encode(vault)?;
                 let event = SyncEvent::CreateVault(Cow::Owned(encoded));
-                wal.append_event(event)?;
+                event_log.append_event(event)?;
             }
-            wal.load_tree()?;
+            event_log.load_tree()?;
 
-            self.cache.insert(*summary.id(), (wal, patch_file));
+            self.cache.insert(*summary.id(), (event_log, patch_file));
             Ok(())
         }
 
@@ -651,14 +653,14 @@ macro_rules! provider_impl {
             &self,
             summary: &Summary,
         ) -> Result<Vec<(CommitHash, Timestamp, SyncEvent<'_>)>> {
-            let (wal, _) = self
+            let (event_log, _) = self
                 .cache
                 .get(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
             let mut records = Vec::new();
-            for record in wal.iter()? {
+            for record in event_log.iter()? {
                 let record = record?;
-                let event = wal.event_data(&record)?;
+                let event = event_log.event_data(&record)?;
                 let commit = CommitHash(record.commit());
                 let time = record.time().clone();
                 records.push((commit, time, event));

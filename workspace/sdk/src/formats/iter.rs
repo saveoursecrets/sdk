@@ -8,7 +8,7 @@ use binary_stream::{BinaryReader, BinaryResult, Decode, Endian};
 
 use crate::{
     constants::{
-        AUDIT_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY, EVENT_LOG_IDENTITY,
+        AUDIT_IDENTITY, EVENT_LOG_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY,
     },
     formats::FileIdentity,
     stream_len,
@@ -34,7 +34,7 @@ pub fn vault_iter<P: AsRef<Path>>(
     )
 }
 
-/// Get an iterator for a WAL file.
+/// Get an iterator for a event log file.
 pub fn event_log_iter<P: AsRef<Path>>(
     path: P,
 ) -> Result<ReadStreamIterator<File, EventLogFileRecord>> {
@@ -256,7 +256,7 @@ pub struct ReadStreamIterator<R: Read + Seek, T: FileItem> {
     /// that is used to indicate the length of a a data
     /// blob for the row; if so then `value` will point
     /// to the data. This is used for lazy decoding such
-    /// as in the case of WAL files where we need to read
+    /// as in the case of event log files where we need to read
     /// the commit hash(es) and timestamp most of the time
     /// but sometimes need to read the row data too.
     data_length_prefix: bool,

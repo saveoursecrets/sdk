@@ -56,8 +56,8 @@ pub enum Error {
     #[error("audit log {0} is already open for writing")]
     AuditWouldBlock(PathBuf),
 
-    /// Error generated when a checksum does not match a WAL file.
-    #[error("checksum mismatch validating WAL file")]
+    /// Error generated when a checksum does not match a event log file.
+    #[error("checksum mismatch validating event log file")]
     EventValidateMismatch,
 
     /// Error generated failing for remove a vault.

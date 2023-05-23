@@ -71,7 +71,7 @@ macro_rules! patch {
                         remote = %remote.0,
                         "conflict on patch, attempting sync");
 
-                    // Pull the WAL from the server that we
+                    // Pull the event log from the server that we
                     // are behind
                     sync::pull_event_log(
                         &mut $provider.client,
@@ -80,10 +80,10 @@ macro_rules! patch {
                     ).await?;
 
                     tracing::debug!(vault_id = %$summary.id(),
-                        "conflict on patch, pulled remote WAL");
+                        "conflict on patch, pulled remote event log");
 
                     // Retry sending our local changes to
-                    // the remote WAL
+                    // the remote event log
                     let status = sync::apply_patch(
                         &mut $provider.client,
                         $summary,

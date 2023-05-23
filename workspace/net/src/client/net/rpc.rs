@@ -287,14 +287,14 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// Get the WAL bytes for a vault.
+    /// Get the event log bytes for a vault.
     /// TODO: remove the Option from the body return value???
     pub async fn load_event_log(
         &self,
         vault_id: &Uuid,
         proof: Option<CommitProof>,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<Vec<u8>>)>> {
-        let url = self.server.join("api/wal")?;
+        let url = self.server.join("api/events")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             new_rpc_call(id, EVENT_LOG_LOAD, (vault_id, proof))
         })?;
@@ -319,7 +319,7 @@ impl RpcClient {
         vault_id: &Uuid,
         proof: Option<CommitProof>,
     ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
-        let url = self.server.join("api/wal")?;
+        let url = self.server.join("api/events")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             new_rpc_call(id, EVENT_LOG_STATUS, (vault_id, proof))
         })?;
@@ -350,7 +350,7 @@ impl RpcClient {
         patch: Patch<'static>,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<CommitProof>)>> {
         let body = encode(&patch)?;
-        let url = self.server.join("api/wal")?;
+        let url = self.server.join("api/events")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             new_rpc_body(id, EVENT_LOG_PATCH, (vault_id, proof), body)
         })?;
@@ -372,7 +372,7 @@ impl RpcClient {
         })
     }
 
-    /// Replace the WAL for a vault on a remote node.
+    /// Replace the event log for a vault on a remote node.
     /// TODO: remove the Option from the return value ???
     pub async fn save_event_log(
         &self,
@@ -380,7 +380,7 @@ impl RpcClient {
         proof: CommitProof,
         body: Vec<u8>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
-        let url = self.server.join("api/wal")?;
+        let url = self.server.join("api/events")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
             new_rpc_body(id, EVENT_LOG_SAVE, (vault_id, proof), body)
         })?;

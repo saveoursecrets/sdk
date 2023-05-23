@@ -53,7 +53,7 @@ pub(crate) async fn apply_patch(
         StatusCode::OK => {
             let server_proof = server_proof.ok_or(Error::ServerProof)?;
 
-            // Apply changes to the local WAL file
+            // Apply changes to the local event log file
             let mut changes = Vec::new();
             for event in patch.0 {
                 changes.push(event);
@@ -91,15 +91,15 @@ pub(crate) async fn apply_patch(
                     server_root = %server_proof.root_hex(),
                     "conflict on patch, attempting sync");
 
-                // Pull the WAL from the server that we
+                // Pull the event log from the server that we
                 // are behind
                 pull_event_log(client, summary, event_log_file).await?;
 
                 tracing::debug!(vault_id = %summary.id(),
-                    "conflict on patch, pulled remote WAL");
+                    "conflict on patch, pulled remote event log");
 
                 // Retry sending our local changes to
-                // the remote WAL
+                // the remote event log
                 let status = apply_patch(
                     client,
                     summary,
@@ -158,7 +158,7 @@ pub async fn apply_patch_file(
     tracing::debug!(has_events, "apply patch file");
 
     // Got some events which haven't been saved so try
-    // to apply them over the top of the new WAL
+    // to apply them over the top of the new event log
     if has_events {
         // Must drain() the patch file as calling
         // patch_vault() will append them again in

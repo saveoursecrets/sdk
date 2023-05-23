@@ -13,7 +13,7 @@ This repository contains the core library code and several command line interfac
 
 A vault is a collection of encrypted secrets. Vaults can be represented as both an append-only log file for synchronization and a compact binary file for archiving and portability. Bi-directional conversion between the append-only log and compact binary file is straightforward; the library provides functions to *reduce* the append-only log to a vault and *split* a vault into it's header and a collection of events that can be appended to a log.
 
-Synchronization between nodes is done using the append-only log file (which we refer to as a write-ahead log or WAL); a Merkle tree is computed for each log file using the hash of the data for each record. By comparing Merkle proofs we can easily determine which tree is ahead or whether the trees have diverged; much in the same way that [git][] synchronizes source code.
+Synchronization between nodes is done using an append-only log file of events; a Merkle tree is computed for each log file using the hash of the data for each record. By comparing Merkle proofs we can easily determine which tree is ahead or whether the trees have diverged; much in the same way that [git][] synchronizes source code.
 
 Secrets are *always encrypted on the client* using a random nonce and one of the supported algorithms, either XChaCha20Poly1305 or AES-GCM 256. The default algorithm is XChaCha20Poly1305 for it's extended 24 byte nonce and because it does not require AES-specific CPU instructions to be implemented safely.
 
@@ -34,8 +34,7 @@ If a calling node gets a CONFLICT response and no match proof and it does not co
 For the networking layer we plan to support three different modes of operation:
 
 * [x] `SPOT`: Single Point of Truth using a standard client/server architecture.
-* [ ] `PEER`: Synchronization of nodes on a trusted LAN using mDNS for discovery.
-* [ ] `VPN`: Synchronization of nodes over a WAN using the [wireguard][] VPN.
+* [ ] `PEER`: Synchronization of nodes using a p2p network.
 
 ### Conflicts
 
@@ -86,7 +85,7 @@ cargo install cargo-make
 
 For webassembly support in the test runner [install wasm-pack](https://rustwasm.github.io/wasm-pack/installer/).
 
-The minimum supported Rust version (MSRV) is 1.62; to view the API documentation for all crates run `cargo make docs`.
+The minimum supported Rust version (MSRV) is 1.68.2; to view the API documentation for all crates run `cargo make doc`.
 
 ### Test
 

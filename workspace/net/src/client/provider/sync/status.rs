@@ -10,7 +10,7 @@ use sos_sdk::{
 
 use crate::retry;
 
-/// Get a comparison between a local WAL and remote WAL.
+/// Get a comparison between a local event log and remote event log.
 ///
 /// If a patch file has unsaved events then the number
 /// of pending events is returned along with the `CommitRelationship`.

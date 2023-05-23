@@ -70,13 +70,13 @@ impl Service for EventLogService {
 
                 let reader = state.read().await;
 
-                let wal = reader
+                let event_log = reader
                     .backend
                     .event_log_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
-                let proof = wal.tree().head().map_err(Box::from)?;
+                let proof = event_log.tree().head().map_err(Box::from)?;
 
                 tracing::debug!(root = %proof.root_hex(),
                     "get_event_log server root");
@@ -88,8 +88,10 @@ impl Service for EventLogService {
                     tracing::debug!(root = %proof.root_hex(),
                         "get_event_log client root");
 
-                    let comparison =
-                        wal.tree().compare(&proof).map_err(Box::from)?;
+                    let comparison = event_log
+                        .tree()
+                        .compare(&proof)
+                        .map_err(Box::from)?;
 
                     match comparison {
                         Comparison::Equal => {
@@ -99,7 +101,7 @@ impl Service for EventLogService {
                             if leaves.len() == 1 {
                                 let leaf = leaves.remove(0);
                                 if let Some(partial) =
-                                    wal.diff(leaf).map_err(Box::from)?
+                                    event_log.diff(leaf).map_err(Box::from)?
                                 {
                                     Ok((StatusCode::OK, partial))
                                 // Could not find a record corresponding
@@ -116,7 +118,7 @@ impl Service for EventLogService {
                             Ok((StatusCode::CONFLICT, vec![]))
                         }
                     }
-                // Otherwise get the entire WAL buffer
+                // Otherwise get the entire event log buffer
                 } else if let Ok(buffer) = reader
                     .backend
                     .handler()
@@ -172,16 +174,19 @@ impl Service for EventLogService {
                     return Ok((StatusCode::NOT_FOUND, request.id()).into());
                 }
 
-                let wal = reader
+                let event_log = reader
                     .backend
                     .event_log_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
-                let proof = wal.tree().head().map_err(Box::from)?;
+                let proof = event_log.tree().head().map_err(Box::from)?;
 
                 let match_proof = if let Some(client_proof) = commit_proof {
-                    wal.tree().contains(&client_proof).map_err(Box::from)?
+                    event_log
+                        .tree()
+                        .contains(&client_proof)
+                        .map_err(Box::from)?
                 } else {
                     None
                 };
@@ -209,13 +214,13 @@ impl Service for EventLogService {
                 let result: sos_sdk::Result<PatchResult> = {
                     let mut writer = state.write().await;
 
-                    let wal = writer
+                    let event_log = writer
                         .backend
                         .event_log_write(caller.address(), &vault_id)
                         .await
                         .map_err(Box::from)?;
 
-                    let comparison = wal
+                    let comparison = event_log
                         .tree()
                         .compare(&commit_proof)
                         .map_err(Box::from)?;
@@ -262,20 +267,20 @@ impl Service for EventLogService {
                                 })
                                 .collect::<Vec<_>>();
 
-                            // Changes to apply to the WAL log
+                            // Changes to apply to the event log log
                             let mut changes = Vec::new();
                             for event in change_set {
                                 changes.push(event);
                             }
 
-                            // Apply the change set of WAL events to the log
-                            let commits = wal
+                            // Apply the change set of event log events to the log
+                            let commits = event_log
                                 .apply(changes, None)
                                 .map_err(Box::from)?;
 
                             // Get a new commit proof for the last leaf hash
                             let proof =
-                                wal.tree().head().map_err(Box::from)?;
+                                event_log.tree().head().map_err(Box::from)?;
 
                             Ok(PatchResult::Success(
                                 caller.address,
@@ -288,10 +293,10 @@ impl Service for EventLogService {
                         }
                         Comparison::Contains(indices, _leaves) => {
                             let proof =
-                                wal.tree().head().map_err(Box::from)?;
-                            // Prepare the proof that this WAL contains the
+                                event_log.tree().head().map_err(Box::from)?;
+                            // Prepare the proof that this event log contains the
                             // matched leaf node
-                            let match_proof = wal
+                            let match_proof = event_log
                                 .tree()
                                 .proof(&indices)
                                 .map_err(Box::from)?;
@@ -302,7 +307,7 @@ impl Service for EventLogService {
                         }
                         Comparison::Unknown => {
                             let proof =
-                                wal.tree().head().map_err(Box::from)?;
+                                event_log.tree().head().map_err(Box::from)?;
                             Ok(PatchResult::Conflict(proof, None))
                         }
                     }

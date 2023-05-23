@@ -178,7 +178,7 @@ pub enum Error {
     #[error("address must begin with 0x")]
     BadAddressPrefix,
 
-    /// Error generated when WAL row data does not match the commit hash.
+    /// Error generated when event log row data does not match the commit hash.
     #[error("row checksums do not match, expected {commit} but got {value}")]
     HashMismatch {
         /// Expected commit hash.
@@ -187,11 +187,11 @@ pub enum Error {
         value: String,
     },
 
-    /// Error generated when a a WAL file does not begin with a create vault event.
+    /// Error generated when a a event log file does not begin with a create vault event.
     #[error("first record in an event log must be a create vault event")]
     CreateEventMustBeFirst,
 
-    /// Error generated when a WAL create vault event is not the first record.
+    /// Error generated when a event log create vault event is not the first record.
     #[error(
         "got an event log create vault event that is not the first record"
     )]
