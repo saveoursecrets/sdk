@@ -289,7 +289,7 @@ impl RpcClient {
 
     /// Get the WAL bytes for a vault.
     /// TODO: remove the Option from the body return value???
-    pub async fn load_wal(
+    pub async fn load_event_log(
         &self,
         vault_id: &Uuid,
         proof: Option<CommitProof>,
@@ -374,7 +374,7 @@ impl RpcClient {
 
     /// Replace the WAL for a vault on a remote node.
     /// TODO: remove the Option from the return value ???
-    pub async fn save_wal(
+    pub async fn save_event_log(
         &self,
         vault_id: &Uuid,
         proof: CommitProof,

@@ -226,7 +226,7 @@ pub trait StorageProvider: Sync + Send {
         summary: &Summary,
         new_passphrase: Option<&SecretString>,
     ) -> Result<()> {
-        let vault = self.reduce_wal(summary)?;
+        let vault = self.reduce_event_log(summary)?;
 
         // Rewrite the on-disc version if we are mirroring
         if self.state().mirror() {
@@ -318,7 +318,7 @@ pub trait StorageProvider: Sync + Send {
         let vault_path = self.vault_path(summary);
         let vault = if self.state().mirror() {
             if !vault_path.exists() {
-                let vault = self.reduce_wal(summary)?;
+                let vault = self.reduce_event_log(summary)?;
                 let buffer = encode(&vault)?;
                 self.write_vault_file(summary, &buffer).await?;
                 vault
@@ -328,7 +328,7 @@ pub trait StorageProvider: Sync + Send {
                 vault
             }
         } else {
-            self.reduce_wal(summary)?
+            self.reduce_event_log(summary)?
         };
 
         self.state_mut()
@@ -339,7 +339,7 @@ pub trait StorageProvider: Sync + Send {
     /// Load a vault by reducing it from the WAL stored on disc.
     ///
     /// Remote providers may pull changes beforehand.
-    fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault>;
+    fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault>;
 
     /// Apply changes to a vault.
     async fn patch(

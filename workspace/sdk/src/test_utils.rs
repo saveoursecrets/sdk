@@ -136,7 +136,7 @@ mod file {
     }
 
     /// Create a mock WAL in a temp file.
-    pub fn mock_wal_file(
+    pub fn mock_event_log_file(
     ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>, SecretKey)>
     {
         let (encryption_key, _, _) = mock_encryption_key()?;

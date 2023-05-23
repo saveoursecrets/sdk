@@ -14,12 +14,13 @@ use crate::{client::provider::assert_proofs_eq, retry};
 pub async fn patch(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut EventLogFile,
+    event_log_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
     events: Vec<SyncEvent<'static>>,
 ) -> Result<()> {
     let status =
-        apply_patch(client, summary, wal_file, patch_file, events).await?;
+        apply_patch(client, summary, event_log_file, patch_file, events)
+            .await?;
     status
         .is_success()
         .then_some(())
@@ -31,13 +32,13 @@ pub async fn patch(
 pub(crate) async fn apply_patch(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut EventLogFile,
+    event_log_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
     events: Vec<SyncEvent<'static>>,
 ) -> Result<StatusCode> {
     let patch = patch_file.append(events)?;
 
-    let client_proof = wal_file.tree().head()?;
+    let client_proof = event_log_file.tree().head()?;
 
     let (status, (server_proof, match_proof)) = retry!(
         || client.apply_patch(
@@ -60,11 +61,12 @@ pub(crate) async fn apply_patch(
 
             // Pass the expected root hash so changes are reverted
             // if the root hashes do not match
-            wal_file.apply(changes, Some(CommitHash(server_proof.root)))?;
+            event_log_file
+                .apply(changes, Some(CommitHash(server_proof.root)))?;
 
             patch_file.truncate()?;
 
-            let client_proof = wal_file.tree().head()?;
+            let client_proof = event_log_file.tree().head()?;
             assert_proofs_eq(&client_proof, &server_proof)?;
             Ok(status)
         }
@@ -91,7 +93,7 @@ pub(crate) async fn apply_patch(
 
                 // Pull the WAL from the server that we
                 // are behind
-                pull_wal(client, summary, wal_file).await?;
+                pull_event_log(client, summary, event_log_file).await?;
 
                 tracing::debug!(vault_id = %summary.id(),
                     "conflict on patch, pulled remote WAL");
@@ -101,7 +103,7 @@ pub(crate) async fn apply_patch(
                 let status = apply_patch(
                     client,
                     summary,
-                    wal_file,
+                    event_log_file,
                     patch_file,
                     patch.0.clone(),
                 )
@@ -119,7 +121,7 @@ pub(crate) async fn apply_patch(
                     // so if reflects the pulled changes
                     // with our patch applied over the top
                     let updated_vault =
-                        self.reduce_wal(summary).await?;
+                        self.reduce_event_log(summary).await?;
 
                     if let Some(keeper) = self.current_mut() {
                         if keeper.id() == summary.id() {
@@ -148,7 +150,7 @@ pub(crate) async fn apply_patch(
 pub async fn apply_patch_file(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut EventLogFile,
+    event_log_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
 ) -> Result<()> {
     let has_events = patch_file.has_events()?;
@@ -165,7 +167,7 @@ pub async fn apply_patch_file(
 
         tracing::debug!(events = events.len(), "apply patch file events");
 
-        patch(client, summary, wal_file, patch_file, events).await?;
+        patch(client, summary, event_log_file, patch_file, events).await?;
         Ok(())
     } else {
         Ok(())

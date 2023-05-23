@@ -31,10 +31,10 @@ pub use status::*;
 pub async fn status(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &EventLogFile,
+    event_log_file: &EventLogFile,
     patch_file: &PatchFile,
 ) -> Result<(CommitRelationship, Option<usize>)> {
-    let client_proof = wal_file.tree().head()?;
+    let client_proof = event_log_file.tree().head()?;
     let (status, (server_proof, match_proof)) = retry!(
         || client.status(summary.id(), Some(client_proof.clone())),
         client
@@ -58,7 +58,7 @@ pub async fn status(
         let (diff, _) = pair.remote.len().overflowing_sub(pair.local.len());
         CommitRelationship::Behind(pair, diff)
     } else {
-        let comparison = wal_file.tree().compare(&server_proof)?;
+        let comparison = event_log_file.tree().compare(&server_proof)?;
         let is_ahead = matches!(comparison, Comparison::Contains(_, _));
 
         if is_ahead {

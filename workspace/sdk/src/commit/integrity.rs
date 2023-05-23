@@ -70,7 +70,7 @@ where
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
 pub async fn wal_commit_tree_file<P: AsRef<Path>, F>(
-    wal_file: P,
+    event_log_file: P,
     verify: bool,
     func: F,
 ) -> Result<CommitTree>
@@ -81,10 +81,10 @@ where
 
     // Need an additional reader as we may also read in the
     // values for the rows
-    let mut file = vfs::File::open(wal_file.as_ref()).await?;
+    let mut file = vfs::File::open(event_log_file.as_ref()).await?;
     let mut reader = BinaryReader::new(&mut file, Endian::Little);
 
-    let wal = EventLogFile::new(wal_file.as_ref())?;
+    let wal = EventLogFile::new(event_log_file.as_ref())?;
     let it = wal.iter()?;
     let mut last_checksum: Option<[u8; 32]> = None;
 
@@ -172,8 +172,8 @@ mod test {
     }
 
     #[tokio::test]
-    async fn integrity_wal() -> Result<()> {
-        let (temp, _, _, _) = mock_wal_file()?;
+    async fn integrity_event_log() -> Result<()> {
+        let (temp, _, _, _) = mock_event_log_file()?;
         let commit_tree =
             wal_commit_tree_file(temp.path(), true, |_| {}).await?;
         assert!(commit_tree.root().is_some());

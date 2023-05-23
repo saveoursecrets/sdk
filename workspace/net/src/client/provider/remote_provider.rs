@@ -114,7 +114,7 @@ impl StorageProvider for RemoteProvider {
         // Add the summary to the vaults we are managing
         self.state_mut().add_summary(summary.clone());
 
-        // Initialize the local cache for WAL and Patch
+        // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault))?;
 
         Ok((passphrase, summary))
@@ -139,7 +139,7 @@ impl StorageProvider for RemoteProvider {
         // Add the summary to the vaults we are managing
         self.state_mut().add_summary(summary.clone());
 
-        // Initialize the local cache for WAL and Patch
+        // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault))?;
 
         Ok(summary)
@@ -169,7 +169,7 @@ impl StorageProvider for RemoteProvider {
         // Add the summary to the vaults we are managing
         self.state_mut().add_summary(summary.clone());
 
-        // Initialize the local cache for WAL and Patch
+        // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault))?;
 
         Ok(summary)
@@ -185,18 +185,18 @@ impl StorageProvider for RemoteProvider {
 
         self.load_caches(&summaries)?;
 
-        // Find empty WAL logs which need to pull from remote
+        // Find empty event logs which need to pull from remote
         let mut needs_pull = Vec::new();
         for summary in &summaries {
-            let (wal_file, _) = self
+            let (event_log_file, _) = self
                 .cache
                 .get(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            let length = wal_file.tree().len();
+            let length = event_log_file.tree().len();
 
-            // Got an empty WAL tree which can happen if an
+            // Got an empty tree which can happen if an
             // existing user signs in with a new cache directory
-            // we need to fetch the entire WAL from remote
+            // we need to fetch the entire event log from remote
             if length == 0 {
                 needs_pull.push(summary.clone());
             }
@@ -205,11 +205,12 @@ impl StorageProvider for RemoteProvider {
         self.state.set_summaries(summaries);
 
         for summary in needs_pull {
-            let (wal_file, _) = self
+            let (event_log_file, _) = self
                 .cache
                 .get_mut(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            sync::pull_wal(&mut self.client, &summary, wal_file).await?;
+            sync::pull_event_log(&mut self.client, &summary, event_log_file)
+                .await?;
         }
 
         Ok(self.vaults())
@@ -258,16 +259,17 @@ impl StorageProvider for RemoteProvider {
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let (wal_file, _) = self
+        let (event_log_file, _) = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        let (compact_wal, old_size, new_size) = wal_file.compact().await?;
+        let (compact_event_log, old_size, new_size) =
+            event_log_file.compact().await?;
 
-        // Need to recreate the WAL file and load the updated
+        // Need to recreate the event log file and load the updated
         // commit tree
-        *wal_file = compact_wal;
+        *event_log_file = compact_event_log;
 
         // Refresh in-memory vault and mirrored copy
         self.refresh_vault(summary, None).await?;
@@ -311,14 +313,14 @@ impl StorageProvider for RemoteProvider {
         Ok(())
     }
 
-    fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
-        let wal_file = self
+    fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
+        let event_log_file = self
             .cache
             .get_mut(summary.id())
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        Ok(EventReducer::new().reduce(wal_file)?.build()?)
+        Ok(EventReducer::new().reduce(event_log_file)?.build()?)
     }
 
     async fn pull(
@@ -330,17 +332,23 @@ impl StorageProvider for RemoteProvider {
             self.backup_vault_file(summary).await?;
         }
 
-        let (wal_file, patch_file) = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let (event_log_file, patch_file) =
+            self.cache
+                .get_mut(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         if force {
-            vfs::remove_file(wal_file.path()).await?;
+            vfs::remove_file(event_log_file.path()).await?;
         }
 
-        sync::pull(&mut self.client, summary, wal_file, patch_file, force)
-            .await
+        sync::pull(
+            &mut self.client,
+            summary,
+            event_log_file,
+            patch_file,
+            force,
+        )
+        .await
     }
 
     async fn push(
@@ -348,24 +356,31 @@ impl StorageProvider for RemoteProvider {
         summary: &Summary,
         force: bool,
     ) -> Result<SyncInfo> {
-        let (wal_file, patch_file) = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let (event_log_file, patch_file) =
+            self.cache
+                .get_mut(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        sync::push(&mut self.client, summary, wal_file, patch_file, force)
-            .await
+        sync::push(
+            &mut self.client,
+            summary,
+            event_log_file,
+            patch_file,
+            force,
+        )
+        .await
     }
 
     async fn status(
         &mut self,
         summary: &Summary,
     ) -> Result<(CommitRelationship, Option<usize>)> {
-        let (wal_file, patch_file) = self
+        let (event_log_file, patch_file) = self
             .cache
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        sync::status(&mut self.client, summary, wal_file, patch_file).await
+        sync::status(&mut self.client, summary, event_log_file, patch_file)
+            .await
     }
 
     async fn handle_change(

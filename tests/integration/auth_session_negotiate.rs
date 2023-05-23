@@ -81,7 +81,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     // Load the entire WAL buffer
     let (status, (proof, buffer)) =
-        client.load_wal(login.id(), None).await?.unwrap();
+        client.load_event_log(login.id(), None).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
     assert!(buffer.is_some());

@@ -56,7 +56,7 @@ impl Service for VaultService {
                     let (sync_event, proof) = writer
                         .backend
                         .handler_mut()
-                        .create_wal(
+                        .create_event_log(
                             caller.address(),
                             summary.id(),
                             request.body(),
@@ -112,7 +112,7 @@ impl Service for VaultService {
                 writer
                     .backend
                     .handler_mut()
-                    .delete_wal(caller.address(), &vault_id)
+                    .delete_event_log(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 

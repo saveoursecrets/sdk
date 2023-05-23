@@ -173,7 +173,7 @@ mod test {
     use secrecy::ExposeSecret;
     use tempfile::NamedTempFile;
 
-    fn mock_wal_file() -> Result<(
+    fn mock_event_log_file() -> Result<(
         NamedTempFile,
         EventLogFile,
         Vec<CommitHash>,
@@ -224,7 +224,8 @@ mod test {
 
     #[test]
     fn wal_reduce_build() -> Result<()> {
-        let (temp, wal, _, encryption_key, secret_id) = mock_wal_file()?;
+        let (temp, wal, _, encryption_key, secret_id) =
+            mock_event_log_file()?;
 
         assert_eq!(5, wal.tree().len());
 
@@ -258,7 +259,8 @@ mod test {
 
     #[test]
     fn wal_reduce_compact() -> Result<()> {
-        let (_temp, wal, _, _encryption_key, _secret_id) = mock_wal_file()?;
+        let (_temp, wal, _, _encryption_key, _secret_id) =
+            mock_event_log_file()?;
 
         assert_eq!(5, wal.tree().len());
 

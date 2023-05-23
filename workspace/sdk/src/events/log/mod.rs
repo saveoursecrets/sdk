@@ -150,7 +150,7 @@ mod test {
         Ok((id, Cow::Owned(result)))
     }
 
-    fn mock_wal_standalone() -> Result<(EventLogFile, SecretId)> {
+    fn mock_event_log_standalone() -> Result<(EventLogFile, SecretId)> {
         let mut vault: Vault = Default::default();
         vault.set_name(String::from("Standalone vault"));
         let vault_buffer = encode(&vault)?;
@@ -170,7 +170,7 @@ mod test {
         Ok((server, id))
     }
 
-    fn mock_wal_server_client(
+    fn mock_event_log_server_client(
     ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
         let server_file = PathBuf::from("target/mock-wal-server.wal");
         let client_file = PathBuf::from("target/mock-wal-client.wal");
@@ -215,7 +215,7 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn wal_compare() -> Result<()> {
-        let (mut server, client, id) = mock_wal_server_client()?;
+        let (mut server, client, id) = mock_event_log_server_client()?;
 
         // Add another event to the server from another client.
         server.append_event(SyncEvent::DeleteSecret(id))?;
@@ -240,7 +240,7 @@ mod test {
         //
         // This can happen if a client compacts its WAL which would create
         // a new commit tree.
-        let (standalone, _) = mock_wal_standalone()?;
+        let (standalone, _) = mock_event_log_standalone()?;
         let proof = standalone.tree().head()?;
         let comparison = server.tree().compare(&proof)?;
         assert_eq!(Comparison::Unknown, comparison);
@@ -256,7 +256,7 @@ mod test {
             std::fs::remove_file(&partial)?;
         }
 
-        let (mut server, client, id) = mock_wal_server_client()?;
+        let (mut server, client, id) = mock_event_log_server_client()?;
 
         // Add another event to the server from another client.
         server.append_event(SyncEvent::DeleteSecret(id))?;
@@ -293,7 +293,7 @@ mod test {
     }
 
     #[test]
-    fn wal_file_load() -> Result<()> {
+    fn event_log_file_load() -> Result<()> {
         let path = PathBuf::from("../../tests/fixtures/simple-vault.wal");
         let wal = EventLogFile::new(path)?;
         let it = wal.iter()?;

@@ -20,11 +20,11 @@ use super::apply_patch_file;
 pub async fn pull(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut EventLogFile,
+    event_log_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
     force: bool,
 ) -> Result<SyncInfo> {
-    let client_proof = wal_file.tree().head()?;
+    let client_proof = event_log_file.tree().head()?;
 
     let (status, (server_proof, match_proof)) = retry!(
         || client.status(summary.id(), Some(client_proof.clone())),
@@ -57,11 +57,13 @@ pub async fn pull(
 
     if force || !equals {
         if force || can_pull_safely {
-            let result_proof = force_pull(client, summary, wal_file).await?;
+            let result_proof =
+                force_pull(client, summary, event_log_file).await?;
             info.after = Some(result_proof);
 
             // If we have unsaved staged events try to apply them
-            apply_patch_file(client, summary, wal_file, patch_file).await?;
+            apply_patch_file(client, summary, event_log_file, patch_file)
+                .await?;
 
             Ok(info)
         } else {
@@ -73,58 +75,58 @@ pub async fn pull(
 }
 
 /// Fetch the remote WAL file.
-pub async fn pull_wal(
+pub async fn pull_event_log(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut EventLogFile,
+    event_log_file: &mut EventLogFile,
 ) -> Result<CommitProof> {
-    let client_proof = if wal_file.tree().root().is_some() {
-        let proof = wal_file.tree().head()?;
-        tracing::debug!(root = %proof.root_hex(), "pull_wal wants diff");
+    let client_proof = if event_log_file.tree().root().is_some() {
+        let proof = event_log_file.tree().head()?;
+        tracing::debug!(root = %proof.root_hex(), "pull_event_log wants diff");
         Some(proof)
     } else {
         None
     };
 
     let (status, (server_proof, buffer)) = retry!(
-        || client.load_wal(summary.id(), client_proof.clone()),
+        || client.load_event_log(summary.id(), client_proof.clone()),
         client
     );
 
-    tracing::debug!(status = %status, "pull_wal");
+    tracing::debug!(status = %status, "pull_event_log");
 
     match status {
         StatusCode::OK => {
             let buffer = buffer.unwrap();
             let server_proof = server_proof.ok_or(Error::ServerProof)?;
             tracing::debug!(
-                server_root_hash = %server_proof.root_hex(), "pull_wal");
+                server_root_hash = %server_proof.root_hex(), "pull_event_log");
 
             let client_proof = match client_proof {
                 // If we sent a proof to the server then we
                 // are expecting a diff of records
                 Some(_proof) => {
                     tracing::debug!(bytes = ?buffer.len(),
-                        "pull_wal write diff WAL records");
+                        "pull_event_log write diff WAL records");
 
                     // Check the identity looks good
                     FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
 
                     // Append the diff bytes
-                    wal_file.append_buffer(buffer)?;
+                    event_log_file.append_buffer(buffer)?;
 
-                    wal_file.tree().head()?
+                    event_log_file.tree().head()?
                 }
                 // Otherwise the server should send us the entire
                 // WAL file
                 None => {
                     tracing::debug!(bytes = ?buffer.len(),
-                        "pull_wal write entire WAL");
+                        "pull_event_log write entire WAL");
 
                     // Check the identity looks good
                     FileIdentity::read_slice(&buffer, &WAL_IDENTITY)?;
-                    wal_file.write_buffer(&buffer).await?;
-                    wal_file.tree().head()?
+                    event_log_file.write_buffer(&buffer).await?;
+                    event_log_file.tree().head()?
                 }
             };
 
@@ -141,7 +143,7 @@ pub async fn pull_wal(
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
             */
             let server_proof = server_proof.ok_or(Error::ServerProof)?;
-            let client_proof = wal_file.tree().head()?;
+            let client_proof = event_log_file.tree().head()?;
             assert_proofs_eq(&client_proof, &server_proof)?;
             Ok(client_proof)
         }
@@ -171,17 +173,17 @@ pub async fn pull_wal(
 pub async fn force_pull(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut EventLogFile,
+    event_log_file: &mut EventLogFile,
 ) -> Result<CommitProof> {
     // Need to recreate the WAL file correctly before pulling
-    // as pull_wal() expects the file to exist
-    *wal_file = EventLogFile::new(wal_file.path())?;
-    wal_file.load_tree()?;
+    // as pull_event_log() expects the file to exist
+    *event_log_file = EventLogFile::new(event_log_file.path())?;
+    event_log_file.load_tree()?;
 
     // Pull the remote WAL
-    pull_wal(client, summary, wal_file).await?;
+    pull_event_log(client, summary, event_log_file).await?;
 
-    let proof = wal_file.tree().head()?;
+    let proof = event_log_file.tree().head()?;
 
     Ok(proof)
 }

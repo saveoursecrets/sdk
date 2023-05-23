@@ -18,10 +18,10 @@ use crate::retry;
 pub async fn status(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &EventLogFile,
+    event_log_file: &EventLogFile,
     patch_file: &PatchFile,
 ) -> Result<(CommitRelationship, Option<usize>)> {
-    let client_proof = wal_file.tree().head()?;
+    let client_proof = event_log_file.tree().head()?;
     let (status, (server_proof, match_proof)) = retry!(
         || client.status(summary.id(), Some(client_proof.clone())),
         client
@@ -32,7 +32,9 @@ pub async fn status(
         .then_some(())
         .ok_or(Error::ResponseCode(status.into()))?;
 
-    let status = wal_file.tree().relationship(server_proof, match_proof)?;
+    let status = event_log_file
+        .tree()
+        .relationship(server_proof, match_proof)?;
 
     let pending_events = if patch_file.has_events()? {
         Some(patch_file.count_events()?)

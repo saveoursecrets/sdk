@@ -79,14 +79,14 @@ impl Service for EventLogService {
                 let proof = wal.tree().head().map_err(Box::from)?;
 
                 tracing::debug!(root = %proof.root_hex(),
-                    "get_wal server root");
+                    "get_event_log server root");
 
                 // Client is asking for data from a specific commit hash
                 let result = if let Some(proof) = commit_proof {
                     //let proof: CommitProof = proof.into();
 
                     tracing::debug!(root = %proof.root_hex(),
-                        "get_wal client root");
+                        "get_event_log client root");
 
                     let comparison =
                         wal.tree().compare(&proof).map_err(Box::from)?;
@@ -120,7 +120,7 @@ impl Service for EventLogService {
                 } else if let Ok(buffer) = reader
                     .backend
                     .handler()
-                    .get_wal(caller.address(), &vault_id)
+                    .get_event_log(caller.address(), &vault_id)
                     .await
                 {
                     Ok((StatusCode::OK, buffer))
@@ -381,7 +381,7 @@ impl Service for EventLogService {
                 let server_proof = writer
                     .backend
                     .handler_mut()
-                    .replace_wal(
+                    .replace_event_log(
                         caller.address(),
                         &vault_id,
                         commit_proof.root,

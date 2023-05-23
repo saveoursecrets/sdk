@@ -101,25 +101,25 @@ impl EventLogFile {
         let temp = NamedTempFile::new()?;
 
         // Apply them to a temporary WAL file
-        let mut temp_wal = EventLogFile::new(temp.path())?;
-        temp_wal.apply(events, None)?;
+        let mut temp_event_log = EventLogFile::new(temp.path())?;
+        temp_event_log.apply(events, None)?;
 
-        let new_size = temp_wal.path().metadata()?.len();
+        let new_size = temp_event_log.path().metadata()?.len();
 
         // Remove the existing WAL file
         vfs::remove_file(self.path()).await?;
         // Move the temp file into place
         vfs::rename(temp.path(), self.path()).await?;
 
-        let mut new_wal = Self::new(self.path())?;
-        new_wal.load_tree()?;
+        let mut new_event_log = Self::new(self.path())?;
+        new_event_log.load_tree()?;
 
         // Verify the new WAL tree
-        wal_commit_tree_file(new_wal.path(), true, |_| {}).await?;
+        wal_commit_tree_file(new_event_log.path(), true, |_| {}).await?;
 
         // Need to recreate the WAL file and load the updated
         // commit tree
-        Ok((new_wal, old_size, new_size))
+        Ok((new_event_log, old_size, new_size))
     }
 
     /// Replace this WAL with the contents of the buffer.
@@ -370,7 +370,7 @@ mod test {
     use super::*;
     use crate::{events::SyncEvent, test_utils::*};
 
-    fn mock_wal_file(
+    fn mock_event_log_file(
     ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>)> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file()?;
@@ -410,7 +410,7 @@ mod test {
 
     #[test]
     fn wal_iter_forward() -> Result<()> {
-        let (temp, wal, commits) = mock_wal_file()?;
+        let (temp, wal, commits) = mock_event_log_file()?;
         let mut it = wal.iter()?;
         let first_row = it.next().unwrap()?;
         let second_row = it.next().unwrap()?;
@@ -427,7 +427,7 @@ mod test {
 
     #[test]
     fn wal_iter_backward() -> Result<()> {
-        let (temp, wal, _) = mock_wal_file()?;
+        let (temp, wal, _) = mock_event_log_file()?;
         let mut it = wal.iter()?;
         let _third_row = it.next_back().unwrap();
         let _second_row = it.next_back().unwrap();
@@ -439,7 +439,7 @@ mod test {
 
     #[test]
     fn wal_iter_mixed() -> Result<()> {
-        let (temp, wal, _) = mock_wal_file()?;
+        let (temp, wal, _) = mock_event_log_file()?;
         let mut it = wal.iter()?;
         let _first_row = it.next().unwrap();
         let _third_row = it.next_back().unwrap();

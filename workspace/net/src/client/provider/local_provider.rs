@@ -167,16 +167,17 @@ impl StorageProvider for LocalProvider {
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let (wal_file, _) = self
+        let (event_log_file, _) = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        let (compact_wal, old_size, new_size) = wal_file.compact().await?;
+        let (compact_event_log, old_size, new_size) =
+            event_log_file.compact().await?;
 
         // Need to recreate the WAL file and load the updated
         // commit tree
-        *wal_file = compact_wal;
+        *event_log_file = compact_event_log;
 
         // Refresh in-memory vault and mirrored copy
         self.refresh_vault(summary, None).await?;
@@ -184,14 +185,14 @@ impl StorageProvider for LocalProvider {
         Ok((old_size, new_size))
     }
 
-    fn reduce_wal(&mut self, summary: &Summary) -> Result<Vault> {
-        let wal_file = self
+    fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
+        let event_log_file = self
             .cache
             .get_mut(summary.id())
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        Ok(EventReducer::new().reduce(wal_file)?.build()?)
+        Ok(EventReducer::new().reduce(event_log_file)?.build()?)
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {

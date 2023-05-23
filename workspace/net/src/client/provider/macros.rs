@@ -48,7 +48,7 @@ macro_rules! retry {
 #[macro_export]
 macro_rules! patch {
     ($provider:expr, $summary:expr, $events:expr) => {{
-        let (wal_file, patch_file) = $provider
+        let (event_log_file, patch_file) = $provider
             .cache
             .get_mut($summary.id())
             .ok_or(Error::CacheNotAvailable(*$summary.id()))?;
@@ -56,7 +56,7 @@ macro_rules! patch {
         let result = sync::patch(
             &mut $provider.client,
             $summary,
-            wal_file,
+            event_log_file,
             patch_file,
             $events
         ).await;
@@ -73,10 +73,10 @@ macro_rules! patch {
 
                     // Pull the WAL from the server that we
                     // are behind
-                    sync::pull_wal(
+                    sync::pull_event_log(
                         &mut $provider.client,
                         $summary,
-                        wal_file
+                        event_log_file
                     ).await?;
 
                     tracing::debug!(vault_id = %$summary.id(),
@@ -87,7 +87,7 @@ macro_rules! patch {
                     let status = sync::apply_patch(
                         &mut $provider.client,
                         $summary,
-                        wal_file,
+                        event_log_file,
                         patch_file,
                         events,
                     )
@@ -102,7 +102,7 @@ macro_rules! patch {
                         // so if reflects the pulled changes
                         // with our patch applied over the top
                         let updated_vault =
-                            $provider.reduce_wal($summary)?;
+                            $provider.reduce_event_log($summary)?;
 
                         if let Some(keeper) = $provider.current_mut() {
                             if keeper.id() == $summary.id() {

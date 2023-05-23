@@ -128,11 +128,7 @@ impl SyncEvent<'_> {
         }
     }
 
-    /// Convert this sync event into an owned version
-    /// converting any inner `Cow` values into owned data.
-    ///
-    /// This is required to appease the borrow checker in the
-    /// shell client code.
+    /// Convert this event into an owned version.
     pub fn into_owned(self) -> SyncEvent<'static> {
         match self {
             SyncEvent::Noop => SyncEvent::Noop,
