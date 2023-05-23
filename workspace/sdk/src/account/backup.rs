@@ -503,7 +503,8 @@ impl AccountBackup {
                     StorageDirs::identity_vault(&address_path)?;
 
                 let vault_file = VaultFileAccess::open(&identity_vault_file)?;
-                let mut access = VaultFileAccess::new(identity_vault_file, vault_file)?;
+                let mut access =
+                    VaultFileAccess::new(identity_vault_file, vault_file)?;
                 access.set_vault_name(name.clone())?;
 
                 name

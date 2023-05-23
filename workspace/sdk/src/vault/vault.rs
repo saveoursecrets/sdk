@@ -34,7 +34,6 @@ use crate::{
     formats::FileIdentity,
     passwd::diceware::generate_passphrase,
     vault::secret::SecretId,
-    vfs,
     Error, Result, Timestamp,
 };
 

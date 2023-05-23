@@ -33,7 +33,9 @@ impl AuditLogFile {
     }
 
     /// Get an audit log file iterator.
-    pub fn iter(&self) -> Result<ReadStreamIterator<std::fs::File, FileRecord>> {
+    pub fn iter(
+        &self,
+    ) -> Result<ReadStreamIterator<std::fs::File, FileRecord>> {
         audit_iter(&self.file_path)
     }
 

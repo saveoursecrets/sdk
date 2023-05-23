@@ -3,7 +3,7 @@ use std::{
     borrow::Cow,
     fs::OpenOptions,
     io::{Cursor, Read, Seek, SeekFrom, Write},
-    ops::{Range, DerefMut},
+    ops::{DerefMut, Range},
     path::Path,
     path::PathBuf,
     sync::Mutex,
@@ -18,11 +18,11 @@ use crate::{
     crypto::AeadPack,
     encode,
     events::SyncEvent,
+    stream_len,
     vault::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
         VaultCommit, VaultEntry,
     },
-    stream_len,
     Result,
 };
 
@@ -36,23 +36,24 @@ where
 }
 
 impl VaultFileAccess<std::fs::File> {
-    /// Open a file in read and write mode suitable for passing 
+    /// Open a file in read and write mode suitable for passing
     /// to the new constructor.
     pub fn open<P: AsRef<Path>>(path: P) -> Result<std::fs::File> {
-        Ok(OpenOptions::new().read(true).write(true).open(path.as_ref())?)
+        Ok(OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path.as_ref())?)
     }
-
 }
 
 impl<F: Read + Write + Seek> VaultFileAccess<F> {
-    
     /// Create a new vault access.
     ///
     /// The underlying file should already exist and be a valid vault.
     pub fn new<P: AsRef<Path>>(path: P, file: F) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
         //let file =
-            //OpenOptions::new().read(true).write(true).open(&file_path)?;
+        //OpenOptions::new().read(true).write(true).open(&file_path)?;
         //let _metadata = file.metadata()?;
         let stream = Mutex::new(file);
         Ok(Self { file_path, stream })
@@ -309,7 +310,7 @@ mod tests {
         vault::{secret::*, Header, Vault, VaultAccess, VaultEntry},
     };
     use anyhow::Result;
-    use std::io::{Seek, Write, Read};
+    use std::io::{Read, Seek, Write};
 
     use uuid::Uuid;
 
@@ -349,7 +350,7 @@ mod tests {
     fn vault_file_access() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (temp, vault, _) = mock_vault_file()?;
-        
+
         let vault_file = VaultFileAccess::open(temp.path())?;
         let mut vault_access = VaultFileAccess::new(temp.path(), vault_file)?;
 

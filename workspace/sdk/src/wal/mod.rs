@@ -2,7 +2,7 @@
 use crate::{
     commit::{CommitHash, CommitTree},
     events::SyncEvent,
-    formats::{WalFileRecord, ReadStreamIterator},
+    formats::WalFileRecord,
     timestamp::Timestamp,
     Result,
 };
@@ -113,11 +113,13 @@ pub trait WalProvider {
 
     /// Clear all events from this WAL.
     fn clear(&mut self) -> Result<()>;
-        
+
     /// Get an iterator of the log records.
     fn iter(
         &self,
-    ) -> Result<Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + Send + '_>>;
+    ) -> Result<
+        Box<dyn DoubleEndedIterator<Item = Result<Self::Item>> + Send + '_>,
+    >;
 }
 
 /// Trait for items yielded by the iterator.
@@ -245,15 +247,14 @@ impl Decode for WalRecord {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use std::{borrow::Cow, io::Write, path::PathBuf};
-    use tempfile::NamedTempFile;
+    use std::{borrow::Cow, path::PathBuf};
+
     use uuid::Uuid;
 
     use super::{file::*, *};
     use crate::{
         commit::{CommitHash, CommitTree, Comparison},
-        constants::WAL_IDENTITY,
-        decode, encode,
+        encode,
         events::SyncEvent,
         vault::{secret::SecretId, Vault, VaultCommit, VaultEntry},
     };

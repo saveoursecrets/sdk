@@ -411,7 +411,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         summary: &Summary,
     ) -> Result<(CommitRelationship, Option<usize>)>;
-    
+
     /// Remove a vault file and WAL file.
     async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
         use sos_sdk::constants::WAL_DELETED_EXT;

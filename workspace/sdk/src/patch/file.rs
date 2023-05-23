@@ -37,7 +37,9 @@ impl PatchFile {
     }
 
     /// Get an iterator for the patch file.
-    pub fn iter(&self) -> Result<ReadStreamIterator<std::fs::File, FileRecord>> {
+    pub fn iter(
+        &self,
+    ) -> Result<ReadStreamIterator<std::fs::File, FileRecord>> {
         patch_iter(&self.file_path)
     }
 }

@@ -7,22 +7,19 @@ use crate::{
     Error, Result,
 };
 use binary_stream::{tokio::BinaryReader, Endian};
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use crate::wal::file::WalFile;
 
-use std::{path::Path, ops::Range};
+use std::path::Path;
 
 /// Read the bytes for each entry into an owned buffer.
 macro_rules! read_iterator_item {
-    ($record:expr, $reader:expr) => {
-        {
-            let value = $record.value();
-            let length = value.end - value.start;
-            $reader.seek(value.start).await?;
-            $reader.read_bytes(length as usize).await?
-        }
-    };
+    ($record:expr, $reader:expr) => {{
+        let value = $record.value();
+        let length = value.end - value.start;
+        $reader.seek(value.start).await?;
+        $reader.read_bytes(length as usize).await?
+    }};
 }
 
 /// Build a commit tree from a vault file optionally
@@ -108,7 +105,7 @@ where
                     });
                 }
             }
-            
+
             // Verify the commit hash for the data
             let commit = record.commit();
             let buffer = read_iterator_item!(&record, &mut reader);

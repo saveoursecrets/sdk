@@ -68,7 +68,8 @@ async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
         if verbose {
             println!("{}", hex::encode(row_info.commit()));
         }
-    }).await?;
+    })
+    .await?;
     println!("Verified ✓");
     Ok(())
 }
@@ -82,7 +83,8 @@ async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
         if verbose {
             println!("{}", hex::encode(row_info.commit()));
         }
-    }).await?;
+    })
+    .await?;
     if verbose {
         if let Some(root) = tree.root_hex() {
             println!("{}", root);

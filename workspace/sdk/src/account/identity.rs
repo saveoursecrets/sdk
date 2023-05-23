@@ -142,7 +142,8 @@ impl Identity {
         search_index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<UserIdentity> {
         let vault_file = VaultFileAccess::open(file.as_ref())?;
-        let mirror = Box::new(VaultFileAccess::new(file.as_ref(), vault_file)?);
+        let mirror =
+            Box::new(VaultFileAccess::new(file.as_ref(), vault_file)?);
         let buffer = vfs::read(file.as_ref()).await?;
         Identity::login_buffer(
             buffer,

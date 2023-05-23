@@ -11,9 +11,9 @@ use crate::{
         AUDIT_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY, WAL_IDENTITY,
     },
     formats::FileIdentity,
+    stream_len,
     vault::Header,
     wal::WalItem,
-    stream_len,
     Result, Timestamp,
 };
 
@@ -277,8 +277,7 @@ impl<T: FileItem> ReadStreamIterator<std::fs::File, T> {
         header_offset: Option<u64>,
     ) -> Result<Self> {
         FileIdentity::read_file(file_path.as_ref(), identity)?;
-        let mut read_stream =
-            Box::new(File::open(file_path.as_ref())?);
+        let mut read_stream = Box::new(File::open(file_path.as_ref())?);
 
         let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(SeekFrom::Start(header_offset))?;
@@ -292,7 +291,6 @@ impl<T: FileItem> ReadStreamIterator<std::fs::File, T> {
             marker: std::marker::PhantomData,
         })
     }
-
 }
 
 impl<R: Read + Seek, T: FileItem> ReadStreamIterator<R, T> {
@@ -420,7 +418,9 @@ impl<R: Read + Seek, T: FileItem> Iterator for ReadStreamIterator<R, T> {
     }
 }
 
-impl<R: Read + Seek, T: FileItem> DoubleEndedIterator for ReadStreamIterator<R, T> {
+impl<R: Read + Seek, T: FileItem> DoubleEndedIterator
+    for ReadStreamIterator<R, T>
+{
     fn next_back(&mut self) -> Option<Self::Item> {
         let offset: u64 = self.header_offset;
 
