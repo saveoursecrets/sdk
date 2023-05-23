@@ -247,8 +247,8 @@ impl Decode for WalRecord {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use std::{borrow::Cow, path::PathBuf};
     use serial_test::serial;
+    use std::{borrow::Cow, path::PathBuf};
 
     use uuid::Uuid;
 

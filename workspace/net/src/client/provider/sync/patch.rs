@@ -4,23 +4,22 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_sdk::{
-    commit::CommitHash, events::SyncEvent, patch::PatchProvider,
-    vault::Summary, wal::WalProvider,
+    commit::CommitHash, events::SyncEvent, patch::PatchFile, vault::Summary,
+    wal::WalProvider,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
 
 /// Apply a patch and error on failure.
-pub async fn patch<W, P>(
+pub async fn patch<W>(
     client: &mut RpcClient,
     summary: &Summary,
     wal_file: &mut W,
-    patch_file: &mut P,
+    patch_file: &mut PatchFile,
     events: Vec<SyncEvent<'static>>,
 ) -> Result<()>
 where
     W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     let status =
         apply_patch(client, summary, wal_file, patch_file, events).await?;
@@ -32,16 +31,15 @@ where
 }
 
 /// Attempt to apply a patch and return the status code.
-pub(crate) async fn apply_patch<W, P>(
+pub(crate) async fn apply_patch<W>(
     client: &mut RpcClient,
     summary: &Summary,
     wal_file: &mut W,
-    patch_file: &mut P,
+    patch_file: &mut PatchFile,
     events: Vec<SyncEvent<'static>>,
 ) -> Result<StatusCode>
 where
     W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     let patch = patch_file.append(events)?;
 
@@ -153,15 +151,14 @@ where
 
 /// Attempt to drain the patch file and apply events to
 /// the remote server.
-pub async fn apply_patch_file<W, P>(
+pub async fn apply_patch_file<W>(
     client: &mut RpcClient,
     summary: &Summary,
     wal_file: &mut W,
-    patch_file: &mut P,
+    patch_file: &mut PatchFile,
 ) -> Result<()>
 where
     W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     let has_events = patch_file.has_events()?;
 

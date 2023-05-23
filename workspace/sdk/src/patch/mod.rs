@@ -15,42 +15,6 @@ use std::io::{Read, Seek, Write};
 mod file;
 pub use file::PatchFile;
 
-//mod memory;
-//pub use memory::PatchMemory;
-
-/// Trait for types that cache events in a patch.
-pub trait PatchProvider {
-    /// Create a new patch cache provider.
-    fn new<P: AsRef<Path>>(path: P) -> Result<Self>
-    where
-        Self: Sized;
-
-    /// Append some events to this patch cache.
-    ///
-    /// Returns a collection of events; if this patch cache was empty
-    /// beforehand the collection equals the passed events otherwise
-    /// it will be any existing events loaded from disc with the given
-    /// events appended.
-    fn append<'a>(&mut self, events: Vec<SyncEvent<'a>>)
-        -> Result<Patch<'a>>;
-
-    /// Count the number of events in the patch cache.
-    fn count_events(&self) -> Result<usize>;
-
-    /// Determine if the patch cache has any events.
-    fn has_events(&self) -> Result<bool>;
-
-    /// Drain all events from the patch backing storage.
-    fn drain(&mut self) -> Result<Patch<'static>>;
-
-    /// Truncate the patch backing storage to an empty list.
-    ///
-    /// This should be called when a client has successfully
-    /// applied a patch to the remote and local WAL files to
-    /// remove any pending events.
-    fn truncate(&mut self) -> Result<()>;
-}
-
 /// Patch wraps a changeset of events to be sent across the network.
 #[derive(Clone, Debug, Default)]
 pub struct Patch<'a>(pub Vec<SyncEvent<'a>>);

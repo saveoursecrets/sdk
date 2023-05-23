@@ -12,15 +12,12 @@ use sos_sdk::{
     constants::VAULT_EXT,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
-    patch::PatchProvider,
+    patch::PatchFile,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
-    wal::{reducer::WalReducer, WalItem, WalProvider},
+    wal::{file::WalFile, reducer::WalReducer, WalItem, WalProvider},
     Timestamp,
 };
-
-#[cfg(not(target_arch = "wasm32"))]
-use sos_sdk::{patch::PatchFile, wal::file::WalFile};
 
 use std::{
     borrow::Cow,
@@ -36,7 +33,7 @@ use crate::{
 ///
 /// May be backed by files on disc or in-memory implementations
 /// for use in webassembly.
-pub struct LocalProvider<W, P> {
+pub struct LocalProvider<W> {
     /// State of this storage.
     state: ProviderState,
 
@@ -46,14 +43,14 @@ pub struct LocalProvider<W, P> {
     dirs: StorageDirs,
 
     /// Cache for WAL and patch providers.
-    cache: HashMap<VaultId, (W, P)>,
+    cache: HashMap<VaultId, (W, PatchFile)>,
 }
 
-impl LocalProvider<WalFile, PatchFile> {
+impl LocalProvider<WalFile> {
     /// Create new node cache backed by files on disc.
     pub fn new_file_storage(
         dirs: StorageDirs,
-    ) -> Result<LocalProvider<WalFile, PatchFile>> {
+    ) -> Result<LocalProvider<WalFile>> {
         if !dirs.documents_dir().is_dir() {
             return Err(Error::NotDirectory(
                 dirs.documents_dir().to_path_buf(),
@@ -86,10 +83,9 @@ impl LocalProvider<WalMemory, PatchMemory<'static>> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<W, P> StorageProvider for LocalProvider<W, P>
+impl<W> StorageProvider for LocalProvider<W>
 where
     W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     provider_impl!();
 

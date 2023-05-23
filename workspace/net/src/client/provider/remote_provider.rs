@@ -10,18 +10,16 @@ use sos_sdk::{
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
-    patch::PatchProvider,
+    patch::PatchFile,
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary, Vault,
     },
     vfs,
-    wal::{reducer::WalReducer, WalItem, WalProvider},
+    wal::{file::WalFile, reducer::WalReducer, WalItem, WalProvider},
     Timestamp,
 };
-
-use sos_sdk::{patch::PatchFile, wal::file::WalFile};
 
 use std::{
     borrow::Cow,
@@ -38,7 +36,7 @@ use crate::{
 ///
 /// May be backed by files on disc or in-memory implementations
 /// for use in webassembly.
-pub struct RemoteProvider<W, P> {
+pub struct RemoteProvider<W> {
     /// State of this node.
     state: ProviderState,
 
@@ -48,19 +46,18 @@ pub struct RemoteProvider<W, P> {
     dirs: StorageDirs,
 
     /// Data for the cache.
-    cache: HashMap<Uuid, (W, P)>,
+    cache: HashMap<Uuid, (W, PatchFile)>,
 
     /// Client to use for remote communication.
     client: RpcClient,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-impl RemoteProvider<WalFile, PatchFile> {
+impl RemoteProvider<WalFile> {
     /// Create new node cache backed by files on disc.
     pub fn new_file_cache(
         client: RpcClient,
         dirs: StorageDirs,
-    ) -> Result<RemoteProvider<WalFile, PatchFile>> {
+    ) -> Result<RemoteProvider<WalFile>> {
         if !dirs.documents_dir().is_dir() {
             return Err(Error::NotDirectory(
                 dirs.documents_dir().to_path_buf(),
@@ -78,28 +75,11 @@ impl RemoteProvider<WalFile, PatchFile> {
     }
 }
 
-/*
-impl RemoteProvider<WalMemory, PatchMemory<'static>> {
-    /// Create new node cache backed by memory.
-    pub fn new_memory_cache(
-        client: RpcClient,
-    ) -> RemoteProvider<WalMemory, PatchMemory<'static>> {
-        Self {
-            state: ProviderState::new(false),
-            cache: Default::default(),
-            dirs: Default::default(),
-            client,
-        }
-    }
-}
-*/
-
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<W, P> StorageProvider for RemoteProvider<W, P>
+impl<W> StorageProvider for RemoteProvider<W>
 where
     W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     provider_impl!();
 

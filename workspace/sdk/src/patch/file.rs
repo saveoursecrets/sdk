@@ -13,7 +13,7 @@ use crate::{
     Result,
 };
 
-use super::{Patch, PatchProvider};
+use super::Patch;
 
 /// Caches a collection of events on disc which can be used
 /// by clients to store changes that have not yet been applied
@@ -24,28 +24,8 @@ pub struct PatchFile {
 }
 
 impl PatchFile {
-    /// The file extension for patch files.
-    pub fn extension() -> &'static str {
-        PATCH_EXT
-    }
-
-    /// Read a patch from the file on disc.
-    pub(crate) fn read(&self) -> Result<Patch<'static>> {
-        let buffer = std::fs::read(&self.file_path)?;
-        let patch: Patch = decode(&buffer)?;
-        Ok(patch)
-    }
-
-    /// Get an iterator for the patch file.
-    pub fn iter(
-        &self,
-    ) -> Result<ReadStreamIterator<std::fs::File, FileRecord>> {
-        patch_iter(&self.file_path)
-    }
-}
-
-impl PatchProvider for PatchFile {
-    fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+    /// Create a new patch cache provider.
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
 
         if !file_path.exists() {
@@ -67,7 +47,32 @@ impl PatchProvider for PatchFile {
         Ok(Self { file, file_path })
     }
 
-    fn append<'a>(
+    /// The file extension for patch files.
+    pub fn extension() -> &'static str {
+        PATCH_EXT
+    }
+
+    /// Read a patch from the file on disc.
+    pub(crate) fn read(&self) -> Result<Patch<'static>> {
+        let buffer = std::fs::read(&self.file_path)?;
+        let patch: Patch = decode(&buffer)?;
+        Ok(patch)
+    }
+
+    /// Get an iterator for the patch file.
+    pub fn iter(
+        &self,
+    ) -> Result<ReadStreamIterator<std::fs::File, FileRecord>> {
+        patch_iter(&self.file_path)
+    }
+
+    /// Append some events to this patch cache.
+    ///
+    /// Returns a collection of events; if this patch cache was empty
+    /// beforehand the collection equals the passed events otherwise
+    /// it will be any existing events loaded from disc with the given
+    /// events appended.
+    pub fn append<'a>(
         &mut self,
         events: Vec<SyncEvent<'a>>,
     ) -> Result<Patch<'a>> {
@@ -94,21 +99,29 @@ impl PatchProvider for PatchFile {
         Ok(Patch(all_events))
     }
 
-    fn count_events(&self) -> Result<usize> {
+    /// Count the number of events in the patch cache.
+    pub fn count_events(&self) -> Result<usize> {
         Ok(self.iter()?.count())
     }
 
-    fn has_events(&self) -> Result<bool> {
+    /// Determine if the patch cache has any events.
+    pub fn has_events(&self) -> Result<bool> {
         Ok(self.file_path.metadata()?.len() as usize > PATCH_IDENTITY.len())
     }
 
-    fn drain(&mut self) -> Result<Patch<'static>> {
+    /// Drain all events from the patch backing storage.
+    pub fn drain(&mut self) -> Result<Patch<'static>> {
         let patch = self.read()?;
         self.truncate()?;
         Ok(patch)
     }
 
-    fn truncate(&mut self) -> Result<()> {
+    /// Truncate the patch backing storage to an empty list.
+    ///
+    /// This should be called when a client has successfully
+    /// applied a patch to the remote and local WAL files to
+    /// remove any pending events.
+    pub fn truncate(&mut self) -> Result<()> {
         // Workaround for set_len(0) failing with "Access Denied" on Windows
         // SEE: https://github.com/rust-lang/rust/issues/105437
         let _ = OpenOptions::new()

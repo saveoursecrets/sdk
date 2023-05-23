@@ -29,7 +29,7 @@ pub async fn signup(
 ) -> Result<(
     Address,
     AccountCredentials,
-    RemoteProvider<WalFile, PatchFile>,
+    RemoteProvider<WalFile>,
     BoxedEcdsaSigner,
 )> {
     let TestDirs {
@@ -66,7 +66,7 @@ pub async fn login(
     server: Url,
     cache_dir: PathBuf,
     signer: &BoxedEcdsaSigner,
-) -> Result<RemoteProvider<WalFile, PatchFile>> {
+) -> Result<RemoteProvider<WalFile>> {
     let address = signer.address()?;
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
     dirs.ensure().await?;
@@ -87,7 +87,7 @@ async fn create_account(
     name: Option<String>,
     signer: BoxedEcdsaSigner,
     cache_dir: PathBuf,
-) -> Result<(AccountCredentials, RemoteProvider<WalFile, PatchFile>)> {
+) -> Result<(AccountCredentials, RemoteProvider<WalFile>)> {
     if !destination.is_dir() {
         bail!("not a directory {}", destination.display());
     }

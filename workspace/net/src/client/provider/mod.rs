@@ -592,7 +592,7 @@ macro_rules! provider_impl {
             vault: Option<Vault>,
         ) -> Result<()> {
             let patch_path = self.patch_path(summary);
-            let patch_file = P::new(patch_path)?;
+            let patch_file = PatchFile::new(patch_path)?;
 
             let wal_path = self.wal_path(summary);
             let mut wal = W::new(&wal_path)?;

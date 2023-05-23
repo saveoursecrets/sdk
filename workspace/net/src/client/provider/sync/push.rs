@@ -5,7 +5,7 @@ use http::StatusCode;
 
 use sos_sdk::{
     commit::{CommitProof, Comparison, SyncInfo, SyncKind},
-    patch::PatchProvider,
+    patch::PatchFile,
     vault::Summary,
     vfs,
     wal::WalProvider,
@@ -16,16 +16,15 @@ use crate::{client::provider::assert_proofs_eq, retry};
 use super::apply_patch_file;
 
 /// Upload changes to the remote server.
-pub async fn push<W, P>(
+pub async fn push<W>(
     client: &mut RpcClient,
     summary: &Summary,
     wal_file: &mut W,
-    patch_file: &mut P,
+    patch_file: &mut PatchFile,
     force: bool,
 ) -> Result<SyncInfo>
 where
     W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
 {
     let client_proof = wal_file.tree().head()?;
 
