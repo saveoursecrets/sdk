@@ -5002,12 +5002,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustversion"
-version = "1.0.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f3208ce4d8448b3f3e7d168a73f5e0c43a61e32930de3bceeccedb388b6bf06"
-
-[[package]]
 name = "rustyline"
 version = "11.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5298,10 +5292,11 @@ dependencies = [
 
 [[package]]
 name = "serial_test"
-version = "0.8.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7eec42e7232e5ca56aa59d63af3c7f991fe71ee6a3ddd2d3480834cf3902b007"
+checksum = "0e56dd856803e253c8f298af3f4d7eb0ae5e23a737252cd90bb4f3b435033b2d"
 dependencies = [
+ "dashmap",
  "futures",
  "lazy_static",
  "log",
@@ -5311,15 +5306,13 @@ dependencies = [
 
 [[package]]
 name = "serial_test_derive"
-version = "0.8.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1b95bb2f4f624565e8fe8140c789af7e2082c0e0561b5a82a1b678baa9703dc"
+checksum = "91d129178576168c589c9ec973feedf7d3126c01ac2bf08795109aa35b69fb8f"
 dependencies = [
- "proc-macro-error",
  "proc-macro2 1.0.56",
  "quote 1.0.26",
- "rustversion",
- "syn 1.0.109",
+ "syn 2.0.15",
 ]
 
 [[package]]
@@ -5637,6 +5630,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "serial_test",
  "sha2 0.10.6",
  "sha3",
  "subtle",

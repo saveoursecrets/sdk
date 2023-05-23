@@ -248,6 +248,7 @@ impl Decode for WalRecord {
 mod test {
     use anyhow::Result;
     use std::{borrow::Cow, path::PathBuf};
+    use serial_test::serial;
 
     use uuid::Uuid;
 
@@ -329,8 +330,9 @@ mod test {
         Ok((server, client, id))
     }
 
-    #[test]
-    fn wal_compare() -> Result<()> {
+    #[tokio::test]
+    #[serial]
+    async fn wal_compare() -> Result<()> {
         let (mut server, client, id) = mock_wal_server_client()?;
 
         // Add another event to the server from another client.
@@ -365,6 +367,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn wal_diff() -> Result<()> {
         let partial = PathBuf::from("target/mock-wal-partial.wal");
         if partial.exists() {
