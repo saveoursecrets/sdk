@@ -65,8 +65,6 @@ impl LocalProvider {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl StorageProvider for LocalProvider {
     provider_impl!();
 
@@ -149,7 +147,6 @@ impl StorageProvider for LocalProvider {
         Ok(())
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
         let storage = self.dirs().vaults_dir();
         let mut summaries = Vec::new();
@@ -169,11 +166,6 @@ impl StorageProvider for LocalProvider {
 
         self.load_caches(&summaries)?;
         self.state.set_summaries(summaries);
-        Ok(self.vaults())
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    async fn load_vaults(&mut self) -> Result<&[Summary]> {
         Ok(self.vaults())
     }
 
