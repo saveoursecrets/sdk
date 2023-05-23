@@ -1,6 +1,6 @@
 //! Write ahead log types and traits.
 use crate::{
-    commit::CommitHash, formats::WalFileRecord, timestamp::Timestamp,
+    commit::CommitHash, formats::EventLogFileRecord, timestamp::Timestamp,
 };
 
 use std::io::{Read, Seek, Write};
@@ -12,8 +12,8 @@ use binary_stream::{
 mod file;
 mod reducer;
 
-pub use file::WalFile;
-pub use reducer::WalReducer;
+pub use file::EventLogFile;
+pub use reducer::EventReducer;
 
 /// Record for a row in the write ahead log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
@@ -41,8 +41,8 @@ impl WalRecord {
     }
 }
 
-impl From<(WalFileRecord, Vec<u8>)> for WalRecord {
-    fn from(value: (WalFileRecord, Vec<u8>)) -> Self {
+impl From<(EventLogFileRecord, Vec<u8>)> for WalRecord {
+    fn from(value: (EventLogFileRecord, Vec<u8>)) -> Self {
         Self(
             value.0.time,
             CommitHash(value.0.last_commit),
@@ -150,7 +150,7 @@ mod test {
         Ok((id, Cow::Owned(result)))
     }
 
-    fn mock_wal_standalone() -> Result<(WalFile, SecretId)> {
+    fn mock_wal_standalone() -> Result<(EventLogFile, SecretId)> {
         let mut vault: Vault = Default::default();
         vault.set_name(String::from("Standalone vault"));
         let vault_buffer = encode(&vault)?;
@@ -158,7 +158,7 @@ mod test {
         let (id, data) = mock_secret()?;
 
         // Create a simple WAL
-        let mut server = WalFile::new("target/mock-wal-standalone.wal")?;
+        let mut server = EventLogFile::new("target/mock-wal-standalone.wal")?;
         server.apply(
             vec![
                 SyncEvent::CreateVault(Cow::Owned(vault_buffer)),
@@ -170,7 +170,8 @@ mod test {
         Ok((server, id))
     }
 
-    fn mock_wal_server_client() -> Result<(WalFile, WalFile, SecretId)> {
+    fn mock_wal_server_client(
+    ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
         let server_file = PathBuf::from("target/mock-wal-server.wal");
         let client_file = PathBuf::from("target/mock-wal-client.wal");
         if server_file.exists() {
@@ -186,7 +187,7 @@ mod test {
         let (id, data) = mock_secret()?;
 
         // Create a simple WAL
-        let mut server = WalFile::new(&server_file)?;
+        let mut server = EventLogFile::new(&server_file)?;
         server.apply(
             vec![
                 SyncEvent::CreateVault(Cow::Owned(vault_buffer)),
@@ -196,7 +197,7 @@ mod test {
         )?;
 
         // Duplicate the server events on the client
-        let mut client = WalFile::new(&client_file)?;
+        let mut client = EventLogFile::new(&client_file)?;
         for record in server.iter()? {
             let record = record?;
             let event = server.event_data(&record)?;
@@ -271,7 +272,7 @@ mod test {
             assert_eq!(vec![1], indices);
             let leaf = leaves.first().unwrap();
             if let Some(buffer) = server.diff(*leaf)? {
-                let mut partial_log = WalFile::new(&partial)?;
+                let mut partial_log = EventLogFile::new(&partial)?;
                 partial_log.write_buffer(&buffer).await?;
                 let records: Vec<_> = partial_log.iter()?.collect();
                 assert_eq!(1, records.len());
@@ -294,7 +295,7 @@ mod test {
     #[test]
     fn wal_file_load() -> Result<()> {
         let path = PathBuf::from("../../tests/fixtures/simple-vault.wal");
-        let wal = WalFile::new(path)?;
+        let wal = EventLogFile::new(path)?;
         let it = wal.iter()?;
         for record in it {
             let record = record?;

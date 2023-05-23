@@ -594,7 +594,7 @@ macro_rules! provider_impl {
             let patch_file = PatchFile::new(patch_path)?;
 
             let wal_path = self.wal_path(summary);
-            let mut wal = WalFile::new(&wal_path)?;
+            let mut wal = EventLogFile::new(&wal_path)?;
 
             if let Some(vault) = &vault {
                 let encoded = encode(vault)?;

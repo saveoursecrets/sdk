@@ -19,7 +19,7 @@ use crate::{
     constants::WAL_IDENTITY,
     encode,
     events::SyncEvent,
-    formats::{wal_iter, FileItem, WalFileRecord},
+    formats::{wal_iter, EventLogFileRecord, FileItem},
     timestamp::Timestamp,
     vfs, Error, Result,
 };
@@ -33,19 +33,19 @@ use std::{
 use binary_stream::{BinaryReader, Decode, Endian};
 use tempfile::NamedTempFile;
 
-use super::{WalRecord, WalReducer};
+use super::{EventReducer, WalRecord};
 
 /// A write ahead log that appends to a file.
-pub struct WalFile {
+pub struct EventLogFile {
     file_path: PathBuf,
     file: File,
     tree: CommitTree,
 }
 
-impl WalFile {
+impl EventLogFile {
     /// Create a new log file.
     pub fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let file = WalFile::create(file_path.as_ref())?;
+        let file = EventLogFile::create(file_path.as_ref())?;
         Ok(Self {
             file,
             file_path: file_path.as_ref().to_path_buf(),
@@ -97,11 +97,11 @@ impl WalFile {
         let old_size = self.path().metadata()?.len();
 
         // Get the reduced set of events
-        let events = WalReducer::new().reduce(self)?.compact()?;
+        let events = EventReducer::new().reduce(self)?.compact()?;
         let temp = NamedTempFile::new()?;
 
         // Apply them to a temporary WAL file
-        let mut temp_wal = WalFile::new(temp.path())?;
+        let mut temp_wal = EventLogFile::new(temp.path())?;
         temp_wal.apply(events, None)?;
 
         let new_size = temp_wal.path().metadata()?.len();
@@ -155,7 +155,7 @@ impl WalFile {
     }
 
     /// Get the tail after the given item until the end of the log.
-    pub fn tail(&self, item: WalFileRecord) -> Result<Vec<u8>> {
+    pub fn tail(&self, item: EventLogFileRecord) -> Result<Vec<u8>> {
         let mut partial = WAL_IDENTITY.to_vec();
         let start = item.offset().end as usize;
         let mut file = File::open(&self.file_path)?;
@@ -173,7 +173,10 @@ impl WalFile {
     }
 
     /// Read or encode the bytes for the item.
-    pub fn read_buffer(&self, record: &WalFileRecord) -> Result<Vec<u8>> {
+    pub fn read_buffer(
+        &self,
+        record: &EventLogFileRecord,
+    ) -> Result<Vec<u8>> {
         let mut file = File::open(&self.file_path)?;
         let offset = record.offset();
         let row_len = offset.end - offset.start;
@@ -275,7 +278,10 @@ impl WalFile {
     }
 
     /// Read the event data from an item.
-    pub fn event_data(&self, item: &WalFileRecord) -> Result<SyncEvent<'_>> {
+    pub fn event_data(
+        &self,
+        item: &EventLogFileRecord,
+    ) -> Result<SyncEvent<'_>> {
         let value = item.value();
 
         // Use a different file handle as the owned `file` should
@@ -320,7 +326,9 @@ impl WalFile {
         &self,
     ) -> Result<
         Box<
-            dyn DoubleEndedIterator<Item = Result<WalFileRecord>> + Send + '_,
+            dyn DoubleEndedIterator<Item = Result<EventLogFileRecord>>
+                + Send
+                + '_,
         >,
     > {
         Ok(Box::new(wal_iter(&self.file_path)?))
@@ -362,12 +370,13 @@ mod test {
     use super::*;
     use crate::{events::SyncEvent, test_utils::*};
 
-    fn mock_wal_file() -> Result<(NamedTempFile, WalFile, Vec<CommitHash>)> {
+    fn mock_wal_file(
+    ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>)> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;
-        let mut wal = WalFile::new(temp.path())?;
+        let mut wal = EventLogFile::new(temp.path())?;
 
         let mut commits = Vec::new();
 

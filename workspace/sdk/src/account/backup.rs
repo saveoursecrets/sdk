@@ -22,6 +22,7 @@ use crate::{
     },
     constants::{VAULT_EXT, WAL_EXT},
     decode, encode,
+    events::EventLogFile,
     events::SyncEvent,
     passwd::ChangePassword,
     search::SearchIndex,
@@ -31,9 +32,7 @@ use crate::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess,
         VaultFileAccess, VaultId,
     },
-    vfs,
-    wal::WalFile,
-    Error, Result,
+    vfs, Error, Result,
 };
 
 use secrecy::SecretString;
@@ -531,7 +530,7 @@ impl AccountBackup {
                 let create_vault =
                     SyncEvent::CreateVault(Cow::Borrowed(buffer));
                 wal_events.push(create_vault);
-                let mut wal = WalFile::new(wal_path)?;
+                let mut wal = EventLogFile::new(wal_path)?;
                 wal.apply(wal_events, None)?;
             }
 

@@ -158,12 +158,12 @@ impl UserStorage {
             peer_key,
         })
     }
-    
+
     /// Load the buffer of the encrypted vault for this account.
     ///
-    /// Used when a client needs to authenticate other devices; 
-    /// it sends the encrypted identity vault and if the vault 
-    /// can be unlocked then we have verified that the other 
+    /// Used when a client needs to authenticate other devices;
+    /// it sends the encrypted identity vault and if the vault
+    /// can be unlocked then we have verified that the other
     /// device knows the master password for this account.
     pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
         let identity_path = self.storage.dirs().identity()?;

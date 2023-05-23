@@ -5,9 +5,9 @@ use sos_sdk::{
     constants::{VAULT_EXT, WAL_DELETED_EXT, WAL_EXT},
     decode, encode,
     events::SyncEvent,
+    events::{EventLogFile, EventReducer},
     vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
     vfs,
-    wal::{WalFile, WalReducer},
 };
 use std::{
     borrow::Cow,
@@ -48,7 +48,7 @@ impl Backend {
         &self,
         owner: &Address,
         vault_id: &Uuid,
-    ) -> Result<&WalFile> {
+    ) -> Result<&EventLogFile> {
         match self {
             Self::FileSystem(handler) => {
                 handler.wal_read(owner, vault_id).await
@@ -61,7 +61,7 @@ impl Backend {
         &mut self,
         owner: &Address,
         vault_id: &Uuid,
-    ) -> Result<&mut WalFile> {
+    ) -> Result<&mut EventLogFile> {
         match self {
             Self::FileSystem(handler) => {
                 handler.wal_write(owner, vault_id).await
@@ -171,7 +171,7 @@ pub struct FileSystemBackend {
     directory: PathBuf,
     locks: FileLocks,
     startup_files: Vec<PathBuf>,
-    accounts: HashMap<Address, HashMap<Uuid, WalFile>>,
+    accounts: HashMap<Address, HashMap<Uuid, EventLogFile>>,
 }
 
 impl FileSystemBackend {
@@ -191,7 +191,7 @@ impl FileSystemBackend {
         &self,
         owner: &Address,
         vault_id: &Uuid,
-    ) -> Result<&WalFile> {
+    ) -> Result<&EventLogFile> {
         let account = self
             .accounts
             .get(owner)
@@ -209,7 +209,7 @@ impl FileSystemBackend {
         &mut self,
         owner: &Address,
         vault_id: &Uuid,
-    ) -> Result<&mut WalFile> {
+    ) -> Result<&mut EventLogFile> {
         let account = self
             .accounts
             .get_mut(owner)
@@ -260,7 +260,7 @@ impl FileSystemBackend {
                                     let id = *summary.id();
 
                                     let mut wal_file =
-                                        WalFile::new(&wal_path)?;
+                                        EventLogFile::new(&wal_path)?;
                                     wal_file.load_tree()?;
 
                                     // Store these file paths so locks
@@ -291,7 +291,7 @@ impl FileSystemBackend {
         owner: &Address,
         vault_id: &Uuid,
         vault: &[u8],
-    ) -> Result<(PathBuf, WalFile)> {
+    ) -> Result<(PathBuf, EventLogFile)> {
         let wal_path = self.wal_file_path(owner, vault_id);
         if wal_path.exists() {
             return Err(Error::FileExists(wal_path));
@@ -304,7 +304,7 @@ impl FileSystemBackend {
         tokio::fs::write(&vault_path, vault).await?;
 
         // Create the WAL file
-        let mut wal = WalFile::new(&wal_path)?;
+        let mut wal = EventLogFile::new(&wal_path)?;
         let event = SyncEvent::CreateVault(Cow::Borrowed(vault));
         wal.append_event(event)?;
 
@@ -333,7 +333,7 @@ impl FileSystemBackend {
         owner: Address,
         vault_id: Uuid,
         _wal_path: PathBuf,
-        wal_file: WalFile,
+        wal_file: EventLogFile,
     ) -> Result<()> {
         let vaults = self.accounts.entry(owner).or_insert(Default::default());
         vaults.insert(vault_id, wal_file);
@@ -483,11 +483,11 @@ impl BackendHandler for FileSystemBackend {
             .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
         let vault: Vault = decode(vault)?;
-        let (vault, events) = WalReducer::split(vault)?;
+        let (vault, events) = EventReducer::split(vault)?;
 
         // Prepare a temp file with the new WAL records
         let temp = NamedTempFile::new()?;
-        let mut temp_wal = WalFile::new(temp.path())?;
+        let mut temp_wal = EventLogFile::new(temp.path())?;
         temp_wal.apply(events, None)?;
 
         let expected_root = temp_wal
@@ -601,7 +601,7 @@ impl BackendHandler for FileSystemBackend {
         vfs::rename(&temp_path, &original_wal).await?;
 
         let wal = self.wal_write(owner, vault_id).await?;
-        *wal = WalFile::new(&original_wal)?;
+        *wal = EventLogFile::new(&original_wal)?;
         wal.load_tree()?;
 
         let new_tree_root =

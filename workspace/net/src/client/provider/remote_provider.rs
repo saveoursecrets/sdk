@@ -10,15 +10,14 @@ use sos_sdk::{
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
+    events::{EventLogFile, EventReducer},
     patch::PatchFile,
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary, Vault,
     },
-    vfs,
-    wal::{WalFile, WalReducer},
-    Timestamp,
+    vfs, Timestamp,
 };
 
 use std::{
@@ -46,7 +45,7 @@ pub struct RemoteProvider {
     dirs: StorageDirs,
 
     /// Data for the cache.
-    cache: HashMap<Uuid, (WalFile, PatchFile)>,
+    cache: HashMap<Uuid, (EventLogFile, PatchFile)>,
 
     /// Client to use for remote communication.
     client: RpcClient,
@@ -319,7 +318,7 @@ impl StorageProvider for RemoteProvider {
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        Ok(WalReducer::new().reduce(wal_file)?.build()?)
+        Ok(EventReducer::new().reduce(wal_file)?.build()?)
     }
 
     async fn pull(

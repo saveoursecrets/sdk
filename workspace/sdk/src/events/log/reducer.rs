@@ -12,15 +12,15 @@ use std::{borrow::Cow, collections::HashMap};
 use crate::{
     crypto::AeadPack,
     decode, encode,
+    events::EventLogFile,
     events::SyncEvent,
     vault::{secret::SecretId, Vault, VaultCommit},
-    wal::WalFile,
     Error, Result,
 };
 
 /// Reducer for WAL events.
 #[derive(Default)]
-pub struct WalReducer<'a> {
+pub struct EventReducer<'a> {
     /// Buffer for the create or last update vault event.
     vault: Option<Cow<'a, [u8]>>,
     /// Last encountered vault name.
@@ -31,7 +31,7 @@ pub struct WalReducer<'a> {
     secrets: HashMap<SecretId, Cow<'a, VaultCommit>>,
 }
 
-impl<'a> WalReducer<'a> {
+impl<'a> EventReducer<'a> {
     /// Create a new reducer.
     pub fn new() -> Self {
         Default::default()
@@ -60,7 +60,7 @@ impl<'a> WalReducer<'a> {
     }
 
     /// Reduce the events in the given iterator.
-    pub fn reduce(mut self, wal: &'a WalFile) -> Result<Self> {
+    pub fn reduce(mut self, wal: &'a EventLogFile) -> Result<Self> {
         let mut it = wal.iter()?;
         if let Some(first) = it.next() {
             let log = first?;
@@ -171,25 +171,29 @@ mod test {
         commit::CommitHash,
         crypto::secret_key::SecretKey,
         decode,
+        events::EventLogFile,
         test_utils::*,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
             VaultAccess, VaultCommit, VaultEntry,
         },
-        wal::WalFile,
     };
     use anyhow::Result;
     use secrecy::ExposeSecret;
     use tempfile::NamedTempFile;
 
-    fn mock_wal_file(
-    ) -> Result<(NamedTempFile, WalFile, Vec<CommitHash>, SecretKey, SecretId)>
-    {
+    fn mock_wal_file() -> Result<(
+        NamedTempFile,
+        EventLogFile,
+        Vec<CommitHash>,
+        SecretKey,
+        SecretId,
+    )> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;
-        let mut wal = WalFile::new(temp.path())?;
+        let mut wal = EventLogFile::new(temp.path())?;
 
         let mut commits = Vec::new();
 
@@ -233,7 +237,7 @@ mod test {
 
         assert_eq!(5, wal.tree().len());
 
-        let vault = WalReducer::new().reduce(&wal)?.build()?;
+        let vault = EventReducer::new().reduce(&wal)?.build()?;
 
         assert_eq!(1, vault.len());
 
@@ -268,20 +272,20 @@ mod test {
         assert_eq!(5, wal.tree().len());
 
         // Get a vault so we can assert on the compaction result
-        let vault = WalReducer::new().reduce(&wal)?.build()?;
+        let vault = EventReducer::new().reduce(&wal)?.build()?;
 
         // Get the compacted series of events
-        let events = WalReducer::new().reduce(&wal)?.compact()?;
+        let events = EventReducer::new().reduce(&wal)?.compact()?;
 
         assert_eq!(2, events.len());
 
         let compact_temp = NamedTempFile::new()?;
-        let mut compact = WalFile::new(compact_temp.path())?;
+        let mut compact = EventLogFile::new(compact_temp.path())?;
         for event in events {
             compact.append_event(event)?;
         }
 
-        let compact_vault = WalReducer::new().reduce(&compact)?.build()?;
+        let compact_vault = EventReducer::new().reduce(&compact)?.build()?;
         assert_eq!(vault, compact_vault);
 
         Ok(())

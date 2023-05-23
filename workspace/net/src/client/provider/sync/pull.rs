@@ -6,10 +6,10 @@ use http::StatusCode;
 use sos_sdk::{
     commit::{CommitProof, SyncInfo, SyncKind},
     constants::WAL_IDENTITY,
+    events::EventLogFile,
     formats::FileIdentity,
     patch::PatchFile,
     vault::Summary,
-    wal::WalFile,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -20,7 +20,7 @@ use super::apply_patch_file;
 pub async fn pull(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut WalFile,
+    wal_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
     force: bool,
 ) -> Result<SyncInfo> {
@@ -76,7 +76,7 @@ pub async fn pull(
 pub async fn pull_wal(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut WalFile,
+    wal_file: &mut EventLogFile,
 ) -> Result<CommitProof> {
     let client_proof = if wal_file.tree().root().is_some() {
         let proof = wal_file.tree().head()?;
@@ -171,11 +171,11 @@ pub async fn pull_wal(
 pub async fn force_pull(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut WalFile,
+    wal_file: &mut EventLogFile,
 ) -> Result<CommitProof> {
     // Need to recreate the WAL file correctly before pulling
     // as pull_wal() expects the file to exist
-    *wal_file = WalFile::new(wal_file.path())?;
+    *wal_file = EventLogFile::new(wal_file.path())?;
     wal_file.load_tree()?;
 
     // Pull the remote WAL

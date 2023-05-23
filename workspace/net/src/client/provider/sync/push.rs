@@ -5,10 +5,10 @@ use http::StatusCode;
 
 use sos_sdk::{
     commit::{CommitProof, Comparison, SyncInfo, SyncKind},
+    events::EventLogFile,
     patch::PatchFile,
     vault::Summary,
     vfs,
-    wal::WalFile,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -19,7 +19,7 @@ use super::apply_patch_file;
 pub async fn push(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut WalFile,
+    wal_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
     force: bool,
 ) -> Result<SyncInfo> {
@@ -73,7 +73,7 @@ pub async fn push(
 pub async fn force_push(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut WalFile,
+    wal_file: &mut EventLogFile,
 ) -> Result<CommitProof> {
     // TODO: load any unsaved events from the patch file and
     // TODO: apply them to the WAL!

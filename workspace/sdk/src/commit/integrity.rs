@@ -1,12 +1,12 @@
 //! Functions to build commit trees and run integrity checks.
 use crate::{
     commit::CommitTree,
-    formats::{vault_iter, FileItem, VaultRecord, WalFileRecord},
+    formats::{vault_iter, EventLogFileRecord, FileItem, VaultRecord},
     vfs, Error, Result,
 };
 use binary_stream::{tokio::BinaryReader, Endian};
 
-use crate::wal::WalFile;
+use crate::events::EventLogFile;
 
 use std::path::Path;
 
@@ -75,7 +75,7 @@ pub async fn wal_commit_tree_file<P: AsRef<Path>, F>(
     func: F,
 ) -> Result<CommitTree>
 where
-    F: Fn(&WalFileRecord),
+    F: Fn(&EventLogFileRecord),
 {
     let mut tree = CommitTree::new();
 
@@ -84,7 +84,7 @@ where
     let mut file = vfs::File::open(wal_file.as_ref()).await?;
     let mut reader = BinaryReader::new(&mut file, Endian::Little);
 
-    let wal = WalFile::new(wal_file.as_ref())?;
+    let wal = EventLogFile::new(wal_file.as_ref())?;
     let it = wal.iter()?;
     let mut last_checksum: Option<[u8; 32]> = None;
 

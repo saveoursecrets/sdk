@@ -75,8 +75,7 @@ impl ProviderFactory {
     ) -> Result<(BoxedProvider, Address)> {
         let address = signer.address()?;
         let dirs = StorageDirs::new(cache_dir, &address.to_string());
-        let provider: BoxedProvider =
-            Box::new(LocalProvider::new(dirs)?);
+        let provider: BoxedProvider = Box::new(LocalProvider::new(dirs)?);
         Ok((provider, address))
     }
 

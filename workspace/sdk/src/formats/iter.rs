@@ -37,8 +37,8 @@ pub fn vault_iter<P: AsRef<Path>>(
 /// Get an iterator for a WAL file.
 pub fn wal_iter<P: AsRef<Path>>(
     path: P,
-) -> Result<ReadStreamIterator<File, WalFileRecord>> {
-    ReadStreamIterator::<File, WalFileRecord>::new_file(
+) -> Result<ReadStreamIterator<File, EventLogFileRecord>> {
+    ReadStreamIterator::<File, EventLogFileRecord>::new_file(
         path.as_ref(),
         &WAL_IDENTITY,
         true,
@@ -171,7 +171,7 @@ impl Decode for VaultRecord {
 
 /// Reference to a row in the write ahead log.
 #[derive(Default, Debug, Eq)]
-pub struct WalFileRecord {
+pub struct EventLogFileRecord {
     /// Byte offset for the record.
     offset: Range<u64>,
     /// The byte range for the value.
@@ -184,7 +184,7 @@ pub struct WalFileRecord {
     pub(crate) commit: [u8; 32],
 }
 
-impl WalFileRecord {
+impl EventLogFileRecord {
     /// Commit hash for this row.
     pub fn commit(&self) -> [u8; 32] {
         self.commit
@@ -201,7 +201,7 @@ impl WalFileRecord {
     }
 }
 
-impl PartialEq for WalFileRecord {
+impl PartialEq for EventLogFileRecord {
     fn eq(&self, other: &Self) -> bool {
         self.time == other.time
             && self.commit == other.commit
@@ -209,7 +209,7 @@ impl PartialEq for WalFileRecord {
     }
 }
 
-impl FileItem for WalFileRecord {
+impl FileItem for EventLogFileRecord {
     fn offset(&self) -> &Range<u64> {
         &self.offset
     }
@@ -227,7 +227,7 @@ impl FileItem for WalFileRecord {
     }
 }
 
-impl Decode for WalFileRecord {
+impl Decode for EventLogFileRecord {
     fn decode<R: Read + Seek>(
         &mut self,
         reader: &mut BinaryReader<R>,

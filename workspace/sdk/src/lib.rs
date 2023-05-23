@@ -28,7 +28,6 @@ pub mod storage;
 mod timestamp;
 pub mod vault;
 pub mod vfs;
-pub mod wal;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;

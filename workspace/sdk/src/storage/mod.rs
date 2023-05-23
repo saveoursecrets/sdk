@@ -187,7 +187,6 @@ impl StorageDirs {
         Ok(identity_dir)
     }
 
-
     /// Get the local cache directory.
     #[deprecated]
     pub fn local_dir() -> Result<PathBuf> {

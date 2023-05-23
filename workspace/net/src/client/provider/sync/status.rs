@@ -4,8 +4,8 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_sdk::{
-    commit::CommitRelationship, patch::PatchFile, vault::Summary,
-    wal::WalFile,
+    commit::CommitRelationship, events::EventLogFile, patch::PatchFile,
+    vault::Summary,
 };
 
 use crate::retry;
@@ -18,7 +18,7 @@ use crate::retry;
 pub async fn status(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &WalFile,
+    wal_file: &EventLogFile,
     patch_file: &PatchFile,
 ) -> Result<(CommitRelationship, Option<usize>)> {
     let client_proof = wal_file.tree().head()?;

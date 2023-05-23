@@ -4,8 +4,8 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_sdk::{
-    commit::CommitHash, events::SyncEvent, patch::PatchFile, vault::Summary,
-    wal::WalFile,
+    commit::CommitHash, events::EventLogFile, events::SyncEvent,
+    patch::PatchFile, vault::Summary,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -14,7 +14,7 @@ use crate::{client::provider::assert_proofs_eq, retry};
 pub async fn patch(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut WalFile,
+    wal_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
     events: Vec<SyncEvent<'static>>,
 ) -> Result<()> {
@@ -31,7 +31,7 @@ pub async fn patch(
 pub(crate) async fn apply_patch(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut WalFile,
+    wal_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
     events: Vec<SyncEvent<'static>>,
 ) -> Result<StatusCode> {
@@ -148,7 +148,7 @@ pub(crate) async fn apply_patch(
 pub async fn apply_patch_file(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut WalFile,
+    wal_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
 ) -> Result<()> {
     let has_events = patch_file.has_events()?;

@@ -46,7 +46,7 @@ mod wasm_tests {
     async fn wal_memory_parse() {
         use std::path::PathBuf;
         let buffer = include_bytes!("fixtures/simple-vault.wal");
-        let mut wal = WalFile::new(PathBuf::from("")).unwrap();
+        let mut wal = EventLogFile::new(PathBuf::from("")).unwrap();
         wal.write_buffer(buffer.to_vec()).await.unwrap();
     }
     */

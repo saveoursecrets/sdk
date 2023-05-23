@@ -12,10 +12,10 @@ use sos_sdk::{
     constants::VAULT_EXT,
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
+    events::{EventLogFile, EventReducer},
     patch::PatchFile,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
-    wal::{WalFile, WalReducer},
     Timestamp,
 };
 
@@ -29,10 +29,7 @@ use crate::{
     provider_impl,
 };
 
-/// Local storage for a node.
-///
-/// May be backed by files on disc or in-memory implementations
-/// for use in webassembly.
+/// Local storage provider.
 pub struct LocalProvider {
     /// State of this storage.
     state: ProviderState,
@@ -43,7 +40,7 @@ pub struct LocalProvider {
     dirs: StorageDirs,
 
     /// Cache for WAL and patch providers.
-    cache: HashMap<VaultId, (WalFile, PatchFile)>,
+    cache: HashMap<VaultId, (EventLogFile, PatchFile)>,
 }
 
 impl LocalProvider {
@@ -194,7 +191,7 @@ impl StorageProvider for LocalProvider {
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        Ok(WalReducer::new().reduce(wal_file)?.build()?)
+        Ok(EventReducer::new().reduce(wal_file)?.build()?)
     }
 
     async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
