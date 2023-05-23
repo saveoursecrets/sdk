@@ -15,7 +15,7 @@ use sos_sdk::{
     patch::PatchFile,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
-    wal::{file::WalFile, reducer::WalReducer, WalItem},
+    wal::{file::WalFile, reducer::WalReducer},
     Timestamp,
 };
 

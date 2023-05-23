@@ -3,7 +3,6 @@ use crate::{
     commit::CommitTree,
     formats::{vault_iter, FileItem, VaultRecord, WalFileRecord},
     vfs,
-    wal::WalItem,
     Error, Result,
 };
 use binary_stream::{tokio::BinaryReader, Endian};

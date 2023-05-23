@@ -7,7 +7,6 @@ use sos_sdk::{
     hex,
     uuid::Uuid,
     vault::Header,
-    wal::WalItem,
 };
 
 use crate::{Error, Result};

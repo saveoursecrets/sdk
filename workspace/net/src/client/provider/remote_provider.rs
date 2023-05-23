@@ -17,7 +17,7 @@ use sos_sdk::{
         Summary, Vault,
     },
     vfs,
-    wal::{file::WalFile, reducer::WalReducer, WalItem},
+    wal::{file::WalFile, reducer::WalReducer},
     Timestamp,
 };
 

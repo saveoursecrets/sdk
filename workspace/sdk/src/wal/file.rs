@@ -33,7 +33,7 @@ use std::{
 use binary_stream::{BinaryReader, Decode, Endian};
 use tempfile::NamedTempFile;
 
-use super::{reducer::WalReducer, WalItem, WalRecord};
+use super::{reducer::WalReducer, WalRecord};
 
 /// A write ahead log that appends to a file.
 pub struct WalFile {

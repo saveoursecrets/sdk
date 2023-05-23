@@ -17,22 +17,7 @@ use binary_stream::{
 };
 
 pub mod file;
-//pub mod memory;
 pub mod reducer;
-
-/// Trait for implementations that provide access to a write-ahead log (WAL).
-
-/// Trait for items yielded by the iterator.
-pub trait WalItem: std::fmt::Debug {
-    /// Get the commit hash for the previous row.
-    fn last_commit(&self) -> [u8; 32];
-
-    /// Get the commit hash for the item.
-    fn commit(&self) -> [u8; 32];
-
-    /// Get the time for the log record.
-    fn time(&self) -> &Timestamp;
-}
 
 /// Record for a row in the write ahead log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

@@ -14,7 +14,7 @@ use crate::{
     decode, encode,
     events::SyncEvent,
     vault::{secret::SecretId, Vault, VaultCommit},
-    wal::{WalItem, file::WalFile},
+    wal::file::WalFile,
     Error, Result,
 };
 

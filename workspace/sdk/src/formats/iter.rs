@@ -13,7 +13,6 @@ use crate::{
     formats::FileIdentity,
     stream_len,
     vault::Header,
-    wal::WalItem,
     Result, Timestamp,
 };
 
@@ -185,6 +184,23 @@ pub struct WalFileRecord {
     pub(crate) commit: [u8; 32],
 }
 
+impl WalFileRecord {
+    /// Commit hash for this row.
+    pub fn commit(&self) -> [u8; 32] {
+        self.commit
+    }
+
+    /// Commit hash for the previous row.
+    pub fn last_commit(&self) -> [u8; 32] {
+        self.last_commit
+    }
+    
+    /// Time the row was appended.
+    pub fn time(&self) -> &Timestamp {
+        &self.time
+    }
+}
+
 impl PartialEq for WalFileRecord {
     fn eq(&self, other: &Self) -> bool {
         self.time == other.time
@@ -208,20 +224,6 @@ impl FileItem for WalFileRecord {
 
     fn set_value(&mut self, value: Range<u64>) {
         self.value = value;
-    }
-}
-
-impl WalItem for WalFileRecord {
-    fn commit(&self) -> [u8; 32] {
-        self.commit
-    }
-
-    fn last_commit(&self) -> [u8; 32] {
-        self.last_commit
-    }
-
-    fn time(&self) -> &Timestamp {
-        &self.time
     }
 }
 
