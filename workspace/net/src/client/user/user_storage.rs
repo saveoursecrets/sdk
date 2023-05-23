@@ -165,7 +165,7 @@ impl UserStorage {
     /// it sends the encrypted identity vault and if the vault 
     /// can be unlocked then we have verified that the other 
     /// device knows the master password for this account.
-    pub async fn load_identity_vault_buffer(&self) -> Result<Vec<u8>> {
+    pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
         let identity_path = self.storage.dirs().identity()?;
         Ok(vfs::read(identity_path).await?)
     }
