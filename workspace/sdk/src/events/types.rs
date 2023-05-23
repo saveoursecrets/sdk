@@ -44,7 +44,7 @@ pub const UPDATE_SECRET: u16 = 13;
 /// Type identifier for the delete secret operation.
 pub const DELETE_SECRET: u16 = 14;
 /// Type identifier for the read log event.
-pub const READ_WAL: u16 = 15;
+pub const READ_EVENT_LOG: u16 = 15;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -81,7 +81,7 @@ pub enum EventKind {
     /// EventKind to delete a secret.
     DeleteSecret,
     /// EventKind to read a log.
-    ReadWal,
+    ReadEventLog,
 }
 
 impl Default for EventKind {
@@ -133,7 +133,7 @@ impl TryFrom<u16> for EventKind {
             READ_SECRET => Ok(EventKind::ReadSecret),
             UPDATE_SECRET => Ok(EventKind::UpdateSecret),
             DELETE_SECRET => Ok(EventKind::DeleteSecret),
-            READ_WAL => Ok(EventKind::ReadWal),
+            READ_EVENT_LOG => Ok(EventKind::ReadEventLog),
             _ => Err(Error::UnknownEventKind(value)),
         }
     }
@@ -157,7 +157,7 @@ impl From<&EventKind> for u16 {
             EventKind::ReadSecret => READ_SECRET,
             EventKind::UpdateSecret => UPDATE_SECRET,
             EventKind::DeleteSecret => DELETE_SECRET,
-            EventKind::ReadWal => READ_WAL,
+            EventKind::ReadEventLog => READ_EVENT_LOG,
         }
     }
 }
@@ -181,7 +181,7 @@ impl fmt::Display for EventKind {
                 EventKind::ReadSecret => "READ_SECRET",
                 EventKind::UpdateSecret => "UPDATE_SECRET",
                 EventKind::DeleteSecret => "DELETE_SECRET",
-                EventKind::ReadWal => "READ_LOG",
+                EventKind::ReadEventLog => "READ_EVENT_LOG",
             }
         })
     }

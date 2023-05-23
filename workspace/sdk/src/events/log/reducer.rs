@@ -1,12 +1,3 @@
-//! Iterate a WAL provider and reduce all the events
-//! so that a single vault can be built or a compacted
-//! WAL log can be created.
-//!
-//! The WAL must have a create vault event as the first record
-//! and create vault events after the first record are not permitted.
-//!
-//! Uses a simple last event wins strategy.
-//!
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
@@ -18,7 +9,7 @@ use crate::{
     Error, Result,
 };
 
-/// Reducer for WAL events.
+/// Reduce log events to a vault.
 #[derive(Default)]
 pub struct EventReducer<'a> {
     /// Buffer for the create or last update vault event.
@@ -38,7 +29,7 @@ impl<'a> EventReducer<'a> {
     }
 
     /// Split a vault into a truncated vault and a collection
-    /// of WAL events that represent the vault.
+    /// of events that represent the vault.
     ///
     /// The truncated vault represents the header of the vault and
     /// has no contents.
@@ -74,7 +65,7 @@ impl<'a> EventReducer<'a> {
                     match event {
                         SyncEvent::Noop => unreachable!(),
                         SyncEvent::CreateVault(_) => {
-                            return Err(Error::WalCreateEventOnlyFirst)
+                            return Err(Error::CreateEventOnlyFirst)
                         }
                         SyncEvent::SetVaultName(name) => {
                             self.vault_name = Some(name.clone());
@@ -95,26 +86,26 @@ impl<'a> EventReducer<'a> {
                     }
                 }
             } else {
-                return Err(Error::WalCreateEventMustBeFirst);
+                return Err(Error::CreateEventMustBeFirst);
             }
         }
 
         Ok(self)
     }
 
-    /// Create a series of new WAL events that represent
-    /// a compacted version of the WAL.
+    /// Create a series of new events that represent
+    /// a compacted version of the event log.
     ///
     /// This series of events can then be appended to a
-    /// new WAL log to create a compact version with
+    /// new event log to create a compact version with
     /// history pruned.
     ///
-    /// Note that using this to compact a WAL log is lossy;
-    /// log record timestamps will be reset.
+    /// Note that compaction is lossy; log record
+    /// timestamps are reset.
     ///
     /// The commit tree returned here will be invalid once
     /// the new series of events have been applied so callers
-    /// must generate a new commit tree once the new WAL log has
+    /// must generate a new commit tree once the new event log has
     /// been created.
     pub fn compact(self) -> Result<Vec<SyncEvent<'a>>> {
         if let Some(vault) = self.vault {

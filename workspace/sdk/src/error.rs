@@ -188,20 +188,18 @@ pub enum Error {
     },
 
     /// Error generated when a a WAL file does not begin with a create vault event.
-    #[error("first record in a WAL log must be a create vault event")]
-    WalCreateEventMustBeFirst,
+    #[error("first record in an event log must be a create vault event")]
+    CreateEventMustBeFirst,
 
     /// Error generated when a WAL create vault event is not the first record.
-    #[error("got a WAL log create vault event that is not the first record")]
-    WalCreateEventOnlyFirst,
+    #[error(
+        "got an event log create vault event that is not the first record"
+    )]
+    CreateEventOnlyFirst,
 
     /// Error generated when a commit tree is expected to have a root.
     #[error("commit tree does not have a root")]
     NoRootCommit,
-
-    /// Error generated when a sync event cannot be converted to a WAL event.
-    #[error("sync event cannot be converted to a WAL event")]
-    SyncWalConvert,
 
     /// Error generated when an RPC method kind is invalid.
     #[error("method kind {0} is invalid")]

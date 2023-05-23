@@ -521,8 +521,12 @@ mod tests {
     #[test]
     fn rpc_encode() -> Result<()> {
         let body = vec![0x0A, 0xFF];
-        let message =
-            RequestMessage::new(Some(1), "GetWal", (), Cow::Borrowed(&body))?;
+        let message = RequestMessage::new(
+            Some(1),
+            "GetEventLog",
+            (),
+            Cow::Borrowed(&body),
+        )?;
 
         let request = encode(&message)?;
         let decoded: RequestMessage = decode(&request)?;
@@ -556,7 +560,7 @@ mod tests {
 
         let incoming: RequestMessage<'_> = pkt.try_into()?;
         assert_eq!(Some(1u64), incoming.id());
-        assert_eq!("GetWal", incoming.method());
+        assert_eq!("GetEventLog", incoming.method());
         //assert_eq!((), incoming.parameters::<()>()?);
         assert_eq!(&body, incoming.body());
 

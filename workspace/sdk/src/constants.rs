@@ -115,16 +115,16 @@ mod rpc {
     pub const VAULT_DELETE: &str = "Vault.delete";
 
     /// WAL load method call.
-    pub const WAL_LOAD: &str = "Wal.load";
+    pub const EVENT_LOG_LOAD: &str = "Events.load";
 
     /// WAL status method call.
-    pub const WAL_STATUS: &str = "Wal.status";
+    pub const EVENT_LOG_STATUS: &str = "Events.status";
 
     /// WAL patch method call.
-    pub const WAL_PATCH: &str = "Wal.patch";
+    pub const EVENT_LOG_PATCH: &str = "Events.patch";
 
     /// WAL save method call.
-    pub const WAL_SAVE: &str = "Wal.save";
+    pub const EVENT_LOG_SAVE: &str = "Events.save";
 }
 
 /// Constants for directory names.

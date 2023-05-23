@@ -589,7 +589,7 @@ impl BackendHandler for FileSystemBackend {
         // something went wrong with the client POST
         // or was modified in transit
         if root_hash != tree_root {
-            return Err(Error::WalValidateMismatch);
+            return Err(Error::EventValidateMismatch);
         }
 
         let original_wal = self.wal_file_path(owner, vault_id);
@@ -611,7 +611,7 @@ impl BackendHandler for FileSystemBackend {
             "replace_wal loaded a new tree root");
 
         if root_hash != new_tree_root {
-            return Err(Error::WalValidateMismatch);
+            return Err(Error::EventValidateMismatch);
         }
         Ok(wal.tree().head()?)
     }

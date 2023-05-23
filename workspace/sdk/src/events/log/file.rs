@@ -33,7 +33,7 @@ use std::{
 use binary_stream::{BinaryReader, Decode, Endian};
 use tempfile::NamedTempFile;
 
-use super::{EventReducer, WalRecord};
+use super::{EventRecord, EventReducer};
 
 /// A write ahead log that appends to a file.
 pub struct EventLogFile {
@@ -77,7 +77,7 @@ impl EventLogFile {
         &self,
         event: SyncEvent<'_>,
         last_commit: Option<CommitHash>,
-    ) -> Result<(CommitHash, WalRecord)> {
+    ) -> Result<(CommitHash, EventRecord)> {
         let time: Timestamp = Default::default();
         let bytes = encode(&event)?;
         let commit = CommitHash(CommitTree::hash(&bytes));
@@ -88,7 +88,7 @@ impl EventLogFile {
             self.last_commit()?.unwrap_or(CommitHash([0u8; 32]))
         };
 
-        let record = WalRecord(time, last_commit, commit, bytes);
+        let record = EventRecord(time, last_commit, commit, bytes);
         Ok((commit, record))
     }
 

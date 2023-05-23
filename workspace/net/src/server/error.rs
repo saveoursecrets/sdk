@@ -58,7 +58,7 @@ pub enum Error {
 
     /// Error generated when a checksum does not match a WAL file.
     #[error("checksum mismatch validating WAL file")]
-    WalValidateMismatch,
+    EventValidateMismatch,
 
     /// Error generated failing for remove a vault.
     #[error("failed to remove in-memory vault, files still exist on disc")]

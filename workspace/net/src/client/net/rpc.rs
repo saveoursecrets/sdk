@@ -4,9 +4,9 @@ use serde::{de::DeserializeOwned, Serialize};
 use sos_sdk::{
     commit::CommitProof,
     constants::{
-        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, WAL_LOAD, WAL_PATCH,
-        WAL_SAVE, WAL_STATUS, X_SESSION,
+        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, EVENT_LOG_LOAD, EVENT_LOG_PATCH,
+        EVENT_LOG_SAVE, EVENT_LOG_STATUS, SESSION_OFFER, SESSION_VERIFY,
+        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, X_SESSION,
     },
     crypto::{
         channel::{ClientSession, EncryptedChannel},
@@ -296,7 +296,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<Vec<u8>>)>> {
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
-            new_rpc_call(id, WAL_LOAD, (vault_id, proof))
+            new_rpc_call(id, EVENT_LOG_LOAD, (vault_id, proof))
         })?;
 
         let signature =
@@ -321,7 +321,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
-            new_rpc_call(id, WAL_STATUS, (vault_id, proof))
+            new_rpc_call(id, EVENT_LOG_STATUS, (vault_id, proof))
         })?;
 
         let signature =
@@ -352,7 +352,7 @@ impl RpcClient {
         let body = encode(&patch)?;
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
-            new_rpc_body(id, WAL_PATCH, (vault_id, proof), body)
+            new_rpc_body(id, EVENT_LOG_PATCH, (vault_id, proof), body)
         })?;
 
         let signature =
@@ -382,7 +382,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/wal")?;
         let (session_id, sign_bytes, body) = self.build_request(|id| {
-            new_rpc_body(id, WAL_SAVE, (vault_id, proof), body)
+            new_rpc_body(id, EVENT_LOG_SAVE, (vault_id, proof), body)
         })?;
 
         let signature =

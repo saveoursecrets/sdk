@@ -2,7 +2,9 @@ use axum::http::StatusCode;
 use sos_sdk::{
     audit::{AuditData, AuditEvent},
     commit::{CommitHash, CommitProof, Comparison},
-    constants::{WAL_LOAD, WAL_PATCH, WAL_SAVE, WAL_STATUS},
+    constants::{
+        EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
+    },
     decode,
     events::{ChangeEvent, ChangeNotification, EventKind, SyncEvent},
     patch::Patch,
@@ -29,16 +31,16 @@ enum PatchResult {
     ),
 }
 
-/// WAL management service.
+/// Event log management service.
 ///
-/// * `Wal.load`: Load the WAL for a vault.
-/// * `Wal.patch`: Apply a patch to the WAL for a vault.
-/// * `Wal.save`: Save a WAL buffer.
+/// * `Events.load`: Load the events for a vault.
+/// * `Events.patch`: Apply a patch to the event log for a vault.
+/// * `Events.save`: Save an event log buffer.
 ///
-pub struct WalService;
+pub struct EventLogService;
 
 #[async_trait]
-impl Service for WalService {
+impl Service for EventLogService {
     type State = PrivateState;
 
     async fn handle<'a>(
@@ -49,7 +51,7 @@ impl Service for WalService {
         let (caller, state) = state;
 
         match request.method() {
-            WAL_LOAD => {
+            EVENT_LOG_LOAD => {
                 let (vault_id, commit_proof) =
                     request.parameters::<(Uuid, Option<CommitProof>)>()?;
 
@@ -133,7 +135,7 @@ impl Service for WalService {
                         if status == StatusCode::OK {
                             let mut writer = state.write().await;
                             let log = AuditEvent::new(
-                                EventKind::ReadWal,
+                                EventKind::ReadEventLog,
                                 caller.address,
                                 Some(AuditData::Vault(vault_id)),
                             );
@@ -153,7 +155,7 @@ impl Service for WalService {
                     Err(status) => Ok((status, request.id()).into()),
                 }
             }
-            WAL_STATUS => {
+            EVENT_LOG_STATUS => {
                 let (vault_id, commit_proof) =
                     request.parameters::<(Uuid, Option<CommitProof>)>()?;
 
@@ -188,7 +190,7 @@ impl Service for WalService {
                     (request.id(), (proof, match_proof)).try_into()?;
                 Ok(reply)
             }
-            WAL_PATCH => {
+            EVENT_LOG_PATCH => {
                 let (vault_id, commit_proof) =
                     request.parameters::<(Uuid, CommitProof)>()?;
 
@@ -358,7 +360,7 @@ impl Service for WalService {
                         .try_into()?),
                 }
             }
-            WAL_SAVE => {
+            EVENT_LOG_SAVE => {
                 let (vault_id, commit_proof) =
                     request.parameters::<(Uuid, CommitProof)>()?;
 

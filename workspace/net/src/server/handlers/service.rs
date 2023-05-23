@@ -13,8 +13,8 @@ use tokio::sync::RwLock;
 use crate::server::{
     headers::Session,
     services::{
-        private_service, public_service, AccountService, SessionService,
-        VaultService, WalService,
+        private_service, public_service, AccountService, EventLogService,
+        SessionService, VaultService,
     },
     State,
 };
@@ -60,7 +60,7 @@ impl ServiceHandler {
         TypedHeader(session_id): TypedHeader<Session>,
         body: Bytes,
     ) -> Result<(StatusCode, Bytes), StatusCode> {
-        let service = WalService {};
+        let service = EventLogService {};
         private_service(service, state, bearer, session_id.id(), body).await
     }
 }

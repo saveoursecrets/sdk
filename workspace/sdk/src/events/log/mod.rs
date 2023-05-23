@@ -17,9 +17,9 @@ pub use reducer::EventReducer;
 
 /// Record for a row in the write ahead log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct WalRecord(Timestamp, CommitHash, CommitHash, pub Vec<u8>);
+pub struct EventRecord(Timestamp, CommitHash, CommitHash, pub Vec<u8>);
 
-impl WalRecord {
+impl EventRecord {
     /// Get the time for the record.
     pub fn time(&self) -> &Timestamp {
         &self.0
@@ -41,7 +41,7 @@ impl WalRecord {
     }
 }
 
-impl From<(EventLogFileRecord, Vec<u8>)> for WalRecord {
+impl From<(EventLogFileRecord, Vec<u8>)> for EventRecord {
     fn from(value: (EventLogFileRecord, Vec<u8>)) -> Self {
         Self(
             value.0.time,
@@ -52,7 +52,7 @@ impl From<(EventLogFileRecord, Vec<u8>)> for WalRecord {
     }
 }
 
-impl Encode for WalRecord {
+impl Encode for EventRecord {
     fn encode<W: Write + Seek>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -91,7 +91,7 @@ impl Encode for WalRecord {
     }
 }
 
-impl Decode for WalRecord {
+impl Decode for EventRecord {
     fn decode<R: Read + Seek>(
         &mut self,
         reader: &mut BinaryReader<R>,

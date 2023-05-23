@@ -76,14 +76,14 @@ fn send_notification(
 }
 
 mod account;
+mod events;
 mod session;
 mod vault;
-mod wal;
 
 pub use account::AccountService;
+pub use events::EventLogService;
 pub use session::SessionService;
 pub use vault::VaultService;
-pub use wal::WalService;
 
 /// Execute a request message in the context of a service
 /// that does not require session authentication.
