@@ -30,7 +30,7 @@ use crate::{
     storage::StorageDirs,
     vault::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess,
-        VaultFileAccess, VaultId,
+        VaultWriter, VaultId,
     },
     vfs, Error, Result,
 };
@@ -501,9 +501,9 @@ impl AccountBackup {
                 let identity_vault_file =
                     StorageDirs::identity_vault(&address_path)?;
 
-                let vault_file = VaultFileAccess::open(&identity_vault_file)?;
+                let vault_file = VaultWriter::open(&identity_vault_file)?;
                 let mut access =
-                    VaultFileAccess::new(identity_vault_file, vault_file)?;
+                    VaultWriter::new(identity_vault_file, vault_file)?;
                 access.set_vault_name(name.clone())?;
 
                 name
@@ -602,7 +602,6 @@ impl AccountBackup {
             let user = Identity::login_buffer(
                 &identity.1,
                 passphrase.clone(),
-                None,
                 None,
             )?;
             if user.address() != &address {

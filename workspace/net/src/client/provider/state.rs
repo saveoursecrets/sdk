@@ -5,7 +5,7 @@ use super::{Error, Result};
 use sos_sdk::{
     search::SearchIndex,
     secrecy::SecretString,
-    vault::{Gatekeeper, Summary, Vault, VaultFileAccess, VaultRef},
+    vault::{Gatekeeper, Summary, Vault, VaultWriter, VaultRef},
 };
 
 use std::{path::PathBuf, sync::Arc};
@@ -106,9 +106,8 @@ impl ProviderState {
         index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<()> {
         let mut keeper = if self.mirror {
-            let vault_file = VaultFileAccess::open(&vault_path)?;
-            let mirror =
-                Box::new(VaultFileAccess::new(vault_path, vault_file)?);
+            let vault_file = VaultWriter::open(&vault_path)?;
+            let mirror = VaultWriter::new(vault_path, vault_file)?;
             Gatekeeper::new_mirror(vault, mirror, index)
         } else {
             Gatekeeper::new(vault, index)

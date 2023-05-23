@@ -19,7 +19,7 @@ use sos_sdk::{
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess, VaultId,
+        Gatekeeper, Summary, Vault, VaultAccess, VaultWriter, VaultId,
     },
     vfs, Timestamp,
 };
@@ -332,8 +332,8 @@ impl UserStorage {
 
         // Update the vault on disc
         let vault_path = self.storage.vault_path(summary);
-        let vault_file = VaultFileAccess::open(&vault_path)?;
-        let mut access = VaultFileAccess::new(vault_path, vault_file)?;
+        let vault_file = VaultWriter::open(&vault_path)?;
+        let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name)?;
 
         Ok(())

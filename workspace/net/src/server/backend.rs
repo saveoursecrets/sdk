@@ -6,7 +6,7 @@ use sos_sdk::{
     decode, encode,
     events::SyncEvent,
     events::{EventLogFile, EventReducer},
-    vault::{Header, Summary, Vault, VaultAccess, VaultFileAccess},
+    vault::{Header, Summary, Vault, VaultAccess, VaultWriter},
     vfs,
 };
 use std::{
@@ -470,8 +470,8 @@ impl BackendHandler for FileSystemBackend {
         name: String,
     ) -> Result<()> {
         let vault_path = self.vault_file_path(owner, vault_id);
-        let vault_file = VaultFileAccess::open(&vault_path)?;
-        let mut access = VaultFileAccess::new(vault_path, vault_file)?;
+        let vault_file = VaultWriter::open(&vault_path)?;
+        let mut access = VaultWriter::new(vault_path, vault_file)?;
         let _ = access.set_vault_name(name)?;
         Ok(())
     }

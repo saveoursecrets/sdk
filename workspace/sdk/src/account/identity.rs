@@ -33,7 +33,7 @@ use crate::{
     vfs, Error, Result,
 };
 
-use crate::vault::VaultFileAccess;
+use crate::vault::VaultWriter;
 
 /// User identity containing the account signing keys.
 ///
@@ -141,15 +141,16 @@ impl Identity {
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<UserIdentity> {
-        let vault_file = VaultFileAccess::open(file.as_ref())?;
+        /*
+        let vault_file = VaultWriter::open(file.as_ref())?;
         let mirror =
-            Box::new(VaultFileAccess::new(file.as_ref(), vault_file)?);
+            Box::new(VaultWriter::new(file.as_ref(), vault_file)?);
+        */
         let buffer = vfs::read(file.as_ref()).await?;
         Identity::login_buffer(
             buffer,
             master_passphrase,
             search_index,
-            Some(mirror),
         )
     }
 
@@ -158,7 +159,6 @@ impl Identity {
         buffer: B,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
-        mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
     ) -> Result<UserIdentity> {
         let vault: Vault = decode(buffer.as_ref())?;
 
@@ -166,11 +166,7 @@ impl Identity {
             return Err(Error::NotIdentityVault);
         }
 
-        let mut keeper = if let Some(mirror) = mirror {
-            Gatekeeper::new_mirror(vault, mirror, search_index)
-        } else {
-            Gatekeeper::new(vault, search_index)
-        };
+        let mut keeper = Gatekeeper::new(vault, search_index);
 
         keeper.unlock(master_passphrase)?;
         // Must create the index so we can find by URN
@@ -274,7 +270,7 @@ mod tests {
         let buffer = encode(&vault)?;
 
         let result =
-            Identity::login_buffer(buffer, master_passphrase, None, None);
+            Identity::login_buffer(buffer, master_passphrase, None);
         if let Err(Error::NotIdentityVault) = result {
             Ok(())
         } else {
@@ -292,7 +288,7 @@ mod tests {
         let buffer = encode(&vault)?;
 
         let result =
-            Identity::login_buffer(buffer, master_passphrase, None, None);
+            Identity::login_buffer(buffer, master_passphrase, None);
         if let Err(Error::NoSecretUrn(_, _)) = result {
             Ok(())
         } else {
@@ -327,7 +323,7 @@ mod tests {
         let buffer = encode(&vault)?;
 
         let result =
-            Identity::login_buffer(buffer, master_passphrase, None, None);
+            Identity::login_buffer(buffer, master_passphrase, None);
         if let Err(Error::WrongSecretKind(_, _)) = result {
             Ok(())
         } else {

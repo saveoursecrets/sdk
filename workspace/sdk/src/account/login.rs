@@ -19,7 +19,7 @@ use crate::{
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess,
+        Gatekeeper, Summary, Vault, VaultAccess, VaultWriter,
     },
     vfs,
 };
@@ -145,9 +145,9 @@ impl AuthenticatedUser {
         let identity_vault_file =
             StorageDirs::identity_vault(self.identity.address().to_string())?;
 
-        let vault_file = VaultFileAccess::open(&identity_vault_file)?;
+        let vault_file = VaultWriter::open(&identity_vault_file)?;
         let mut access =
-            VaultFileAccess::new(identity_vault_file, vault_file)?;
+            VaultWriter::new(identity_vault_file, vault_file)?;
         access.set_vault_name(account_name.clone())?;
 
         // Update in-memory account information

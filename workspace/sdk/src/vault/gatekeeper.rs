@@ -10,7 +10,7 @@ use crate::{
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId,
-        VaultMeta,
+        VaultMeta, VaultWriter,
     },
     Error, Result,
 };
@@ -40,8 +40,8 @@ pub struct Gatekeeper {
     private_key: Option<SecretKey>,
     /// The underlying vault.
     vault: Vault,
-    /// Mirror in-memory vault changes to this destination.
-    mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
+    /// Mirror in-memory vault changes to a writer.
+    mirror: Option<VaultWriter<std::fs::File>>,
     /// Search index.
     index: Arc<RwLock<SearchIndex>>,
 }
@@ -61,10 +61,11 @@ impl Gatekeeper {
         }
     }
 
-    /// Create a new gatekeeper with a mirror.
+    /// Create a new gatekeeper that writes in-memory
+    /// changes to a file.
     pub fn new_mirror(
         vault: Vault,
-        mirror: Box<dyn VaultAccess + Send + Sync>,
+        mirror: VaultWriter<std::fs::File>,
         index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Self {
         Self {

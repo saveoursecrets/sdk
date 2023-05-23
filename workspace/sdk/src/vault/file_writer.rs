@@ -26,8 +26,8 @@ use crate::{
     Result,
 };
 
-/// Implements access to an encrypted vault backed by a file on disc.
-pub struct VaultFileAccess<F>
+/// Mutates a vault file in-place.
+pub struct VaultWriter<F>
 where
     F: Read + Write + Seek,
 {
@@ -35,7 +35,7 @@ where
     stream: Mutex<F>,
 }
 
-impl VaultFileAccess<std::fs::File> {
+impl VaultWriter<std::fs::File> {
     /// Open a file in read and write mode suitable for passing
     /// to the new constructor.
     pub fn open<P: AsRef<Path>>(path: P) -> Result<std::fs::File> {
@@ -46,7 +46,7 @@ impl VaultFileAccess<std::fs::File> {
     }
 }
 
-impl<F: Read + Write + Seek> VaultFileAccess<F> {
+impl<F: Read + Write + Seek> VaultWriter<F> {
     /// Create a new vault access.
     ///
     /// The underlying file should already exist and be a valid vault.
@@ -169,7 +169,7 @@ impl<F: Read + Write + Seek> VaultFileAccess<F> {
     }
 }
 
-impl<F: Read + Write + Seek> VaultAccess for VaultFileAccess<F> {
+impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
     fn summary(&self) -> Result<Summary> {
         Header::read_summary_file(&self.file_path)
     }
@@ -301,7 +301,7 @@ impl<F: Read + Write + Seek> VaultAccess for VaultFileAccess<F> {
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
-    use super::VaultFileAccess;
+    use super::VaultWriter;
     use crate::test_utils::*;
     use crate::{
         constants::DEFAULT_VAULT_NAME,
@@ -317,7 +317,7 @@ mod tests {
     type SecureNoteResult = (SecretId, SecretMeta, Secret, Vec<u8>, Vec<u8>);
 
     fn create_secure_note<F: Read + Write + Seek>(
-        vault_access: &mut VaultFileAccess<F>,
+        vault_access: &mut VaultWriter<F>,
         vault: &Vault,
         encryption_key: &SecretKey,
         secret_label: &str,
@@ -351,8 +351,8 @@ mod tests {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (temp, vault, _) = mock_vault_file()?;
 
-        let vault_file = VaultFileAccess::open(temp.path())?;
-        let mut vault_access = VaultFileAccess::new(temp.path(), vault_file)?;
+        let vault_file = VaultWriter::open(temp.path())?;
+        let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
 
         // Missing row should not exist
         let missing_id = Uuid::new_v4();
@@ -442,8 +442,8 @@ mod tests {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (temp, vault, _) = mock_vault_file()?;
 
-        let vault_file = VaultFileAccess::open(temp.path())?;
-        let mut vault_access = VaultFileAccess::new(temp.path(), vault_file)?;
+        let vault_file = VaultWriter::open(temp.path())?;
+        let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
 
         let secrets = [
             ("Note one", "First note"),
