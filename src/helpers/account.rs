@@ -327,8 +327,9 @@ pub async fn new_account(
 
         // Create local provider
         let factory = ProviderFactory::Local;
-        let (mut provider, _) =
-            factory.create_provider(new_account.user.signer().clone())?;
+        let (mut provider, _) = factory
+            .create_provider(new_account.user.signer().clone())
+            .await?;
         provider.dirs().ensure().await?;
         provider.authenticate().await?;
 

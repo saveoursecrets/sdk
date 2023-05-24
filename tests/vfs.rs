@@ -1,8 +1,6 @@
 #[cfg(all(test, target_arch = "wasm32"))]
 mod vfs_tests {
-    use sos_sdk::{
-        vfs,
-    };
+    use sos_sdk::vfs;
     use std::path::PathBuf;
 
     #[tokio::test]

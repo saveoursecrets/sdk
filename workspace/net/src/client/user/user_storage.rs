@@ -136,7 +136,7 @@ impl UserStorage {
 
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
-        let (mut storage, _) = factory.create_provider(signer)?;
+        let (mut storage, _) = factory.create_provider(signer).await?;
         storage.dirs().ensure().await?;
         storage.authenticate().await?;
 

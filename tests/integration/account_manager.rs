@@ -50,8 +50,9 @@ async fn integration_account_manager() -> Result<()> {
 
     // Create local provider
     let factory = ProviderFactory::Local;
-    let (mut provider, _) =
-        factory.create_provider(new_account.user.signer().clone())?;
+    let (mut provider, _) = factory
+        .create_provider(new_account.user.signer().clone())
+        .await?;
     provider.dirs().ensure().await?;
 
     let imported_account = provider.import_new_account(&new_account).await?;
@@ -143,8 +144,9 @@ async fn integration_account_manager() -> Result<()> {
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)
     let factory = ProviderFactory::Local;
-    let (mut provider, _) =
-        factory.create_provider(user.identity().signer().clone())?;
+    let (mut provider, _) = factory
+        .create_provider(user.identity().signer().clone())
+        .await?;
     provider.dirs().ensure().await?;
 
     let options = RestoreOptions {

@@ -50,7 +50,7 @@ mod wasm_tests {
         event_log.write_buffer(buffer.to_vec()).await.unwrap();
     }
     */
-    
+
     /*
     #[wasm_bindgen_test]
     async fn vfs() {

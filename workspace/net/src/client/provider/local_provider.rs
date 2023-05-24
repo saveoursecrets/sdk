@@ -41,11 +41,15 @@ pub struct LocalProvider {
 
     /// Cache for event log and patch providers.
     cache: HashMap<VaultId, (EventLogFile, PatchFile)>,
+    /*
+    /// Audit log for this provider.
+    audit_log: Arc<RwLock<AuditLogFile>>,
+    */
 }
 
 impl LocalProvider {
     /// Create new node cache backed by files on disc.
-    pub fn new(dirs: StorageDirs) -> Result<LocalProvider> {
+    pub async fn new(dirs: StorageDirs) -> Result<LocalProvider> {
         if !dirs.documents_dir().is_dir() {
             return Err(Error::NotDirectory(
                 dirs.documents_dir().to_path_buf(),

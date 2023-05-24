@@ -55,7 +55,7 @@ impl Default for ProviderFactory {
 
 impl ProviderFactory {
     /// Create a new remote provider with local disc storage.
-    pub fn new_remote_file_provider(
+    pub async fn new_remote_file_provider(
         signer: BoxedEcdsaSigner,
         cache_dir: PathBuf,
         server: Url,
@@ -69,18 +69,19 @@ impl ProviderFactory {
     }
 
     /// Create a new local provider.
-    pub fn new_local_file_provider(
+    pub async fn new_local_file_provider(
         signer: BoxedEcdsaSigner,
         cache_dir: PathBuf,
     ) -> Result<(BoxedProvider, Address)> {
         let address = signer.address()?;
         let dirs = StorageDirs::new(cache_dir, &address.to_string());
-        let provider: BoxedProvider = Box::new(LocalProvider::new(dirs)?);
+        let provider: BoxedProvider =
+            Box::new(LocalProvider::new(dirs).await?);
         Ok((provider, address))
     }
 
     /// Create a provider.
-    pub fn create_provider(
+    pub async fn create_provider(
         &self,
         signer: BoxedEcdsaSigner,
     ) -> Result<(BoxedProvider, Address)> {
@@ -88,13 +89,13 @@ impl ProviderFactory {
             Self::Local => {
                 let dir =
                     StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
-                Ok(Self::new_local_file_provider(signer, dir)?)
+                Ok(Self::new_local_file_provider(signer, dir).await?)
             }
             Self::Directory(dir) => {
                 if !dir.is_dir() {
                     return Err(Error::NotDirectory(dir.clone()));
                 }
-                Ok(Self::new_local_file_provider(signer, dir.clone())?)
+                Ok(Self::new_local_file_provider(signer, dir.clone()).await?)
             }
             Self::Remote(remote) => {
                 let dir =
@@ -103,7 +104,8 @@ impl ProviderFactory {
                     signer,
                     dir,
                     remote.clone(),
-                )?)
+                )
+                .await?)
             }
         }
     }

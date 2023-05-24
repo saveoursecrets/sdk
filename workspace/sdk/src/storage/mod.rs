@@ -8,8 +8,8 @@ use std::{
 
 use crate::{
     constants::{
-        DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR, LOCAL_DIR,
-        TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
+        AUDIT_FILE_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR,
+        LOCAL_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
     },
     vfs,
 };
@@ -66,6 +66,8 @@ pub struct StorageDirs {
     documents_dir: PathBuf,
     /// Directory for local storage.
     local_dir: PathBuf,
+    /// File for local audit logs.
+    audit_file: PathBuf,
     /// Trash for deleted data.
     trash_dir: PathBuf,
     /// User segregated storage.
@@ -81,6 +83,7 @@ impl StorageDirs {
     pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: &str) -> Self {
         let documents_dir = documents_dir.as_ref().to_path_buf();
         let local_dir = documents_dir.join(LOCAL_DIR);
+        let audit_file = local_dir.join(AUDIT_FILE_NAME);
         let trash_dir = local_dir.join(TRASH_DIR);
         let user_dir = local_dir.join(user_id);
         let files_dir = user_dir.join(FILES_DIR);
@@ -90,6 +93,7 @@ impl StorageDirs {
             user_id: user_id.to_owned(),
             documents_dir,
             local_dir,
+            audit_file,
             trash_dir,
             user_dir,
             files_dir,
@@ -122,6 +126,11 @@ impl StorageDirs {
     /// Get the documents storage directory.
     pub fn documents_dir(&self) -> &PathBuf {
         &self.documents_dir
+    }
+
+    /// Audit file location.
+    pub fn audit_file(&self) -> &PathBuf {
+        &self.audit_file
     }
 
     /// Get the user storage directory.

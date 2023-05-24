@@ -6,6 +6,9 @@
 /// for the macos and ios platforms.
 pub const BUNDLE_ID: &str = "com.saveoursecrets";
 
+/// File name for audit logs.
+pub const AUDIT_FILE_NAME: &str = "audit.dat";
+
 /// Constants for file identity.
 mod identity {
     /// Audit log identity magic bytes (SOSA).
