@@ -344,7 +344,7 @@ impl UserStorage {
         name: String,
     ) -> Result<()> {
         // Update the provider
-        self.storage.set_vault_name(summary, &name).await?;
+        let event = self.storage.set_vault_name(summary, &name).await?;
 
         // Now update the in-memory name for the current selected vault
         if let Some(keeper) = self.storage.current_mut() {
@@ -358,6 +358,13 @@ impl UserStorage {
         let vault_file = VaultWriter::open(&vault_path)?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name)?;
+
+        let audit_event = AuditEvent::from_sync_event(
+            &event,
+            self.user.identity().address(),
+            summary.id(),
+        );
+        self.append_audit_logs(&[audit_event]).await?;
 
         Ok(())
     }
@@ -409,12 +416,8 @@ impl UserStorage {
             )
             .await?;
 
-            let mut keeper = Gatekeeper::new(vault, None);
-            keeper.unlock(passphrase)?;
-            keeper.create(meta, secret)?;
-
-            // FIXME: ensure this create event is sent to the
-            // FIXME: storage log
+            self.create_secret(meta, secret, Some(vault.summary().clone()))
+                .await?;
         }
 
         vfs::write(path, buffer).await?;
@@ -629,7 +632,7 @@ impl UserStorage {
 
         let (meta, secret, event) =
             self.storage.read_secret(secret_id).await?;
-        
+
         let event = event.into_owned();
         let audit_event = AuditEvent::from_sync_event(
             &event,
@@ -838,7 +841,6 @@ impl UserStorage {
         self.append_audit_logs(&[audit_event]).await?;
         Ok(event)
     }
-
 
     /// Move a secret to the archive.
     ///

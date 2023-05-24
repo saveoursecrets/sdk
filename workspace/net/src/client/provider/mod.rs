@@ -314,7 +314,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         summary: &Summary,
         name: &str,
-    ) -> Result<()>;
+    ) -> Result<SyncEvent<'static>>;
 
     /// Load a vault, unlock it and set it as the current vault.
     async fn open_vault(

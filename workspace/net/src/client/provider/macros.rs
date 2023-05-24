@@ -62,7 +62,7 @@ macro_rules! patch {
         ).await;
 
         match result {
-            Ok(_) => return Ok(()),
+            Ok(_) => Ok(()),
             Err(e) => match e {
 
                 Error::ConflictBehind { events, local, remote, .. } => {

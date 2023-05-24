@@ -123,6 +123,7 @@ impl StorageProvider for LocalProvider {
         // Initialize the local cache for event log and Patch
         self.create_cache_entry(&summary, Some(vault))?;
 
+        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
         Ok(summary)
     }
 
@@ -226,10 +227,10 @@ impl StorageProvider for LocalProvider {
         &mut self,
         summary: &Summary,
         name: &str,
-    ) -> Result<()> {
+    ) -> Result<SyncEvent<'static>> {
         // Log the event log event
-        let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
-        self.patch(summary, vec![event.into_owned()]).await?;
+        let event = SyncEvent::SetVaultName(Cow::Borrowed(name)).into_owned();
+        self.patch(summary, vec![event.clone()]).await?;
 
         // Update the in-memory name.
         for item in self.state.summaries_mut().iter_mut() {
@@ -238,7 +239,7 @@ impl StorageProvider for LocalProvider {
             }
         }
 
-        Ok(())
+        Ok(event)
     }
 
     async fn patch(

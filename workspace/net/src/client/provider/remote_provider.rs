@@ -233,24 +233,24 @@ impl StorageProvider for RemoteProvider {
         summary: &Summary,
         events: Vec<SyncEvent<'static>>,
     ) -> Result<()> {
-        patch!(self, summary, events)
+        patch!(self, summary, events)?;
+        Ok(())
     }
 
     async fn set_vault_name(
         &mut self,
         summary: &Summary,
         name: &str,
-    ) -> Result<()> {
-        let event = SyncEvent::SetVaultName(Cow::Borrowed(name));
-
-        patch!(self, summary, vec![event.into_owned()])?;
+    ) -> Result<SyncEvent<'static>> {
+        let event = SyncEvent::SetVaultName(Cow::Borrowed(name)).into_owned();
+        patch!(self, summary, vec![event.clone()])?;
 
         for item in self.state.summaries_mut().iter_mut() {
             if item.id() == summary.id() {
                 item.set_name(name.to_string());
             }
         }
-        Ok(())
+        Ok(event)
     }
 
     async fn remove_vault(
