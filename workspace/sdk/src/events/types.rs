@@ -3,14 +3,7 @@
 use crate::Error;
 use serde::{Deserialize, Serialize};
 
-use binary_stream::{
-    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-};
-
-use std::{
-    fmt,
-    io::{Read, Seek, Write},
-};
+use std::{fmt, io::Write};
 
 /// Type identifier for a noop.
 pub const NOOP: u16 = 0;
@@ -87,30 +80,6 @@ pub enum EventKind {
 impl Default for EventKind {
     fn default() -> Self {
         Self::Noop
-    }
-}
-
-impl Encode for EventKind {
-    fn encode<W: Write + Seek>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
-        let value: u16 = self.into();
-        writer.write_u16(value)?;
-        Ok(())
-    }
-}
-
-impl Decode for EventKind {
-    fn decode<R: Read + Seek>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
-        let op = reader.read_u16()?;
-        *self = op.try_into().map_err(|_| {
-            BinaryError::Boxed(Box::from(Error::UnknownEventKind(op)))
-        })?;
-        Ok(())
     }
 }
 

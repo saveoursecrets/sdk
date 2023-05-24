@@ -3,12 +3,6 @@ use crate::{
     commit::CommitHash, formats::EventLogFileRecord, timestamp::Timestamp,
 };
 
-use std::io::{Read, Seek, Write};
-
-use binary_stream::{
-    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-};
-
 mod file;
 mod reducer;
 
@@ -17,7 +11,12 @@ pub use reducer::EventReducer;
 
 /// Record for a row in the write ahead log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct EventRecord(Timestamp, CommitHash, CommitHash, pub Vec<u8>);
+pub struct EventRecord(
+    pub(crate) Timestamp,
+    pub(crate) CommitHash,
+    pub(crate) CommitHash,
+    pub(crate) Vec<u8>,
+);
 
 impl EventRecord {
     /// Get the time for the record.
@@ -49,79 +48,6 @@ impl From<(EventLogFileRecord, Vec<u8>)> for EventRecord {
             CommitHash(value.0.commit),
             value.1,
         )
-    }
-}
-
-impl Encode for EventRecord {
-    fn encode<W: Write + Seek>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
-        // Prepare the bytes for the row length
-        let size_pos = writer.tell()?;
-        writer.write_u32(0)?;
-
-        // Encode the time component
-        self.0.encode(&mut *writer)?;
-
-        // Write the previous commit hash bytes
-        writer.write_bytes(self.1.as_ref())?;
-
-        // Write the commit hash bytes
-        writer.write_bytes(self.2.as_ref())?;
-
-        // FIXME: ensure the buffer size does not exceed u32
-
-        // Write the data bytes
-        writer.write_u32(self.3.len() as u32)?;
-        writer.write_bytes(&self.3)?;
-
-        // Backtrack to size_pos and write new length
-        let row_pos = writer.tell()?;
-        let row_len = row_pos - (size_pos + 4);
-        writer.seek(size_pos)?;
-        writer.write_u32(row_len as u32)?;
-        writer.seek(row_pos)?;
-
-        // Write out the row len at the end of the record too
-        // so we can support double ended iteration
-        writer.write_u32(row_len as u32)?;
-
-        Ok(())
-    }
-}
-
-impl Decode for EventRecord {
-    fn decode<R: Read + Seek>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
-        // Read in the row length
-        let _ = reader.read_u32()?;
-
-        // Decode the time component
-        let mut time: Timestamp = Default::default();
-        time.decode(&mut *reader)?;
-
-        // Read the hash bytes
-        let previous: [u8; 32] =
-            reader.read_bytes(32)?.as_slice().try_into()?;
-        let commit: [u8; 32] =
-            reader.read_bytes(32)?.as_slice().try_into()?;
-
-        // Read the data bytes
-        let length = reader.read_u32()?;
-        let buffer = reader.read_bytes(length as usize)?;
-
-        self.0 = time;
-        self.1 = CommitHash(previous);
-        self.2 = CommitHash(commit);
-        self.3 = buffer;
-
-        // Read in the row length appended to the end of the record
-        let _ = reader.read_u32()?;
-
-        Ok(())
     }
 }
 

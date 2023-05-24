@@ -1,11 +1,9 @@
 //! Audit logging.
 use async_trait::async_trait;
-use binary_stream::{
-    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-};
+
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Seek, Write};
+
 use uuid::Uuid;
 use web3_address::ethereum::Address;
 
@@ -61,14 +59,14 @@ pub trait AuditProvider {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AuditEvent {
     /// The time the log was created.
-    time: Timestamp,
+    pub(crate) time: Timestamp,
     /// The event_kind being performed.
-    event_kind: EventKind,
+    pub(crate) event_kind: EventKind,
     /// The address of the client performing the event_kind.
-    address: Address,
+    pub(crate) address: Address,
     /// Context data about the event_kind.
     #[serde(skip_serializing_if = "Option::is_none")]
-    data: Option<AuditData>,
+    pub(crate) data: Option<AuditData>,
 }
 
 impl AuditEvent {
@@ -106,7 +104,7 @@ impl AuditEvent {
         self.data.as_ref()
     }
 
-    fn log_flags(&self) -> LogFlags {
+    pub(crate) fn log_flags(&self) -> LogFlags {
         if let Some(data) = &self.data {
             let mut flags = LogFlags::empty();
             flags.set(LogFlags::DATA, true);
@@ -158,73 +156,6 @@ impl AuditEvent {
     }
 }
 
-impl Encode for AuditEvent {
-    fn encode<W: Write + Seek>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
-        // Context bit flags
-        let flags = self.log_flags();
-        writer.write_u16(flags.bits())?;
-        // Time - the when
-        self.time.encode(&mut *writer)?;
-        // EventKind - the what
-        self.event_kind.encode(&mut *writer)?;
-        // Address - by whom
-        writer.write_bytes(self.address.as_ref())?;
-        // Data - context
-        if flags.contains(LogFlags::DATA) {
-            let data = self.data.as_ref().unwrap();
-            data.encode(&mut *writer)?;
-        }
-        Ok(())
-    }
-}
-
-impl Decode for AuditEvent {
-    fn decode<R: Read + Seek>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
-        // Context bit flags
-        let bits = reader.read_u16()?;
-        // Time - the when
-        let mut timestamp: Timestamp = Default::default();
-        timestamp.decode(&mut *reader)?;
-        // EventKind - the what
-        self.event_kind.decode(&mut *reader)?;
-        // Address - by whom
-        let address = reader.read_bytes(20)?;
-        let address: [u8; 20] = address.as_slice().try_into()?;
-        self.address = address.into();
-        // Data - context
-        if let Some(flags) = LogFlags::from_bits(bits) {
-            if flags.contains(LogFlags::DATA)
-                && flags.contains(LogFlags::DATA_VAULT)
-            {
-                let vault_id: [u8; 16] =
-                    reader.read_bytes(16)?.as_slice().try_into()?;
-                if !flags.contains(LogFlags::DATA_SECRET) {
-                    self.data =
-                        Some(AuditData::Vault(Uuid::from_bytes(vault_id)));
-                } else {
-                    let secret_id: [u8; 16] =
-                        reader.read_bytes(16)?.as_slice().try_into()?;
-                    self.data = Some(AuditData::Secret(
-                        Uuid::from_bytes(vault_id),
-                        Uuid::from_bytes(secret_id),
-                    ));
-                }
-            }
-        } else {
-            return Err(BinaryError::Custom(
-                "log data flags has bad bits".to_string(),
-            ));
-        }
-        Ok(())
-    }
-}
-
 /// Associated data for an audit log record.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -239,23 +170,5 @@ impl Default for AuditData {
     fn default() -> Self {
         let zero = [0u8; 16];
         Self::Vault(Uuid::from_bytes(zero))
-    }
-}
-
-impl Encode for AuditData {
-    fn encode<W: Write + Seek>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
-        match self {
-            AuditData::Vault(vault_id) => {
-                writer.write_bytes(vault_id.as_bytes())?;
-            }
-            AuditData::Secret(vault_id, secret_id) => {
-                writer.write_bytes(vault_id.as_bytes())?;
-                writer.write_bytes(secret_id.as_bytes())?;
-            }
-        }
-        Ok(())
     }
 }

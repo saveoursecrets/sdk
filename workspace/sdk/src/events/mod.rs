@@ -6,8 +6,10 @@ mod log;
 mod sync;
 mod types;
 
-pub use self::log::{EventLogFile, EventReducer};
-pub use audit::{AuditData, AuditEvent, AuditLogFile, AuditProvider};
+pub use self::log::{EventLogFile, EventRecord, EventReducer};
+pub use audit::{
+    AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,
+};
 pub use change::{ChangeAction, ChangeEvent, ChangeNotification};
 pub use sync::SyncEvent;
 pub use types::EventKind;

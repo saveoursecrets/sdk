@@ -1,5 +1,6 @@
 mod commit;
 mod crypto;
+mod events;
 mod patch;
 mod rpc;
 mod signer;
