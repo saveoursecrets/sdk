@@ -250,7 +250,7 @@ impl StorageProvider for LocalProvider {
         summary: &Summary,
         events: Vec<SyncEvent<'static>>,
     ) -> Result<()> {
-        let (event_log, patch_file) = self
+        let (event_log, _patch_file) = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;

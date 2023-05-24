@@ -11,7 +11,7 @@ use crate::{
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretMeta, UserData},
-        Gatekeeper, Summary, Vault, VaultWriter,
+        Gatekeeper, Summary, Vault,
     },
     vfs, Result,
 };

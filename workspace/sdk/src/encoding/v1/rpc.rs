@@ -2,12 +2,12 @@ use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 
+use http::StatusCode;
 use serde_json::Value;
 use std::{
     borrow::Cow,
     io::{Read, Seek, Write},
 };
-use http::StatusCode;
 
 use crate::{
     constants::RPC_IDENTITY,

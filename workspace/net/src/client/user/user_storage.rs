@@ -13,7 +13,7 @@ use sos_sdk::{
         RestoreOptions,
     },
     decode, encode,
-    events::{AuditEvent, AuditLogFile, AuditProvider, SyncEvent},
+    events::{AuditEvent, AuditProvider, SyncEvent},
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     storage::StorageDirs,
@@ -388,7 +388,7 @@ impl UserStorage {
                 .default_folder()
                 .ok_or_else(|| Error::NoDefaultFolder)?;
 
-            let passphrase = DelegatedPassphrase::find_vault_passphrase(
+            let _passphrase = DelegatedPassphrase::find_vault_passphrase(
                 self.user.identity().keeper(),
                 default_summary.id(),
             )?;
@@ -712,7 +712,7 @@ impl UserStorage {
             .await?;
 
         let id = if let Some(to) = destination.as_ref() {
-            let (new_id, _, create_event, _) =
+            let (new_id, _, _create_event, _) =
                 self.move_secret(secret_id, &folder, to).await?;
             new_id
         } else {

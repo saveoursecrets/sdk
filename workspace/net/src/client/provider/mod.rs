@@ -14,7 +14,7 @@ use sos_sdk::{
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{
-        AuditEvent, AuditLogFile, AuditProvider, ChangeAction,
+        AuditLogFile, ChangeAction,
         ChangeNotification, SyncEvent,
     },
     passwd::ChangePassword,
