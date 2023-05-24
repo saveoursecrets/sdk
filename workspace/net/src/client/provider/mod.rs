@@ -7,14 +7,16 @@ use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 
 use sos_sdk::{
     account::{ImportedAccount, NewAccount},
-    audit::{AuditEvent, AuditLogFile, AuditProvider},
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
     constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
     crypto::secret_key::SecretKey,
     decode, encode,
-    events::{ChangeAction, ChangeNotification, SyncEvent},
+    events::{
+        AuditEvent, AuditLogFile, AuditProvider, ChangeAction,
+        ChangeNotification, SyncEvent,
+    },
     passwd::ChangePassword,
     search::SearchIndex,
     storage::StorageDirs,

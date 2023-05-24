@@ -1,12 +1,14 @@
 use axum::http::StatusCode;
 use sos_sdk::{
-    audit::{AuditData, AuditEvent},
     commit::{CommitHash, CommitProof, Comparison},
     constants::{
         EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
     },
     decode,
-    events::{ChangeEvent, ChangeNotification, EventKind, SyncEvent},
+    events::{
+        AuditData, AuditEvent, ChangeEvent, ChangeNotification, EventKind,
+        SyncEvent,
+    },
     patch::Patch,
     rpc::{RequestMessage, ResponseMessage, Service},
 };

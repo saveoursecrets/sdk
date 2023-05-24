@@ -2,7 +2,7 @@ use clap::Subcommand;
 
 use crate::{Error, Result, TARGET};
 use sos_sdk::{
-    audit::{AuditData, AuditEvent, AuditLogFile},
+    events::{AuditData, AuditEvent, AuditLogFile},
     signer::ecdsa::Address,
 };
 use std::{fs::File, path::PathBuf, thread, time};

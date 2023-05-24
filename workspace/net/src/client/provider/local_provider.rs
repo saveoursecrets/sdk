@@ -5,14 +5,13 @@ use async_trait::async_trait;
 
 use secrecy::SecretString;
 use sos_sdk::{
-    audit::AuditLogFile,
     commit::{
         CommitHash, CommitPair, CommitRelationship, CommitTree, SyncInfo,
         SyncKind,
     },
     constants::VAULT_EXT,
     decode, encode,
-    events::{ChangeAction, ChangeNotification, SyncEvent},
+    events::{AuditLogFile, ChangeAction, ChangeNotification, SyncEvent},
     events::{EventLogFile, EventReducer},
     patch::PatchFile,
     storage::StorageDirs,

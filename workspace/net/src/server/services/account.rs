@@ -1,9 +1,8 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    audit::AuditEvent,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS},
-    events::{ChangeEvent, ChangeNotification, EventKind},
+    events::{AuditEvent, ChangeEvent, ChangeNotification, EventKind},
     rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
 };

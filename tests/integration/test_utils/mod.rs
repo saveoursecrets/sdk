@@ -7,9 +7,8 @@ use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_sdk::{
-    audit::AuditLogFile,
     crypto::channel::SessionManager,
-    events::SyncEvent,
+    events::{AuditLogFile, SyncEvent},
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary,

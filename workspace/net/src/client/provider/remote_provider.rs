@@ -7,10 +7,9 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::SecretString;
 use sos_sdk::{
-    audit::AuditLogFile,
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     decode, encode,
-    events::{ChangeAction, ChangeNotification, SyncEvent},
+    events::{AuditLogFile, ChangeAction, ChangeNotification, SyncEvent},
     events::{EventLogFile, EventReducer},
     patch::PatchFile,
     storage::StorageDirs,

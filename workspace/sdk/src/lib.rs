@@ -12,7 +12,6 @@ use binary_stream::{BinaryReader, BinaryWriter, Decode, Encode, Endian};
 use std::io::{Cursor, Seek, SeekFrom};
 
 pub mod account;
-pub mod audit;
 pub mod commit;
 pub mod constants;
 pub mod crypto;

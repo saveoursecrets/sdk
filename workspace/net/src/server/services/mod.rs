@@ -5,10 +5,9 @@ use axum::{
 };
 
 use sos_sdk::{
-    audit::{AuditEvent, AuditProvider},
     crypto::{channel::EncryptedChannel, AeadPack},
     decode, encode,
-    events::ChangeNotification,
+    events::{AuditEvent, AuditProvider, ChangeNotification},
     rpc::{Packet, RequestMessage, Service},
 };
 use web3_address::ethereum::Address;

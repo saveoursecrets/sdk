@@ -4,7 +4,7 @@ use sos_net::{
     },
     FileLocks,
 };
-use sos_sdk::{audit::AuditLogFile, crypto::channel::SessionManager};
+use sos_sdk::{crypto::channel::SessionManager, events::AuditLogFile};
 
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
