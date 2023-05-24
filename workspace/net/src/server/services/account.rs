@@ -72,8 +72,8 @@ impl Service for AccountService {
 
                 let log = AuditEvent::from_sync_event(
                     &sync_event,
-                    *caller.address(),
-                    vault_id,
+                    caller.address(),
+                    &vault_id,
                 );
 
                 append_audit_logs(&mut writer, vec![log])

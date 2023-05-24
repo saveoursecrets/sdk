@@ -12,6 +12,7 @@ use sos_sdk::{
         DelegatedPassphrase, ExtractFilesLocation, LocalAccounts, Login,
         RestoreOptions,
     },
+    audit::{AuditEvent, AuditLogFile, AuditProvider},
     decode, encode,
     events::SyncEvent,
     search::{DocumentCount, SearchIndex},
@@ -159,6 +160,14 @@ impl UserStorage {
         })
     }
 
+    /// Append to the audit log.
+    async fn append_audit_logs(&self, events: &[AuditEvent]) -> Result<()> {
+        let audit_log = self.storage.audit_log();
+        let mut writer = audit_log.write().await;
+        writer.append_audit_events(&events).await?;
+        Ok(())
+    }
+
     /// Load the buffer of the encrypted vault for this account.
     ///
     /// Used when a client needs to authenticate other devices;
@@ -287,8 +296,7 @@ impl UserStorage {
     /// Create a folder.
     pub async fn create_folder(&mut self, name: String) -> Result<Summary> {
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
-
-        let (_, summary) = self
+        let (event, _, summary) = self
             .storage
             .create_vault(name, Some(passphrase.clone()))
             .await?;
@@ -299,18 +307,33 @@ impl UserStorage {
             passphrase,
         )?;
 
+        let audit_event = AuditEvent::from_sync_event(
+            &event,
+            self.user.identity().address(),
+            summary.id(),
+        );
+        self.append_audit_logs(&[audit_event]).await?;
+
         Ok(summary)
     }
 
     /// Delete a folder.
     pub async fn delete_folder(&mut self, summary: &Summary) -> Result<()> {
-        self.storage.remove_vault(summary).await?;
+        let event = self.storage.remove_vault(summary).await?;
         DelegatedPassphrase::remove_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
             summary.id(),
         )?;
         self.index.remove_folder_from_search_index(summary.id());
         self.delete_folder_files(summary).await?;
+
+        let audit_event = AuditEvent::from_sync_event(
+            &event,
+            self.user.identity().address(),
+            summary.id(),
+        );
+        self.append_audit_logs(&[audit_event]).await?;
+
         Ok(())
     }
 
@@ -523,9 +546,18 @@ impl UserStorage {
         }
 
         let index = Arc::clone(&self.index.search_index);
-        self.storage
+        let event = self
+            .storage
             .open_vault(summary, passphrase, Some(index))
             .await?;
+
+        let audit_event = AuditEvent::from_sync_event(
+            &event,
+            self.user.identity().address(),
+            summary.id(),
+        );
+        self.append_audit_logs(&[audit_event]).await?;
+
         Ok(())
     }
 

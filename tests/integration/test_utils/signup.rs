@@ -100,7 +100,7 @@ async fn create_account(
     // Prepare the client encrypted session channel
     cache.authenticate().await?;
 
-    let (encryption_passphrase, summary) =
+    let (_, encryption_passphrase, summary) =
         cache.create_account(name, None).await?;
 
     let address = signer.address()?;

@@ -82,7 +82,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
-    let (new_passphrase, _) = node_cache
+    let (_, new_passphrase, _) = node_cache
         .create_vault(new_vault_name.clone(), None)
         .await?;
 

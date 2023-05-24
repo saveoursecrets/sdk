@@ -93,7 +93,7 @@ impl StorageProvider for RemoteProvider {
         name: Option<String>,
         passphrase: Option<SecretString>,
         is_account: bool,
-    ) -> Result<(SecretString, Summary)> {
+    ) -> Result<(SyncEvent<'static>, SecretString, Summary)> {
         let (passphrase, vault, buffer) =
             Vault::new_buffer(name, passphrase, None)?;
 
@@ -128,7 +128,8 @@ impl StorageProvider for RemoteProvider {
         // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault))?;
 
-        Ok((passphrase, summary))
+        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
+        Ok((event, passphrase, summary))
     }
 
     async fn import_vault(&mut self, buffer: Vec<u8>) -> Result<Summary> {
@@ -252,7 +253,10 @@ impl StorageProvider for RemoteProvider {
         Ok(())
     }
 
-    async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
+    async fn remove_vault(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<SyncEvent<'static>> {
         // Attempt to delete on the remote server
         let (status, _) =
             retry!(|| self.client.delete_vault(summary.id()), self.client);
@@ -266,7 +270,8 @@ impl StorageProvider for RemoteProvider {
 
         // Remove local state
         self.remove_local_cache(summary)?;
-        Ok(())
+
+        Ok(SyncEvent::DeleteVault)
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {

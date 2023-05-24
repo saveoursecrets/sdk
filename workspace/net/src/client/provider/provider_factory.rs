@@ -22,7 +22,7 @@ pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
 /// Factory for creating providers.
 #[derive(Debug, Clone)]
 pub enum ProviderFactory {
-    /// Local provider using the default cache location or 
+    /// Local provider using the default cache location or
     /// a specific location for files.
     Local(Option<PathBuf>),
     /// Remote server with local disc storage.
@@ -35,7 +35,9 @@ impl fmt::Display for ProviderFactory {
             Self::Local(dir) => {
                 let path = if let Some(path) = dir {
                     path.to_path_buf()
-                } else { PathBuf::new() };
+                } else {
+                    PathBuf::new()
+                };
                 write!(f, "file://{}", path.display())
             }
             Self::Remote(remote) => write!(f, "{}", remote),

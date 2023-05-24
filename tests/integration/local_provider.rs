@@ -25,7 +25,7 @@ macro_rules! commit_count {
 
 async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
     // Create an account with default login vault
-    let (passphrase, _) = storage.create_account(None, None).await?;
+    let (_, passphrase, _) = storage.create_account(None, None).await?;
 
     let mut summaries = storage.vaults().to_vec();
     assert_eq!(1, summaries.len());

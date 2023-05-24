@@ -3,10 +3,11 @@
 use async_trait::async_trait;
 
 use secrecy::SecretString;
-use std::{borrow::Cow, collections::HashSet, path::PathBuf};
+use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 
 use sos_sdk::{
     account::{ImportedAccount, NewAccount},
+    audit::{AuditEvent, AuditLogFile, AuditProvider},
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
@@ -25,6 +26,7 @@ use sos_sdk::{
 };
 
 use secrecy::ExposeSecret;
+use tokio::sync::RwLock;
 
 use sos_sdk::account::RestoreTargets;
 
@@ -75,6 +77,9 @@ pub trait StorageProvider: Sync + Send {
 
     /// Get a mutable reference to the state for this storage provider.
     fn state_mut(&mut self) -> &mut ProviderState;
+
+    /// Get the audit log for this provider.
+    fn audit_log(&self) -> Arc<RwLock<AuditLogFile>>;
 
     /// Create the search index for the currently open vault.
     fn create_search_index(&mut self) -> Result<()> {
@@ -264,7 +269,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         name: Option<String>,
         passphrase: Option<SecretString>,
-    ) -> Result<(SecretString, Summary)> {
+    ) -> Result<(SyncEvent<'static>, SecretString, Summary)> {
         self.create_vault_or_account(name, passphrase, true).await
     }
 
@@ -273,7 +278,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         name: String,
         passphrase: Option<SecretString>,
-    ) -> Result<(SecretString, Summary)> {
+    ) -> Result<(SyncEvent<'static>, SecretString, Summary)> {
         self.create_vault_or_account(Some(name), passphrase, false)
             .await
     }
@@ -293,10 +298,13 @@ pub trait StorageProvider: Sync + Send {
         name: Option<String>,
         passphrase: Option<SecretString>,
         _is_account: bool,
-    ) -> Result<(SecretString, Summary)>;
+    ) -> Result<(SyncEvent<'static>, SecretString, Summary)>;
 
     /// Remove a vault.
-    async fn remove_vault(&mut self, summary: &Summary) -> Result<()>;
+    async fn remove_vault(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<SyncEvent<'static>>;
 
     /// Load vault summaries.
     async fn load_vaults(&mut self) -> Result<&[Summary]>;
@@ -314,7 +322,7 @@ pub trait StorageProvider: Sync + Send {
         summary: &Summary,
         passphrase: SecretString,
         index: Option<std::sync::Arc<parking_lot::RwLock<SearchIndex>>>,
-    ) -> Result<()> {
+    ) -> Result<SyncEvent<'static>> {
         let vault_path = self.vault_path(summary);
         let vault = if self.state().mirror() {
             if !vault_path.exists() {
@@ -333,7 +341,7 @@ pub trait StorageProvider: Sync + Send {
 
         self.state_mut()
             .open_vault(passphrase, vault, vault_path, index)?;
-        Ok(())
+        Ok(SyncEvent::ReadVault)
     }
 
     /// Load a vault by reducing it from the event log stored on disc.
@@ -572,6 +580,10 @@ macro_rules! provider_impl {
 
         fn state_mut(&mut self) -> &mut ProviderState {
             &mut self.state
+        }
+
+        fn audit_log(&self) -> Arc<RwLock<AuditLogFile>> {
+            Arc::clone(&self.audit_log)
         }
 
         fn dirs(&self) -> &StorageDirs {

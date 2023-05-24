@@ -79,8 +79,8 @@ impl Service for VaultService {
 
                     let log = AuditEvent::from_sync_event(
                         &sync_event,
-                        *caller.address(),
-                        vault_id,
+                        caller.address(),
+                        &vault_id,
                     );
 
                     append_audit_logs(&mut writer, vec![log])
@@ -185,8 +185,8 @@ impl Service for VaultService {
 
                 let log = AuditEvent::from_sync_event(
                     &sync_event,
-                    *caller.address(),
-                    *summary.id(),
+                    caller.address(),
+                    summary.id(),
                 );
 
                 append_audit_logs(&mut writer, vec![log])

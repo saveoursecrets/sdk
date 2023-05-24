@@ -83,7 +83,7 @@ impl StorageProvider for LocalProvider {
         name: Option<String>,
         passphrase: Option<SecretString>,
         _is_account: bool,
-    ) -> Result<(SecretString, Summary)> {
+    ) -> Result<(SyncEvent<'static>, SecretString, Summary)> {
         let (passphrase, vault, buffer) =
             Vault::new_buffer(name, passphrase, None)?;
         let summary = vault.summary().clone();
@@ -98,7 +98,8 @@ impl StorageProvider for LocalProvider {
         // Initialize the local cache for event log and Patch
         self.create_cache_entry(&summary, Some(vault))?;
 
-        Ok((passphrase, summary))
+        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
+        Ok((event, passphrase, summary))
     }
 
     async fn import_vault(&mut self, buffer: Vec<u8>) -> Result<Summary> {
@@ -207,13 +208,17 @@ impl StorageProvider for LocalProvider {
         Ok(EventReducer::new().reduce(event_log_file)?.build()?)
     }
 
-    async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
+    async fn remove_vault(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<SyncEvent<'static>> {
         // Remove the files
         self.remove_vault_file(summary).await?;
 
         // Remove local state
         self.remove_local_cache(summary)?;
-        Ok(())
+
+        Ok(SyncEvent::DeleteVault)
     }
 
     /// Attempt to set the vault name for a vault.

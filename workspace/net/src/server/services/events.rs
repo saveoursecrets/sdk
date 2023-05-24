@@ -253,8 +253,8 @@ impl Service for EventLogService {
                                 .map(|event| {
                                     AuditEvent::from_sync_event(
                                         event,
-                                        caller.address,
-                                        vault_id,
+                                        caller.address(),
+                                        &vault_id,
                                     )
                                 })
                                 .collect::<Vec<_>>();

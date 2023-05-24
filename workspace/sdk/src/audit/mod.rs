@@ -128,8 +128,8 @@ impl AuditEvent {
     /// Convert from a sync event to an audit event.
     pub fn from_sync_event(
         event: &SyncEvent,
-        address: Address,
-        vault_id: Uuid,
+        address: &Address,
+        vault_id: &Uuid,
     ) -> AuditEvent {
         let audit_data = match event {
             SyncEvent::Noop => {
@@ -140,21 +140,21 @@ impl AuditEvent {
             | SyncEvent::ReadVault
             | SyncEvent::DeleteVault
             | SyncEvent::SetVaultName(_)
-            | SyncEvent::SetVaultMeta(_) => AuditData::Vault(vault_id),
+            | SyncEvent::SetVaultMeta(_) => AuditData::Vault(*vault_id),
             SyncEvent::CreateSecret(secret_id, _) => {
-                AuditData::Secret(vault_id, *secret_id)
+                AuditData::Secret(*vault_id, *secret_id)
             }
             SyncEvent::ReadSecret(secret_id) => {
-                AuditData::Secret(vault_id, *secret_id)
+                AuditData::Secret(*vault_id, *secret_id)
             }
             SyncEvent::UpdateSecret(secret_id, _) => {
-                AuditData::Secret(vault_id, *secret_id)
+                AuditData::Secret(*vault_id, *secret_id)
             }
             SyncEvent::DeleteSecret(secret_id) => {
-                AuditData::Secret(vault_id, *secret_id)
+                AuditData::Secret(*vault_id, *secret_id)
             }
         };
-        AuditEvent::new(event.event_kind(), address, Some(audit_data))
+        AuditEvent::new(event.event_kind(), *address, Some(audit_data))
     }
 }
 
