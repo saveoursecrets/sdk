@@ -1,5 +1,5 @@
 use crate::{
-    crypto::{AeadPack, Algorithm, Nonce},
+    crypto::{AeadPack, Algorithm, Nonce, AES_GCM_256, X_CHACHA20_POLY1305},
     Error,
 };
 use binary_stream::{
@@ -74,8 +74,8 @@ impl Decode for Algorithm {
     ) -> BinaryResult<()> {
         let id = reader.read_u8()?;
         *self = match id {
-            _X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305(id),
-            _AES_GCM_256 => Algorithm::AesGcm256(id),
+            X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305(id),
+            AES_GCM_256 => Algorithm::AesGcm256(id),
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
                     Error::UnknownAlgorithm(id),
