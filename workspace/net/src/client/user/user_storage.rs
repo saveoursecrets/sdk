@@ -787,7 +787,8 @@ impl UserStorage {
         self.open_folder(from).await?;
 
         // Note that we call `remove_secret()` and not `delete_secret()`
-        // as we need to original external files for the move operation.
+        // as we need the original external files for the
+        // move_files operation.
         let delete_event = self.remove_secret(secret_id, None).await?;
 
         let read_event = read_event.into_owned();
@@ -802,6 +803,28 @@ impl UserStorage {
             &new_id,
             None,
         )
+        .await?;
+
+        let audit_read_event = AuditEvent::from_sync_event(
+            &read_event,
+            self.user.identity().address(),
+            from.id(),
+        );
+        let audit_create_event = AuditEvent::from_sync_event(
+            &create_event,
+            self.user.identity().address(),
+            to.id(),
+        );
+        let audit_delete_event = AuditEvent::from_sync_event(
+            &delete_event,
+            self.user.identity().address(),
+            from.id(),
+        );
+        self.append_audit_logs(&[
+            audit_read_event,
+            audit_create_event,
+            audit_delete_event,
+        ])
         .await?;
 
         Ok((new_id, read_event, create_event, delete_event))
