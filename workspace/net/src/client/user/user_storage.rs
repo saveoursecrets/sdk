@@ -606,6 +606,13 @@ impl UserStorage {
 
         self.create_files(&current_folder, secret_data).await?;
 
+        let audit_event = AuditEvent::from_sync_event(
+            &event,
+            self.user.identity().address(),
+            folder.id(),
+        );
+        self.append_audit_logs(&[audit_event]).await?;
+
         Ok((id, event))
     }
 
@@ -622,13 +629,22 @@ impl UserStorage {
 
         let (meta, secret, event) =
             self.storage.read_secret(secret_id).await?;
+        
+        let event = event.into_owned();
+        let audit_event = AuditEvent::from_sync_event(
+            &event,
+            self.user.identity().address(),
+            folder.id(),
+        );
+        self.append_audit_logs(&[audit_event]).await?;
+
         Ok((
             SecretData {
                 id: Some(*secret_id),
                 meta,
                 secret,
             },
-            event.into_owned(),
+            event,
         ))
     }
 
@@ -687,15 +703,15 @@ impl UserStorage {
         self.update_files(&folder, &folder, &old_secret_data, secret_data)
             .await?;
 
-        let (id, create_event) = if let Some(to) = destination.as_ref() {
+        let id = if let Some(to) = destination.as_ref() {
             let (new_id, _, create_event, _) =
                 self.move_secret(secret_id, &folder, to).await?;
-            (new_id, create_event)
+            new_id
         } else {
-            (*secret_id, event)
+            *secret_id
         };
 
-        Ok((id, create_event))
+        Ok((id, event))
     }
 
     /// Write a secret in the current open folder or a specific folder.
@@ -727,64 +743,14 @@ impl UserStorage {
             .await?
             .into_owned();
 
+        let audit_event = AuditEvent::from_sync_event(
+            &event,
+            self.user.identity().address(),
+            folder.id(),
+        );
+        self.append_audit_logs(&[audit_event]).await?;
+
         Ok(event)
-    }
-
-    /// Move a secret to the archive.
-    ///
-    /// An archive folder must exist.
-    pub async fn archive(
-        &mut self,
-        from: &Summary,
-        secret_id: &SecretId,
-    ) -> Result<(
-        SecretId,
-        SyncEvent<'static>,
-        SyncEvent<'static>,
-        SyncEvent<'static>,
-    )> {
-        if from.flags().is_archive() {
-            return Err(Error::AlreadyArchived);
-        }
-        self.open_folder(from).await?;
-        let to = self.archive_folder().ok_or_else(|| Error::NoArchive)?;
-        self.move_secret(secret_id, from, &to).await
-    }
-
-    /// Move a secret out of the archive.
-    ///
-    /// The secret must be inside a folder with the archive flag set.
-    pub async fn unarchive(
-        &mut self,
-        from: &Summary,
-        secret_id: &SecretId,
-        secret_meta: &SecretMeta,
-    ) -> Result<(
-        Summary,
-        SecretId,
-        SyncEvent<'static>,
-        SyncEvent<'static>,
-        SyncEvent<'static>,
-    )> {
-        if !from.flags().is_archive() {
-            return Err(Error::NotArchived);
-        }
-        self.open_folder(from).await?;
-        let mut to = self
-            .default_folder()
-            .ok_or_else(|| Error::NoDefaultFolder)?;
-        let authenticator = self.authenticator_folder();
-        let contacts = self.contacts_folder();
-        if secret_meta.kind() == &SecretType::Totp && authenticator.is_some()
-        {
-            to = authenticator.unwrap();
-        } else if secret_meta.kind() == &SecretType::Contact
-            && contacts.is_some()
-        {
-            to = contacts.unwrap();
-        }
-        let (id, e1, e2, e3) = self.move_secret(secret_id, from, &to).await?;
-        Ok((to, id, e1, e2, e3))
     }
 
     /// Move a secret between folders.
@@ -845,6 +811,7 @@ impl UserStorage {
         let (secret_data, _) = self.read_secret(secret_id, None).await?;
         let event = self.remove_secret(secret_id, None).await?;
         self.delete_files(&folder, &secret_data, None).await?;
+
         Ok(event)
     }
 
@@ -860,7 +827,74 @@ impl UserStorage {
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
-        Ok(self.storage.delete_secret(secret_id).await?.into_owned())
+
+        let event = self.storage.delete_secret(secret_id).await?.into_owned();
+
+        let audit_event = AuditEvent::from_sync_event(
+            &event,
+            self.user.identity().address(),
+            folder.id(),
+        );
+        self.append_audit_logs(&[audit_event]).await?;
+        Ok(event)
+    }
+
+
+    /// Move a secret to the archive.
+    ///
+    /// An archive folder must exist.
+    pub async fn archive(
+        &mut self,
+        from: &Summary,
+        secret_id: &SecretId,
+    ) -> Result<(
+        SecretId,
+        SyncEvent<'static>,
+        SyncEvent<'static>,
+        SyncEvent<'static>,
+    )> {
+        if from.flags().is_archive() {
+            return Err(Error::AlreadyArchived);
+        }
+        self.open_folder(from).await?;
+        let to = self.archive_folder().ok_or_else(|| Error::NoArchive)?;
+        self.move_secret(secret_id, from, &to).await
+    }
+
+    /// Move a secret out of the archive.
+    ///
+    /// The secret must be inside a folder with the archive flag set.
+    pub async fn unarchive(
+        &mut self,
+        from: &Summary,
+        secret_id: &SecretId,
+        secret_meta: &SecretMeta,
+    ) -> Result<(
+        Summary,
+        SecretId,
+        SyncEvent<'static>,
+        SyncEvent<'static>,
+        SyncEvent<'static>,
+    )> {
+        if !from.flags().is_archive() {
+            return Err(Error::NotArchived);
+        }
+        self.open_folder(from).await?;
+        let mut to = self
+            .default_folder()
+            .ok_or_else(|| Error::NoDefaultFolder)?;
+        let authenticator = self.authenticator_folder();
+        let contacts = self.contacts_folder();
+        if secret_meta.kind() == &SecretType::Totp && authenticator.is_some()
+        {
+            to = authenticator.unwrap();
+        } else if secret_meta.kind() == &SecretType::Contact
+            && contacts.is_some()
+        {
+            to = contacts.unwrap();
+        }
+        let (id, e1, e2, e3) = self.move_secret(secret_id, from, &to).await?;
+        Ok((to, id, e1, e2, e3))
     }
 
     /// Search index reference.

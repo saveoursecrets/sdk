@@ -359,7 +359,7 @@ pub trait StorageProvider: Sync + Send {
     /// Close the currently selected vault.
     fn close_vault(&mut self);
 
-    /// Get a reference to the commit tree for a event log file.
+    /// Get a reference to the commit tree for an event log file.
     fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree>;
 
     /// Create new patch and event log cache entries.
