@@ -326,7 +326,7 @@ pub async fn new_account(
             AccountBuilder::write(identity_vault, new_account).await?;
 
         // Create local provider
-        let factory = ProviderFactory::Local;
+        let factory = ProviderFactory::Local(None);
         let (mut provider, _) = factory
             .create_provider(new_account.user.signer().clone())
             .await?;

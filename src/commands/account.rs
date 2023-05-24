@@ -339,7 +339,7 @@ async fn account_info(
     json: bool,
 ) -> Result<()> {
     let user =
-        resolve_user(account.as_ref(), ProviderFactory::Local, false).await?;
+        resolve_user(account.as_ref(), ProviderFactory::Local(None), false).await?;
     let owner = user.read().await;
     let data = owner.account_data()?;
 
@@ -399,7 +399,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         }
 
         let account = AccountRef::Name(account.label().to_owned());
-        let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
+        let (owner, _) = sign_in(&account, ProviderFactory::Local(None)).await?;
         (Some(owner.storage), None)
     } else {
         (None, None)

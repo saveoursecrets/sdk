@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 use secrecy::SecretString;
 use sos_sdk::{
+    audit::AuditLogFile,
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     decode, encode,
     events::{ChangeAction, ChangeNotification, SyncEvent},
@@ -23,7 +24,9 @@ use sos_sdk::{
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
+    sync::Arc,
 };
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
@@ -49,11 +52,14 @@ pub struct RemoteProvider {
 
     /// Client to use for remote communication.
     client: RpcClient,
+
+    /// Audit log for this provider.
+    audit_log: Arc<RwLock<AuditLogFile>>,
 }
 
 impl RemoteProvider {
     /// Create new node cache backed by files on disc.
-    pub fn new(
+    pub async fn new(
         client: RpcClient,
         dirs: StorageDirs,
     ) -> Result<RemoteProvider> {
@@ -63,11 +69,16 @@ impl RemoteProvider {
             ));
         }
 
+        let audit_log = Arc::new(RwLock::new(
+            AuditLogFile::new(dirs.audit_file()).await?,
+        ));
+
         Ok(Self {
             state: ProviderState::new(true),
             cache: Default::default(),
             client,
             dirs,
+            audit_log,
         })
     }
 }

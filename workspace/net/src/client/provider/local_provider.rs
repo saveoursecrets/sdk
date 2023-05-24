@@ -5,6 +5,7 @@ use async_trait::async_trait;
 
 use secrecy::SecretString;
 use sos_sdk::{
+    audit::AuditLogFile,
     commit::{
         CommitHash, CommitPair, CommitRelationship, CommitTree, SyncInfo,
         SyncKind,
@@ -22,7 +23,10 @@ use sos_sdk::{
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
+    sync::Arc,
 };
+
+use tokio::sync::RwLock;
 
 use crate::{
     client::provider::{sync, ProviderState, StorageProvider},
@@ -41,10 +45,9 @@ pub struct LocalProvider {
 
     /// Cache for event log and patch providers.
     cache: HashMap<VaultId, (EventLogFile, PatchFile)>,
-    /*
+
     /// Audit log for this provider.
     audit_log: Arc<RwLock<AuditLogFile>>,
-    */
 }
 
 impl LocalProvider {
@@ -56,10 +59,15 @@ impl LocalProvider {
             ));
         }
 
+        let audit_log = Arc::new(RwLock::new(
+            AuditLogFile::new(dirs.audit_file()).await?,
+        ));
+
         Ok(Self {
             state: ProviderState::new(true),
             cache: Default::default(),
             dirs,
+            audit_log,
         })
     }
 }

@@ -22,10 +22,9 @@ pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
 /// Factory for creating providers.
 #[derive(Debug, Clone)]
 pub enum ProviderFactory {
-    /// Local provider using the default cache location.
-    Local,
-    /// Specific directory location.
-    Directory(PathBuf),
+    /// Local provider using the default cache location or 
+    /// a specific location for files.
+    Local(Option<PathBuf>),
     /// Remote server with local disc storage.
     Remote(Url),
 }
@@ -33,8 +32,12 @@ pub enum ProviderFactory {
 impl fmt::Display for ProviderFactory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Local => write!(f, "local"),
-            Self::Directory(path) => write!(f, "{}", path.display()),
+            Self::Local(dir) => {
+                let path = if let Some(path) = dir {
+                    path.to_path_buf()
+                } else { PathBuf::new() };
+                write!(f, "file://{}", path.display())
+            }
             Self::Remote(remote) => write!(f, "{}", remote),
         }
     }
@@ -42,14 +45,7 @@ impl fmt::Display for ProviderFactory {
 
 impl Default for ProviderFactory {
     fn default() -> Self {
-        Self::Local
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-impl Default for ProviderFactory {
-    fn default() -> Self {
-        Self::Memory(Some(Url::parse("http://localhost:5053").unwrap()))
+        Self::Local(None)
     }
 }
 
@@ -64,7 +60,7 @@ impl ProviderFactory {
         let client = RpcClient::new(server, signer);
         let dirs = StorageDirs::new(cache_dir, &address.to_string());
         let provider: BoxedProvider =
-            Box::new(RemoteProvider::new(client, dirs)?);
+            Box::new(RemoteProvider::new(client, dirs).await?);
         Ok((provider, address))
     }
 
@@ -86,17 +82,22 @@ impl ProviderFactory {
         signer: BoxedEcdsaSigner,
     ) -> Result<(BoxedProvider, Address)> {
         match self {
-            Self::Local => {
-                let dir =
-                    StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
+            Self::Local(dir) => {
+                let dir = if let Some(dir) = dir {
+                    dir.to_path_buf()
+                } else {
+                    StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?
+                };
                 Ok(Self::new_local_file_provider(signer, dir).await?)
             }
+            /*
             Self::Directory(dir) => {
                 if !dir.is_dir() {
                     return Err(Error::NotDirectory(dir.clone()));
                 }
                 Ok(Self::new_local_file_provider(signer, dir.clone()).await?)
             }
+            */
             Self::Remote(remote) => {
                 let dir =
                     StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
@@ -116,23 +117,23 @@ impl FromStr for ProviderFactory {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        if s == "local" {
-            Ok(Self::Local)
-        } else {
-            match s.parse::<Url>() {
-                Ok(url) => {
-                    let scheme = url.scheme();
-                    if scheme == "http" || scheme == "https" {
-                        Ok(Self::Remote(url))
-                    } else if scheme == "file" {
-                        let path = s.trim_start_matches("file://");
-                        Ok(Self::Directory(PathBuf::from(path)))
+        match s.parse::<Url>() {
+            Ok(url) => {
+                let scheme = url.scheme();
+                if scheme == "http" || scheme == "https" {
+                    Ok(Self::Remote(url))
+                } else if scheme == "file" {
+                    let path = s.trim_start_matches("file://");
+                    if path.is_empty() {
+                        Ok(Self::Local(None))
                     } else {
-                        Err(Error::InvalidProvider(s.to_string()))
+                        Ok(Self::Local(Some(PathBuf::from(path))))
                     }
+                } else {
+                    Err(Error::InvalidProvider(s.to_string()))
                 }
-                Err(e) => Err(e.into()),
             }
+            Err(e) => Err(e.into()),
         }
     }
 }

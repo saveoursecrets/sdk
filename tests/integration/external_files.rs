@@ -45,7 +45,7 @@ async fn integration_external_files() -> Result<()> {
             .finish()
             .await?;
 
-    let factory = ProviderFactory::Local;
+    let factory = ProviderFactory::Local(None);
     let (mut provider, _) = factory
         .create_provider(new_account.user.signer().clone())
         .await?;

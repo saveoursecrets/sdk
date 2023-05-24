@@ -30,7 +30,7 @@ async fn changes_stream(
 
 /// Start a monitor listening for events on the SSE stream.
 pub async fn run(server: Url, account: AccountRef) -> Result<()> {
-    let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
+    let (owner, _) = sign_in(&account, ProviderFactory::Local(None)).await?;
     let signer = owner.user.identity().signer().clone();
     if let Err(e) = changes_stream(server, signer).await {
         tracing::error!(target: TARGET, "{}", e);
