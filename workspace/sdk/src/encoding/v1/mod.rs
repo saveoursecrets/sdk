@@ -3,6 +3,7 @@ mod crypto;
 mod events;
 mod patch;
 mod rpc;
+mod secret;
 mod signer;
 mod timestamp;
 
