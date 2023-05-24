@@ -102,14 +102,17 @@ impl StorageProvider for LocalProvider {
         Ok((event, passphrase, summary))
     }
 
-    async fn import_vault(&mut self, buffer: Vec<u8>) -> Result<Summary> {
-        self.create_account_with_buffer(buffer).await
-    }
-
-    async fn create_account_with_buffer(
+    async fn import_vault(
         &mut self,
         buffer: Vec<u8>,
-    ) -> Result<Summary> {
+    ) -> Result<(SyncEvent<'static>, Summary)> {
+        self.create_account_from_buffer(buffer).await
+    }
+
+    async fn create_account_from_buffer(
+        &mut self,
+        buffer: Vec<u8>,
+    ) -> Result<(SyncEvent<'static>, Summary)> {
         let vault: Vault = decode(&buffer)?;
         let summary = vault.summary().clone();
 
@@ -123,8 +126,7 @@ impl StorageProvider for LocalProvider {
         // Initialize the local cache for event log and Patch
         self.create_cache_entry(&summary, Some(vault))?;
 
-        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
-        Ok(summary)
+        Ok((SyncEvent::CreateVault(Cow::Owned(buffer)), summary))
     }
 
     async fn handle_change(

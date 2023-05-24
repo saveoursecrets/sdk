@@ -96,11 +96,11 @@ pub trait StorageProvider: Sync + Send {
     ) -> Result<ImportedAccount> {
         // Save the default vault
         let buffer = encode(&account.default_vault)?;
-        let summary = self.create_account_with_buffer(buffer).await?;
+        let (_, summary) = self.create_account_from_buffer(buffer).await?;
 
         let archive = if let Some(archive_vault) = &account.archive {
             let buffer = encode(archive_vault)?;
-            let summary = self.import_vault(buffer).await?;
+            let (_, summary) = self.import_vault(buffer).await?;
             Some(summary)
         } else {
             None
@@ -109,7 +109,7 @@ pub trait StorageProvider: Sync + Send {
         let authenticator =
             if let Some(authenticator_vault) = &account.authenticator {
                 let buffer = encode(authenticator_vault)?;
-                let summary = self.import_vault(buffer).await?;
+                let (_, summary) = self.import_vault(buffer).await?;
                 Some(summary)
             } else {
                 None
@@ -117,7 +117,7 @@ pub trait StorageProvider: Sync + Send {
 
         let contacts = if let Some(contact_vault) = &account.contacts {
             let buffer = encode(contact_vault)?;
-            let summary = self.import_vault(buffer).await?;
+            let (_, summary) = self.import_vault(buffer).await?;
             Some(summary)
         } else {
             None
@@ -284,13 +284,16 @@ pub trait StorageProvider: Sync + Send {
     }
 
     /// Import a vault into an existing account.
-    async fn import_vault(&mut self, buffer: Vec<u8>) -> Result<Summary>;
-
-    /// Create a new account using the given vault buffer.
-    async fn create_account_with_buffer(
+    async fn import_vault(
         &mut self,
         buffer: Vec<u8>,
-    ) -> Result<Summary>;
+    ) -> Result<(SyncEvent<'static>, Summary)>;
+
+    /// Create a new account using the given vault buffer.
+    async fn create_account_from_buffer(
+        &mut self,
+        buffer: Vec<u8>,
+    ) -> Result<(SyncEvent<'static>, Summary)>;
 
     /// Create a new account or vault.
     async fn create_vault_or_account(

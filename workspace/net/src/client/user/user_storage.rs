@@ -494,7 +494,7 @@ impl UserStorage {
         let summary = vault.summary().clone();
 
         // Import the vault
-        self.storage.import_vault(buffer).await?;
+        let (event, _) = self.storage.import_vault(buffer).await?;
 
         // If we are overwriting then we must remove the existing
         // vault passphrase so we can save it using the passphrase
@@ -529,6 +529,13 @@ impl UserStorage {
 
         // Ensure the imported secrets are in the search index
         self.index.add_folder_to_search_index(vault, passphrase)?;
+
+        let audit_event = AuditEvent::from_sync_event(
+            &event,
+            self.user.identity().address(),
+            summary.id(),
+        );
+        self.append_audit_logs(&[audit_event]).await?;
 
         Ok(summary)
     }
