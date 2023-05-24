@@ -1025,14 +1025,14 @@ impl UserStorage {
             macos::MacPasswordCsv, one_password::OnePasswordCsv,
         };
 
-        match target.format {
+        let (event, summary) = match target.format {
             ImportFormat::OnePasswordCsv => {
                 self.import_csv(
                     target.path,
                     target.folder_name,
                     OnePasswordCsv,
                 )
-                .await
+                .await?
             }
             ImportFormat::DashlaneZip => {
                 self.import_csv(
@@ -1040,11 +1040,11 @@ impl UserStorage {
                     target.folder_name,
                     DashlaneCsvZip,
                 )
-                .await
+                .await?
             }
             ImportFormat::BitwardenCsv => {
                 self.import_csv(target.path, target.folder_name, BitwardenCsv)
-                    .await
+                    .await?
             }
             ImportFormat::ChromeCsv => {
                 self.import_csv(
@@ -1052,7 +1052,7 @@ impl UserStorage {
                     target.folder_name,
                     ChromePasswordCsv,
                 )
-                .await
+                .await?
             }
             ImportFormat::FirefoxCsv => {
                 self.import_csv(
@@ -1060,7 +1060,7 @@ impl UserStorage {
                     target.folder_name,
                     FirefoxPasswordCsv,
                 )
-                .await
+                .await?
             }
             ImportFormat::MacosCsv => {
                 self.import_csv(
@@ -1068,9 +1068,18 @@ impl UserStorage {
                     target.folder_name,
                     MacPasswordCsv,
                 )
-                .await
+                .await?
             }
-        }
+        };
+
+        let audit_event = AuditEvent::from_sync_event(
+            &event,
+            self.user.identity().address(),
+            summary.id(),
+        );
+        self.append_audit_logs(&[audit_event]).await?;
+
+        Ok(summary)
     }
 
     /// Generic CSV import implementation.
@@ -1080,7 +1089,7 @@ impl UserStorage {
         path: P,
         folder_name: String,
         converter: impl Convert<Input = PathBuf>,
-    ) -> Result<Summary> {
+    ) -> Result<(SyncEvent<'static>, Summary)> {
         let vaults = LocalAccounts::list_local_vaults(
             self.user.identity().address(),
             false,
@@ -1108,7 +1117,7 @@ impl UserStorage {
         )?;
 
         let buffer = encode(&vault)?;
-        self.storage.import_vault(buffer).await?;
+        let (event, summary) = self.storage.import_vault(buffer).await?;
 
         DelegatedPassphrase::save_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
@@ -1116,13 +1125,11 @@ impl UserStorage {
             vault_passphrase.clone(),
         )?;
 
-        let summary = vault.summary().clone();
-
         // Ensure the imported secrets are in the search index
         self.index_mut()
             .add_folder_to_search_index(vault, vault_passphrase)?;
 
-        Ok(summary)
+        Ok((event, summary))
     }
 
     /// Get an avatar JPEG image for a contact in the current
@@ -1173,9 +1180,9 @@ impl UserStorage {
         &mut self,
         path: P,
     ) -> Result<()> {
-        let summaries = self.list_folders().await?;
-        let contacts = summaries.iter().find(|s| s.flags().is_contact());
-        let contacts = contacts.ok_or_else(|| Error::NoContactsFolder)?;
+        let contacts = self
+            .contacts_folder()
+            .ok_or_else(|| Error::NoContactsFolder)?;
 
         let contacts_passphrase = DelegatedPassphrase::find_vault_passphrase(
             self.user.identity().keeper(),
@@ -1204,14 +1211,18 @@ impl UserStorage {
     }
 
     /// Import vCards from a string buffer.
-    ///
-    /// The contacts folder should already be the current open folder.
     #[cfg(feature = "contacts")]
     pub async fn import_vcard(
         &mut self,
         content: &str,
         progress: impl Fn(ContactImportProgress),
     ) -> Result<()> {
+        let current = self.storage.current().map(|g| g.summary().clone());
+        let contacts = self
+            .contacts_folder()
+            .ok_or_else(|| Error::NoContactsFolder)?;
+        self.open_folder(&contacts).await?;
+
         use sos_sdk::vcard4::parse;
         let cards = parse(content)?;
 
@@ -1235,7 +1246,18 @@ impl UserStorage {
             });
 
             let meta = SecretMeta::new(label, secret.kind());
-            self.storage.create_secret(meta, secret).await?;
+
+            let event = self.storage.create_secret(meta, secret).await?;
+            let audit_event = AuditEvent::from_sync_event(
+                &event,
+                self.user.identity().address(),
+                contacts.id(),
+            );
+            self.append_audit_logs(&[audit_event]).await?;
+        }
+
+        if let Some(folder) = current {
+            self.open_folder(&folder).await?;
         }
 
         Ok(())
