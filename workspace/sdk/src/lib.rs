@@ -15,6 +15,7 @@ pub mod account;
 pub mod commit;
 pub mod constants;
 pub mod crypto;
+mod encoding;
 mod error;
 pub mod events;
 pub mod formats;
