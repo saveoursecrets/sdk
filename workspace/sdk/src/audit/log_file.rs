@@ -8,7 +8,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use crate::{
     constants::AUDIT_IDENTITY,
     formats::{audit_iter, FileItem, FileRecord, ReadStreamIterator},
-    Result,
+    vfs, Result,
 };
 
 use super::{AuditEvent, AuditProvider};
@@ -25,10 +25,9 @@ pub struct AuditLogFile {
 
 impl AuditLogFile {
     /// Create an audit log file.
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        let file = AuditLogFile::create(path.as_ref())?;
-        let file = File::from_std(file);
+        let file = AuditLogFile::create(path.as_ref()).await?;
         Ok(Self { file, file_path })
     }
 
@@ -40,22 +39,23 @@ impl AuditLogFile {
     }
 
     /// Create the file used to store audit logs.
-    fn create<P: AsRef<Path>>(path: P) -> Result<std::fs::File> {
+    async fn create<P: AsRef<Path>>(path: P) -> Result<vfs::File> {
         let exists = path.as_ref().exists();
 
         if !exists {
-            let file = std::fs::File::create(path.as_ref())?;
+            let file = vfs::File::create(path.as_ref()).await?;
             drop(file);
         }
 
-        let mut file = std::fs::OpenOptions::new()
+        let mut file = vfs::OpenOptions::new()
             .write(true)
             .append(true)
-            .open(path.as_ref())?;
+            .open(path.as_ref())
+            .await?;
 
-        let size = file.metadata()?.len();
+        let size = file.metadata().await?.len();
         if size == 0 {
-            file.write_all(&AUDIT_IDENTITY)?;
+            file.write_all(&AUDIT_IDENTITY).await?;
         }
 
         Ok(file)

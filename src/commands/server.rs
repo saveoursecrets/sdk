@@ -53,7 +53,7 @@ pub async fn run(
     );
 
     // Set up the audit log
-    let audit_log = AuditLogFile::new(&audit_log_file)?;
+    let audit_log = AuditLogFile::new(&audit_log_file).await?;
 
     let state = Arc::new(RwLock::new(State {
         info: ServerInfo { name, version },

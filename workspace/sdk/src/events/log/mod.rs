@@ -298,8 +298,7 @@ mod test {
 
     #[test]
     fn event_log_file_load() -> Result<()> {
-        let path =
-            PathBuf::from("../../tests/fixtures/simple-vault.sos");
+        let path = PathBuf::from("../../tests/fixtures/simple-vault.sos");
         let event_log = EventLogFile::new(path)?;
         let it = event_log.iter()?;
         for record in it {

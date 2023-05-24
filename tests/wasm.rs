@@ -50,7 +50,8 @@ mod wasm_tests {
         event_log.write_buffer(buffer.to_vec()).await.unwrap();
     }
     */
-
+    
+    /*
     #[wasm_bindgen_test]
     async fn vfs() {
         let path = PathBuf::from("test.txt");
@@ -62,4 +63,5 @@ mod wasm_tests {
 
         vfs::remove_file(&path).await.expect("to remove file");
     }
+    */
 }

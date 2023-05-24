@@ -45,7 +45,7 @@ pub enum Command {
     },
 }
 
-pub fn run(cmd: Command) -> Result<()> {
+pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::Logs {
             audit_log,
@@ -54,21 +54,21 @@ pub fn run(cmd: Command) -> Result<()> {
             reverse,
             count,
         } => {
-            logs(audit_log, json, address, reverse, count)?;
+            logs(audit_log, json, address, reverse, count).await?;
         }
         Command::Monitor {
             audit_log,
             json,
             address,
         } => {
-            monitor(audit_log, json, address)?;
+            monitor(audit_log, json, address).await?;
         }
     }
     Ok(())
 }
 
 /// Monitor changes in an audit log file.
-pub fn monitor(
+pub async fn monitor(
     audit_log: PathBuf,
     json: bool,
     address: Vec<Address>,
@@ -78,7 +78,7 @@ pub fn monitor(
     }
 
     // File for iterating
-    let log_file = AuditLogFile::new(&audit_log)?;
+    let log_file = AuditLogFile::new(&audit_log).await?;
 
     // File for reading event data
     let mut file = File::open(&audit_log)?;
@@ -113,7 +113,7 @@ pub fn monitor(
 }
 
 /// Print events in an audit log file.
-fn logs(
+async fn logs(
     audit_log: PathBuf,
     json: bool,
     address: Vec<Address>,
@@ -125,7 +125,7 @@ fn logs(
     }
 
     // File for iterating
-    let log_file = AuditLogFile::new(&audit_log)?;
+    let log_file = AuditLogFile::new(&audit_log).await?;
 
     // File for reading event data
     let mut file = File::open(&audit_log)?;

@@ -66,7 +66,7 @@ impl MockServer {
         backend.handler_mut().set_file_locks(locks)?;
 
         // Set up the audit log
-        let audit_log = AuditLogFile::new(config.audit_file())?;
+        let audit_log = AuditLogFile::new(config.audit_file()).await?;
 
         let state = Arc::new(RwLock::new(State {
             info: ServerInfo {

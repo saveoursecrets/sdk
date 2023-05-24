@@ -138,7 +138,8 @@ impl AccountBuilder {
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault)?;
-        let user = Identity::login_buffer(buffer, passphrase.clone(), None, None)?;
+        let user =
+            Identity::login_buffer(buffer, passphrase.clone(), None, None)?;
 
         // Prepare the passphrase for the default vault
         let vault_passphrase =
@@ -201,8 +202,7 @@ impl AccountBuilder {
                 user_data: UserData::new_comment(address.to_string()),
             };
             let mut meta =
-                SecretMeta::new(
-                    "File Encryption".to_string(), secret.kind());
+                SecretMeta::new("File Encryption".to_string(), secret.kind());
             let urn: Urn = FILE_PASSWORD_URN.parse()?;
             meta.set_urn(Some(urn));
             keeper.create(meta, secret)?;

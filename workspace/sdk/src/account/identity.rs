@@ -144,7 +144,12 @@ impl Identity {
         let vault_file = VaultWriter::open(file.as_ref())?;
         let mirror = VaultWriter::new(file.as_ref(), vault_file)?;
         let buffer = vfs::read(file.as_ref()).await?;
-        Identity::login_buffer(buffer, master_passphrase, search_index, Some(mirror))
+        Identity::login_buffer(
+            buffer,
+            master_passphrase,
+            search_index,
+            Some(mirror),
+        )
     }
 
     /// Attempt to login using a buffer.
@@ -267,7 +272,8 @@ mod tests {
         vault.initialize(master_passphrase.clone(), None)?;
         let buffer = encode(&vault)?;
 
-        let result = Identity::login_buffer(buffer, master_passphrase, None, None);
+        let result =
+            Identity::login_buffer(buffer, master_passphrase, None, None);
         if let Err(Error::NotIdentityVault) = result {
             Ok(())
         } else {
@@ -284,7 +290,8 @@ mod tests {
         vault.initialize(master_passphrase.clone(), None)?;
         let buffer = encode(&vault)?;
 
-        let result = Identity::login_buffer(buffer, master_passphrase, None, None);
+        let result =
+            Identity::login_buffer(buffer, master_passphrase, None, None);
         if let Err(Error::NoSecretUrn(_, _)) = result {
             Ok(())
         } else {
@@ -318,7 +325,8 @@ mod tests {
         let vault: Vault = keeper.into();
         let buffer = encode(&vault)?;
 
-        let result = Identity::login_buffer(buffer, master_passphrase, None, None);
+        let result =
+            Identity::login_buffer(buffer, master_passphrase, None, None);
         if let Err(Error::WrongSecretKind(_, _)) = result {
             Ok(())
         } else {

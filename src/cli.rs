@@ -156,7 +156,7 @@ pub async fn run() -> Result<()> {
         Command::Device { cmd } => device::run(cmd, factory).await?,
         Command::Folder { cmd } => folder::run(cmd, factory).await?,
         Command::Secret { cmd } => secret::run(cmd, factory).await?,
-        Command::Audit { cmd } => audit::run(cmd)?,
+        Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Changes { server, account } => {
             changes::run(server, account).await?
         }
