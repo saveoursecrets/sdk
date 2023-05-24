@@ -12,4 +12,4 @@ pub use vault::{
     VaultId, VaultMeta, VaultRef,
 };
 
-pub(crate) use vault::Contents;
+pub(crate) use vault::{Auth, Contents};
