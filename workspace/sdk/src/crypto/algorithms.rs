@@ -1,12 +1,10 @@
 //! Constants for supported symmetric ciphers.
 use crate::Error;
-use binary_stream::{
-    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-};
+
 use std::{
     convert::AsRef,
     fmt,
-    io::{Read, Seek, Write},
+    io::{Write},
     str::FromStr,
 };
 
@@ -94,4 +92,3 @@ impl Default for Algorithm {
         Self::XChaCha20Poly1305(X_CHACHA20_POLY1305)
     }
 }
-
