@@ -56,9 +56,6 @@ mod headers {
 
 /// Constants for vaults.
 mod vault {
-    /// Vault version identifier.
-    pub const VAULT_VERSION: u16 = 0;
-
     /// Default public name for a vault.
     pub const DEFAULT_VAULT_NAME: &str = "Documents";
 

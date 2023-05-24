@@ -23,12 +23,13 @@ use uuid::Uuid;
 
 use crate::{
     commit::CommitHash,
-    constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY, VAULT_VERSION},
+    constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
     crypto::{
         aesgcm256,
         secret_key::{SecretKey, Seed, SEED_SIZE},
         xchacha20poly1305, AeadPack, Algorithm, Nonce, ALGORITHMS,
     },
+    encoding::v1::VERSION,
     decode, encode,
     events::SyncEvent,
     formats::FileIdentity,
@@ -434,7 +435,7 @@ impl fmt::Display for Summary {
 impl Default for Summary {
     fn default() -> Self {
         Self {
-            version: VAULT_VERSION,
+            version: VERSION,
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -452,7 +453,7 @@ impl Summary {
         flags: VaultFlags,
     ) -> Self {
         Self {
-            version: VAULT_VERSION,
+            version: VERSION,
             algorithm,
             id,
             name,
