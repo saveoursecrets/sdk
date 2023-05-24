@@ -1,3 +1,5 @@
+mod commit;
+mod crypto;
 mod patch;
 mod rpc;
 mod timestamp;

@@ -1,11 +1,6 @@
 //! Patch represents a changeset of events to apply to a vault.
 
-
-use crate::{
-    events::SyncEvent,
-};
-
-
+use crate::events::SyncEvent;
 
 mod file;
 pub use file::PatchFile;

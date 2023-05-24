@@ -2,13 +2,9 @@ use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 
-use std::{
-    io::{Read, Seek, Write},
-};
+use std::io::{Read, Seek, Write};
 
-use time::{
-    Duration, OffsetDateTime,
-};
+use time::{Duration, OffsetDateTime};
 
 use crate::Timestamp;
 

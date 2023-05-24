@@ -13,10 +13,7 @@ use sos_sdk::{
     constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
     crypto::secret_key::SecretKey,
     decode, encode,
-    events::{
-        AuditLogFile, ChangeAction,
-        ChangeNotification, SyncEvent,
-    },
+    events::{AuditLogFile, ChangeAction, ChangeNotification, SyncEvent},
     passwd::ChangePassword,
     search::SearchIndex,
     storage::StorageDirs,

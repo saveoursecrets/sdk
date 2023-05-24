@@ -8,9 +8,7 @@ use crate::{Error, Result};
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
-use std::{
-    borrow::Cow,
-};
+use std::borrow::Cow;
 
 use async_trait::async_trait;
 

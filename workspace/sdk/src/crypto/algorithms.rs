@@ -95,31 +95,3 @@ impl Default for Algorithm {
     }
 }
 
-impl Encode for Algorithm {
-    fn encode<W: Write + Seek>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
-        writer.write_u8(*self.as_ref())?;
-        Ok(())
-    }
-}
-
-impl Decode for Algorithm {
-    fn decode<R: Read + Seek>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
-        let id = reader.read_u8()?;
-        *self = match id {
-            X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305(id),
-            AES_GCM_256 => Algorithm::AesGcm256(id),
-            _ => {
-                return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownAlgorithm(id),
-                )));
-            }
-        };
-        Ok(())
-    }
-}

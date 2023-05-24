@@ -4,10 +4,7 @@
 //! a u32 nanosecond offset from the second.
 
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt,
-    io::{Write},
-};
+use std::{fmt, io::Write};
 
 use filetime::FileTime;
 
