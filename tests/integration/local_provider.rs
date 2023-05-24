@@ -123,8 +123,6 @@ async fn integration_local_provider_file() -> Result<()> {
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
     let dirs = StorageDirs::new(dir.path(), &user_id);
-    dirs.ensure().await?;
-
     let mut storage = LocalProvider::new(dirs).await?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())

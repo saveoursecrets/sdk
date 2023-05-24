@@ -59,6 +59,8 @@ impl LocalProvider {
             ));
         }
 
+        dirs.ensure().await?;
+
         let audit_log = Arc::new(RwLock::new(
             AuditLogFile::new(dirs.audit_file()).await?,
         ));
@@ -253,11 +255,6 @@ impl StorageProvider for LocalProvider {
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-        // FIXME: remove this
-        // Store events in a patch file so networking
-        // logic can see which events need to be synced
-        let _patch = patch_file.append(events.clone())?;
 
         // Apply events to the event log file
         event_log.apply(events, None)?;

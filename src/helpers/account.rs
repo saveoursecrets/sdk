@@ -330,7 +330,6 @@ pub async fn new_account(
         let (mut provider, _) = factory
             .create_provider(new_account.user.signer().clone())
             .await?;
-        provider.dirs().ensure().await?;
         provider.authenticate().await?;
 
         let _ = provider.import_new_account(&new_account).await?;

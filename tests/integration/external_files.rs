@@ -49,7 +49,6 @@ async fn integration_external_files() -> Result<()> {
     let (mut provider, _) = factory
         .create_provider(new_account.user.signer().clone())
         .await?;
-    provider.dirs().ensure().await?;
 
     let imported_account = provider.import_new_account(&new_account).await?;
     let NewAccount { address, .. } = new_account;

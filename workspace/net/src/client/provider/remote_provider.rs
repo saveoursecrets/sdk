@@ -69,6 +69,8 @@ impl RemoteProvider {
             ));
         }
 
+        dirs.ensure().await?;
+
         let audit_log = Arc::new(RwLock::new(
             AuditLogFile::new(dirs.audit_file()).await?,
         ));

@@ -53,7 +53,6 @@ async fn integration_account_manager() -> Result<()> {
     let (mut provider, _) = factory
         .create_provider(new_account.user.signer().clone())
         .await?;
-    provider.dirs().ensure().await?;
 
     let imported_account = provider.import_new_account(&new_account).await?;
 
@@ -147,7 +146,6 @@ async fn integration_account_manager() -> Result<()> {
     let (mut provider, _) = factory
         .create_provider(user.identity().signer().clone())
         .await?;
-    provider.dirs().ensure().await?;
 
     let options = RestoreOptions {
         selected: vaults.clone().into_iter().map(|v| v.0).collect(),

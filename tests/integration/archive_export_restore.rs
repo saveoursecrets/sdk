@@ -52,7 +52,6 @@ async fn integration_archive_local_provider() -> Result<()> {
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
     let dirs = StorageDirs::new(dir.path(), &user_id);
-    dirs.ensure().await?;
     let passphrase = SecretString::new("mock-password".to_owned());
     let mut storage = LocalProvider::new(dirs).await?;
 
