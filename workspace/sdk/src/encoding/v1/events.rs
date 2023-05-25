@@ -204,6 +204,7 @@ impl Encode for AuditData {
     }
 }
 
+/*
 impl Encode for ReadEvent {
     fn encode<W: Write + Seek>(
         &self,
@@ -250,6 +251,7 @@ impl Decode for ReadEvent {
         Ok(())
     }
 }
+*/
 
 impl<'a> Encode for WriteEvent<'a> {
     fn encode<W: Write + Seek>(
