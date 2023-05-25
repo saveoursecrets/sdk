@@ -1,7 +1,7 @@
 //! Error type for the client module.
 use sos_sdk::{
     commit::CommitHash,
-    events::Event,
+    events::WriteEvent,
     vault::{secret::SecretId, Summary},
 };
 use std::path::PathBuf;
@@ -111,7 +111,7 @@ pub enum Error {
         /// Commit hash of the remote event log.
         remote: (CommitHash, usize),
         /// Events that can be applied after a pull.
-        events: Vec<Event<'static>>,
+        events: Vec<WriteEvent<'static>>,
     },
 
     /// Error generated when a conflict is detected that may be

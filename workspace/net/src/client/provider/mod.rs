@@ -13,7 +13,7 @@ use sos_sdk::{
     constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
     crypto::secret_key::SecretKey,
     decode, encode,
-    events::{AuditLogFile, ChangeAction, ChangeNotification, Event},
+    events::{AuditLogFile, ChangeAction, ChangeNotification, Event, WriteEvent, ReadEvent},
     passwd::ChangePassword,
     search::SearchIndex,
     storage::StorageDirs,
@@ -150,7 +150,7 @@ pub trait StorageProvider: Sync + Send {
         for (buffer, vault) in vaults {
             // Prepare a fresh log of event log events
             let mut event_log_events = Vec::new();
-            let create_vault = Event::CreateVault(Cow::Borrowed(buffer));
+            let create_vault = WriteEvent::CreateVault(Cow::Borrowed(buffer));
             event_log_events.push(create_vault);
 
             self.update_vault(vault.summary(), vault, event_log_events)
@@ -210,14 +210,14 @@ pub trait StorageProvider: Sync + Send {
     fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(CommitHash, Timestamp, Event<'_>)>>;
+    ) -> Result<Vec<(CommitHash, Timestamp, WriteEvent<'_>)>>;
 
     /// Update an existing vault by replacing it with a new vault.
     async fn update_vault<'a>(
         &mut self,
         summary: &Summary,
         vault: &Vault,
-        events: Vec<Event<'a>>,
+        events: Vec<WriteEvent<'a>>,
     ) -> Result<()>;
 
     /// Compact a event log file.
@@ -268,7 +268,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         name: Option<String>,
         passphrase: Option<SecretString>,
-    ) -> Result<(Event<'static>, SecretString, Summary)> {
+    ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
         self.create_vault_or_account(name, passphrase, true).await
     }
 
@@ -277,7 +277,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         name: String,
         passphrase: Option<SecretString>,
-    ) -> Result<(Event<'static>, SecretString, Summary)> {
+    ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
         self.create_vault_or_account(Some(name), passphrase, false)
             .await
     }
@@ -286,13 +286,13 @@ pub trait StorageProvider: Sync + Send {
     async fn import_vault(
         &mut self,
         buffer: Vec<u8>,
-    ) -> Result<(Event<'static>, Summary)>;
+    ) -> Result<(WriteEvent<'static>, Summary)>;
 
     /// Create a new account using the given vault buffer.
     async fn create_account_from_buffer(
         &mut self,
         buffer: Vec<u8>,
-    ) -> Result<(Event<'static>, Summary)>;
+    ) -> Result<(WriteEvent<'static>, Summary)>;
 
     /// Create a new account or vault.
     async fn create_vault_or_account(
@@ -300,13 +300,13 @@ pub trait StorageProvider: Sync + Send {
         name: Option<String>,
         passphrase: Option<SecretString>,
         _is_account: bool,
-    ) -> Result<(Event<'static>, SecretString, Summary)>;
+    ) -> Result<(WriteEvent<'static>, SecretString, Summary)>;
 
     /// Remove a vault.
     async fn remove_vault(
         &mut self,
         summary: &Summary,
-    ) -> Result<Event<'static>>;
+    ) -> Result<WriteEvent<'static>>;
 
     /// Load vault summaries.
     async fn load_vaults(&mut self) -> Result<&[Summary]>;
@@ -316,7 +316,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         summary: &Summary,
         name: &str,
-    ) -> Result<Event<'static>>;
+    ) -> Result<WriteEvent<'static>>;
 
     /// Load a vault, unlock it and set it as the current vault.
     async fn open_vault(
@@ -324,7 +324,7 @@ pub trait StorageProvider: Sync + Send {
         summary: &Summary,
         passphrase: SecretString,
         index: Option<std::sync::Arc<parking_lot::RwLock<SearchIndex>>>,
-    ) -> Result<Event<'static>> {
+    ) -> Result<ReadEvent> {
         let vault_path = self.vault_path(summary);
         let vault = if self.state().mirror() {
             if !vault_path.exists() {
@@ -343,7 +343,7 @@ pub trait StorageProvider: Sync + Send {
 
         self.state_mut()
             .open_vault(passphrase, vault, vault_path, index)?;
-        Ok(Event::ReadVault)
+        Ok(ReadEvent::ReadVault)
     }
 
     /// Load a vault by reducing it from the event log stored on disc.
@@ -355,7 +355,7 @@ pub trait StorageProvider: Sync + Send {
     async fn patch(
         &mut self,
         summary: &Summary,
-        events: Vec<Event<'static>>,
+        events: Vec<WriteEvent<'static>>,
     ) -> Result<()>;
 
     /// Close the currently selected vault.
@@ -666,7 +666,7 @@ macro_rules! provider_impl {
         fn history(
             &self,
             summary: &Summary,
-        ) -> Result<Vec<(CommitHash, Timestamp, Event<'_>)>> {
+        ) -> Result<Vec<(CommitHash, Timestamp, WriteEvent<'_>)>> {
             let (event_log, _) = self
                 .cache
                 .get(summary.id())

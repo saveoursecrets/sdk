@@ -7,7 +7,7 @@ use sos_sdk::{
     decode,
     events::{
         AuditData, AuditEvent, ChangeEvent, ChangeNotification, EventKind,
-        Event,
+        Event, WriteEvent,
     },
     patch::Patch,
     rpc::{RequestMessage, ResponseMessage, Service},
@@ -240,7 +240,7 @@ impl Service for EventLogService {
                             // as well so summary listings are kept up to date
                             let vault_name =
                                 change_set.iter().find_map(|event| {
-                                    if let Event::SetVaultName(name) =
+                                    if let WriteEvent::SetVaultName(name) =
                                         event
                                     {
                                         Some(name.to_string())

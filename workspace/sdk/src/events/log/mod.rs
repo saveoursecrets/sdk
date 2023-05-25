@@ -80,7 +80,6 @@ mod test {
 
     fn mock_event_log_standalone() -> Result<(EventLogFile, SecretId)> {
         let path = PathBuf::from(MOCK_LOG);
-
         if path.exists() {
             std::fs::remove_file(&path)?;
         }
@@ -92,8 +91,7 @@ mod test {
         let (id, data) = mock_secret()?;
 
         // Create a simple event log
-        let mut server =
-            EventLogFile::new(MOCK_LOG)?;
+        let mut server = EventLogFile::new(path)?;
         server.apply(
             vec![
                 WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
@@ -229,7 +227,7 @@ mod test {
 
         Ok(())
     }
-    
+
     #[test]
     fn event_log_file_load() -> Result<()> {
         mock_event_log_standalone()?;

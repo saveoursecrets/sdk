@@ -139,7 +139,7 @@ impl PatchFile {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{test_utils::*, events::Event};
+    use crate::{events::Event, test_utils::*};
     use anyhow::Result;
     use tempfile::NamedTempFile;
 

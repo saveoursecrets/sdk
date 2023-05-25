@@ -1,9 +1,7 @@
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
-use std::{
-    io::{Read, Seek, Write},
-};
+use std::io::{Read, Seek, Write};
 
 use rs_merkle::{algorithms::Sha256, MerkleProof};
 

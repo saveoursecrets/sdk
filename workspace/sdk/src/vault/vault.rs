@@ -28,7 +28,7 @@ use crate::{
     },
     decode, encode,
     encoding::v1::VERSION,
-    events::{Event, WriteEvent, ReadEvent},
+    events::{Event, ReadEvent, WriteEvent},
     formats::FileIdentity,
     passwd::diceware::generate_passphrase,
     vault::secret::SecretId,
@@ -390,7 +390,7 @@ impl Header {
             auth: Default::default(),
         }
     }
-    
+
     /// Get the vault identifier.
     pub fn id(&self) -> &VaultId {
         self.summary.id()

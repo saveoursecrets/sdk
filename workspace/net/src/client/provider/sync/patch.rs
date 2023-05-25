@@ -4,7 +4,7 @@ use crate::client::net::{MaybeRetry, RpcClient};
 use http::StatusCode;
 
 use sos_sdk::{
-    commit::CommitHash, events::EventLogFile, events::Event,
+    commit::CommitHash, events::EventLogFile, events::WriteEvent,
     patch::PatchFile, vault::Summary,
 };
 
@@ -16,7 +16,7 @@ pub async fn patch(
     summary: &Summary,
     event_log_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
-    events: Vec<Event<'static>>,
+    events: Vec<WriteEvent<'static>>,
 ) -> Result<()> {
     let status =
         apply_patch(client, summary, event_log_file, patch_file, events)
@@ -34,7 +34,7 @@ pub(crate) async fn apply_patch(
     summary: &Summary,
     event_log_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
-    events: Vec<Event<'static>>,
+    events: Vec<WriteEvent<'static>>,
 ) -> Result<StatusCode> {
     let patch = patch_file.append(events)?;
 

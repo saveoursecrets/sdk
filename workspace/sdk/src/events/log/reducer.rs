@@ -160,7 +160,7 @@ mod test {
         commit::CommitHash,
         crypto::secret_key::SecretKey,
         decode,
-        events::{EventLogFile, Event, WriteEvent},
+        events::{Event, EventLogFile, WriteEvent},
         test_utils::*,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
@@ -187,7 +187,10 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = Event::Write(*vault.id(), WriteEvent::CreateVault(Cow::Owned(buffer)));
+        let event = Event::Write(
+            *vault.id(),
+            WriteEvent::CreateVault(Cow::Owned(buffer)),
+        );
         if let Event::Write(_, event) = event {
             commits.push(event_log.append_event(event)?);
         }

@@ -65,7 +65,9 @@ impl<'a> ChangePassword<'a> {
     /// Yields the encrpytion passphrase for the new vault, the
     /// new computed vault and a collection of events that can
     /// be used to generate a fresh write-ahead log file.
-    pub fn build(self) -> Result<(SecretString, Vault, Vec<WriteEvent<'static>>)> {
+    pub fn build(
+        self,
+    ) -> Result<(SecretString, Vault, Vec<WriteEvent<'static>>)> {
         // Decrypt current vault meta data blob
         let current_private_key = self.current_private_key()?;
         let vault_meta_aead =
@@ -131,7 +133,6 @@ impl<'a> ChangePassword<'a> {
             } else {
                 unreachable!();
             }
-
         }
 
         event_log_events.sort();

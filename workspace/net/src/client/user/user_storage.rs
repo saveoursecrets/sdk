@@ -13,7 +13,7 @@ use sos_sdk::{
         RestoreOptions,
     },
     decode, encode,
-    events::{AuditEvent, AuditProvider, Event},
+    events::{AuditEvent, AuditProvider, Event, WriteEvent},
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     storage::StorageDirs,
@@ -304,12 +304,12 @@ impl UserStorage {
             summary.id(),
             passphrase,
         )?;
-
-        let audit_event = AuditEvent::from_sync_event(
-            &event,
+    
+        let event = Event::Write(*summary.id(), event);
+        let audit_event: AuditEvent = (
             self.user.identity().address(),
-            summary.id(),
-        );
+            &event,
+        ).into();
         self.append_audit_logs(&[audit_event]).await?;
 
         Ok(summary)
@@ -324,12 +324,12 @@ impl UserStorage {
         )?;
         self.index.remove_folder_from_search_index(summary.id());
         self.delete_folder_files(summary).await?;
-
-        let audit_event = AuditEvent::from_sync_event(
-            &event,
+        
+        let event = Event::Write(*summary.id(), event);
+        let audit_event: AuditEvent = (
             self.user.identity().address(),
-            summary.id(),
-        );
+            &event,
+        ).into();
         self.append_audit_logs(&[audit_event]).await?;
 
         Ok(())
@@ -357,11 +357,11 @@ impl UserStorage {
         let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name)?;
 
-        let audit_event = AuditEvent::from_sync_event(
-            &event,
+        let event = Event::Write(*summary.id(), event);
+        let audit_event: AuditEvent = (
             self.user.identity().address(),
-            summary.id(),
-        );
+            &event,
+        ).into();
         self.append_audit_logs(&[audit_event]).await?;
 
         Ok(())
@@ -558,12 +558,12 @@ impl UserStorage {
             .storage
             .open_vault(summary, passphrase, Some(index))
             .await?;
+        let event = Event::Read(*summary.id(), event);
 
-        let audit_event = AuditEvent::from_sync_event(
-            &event,
+        let audit_event: AuditEvent = (
             self.user.identity().address(),
-            summary.id(),
-        );
+            &event,
+        ).into();
         self.append_audit_logs(&[audit_event]).await?;
 
         Ok(())
@@ -587,13 +587,13 @@ impl UserStorage {
             }
         }
 
-        let event = self
+        let (vault_id, event) = self
             .storage
             .create_secret(meta.clone(), secret.clone())
             .await?
             .into_owned();
 
-        let id = if let Event::CreateSecret(id, _) = &event {
+        let id = if let Event::Write(_, WriteEvent::CreateSecret(id, _)) = &event {
             *id
         } else {
             unreachable!();
@@ -613,12 +613,12 @@ impl UserStorage {
             .ok_or(Error::NoOpenFolder)?;
 
         self.create_files(&current_folder, secret_data).await?;
-
-        let audit_event = AuditEvent::from_sync_event(
-            &event,
+        
+        let event = Event::Write(vault_id, event);
+        let audit_event: AuditEvent = (
             self.user.identity().address(),
-            folder.id(),
-        );
+            &event,
+        ).into();
         self.append_audit_logs(&[audit_event]).await?;
 
         Ok((id, event))
@@ -745,17 +745,17 @@ impl UserStorage {
             }
         }
 
-        let event = self
+        let event: Event<'static> = self
             .storage
             .update_secret(secret_id, secret_data)
             .await?
-            .into_owned();
+            .into_owned()
+            .into();
 
-        let audit_event = AuditEvent::from_sync_event(
-            &event,
+        let audit_event: AuditEvent = (
             self.user.identity().address(),
-            folder.id(),
-        );
+            &event,
+        ).into();
         self.append_audit_logs(&[audit_event]).await?;
 
         Ok(event)

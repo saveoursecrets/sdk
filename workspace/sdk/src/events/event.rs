@@ -32,4 +32,22 @@ impl Event<'_> {
             Self::Write(_, event) => event.event_kind(),
         }
     }
+    
+    /// Convert to an owned write event.
+    ///
+    /// # Panics
+    ///
+    /// If the event is not a write event.
+    pub fn into_owned(self) -> (VaultId, WriteEvent<'static>) {
+        match self {
+            Self::Write(vault_id, event) => (vault_id, event.into_owned()), 
+            _ => panic!("not a write event"),
+        }
+    }
+}
+
+impl From<(VaultId, WriteEvent<'static>)> for Event<'static> {
+    fn from(value: (VaultId, WriteEvent<'static>)) -> Self {
+        Self::Write(value.0, value.1)
+    }
 }

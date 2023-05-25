@@ -5,7 +5,7 @@ use crate::{
         AeadPack,
     },
     decode, encode,
-    events::{Event, WriteEvent, ReadEvent},
+    events::{Event, ReadEvent, WriteEvent},
     search::SearchIndex,
     vault::{
         secret::{Secret, SecretId, SecretMeta},

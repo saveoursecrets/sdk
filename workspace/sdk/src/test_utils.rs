@@ -182,7 +182,6 @@ mod file {
             } else {
                 unreachable!();
             }
-
         }
 
         Ok((temp, event_log, commits, encryption_key))

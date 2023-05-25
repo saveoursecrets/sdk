@@ -526,7 +526,8 @@ impl AccountBackup {
 
                 // Write out the event log file
                 let mut event_log_events = Vec::new();
-                let create_vault = WriteEvent::CreateVault(Cow::Borrowed(buffer));
+                let create_vault =
+                    WriteEvent::CreateVault(Cow::Borrowed(buffer));
                 event_log_events.push(create_vault);
                 let mut event_log = EventLogFile::new(event_log_path)?;
                 event_log.apply(event_log_events, None)?;

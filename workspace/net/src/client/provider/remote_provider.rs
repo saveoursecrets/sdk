@@ -9,7 +9,7 @@ use secrecy::SecretString;
 use sos_sdk::{
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     decode, encode,
-    events::{AuditLogFile, ChangeAction, ChangeNotification, Event},
+    events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent, Event},
     events::{EventLogFile, EventReducer},
     patch::PatchFile,
     storage::StorageDirs,
@@ -94,7 +94,7 @@ impl StorageProvider for RemoteProvider {
         name: Option<String>,
         passphrase: Option<SecretString>,
         is_account: bool,
-    ) -> Result<(Event<'static>, SecretString, Summary)> {
+    ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
         let (passphrase, vault, buffer) =
             Vault::new_buffer(name, passphrase, None)?;
 
@@ -129,14 +129,14 @@ impl StorageProvider for RemoteProvider {
         // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault))?;
 
-        let event = Event::CreateVault(Cow::Owned(buffer));
+        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
         Ok((event, passphrase, summary))
     }
 
     async fn import_vault(
         &mut self,
         buffer: Vec<u8>,
-    ) -> Result<(Event<'static>, Summary)> {
+    ) -> Result<(WriteEvent<'static>, Summary)> {
         let vault: Vault = decode(&buffer)?;
         let summary = vault.summary().clone();
 
@@ -158,13 +158,13 @@ impl StorageProvider for RemoteProvider {
         // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault))?;
 
-        Ok((Event::CreateVault(Cow::Owned(buffer)), summary))
+        Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
     }
 
     async fn create_account_from_buffer(
         &mut self,
         buffer: Vec<u8>,
-    ) -> Result<(Event<'static>, Summary)> {
+    ) -> Result<(WriteEvent<'static>, Summary)> {
         let vault: Vault = decode(&buffer)?;
         let summary = vault.summary().clone();
 
@@ -188,7 +188,7 @@ impl StorageProvider for RemoteProvider {
         // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault))?;
 
-        Ok((Event::CreateVault(Cow::Owned(buffer)), summary))
+        Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
     }
 
     async fn authenticate(&mut self) -> Result<()> {
@@ -235,7 +235,7 @@ impl StorageProvider for RemoteProvider {
     async fn patch(
         &mut self,
         summary: &Summary,
-        events: Vec<Event<'static>>,
+        events: Vec<WriteEvent<'static>>,
     ) -> Result<()> {
         patch!(self, summary, events)?;
         Ok(())
@@ -245,8 +245,8 @@ impl StorageProvider for RemoteProvider {
         &mut self,
         summary: &Summary,
         name: &str,
-    ) -> Result<Event<'static>> {
-        let event = Event::SetVaultName(Cow::Borrowed(name)).into_owned();
+    ) -> Result<WriteEvent<'static>> {
+        let event = WriteEvent::SetVaultName(Cow::Borrowed(name)).into_owned();
         patch!(self, summary, vec![event.clone()])?;
 
         for item in self.state.summaries_mut().iter_mut() {
@@ -260,7 +260,7 @@ impl StorageProvider for RemoteProvider {
     async fn remove_vault(
         &mut self,
         summary: &Summary,
-    ) -> Result<Event<'static>> {
+    ) -> Result<WriteEvent<'static>> {
         // Attempt to delete on the remote server
         let (status, _) =
             retry!(|| self.client.delete_vault(summary.id()), self.client);
@@ -275,7 +275,7 @@ impl StorageProvider for RemoteProvider {
         // Remove local state
         self.remove_local_cache(summary)?;
 
-        Ok(Event::DeleteVault)
+        Ok(WriteEvent::DeleteVault)
     }
 
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
@@ -306,7 +306,7 @@ impl StorageProvider for RemoteProvider {
         &mut self,
         summary: &Summary,
         vault: &Vault,
-        events: Vec<Event<'a>>,
+        events: Vec<WriteEvent<'a>>,
     ) -> Result<()> {
         let (event_log, _) = self
             .cache

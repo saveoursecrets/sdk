@@ -266,7 +266,10 @@ impl EventLogFile {
 
     /// Append a log event to the write ahead log and commit
     /// the hash to the commit tree.
-    pub fn append_event(&mut self, event: WriteEvent<'_>) -> Result<CommitHash> {
+    pub fn append_event(
+        &mut self,
+        event: WriteEvent<'_>,
+    ) -> Result<CommitHash> {
         let (commit, record) = self.encode_event(event, None)?;
         let buffer = encode(&record)?;
         self.file.write_all(&buffer)?;
@@ -276,7 +279,10 @@ impl EventLogFile {
     }
 
     /// Read the event data from an item.
-    pub fn event_data(&self, item: &EventLogFileRecord) -> Result<WriteEvent<'_>> {
+    pub fn event_data(
+        &self,
+        item: &EventLogFileRecord,
+    ) -> Result<WriteEvent<'_>> {
         let value = item.value();
 
         // Use a different file handle as the owned `file` should
@@ -292,7 +298,7 @@ impl EventLogFile {
         let mut stream = Cursor::new(&mut buffer);
         let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         let mut event: WriteEvent = Default::default();
-        
+
         event.decode(&mut reader)?;
         Ok(event)
     }
