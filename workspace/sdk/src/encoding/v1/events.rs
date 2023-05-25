@@ -13,8 +13,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     events::{
-        AuditData, AuditEvent, EventKind, EventRecord, LogFlags, ReadEvent,
-        WriteEvent,
+        AuditData, AuditEvent, EventKind, EventRecord, LogFlags, WriteEvent,
     },
     vault::{secret::SecretId, VaultCommit},
     Timestamp,

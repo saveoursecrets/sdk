@@ -1,19 +1,8 @@
 //! Encoding of all operations.
-use binary_stream::{
-    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-};
-use serde::{Deserialize, Serialize};
-use std::{
-    borrow::Cow,
-    cmp::Ordering,
-    io::{Read, Seek, Write},
-};
 
-use crate::{
-    crypto::AeadPack,
-    vault::{secret::SecretId, VaultCommit, VaultId},
-    Error,
-};
+use serde::{Deserialize, Serialize};
+
+use crate::vault::VaultId;
 
 use super::{EventKind, ReadEvent, WriteEvent};
 

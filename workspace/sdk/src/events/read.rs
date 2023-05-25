@@ -1,8 +1,8 @@
 //! Read operations.
 
-use serde::{Deserialize, Serialize};
-use crate::vault::secret::SecretId;
 use super::EventKind;
+use crate::vault::secret::SecretId;
+use serde::{Deserialize, Serialize};
 
 /// Read operations.
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
