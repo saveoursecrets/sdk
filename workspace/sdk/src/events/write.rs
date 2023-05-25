@@ -109,13 +109,21 @@ impl WriteEvent<'_> {
             WriteEvent::SetVaultMeta(value) => {
                 WriteEvent::SetVaultMeta(Cow::Owned(value.into_owned()))
             }
-            WriteEvent::CreateSecret(id, value) => {
-                WriteEvent::CreateSecret(id, Cow::Owned(value.into_owned()))
+            WriteEvent::CreateSecret(secret_id, value) => {
+                WriteEvent::CreateSecret(
+                    secret_id,
+                    Cow::Owned(value.into_owned()),
+                )
             }
-            WriteEvent::UpdateSecret(id, value) => {
-                WriteEvent::UpdateSecret(id, Cow::Owned(value.into_owned()))
+            WriteEvent::UpdateSecret(secret_id, value) => {
+                WriteEvent::UpdateSecret(
+                    secret_id,
+                    Cow::Owned(value.into_owned()),
+                )
             }
-            WriteEvent::DeleteSecret(id) => WriteEvent::DeleteSecret(id),
+            WriteEvent::DeleteSecret(secret_id) => {
+                WriteEvent::DeleteSecret(secret_id)
+            }
         }
     }
 }

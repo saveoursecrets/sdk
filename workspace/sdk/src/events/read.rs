@@ -1,9 +1,7 @@
 //! Read operations.
 
 use serde::{Deserialize, Serialize};
-
 use crate::vault::secret::SecretId;
-
 use super::EventKind;
 
 /// Read operations.
