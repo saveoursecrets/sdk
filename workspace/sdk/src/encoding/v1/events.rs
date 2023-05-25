@@ -4,12 +4,19 @@ use binary_stream::{
     BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
 
-use std::io::{Read, Seek, Write};
+use std::{
+    borrow::Cow,
+    io::{Read, Seek, Write},
+};
 
 use crate::{
     commit::CommitHash,
-    events::{AuditData, AuditEvent, EventKind, EventRecord, LogFlags, ReadEvent},
-    vault::secret::SecretId,
+    crypto::AeadPack,
+    events::{
+        AuditData, AuditEvent, EventKind, EventRecord, LogFlags, ReadEvent,
+        WriteEvent,
+    },
+    vault::{secret::SecretId, VaultCommit},
     Timestamp,
 };
 
@@ -233,6 +240,118 @@ impl Decode for ReadEvent {
                     reader.read_bytes(16)?.as_slice().try_into()?,
                 );
                 *self = ReadEvent::ReadSecret(id);
+            }
+            _ => {
+                return Err(BinaryError::Boxed(Box::from(
+                    Error::UnknownEventKind((&op).into()),
+                )))
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'a> Encode for WriteEvent<'a> {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
+        let op = self.event_kind();
+        op.encode(&mut *writer)?;
+
+        match self {
+            WriteEvent::Noop => {
+                panic!("WriteEvent: attempt to encode a noop")
+            }
+            WriteEvent::CreateVault(vault)
+            | WriteEvent::UpdateVault(vault) => {
+                writer.write_u32(vault.as_ref().len() as u32)?;
+                writer.write_bytes(vault.as_ref())?;
+            }
+            WriteEvent::DeleteVault => {}
+            WriteEvent::SetVaultName(name) => {
+                writer.write_string(name)?;
+            }
+            WriteEvent::SetVaultMeta(meta) => {
+                writer.write_bool(meta.is_some())?;
+                if let Some(meta) = meta.as_ref() {
+                    meta.encode(&mut *writer)?;
+                }
+            }
+            WriteEvent::CreateSecret(uuid, value) => {
+                writer.write_bytes(uuid.as_bytes())?;
+                value.as_ref().encode(&mut *writer)?;
+            }
+            WriteEvent::UpdateSecret(uuid, value) => {
+                writer.write_bytes(uuid.as_bytes())?;
+                value.as_ref().encode(&mut *writer)?;
+            }
+            WriteEvent::DeleteSecret(uuid) => {
+                writer.write_bytes(uuid.as_bytes())?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'a> Decode for WriteEvent<'a> {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
+        let mut op: EventKind = Default::default();
+        op.decode(&mut *reader)?;
+        match op {
+            EventKind::Noop => panic!("WriteEvent: attempt to decode a noop"),
+            EventKind::CreateVault => {
+                let length = reader.read_u32()?;
+                let buffer = reader.read_bytes(length as usize)?;
+                *self = WriteEvent::CreateVault(Cow::Owned(buffer))
+            }
+            EventKind::UpdateVault => {
+                let length = reader.read_u32()?;
+                let buffer = reader.read_bytes(length as usize)?;
+                *self = WriteEvent::UpdateVault(Cow::Owned(buffer))
+            }
+            EventKind::DeleteVault => {
+                *self = WriteEvent::DeleteVault;
+            }
+            EventKind::SetVaultName => {
+                let name = reader.read_string()?;
+                *self = WriteEvent::SetVaultName(Cow::Owned(name));
+            }
+            EventKind::SetVaultMeta => {
+                let has_meta = reader.read_bool()?;
+                let aead_pack = if has_meta {
+                    let mut aead_pack: AeadPack = Default::default();
+                    aead_pack.decode(&mut *reader)?;
+                    Some(aead_pack)
+                } else {
+                    None
+                };
+                *self = WriteEvent::SetVaultMeta(Cow::Owned(aead_pack));
+            }
+            EventKind::CreateSecret => {
+                let id = SecretId::from_bytes(
+                    reader.read_bytes(16)?.as_slice().try_into()?,
+                );
+                let mut commit: VaultCommit = Default::default();
+                commit.decode(&mut *reader)?;
+                *self = WriteEvent::CreateSecret(id, Cow::Owned(commit));
+            }
+            EventKind::UpdateSecret => {
+                let id = SecretId::from_bytes(
+                    reader.read_bytes(16)?.as_slice().try_into()?,
+                );
+                let mut commit: VaultCommit = Default::default();
+                commit.decode(&mut *reader)?;
+                *self = WriteEvent::UpdateSecret(id, Cow::Owned(commit));
+            }
+            EventKind::DeleteSecret => {
+                let id = SecretId::from_bytes(
+                    reader.read_bytes(16)?.as_slice().try_into()?,
+                );
+                *self = WriteEvent::DeleteSecret(id);
             }
             _ => {
                 return Err(BinaryError::Boxed(Box::from(
