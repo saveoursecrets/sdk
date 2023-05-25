@@ -1,13 +1,13 @@
 //! Patch represents a changeset of events to apply to a vault.
 
-use crate::events::SyncEvent;
+use crate::events::WriteEvent;
 
 mod file;
 pub use file::PatchFile;
 
 /// Patch wraps a changeset of events to be sent across the network.
 #[derive(Clone, Debug, Default)]
-pub struct Patch<'a>(pub Vec<SyncEvent<'a>>);
+pub struct Patch<'a>(pub Vec<WriteEvent<'a>>);
 
 impl Patch<'_> {
     /// Convert all events encapsulated by this patch into owned variants.

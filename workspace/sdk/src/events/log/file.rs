@@ -18,7 +18,7 @@ use crate::{
     commit::{event_log_commit_tree_file, CommitHash, CommitTree},
     constants::EVENT_LOG_IDENTITY,
     encode,
-    events::SyncEvent,
+    events::WriteEvent,
     formats::{event_log_iter, EventLogFileRecord, FileItem},
     timestamp::Timestamp,
     vfs, Error, Result,
@@ -75,7 +75,7 @@ impl EventLogFile {
 
     fn encode_event(
         &self,
-        event: SyncEvent<'_>,
+        event: WriteEvent<'_>,
         last_commit: Option<CommitHash>,
     ) -> Result<(CommitHash, EventRecord)> {
         let time: Timestamp = Default::default();
@@ -207,7 +207,7 @@ impl EventLogFile {
     /// event log to it's previous state.
     pub fn apply(
         &mut self,
-        events: Vec<SyncEvent<'_>>,
+        events: Vec<WriteEvent<'_>>,
         expect: Option<CommitHash>,
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
@@ -266,10 +266,7 @@ impl EventLogFile {
 
     /// Append a log event to the write ahead log and commit
     /// the hash to the commit tree.
-    pub fn append_event(
-        &mut self,
-        event: SyncEvent<'_>,
-    ) -> Result<CommitHash> {
+    pub fn append_event(&mut self, event: WriteEvent<'_>) -> Result<CommitHash> {
         let (commit, record) = self.encode_event(event, None)?;
         let buffer = encode(&record)?;
         self.file.write_all(&buffer)?;
@@ -279,10 +276,7 @@ impl EventLogFile {
     }
 
     /// Read the event data from an item.
-    pub fn event_data(
-        &self,
-        item: &EventLogFileRecord,
-    ) -> Result<SyncEvent<'_>> {
+    pub fn event_data(&self, item: &EventLogFileRecord) -> Result<WriteEvent<'_>> {
         let value = item.value();
 
         // Use a different file handle as the owned `file` should
@@ -293,9 +287,12 @@ impl EventLogFile {
         let mut buffer = vec![0; (value.end - value.start) as usize];
         file.read_exact(buffer.as_mut_slice())?;
 
+        println!("decoding event: {}", buffer.len());
+
         let mut stream = Cursor::new(&mut buffer);
         let mut reader = BinaryReader::new(&mut stream, Endian::Little);
-        let mut event: SyncEvent = Default::default();
+        let mut event: WriteEvent = Default::default();
+        
         event.decode(&mut reader)?;
         Ok(event)
     }
@@ -369,7 +366,10 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{events::SyncEvent, test_utils::*};
+    use crate::{
+        events::{Event, WriteEvent},
+        test_utils::*,
+    };
 
     fn mock_event_log_file(
     ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>)> {
@@ -382,7 +382,7 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
+        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
         commits.push(event_log.append_event(event)?);
 
         // Create a secret
@@ -392,7 +392,9 @@ mod test {
             "event log Note",
             "This a event log note secret.",
         )?;
-        commits.push(event_log.append_event(event)?);
+        if let Event::Write(_, event) = event {
+            commits.push(event_log.append_event(event)?);
+        }
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -402,7 +404,7 @@ mod test {
             "event log Note Edited",
             "This a event log note secret that was edited.",
         )?;
-        if let Some(event) = event {
+        if let Some(Event::Write(_, event)) = event {
             commits.push(event_log.append_event(event)?);
         }
 

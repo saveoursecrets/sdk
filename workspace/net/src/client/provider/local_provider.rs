@@ -11,7 +11,7 @@ use sos_sdk::{
     },
     constants::VAULT_EXT,
     decode, encode,
-    events::{AuditLogFile, ChangeAction, ChangeNotification, SyncEvent},
+    events::{AuditLogFile, ChangeAction, ChangeNotification, Event},
     events::{EventLogFile, EventReducer},
     patch::PatchFile,
     storage::StorageDirs,
@@ -84,7 +84,7 @@ impl StorageProvider for LocalProvider {
         name: Option<String>,
         passphrase: Option<SecretString>,
         _is_account: bool,
-    ) -> Result<(SyncEvent<'static>, SecretString, Summary)> {
+    ) -> Result<(Event<'static>, SecretString, Summary)> {
         let (passphrase, vault, buffer) =
             Vault::new_buffer(name, passphrase, None)?;
         let summary = vault.summary().clone();
@@ -99,21 +99,21 @@ impl StorageProvider for LocalProvider {
         // Initialize the local cache for event log and Patch
         self.create_cache_entry(&summary, Some(vault))?;
 
-        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
+        let event = Event::CreateVault(Cow::Owned(buffer));
         Ok((event, passphrase, summary))
     }
 
     async fn import_vault(
         &mut self,
         buffer: Vec<u8>,
-    ) -> Result<(SyncEvent<'static>, Summary)> {
+    ) -> Result<(Event<'static>, Summary)> {
         self.create_account_from_buffer(buffer).await
     }
 
     async fn create_account_from_buffer(
         &mut self,
         buffer: Vec<u8>,
-    ) -> Result<(SyncEvent<'static>, Summary)> {
+    ) -> Result<(Event<'static>, Summary)> {
         let vault: Vault = decode(&buffer)?;
         let summary = vault.summary().clone();
 
@@ -127,7 +127,7 @@ impl StorageProvider for LocalProvider {
         // Initialize the local cache for event log and Patch
         self.create_cache_entry(&summary, Some(vault))?;
 
-        Ok((SyncEvent::CreateVault(Cow::Owned(buffer)), summary))
+        Ok((Event::CreateVault(Cow::Owned(buffer)), summary))
     }
 
     async fn handle_change(
@@ -142,7 +142,7 @@ impl StorageProvider for LocalProvider {
         &mut self,
         summary: &Summary,
         vault: &Vault,
-        events: Vec<SyncEvent<'a>>,
+        events: Vec<Event<'a>>,
     ) -> Result<()> {
         if self.state().mirror() {
             // Write the vault to disc
@@ -215,14 +215,14 @@ impl StorageProvider for LocalProvider {
     async fn remove_vault(
         &mut self,
         summary: &Summary,
-    ) -> Result<SyncEvent<'static>> {
+    ) -> Result<Event<'static>> {
         // Remove the files
         self.remove_vault_file(summary).await?;
 
         // Remove local state
         self.remove_local_cache(summary)?;
 
-        Ok(SyncEvent::DeleteVault)
+        Ok(Event::DeleteVault)
     }
 
     /// Attempt to set the vault name for a vault.
@@ -230,9 +230,9 @@ impl StorageProvider for LocalProvider {
         &mut self,
         summary: &Summary,
         name: &str,
-    ) -> Result<SyncEvent<'static>> {
+    ) -> Result<Event<'static>> {
         // Log the event log event
-        let event = SyncEvent::SetVaultName(Cow::Borrowed(name)).into_owned();
+        let event = Event::SetVaultName(Cow::Borrowed(name)).into_owned();
         self.patch(summary, vec![event.clone()]).await?;
 
         // Update the in-memory name.
@@ -248,7 +248,7 @@ impl StorageProvider for LocalProvider {
     async fn patch(
         &mut self,
         summary: &Summary,
-        events: Vec<SyncEvent<'static>>,
+        events: Vec<Event<'static>>,
     ) -> Result<()> {
         let (event_log, _patch_file) = self
             .cache

@@ -3,7 +3,7 @@ use crate::{
     commit::CommitHash,
     crypto::secret_key::SecretKey,
     encode,
-    events::SyncEvent,
+    events::{Event, WriteEvent},
     passwd::diceware::generate_passphrase,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta},
@@ -79,7 +79,7 @@ pub fn mock_vault_note<'a>(
     encryption_key: &SecretKey,
     secret_label: &str,
     secret_note: &str,
-) -> Result<(Uuid, CommitHash, SecretMeta, Secret, SyncEvent<'a>)> {
+) -> Result<(Uuid, CommitHash, SecretMeta, Secret, Event<'a>)> {
     let (secret_meta, secret_value, meta_bytes, secret_bytes) =
         mock_secret_note(secret_label, secret_note)?;
 
@@ -89,7 +89,7 @@ pub fn mock_vault_note<'a>(
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
     let event = vault.create(commit, VaultEntry(meta_aead, secret_aead))?;
     let secret_id = match &event {
-        SyncEvent::CreateSecret(secret_id, _) => *secret_id,
+        Event::Write(_, WriteEvent::CreateSecret(secret_id, _)) => *secret_id,
         _ => unreachable!(),
     };
 
@@ -103,7 +103,7 @@ pub fn mock_vault_note_update<'a>(
     id: &SecretId,
     secret_label: &str,
     secret_note: &str,
-) -> Result<(CommitHash, SecretMeta, Secret, Option<SyncEvent<'a>>)> {
+) -> Result<(CommitHash, SecretMeta, Secret, Option<Event<'a>>)> {
     let (secret_meta, secret_value, meta_bytes, secret_bytes) =
         mock_secret_note(secret_label, secret_note)?;
 
@@ -119,8 +119,12 @@ pub fn mock_vault_note_update<'a>(
 #[cfg(not(target_arch = "wasm32"))]
 mod file {
     use crate::{
-        commit::CommitHash, crypto::secret_key::SecretKey, encode,
-        events::EventLogFile, events::SyncEvent, vault::Vault,
+        commit::CommitHash,
+        crypto::secret_key::SecretKey,
+        encode,
+        events::EventLogFile,
+        events::{Event, WriteEvent},
+        vault::Vault,
     };
     use tempfile::NamedTempFile;
 
@@ -148,7 +152,7 @@ mod file {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
+        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
         commits.push(event_log.append_event(event)?);
 
         // Create a secret
@@ -158,7 +162,11 @@ mod file {
             "event log Note",
             "This a event log note secret.",
         )?;
-        commits.push(event_log.append_event(event)?);
+        if let Event::Write(_, event) = event {
+            commits.push(event_log.append_event(event)?);
+        } else {
+            unreachable!();
+        }
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -169,7 +177,12 @@ mod file {
             "This a event log note secret that was edited.",
         )?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event)?);
+            if let Event::Write(_, event) = event {
+                commits.push(event_log.append_event(event)?);
+            } else {
+                unreachable!();
+            }
+
         }
 
         Ok((temp, event_log, commits, encryption_key))

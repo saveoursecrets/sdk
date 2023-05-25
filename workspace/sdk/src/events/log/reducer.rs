@@ -3,8 +3,7 @@ use std::{borrow::Cow, collections::HashMap};
 use crate::{
     crypto::AeadPack,
     decode, encode,
-    events::EventLogFile,
-    events::SyncEvent,
+    events::{Event, EventLogFile, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
     Error, Result,
 };
@@ -33,15 +32,15 @@ impl<'a> EventReducer<'a> {
     ///
     /// The truncated vault represents the header of the vault and
     /// has no contents.
-    pub fn split(vault: Vault) -> Result<(Vault, Vec<SyncEvent<'static>>)> {
+    pub fn split(vault: Vault) -> Result<(Vault, Vec<WriteEvent<'static>>)> {
         let mut events = Vec::with_capacity(vault.len() + 1);
         let header = vault.header().clone();
-        let head = Vault::from(header);
+        let head: Vault = header.into();
 
         let buffer = encode(&head)?;
-        events.push(SyncEvent::CreateVault(Cow::Owned(buffer)));
+        events.push(WriteEvent::CreateVault(Cow::Owned(buffer)));
         for (id, entry) in vault {
-            let event = SyncEvent::CreateSecret(id, Cow::Owned(entry));
+            let event = WriteEvent::CreateSecret(id, Cow::Owned(entry));
             events.push(event);
         }
 
@@ -57,29 +56,28 @@ impl<'a> EventReducer<'a> {
             let log = first?;
             let event = event_log.event_data(&log)?;
 
-            if let SyncEvent::CreateVault(vault) = event {
+            if let WriteEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
                 for record in it {
                     let log = record?;
                     let event = event_log.event_data(&log)?;
                     match event {
-                        SyncEvent::Noop => unreachable!(),
-                        SyncEvent::CreateVault(_) => {
+                        WriteEvent::CreateVault(_) => {
                             return Err(Error::CreateEventOnlyFirst)
                         }
-                        SyncEvent::SetVaultName(name) => {
+                        WriteEvent::SetVaultName(name) => {
                             self.vault_name = Some(name.clone());
                         }
-                        SyncEvent::SetVaultMeta(meta) => {
+                        WriteEvent::SetVaultMeta(meta) => {
                             self.vault_meta = Some(meta.clone());
                         }
-                        SyncEvent::CreateSecret(id, entry) => {
+                        WriteEvent::CreateSecret(id, entry) => {
                             self.secrets.insert(id, entry.clone());
                         }
-                        SyncEvent::UpdateSecret(id, entry) => {
+                        WriteEvent::UpdateSecret(id, entry) => {
                             self.secrets.insert(id, entry.clone());
                         }
-                        SyncEvent::DeleteSecret(id) => {
+                        WriteEvent::DeleteSecret(id) => {
                             self.secrets.remove(&id);
                         }
                         _ => {}
@@ -107,7 +105,7 @@ impl<'a> EventReducer<'a> {
     /// the new series of events have been applied so callers
     /// must generate a new commit tree once the new event log has
     /// been created.
-    pub fn compact(self) -> Result<Vec<SyncEvent<'a>>> {
+    pub fn compact(self) -> Result<Vec<WriteEvent<'a>>> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();
 
@@ -121,10 +119,10 @@ impl<'a> EventReducer<'a> {
             }
 
             let buffer = encode(&vault)?;
-            events.push(SyncEvent::CreateVault(Cow::Owned(buffer)));
+            events.push(WriteEvent::CreateVault(Cow::Owned(buffer)));
             for (id, entry) in self.secrets {
                 let entry = entry.into_owned();
-                events.push(SyncEvent::CreateSecret(id, Cow::Owned(entry)));
+                events.push(WriteEvent::CreateSecret(id, Cow::Owned(entry)));
             }
             Ok(events)
         } else {
@@ -162,7 +160,7 @@ mod test {
         commit::CommitHash,
         crypto::secret_key::SecretKey,
         decode,
-        events::EventLogFile,
+        events::{EventLogFile, Event, WriteEvent},
         test_utils::*,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
@@ -189,13 +187,17 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
-        commits.push(event_log.append_event(event)?);
+        let event = Event::Write(*vault.id(), WriteEvent::CreateVault(Cow::Owned(buffer)));
+        if let Event::Write(_, event) = event {
+            commits.push(event_log.append_event(event)?);
+        }
 
         // Create a secret
         let (secret_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
-        commits.push(event_log.append_event(event)?);
+        if let Event::Write(_, event) = event {
+            commits.push(event_log.append_event(event)?);
+        }
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -205,17 +207,19 @@ mod test {
             "bar",
             "qux",
         )?;
-        if let Some(event) = event {
+        if let Some(Event::Write(_, event)) = event {
             commits.push(event_log.append_event(event)?);
         }
 
         // Create another secret
         let (del_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "qux", "baz")?;
-        commits.push(event_log.append_event(event)?);
+        if let Event::Write(_, event) = event {
+            commits.push(event_log.append_event(event)?);
+        }
 
         let event = vault.delete(&del_id)?;
-        if let Some(event) = event {
+        if let Some(Event::Write(_, event)) = event {
             commits.push(event_log.append_event(event)?);
         }
 

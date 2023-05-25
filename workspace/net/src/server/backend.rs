@@ -4,7 +4,7 @@ use sos_sdk::{
     commit::{event_log_commit_tree_file, CommitProof},
     constants::{EVENT_LOG_DELETED_EXT, EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
-    events::SyncEvent,
+    events::Event,
     events::{EventLogFile, EventReducer},
     vault::{Header, Summary, Vault, VaultAccess, VaultWriter},
     vfs,
@@ -89,7 +89,7 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &Uuid,
         vault: &'a [u8],
-    ) -> Result<(SyncEvent<'a>, CommitProof)>;
+    ) -> Result<(Event<'a>, CommitProof)>;
 
     // TODO: support account deletion
 
@@ -120,7 +120,7 @@ pub trait BackendHandler {
         &mut self,
         owner: &Address,
         vault: &'a [u8],
-    ) -> Result<(SyncEvent<'a>, CommitProof)>;
+    ) -> Result<(Event<'a>, CommitProof)>;
 
     /* event log */
 
@@ -132,7 +132,7 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &Uuid,
         vault: &'a [u8],
-    ) -> Result<(SyncEvent<'a>, CommitProof)>;
+    ) -> Result<(Event<'a>, CommitProof)>;
 
     /// Delete a event log log and corresponding vault.
     async fn delete_event_log(
@@ -308,7 +308,7 @@ impl FileSystemBackend {
 
         // Create the event log file
         let mut event_log = EventLogFile::new(&event_log_path)?;
-        let event = SyncEvent::CreateVault(Cow::Borrowed(vault));
+        let event = Event::CreateVault(Cow::Borrowed(vault));
         event_log.append_event(event)?;
 
         self.locks.add(&vault_path)?;
@@ -368,7 +368,7 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &Uuid,
         vault: &'a [u8],
-    ) -> Result<(SyncEvent<'a>, CommitProof)> {
+    ) -> Result<(Event<'a>, CommitProof)> {
         let account_dir = self.directory.join(owner.to_string());
         if account_dir.exists() {
             return Err(Error::DirectoryExists(account_dir));
@@ -388,7 +388,7 @@ impl BackendHandler for FileSystemBackend {
             event_log_file,
         )
         .await?;
-        let event = SyncEvent::CreateVault(Cow::Borrowed(vault));
+        let event = Event::CreateVault(Cow::Borrowed(vault));
         Ok((event, proof))
     }
 
@@ -397,7 +397,7 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &Uuid,
         vault: &'a [u8],
-    ) -> Result<(SyncEvent<'a>, CommitProof)> {
+    ) -> Result<(Event<'a>, CommitProof)> {
         let account_dir = self.directory.join(owner.to_string());
         if !account_dir.is_dir() {
             return Err(Error::NotDirectory(account_dir));
@@ -417,7 +417,7 @@ impl BackendHandler for FileSystemBackend {
             event_log_file,
         )
         .await?;
-        let event = SyncEvent::CreateVault(Cow::Borrowed(vault));
+        let event = Event::CreateVault(Cow::Borrowed(vault));
         Ok((event, proof))
     }
 
@@ -493,7 +493,7 @@ impl BackendHandler for FileSystemBackend {
         &mut self,
         owner: &Address,
         vault: &'a [u8],
-    ) -> Result<(SyncEvent<'a>, CommitProof)> {
+    ) -> Result<(Event<'a>, CommitProof)> {
         let _ = self
             .accounts
             .get(owner)
@@ -537,7 +537,7 @@ impl BackendHandler for FileSystemBackend {
         // Write out the vault file (header only)
         tokio::fs::write(&vault_path, &vault_buffer).await?;
 
-        let event = SyncEvent::UpdateVault(Cow::Owned(vault_buffer));
+        let event = Event::UpdateVault(Cow::Owned(vault_buffer));
         Ok((event, commit_proof))
     }
 

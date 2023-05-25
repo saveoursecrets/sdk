@@ -7,15 +7,8 @@ use crate::vault::VaultId;
 use super::{EventKind, ReadEvent, WriteEvent};
 
 /// Events generated when reading or writing.
-#[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum Event<'a> {
-    /// Default variant, should never be used.
-    ///
-    /// We need a variant so we can implement the Default
-    /// trait which is required for decoding.
-    #[default]
-    Noop,
-
     /// Read vault operations.
     Read(VaultId, ReadEvent),
 
@@ -37,7 +30,6 @@ impl Event<'_> {
         match self {
             Self::Read(_, event) => event.event_kind(),
             Self::Write(_, event) => event.event_kind(),
-            _ => panic!("operation on noop"),
         }
     }
 }

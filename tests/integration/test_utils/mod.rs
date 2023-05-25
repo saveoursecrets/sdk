@@ -8,7 +8,7 @@ use web3_address::ethereum::Address;
 
 use sos_sdk::{
     crypto::channel::SessionManager,
-    events::{AuditLogFile, SyncEvent},
+    events::{AuditLogFile, Event},
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary,
@@ -205,7 +205,7 @@ pub async fn create_secrets(
         let (meta, secret) = mock_note(item.0, item.1);
         let event = keeper.create(meta, secret)?;
 
-        let id = if let SyncEvent::CreateSecret(secret_id, _) = &event {
+        let id = if let Event::CreateSecret(secret_id, _) = &event {
             *secret_id
         } else {
             unreachable!()

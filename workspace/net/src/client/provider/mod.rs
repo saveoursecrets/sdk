@@ -13,7 +13,7 @@ use sos_sdk::{
     constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
     crypto::secret_key::SecretKey,
     decode, encode,
-    events::{AuditLogFile, ChangeAction, ChangeNotification, SyncEvent},
+    events::{AuditLogFile, ChangeAction, ChangeNotification, Event},
     passwd::ChangePassword,
     search::SearchIndex,
     storage::StorageDirs,
@@ -150,7 +150,7 @@ pub trait StorageProvider: Sync + Send {
         for (buffer, vault) in vaults {
             // Prepare a fresh log of event log events
             let mut event_log_events = Vec::new();
-            let create_vault = SyncEvent::CreateVault(Cow::Borrowed(buffer));
+            let create_vault = Event::CreateVault(Cow::Borrowed(buffer));
             event_log_events.push(create_vault);
 
             self.update_vault(vault.summary(), vault, event_log_events)
@@ -210,14 +210,14 @@ pub trait StorageProvider: Sync + Send {
     fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(CommitHash, Timestamp, SyncEvent<'_>)>>;
+    ) -> Result<Vec<(CommitHash, Timestamp, Event<'_>)>>;
 
     /// Update an existing vault by replacing it with a new vault.
     async fn update_vault<'a>(
         &mut self,
         summary: &Summary,
         vault: &Vault,
-        events: Vec<SyncEvent<'a>>,
+        events: Vec<Event<'a>>,
     ) -> Result<()>;
 
     /// Compact a event log file.
@@ -268,7 +268,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         name: Option<String>,
         passphrase: Option<SecretString>,
-    ) -> Result<(SyncEvent<'static>, SecretString, Summary)> {
+    ) -> Result<(Event<'static>, SecretString, Summary)> {
         self.create_vault_or_account(name, passphrase, true).await
     }
 
@@ -277,7 +277,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         name: String,
         passphrase: Option<SecretString>,
-    ) -> Result<(SyncEvent<'static>, SecretString, Summary)> {
+    ) -> Result<(Event<'static>, SecretString, Summary)> {
         self.create_vault_or_account(Some(name), passphrase, false)
             .await
     }
@@ -286,13 +286,13 @@ pub trait StorageProvider: Sync + Send {
     async fn import_vault(
         &mut self,
         buffer: Vec<u8>,
-    ) -> Result<(SyncEvent<'static>, Summary)>;
+    ) -> Result<(Event<'static>, Summary)>;
 
     /// Create a new account using the given vault buffer.
     async fn create_account_from_buffer(
         &mut self,
         buffer: Vec<u8>,
-    ) -> Result<(SyncEvent<'static>, Summary)>;
+    ) -> Result<(Event<'static>, Summary)>;
 
     /// Create a new account or vault.
     async fn create_vault_or_account(
@@ -300,13 +300,13 @@ pub trait StorageProvider: Sync + Send {
         name: Option<String>,
         passphrase: Option<SecretString>,
         _is_account: bool,
-    ) -> Result<(SyncEvent<'static>, SecretString, Summary)>;
+    ) -> Result<(Event<'static>, SecretString, Summary)>;
 
     /// Remove a vault.
     async fn remove_vault(
         &mut self,
         summary: &Summary,
-    ) -> Result<SyncEvent<'static>>;
+    ) -> Result<Event<'static>>;
 
     /// Load vault summaries.
     async fn load_vaults(&mut self) -> Result<&[Summary]>;
@@ -316,7 +316,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         summary: &Summary,
         name: &str,
-    ) -> Result<SyncEvent<'static>>;
+    ) -> Result<Event<'static>>;
 
     /// Load a vault, unlock it and set it as the current vault.
     async fn open_vault(
@@ -324,7 +324,7 @@ pub trait StorageProvider: Sync + Send {
         summary: &Summary,
         passphrase: SecretString,
         index: Option<std::sync::Arc<parking_lot::RwLock<SearchIndex>>>,
-    ) -> Result<SyncEvent<'static>> {
+    ) -> Result<Event<'static>> {
         let vault_path = self.vault_path(summary);
         let vault = if self.state().mirror() {
             if !vault_path.exists() {
@@ -343,7 +343,7 @@ pub trait StorageProvider: Sync + Send {
 
         self.state_mut()
             .open_vault(passphrase, vault, vault_path, index)?;
-        Ok(SyncEvent::ReadVault)
+        Ok(Event::ReadVault)
     }
 
     /// Load a vault by reducing it from the event log stored on disc.
@@ -355,7 +355,7 @@ pub trait StorageProvider: Sync + Send {
     async fn patch(
         &mut self,
         summary: &Summary,
-        events: Vec<SyncEvent<'static>>,
+        events: Vec<Event<'static>>,
     ) -> Result<()>;
 
     /// Close the currently selected vault.
@@ -475,7 +475,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-    ) -> Result<SyncEvent<'_>> {
+    ) -> Result<Event<'_>> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         let event = keeper.create(meta, secret)?.into_owned();
@@ -487,7 +487,7 @@ pub trait StorageProvider: Sync + Send {
     async fn read_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<(SecretMeta, Secret, SyncEvent<'_>)> {
+    ) -> Result<(SecretMeta, Secret, Event<'_>)> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let _summary = keeper.summary().clone();
         let result = keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
@@ -501,7 +501,7 @@ pub trait StorageProvider: Sync + Send {
         mut secret_data: SecretData,
         //mut meta: SecretMeta,
         //secret: Secret,
-    ) -> Result<SyncEvent<'_>> {
+    ) -> Result<Event<'_>> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         secret_data.meta.touch();
@@ -517,7 +517,7 @@ pub trait StorageProvider: Sync + Send {
     async fn delete_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<SyncEvent<'_>> {
+    ) -> Result<Event<'_>> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         let event = keeper.delete(id)?.ok_or(Error::SecretNotFound(*id))?;
@@ -615,7 +615,7 @@ macro_rules! provider_impl {
 
             if let Some(vault) = &vault {
                 let encoded = encode(vault)?;
-                let event = SyncEvent::CreateVault(Cow::Owned(encoded));
+                let event = Event::CreateVault(Cow::Owned(encoded));
                 event_log.append_event(event)?;
             }
             event_log.load_tree()?;
@@ -666,7 +666,7 @@ macro_rules! provider_impl {
         fn history(
             &self,
             summary: &Summary,
-        ) -> Result<Vec<(CommitHash, Timestamp, SyncEvent<'_>)>> {
+        ) -> Result<Vec<(CommitHash, Timestamp, Event<'_>)>> {
             let (event_log, _) = self
                 .cache
                 .get(summary.id())

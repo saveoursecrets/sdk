@@ -13,7 +13,6 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     fmt,
-    io::Write,
     path::PathBuf,
     str::FromStr,
 };

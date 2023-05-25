@@ -3,7 +3,7 @@
 use crate::{
     crypto::secret_key::{SecretKey, Seed},
     encode,
-    events::SyncEvent,
+    events::{Event, WriteEvent},
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
@@ -65,9 +65,7 @@ impl<'a> ChangePassword<'a> {
     /// Yields the encrpytion passphrase for the new vault, the
     /// new computed vault and a collection of events that can
     /// be used to generate a fresh write-ahead log file.
-    pub fn build(
-        self,
-    ) -> Result<(SecretString, Vault, Vec<SyncEvent<'static>>)> {
+    pub fn build(self) -> Result<(SecretString, Vault, Vec<WriteEvent<'static>>)> {
         // Decrypt current vault meta data blob
         let current_private_key = self.current_private_key()?;
         let vault_meta_aead =
@@ -100,7 +98,7 @@ impl<'a> ChangePassword<'a> {
         let mut event_log_events = Vec::new();
 
         let buffer = encode(&new_vault)?;
-        let create_vault = SyncEvent::CreateVault(Cow::Owned(buffer));
+        let create_vault = WriteEvent::CreateVault(Cow::Owned(buffer));
         event_log_events.push(create_vault);
 
         // Iterate the current vault and decrypt the secrets
@@ -128,9 +126,12 @@ impl<'a> ChangePassword<'a> {
                 VaultEntry(meta_aead, secret_aead),
             )?;
 
-            let sync_event = sync_event.into_owned();
-            //let event_log_event: SyncEvent<'static> = sync_event.try_into()?;
-            event_log_events.push(sync_event);
+            if let Event::Write(_, event) = sync_event {
+                event_log_events.push(event.into_owned());
+            } else {
+                unreachable!();
+            }
+
         }
 
         event_log_events.sort();

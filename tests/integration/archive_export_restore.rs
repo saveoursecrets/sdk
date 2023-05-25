@@ -11,7 +11,7 @@ use sos_net::client::provider::{LocalProvider, StorageProvider};
 use sos_sdk::{
     account::{archive::Writer, AccountBackup, Identity, RestoreOptions},
     encode,
-    events::SyncEvent,
+    events::Event,
     signer::{ecdsa::SingleParty, Signer},
     storage::StorageDirs,
     vault::{Gatekeeper, Vault},
@@ -65,7 +65,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     let expected_secret = secret.clone();
     let mut keeper = Gatekeeper::new(default_vault, None);
     keeper.unlock(passphrase.clone())?;
-    let secret_id = if let SyncEvent::CreateSecret(id, _) =
+    let secret_id = if let Event::CreateSecret(id, _) =
         keeper.create(meta, secret)?
     {
         id

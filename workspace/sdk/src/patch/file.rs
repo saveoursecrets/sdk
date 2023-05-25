@@ -8,7 +8,7 @@ use std::{
 use crate::{
     constants::{PATCH_EXT, PATCH_IDENTITY},
     decode, encode,
-    events::SyncEvent,
+    events::WriteEvent,
     formats::{patch_iter, FileRecord, ReadStreamIterator},
     Result,
 };
@@ -74,7 +74,7 @@ impl PatchFile {
     /// events appended.
     pub fn append<'a>(
         &mut self,
-        events: Vec<SyncEvent<'a>>,
+        events: Vec<WriteEvent<'a>>,
     ) -> Result<Patch<'a>> {
         // Load any existing events in to memory
         let mut all_events = if self.has_events()? {
@@ -139,7 +139,7 @@ impl PatchFile {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::*;
+    use crate::{test_utils::*, events::Event};
     use anyhow::Result;
     use tempfile::NamedTempFile;
 
@@ -152,6 +152,12 @@ mod test {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, _, _, _, mock_event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
+
+        let mock_event = if let Event::Write(_, event) = mock_event {
+            event
+        } else {
+            unreachable!();
+        };
 
         // Empty patch file is 4 bytes
         assert_eq!(4, temp.path().metadata()?.len());

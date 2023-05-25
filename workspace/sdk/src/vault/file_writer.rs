@@ -17,7 +17,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     encode,
-    events::SyncEvent,
+    events::{Event, ReadEvent, WriteEvent},
     stream_len,
     vault::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
@@ -52,9 +52,6 @@ impl<F: Read + Write + Seek> VaultWriter<F> {
     /// The underlying file should already exist and be a valid vault.
     pub fn new<P: AsRef<Path>>(path: P, file: F) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        //let file =
-        //OpenOptions::new().read(true).write(true).open(&file_path)?;
-        //let _metadata = file.metadata()?;
         let stream = Mutex::new(file);
         Ok(Self { file_path, stream })
     }
@@ -95,8 +92,8 @@ impl<F: Read + Write + Seek> VaultWriter<F> {
         Ok(())
     }
 
-    /// Splice a file preserving the head and tail and optionally inserting
-    /// content in between.
+    /// Splice a file preserving the head and tail and
+    /// optionally inserting content in between.
     fn splice(
         &self,
         head: Range<u64>,
@@ -138,7 +135,8 @@ impl<F: Read + Write + Seek> VaultWriter<F> {
 
     /// Find the byte offset of a row.
     ///
-    /// Returns the content offset and the byte offset and row length of the row if it exists.
+    /// Returns the content offset and the byte
+    /// offset and row length of the row if it exists.
     fn find_row(&self, id: &SecretId) -> Result<(u64, Option<(u64, u32)>)> {
         let content_offset = self.check_identity()?;
 
@@ -180,30 +178,36 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
         Ok(Cow::Owned(name))
     }
 
-    fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>> {
+    fn set_vault_name(&mut self, name: String) -> Result<Event<'_>> {
         let content_offset = self.check_identity()?;
         let mut header = Header::read_header_file(&self.file_path)?;
         header.set_name(name.clone());
         self.write_header(content_offset, &header)?;
-        Ok(SyncEvent::SetVaultName(Cow::Owned(name)))
+        Ok(Event::Write(
+            *header.id(),
+            WriteEvent::SetVaultName(Cow::Owned(name)),
+        ))
     }
 
     fn set_vault_meta(
         &mut self,
         meta_data: Option<AeadPack>,
-    ) -> Result<SyncEvent<'_>> {
+    ) -> Result<Event<'_>> {
         let content_offset = self.check_identity()?;
         let mut header = Header::read_header_file(&self.file_path)?;
         header.set_meta(meta_data.clone());
         self.write_header(content_offset, &header)?;
-        Ok(SyncEvent::SetVaultMeta(Cow::Owned(meta_data)))
+        Ok(Event::Write(
+            *header.id(),
+            WriteEvent::SetVaultMeta(Cow::Owned(meta_data)),
+        ))
     }
 
     fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<SyncEvent<'_>> {
+    ) -> Result<Event<'_>> {
         let id = Uuid::new_v4();
         self.insert(id, commit, secret)
     }
@@ -213,7 +217,8 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<SyncEvent<'_>> {
+    ) -> Result<Event<'_>> {
+        let summary = self.summary()?;
         let mut stream = self.stream.lock().unwrap();
         let length = stream_len(stream.deref_mut())?;
         let mut writer = BinaryWriter::new(&mut *stream, Endian::Little);
@@ -225,22 +230,27 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
 
         drop(stream);
 
-        Ok(SyncEvent::CreateSecret(id, Cow::Owned(row)))
+        Ok(Event::Write(
+            *summary.id(),
+            WriteEvent::CreateSecret(id, Cow::Owned(row)),
+        ))
     }
 
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, SyncEvent<'_>)> {
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, Event<'_>)> {
+        let summary = self.summary()?;
+        let event = Event::Read(*summary.id(), ReadEvent::ReadSecret(*id));
         let (_, row) = self.find_row(id)?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().unwrap();
             let mut reader = BinaryReader::new(&mut *stream, Endian::Little);
             reader.seek(row_offset)?;
             let (_, value) = Contents::decode_row(&mut reader)?;
-            Ok((Some(Cow::Owned(value)), SyncEvent::ReadSecret(*id)))
+            Ok((Some(Cow::Owned(value)), event))
         } else {
-            Ok((None, SyncEvent::ReadSecret(*id)))
+            Ok((None, event))
         }
     }
 
@@ -249,7 +259,8 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<SyncEvent<'_>>> {
+    ) -> Result<Option<Event<'_>>> {
+        let summary = self.summary()?;
         let (_content_offset, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
@@ -272,13 +283,17 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
 
             self.splice(head, tail, Some(&buffer))?;
 
-            Ok(Some(SyncEvent::UpdateSecret(*id, Cow::Owned(row))))
+            Ok(Some(Event::Write(
+                *summary.id(),
+                WriteEvent::UpdateSecret(*id, Cow::Owned(row)),
+            )))
         } else {
             Ok(None)
         }
     }
 
-    fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent<'_>>> {
+    fn delete(&mut self, id: &SecretId) -> Result<Option<Event<'_>>> {
+        let summary = self.summary()?;
         let (_content_offset, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             let mut stream = self.stream.lock().unwrap();
@@ -292,7 +307,10 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
 
             self.splice(head, tail, None)?;
 
-            Ok(Some(SyncEvent::DeleteSecret(*id)))
+            Ok(Some(Event::Write(
+                *summary.id(),
+                WriteEvent::DeleteSecret(*id),
+            )))
         } else {
             Ok(None)
         }
@@ -306,7 +324,7 @@ mod tests {
     use crate::{
         constants::DEFAULT_VAULT_NAME,
         crypto::secret_key::SecretKey,
-        events::SyncEvent,
+        events::{Event, WriteEvent},
         vault::{secret::*, Header, Vault, VaultAccess, VaultEntry},
     };
     use anyhow::Result;
@@ -331,7 +349,7 @@ mod tests {
 
         let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
 
-        if let SyncEvent::CreateSecret(secret_id, _) =
+        if let Event::Write(_, WriteEvent::CreateSecret(secret_id, _)) =
             vault_access.create(commit, VaultEntry(meta_aead, secret_aead))?
         {
             Ok((

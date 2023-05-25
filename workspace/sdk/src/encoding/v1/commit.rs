@@ -1,9 +1,7 @@
 use binary_stream::{
     BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
 };
-use serde::ser::SerializeTuple;
 use std::{
-    hash::Hasher as StdHasher,
     io::{Read, Seek, Write},
 };
 

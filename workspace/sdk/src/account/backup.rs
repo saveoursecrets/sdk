@@ -22,8 +22,7 @@ use crate::{
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
-    events::EventLogFile,
-    events::SyncEvent,
+    events::{Event, EventLogFile, WriteEvent},
     passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
@@ -527,8 +526,7 @@ impl AccountBackup {
 
                 // Write out the event log file
                 let mut event_log_events = Vec::new();
-                let create_vault =
-                    SyncEvent::CreateVault(Cow::Borrowed(buffer));
+                let create_vault = WriteEvent::CreateVault(Cow::Borrowed(buffer));
                 event_log_events.push(create_vault);
                 let mut event_log = EventLogFile::new(event_log_path)?;
                 event_log.apply(event_log_events, None)?;

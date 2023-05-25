@@ -3,7 +3,7 @@
 use crate::Error;
 use serde::{Deserialize, Serialize};
 
-use std::{fmt, io::Write};
+use std::fmt;
 
 /// Type identifier for a noop.
 pub const NOOP: u16 = 0;

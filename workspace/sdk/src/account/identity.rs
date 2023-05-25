@@ -28,7 +28,7 @@ use crate::{
     },
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
-        Gatekeeper, Vault, VaultAccess, VaultFlags,
+        Gatekeeper, Vault, VaultFlags,
     },
     vfs, Error, Result,
 };

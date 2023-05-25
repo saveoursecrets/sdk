@@ -8,7 +8,6 @@ use serde::{
 use std::{
     fmt,
     hash::{Hash, Hasher as StdHasher},
-    io::Write,
     ops::Range,
 };
 

@@ -1,7 +1,7 @@
 //! Constants for supported symmetric ciphers.
 use crate::Error;
 
-use std::{convert::AsRef, fmt, io::Write, str::FromStr};
+use std::{convert::AsRef, fmt, str::FromStr};
 
 /// Extended ChaCha20 Poly1305 cipher.
 pub const X_CHACHA20_POLY1305: u8 = 0x01;

@@ -4,7 +4,7 @@ use binary_stream::{
 };
 
 use crate::{
-    constants::PATCH_IDENTITY, events::SyncEvent, formats::FileIdentity,
+    constants::PATCH_IDENTITY, events::WriteEvent, formats::FileIdentity,
     patch::Patch,
 };
 
@@ -13,7 +13,7 @@ use std::io::{Read, Seek, Write};
 impl Patch<'_> {
     fn encode_row<W: Write + Seek>(
         writer: &mut BinaryWriter<W>,
-        event: &SyncEvent<'_>,
+        event: &WriteEvent<'_>,
     ) -> BinaryResult<()> {
         // Set up the leading row length
         let size_pos = writer.tell()?;
@@ -38,11 +38,11 @@ impl Patch<'_> {
 
     fn decode_row<'a, R: Read + Seek>(
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<SyncEvent<'a>> {
+    ) -> BinaryResult<WriteEvent<'a>> {
         // Read in the row length
         let _ = reader.read_u32()?;
 
-        let mut event: SyncEvent<'_> = Default::default();
+        let mut event: WriteEvent<'_> = Default::default();
         event.decode(&mut *reader)?;
 
         // Read in the row length appended to the end of the record

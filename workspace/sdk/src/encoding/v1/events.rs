@@ -262,7 +262,7 @@ impl<'a> Encode for WriteEvent<'a> {
 
         match self {
             WriteEvent::Noop => {
-                panic!("WriteEvent: attempt to encode a noop")
+                panic!("attempt to encode a noop")
             }
             WriteEvent::CreateVault(vault)
             | WriteEvent::UpdateVault(vault) => {
@@ -303,7 +303,7 @@ impl<'a> Decode for WriteEvent<'a> {
         let mut op: EventKind = Default::default();
         op.decode(&mut *reader)?;
         match op {
-            EventKind::Noop => panic!("WriteEvent: attempt to decode a noop"),
+            EventKind::Noop => panic!("attempt to decode a noop"),
             EventKind::CreateVault => {
                 let length = reader.read_u32()?;
                 let buffer = reader.read_bytes(length as usize)?;

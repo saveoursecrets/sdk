@@ -8,7 +8,7 @@ use uuid::Uuid;
 use web3_address::ethereum::Address;
 
 use crate::{
-    events::{EventKind, SyncEvent},
+    events::{Event, EventKind, ReadEvent, WriteEvent},
     timestamp::Timestamp,
     vault::{secret::SecretId, VaultId},
 };
@@ -125,32 +125,35 @@ impl AuditEvent {
 
     /// Convert from a sync event to an audit event.
     pub fn from_sync_event(
-        event: &SyncEvent,
+        event: &Event,
         address: &Address,
-        vault_id: &Uuid,
+        _vault_id: &Uuid,
     ) -> AuditEvent {
         let audit_data = match event {
-            SyncEvent::Noop => {
-                panic!("noop variant cannot be an audit event")
-            }
-            SyncEvent::CreateVault(_)
-            | SyncEvent::UpdateVault(_)
-            | SyncEvent::ReadVault
-            | SyncEvent::DeleteVault
-            | SyncEvent::SetVaultName(_)
-            | SyncEvent::SetVaultMeta(_) => AuditData::Vault(*vault_id),
-            SyncEvent::CreateSecret(secret_id, _) => {
-                AuditData::Secret(*vault_id, *secret_id)
-            }
-            SyncEvent::ReadSecret(secret_id) => {
-                AuditData::Secret(*vault_id, *secret_id)
-            }
-            SyncEvent::UpdateSecret(secret_id, _) => {
-                AuditData::Secret(*vault_id, *secret_id)
-            }
-            SyncEvent::DeleteSecret(secret_id) => {
-                AuditData::Secret(*vault_id, *secret_id)
-            }
+            Event::Read(vault_id, event) => match event {
+                ReadEvent::ReadVault => AuditData::Vault(*vault_id),
+                ReadEvent::ReadSecret(secret_id) => {
+                    AuditData::Secret(*vault_id, *secret_id)
+                }
+                ReadEvent::Noop => unreachable!(),
+            },
+            Event::Write(vault_id, event) => match event {
+                WriteEvent::CreateVault(_)
+                | WriteEvent::UpdateVault(_)
+                | WriteEvent::DeleteVault
+                | WriteEvent::SetVaultName(_)
+                | WriteEvent::SetVaultMeta(_) => AuditData::Vault(*vault_id),
+                WriteEvent::CreateSecret(secret_id, _) => {
+                    AuditData::Secret(*vault_id, *secret_id)
+                }
+                WriteEvent::UpdateSecret(secret_id, _) => {
+                    AuditData::Secret(*vault_id, *secret_id)
+                }
+                WriteEvent::DeleteSecret(secret_id) => {
+                    AuditData::Secret(*vault_id, *secret_id)
+                }
+                WriteEvent::Noop => unreachable!(),
+            },
         };
         AuditEvent::new(event.event_kind(), *address, Some(audit_data))
     }

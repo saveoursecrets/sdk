@@ -13,7 +13,7 @@ use sos_sdk::{
         RestoreOptions,
     },
     decode, encode,
-    events::{AuditEvent, AuditProvider, SyncEvent},
+    events::{AuditEvent, AuditProvider, Event},
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     storage::StorageDirs,
@@ -575,7 +575,7 @@ impl UserStorage {
         meta: SecretMeta,
         secret: Secret,
         folder: Option<Summary>,
-    ) -> Result<(SecretId, SyncEvent<'static>)> {
+    ) -> Result<(SecretId, Event<'static>)> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
@@ -593,7 +593,7 @@ impl UserStorage {
             .await?
             .into_owned();
 
-        let id = if let SyncEvent::CreateSecret(id, _) = &event {
+        let id = if let Event::CreateSecret(id, _) = &event {
             *id
         } else {
             unreachable!();
@@ -629,7 +629,7 @@ impl UserStorage {
         &mut self,
         secret_id: &SecretId,
         folder: Option<Summary>,
-    ) -> Result<(SecretData, SyncEvent<'static>)> {
+    ) -> Result<(SecretData, Event<'static>)> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
@@ -668,7 +668,7 @@ impl UserStorage {
         path: P,
         folder: Option<Summary>,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, SyncEvent<'static>)> {
+    ) -> Result<(SecretId, Event<'static>)> {
         let path = path.as_ref().to_path_buf();
         let secret: Secret = path.try_into()?;
         self.update_secret(secret_id, meta, Some(secret), folder, destination)
@@ -683,7 +683,7 @@ impl UserStorage {
         secret: Option<Secret>,
         folder: Option<Summary>,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, SyncEvent<'static>)> {
+    ) -> Result<(SecretId, Event<'static>)> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
@@ -733,7 +733,7 @@ impl UserStorage {
         secret_id: &SecretId,
         secret_data: SecretData,
         folder: Option<Summary>,
-    ) -> Result<SyncEvent<'static>> {
+    ) -> Result<Event<'static>> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
@@ -769,9 +769,9 @@ impl UserStorage {
         to: &Summary,
     ) -> Result<(
         SecretId,
-        SyncEvent<'static>,
-        SyncEvent<'static>,
-        SyncEvent<'static>,
+        Event<'static>,
+        Event<'static>,
+        Event<'static>,
     )> {
         self.open_folder(from).await?;
         let (secret_data, read_event) =
@@ -833,7 +833,7 @@ impl UserStorage {
         &mut self,
         secret_id: &SecretId,
         folder: Option<Summary>,
-    ) -> Result<SyncEvent<'static>> {
+    ) -> Result<Event<'static>> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
@@ -853,7 +853,7 @@ impl UserStorage {
         &mut self,
         secret_id: &SecretId,
         folder: Option<Summary>,
-    ) -> Result<SyncEvent<'static>> {
+    ) -> Result<Event<'static>> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
@@ -879,9 +879,9 @@ impl UserStorage {
         secret_id: &SecretId,
     ) -> Result<(
         SecretId,
-        SyncEvent<'static>,
-        SyncEvent<'static>,
-        SyncEvent<'static>,
+        Event<'static>,
+        Event<'static>,
+        Event<'static>,
     )> {
         if from.flags().is_archive() {
             return Err(Error::AlreadyArchived);
@@ -902,9 +902,9 @@ impl UserStorage {
     ) -> Result<(
         Summary,
         SecretId,
-        SyncEvent<'static>,
-        SyncEvent<'static>,
-        SyncEvent<'static>,
+        Event<'static>,
+        Event<'static>,
+        Event<'static>,
     )> {
         if !from.flags().is_archive() {
             return Err(Error::NotArchived);
@@ -1110,7 +1110,7 @@ impl UserStorage {
         path: P,
         folder_name: String,
         converter: impl Convert<Input = PathBuf>,
-    ) -> Result<(SyncEvent<'static>, Summary)> {
+    ) -> Result<(Event<'static>, Summary)> {
         let vaults = LocalAccounts::list_local_vaults(
             self.user.identity().address(),
             false,

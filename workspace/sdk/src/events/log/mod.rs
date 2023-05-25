@@ -63,9 +63,11 @@ mod test {
     use crate::{
         commit::{CommitHash, CommitTree, Comparison},
         encode,
-        events::SyncEvent,
+        events::{Event, WriteEvent},
         vault::{secret::SecretId, Vault, VaultCommit, VaultEntry},
     };
+
+    const MOCK_LOG: &str = "target/mock-event-log-standalone.sos";
 
     fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {
         let id = Uuid::new_v4();
@@ -77,6 +79,12 @@ mod test {
     }
 
     fn mock_event_log_standalone() -> Result<(EventLogFile, SecretId)> {
+        let path = PathBuf::from(MOCK_LOG);
+
+        if path.exists() {
+            std::fs::remove_file(&path)?;
+        }
+
         let mut vault: Vault = Default::default();
         vault.set_name(String::from("Standalone vault"));
         let vault_buffer = encode(&vault)?;
@@ -85,11 +93,11 @@ mod test {
 
         // Create a simple event log
         let mut server =
-            EventLogFile::new("target/mock-event-log-standalone.event_log")?;
+            EventLogFile::new(MOCK_LOG)?;
         server.apply(
             vec![
-                SyncEvent::CreateVault(Cow::Owned(vault_buffer)),
-                SyncEvent::CreateSecret(id, data),
+                WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
+                WriteEvent::CreateSecret(id, data),
             ],
             None,
         )?;
@@ -119,8 +127,8 @@ mod test {
         let mut server = EventLogFile::new(&server_file)?;
         server.apply(
             vec![
-                SyncEvent::CreateVault(Cow::Owned(vault_buffer)),
-                SyncEvent::CreateSecret(id, data),
+                WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
+                WriteEvent::CreateSecret(id, data),
             ],
             None,
         )?;
@@ -147,7 +155,7 @@ mod test {
         let (mut server, client, id) = mock_event_log_server_client()?;
 
         // Add another event to the server from another client.
-        server.append_event(SyncEvent::DeleteSecret(id))?;
+        server.append_event(WriteEvent::DeleteSecret(id))?;
 
         // Check that the server contains the client proof
         let proof = client.tree().head()?;
@@ -189,7 +197,7 @@ mod test {
         let (mut server, client, id) = mock_event_log_server_client()?;
 
         // Add another event to the server from another client.
-        server.append_event(SyncEvent::DeleteSecret(id))?;
+        server.append_event(WriteEvent::DeleteSecret(id))?;
 
         // Get the last record for our assertion
         let record = server.iter()?.next_back().unwrap()?;
@@ -221,10 +229,11 @@ mod test {
 
         Ok(())
     }
-
+    
     #[test]
     fn event_log_file_load() -> Result<()> {
-        let path = PathBuf::from("../../tests/fixtures/simple-vault.sos");
+        mock_event_log_standalone()?;
+        let path = PathBuf::from(MOCK_LOG);
         let event_log = EventLogFile::new(path)?;
         let it = event_log.iter()?;
         for record in it {
