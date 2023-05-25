@@ -8,7 +8,8 @@ use std::io::{Read, Seek, Write};
 
 use crate::{
     commit::CommitHash,
-    events::{AuditData, AuditEvent, EventKind, EventRecord, LogFlags},
+    events::{AuditData, AuditEvent, EventKind, EventRecord, LogFlags, ReadEvent},
+    vault::secret::SecretId,
     Timestamp,
 };
 
@@ -190,6 +191,53 @@ impl Encode for AuditData {
             AuditData::Secret(vault_id, secret_id) => {
                 writer.write_bytes(vault_id.as_bytes())?;
                 writer.write_bytes(secret_id.as_bytes())?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Encode for ReadEvent {
+    fn encode<W: Write + Seek>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> BinaryResult<()> {
+        let op = self.event_kind();
+        op.encode(&mut *writer)?;
+
+        match self {
+            ReadEvent::Noop => panic!("attempt to encode a noop"),
+            ReadEvent::ReadVault => {}
+            ReadEvent::ReadSecret(uuid) => {
+                writer.write_bytes(uuid.as_bytes())?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Decode for ReadEvent {
+    fn decode<R: Read + Seek>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> BinaryResult<()> {
+        let mut op: EventKind = Default::default();
+        op.decode(&mut *reader)?;
+        match op {
+            EventKind::Noop => panic!("attempt to decode a noop"),
+            EventKind::ReadVault => {
+                *self = ReadEvent::ReadVault;
+            }
+            EventKind::ReadSecret => {
+                let id = SecretId::from_bytes(
+                    reader.read_bytes(16)?.as_slice().try_into()?,
+                );
+                *self = ReadEvent::ReadSecret(id);
+            }
+            _ => {
+                return Err(BinaryError::Boxed(Box::from(
+                    Error::UnknownEventKind((&op).into()),
+                )))
             }
         }
         Ok(())

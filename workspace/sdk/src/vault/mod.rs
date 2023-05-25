@@ -1,4 +1,4 @@
-//! Vault secret storage file format.
+//! Vault secret storage.
 
 mod file_writer;
 mod gatekeeper;
