@@ -1,8 +1,8 @@
 use std::io;
 use std::path::Path;
 
-use bitflags::bitflags;
 use super::File;
+use bitflags::bitflags;
 
 bitflags! {
     /// Bit flags for the open options.

@@ -38,7 +38,6 @@ struct Inner {
 
 #[derive(Debug)]
 enum State {
-
     /*
     Idle(Option<Buf>),
     Busy(JoinHandle<(Operation, Buf)>),
@@ -78,7 +77,6 @@ impl File {
 
     /// Attempts to sync all OS-internal metadata to disk.
     pub async fn sync_all(&self) -> io::Result<()> {
-
         /*
         let mut inner = self.inner.lock().await;
         inner.complete_inflight().await;
@@ -93,7 +91,6 @@ impl File {
     /// This function is similar to `sync_all`, except that it may not
     /// synchronize file metadata to the filesystem.
     pub async fn sync_data(&self) -> io::Result<()> {
-
         /*
         let mut inner = self.inner.lock().await;
         inner.complete_inflight().await;
@@ -107,7 +104,6 @@ impl File {
 
     /// Truncates or extends the underlying file, updating the size of this file to become size.
     pub async fn set_len(&self, size: u64) -> io::Result<()> {
-
         todo!();
 
         /*
@@ -168,7 +164,6 @@ impl File {
     /// as the existing `File` instance. Reads, writes, and seeks will affect both
     /// File instances simultaneously.
     pub async fn try_clone(&self) -> io::Result<File> {
-
         /*
         let std = self.std.clone();
         let std_file = asyncify(move || std.try_clone()).await?;
@@ -195,7 +190,6 @@ impl AsyncRead for File {
         cx: &mut Context<'_>,
         dst: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
-
         /*
         ready!(crate::trace::trace_leaf(cx));
         let me = self.get_mut();
@@ -298,8 +292,10 @@ impl AsyncSeek for File {
         */
     }
 
-    fn poll_complete(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<u64>> {
-
+    fn poll_complete(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<u64>> {
         todo!();
 
         /*
@@ -341,7 +337,7 @@ impl AsyncWrite for File {
         src: &[u8],
     ) -> Poll<io::Result<usize>> {
         todo!();
-        
+
         /*
         ready!(crate::trace::trace_leaf(cx));
         let me = self.get_mut();
@@ -410,8 +406,10 @@ impl AsyncWrite for File {
         */
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), io::Error>> {
-
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), io::Error>> {
         todo!();
 
         /*
@@ -421,7 +419,10 @@ impl AsyncWrite for File {
         */
     }
 
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), io::Error>> {
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), io::Error>> {
         todo!();
 
         /*
@@ -497,7 +498,6 @@ cfg_windows! {
 
 impl Inner {
     async fn complete_inflight(&mut self) {
-
         /*
         use crate::future::poll_fn;
 
@@ -509,7 +509,7 @@ impl Inner {
 
     fn poll_complete_inflight(&mut self, cx: &mut Context<'_>) -> Poll<()> {
         todo!();
-        
+
         /*
         ready!(crate::trace::trace_leaf(cx));
         match self.poll_flush(cx) {
@@ -523,10 +523,12 @@ impl Inner {
         */
     }
 
-    fn poll_flush(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), io::Error>> {
-        
+    fn poll_flush(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), io::Error>> {
         todo!();
-        
+
         /*
         if let Some(e) = self.last_write_err.take() {
             return Ready(Err(e.into()));
