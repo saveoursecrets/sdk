@@ -98,6 +98,10 @@ impl OpenOptions {
                 if self.0.contains(OpenFlags::CREATE) {
                     let path = path.as_ref().to_path_buf();
                     let _ = FS_LOCK.lock().await;
+
+                    todo!();
+
+                    /*
                     let fd = fs.files.entry(path).or_insert_with(|| {
                         Arc::new(RwLock::new(MemoryFd::File(
                             Default::default(),
@@ -106,6 +110,7 @@ impl OpenOptions {
 
                     let file = Arc::clone(&*fd);
                     (file, 0).into()
+                    */
                 } else {
                     return Err(ErrorKind::PermissionDenied.into());
                 }

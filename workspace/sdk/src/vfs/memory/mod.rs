@@ -5,7 +5,7 @@ use bitflags::bitflags;
 use once_cell::sync::Lazy;
 use std::{
     collections::BTreeMap,
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     io::{self, Error, ErrorKind},
     iter::Enumerate,
     path::{Component, Components, Path, PathBuf},
@@ -40,7 +40,7 @@ bitflags! {
 }
 
 type Fd = Arc<RwLock<MemoryFd>>;
-type FileSystem = BTreeMap<PathBuf, Fd>;
+type FileSystem = BTreeMap<OsString, Fd>;
 
 // File system contents.
 pub(self) static mut FILE_SYSTEM: Lazy<MemoryDir> =
@@ -64,15 +64,14 @@ pub(self) async fn walk(
                     if let Some((index, part)) = it.next() {
                         match part {
                             Component::Normal(name) => {
-                                let path = PathBuf::from(name);
                                 if index == length - 1 {
                                     return target
                                         .files
-                                        .get(&path)
+                                        .get(name)
                                         .map(Arc::clone);
                                 } else {
                                     if let Some(child) =
-                                        target.find_dir(&path).await
+                                        target.find_dir(name).await
                                     {
                                         parents.push(Arc::clone(&child));
                                         let fd = child.read().await;
@@ -97,11 +96,10 @@ pub(self) async fn walk(
                 }
             }
             Component::Normal(name) => {
-                let path = PathBuf::from(name);
                 if index == length - 1 {
-                    return target.files.get(&path).map(Arc::clone);
+                    return target.files.get(name).map(Arc::clone);
                 } else {
-                    if let Some(child) = target.find_dir(&path).await {
+                    if let Some(child) = target.find_dir(name).await {
                         parents.push(Arc::clone(&child));
                         let fd = child.read().await;
                         if let MemoryFd::Dir(dir) = &*fd {
@@ -120,9 +118,10 @@ pub(self) async fn walk(
 
 pub(self) async fn find(
     fs: &MemoryDir,
-    path: PathBuf,
+    path: impl AsRef<Path>,
 ) -> Option<Arc<RwLock<MemoryFd>>> {
-    let components: Vec<Component> = path.components().into_iter().collect();
+    let components: Vec<Component> =
+        path.as_ref().components().into_iter().collect();
     let length = components.len();
     let mut it = components.into_iter().enumerate();
     walk(fs, &mut it, length, &mut vec![]).await
@@ -171,8 +170,8 @@ impl MemoryDir {
     }
 
     /// Find a child that is a dir.
-    async fn find_dir(&self, path: impl AsRef<Path>) -> Option<Fd> {
-        if let Some(child) = self.files.get(path.as_ref()) {
+    async fn find_dir(&self, name: &OsStr) -> Option<Fd> {
+        if let Some(child) = self.files.get(name) {
             let is_dir = {
                 let fd = child.read().await;
                 matches!(&*fd, MemoryFd::Dir(_))
@@ -312,6 +311,7 @@ async fn find_descendants(
     fs: &FileSystem,
     path: impl AsRef<Path>,
 ) -> Vec<PathBuf> {
+    /*
     let mut paths = Vec::new();
     for (target, file) in fs.iter() {
         if target.starts_with(path.as_ref()) && target != path.as_ref() {
@@ -319,16 +319,21 @@ async fn find_descendants(
         }
     }
     paths
+    */
+    todo!();
 }
 
 /// Determine if a path is a file.
 async fn is_file(fs: &FileSystem, path: impl AsRef<Path>) -> bool {
+    todo!();
+    /*
     if let Some(fd) = fs.get(path.as_ref()) {
         let fd = fd.read().await;
         matches!(&*fd, MemoryFd::File(_))
     } else {
         false
     }
+    */
 }
 
 /// Creates a future that will open a file for writing
@@ -337,6 +342,9 @@ pub async fn write(
     path: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
 ) -> Result<()> {
+    todo!();
+
+    /*
     let path = path.as_ref().to_path_buf();
     unsafe {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
@@ -358,6 +366,7 @@ pub async fn write(
         }
     }
     Ok(())
+    */
 }
 
 /// Reads the entire contents of a file into a bytes vector.
@@ -379,6 +388,7 @@ pub async fn read(path: impl AsRef<Path>) -> Result<Vec<u8>> {
 
 /// Removes a file from the filesystem.
 pub async fn remove_file(path: impl AsRef<Path>) -> Result<()> {
+    /*
     ensure_file(path.as_ref()).await?;
 
     let _ = FS_LOCK.lock().await;
@@ -386,6 +396,8 @@ pub async fn remove_file(path: impl AsRef<Path>) -> Result<()> {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
         fs.files.remove(path.as_ref());
     }
+    */
+
     Ok(())
 }
 
@@ -395,11 +407,13 @@ pub async fn remove_dir(path: impl AsRef<Path>) -> Result<()> {
 
     // FIXME: ensure directory is empty
 
+    /*
     let _ = FS_LOCK.lock().await;
     unsafe {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
         fs.files.remove(path.as_ref());
     }
+    */
 
     Ok(())
 }
@@ -440,6 +454,9 @@ pub async fn rename(
     from: impl AsRef<Path>,
     to: impl AsRef<Path>,
 ) -> Result<()> {
+    todo!();
+
+    /*
     let _ = FS_LOCK.lock().await;
 
     unsafe {
@@ -451,10 +468,14 @@ pub async fn rename(
             Err(ErrorKind::NotFound.into())
         }
     }
+    */
 }
 
 /// Creates a new, empty directory at the provided path.
 pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
+    todo!();
+
+    /*
     let _ = FS_LOCK.lock().await;
 
     let path = path.as_ref().to_path_buf();
@@ -475,11 +496,13 @@ pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
         });
     }
     Ok(())
+    */
 }
 
 /// Recursively creates a directory and all of its parent
 /// components if they are missing.
 pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<()> {
+    /*
     let _ = FS_LOCK.lock().await;
     let path = path.as_ref().to_path_buf();
 
@@ -491,6 +514,9 @@ pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<()> {
             Arc::new(RwLock::new(MemoryFd::Dir(Default::default())))
         });
     }
+    */
+
+    todo!();
 
     Ok(())
 }
@@ -523,6 +549,9 @@ pub async fn set_permissions(
     path: impl AsRef<Path>,
     perm: Permissions,
 ) -> Result<()> {
+    todo!();
+
+    /*
     unsafe {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
         if let Some(fd) = fs.files.get_mut(path.as_ref()) {
@@ -533,6 +562,7 @@ pub async fn set_permissions(
             Err(ErrorKind::NotFound.into())
         }
     }
+    */
 }
 
 /*
