@@ -56,6 +56,7 @@ time = { version = "0.3.19", features = ["serde-human-readable", "local-offset",
 unicode-segmentation = "1.10"
 mime_guess = { version = "2" }
 anyhow = {version = "1", optional = true }
+futures = "0.3"
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"

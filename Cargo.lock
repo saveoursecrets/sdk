@@ -5614,6 +5614,7 @@ dependencies = [
  "dirs",
  "ed25519-dalek 2.0.0-rc.2",
  "filetime",
+ "futures",
  "getrandom 0.2.9",
  "hex",
  "http",

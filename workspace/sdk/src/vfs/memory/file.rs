@@ -3,8 +3,10 @@
 //! [`File`]: File
 
 use self::State::*;
+use futures::ready;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
+use tokio::{runtime::Handle, task::JoinHandle};
 
 use std::fmt;
 use std::fs::{Metadata, Permissions};
@@ -17,19 +19,31 @@ use std::task::Context;
 use std::task::Poll;
 use std::task::Poll::*;
 
-use super::OpenOptions;
+use super::{MemoryFile, OpenOptions, PathBuf};
+
+pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
+    let rt = Handle::current();
+    rt.spawn_blocking(func)
+}
+
+type Buf = Arc<RwLock<MemoryFile>>;
 
 /// A reference to an open file on the filesystem.
 pub struct File {
-    //options: OpenOptions,
+    options: OpenOptions,
     inner: Mutex<Inner>,
 }
 
 struct Inner {
     state: State,
 
-    /// Errors from writes/flushes are returned in write/flush calls. If a write
-    /// error is observed while performing a read, it is saved until the next
+    /// Errors from writes/flushes are returned in
+    /// write/flush calls. If a write error is observed
+    /// while performing a read, it is saved until the next
     /// write / flush call.
     last_write_err: Option<io::ErrorKind>,
 
@@ -38,10 +52,8 @@ struct Inner {
 
 #[derive(Debug)]
 enum State {
-    /*
     Idle(Option<Buf>),
     Busy(JoinHandle<(Operation, Buf)>),
-    */
 }
 
 #[derive(Debug)]
@@ -54,59 +66,33 @@ enum Operation {
 impl File {
     /// Attempts to open a file in read-only mode.
     pub async fn open(path: impl AsRef<Path>) -> io::Result<File> {
-        let path = path.as_ref().to_owned();
-
-        /*
-        let std = asyncify(|| StdFile::open(path)).await?;
-
-        Ok(File::from_std(std))
-        */
-
-        todo!();
+        Ok(OpenOptions::new().read(true).open(path).await?)
     }
 
     /// Opens a file in write-only mode.
     pub async fn create(path: impl AsRef<Path>) -> io::Result<File> {
-        let path = path.as_ref().to_owned();
-        /*
-        let std_file = asyncify(move || StdFile::create(path)).await?;
-        Ok(File::from_std(std_file))
-        */
-        todo!();
+        Ok(OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)
+            .await?)
     }
 
     /// Attempts to sync all OS-internal metadata to disk.
     pub async fn sync_all(&self) -> io::Result<()> {
-        /*
-        let mut inner = self.inner.lock().await;
-        inner.complete_inflight().await;
-
-        let std = self.std.clone();
-        asyncify(move || std.sync_all()).await
-        */
-
-        todo!();
+        Ok(())
     }
 
     /// This function is similar to `sync_all`, except that it may not
     /// synchronize file metadata to the filesystem.
     pub async fn sync_data(&self) -> io::Result<()> {
-        /*
-        let mut inner = self.inner.lock().await;
-        inner.complete_inflight().await;
-
-        let std = self.std.clone();
-        asyncify(move || std.sync_data()).await
-        */
-
-        todo!();
+        Ok(())
     }
 
-    /// Truncates or extends the underlying file, updating the size of this file to become size.
+    /// Truncates or extends the underlying file, updating
+    /// the size of this file to become size.
     pub async fn set_len(&self, size: u64) -> io::Result<()> {
-        todo!();
-
-        /*
         let mut inner = self.inner.lock().await;
         inner.complete_inflight().await;
 
@@ -115,40 +101,24 @@ impl File {
             _ => unreachable!(),
         };
 
-        let seek = if !buf.is_empty() {
-            Some(SeekFrom::Current(buf.discard_read()))
-        } else {
-            None
-        };
+        let mut writer = buf.write().await;
 
-        let std = self.std.clone();
-
-        inner.state = Busy(spawn_blocking(move || {
-            let res = if let Some(seek) = seek {
-                (&*std).seek(seek).and_then(|_| std.set_len(size))
-            } else {
-                std.set_len(size)
+        if size < writer.len() as u64 {
+            writer.contents.truncate(size as usize);
+            if inner.pos > size {
+                inner.pos = size;
             }
-            .map(|_| 0); // the value is discarded later
+        } else if size > writer.len() as u64 {
+            let amount = writer.len() as u64 - size;
+            let elements = vec![0; amount as usize];
+            writer.contents.extend(elements.iter());
+        }
 
-            // Return the result as a seek
-            (Operation::Seek(res), buf)
-        }));
-
-        let (op, buf) = match inner.state {
-            Idle(_) => unreachable!(),
-            Busy(ref mut rx) => rx.await?,
-        };
+        drop(writer);
 
         inner.state = Idle(Some(buf));
 
-        match op {
-            Operation::Seek(res) => res.map(|pos| {
-                inner.pos = pos;
-            }),
-            _ => unreachable!(),
-        }
-        */
+        Ok(())
     }
 
     /// Queries metadata about the underlying file.
@@ -184,17 +154,26 @@ impl File {
     }
 }
 
+impl TryFrom<(PathBuf, OpenOptions)> for File {
+    type Error = io::Error;
+
+    fn try_from(value: (PathBuf, OpenOptions)) -> io::Result<Self> {
+        todo!();
+    }
+}
+
 impl AsyncRead for File {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         dst: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
-        /*
-        ready!(crate::trace::trace_leaf(cx));
         let me = self.get_mut();
         let inner = me.inner.get_mut();
 
+        todo!();
+
+        /*
         loop {
             match inner.state {
                 Idle(ref mut buf_cell) => {
@@ -252,7 +231,6 @@ impl AsyncRead for File {
             }
         }
         */
-        todo!();
     }
 }
 
@@ -296,10 +274,6 @@ impl AsyncSeek for File {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<u64>> {
-        todo!();
-
-        /*
-        ready!(crate::trace::trace_leaf(cx));
         let inner = self.inner.get_mut();
 
         loop {
@@ -326,7 +300,6 @@ impl AsyncSeek for File {
                 }
             }
         }
-        */
     }
 }
 
@@ -410,108 +383,31 @@ impl AsyncWrite for File {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), io::Error>> {
-        todo!();
-
-        /*
-        ready!(crate::trace::trace_leaf(cx));
         let inner = self.inner.get_mut();
         inner.poll_flush(cx)
-        */
     }
 
     fn poll_shutdown(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), io::Error>> {
-        todo!();
-
-        /*
-        ready!(crate::trace::trace_leaf(cx));
         self.poll_flush(cx)
-        */
     }
 }
 
-/*
 impl fmt::Debug for File {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("tokio::fs::File")
-            .field("std", &self.std)
-            .finish()
+        fmt.debug_struct("vfs::memory::File").finish()
     }
 }
-*/
-
-/*
-#[cfg(unix)]
-impl std::os::unix::io::AsRawFd for File {
-    fn as_raw_fd(&self) -> std::os::unix::io::RawFd {
-        self.std.as_raw_fd()
-    }
-}
-
-#[cfg(all(unix, not(tokio_no_as_fd)))]
-impl std::os::unix::io::AsFd for File {
-    fn as_fd(&self) -> std::os::unix::io::BorrowedFd<'_> {
-        unsafe {
-            std::os::unix::io::BorrowedFd::borrow_raw(std::os::unix::io::AsRawFd::as_raw_fd(self))
-        }
-    }
-}
-
-#[cfg(unix)]
-impl std::os::unix::io::FromRawFd for File {
-    unsafe fn from_raw_fd(fd: std::os::unix::io::RawFd) -> Self {
-        StdFile::from_raw_fd(fd).into()
-    }
-}
-
-cfg_windows! {
-    use crate::os::windows::io::{AsRawHandle, FromRawHandle, RawHandle};
-    #[cfg(not(tokio_no_as_fd))]
-    use crate::os::windows::io::{AsHandle, BorrowedHandle};
-
-    impl AsRawHandle for File {
-        fn as_raw_handle(&self) -> RawHandle {
-            self.std.as_raw_handle()
-        }
-    }
-
-    #[cfg(not(tokio_no_as_fd))]
-    impl AsHandle for File {
-        fn as_handle(&self) -> BorrowedHandle<'_> {
-            unsafe {
-                BorrowedHandle::borrow_raw(
-                    AsRawHandle::as_raw_handle(self),
-                )
-            }
-        }
-    }
-
-    impl FromRawHandle for File {
-        unsafe fn from_raw_handle(handle: RawHandle) -> Self {
-            StdFile::from_raw_handle(handle).into()
-        }
-    }
-}
-*/
 
 impl Inner {
     async fn complete_inflight(&mut self) {
-        /*
-        use crate::future::poll_fn;
-
+        use std::future::poll_fn;
         poll_fn(|cx| self.poll_complete_inflight(cx)).await
-        */
-
-        todo!();
     }
 
     fn poll_complete_inflight(&mut self, cx: &mut Context<'_>) -> Poll<()> {
-        todo!();
-
-        /*
-        ready!(crate::trace::trace_leaf(cx));
         match self.poll_flush(cx) {
             Poll::Ready(Err(e)) => {
                 self.last_write_err = Some(e.kind());
@@ -520,16 +416,12 @@ impl Inner {
             Poll::Ready(Ok(())) => Poll::Ready(()),
             Poll::Pending => Poll::Pending,
         }
-        */
     }
 
     fn poll_flush(
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), io::Error>> {
-        todo!();
-
-        /*
         if let Some(e) = self.last_write_err.take() {
             return Ready(Err(e.into()));
         }
@@ -547,6 +439,5 @@ impl Inner {
             Operation::Write(res) => Ready(res),
             Operation::Seek(_) => Ready(Ok(())),
         }
-        */
     }
 }

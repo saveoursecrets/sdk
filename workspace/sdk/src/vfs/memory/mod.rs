@@ -3,15 +3,15 @@ use once_cell::sync::Lazy;
 use std::{
     collections::BTreeMap,
     io::{Error, ErrorKind},
-    ops::Deref,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock};
 
 /// Result type for the in-memory file system.
 pub type Result<T> = std::result::Result<T, Error>;
 
-type FileSystem = BTreeMap<PathBuf, RwLock<MemoryFd>>;
+type FileSystem = BTreeMap<PathBuf, Arc<RwLock<MemoryFd>>>;
 
 // File system contents.
 static mut FILE_SYSTEM: Lazy<FileSystem> = Lazy::new(|| BTreeMap::new());
@@ -22,16 +22,28 @@ static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 /// Directory reference.
 #[derive(Default)]
-pub struct MemoryDir;
+pub(crate) struct MemoryDir;
 
 /// File content.
-#[derive(Default)]
-pub struct MemoryFile {
-    contents: Vec<u8>,
+#[derive(Default, Debug)]
+pub(crate) struct MemoryFile {
+    pub(crate) contents: Vec<u8>,
+}
+
+impl MemoryFile {
+    /// Determine if the file is empty.
+    pub fn is_empty(&self) -> bool {
+        self.contents.is_empty()
+    }
+
+    /// Get the length of the file buffer.
+    pub fn len(&self) -> usize {
+        self.contents.len()
+    }
 }
 
 /// File descriptor.
-pub enum MemoryFd {
+pub(crate) enum MemoryFd {
     /// File variant.
     File(MemoryFile),
     /// Directory variant.
@@ -133,7 +145,7 @@ pub async fn write(
             }
         }
         let fd = fs.entry(path).or_insert_with(|| {
-            RwLock::new(MemoryFd::File(Default::default()))
+            Arc::new(RwLock::new(MemoryFd::File(Default::default())))
         });
         let mut fd = fd.write().await;
         if let MemoryFd::File(fd) = &mut *fd {
@@ -250,7 +262,7 @@ pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
             }
         }
         fs.entry(path).or_insert_with(|| {
-            RwLock::new(MemoryFd::Dir(Default::default()))
+            Arc::new(RwLock::new(MemoryFd::Dir(Default::default())))
         });
     }
     Ok(())
@@ -267,7 +279,7 @@ pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<()> {
         // FIXME: ensure all parents do not exist
         // FIXME: or that all parents are directories
         fs.entry(path).or_insert_with(|| {
-            RwLock::new(MemoryFd::Dir(Default::default()))
+            Arc::new(RwLock::new(MemoryFd::Dir(Default::default())))
         });
     }
 

@@ -13,6 +13,7 @@ bitflags! {
         const APPEND            =        0b00000100;
         const TRUNCATE          =        0b00001000;
         const CREATE            =        0b00010000;
+        const CREATE_NEW        =        0b00100000;
     }
 }
 
@@ -58,19 +59,15 @@ impl OpenOptions {
 
     /// Sets the option to always create a new file.
     pub fn create_new(&mut self, create_new: bool) -> &mut OpenOptions {
-        todo!();
-        //self.0.create_new(create_new);
-        //self
+        self.0.set(OpenFlags::CREATE_NEW, true);
+        self
     }
 
     /// Opens a file at `path` with the options specified by `self`.
     pub async fn open(&self, path: impl AsRef<Path>) -> io::Result<File> {
         let path = path.as_ref().to_owned();
-        let opts = self.0.clone();
-
-        //let std = asyncify(move || opts.open(path)).await?;
-        //Ok(File::from_std(std))
-        todo!();
+        let opts = self.clone();
+        Ok((path, opts).try_into()?)
     }
 }
 
