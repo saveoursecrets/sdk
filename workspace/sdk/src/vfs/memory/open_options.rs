@@ -69,7 +69,7 @@ impl OpenOptions {
     pub async fn open(&self, path: impl AsRef<Path>) -> io::Result<File> {
         unsafe {
             let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
-            let file = if let Some(file) = find(&fs.files, path.as_ref()) {
+            let file = if let Some(file) = find(&fs, path.as_ref().to_path_buf()).await {
                 if self.0.contains(OpenFlags::TRUNCATE) {
                     let mut fd = file.write().await;
                     if let MemoryFd::File(file) = &mut *fd {

@@ -1,6 +1,7 @@
 //! File system backed by in-memory buffers.
 
 use bitflags::bitflags;
+use async_recursion::async_recursion;
 use once_cell::sync::Lazy;
 use std::{
     collections::BTreeMap,
@@ -35,49 +36,84 @@ bitflags! {
     }
 }
 
-type FileSystem = BTreeMap<PathBuf, Arc<RwLock<MemoryFd>>>;
+type Fd = Arc<RwLock<MemoryFd>>;
+type FileSystem = BTreeMap<PathBuf, Fd>;
 
 // File system contents.
 pub(self) static mut FILE_SYSTEM: Lazy<MemoryDir> =
-    Lazy::new(|| Default::default());
+    Lazy::new(|| MemoryDir::new_root());
 
 // Lock for when we need to modify the file system by adding
 // or removing paths.
 static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
-pub(self) fn find(
-    fs: &FileSystem,
-    path: impl AsRef<Path>,
+#[async_recursion]
+pub(self) async fn find(
+    fs: &MemoryDir,
+    path: PathBuf,
 ) -> Option<Arc<RwLock<MemoryFd>>> {
-    unsafe {
-        let components: Vec<Component> =
-            path.as_ref().components().into_iter().collect();
-        let length = components.len();
-        for (index, part) in components.into_iter().enumerate() {
-            match part {
-                Component::RootDir => continue,
-                Component::Normal(name) => {
-                    let path = PathBuf::from(name);
-                    if index == length - 1 {
-                        return fs.get(&path).map(Arc::clone);
-                    }
-                }
-                _ => todo!(),
-            }
-        }
-        None
+    if fs.root && path.is_relative() {
+        return None
     }
+
+    let components: Vec<Component> =
+        path.components().into_iter().collect();
+    let length = components.len();
+    let mut it = components.into_iter();
+    for (index, part) in it.clone().enumerate() {
+        match part {
+            Component::RootDir => continue,
+            Component::Normal(name) => {
+                let path = PathBuf::from(name);
+                if index < length - 1 {
+                    if let Some(child) = fs.find_dir(path).await {
+                        let fd = child.read().await;
+                        if let MemoryFd::Dir(dir) = &*fd {
+                            if let Some(next) = it.next() {
+                                match next {
+                                    Component::Normal(name) => {
+                                        let path = PathBuf::from(name);
+                                        return find(dir, path).await;
+                                    }
+                                    _ => todo!(),
+                                }
+                            } else {
+                                return None
+                            }
+                        }
+                    } else {
+                        return None
+                    }
+                } else {
+                    //return fs.get(&path).map(Arc::clone);
+                    todo!();
+                }
+            }
+            _ => todo!(),
+        }
+    }
+    None
 }
 
 /// Directory reference.
 #[derive(Default, Debug)]
 pub(self) struct MemoryDir {
+    root: bool,
     permissions: Permissions,
     time: FileTime,
     files: FileSystem,
 }
 
 impl MemoryDir {
+    fn new_root() -> Self {
+        Self {
+            root: true,
+            permissions: Default::default(),
+            time: Default::default(),
+            files: Default::default(),
+        }
+    }
+
     /// Determine if the file is empty.
     pub fn is_empty(&self) -> bool {
         self.files.is_empty()
@@ -86,6 +122,19 @@ impl MemoryDir {
     /// Get the length.
     pub fn len(&self) -> usize {
         self.files.len()
+    }
+    
+    /// Find a child that is a dir.
+    async fn find_dir(&self, path: impl AsRef<Path>) -> Option<Fd> {
+        if let Some(child) = self.files.get(path.as_ref()) {
+            let is_dir = {
+                let fd = child.read().await;
+                matches!(&*fd, MemoryFd::Dir(_))
+            };
+            if is_dir { Some(Arc::clone(child)) } else { None }
+        } else {
+            None
+        }
     }
 }
 
@@ -177,7 +226,7 @@ impl MemoryFd {
 async fn ensure_file(path: impl AsRef<Path>) -> Result<()> {
     unsafe {
         let fs = Lazy::get(&mut FILE_SYSTEM).unwrap();
-        let fd = find(&fs.files, path.as_ref());
+        let fd = find(&fs, path.as_ref().to_path_buf()).await;
         if let Some(fd) = fd {
             let fd = fd.read().await;
             let is_file = matches!(&*fd, MemoryFd::File(_));
@@ -195,7 +244,7 @@ async fn ensure_file(path: impl AsRef<Path>) -> Result<()> {
 async fn ensure_dir(path: impl AsRef<Path>) -> Result<()> {
     unsafe {
         let fs = Lazy::get(&mut FILE_SYSTEM).unwrap();
-        if let Some(fd) = find(&fs.files, path.as_ref()) {
+        if let Some(fd) = find(&fs, path.as_ref().to_path_buf()).await {
             let fd = fd.read().await;
             let is_file = matches!(&*fd, MemoryFd::Dir(_));
             if !is_file {
@@ -265,7 +314,7 @@ pub async fn write(
 pub async fn read(path: impl AsRef<Path>) -> Result<Vec<u8>> {
     unsafe {
         let fs = Lazy::get(&mut FILE_SYSTEM).unwrap();
-        if let Some(fd) = find(&fs.files, path.as_ref()) {
+        if let Some(fd) = find(&fs, path.as_ref().to_path_buf()).await {
             let fd = fd.read().await;
             if let MemoryFd::File(fd) = &*fd {
                 Ok(fd.contents.clone())
@@ -310,7 +359,7 @@ pub async fn remove_dir(path: impl AsRef<Path>) -> Result<()> {
 pub async fn remove_dir_all(path: impl AsRef<Path>) -> Result<()> {
     unsafe {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
-        if let Some(fd) = find(&fs.files, path.as_ref()) {
+        if let Some(fd) = find(&fs, path.as_ref().to_path_buf()).await {
             let fd = fd.read().await;
             let is_dir = matches!(&*fd, MemoryFd::Dir(_));
             if is_dir {
@@ -363,7 +412,7 @@ pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
 
         if let Some(parent) = path.parent() {
-            if let Some(parent) = find(&fs.files, parent) {
+            if let Some(parent) = find(&fs, parent.to_path_buf()).await {
                 let parent = parent.read().await;
                 let is_dir = matches!(&*parent, MemoryFd::Dir(_));
                 if !is_dir {
@@ -410,7 +459,7 @@ pub async fn read_to_string(path: impl AsRef<Path>) -> Result<String> {
 pub async fn metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
     unsafe {
         let fs = Lazy::get(&mut FILE_SYSTEM).unwrap();
-        if let Some(fd) = find(&fs.files, path.as_ref()) {
+        if let Some(fd) = find(&fs, path.as_ref().to_path_buf()).await {
             let fd = fd.read().await;
             Ok(fd.metadata())
         } else {

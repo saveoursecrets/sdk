@@ -5604,6 +5604,7 @@ dependencies = [
  "age",
  "anyhow",
  "argon2",
+ "async-recursion",
  "async-trait",
  "binary-stream",
  "bitflags",
