@@ -3,7 +3,7 @@ use crate::{
     commit::CommitHash,
     crypto::secret_key::SecretKey,
     encode,
-    events::{Event, WriteEvent},
+    events::WriteEvent,
     passwd::diceware::generate_passphrase,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta},
@@ -79,7 +79,7 @@ pub fn mock_vault_note<'a>(
     encryption_key: &SecretKey,
     secret_label: &str,
     secret_note: &str,
-) -> Result<(Uuid, CommitHash, SecretMeta, Secret, Event<'a>)> {
+) -> Result<(Uuid, CommitHash, SecretMeta, Secret, WriteEvent<'a>)> {
     let (secret_meta, secret_value, meta_bytes, secret_bytes) =
         mock_secret_note(secret_label, secret_note)?;
 
@@ -89,7 +89,7 @@ pub fn mock_vault_note<'a>(
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
     let event = vault.create(commit, VaultEntry(meta_aead, secret_aead))?;
     let secret_id = match &event {
-        Event::Write(_, WriteEvent::CreateSecret(secret_id, _)) => *secret_id,
+        WriteEvent::CreateSecret(secret_id, _) => *secret_id,
         _ => unreachable!(),
     };
 
@@ -103,7 +103,7 @@ pub fn mock_vault_note_update<'a>(
     id: &SecretId,
     secret_label: &str,
     secret_note: &str,
-) -> Result<(CommitHash, SecretMeta, Secret, Option<Event<'a>>)> {
+) -> Result<(CommitHash, SecretMeta, Secret, Option<WriteEvent<'a>>)> {
     let (secret_meta, secret_value, meta_bytes, secret_bytes) =
         mock_secret_note(secret_label, secret_note)?;
 
@@ -119,12 +119,8 @@ pub fn mock_vault_note_update<'a>(
 #[cfg(not(target_arch = "wasm32"))]
 mod file {
     use crate::{
-        commit::CommitHash,
-        crypto::secret_key::SecretKey,
-        encode,
-        events::EventLogFile,
-        events::{Event, WriteEvent},
-        vault::Vault,
+        commit::CommitHash, crypto::secret_key::SecretKey, encode,
+        events::EventLogFile, events::WriteEvent, vault::Vault,
     };
     use tempfile::NamedTempFile;
 
@@ -162,11 +158,7 @@ mod file {
             "event log Note",
             "This a event log note secret.",
         )?;
-        if let Event::Write(_, event) = event {
-            commits.push(event_log.append_event(event)?);
-        } else {
-            unreachable!();
-        }
+        commits.push(event_log.append_event(event)?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -177,11 +169,7 @@ mod file {
             "This a event log note secret that was edited.",
         )?;
         if let Some(event) = event {
-            if let Event::Write(_, event) = event {
-                commits.push(event_log.append_event(event)?);
-            } else {
-                unreachable!();
-            }
+            commits.push(event_log.append_event(event)?);
         }
 
         Ok((temp, event_log, commits, encryption_key))

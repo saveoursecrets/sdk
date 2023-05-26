@@ -408,7 +408,7 @@ where
 mod test {
     use super::*;
     use crate::{
-        events::{Event, WriteEvent},
+        events::WriteEvent,
         test_utils::*,
         vault::{Vault, VaultAccess, VaultEntry},
     };
@@ -446,9 +446,7 @@ mod test {
             let _secret_id = match vault
                 .create(commit, VaultEntry(meta_aead, secret_aead))?
             {
-                Event::Write(_, WriteEvent::CreateSecret(secret_id, _)) => {
-                    secret_id
-                }
+                WriteEvent::CreateSecret(secret_id, _) => secret_id,
                 _ => unreachable!(),
             };
         }

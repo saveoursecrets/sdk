@@ -11,7 +11,7 @@ use sos_sdk::{
     },
     constants::VAULT_EXT,
     decode, encode,
-    events::{AuditLogFile, ChangeAction, ChangeNotification, Event, WriteEvent},
+    events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
     events::{EventLogFile, EventReducer},
     patch::PatchFile,
     storage::StorageDirs,
@@ -232,7 +232,8 @@ impl StorageProvider for LocalProvider {
         name: &str,
     ) -> Result<WriteEvent<'static>> {
         // Log the event log event
-        let event = WriteEvent::SetVaultName(Cow::Borrowed(name)).into_owned();
+        let event =
+            WriteEvent::SetVaultName(Cow::Borrowed(name)).into_owned();
         self.patch(summary, vec![event.clone()]).await?;
 
         // Update the in-memory name.

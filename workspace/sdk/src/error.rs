@@ -96,6 +96,10 @@ pub enum Error {
     #[error("invalid nonce")]
     InvalidNonce,
 
+    /// Error generated attempting to convert to a change event.
+    #[error("not compatible with change event")]
+    NoChangeEvent,
+
     /// Error generated when a vault is locked.
     #[error("vault must be unlocked")]
     VaultLocked,

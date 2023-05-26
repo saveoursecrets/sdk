@@ -6,8 +6,8 @@ use sos_sdk::{
     },
     decode,
     events::{
-        AuditData, AuditEvent, ChangeEvent, ChangeNotification, EventKind,
-        Event, WriteEvent,
+        AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
+        EventKind, WriteEvent,
     },
     patch::Patch,
     rpc::{RequestMessage, ResponseMessage, Service},
@@ -249,27 +249,29 @@ impl Service for EventLogService {
                                     }
                                 });
 
-                            // Audit log events
-                            let audit_logs = change_set
-                                .iter()
-                                .map(|event| {
-                                    AuditEvent::from_sync_event(
-                                        event,
-                                        caller.address(),
-                                        &vault_id,
-                                    )
-                                })
-                                .collect::<Vec<_>>();
-
                             // Changes events for the SSE channel
-                            let change_events = change_set
+                            let change_events: Vec<ChangeEvent> = change_set
                                 .iter()
                                 .filter_map(|event| {
-                                    ChangeEvent::from_sync_event(event)
+                                    let event: Option<ChangeEvent> =
+                                        event.try_into().ok();
+                                    event
                                 })
                                 .collect::<Vec<_>>();
 
-                            // Changes to apply to the event log log
+                            // Audit log events
+                            let audit_logs: Vec<AuditEvent> = change_set
+                                .iter()
+                                .map(|event| {
+                                    let event = Event::Write(
+                                        vault_id.clone(),
+                                        event.clone(),
+                                    );
+                                    (caller.address(), &event).into()
+                                })
+                                .collect();
+
+                            // Changes to apply to the event log
                             let mut changes = Vec::new();
                             for event in change_set {
                                 changes.push(event);

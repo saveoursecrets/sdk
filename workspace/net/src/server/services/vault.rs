@@ -3,7 +3,8 @@ use axum::http::StatusCode;
 use sos_sdk::{
     constants::{VAULT_CREATE, VAULT_DELETE, VAULT_SAVE},
     events::{
-        AuditData, AuditEvent, ChangeEvent, ChangeNotification, EventKind,
+        AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
+        EventKind,
     },
     rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
@@ -78,11 +79,8 @@ impl Service for VaultService {
                         vec![ChangeEvent::CreateVault(summary)],
                     );
 
-                    let log = AuditEvent::from_sync_event(
-                        &sync_event,
-                        caller.address(),
-                        &vault_id,
-                    );
+                    let event = Event::Write(vault_id, sync_event);
+                    let log: AuditEvent = (caller.address(), &event).into();
 
                     append_audit_logs(&mut writer, vec![log])
                         .await
@@ -184,11 +182,8 @@ impl Service for VaultService {
                     vec![ChangeEvent::UpdateVault],
                 );
 
-                let log = AuditEvent::from_sync_event(
-                    &sync_event,
-                    caller.address(),
-                    summary.id(),
-                );
+                let event = Event::Write(vault_id, sync_event);
+                let log: AuditEvent = (caller.address(), &event).into();
 
                 append_audit_logs(&mut writer, vec![log])
                     .await

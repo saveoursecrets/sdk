@@ -8,6 +8,7 @@ use crate::{
     commit::CommitProof,
     events::{Event, WriteEvent},
     vault::{secret::SecretId, Header, Summary, VaultId},
+    Error, Result,
 };
 
 /// Encapsulates a collection of change events.
@@ -125,6 +126,34 @@ impl ChangeEvent {
                 _ => None,
             },
             _ => None,
+        }
+    }
+}
+
+impl<'a> TryFrom<&WriteEvent<'a>> for ChangeEvent {
+    type Error = Error;
+
+    fn try_from(event: &WriteEvent<'a>) -> Result<Self> {
+        match event {
+            WriteEvent::CreateVault(vault) => {
+                let summary = Header::read_summary_slice(vault.as_ref())?;
+                Ok(ChangeEvent::CreateVault(summary))
+            }
+            WriteEvent::DeleteVault => Ok(ChangeEvent::DeleteVault),
+            WriteEvent::SetVaultName(name) => {
+                Ok(ChangeEvent::SetVaultName(name.to_string()))
+            }
+            WriteEvent::SetVaultMeta(_) => Ok(ChangeEvent::SetVaultMeta),
+            WriteEvent::CreateSecret(secret_id, _) => {
+                Ok(ChangeEvent::CreateSecret(*secret_id))
+            }
+            WriteEvent::UpdateSecret(secret_id, _) => {
+                Ok(ChangeEvent::UpdateSecret(*secret_id))
+            }
+            WriteEvent::DeleteSecret(secret_id) => {
+                Ok(ChangeEvent::DeleteSecret(*secret_id))
+            }
+            _ => Err(Error::NoChangeEvent),
         }
     }
 }

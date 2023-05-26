@@ -139,7 +139,7 @@ impl PatchFile {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{events::Event, test_utils::*};
+    use crate::test_utils::*;
     use anyhow::Result;
     use tempfile::NamedTempFile;
 
@@ -152,12 +152,6 @@ mod test {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, _, _, _, mock_event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
-
-        let mock_event = if let Event::Write(_, event) = mock_event {
-            event
-        } else {
-            unreachable!();
-        };
 
         // Empty patch file is 4 bytes
         assert_eq!(4, temp.path().metadata()?.len());

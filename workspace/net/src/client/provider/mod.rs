@@ -13,7 +13,9 @@ use sos_sdk::{
     constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
     crypto::secret_key::SecretKey,
     decode, encode,
-    events::{AuditLogFile, ChangeAction, ChangeNotification, Event, WriteEvent, ReadEvent},
+    events::{
+        AuditLogFile, ChangeAction, ChangeNotification, ReadEvent, WriteEvent,
+    },
     passwd::ChangePassword,
     search::SearchIndex,
     storage::StorageDirs,
@@ -475,7 +477,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Event<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         let event = keeper.create(meta, secret)?.into_owned();
@@ -487,7 +489,7 @@ pub trait StorageProvider: Sync + Send {
     async fn read_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<(SecretMeta, Secret, Event<'_>)> {
+    ) -> Result<(SecretMeta, Secret, ReadEvent)> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let _summary = keeper.summary().clone();
         let result = keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
@@ -499,9 +501,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         id: &SecretId,
         mut secret_data: SecretData,
-        //mut meta: SecretMeta,
-        //secret: Secret,
-    ) -> Result<Event<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         secret_data.meta.touch();
@@ -517,7 +517,7 @@ pub trait StorageProvider: Sync + Send {
     async fn delete_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<Event<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         let event = keeper.delete(id)?.ok_or(Error::SecretNotFound(*id))?;
@@ -615,7 +615,7 @@ macro_rules! provider_impl {
 
             if let Some(vault) = &vault {
                 let encoded = encode(vault)?;
-                let event = Event::CreateVault(Cow::Owned(encoded));
+                let event = WriteEvent::CreateVault(Cow::Owned(encoded));
                 event_log.append_event(event)?;
             }
             event_log.load_tree()?;

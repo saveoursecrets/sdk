@@ -8,7 +8,7 @@ use tempfile::tempdir;
 use secrecy::ExposeSecret;
 use sos_net::client::provider::{LocalProvider, StorageProvider};
 use sos_sdk::{
-    events::Event,
+    events::WriteEvent,
     signer::{ecdsa::SingleParty, Signer},
     storage::StorageDirs,
     vault::secret::{Secret, SecretData},
@@ -51,7 +51,7 @@ async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
 
     let (meta, secret) = mock_note("Test Note", "Mock note content.");
     let event = storage.create_secret(meta, secret).await?;
-    let id = if let Event::CreateSecret(id, _) = event {
+    let id = if let WriteEvent::CreateSecret(id, _) = event {
         id
     } else {
         panic!("expecting sync create secret event");
@@ -86,7 +86,7 @@ async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
     // Create another secret
     let (meta, secret) = mock_note("Alt Note", "Another mock note.");
     let event = storage.create_secret(meta, secret).await?;
-    let alt_id = if let Event::CreateSecret(id, _) = event {
+    let alt_id = if let WriteEvent::CreateSecret(id, _) = event {
         id
     } else {
         panic!("expecting sync create secret event");

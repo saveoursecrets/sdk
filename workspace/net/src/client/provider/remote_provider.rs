@@ -9,8 +9,8 @@ use secrecy::SecretString;
 use sos_sdk::{
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     decode, encode,
-    events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent, Event},
-    events::{EventLogFile, EventReducer},
+    events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
+    events::{EventLogFile, EventReducer, ReadEvent},
     patch::PatchFile,
     storage::StorageDirs,
     vault::{
@@ -246,7 +246,8 @@ impl StorageProvider for RemoteProvider {
         summary: &Summary,
         name: &str,
     ) -> Result<WriteEvent<'static>> {
-        let event = WriteEvent::SetVaultName(Cow::Borrowed(name)).into_owned();
+        let event =
+            WriteEvent::SetVaultName(Cow::Borrowed(name)).into_owned();
         patch!(self, summary, vec![event.clone()])?;
 
         for item in self.state.summaries_mut().iter_mut() {
@@ -423,18 +424,11 @@ impl StorageProvider for RemoteProvider {
     async fn read_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<(SecretMeta, Secret, Event<'_>)> {
+    ) -> Result<(SecretMeta, Secret, ReadEvent)> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-        let summary = keeper.summary().clone();
+        let _summary = keeper.summary().clone();
         let (meta, secret, event) =
             keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
-        let event = event.into_owned();
-
-        // If patching fails then we drop an audit log entry
-        // however we don't want this failure to interrupt the client
-        // so we sevent_loglow the error in this case
-        let _ = self.patch(&summary, vec![event.clone()]).await;
-
         Ok((meta, secret, event))
     }
 }

@@ -63,7 +63,7 @@ mod test {
     use crate::{
         commit::{CommitHash, CommitTree, Comparison},
         encode,
-        events::{Event, WriteEvent},
+        events::WriteEvent,
         vault::{secret::SecretId, Vault, VaultCommit, VaultEntry},
     };
 

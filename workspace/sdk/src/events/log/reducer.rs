@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap};
 use crate::{
     crypto::AeadPack,
     decode, encode,
-    events::{Event, EventLogFile, WriteEvent},
+    events::{EventLogFile, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
     Error, Result,
 };
@@ -160,7 +160,7 @@ mod test {
         commit::CommitHash,
         crypto::secret_key::SecretKey,
         decode,
-        events::{Event, EventLogFile, WriteEvent},
+        events::{EventLogFile, WriteEvent},
         test_utils::*,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
@@ -187,20 +187,13 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = Event::Write(
-            *vault.id(),
-            WriteEvent::CreateVault(Cow::Owned(buffer)),
-        );
-        if let Event::Write(_, event) = event {
-            commits.push(event_log.append_event(event)?);
-        }
+        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
+        commits.push(event_log.append_event(event)?);
 
         // Create a secret
         let (secret_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
-        if let Event::Write(_, event) = event {
-            commits.push(event_log.append_event(event)?);
-        }
+        commits.push(event_log.append_event(event)?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -210,19 +203,17 @@ mod test {
             "bar",
             "qux",
         )?;
-        if let Some(Event::Write(_, event)) = event {
+        if let Some(event) = event {
             commits.push(event_log.append_event(event)?);
         }
 
         // Create another secret
         let (del_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "qux", "baz")?;
-        if let Event::Write(_, event) = event {
-            commits.push(event_log.append_event(event)?);
-        }
+        commits.push(event_log.append_event(event)?);
 
         let event = vault.delete(&del_id)?;
-        if let Some(Event::Write(_, event)) = event {
+        if let Some(event) = event {
             commits.push(event_log.append_event(event)?);
         }
 

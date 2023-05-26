@@ -372,10 +372,7 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{
-        events::{Event, WriteEvent},
-        test_utils::*,
-    };
+    use crate::{events::WriteEvent, test_utils::*};
 
     fn mock_event_log_file(
     ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>)> {
@@ -398,9 +395,7 @@ mod test {
             "event log Note",
             "This a event log note secret.",
         )?;
-        if let Event::Write(_, event) = event {
-            commits.push(event_log.append_event(event)?);
-        }
+        commits.push(event_log.append_event(event)?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -410,7 +405,7 @@ mod test {
             "event log Note Edited",
             "This a event log note secret that was edited.",
         )?;
-        if let Some(Event::Write(_, event)) = event {
+        if let Some(event) = event {
             commits.push(event_log.append_event(event)?);
         }
 

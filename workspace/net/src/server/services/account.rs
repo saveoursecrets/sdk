@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 
 use sos_sdk::{
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS},
-    events::{AuditEvent, ChangeEvent, ChangeNotification, EventKind},
+    events::{AuditEvent, ChangeEvent, ChangeNotification, Event, EventKind},
     rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
 };
@@ -69,11 +69,8 @@ impl Service for AccountService {
                     vec![ChangeEvent::CreateVault(summary)],
                 );
 
-                let log = AuditEvent::from_sync_event(
-                    &sync_event,
-                    caller.address(),
-                    &vault_id,
-                );
+                let event = Event::Write(vault_id, sync_event);
+                let log: AuditEvent = (caller.address(), &event).into();
 
                 append_audit_logs(&mut writer, vec![log])
                     .await

@@ -28,7 +28,7 @@ use crate::{
     },
     decode, encode,
     encoding::v1::VERSION,
-    events::{Event, ReadEvent, WriteEvent},
+    events::{ReadEvent, WriteEvent},
     formats::FileIdentity,
     passwd::diceware::generate_passphrase,
     vault::secret::SecretId,
@@ -209,20 +209,20 @@ pub trait VaultAccess {
     fn vault_name(&self) -> Result<Cow<'_, str>>;
 
     /// Set the name of a vault.
-    fn set_vault_name(&mut self, name: String) -> Result<Event<'_>>;
+    fn set_vault_name(&mut self, name: String) -> Result<WriteEvent<'_>>;
 
     /// Set the vault meta data.
     fn set_vault_meta(
         &mut self,
         meta_data: Option<AeadPack>,
-    ) -> Result<Event<'_>>;
+    ) -> Result<WriteEvent<'_>>;
 
     /// Add an encrypted secret to the vault.
     fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Event<'_>>;
+    ) -> Result<WriteEvent<'_>>;
 
     /// Insert an encrypted secret to the vault with the given id.
     ///
@@ -234,13 +234,13 @@ pub trait VaultAccess {
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Event<'_>>;
+    ) -> Result<WriteEvent<'_>>;
 
     /// Get an encrypted secret from the vault.
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, Event<'_>)>;
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)>;
 
     /// Update an encrypted secret in the vault.
     fn update(
@@ -248,10 +248,10 @@ pub trait VaultAccess {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<Event<'_>>>;
+    ) -> Result<Option<WriteEvent<'_>>>;
 
     /// Remove an encrypted secret from the vault.
-    fn delete(&mut self, id: &SecretId) -> Result<Option<Event<'_>>>;
+    fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent<'_>>>;
 }
 
 /// Authentication information.
@@ -853,31 +853,25 @@ impl VaultAccess for Vault {
         Ok(Cow::Borrowed(self.name()))
     }
 
-    fn set_vault_name(&mut self, name: String) -> Result<Event<'_>> {
+    fn set_vault_name(&mut self, name: String) -> Result<WriteEvent<'_>> {
         self.set_name(name.clone());
-        Ok(Event::Write(
-            *self.id(),
-            WriteEvent::SetVaultName(Cow::Owned(name)),
-        ))
+        Ok(WriteEvent::SetVaultName(Cow::Owned(name)))
     }
 
     fn set_vault_meta(
         &mut self,
         meta_data: Option<AeadPack>,
-    ) -> Result<Event<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         self.header.set_meta(meta_data);
         let meta = self.header.meta().cloned();
-        Ok(Event::Write(
-            *self.id(),
-            WriteEvent::SetVaultMeta(Cow::Owned(meta)),
-        ))
+        Ok(WriteEvent::SetVaultMeta(Cow::Owned(meta)))
     }
 
     fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Event<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         let id = Uuid::new_v4();
         self.insert(id, commit, secret)
     }
@@ -887,25 +881,21 @@ impl VaultAccess for Vault {
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Event<'_>> {
-        let vault_id = *self.id();
+    ) -> Result<WriteEvent<'_>> {
         let value = self
             .contents
             .data
             .entry(id)
             .or_insert(VaultCommit(commit, secret));
-        Ok(Event::Write(
-            vault_id,
-            WriteEvent::CreateSecret(id, Cow::Borrowed(value)),
-        ))
+        Ok(WriteEvent::CreateSecret(id, Cow::Borrowed(value)))
     }
 
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, Event<'_>)> {
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
         let result = self.contents.data.get(id).map(Cow::Borrowed);
-        Ok((result, Event::Read(*self.id(), ReadEvent::ReadSecret(*id))))
+        Ok((result, ReadEvent::ReadSecret(*id)))
     }
 
     fn update(
@@ -913,27 +903,20 @@ impl VaultAccess for Vault {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<Event<'_>>> {
-        let vault_id = *self.id();
+    ) -> Result<Option<WriteEvent<'_>>> {
+        let _vault_id = *self.id();
         if let Some(value) = self.contents.data.get_mut(id) {
             *value = VaultCommit(commit, secret);
-
-            Ok(Some(Event::Write(
-                vault_id,
-                WriteEvent::UpdateSecret(*id, Cow::Borrowed(value)),
-            )))
+            Ok(Some(WriteEvent::UpdateSecret(*id, Cow::Borrowed(value))))
         } else {
             Ok(None)
         }
     }
 
-    fn delete(&mut self, id: &SecretId) -> Result<Option<Event<'_>>> {
+    fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent<'_>>> {
         let entry = self.contents.data.remove(id);
         if entry.is_some() {
-            Ok(Some(Event::Write(
-                *self.id(),
-                WriteEvent::DeleteSecret(*id),
-            )))
+            Ok(Some(WriteEvent::DeleteSecret(*id)))
         } else {
             Ok(None)
         }

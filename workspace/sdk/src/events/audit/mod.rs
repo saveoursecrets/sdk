@@ -122,7 +122,7 @@ impl AuditEvent {
             LogFlags::empty()
         }
     }
-    
+
     /*
     /// Convert from a sync event to an audit event.
     pub fn from_sync_event(

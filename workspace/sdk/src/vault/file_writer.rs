@@ -17,7 +17,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     encode,
-    events::{Event, ReadEvent, WriteEvent},
+    events::{ReadEvent, WriteEvent},
     stream_len,
     vault::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
@@ -178,36 +178,30 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
         Ok(Cow::Owned(name))
     }
 
-    fn set_vault_name(&mut self, name: String) -> Result<Event<'_>> {
+    fn set_vault_name(&mut self, name: String) -> Result<WriteEvent<'_>> {
         let content_offset = self.check_identity()?;
         let mut header = Header::read_header_file(&self.file_path)?;
         header.set_name(name.clone());
         self.write_header(content_offset, &header)?;
-        Ok(Event::Write(
-            *header.id(),
-            WriteEvent::SetVaultName(Cow::Owned(name)),
-        ))
+        Ok(WriteEvent::SetVaultName(Cow::Owned(name)))
     }
 
     fn set_vault_meta(
         &mut self,
         meta_data: Option<AeadPack>,
-    ) -> Result<Event<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         let content_offset = self.check_identity()?;
         let mut header = Header::read_header_file(&self.file_path)?;
         header.set_meta(meta_data.clone());
         self.write_header(content_offset, &header)?;
-        Ok(Event::Write(
-            *header.id(),
-            WriteEvent::SetVaultMeta(Cow::Owned(meta_data)),
-        ))
+        Ok(WriteEvent::SetVaultMeta(Cow::Owned(meta_data)))
     }
 
     fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Event<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         let id = Uuid::new_v4();
         self.insert(id, commit, secret)
     }
@@ -217,8 +211,8 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Event<'_>> {
-        let summary = self.summary()?;
+    ) -> Result<WriteEvent<'_>> {
+        let _summary = self.summary()?;
         let mut stream = self.stream.lock().unwrap();
         let length = stream_len(stream.deref_mut())?;
         let mut writer = BinaryWriter::new(&mut *stream, Endian::Little);
@@ -230,18 +224,15 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
 
         drop(stream);
 
-        Ok(Event::Write(
-            *summary.id(),
-            WriteEvent::CreateSecret(id, Cow::Owned(row)),
-        ))
+        Ok(WriteEvent::CreateSecret(id, Cow::Owned(row)))
     }
 
     fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, Event<'_>)> {
-        let summary = self.summary()?;
-        let event = Event::Read(*summary.id(), ReadEvent::ReadSecret(*id));
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
+        let _summary = self.summary()?;
+        let event = ReadEvent::ReadSecret(*id);
         let (_, row) = self.find_row(id)?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().unwrap();
@@ -259,8 +250,8 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<Event<'_>>> {
-        let summary = self.summary()?;
+    ) -> Result<Option<WriteEvent<'_>>> {
+        let _summary = self.summary()?;
         let (_content_offset, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
@@ -283,17 +274,14 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
 
             self.splice(head, tail, Some(&buffer))?;
 
-            Ok(Some(Event::Write(
-                *summary.id(),
-                WriteEvent::UpdateSecret(*id, Cow::Owned(row)),
-            )))
+            Ok(Some(WriteEvent::UpdateSecret(*id, Cow::Owned(row))))
         } else {
             Ok(None)
         }
     }
 
-    fn delete(&mut self, id: &SecretId) -> Result<Option<Event<'_>>> {
-        let summary = self.summary()?;
+    fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent<'_>>> {
+        let _summary = self.summary()?;
         let (_content_offset, row) = self.find_row(id)?;
         if let Some((row_offset, row_len)) = row {
             let mut stream = self.stream.lock().unwrap();
@@ -307,10 +295,7 @@ impl<F: Read + Write + Seek> VaultAccess for VaultWriter<F> {
 
             self.splice(head, tail, None)?;
 
-            Ok(Some(Event::Write(
-                *summary.id(),
-                WriteEvent::DeleteSecret(*id),
-            )))
+            Ok(Some(WriteEvent::DeleteSecret(*id)))
         } else {
             Ok(None)
         }
@@ -324,7 +309,7 @@ mod tests {
     use crate::{
         constants::DEFAULT_VAULT_NAME,
         crypto::secret_key::SecretKey,
-        events::{Event, WriteEvent},
+        events::WriteEvent,
         vault::{secret::*, Header, Vault, VaultAccess, VaultEntry},
     };
     use anyhow::Result;
@@ -349,7 +334,7 @@ mod tests {
 
         let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
 
-        if let Event::Write(_, WriteEvent::CreateSecret(secret_id, _)) =
+        if let WriteEvent::CreateSecret(secret_id, _) =
             vault_access.create(commit, VaultEntry(meta_aead, secret_aead))?
         {
             Ok((

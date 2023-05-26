@@ -3,7 +3,7 @@
 use crate::{
     crypto::secret_key::{SecretKey, Seed},
     encode,
-    events::{Event, WriteEvent},
+    events::WriteEvent,
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
@@ -128,11 +128,7 @@ impl<'a> ChangePassword<'a> {
                 VaultEntry(meta_aead, secret_aead),
             )?;
 
-            if let Event::Write(_, event) = sync_event {
-                event_log_events.push(event.into_owned());
-            } else {
-                unreachable!();
-            }
+            event_log_events.push(sync_event.into_owned());
         }
 
         event_log_events.sort();

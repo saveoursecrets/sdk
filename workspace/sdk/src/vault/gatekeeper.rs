@@ -5,7 +5,7 @@ use crate::{
         AeadPack,
     },
     decode, encode,
-    events::{Event, ReadEvent, WriteEvent},
+    events::{ReadEvent, WriteEvent},
     search::SearchIndex,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
@@ -173,7 +173,7 @@ impl Gatekeeper {
     }
 
     /// Set the public name for the vault.
-    pub fn set_vault_name(&mut self, name: String) -> Result<Event<'_>> {
+    pub fn set_vault_name(&mut self, name: String) -> Result<WriteEvent<'_>> {
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.set_vault_name(name.clone())?;
         }
@@ -234,7 +234,7 @@ impl Gatekeeper {
 
     /// Set the meta data for the vault.
     // TODO: rename to set_vault_meta() for consistency
-    fn set_meta(&mut self, meta_data: VaultMeta) -> Result<Event<'_>> {
+    fn set_meta(&mut self, meta_data: VaultMeta) -> Result<WriteEvent<'_>> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
@@ -278,7 +278,7 @@ impl Gatekeeper {
         &mut self,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Event<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         let vault_id = *self.vault().id();
         //let reader = self.index.read();
 
@@ -331,8 +331,8 @@ impl Gatekeeper {
     pub fn read(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(SecretMeta, Secret, Event<'_>)>> {
-        let payload = Event::Read(*self.id(), ReadEvent::ReadSecret(*id));
+    ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
+        let payload = ReadEvent::ReadSecret(*id);
         Ok(self
             .read_secret(id, None, None)?
             .map(|(meta, secret)| (meta, secret, payload)))
@@ -344,7 +344,7 @@ impl Gatekeeper {
         id: &SecretId,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Option<Event<'_>>> {
+    ) -> Result<Option<WriteEvent<'_>>> {
         let vault_id = *self.vault().id();
         let reader = self.index.read();
 
@@ -382,7 +382,7 @@ impl Gatekeeper {
             )?;
         }
 
-        let result = self.vault.update(
+        let event = self.vault.update(
             id,
             commit,
             VaultEntry(meta_aead, secret_aead),
@@ -393,19 +393,22 @@ impl Gatekeeper {
         let mut writer = self.index.write();
         writer.update(&vault_id, id, secret_meta, &secret);
 
-        Ok(result)
+        Ok(event)
     }
 
     /// Delete a secret and it's meta data from the vault.
-    pub fn delete(&mut self, id: &SecretId) -> Result<Option<Event<'_>>> {
+    pub fn delete(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent<'_>>> {
         let vault_id = *self.vault().id();
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.delete(id)?;
         }
-        let result = self.vault.delete(id)?;
+        let event = self.vault.delete(id)?;
         let mut writer = self.index.write();
         writer.remove(&vault_id, id);
-        Ok(result)
+        Ok(event)
     }
 
     /// Decrypt secret meta data.
@@ -521,7 +524,7 @@ mod tests {
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        if let Event::Write(_, WriteEvent::CreateSecret(secret_uuid, _)) =
+        if let WriteEvent::CreateSecret(secret_uuid, _) =
             keeper.create(secret_meta.clone(), secret.clone())?
         {
             let (saved_secret_meta, saved_secret) =

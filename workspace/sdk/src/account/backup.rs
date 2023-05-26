@@ -22,7 +22,7 @@ use crate::{
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
-    events::{Event, EventLogFile, WriteEvent},
+    events::{EventLogFile, WriteEvent},
     passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
