@@ -3,12 +3,12 @@ use std::{
     io::{Cursor, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
-use tokio::{fs::File, io::AsyncWriteExt};
+use tokio::{io::AsyncWriteExt};
 
 use crate::{
     constants::AUDIT_IDENTITY,
     formats::{audit_iter, FileItem, FileRecord, ReadStreamIterator},
-    vfs, Result,
+    vfs::{self, File}, Result,
 };
 
 use super::{AuditEvent, AuditProvider};

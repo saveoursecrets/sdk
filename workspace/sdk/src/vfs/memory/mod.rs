@@ -35,26 +35,10 @@ pub enum MemoryFd {
     Dir(MemoryDir),
 }
 
-/// A reference to an open file on the filesystem.
-pub struct File;
-
-impl File {
-    /// Attempts to open a file in read-only mode.
-    pub async fn open(path: impl AsRef<Path>) -> Result<File> {
-        todo!();
-    }
-
-    /// Opens a file in write-only mode.
-    pub async fn create(path: impl AsRef<Path>) -> Result<File> {
-        todo!();
-    }
-
-    /// Truncates or extends the underlying file, updating
-    /// the size of this file to become size.
-    pub async fn set_len(&self, size: u64) -> Result<()> {
-        todo!();
-    }
-}
+mod file;
+mod open_options;
+pub use file::File;
+pub use open_options::OpenOptions;
 
 /// Find all the descendants of a path.
 async fn find_descendants(
