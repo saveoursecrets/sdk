@@ -1,8 +1,10 @@
-use std::io;
-use std::path::Path;
+use std::io::{self, ErrorKind};
+use std::{path::Path, sync::Arc};
 
-use super::File;
+use tokio::sync::{Mutex, RwLock};
+use super::{File, FILE_SYSTEM, FS_LOCK, MemoryFd};
 use bitflags::bitflags;
+use once_cell::sync::Lazy;
 
 bitflags! {
     /// Bit flags for the open options.
@@ -65,9 +67,49 @@ impl OpenOptions {
 
     /// Opens a file at `path` with the options specified by `self`.
     pub async fn open(&self, path: impl AsRef<Path>) -> io::Result<File> {
-        let path = path.as_ref().to_owned();
-        let opts = self.clone();
-        Ok((path, opts).try_into()?)
+        unsafe {
+            let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
+            let file = if let Some(file) = fs.get(path.as_ref()) {
+
+                if self.0.contains(OpenFlags::TRUNCATE) {
+                    let mut fd = file.write().await;
+                    if let MemoryFd::File(file) = &mut *fd {
+                        file.contents = Vec::new();
+                    }
+                }
+
+                let (is_file, length) = {
+                    let fd = file.read().await;
+                    if let MemoryFd::File(file) = &*fd {
+                        (true, file.len())
+                    } else {
+                        (false, 0)
+                    }
+                };
+
+                if is_file {
+                    let file = Arc::clone(&file);
+                    (file, length).into()
+                } else {
+                    return Err(ErrorKind::PermissionDenied.into());
+                }
+            } else {
+                if self.0.contains(OpenFlags::CREATE) {
+                    let path = path.as_ref().to_path_buf();
+                    let _ = FS_LOCK.lock().await;
+                    let fd = fs.entry(path).or_insert_with(|| {
+                        Arc::new(RwLock::new(MemoryFd::File(Default::default())))
+                    });
+
+                    let file = Arc::clone(&*fd);
+                    (file, 0).into()
+
+                } else {
+                    return Err(ErrorKind::PermissionDenied.into());
+                }
+            };
+            Ok(file)
+        }
     }
 }
 

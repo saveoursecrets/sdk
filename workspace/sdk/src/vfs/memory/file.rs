@@ -19,7 +19,7 @@ use std::task::Context;
 use std::task::Poll;
 use std::task::Poll::*;
 
-use super::{MemoryFile, OpenOptions, PathBuf};
+use super::{MemoryFd, OpenOptions, PathBuf, FILE_SYSTEM};
 
 pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
 where
@@ -30,36 +30,46 @@ where
     rt.spawn_blocking(func)
 }
 
-type Buf = Arc<RwLock<MemoryFile>>;
+type Buf = Arc<RwLock<MemoryFd>>;
 
 /// A reference to an open file on the filesystem.
 pub struct File {
-    options: OpenOptions,
     inner: Mutex<Inner>,
+}
+
+impl From<(Arc<RwLock<MemoryFd>>, usize)> for File {
+    fn from(value: (Arc<RwLock<MemoryFd>>, usize)) -> Self {
+        let (file, length) = value;
+        Self {
+            inner: Mutex::new(Inner {
+                state: State::Idle(Some(file)),
+                pos: 0,
+                length,
+                last_write_err: None,
+            })
+        }
+    }
 }
 
 struct Inner {
     state: State,
-
     /// Errors from writes/flushes are returned in
     /// write/flush calls. If a write error is observed
     /// while performing a read, it is saved until the next
     /// write / flush call.
     last_write_err: Option<io::ErrorKind>,
-
     length: usize,
-
     pos: u64,
 }
 
 #[derive(Debug)]
-enum State {
+pub(super) enum State {
     Idle(Option<Buf>),
     Busy(JoinHandle<(Operation, Buf)>),
 }
 
 #[derive(Debug)]
-enum Operation {
+pub(super) enum Operation {
     Read(io::Result<usize>),
     Write(io::Result<()>),
     Seek(io::Result<u64>),
@@ -106,14 +116,25 @@ impl File {
         let mut writer = buf.write().await;
 
         if size < writer.len() as u64 {
-            writer.contents.truncate(size as usize);
+            match &mut *writer {
+                MemoryFd::File(file) => {
+                    file.contents.truncate(size as usize);
+                }
+                _ => unreachable!(),
+            }
             if inner.pos > size {
                 inner.pos = size;
             }
         } else if size > writer.len() as u64 {
             let amount = writer.len() as u64 - size;
             let elements = vec![0; amount as usize];
-            writer.contents.extend(elements.iter());
+
+            match &mut *writer {
+                MemoryFd::File(file) => {
+                    file.contents.extend(elements.iter());
+                }
+                _ => unreachable!(),
+            }
         }
 
         drop(writer);
@@ -152,14 +173,6 @@ impl File {
         asyncify(move || std.set_permissions(perm)).await
         */
 
-        todo!();
-    }
-}
-
-impl TryFrom<(PathBuf, OpenOptions)> for File {
-    type Error = io::Error;
-
-    fn try_from(value: (PathBuf, OpenOptions)) -> io::Result<Self> {
         todo!();
     }
 }

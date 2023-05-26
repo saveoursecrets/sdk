@@ -2,11 +2,16 @@
 use once_cell::sync::Lazy;
 use std::{
     collections::BTreeMap,
-    io::{Error, ErrorKind},
+    io::{self, Error, ErrorKind},
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock};
+
+mod file;
+mod open_options;
+pub use file::File;
+pub use open_options::OpenOptions;
 
 /// Result type for the in-memory file system.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -14,20 +19,32 @@ pub type Result<T> = std::result::Result<T, Error>;
 type FileSystem = BTreeMap<PathBuf, Arc<RwLock<MemoryFd>>>;
 
 // File system contents.
-static mut FILE_SYSTEM: Lazy<FileSystem> = Lazy::new(|| BTreeMap::new());
+pub(self) static mut FILE_SYSTEM: Lazy<FileSystem> = Lazy::new(|| BTreeMap::new());
 
 // Lock for when we need to modify the file system by adding
 // or removing paths.
 static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 /// Directory reference.
-#[derive(Default)]
-pub(crate) struct MemoryDir;
+#[derive(Default, Debug)]
+pub(self) struct MemoryDir;
+
+impl MemoryDir {
+    /// Determine if the file is empty.
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
+    /// Get the length.
+    pub fn len(&self) -> usize {
+        0
+    }
+}
 
 /// File content.
 #[derive(Default, Debug)]
-pub(crate) struct MemoryFile {
-    pub(crate) contents: Vec<u8>,
+pub(self) struct MemoryFile {
+    pub(self) contents: Vec<u8>,
 }
 
 impl MemoryFile {
@@ -43,17 +60,31 @@ impl MemoryFile {
 }
 
 /// File descriptor.
-pub(crate) enum MemoryFd {
+#[derive(Debug)]
+pub(self) enum MemoryFd {
     /// File variant.
     File(MemoryFile),
     /// Directory variant.
     Dir(MemoryDir),
 }
 
-mod file;
-mod open_options;
-pub use file::File;
-pub use open_options::OpenOptions;
+impl MemoryFd {
+    /// Determine if the file is empty.
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::File(fd) => fd.is_empty(),
+            Self::Dir(fd) => fd.is_empty(),
+        }
+    }
+
+    /// Get the length.
+    pub fn len(&self) -> usize {
+        match self {
+            Self::File(fd) => fd.len(),
+            Self::Dir(fd) => fd.len(),
+        }
+    }
+}
 
 /*
 /// Ensure a path exists.
@@ -302,3 +333,4 @@ pub async fn read_dir(path: impl AsRef<Path>) -> Result<ReadDir> {
     todo!();
 }
 */
+
