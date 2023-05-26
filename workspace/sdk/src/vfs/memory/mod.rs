@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use std::{
     collections::BTreeMap,
     io::{self, Error, ErrorKind},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock};
@@ -38,29 +38,54 @@ bitflags! {
 type FileSystem = BTreeMap<PathBuf, Arc<RwLock<MemoryFd>>>;
 
 // File system contents.
-pub(self) static mut FILE_SYSTEM: Lazy<FileSystem> =
-    Lazy::new(|| BTreeMap::new());
+pub(self) static mut FILE_SYSTEM: Lazy<MemoryDir> =
+    Lazy::new(|| Default::default());
 
 // Lock for when we need to modify the file system by adding
 // or removing paths.
 static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+pub(self) fn find(
+    fs: &FileSystem,
+    path: impl AsRef<Path>,
+) -> Option<Arc<RwLock<MemoryFd>>> {
+    unsafe {
+        let components: Vec<Component> =
+            path.as_ref().components().into_iter().collect();
+        let length = components.len();
+        for (index, part) in components.into_iter().enumerate() {
+            match part {
+                Component::RootDir => continue,
+                Component::Normal(name) => {
+                    let path = PathBuf::from(name);
+                    if index == length - 1 {
+                        return fs.get(&path).map(Arc::clone);
+                    }
+                }
+                _ => todo!(),
+            }
+        }
+        None
+    }
+}
 
 /// Directory reference.
 #[derive(Default, Debug)]
 pub(self) struct MemoryDir {
     permissions: Permissions,
     time: FileTime,
+    files: FileSystem,
 }
 
 impl MemoryDir {
     /// Determine if the file is empty.
     pub fn is_empty(&self) -> bool {
-        false
+        self.files.is_empty()
     }
 
     /// Get the length.
     pub fn len(&self) -> usize {
-        0
+        self.files.len()
     }
 }
 
@@ -148,23 +173,11 @@ impl MemoryFd {
     }
 }
 
-/*
-/// Ensure a path exists.
-async fn ensure_exists(path: impl AsRef<Path>) -> Result<()> {
-    unsafe {
-        let fd = FILE_SYSTEM.get(path.as_ref());
-        if fd.is_none() {
-            return Err(ErrorKind::NotFound.into());
-        }
-    }
-    Ok(())
-}
-*/
-
 /// Ensure a path is a file and exists.
 async fn ensure_file(path: impl AsRef<Path>) -> Result<()> {
     unsafe {
-        let fd = FILE_SYSTEM.get(path.as_ref());
+        let fs = Lazy::get(&mut FILE_SYSTEM).unwrap();
+        let fd = find(&fs.files, path.as_ref());
         if let Some(fd) = fd {
             let fd = fd.read().await;
             let is_file = matches!(&*fd, MemoryFd::File(_));
@@ -181,8 +194,8 @@ async fn ensure_file(path: impl AsRef<Path>) -> Result<()> {
 /// Ensure a path is a directory and exists.
 async fn ensure_dir(path: impl AsRef<Path>) -> Result<()> {
     unsafe {
-        let fd = FILE_SYSTEM.get(path.as_ref());
-        if let Some(fd) = fd {
+        let fs = Lazy::get(&mut FILE_SYSTEM).unwrap();
+        if let Some(fd) = find(&fs.files, path.as_ref()) {
             let fd = fd.read().await;
             let is_file = matches!(&*fd, MemoryFd::Dir(_));
             if !is_file {
@@ -229,7 +242,7 @@ pub async fn write(
     unsafe {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
         if let Some(parent) = path.parent() {
-            if let Some(parent) = fs.get(parent) {
+            if let Some(parent) = fs.files.get(parent) {
                 let fd = parent.read().await;
                 let is_dir = matches!(&*fd, MemoryFd::Dir(_));
                 if !is_dir {
@@ -237,7 +250,7 @@ pub async fn write(
                 }
             }
         }
-        let fd = fs.entry(path).or_insert_with(|| {
+        let fd = fs.files.entry(path).or_insert_with(|| {
             Arc::new(RwLock::new(MemoryFd::File(Default::default())))
         });
         let mut fd = fd.write().await;
@@ -251,7 +264,8 @@ pub async fn write(
 /// Reads the entire contents of a file into a bytes vector.
 pub async fn read(path: impl AsRef<Path>) -> Result<Vec<u8>> {
     unsafe {
-        if let Some(fd) = FILE_SYSTEM.get(path.as_ref()) {
+        let fs = Lazy::get(&mut FILE_SYSTEM).unwrap();
+        if let Some(fd) = find(&fs.files, path.as_ref()) {
             let fd = fd.read().await;
             if let MemoryFd::File(fd) = &*fd {
                 Ok(fd.contents.clone())
@@ -271,7 +285,7 @@ pub async fn remove_file(path: impl AsRef<Path>) -> Result<()> {
     let _ = FS_LOCK.lock().await;
     unsafe {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
-        fs.remove(path.as_ref());
+        fs.files.remove(path.as_ref());
     }
     Ok(())
 }
@@ -285,7 +299,7 @@ pub async fn remove_dir(path: impl AsRef<Path>) -> Result<()> {
     let _ = FS_LOCK.lock().await;
     unsafe {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
-        fs.remove(path.as_ref());
+        fs.files.remove(path.as_ref());
     }
 
     Ok(())
@@ -295,10 +309,12 @@ pub async fn remove_dir(path: impl AsRef<Path>) -> Result<()> {
 /// all its contents. Use carefully!
 pub async fn remove_dir_all(path: impl AsRef<Path>) -> Result<()> {
     unsafe {
-        if let Some(fd) = FILE_SYSTEM.get(path.as_ref()) {
+        let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
+        if let Some(fd) = find(&fs.files, path.as_ref()) {
             let fd = fd.read().await;
             let is_dir = matches!(&*fd, MemoryFd::Dir(_));
             if is_dir {
+                /*
                 let descendants =
                     find_descendants(&*FILE_SYSTEM, path.as_ref()).await;
                 for child in descendants {
@@ -308,6 +324,7 @@ pub async fn remove_dir_all(path: impl AsRef<Path>) -> Result<()> {
                         remove_dir(&child).await?;
                     }
                 }
+                */
                 Ok(())
             } else {
                 Err(ErrorKind::PermissionDenied.into())
@@ -328,8 +345,8 @@ pub async fn rename(
 
     unsafe {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
-        if let Some(fd) = fs.remove(from.as_ref()) {
-            fs.insert(to.as_ref().to_path_buf(), fd);
+        if let Some(fd) = fs.files.remove(from.as_ref()) {
+            fs.files.insert(to.as_ref().to_path_buf(), fd);
             Ok(())
         } else {
             Err(ErrorKind::NotFound.into())
@@ -346,7 +363,7 @@ pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
 
         if let Some(parent) = path.parent() {
-            if let Some(parent) = fs.get(parent) {
+            if let Some(parent) = find(&fs.files, parent) {
                 let parent = parent.read().await;
                 let is_dir = matches!(&*parent, MemoryFd::Dir(_));
                 if !is_dir {
@@ -354,7 +371,7 @@ pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
                 }
             }
         }
-        fs.entry(path).or_insert_with(|| {
+        fs.files.entry(path).or_insert_with(|| {
             Arc::new(RwLock::new(MemoryFd::Dir(Default::default())))
         });
     }
@@ -371,7 +388,7 @@ pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<()> {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
         // FIXME: ensure all parents do not exist
         // FIXME: or that all parents are directories
-        fs.entry(path).or_insert_with(|| {
+        fs.files.entry(path).or_insert_with(|| {
             Arc::new(RwLock::new(MemoryFd::Dir(Default::default())))
         });
     }
@@ -392,7 +409,8 @@ pub async fn read_to_string(path: impl AsRef<Path>) -> Result<String> {
 /// Given a path, queries the file system to get information about a file, directory, etc.
 pub async fn metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
     unsafe {
-        if let Some(fd) = FILE_SYSTEM.get(path.as_ref()) {
+        let fs = Lazy::get(&mut FILE_SYSTEM).unwrap();
+        if let Some(fd) = find(&fs.files, path.as_ref()) {
             let fd = fd.read().await;
             Ok(fd.metadata())
         } else {
@@ -404,11 +422,11 @@ pub async fn metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
 /// Changes the permissions found on a file or a directory.
 pub async fn set_permissions(
     path: impl AsRef<Path>,
-    perm: Permissions
+    perm: Permissions,
 ) -> Result<()> {
     unsafe {
         let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
-        if let Some(fd) = fs.get_mut(path.as_ref()) {
+        if let Some(fd) = fs.files.get_mut(path.as_ref()) {
             let mut fd = fd.write().await;
             fd.set_permissions(perm);
             Ok(())

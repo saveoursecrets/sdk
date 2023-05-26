@@ -1,7 +1,7 @@
 use std::io::{self, ErrorKind};
 use std::{path::Path, sync::Arc};
 
-use super::{File, MemoryFd, FILE_SYSTEM, FS_LOCK};
+use super::{find, File, MemoryFd, FILE_SYSTEM, FS_LOCK};
 use bitflags::bitflags;
 use once_cell::sync::Lazy;
 use tokio::sync::{Mutex, RwLock};
@@ -69,7 +69,7 @@ impl OpenOptions {
     pub async fn open(&self, path: impl AsRef<Path>) -> io::Result<File> {
         unsafe {
             let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
-            let file = if let Some(file) = fs.get(path.as_ref()) {
+            let file = if let Some(file) = find(&fs.files, path.as_ref()) {
                 if self.0.contains(OpenFlags::TRUNCATE) {
                     let mut fd = file.write().await;
                     if let MemoryFd::File(file) = &mut *fd {
@@ -96,7 +96,7 @@ impl OpenOptions {
                 if self.0.contains(OpenFlags::CREATE) {
                     let path = path.as_ref().to_path_buf();
                     let _ = FS_LOCK.lock().await;
-                    let fd = fs.entry(path).or_insert_with(|| {
+                    let fd = fs.files.entry(path).or_insert_with(|| {
                         Arc::new(RwLock::new(MemoryFd::File(
                             Default::default(),
                         )))
