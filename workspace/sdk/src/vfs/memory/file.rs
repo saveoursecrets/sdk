@@ -47,6 +47,8 @@ struct Inner {
     /// write / flush call.
     last_write_err: Option<io::ErrorKind>,
 
+    length: usize,
+
     pos: u64,
 }
 
@@ -235,11 +237,10 @@ impl AsyncRead for File {
 }
 
 impl AsyncSeek for File {
-    fn start_seek(self: Pin<&mut Self>, mut pos: SeekFrom) -> io::Result<()> {
-        todo!();
-        /*
+    fn start_seek(self: Pin<&mut Self>, pos: SeekFrom) -> io::Result<()> {
         let me = self.get_mut();
         let inner = me.inner.get_mut();
+        let length = inner.length;
 
         match inner.state {
             Busy(_) => Err(io::Error::new(
@@ -249,25 +250,27 @@ impl AsyncSeek for File {
             Idle(ref mut buf_cell) => {
                 let mut buf = buf_cell.take().unwrap();
 
-                // Factor in any unread data from the buf
-                if !buf.is_empty() {
-                    let n = buf.discard_read();
-
-                    if let SeekFrom::Current(ref mut offset) = pos {
-                        *offset += n;
-                    }
-                }
-
-                let std = me.std.clone();
-
-                inner.state = Busy(spawn_blocking(move || {
-                    let res = (&*std).seek(pos);
-                    (Operation::Seek(res), buf)
-                }));
+                let pos = match pos {
+                    SeekFrom::Start(pos) => pos,
+                    SeekFrom::End(pos) => {
+                        if pos as usize <= length {
+                            (length - pos as usize) as u64
+                        } else {
+                            0u64
+                        }
+                    },
+                    SeekFrom::Current(pos) => {
+                        if pos < 0 {
+                            inner.pos - pos as u64
+                        } else {
+                            inner.pos + pos as u64
+                        }
+                    },
+                };
+                inner.pos = pos;
                 Ok(())
             }
         }
-        */
     }
 
     fn poll_complete(
