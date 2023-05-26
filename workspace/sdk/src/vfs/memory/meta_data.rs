@@ -44,6 +44,7 @@ impl Default for FileTime {
 
 /// A structure representing a type of file with accessors
 /// for each file type.
+#[derive(Debug, Copy, Clone)]
 pub struct FileType(FileFlags);
 
 impl FileType {
@@ -64,6 +65,7 @@ impl FileType {
 }
 
 /// Metadata information about a file.
+#[derive(Debug, Clone)]
 pub struct Metadata {
     permissions: Permissions,
     time: FileTime,

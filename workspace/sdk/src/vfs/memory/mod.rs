@@ -1,13 +1,16 @@
 //! File system backed by in-memory buffers.
 
-use bitflags::bitflags;
 use async_recursion::async_recursion;
+use bitflags::bitflags;
 use once_cell::sync::Lazy;
 use std::{
     collections::BTreeMap,
+    ffi::OsString,
     io::{self, Error, ErrorKind},
-    path::{Component, Path, PathBuf},
+    iter::Enumerate,
+    path::{Component, Components, Path, PathBuf},
     sync::Arc,
+    vec::IntoIter,
 };
 use tokio::sync::{Mutex, RwLock};
 
@@ -48,57 +51,87 @@ pub(self) static mut FILE_SYSTEM: Lazy<MemoryDir> =
 static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 #[async_recursion]
-pub(self) async fn find(
-    fs: &MemoryDir,
-    path: PathBuf,
-) -> Option<Arc<RwLock<MemoryFd>>> {
-    if fs.root && path.is_relative() {
-        return None
-    }
-
-    let components: Vec<Component> =
-        path.components().into_iter().collect();
-    let length = components.len();
-    let mut it = components.into_iter();
-    for (index, part) in it.clone().enumerate() {
+pub(self) async fn walk(
+    target: &MemoryDir,
+    it: &mut Enumerate<IntoIter<Component>>,
+    length: usize,
+    parents: &mut Vec<Fd>,
+) -> Option<Fd> {
+    if let Some((index, part)) = it.next() {
         match part {
-            Component::RootDir => continue,
-            Component::Normal(name) => {
-                let path = PathBuf::from(name);
-                if index < length - 1 {
-                    if let Some(child) = fs.find_dir(path).await {
-                        let fd = child.read().await;
-                        if let MemoryFd::Dir(dir) = &*fd {
-                            if let Some(next) = it.next() {
-                                match next {
-                                    Component::Normal(name) => {
-                                        let path = PathBuf::from(name);
-                                        return find(dir, path).await;
+            Component::RootDir => {
+                if target.is_root() {
+                    if let Some((index, part)) = it.next() {
+                        match part {
+                            Component::Normal(name) => {
+                                let path = PathBuf::from(name);
+                                if index == length - 1 {
+                                    return target
+                                        .files
+                                        .get(&path)
+                                        .map(Arc::clone);
+                                } else {
+                                    if let Some(child) =
+                                        target.find_dir(&path).await
+                                    {
+                                        parents.push(Arc::clone(&child));
+                                        let fd = child.read().await;
+                                        if let MemoryFd::Dir(dir) = &*fd {
+                                            return walk(
+                                                dir, it, length, parents,
+                                            )
+                                            .await;
+                                        }
+                                    } else {
+                                        return None;
                                     }
-                                    _ => todo!(),
                                 }
-                            } else {
-                                return None
                             }
+                            _ => {}
                         }
                     } else {
-                        return None
+                        return None;
                     }
                 } else {
-                    //return fs.get(&path).map(Arc::clone);
-                    todo!();
+                    return None;
                 }
             }
-            _ => todo!(),
+            Component::Normal(name) => {
+                let path = PathBuf::from(name);
+                if index == length - 1 {
+                    return target.files.get(&path).map(Arc::clone);
+                } else {
+                    if let Some(child) = target.find_dir(&path).await {
+                        parents.push(Arc::clone(&child));
+                        let fd = child.read().await;
+                        if let MemoryFd::Dir(dir) = &*fd {
+                            return walk(dir, it, length, parents).await;
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+            }
+            _ => return None,
         }
     }
     None
 }
 
+pub(self) async fn find(
+    fs: &MemoryDir,
+    path: PathBuf,
+) -> Option<Arc<RwLock<MemoryFd>>> {
+    let components: Vec<Component> = path.components().into_iter().collect();
+    let length = components.len();
+    let mut it = components.into_iter().enumerate();
+    walk(fs, &mut it, length, &mut vec![]).await
+}
+
 /// Directory reference.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub(self) struct MemoryDir {
-    root: bool,
+    parent: Option<Fd>,
     permissions: Permissions,
     time: FileTime,
     files: FileSystem,
@@ -107,11 +140,24 @@ pub(self) struct MemoryDir {
 impl MemoryDir {
     fn new_root() -> Self {
         Self {
-            root: true,
+            parent: None,
             permissions: Default::default(),
             time: Default::default(),
             files: Default::default(),
         }
+    }
+
+    fn new_parent(parent: Option<Fd>) -> Self {
+        Self {
+            parent,
+            permissions: Default::default(),
+            time: Default::default(),
+            files: Default::default(),
+        }
+    }
+
+    pub fn is_root(&self) -> bool {
+        self.parent.is_none()
     }
 
     /// Determine if the file is empty.
@@ -123,7 +169,7 @@ impl MemoryDir {
     pub fn len(&self) -> usize {
         self.files.len()
     }
-    
+
     /// Find a child that is a dir.
     async fn find_dir(&self, path: impl AsRef<Path>) -> Option<Fd> {
         if let Some(child) = self.files.get(path.as_ref()) {
@@ -131,7 +177,11 @@ impl MemoryDir {
                 let fd = child.read().await;
                 matches!(&*fd, MemoryFd::Dir(_))
             };
-            if is_dir { Some(Arc::clone(child)) } else { None }
+            if is_dir {
+                Some(Arc::clone(child))
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -139,7 +189,7 @@ impl MemoryDir {
 }
 
 /// File content.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub(self) struct MemoryFile {
     permissions: Permissions,
     time: FileTime,
@@ -159,7 +209,7 @@ impl MemoryFile {
 }
 
 /// File descriptor.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(self) enum MemoryFd {
     /// File variant.
     File(MemoryFile),
