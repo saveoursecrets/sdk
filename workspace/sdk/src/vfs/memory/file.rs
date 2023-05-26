@@ -1,7 +1,3 @@
-//! Types for working with [`File`].
-//!
-//! [`File`]: File
-
 use self::State::*;
 use futures::ready;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
@@ -9,7 +5,7 @@ use tokio::sync::{Mutex, RwLock};
 use tokio::{runtime::Handle, task::JoinHandle};
 
 use std::fmt;
-use std::fs::{Metadata, Permissions};
+use std::fs::Permissions;
 use std::future::Future;
 use std::io::{self, Seek, SeekFrom};
 use std::path::Path;
@@ -19,7 +15,7 @@ use std::task::Context;
 use std::task::Poll;
 use std::task::Poll::*;
 
-use super::{MemoryFd, OpenOptions, PathBuf, FILE_SYSTEM};
+use super::{MemoryFd, Metadata, OpenOptions, PathBuf, FILE_SYSTEM};
 
 pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
 where
@@ -46,7 +42,7 @@ impl From<(Arc<RwLock<MemoryFd>>, usize)> for File {
                 pos: 0,
                 length,
                 last_write_err: None,
-            })
+            }),
         }
     }
 }
@@ -146,34 +142,31 @@ impl File {
 
     /// Queries metadata about the underlying file.
     pub async fn metadata(&self) -> io::Result<Metadata> {
-        todo!();
-        /*
-        let std = self.std.clone();
-        asyncify(move || std.metadata()).await
-        */
+        let mut inner = self.inner.lock().await;
+        inner.complete_inflight().await;
+
+        let mut buf = match inner.state {
+            Idle(ref mut buf_cell) => buf_cell.take().unwrap(),
+            _ => unreachable!(),
+        };
+
+        let reader = buf.read().await;
+        let meta_data = reader.metadata();
+        drop(reader);
+        inner.state = Idle(Some(buf));
+        Ok(meta_data)
     }
 
     /// Creates a new `File` instance that shares the same underlying file handle
     /// as the existing `File` instance. Reads, writes, and seeks will affect both
     /// File instances simultaneously.
     pub async fn try_clone(&self) -> io::Result<File> {
-        /*
-        let std = self.std.clone();
-        let std_file = asyncify(move || std.try_clone()).await?;
-        Ok(File::from_std(std_file))
-        */
-
-        todo!();
+        unimplemented!();
     }
 
     /// Changes the permissions on the underlying file.
     pub async fn set_permissions(&self, perm: Permissions) -> io::Result<()> {
-        /*
-        let std = self.std.clone();
-        asyncify(move || std.set_permissions(perm)).await
-        */
-
-        todo!();
+        unimplemented!();
     }
 }
 
@@ -261,8 +254,6 @@ impl AsyncSeek for File {
                 "other file operation is pending, call poll_complete before start_seek",
             )),
             Idle(ref mut buf_cell) => {
-                let mut buf = buf_cell.take().unwrap();
-
                 let pos = match pos {
                     SeekFrom::Start(pos) => pos,
                     SeekFrom::End(pos) => {

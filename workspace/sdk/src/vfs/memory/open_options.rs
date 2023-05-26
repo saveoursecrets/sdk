@@ -1,10 +1,10 @@
 use std::io::{self, ErrorKind};
 use std::{path::Path, sync::Arc};
 
-use tokio::sync::{Mutex, RwLock};
-use super::{File, FILE_SYSTEM, FS_LOCK, MemoryFd};
+use super::{File, MemoryFd, FILE_SYSTEM, FS_LOCK};
 use bitflags::bitflags;
 use once_cell::sync::Lazy;
+use tokio::sync::{Mutex, RwLock};
 
 bitflags! {
     /// Bit flags for the open options.
@@ -70,7 +70,6 @@ impl OpenOptions {
         unsafe {
             let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
             let file = if let Some(file) = fs.get(path.as_ref()) {
-
                 if self.0.contains(OpenFlags::TRUNCATE) {
                     let mut fd = file.write().await;
                     if let MemoryFd::File(file) = &mut *fd {
@@ -98,12 +97,13 @@ impl OpenOptions {
                     let path = path.as_ref().to_path_buf();
                     let _ = FS_LOCK.lock().await;
                     let fd = fs.entry(path).or_insert_with(|| {
-                        Arc::new(RwLock::new(MemoryFd::File(Default::default())))
+                        Arc::new(RwLock::new(MemoryFd::File(
+                            Default::default(),
+                        )))
                     });
 
                     let file = Arc::clone(&*fd);
                     (file, 0).into()
-
                 } else {
                     return Err(ErrorKind::PermissionDenied.into());
                 }

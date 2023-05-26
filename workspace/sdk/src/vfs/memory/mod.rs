@@ -1,4 +1,6 @@
-//! File system backed by memory.
+//! File system backed by in-memory buffers.
+
+use bitflags::bitflags;
 use once_cell::sync::Lazy;
 use std::{
     collections::BTreeMap,
@@ -9,17 +11,35 @@ use std::{
 use tokio::sync::{Mutex, RwLock};
 
 mod file;
+mod meta_data;
 mod open_options;
 pub use file::File;
+pub use meta_data::{Metadata, Permissions};
 pub use open_options::OpenOptions;
+
+use meta_data::FileTime;
 
 /// Result type for the in-memory file system.
 pub type Result<T> = std::result::Result<T, Error>;
 
+bitflags! {
+    /// Bit flags a file descriptor.
+    #[derive(Default)]
+    pub(crate) struct FileFlags: u8 {
+        /// Descriptor is a directory.
+        const DIR               =        0b00000001;
+        /// Descriptor is a file.
+        const FILE              =        0b00000010;
+        /// Descriptor is a symbolic link.
+        const SYM_LINK          =        0b00000100;
+    }
+}
+
 type FileSystem = BTreeMap<PathBuf, Arc<RwLock<MemoryFd>>>;
 
 // File system contents.
-pub(self) static mut FILE_SYSTEM: Lazy<FileSystem> = Lazy::new(|| BTreeMap::new());
+pub(self) static mut FILE_SYSTEM: Lazy<FileSystem> =
+    Lazy::new(|| BTreeMap::new());
 
 // Lock for when we need to modify the file system by adding
 // or removing paths.
@@ -27,7 +47,10 @@ static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 /// Directory reference.
 #[derive(Default, Debug)]
-pub(self) struct MemoryDir;
+pub(self) struct MemoryDir {
+    permissions: Permissions,
+    time: FileTime,
+}
 
 impl MemoryDir {
     /// Determine if the file is empty.
@@ -44,6 +67,8 @@ impl MemoryDir {
 /// File content.
 #[derive(Default, Debug)]
 pub(self) struct MemoryFile {
+    permissions: Permissions,
+    time: FileTime,
     pub(self) contents: Vec<u8>,
 }
 
@@ -83,6 +108,43 @@ impl MemoryFd {
             Self::File(fd) => fd.len(),
             Self::Dir(fd) => fd.len(),
         }
+    }
+
+    pub(crate) fn flags(&self) -> FileFlags {
+        match self {
+            Self::File(_) => FileFlags::FILE,
+            Self::Dir(_) => FileFlags::DIR,
+        }
+    }
+
+    pub(crate) fn time(&self) -> &FileTime {
+        match self {
+            Self::File(fd) => &fd.time,
+            Self::Dir(fd) => &fd.time,
+        }
+    }
+
+    pub(crate) fn set_permissions(&mut self, perm: Permissions) {
+        match self {
+            Self::File(fd) => fd.permissions = perm,
+            Self::Dir(fd) => fd.permissions = perm,
+        }
+    }
+
+    pub(crate) fn permissions(&self) -> &Permissions {
+        match self {
+            Self::File(fd) => &fd.permissions,
+            Self::Dir(fd) => &fd.permissions,
+        }
+    }
+
+    pub(crate) fn metadata(&self) -> Metadata {
+        Metadata::new(
+            self.permissions().clone(),
+            self.time().clone(),
+            self.flags(),
+            self.len() as u64,
+        )
     }
 }
 
@@ -327,10 +389,38 @@ pub async fn read_to_string(path: impl AsRef<Path>) -> Result<String> {
     })?)
 }
 
+/// Given a path, queries the file system to get information about a file, directory, etc.
+pub async fn metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
+    unsafe {
+        if let Some(fd) = FILE_SYSTEM.get(path.as_ref()) {
+            let fd = fd.read().await;
+            Ok(fd.metadata())
+        } else {
+            Err(ErrorKind::NotFound.into())
+        }
+    }
+}
+
+/// Changes the permissions found on a file or a directory.
+pub async fn set_permissions(
+    path: impl AsRef<Path>,
+    perm: Permissions
+) -> Result<()> {
+    unsafe {
+        let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
+        if let Some(fd) = fs.get_mut(path.as_ref()) {
+            let mut fd = fd.write().await;
+            fd.set_permissions(perm);
+            Ok(())
+        } else {
+            Err(ErrorKind::NotFound.into())
+        }
+    }
+}
+
 /*
 /// Returns a stream over the entries within a directory.
 pub async fn read_dir(path: impl AsRef<Path>) -> Result<ReadDir> {
     todo!();
 }
 */
-
