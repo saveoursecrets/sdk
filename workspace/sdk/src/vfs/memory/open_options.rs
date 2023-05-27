@@ -89,7 +89,7 @@ impl OpenOptions {
 
             if is_file {
                 let file = Arc::clone(&file);
-                File::new(file, length).await
+                Ok(File::new(file, length).await)
             } else {
                 Err(ErrorKind::PermissionDenied.into())
             }
@@ -97,7 +97,7 @@ impl OpenOptions {
             if self.0.contains(OpenFlags::CREATE) {
                 let file =
                     create_file(path.as_ref(), Vec::new(), true).await?;
-                File::new(file, 0).await
+                Ok(File::new(file, 0).await)
             } else {
                 Err(ErrorKind::PermissionDenied.into())
             }

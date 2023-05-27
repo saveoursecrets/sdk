@@ -40,7 +40,7 @@ pub struct File {
 }
 
 impl File {
-    pub(super) async fn new(fd: Fd, length: usize) -> io::Result<Self> {
+    pub(super) async fn new(fd: Fd, length: usize) -> Self {
         let buf = {
             let fd = fd.read().await;
             match &*fd {
@@ -48,8 +48,7 @@ impl File {
                 _ => Vec::new(),
             }
         };
-
-        Ok(Self {
+        Self {
             fd,
             std: Cursor::new(buf),
             inner: Mutex::new(Inner {
@@ -58,7 +57,7 @@ impl File {
                 length,
                 last_write_err: None,
             }),
-        })
+        }
     }
 }
 
