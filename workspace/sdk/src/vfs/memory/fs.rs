@@ -219,16 +219,6 @@ impl MemoryDir {
         self.parent.is_none()
     }
 
-    /// Determine if the file is empty.
-    pub fn is_empty(&self) -> bool {
-        self.files.is_empty()
-    }
-
-    /// Get the length.
-    pub fn len(&self) -> usize {
-        self.files.len()
-    }
-
     fn get(&self, name: &OsStr) -> Option<&Fd> {
         self.files.get(name)
     }
@@ -366,18 +356,6 @@ impl MemoryFile {
     pub fn contents(&self) -> Arc<SyncMutex<Cursor<Vec<u8>>>> {
         Arc::clone(&self.contents)
     }
-
-    /// Determine if the file is empty.
-    pub fn is_empty(&self) -> bool {
-        todo!();
-        //self.contents.is_empty()
-    }
-
-    /// Get the length of the file buffer.
-    pub fn len(&self) -> usize {
-        todo!();
-        //self.contents.len()
-    }
 }
 
 /// File descriptor.
@@ -390,24 +368,6 @@ pub(super) enum MemoryFd {
 }
 
 impl MemoryFd {
-    /// Determine if the file is empty or a directory
-    /// has no contents.
-    pub fn is_empty(&self) -> bool {
-        match self {
-            Self::File(fd) => fd.is_empty(),
-            Self::Dir(fd) => fd.is_empty(),
-        }
-    }
-
-    /// Get the length of a file in bytes or the number
-    /// of entries in a directory.
-    pub fn len(&self) -> usize {
-        match self {
-            Self::File(fd) => fd.len(),
-            Self::Dir(fd) => fd.len(),
-        }
-    }
-
     /// Remove a child file or directory.
     ///
     /// # Panics
@@ -484,25 +444,7 @@ impl MemoryFd {
             Self::Dir(fd) => &fd.permissions,
         }
     }
-
-    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    pub fn metadata(&self) -> Metadata {
-        Metadata::new(
-            self.permissions().clone(),
-            self.flags(),
-            self.len() as u64,
-            self.time().clone(),
-        )
-    }
-
-    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-    pub fn metadata(&self) -> Metadata {
-        Metadata::new(
-            self.permissions().clone(),
-            self.flags(),
-            self.len() as u64,
-        )
-    }
+    
 }
 
 /// Ensure a path is a file and exists.
@@ -625,14 +567,19 @@ pub async fn remove_dir(path: impl AsRef<Path>) -> Result<()> {
 
     let dir = ensure_dir(path.as_ref()).await?;
     let fd = dir.write().await;
-    if fd.is_empty() {
-        if let Some(parent) = fd.parent().take() {
-            let mut parent_fd = parent.write().await;
-            parent_fd.unlink(path);
+    match &*fd {
+        MemoryFd::Dir(dir) => {
+            if dir.files().is_empty() {
+                if let Some(parent) = fd.parent().take() {
+                    let mut parent_fd = parent.write().await;
+                    parent_fd.unlink(path);
+                }
+                Ok(())
+            } else {
+                Err(ErrorKind::PermissionDenied.into())
+            }
         }
-        Ok(())
-    } else {
-        Err(ErrorKind::PermissionDenied.into())
+        _ => Err(ErrorKind::PermissionDenied.into()),
     }
 }
 
@@ -734,11 +681,42 @@ pub async fn read_to_string(path: impl AsRef<Path>) -> Result<String> {
 /// Given a path, queries the file system to get information about a file, directory, etc.
 pub async fn metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
     if let Some(fd) = resolve(path.as_ref().to_path_buf()).await {
-        let fd = fd.read().await;
-        Ok(fd.metadata())
+        let len = {
+            let fd = fd.read().await;
+            match &*fd {
+                MemoryFd::File(file) => {
+                    let data = file.contents();
+                    let data = data.lock();
+                    (&*data).get_ref().len() as u64
+                }
+                _ => 0u64,
+            }
+        };
+        Ok(new_metadata(fd, len).await)
     } else {
         Err(ErrorKind::NotFound.into())
     }
+}
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+async fn new_metadata(fd: Fd, len: u64) -> Metadata {
+    let fd = fd.read().await;
+    Metadata::new(
+        fd.permissions().clone(),
+        fd.flags(),
+        len,
+        fd.time().clone(),
+    )
+}
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+async fn new_metadata(fd: Fd, len: u64) -> Metadata {
+    let fd = fd.read().await;
+    Metadata::new(
+        fd.permissions().clone(),
+        fd.flags(),
+        len,
+    )
 }
 
 /// Changes the permissions found on a file or a directory.

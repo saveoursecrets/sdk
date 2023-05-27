@@ -18,7 +18,7 @@ use std::task::Poll::*;
 
 use super::{
     fs::{Fd, MemoryFd},
-    Metadata, OpenOptions,
+    Metadata, OpenOptions, metadata, PathBuf,
 };
 
 use parking_lot::Mutex as SyncMutex;
@@ -35,26 +35,28 @@ where
 /// A reference to an open file on the filesystem.
 pub struct File {
     std: Arc<SyncMutex<Cursor<Vec<u8>>>>,
+    path: PathBuf,
     inner: Mutex<Inner>,
 }
 
 impl File {
-    pub(super) async fn new(fd: Fd, length: usize) -> io::Result<Self> {
-        let std = {
+    pub(super) async fn new(fd: Fd) -> io::Result<Self> {
+        let (std, path) = {
             let fd = fd.read().await;
+            let path = fd.path().await;
             match &*fd {
                 MemoryFd::File(fd) => {
-                    fd.contents()
+                    (fd.contents(), path)
                 }
                 _ => return Err(ErrorKind::PermissionDenied.into())
             }
         };
         Ok(Self {
             std,
+            path,
             inner: Mutex::new(Inner {
                 state: State::Idle(Some(Buf { buf: Vec::new(), pos: 0 })),
                 pos: 0,
-                length,
                 last_write_err: None,
             }),
         })
@@ -68,7 +70,6 @@ struct Inner {
     /// while performing a read, it is saved until the next
     /// write / flush call.
     last_write_err: Option<io::ErrorKind>,
-    length: usize,
     pos: u64,
 }
 
@@ -160,23 +161,7 @@ impl File {
 
     /// Queries metadata about the underlying file.
     pub async fn metadata(&self) -> io::Result<Metadata> {
-        todo!();
-
-        /*
-        let mut inner = self.inner.lock().await;
-        inner.complete_inflight().await;
-
-        let mut buf = match inner.state {
-            Idle(ref mut buf_cell) => buf_cell.take().unwrap(),
-            _ => unreachable!(),
-        };
-
-        let reader = buf.read().await;
-        let meta_data = reader.metadata();
-        drop(reader);
-        inner.state = Idle(Some(buf));
-        Ok(meta_data)
-        */
+        metadata(&self.path).await
     }
 
     /// Creates a new `File` instance that shares the same underlying file handle

@@ -13,7 +13,7 @@ use tokio::task::JoinHandle;
 
 use super::{
     fs::{resolve, Fd, MemoryDir, MemoryFd},
-    FileType, Metadata,
+    FileType, Metadata, metadata,
 };
 
 /// Returns a stream over the entries within a directory.
@@ -96,7 +96,7 @@ impl DirEntry {
     /// Returns the metadata for the file that this entry points at.
     pub async fn metadata(&self) -> io::Result<Metadata> {
         let fd = self.fd.read().await;
-        Ok(fd.metadata())
+        metadata(&self.path).await
     }
 
     /// Returns the file type for the file that this entry points at.
