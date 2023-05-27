@@ -74,7 +74,7 @@ impl OpenOptions {
             if self.0.contains(OpenFlags::TRUNCATE) {
                 let mut fd = file.write().await;
                 if let MemoryFd::File(file) = &mut *fd {
-                    file.contents = Vec::new();
+                    file.truncate();
                 }
             }
 
@@ -89,7 +89,7 @@ impl OpenOptions {
 
             if is_file {
                 let file = Arc::clone(&file);
-                Ok(File::new(file, length).await)
+                File::new(file, length).await
             } else {
                 Err(ErrorKind::PermissionDenied.into())
             }
@@ -97,7 +97,7 @@ impl OpenOptions {
             if self.0.contains(OpenFlags::CREATE) {
                 let file =
                     create_file(path.as_ref(), Vec::new(), true).await?;
-                Ok(File::new(file, 0).await)
+                File::new(file, 0).await
             } else {
                 Err(ErrorKind::PermissionDenied.into())
             }

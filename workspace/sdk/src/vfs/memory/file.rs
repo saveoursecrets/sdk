@@ -8,7 +8,7 @@ use std::cmp;
 use std::fmt;
 use std::fs::Permissions;
 use std::future::Future;
-use std::io::{self, prelude::*, Seek, SeekFrom, Cursor};
+use std::io::{self, prelude::*, Seek, SeekFrom, Cursor, ErrorKind};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -21,6 +21,8 @@ use super::{
     Metadata, OpenOptions,
 };
 
+use parking_lot::Mutex as SyncMutex;
+
 pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
 where
     F: FnOnce() -> R + Send + 'static,
@@ -30,34 +32,32 @@ where
     rt.spawn_blocking(func)
 }
 
-//type Buf = Arc<RwLock<MemoryFd>>;
-
 /// A reference to an open file on the filesystem.
 pub struct File {
-    fd: Fd,
-    std: Cursor<Vec<u8>>,
+    std: Arc<SyncMutex<Cursor<Vec<u8>>>>,
     inner: Mutex<Inner>,
 }
 
 impl File {
-    pub(super) async fn new(fd: Fd, length: usize) -> Self {
-        let buf = {
+    pub(super) async fn new(fd: Fd, length: usize) -> io::Result<Self> {
+        let std = {
             let fd = fd.read().await;
             match &*fd {
-                MemoryFd::File(fd) => fd.contents().to_vec(),
-                _ => Vec::new(),
+                MemoryFd::File(fd) => {
+                    fd.contents()
+                }
+                _ => return Err(ErrorKind::PermissionDenied.into())
             }
         };
-        Self {
-            fd,
-            std: Cursor::new(buf),
+        Ok(Self {
+            std,
             inner: Mutex::new(Inner {
                 state: State::Idle(Some(Buf { buf: Vec::new(), pos: 0 })),
                 pos: 0,
                 length,
                 last_write_err: None,
             }),
-        }
+        })
     }
 }
 
@@ -216,7 +216,8 @@ impl AsyncRead for File {
                     let mut std = me.std.clone();
 
                     inner.state = Busy(spawn_blocking(move || {
-                        let res = buf.read_from(&mut std);
+                        let mut std = std.lock();
+                        let res = buf.read_from(&mut *std);
                         (Operation::Read(res), buf)
                     }));
                 }
@@ -285,6 +286,7 @@ impl AsyncSeek for File {
                 let mut std = me.std.clone();
 
                 inner.state = Busy(spawn_blocking(move || {
+                    let mut std = std.lock();
                     let res = std.seek(pos);
                     (Operation::Seek(res), buf)
                 }));
@@ -354,10 +356,12 @@ impl AsyncWrite for File {
                     let mut std = me.std.clone();
 
                     let blocking_task_join_handle = spawn_blocking(move || {
+                        let mut std = std.lock();
+                        
                         let res = if let Some(seek) = seek {
-                            std.seek(seek).and_then(|_| buf.write_to(&mut std))
+                            std.seek(seek).and_then(|_| buf.write_to(&mut *std))
                         } else {
-                            buf.write_to(&mut std)
+                            buf.write_to(&mut *std)
                         };
 
                         (Operation::Write(res), buf)

@@ -6,13 +6,14 @@ use once_cell::sync::Lazy;
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
-    io::{self, Error, ErrorKind},
+    io::{self, Error, ErrorKind, Cursor},
     iter::Enumerate,
     path::{Component, Components, Path, PathBuf},
     sync::Arc,
     vec::IntoIter,
 };
 use tokio::sync::{Mutex, RwLock};
+use parking_lot::Mutex as SyncMutex;
 
 use super::{Metadata, Permissions, Result};
 
@@ -285,7 +286,7 @@ pub(super) async fn create_file(
                 MemoryFd::Dir(_) => Err(ErrorKind::PermissionDenied.into()),
                 MemoryFd::File(fd) => {
                     if truncate {
-                        fd.contents = Vec::new();
+                        fd.truncate();
                     }
                     Ok(Arc::clone(&file))
                 }
@@ -332,7 +333,7 @@ pub(super) struct MemoryFile {
     permissions: Permissions,
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     time: FileTime,
-    pub(super) contents: Vec<u8>,
+    pub(super) contents: Arc<SyncMutex<Cursor<Vec<u8>>>>,
 }
 
 impl MemoryFile {
@@ -343,7 +344,7 @@ impl MemoryFile {
             parent,
             permissions: Default::default(),
             time: Default::default(),
-            contents,
+            contents: Arc::new(SyncMutex::new(Cursor::new(contents))),
         }
     }
 
@@ -353,22 +354,29 @@ impl MemoryFile {
             name,
             parent,
             permissions: Default::default(),
-            contents,
+            contents: Arc::new(SyncMutex::new(Cursor::new(contents))),
         }
     }
 
-    pub fn contents(&self) -> &[u8] {
-        self.contents.as_slice()
+    pub fn truncate(&self) {
+        let mut lock = self.contents.lock();
+        *lock = Cursor::new(Vec::new());
+    }
+
+    pub fn contents(&self) -> Arc<SyncMutex<Cursor<Vec<u8>>>> {
+        Arc::clone(&self.contents)
     }
 
     /// Determine if the file is empty.
     pub fn is_empty(&self) -> bool {
-        self.contents.is_empty()
+        todo!();
+        //self.contents.is_empty()
     }
 
     /// Get the length of the file buffer.
     pub fn len(&self) -> usize {
-        self.contents.len()
+        todo!();
+        //self.contents.len()
     }
 }
 
@@ -550,7 +558,9 @@ pub async fn write(
         let mut fd = file.write().await;
         match &mut *fd {
             MemoryFd::File(fd) => {
-                fd.contents = contents.as_ref().to_vec();
+                let buf = fd.contents();
+                let mut data = buf.lock();
+                *data = Cursor::new(contents.as_ref().to_vec());
                 Ok(())
             }
             MemoryFd::Dir(_) => Err(ErrorKind::PermissionDenied.into()),
@@ -585,7 +595,9 @@ pub async fn read(path: impl AsRef<Path>) -> Result<Vec<u8>> {
     if let Some(fd) = resolve(path.as_ref().to_path_buf()).await {
         let fd = fd.read().await;
         if let MemoryFd::File(fd) = &*fd {
-            Ok(fd.contents.clone())
+            let buf = fd.contents();
+            let data = buf.lock();
+            Ok((&*data).clone().into_inner())
         } else {
             Err(ErrorKind::PermissionDenied.into())
         }
