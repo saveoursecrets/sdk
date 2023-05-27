@@ -142,10 +142,8 @@ pub(super) fn new_root_parent() -> Fd {
 pub(super) async fn resolve(
     path: impl AsRef<Path>,
 ) -> Option<Arc<RwLock<MemoryFd>>> {
-    unsafe {
-        let fs = root_fs();
-        resolve_relative(&*fs, path).await
-    }
+    let fs = root_fs();
+    resolve_relative(&*fs, path).await
 }
 
 pub(super) async fn resolve_parent(
@@ -357,6 +355,10 @@ impl MemoryFile {
             permissions: Default::default(),
             contents,
         }
+    }
+
+    pub fn contents(&self) -> &[u8] {
+        self.contents.as_slice()
     }
 
     /// Determine if the file is empty.

@@ -4,10 +4,11 @@ use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
 use tokio::sync::{Mutex, RwLock};
 use tokio::{runtime::Handle, task::JoinHandle};
 
+use std::cmp;
 use std::fmt;
 use std::fs::Permissions;
 use std::future::Future;
-use std::io::{self, Seek, SeekFrom};
+use std::io::{self, prelude::*, Seek, SeekFrom, Cursor};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -15,7 +16,10 @@ use std::task::Context;
 use std::task::Poll;
 use std::task::Poll::*;
 
-use super::{fs::MemoryFd, Metadata, OpenOptions};
+use super::{
+    fs::{Fd, MemoryFd},
+    Metadata, OpenOptions,
+};
 
 pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
 where
@@ -26,24 +30,35 @@ where
     rt.spawn_blocking(func)
 }
 
-type Buf = Arc<RwLock<MemoryFd>>;
+//type Buf = Arc<RwLock<MemoryFd>>;
 
 /// A reference to an open file on the filesystem.
 pub struct File {
+    fd: Fd,
+    std: Cursor<Vec<u8>>,
     inner: Mutex<Inner>,
 }
 
-impl From<(Arc<RwLock<MemoryFd>>, usize)> for File {
-    fn from(value: (Arc<RwLock<MemoryFd>>, usize)) -> Self {
-        let (file, length) = value;
-        Self {
+impl File {
+    pub(super) async fn new(fd: Fd, length: usize) -> io::Result<Self> {
+        let buf = {
+            let fd = fd.read().await;
+            match &*fd {
+                MemoryFd::File(fd) => fd.contents().to_vec(),
+                _ => Vec::new(),
+            }
+        };
+
+        Ok(Self {
+            fd,
+            std: Cursor::new(buf),
             inner: Mutex::new(Inner {
-                state: State::Idle(Some(file)),
+                state: State::Idle(Some(Buf { buf: Vec::new(), pos: 0 })),
                 pos: 0,
                 length,
                 last_write_err: None,
             }),
-        }
+        })
     }
 }
 
@@ -59,13 +74,13 @@ struct Inner {
 }
 
 #[derive(Debug)]
-pub(super) enum State {
+enum State {
     Idle(Option<Buf>),
     Busy(JoinHandle<(Operation, Buf)>),
 }
 
 #[derive(Debug)]
-pub(super) enum Operation {
+enum Operation {
     Read(io::Result<usize>),
     Write(io::Result<()>),
     Seek(io::Result<u64>),
@@ -101,6 +116,9 @@ impl File {
     /// Truncates or extends the underlying file, updating
     /// the size of this file to become size.
     pub async fn set_len(&self, size: u64) -> io::Result<()> {
+        todo!();
+
+        /*
         let mut inner = self.inner.lock().await;
         inner.complete_inflight().await;
 
@@ -138,10 +156,14 @@ impl File {
         inner.state = Idle(Some(buf));
 
         Ok(())
+        */
     }
 
     /// Queries metadata about the underlying file.
     pub async fn metadata(&self) -> io::Result<Metadata> {
+        todo!();
+
+        /*
         let mut inner = self.inner.lock().await;
         inner.complete_inflight().await;
 
@@ -155,6 +177,7 @@ impl File {
         drop(reader);
         inner.state = Idle(Some(buf));
         Ok(meta_data)
+        */
     }
 
     /// Creates a new `File` instance that shares the same underlying file handle
@@ -179,9 +202,6 @@ impl AsyncRead for File {
         let me = self.get_mut();
         let inner = me.inner.get_mut();
 
-        todo!();
-
-        /*
         loop {
             match inner.state {
                 Idle(ref mut buf_cell) => {
@@ -194,10 +214,10 @@ impl AsyncRead for File {
                     }
 
                     buf.ensure_capacity_for(dst);
-                    let std = me.std.clone();
+                    let mut std = me.std.clone();
 
                     inner.state = Busy(spawn_blocking(move || {
-                        let res = buf.read_from(&mut &*std);
+                        let res = buf.read_from(&mut std);
                         (Operation::Read(res), buf)
                     }));
                 }
@@ -238,15 +258,13 @@ impl AsyncRead for File {
                 }
             }
         }
-        */
     }
 }
 
 impl AsyncSeek for File {
-    fn start_seek(self: Pin<&mut Self>, pos: SeekFrom) -> io::Result<()> {
+    fn start_seek(self: Pin<&mut Self>, mut pos: SeekFrom) -> io::Result<()> {
         let me = self.get_mut();
         let inner = me.inner.get_mut();
-        let length = inner.length;
 
         match inner.state {
             Busy(_) => Err(io::Error::new(
@@ -254,24 +272,23 @@ impl AsyncSeek for File {
                 "other file operation is pending, call poll_complete before start_seek",
             )),
             Idle(ref mut buf_cell) => {
-                let pos = match pos {
-                    SeekFrom::Start(pos) => pos,
-                    SeekFrom::End(pos) => {
-                        if pos as usize <= length {
-                            (length - pos as usize) as u64
-                        } else {
-                            0u64
-                        }
-                    },
-                    SeekFrom::Current(pos) => {
-                        if pos < 0 {
-                            inner.pos - pos as u64
-                        } else {
-                            inner.pos + pos as u64
-                        }
-                    },
-                };
-                inner.pos = pos;
+                let mut buf = buf_cell.take().unwrap();
+
+                // Factor in any unread data from the buf
+                if !buf.is_empty() {
+                    let n = buf.discard_read();
+
+                    if let SeekFrom::Current(ref mut offset) = pos {
+                        *offset += n;
+                    }
+                }
+
+                let mut std = me.std.clone();
+
+                inner.state = Busy(spawn_blocking(move || {
+                    let res = std.seek(pos);
+                    (Operation::Seek(res), buf)
+                }));
                 Ok(())
             }
         }
@@ -316,10 +333,6 @@ impl AsyncWrite for File {
         cx: &mut Context<'_>,
         src: &[u8],
     ) -> Poll<io::Result<usize>> {
-        todo!();
-
-        /*
-        ready!(crate::trace::trace_leaf(cx));
         let me = self.get_mut();
         let inner = me.inner.get_mut();
 
@@ -339,20 +352,17 @@ impl AsyncWrite for File {
                     };
 
                     let n = buf.copy_from(src);
-                    let std = me.std.clone();
+                    let mut std = me.std.clone();
 
-                    let blocking_task_join_handle = spawn_mandatory_blocking(move || {
+                    let blocking_task_join_handle = spawn_blocking(move || {
                         let res = if let Some(seek) = seek {
-                            (&*std).seek(seek).and_then(|_| buf.write_to(&mut &*std))
+                            std.seek(seek).and_then(|_| buf.write_to(&mut std))
                         } else {
-                            buf.write_to(&mut &*std)
+                            buf.write_to(&mut std)
                         };
 
                         (Operation::Write(res), buf)
-                    })
-                    .ok_or_else(|| {
-                        io::Error::new(io::ErrorKind::Other, "background task failed")
-                    })?;
+                    });
 
                     inner.state = Busy(blocking_task_join_handle);
 
@@ -383,7 +393,6 @@ impl AsyncWrite for File {
                 }
             }
         }
-        */
     }
 
     fn poll_flush(
@@ -446,5 +455,117 @@ impl Inner {
             Operation::Write(res) => Ready(res),
             Operation::Seek(_) => Ready(Ok(())),
         }
+    }
+}
+
+macro_rules! uninterruptibly {
+    ($e:expr) => {{
+        loop {
+            match $e {
+                Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
+                res => break res,
+            }
+        }
+    }};
+}
+
+#[derive(Debug)]
+struct Buf {
+    buf: Vec<u8>,
+    pos: usize,
+}
+
+pub(crate) const MAX_BUF: usize = 2 * 1024 * 1024;
+
+impl Buf {
+    pub(crate) fn with_capacity(n: usize) -> Buf {
+        Buf {
+            buf: Vec::with_capacity(n),
+            pos: 0,
+        }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.buf.len() - self.pos
+    }
+
+    pub(crate) fn copy_to(&mut self, dst: &mut ReadBuf<'_>) -> usize {
+        let n = cmp::min(self.len(), dst.remaining());
+        dst.put_slice(&self.bytes()[..n]);
+        self.pos += n;
+
+        if self.pos == self.buf.len() {
+            self.buf.truncate(0);
+            self.pos = 0;
+        }
+
+        n
+    }
+
+    pub(crate) fn copy_from(&mut self, src: &[u8]) -> usize {
+        assert!(self.is_empty());
+
+        let n = cmp::min(src.len(), MAX_BUF);
+
+        self.buf.extend_from_slice(&src[..n]);
+        n
+    }
+
+    pub(crate) fn bytes(&self) -> &[u8] {
+        &self.buf[self.pos..]
+    }
+
+    pub(crate) fn ensure_capacity_for(&mut self, bytes: &ReadBuf<'_>) {
+        assert!(self.is_empty());
+
+        let len = cmp::min(bytes.remaining(), MAX_BUF);
+
+        if self.buf.len() < len {
+            self.buf.reserve(len - self.buf.len());
+        }
+
+        unsafe {
+            self.buf.set_len(len);
+        }
+    }
+
+    pub(crate) fn read_from<T: Read>(
+        &mut self,
+        rd: &mut T,
+    ) -> io::Result<usize> {
+        let res = uninterruptibly!(rd.read(&mut self.buf));
+
+        if let Ok(n) = res {
+            self.buf.truncate(n);
+        } else {
+            self.buf.clear();
+        }
+
+        assert_eq!(self.pos, 0);
+
+        res
+    }
+
+    pub(crate) fn write_to<T: Write>(
+        &mut self,
+        wr: &mut T,
+    ) -> io::Result<()> {
+        assert_eq!(self.pos, 0);
+
+        // `write_all` already ignores interrupts
+        let res = wr.write_all(&self.buf);
+        self.buf.clear();
+        res
+    }
+
+    pub(crate) fn discard_read(&mut self) -> i64 {
+        let ret = -(self.bytes().len() as i64);
+        self.pos = 0;
+        self.buf.truncate(0);
+        ret
     }
 }

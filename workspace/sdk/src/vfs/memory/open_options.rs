@@ -70,42 +70,38 @@ impl OpenOptions {
 
     /// Opens a file at `path` with the options specified by `self`.
     pub async fn open(&self, path: impl AsRef<Path>) -> io::Result<File> {
-        let file =
-            if let Some(file) = resolve(path.as_ref().to_path_buf()).await {
-                if self.0.contains(OpenFlags::TRUNCATE) {
-                    let mut fd = file.write().await;
-                    if let MemoryFd::File(file) = &mut *fd {
-                        file.contents = Vec::new();
-                    }
+        if let Some(file) = resolve(path.as_ref().to_path_buf()).await {
+            if self.0.contains(OpenFlags::TRUNCATE) {
+                let mut fd = file.write().await;
+                if let MemoryFd::File(file) = &mut *fd {
+                    file.contents = Vec::new();
                 }
+            }
 
-                let (is_file, length) = {
-                    let fd = file.read().await;
-                    if let MemoryFd::File(file) = &*fd {
-                        (true, file.len())
-                    } else {
-                        (false, 0)
-                    }
-                };
-
-                if is_file {
-                    let file = Arc::clone(&file);
-                    (file, length).into()
+            let (is_file, length) = {
+                let fd = file.read().await;
+                if let MemoryFd::File(file) = &*fd {
+                    (true, file.len())
                 } else {
-                    return Err(ErrorKind::PermissionDenied.into());
-                }
-            } else {
-                todo!("handle CREATE_NEW flag");
-
-                if self.0.contains(OpenFlags::CREATE) {
-                    let file =
-                        create_file(path.as_ref(), Vec::new(), true).await?;
-                    (file, 0).into()
-                } else {
-                    return Err(ErrorKind::PermissionDenied.into());
+                    (false, 0)
                 }
             };
-        Ok(file)
+
+            if is_file {
+                let file = Arc::clone(&file);
+                File::new(file, length).await
+            } else {
+                Err(ErrorKind::PermissionDenied.into())
+            }
+        } else {
+            if self.0.contains(OpenFlags::CREATE) {
+                let file =
+                    create_file(path.as_ref(), Vec::new(), true).await?;
+                File::new(file, 0).await
+            } else {
+                Err(ErrorKind::PermissionDenied.into())
+            }
+        }
     }
 }
 
