@@ -1,7 +1,10 @@
 use std::io::{self, ErrorKind};
 use std::{path::Path, sync::Arc};
 
-use super::{find, File, MemoryFd, FILE_SYSTEM, FS_LOCK};
+use super::{
+    fs::{create_file, resolve, MemoryFd},
+    File,
+};
 use bitflags::bitflags;
 use once_cell::sync::Lazy;
 use tokio::sync::{Mutex, RwLock};
@@ -31,47 +34,44 @@ impl OpenOptions {
 
     /// Sets the option for read access.
     pub fn read(&mut self, read: bool) -> &mut OpenOptions {
-        self.0.set(OpenFlags::READ, true);
+        self.0.set(OpenFlags::READ, read);
         self
     }
 
     /// Sets the option for write access.
     pub fn write(&mut self, write: bool) -> &mut OpenOptions {
-        self.0.set(OpenFlags::WRITE, true);
+        self.0.set(OpenFlags::WRITE, write);
         self
     }
 
     /// Sets the option for the append mode.
     pub fn append(&mut self, append: bool) -> &mut OpenOptions {
-        self.0.set(OpenFlags::APPEND, true);
+        self.0.set(OpenFlags::APPEND, append);
         self
     }
 
     /// Sets the option for truncating a previous file.
     pub fn truncate(&mut self, truncate: bool) -> &mut OpenOptions {
-        self.0.set(OpenFlags::TRUNCATE, true);
+        self.0.set(OpenFlags::TRUNCATE, truncate);
         self
     }
 
     /// Sets the option for creating a new file.
     pub fn create(&mut self, create: bool) -> &mut OpenOptions {
-        self.0.set(OpenFlags::CREATE, true);
+        self.0.set(OpenFlags::CREATE, create);
         self
     }
 
     /// Sets the option to always create a new file.
     pub fn create_new(&mut self, create_new: bool) -> &mut OpenOptions {
-        self.0.set(OpenFlags::CREATE_NEW, true);
+        self.0.set(OpenFlags::CREATE_NEW, create_new);
         self
     }
 
     /// Opens a file at `path` with the options specified by `self`.
     pub async fn open(&self, path: impl AsRef<Path>) -> io::Result<File> {
-        unsafe {
-            let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
-            let file = if let Some(file) =
-                find(&fs, path.as_ref().to_path_buf()).await
-            {
+        let file =
+            if let Some(file) = resolve(path.as_ref().to_path_buf()).await {
                 if self.0.contains(OpenFlags::TRUNCATE) {
                     let mut fd = file.write().await;
                     if let MemoryFd::File(file) = &mut *fd {
@@ -95,28 +95,16 @@ impl OpenOptions {
                     return Err(ErrorKind::PermissionDenied.into());
                 }
             } else {
+                todo!("handle CREATE_NEW flag");
+
                 if self.0.contains(OpenFlags::CREATE) {
-                    let path = path.as_ref().to_path_buf();
-                    let _ = FS_LOCK.lock().await;
-
-                    todo!();
-
-                    /*
-                    let fd = fs.files.entry(path).or_insert_with(|| {
-                        Arc::new(RwLock::new(MemoryFd::File(
-                            Default::default(),
-                        )))
-                    });
-
-                    let file = Arc::clone(&*fd);
+                    let file = create_file(path.as_ref(), true).await?;
                     (file, 0).into()
-                    */
                 } else {
                     return Err(ErrorKind::PermissionDenied.into());
                 }
             };
-            Ok(file)
-        }
+        Ok(file)
     }
 }
 

@@ -15,7 +15,7 @@ use std::task::Context;
 use std::task::Poll;
 use std::task::Poll::*;
 
-use super::{MemoryFd, Metadata, OpenOptions, PathBuf, FILE_SYSTEM};
+use super::{fs::MemoryFd, Metadata, OpenOptions};
 
 pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
 where

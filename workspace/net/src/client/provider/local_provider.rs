@@ -16,6 +16,7 @@ use sos_sdk::{
     patch::PatchFile,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
+    vfs,
     Timestamp,
 };
 
@@ -164,7 +165,7 @@ impl StorageProvider for LocalProvider {
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
         let storage = self.dirs().vaults_dir();
         let mut summaries = Vec::new();
-        let mut contents = tokio::fs::read_dir(&storage).await?;
+        let mut contents = vfs::read_dir(&storage).await?;
         while let Some(entry) = contents.next_entry().await? {
             let path = entry.path();
             if let Some(extension) = path.extension() {
