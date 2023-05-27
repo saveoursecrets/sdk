@@ -557,16 +557,16 @@ pub async fn write(
         let has_parent = has_parent(path.as_ref());
         if has_parent {
             if let Some(parent) = resolve_parent(path.as_ref()).await {
-                let fd = parent.read().await;
-                match &*fd {
-                    MemoryFd::Dir(_) => {
-                        create_file(path, contents.as_ref().to_vec(), false)
-                            .await?;
-                        Ok(())
-                    }
-                    MemoryFd::File(_) => {
-                        Err(ErrorKind::PermissionDenied.into())
-                    }
+                let is_dir = {
+                    let fd = parent.read().await;
+                    matches!(&*fd, MemoryFd::Dir(_))
+                };
+                if is_dir {
+                    create_file(path, contents.as_ref().to_vec(), false)
+                        .await?;
+                    Ok(())
+                } else {
+                    Err(ErrorKind::PermissionDenied.into())
                 }
             } else {
                 Err(ErrorKind::NotFound.into())
