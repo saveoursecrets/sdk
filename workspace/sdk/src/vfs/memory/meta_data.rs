@@ -1,5 +1,7 @@
 use super::FileFlags;
 use std::io;
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::time::SystemTime;
 
 /// Representation of the various permissions on a file.
@@ -22,6 +24,7 @@ impl Permissions {
 }
 
 /// Access times for in-memory files.
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct FileTime {
     /// Time created.
@@ -32,6 +35,7 @@ pub(crate) struct FileTime {
     modified: SystemTime,
 }
 
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 impl Default for FileTime {
     fn default() -> Self {
         Self {
@@ -68,40 +72,41 @@ impl FileType {
 #[derive(Debug, Clone)]
 pub struct Metadata {
     permissions: Permissions,
-    time: FileTime,
     flags: FileFlags,
     length: u64,
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    time: FileTime,
 }
 
 impl Metadata {
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     /// Create new meta data for a file.
     pub(crate) fn new(
         permissions: Permissions,
+        flags: FileFlags,
+        length: u64,
         time: FileTime,
+    ) -> Self {
+        Self {
+            permissions,
+            flags,
+            length,
+            time,
+        }
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    /// Create new meta data for a file.
+    pub(crate) fn new(
+        permissions: Permissions,
         flags: FileFlags,
         length: u64,
     ) -> Self {
         Self {
             permissions,
-            time,
             flags,
             length,
         }
-    }
-
-    /// Returns the last access time of this metadata.
-    pub fn accessed(&self) -> io::Result<SystemTime> {
-        Ok(self.time.accessed)
-    }
-
-    /// Returns the creation time listed in this metadata.
-    pub fn created(&self) -> io::Result<SystemTime> {
-        Ok(self.time.created)
-    }
-
-    /// Returns the last modification time listed in this metadata.
-    pub fn modified(&self) -> io::Result<SystemTime> {
-        Ok(self.time.modified)
     }
 
     /// Returns the file type for this metadata.
@@ -132,5 +137,23 @@ impl Metadata {
     /// Returns the permissions of the file this metadata is for.
     pub fn permissions(&self) -> Permissions {
         self.permissions
+    }
+
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    /// Returns the last access time of this metadata.
+    pub fn accessed(&self) -> io::Result<SystemTime> {
+        Ok(self.time.accessed)
+    }
+
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    /// Returns the creation time listed in this metadata.
+    pub fn created(&self) -> io::Result<SystemTime> {
+        Ok(self.time.created)
+    }
+
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    /// Returns the last modification time listed in this metadata.
+    pub fn modified(&self) -> io::Result<SystemTime> {
+        Ok(self.time.modified)
     }
 }

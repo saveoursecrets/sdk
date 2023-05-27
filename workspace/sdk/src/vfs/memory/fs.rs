@@ -14,7 +14,10 @@ use std::{
 };
 use tokio::sync::{Mutex, RwLock};
 
-use super::{meta_data::FileTime, Metadata, Permissions, Result};
+use super::{Metadata, Permissions, Result};
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use super::meta_data::FileTime;
 
 bitflags! {
     /// Bit flags for a file descriptor.
@@ -153,11 +156,13 @@ pub(super) async fn resolve_parent(
 pub(super) struct MemoryDir {
     parent: Option<Fd>,
     permissions: Permissions,
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     time: FileTime,
     files: FileSystem,
 }
 
 impl MemoryDir {
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     fn new_root() -> Self {
         Self {
             parent: None,
@@ -167,11 +172,30 @@ impl MemoryDir {
         }
     }
 
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    fn new_root() -> Self {
+        Self {
+            parent: None,
+            permissions: Default::default(),
+            files: Default::default(),
+        }
+    }
+
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     fn new_parent(parent: Fd) -> Self {
         Self {
             parent: Some(parent),
             permissions: Default::default(),
             time: Default::default(),
+            files: Default::default(),
+        }
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    fn new_parent(parent: Fd) -> Self {
+        Self {
+            parent: Some(parent),
+            permissions: Default::default(),
             files: Default::default(),
         }
     }
@@ -278,16 +302,27 @@ pub(super) async fn create_file(
 pub(super) struct MemoryFile {
     parent: Fd,
     permissions: Permissions,
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     time: FileTime,
     pub(super) contents: Vec<u8>,
 }
 
 impl MemoryFile {
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     fn new(parent: Fd) -> Self {
         Self {
             parent,
             permissions: Default::default(),
             time: Default::default(),
+            contents: Default::default(),
+        }
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    fn new(parent: Fd) -> Self {
+        Self {
+            parent,
+            permissions: Default::default(),
             contents: Default::default(),
         }
     }
@@ -363,6 +398,7 @@ impl MemoryFd {
         }
     }
 
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     pub(crate) fn time(&self) -> &FileTime {
         match self {
             Self::File(fd) => &fd.time,
@@ -384,10 +420,20 @@ impl MemoryFd {
         }
     }
 
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     pub(crate) fn metadata(&self) -> Metadata {
         Metadata::new(
             self.permissions().clone(),
+            self.flags(),
+            self.len() as u64,
             self.time().clone(),
+        )
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    pub(crate) fn metadata(&self) -> Metadata {
+        Metadata::new(
+            self.permissions().clone(),
             self.flags(),
             self.len() as u64,
         )
