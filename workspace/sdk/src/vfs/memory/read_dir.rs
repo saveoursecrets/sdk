@@ -1,34 +1,51 @@
 use std::collections::VecDeque;
 use std::ffi::OsString;
-use std::fs::{FileType, Metadata};
 use std::future::Future;
-use std::io;
+use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Context;
 use std::task::Poll;
 
+use futures::ready;
 use tokio::task::JoinHandle;
 
-const CHUNK_SIZE: usize = 32;
+use super::{
+    fs::{resolve, Fd, MemoryDir, MemoryFd},
+    FileType, Metadata,
+};
 
 /// Returns a stream over the entries within a directory.
 pub async fn read_dir(path: impl AsRef<Path>) -> io::Result<ReadDir> {
-    todo!();
+    if let Some(file) = resolve(path.as_ref()).await {
+        let fd = file.read().await;
+        match &*fd {
+            MemoryFd::Dir(dir) => {
+                let mut files = Vec::new();
+                for (name, fd) in dir.files().iter() {
+                    let path = {
+                        let fd = fd.read().await;
+                        fd.path().await
+                    };
+                    files.push((name.clone(), path, Arc::clone(fd)))
+                }
+                Ok(ReadDir {
+                    iter: files.into_iter(),
+                })
+            }
+            _ => Err(ErrorKind::PermissionDenied.into()),
+        }
+    } else {
+        Err(ErrorKind::NotFound.into())
+    }
 }
 
 /// Reads the entries in a directory.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct ReadDir(State);
-
-#[derive(Debug)]
-enum State {
-    Idle(Option<(VecDeque<io::Result<DirEntry>>, std::fs::ReadDir, bool)>),
-    Pending(
-        JoinHandle<(VecDeque<io::Result<DirEntry>>, std::fs::ReadDir, bool)>,
-    ),
+pub struct ReadDir {
+    iter: std::vec::IntoIter<(OsString, PathBuf, Fd)>,
 }
 
 impl ReadDir {
@@ -47,99 +64,43 @@ impl ReadDir {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<Option<DirEntry>>> {
-        todo!();
-
-        /*
-        loop {
-            match self.0 {
-                State::Idle(ref mut data) => {
-                    let (buf, _, ref remain) = data.as_mut().unwrap();
-
-                    if let Some(ent) = buf.pop_front() {
-                        return Poll::Ready(ent.map(Some));
-                    } else if !remain {
-                        return Poll::Ready(Ok(None));
-                    }
-
-                    let (mut buf, mut std, _) = data.take().unwrap();
-
-                    self.0 = State::Pending(spawn_blocking(move || {
-                        let remain = ReadDir::next_chunk(&mut buf, &mut std);
-                        (buf, std, remain)
-                    }));
-                }
-                State::Pending(ref mut rx) => {
-                    self.0 =
-                        State::Idle(Some(ready!(Pin::new(rx).poll(cx))?));
-                }
-            }
+        if let Some((name, path, fd)) = self.iter.next() {
+            let entry = DirEntry { path, name, fd };
+            Poll::Ready(Ok(Some(entry)))
+        } else {
+            Poll::Ready(Ok(None))
         }
-        */
-    }
-
-    fn next_chunk(
-        buf: &mut VecDeque<io::Result<DirEntry>>,
-        std: &mut std::fs::ReadDir,
-    ) -> bool {
-        todo!();
-
-        /*
-        for _ in 0..CHUNK_SIZE {
-            let ret = match std.next() {
-                Some(ret) => ret,
-                None => return false,
-            };
-
-            let success = ret.is_ok();
-
-            buf.push_back(ret.map(|std| DirEntry {
-                #[cfg(not(any(
-                    target_os = "solaris",
-                    target_os = "illumos",
-                    target_os = "haiku",
-                    target_os = "vxworks"
-                )))]
-                file_type: std.file_type().ok(),
-                std: Arc::new(std),
-            }));
-
-            if !success {
-                break;
-            }
-        }
-
-        true
-        */
     }
 }
 
 /// Entries returned by the [`ReadDir`] stream.
 #[derive(Debug)]
 pub struct DirEntry {
-    /*
-    file_type: Option<FileType>,
-    */
+    path: PathBuf,
+    name: OsString,
+    fd: Fd,
 }
 
 impl DirEntry {
     /// Returns the full path to the file that this entry represents.
     pub fn path(&self) -> PathBuf {
-        todo!();
+        self.path.clone()
     }
 
     /// Returns the bare file name of this directory entry
     /// without any other leading path component.
     pub fn file_name(&self) -> OsString {
-        todo!();
+        self.name.clone()
     }
 
     /// Returns the metadata for the file that this entry points at.
     pub async fn metadata(&self) -> io::Result<Metadata> {
-        todo!();
+        let fd = self.fd.read().await;
+        Ok(fd.metadata())
     }
 
     /// Returns the file type for the file that this entry points at.
     pub async fn file_type(&self) -> io::Result<FileType> {
-        todo!();
+        Ok(self.metadata().await?.file_type())
     }
 }

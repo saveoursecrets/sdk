@@ -1,60 +1,35 @@
-use crate::fs::asyncify;
+use std::io::{self, ErrorKind, Result};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
-use std::io;
-use std::path::Path;
+use super::fs::{
+    has_parent, mkdir, new_root_parent, resolve, resolve_parent, root_fs_mut,
+    MemoryFd, FS_LOCK,
+};
 
 /// A builder for creating directories in various manners.
-///
-/// This is a specialized version of [`std::fs::DirBuilder`] for usage on
-/// the Tokio runtime.
-///
-/// [std::fs::DirBuilder]: std::fs::DirBuilder
 #[derive(Debug, Default)]
 pub struct DirBuilder {
-    /// Indicates whether to create parent directories if they are missing.
+    /// Indicates whether to create parent directories
+    /// if they are missing.
     recursive: bool,
-
-    /// Sets the Unix mode for newly created directories.
-    #[cfg(unix)]
-    pub(super) mode: Option<u32>,
 }
 
 impl DirBuilder {
     /// Creates a new set of options with default mode/security settings for all
     /// platforms and also non-recursive.
-    ///
-    /// This is an async version of [`std::fs::DirBuilder::new`][std]
-    ///
-    /// [std]: std::fs::DirBuilder::new
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use tokio::fs::DirBuilder;
-    ///
-    /// let builder = DirBuilder::new();
-    /// ```
     pub fn new() -> Self {
         Default::default()
     }
 
-    /// Indicates whether to create directories recursively (including all parent directories).
-    /// Parents that do not exist are created with the same security and permissions settings.
+    /// Indicates whether to create directories
+    /// recursively (including all parent directories).
+    /// Parents that do not exist are created with the
+    /// same security and permissions settings.
     ///
     /// This option defaults to `false`.
-    ///
-    /// This is an async version of [`std::fs::DirBuilder::recursive`][std]
-    ///
-    /// [std]: std::fs::DirBuilder::recursive
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use tokio::fs::DirBuilder;
-    ///
-    /// let mut builder = DirBuilder::new();
-    /// builder.recursive(true);
-    /// ```
     pub fn recursive(&mut self, recursive: bool) -> &mut Self {
         self.recursive = recursive;
         self
@@ -79,59 +54,87 @@ impl DirBuilder {
     /// * The calling process doesn't have permissions to create the directory
     ///   or its missing parents.
     /// * Other I/O error occurred.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use tokio::fs::DirBuilder;
-    /// use std::io;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> io::Result<()> {
-    ///     DirBuilder::new()
-    ///         .recursive(true)
-    ///         .create("/tmp/foo/bar/baz")
-    ///         .await?;
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    pub async fn create(&self, path: impl AsRef<Path>) -> io::Result<()> {
-        let path = path.as_ref().to_owned();
-        let mut builder = std::fs::DirBuilder::new();
-        builder.recursive(self.recursive);
+    pub async fn create(&self, path: impl AsRef<Path>) -> Result<()> {
+        let _ = FS_LOCK.lock().await;
 
-        #[cfg(unix)]
-        {
-            if let Some(mode) = self.mode {
-                std::os::unix::fs::DirBuilderExt::mode(&mut builder, mode);
+        if self.recursive {
+            let mut it = path.as_ref().iter();
+            let mut path = if path.as_ref().is_absolute() {
+                it.next().map(PathBuf::from).unwrap_or_default()
+            } else {
+                PathBuf::new()
+            };
+
+            let mut target = root_fs_mut();
+            for name in it {
+                path = path.join(name);
+                if let Some(child) = resolve(&path).await {
+                    let mut fd = child.write().await;
+                    match &mut *fd {
+                        MemoryFd::Dir(dir) => {
+                            target = dir;
+                            continue;
+                        }
+                        _ => return Err(ErrorKind::PermissionDenied.into()),
+                    }
+                } else {
+                    let parent =
+                        if let Some(parent) = resolve_parent(&path).await {
+                            parent
+                        } else {
+                            todo!();
+                        };
+
+                    todo!();
+
+                    /*
+                    mkdir(
+                        target, Arc::clone(&parent), name.to_owned());
+                    */
+                }
+            }
+            Ok(())
+        } else {
+            let file_name = path.as_ref().file_name().ok_or_else(|| {
+                let err: io::Error = ErrorKind::PermissionDenied.into();
+                err
+            })?;
+
+            let has_parent = has_parent(path.as_ref());
+            if has_parent {
+                if let Some(parent) = resolve_parent(path.as_ref()).await {
+                    let mut fd = parent.write().await;
+                    match &mut *fd {
+                        MemoryFd::Dir(dir) => {
+                            mkdir(
+                                dir,
+                                Arc::clone(&parent),
+                                file_name.to_owned(),
+                            );
+                            Ok(())
+                        }
+                        _ => Err(ErrorKind::PermissionDenied.into()),
+                    }
+                } else {
+                    Err(ErrorKind::NotFound.into())
+                }
+            } else {
+                let root_parent = new_root_parent();
+                let dir = root_fs_mut();
+                mkdir(dir, root_parent, file_name.to_owned());
+                Ok(())
             }
         }
-
-        asyncify(move || builder.create(path)).await
     }
 }
 
-feature! {
-    #![unix]
+/// Creates a new, empty directory at the provided path.
+pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
+    DirBuilder::new().create(path).await
+}
 
-    impl DirBuilder {
-        /// Sets the mode to create new directories with.
-        ///
-        /// This option defaults to 0o777.
-        ///
-        /// # Examples
-        ///
-        ///
-        /// ```no_run
-        /// use tokio::fs::DirBuilder;
-        ///
-        /// let mut builder = DirBuilder::new();
-        /// builder.mode(0o775);
-        /// ```
-        pub fn mode(&mut self, mode: u32) -> &mut Self {
-            self.mode = Some(mode);
-            self
-        }
-    }
+/// Recursively creates a directory and all of its parent
+/// components if they are missing.
+pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<()> {
+    DirBuilder::new().recursive(true).create(path).await
 }

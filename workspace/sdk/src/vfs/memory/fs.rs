@@ -32,15 +32,15 @@ bitflags! {
     }
 }
 
-type Fd = Arc<RwLock<MemoryFd>>;
-type FileSystem = BTreeMap<OsString, Fd>;
+pub(super) type Fd = Arc<RwLock<MemoryFd>>;
+pub(super) type FileSystem = BTreeMap<OsString, Fd>;
 
 // File system contents.
 static mut FILE_SYSTEM: Lazy<MemoryDir> = Lazy::new(|| MemoryDir::new_root());
 
 // Lock for when we need to modify the file system by adding
 // or removing paths.
-static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+pub(super) static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 #[async_recursion]
 async fn walk(
@@ -52,6 +52,13 @@ async fn walk(
     if let Some((index, part)) = it.next() {
         match part {
             Component::RootDir => {
+                // Got a root request only
+                if length == 1 {
+                    return Some(Arc::new(RwLock::new(MemoryFd::Dir(
+                        root_fs().clone(),
+                    ))));
+                }
+
                 if target.is_root() {
                     if let Some((index, part)) = it.next() {
                         match part {
@@ -119,12 +126,17 @@ pub(super) async fn resolve_relative(
     walk(fs, &mut it, length, &mut vec![]).await
 }
 
-fn root_fs() -> &'static MemoryDir {
+pub(super) fn root_fs() -> &'static MemoryDir {
     unsafe { &FILE_SYSTEM }
 }
 
-fn root_fs_mut() -> &'static mut MemoryDir {
+pub(super) fn root_fs_mut() -> &'static mut MemoryDir {
     unsafe { &mut FILE_SYSTEM }
+}
+
+pub(super) fn new_root_parent() -> Fd {
+    let dir = root_fs();
+    Arc::new(RwLock::new(MemoryFd::Dir(dir.clone())))
 }
 
 pub(super) async fn resolve(
@@ -149,6 +161,7 @@ pub(super) async fn resolve_parent(
 /// Directory reference.
 #[derive(Default, Debug, Clone)]
 pub(super) struct MemoryDir {
+    name: OsString,
     parent: Option<Fd>,
     permissions: Permissions,
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -160,6 +173,7 @@ impl MemoryDir {
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     fn new_root() -> Self {
         Self {
+            name: OsString::new(),
             parent: None,
             permissions: Default::default(),
             time: Default::default(),
@@ -170,6 +184,7 @@ impl MemoryDir {
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     fn new_root() -> Self {
         Self {
+            name: OsString::new(),
             parent: None,
             permissions: Default::default(),
             files: Default::default(),
@@ -177,8 +192,9 @@ impl MemoryDir {
     }
 
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    fn new_parent(parent: Fd) -> Self {
+    fn new_parent(name: OsString, parent: Fd) -> Self {
         Self {
+            name,
             parent: Some(parent),
             permissions: Default::default(),
             time: Default::default(),
@@ -187,12 +203,17 @@ impl MemoryDir {
     }
 
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-    fn new_parent(parent: Fd) -> Self {
+    fn new_parent(name: OsString, parent: Fd) -> Self {
         Self {
+            name,
             parent: Some(parent),
             permissions: Default::default(),
             files: Default::default(),
         }
+    }
+
+    pub fn files(&self) -> &FileSystem {
+        &self.files
     }
 
     pub fn is_root(&self) -> bool {
@@ -240,8 +261,8 @@ impl MemoryDir {
     }
 }
 
-fn mkdir(target: &mut MemoryDir, parent: Fd, name: OsString) {
-    let child = MemoryFd::Dir(MemoryDir::new_parent(parent));
+pub(super) fn mkdir(target: &mut MemoryDir, parent: Fd, name: OsString) {
+    let child = MemoryFd::Dir(MemoryDir::new_parent(name.clone(), parent));
     target.insert(name, child);
 }
 
@@ -281,6 +302,7 @@ pub(super) async fn create_file(
             match &mut *parent_fd {
                 MemoryFd::Dir(dir) => {
                     let new_file = MemoryFd::File(MemoryFile::new(
+                        file_name.to_owned(),
                         Arc::clone(&parent),
                         contents,
                     ));
@@ -291,9 +313,11 @@ pub(super) async fn create_file(
             }
         // Create at the root
         } else {
+            let root_parent = new_root_parent();
             let dir = root_fs_mut();
             let new_file = MemoryFd::File(MemoryFile::new(
-                Arc::new(RwLock::new(MemoryFd::Dir(dir.clone()))),
+                file_name.to_owned(),
+                root_parent,
                 contents,
             ));
             dir.insert(file_name.to_owned(), new_file);
@@ -303,8 +327,9 @@ pub(super) async fn create_file(
 }
 
 /// File content.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct MemoryFile {
+    name: OsString,
     parent: Fd,
     permissions: Permissions,
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -314,8 +339,9 @@ pub(super) struct MemoryFile {
 
 impl MemoryFile {
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    fn new(parent: Fd, contents: Vec<u8>) -> Self {
+    fn new(name: OsString, parent: Fd, contents: Vec<u8>) -> Self {
         Self {
+            name,
             parent,
             permissions: Default::default(),
             time: Default::default(),
@@ -324,8 +350,9 @@ impl MemoryFile {
     }
 
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-    fn new(parent: Fd, contents: Vec<u8>) -> Self {
+    fn new(name: OsString, parent: Fd, contents: Vec<u8>) -> Self {
         Self {
+            name,
             parent,
             permissions: Default::default(),
             contents,
@@ -344,7 +371,7 @@ impl MemoryFile {
 }
 
 /// File descriptor.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) enum MemoryFd {
     /// File variant.
     File(MemoryFile),
@@ -376,7 +403,7 @@ impl MemoryFd {
     /// # Panics
     ///
     /// If this file descriptor is not a directory.
-    pub(crate) fn unlink(&mut self, path: impl AsRef<Path>) -> Option<Fd> {
+    pub fn unlink(&mut self, path: impl AsRef<Path>) -> Option<Fd> {
         match self {
             Self::Dir(fd) => {
                 if let Some(name) = path.as_ref().file_name() {
@@ -389,14 +416,37 @@ impl MemoryFd {
         }
     }
 
-    pub(crate) fn parent(&self) -> Option<Fd> {
+    pub fn parent(&self) -> Option<Fd> {
         match self {
             Self::File(fd) => Some(Arc::clone(&fd.parent)),
             Self::Dir(fd) => fd.parent.as_ref().map(Arc::clone),
         }
     }
 
-    pub(crate) fn flags(&self) -> FileFlags {
+    pub fn name(&self) -> &OsString {
+        match self {
+            Self::File(fd) => &fd.name,
+            Self::Dir(fd) => &fd.name,
+        }
+    }
+
+    pub async fn path(&self) -> PathBuf {
+        let mut parent = self.parent();
+        let mut components = vec![self.name().clone()];
+        while let Some(fd) = parent {
+            let fd = fd.read().await;
+            components.push(fd.name().clone());
+            parent = fd.parent();
+        }
+        components.reverse();
+        let mut path = PathBuf::new();
+        for part in components {
+            path = path.join(part);
+        }
+        path
+    }
+
+    pub fn flags(&self) -> FileFlags {
         match self {
             Self::File(_) => FileFlags::FILE,
             Self::Dir(_) => FileFlags::DIR,
@@ -411,14 +461,14 @@ impl MemoryFd {
         }
     }
 
-    pub(crate) fn set_permissions(&mut self, perm: Permissions) {
+    pub fn set_permissions(&mut self, perm: Permissions) {
         match self {
             Self::File(fd) => fd.permissions = perm,
             Self::Dir(fd) => fd.permissions = perm,
         }
     }
 
-    pub(crate) fn permissions(&self) -> &Permissions {
+    pub fn permissions(&self) -> &Permissions {
         match self {
             Self::File(fd) => &fd.permissions,
             Self::Dir(fd) => &fd.permissions,
@@ -426,7 +476,7 @@ impl MemoryFd {
     }
 
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    pub(crate) fn metadata(&self) -> Metadata {
+    pub fn metadata(&self) -> Metadata {
         Metadata::new(
             self.permissions().clone(),
             self.flags(),
@@ -436,7 +486,7 @@ impl MemoryFd {
     }
 
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-    pub(crate) fn metadata(&self) -> Metadata {
+    pub fn metadata(&self) -> Metadata {
         Metadata::new(
             self.permissions().clone(),
             self.flags(),
@@ -480,7 +530,7 @@ async fn ensure_dir(path: impl AsRef<Path>) -> Result<Fd> {
     }
 }
 
-fn has_parent(path: impl AsRef<Path>) -> bool {
+pub(super) fn has_parent(path: impl AsRef<Path>) -> bool {
     if let Some(parent) = path.as_ref().parent() {
         !parent.as_os_str().is_empty()
     } else {
@@ -655,63 +705,6 @@ pub async fn rename(
     } else {
         Err(ErrorKind::NotFound.into())
     }
-}
-
-/// Creates a new, empty directory at the provided path.
-pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
-    let _ = FS_LOCK.lock().await;
-
-    if let Some(parent) = resolve_parent(path.as_ref()).await {
-        let mut fd = parent.write().await;
-        match &mut *fd {
-            MemoryFd::Dir(dir) => {
-                if let Some(name) = path.as_ref().file_name() {
-                    mkdir(dir, Arc::clone(&parent), name.to_owned());
-                    Ok(())
-                } else {
-                    // TODO: different error here?
-                    Err(ErrorKind::PermissionDenied.into())
-                }
-            }
-            _ => Err(ErrorKind::PermissionDenied.into()),
-        }
-    } else {
-        Err(ErrorKind::NotFound.into())
-    }
-}
-
-/// Recursively creates a directory and all of its parent
-/// components if they are missing.
-pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<()> {
-    let _ = FS_LOCK.lock().await;
-
-    let mut it = path.as_ref().iter();
-    let mut path = if path.as_ref().is_absolute() {
-        it.next().map(PathBuf::from).unwrap_or_default()
-    } else {
-        PathBuf::new()
-    };
-
-    unsafe {
-        let mut target = root_fs_mut();
-        for part in it {
-            path = path.join(part);
-            if let Some(child) = resolve(&path).await {
-                let mut fd = child.write().await;
-                match &mut *fd {
-                    MemoryFd::Dir(dir) => {
-                        target = dir;
-                        continue;
-                    }
-                    _ => return Err(ErrorKind::PermissionDenied.into()),
-                }
-            } else {
-                create_dir(&path).await?;
-            }
-        }
-    }
-
-    Ok(())
 }
 
 /// Creates a future which will open a file for reading

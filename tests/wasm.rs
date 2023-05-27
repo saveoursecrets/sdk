@@ -57,11 +57,30 @@ mod wasm_tests {
 
         let path = PathBuf::from("test.txt");
         let contents = b"Mock content".to_vec();
-        vfs::write(&path, &contents).await.expect("to write file");
+        vfs::write(&path, &contents).await
+            .expect("to write file");
 
-        let file_contents = vfs::read(&path).await.expect("to read file");
+        let file_contents = vfs::read(&path).await
+            .expect("to read file");
         assert_eq!(&contents, &file_contents);
 
-        vfs::remove_file(&path).await.expect("to remove file");
+        vfs::remove_file(&path).await
+            .expect("to remove file");
+
+        vfs::create_dir("foo").await
+            .expect("to create directory");
+
+        let mut dir_reader = vfs::read_dir("/").await
+            .expect("to create directory reader");
+        
+        /*
+        while let Ok(Some(entry)) = dir_reader.next_entry().await {
+            log::info!("GOT A DIR ENTRY");
+            log::info!("{:#?}", entry);
+        }
+        */
+        
+        vfs::write("foo/bar.txt", b"qux").await
+            .expect("to write file in directory");
     }
 }
