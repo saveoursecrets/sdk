@@ -47,7 +47,6 @@ impl ReadDir {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<Option<DirEntry>>> {
-
         todo!();
 
         /*
@@ -128,7 +127,7 @@ impl DirEntry {
         todo!();
     }
 
-    /// Returns the bare file name of this directory entry 
+    /// Returns the bare file name of this directory entry
     /// without any other leading path component.
     pub fn file_name(&self) -> OsString {
         todo!();

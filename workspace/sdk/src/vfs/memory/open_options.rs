@@ -98,7 +98,8 @@ impl OpenOptions {
                 todo!("handle CREATE_NEW flag");
 
                 if self.0.contains(OpenFlags::CREATE) {
-                    let file = create_file(path.as_ref(), true).await?;
+                    let file =
+                        create_file(path.as_ref(), Vec::new(), true).await?;
                     (file, 0).into()
                 } else {
                     return Err(ErrorKind::PermissionDenied.into());

@@ -5513,6 +5513,7 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-test",
+ "wasm-log",
  "web3-address",
 ]
 
@@ -6718,6 +6719,17 @@ checksum = "0734759ae6b3b1717d661fe4f016efcfb9828f5edb4520c18eaee05af3b43be9"
 dependencies = [
  "proc-macro2 1.0.56",
  "quote 1.0.26",
+]
+
+[[package]]
+name = "wasm-log"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "def95b2a762924804037f77e3de791f1c177d6ecbe0385a64e519bd7902a5f81"
+dependencies = [
+ "log",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

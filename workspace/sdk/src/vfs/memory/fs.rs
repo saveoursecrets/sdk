@@ -120,21 +120,16 @@ pub(super) async fn resolve_relative(
 }
 
 fn root_fs() -> &'static MemoryDir {
-    unsafe {
-        &FILE_SYSTEM
-    }
+    unsafe { &FILE_SYSTEM }
 }
 
 fn root_fs_mut() -> &'static mut MemoryDir {
-    unsafe {
-        &mut FILE_SYSTEM
-    }
+    unsafe { &mut FILE_SYSTEM }
 }
 
 pub(super) async fn resolve(
     path: impl AsRef<Path>,
 ) -> Option<Arc<RwLock<MemoryFd>>> {
-    
     unsafe {
         let fs = root_fs();
         resolve_relative(&*fs, path).await
@@ -152,7 +147,7 @@ pub(super) async fn resolve_parent(
 }
 
 /// Directory reference.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub(super) struct MemoryDir {
     parent: Option<Fd>,
     permissions: Permissions,
@@ -255,6 +250,7 @@ fn mkdir(target: &mut MemoryDir, parent: Fd, name: OsString) {
 /// The parent directory must exist.
 pub(super) async fn create_file(
     path: impl AsRef<Path>,
+    contents: Vec<u8>,
     truncate: bool,
 ) -> Result<Fd> {
     let file_name = path.as_ref().file_name().ok_or_else(|| {
@@ -284,15 +280,24 @@ pub(super) async fn create_file(
             let mut parent_fd = parent.write().await;
             match &mut *parent_fd {
                 MemoryFd::Dir(dir) => {
-                    let new_file =
-                        MemoryFd::File(MemoryFile::new(Arc::clone(&parent)));
+                    let new_file = MemoryFd::File(MemoryFile::new(
+                        Arc::clone(&parent),
+                        contents,
+                    ));
                     dir.insert(file_name.to_owned(), new_file);
                     Ok(dir.get(file_name).map(Arc::clone).unwrap())
                 }
                 MemoryFd::File(_) => Err(ErrorKind::PermissionDenied.into()),
             }
+        // Create at the root
         } else {
-            Err(ErrorKind::PermissionDenied.into())
+            let dir = root_fs_mut();
+            let new_file = MemoryFd::File(MemoryFile::new(
+                Arc::new(RwLock::new(MemoryFd::Dir(dir.clone()))),
+                contents,
+            ));
+            dir.insert(file_name.to_owned(), new_file);
+            Ok(dir.get(file_name).map(Arc::clone).unwrap())
         }
     }
 }
@@ -309,21 +314,21 @@ pub(super) struct MemoryFile {
 
 impl MemoryFile {
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    fn new(parent: Fd) -> Self {
+    fn new(parent: Fd, contents: Vec<u8>) -> Self {
         Self {
             parent,
             permissions: Default::default(),
             time: Default::default(),
-            contents: Default::default(),
+            contents,
         }
     }
 
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-    fn new(parent: Fd) -> Self {
+    fn new(parent: Fd, contents: Vec<u8>) -> Self {
         Self {
             parent,
             permissions: Default::default(),
-            contents: Default::default(),
+            contents,
         }
     }
 
@@ -475,42 +480,52 @@ async fn ensure_dir(path: impl AsRef<Path>) -> Result<Fd> {
     }
 }
 
+fn has_parent(path: impl AsRef<Path>) -> bool {
+    if let Some(parent) = path.as_ref().parent() {
+        !parent.as_os_str().is_empty()
+    } else {
+        false
+    }
+}
+
 /// Creates a future that will open a file for writing
 /// and write the entire contents to it.
 pub async fn write(
     path: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
 ) -> Result<()> {
-    let file = resolve(path.as_ref()).await.ok_or_else(|| {
-        let err: io::Error = ErrorKind::NotFound.into();
-        err
-    });
-
-    todo!();
-
-    /*
-    let path = path.as_ref().to_path_buf();
-    unsafe {
-        let fs = Lazy::get_mut(&mut FILE_SYSTEM).unwrap();
-        if let Some(parent) = path.parent() {
-            if let Some(parent) = fs.files.get(parent) {
-                let fd = parent.read().await;
-                let is_dir = matches!(&*fd, MemoryFd::Dir(_));
-                if !is_dir {
-                    return Err(ErrorKind::PermissionDenied.into());
-                }
+    if let Some(file) = resolve(path.as_ref()).await {
+        let mut fd = file.write().await;
+        match &mut *fd {
+            MemoryFd::File(fd) => {
+                fd.contents = contents.as_ref().to_vec();
+                Ok(())
             }
+            MemoryFd::Dir(_) => Err(ErrorKind::PermissionDenied.into()),
         }
-        let fd = fs.files.entry(path).or_insert_with(|| {
-            Arc::new(RwLock::new(MemoryFd::File(Default::default())))
-        });
-        let mut fd = fd.write().await;
-        if let MemoryFd::File(fd) = &mut *fd {
-            fd.contents = contents.as_ref().to_vec();
+    } else {
+        let has_parent = has_parent(path.as_ref());
+        if has_parent {
+            if let Some(parent) = resolve_parent(path.as_ref()).await {
+                let fd = parent.read().await;
+                match &*fd {
+                    MemoryFd::Dir(_) => {
+                        create_file(path, contents.as_ref().to_vec(), false)
+                            .await?;
+                        Ok(())
+                    }
+                    MemoryFd::File(_) => {
+                        Err(ErrorKind::PermissionDenied.into())
+                    }
+                }
+            } else {
+                Err(ErrorKind::NotFound.into())
+            }
+        } else {
+            create_file(path, contents.as_ref().to_vec(), false).await?;
+            Ok(())
         }
     }
-    Ok(())
-    */
 }
 
 /// Reads the entire contents of a file into a bytes vector.

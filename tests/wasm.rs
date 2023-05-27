@@ -53,6 +53,8 @@ mod wasm_tests {
 
     #[wasm_bindgen_test]
     async fn vfs() {
+        wasm_log::init(wasm_log::Config::default());
+
         let path = PathBuf::from("test.txt");
         let contents = b"Mock content".to_vec();
         vfs::write(&path, &contents).await.expect("to write file");

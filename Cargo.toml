@@ -60,6 +60,7 @@ rexpect = "0.5"
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3"
 wasm-bindgen = { version = "0.2.80", features = ["serde-serialize"] }
+wasm-log = "0.3"
 
 [[bin]]
 name = "sos"
