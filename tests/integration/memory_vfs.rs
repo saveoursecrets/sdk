@@ -1,11 +1,15 @@
 use anyhow::Result;
 
-use std::ffi::OsString;
+use std::{ffi::OsString, io::SeekFrom};
 
-use sos_sdk::vfs::{self, FileType, PathBuf};
+use sos_sdk::vfs::{self, File, FileType, PathBuf};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 #[tokio::test]
 async fn integration_memory_vfs() -> Result<()> {
+    file_write_read().await?;
+    read_to_string().await?;
+
     write_read().await?;
     remove_file().await?;
     create_dir_remove_dir().await?;
@@ -19,6 +23,39 @@ async fn integration_memory_vfs() -> Result<()> {
     Ok(())
 }
 
+async fn file_write_read() -> Result<()> {
+    let path = PathBuf::from("test.txt");
+    let contents = "Mock content";
+
+    let mut fd = File::create(&path).await?;
+    fd.write_all(contents.as_bytes()).await?;
+    fd.flush().await?;
+    assert!(vfs::try_exists(&path).await?);
+
+    let mut file_contents = Vec::new();
+    let mut fd = File::open(&path).await?;
+    fd.seek(SeekFrom::Start(0)).await?;
+    fd.read_to_end(&mut file_contents).await?;
+    assert_eq!(contents.as_bytes(), &file_contents);
+
+    vfs::remove_file(&path).await?;
+
+    Ok(())
+}
+
+async fn read_to_string() -> Result<()> {
+    let path = PathBuf::from("test.txt");
+    let contents = "Mock content";
+    vfs::write(&path, contents.as_bytes()).await?;
+    assert!(vfs::try_exists(&path).await?);
+
+    let file_contents = vfs::read_to_string(&path).await?;
+    assert_eq!(contents, &file_contents);
+
+    vfs::remove_file(&path).await?;
+    Ok(())
+}
+
 async fn write_read() -> Result<()> {
     let path = PathBuf::from("test.txt");
     let contents = b"Mock content".to_vec();
@@ -28,6 +65,8 @@ async fn write_read() -> Result<()> {
 
     let file_contents = vfs::read(&path).await?;
     assert_eq!(&contents, &file_contents);
+
+    vfs::remove_file(&path).await?;
     Ok(())
 }
 
@@ -108,12 +147,11 @@ async fn read_dir() -> Result<()> {
     Ok(())
 }
 
-
 async fn rename() -> Result<()> {
     vfs::create_dir("foo").await?;
     let exists = vfs::try_exists("foo").await?;
     assert!(exists);
-    
+
     vfs::rename("foo", "bar").await?;
     assert!(!vfs::try_exists("foo").await?);
     assert!(vfs::try_exists("bar").await?);

@@ -1,4 +1,4 @@
-//! In-memory file modified from the `tokio::fs::File` 
+//! In-memory file modified from the `tokio::fs::File`
 //! implementation to write to a Cursor.
 //!
 //! All credit to the tokio authors.
@@ -23,7 +23,7 @@ use std::task::Poll::*;
 
 use super::{
     fs::{Fd, MemoryFd},
-    metadata, Metadata, OpenOptions, PathBuf, FileContent,
+    metadata, FileContent, Metadata, OpenOptions, PathBuf,
 };
 
 pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
@@ -52,6 +52,7 @@ impl File {
                 _ => return Err(ErrorKind::PermissionDenied.into()),
             }
         };
+
         Ok(Self {
             std,
             path,
@@ -202,8 +203,8 @@ impl File {
         metadata(&self.path).await
     }
 
-    /// Creates a new `File` instance that shares the same 
-    /// underlying file handle as the existing `File` 
+    /// Creates a new `File` instance that shares the same
+    /// underlying file handle as the existing `File`
     /// instance. Reads, writes, and seeks will affect both
     /// File instances simultaneously.
     pub async fn try_clone(&self) -> io::Result<File> {
@@ -377,6 +378,7 @@ impl AsyncWrite for File {
                     };
 
                     let n = buf.copy_from(src);
+
                     let mut std = me.std.clone();
 
                     let blocking_task_join_handle =
