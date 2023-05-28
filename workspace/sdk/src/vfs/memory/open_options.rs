@@ -3,7 +3,7 @@ use std::{path::Path, sync::Arc};
 
 use super::{
     fs::{create_file, resolve, MemoryFd},
-    File,
+    File, PathTarget,
 };
 use bitflags::bitflags;
 use once_cell::sync::Lazy;
@@ -70,24 +70,29 @@ impl OpenOptions {
 
     /// Opens a file at `path` with the options specified by `self`.
     pub async fn open(&self, path: impl AsRef<Path>) -> io::Result<File> {
-        if let Some(file) = resolve(path.as_ref().to_path_buf()).await {
-            if self.0.contains(OpenFlags::TRUNCATE) {
-                let mut fd = file.write().await;
-                if let MemoryFd::File(file) = &mut *fd {
-                    file.truncate();
+        if let Some(target) = resolve(path.as_ref().to_path_buf()).await {
+            match target {
+                PathTarget::Descriptor(file) => {
+                    if self.0.contains(OpenFlags::TRUNCATE) {
+                        let mut fd = file.write().await;
+                        if let MemoryFd::File(file) = &mut *fd {
+                            file.truncate();
+                        }
+                    }
+
+                    let is_file = {
+                        let fd = file.read().await;
+                        matches!(&*fd, MemoryFd::File(_))
+                    };
+
+                    if is_file {
+                        let file = Arc::clone(&file);
+                        File::new(file).await
+                    } else {
+                        Err(ErrorKind::PermissionDenied.into())
+                    }
                 }
-            }
-
-            let is_file = {
-                let fd = file.read().await;
-                matches!(&*fd, MemoryFd::File(_))
-            };
-
-            if is_file {
-                let file = Arc::clone(&file);
-                File::new(file).await
-            } else {
-                Err(ErrorKind::PermissionDenied.into())
+                _ => Err(ErrorKind::PermissionDenied.into()),
             }
         } else {
             if self.0.contains(OpenFlags::CREATE) {

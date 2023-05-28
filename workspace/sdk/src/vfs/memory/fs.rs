@@ -44,68 +44,46 @@ static mut FILE_SYSTEM: Lazy<MemoryDir> = Lazy::new(|| MemoryDir::new_root());
 // or removing paths.
 pub(super) static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
+pub(super) fn root_fs() -> &'static MemoryDir {
+    unsafe { &FILE_SYSTEM }
+}
+
+pub(super) fn root_fs_mut() -> &'static mut MemoryDir {
+    unsafe { &mut FILE_SYSTEM }
+}
+
+/// Result of a path lookup.
+pub(super) enum PathTarget {
+    Root(&'static mut MemoryDir),
+    Descriptor(Fd),
+}
+
 #[async_recursion]
 async fn walk(
     target: &MemoryDir,
     it: &mut Enumerate<IntoIter<Component>>,
     length: usize,
-    parents: &mut Vec<Fd>,
-) -> Option<Fd> {
+    parents: &mut Vec<Parent>,
+) -> Option<PathTarget> {
     if let Some((index, part)) = it.next() {
         match part {
             Component::RootDir => {
                 // Got a root request only
                 if length == 1 {
-                    todo!();
-
-                    /*
-                    return Some(Arc::new(RwLock::new(MemoryFd::Dir(
-                        root_fs().clone(),
-                    ))));
-                    */
+                    return Some(PathTarget::Root(root_fs_mut()));
                 }
-
-                if target.is_root() {
-                    if let Some((index, part)) = it.next() {
-                        match part {
-                            Component::Normal(name) => {
-                                if index == length - 1 {
-                                    return target
-                                        .files
-                                        .get(name)
-                                        .map(Arc::clone);
-                                } else {
-                                    if let Some(child) =
-                                        target.find_dir(name).await
-                                    {
-                                        parents.push(Arc::clone(&child));
-                                        let fd = child.read().await;
-                                        if let MemoryFd::Dir(dir) = &*fd {
-                                            return walk(
-                                                dir, it, length, parents,
-                                            )
-                                            .await;
-                                        }
-                                    } else {
-                                        return None;
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                    } else {
-                        return None;
-                    }
-                } else {
-                    return None;
-                }
+                parents.push(Parent::Root(root_fs_mut()));
+                return walk(root_fs(), it, length, parents).await;
             }
             Component::Normal(name) => {
                 if index == length - 1 {
-                    return target.files.get(name).map(Arc::clone);
+                    return target
+                        .files
+                        .get(name)
+                        .map(|fd| PathTarget::Descriptor(Arc::clone(fd)));
                 } else {
                     if let Some(child) = target.find_dir(name).await {
-                        parents.push(Arc::clone(&child));
+                        parents.push(Parent::Folder(Arc::clone(&child)));
                         let fd = child.read().await;
                         if let MemoryFd::Dir(dir) = &*fd {
                             return walk(dir, it, length, parents).await;
@@ -124,7 +102,7 @@ async fn walk(
 pub(super) async fn resolve_relative(
     fs: &MemoryDir,
     path: impl AsRef<Path>,
-) -> Option<Arc<RwLock<MemoryFd>>> {
+) -> Option<PathTarget> {
     let components: Vec<Component> =
         path.as_ref().components().into_iter().collect();
     let length = components.len();
@@ -132,22 +110,14 @@ pub(super) async fn resolve_relative(
     walk(fs, &mut it, length, &mut vec![]).await
 }
 
-pub(super) fn root_fs() -> &'static MemoryDir {
-    unsafe { &FILE_SYSTEM }
-}
-
-pub(super) fn root_fs_mut() -> &'static mut MemoryDir {
-    unsafe { &mut FILE_SYSTEM }
-}
-
-pub(super) async fn resolve(
-    path: impl AsRef<Path>,
-) -> Option<Arc<RwLock<MemoryFd>>> {
+pub(super) async fn resolve(path: impl AsRef<Path>) -> Option<PathTarget> {
     let fs = root_fs();
     resolve_relative(&*fs, path).await
 }
 
-pub(super) async fn resolve_parent(path: impl AsRef<Path>) -> Option<Fd> {
+pub(super) async fn resolve_parent(
+    path: impl AsRef<Path>,
+) -> Option<PathTarget> {
     if let Some(parent) = path.as_ref().parent() {
         resolve(parent).await
     } else {
@@ -181,12 +151,14 @@ impl Parent {
         }
     }
 
-    pub async fn mkdir(&mut self, name: OsString) -> Result<()> {
+    pub async fn mkdir(&mut self, name: OsString) -> Result<Fd> {
         let fd = MemoryFd::Dir(MemoryDir::new_parent(
             name.clone(),
             Some(self.clone()),
         ));
-        self.insert_fd(name, Arc::new(RwLock::new(fd))).await
+        let dir = Arc::new(RwLock::new(fd));
+        self.insert_fd(name, Arc::clone(&dir)).await?;
+        Ok(dir)
     }
 
     /// Remove a child file or directory.
@@ -344,42 +316,52 @@ pub(super) async fn create_file(
     })?;
 
     // File already exists
-    if let Some(file) = resolve(path.as_ref()).await {
-        let mut file_fd = file.write().await;
-        if let Some(parent) = file_fd.parent() {
-            match &mut *file_fd {
-                MemoryFd::Dir(_) => Err(ErrorKind::PermissionDenied.into()),
-                MemoryFd::File(fd) => {
-                    if truncate {
-                        fd.truncate();
+    if let Some(target) = resolve(path.as_ref()).await {
+        match target {
+            PathTarget::Descriptor(file) => {
+                let mut file_fd = file.write().await;
+                if let Some(parent) = file_fd.parent() {
+                    match &mut *file_fd {
+                        MemoryFd::Dir(_) => {
+                            Err(ErrorKind::PermissionDenied.into())
+                        }
+                        MemoryFd::File(fd) => {
+                            if truncate {
+                                fd.truncate();
+                            }
+                            Ok(Arc::clone(&file))
+                        }
                     }
-                    Ok(Arc::clone(&file))
+                } else {
+                    Err(ErrorKind::PermissionDenied.into())
                 }
             }
-        } else {
-            Err(ErrorKind::PermissionDenied.into())
+            _ => Err(ErrorKind::PermissionDenied.into()),
         }
     // Try to create in parent
     } else {
-        if let Some(parent) = resolve_parent(path.as_ref()).await {
-            todo!();
-
-            /*
-            let mut parent_fd = parent.write().await;
-            match &mut *parent_fd {
-                MemoryFd::Dir(dir) => {
-                    let new_file = MemoryFd::File(MemoryFile::new(
-                        file_name.to_owned(),
-                        Some(Arc::clone(&parent)),
-                        contents,
-                    ));
-                    dir.insert(file_name.to_owned(), new_file);
-                    Ok(dir.get(file_name).map(Arc::clone).unwrap())
+        if let Some(target) = resolve_parent(path.as_ref()).await {
+            match target {
+                PathTarget::Descriptor(fd) => {
+                    let mut parent_fd = fd.write().await;
+                    match &mut *parent_fd {
+                        MemoryFd::Dir(dir) => {
+                            let new_file = MemoryFd::File(MemoryFile::new(
+                                file_name.to_owned(),
+                                Some(Parent::Folder(Arc::clone(&fd))),
+                                contents,
+                            ));
+                            dir.insert(file_name.to_owned(), new_file);
+                            Ok(dir.get(file_name).map(Arc::clone).unwrap())
+                        }
+                        MemoryFd::File(_) => {
+                            Err(ErrorKind::PermissionDenied.into())
+                        }
+                    }
                 }
-                MemoryFd::File(_) => Err(ErrorKind::PermissionDenied.into()),
+                _ => unreachable!(),
             }
-            */
-            // Create at the root
+        // Create at the root
         } else {
             let dir = root_fs_mut();
             let new_file = MemoryFd::File(MemoryFile::new(
@@ -529,16 +511,20 @@ impl MemoryFd {
 
 /// Ensure a path is a file and exists.
 async fn ensure_file(path: impl AsRef<Path>) -> Result<Fd> {
-    let fd = resolve(path.as_ref().to_path_buf()).await;
-    if let Some(file) = fd {
-        let is_file = {
-            let fd = file.read().await;
-            matches!(&*fd, MemoryFd::File(_))
-        };
-        if is_file {
-            Ok(file)
-        } else {
-            Err(ErrorKind::PermissionDenied.into())
+    if let Some(target) = resolve(path.as_ref().to_path_buf()).await {
+        match target {
+            PathTarget::Descriptor(fd) => {
+                let is_file = {
+                    let fd = fd.read().await;
+                    matches!(&*fd, MemoryFd::File(_))
+                };
+                if is_file {
+                    Ok(fd)
+                } else {
+                    Err(ErrorKind::PermissionDenied.into())
+                }
+            }
+            _ => Err(ErrorKind::PermissionDenied.into()),
         }
     } else {
         Err(ErrorKind::NotFound.into())
@@ -547,15 +533,20 @@ async fn ensure_file(path: impl AsRef<Path>) -> Result<Fd> {
 
 /// Ensure a path is a directory and exists.
 async fn ensure_dir(path: impl AsRef<Path>) -> Result<Fd> {
-    if let Some(file) = resolve(path.as_ref().to_path_buf()).await {
-        let is_dir = {
-            let fd = file.read().await;
-            matches!(&*fd, MemoryFd::Dir(_))
-        };
-        if is_dir {
-            Ok(file)
-        } else {
-            Err(ErrorKind::PermissionDenied.into())
+    if let Some(target) = resolve(path.as_ref().to_path_buf()).await {
+        match target {
+            PathTarget::Descriptor(fd) => {
+                let is_dir = {
+                    let fd = fd.read().await;
+                    matches!(&*fd, MemoryFd::Dir(_))
+                };
+                if is_dir {
+                    Ok(fd)
+                } else {
+                    Err(ErrorKind::PermissionDenied.into())
+                }
+            }
+            _ => Err(ErrorKind::PermissionDenied.into()),
         }
     } else {
         Err(ErrorKind::NotFound.into())
@@ -576,31 +567,47 @@ pub async fn write(
     path: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
 ) -> Result<()> {
-    if let Some(file) = resolve(path.as_ref()).await {
-        let mut fd = file.write().await;
-        match &mut *fd {
-            MemoryFd::File(fd) => {
-                let buf = fd.contents();
-                let mut data = buf.lock();
-                *data = Cursor::new(contents.as_ref().to_vec());
-                Ok(())
+    if let Some(target) = resolve(path.as_ref()).await {
+        match target {
+            PathTarget::Descriptor(fd) => {
+                let mut fd = fd.write().await;
+                match &mut *fd {
+                    MemoryFd::File(fd) => {
+                        let buf = fd.contents();
+                        let mut data = buf.lock();
+                        *data = Cursor::new(contents.as_ref().to_vec());
+                        Ok(())
+                    }
+                    MemoryFd::Dir(_) => {
+                        Err(ErrorKind::PermissionDenied.into())
+                    }
+                }
             }
-            MemoryFd::Dir(_) => Err(ErrorKind::PermissionDenied.into()),
+            _ => Err(ErrorKind::PermissionDenied.into()),
         }
     } else {
         let has_parent = has_parent(path.as_ref());
         if has_parent {
-            if let Some(parent) = resolve_parent(path.as_ref()).await {
-                let is_dir = {
-                    let fd = parent.read().await;
-                    matches!(&*fd, MemoryFd::Dir(_))
-                };
-                if is_dir {
-                    create_file(path, contents.as_ref().to_vec(), false)
-                        .await?;
-                    Ok(())
-                } else {
-                    Err(ErrorKind::PermissionDenied.into())
+            if let Some(target) = resolve_parent(path.as_ref()).await {
+                match target {
+                    PathTarget::Descriptor(fd) => {
+                        let is_dir = {
+                            let fd = fd.read().await;
+                            matches!(&*fd, MemoryFd::Dir(_))
+                        };
+                        if is_dir {
+                            create_file(
+                                path,
+                                contents.as_ref().to_vec(),
+                                false,
+                            )
+                            .await?;
+                            Ok(())
+                        } else {
+                            Err(ErrorKind::PermissionDenied.into())
+                        }
+                    }
+                    _ => Err(ErrorKind::PermissionDenied.into()),
                 }
             } else {
                 Err(ErrorKind::NotFound.into())
@@ -614,14 +621,19 @@ pub async fn write(
 
 /// Reads the entire contents of a file into a bytes vector.
 pub async fn read(path: impl AsRef<Path>) -> Result<Vec<u8>> {
-    if let Some(fd) = resolve(path.as_ref().to_path_buf()).await {
-        let fd = fd.read().await;
-        if let MemoryFd::File(fd) = &*fd {
-            let buf = fd.contents();
-            let data = buf.lock();
-            Ok((&*data).clone().into_inner())
-        } else {
-            Err(ErrorKind::PermissionDenied.into())
+    if let Some(target) = resolve(path.as_ref().to_path_buf()).await {
+        match target {
+            PathTarget::Descriptor(fd) => {
+                let fd = fd.read().await;
+                if let MemoryFd::File(fd) = &*fd {
+                    let buf = fd.contents();
+                    let data = buf.lock();
+                    Ok((&*data).clone().into_inner())
+                } else {
+                    Err(ErrorKind::PermissionDenied.into())
+                }
+            }
+            _ => Err(ErrorKind::PermissionDenied.into()),
         }
     } else {
         Err(ErrorKind::NotFound.into())
@@ -699,6 +711,11 @@ pub async fn rename(
         err
     })?;
 
+    let file = match file {
+        PathTarget::Descriptor(fd) => fd,
+        _ => return Err(ErrorKind::PermissionDenied.into()),
+    };
+
     let mut fd = file.write().await;
 
     let from_name = from.as_ref().file_name().ok_or_else(|| {
@@ -720,35 +737,42 @@ pub async fn rename(
     };
 
     if let Some(source) = source {
-        if let Some(to_file) = resolve(to.as_ref()).await {
-            let mut to_fd = to_file.write().await;
-            // Overwrite existing file
-            if matches!(&*to_fd, MemoryFd::File(_)) {
-                if let Some(to_parent_fd) = to_fd.parent_mut() {
-                    to_parent_fd
-                        .insert_fd(to_name.to_owned(), source)
-                        .await?;
+        if let Some(target) = resolve(to.as_ref()).await {
+            match target {
+                PathTarget::Descriptor(to_fd) => {
+                    let mut to_fd = to_fd.write().await;
+                    // Overwrite existing file
+                    if matches!(&*to_fd, MemoryFd::File(_)) {
+                        if let Some(to_parent_fd) = to_fd.parent_mut() {
+                            to_parent_fd
+                                .insert_fd(to_name.to_owned(), source)
+                                .await?;
+                        }
+                        Ok(())
+                    // Cannot overwrite a directory
+                    } else {
+                        Err(ErrorKind::PermissionDenied.into())
+                    }
                 }
-                Ok(())
-            // Cannot overwrite a directory
-            } else {
-                Err(ErrorKind::PermissionDenied.into())
+                _ => Err(ErrorKind::PermissionDenied.into()),
             }
         } else {
             // To does not exist but it's parent must
-            if let Some(to_parent_fd) = resolve_parent(to.as_ref()).await {
-                /*
-                let mut to_parent_write = to_parent_fd.write().await;
-                match &mut *to_parent_write {
-                    MemoryFd::Dir(dir) => {
+            if let Some(target) = resolve_parent(to.as_ref()).await {
+                match target {
+                    PathTarget::Descriptor(fd) => {
+                        let mut to_parent_write = fd.write().await;
+                        match &mut *to_parent_write {
+                            MemoryFd::Dir(dir) => {
+                                dir.insert_fd(to_name.to_owned(), source);
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                    PathTarget::Root(dir) => {
                         dir.insert_fd(to_name.to_owned(), source);
                     }
-                    _ => unreachable!(),
                 }
-                */
-
-                todo!();
-
                 Ok(())
             } else {
                 Err(ErrorKind::NotFound.into())
@@ -771,19 +795,26 @@ pub async fn read_to_string(path: impl AsRef<Path>) -> Result<String> {
 
 /// Given a path, queries the file system to get information about a file, directory, etc.
 pub async fn metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
-    if let Some(fd) = resolve(path.as_ref().to_path_buf()).await {
-        let len = {
-            let fd = fd.read().await;
-            match &*fd {
-                MemoryFd::File(file) => {
-                    let data = file.contents();
-                    let data = data.lock();
-                    (&*data).get_ref().len() as u64
-                }
-                _ => 0u64,
+    if let Some(target) = resolve(path.as_ref().to_path_buf()).await {
+        match target {
+            PathTarget::Descriptor(fd) => {
+                let len = {
+                    let fd = fd.read().await;
+                    match &*fd {
+                        MemoryFd::File(file) => {
+                            let data = file.contents();
+                            let data = data.lock();
+                            (&*data).get_ref().len() as u64
+                        }
+                        _ => 0u64,
+                    }
+                };
+                Ok(new_metadata(fd, len).await)
             }
-        };
-        Ok(new_metadata(fd, len).await)
+            PathTarget::Root(_) => {
+                unimplemented!("support root fs metadata");
+            }
+        }
     } else {
         Err(ErrorKind::NotFound.into())
     }
@@ -811,10 +842,15 @@ pub async fn set_permissions(
     path: impl AsRef<Path>,
     perm: Permissions,
 ) -> Result<()> {
-    if let Some(fd) = resolve(path.as_ref()).await {
-        let mut fd = fd.write().await;
-        fd.set_permissions(perm);
-        Ok(())
+    if let Some(target) = resolve(path.as_ref()).await {
+        match target {
+            PathTarget::Descriptor(fd) => {
+                let mut fd = fd.write().await;
+                fd.set_permissions(perm);
+                Ok(())
+            }
+            _ => Err(ErrorKind::PermissionDenied.into()),
+        }
     } else {
         Err(ErrorKind::NotFound.into())
     }

@@ -13,29 +13,34 @@ use tokio::task::JoinHandle;
 
 use super::{
     fs::{resolve, Fd, MemoryDir, MemoryFd},
-    metadata, FileType, Metadata,
+    metadata, FileType, Metadata, PathTarget,
 };
 
 /// Returns a stream over the entries within a directory.
 pub async fn read_dir(path: impl AsRef<Path>) -> io::Result<ReadDir> {
-    if let Some(file) = resolve(path.as_ref()).await {
-        let fd = file.read().await;
-        match &*fd {
-            MemoryFd::Dir(dir) => {
-                let mut files = Vec::new();
-                for (name, fd) in dir.files().iter() {
-                    let path = {
-                        let fd = fd.read().await;
-                        fd.path().await
-                    };
-                    files.push((name.clone(), path, Arc::clone(fd)))
+    if let Some(target) = resolve(path.as_ref()).await {
+        let children = match target {
+            PathTarget::Root(dir) => dir.files().clone(),
+            PathTarget::Descriptor(fd) => {
+                let fd = fd.read().await;
+                match &*fd {
+                    MemoryFd::Dir(dir) => dir.files().clone(),
+                    _ => return Err(ErrorKind::PermissionDenied.into()),
                 }
-                Ok(ReadDir {
-                    iter: files.into_iter(),
-                })
             }
-            _ => Err(ErrorKind::PermissionDenied.into()),
+        };
+
+        let mut files = Vec::new();
+        for (name, fd) in children {
+            let path = {
+                let fd = fd.read().await;
+                fd.path().await
+            };
+            files.push((name, path, fd))
         }
+        Ok(ReadDir {
+            iter: files.into_iter(),
+        })
     } else {
         Err(ErrorKind::NotFound.into())
     }

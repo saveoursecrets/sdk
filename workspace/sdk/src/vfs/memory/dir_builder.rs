@@ -1,13 +1,13 @@
 use std::io::{self, ErrorKind, Result};
 use std::{
     ffi::OsString,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::Arc,
 };
 
 use super::fs::{
     has_parent, resolve, resolve_parent, root_fs_mut, Fd, MemoryDir,
-    MemoryFd, Parent, FS_LOCK,
+    MemoryFd, Parent, PathTarget, FS_LOCK,
 };
 
 /// A builder for creating directories in various manners.
@@ -55,34 +55,53 @@ impl DirBuilder {
         let _ = FS_LOCK.lock().await;
 
         if self.recursive {
-            let mut it = path.as_ref().iter();
-            let mut path = if path.as_ref().is_absolute() {
-                it.next().map(PathBuf::from).unwrap_or_default()
-            } else {
-                PathBuf::new()
-            };
-
-            /*
-            let mut target = new_root_parent();
-            for name in it {
-                path = path.join(name);
-                if let Some(child) = resolve(&path).await {
-                    let mut fd = child.write().await;
-                    match &mut *fd {
-                        MemoryFd::Dir(dir) => {
-                            target = Arc::clone(&child);
-                            continue;
-                        }
-                        _ => return Err(ErrorKind::PermissionDenied.into()),
+            let mut current = Parent::Root(root_fs_mut());
+            let mut buf = PathBuf::new();
+            let mut file_name: Option<OsString> = None;
+            for component in path.as_ref().components() {
+                match component {
+                    Component::RootDir => {
+                        file_name = None;
+                        continue;
                     }
-                } else {
-                    mkdir(Arc::clone(&target), name.to_owned()).await?;
+                    Component::Normal(name) => {
+                        buf = buf.join(name);
+                        file_name = Some(name.to_owned());
+                    }
+                    _ => unimplemented!(),
+                }
+
+                // Got a directory to make
+                if let Some(file_name) = file_name {
+                    // See if a folder already exists at the location
+                    if let Some(target) = resolve(&buf).await {
+                        match target {
+                            PathTarget::Descriptor(parent) => {
+                                let fd = parent.read().await;
+                                match &*fd {
+                                    MemoryFd::Dir(dir) => {
+                                        current = Parent::Folder(Arc::clone(
+                                            &parent,
+                                        ));
+                                    }
+                                    _ => {
+                                        return Err(
+                                            ErrorKind::PermissionDenied
+                                                .into(),
+                                        )
+                                    }
+                                }
+                            }
+                            PathTarget::Root(_) => {
+                                return Err(ErrorKind::PermissionDenied.into())
+                            }
+                        }
+                    } else {
+                        let fd = current.mkdir(file_name).await?;
+                        current = Parent::Folder(fd);
+                    }
                 }
             }
-            */
-
-            todo!();
-
             Ok(())
         } else {
             let file_name = path.as_ref().file_name().ok_or_else(|| {
@@ -92,25 +111,36 @@ impl DirBuilder {
 
             let has_parent = has_parent(path.as_ref());
             if has_parent {
-                if let Some(parent) = resolve_parent(path.as_ref()).await {
-                    /*
-                    let mut fd = parent.write().await;
-                    match &mut *fd {
-                        MemoryFd::Dir(dir) => {
-                            mkdir(Arc::clone(&parent), file_name.to_owned())
-                                .await?;
-                            Ok(())
+                if let Some(target) = resolve_parent(path.as_ref()).await {
+                    match target {
+                        PathTarget::Descriptor(parent) => {
+                            let mut fd = parent.write().await;
+                            match &mut *fd {
+                                MemoryFd::Dir(dir) => {
+                                    Parent::Folder(Arc::clone(&parent))
+                                        .mkdir(file_name.to_owned())
+                                        .await?;
+                                }
+                                _ => {
+                                    return Err(
+                                        ErrorKind::PermissionDenied.into()
+                                    )
+                                }
+                            }
                         }
-                        _ => Err(ErrorKind::PermissionDenied.into()),
+                        PathTarget::Root(fs) => {
+                            Parent::Root(fs)
+                                .mkdir(file_name.to_owned())
+                                .await?;
+                        }
                     }
-                    */
-
-                    todo!();
+                    Ok(())
                 } else {
                     Err(ErrorKind::NotFound.into())
                 }
             } else {
-                mkdir(Parent::Root(root_fs_mut()), file_name.to_owned())
+                Parent::Root(root_fs_mut())
+                    .mkdir(file_name.to_owned())
                     .await?;
                 Ok(())
             }
@@ -127,8 +157,4 @@ pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
 /// components if they are missing.
 pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<()> {
     DirBuilder::new().recursive(true).create(path).await
-}
-
-async fn mkdir(mut parent: Parent, name: OsString) -> Result<()> {
-    parent.mkdir(name).await
 }
