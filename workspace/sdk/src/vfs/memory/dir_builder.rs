@@ -75,13 +75,15 @@ impl DirBuilder {
                         _ => return Err(ErrorKind::PermissionDenied.into()),
                     }
                 } else {
+                    /*
                     let parent =
                         if let Some(parent) = resolve_parent(&path).await {
                             parent
                         } else {
                             todo!();
                         };
-                    mkdir(Arc::clone(&parent), name.to_owned()).await?;
+                    */
+                    mkdir(Arc::clone(&target), name.to_owned()).await?;
                 }
             }
             Ok(())
@@ -134,7 +136,7 @@ async fn mkdir(parent: Fd, name: OsString) -> Result<()> {
         MemoryFd::Dir(dir) => {
             let child = MemoryFd::Dir(MemoryDir::new_parent(
                 name.clone(),
-                new_parent,
+                Some(new_parent),
             ));
             dir.insert(name, child);
             Ok(())

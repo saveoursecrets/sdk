@@ -5,7 +5,7 @@ use std::io;
 use std::time::SystemTime;
 
 /// Representation of the various permissions on a file.
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct Permissions {
     read_only: bool,
 }
@@ -25,7 +25,7 @@ impl Permissions {
 
 /// Access times for in-memory files.
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) struct FileTime {
     /// Time created.
     created: SystemTime,
@@ -48,7 +48,7 @@ impl Default for FileTime {
 
 /// A structure representing a type of file with accessors
 /// for each file type.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct FileType(FileFlags);
 
 impl FileType {
@@ -69,7 +69,7 @@ impl FileType {
 }
 
 /// Metadata information about a file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Metadata {
     permissions: Permissions,
     flags: FileFlags,

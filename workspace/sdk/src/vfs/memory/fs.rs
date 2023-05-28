@@ -5,6 +5,7 @@ use bitflags::bitflags;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex as SyncMutex;
 use std::{
+    borrow::Cow,
     collections::BTreeMap,
     ffi::{OsStr, OsString},
     io::{self, Cursor, Error, ErrorKind},
@@ -135,6 +136,7 @@ pub(super) fn root_fs_mut() -> &'static mut MemoryDir {
     unsafe { &mut FILE_SYSTEM }
 }
 
+#[deprecated]
 pub(super) fn new_root_parent() -> Fd {
     let dir = root_fs();
     Arc::new(RwLock::new(MemoryFd::Dir(dir.clone())))
@@ -191,10 +193,10 @@ impl MemoryDir {
     }
 
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    pub(super) fn new_parent(name: OsString, parent: Fd) -> Self {
+    pub(super) fn new_parent(name: OsString, parent: Option<Fd>) -> Self {
         Self {
             name,
-            parent: Some(parent),
+            parent,
             permissions: Default::default(),
             time: Default::default(),
             files: Default::default(),
@@ -202,10 +204,10 @@ impl MemoryDir {
     }
 
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-    pub(super) fn new_parent(name: OsString, parent: Fd) -> Self {
+    pub(super) fn new_parent(name: OsString, parent: Option<Fd>) -> Self {
         Self {
             name,
-            parent: Some(parent),
+            parent,
             permissions: Default::default(),
             files: Default::default(),
         }
@@ -287,7 +289,7 @@ pub(super) async fn create_file(
                 MemoryFd::Dir(dir) => {
                     let new_file = MemoryFd::File(MemoryFile::new(
                         file_name.to_owned(),
-                        Arc::clone(&parent),
+                        Some(Arc::clone(&parent)),
                         contents,
                     ));
                     dir.insert(file_name.to_owned(), new_file);
@@ -297,11 +299,11 @@ pub(super) async fn create_file(
             }
         // Create at the root
         } else {
-            let root_parent = new_root_parent();
             let dir = root_fs_mut();
             let new_file = MemoryFd::File(MemoryFile::new(
                 file_name.to_owned(),
-                root_parent,
+                // NOTE: must not give a parent here
+                None,
                 contents,
             ));
             dir.insert(file_name.to_owned(), new_file);
@@ -314,7 +316,7 @@ pub(super) async fn create_file(
 #[derive(Debug, Clone)]
 pub(super) struct MemoryFile {
     name: OsString,
-    parent: Fd,
+    parent: Option<Fd>,
     permissions: Permissions,
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     time: FileTime,
@@ -323,7 +325,7 @@ pub(super) struct MemoryFile {
 
 impl MemoryFile {
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    fn new(name: OsString, parent: Fd, contents: Vec<u8>) -> Self {
+    fn new(name: OsString, parent: Option<Fd>, contents: Vec<u8>) -> Self {
         Self {
             name,
             parent,
@@ -334,7 +336,7 @@ impl MemoryFile {
     }
 
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-    fn new(name: OsString, parent: Fd, contents: Vec<u8>) -> Self {
+    fn new(name: OsString, parent: Option<Fd>, contents: Vec<u8>) -> Self {
         Self {
             name,
             parent,
@@ -370,9 +372,11 @@ impl MemoryFd {
     /// If this file descriptor is not a directory.
     pub fn unlink(&mut self, path: impl AsRef<Path>) -> Option<Fd> {
         match self {
-            Self::Dir(fd) => {
+            Self::Dir(dir) => {
                 if let Some(name) = path.as_ref().file_name() {
-                    fd.files.remove(name)
+                    log::info!("{:#?}", dir.files());
+                    log::info!("REMOVING THE CHILD {:#?} {:#?}", name, dir.get(name));
+                    dir.files.remove(name)
                 } else {
                     None
                 }
@@ -383,8 +387,20 @@ impl MemoryFd {
 
     pub fn parent(&self) -> Option<Fd> {
         match self {
-            Self::File(fd) => Some(Arc::clone(&fd.parent)),
-            Self::Dir(fd) => fd.parent.as_ref().map(Arc::clone),
+            Self::File(fd) => {
+                Some(fd.parent.as_ref().map(Arc::clone)
+                    .unwrap_or_else(|| Arc::new(
+                        RwLock::new(MemoryFd::Dir(root_fs().clone())))))
+            },
+            Self::Dir(fd) => {
+                if fd.is_root() {
+                    None
+                } else {
+                    Some(fd.parent.as_ref().map(Arc::clone)
+                        .unwrap_or_else(|| Arc::new(
+                            RwLock::new(MemoryFd::Dir(root_fs().clone())))))
+                }
+            },
         }
     }
 
@@ -550,7 +566,11 @@ pub async fn remove_file(path: impl AsRef<Path>) -> Result<()> {
     let fd = file.write().await;
     if let Some(parent) = fd.parent().take() {
         let mut parent_fd = parent.write().await;
+        log::info!("calling unlink on {} in {:#?}",
+            path.as_ref().display(), parent_fd.name());
         parent_fd.unlink(path);
+
+        log::info!("after remove {:#?}", root_fs().files().len());
     }
     Ok(())
 }
@@ -725,5 +745,6 @@ pub async fn set_permissions(
 
 /// Returns Ok(true) if the path points at an existing entity.
 pub async fn try_exists(path: impl AsRef<Path>) -> Result<bool> {
+    log::info!("try_exists {:#?}", path.as_ref());
     Ok(resolve(path).await.is_some())
 }
