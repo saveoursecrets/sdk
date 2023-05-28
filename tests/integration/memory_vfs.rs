@@ -9,6 +9,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 async fn integration_memory_vfs() -> Result<()> {
     file_write_read().await?;
     read_to_string().await?;
+    file_overwrite().await?;
 
     write_read().await?;
     remove_file().await?;
@@ -53,6 +54,24 @@ async fn read_to_string() -> Result<()> {
     assert_eq!(contents, &file_contents);
 
     vfs::remove_file(&path).await?;
+    Ok(())
+}
+
+async fn file_overwrite() -> Result<()> {
+    let path = PathBuf::from("test.txt");
+    let one = "one";
+    let two = "two";
+
+    vfs::write(&path, one.as_bytes()).await?;
+    let contents = vfs::read_to_string(&path).await?;
+    assert_eq!(one, &contents);
+
+    vfs::write(&path, two.as_bytes()).await?;
+    let contents = vfs::read_to_string(&path).await?;
+    assert_eq!(two, &contents);
+
+    vfs::remove_file(&path).await?;
+
     Ok(())
 }
 

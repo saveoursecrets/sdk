@@ -9,7 +9,7 @@ use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
     fmt,
-    io::{self, Cursor, Error, ErrorKind, SeekFrom},
+    io::{self, Cursor, Error, ErrorKind},
     iter::Enumerate,
     path::{Component, Components, Path, PathBuf},
     sync::Arc,
@@ -20,7 +20,7 @@ use tokio::{
     sync::{Mutex, RwLock},
 };
 
-use super::{File, Metadata, Permissions, Result};
+use super::{File, Metadata, Permissions, Result, OpenOptions};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use super::meta_data::FileTime;
@@ -43,24 +43,26 @@ pub(super) type FileSystem = BTreeMap<OsString, Fd>;
 pub(super) type FileContent = Arc<SyncMutex<Cursor<Vec<u8>>>>;
 
 // File system contents.
-static mut FILE_SYSTEM: Lazy<MemoryDir> = Lazy::new(|| MemoryDir::new_root());
+static mut ROOT_DIR: Lazy<MemoryDir> = Lazy::new(|| MemoryDir::new_root());
 
 // Lock for when we need to modify the file system by adding
 // or removing paths.
 pub(super) static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
+/*
 #[cfg(debug_assertions)]
 /// Debug the root of the file system.
 pub(super) fn debug_root() {
     println!("{:#?}", root_fs());
 }
+*/
 
 pub(super) fn root_fs() -> &'static MemoryDir {
-    unsafe { &FILE_SYSTEM }
+    unsafe { &ROOT_DIR }
 }
 
 pub(super) fn root_fs_mut() -> &'static mut MemoryDir {
-    unsafe { &mut FILE_SYSTEM }
+    unsafe { &mut ROOT_DIR }
 }
 
 /// Result of a path lookup.
@@ -268,14 +270,13 @@ impl MemoryFile {
     fn new(
         name: OsString,
         parent: Option<Parent>,
-        contents: Vec<u8>,
     ) -> Self {
         Self {
             name,
             parent,
             permissions: Default::default(),
             time: Default::default(),
-            contents: Arc::new(SyncMutex::new(Cursor::new(contents))),
+            contents: Arc::new(SyncMutex::new(Cursor::new(Vec::new()))),
         }
     }
 
@@ -283,13 +284,12 @@ impl MemoryFile {
     fn new(
         name: OsString,
         parent: Option<Parent>,
-        contents: Vec<u8>,
     ) -> Self {
         Self {
             name,
             parent,
             permissions: Default::default(),
-            contents: Arc::new(SyncMutex::new(Cursor::new(contents))),
+            contents: Arc::new(SyncMutex::new(Cursor::new(Vec::new()))),
         }
     }
 
@@ -392,20 +392,29 @@ pub async fn write(
     path: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
 ) -> Result<()> {
+
+    async fn write_file_content(
+        path: impl AsRef<Path>,
+        contents: impl AsRef<[u8]>,
+    ) -> Result<()> {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .open(path.as_ref()).await?;
+        file.write_all(contents.as_ref()).await?;
+        file.flush().await
+    }
+
     if let Some(target) = resolve(path.as_ref()).await {
         match target {
             PathTarget::Descriptor(fd) => {
-                let mut fd = fd.write().await;
-                match &mut *fd {
-                    MemoryFd::File(fd) => {
-                        let buf = fd.contents();
-                        let mut data = buf.lock();
-                        *data = Cursor::new(contents.as_ref().to_vec());
-                        Ok(())
-                    }
-                    MemoryFd::Dir(_) => {
-                        Err(ErrorKind::PermissionDenied.into())
-                    }
+                let is_file = {
+                    let fd = fd.read().await;
+                    matches!(&*fd, MemoryFd::File(_))
+                };
+                if is_file {
+                    write_file_content(path.as_ref(), contents.as_ref()).await
+                } else {
+                    Err(ErrorKind::PermissionDenied.into())
                 }
             }
             _ => Err(ErrorKind::PermissionDenied.into()),
@@ -422,12 +431,12 @@ pub async fn write(
                         };
                         if is_dir {
                             create_file(
-                                path,
-                                contents.as_ref().to_vec(),
+                                path.as_ref(),
                                 false,
                             )
                             .await?;
-                            Ok(())
+
+                            write_file_content(path.as_ref(), contents.as_ref()).await
                         } else {
                             Err(ErrorKind::PermissionDenied.into())
                         }
@@ -438,8 +447,8 @@ pub async fn write(
                 Err(ErrorKind::NotFound.into())
             }
         } else {
-            create_file(path, contents.as_ref().to_vec(), false).await?;
-            Ok(())
+            create_file(path.as_ref(), false).await?;
+            write_file_content(path.as_ref(), contents.as_ref()).await
         }
     }
 }
@@ -448,7 +457,6 @@ pub async fn write(
 pub async fn read(path: impl AsRef<Path>) -> Result<Vec<u8>> {
     let mut buffer = Vec::new();
     let mut fd = File::open(path.as_ref()).await?;
-    fd.seek(SeekFrom::Start(0)).await?;
     fd.read_to_end(&mut buffer).await?;
     Ok(buffer)
 }
@@ -680,7 +688,6 @@ pub async fn try_exists(path: impl AsRef<Path>) -> Result<bool> {
 /// The parent directory must exist.
 pub(super) async fn create_file(
     path: impl AsRef<Path>,
-    contents: Vec<u8>,
     truncate: bool,
 ) -> Result<Fd> {
     let file_name = path.as_ref().file_name().ok_or_else(|| {
@@ -722,7 +729,6 @@ pub(super) async fn create_file(
                             let new_file = MemoryFd::File(MemoryFile::new(
                                 file_name.to_owned(),
                                 Some(Parent::Folder(Arc::clone(&fd))),
-                                contents,
                             ));
                             dir.insert(
                                 file_name.to_owned(),
@@ -747,7 +753,6 @@ pub(super) async fn create_file(
             let new_file = MemoryFd::File(MemoryFile::new(
                 file_name.to_owned(),
                 Some(Parent::Root(root_fs_mut())),
-                contents,
             ));
             dir.insert(file_name.to_owned(), Arc::new(RwLock::new(new_file)));
             Ok(dir.files().get(file_name).map(Arc::clone).unwrap())

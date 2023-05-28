@@ -43,7 +43,7 @@ pub struct File {
 }
 
 impl File {
-    pub(super) async fn new(fd: Fd) -> io::Result<Self> {
+    pub(super) async fn new(fd: Fd, pos: Option<u64>) -> io::Result<Self> {
         let (std, path) = {
             let fd = fd.read().await;
             let path = fd.path().await;
@@ -52,6 +52,13 @@ impl File {
                 _ => return Err(ErrorKind::PermissionDenied.into()),
             }
         };
+        
+        // Must reset the cursor every time we open a file
+        let pos = pos.unwrap_or_default();
+        {
+            let mut data = std.lock();
+            data.set_position(pos);
+        }
 
         Ok(Self {
             std,
