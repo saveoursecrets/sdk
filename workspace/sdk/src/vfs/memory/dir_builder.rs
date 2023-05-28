@@ -1,12 +1,13 @@
 use std::io::{self, ErrorKind, Result};
 use std::{
+    ffi::OsString,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use super::fs::{
-    has_parent, mkdir, new_root_parent, resolve, resolve_parent, root_fs_mut,
-    MemoryFd, FS_LOCK,
+    has_parent, new_root_parent, resolve, resolve_parent, root_fs_mut, Fd,
+    MemoryDir, MemoryFd, FS_LOCK,
 };
 
 /// A builder for creating directories in various manners.
@@ -18,8 +19,8 @@ pub struct DirBuilder {
 }
 
 impl DirBuilder {
-    /// Creates a new set of options with default mode/security settings for all
-    /// platforms and also non-recursive.
+    /// Creates a new set of options with default
+    /// mode/security settings for all platforms and also non-recursive.
     pub fn new() -> Self {
         Default::default()
     }
@@ -39,10 +40,6 @@ impl DirBuilder {
     ///
     /// It is considered an error if the directory already exists unless
     /// recursive mode is enabled.
-    ///
-    /// This is an async version of [`std::fs::DirBuilder::create`][std]
-    ///
-    /// [std]: std::fs::DirBuilder::create
     ///
     /// # Errors
     ///
@@ -65,14 +62,14 @@ impl DirBuilder {
                 PathBuf::new()
             };
 
-            let mut target = root_fs_mut();
+            let mut target = new_root_parent();
             for name in it {
                 path = path.join(name);
                 if let Some(child) = resolve(&path).await {
                     let mut fd = child.write().await;
                     match &mut *fd {
                         MemoryFd::Dir(dir) => {
-                            target = dir;
+                            target = Arc::clone(&child);
                             continue;
                         }
                         _ => return Err(ErrorKind::PermissionDenied.into()),
@@ -84,13 +81,7 @@ impl DirBuilder {
                         } else {
                             todo!();
                         };
-
-                    todo!();
-
-                    /*
-                    mkdir(
-                        target, Arc::clone(&parent), name.to_owned());
-                    */
+                    mkdir(Arc::clone(&parent), name.to_owned()).await?;
                 }
             }
             Ok(())
@@ -106,11 +97,8 @@ impl DirBuilder {
                     let mut fd = parent.write().await;
                     match &mut *fd {
                         MemoryFd::Dir(dir) => {
-                            mkdir(
-                                dir,
-                                Arc::clone(&parent),
-                                file_name.to_owned(),
-                            );
+                            mkdir(Arc::clone(&parent), file_name.to_owned())
+                                .await?;
                             Ok(())
                         }
                         _ => Err(ErrorKind::PermissionDenied.into()),
@@ -121,7 +109,7 @@ impl DirBuilder {
             } else {
                 let root_parent = new_root_parent();
                 let dir = root_fs_mut();
-                mkdir(dir, root_parent, file_name.to_owned());
+                mkdir(root_parent, file_name.to_owned()).await?;
                 Ok(())
             }
         }
@@ -137,4 +125,20 @@ pub async fn create_dir(path: impl AsRef<Path>) -> Result<()> {
 /// components if they are missing.
 pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<()> {
     DirBuilder::new().recursive(true).create(path).await
+}
+
+async fn mkdir(parent: Fd, name: OsString) -> Result<()> {
+    let new_parent = Arc::clone(&parent);
+    let mut fd = parent.write().await;
+    match &mut *fd {
+        MemoryFd::Dir(dir) => {
+            let child = MemoryFd::Dir(MemoryDir::new_parent(
+                name.clone(),
+                new_parent,
+            ));
+            dir.insert(name, child);
+            Ok(())
+        }
+        _ => Err(ErrorKind::PermissionDenied.into()),
+    }
 }

@@ -191,7 +191,7 @@ impl MemoryDir {
     }
 
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    fn new_parent(name: OsString, parent: Fd) -> Self {
+    pub(super) fn new_parent(name: OsString, parent: Fd) -> Self {
         Self {
             name,
             parent: Some(parent),
@@ -202,7 +202,7 @@ impl MemoryDir {
     }
 
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-    fn new_parent(name: OsString, parent: Fd) -> Self {
+    pub(super) fn new_parent(name: OsString, parent: Fd) -> Self {
         Self {
             name,
             parent: Some(parent),
@@ -219,16 +219,16 @@ impl MemoryDir {
         self.parent.is_none()
     }
 
-    fn get(&self, name: &OsStr) -> Option<&Fd> {
+    pub fn get(&self, name: &OsStr) -> Option<&Fd> {
         self.files.get(name)
     }
 
-    fn insert(&mut self, name: OsString, fd: MemoryFd) {
+    pub fn insert(&mut self, name: OsString, fd: MemoryFd) {
         let child = Arc::new(RwLock::new(fd));
         self.insert_fd(name, child);
     }
 
-    fn insert_fd(&mut self, name: OsString, fd: Fd) {
+    pub fn insert_fd(&mut self, name: OsString, fd: Fd) {
         self.files.insert(name, fd);
     }
 
@@ -248,11 +248,6 @@ impl MemoryDir {
             None
         }
     }
-}
-
-pub(super) fn mkdir(target: &mut MemoryDir, parent: Fd, name: OsString) {
-    let child = MemoryFd::Dir(MemoryDir::new_parent(name.clone(), parent));
-    target.insert(name, child);
 }
 
 /// Create a new file.
@@ -726,4 +721,9 @@ pub async fn set_permissions(
     } else {
         Err(ErrorKind::NotFound.into())
     }
+}
+
+/// Returns Ok(true) if the path points at an existing entity.
+pub async fn try_exists(path: impl AsRef<Path>) -> Result<bool> {
+    Ok(resolve(path).await.is_some())
 }
