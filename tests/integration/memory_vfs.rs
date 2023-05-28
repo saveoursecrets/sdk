@@ -12,6 +12,7 @@ async fn integration_memory_vfs() -> Result<()> {
     create_dir_all_remove_dir_all().await?;
     read_dir().await?;
     rename().await?;
+    rename_replace_file().await?;
 
     //vfs::write("foo/bar/qux.txt", b"qux").await?;
 
@@ -23,8 +24,7 @@ async fn write_read() -> Result<()> {
     let contents = b"Mock content".to_vec();
     vfs::write(&path, &contents).await?;
 
-    let exists = vfs::try_exists(&path).await?;
-    assert!(exists);
+    assert!(vfs::try_exists(&path).await?);
 
     let file_contents = vfs::read(&path).await?;
     assert_eq!(&contents, &file_contents);
@@ -37,34 +37,27 @@ async fn remove_file() -> Result<()> {
     vfs::write(&path, &contents).await?;
 
     vfs::remove_file(&path).await?;
-    let exists = vfs::try_exists(&path).await?;
-    assert!(!exists);
+    assert!(!vfs::try_exists(&path).await?);
     Ok(())
 }
 
 async fn create_dir_remove_dir() -> Result<()> {
     vfs::create_dir("foo").await?;
-    let exists = vfs::try_exists("foo").await?;
-    assert!(exists);
+    assert!(vfs::try_exists("foo").await?);
 
     vfs::remove_dir("foo").await?;
-    let exists = vfs::try_exists("foo").await?;
-    assert!(!exists);
+    assert!(!vfs::try_exists("foo").await?);
     Ok(())
 }
 
 async fn create_dir_all_remove_dir_all() -> Result<()> {
     vfs::create_dir_all("foo/bar").await?;
-    let exists = vfs::try_exists("foo").await?;
-    assert!(exists);
-    let exists = vfs::try_exists("foo/bar").await?;
-    assert!(exists);
+    assert!(vfs::try_exists("foo").await?);
+    assert!(vfs::try_exists("foo/bar").await?);
 
     vfs::remove_dir_all("foo").await?;
-    let exists = vfs::try_exists("foo/bar").await?;
-    assert!(!exists);
-    let exists = vfs::try_exists("foo").await?;
-    assert!(!exists);
+    assert!(!vfs::try_exists("foo/bar").await?);
+    assert!(!vfs::try_exists("foo").await?);
     Ok(())
 }
 
@@ -110,22 +103,36 @@ async fn read_dir() -> Result<()> {
     );
     assert!(third.as_ref().unwrap().file_type().await?.is_dir());
 
+    vfs::remove_dir_all("read-dir").await?;
+
     Ok(())
 }
 
 
 async fn rename() -> Result<()> {
-    println!("renaming...");
-
     vfs::create_dir("foo").await?;
     let exists = vfs::try_exists("foo").await?;
     assert!(exists);
     
     vfs::rename("foo", "bar").await?;
-    let exists = vfs::try_exists("foo").await?;
-    assert!(!exists);
-    let exists = vfs::try_exists("bar").await?;
-    assert!(exists);
+    assert!(!vfs::try_exists("foo").await?);
+    assert!(vfs::try_exists("bar").await?);
+
+    vfs::remove_dir_all("bar").await?;
+
+    Ok(())
+}
+
+async fn rename_replace_file() -> Result<()> {
+    vfs::write("foo.txt", b"foo").await?;
+    vfs::write("bar.txt", b"bar").await?;
+    assert!(vfs::try_exists("foo.txt").await?);
+    assert!(vfs::try_exists("bar.txt").await?);
+
+    vfs::rename("foo.txt", "bar.txt").await?;
+
+    assert!(!vfs::try_exists("foo.txt").await?);
+    assert!(vfs::try_exists("bar.txt").await?);
 
     Ok(())
 }
