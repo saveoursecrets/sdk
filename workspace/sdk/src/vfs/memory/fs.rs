@@ -36,6 +36,7 @@ bitflags! {
 
 pub(super) type Fd = Arc<RwLock<MemoryFd>>;
 pub(super) type FileSystem = BTreeMap<OsString, Fd>;
+pub(super) type FileContent = Arc<SyncMutex<Cursor<Vec<u8>>>>;
 
 // File system contents.
 static mut FILE_SYSTEM: Lazy<MemoryDir> = Lazy::new(|| MemoryDir::new_root());
@@ -58,73 +59,7 @@ pub(super) enum PathTarget {
     Descriptor(Fd),
 }
 
-#[async_recursion]
-async fn walk(
-    target: &MemoryDir,
-    it: &mut Enumerate<IntoIter<Component>>,
-    length: usize,
-    parents: &mut Vec<Parent>,
-) -> Option<PathTarget> {
-    if let Some((index, part)) = it.next() {
-        match part {
-            Component::RootDir => {
-                // Got a root request only
-                if length == 1 {
-                    return Some(PathTarget::Root(root_fs_mut()));
-                }
-                parents.push(Parent::Root(root_fs_mut()));
-                return walk(root_fs(), it, length, parents).await;
-            }
-            Component::Normal(name) => {
-                if index == length - 1 {
-                    return target
-                        .files
-                        .get(name)
-                        .map(|fd| PathTarget::Descriptor(Arc::clone(fd)));
-                } else {
-                    if let Some(child) = target.find_dir(name).await {
-                        parents.push(Parent::Folder(Arc::clone(&child)));
-                        let fd = child.read().await;
-                        if let MemoryFd::Dir(dir) = &*fd {
-                            return walk(dir, it, length, parents).await;
-                        }
-                    } else {
-                        return None;
-                    }
-                }
-            }
-            _ => return None,
-        }
-    }
-    None
-}
-
-pub(super) async fn resolve_relative(
-    fs: &MemoryDir,
-    path: impl AsRef<Path>,
-) -> Option<PathTarget> {
-    let components: Vec<Component> =
-        path.as_ref().components().into_iter().collect();
-    let length = components.len();
-    let mut it = components.into_iter().enumerate();
-    walk(fs, &mut it, length, &mut vec![]).await
-}
-
-pub(super) async fn resolve(path: impl AsRef<Path>) -> Option<PathTarget> {
-    let fs = root_fs();
-    resolve_relative(&*fs, path).await
-}
-
-pub(super) async fn resolve_parent(
-    path: impl AsRef<Path>,
-) -> Option<PathTarget> {
-    if let Some(parent) = path.as_ref().parent() {
-        resolve(parent).await
-    } else {
-        None
-    }
-}
-
+/// Parent reference for a file descriptor.
 #[derive(Debug)]
 pub(super) enum Parent {
     Root(&'static mut MemoryDir),
@@ -141,6 +76,7 @@ impl Clone for Parent {
 }
 
 impl Parent {
+    /// Get the name of this parent.
     pub async fn name(&self) -> OsString {
         match self {
             Self::Root(fs) => fs.name.clone(),
@@ -151,13 +87,14 @@ impl Parent {
         }
     }
 
+    /// Create a directory in this parent.
     pub async fn mkdir(&mut self, name: OsString) -> Result<Fd> {
         let fd = MemoryFd::Dir(MemoryDir::new_parent(
             name.clone(),
             Some(self.clone()),
         ));
         let dir = Arc::new(RwLock::new(fd));
-        self.insert_fd(name, Arc::clone(&dir)).await?;
+        self.insert(name, Arc::clone(&dir)).await?;
         Ok(dir)
     }
 
@@ -178,17 +115,20 @@ impl Parent {
         }
     }
 
-    pub async fn insert_fd(
+    /// Insert a child node into this parent.
+    ///
+    /// If a child already exists with the same name it is replaced.
+    pub async fn insert(
         &mut self,
         name: OsString,
         child: Fd,
     ) -> Result<()> {
         match self {
-            Self::Root(fs) => Ok((*fs).insert_fd(name, child)),
+            Self::Root(fs) => Ok((*fs).insert(name, child)),
             Self::Folder(fd) => {
                 let mut fd = fd.write().await;
                 match &mut *fd {
-                    MemoryFd::Dir(dir) => Ok(dir.insert_fd(name, child)),
+                    MemoryFd::Dir(dir) => Ok(dir.insert(name, child)),
                     _ => Err(ErrorKind::PermissionDenied.into()),
                 }
             }
@@ -196,7 +136,7 @@ impl Parent {
     }
 }
 
-/// Directory reference.
+/// Directory file descriptor.
 #[derive(Default, Debug)]
 pub(super) struct MemoryDir {
     name: OsString,
@@ -250,15 +190,12 @@ impl MemoryDir {
         }
     }
 
+    /// Files in this directory.
     pub fn files(&self) -> &FileSystem {
         &self.files
     }
 
     /// Remove a child file or directory.
-    ///
-    /// # Panics
-    ///
-    /// If this file descriptor is not a directory.
     pub fn unlink(&mut self, path: impl AsRef<Path>) -> Option<Fd> {
         if let Some(name) = path.as_ref().file_name() {
             self.files.remove(name)
@@ -267,20 +204,13 @@ impl MemoryDir {
         }
     }
 
+    /// Determine if this directory is the root of the file system.
     pub fn is_root(&self) -> bool {
         self.parent.is_none()
     }
-
-    pub fn get(&self, name: &OsStr) -> Option<&Fd> {
-        self.files.get(name)
-    }
-
-    pub fn insert(&mut self, name: OsString, fd: MemoryFd) {
-        let child = Arc::new(RwLock::new(fd));
-        self.insert_fd(name, child);
-    }
-
-    pub fn insert_fd(&mut self, name: OsString, fd: Fd) {
+    
+    /// Insert a child node into this directory.
+    pub fn insert(&mut self, name: OsString, fd: Fd) {
         self.files.insert(name, fd);
     }
 
@@ -302,79 +232,6 @@ impl MemoryDir {
     }
 }
 
-/// Create a new file.
-///
-/// The parent directory must exist.
-pub(super) async fn create_file(
-    path: impl AsRef<Path>,
-    contents: Vec<u8>,
-    truncate: bool,
-) -> Result<Fd> {
-    let file_name = path.as_ref().file_name().ok_or_else(|| {
-        let err: io::Error = ErrorKind::PermissionDenied.into();
-        err
-    })?;
-
-    // File already exists
-    if let Some(target) = resolve(path.as_ref()).await {
-        match target {
-            PathTarget::Descriptor(file) => {
-                let mut file_fd = file.write().await;
-                if let Some(parent) = file_fd.parent() {
-                    match &mut *file_fd {
-                        MemoryFd::Dir(_) => {
-                            Err(ErrorKind::PermissionDenied.into())
-                        }
-                        MemoryFd::File(fd) => {
-                            if truncate {
-                                fd.truncate();
-                            }
-                            Ok(Arc::clone(&file))
-                        }
-                    }
-                } else {
-                    Err(ErrorKind::PermissionDenied.into())
-                }
-            }
-            _ => Err(ErrorKind::PermissionDenied.into()),
-        }
-    // Try to create in parent
-    } else {
-        if let Some(target) = resolve_parent(path.as_ref()).await {
-            match target {
-                PathTarget::Descriptor(fd) => {
-                    let mut parent_fd = fd.write().await;
-                    match &mut *parent_fd {
-                        MemoryFd::Dir(dir) => {
-                            let new_file = MemoryFd::File(MemoryFile::new(
-                                file_name.to_owned(),
-                                Some(Parent::Folder(Arc::clone(&fd))),
-                                contents,
-                            ));
-                            dir.insert(file_name.to_owned(), new_file);
-                            Ok(dir.get(file_name).map(Arc::clone).unwrap())
-                        }
-                        MemoryFd::File(_) => {
-                            Err(ErrorKind::PermissionDenied.into())
-                        }
-                    }
-                }
-                _ => unreachable!(),
-            }
-        // Create at the root
-        } else {
-            let dir = root_fs_mut();
-            let new_file = MemoryFd::File(MemoryFile::new(
-                file_name.to_owned(),
-                Some(Parent::Root(root_fs_mut())),
-                contents,
-            ));
-            dir.insert(file_name.to_owned(), new_file);
-            Ok(dir.get(file_name).map(Arc::clone).unwrap())
-        }
-    }
-}
-
 /// File content.
 #[derive(Debug)]
 pub(super) struct MemoryFile {
@@ -383,7 +240,7 @@ pub(super) struct MemoryFile {
     permissions: Permissions,
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     time: FileTime,
-    pub(super) contents: Arc<SyncMutex<Cursor<Vec<u8>>>>,
+    pub(super) contents: FileContent,
 }
 
 impl MemoryFile {
@@ -509,58 +366,6 @@ impl MemoryFd {
     }
 }
 
-/// Ensure a path is a file and exists.
-async fn ensure_file(path: impl AsRef<Path>) -> Result<Fd> {
-    if let Some(target) = resolve(path.as_ref().to_path_buf()).await {
-        match target {
-            PathTarget::Descriptor(fd) => {
-                let is_file = {
-                    let fd = fd.read().await;
-                    matches!(&*fd, MemoryFd::File(_))
-                };
-                if is_file {
-                    Ok(fd)
-                } else {
-                    Err(ErrorKind::PermissionDenied.into())
-                }
-            }
-            _ => Err(ErrorKind::PermissionDenied.into()),
-        }
-    } else {
-        Err(ErrorKind::NotFound.into())
-    }
-}
-
-/// Ensure a path is a directory and exists.
-async fn ensure_dir(path: impl AsRef<Path>) -> Result<Fd> {
-    if let Some(target) = resolve(path.as_ref().to_path_buf()).await {
-        match target {
-            PathTarget::Descriptor(fd) => {
-                let is_dir = {
-                    let fd = fd.read().await;
-                    matches!(&*fd, MemoryFd::Dir(_))
-                };
-                if is_dir {
-                    Ok(fd)
-                } else {
-                    Err(ErrorKind::PermissionDenied.into())
-                }
-            }
-            _ => Err(ErrorKind::PermissionDenied.into()),
-        }
-    } else {
-        Err(ErrorKind::NotFound.into())
-    }
-}
-
-pub(super) fn has_parent(path: impl AsRef<Path>) -> bool {
-    if let Some(parent) = path.as_ref().parent() {
-        !parent.as_os_str().is_empty()
-    } else {
-        false
-    }
-}
-
 /// Creates a future that will open a file for writing
 /// and write the entire contents to it.
 pub async fn write(
@@ -649,14 +454,6 @@ pub async fn remove_file(path: impl AsRef<Path>) -> Result<()> {
     if let Some(parent) = fd.parent_mut() {
         parent.unlink(path).await?;
         Ok(())
-        /*
-        let mut parent_fd = parent.write().await;
-        log::info!("calling unlink on {} in {:#?}",
-            path.as_ref().display(), parent_fd.name());
-        parent_fd.unlink(path);
-
-        log::info!("after remove {:#?}", root_fs().files().len());
-        */
     } else {
         Err(ErrorKind::PermissionDenied.into())
     }
@@ -745,7 +542,7 @@ pub async fn rename(
                     if matches!(&*to_fd, MemoryFd::File(_)) {
                         if let Some(to_parent_fd) = to_fd.parent_mut() {
                             to_parent_fd
-                                .insert_fd(to_name.to_owned(), source)
+                                .insert(to_name.to_owned(), source)
                                 .await?;
                         }
                         Ok(())
@@ -757,26 +554,35 @@ pub async fn rename(
                 _ => Err(ErrorKind::PermissionDenied.into()),
             }
         } else {
-            // To does not exist but it's parent must
-            if let Some(target) = resolve_parent(to.as_ref()).await {
-                match target {
-                    PathTarget::Descriptor(fd) => {
-                        let mut to_parent_write = fd.write().await;
-                        match &mut *to_parent_write {
-                            MemoryFd::Dir(dir) => {
-                                dir.insert_fd(to_name.to_owned(), source);
+            let has_parent = has_parent(to.as_ref()); 
+            if has_parent {
+                // To does not exist but it's parent must
+                if let Some(target) = resolve_parent(to.as_ref()).await {
+                    match target {
+                        PathTarget::Descriptor(fd) => {
+                            let mut to_parent_write = fd.write().await;
+                            match &mut *to_parent_write {
+                                MemoryFd::Dir(dir) => {
+                                    dir.insert(to_name.to_owned(), source);
+                                }
+                                _ => unreachable!(),
                             }
-                            _ => unreachable!(),
+                        }
+                        PathTarget::Root(dir) => {
+                            dir.insert(to_name.to_owned(), source);
                         }
                     }
-                    PathTarget::Root(dir) => {
-                        dir.insert_fd(to_name.to_owned(), source);
-                    }
+                    Ok(())
+                } else {
+                    Err(ErrorKind::NotFound.into())
                 }
-                Ok(())
+
+            // Moving to the root
             } else {
-                Err(ErrorKind::NotFound.into())
+                root_fs_mut().insert(to_name.to_owned(), source);
+                Ok(())
             }
+
         }
     } else {
         Err(ErrorKind::NotFound.into())
@@ -860,4 +666,206 @@ pub async fn set_permissions(
 pub async fn try_exists(path: impl AsRef<Path>) -> Result<bool> {
     log::info!("try_exists {:#?}", path.as_ref());
     Ok(resolve(path).await.is_some())
+}
+
+/// Create a new file.
+///
+/// The parent directory must exist.
+pub(super) async fn create_file(
+    path: impl AsRef<Path>,
+    contents: Vec<u8>,
+    truncate: bool,
+) -> Result<Fd> {
+    let file_name = path.as_ref().file_name().ok_or_else(|| {
+        let err: io::Error = ErrorKind::PermissionDenied.into();
+        err
+    })?;
+
+    // File already exists
+    if let Some(target) = resolve(path.as_ref()).await {
+        match target {
+            PathTarget::Descriptor(file) => {
+                let mut file_fd = file.write().await;
+                if let Some(parent) = file_fd.parent() {
+                    match &mut *file_fd {
+                        MemoryFd::Dir(_) => {
+                            Err(ErrorKind::PermissionDenied.into())
+                        }
+                        MemoryFd::File(fd) => {
+                            if truncate {
+                                fd.truncate();
+                            }
+                            Ok(Arc::clone(&file))
+                        }
+                    }
+                } else {
+                    Err(ErrorKind::PermissionDenied.into())
+                }
+            }
+            _ => Err(ErrorKind::PermissionDenied.into()),
+        }
+    // Try to create in parent
+    } else {
+        if let Some(target) = resolve_parent(path.as_ref()).await {
+            match target {
+                PathTarget::Descriptor(fd) => {
+                    let mut parent_fd = fd.write().await;
+                    match &mut *parent_fd {
+                        MemoryFd::Dir(dir) => {
+                            let new_file = MemoryFd::File(MemoryFile::new(
+                                file_name.to_owned(),
+                                Some(Parent::Folder(Arc::clone(&fd))),
+                                contents,
+                            ));
+                            dir.insert(
+                                file_name.to_owned(),
+                                Arc::new(RwLock::new(new_file)),
+                            );
+                            Ok(dir.files().get(file_name).map(Arc::clone).unwrap())
+                        }
+                        MemoryFd::File(_) => {
+                            Err(ErrorKind::PermissionDenied.into())
+                        }
+                    }
+                }
+                _ => unreachable!(),
+            }
+        // Create at the root
+        } else {
+            let dir = root_fs_mut();
+            let new_file = MemoryFd::File(MemoryFile::new(
+                file_name.to_owned(),
+                Some(Parent::Root(root_fs_mut())),
+                contents,
+            ));
+            dir.insert(
+                file_name.to_owned(),
+                Arc::new(RwLock::new(new_file)),
+            );
+            Ok(dir.files().get(file_name).map(Arc::clone).unwrap())
+        }
+    }
+}
+
+/// Ensure a path is a file and exists.
+async fn ensure_file(path: impl AsRef<Path>) -> Result<Fd> {
+    if let Some(target) = resolve(path.as_ref().to_path_buf()).await {
+        match target {
+            PathTarget::Descriptor(fd) => {
+                let is_file = {
+                    let fd = fd.read().await;
+                    matches!(&*fd, MemoryFd::File(_))
+                };
+                if is_file {
+                    Ok(fd)
+                } else {
+                    Err(ErrorKind::PermissionDenied.into())
+                }
+            }
+            _ => Err(ErrorKind::PermissionDenied.into()),
+        }
+    } else {
+        Err(ErrorKind::NotFound.into())
+    }
+}
+
+/// Ensure a path is a directory and exists.
+async fn ensure_dir(path: impl AsRef<Path>) -> Result<Fd> {
+    if let Some(target) = resolve(path.as_ref().to_path_buf()).await {
+        match target {
+            PathTarget::Descriptor(fd) => {
+                let is_dir = {
+                    let fd = fd.read().await;
+                    matches!(&*fd, MemoryFd::Dir(_))
+                };
+                if is_dir {
+                    Ok(fd)
+                } else {
+                    Err(ErrorKind::PermissionDenied.into())
+                }
+            }
+            _ => Err(ErrorKind::PermissionDenied.into()),
+        }
+    } else {
+        Err(ErrorKind::NotFound.into())
+    }
+}
+
+/// Determine if a path has a parent that is not the root.
+pub(super) fn has_parent(path: impl AsRef<Path>) -> bool {
+    if let Some(parent) = path.as_ref().parent() {
+        !parent.as_os_str().is_empty()
+    } else {
+        false
+    }
+}
+
+/// Recursive walk of the tree to find a target path.
+#[async_recursion]
+async fn walk(
+    target: &MemoryDir,
+    it: &mut Enumerate<IntoIter<Component>>,
+    length: usize,
+    parents: &mut Vec<Parent>,
+) -> Option<PathTarget> {
+    if let Some((index, part)) = it.next() {
+        match part {
+            Component::RootDir => {
+                // Got a root request only
+                if length == 1 {
+                    return Some(PathTarget::Root(root_fs_mut()));
+                }
+                parents.push(Parent::Root(root_fs_mut()));
+                return walk(root_fs(), it, length, parents).await;
+            }
+            Component::Normal(name) => {
+                if index == length - 1 {
+                    return target
+                        .files
+                        .get(name)
+                        .map(|fd| PathTarget::Descriptor(Arc::clone(fd)));
+                } else {
+                    if let Some(child) = target.find_dir(name).await {
+                        parents.push(Parent::Folder(Arc::clone(&child)));
+                        let fd = child.read().await;
+                        if let MemoryFd::Dir(dir) = &*fd {
+                            return walk(dir, it, length, parents).await;
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+            }
+            _ => return None,
+        }
+    }
+    None
+}
+
+/// Resolve relative to a folder.
+pub(super) async fn resolve_relative(
+    fs: &MemoryDir,
+    path: impl AsRef<Path>,
+) -> Option<PathTarget> {
+    let components: Vec<Component> =
+        path.as_ref().components().into_iter().collect();
+    let length = components.len();
+    let mut it = components.into_iter().enumerate();
+    walk(fs, &mut it, length, &mut vec![]).await
+}
+
+/// Resolve relative to the root folder.
+pub(super) async fn resolve(path: impl AsRef<Path>) -> Option<PathTarget> {
+    resolve_relative(root_fs(), path).await
+}
+
+/// Try to resolve the parent of a path.
+pub(super) async fn resolve_parent(
+    path: impl AsRef<Path>,
+) -> Option<PathTarget> {
+    if let Some(parent) = path.as_ref().parent() {
+        resolve(parent).await
+    } else {
+        None
+    }
 }

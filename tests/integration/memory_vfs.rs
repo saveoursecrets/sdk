@@ -11,6 +11,7 @@ async fn integration_memory_vfs() -> Result<()> {
     create_dir_remove_dir().await?;
     create_dir_all_remove_dir_all().await?;
     read_dir().await?;
+    rename().await?;
 
     //vfs::write("foo/bar/qux.txt", b"qux").await?;
 
@@ -108,6 +109,23 @@ async fn read_dir() -> Result<()> {
         third.as_ref().unwrap().path()
     );
     assert!(third.as_ref().unwrap().file_type().await?.is_dir());
+
+    Ok(())
+}
+
+
+async fn rename() -> Result<()> {
+    println!("renaming...");
+
+    vfs::create_dir("foo").await?;
+    let exists = vfs::try_exists("foo").await?;
+    assert!(exists);
+    
+    vfs::rename("foo", "bar").await?;
+    let exists = vfs::try_exists("foo").await?;
+    assert!(!exists);
+    let exists = vfs::try_exists("bar").await?;
+    assert!(exists);
 
     Ok(())
 }

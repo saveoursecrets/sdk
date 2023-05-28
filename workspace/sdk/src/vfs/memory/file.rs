@@ -1,3 +1,8 @@
+//! In-memory file modified from the `tokio::fs::File` 
+//! implementation to write to a Cursor.
+//!
+//! All credit to the tokio authors.
+//!
 use self::State::*;
 use futures::ready;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
@@ -18,10 +23,8 @@ use std::task::Poll::*;
 
 use super::{
     fs::{Fd, MemoryFd},
-    metadata, Metadata, OpenOptions, PathBuf,
+    metadata, Metadata, OpenOptions, PathBuf, FileContent,
 };
-
-use parking_lot::Mutex as SyncMutex;
 
 pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
 where
@@ -34,7 +37,7 @@ where
 
 /// A reference to an open file on the filesystem.
 pub struct File {
-    std: Arc<SyncMutex<Cursor<Vec<u8>>>>,
+    std: FileContent,
     path: PathBuf,
     inner: Mutex<Inner>,
 }
@@ -199,8 +202,9 @@ impl File {
         metadata(&self.path).await
     }
 
-    /// Creates a new `File` instance that shares the same underlying file handle
-    /// as the existing `File` instance. Reads, writes, and seeks will affect both
+    /// Creates a new `File` instance that shares the same 
+    /// underlying file handle as the existing `File` 
+    /// instance. Reads, writes, and seeks will affect both
     /// File instances simultaneously.
     pub async fn try_clone(&self) -> io::Result<File> {
         unimplemented!();

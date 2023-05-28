@@ -123,7 +123,9 @@ impl DirBuilder {
                                     .mkdir(file_name.to_owned())
                                     .await?;
                             } else {
-                                return Err(ErrorKind::PermissionDenied.into());
+                                return Err(
+                                    ErrorKind::PermissionDenied.into()
+                                );
                             }
                         }
                         PathTarget::Root(fs) => {
