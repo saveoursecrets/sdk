@@ -114,18 +114,16 @@ impl DirBuilder {
                 if let Some(target) = resolve_parent(path.as_ref()).await {
                     match target {
                         PathTarget::Descriptor(parent) => {
-                            let mut fd = parent.write().await;
-                            match &mut *fd {
-                                MemoryFd::Dir(dir) => {
-                                    Parent::Folder(Arc::clone(&parent))
-                                        .mkdir(file_name.to_owned())
-                                        .await?;
-                                }
-                                _ => {
-                                    return Err(
-                                        ErrorKind::PermissionDenied.into()
-                                    )
-                                }
+                            let is_dir = {
+                                let fd = parent.read().await;
+                                matches!(&*fd, MemoryFd::Dir(_))
+                            };
+                            if is_dir {
+                                Parent::Folder(parent)
+                                    .mkdir(file_name.to_owned())
+                                    .await?;
+                            } else {
+                                return Err(ErrorKind::PermissionDenied.into());
                             }
                         }
                         PathTarget::Root(fs) => {

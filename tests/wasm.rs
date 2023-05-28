@@ -57,41 +57,32 @@ mod wasm_tests {
 
         let path = PathBuf::from("test.txt");
         let contents = b"Mock content".to_vec();
-        vfs::write(&path, &contents).await
-            .expect("to write file");
+        vfs::write(&path, &contents).await.expect("to write file");
 
-        let exists = vfs::try_exists(&path).await
-            .expect("try_exists to run");
+        let exists = vfs::try_exists(&path).await.expect("try_exists to run");
         assert!(exists);
 
-        let file_contents = vfs::read(&path).await
-            .expect("to read file");
+        let file_contents = vfs::read(&path).await.expect("to read file");
         assert_eq!(&contents, &file_contents);
 
-        vfs::remove_file(&path).await
-            .expect("to remove file");
+        vfs::remove_file(&path).await.expect("to remove file");
 
-        let exists = vfs::try_exists(&path).await
-            .expect("try_exists to run");
+        let exists = vfs::try_exists(&path).await.expect("try_exists to run");
         assert!(!exists);
-        
-        vfs::create_dir("foo").await
-            .expect("to create directory");
-        let exists = vfs::try_exists("foo").await
-            .expect("try_exists to run");
+
+        vfs::create_dir("foo").await.expect("to create directory");
+        let exists = vfs::try_exists("foo").await.expect("try_exists to run");
         assert!(exists);
 
-        vfs::remove_dir("foo").await
-            .expect("to create directory");
-        let exists = vfs::try_exists("foo").await
-            .expect("try_exists to run");
+        vfs::remove_dir("foo").await.expect("to create directory");
+        let exists = vfs::try_exists("foo").await.expect("try_exists to run");
         assert!(!exists);
-    
+
         /*
         let mut dir_reader = vfs::read_dir("/").await
             .expect("to create directory reader");
         */
-        
+
         /*
         while let Ok(Some(entry)) = dir_reader.next_entry().await {
             log::info!("GOT A DIR ENTRY");
@@ -99,16 +90,17 @@ mod wasm_tests {
         }
         */
 
-        vfs::create_dir_all("foo/bar").await
+        vfs::create_dir_all("foo/bar")
+            .await
             .expect("to create directory");
-        let exists = vfs::try_exists("foo").await
-            .expect("try_exists to run");
+        let exists = vfs::try_exists("foo").await.expect("try_exists to run");
         assert!(exists);
-        let exists = vfs::try_exists("foo/bar").await
-            .expect("try_exists to run");
+        let exists =
+            vfs::try_exists("foo/bar").await.expect("try_exists to run");
         assert!(exists);
-        
-        vfs::write("foo/bar/qux.txt", b"qux").await
+
+        vfs::write("foo/bar/qux.txt", b"qux")
+            .await
             .expect("to write file in directory");
     }
 }

@@ -16,6 +16,9 @@ members = [
   "workspace/sdk",
 ]
 
+[features]
+mem-fs = ["sos-sdk/mem-fs"]
+
 [dependencies]
 sos-sdk = { path = "workspace/sdk" }
 thiserror = "1"

@@ -1,14 +1,26 @@
 //! Virtual file system to support transparent file system
 //! access in webassembly.
 
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+#[cfg(any(
+    feature = "mem-fs",
+    all(target_arch = "wasm32", target_os = "unknown")
+))]
 mod memory;
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+#[cfg(all(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    not(feature = "mem-fs")
+))]
 mod os;
 
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+#[cfg(any(
+    feature = "mem-fs",
+    all(target_arch = "wasm32", target_os = "unknown")
+))]
 pub use memory::*;
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+#[cfg(all(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    not(feature = "mem-fs")
+))]
 pub use os::*;

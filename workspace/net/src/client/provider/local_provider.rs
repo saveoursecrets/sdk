@@ -16,8 +16,7 @@ use sos_sdk::{
     patch::PatchFile,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
-    vfs,
-    Timestamp,
+    vfs, Timestamp,
 };
 
 use std::{

@@ -10,6 +10,10 @@ categories = ["cryptography::cryptocurrencies", "authentication"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+mem-fs = []
+test-utils = ["dep:anyhow"]
+
 [dependencies]
 async-trait = "0.1"
 async-recursion = "1"
@@ -84,9 +88,6 @@ version = "0.1.1"
 #git = "https://gitlab.com/timvisee/chbs.git"
 #rev = "1bb19733ac66cebf58b726d14770a616faba85dd"
 #branch = "wasm32"
-
-[features]
-test-utils = ["dep:anyhow"]
 
 [build-dependencies]
 rustc_version = "0.4.0"
