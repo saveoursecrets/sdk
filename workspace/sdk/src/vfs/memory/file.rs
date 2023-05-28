@@ -8,7 +8,7 @@ use std::cmp;
 use std::fmt;
 use std::fs::Permissions;
 use std::future::Future;
-use std::io::{self, prelude::*, Seek, SeekFrom, Cursor, ErrorKind};
+use std::io::{self, prelude::*, Cursor, ErrorKind, Seek, SeekFrom};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ use std::task::Poll::*;
 
 use super::{
     fs::{Fd, MemoryFd},
-    Metadata, OpenOptions, metadata, PathBuf,
+    metadata, Metadata, OpenOptions, PathBuf,
 };
 
 use parking_lot::Mutex as SyncMutex;
@@ -45,17 +45,18 @@ impl File {
             let fd = fd.read().await;
             let path = fd.path().await;
             match &*fd {
-                MemoryFd::File(fd) => {
-                    (fd.contents(), path)
-                }
-                _ => return Err(ErrorKind::PermissionDenied.into())
+                MemoryFd::File(fd) => (fd.contents(), path),
+                _ => return Err(ErrorKind::PermissionDenied.into()),
             }
         };
         Ok(Self {
             std,
             path,
             inner: Mutex::new(Inner {
-                state: State::Idle(Some(Buf { buf: Vec::new(), pos: 0 })),
+                state: State::Idle(Some(Buf {
+                    buf: Vec::new(),
+                    pos: 0,
+                })),
                 pos: 0,
                 last_write_err: None,
             }),
@@ -115,10 +116,18 @@ impl File {
 
     /// Truncates or extends the underlying file, updating
     /// the size of this file to become size.
+    ///
+    /// If the size is less than the current file's size,
+    /// then the file will be shrunk. If it is greater
+    /// than the current file's size, then the file
+    /// will be extended to size and have all of the
+    /// intermediate data filled in with 0s.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the file
+    /// is not opened for writing.
     pub async fn set_len(&self, size: u64) -> io::Result<()> {
-        todo!();
-
-        /*
         let mut inner = self.inner.lock().await;
         inner.complete_inflight().await;
 
@@ -127,36 +136,62 @@ impl File {
             _ => unreachable!(),
         };
 
-        let mut writer = buf.write().await;
+        let seek = if !buf.is_empty() {
+            Some(SeekFrom::Current(buf.discard_read()))
+        } else {
+            None
+        };
 
-        if size < writer.len() as u64 {
-            match &mut *writer {
-                MemoryFd::File(file) => {
-                    file.contents.truncate(size as usize);
+        let std = self.std.clone();
+
+        inner.state = Busy(spawn_blocking(move || {
+            let mut std = std.lock();
+            let len = std.get_ref().len() as u64;
+
+            let extension = if size <= len {
+                None
+            } else {
+                let amount = len - size;
+                let elements = vec![0; amount as usize];
+                Some(elements)
+            };
+
+            let res = if let Some(seek) = seek {
+                std.seek(seek).and_then(|_| {
+                    if let Some(zero) = extension {
+                        std.get_mut().extend(zero.iter());
+                    } else {
+                        std.get_mut().truncate(size as usize);
+                    }
+                    Ok(())
+                })
+            } else {
+                if let Some(zero) = extension {
+                    std.get_mut().extend(zero.iter());
+                } else {
+                    std.get_mut().truncate(size as usize);
                 }
-                _ => unreachable!(),
+                Ok(())
             }
-            if inner.pos > size {
-                inner.pos = size;
-            }
-        } else if size > writer.len() as u64 {
-            let amount = writer.len() as u64 - size;
-            let elements = vec![0; amount as usize];
+            .map(|_| 0); // the value is discarded later
 
-            match &mut *writer {
-                MemoryFd::File(file) => {
-                    file.contents.extend(elements.iter());
-                }
-                _ => unreachable!(),
-            }
-        }
+            // Return the result as a seek
+            (Operation::Seek(res), buf)
+        }));
 
-        drop(writer);
+        let (op, buf) = match inner.state {
+            Idle(_) => unreachable!(),
+            Busy(ref mut rx) => rx.await?,
+        };
 
         inner.state = Idle(Some(buf));
 
-        Ok(())
-        */
+        match op {
+            Operation::Seek(res) => res.map(|pos| {
+                inner.pos = pos;
+            }),
+            _ => unreachable!(),
+        }
     }
 
     /// Queries metadata about the underlying file.
@@ -340,17 +375,19 @@ impl AsyncWrite for File {
                     let n = buf.copy_from(src);
                     let mut std = me.std.clone();
 
-                    let blocking_task_join_handle = spawn_blocking(move || {
-                        let mut std = std.lock();
-                        
-                        let res = if let Some(seek) = seek {
-                            std.seek(seek).and_then(|_| buf.write_to(&mut *std))
-                        } else {
-                            buf.write_to(&mut *std)
-                        };
+                    let blocking_task_join_handle =
+                        spawn_blocking(move || {
+                            let mut std = std.lock();
 
-                        (Operation::Write(res), buf)
-                    });
+                            let res = if let Some(seek) = seek {
+                                std.seek(seek)
+                                    .and_then(|_| buf.write_to(&mut *std))
+                            } else {
+                                buf.write_to(&mut *std)
+                            };
+
+                            (Operation::Write(res), buf)
+                        });
 
                     inner.state = Busy(blocking_task_join_handle);
 

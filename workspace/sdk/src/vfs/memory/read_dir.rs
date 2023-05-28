@@ -13,7 +13,7 @@ use tokio::task::JoinHandle;
 
 use super::{
     fs::{resolve, Fd, MemoryDir, MemoryFd},
-    FileType, Metadata, metadata,
+    metadata, FileType, Metadata,
 };
 
 /// Returns a stream over the entries within a directory.

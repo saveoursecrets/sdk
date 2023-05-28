@@ -3,17 +3,17 @@
 use async_recursion::async_recursion;
 use bitflags::bitflags;
 use once_cell::sync::Lazy;
+use parking_lot::Mutex as SyncMutex;
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
-    io::{self, Error, ErrorKind, Cursor},
+    io::{self, Cursor, Error, ErrorKind},
     iter::Enumerate,
     path::{Component, Components, Path, PathBuf},
     sync::Arc,
     vec::IntoIter,
 };
 use tokio::sync::{Mutex, RwLock};
-use parking_lot::Mutex as SyncMutex;
 
 use super::{Metadata, Permissions, Result};
 
@@ -444,7 +444,6 @@ impl MemoryFd {
             Self::Dir(fd) => &fd.permissions,
         }
     }
-    
 }
 
 /// Ensure a path is a file and exists.
@@ -712,11 +711,7 @@ async fn new_metadata(fd: Fd, len: u64) -> Metadata {
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 async fn new_metadata(fd: Fd, len: u64) -> Metadata {
     let fd = fd.read().await;
-    Metadata::new(
-        fd.permissions().clone(),
-        fd.flags(),
-        len,
-    )
+    Metadata::new(fd.permissions().clone(), fd.flags(), len)
 }
 
 /// Changes the permissions found on a file or a directory.
