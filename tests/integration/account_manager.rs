@@ -63,7 +63,7 @@ async fn integration_account_manager() -> Result<()> {
     let NewAccount { address, .. } = new_account;
     let ImportedAccount { summary, .. } = imported_account;
 
-    let accounts = LocalAccounts::list_accounts()?;
+    let accounts = LocalAccounts::list_accounts().await?;
     assert_eq!(1, accounts.len());
 
     let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
@@ -77,7 +77,7 @@ async fn integration_account_manager() -> Result<()> {
     user.rename_account("New account name".to_string()).await?;
     assert_eq!("New account name", user.identity().keeper().vault().name());
 
-    let vaults = LocalAccounts::list_local_vaults(&address, false)?;
+    let vaults = LocalAccounts::list_local_vaults(&address, false).await?;
     // Default, Contacts, Authenticator and Archive vaults
     assert_eq!(4, vaults.len());
 

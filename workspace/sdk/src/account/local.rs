@@ -101,7 +101,7 @@ impl LocalAccounts {
         id: &VaultId,
         include_system: bool,
     ) -> Result<(Vault, PathBuf)> {
-        let vaults = Self::list_local_vaults(address, include_system)?;
+        let vaults = Self::list_local_vaults(address, include_system).await?;
         let (_summary, path) = vaults
             .into_iter()
             .find(|(s, _)| s.id() == id)
@@ -113,14 +113,14 @@ impl LocalAccounts {
     }
 
     /// Get a list of the vaults for an account directly from the file system.
-    pub fn list_local_vaults(
+    pub async fn list_local_vaults(
         address: &Address,
         include_system: bool,
     ) -> Result<Vec<(Summary, PathBuf)>> {
         let vaults_dir = StorageDirs::local_vaults_dir(address.to_string())?;
         let mut vaults = Vec::new();
-        for entry in std::fs::read_dir(vaults_dir)? {
-            let entry = entry?;
+        let mut dir = vfs::read_dir(vaults_dir).await?;
+        while let Some(entry) = dir.next_entry().await? {
             if let Some(extension) = entry.path().extension() {
                 if extension == VAULT_EXT {
                     let summary = Header::read_summary_file(entry.path())?;
@@ -135,11 +135,11 @@ impl LocalAccounts {
     }
 
     /// List account information for the identity vaults.
-    pub fn list_accounts() -> Result<Vec<AccountInfo>> {
+    pub async fn list_accounts() -> Result<Vec<AccountInfo>> {
         let mut keys = Vec::new();
         let identity_dir = StorageDirs::identity_dir()?;
-        for entry in std::fs::read_dir(identity_dir)? {
-            let entry = entry?;
+        let mut dir = vfs::read_dir(identity_dir).await?;
+        while let Some(entry) = dir.next_entry().await? {
             if let (Some(extension), Some(file_stem)) =
                 (entry.path().extension(), entry.path().file_stem())
             {

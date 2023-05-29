@@ -443,7 +443,8 @@ impl UserStorage {
         let vaults = LocalAccounts::list_local_vaults(
             self.user.identity().address(),
             false,
-        )?;
+        )
+        .await?;
         let existing_id =
             vaults.iter().find(|(s, _)| s.id() == vault.summary().id());
 
@@ -980,7 +981,8 @@ impl UserStorage {
         let vaults = LocalAccounts::list_local_vaults(
             self.user.identity().address(),
             false,
-        )?;
+        )
+        .await?;
 
         for (summary, _) in vaults {
             let (vault, _) = LocalAccounts::find_local_vault(
@@ -1093,7 +1095,8 @@ impl UserStorage {
         let vaults = LocalAccounts::list_local_vaults(
             self.user.identity().address(),
             false,
-        )?;
+        )
+        .await?;
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 
@@ -1281,11 +1284,11 @@ impl UserStorage {
     }
 
     /// Read the inventory from an archive.
-    pub fn restore_archive_inventory<R: Read + Seek>(
+    pub async fn restore_archive_inventory<R: Read + Seek>(
         buffer: R,
     ) -> Result<Inventory> {
         let mut inventory = AccountBackup::restore_archive_inventory(buffer)?;
-        let accounts = LocalAccounts::list_accounts()?;
+        let accounts = LocalAccounts::list_accounts().await?;
         let exists_local = accounts
             .iter()
             .any(|account| account.address() == &inventory.manifest.address);

@@ -187,7 +187,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             new_account(name, folder_name).await?;
         }
         Command::List { verbose } => {
-            list_accounts(verbose)?;
+            list_accounts(verbose).await?;
         }
         Command::Info {
             account,
@@ -373,7 +373,8 @@ async fn account_backup(
         return Err(Error::FileExists(output));
     }
 
-    let account = find_account(&account)?
+    let account = find_account(&account)
+        .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     AccountBackup::export_archive_file(&output, account.address()).await?;
     Ok(())
@@ -389,7 +390,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     let inventory: Inventory =
         AccountBackup::restore_archive_inventory(reader)?;
     let account_ref = AccountRef::Address(inventory.manifest.address);
-    let account = find_account(&account_ref)?;
+    let account = find_account(&account_ref).await?;
 
     let (provider, passphrase) = if let Some(account) = account {
         let confirmed = read_flag(Some(

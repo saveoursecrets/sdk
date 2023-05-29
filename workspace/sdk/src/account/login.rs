@@ -175,7 +175,7 @@ impl Login {
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
     ) -> Result<AuthenticatedUser> {
-        let accounts = LocalAccounts::list_accounts()?;
+        let accounts = LocalAccounts::list_accounts().await?;
         let account = accounts
             .into_iter()
             .find(|a| a.address() == address)
@@ -206,7 +206,7 @@ impl Login {
     ) -> Result<DeviceSigner> {
         let identity = user.keeper_mut();
 
-        let vaults = LocalAccounts::list_local_vaults(address, true)?;
+        let vaults = LocalAccounts::list_local_vaults(address, true).await?;
         let device_vault = vaults.into_iter().find_map(|(summary, _)| {
             if summary.flags().is_system() && summary.flags().is_device() {
                 Some(summary)

@@ -188,7 +188,7 @@ pub struct AccountBackup;
 
 impl AccountBackup {
     /// Build a manifest for an account.
-    pub fn manifest(
+    pub async fn manifest(
         address: &Address,
         options: AccountManifestOptions,
     ) -> Result<(AccountManifest, u64)> {
@@ -205,7 +205,7 @@ impl AccountBackup {
         manifest.entries.push(entry);
         total_size += size;
 
-        let vaults = LocalAccounts::list_local_vaults(address, false)?;
+        let vaults = LocalAccounts::list_local_vaults(address, false).await?;
         for (summary, path) in vaults {
             if options.no_sync_self && summary.flags().is_no_sync_self() {
                 continue;
@@ -348,7 +348,7 @@ impl AccountBackup {
         }
         let identity = vfs::read(identity_path).await?;
 
-        let vaults = LocalAccounts::list_local_vaults(address, false)?;
+        let vaults = LocalAccounts::list_local_vaults(address, false).await?;
 
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
@@ -414,7 +414,7 @@ impl AccountBackup {
 
             // The GUI should check the identity already exists
             // but we will double check here to be safe
-            let keys = LocalAccounts::list_accounts()?;
+            let keys = LocalAccounts::list_accounts().await?;
             let existing_account =
                 keys.iter().find(|k| k.address() == address);
             let account = existing_account
@@ -470,7 +470,7 @@ impl AccountBackup {
 
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
-            let keys = LocalAccounts::list_accounts()?;
+            let keys = LocalAccounts::list_accounts().await?;
             let existing_account = keys
                 .iter()
                 .find(|k| k.address() == &restore_targets.address);
