@@ -14,6 +14,7 @@ async fn integration_memory_vfs() -> Result<()> {
     file_overwrite().await?;
     set_len().await?;
     absolute_file_write().await?;
+    copy_file().await?;
 
     write_read().await?;
     remove_file().await?;
@@ -22,21 +23,6 @@ async fn integration_memory_vfs() -> Result<()> {
     read_dir().await?;
     rename().await?;
     rename_replace_file().await?;
-
-    Ok(())
-}
-
-async fn absolute_file_write() -> Result<()> {
-    let parent = "/foo/bar/baz";
-    vfs::create_dir_all(parent).await?;
-    assert!(vfs::try_exists(parent).await?);
-
-    let file = format!("{}/qux.vault", parent);
-
-    vfs::write(&file, "mock").await?;
-    assert!(vfs::try_exists(&file).await?);
-
-    vfs::remove_dir_all("/foo").await?;
 
     Ok(())
 }
@@ -150,6 +136,47 @@ async fn set_len() -> Result<()> {
     assert_eq!(512, metadata.len());
 
     vfs::remove_file(path).await?;
+
+    Ok(())
+}
+
+async fn absolute_file_write() -> Result<()> {
+    let parent = "/foo/bar/baz";
+    vfs::create_dir_all(parent).await?;
+    assert!(vfs::try_exists(parent).await?);
+
+    let file = format!("{}/qux.vault", parent);
+
+    vfs::write(&file, "mock").await?;
+    assert!(vfs::try_exists(&file).await?);
+
+    vfs::remove_dir_all("/foo").await?;
+
+    Ok(())
+}
+
+async fn copy_file() -> Result<()> {
+    let from = "from.txt";
+    let to = "to.txt";
+    let data = "data to copy";
+
+    vfs::write(from, data.as_bytes()).await?;
+    assert!(vfs::try_exists(from).await?);
+
+    // Copy to same path is a noop
+    assert!(vfs::copy(from, from).await.is_ok());
+
+    vfs::copy(from, to).await?;
+    assert!(vfs::try_exists(to).await?);
+
+    let file_contents = vfs::read(to).await?;
+    assert_eq!(data.as_bytes(), &file_contents);
+
+    // Trigger the code path that overwrites an existing file
+    vfs::copy(from, to).await?;
+
+    vfs::remove_file(from).await?;
+    vfs::remove_file(to).await?;
 
     Ok(())
 }

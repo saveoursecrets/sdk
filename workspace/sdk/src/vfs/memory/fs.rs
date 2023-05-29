@@ -382,6 +382,78 @@ impl MemoryFd {
     }
 }
 
+/// Copies the contents of one file to another.
+pub async fn copy(
+    from: impl AsRef<Path>,
+    to: impl AsRef<Path>,
+) -> Result<()> {
+    // Copy the buffer and permissions to file descriptor.
+    async fn copy_fd(
+        fd: Fd,
+        buffer: Vec<u8>,
+        permissions: Permissions,
+    ) -> Result<()> {
+        let mut fd = fd.write().await;
+        match &mut *fd {
+            MemoryFd::File(file) => {
+                let mut contents = file.contents.lock();
+                let buf = contents.get_mut();
+                *buf = buffer;
+                file.permissions = permissions;
+                Ok(())
+            }
+            _ => Err(ErrorKind::PermissionDenied.into()),
+        }
+    }
+
+    // From file must exist.
+    if let Some(target) = resolve(from.as_ref()).await {
+        match target {
+            PathTarget::Descriptor(fd) => {
+                if from.as_ref() == to.as_ref() {
+                    return Ok(());
+                }
+
+                let result: Option<(Vec<u8>, Permissions)> = {
+                    let fd = fd.read().await;
+                    match &*fd {
+                        MemoryFd::File(file) => {
+                            let permissions = file.permissions.clone();
+                            let contents = file.contents.lock();
+                            let buffer = contents.get_ref().clone();
+                            Some((buffer, permissions))
+                        }
+                        _ => None,
+                    }
+                };
+
+                if let Some((buffer, permissions)) = result {
+                    // File exists so overwrite it
+                    if let Some(target) = resolve(to.as_ref()).await {
+                        match target {
+                            PathTarget::Descriptor(fd) => {
+                                copy_fd(fd, buffer, permissions).await
+                            }
+                            PathTarget::Root(_) => {
+                                Err(ErrorKind::PermissionDenied.into())
+                            }
+                        }
+                    // Try to create in the parent
+                    } else {
+                        let fd = create_file(to, false).await?;
+                        copy_fd(fd, buffer, permissions).await
+                    }
+                } else {
+                    Err(ErrorKind::PermissionDenied.into())
+                }
+            }
+            PathTarget::Root(_) => Err(ErrorKind::PermissionDenied.into()),
+        }
+    } else {
+        Err(ErrorKind::NotFound.into())
+    }
+}
+
 /// Creates a future that will open a file for writing
 /// and write the entire contents to it.
 pub async fn write(
