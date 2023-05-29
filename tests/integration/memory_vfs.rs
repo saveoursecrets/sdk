@@ -1,13 +1,14 @@
 use anyhow::Result;
 
-use std::{ffi::OsString, io::SeekFrom};
+use std::ffi::OsString;
 
-use sos_sdk::vfs::{self, File, FileType, PathBuf};
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use sos_sdk::vfs::{self, File, FileType, OpenOptions, PathBuf};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[tokio::test]
 async fn integration_memory_vfs() -> Result<()> {
     file_write_read().await?;
+    file_append().await?;
     read_to_string().await?;
     metadata().await?;
     file_overwrite().await?;
@@ -26,32 +27,51 @@ async fn integration_memory_vfs() -> Result<()> {
 }
 
 async fn file_write_read() -> Result<()> {
-    let path = PathBuf::from("test.txt");
+    let path = "test.txt";
     let contents = "Mock content";
 
-    let mut fd = File::create(&path).await?;
+    let mut fd = File::create(path).await?;
     fd.write_all(contents.as_bytes()).await?;
     fd.flush().await?;
-    assert!(vfs::try_exists(&path).await?);
+    assert!(vfs::try_exists(path).await?);
 
     let mut file_contents = Vec::new();
-    let mut fd = File::open(&path).await?;
-    fd.seek(SeekFrom::Start(0)).await?;
+    let mut fd = File::open(path).await?;
     fd.read_to_end(&mut file_contents).await?;
     assert_eq!(contents.as_bytes(), &file_contents);
 
-    vfs::remove_file(&path).await?;
+    vfs::remove_file(path).await?;
+
+    Ok(())
+}
+
+async fn file_append() -> Result<()> {
+    let path = "test.txt";
+    vfs::write(path, "one".as_bytes()).await?;
+
+    let mut fd = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(path)
+        .await?;
+    fd.write_all("two".as_bytes()).await?;
+    fd.flush().await?;
+
+    let file_contents = vfs::read(path).await?;
+    assert_eq!("onetwo".as_bytes(), &file_contents);
+
+    vfs::remove_file(path).await?;
 
     Ok(())
 }
 
 async fn read_to_string() -> Result<()> {
-    let path = PathBuf::from("test.txt");
+    let path = "test.txt";
     let contents = "Mock content";
-    vfs::write(&path, contents.as_bytes()).await?;
-    assert!(vfs::try_exists(&path).await?);
+    vfs::write(path, contents.as_bytes()).await?;
+    assert!(vfs::try_exists(path).await?);
 
-    let file_contents = vfs::read_to_string(&path).await?;
+    let file_contents = vfs::read_to_string(path).await?;
     assert_eq!(contents, &file_contents);
 
     vfs::remove_file(&path).await?;

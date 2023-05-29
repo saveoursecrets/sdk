@@ -20,7 +20,7 @@ use tokio::{
     sync::{Mutex, RwLock},
 };
 
-use super::{File, Metadata, Permissions, Result, OpenOptions};
+use super::{File, Metadata, OpenOptions, Permissions, Result};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use super::meta_data::FileTime;
@@ -267,10 +267,7 @@ impl fmt::Debug for MemoryFile {
 
 impl MemoryFile {
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    fn new(
-        name: OsString,
-        parent: Option<Parent>,
-    ) -> Self {
+    fn new(name: OsString, parent: Option<Parent>) -> Self {
         Self {
             name,
             parent,
@@ -281,10 +278,7 @@ impl MemoryFile {
     }
 
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-    fn new(
-        name: OsString,
-        parent: Option<Parent>,
-    ) -> Self {
+    fn new(name: OsString, parent: Option<Parent>) -> Self {
         Self {
             name,
             parent,

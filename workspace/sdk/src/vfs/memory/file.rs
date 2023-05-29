@@ -23,7 +23,9 @@ use std::task::Poll::*;
 
 use super::{
     fs::{Fd, MemoryFd},
-    metadata, FileContent, Metadata, OpenOptions, PathBuf,
+    metadata,
+    open_options::OpenFlags,
+    FileContent, Metadata, OpenOptions, PathBuf,
 };
 
 pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
@@ -43,7 +45,7 @@ pub struct File {
 }
 
 impl File {
-    pub(super) async fn new(fd: Fd, pos: Option<u64>) -> io::Result<Self> {
+    pub(super) async fn new(fd: Fd, flags: OpenFlags) -> io::Result<Self> {
         let (std, path) = {
             let fd = fd.read().await;
             let path = fd.path().await;
@@ -52,12 +54,17 @@ impl File {
                 _ => return Err(ErrorKind::PermissionDenied.into()),
             }
         };
-        
+
         // Must reset the cursor every time we open a file
-        let pos = pos.unwrap_or_default();
-        {
+        if flags.contains(OpenFlags::APPEND) {
+            // Reset seek position to the end for append mode
             let mut data = std.lock();
-            data.set_position(pos);
+            let len = data.get_ref().len();
+            data.set_position(len as u64);
+        } else {
+            // Reset seek position to the beginning
+            let mut data = std.lock();
+            data.set_position(0);
         }
 
         Ok(Self {
