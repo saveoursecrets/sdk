@@ -94,7 +94,8 @@ impl UserStorage {
             vault_id.to_string(),
             secret_id.to_string(),
             file_name,
-        )?)
+        )
+        .await?)
     }
 
     /// Expected location for the directory containing all the

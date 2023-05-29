@@ -14,7 +14,7 @@ use age::Encryptor;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
-    io::Read,
+    io::{Cursor, Read},
     path::{Path, PathBuf},
 };
 
@@ -44,12 +44,12 @@ impl FileStorage {
         target: T,
         passphrase: SecretString,
     ) -> Result<(Vec<u8>, u64)> {
-        let mut file = std::fs::File::open(source)?;
+        let mut buffer = Cursor::new(vfs::read(source).await?);
         let encryptor = Encryptor::with_user_passphrase(passphrase);
 
         let mut encrypted = Vec::new();
         let mut writer = encryptor.wrap_output(&mut encrypted)?;
-        std::io::copy(&mut file, &mut writer)?;
+        std::io::copy(&mut buffer, &mut writer)?;
         writer.finish()?;
 
         let mut hasher = Sha256::new();
@@ -65,12 +65,12 @@ impl FileStorage {
     }
 
     /// Decrypt a file using AGE passphrase encryption.
-    pub fn decrypt_file_passphrase<P: AsRef<Path>>(
+    pub async fn decrypt_file_passphrase<P: AsRef<Path>>(
         path: P,
         passphrase: &SecretString,
     ) -> Result<Vec<u8>> {
-        let file = std::fs::File::open(path)?;
-        let decryptor = match age::Decryptor::new(file)? {
+        let mut buffer = Cursor::new(vfs::read(path).await?);
+        let decryptor = match age::Decryptor::new(&mut buffer)? {
             age::Decryptor::Passphrase(d) => d,
             _ => return Err(Error::NotPassphraseEncryption),
         };
@@ -78,7 +78,6 @@ impl FileStorage {
         let mut decrypted = vec![];
         let mut reader = decryptor.decrypt(passphrase, None)?;
         reader.read_to_end(&mut decrypted)?;
-
         Ok(decrypted)
     }
 
@@ -114,7 +113,7 @@ impl FileStorage {
     }
 
     /// Decrypt a file in the storage location and return the buffer.
-    pub fn decrypt_file_storage<
+    pub async fn decrypt_file_storage<
         A: AsRef<Path>,
         V: AsRef<Path>,
         S: AsRef<Path>,
@@ -129,6 +128,6 @@ impl FileStorage {
         let path = StorageDirs::file_location(
             address, vault_id, secret_id, file_name,
         )?;
-        Self::decrypt_file_passphrase(path, password)
+        Self::decrypt_file_passphrase(path, password).await
     }
 }

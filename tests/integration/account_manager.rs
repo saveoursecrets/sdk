@@ -136,7 +136,8 @@ async fn integration_account_manager() -> Result<()> {
     // Decrypt
     let destination = target.join(hex::encode(digest));
     let buffer =
-        FileStorage::decrypt_file_passphrase(destination, &file_passphrase)?;
+        FileStorage::decrypt_file_passphrase(destination, &file_passphrase)
+            .await?;
 
     let expected = vfs::read(source_file).await?;
     assert_eq!(expected, buffer);
