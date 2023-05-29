@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use std::ffi::OsString;
+use std::path::MAIN_SEPARATOR;
 
 use sos_sdk::vfs::{self, File, FileType, OpenOptions, PathBuf, Permissions};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -24,6 +25,8 @@ async fn integration_memory_vfs() -> Result<()> {
     read_dir().await?;
     rename().await?;
     rename_replace_file().await?;
+
+    canonicalize().await?;
 
     Ok(())
 }
@@ -317,3 +320,51 @@ async fn rename_replace_file() -> Result<()> {
 
     Ok(())
 }
+
+async fn canonicalize() -> Result<()> {
+    assert!(vfs::canonicalize("").await.is_err());
+    assert_eq!(
+        PathBuf::from(MAIN_SEPARATOR.to_string()),
+        vfs::canonicalize(MAIN_SEPARATOR.to_string()).await?
+    );
+    
+    vfs::create_dir("baz").await?;
+    assert!(vfs::try_exists("baz").await?);
+    vfs::create_dir_all("foo/bar/qux").await?;
+    assert!(vfs::try_exists("foo").await?);
+    assert!(vfs::try_exists("foo/bar").await?);
+    assert!(vfs::try_exists("foo/bar/qux").await?);
+    
+    assert_eq!(
+        PathBuf::from("/"),
+        vfs::canonicalize("foo/..").await?,
+    );
+    
+    assert_eq!(
+        PathBuf::from("/foo"),
+        vfs::canonicalize("foo/././.").await?,
+    );
+
+    assert_eq!(
+        PathBuf::from("/baz"),
+        vfs::canonicalize("foo/../baz").await?,
+    );
+
+    assert_eq!(
+        PathBuf::from("/foo/bar/qux"),
+        vfs::canonicalize("foo/../foo/bar/qux").await?,
+    );
+    
+    assert_eq!(
+        PathBuf::from("/"),
+        vfs::canonicalize("foo/bar/../..").await?,
+    );
+    
+    assert_eq!(
+        PathBuf::from("/foo/bar/qux"),
+        vfs::canonicalize("foo/bar/../../foo/bar/qux").await?,
+    );
+
+    Ok(())
+}
+

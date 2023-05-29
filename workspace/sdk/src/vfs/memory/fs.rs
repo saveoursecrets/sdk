@@ -40,8 +40,8 @@ bitflags! {
     }
 }
 
+type FileSystem = BTreeMap<OsString, Fd>;
 pub(super) type Fd = Arc<RwLock<MemoryFd>>;
-pub(super) type FileSystem = BTreeMap<OsString, Fd>;
 pub(super) type FileContent = Arc<SyncMutex<Cursor<Vec<u8>>>>;
 
 // File system contents.
@@ -59,10 +59,6 @@ pub(super) fn debug_root() {
 }
 */
 
-pub(super) fn root_fs() -> &'static MemoryDir {
-    unsafe { &ROOT_DIR }
-}
-
 pub(super) fn root_fs_mut() -> &'static mut MemoryDir {
     unsafe { &mut ROOT_DIR }
 }
@@ -71,6 +67,15 @@ pub(super) fn root_fs_mut() -> &'static mut MemoryDir {
 pub(super) enum PathTarget {
     Root(&'static mut MemoryDir),
     Descriptor(Fd),
+}
+
+impl From<Parent> for PathTarget {
+    fn from(value: Parent) -> Self {
+        match value {
+            Parent::Root(fs) => PathTarget::Root(fs),
+            Parent::Folder(fd) => PathTarget::Descriptor(fd),
+        }
+    }
 }
 
 /// Parent reference for a file descriptor.
@@ -140,6 +145,20 @@ impl Parent {
                 match &mut *fd {
                     MemoryFd::Dir(dir) => Ok(dir.insert(name, child).await),
                     _ => Err(ErrorKind::PermissionDenied.into()),
+                }
+            }
+        }
+    }
+
+    /// Find a child that is a directory.
+    async fn find_dir(&self, name: &OsStr) -> Option<Fd> {
+        match self {
+            Self::Root(fs) => fs.find_dir(name).await,
+            Self::Folder(fd) => {
+                let mut fd = fd.write().await;
+                match &mut *fd {
+                    MemoryFd::Dir(dir) => dir.find_dir(name).await,
+                    _ => None,
                 }
             }
         }
@@ -232,7 +251,7 @@ impl MemoryDir {
     }
 
     /// Find a child that is a dir.
-    async fn find_dir(&self, name: &OsStr) -> Option<Fd> {
+    pub async fn find_dir(&self, name: &OsStr) -> Option<Fd> {
         if let Some(child) = self.files.get(name) {
             let is_dir = {
                 let fd = child.read().await;
@@ -687,8 +706,25 @@ pub async fn set_permissions(
 
 /// Returns Ok(true) if the path points at an existing entity.
 pub async fn try_exists(path: impl AsRef<Path>) -> Result<bool> {
-    log::info!("try_exists {:#?}", path.as_ref());
     Ok(resolve(path).await.is_some())
+}
+
+/// Returns the canonical, absolute form of a path with
+/// all intermediate components normalized and symbolic links resolved.
+pub async fn canonicalize(path: impl AsRef<Path>) -> Result<PathBuf> {
+    if let Some(target) = resolve(path.as_ref()).await {
+        match target {
+            PathTarget::Root(fs) => {
+                Ok(PathBuf::from(MAIN_SEPARATOR.to_string()))
+            }
+            PathTarget::Descriptor(fd) => {
+                let fd = fd.read().await;
+                Ok(fd.path().await)
+            }
+        }
+    } else {
+        Err(ErrorKind::NotFound.into())
+    }
 }
 
 /// Create a new file.
@@ -827,7 +863,7 @@ pub(super) fn has_parent(path: impl AsRef<Path>) -> bool {
 /// Recursive walk of the tree to find a target path.
 #[async_recursion]
 async fn walk(
-    target: &MemoryDir,
+    target: Parent,
     it: &mut Enumerate<IntoIter<Component>>,
     length: usize,
     parents: &mut Vec<Parent>,
@@ -840,47 +876,89 @@ async fn walk(
                     return Some(PathTarget::Root(root_fs_mut()));
                 }
                 parents.push(Parent::Root(root_fs_mut()));
-                return walk(root_fs(), it, length, parents).await;
+                return walk(
+                    Parent::Root(root_fs_mut()),
+                    it,
+                    length,
+                    parents,
+                )
+                .await;
+            }
+            Component::CurDir | Component::Prefix(_) => {
+                return walk(target, it, length, parents).await;
+            }
+            Component::ParentDir => {
+                if let Some(_) = parents.pop() {
+                    if index == length - 1 {
+                        if let Some(target) = parents.pop() {
+                            return Some(target.into());
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        if let Some(last) = parents.last() {
+                            return walk(last.clone(), it, length, parents)
+                                .await;
+                        }
+                    }
+                } else {
+                    return None;
+                }
             }
             Component::Normal(name) => {
                 if index == length - 1 {
-                    return target
-                        .files
-                        .get(name)
-                        .map(|fd| PathTarget::Descriptor(Arc::clone(fd)));
+                    return match target {
+                        Parent::Root(fs) => fs
+                            .files()
+                            .get(name)
+                            .map(|fd| PathTarget::Descriptor(Arc::clone(fd))),
+                        Parent::Folder(fd) => {
+                            let fd = fd.read().await;
+                            match &*fd {
+                                MemoryFd::Dir(dir) => {
+                                    dir.files().get(name).map(|fd| {
+                                        PathTarget::Descriptor(Arc::clone(fd))
+                                    })
+                                }
+                                _ => None,
+                            }
+                        }
+                    };
                 } else {
                     if let Some(child) = target.find_dir(name).await {
                         parents.push(Parent::Folder(Arc::clone(&child)));
-                        let fd = child.read().await;
-                        if let MemoryFd::Dir(dir) = &*fd {
-                            return walk(dir, it, length, parents).await;
-                        }
+                        return walk(
+                            Parent::Folder(Arc::clone(&child)),
+                            it,
+                            length,
+                            parents,
+                        )
+                        .await;
                     } else {
                         return None;
                     }
                 }
             }
-            _ => return None,
         }
     }
     None
 }
 
-/// Resolve relative to a folder.
-pub(super) async fn resolve_relative(
-    fs: &MemoryDir,
+/// Resolve relative to a parent.
+async fn resolve_relative(
+    parent: Parent,
     path: impl AsRef<Path>,
 ) -> Option<PathTarget> {
     let components: Vec<Component> =
         path.as_ref().components().into_iter().collect();
     let length = components.len();
     let mut it = components.into_iter().enumerate();
-    walk(fs, &mut it, length, &mut vec![]).await
+    walk(parent.clone(), &mut it, length, &mut vec![parent]).await
 }
 
 /// Resolve relative to the root folder.
 pub(super) async fn resolve(path: impl AsRef<Path>) -> Option<PathTarget> {
-    resolve_relative(root_fs(), path).await
+    resolve_relative(Parent::Root(root_fs_mut()), path).await
 }
 
 /// Try to resolve the parent of a path.

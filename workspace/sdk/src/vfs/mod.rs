@@ -12,6 +12,8 @@
 //!
 //! # Memory VFS Caveats
 //!
+//! Relative paths are resolved from the root of the file system.
+//!
 //! Avoid using the `PathBuf` functions `exists()`, `metadata()`,
 //! `is_dir()`, `is_file()` etc as they will be incorrect when
 //! using a virtual file system. Instead use the `vfs::metadata()` and
