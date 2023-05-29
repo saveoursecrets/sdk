@@ -13,6 +13,7 @@ async fn integration_memory_vfs() -> Result<()> {
     metadata().await?;
     file_overwrite().await?;
     set_len().await?;
+    absolute_file_write().await?;
 
     write_read().await?;
     remove_file().await?;
@@ -22,7 +23,20 @@ async fn integration_memory_vfs() -> Result<()> {
     rename().await?;
     rename_replace_file().await?;
 
-    //vfs::write("foo/bar/qux.txt", b"qux").await?;
+    Ok(())
+}
+
+async fn absolute_file_write() -> Result<()> {
+    let parent = "/foo/bar/baz";
+    vfs::create_dir_all(parent).await?;
+    assert!(vfs::try_exists(parent).await?);
+
+    let file = format!("{}/qux.vault", parent);
+
+    vfs::write(&file, "mock").await?;
+    assert!(vfs::try_exists(&file).await?);
+
+    vfs::remove_dir_all("/foo").await?;
 
     Ok(())
 }
@@ -202,7 +216,7 @@ async fn read_dir() -> Result<()> {
         first.as_ref().unwrap().file_name()
     );
     assert_eq!(
-        PathBuf::from("read-dir/abc.txt"),
+        PathBuf::from("/read-dir/abc.txt"),
         first.as_ref().unwrap().path()
     );
     assert!(first.as_ref().unwrap().file_type().await?.is_file());
@@ -213,7 +227,7 @@ async fn read_dir() -> Result<()> {
         second.as_ref().unwrap().file_name()
     );
     assert_eq!(
-        PathBuf::from("read-dir/def.txt"),
+        PathBuf::from("/read-dir/def.txt"),
         second.as_ref().unwrap().path()
     );
     assert!(second.as_ref().unwrap().file_type().await?.is_file());
@@ -221,7 +235,7 @@ async fn read_dir() -> Result<()> {
     let third = dir_reader.next_entry().await?;
     assert_eq!(OsString::from("ghi"), third.as_ref().unwrap().file_name());
     assert_eq!(
-        PathBuf::from("read-dir/ghi"),
+        PathBuf::from("/read-dir/ghi"),
         third.as_ref().unwrap().path()
     );
     assert!(third.as_ref().unwrap().file_type().await?.is_dir());

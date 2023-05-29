@@ -88,7 +88,7 @@ pub async fn handle_change(
                 _ => {}
             }
         } else if let ChangeAction::Create(summary) = action {
-            provider.add_local_cache(summary.clone())?;
+            provider.add_local_cache(summary.clone()).await?;
         }
     }
 

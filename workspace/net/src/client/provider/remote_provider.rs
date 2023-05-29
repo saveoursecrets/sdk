@@ -15,7 +15,7 @@ use sos_sdk::{
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
-        Summary, Vault,
+        Summary, Vault, VaultId,
     },
     vfs, Timestamp,
 };
@@ -127,7 +127,7 @@ impl StorageProvider for RemoteProvider {
         self.state_mut().add_summary(summary.clone());
 
         // Initialize the local cache for the event log
-        self.create_cache_entry(&summary, Some(vault))?;
+        self.create_cache_entry(&summary, Some(vault)).await?;
 
         let event = WriteEvent::CreateVault(Cow::Owned(buffer));
         Ok((event, passphrase, summary))
@@ -156,7 +156,7 @@ impl StorageProvider for RemoteProvider {
         self.state_mut().add_summary(summary.clone());
 
         // Initialize the local cache for the event log
-        self.create_cache_entry(&summary, Some(vault))?;
+        self.create_cache_entry(&summary, Some(vault)).await?;
 
         Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
     }
@@ -186,7 +186,7 @@ impl StorageProvider for RemoteProvider {
         self.state_mut().add_summary(summary.clone());
 
         // Initialize the local cache for the event log
-        self.create_cache_entry(&summary, Some(vault))?;
+        self.create_cache_entry(&summary, Some(vault)).await?;
 
         Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
     }
@@ -199,7 +199,7 @@ impl StorageProvider for RemoteProvider {
         let (_, summaries) =
             retry!(|| self.client.list_vaults(), self.client);
 
-        self.load_caches(&summaries)?;
+        self.load_caches(&summaries).await?;
 
         // Find empty event logs which need to pull from remote
         let mut needs_pull = Vec::new();

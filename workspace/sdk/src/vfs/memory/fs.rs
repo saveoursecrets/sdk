@@ -4,6 +4,7 @@ use async_recursion::async_recursion;
 use bitflags::bitflags;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex as SyncMutex;
+use std::path::MAIN_SEPARATOR;
 use std::{
     borrow::Cow,
     collections::BTreeMap,
@@ -15,6 +16,7 @@ use std::{
     sync::Arc,
     vec::IntoIter,
 };
+
 use tokio::{
     io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
     sync::{Mutex, RwLock},
@@ -169,7 +171,7 @@ impl MemoryDir {
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     fn new_root() -> Self {
         Self {
-            name: OsString::new(),
+            name: OsString::from(MAIN_SEPARATOR.to_string()),
             parent: None,
             permissions: Default::default(),
             time: Default::default(),
@@ -180,7 +182,7 @@ impl MemoryDir {
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     fn new_root() -> Self {
         Self {
-            name: OsString::new(),
+            name: OsString::from(MAIN_SEPARATOR.to_string()),
             parent: None,
             permissions: Default::default(),
             files: Default::default(),
@@ -673,6 +675,7 @@ pub(super) async fn create_file(
                                 file_name.to_owned(),
                                 Arc::new(RwLock::new(new_file)),
                             );
+
                             Ok(dir
                                 .files()
                                 .get(file_name)

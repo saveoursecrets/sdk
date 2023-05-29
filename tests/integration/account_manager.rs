@@ -54,7 +54,11 @@ async fn integration_account_manager() -> Result<()> {
         .create_provider(new_account.user.signer().clone())
         .await?;
 
+    println!("importing new account...");
+
     let imported_account = provider.import_new_account(&new_account).await?;
+
+    println!("imported the account...");
 
     let NewAccount { address, .. } = new_account;
     let ImportedAccount { summary, .. } = imported_account;

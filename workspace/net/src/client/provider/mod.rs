@@ -3,7 +3,12 @@
 use async_trait::async_trait;
 
 use secrecy::SecretString;
-use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::Arc,
+};
 
 use sos_sdk::{
     account::{ImportedAccount, NewAccount},
@@ -14,14 +19,16 @@ use sos_sdk::{
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{
-        AuditLogFile, ChangeAction, ChangeNotification, ReadEvent, WriteEvent,
+        AuditLogFile, ChangeAction, ChangeNotification, EventLogFile,
+        ReadEvent, WriteEvent,
     },
     passwd::ChangePassword,
+    patch::PatchFile,
     search::SearchIndex,
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
-        Gatekeeper, Summary, Vault,
+        Gatekeeper, Summary, Vault, VaultId,
     },
     vfs, Timestamp,
 };
@@ -73,6 +80,14 @@ pub type BoxedProvider = Box<dyn StorageProvider + Send + Sync + 'static>;
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait StorageProvider: Sync + Send {
+    /// Get the event log cache.
+    fn cache(&self) -> &HashMap<VaultId, (EventLogFile, PatchFile)>;
+
+    /// Get the mutable event log cache.
+    fn cache_mut(
+        &mut self,
+    ) -> &mut HashMap<VaultId, (EventLogFile, PatchFile)>;
+
     /// Get the state for this storage provider.
     fn state(&self) -> &ProviderState;
 
@@ -97,7 +112,11 @@ pub trait StorageProvider: Sync + Send {
     ) -> Result<ImportedAccount> {
         // Save the default vault
         let buffer = encode(&account.default_vault)?;
+        println!("create account from buffer");
+
         let (_, summary) = self.create_account_from_buffer(buffer).await?;
+
+        println!("after create account from buffer");
 
         let archive = if let Some(archive_vault) = &account.archive {
             let buffer = encode(archive_vault)?;
@@ -147,7 +166,7 @@ pub trait StorageProvider: Sync + Send {
             .iter()
             .map(|(_, v)| v.summary().clone())
             .collect::<Vec<_>>();
-        self.load_caches(&summaries)?;
+        self.load_caches(&summaries).await?;
 
         for (buffer, vault) in vaults {
             // Prepare a fresh log of event log events
@@ -366,22 +385,56 @@ pub trait StorageProvider: Sync + Send {
     /// Get a reference to the commit tree for an event log file.
     fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree>;
 
+    /// Create a cache entry for each summary if it does not
+    /// already exist.
+    async fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
+        for summary in summaries {
+            // Ensure we don't overwrite existing data
+            if self.cache().get(summary.id()).is_none() {
+                self.create_cache_entry(summary, None).await?;
+            }
+        }
+        Ok(())
+    }
+
     /// Create new patch and event log cache entries.
-    fn create_cache_entry(
+    async fn create_cache_entry(
         &mut self,
         summary: &Summary,
         vault: Option<Vault>,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let patch_path = self.patch_path(summary);
+        let patch_file = PatchFile::new(patch_path)?;
+
+        let event_log_path = self.event_log_path(summary);
+        let mut event_log = EventLogFile::new(&event_log_path)?;
+
+        if let Some(vault) = &vault {
+            let encoded = encode(vault)?;
+            let event = WriteEvent::CreateVault(Cow::Owned(encoded));
+            event_log.append_event(event)?;
+        }
+        event_log.load_tree()?;
+
+        self.cache_mut()
+            .insert(*summary.id(), (event_log, patch_file));
+        Ok(())
+    }
+
+    /// Add to the local cache for a vault.
+    async fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
+        // Add to our cache of managed vaults
+        self.create_cache_entry(&summary, None).await?;
+
+        // Add to the state of managed vaults
+        self.state_mut().add_summary(summary);
+        Ok(())
+    }
 
     /// Remove the local cache for a vault.
     fn remove_local_cache(&mut self, summary: &Summary) -> Result<()>;
 
-    /// Add to the local cache for a vault.
-    fn add_local_cache(&mut self, summary: Summary) -> Result<()>;
-
-    /// Create a cache entry for each summary if it does not
-    /// already exist.
-    fn load_caches(&mut self, summaries: &[Summary]) -> Result<()>;
+    //fn load_caches(&mut self, summaries: &[Summary]) -> Result<()>;
 
     /// Respond to a change notification.
     ///
@@ -468,7 +521,12 @@ pub trait StorageProvider: Sync + Send {
         buffer: &[u8],
     ) -> Result<()> {
         let vault_path = self.vault_path(&summary);
+
+        println!("write vault file {:#?}", &vault_path);
+
         vfs::write(vault_path, buffer).await?;
+
+        println!("after write vault file");
         Ok(())
     }
 
@@ -576,6 +634,16 @@ pub trait StorageProvider: Sync + Send {
 #[macro_export]
 macro_rules! provider_impl {
     () => {
+        fn cache(&self) -> &HashMap<VaultId, (EventLogFile, PatchFile)> {
+            &self.cache
+        }
+
+        fn cache_mut(
+            &mut self,
+        ) -> &mut HashMap<VaultId, (EventLogFile, PatchFile)> {
+            &mut self.cache
+        }
+
         fn state(&self) -> &ProviderState {
             &self.state
         }
@@ -602,37 +670,6 @@ macro_rules! provider_impl {
                 .map(|(event_log, _)| event_log.tree())
         }
 
-        fn create_cache_entry(
-            &mut self,
-            summary: &Summary,
-            vault: Option<Vault>,
-        ) -> Result<()> {
-            let patch_path = self.patch_path(summary);
-            let patch_file = PatchFile::new(patch_path)?;
-
-            let event_log_path = self.event_log_path(summary);
-            let mut event_log = EventLogFile::new(&event_log_path)?;
-
-            if let Some(vault) = &vault {
-                let encoded = encode(vault)?;
-                let event = WriteEvent::CreateVault(Cow::Owned(encoded));
-                event_log.append_event(event)?;
-            }
-            event_log.load_tree()?;
-
-            self.cache.insert(*summary.id(), (event_log, patch_file));
-            Ok(())
-        }
-
-        fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
-            // Add to our cache of managed vaults
-            self.create_cache_entry(&summary, None)?;
-
-            // Add to the state of managed vaults
-            self.state_mut().add_summary(summary);
-            Ok(())
-        }
-
         fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
             let current_id = self.current().map(|c| c.id().clone());
 
@@ -650,16 +687,6 @@ macro_rules! provider_impl {
             // Remove from the state of managed vaults
             self.state_mut().remove_summary(summary);
 
-            Ok(())
-        }
-
-        fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
-            for summary in summaries {
-                // Ensure we don't overwrite existing data
-                if self.cache.get(summary.id()).is_none() {
-                    self.create_cache_entry(summary, None)?;
-                }
-            }
             Ok(())
         }
 
