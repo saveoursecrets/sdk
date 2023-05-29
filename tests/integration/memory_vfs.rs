@@ -12,6 +12,7 @@ async fn integration_memory_vfs() -> Result<()> {
     read_to_string().await?;
     metadata().await?;
     file_overwrite().await?;
+    set_len().await?;
 
     write_read().await?;
     remove_file().await?;
@@ -101,44 +102,65 @@ async fn metadata() -> Result<()> {
 }
 
 async fn file_overwrite() -> Result<()> {
-    let path = PathBuf::from("test.txt");
+    let path = "test.txt";
     let one = "one";
     let two = "two";
 
-    vfs::write(&path, one.as_bytes()).await?;
-    let contents = vfs::read_to_string(&path).await?;
+    vfs::write(path, one.as_bytes()).await?;
+    let contents = vfs::read_to_string(path).await?;
     assert_eq!(one, &contents);
 
-    vfs::write(&path, two.as_bytes()).await?;
-    let contents = vfs::read_to_string(&path).await?;
+    vfs::write(path, two.as_bytes()).await?;
+    let contents = vfs::read_to_string(path).await?;
     assert_eq!(two, &contents);
 
-    vfs::remove_file(&path).await?;
+    vfs::remove_file(path).await?;
+
+    Ok(())
+}
+
+async fn set_len() -> Result<()> {
+    let path = "test.txt";
+
+    let mut fd = File::create(path).await?;
+    // Extend length with zeroes
+    fd.set_len(1024).await?;
+
+    let metadata = fd.metadata().await?;
+    assert_eq!(1024, metadata.len());
+
+    // Truncate length
+    fd.set_len(512).await?;
+
+    let metadata = fd.metadata().await?;
+    assert_eq!(512, metadata.len());
+
+    vfs::remove_file(path).await?;
 
     Ok(())
 }
 
 async fn write_read() -> Result<()> {
-    let path = PathBuf::from("test.txt");
+    let path = "test.txt";
     let contents = b"Mock content".to_vec();
-    vfs::write(&path, &contents).await?;
+    vfs::write(path, &contents).await?;
 
-    assert!(vfs::try_exists(&path).await?);
+    assert!(vfs::try_exists(path).await?);
 
-    let file_contents = vfs::read(&path).await?;
+    let file_contents = vfs::read(path).await?;
     assert_eq!(&contents, &file_contents);
 
-    vfs::remove_file(&path).await?;
+    vfs::remove_file(path).await?;
     Ok(())
 }
 
 async fn remove_file() -> Result<()> {
-    let path = PathBuf::from("test.txt");
+    let path = "test.txt";
     let contents = b"Mock content".to_vec();
-    vfs::write(&path, &contents).await?;
+    vfs::write(path, &contents).await?;
 
-    vfs::remove_file(&path).await?;
-    assert!(!vfs::try_exists(&path).await?);
+    vfs::remove_file(path).await?;
+    assert!(!vfs::try_exists(path).await?);
     Ok(())
 }
 

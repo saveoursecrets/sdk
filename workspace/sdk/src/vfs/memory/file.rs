@@ -169,7 +169,7 @@ impl File {
             let extension = if size <= len {
                 None
             } else {
-                let amount = len - size;
+                let amount = size - len;
                 let elements = vec![0; amount as usize];
                 Some(elements)
             };
