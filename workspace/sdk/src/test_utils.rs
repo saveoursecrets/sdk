@@ -136,20 +136,20 @@ mod file {
     }
 
     /// Create a mock event log in a temp file.
-    pub fn mock_event_log_file(
+    pub async fn mock_event_log_file(
     ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>, SecretKey)>
     {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;
-        let mut event_log = EventLogFile::new(temp.path())?;
+        let mut event_log = EventLogFile::new(temp.path()).await?;
 
         let mut commits = Vec::new();
 
         // Create the vault
         let event = WriteEvent::CreateVault(Cow::Owned(buffer));
-        commits.push(event_log.append_event(event)?);
+        commits.push(event_log.append_event(event).await?);
 
         // Create a secret
         let (secret_id, _, _, _, event) = mock_vault_note(
@@ -158,7 +158,7 @@ mod file {
             "event log Note",
             "This a event log note secret.",
         )?;
-        commits.push(event_log.append_event(event)?);
+        commits.push(event_log.append_event(event).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -169,7 +169,7 @@ mod file {
             "This a event log note secret that was edited.",
         )?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event)?);
+            commits.push(event_log.append_event(event).await?);
         }
 
         Ok((temp, event_log, commits, encryption_key))

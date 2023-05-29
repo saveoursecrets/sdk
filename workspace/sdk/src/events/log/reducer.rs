@@ -50,17 +50,20 @@ impl<'a> EventReducer<'a> {
     }
 
     /// Reduce the events in the given iterator.
-    pub fn reduce(mut self, event_log: &'a EventLogFile) -> Result<Self> {
+    pub async fn reduce(
+        mut self,
+        event_log: &'a EventLogFile,
+    ) -> Result<EventReducer<'a>> {
         let mut it = event_log.iter()?;
         if let Some(first) = it.next() {
             let log = first?;
-            let event = event_log.event_data(&log)?;
+            let event = event_log.event_data(&log).await?;
 
             if let WriteEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
                 for record in it {
                     let log = record?;
-                    let event = event_log.event_data(&log)?;
+                    let event = event_log.event_data(&log).await?;
                     match event {
                         WriteEvent::CreateVault(_) => {
                             return Err(Error::CreateEventOnlyFirst)
@@ -171,7 +174,7 @@ mod test {
     use secrecy::ExposeSecret;
     use tempfile::NamedTempFile;
 
-    fn mock_event_log_file() -> Result<(
+    async fn mock_event_log_file() -> Result<(
         NamedTempFile,
         EventLogFile,
         Vec<CommitHash>,
@@ -182,18 +185,18 @@ mod test {
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;
-        let mut event_log = EventLogFile::new(temp.path())?;
+        let mut event_log = EventLogFile::new(temp.path()).await?;
 
         let mut commits = Vec::new();
 
         // Create the vault
         let event = WriteEvent::CreateVault(Cow::Owned(buffer));
-        commits.push(event_log.append_event(event)?);
+        commits.push(event_log.append_event(event).await?);
 
         // Create a secret
         let (secret_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
-        commits.push(event_log.append_event(event)?);
+        commits.push(event_log.append_event(event).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -204,30 +207,30 @@ mod test {
             "qux",
         )?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event)?);
+            commits.push(event_log.append_event(event).await?);
         }
 
         // Create another secret
         let (del_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "qux", "baz")?;
-        commits.push(event_log.append_event(event)?);
+        commits.push(event_log.append_event(event).await?);
 
         let event = vault.delete(&del_id)?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event)?);
+            commits.push(event_log.append_event(event).await?);
         }
 
         Ok((temp, event_log, commits, encryption_key, secret_id))
     }
 
-    #[test]
-    fn event_log_reduce_build() -> Result<()> {
+    #[tokio::test]
+    async fn event_log_reduce_build() -> Result<()> {
         let (temp, event_log, _, encryption_key, secret_id) =
-            mock_event_log_file()?;
+            mock_event_log_file().await?;
 
         assert_eq!(5, event_log.tree().len());
 
-        let vault = EventReducer::new().reduce(&event_log)?.build()?;
+        let vault = EventReducer::new().reduce(&event_log).await?.build()?;
 
         assert_eq!(1, vault.len());
 
@@ -255,28 +258,30 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn event_log_reduce_compact() -> Result<()> {
+    #[tokio::test]
+    async fn event_log_reduce_compact() -> Result<()> {
         let (_temp, event_log, _, _encryption_key, _secret_id) =
-            mock_event_log_file()?;
+            mock_event_log_file().await?;
 
         assert_eq!(5, event_log.tree().len());
 
         // Get a vault so we can assert on the compaction result
-        let vault = EventReducer::new().reduce(&event_log)?.build()?;
+        let vault = EventReducer::new().reduce(&event_log).await?.build()?;
 
         // Get the compacted series of events
-        let events = EventReducer::new().reduce(&event_log)?.compact()?;
+        let events =
+            EventReducer::new().reduce(&event_log).await?.compact()?;
 
         assert_eq!(2, events.len());
 
         let compact_temp = NamedTempFile::new()?;
-        let mut compact = EventLogFile::new(compact_temp.path())?;
+        let mut compact = EventLogFile::new(compact_temp.path()).await?;
         for event in events {
-            compact.append_event(event)?;
+            compact.append_event(event).await?;
         }
 
-        let compact_vault = EventReducer::new().reduce(&compact)?.build()?;
+        let compact_vault =
+            EventReducer::new().reduce(&compact).await?.build()?;
         assert_eq!(vault, compact_vault);
 
         Ok(())

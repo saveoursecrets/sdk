@@ -529,8 +529,8 @@ impl AccountBackup {
                 let create_vault =
                     WriteEvent::CreateVault(Cow::Borrowed(buffer));
                 event_log_events.push(create_vault);
-                let mut event_log = EventLogFile::new(event_log_path)?;
-                event_log.apply(event_log_events, None)?;
+                let mut event_log = EventLogFile::new(event_log_path).await?;
+                event_log.apply(event_log_events, None).await?;
             }
 
             let account = AccountInfo::new(label, restore_targets.address);

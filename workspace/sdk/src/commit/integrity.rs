@@ -84,7 +84,7 @@ where
     let mut file = vfs::File::open(event_log_file.as_ref()).await?;
     let mut reader = BinaryReader::new(&mut file, Endian::Little);
 
-    let event_log = EventLogFile::new(event_log_file.as_ref())?;
+    let event_log = EventLogFile::new(event_log_file.as_ref()).await?;
     let it = event_log.iter()?;
     let mut last_checksum: Option<[u8; 32]> = None;
 
@@ -116,7 +116,7 @@ where
                 });
             }
 
-            let buffer = event_log.read_buffer(&record)?;
+            let buffer = event_log.read_buffer(&record).await?;
             last_checksum = Some(CommitTree::hash(&buffer));
         }
 
@@ -173,7 +173,7 @@ mod test {
 
     #[tokio::test]
     async fn integrity_event_log() -> Result<()> {
-        let (temp, _, _, _) = mock_event_log_file()?;
+        let (temp, _, _, _) = mock_event_log_file().await?;
         let commit_tree =
             event_log_commit_tree_file(temp.path(), true, |_| {}).await?;
         assert!(commit_tree.root().is_some());

@@ -78,7 +78,7 @@ mod test {
         Ok((id, Cow::Owned(result)))
     }
 
-    fn mock_event_log_standalone() -> Result<(EventLogFile, SecretId)> {
+    async fn mock_event_log_standalone() -> Result<(EventLogFile, SecretId)> {
         let path = PathBuf::from(MOCK_LOG);
         if path.exists() {
             std::fs::remove_file(&path)?;
@@ -91,19 +91,21 @@ mod test {
         let (id, data) = mock_secret()?;
 
         // Create a simple event log
-        let mut server = EventLogFile::new(path)?;
-        server.apply(
-            vec![
-                WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
-                WriteEvent::CreateSecret(id, data),
-            ],
-            None,
-        )?;
+        let mut server = EventLogFile::new(path).await?;
+        server
+            .apply(
+                vec![
+                    WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
+                    WriteEvent::CreateSecret(id, data),
+                ],
+                None,
+            )
+            .await?;
 
         Ok((server, id))
     }
 
-    fn mock_event_log_server_client(
+    async fn mock_event_log_server_client(
     ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
         let server_file =
             PathBuf::from("target/mock-event-log-server.event_log");
@@ -122,21 +124,23 @@ mod test {
         let (id, data) = mock_secret()?;
 
         // Create a simple event log
-        let mut server = EventLogFile::new(&server_file)?;
-        server.apply(
-            vec![
-                WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
-                WriteEvent::CreateSecret(id, data),
-            ],
-            None,
-        )?;
+        let mut server = EventLogFile::new(&server_file).await?;
+        server
+            .apply(
+                vec![
+                    WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
+                    WriteEvent::CreateSecret(id, data),
+                ],
+                None,
+            )
+            .await?;
 
         // Duplicate the server events on the client
-        let mut client = EventLogFile::new(&client_file)?;
+        let mut client = EventLogFile::new(&client_file).await?;
         for record in server.iter()? {
             let record = record?;
-            let event = server.event_data(&record)?;
-            client.append_event(event)?;
+            let event = server.event_data(&record).await?;
+            client.append_event(event).await?;
         }
 
         let proof = client.tree().head()?;
@@ -150,10 +154,10 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn event_log_compare() -> Result<()> {
-        let (mut server, client, id) = mock_event_log_server_client()?;
+        let (mut server, client, id) = mock_event_log_server_client().await?;
 
         // Add another event to the server from another client.
-        server.append_event(WriteEvent::DeleteSecret(id))?;
+        server.append_event(WriteEvent::DeleteSecret(id)).await?;
 
         // Check that the server contains the client proof
         let proof = client.tree().head()?;
@@ -175,7 +179,7 @@ mod test {
         //
         // This can happen if a client compacts its event log which would create
         // a new commit tree.
-        let (standalone, _) = mock_event_log_standalone()?;
+        let (standalone, _) = mock_event_log_standalone().await?;
         let proof = standalone.tree().head()?;
         let comparison = server.tree().compare(&proof)?;
         assert_eq!(Comparison::Unknown, comparison);
@@ -192,10 +196,10 @@ mod test {
             std::fs::remove_file(&partial)?;
         }
 
-        let (mut server, client, id) = mock_event_log_server_client()?;
+        let (mut server, client, id) = mock_event_log_server_client().await?;
 
         // Add another event to the server from another client.
-        server.append_event(WriteEvent::DeleteSecret(id))?;
+        server.append_event(WriteEvent::DeleteSecret(id)).await?;
 
         // Get the last record for our assertion
         let record = server.iter()?.next_back().unwrap()?;
@@ -207,8 +211,8 @@ mod test {
         if let Comparison::Contains(indices, leaves) = comparison {
             assert_eq!(vec![1], indices);
             let leaf = leaves.first().unwrap();
-            if let Some(buffer) = server.diff(*leaf)? {
-                let mut partial_log = EventLogFile::new(&partial)?;
+            if let Some(buffer) = server.diff(*leaf).await? {
+                let mut partial_log = EventLogFile::new(&partial).await?;
                 partial_log.write_buffer(&buffer).await?;
                 let records: Vec<_> = partial_log.iter()?.collect();
                 assert_eq!(1, records.len());
@@ -228,15 +232,16 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn event_log_file_load() -> Result<()> {
-        mock_event_log_standalone()?;
+    #[tokio::test]
+    #[serial]
+    async fn event_log_file_load() -> Result<()> {
+        mock_event_log_standalone().await?;
         let path = PathBuf::from(MOCK_LOG);
-        let event_log = EventLogFile::new(path)?;
+        let event_log = EventLogFile::new(path).await?;
         let it = event_log.iter()?;
         for record in it {
             let record = record?;
-            let _event = event_log.event_data(&record)?;
+            let _event = event_log.event_data(&record).await?;
         }
 
         Ok(())

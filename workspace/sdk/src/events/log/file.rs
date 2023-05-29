@@ -21,14 +21,16 @@ use crate::{
     events::WriteEvent,
     formats::{event_log_iter, EventLogFileRecord, FileItem},
     timestamp::Timestamp,
-    vfs, Error, Result,
+    vfs::{self, File, OpenOptions},
+    Error, Result,
 };
 
 use std::{
-    fs::{File, OpenOptions},
     io::{Cursor, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
+
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use binary_stream::{BinaryReader, Decode, Endian};
 use tempfile::NamedTempFile;
@@ -44,8 +46,8 @@ pub struct EventLogFile {
 
 impl EventLogFile {
     /// Create a new log file.
-    pub fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let file = EventLogFile::create(file_path.as_ref())?;
+    pub async fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        let file = EventLogFile::create(file_path.as_ref()).await?;
         Ok(Self {
             file,
             file_path: file_path.as_ref().to_path_buf(),
@@ -54,26 +56,22 @@ impl EventLogFile {
     }
 
     /// Create the write ahead log file.
-    fn create<P: AsRef<Path>>(path: P) -> Result<File> {
-        let exists = path.as_ref().exists();
-
-        if !exists {
-            File::create(path.as_ref())?;
-        }
-
+    async fn create<P: AsRef<Path>>(path: P) -> Result<File> {
         let mut file = OpenOptions::new()
+            .create(true)
             .write(true)
             .append(true)
-            .open(path.as_ref())?;
+            .open(path.as_ref())
+            .await?;
 
-        let size = file.metadata()?.len();
+        let size = file.metadata().await?.len();
         if size == 0 {
-            file.write_all(&EVENT_LOG_IDENTITY)?;
+            file.write_all(&EVENT_LOG_IDENTITY).await?;
         }
         Ok(file)
     }
 
-    fn encode_event(
+    async fn encode_event(
         &self,
         event: WriteEvent<'_>,
         last_commit: Option<CommitHash>,
@@ -85,7 +83,7 @@ impl EventLogFile {
         let last_commit = if let Some(last_commit) = last_commit {
             last_commit
         } else {
-            self.last_commit()?.unwrap_or(CommitHash([0u8; 32]))
+            self.last_commit().await?.unwrap_or(CommitHash([0u8; 32]))
         };
 
         let record = EventRecord(time, last_commit, commit, bytes);
@@ -97,21 +95,21 @@ impl EventLogFile {
         let old_size = self.path().metadata()?.len();
 
         // Get the reduced set of events
-        let events = EventReducer::new().reduce(self)?.compact()?;
+        let events = EventReducer::new().reduce(self).await?.compact()?;
         let temp = NamedTempFile::new()?;
 
         // Apply them to a temporary event log file
-        let mut temp_event_log = EventLogFile::new(temp.path())?;
-        temp_event_log.apply(events, None)?;
+        let mut temp_event_log = EventLogFile::new(temp.path()).await?;
+        temp_event_log.apply(events, None).await?;
 
-        let new_size = temp_event_log.path().metadata()?.len();
+        let new_size = temp_event_log.file().metadata().await?.len();
 
         // Remove the existing event log file
         vfs::remove_file(self.path()).await?;
         // Move the temp file into place
         vfs::rename(temp.path(), self.path()).await?;
 
-        let mut new_event_log = Self::new(self.path())?;
+        let mut new_event_log = Self::new(self.path()).await?;
         new_event_log.load_tree()?;
 
         // Verify the new event log tree
@@ -135,15 +133,17 @@ impl EventLogFile {
     /// Append the buffer to the contents of this event log.
     ///
     /// The buffer should start with the event log identity bytes.
-    pub fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
+    pub async fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
         // Get buffer of log records after the identity bytes
         let buffer = &buffer[EVENT_LOG_IDENTITY.len()..];
 
         let mut file = OpenOptions::new()
             .write(true)
             .append(true)
-            .open(self.path())?;
-        file.write_all(buffer)?;
+            .open(self.path())
+            .await?;
+        file.write_all(buffer).await?;
+        file.flush().await?;
 
         // FIXME: don't rebuild the entire commit tree from scratch
         // FIXME: but iterate the new commits in the buffer and
@@ -156,16 +156,16 @@ impl EventLogFile {
     }
 
     /// Get the tail after the given item until the end of the log.
-    pub fn tail(&self, item: EventLogFileRecord) -> Result<Vec<u8>> {
+    pub async fn tail(&self, item: EventLogFileRecord) -> Result<Vec<u8>> {
         let mut partial = EVENT_LOG_IDENTITY.to_vec();
         let start = item.offset().end as usize;
-        let mut file = File::open(&self.file_path)?;
-        let end = file.metadata()?.len() as usize;
+        let mut file = File::open(&self.file_path).await?;
+        let end = file.metadata().await?.len() as usize;
 
         if start < end {
-            file.seek(SeekFrom::Start(start as u64))?;
+            file.seek(SeekFrom::Start(start as u64)).await?;
             let mut buffer = vec![0; end - start];
-            file.read_exact(buffer.as_mut_slice())?;
+            file.read_exact(buffer.as_mut_slice()).await?;
             partial.append(&mut buffer);
             Ok(partial)
         } else {
@@ -174,18 +174,18 @@ impl EventLogFile {
     }
 
     /// Read or encode the bytes for the item.
-    pub fn read_buffer(
+    pub async fn read_buffer(
         &self,
         record: &EventLogFileRecord,
     ) -> Result<Vec<u8>> {
-        let mut file = File::open(&self.file_path)?;
+        let mut file = File::open(&self.file_path).await?;
         let offset = record.offset();
         let row_len = offset.end - offset.start;
 
-        file.seek(SeekFrom::Start(offset.start))?;
+        file.seek(SeekFrom::Start(offset.start)).await?;
 
         let mut buf = vec![0u8; row_len as usize];
-        file.read_exact(&mut buf)?;
+        file.read_exact(&mut buf).await?;
 
         Ok(buf)
     }
@@ -193,6 +193,11 @@ impl EventLogFile {
     /// Get the path for this provider.
     pub fn path(&self) -> &PathBuf {
         &self.file_path
+    }
+
+    /// Get the file for this provider.
+    pub fn file(&self) -> &File {
+        &self.file
     }
 
     /// Get the commit tree for the log records.
@@ -205,7 +210,7 @@ impl EventLogFile {
     ///
     /// If any events fail this function will rollback the
     /// event log to it's previous state.
-    pub fn apply(
+    pub async fn apply(
         &mut self,
         events: Vec<WriteEvent<'_>>,
         expect: Option<CommitHash>,
@@ -215,7 +220,7 @@ impl EventLogFile {
         let mut last_commit_hash = None;
         for event in events {
             let (commit, record) =
-                self.encode_event(event, last_commit_hash)?;
+                self.encode_event(event, last_commit_hash).await?;
             commits.push(commit);
             let mut buf = encode(&record)?;
             last_commit_hash = Some(CommitHash(CommitTree::hash(&buf)));
@@ -225,9 +230,9 @@ impl EventLogFile {
         let mut hashes =
             commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
 
-        let len = self.file_path.metadata()?.len();
+        let len = self.file.metadata().await?.len();
 
-        match self.file.write_all(&buffer) {
+        match self.file.write_all(&buffer).await {
             Ok(_) => {
                 self.tree.append(&mut hashes);
                 self.tree.commit();
@@ -243,7 +248,7 @@ impl EventLogFile {
                             length = len,
                             "event log rollback on expected root hash mismatch"
                         );
-                        self.file.set_len(len)?;
+                        self.file.set_len(len).await?;
                         self.tree.rollback();
                     }
                 }
@@ -258,7 +263,7 @@ impl EventLogFile {
                 // In case of partial write attempt to truncate
                 // to the previous file length restoring to the
                 // previous state of the event log log
-                self.file.set_len(len)?;
+                self.file.set_len(len).await?;
                 Err(Error::from(e))
             }
         }
@@ -266,20 +271,20 @@ impl EventLogFile {
 
     /// Append a log event to the write ahead log and commit
     /// the hash to the commit tree.
-    pub fn append_event(
+    pub async fn append_event(
         &mut self,
         event: WriteEvent<'_>,
     ) -> Result<CommitHash> {
-        let (commit, record) = self.encode_event(event, None)?;
+        let (commit, record) = self.encode_event(event, None).await?;
         let buffer = encode(&record)?;
-        self.file.write_all(&buffer)?;
+        self.file.write_all(&buffer).await?;
         self.tree.insert(*commit.as_ref());
         self.tree.commit();
         Ok(commit)
     }
 
     /// Read the event data from an item.
-    pub fn event_data(
+    pub async fn event_data(
         &self,
         item: &EventLogFileRecord,
     ) -> Result<WriteEvent<'_>> {
@@ -287,11 +292,11 @@ impl EventLogFile {
 
         // Use a different file handle as the owned `file` should
         // be used exclusively for appending
-        let mut file = File::open(&self.file_path)?;
+        let mut file = File::open(&self.file_path).await?;
 
-        file.seek(SeekFrom::Start(value.start))?;
+        file.seek(SeekFrom::Start(value.start)).await?;
         let mut buffer = vec![0; (value.end - value.start) as usize];
-        file.read_exact(buffer.as_mut_slice())?;
+        file.read_exact(buffer.as_mut_slice()).await?;
 
         println!("decoding event: {}", buffer.len());
 
@@ -318,9 +323,9 @@ impl EventLogFile {
     }
 
     /// Clear all events from this log file.
-    pub fn clear(&mut self) -> Result<()> {
-        self.file = File::create(&self.file_path)?;
-        self.file.write_all(&EVENT_LOG_IDENTITY)?;
+    pub async fn clear(&mut self) -> Result<()> {
+        self.file = File::create(&self.file_path).await?;
+        self.file.write_all(&EVENT_LOG_IDENTITY).await?;
         self.tree = CommitTree::new();
         Ok(())
     }
@@ -339,11 +344,11 @@ impl EventLogFile {
     }
 
     /// Get the last commit hash.
-    pub fn last_commit(&self) -> Result<Option<CommitHash>> {
+    pub async fn last_commit(&self) -> Result<Option<CommitHash>> {
         let mut it = self.iter()?;
         if let Some(record) = it.next_back() {
             let record = record?;
-            let buffer = self.read_buffer(&record)?;
+            let buffer = self.read_buffer(&record).await?;
             let last_record_hash = CommitTree::hash(&buffer);
             Ok(Some(CommitHash(last_record_hash)))
         } else {
@@ -353,12 +358,12 @@ impl EventLogFile {
 
     /// Get a diff of the records after the record with the
     /// given commit hash.
-    pub fn diff(&self, commit: [u8; 32]) -> Result<Option<Vec<u8>>> {
+    pub async fn diff(&self, commit: [u8; 32]) -> Result<Option<Vec<u8>>> {
         let it = self.iter()?.rev();
         for record in it {
             let record = record?;
             if record.commit() == commit {
-                return Ok(Some(self.tail(record)?));
+                return Ok(Some(self.tail(record).await?));
             }
         }
         Ok(None)
@@ -374,19 +379,19 @@ mod test {
     use super::*;
     use crate::{events::WriteEvent, test_utils::*};
 
-    fn mock_event_log_file(
+    async fn mock_event_log_file(
     ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>)> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file()?;
 
         let temp = NamedTempFile::new()?;
-        let mut event_log = EventLogFile::new(temp.path())?;
+        let mut event_log = EventLogFile::new(temp.path()).await?;
 
         let mut commits = Vec::new();
 
         // Create the vault
         let event = WriteEvent::CreateVault(Cow::Owned(buffer));
-        commits.push(event_log.append_event(event)?);
+        commits.push(event_log.append_event(event).await?);
 
         // Create a secret
         let (secret_id, _, _, _, event) = mock_vault_note(
@@ -395,7 +400,7 @@ mod test {
             "event log Note",
             "This a event log note secret.",
         )?;
-        commits.push(event_log.append_event(event)?);
+        commits.push(event_log.append_event(event).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -406,15 +411,15 @@ mod test {
             "This a event log note secret that was edited.",
         )?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event)?);
+            commits.push(event_log.append_event(event).await?);
         }
 
         Ok((temp, event_log, commits))
     }
 
-    #[test]
-    fn event_log_iter_forward() -> Result<()> {
-        let (temp, event_log, commits) = mock_event_log_file()?;
+    #[tokio::test]
+    async fn event_log_iter_forward() -> Result<()> {
+        let (temp, event_log, commits) = mock_event_log_file().await?;
         let mut it = event_log.iter()?;
         let first_row = it.next().unwrap()?;
         let second_row = it.next().unwrap()?;
@@ -429,9 +434,9 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn event_log_iter_backward() -> Result<()> {
-        let (temp, event_log, _) = mock_event_log_file()?;
+    #[tokio::test]
+    async fn event_log_iter_backward() -> Result<()> {
+        let (temp, event_log, _) = mock_event_log_file().await?;
         let mut it = event_log.iter()?;
         let _third_row = it.next_back().unwrap();
         let _second_row = it.next_back().unwrap();
@@ -441,9 +446,9 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn event_log_iter_mixed() -> Result<()> {
-        let (temp, event_log, _) = mock_event_log_file()?;
+    #[tokio::test]
+    async fn event_log_iter_mixed() -> Result<()> {
+        let (temp, event_log, _) = mock_event_log_file().await?;
         let mut it = event_log.iter()?;
         let _first_row = it.next().unwrap();
         let _third_row = it.next_back().unwrap();
