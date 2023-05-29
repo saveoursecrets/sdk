@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use std::ffi::OsString;
 
-use sos_sdk::vfs::{self, File, FileType, OpenOptions, PathBuf};
+use sos_sdk::vfs::{self, File, FileType, OpenOptions, PathBuf, Permissions};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[tokio::test]
@@ -15,6 +15,7 @@ async fn integration_memory_vfs() -> Result<()> {
     set_len().await?;
     absolute_file_write().await?;
     copy_file().await?;
+    set_permissions().await?;
 
     write_read().await?;
     remove_file().await?;
@@ -177,6 +178,23 @@ async fn copy_file() -> Result<()> {
 
     vfs::remove_file(from).await?;
     vfs::remove_file(to).await?;
+
+    Ok(())
+}
+
+async fn set_permissions() -> Result<()> {
+    let path = "test.txt";
+
+    vfs::write(path, "mock").await?;
+    assert!(vfs::try_exists(path).await?);
+
+    let mut perm: Permissions = Default::default();
+    perm.set_readonly(true);
+
+    vfs::set_permissions(path, perm).await?;
+    assert!(vfs::metadata(path).await?.permissions().readonly());
+
+    vfs::remove_file(path).await?;
 
     Ok(())
 }
