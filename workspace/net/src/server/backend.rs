@@ -260,7 +260,8 @@ impl FileSystemBackend {
                                     let id = *summary.id();
 
                                     let mut event_log_file =
-                                        EventLogFile::new(&event_log_path)?;
+                                        EventLogFile::new(&event_log_path)
+                                            .await?;
                                     event_log_file.load_tree()?;
 
                                     // Store these file paths so locks
@@ -304,12 +305,12 @@ impl FileSystemBackend {
         // list summaries
         let mut vault_path = event_log_path.clone();
         vault_path.set_extension(VAULT_EXT);
-        tokio::fs::write(&vault_path, vault).await?;
+        vfs::write(&vault_path, vault).await?;
 
         // Create the event log file
-        let mut event_log = EventLogFile::new(&event_log_path)?;
+        let mut event_log = EventLogFile::new(&event_log_path).await?;
         let event = WriteEvent::CreateVault(Cow::Borrowed(vault));
-        event_log.append_event(event)?;
+        event_log.append_event(event).await?;
 
         self.locks.add(&vault_path)?;
         self.locks.add(&event_log_path)?;
@@ -504,8 +505,8 @@ impl BackendHandler for FileSystemBackend {
 
         // Prepare a temp file with the new event log records
         let temp = NamedTempFile::new()?;
-        let mut temp_event_log = EventLogFile::new(temp.path())?;
-        temp_event_log.apply(events, None)?;
+        let mut temp_event_log = EventLogFile::new(temp.path()).await?;
+        temp_event_log.apply(events, None).await?;
 
         let expected_root = temp_event_log
             .tree()
@@ -624,7 +625,7 @@ impl BackendHandler for FileSystemBackend {
         vfs::rename(&temp_path, &original_event_log).await?;
 
         let event_log = self.event_log_write(owner, vault_id).await?;
-        *event_log = EventLogFile::new(&original_event_log)?;
+        *event_log = EventLogFile::new(&original_event_log).await?;
         event_log.load_tree()?;
 
         let new_tree_root = event_log

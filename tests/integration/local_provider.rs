@@ -110,7 +110,7 @@ async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
     // one for vault creation and one for the
     // remaining secret
     commit_count!(storage, &summary, 2);
-    let history = storage.history(&summary)?;
+    let history = storage.history(&summary).await?;
     assert_eq!(2, history.len());
 
     Ok(())

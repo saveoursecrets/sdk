@@ -128,7 +128,7 @@ async fn integration_simple_session() -> Result<()> {
     assert!(node_cache.commit_tree(&new_vault_summary).is_some());
 
     // Check the event log history has the right length
-    let history = node_cache.history(&new_vault_summary)?;
+    let history = node_cache.history(&new_vault_summary).await?;
     assert_eq!(4, history.len());
 
     // Check the vault status

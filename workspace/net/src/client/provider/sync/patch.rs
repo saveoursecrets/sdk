@@ -62,7 +62,8 @@ pub(crate) async fn apply_patch(
             // Pass the expected root hash so changes are reverted
             // if the root hashes do not match
             event_log_file
-                .apply(changes, Some(CommitHash(server_proof.root)))?;
+                .apply(changes, Some(CommitHash(server_proof.root)))
+                .await?;
 
             patch_file.truncate()?;
 

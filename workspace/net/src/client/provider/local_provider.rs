@@ -159,8 +159,8 @@ impl StorageProvider for LocalProvider {
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        event_log.clear()?;
-        event_log.apply(events, None)?;
+        event_log.clear().await?;
+        event_log.apply(events, None).await?;
 
         Ok(())
     }
@@ -206,14 +206,14 @@ impl StorageProvider for LocalProvider {
         Ok((old_size, new_size))
     }
 
-    fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
+    async fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
         let event_log_file = self
             .cache
             .get_mut(summary.id())
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        Ok(EventReducer::new().reduce(event_log_file)?.build()?)
+        Ok(EventReducer::new().reduce(event_log_file).await?.build()?)
     }
 
     async fn remove_vault(
@@ -261,7 +261,7 @@ impl StorageProvider for LocalProvider {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         // Apply events to the event log file
-        event_log.apply(events, None)?;
+        event_log.apply(events, None).await?;
 
         Ok(())
     }

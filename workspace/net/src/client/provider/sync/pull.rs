@@ -113,7 +113,7 @@ pub async fn pull_event_log(
                     FileIdentity::read_slice(&buffer, &EVENT_LOG_IDENTITY)?;
 
                     // Append the diff bytes
-                    event_log_file.append_buffer(buffer)?;
+                    event_log_file.append_buffer(buffer).await?;
 
                     event_log_file.tree().head()?
                 }
@@ -170,7 +170,7 @@ pub async fn force_pull(
 ) -> Result<CommitProof> {
     // Need to recreate the event log file correctly before pulling
     // as pull_event_log() expects the file to exist
-    *event_log_file = EventLogFile::new(event_log_file.path())?;
+    *event_log_file = EventLogFile::new(event_log_file.path()).await?;
     event_log_file.load_tree()?;
 
     // Pull the remote event log

@@ -331,7 +331,8 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                         .storage
                         .current()
                         .ok_or(Error::NoVaultSelected)?;
-                    let records = reader.storage.history(keeper.summary())?;
+                    let records =
+                        reader.storage.history(keeper.summary()).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if verbose {

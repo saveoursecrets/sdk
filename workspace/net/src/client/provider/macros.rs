@@ -102,7 +102,7 @@ macro_rules! patch {
                         // so if reflects the pulled changes
                         // with our patch applied over the top
                         let updated_vault =
-                            $provider.reduce_event_log($summary)?;
+                            $provider.reduce_event_log($summary).await?;
 
                         if let Some(keeper) = $provider.current_mut() {
                             if keeper.id() == $summary.id() {

@@ -227,12 +227,6 @@ pub trait StorageProvider: Sync + Send {
         self.state_mut().current_mut()
     }
 
-    /// Get the history of events for a vault.
-    fn history(
-        &self,
-        summary: &Summary,
-    ) -> Result<Vec<(CommitHash, Timestamp, WriteEvent<'_>)>>;
-
     /// Update an existing vault by replacing it with a new vault.
     async fn update_vault<'a>(
         &mut self,
@@ -251,7 +245,7 @@ pub trait StorageProvider: Sync + Send {
         summary: &Summary,
         new_passphrase: Option<&SecretString>,
     ) -> Result<()> {
-        let vault = self.reduce_event_log(summary)?;
+        let vault = self.reduce_event_log(summary).await?;
 
         // Rewrite the on-disc version if we are mirroring
         if self.state().mirror() {
@@ -349,7 +343,7 @@ pub trait StorageProvider: Sync + Send {
         let vault_path = self.vault_path(summary);
         let vault = if self.state().mirror() {
             if !vault_path.exists() {
-                let vault = self.reduce_event_log(summary)?;
+                let vault = self.reduce_event_log(summary).await?;
                 let buffer = encode(&vault)?;
                 self.write_vault_file(summary, &buffer).await?;
                 vault
@@ -359,7 +353,7 @@ pub trait StorageProvider: Sync + Send {
                 vault
             }
         } else {
-            self.reduce_event_log(summary)?
+            self.reduce_event_log(summary).await?
         };
 
         self.state_mut()
@@ -370,7 +364,7 @@ pub trait StorageProvider: Sync + Send {
     /// Load a vault by reducing it from the event log stored on disc.
     ///
     /// Remote providers may pull changes beforehand.
-    fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault>;
+    async fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault>;
 
     /// Apply changes to a vault.
     async fn patch(
@@ -407,12 +401,12 @@ pub trait StorageProvider: Sync + Send {
         let patch_file = PatchFile::new(patch_path)?;
 
         let event_log_path = self.event_log_path(summary);
-        let mut event_log = EventLogFile::new(&event_log_path)?;
+        let mut event_log = EventLogFile::new(&event_log_path).await?;
 
         if let Some(vault) = &vault {
             let encoded = encode(vault)?;
             let event = WriteEvent::CreateVault(Cow::Owned(encoded));
-            event_log.append_event(event)?;
+            event_log.append_event(event).await?;
         }
         event_log.load_tree()?;
 
@@ -521,12 +515,7 @@ pub trait StorageProvider: Sync + Send {
         buffer: &[u8],
     ) -> Result<()> {
         let vault_path = self.vault_path(&summary);
-
-        println!("write vault file {:#?}", &vault_path);
-
         vfs::write(vault_path, buffer).await?;
-
-        println!("after write vault file");
         Ok(())
     }
 
@@ -627,6 +616,26 @@ pub trait StorageProvider: Sync + Send {
         event_log_commit_tree_file(&event_log_path, true, |_| {}).await?;
         Ok(())
     }
+
+    /// Get the history of events for a vault.
+    async fn history(
+        &self,
+        summary: &Summary,
+    ) -> Result<Vec<(CommitHash, Timestamp, WriteEvent<'_>)>> {
+        let (event_log, _) = self
+            .cache()
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let mut records = Vec::new();
+        for record in event_log.iter()? {
+            let record = record?;
+            let event = event_log.event_data(&record).await?;
+            let commit = CommitHash(record.commit());
+            let time = record.time().clone();
+            records.push((commit, time, event));
+        }
+        Ok(records)
+    }
 }
 
 /// Shared provider implementation.
@@ -688,25 +697,6 @@ macro_rules! provider_impl {
             self.state_mut().remove_summary(summary);
 
             Ok(())
-        }
-
-        fn history(
-            &self,
-            summary: &Summary,
-        ) -> Result<Vec<(CommitHash, Timestamp, WriteEvent<'_>)>> {
-            let (event_log, _) = self
-                .cache
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            let mut records = Vec::new();
-            for record in event_log.iter()? {
-                let record = record?;
-                let event = event_log.event_data(&record)?;
-                let commit = CommitHash(record.commit());
-                let time = record.time().clone();
-                records.push((commit, time, event));
-            }
-            Ok(records)
         }
     };
 }

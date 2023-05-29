@@ -328,20 +328,22 @@ impl StorageProvider for RemoteProvider {
         let server_proof = server_proof.ok_or(Error::ServerProof)?;
 
         // Apply the new event log events to our local event log log
-        event_log.clear()?;
-        event_log.apply(events, Some(CommitHash(*server_proof.root())))?;
+        event_log.clear().await?;
+        event_log
+            .apply(events, Some(CommitHash(*server_proof.root())))
+            .await?;
 
         Ok(())
     }
 
-    fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
+    async fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
         let event_log_file = self
             .cache
             .get_mut(summary.id())
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        Ok(EventReducer::new().reduce(event_log_file)?.build()?)
+        Ok(EventReducer::new().reduce(event_log_file).await?.build()?)
     }
 
     async fn pull(

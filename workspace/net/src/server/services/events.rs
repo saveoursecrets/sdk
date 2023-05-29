@@ -102,8 +102,10 @@ impl Service for EventLogService {
                         Comparison::Contains(_, mut leaves) => {
                             if leaves.len() == 1 {
                                 let leaf = leaves.remove(0);
-                                if let Some(partial) =
-                                    event_log.diff(leaf).map_err(Box::from)?
+                                if let Some(partial) = event_log
+                                    .diff(leaf)
+                                    .await
+                                    .map_err(Box::from)?
                                 {
                                     Ok((StatusCode::OK, partial))
                                 // Could not find a record corresponding
@@ -280,6 +282,7 @@ impl Service for EventLogService {
                             // Apply the change set of event log events to the log
                             let commits = event_log
                                 .apply(changes, None)
+                                .await
                                 .map_err(Box::from)?;
 
                             // Get a new commit proof for the last leaf hash
