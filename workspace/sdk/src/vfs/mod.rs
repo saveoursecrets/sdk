@@ -28,9 +28,6 @@
 //! This functionality is not supported yet but we hope to
 //! implement in the future.
 //!
-//! The `canonicalize()` function and path traversal using
-//! `..` and '.' are not supported yet.
-//!
 //! The `readonly` flag on permissions is not supported yet.
 //!
 //! Symbolic links are not supported yet which means the `hard_link()`,
