@@ -1,6 +1,6 @@
-//! Write ahead log file.
+//! Event log file.
 //!
-//! event log files consist of a 4 identity bytes followed by one or more
+//! Event logd consist of a 4 identity bytes followed by one or more
 //! rows of log records.
 //!
 //! Each row contains the row length prepended and appended so that
@@ -37,7 +37,7 @@ use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
 
-/// A write ahead log that appends to a file.
+/// An event log that appends to a file.
 pub struct EventLogFile {
     file_path: PathBuf,
     file: File,
@@ -67,6 +67,7 @@ impl EventLogFile {
         let size = file.metadata().await?.len();
         if size == 0 {
             file.write_all(&EVENT_LOG_IDENTITY).await?;
+            file.flush().await?;
         }
         Ok(file)
     }
@@ -253,6 +254,8 @@ impl EventLogFile {
                     }
                 }
 
+                self.file.flush().await?;
+
                 Ok(commits)
             }
             Err(e) => {
@@ -269,8 +272,7 @@ impl EventLogFile {
         }
     }
 
-    /// Append a log event to the write ahead log and commit
-    /// the hash to the commit tree.
+    /// Append a log event and commit the hash to the commit tree.
     pub async fn append_event(
         &mut self,
         event: WriteEvent<'_>,
@@ -278,6 +280,7 @@ impl EventLogFile {
         let (commit, record) = self.encode_event(event, None).await?;
         let buffer = encode(&record)?;
         self.file.write_all(&buffer).await?;
+        self.file.flush().await?;
         self.tree.insert(*commit.as_ref());
         self.tree.commit();
         Ok(commit)
@@ -297,8 +300,6 @@ impl EventLogFile {
         file.seek(SeekFrom::Start(value.start)).await?;
         let mut buffer = vec![0; (value.end - value.start) as usize];
         file.read_exact(buffer.as_mut_slice()).await?;
-
-        println!("decoding event: {}", buffer.len());
 
         let mut stream = Cursor::new(&mut buffer);
         let mut reader = BinaryReader::new(&mut stream, Endian::Little);
