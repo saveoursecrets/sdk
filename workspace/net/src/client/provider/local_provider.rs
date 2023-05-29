@@ -124,12 +124,8 @@ impl StorageProvider for LocalProvider {
         // Add the summary to the vaults we are managing
         self.state_mut().add_summary(summary.clone());
 
-        println!("creating cache entry...");
-
         // Initialize the local cache for event log
         self.create_cache_entry(&summary, Some(vault)).await?;
-
-        println!("finished creating cache entry...");
 
         Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
     }

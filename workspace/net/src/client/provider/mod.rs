@@ -112,11 +112,8 @@ pub trait StorageProvider: Sync + Send {
     ) -> Result<ImportedAccount> {
         // Save the default vault
         let buffer = encode(&account.default_vault)?;
-        println!("create account from buffer");
 
         let (_, summary) = self.create_account_from_buffer(buffer).await?;
-
-        println!("after create account from buffer");
 
         let archive = if let Some(archive_vault) = &account.archive {
             let buffer = encode(archive_vault)?;

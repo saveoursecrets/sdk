@@ -24,6 +24,8 @@ use sos_sdk::{
     vfs, Timestamp,
 };
 
+//use tokio::{AsyncRead, AsyncSeek, AsyncReadExt};
+
 use parking_lot::RwLock as SyncRwLock;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
@@ -1278,6 +1280,7 @@ impl UserStorage {
         path: P,
         options: RestoreOptions,
     ) -> Result<AccountInfo> {
+        // FIXME: use vfs::File here
         let file = std::fs::File::open(path)?;
         Self::restore_archive_reader(owner, file, options).await
     }

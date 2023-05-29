@@ -327,6 +327,7 @@ impl EventLogFile {
     pub async fn clear(&mut self) -> Result<()> {
         self.file = File::create(&self.file_path).await?;
         self.file.write_all(&EVENT_LOG_IDENTITY).await?;
+        self.file.flush().await?;
         self.tree = CommitTree::new();
         Ok(())
     }
