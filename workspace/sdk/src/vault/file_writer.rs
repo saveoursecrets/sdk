@@ -89,6 +89,8 @@ impl<F: Read + Write + Seek> VaultWriter<F> {
         // Write out the content
         file.write_all(&content)?;
 
+        file.flush()?;
+
         Ok(())
     }
 
@@ -129,6 +131,8 @@ impl<F: Read + Write + Seek> VaultWriter<F> {
 
         // Write out the end portion
         file.write_all(&end)?;
+
+        file.flush()?;
 
         Ok(())
     }
