@@ -76,7 +76,7 @@ async fn integration_change_password() -> Result<()> {
     let keeper = node_cache.current().unwrap();
 
     let index = keeper.index();
-    let index_reader = index.read();
+    let index_reader = index.read().await;
     let meta = index_reader.values();
     assert_eq!(3, meta.len());
     drop(index_reader);

@@ -195,7 +195,8 @@ mod test {
 
         // Create a secret
         let (secret_id, _, _, _, event) =
-            mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
+            mock_vault_note(&mut vault, &encryption_key, "foo", "bar")
+                .await?;
         commits.push(event_log.append_event(event).await?);
 
         // Update the secret
@@ -205,17 +206,19 @@ mod test {
             &secret_id,
             "bar",
             "qux",
-        )?;
+        )
+        .await?;
         if let Some(event) = event {
             commits.push(event_log.append_event(event).await?);
         }
 
         // Create another secret
         let (del_id, _, _, _, event) =
-            mock_vault_note(&mut vault, &encryption_key, "qux", "baz")?;
+            mock_vault_note(&mut vault, &encryption_key, "qux", "baz")
+                .await?;
         commits.push(event_log.append_event(event).await?);
 
-        let event = vault.delete(&del_id)?;
+        let event = vault.delete(&del_id).await?;
         if let Some(event) = event {
             commits.push(event_log.append_event(event).await?);
         }

@@ -98,8 +98,8 @@ pub trait StorageProvider: Sync + Send {
     fn audit_log(&self) -> Arc<RwLock<AuditLogFile>>;
 
     /// Create the search index for the currently open vault.
-    fn create_search_index(&mut self) -> Result<()> {
-        self.state_mut().create_search_index()
+    async fn create_search_index(&mut self) -> Result<()> {
+        self.state_mut().create_search_index().await
     }
 
     /// Compute the storage directory for the user.
@@ -269,7 +269,7 @@ pub trait StorageProvider: Sync + Send {
                     None
                 };
 
-                keeper.replace_vault(vault, new_key)?;
+                keeper.replace_vault(vault, new_key).await?;
             }
         }
         Ok(())
@@ -335,7 +335,7 @@ pub trait StorageProvider: Sync + Send {
         &mut self,
         summary: &Summary,
         passphrase: SecretString,
-        index: Option<std::sync::Arc<parking_lot::RwLock<SearchIndex>>>,
+        index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<ReadEvent> {
         let vault_path = self.vault_path(summary);
         let vault = if self.state().mirror() {
@@ -354,7 +354,8 @@ pub trait StorageProvider: Sync + Send {
         };
 
         self.state_mut()
-            .open_vault(passphrase, vault, vault_path, index)?;
+            .open_vault(passphrase, vault, vault_path, index)
+            .await?;
         Ok(ReadEvent::ReadVault)
     }
 
@@ -591,7 +592,8 @@ pub trait StorageProvider: Sync + Send {
                 new_passphrase,
                 None,
             )
-            .build()?;
+            .build()
+            .await?;
 
         self.update_vault(vault.summary(), &new_vault, event_log_events)
             .await?;

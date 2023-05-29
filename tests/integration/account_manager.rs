@@ -3,7 +3,6 @@ use anyhow::Result;
 use serial_test::serial;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
-use parking_lot::RwLock as SyncRwLock;
 use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{
     account::{
@@ -20,6 +19,7 @@ use sos_sdk::{
     vault::{secret::SecretId, Gatekeeper, VaultId},
     vfs,
 };
+use tokio::sync::RwLock;
 
 use crate::test_utils::*;
 
@@ -66,7 +66,7 @@ async fn integration_account_manager() -> Result<()> {
     let accounts = LocalAccounts::list_accounts()?;
     assert_eq!(1, accounts.len());
 
-    let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
+    let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
     let mut user = Login::sign_in(
         &address,
         passphrase.clone(),
@@ -74,14 +74,14 @@ async fn integration_account_manager() -> Result<()> {
     )
     .await?;
 
-    user.rename_account("New account name".to_string())?;
+    user.rename_account("New account name".to_string()).await?;
     assert_eq!("New account name", user.identity().keeper().vault().name());
 
     let vaults = LocalAccounts::list_local_vaults(&address, false)?;
     // Default, Contacts, Authenticator and Archive vaults
     assert_eq!(4, vaults.len());
 
-    let identity_reader = identity_index.read();
+    let identity_reader = identity_index.read().await;
 
     // Check we can find the signing key
     let signing_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
@@ -103,7 +103,7 @@ async fn integration_account_manager() -> Result<()> {
         )
         .await?;
 
-    let default_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
+    let default_index = Arc::new(RwLock::new(SearchIndex::new()));
     let (default_vault, _) =
         LocalAccounts::find_local_vault(&address, summary.id(), false)
             .await?;

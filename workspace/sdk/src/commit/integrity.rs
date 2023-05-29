@@ -159,7 +159,8 @@ mod test {
             &encryption_key,
             secret_label,
             secret_note,
-        )?;
+        )
+        .await?;
 
         let buffer = encode(&vault)?;
         let mut temp = NamedTempFile::new()?;

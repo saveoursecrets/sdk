@@ -471,9 +471,9 @@ impl BackendHandler for FileSystemBackend {
         name: String,
     ) -> Result<()> {
         let vault_path = self.vault_file_path(owner, vault_id);
-        let vault_file = VaultWriter::open(&vault_path)?;
+        let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
-        let _ = access.set_vault_name(name)?;
+        let _ = access.set_vault_name(name).await?;
         Ok(())
     }
 

@@ -9,8 +9,8 @@
 //! passphrase.
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 
-use parking_lot::RwLock;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use std::path::Path;
 
@@ -141,7 +141,7 @@ impl Identity {
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<UserIdentity> {
-        let vault_file = VaultWriter::open(file.as_ref())?;
+        let vault_file = VaultWriter::open(file.as_ref()).await?;
         let mirror = VaultWriter::new(file.as_ref(), vault_file)?;
         let buffer = vfs::read(file.as_ref()).await?;
         Identity::login_buffer(
@@ -158,7 +158,7 @@ impl Identity {
         buffer: B,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
-        mirror: Option<VaultWriter<std::fs::File>>,
+        mirror: Option<VaultWriter<vfs::File>>,
     ) -> Result<UserIdentity> {
         let vault: Vault = decode(buffer.as_ref())?;
 
@@ -174,10 +174,10 @@ impl Identity {
 
         keeper.unlock(master_passphrase)?;
         // Must create the index so we can find by URN
-        keeper.create_search_index()?;
+        keeper.create_search_index().await?;
 
         let index = keeper.index();
-        let reader = index.read();
+        let reader = index.read().await;
 
         let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
         let document = reader

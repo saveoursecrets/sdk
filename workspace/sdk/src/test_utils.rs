@@ -74,7 +74,7 @@ pub fn mock_secret_file(
 }
 
 /// Generate a mock secret note and add it to a vault.
-pub fn mock_vault_note<'a>(
+pub async fn mock_vault_note<'a>(
     vault: &'a mut Vault,
     encryption_key: &SecretKey,
     secret_label: &str,
@@ -87,7 +87,9 @@ pub fn mock_vault_note<'a>(
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
-    let event = vault.create(commit, VaultEntry(meta_aead, secret_aead))?;
+    let event = vault
+        .create(commit, VaultEntry(meta_aead, secret_aead))
+        .await?;
     let secret_id = match &event {
         WriteEvent::CreateSecret(secret_id, _) => *secret_id,
         _ => unreachable!(),
@@ -97,7 +99,7 @@ pub fn mock_vault_note<'a>(
 }
 
 /// Generate a mock secret note and update a vault entry.
-pub fn mock_vault_note_update<'a>(
+pub async fn mock_vault_note_update<'a>(
     vault: &'a mut Vault,
     encryption_key: &SecretKey,
     id: &SecretId,
@@ -111,8 +113,9 @@ pub fn mock_vault_note_update<'a>(
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
-    let event =
-        vault.update(id, commit, VaultEntry(meta_aead, secret_aead))?;
+    let event = vault
+        .update(id, commit, VaultEntry(meta_aead, secret_aead))
+        .await?;
     Ok((commit, secret_meta, secret_value, event))
 }
 
@@ -157,7 +160,8 @@ mod file {
             &encryption_key,
             "event log Note",
             "This a event log note secret.",
-        )?;
+        )
+        .await?;
         commits.push(event_log.append_event(event).await?);
 
         // Update the secret
@@ -167,7 +171,8 @@ mod file {
             &secret_id,
             "event log Note Edited",
             "This a event log note secret that was edited.",
-        )?;
+        )
+        .await?;
         if let Some(event) = event {
             commits.push(event_log.append_event(event).await?);
         }

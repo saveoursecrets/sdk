@@ -8,8 +8,8 @@ use std::{
     sync::Arc,
 };
 
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 use web3_address::ethereum::Address;
 
 use uuid::Uuid;
@@ -333,7 +333,8 @@ impl AccountBackup {
             new_passphrase,
             None,
         )
-        .build()?;
+        .build()
+        .await?;
 
         encode(&vault)
     }
@@ -438,7 +439,7 @@ impl AccountBackup {
                     Some(Arc::clone(&search_index)),
                 );
                 restored_identity_keeper.unlock(passphrase.clone())?;
-                restored_identity_keeper.create_search_index()?;
+                restored_identity_keeper.create_search_index().await?;
 
                 for (_, vault) in vaults {
                     let vault_passphrase =
@@ -503,10 +504,11 @@ impl AccountBackup {
                 let identity_vault_file =
                     StorageDirs::identity_vault(&address_path)?;
 
-                let vault_file = VaultWriter::open(&identity_vault_file)?;
+                let vault_file =
+                    VaultWriter::open(&identity_vault_file).await?;
                 let mut access =
                     VaultWriter::new(identity_vault_file, vault_file)?;
-                access.set_vault_name(name.clone())?;
+                access.set_vault_name(name.clone()).await?;
 
                 name
             } else {

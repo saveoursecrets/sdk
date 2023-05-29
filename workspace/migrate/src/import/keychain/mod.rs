@@ -27,7 +27,7 @@ use sos_sdk::{
     },
 };
 
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 
 use parser::{AttributeName, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};
@@ -120,13 +120,13 @@ impl KeychainImport {
     }
 }
 
-fn rename_label(
+async fn rename_label(
     keeper: &mut Gatekeeper,
     label: String,
     duplicates: &mut HashMap<String, usize>,
     search_index: Arc<RwLock<SearchIndex>>,
 ) -> String {
-    let search = search_index.read();
+    let search = search_index.read().await;
     if search
         .find_by_label(keeper.vault().id(), &label, None)
         .is_some()
@@ -178,7 +178,8 @@ impl Convert for KeychainImport {
                         label,
                         &mut duplicates,
                         Arc::clone(&search_index),
-                    );
+                    )
+                    .await;
                     if entry.is_note() {
                         let text = generic_data.into_owned();
                         let secret = Secret::Note {

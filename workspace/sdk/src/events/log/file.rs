@@ -401,7 +401,8 @@ mod test {
             &encryption_key,
             "event log Note",
             "This a event log note secret.",
-        )?;
+        )
+        .await?;
         commits.push(event_log.append_event(event).await?);
 
         // Update the secret
@@ -411,7 +412,8 @@ mod test {
             &secret_id,
             "event log Note Edited",
             "This a event log note secret that was edited.",
-        )?;
+        )
+        .await?;
         if let Some(event) = event {
             commits.push(event_log.append_event(event).await?);
         }

@@ -143,15 +143,16 @@ mod test {
     use anyhow::Result;
     use tempfile::NamedTempFile;
 
-    #[test]
-    fn patch_file() -> Result<()> {
+    #[tokio::test]
+    async fn patch_file() -> Result<()> {
         let temp = NamedTempFile::new()?;
         let mut patch_file = PatchFile::new(temp.path())?;
 
         let mut vault = mock_vault();
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, _, _, _, mock_event) =
-            mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
+            mock_vault_note(&mut vault, &encryption_key, "foo", "bar")
+                .await?;
 
         // Empty patch file is 4 bytes
         assert_eq!(4, temp.path().metadata()?.len());

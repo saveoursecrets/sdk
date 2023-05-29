@@ -614,7 +614,7 @@ mod test {
     use super::{parse_path, DashlaneCsvZip, DashlaneRecord};
     use crate::Convert;
     use anyhow::Result;
-    use parking_lot::RwLock;
+    use tokio::sync::RwLock;
 
     use sos_sdk::{
         passwd::diceware::generate_passphrase,
@@ -662,12 +662,11 @@ mod test {
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
         keeper.unlock(passphrase)?;
-        keeper.create_search_index()?;
+        keeper.create_search_index().await?;
 
-        let search = search_index.read();
+        let search = search_index.read().await;
         assert_eq!(15, search.len());
 
-        let search = search_index.read();
         let password = search.find_by_label(keeper.id(), "example.com", None);
         assert!(password.is_some());
 

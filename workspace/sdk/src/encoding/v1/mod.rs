@@ -1,3 +1,5 @@
+mod async_encoding;
+
 mod commit;
 mod crypto;
 mod events;

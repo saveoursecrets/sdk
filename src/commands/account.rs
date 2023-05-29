@@ -282,7 +282,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         } => {
             let user = resolve_user(account.as_ref(), factory, true).await?;
             let owner = user.read().await;
-            let statistics = owner.statistics();
+            let statistics = owner.statistics().await;
 
             if json {
                 serde_json::to_writer_pretty(
@@ -444,7 +444,7 @@ async fn account_rename(
 ) -> Result<()> {
     let user = resolve_user(account.as_ref(), factory, false).await?;
     let mut owner = user.write().await;
-    owner.user.rename_account(name)?;
+    owner.user.rename_account(name).await?;
     Ok(())
 }
 

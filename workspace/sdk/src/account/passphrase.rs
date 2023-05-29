@@ -52,7 +52,7 @@ impl DelegatedPassphrase {
     ) -> Result<()> {
         let urn = Vault::vault_urn(vault_id)?;
         let index = identity.index();
-        let index_reader = index.read();
+        let index_reader = index.read().await;
         let document = index_reader
             .find_by_urn(identity.id(), &urn)
             .ok_or(Error::NoVaultEntry(urn.to_string()))?;
@@ -79,7 +79,7 @@ impl DelegatedPassphrase {
     ) -> Result<SecretString> {
         let urn = Vault::vault_urn(vault_id)?;
         let index = identity.index();
-        let index_reader = index.read();
+        let index_reader = index.read().await;
         let document = index_reader
             .find_by_urn(identity.id(), &urn)
             .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
@@ -103,7 +103,7 @@ impl DelegatedPassphrase {
         identity: &Gatekeeper,
     ) -> Result<SecretString> {
         let index = identity.index();
-        let reader = index.read();
+        let reader = index.read().await;
         let urn: Urn = FILE_PASSWORD_URN.parse()?;
         let document = reader
             .find_by_urn(identity.id(), &urn)

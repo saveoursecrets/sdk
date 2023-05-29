@@ -10,7 +10,7 @@ use sos_sdk::{
 
 use std::{path::PathBuf, sync::Arc};
 
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 
 /// Manages the state of a node.
 pub struct ProviderState {
@@ -98,7 +98,7 @@ impl ProviderState {
     }
 
     /// Set the current vault and unlock it.
-    pub fn open_vault(
+    pub async fn open_vault(
         &mut self,
         passphrase: SecretString,
         vault: Vault,
@@ -106,7 +106,7 @@ impl ProviderState {
         index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<()> {
         let mut keeper = if self.mirror {
-            let vault_file = VaultWriter::open(&vault_path)?;
+            let vault_file = VaultWriter::open(&vault_path).await?;
             let mirror = VaultWriter::new(vault_path, vault_file)?;
             Gatekeeper::new_mirror(vault, mirror, index)
         } else {
@@ -121,9 +121,9 @@ impl ProviderState {
     }
 
     /// Add this vault to the search index.
-    pub(crate) fn create_search_index(&mut self) -> Result<()> {
+    pub(crate) async fn create_search_index(&mut self) -> Result<()> {
         let keeper = self.current_mut().ok_or_else(|| Error::NoOpenVault)?;
-        keeper.create_search_index()?;
+        keeper.create_search_index().await?;
         Ok(())
     }
 

@@ -65,7 +65,7 @@ impl<'a> ChangePassword<'a> {
     /// Yields the encrpytion passphrase for the new vault, the
     /// new computed vault and a collection of events that can
     /// be used to generate a fresh write-ahead log file.
-    pub fn build(
+    pub async fn build(
         self,
     ) -> Result<(SecretString, Vault, Vec<WriteEvent<'static>>)> {
         // Decrypt current vault meta data blob
@@ -122,11 +122,9 @@ impl<'a> ChangePassword<'a> {
             let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
 
             // Insert into the new vault preserving the secret identifiers
-            let sync_event = new_vault.insert(
-                *id,
-                commit,
-                VaultEntry(meta_aead, secret_aead),
-            )?;
+            let sync_event = new_vault
+                .insert(*id, commit, VaultEntry(meta_aead, secret_aead))
+                .await?;
 
             event_log_events.push(sync_event.into_owned());
         }
@@ -181,6 +179,7 @@ mod test {
             None,
         )
         .build()
+        .await
         .is_err());
 
         // Using a valid current passphrase should succeed
@@ -191,7 +190,8 @@ mod test {
                 new_passphrase,
                 None,
             )
-            .build()?;
+            .build()
+            .await?;
 
         assert_eq!(
             expected_passphrase.expose_secret(),

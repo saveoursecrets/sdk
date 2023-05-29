@@ -12,11 +12,12 @@ use crate::{
         Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId,
         VaultMeta, VaultWriter,
     },
-    Error, Result,
+    vfs, Error, Result,
 };
-use parking_lot::RwLock;
+//use parking_lot::RwLock;
 use secrecy::{ExposeSecret, SecretString};
 use std::{collections::HashSet, sync::Arc};
+use tokio::sync::RwLock;
 
 use uuid::Uuid;
 
@@ -41,7 +42,7 @@ pub struct Gatekeeper {
     /// The underlying vault.
     vault: Vault,
     /// Mirror in-memory vault changes to a writer.
-    mirror: Option<VaultWriter<std::fs::File>>,
+    mirror: Option<VaultWriter<vfs::File>>,
     /// Search index.
     index: Arc<RwLock<SearchIndex>>,
 }
@@ -65,7 +66,7 @@ impl Gatekeeper {
     /// changes to a file.
     pub fn new_mirror(
         vault: Vault,
-        mirror: VaultWriter<std::fs::File>,
+        mirror: VaultWriter<vfs::File>,
         index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Self {
         Self {
@@ -92,7 +93,7 @@ impl Gatekeeper {
     ///
     /// When a password is being changed then we need to use
     /// the new derived key for the vault.
-    pub fn replace_vault(
+    pub async fn replace_vault(
         &mut self,
         vault: Vault,
         new_key: Option<SecretKey>,
@@ -104,11 +105,12 @@ impl Gatekeeper {
             let existing_keys = self.vault.keys().collect::<HashSet<_>>();
             let updated_keys = vault.keys().collect::<HashSet<_>>();
 
-            let mut writer = self.index.write();
+            let mut writer = self.index.write().await;
 
             for added_key in updated_keys.difference(&existing_keys) {
-                if let Some((meta, secret)) =
-                    self.read_secret(added_key, Some(&vault), derived_key)?
+                if let Some((meta, secret)) = self
+                    .read_secret(added_key, Some(&vault), derived_key)
+                    .await?
                 {
                     writer.add(self.vault().id(), added_key, meta, &secret);
                 }
@@ -126,11 +128,14 @@ impl Gatekeeper {
                     (self.vault.get(maybe_updated), vault.get(maybe_updated))
                 {
                     if existing_hash != updated_hash {
-                        if let Some((meta, secret)) = self.read_secret(
-                            maybe_updated,
-                            Some(&vault),
-                            derived_key,
-                        )? {
+                        if let Some((meta, secret)) = self
+                            .read_secret(
+                                maybe_updated,
+                                Some(&vault),
+                                derived_key,
+                            )
+                            .await?
+                        {
                             writer.update(
                                 self.vault().id(),
                                 maybe_updated,
@@ -173,15 +178,18 @@ impl Gatekeeper {
     }
 
     /// Set the public name for the vault.
-    pub fn set_vault_name(&mut self, name: String) -> Result<WriteEvent<'_>> {
+    pub async fn set_vault_name(
+        &mut self,
+        name: String,
+    ) -> Result<WriteEvent<'_>> {
         if let Some(mirror) = self.mirror.as_mut() {
-            mirror.set_vault_name(name.clone())?;
+            mirror.set_vault_name(name.clone()).await?;
         }
-        self.vault.set_vault_name(name)
+        self.vault.set_vault_name(name).await
     }
 
     /// Initialize the vault with the given label and password.
-    pub fn initialize(
+    pub async fn initialize(
         &mut self,
         name: String,
         label: String,
@@ -195,7 +203,7 @@ impl Gatekeeper {
         // Assign the label to the meta data
         let mut init_meta_data: VaultMeta = Default::default();
         init_meta_data.set_label(label);
-        self.set_meta(init_meta_data)?;
+        self.set_meta(init_meta_data).await?;
 
         self.vault.set_name(name);
         Ok(())
@@ -234,20 +242,23 @@ impl Gatekeeper {
 
     /// Set the meta data for the vault.
     // TODO: rename to set_vault_meta() for consistency
-    fn set_meta(&mut self, meta_data: VaultMeta) -> Result<WriteEvent<'_>> {
+    async fn set_meta(
+        &mut self,
+        meta_data: VaultMeta,
+    ) -> Result<WriteEvent<'_>> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
         let meta_blob = encode(&meta_data)?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
         if let Some(mirror) = self.mirror.as_mut() {
-            mirror.set_vault_meta(Some(meta_aead.clone()))?;
+            mirror.set_vault_meta(Some(meta_aead.clone())).await?;
         }
-        self.vault.set_vault_meta(Some(meta_aead))
+        self.vault.set_vault_meta(Some(meta_aead)).await
     }
 
     /// Get a secret from the vault.
-    fn read_secret(
+    async fn read_secret(
         &self,
         id: &SecretId,
         from: Option<&Vault>,
@@ -259,7 +270,7 @@ impl Gatekeeper {
 
         let from = from.unwrap_or(&self.vault);
 
-        if let (Some(value), _payload) = from.read(id)? {
+        if let (Some(value), _payload) = from.read(id).await? {
             let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
                 value.as_ref();
             let meta_blob = from.decrypt(private_key, meta_aead)?;
@@ -280,7 +291,7 @@ impl Gatekeeper {
         secret: Secret,
     ) -> Result<WriteEvent<'_>> {
         let vault_id = *self.vault().id();
-        //let reader = self.index.read();
+        //let reader = self.index.read().await;
 
         /*
         if reader
@@ -306,22 +317,23 @@ impl Gatekeeper {
         let id = Uuid::new_v4();
 
         if let Some(mirror) = self.mirror.as_mut() {
-            mirror.insert(
-                id,
-                commit,
-                VaultEntry(meta_aead.clone(), secret_aead.clone()),
-            )?;
+            mirror
+                .insert(
+                    id,
+                    commit,
+                    VaultEntry(meta_aead.clone(), secret_aead.clone()),
+                )
+                .await?;
         }
 
-        let result = self.vault.insert(
-            id,
-            commit,
-            VaultEntry(meta_aead, secret_aead),
-        )?;
+        let result = self
+            .vault
+            .insert(id, commit, VaultEntry(meta_aead, secret_aead))
+            .await?;
 
         //drop(reader);
 
-        let mut writer = self.index.write();
+        let mut writer = self.index.write().await;
         writer.add(&vault_id, &id, secret_meta, &secret);
 
         Ok(result)
@@ -334,7 +346,8 @@ impl Gatekeeper {
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
         let payload = ReadEvent::ReadSecret(*id);
         Ok(self
-            .read_secret(id, None, None)?
+            .read_secret(id, None, None)
+            .await?
             .map(|(meta, secret)| (meta, secret, payload)))
     }
 
@@ -346,7 +359,9 @@ impl Gatekeeper {
         secret: Secret,
     ) -> Result<Option<WriteEvent<'_>>> {
         let vault_id = *self.vault().id();
-        let reader = self.index.read();
+
+        /*
+        let reader = self.index.read().await;
 
         let doc = reader
             .find_by_id(&vault_id, id)
@@ -362,6 +377,7 @@ impl Gatekeeper {
                 secret_meta.label().to_string(),
             ));
         }
+        */
 
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
@@ -375,22 +391,23 @@ impl Gatekeeper {
         let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
 
         if let Some(mirror) = self.mirror.as_mut() {
-            mirror.update(
-                id,
-                commit,
-                VaultEntry(meta_aead.clone(), secret_aead.clone()),
-            )?;
+            mirror
+                .update(
+                    id,
+                    commit,
+                    VaultEntry(meta_aead.clone(), secret_aead.clone()),
+                )
+                .await?;
         }
 
-        let event = self.vault.update(
-            id,
-            commit,
-            VaultEntry(meta_aead, secret_aead),
-        )?;
+        let event = self
+            .vault
+            .update(id, commit, VaultEntry(meta_aead, secret_aead))
+            .await?;
 
-        drop(reader);
+        //drop(reader);
 
-        let mut writer = self.index.write();
+        let mut writer = self.index.write().await;
         writer.update(&vault_id, id, secret_meta, &secret);
 
         Ok(event)
@@ -403,10 +420,10 @@ impl Gatekeeper {
     ) -> Result<Option<WriteEvent<'_>>> {
         let vault_id = *self.vault().id();
         if let Some(mirror) = self.mirror.as_mut() {
-            mirror.delete(id)?;
+            mirror.delete(id).await?;
         }
-        let event = self.vault.delete(id)?;
-        let mut writer = self.index.write();
+        let event = self.vault.delete(id).await?;
+        let mut writer = self.index.write().await;
         writer.remove(&vault_id, id);
         Ok(event)
     }
@@ -435,10 +452,10 @@ impl Gatekeeper {
     }
 
     /// Add the meta data for the vault entries to a search index..
-    pub fn create_search_index(&mut self) -> Result<()> {
+    pub async fn create_search_index(&mut self) -> Result<()> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-        let mut writer = self.index.write();
+        let mut writer = self.index.write().await;
         for (id, value) in self.vault.iter() {
             let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
                 value;
@@ -509,7 +526,9 @@ mod tests {
 
         let name = String::from(DEFAULT_VAULT_NAME);
         let label = String::from("Mock Vault Label");
-        keeper.initialize(name, label.clone(), passphrase, None)?;
+        keeper
+            .initialize(name, label.clone(), passphrase, None)
+            .await?;
 
         //// Decrypt the initialized meta data.
         let meta = keeper.vault_meta()?;
@@ -528,7 +547,7 @@ mod tests {
             keeper.create(secret_meta.clone(), secret.clone()).await?
         {
             let (saved_secret_meta, saved_secret) =
-                keeper.read_secret(&secret_uuid, None, None)?.unwrap();
+                keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
             assert_eq!(secret, saved_secret);
             assert_eq!(secret_meta, saved_secret_meta);
         } else {

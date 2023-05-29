@@ -1,6 +1,7 @@
 use rs_merkle::{algorithms::Sha256, Hasher};
 use serde::{Deserialize, Serialize};
 
+use async_trait::async_trait;
 use binary_stream::{BinaryReader, Decode, Endian};
 
 use bitflags::bitflags;
@@ -201,6 +202,9 @@ pub struct VaultCommit(pub CommitHash, pub VaultEntry);
 /// Use `Cow` smart pointers because when we are reading
 /// from an in-memory `Vault` we can return references whereas
 /// other containers such as file access would return owned data.
+///
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait VaultAccess {
     /// Get the vault summary.
     fn summary(&self) -> Result<Summary>;
@@ -209,16 +213,19 @@ pub trait VaultAccess {
     fn vault_name(&self) -> Result<Cow<'_, str>>;
 
     /// Set the name of a vault.
-    fn set_vault_name(&mut self, name: String) -> Result<WriteEvent<'_>>;
+    async fn set_vault_name(
+        &mut self,
+        name: String,
+    ) -> Result<WriteEvent<'_>>;
 
     /// Set the vault meta data.
-    fn set_vault_meta(
+    async fn set_vault_meta(
         &mut self,
         meta_data: Option<AeadPack>,
     ) -> Result<WriteEvent<'_>>;
 
     /// Add an encrypted secret to the vault.
-    fn create(
+    async fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
@@ -229,7 +236,7 @@ pub trait VaultAccess {
     /// Used internally to support consistent identifiers when
     /// mirroring in the `Gatekeeper` implementation.
     #[doc(hidden)]
-    fn insert(
+    async fn insert(
         &mut self,
         id: SecretId,
         commit: CommitHash,
@@ -237,13 +244,13 @@ pub trait VaultAccess {
     ) -> Result<WriteEvent<'_>>;
 
     /// Get an encrypted secret from the vault.
-    fn read<'a>(
+    async fn read<'a>(
         &'a self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)>;
 
     /// Update an encrypted secret in the vault.
-    fn update(
+    async fn update(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
@@ -251,7 +258,10 @@ pub trait VaultAccess {
     ) -> Result<Option<WriteEvent<'_>>>;
 
     /// Remove an encrypted secret from the vault.
-    fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent<'_>>>;
+    async fn delete(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent<'_>>>;
 }
 
 /// Authentication information.
@@ -844,6 +854,8 @@ impl IntoIterator for Vault {
     }
 }
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl VaultAccess for Vault {
     fn summary(&self) -> Result<Summary> {
         Ok(self.header.summary.clone())
@@ -853,12 +865,15 @@ impl VaultAccess for Vault {
         Ok(Cow::Borrowed(self.name()))
     }
 
-    fn set_vault_name(&mut self, name: String) -> Result<WriteEvent<'_>> {
+    async fn set_vault_name(
+        &mut self,
+        name: String,
+    ) -> Result<WriteEvent<'_>> {
         self.set_name(name.clone());
         Ok(WriteEvent::SetVaultName(Cow::Owned(name)))
     }
 
-    fn set_vault_meta(
+    async fn set_vault_meta(
         &mut self,
         meta_data: Option<AeadPack>,
     ) -> Result<WriteEvent<'_>> {
@@ -867,16 +882,16 @@ impl VaultAccess for Vault {
         Ok(WriteEvent::SetVaultMeta(Cow::Owned(meta)))
     }
 
-    fn create(
+    async fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<WriteEvent<'_>> {
         let id = Uuid::new_v4();
-        self.insert(id, commit, secret)
+        self.insert(id, commit, secret).await
     }
 
-    fn insert(
+    async fn insert(
         &mut self,
         id: SecretId,
         commit: CommitHash,
@@ -890,7 +905,7 @@ impl VaultAccess for Vault {
         Ok(WriteEvent::CreateSecret(id, Cow::Borrowed(value)))
     }
 
-    fn read<'a>(
+    async fn read<'a>(
         &'a self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
@@ -898,7 +913,7 @@ impl VaultAccess for Vault {
         Ok((result, ReadEvent::ReadSecret(*id)))
     }
 
-    fn update(
+    async fn update(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
@@ -913,7 +928,10 @@ impl VaultAccess for Vault {
         }
     }
 
-    fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent<'_>>> {
+    async fn delete(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent<'_>>> {
         let entry = self.contents.data.remove(id);
         if entry.is_some() {
             Ok(Some(WriteEvent::DeleteSecret(*id)))
@@ -942,8 +960,8 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn encode_decode_secret_note() -> Result<()> {
+    #[tokio::test]
+    async fn encode_decode_secret_note() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let mut vault = mock_vault();
 
@@ -957,13 +975,14 @@ mod tests {
                 &encryption_key,
                 secret_label,
                 secret_note,
-            )?;
+            )
+            .await?;
 
         let buffer = encode(&vault)?;
         let decoded: Vault = decode(&buffer)?;
         assert_eq!(vault, decoded);
 
-        let (row, _) = decoded.read(&secret_id)?;
+        let (row, _) = decoded.read(&secret_id).await?;
 
         let value = row.unwrap();
         let VaultCommit(_, VaultEntry(row_meta, row_secret)) = value.as_ref();

@@ -167,7 +167,7 @@ mod test {
     use super::{super::UNTITLED, parse_path, OnePasswordCsv};
     use crate::Convert;
     use anyhow::Result;
-    use parking_lot::RwLock;
+    use tokio::sync::RwLock;
 
     use sos_sdk::{
         passwd::diceware::generate_passphrase,
@@ -266,12 +266,11 @@ mod test {
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
         keeper.unlock(passphrase)?;
-        keeper.create_search_index()?;
+        keeper.create_search_index().await?;
 
-        let search = search_index.read();
+        let search = search_index.read().await;
         assert_eq!(6, search.len());
 
-        let search = search_index.read();
         let untitled = search.find_by_label(keeper.id(), UNTITLED, None);
         assert!(untitled.is_some());
 

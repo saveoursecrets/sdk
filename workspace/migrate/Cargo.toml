@@ -18,6 +18,7 @@ zip = { version = "0.6", default-features = false, features = ["deflate"] }
 vcard4 = { version = "0.4.4", features = ["serde"] }
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 async-trait = "0.1"
+tokio = { version = "1", default-features = false, features = ["sync"] }
 
 [target.'cfg(target_os="macos")'.dependencies]
 security-framework = "2.8"

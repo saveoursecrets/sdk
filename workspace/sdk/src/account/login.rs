@@ -2,7 +2,7 @@
 //! creating and managing local accounts.
 use std::sync::Arc;
 
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 
 use urn::Urn;
 use web3_address::ethereum::Address;
@@ -134,7 +134,10 @@ impl AuthenticatedUser {
     }
 
     /// Rename this account by changing the name of the identity vault.
-    pub fn rename_account(&mut self, account_name: String) -> Result<()> {
+    pub async fn rename_account(
+        &mut self,
+        account_name: String,
+    ) -> Result<()> {
         // Update in-memory vault
         self.identity
             .keeper_mut()
@@ -145,9 +148,9 @@ impl AuthenticatedUser {
         let identity_vault_file =
             StorageDirs::identity_vault(self.identity.address().to_string())?;
 
-        let vault_file = VaultWriter::open(&identity_vault_file)?;
+        let vault_file = VaultWriter::open(&identity_vault_file).await?;
         let mut access = VaultWriter::new(identity_vault_file, vault_file)?;
-        access.set_vault_name(account_name.clone())?;
+        access.set_vault_name(account_name.clone()).await?;
 
         // Update in-memory account information
         self.account.set_label(account_name);
@@ -229,9 +232,9 @@ impl Login {
             let mut device_keeper =
                 Gatekeeper::new(vault, Some(search_index));
             device_keeper.unlock(device_passphrase)?;
-            device_keeper.create_search_index()?;
+            device_keeper.create_search_index().await?;
             let index = device_keeper.index();
-            let index_reader = index.read();
+            let index_reader = index.read().await;
             let document = index_reader
                 .find_by_urn(summary.id(), &urn)
                 .ok_or(Error::NoVaultEntry(urn.to_string()))?;

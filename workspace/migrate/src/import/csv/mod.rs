@@ -8,12 +8,12 @@ pub mod macos;
 pub mod one_password;
 
 use async_trait::async_trait;
-use parking_lot::RwLock;
 use secrecy::SecretString;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
+use tokio::sync::RwLock;
 use url::Url;
 use vcard4::Vcard;
 
@@ -295,7 +295,7 @@ impl Convert for GenericCsvConvert {
             let mut label = entry.label().to_owned();
 
             let rename_label = {
-                let search = search_index.read();
+                let search = search_index.read().await;
                 if search
                     .find_by_label(keeper.vault().id(), &label, None)
                     .is_some()

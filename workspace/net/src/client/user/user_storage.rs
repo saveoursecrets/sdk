@@ -24,12 +24,10 @@ use sos_sdk::{
     vfs, Timestamp,
 };
 
-//use tokio::{AsyncRead, AsyncSeek, AsyncReadExt};
-
-use parking_lot::RwLock as SyncRwLock;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
+use tokio::sync::RwLock;
 
 use crate::client::{
     provider::{BoxedProvider, ProviderFactory},
@@ -132,7 +130,7 @@ impl UserStorage {
         passphrase: SecretString,
         factory: ProviderFactory,
     ) -> Result<Self> {
-        let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
+        let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
         let user =
             Login::sign_in(address, passphrase, identity_index).await?;
 
@@ -180,9 +178,9 @@ impl UserStorage {
     }
 
     /// Compute the user statistics.
-    pub fn statistics(&self) -> UserStatistics {
+    pub async fn statistics(&self) -> UserStatistics {
         let search_index = self.index.search();
-        let index = search_index.read();
+        let index = search_index.read().await;
         let statistics = index.statistics();
         let count = statistics.count();
 
@@ -232,13 +230,16 @@ impl UserStorage {
     /// Delete the account for this user and sign out.
     pub async fn delete_account(&mut self) -> Result<()> {
         self.user.delete_account().await?;
-        self.sign_out();
+        self.sign_out().await;
         Ok(())
     }
 
     /// Rename this account.
-    pub fn rename_account(&mut self, account_name: String) -> Result<()> {
-        Ok(self.user.rename_account(account_name)?)
+    pub async fn rename_account(
+        &mut self,
+        account_name: String,
+    ) -> Result<()> {
+        Ok(self.user.rename_account(account_name).await?)
     }
 
     /// Users devices reference.
@@ -287,8 +288,8 @@ impl UserStorage {
     }
 
     /// Sign out of the account.
-    pub fn sign_out(&mut self) {
-        self.index.clear();
+    pub async fn sign_out(&mut self) {
+        self.index.clear().await;
         self.storage.close_vault();
         self.user.sign_out();
     }
@@ -324,7 +325,9 @@ impl UserStorage {
             summary.id(),
         )
         .await?;
-        self.index.remove_folder_from_search_index(summary.id());
+        self.index
+            .remove_folder_from_search_index(summary.id())
+            .await;
         self.delete_folder_files(summary).await?;
 
         let event = Event::Write(*summary.id(), event);
@@ -347,15 +350,15 @@ impl UserStorage {
         // Now update the in-memory name for the current selected vault
         if let Some(keeper) = self.storage.current_mut() {
             if keeper.vault().id() == summary.id() {
-                keeper.set_vault_name(name.clone())?;
+                keeper.set_vault_name(name.clone()).await?;
             }
         }
 
         // Update the vault on disc
         let vault_path = self.storage.vault_path(summary);
-        let vault_file = VaultWriter::open(&vault_path)?;
+        let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
-        access.set_vault_name(name)?;
+        access.set_vault_name(name).await?;
 
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent =
@@ -523,11 +526,15 @@ impl UserStorage {
             }
 
             // Clean entries from the search index
-            self.index.remove_folder_from_search_index(summary.id());
+            self.index
+                .remove_folder_from_search_index(summary.id())
+                .await;
         }
 
         // Ensure the imported secrets are in the search index
-        self.index.add_folder_to_search_index(vault, passphrase)?;
+        self.index
+            .add_folder_to_search_index(vault, passphrase)
+            .await?;
 
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent =
@@ -928,7 +935,7 @@ impl UserStorage {
                     break;
                 }
             }
-            let mut writer = self.index.search_index.write();
+            let mut writer = self.index.search_index.write().await;
             writer.set_archive_id(archive);
             summaries
         };
@@ -938,7 +945,7 @@ impl UserStorage {
     /// Build the search index for all folders.
     pub async fn build_search_index(&mut self) -> Result<DocumentCount> {
         // Clear search index first
-        self.index.clear();
+        self.index.clear().await;
 
         // Build search index from all the vaults
         let summaries = self.list_folders().await?;
@@ -948,12 +955,12 @@ impl UserStorage {
             self.open_folder(&summary).await?;
 
             // Add the vault meta data to the search index
-            self.storage.create_search_index()?;
+            self.storage.create_search_index().await?;
             // Close the vault as we are done for now
             self.storage.close_vault();
         }
 
-        Ok(self.index.document_count())
+        Ok(self.index.document_count().await)
     }
 
     /// Write a zip archive containing all the secrets
@@ -1123,7 +1130,8 @@ impl UserStorage {
 
         // Ensure the imported secrets are in the search index
         self.index_mut()
-            .add_folder_to_search_index(vault, vault_passphrase)?;
+            .add_folder_to_search_index(vault, vault_passphrase)
+            .await?;
 
         let event = Event::Write(*summary.id(), event);
         Ok((event, summary))

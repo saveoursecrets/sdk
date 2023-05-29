@@ -695,7 +695,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
 
             let documents =
-                owner.index().query_view(views, archive_filter)?;
+                owner.index().query_view(views, archive_filter).await?;
             let docs: Vec<&Document> = documents.iter().collect();
             print_documents(&docs, verbose)?;
         }

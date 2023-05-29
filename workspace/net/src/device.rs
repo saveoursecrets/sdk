@@ -11,7 +11,7 @@ use std::{
 
 use sos_sdk::{
     time::OffsetDateTime,
-    vfs::{self, File},
+    vfs::{self},
 };
 
 use crate::{Error, Result};
