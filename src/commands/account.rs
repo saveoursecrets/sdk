@@ -417,8 +417,6 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     };
     let reader = std::fs::File::open(&input)?;
 
-    println!("starting restore operation...");
-
     let (targets, account) = AccountBackup::restore_archive_buffer(
         reader,
         options,
@@ -426,13 +424,9 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     )
     .await?;
 
-    println!("restoring with storage provider...");
-
     if let Some(mut provider) = provider {
         provider.restore_archive(&targets).await?;
     }
-
-    println!("after restored with storage provider...");
 
     Ok(Some(account))
 }

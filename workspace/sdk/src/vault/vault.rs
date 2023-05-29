@@ -803,13 +803,6 @@ impl Vault {
             .collect::<HashMap<_, _>>()
     }
 
-    /// Read a vault from a file.
-    pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Vault> {
-        let buffer = std::fs::read(path.as_ref())?;
-        let vault: Vault = decode(&buffer)?;
-        Ok(vault)
-    }
-
     /// Write this vault to a file.
     pub fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let mut stream = File::create(path)?;
@@ -1012,14 +1005,6 @@ mod file_tests {
     use super::*;
     use crate::{decode, test_utils::*};
     use anyhow::Result;
-
-    #[test]
-    fn decode_file() -> Result<()> {
-        let (temp, _, _) = mock_vault_file()?;
-        let _vault = Vault::read_file(temp.path())?;
-        temp.close()?;
-        Ok(())
-    }
 
     #[test]
     fn decode_buffer() -> Result<()> {

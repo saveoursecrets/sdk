@@ -11,7 +11,6 @@ use tokio::{runtime::Handle, task::JoinHandle};
 
 use std::cmp;
 use std::fmt;
-use std::fs::Permissions;
 use std::future::Future;
 use std::io::{self, prelude::*, Cursor, ErrorKind, Seek, SeekFrom};
 use std::path::Path;
@@ -25,7 +24,7 @@ use super::{
     fs::{Fd, MemoryFd},
     metadata,
     open_options::OpenFlags,
-    FileContent, Metadata, OpenOptions, PathBuf,
+    FileContent, Metadata, OpenOptions, PathBuf, Permissions,
 };
 
 pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>

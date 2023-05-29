@@ -3,6 +3,7 @@
 //! VIM users should use `set nofixendofline` in their .vimrc
 //! to prevent an appended newline changing the file automatically.
 //!
+use async_recursion::async_recursion;
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
@@ -15,6 +16,7 @@ use sos_sdk::{
     sha3::{Digest, Keccak256},
     vault::secret::{FileContent, Secret},
     vcard4::Vcard,
+    vfs,
 };
 use tempfile::Builder;
 
@@ -152,14 +154,17 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
     })
 }
 
-fn editor<'a>(content: &'a [u8], suffix: &str) -> Result<Cow<'a, [u8]>> {
+async fn editor<'a>(
+    content: &'a [u8],
+    suffix: &str,
+) -> Result<Cow<'a, [u8]>> {
     let editor_cmd = std::env::var("EDITOR").unwrap_or_else(|_| "vim".into());
     let hash = digest(content);
     let file = Builder::new().suffix(suffix).tempfile()?;
-    std::fs::write(file.path(), content)?;
+    vfs::write(file.path(), content).await?;
     let status = spawn_editor(editor_cmd, file.path())?;
     let result = if status.success() {
-        let edited_content = std::fs::read(file.path())?;
+        let edited_content = vfs::read(file.path()).await?;
         let edited_hash = digest(&edited_content);
         if edited_hash == hash {
             Ok(Cow::Borrowed(content))
@@ -180,17 +185,18 @@ fn digest<B: AsRef<[u8]>>(bytes: B) -> Vec<u8> {
 }
 
 /// Edit a secret.
-pub fn edit(secret: &Secret) -> Result<EditSecretResult<'_>> {
+pub async fn edit(secret: &Secret) -> Result<EditSecretResult<'_>> {
     let (content, suffix) = to_bytes(secret)?;
-    edit_secret(secret, content, &suffix)
+    edit_secret(secret, content, &suffix).await
 }
 
-fn edit_secret<'a>(
+#[async_recursion]
+async fn edit_secret<'a>(
     secret: &'a Secret,
     content: Vec<u8>,
     suffix: &str,
 ) -> Result<EditSecretResult<'a>> {
-    let result = editor(&content, suffix)?;
+    let result = editor(&content, suffix).await?;
     match result {
         Cow::Borrowed(_) => Ok(Cow::Borrowed(secret)),
         Cow::Owned(b) => {
@@ -204,7 +210,7 @@ fn edit_secret<'a>(
                         "secret data is not valid: {}",
                         e
                     );
-                    return edit_secret(secret, content, suffix);
+                    return edit_secret(secret, content, suffix).await;
                 }
             }
         }
@@ -212,8 +218,8 @@ fn edit_secret<'a>(
 }
 
 /// Edit text.
-pub fn edit_text(text: &str) -> Result<Cow<str>> {
-    let result = editor(text.as_bytes(), ".txt")?;
+pub async fn edit_text(text: &str) -> Result<Cow<str>> {
+    let result = editor(text.as_bytes(), ".txt").await?;
     match result {
         Cow::Borrowed(_) => Ok(Cow::Borrowed(text)),
         Cow::Owned(b) => Ok(Cow::Owned(String::from_utf8(b)?)),

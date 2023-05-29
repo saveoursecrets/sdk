@@ -782,25 +782,26 @@ impl<'s> Value<'s> {
 mod test {
     use super::{unescape_octal, KeychainParser};
     use anyhow::Result;
+    use sos_sdk::vfs;
 
-    #[test]
-    fn keychain_unescape_octal() -> Result<()> {
+    #[tokio::test]
+    async fn keychain_unescape_octal() -> Result<()> {
         let expected =
-            std::fs::read_to_string("fixtures/plist-data-unescaped.txt")?;
+            vfs::read_to_string("fixtures/plist-data-unescaped.txt").await?;
         let contents =
-            std::fs::read_to_string("fixtures/plist-data-escaped.txt")?;
+            vfs::read_to_string("fixtures/plist-data-escaped.txt").await?;
         let plist = unescape_octal(&contents)?;
         /*
-        std::fs::write(
-            "fixtures/plist-data-unescaped.txt", plist.as_ref())?;
+        vfs::write(
+            "fixtures/plist-data-unescaped.txt", plist.as_ref()).await?;
         */
         assert_eq!(&expected, plist.as_ref());
         Ok(())
     }
 
-    #[test]
-    fn keychain_parse_basic() -> Result<()> {
-        let contents = std::fs::read_to_string("fixtures/sos-mock.txt")?;
+    #[tokio::test]
+    async fn keychain_parse_basic() -> Result<()> {
+        let contents = vfs::read_to_string("fixtures/sos-mock.txt").await?;
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 
@@ -813,18 +814,19 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn keychain_parse_certificate() -> Result<()> {
+    #[tokio::test]
+    async fn keychain_parse_certificate() -> Result<()> {
         let contents =
-            std::fs::read_to_string("fixtures/mock-certificate.txt")?;
+            vfs::read_to_string("fixtures/mock-certificate.txt").await?;
         let parser = KeychainParser::new(&contents);
         let _list = parser.parse()?;
         Ok(())
     }
 
-    #[test]
-    fn keychain_parse_data() -> Result<()> {
-        let contents = std::fs::read_to_string("fixtures/sos-mock-data.txt")?;
+    #[tokio::test]
+    async fn keychain_parse_data() -> Result<()> {
+        let contents =
+            vfs::read_to_string("fixtures/sos-mock-data.txt").await?;
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 

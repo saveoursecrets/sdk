@@ -175,18 +175,7 @@ impl AccountBuilder {
         }
 
         // Store the vault passphrase in the identity vault
-        /*
-        let identity_vault_path =
-            StorageDirs::identity_vault(user.address().to_string())?;
-        std::fs::File::create(&identity_vault_path)?;
-        let identity_vault_file =
-            VaultWriter::open(&identity_vault_path)?;
-        */
-        let mut keeper = Gatekeeper::new(
-            identity_vault,
-            //VaultWriter::new(identity_vault_path, identity_vault_file)?,
-            None,
-        );
+        let mut keeper = Gatekeeper::new(identity_vault, None);
         keeper.unlock(passphrase)?;
 
         DelegatedPassphrase::save_vault_passphrase(

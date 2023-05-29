@@ -932,7 +932,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 let result =
                     if let Secret::File { content, .. } = &data.secret {
                         if content.mime().starts_with("text/") {
-                            editor::edit(&data.secret)?
+                            editor::edit(&data.secret).await?
                         } else {
                             println!(
                                 "Binary {} {} {}",
@@ -944,7 +944,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                             Cow::Owned(read_file_secret(&file_path)?)
                         }
                     } else {
-                        editor::edit(&data.secret)?
+                        editor::edit(&data.secret).await?
                     };
 
                 if let Cow::Owned(edited_secret) = result {
@@ -1100,7 +1100,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 } else {
                     let comment_text =
                         data.secret.user_data().comment().unwrap_or("");
-                    match editor::edit_text(comment_text)? {
+                    match editor::edit_text(comment_text).await? {
                         Cow::Owned(s) => (true, Some(s)),
                         Cow::Borrowed(_) => {
                             println!("No changes detected");

@@ -227,9 +227,8 @@ impl FileSystemBackend {
         if !self.directory.is_dir() {
             return Err(Error::NotDirectory(self.directory.clone()));
         }
-
-        for entry in std::fs::read_dir(&self.directory)? {
-            let entry = entry?;
+        let mut dir = vfs::read_dir(&self.directory).await?;
+        while let Some(entry) = dir.next_entry().await? {
             let path = entry.path();
             if path.is_dir() {
                 if let Some(name) = path.file_stem() {
@@ -240,8 +239,9 @@ impl FileSystemBackend {
                         let _vaults = accounts
                             .entry(owner)
                             .or_insert(Default::default());
-                        for entry in std::fs::read_dir(&path)? {
-                            let entry = entry?;
+
+                        let mut dir = vfs::read_dir(&path).await?;
+                        while let Some(entry) = dir.next_entry().await? {
                             let event_log_path = entry.path();
                             if let Some(ext) = event_log_path.extension() {
                                 if ext == EVENT_LOG_EXT {

@@ -65,6 +65,7 @@ mod test {
         encode,
         events::WriteEvent,
         vault::{secret::SecretId, Vault, VaultCommit, VaultEntry},
+        vfs,
     };
 
     const MOCK_LOG: &str = "target/mock-event-log-standalone.sos";
@@ -81,7 +82,7 @@ mod test {
     async fn mock_event_log_standalone() -> Result<(EventLogFile, SecretId)> {
         let path = PathBuf::from(MOCK_LOG);
         if path.exists() {
-            std::fs::remove_file(&path)?;
+            vfs::remove_file(&path).await?;
         }
 
         let mut vault: Vault = Default::default();
@@ -111,12 +112,8 @@ mod test {
             PathBuf::from("target/mock-event-log-server.event_log");
         let client_file =
             PathBuf::from("target/mock-event-log-client.event_log");
-        if server_file.exists() {
-            std::fs::remove_file(&server_file)?;
-        }
-        if client_file.exists() {
-            std::fs::remove_file(&client_file)?;
-        }
+        let _ = vfs::remove_file(&server_file).await;
+        let _ = vfs::remove_file(&client_file).await;
 
         let vault: Vault = Default::default();
         let vault_buffer = encode(&vault)?;
@@ -192,9 +189,7 @@ mod test {
     async fn event_log_diff() -> Result<()> {
         let partial =
             PathBuf::from("target/mock-event-log-partial.event_log");
-        if partial.exists() {
-            std::fs::remove_file(&partial)?;
-        }
+        let _ = vfs::remove_file(&partial).await?;
 
         let (mut server, client, id) = mock_event_log_server_client().await?;
 

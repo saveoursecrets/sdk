@@ -248,7 +248,7 @@ mod tests {
             secret::{Secret, SecretMeta},
             Gatekeeper, Vault, VaultFlags,
         },
-        Error,
+        vfs, Error,
     };
 
     #[tokio::test]
@@ -261,7 +261,7 @@ mod tests {
                 .await?;
         let buffer = encode(&vault)?;
         let temp = NamedTempFile::new()?;
-        std::fs::write(temp.path(), buffer)?;
+        vfs::write(temp.path(), buffer).await?;
         let _ =
             Identity::login_file(temp.path(), auth_master_passphrase, None)
                 .await?;

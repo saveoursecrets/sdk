@@ -56,7 +56,7 @@ impl MockServer {
 
         tracing::info!("start mock server {:#?}", addr);
 
-        let config = ServerConfig::load("tests/config.toml")?;
+        let config = ServerConfig::load("tests/config.toml").await?;
 
         let mut backend = config.backend().await?;
 

@@ -7,6 +7,7 @@ use sos_sdk::{
     passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret,
     storage::StorageDirs,
+    vfs,
 };
 use std::{
     ops::DerefMut,
@@ -181,9 +182,7 @@ async fn integration_command_line() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
     let cache_dir = PathBuf::from("target/command_line_test");
-    if cache_dir.exists() {
-        std::fs::remove_dir_all(&cache_dir)?;
-    }
+    let _ = vfs::remove_dir_all(&cache_dir).await;
 
     // Set cache directory for child processes
     std::env::set_var("SOS_CACHE", cache_dir.clone());
