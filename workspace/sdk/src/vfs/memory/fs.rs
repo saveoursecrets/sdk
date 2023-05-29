@@ -392,65 +392,10 @@ pub async fn write(
     path: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
 ) -> Result<()> {
-
-    async fn write_file_content(
-        path: impl AsRef<Path>,
-        contents: impl AsRef<[u8]>,
-    ) -> Result<()> {
-        let mut file = OpenOptions::new()
-            .write(true)
-            .open(path.as_ref()).await?;
-        file.write_all(contents.as_ref()).await?;
-        file.flush().await
-    }
-
-    if let Some(target) = resolve(path.as_ref()).await {
-        match target {
-            PathTarget::Descriptor(fd) => {
-                let is_file = {
-                    let fd = fd.read().await;
-                    matches!(&*fd, MemoryFd::File(_))
-                };
-                if is_file {
-                    write_file_content(path.as_ref(), contents.as_ref()).await
-                } else {
-                    Err(ErrorKind::PermissionDenied.into())
-                }
-            }
-            _ => Err(ErrorKind::PermissionDenied.into()),
-        }
-    } else {
-        let has_parent = has_parent(path.as_ref());
-        if has_parent {
-            if let Some(target) = resolve_parent(path.as_ref()).await {
-                match target {
-                    PathTarget::Descriptor(fd) => {
-                        let is_dir = {
-                            let fd = fd.read().await;
-                            matches!(&*fd, MemoryFd::Dir(_))
-                        };
-                        if is_dir {
-                            create_file(
-                                path.as_ref(),
-                                false,
-                            )
-                            .await?;
-
-                            write_file_content(path.as_ref(), contents.as_ref()).await
-                        } else {
-                            Err(ErrorKind::PermissionDenied.into())
-                        }
-                    }
-                    _ => Err(ErrorKind::PermissionDenied.into()),
-                }
-            } else {
-                Err(ErrorKind::NotFound.into())
-            }
-        } else {
-            create_file(path.as_ref(), false).await?;
-            write_file_content(path.as_ref(), contents.as_ref()).await
-        }
-    }
+    let mut fd = File::create(&path).await?;
+    fd.write_all(contents.as_ref()).await?;
+    fd.flush().await?;
+    Ok(())
 }
 
 /// Reads the entire contents of a file into a bytes vector.

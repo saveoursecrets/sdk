@@ -9,6 +9,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 async fn integration_memory_vfs() -> Result<()> {
     file_write_read().await?;
     read_to_string().await?;
+    metadata().await?;
     file_overwrite().await?;
 
     write_read().await?;
@@ -54,6 +55,28 @@ async fn read_to_string() -> Result<()> {
     assert_eq!(contents, &file_contents);
 
     vfs::remove_file(&path).await?;
+    Ok(())
+}
+
+async fn metadata() -> Result<()> {
+    let path = "test.txt";
+    let contents = "Mock content";
+    vfs::write(path, contents.as_bytes()).await?;
+    assert!(vfs::try_exists(path).await?);
+
+    let metadata = vfs::metadata(path).await?;
+    assert_eq!(contents.len(), metadata.len() as usize);
+    assert!(metadata.is_file());
+
+    let dir_path = "test-dir";
+    vfs::create_dir(dir_path).await?;
+
+    let metadata = vfs::metadata(dir_path).await?;
+    assert_eq!(0, metadata.len() as usize);
+    assert!(metadata.is_dir());
+
+    vfs::remove_file(path).await?;
+    vfs::remove_dir(dir_path).await?;
     Ok(())
 }
 
