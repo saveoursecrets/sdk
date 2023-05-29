@@ -6,11 +6,13 @@ use serde_json::Value;
 use std::{
     collections::HashMap,
     fmt,
-    fs::File,
     path::{Path, PathBuf},
 };
 
-use sos_sdk::{time::OffsetDateTime, vfs};
+use sos_sdk::{
+    time::OffsetDateTime,
+    vfs::{self, File},
+};
 
 use crate::{Error, Result};
 
@@ -164,8 +166,8 @@ impl TrustedDevice {
         device: TrustedDevice,
     ) -> Result<()> {
         let device_path = Self::device_path(device_dir, &device).await?;
-        let mut file = File::create(device_path)?;
-        serde_json::to_writer_pretty(&mut file, &device)?;
+        let json = serde_json::to_vec_pretty(&device)?;
+        vfs::write(&device_path, &json).await?;
         Ok(())
     }
 
@@ -187,10 +189,11 @@ impl TrustedDevice {
         if !device_dir.as_ref().exists() {
             vfs::create_dir_all(device_dir.as_ref()).await?;
         }
-        for entry in std::fs::read_dir(device_dir.as_ref())? {
-            let entry = entry?;
-            let file = File::open(entry.path())?;
-            let device: TrustedDevice = serde_json::from_reader(file)?;
+
+        let mut dir = vfs::read_dir(device_dir.as_ref()).await?;
+        while let Some(entry) = dir.next_entry().await? {
+            let buffer = vfs::read(entry.path()).await?;
+            let device: TrustedDevice = serde_json::from_slice(&buffer)?;
             devices.push(device);
         }
         Ok(devices)

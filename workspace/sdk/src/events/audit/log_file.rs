@@ -41,14 +41,8 @@ impl AuditLogFile {
 
     /// Create the file used to store audit logs.
     async fn create<P: AsRef<Path>>(path: P) -> Result<vfs::File> {
-        let exists = path.as_ref().exists();
-
-        if !exists {
-            let file = vfs::File::create(path.as_ref()).await?;
-            drop(file);
-        }
-
         let mut file = vfs::OpenOptions::new()
+            .create(true)
             .write(true)
             .append(true)
             .open(path.as_ref())

@@ -147,14 +147,10 @@ pub async fn setup(num_clients: usize) -> Result<TestDirs> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test");
-    if !target.exists() {
-        vfs::create_dir_all(&target).await?;
-    }
+    vfs::create_dir_all(&target).await?;
 
     let server = target.join("server");
-    if server.exists() {
-        vfs::remove_dir_all(&server).await?;
-    }
+    vfs::remove_dir_all(&server).await?;
 
     // Setup required sub-directories
     vfs::create_dir(&server).await?;
@@ -162,9 +158,7 @@ pub async fn setup(num_clients: usize) -> Result<TestDirs> {
     let mut clients = Vec::new();
     for index in 0..num_clients {
         let client = target.join(&format!("client{}", index + 1));
-        if client.exists() {
-            vfs::remove_dir_all(&client).await?;
-        }
+        vfs::remove_dir_all(&client).await?;
         vfs::create_dir(&client).await?;
         clients.push(client);
     }

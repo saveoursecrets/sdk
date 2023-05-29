@@ -264,7 +264,7 @@ impl<R: Read + Seek> Reader<R> {
                                 let destination =
                                     target.as_ref().join(relative);
                                 if let Some(parent) = destination.parent() {
-                                    if !parent.exists() {
+                                    if !vfs::try_exists(&parent).await? {
                                         vfs::create_dir_all(parent).await?;
                                     }
                                 }
