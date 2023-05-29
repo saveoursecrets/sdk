@@ -93,7 +93,7 @@ impl Identity {
     /// Generates a new random single party signing key and
     /// stores it in the new vault along with an encryption
     /// passphrase to use for vaults accessed by this identity.
-    pub fn new_login_vault(
+    pub async fn new_login_vault(
         name: String,
         master_passphrase: SecretString,
     ) -> Result<(Address, Vault)> {
@@ -118,7 +118,7 @@ impl Identity {
         let mut signer_meta =
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
-        keeper.create(signer_meta, signer_secret)?;
+        keeper.create(signer_meta, signer_secret).await?;
 
         // Store the AGE identity
         let age_secret = Secret::Age {
@@ -130,7 +130,7 @@ impl Identity {
         let mut age_meta =
             SecretMeta::new(urn.as_str().to_owned(), age_secret.kind());
         age_meta.set_urn(Some(urn));
-        keeper.create(age_meta, age_secret)?;
+        keeper.create(age_meta, age_secret).await?;
 
         Ok((address, keeper.into()))
     }
@@ -150,10 +150,11 @@ impl Identity {
             search_index,
             Some(mirror),
         )
+        .await
     }
 
     /// Attempt to login using a buffer.
-    pub fn login_buffer<B: AsRef<[u8]>>(
+    pub async fn login_buffer<B: AsRef<[u8]>>(
         buffer: B,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
@@ -183,7 +184,8 @@ impl Identity {
             .find_by_urn(keeper.id(), &urn)
             .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
         let data = keeper
-            .read(document.id())?
+            .read(document.id())
+            .await?
             .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
 
         let (_, secret, _) = data;
@@ -202,7 +204,8 @@ impl Identity {
             .find_by_urn(keeper.id(), &urn)
             .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
         let data = keeper
-            .read(document.id())?
+            .read(document.id())
+            .await?
             .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
 
         let (_, secret, _) = data;
@@ -254,7 +257,8 @@ mod tests {
         let auth_master_passphrase =
             SecretString::new(master_passphrase.expose_secret().to_owned());
         let (_address, vault) =
-            Identity::new_login_vault("Login".to_owned(), master_passphrase)?;
+            Identity::new_login_vault("Login".to_owned(), master_passphrase)
+                .await?;
         let buffer = encode(&vault)?;
         let temp = NamedTempFile::new()?;
         std::fs::write(temp.path(), buffer)?;
@@ -264,8 +268,8 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn identity_not_identity_vault() -> Result<()> {
+    #[tokio::test]
+    async fn identity_not_identity_vault() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
@@ -273,7 +277,8 @@ mod tests {
         let buffer = encode(&vault)?;
 
         let result =
-            Identity::login_buffer(buffer, master_passphrase, None, None);
+            Identity::login_buffer(buffer, master_passphrase, None, None)
+                .await;
         if let Err(Error::NotIdentityVault) = result {
             Ok(())
         } else {
@@ -281,8 +286,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn identity_no_identity_signer() -> Result<()> {
+    #[tokio::test]
+    async fn identity_no_identity_signer() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
@@ -291,7 +296,8 @@ mod tests {
         let buffer = encode(&vault)?;
 
         let result =
-            Identity::login_buffer(buffer, master_passphrase, None, None);
+            Identity::login_buffer(buffer, master_passphrase, None, None)
+                .await;
         if let Err(Error::NoSecretUrn(_, _)) = result {
             Ok(())
         } else {
@@ -299,8 +305,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn identity_signer_kind() -> Result<()> {
+    #[tokio::test]
+    async fn identity_signer_kind() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
@@ -320,13 +326,14 @@ mod tests {
         let mut signer_meta =
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
-        keeper.create(signer_meta, signer_secret)?;
+        keeper.create(signer_meta, signer_secret).await?;
 
         let vault: Vault = keeper.into();
         let buffer = encode(&vault)?;
 
         let result =
-            Identity::login_buffer(buffer, master_passphrase, None, None);
+            Identity::login_buffer(buffer, master_passphrase, None, None)
+                .await;
         if let Err(Error::WrongSecretKind(_, _)) = result {
             Ok(())
         } else {

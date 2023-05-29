@@ -524,7 +524,7 @@ pub trait StorageProvider: Sync + Send {
     ) -> Result<WriteEvent<'_>> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
-        let event = keeper.create(meta, secret)?.into_owned();
+        let event = keeper.create(meta, secret).await?.into_owned();
         self.patch(&summary, vec![event.clone()]).await?;
         Ok(event)
     }
@@ -536,7 +536,8 @@ pub trait StorageProvider: Sync + Send {
     ) -> Result<(SecretMeta, Secret, ReadEvent)> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let _summary = keeper.summary().clone();
-        let result = keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
+        let result =
+            keeper.read(id).await?.ok_or(Error::SecretNotFound(*id))?;
         Ok(result)
     }
 
@@ -550,7 +551,8 @@ pub trait StorageProvider: Sync + Send {
         let summary = keeper.summary().clone();
         secret_data.meta.touch();
         let event = keeper
-            .update(id, secret_data.meta, secret_data.secret)?
+            .update(id, secret_data.meta, secret_data.secret)
+            .await?
             .ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
         self.patch(&summary, vec![event.clone()]).await?;
@@ -564,7 +566,8 @@ pub trait StorageProvider: Sync + Send {
     ) -> Result<WriteEvent<'_>> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
-        let event = keeper.delete(id)?.ok_or(Error::SecretNotFound(*id))?;
+        let event =
+            keeper.delete(id).await?.ok_or(Error::SecretNotFound(*id))?;
         let event = event.into_owned();
         self.patch(&summary, vec![event.clone()]).await?;
         Ok(event)

@@ -274,7 +274,7 @@ impl Gatekeeper {
     }
 
     /// Add a secret to the vault.
-    pub fn create(
+    pub async fn create(
         &mut self,
         secret_meta: SecretMeta,
         secret: Secret,
@@ -328,7 +328,7 @@ impl Gatekeeper {
     }
 
     /// Get a secret and it's meta data from the vault.
-    pub fn read(
+    pub async fn read(
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
@@ -339,7 +339,7 @@ impl Gatekeeper {
     }
 
     /// Update a secret in the vault.
-    pub fn update(
+    pub async fn update(
         &mut self,
         id: &SecretId,
         secret_meta: SecretMeta,
@@ -397,7 +397,7 @@ impl Gatekeeper {
     }
 
     /// Delete a secret and it's meta data from the vault.
-    pub fn delete(
+    pub async fn delete(
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent<'_>>> {
@@ -501,8 +501,8 @@ mod tests {
     use anyhow::Result;
     use secrecy::SecretString;
 
-    #[test]
-    fn gatekeeper_secret_note() -> Result<()> {
+    #[tokio::test]
+    async fn gatekeeper_secret_note() -> Result<()> {
         let passphrase = SecretString::new("mock-passphrase".to_owned());
         let vault: Vault = Default::default();
         let mut keeper = Gatekeeper::new(vault, None);
@@ -525,7 +525,7 @@ mod tests {
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
         if let WriteEvent::CreateSecret(secret_uuid, _) =
-            keeper.create(secret_meta.clone(), secret.clone())?
+            keeper.create(secret_meta.clone(), secret.clone()).await?
         {
             let (saved_secret_meta, saved_secret) =
                 keeper.read_secret(&secret_uuid, None, None)?.unwrap();

@@ -314,15 +314,16 @@ mod test {
     use secrecy::SecretString;
     use std::io::Cursor;
 
-    #[test]
-    fn archive_buffer() -> Result<()> {
+    #[tokio::test]
+    async fn archive_buffer() -> Result<()> {
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
 
         let (address, identity_vault) = Identity::new_login_vault(
             "Mock".to_string(),
             SecretString::new("mock-password".to_string()),
-        )?;
+        )
+        .await?;
 
         let identity = encode(&identity_vault)?;
 

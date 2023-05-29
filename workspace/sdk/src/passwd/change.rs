@@ -144,8 +144,8 @@ mod test {
     use anyhow::Result;
     use secrecy::ExposeSecret;
 
-    #[test]
-    fn change_password() -> Result<()> {
+    #[tokio::test]
+    async fn change_password() -> Result<()> {
         let (_, _, current_passphrase) = mock_encryption_key()?;
         let mut mock_vault = mock_vault();
         mock_vault.initialize(current_passphrase.clone(), None)?;
@@ -162,7 +162,7 @@ mod test {
         for item in notes {
             let (secret_meta, secret_value, _, _) =
                 mock_secret_note(item.0, item.1)?;
-            keeper.create(secret_meta, secret_value)?;
+            keeper.create(secret_meta, secret_value).await?;
         }
 
         let expected_len = keeper.vault().len();

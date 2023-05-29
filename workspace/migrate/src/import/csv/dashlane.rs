@@ -1,7 +1,12 @@
 //! Parser for the Dashlane CSV zip export.
 
+use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::Deserialize;
+use sos_sdk::{
+    vault::{secret::IdentityKind, Vault},
+    Timestamp,
+};
 use std::{
     collections::HashSet,
     fs::File,
@@ -11,11 +16,6 @@ use std::{
 use time::{Date, Month};
 use url::Url;
 use vcard4::{property::DeliveryAddress, uriparse::URI as Uri, VcardBuilder};
-
-use sos_sdk::{
-    vault::{secret::IdentityKind, Vault},
-    Timestamp,
-};
 
 use super::{
     GenericContactRecord, GenericCsvConvert, GenericCsvEntry,
@@ -592,10 +592,12 @@ fn parse<R: Read + Seek>(rdr: R) -> Result<Vec<DashlaneRecord>> {
 /// Import a Dashlane CSV zip archive into a vault.
 pub struct DashlaneCsvZip;
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Convert for DashlaneCsvZip {
     type Input = PathBuf;
 
-    fn convert(
+    async fn convert(
         &self,
         source: Self::Input,
         vault: Vault,
@@ -603,7 +605,7 @@ impl Convert for DashlaneCsvZip {
     ) -> crate::Result<Vault> {
         let records: Vec<GenericCsvEntry> =
             parse_path(source)?.into_iter().map(|r| r.into()).collect();
-        GenericCsvConvert.convert(records, vault, password)
+        GenericCsvConvert.convert(records, vault, password).await
     }
 }
 
@@ -642,17 +644,19 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn dashlane_csv_convert() -> Result<()> {
+    #[tokio::test]
+    async fn dashlane_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
         vault.initialize(passphrase.clone(), None)?;
 
-        let vault = DashlaneCsvZip.convert(
-            "fixtures/dashlane-export.zip".into(),
-            vault,
-            passphrase.clone(),
-        )?;
+        let vault = DashlaneCsvZip
+            .convert(
+                "fixtures/dashlane-export.zip".into(),
+                vault,
+                passphrase.clone(),
+            )
+            .await?;
 
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
@@ -683,7 +687,7 @@ mod test {
         assert!(card.is_some());
 
         if let Some((_, secret, _)) =
-            keeper.read(card.as_ref().unwrap().id())?
+            keeper.read(card.as_ref().unwrap().id()).await?
         {
             //println!("{:#?}", secret);
             if let Secret::Card { expiry, .. } = secret {

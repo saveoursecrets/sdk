@@ -5523,6 +5523,7 @@ name = "sos-migrate"
 version = "0.5.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "csv",
  "dirs",
  "hex",
@@ -5537,6 +5538,7 @@ dependencies = [
  "sos-sdk",
  "thiserror",
  "time",
+ "tokio",
  "url",
  "vcard4",
  "zip",

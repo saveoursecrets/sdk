@@ -288,7 +288,8 @@ pub async fn new_account(
             .create_contacts(true)
             .create_file_password(true)
             .default_folder_name(folder_name)
-            .build()?;
+            .build()
+            .await?;
 
     let address = new_account.address;
 

@@ -13,6 +13,7 @@ use std::{
 };
 use url::Url;
 
+use async_trait::async_trait;
 use sos_sdk::vault::Vault;
 
 use super::{
@@ -112,10 +113,12 @@ fn parse<R: Read>(mut rdr: csv::Reader<R>) -> Result<Vec<OnePasswordRecord>> {
 /// Import a MacOS passwords CSV export into a vault.
 pub struct OnePasswordCsv;
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Convert for OnePasswordCsv {
     type Input = PathBuf;
 
-    fn convert(
+    async fn convert(
         &self,
         source: Self::Input,
         vault: Vault,
@@ -123,7 +126,7 @@ impl Convert for OnePasswordCsv {
     ) -> crate::Result<Vault> {
         let records: Vec<GenericCsvEntry> =
             parse_path(source)?.into_iter().map(|r| r.into()).collect();
-        GenericCsvConvert.convert(records, vault, password)
+        GenericCsvConvert.convert(records, vault, password).await
     }
 }
 
@@ -245,17 +248,19 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn one_password_csv_convert() -> Result<()> {
+    #[tokio::test]
+    async fn one_password_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
         vault.initialize(passphrase.clone(), None)?;
 
-        let vault = OnePasswordCsv.convert(
-            "fixtures/1password-export.csv".into(),
-            vault,
-            passphrase.clone(),
-        )?;
+        let vault = OnePasswordCsv
+            .convert(
+                "fixtures/1password-export.csv".into(),
+                vault,
+                passphrase.clone(),
+            )
+            .await?;
 
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =

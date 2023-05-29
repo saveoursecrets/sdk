@@ -8,6 +8,7 @@ use std::{
 };
 use url::Url;
 
+use async_trait::async_trait;
 use sos_sdk::vault::Vault;
 
 use super::{GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord};
@@ -89,10 +90,12 @@ fn parse<R: Read>(
 /// Import a Firefox passwords CSV export into a vault.
 pub struct FirefoxPasswordCsv;
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Convert for FirefoxPasswordCsv {
     type Input = PathBuf;
 
-    fn convert(
+    async fn convert(
         &self,
         source: Self::Input,
         vault: Vault,
@@ -100,7 +103,7 @@ impl Convert for FirefoxPasswordCsv {
     ) -> crate::Result<Vault> {
         let records: Vec<GenericCsvEntry> =
             parse_path(source)?.into_iter().map(|r| r.into()).collect();
-        GenericCsvConvert.convert(records, vault, password)
+        GenericCsvConvert.convert(records, vault, password).await
     }
 }
 
@@ -138,17 +141,19 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn firefox_passwords_csv_convert() -> Result<()> {
+    #[tokio::test]
+    async fn firefox_passwords_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
         vault.initialize(passphrase.clone(), None)?;
 
-        let vault = FirefoxPasswordCsv.convert(
-            "fixtures/firefox-export.csv".into(),
-            vault,
-            passphrase.clone(),
-        )?;
+        let vault = FirefoxPasswordCsv
+            .convert(
+                "fixtures/firefox-export.csv".into(),
+                vault,
+                passphrase.clone(),
+            )
+            .await?;
 
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =

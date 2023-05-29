@@ -25,7 +25,7 @@ const ZERO_CHECKSUM: [u8; 32] = [0; 32];
 #[tokio::test]
 #[serial]
 async fn integration_external_files() -> Result<()> {
-    let dirs = setup(1)?;
+    let dirs = setup(1).await?;
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
     StorageDirs::set_cache_dir(test_cache_dir.clone());

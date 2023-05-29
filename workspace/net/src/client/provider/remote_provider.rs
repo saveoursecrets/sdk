@@ -17,7 +17,7 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretMeta},
         Summary, Vault, VaultId,
     },
-    vfs, Timestamp,
+    vfs,
 };
 
 use std::{
@@ -430,7 +430,7 @@ impl StorageProvider for RemoteProvider {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let _summary = keeper.summary().clone();
         let (meta, secret, event) =
-            keeper.read(id)?.ok_or(Error::SecretNotFound(*id))?;
+            keeper.read(id).await?.ok_or(Error::SecretNotFound(*id))?;
         Ok((meta, secret, event))
     }
 }

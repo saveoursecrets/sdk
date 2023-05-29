@@ -305,7 +305,8 @@ impl UserStorage {
             self.user.identity_mut().keeper_mut(),
             summary.id(),
             passphrase,
-        )?;
+        )
+        .await?;
 
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent =
@@ -321,7 +322,8 @@ impl UserStorage {
         DelegatedPassphrase::remove_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
             summary.id(),
-        )?;
+        )
+        .await?;
         self.index.remove_folder_from_search_index(summary.id());
         self.delete_folder_files(summary).await?;
 
@@ -387,7 +389,8 @@ impl UserStorage {
             let _passphrase = DelegatedPassphrase::find_vault_passphrase(
                 self.user.identity().keeper(),
                 default_summary.id(),
-            )?;
+            )
+            .await?;
 
             let timestamp: Timestamp = Default::default();
             let label = format!(
@@ -497,14 +500,16 @@ impl UserStorage {
             DelegatedPassphrase::remove_vault_passphrase(
                 self.user.identity_mut().keeper_mut(),
                 summary.id(),
-            )?;
+            )
+            .await?;
         }
 
         DelegatedPassphrase::save_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
             summary.id(),
             passphrase.clone(),
-        )?;
+        )
+        .await?;
 
         // If overwriting remove old entries from the index
         if overwrite {
@@ -537,7 +542,8 @@ impl UserStorage {
         let passphrase = DelegatedPassphrase::find_vault_passphrase(
             self.user.identity().keeper(),
             summary.id(),
-        )?;
+        )
+        .await?;
 
         // If the target vault is already open then this is a noop
         // as opening a vault is an expensive operation
@@ -980,13 +986,14 @@ impl UserStorage {
                 DelegatedPassphrase::find_vault_passphrase(
                     self.user.identity().keeper(),
                     summary.id(),
-                )?;
+                )
+                .await?;
 
             let mut keeper = Gatekeeper::new(vault, None);
             keeper.unlock(vault_passphrase)?;
 
             // Add the secrets for the vault to the migration
-            migration.add(&keeper)?;
+            migration.add(&keeper).await?;
 
             keeper.lock();
         }
@@ -1096,11 +1103,13 @@ impl UserStorage {
         vault.initialize(vault_passphrase.clone(), None)?;
 
         // Parse the CSV records into the vault
-        let vault = converter.convert(
-            path.as_ref().to_path_buf(),
-            vault,
-            vault_passphrase.clone(),
-        )?;
+        let vault = converter
+            .convert(
+                path.as_ref().to_path_buf(),
+                vault,
+                vault_passphrase.clone(),
+            )
+            .await?;
 
         let buffer = encode(&vault)?;
         let (event, summary) = self.storage.import_vault(buffer).await?;
@@ -1109,7 +1118,8 @@ impl UserStorage {
             self.user.identity_mut().keeper_mut(),
             vault.id(),
             vault_passphrase.clone(),
-        )?;
+        )
+        .await?;
 
         // Ensure the imported secrets are in the search index
         self.index_mut()
@@ -1174,7 +1184,8 @@ impl UserStorage {
         let contacts_passphrase = DelegatedPassphrase::find_vault_passphrase(
             self.user.identity().keeper(),
             contacts.id(),
-        )?;
+        )
+        .await?;
         let (vault, _) = LocalAccounts::find_local_vault(
             self.user.identity().address(),
             contacts.id(),
@@ -1188,7 +1199,7 @@ impl UserStorage {
         let keys: Vec<&SecretId> = keeper.vault().keys().collect();
         for key in keys {
             if let Some((_, Secret::Contact { vcard, .. }, _)) =
-                keeper.read(key)?
+                keeper.read(key).await?
             {
                 vcf.push_str(&vcard.to_string());
             }

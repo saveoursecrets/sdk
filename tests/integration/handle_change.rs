@@ -16,7 +16,7 @@ use sos_sdk::commit::CommitProof;
 #[tokio::test]
 #[serial]
 async fn integration_handle_change() -> Result<()> {
-    let dirs = setup(2)?;
+    let dirs = setup(2).await?;
 
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;

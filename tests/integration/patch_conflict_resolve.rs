@@ -8,7 +8,7 @@ use sos_net::client::provider::StorageProvider;
 #[tokio::test]
 #[serial]
 async fn integration_patch_conflict_resolve() -> Result<()> {
-    let dirs = setup(2)?;
+    let dirs = setup(2).await?;
 
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;

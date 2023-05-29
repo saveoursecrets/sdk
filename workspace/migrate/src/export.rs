@@ -53,7 +53,7 @@ impl<W: Write + Seek> PublicExport<W> {
     ///
     /// The passed `Gatekeeper` must already be unlocked so the
     /// secrets can be decrypted.
-    pub fn add(&mut self, access: &Gatekeeper) -> Result<()> {
+    pub async fn add(&mut self, access: &Gatekeeper) -> Result<()> {
         // This verifies decryption early, if the keeper is locked
         // it will error here
         let meta = access.vault_meta()?;
@@ -72,7 +72,7 @@ impl<W: Write + Seek> PublicExport<W> {
         self.append_file_buffer(&store_path, buffer.as_slice())?;
 
         for id in access.vault().keys() {
-            if let Some((meta, mut secret, _)) = access.read(id)? {
+            if let Some((meta, mut secret, _)) = access.read(id).await? {
                 // Move contents for file secrets
                 self.move_file_buffer(&file_path, &mut secret)?;
 
@@ -183,7 +183,7 @@ mod test {
         vault::{Gatekeeper, Vault},
     };
 
-    fn create_mock_migration<W: Write + Seek>(
+    async fn create_mock_migration<W: Write + Seek>(
         writer: W,
     ) -> Result<PublicExport<W>> {
         let (passphrase, _) = generate_passphrase()?;
@@ -198,7 +198,7 @@ mod test {
 
         let (meta, secret, _, _) =
             mock_secret_note("Mock note", "Value for the mock note")?;
-        keeper.create(meta, secret)?;
+        keeper.create(meta, secret).await?;
 
         let (meta, secret, _, _) = mock_secret_file(
             "Mock file",
@@ -206,16 +206,17 @@ mod test {
             "text/plain",
             "Test value".as_bytes().to_vec(),
         )?;
-        keeper.create(meta, secret)?;
+        keeper.create(meta, secret).await?;
 
-        migration.add(&keeper)?;
+        migration.add(&keeper).await?;
         Ok(migration)
     }
 
-    #[test]
-    fn migration_public_archive() -> Result<()> {
+    #[tokio::test]
+    async fn migration_public_archive() -> Result<()> {
         let mut archive = Vec::new();
-        let migration = create_mock_migration(Cursor::new(&mut archive))?;
+        let migration =
+            create_mock_migration(Cursor::new(&mut archive)).await?;
         let _ = migration.finish()?;
         Ok(())
     }

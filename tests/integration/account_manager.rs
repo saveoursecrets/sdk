@@ -26,7 +26,7 @@ use crate::test_utils::*;
 #[tokio::test]
 #[serial]
 async fn integration_account_manager() -> Result<()> {
-    let dirs = setup(1)?;
+    let dirs = setup(1).await?;
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
     StorageDirs::set_cache_dir(test_cache_dir.clone());
@@ -100,7 +100,8 @@ async fn integration_account_manager() -> Result<()> {
         DelegatedPassphrase::find_vault_passphrase(
             user.identity().keeper(),
             summary.id(),
-        )?;
+        )
+        .await?;
 
     let default_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
     let (default_vault, _) =
@@ -113,7 +114,8 @@ async fn integration_account_manager() -> Result<()> {
     let file_passphrase =
         DelegatedPassphrase::find_file_encryption_passphrase(
             user.identity().keeper(),
-        )?;
+        )
+        .await?;
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
 
     // Encrypt

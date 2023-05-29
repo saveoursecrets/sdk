@@ -13,6 +13,7 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretMeta},
         Summary,
     },
+    vfs,
 };
 
 use sos_net::{
@@ -142,29 +143,29 @@ pub struct TestDirs {
     pub clients: Vec<PathBuf>,
 }
 
-pub fn setup(num_clients: usize) -> Result<TestDirs> {
+pub async fn setup(num_clients: usize) -> Result<TestDirs> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test");
     if !target.exists() {
-        std::fs::create_dir_all(&target)?;
+        vfs::create_dir_all(&target).await?;
     }
 
     let server = target.join("server");
     if server.exists() {
-        std::fs::remove_dir_all(&server)?;
+        vfs::remove_dir_all(&server).await?;
     }
 
     // Setup required sub-directories
-    std::fs::create_dir(&server)?;
+    vfs::create_dir(&server).await?;
 
     let mut clients = Vec::new();
     for index in 0..num_clients {
         let client = target.join(&format!("client{}", index + 1));
         if client.exists() {
-            std::fs::remove_dir_all(&client)?;
+            vfs::remove_dir_all(&client).await?;
         }
-        std::fs::create_dir(&client)?;
+        vfs::create_dir(&client).await?;
         clients.push(client);
     }
 
@@ -203,7 +204,7 @@ pub async fn create_secrets(
     let mut create_events = Vec::new();
     for item in notes.iter() {
         let (meta, secret) = mock_note(item.0, item.1);
-        let event = keeper.create(meta, secret)?;
+        let event = keeper.create(meta, secret).await?;
 
         let id = if let WriteEvent::CreateSecret(secret_id, _) = &event {
             *secret_id
@@ -231,7 +232,7 @@ pub async fn delete_secret(
     id: &SecretId,
 ) -> Result<()> {
     let keeper = provider.current_mut().unwrap();
-    let event = keeper.delete(id)?.unwrap();
+    let event = keeper.delete(id).await?.unwrap();
     let event = event.into_owned();
 
     // Send the patch to the remote server

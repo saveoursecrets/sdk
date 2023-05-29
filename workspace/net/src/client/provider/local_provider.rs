@@ -6,8 +6,7 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_sdk::{
     commit::{
-        CommitHash, CommitPair, CommitRelationship, CommitTree, SyncInfo,
-        SyncKind,
+        CommitPair, CommitRelationship, CommitTree, SyncInfo, SyncKind,
     },
     constants::VAULT_EXT,
     decode, encode,
@@ -16,7 +15,7 @@ use sos_sdk::{
     patch::PatchFile,
     storage::StorageDirs,
     vault::{Header, Summary, Vault, VaultId},
-    vfs, Timestamp,
+    vfs,
 };
 
 use std::{

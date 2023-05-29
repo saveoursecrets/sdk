@@ -61,7 +61,8 @@ impl UserStorage {
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
             self.user.identity().keeper(),
-        )?;
+        )
+        .await?;
 
         // Encrypt and write to disc
         Ok(FileStorage::encrypt_file_storage(
@@ -75,7 +76,7 @@ impl UserStorage {
     }
 
     /// Decrypt a file in the storage location and return the buffer.
-    pub fn decrypt_file_storage(
+    pub async fn decrypt_file_storage(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
@@ -84,7 +85,8 @@ impl UserStorage {
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
             self.user.identity().keeper(),
-        )?;
+        )
+        .await?;
 
         Ok(FileStorage::decrypt_file_storage(
             &password,

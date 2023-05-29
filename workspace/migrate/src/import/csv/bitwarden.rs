@@ -11,6 +11,7 @@ use std::{
 };
 use url::Url;
 
+use async_trait::async_trait;
 use sos_sdk::vault::Vault;
 
 use super::{
@@ -130,10 +131,12 @@ fn parse<R: Read>(
 /// Import a Bitwarden passwords CSV export into a vault.
 pub struct BitwardenCsv;
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Convert for BitwardenCsv {
     type Input = PathBuf;
 
-    fn convert(
+    async fn convert(
         &self,
         source: Self::Input,
         vault: Vault,
@@ -146,7 +149,7 @@ impl Convert for BitwardenCsv {
             })
             .map(|r| r.into())
             .collect();
-        GenericCsvConvert.convert(records, vault, password)
+        GenericCsvConvert.convert(records, vault, password).await
     }
 }
 
@@ -186,17 +189,19 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn bitwarden_passwords_csv_convert() -> Result<()> {
+    #[tokio::test]
+    async fn bitwarden_passwords_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
         vault.initialize(passphrase.clone(), None)?;
 
-        let vault = BitwardenCsv.convert(
-            "fixtures/bitwarden-export.csv".into(),
-            vault,
-            passphrase.clone(),
-        )?;
+        let vault = BitwardenCsv
+            .convert(
+                "fixtures/bitwarden-export.csv".into(),
+                vault,
+                passphrase.clone(),
+            )
+            .await?;
 
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =

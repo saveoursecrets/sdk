@@ -117,7 +117,7 @@ impl AccountBuilder {
     }
 
     /// Create a new identity vault and account folders.
-    pub fn build(self) -> Result<(Vault, NewAccount)> {
+    pub async fn build(self) -> Result<(Vault, NewAccount)> {
         let AccountBuilder {
             account_name,
             passphrase,
@@ -133,13 +133,15 @@ impl AccountBuilder {
         let (address, identity_vault) = Identity::new_login_vault(
             account_name.clone(),
             passphrase.clone(),
-        )?;
+        )
+        .await?;
 
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault)?;
         let user =
-            Identity::login_buffer(buffer, passphrase.clone(), None, None)?;
+            Identity::login_buffer(buffer, passphrase.clone(), None, None)
+                .await?;
 
         // Prepare the passphrase for the default vault
         let vault_passphrase =
@@ -167,7 +169,7 @@ impl AccountBuilder {
             let mut meta =
                 SecretMeta::new("Master Password".to_string(), secret.kind());
             meta.set_favorite(true);
-            keeper.create(meta, secret)?;
+            keeper.create(meta, secret).await?;
 
             default_vault = keeper.into();
         }
@@ -191,7 +193,8 @@ impl AccountBuilder {
             &mut keeper,
             default_vault.id(),
             vault_passphrase,
-        )?;
+        )
+        .await?;
 
         if create_file_password {
             let file_passphrase =
@@ -205,7 +208,7 @@ impl AccountBuilder {
                 SecretMeta::new("File Encryption".to_string(), secret.kind());
             let urn: Urn = FILE_PASSWORD_URN.parse()?;
             meta.set_urn(Some(urn));
-            keeper.create(meta, secret)?;
+            keeper.create(meta, secret).await?;
         }
 
         let archive = if create_archive {
@@ -222,7 +225,8 @@ impl AccountBuilder {
                 &mut keeper,
                 vault.id(),
                 archive_passphrase,
-            )?;
+            )
+            .await?;
             Some(vault)
         } else {
             None
@@ -243,7 +247,8 @@ impl AccountBuilder {
                 &mut keeper,
                 vault.id(),
                 auth_passphrase,
-            )?;
+            )
+            .await?;
             Some(vault)
         } else {
             None
@@ -263,7 +268,8 @@ impl AccountBuilder {
                 &mut keeper,
                 vault.id(),
                 auth_passphrase,
-            )?;
+            )
+            .await?;
             Some(vault)
         } else {
             None
@@ -302,7 +308,7 @@ impl AccountBuilder {
 
     /// Create a new account and write the identity vault to disc.
     pub async fn finish(self) -> Result<NewAccount> {
-        let (identity_vault, account) = self.build()?;
+        let (identity_vault, account) = self.build().await?;
         Self::write(identity_vault, account).await
     }
 }

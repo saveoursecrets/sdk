@@ -18,7 +18,7 @@ use sos_sdk::{
 };
 use web3_address::ethereum::Address;
 
-fn create_archive(
+async fn create_archive(
     passphrase: SecretString,
     vaults: Vec<Vault>,
 ) -> Result<(Address, Vault, Vec<u8>)> {
@@ -26,7 +26,7 @@ fn create_archive(
     let mut writer = Writer::new(Cursor::new(&mut archive));
 
     let (address, identity_vault) =
-        Identity::new_login_vault("Mock".to_string(), passphrase)?;
+        Identity::new_login_vault("Mock".to_string(), passphrase).await?;
 
     let identity = encode(&identity_vault)?;
 
@@ -66,7 +66,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     let mut keeper = Gatekeeper::new(default_vault, None);
     keeper.unlock(passphrase.clone())?;
     let secret_id = if let WriteEvent::CreateSecret(id, _) =
-        keeper.create(meta, secret)?
+        keeper.create(meta, secret).await?
     {
         id
     } else {
@@ -85,7 +85,7 @@ async fn integration_archive_local_provider() -> Result<()> {
 
     // Create the archive
     let (address, _identity_vault, mut archive) =
-        create_archive(passphrase.clone(), vec![vault])?;
+        create_archive(passphrase.clone(), vec![vault]).await?;
 
     let reader = Cursor::new(&mut archive);
 
@@ -106,7 +106,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     storage.open_vault(&vault_summary, passphrase, None).await?;
 
     if let Some((archive_meta, archive_secret, _)) =
-        storage.current().as_ref().unwrap().read(&secret_id)?
+        storage.current().as_ref().unwrap().read(&secret_id).await?
     {
         assert_eq!(expected_meta, archive_meta);
         assert_eq!(expected_secret, archive_secret);

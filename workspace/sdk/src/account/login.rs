@@ -219,7 +219,8 @@ impl Login {
                 DelegatedPassphrase::find_vault_passphrase(
                     identity,
                     summary.id(),
-                )?;
+                )
+                .await?;
 
             let (vault, _) =
                 LocalAccounts::find_local_vault(address, summary.id(), true)
@@ -242,7 +243,7 @@ impl Login {
                     ..
                 },
                 _,
-            )) = device_keeper.read(document.id())?
+            )) = device_keeper.read(document.id()).await?
             {
                 let key: ed25519::SingleParty =
                     data.expose_secret().as_slice().try_into()?;
@@ -273,7 +274,8 @@ impl Login {
                 identity,
                 vault.id(),
                 device_passphrase.clone(),
-            )?;
+            )
+            .await?;
 
             let mut device_keeper = Gatekeeper::new(vault, None);
             device_keeper.unlock(device_passphrase)?;
@@ -288,7 +290,7 @@ impl Login {
             let mut meta =
                 SecretMeta::new("Device Key".to_string(), secret.kind());
             meta.set_urn(Some(urn));
-            device_keeper.create(meta, secret)?;
+            device_keeper.create(meta, secret).await?;
 
             let device_vault: Vault = device_keeper.into();
             let summary = device_vault.summary().clone();

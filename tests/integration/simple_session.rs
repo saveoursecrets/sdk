@@ -28,7 +28,7 @@ use sos_sdk::{
 #[tokio::test]
 #[serial]
 async fn integration_simple_session() -> Result<()> {
-    let dirs = setup(1)?;
+    let dirs = setup(1).await?;
 
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;

@@ -17,6 +17,7 @@ use sos_sdk::{
         secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
         Summary,
     },
+    vfs,
 };
 
 use crate::{
@@ -499,15 +500,17 @@ pub(crate) async fn download_file_secret(
         match content {
             FileContent::External { checksum, .. } => {
                 let file_name = hex::encode(checksum);
-                let buffer = owner.decrypt_file_storage(
-                    resolved.summary.id(),
-                    &resolved.secret_id,
-                    &file_name,
-                )?;
-                std::fs::write(file, buffer)?;
+                let buffer = owner
+                    .decrypt_file_storage(
+                        resolved.summary.id(),
+                        &resolved.secret_id,
+                        &file_name,
+                    )
+                    .await?;
+                vfs::write(file, buffer).await?;
             }
             FileContent::Embedded { buffer, .. } => {
-                std::fs::write(file, buffer.expose_secret())?;
+                vfs::write(file, buffer.expose_secret()).await?;
             }
         }
         println!("Download complete ✓");

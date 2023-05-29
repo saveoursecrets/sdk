@@ -319,7 +319,8 @@ impl AccountBackup {
     ) -> Result<Vec<u8>> {
         // Get the current vault passphrase from the identity vault
         let current_passphrase =
-            DelegatedPassphrase::find_vault_passphrase(identity, vault_id)?;
+            DelegatedPassphrase::find_vault_passphrase(identity, vault_id)
+                .await?;
 
         // Find the local vault for the account
         let (vault, _) =
@@ -444,13 +445,15 @@ impl AccountBackup {
                         DelegatedPassphrase::find_vault_passphrase(
                             &restored_identity_keeper,
                             vault.id(),
-                        )?;
+                        )
+                        .await?;
 
                     DelegatedPassphrase::save_vault_passphrase(
                         &mut identity_keeper,
                         vault.id(),
                         vault_passphrase,
-                    )?;
+                    )
+                    .await?;
                 }
 
                 // Must re-write the identity vault
@@ -603,7 +606,8 @@ impl AccountBackup {
                 passphrase.clone(),
                 None,
                 None,
-            )?;
+            )
+            .await?;
             if user.address() != &address {
                 return Err(Error::ArchiveAddressMismatch);
             }

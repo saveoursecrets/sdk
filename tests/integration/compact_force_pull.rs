@@ -18,7 +18,7 @@ use sos_sdk::commit::CommitProof;
 #[ignore = "flaky"]
 // SEE: https://github.com/saveoursecrets/sdk/issues/126
 async fn integration_compact_force_pull() -> Result<()> {
-    let dirs = setup(2)?;
+    let dirs = setup(2).await?;
 
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
