@@ -1,38 +1,38 @@
 //! Virtual file system designed to match the `tokio::fs` module.
 //!
-//! Using the memory VFS allows webassembly to support 
+//! Using the memory VFS allows webassembly to support
 //! asynchronous file system access using a familiar API.
 //!
-//! The default operating system VFS re-exports the 
+//! The default operating system VFS re-exports the
 //! `tokio::fs` module.
 //!
-//! The memory file system is enabled by default for 
-//! `wasm32-unknown-unknown` or if the `mem-fs` feature 
+//! The memory file system is enabled by default for
+//! `wasm32-unknown-unknown` or if the `mem-fs` feature
 //! is enabled.
 //!
 //! # Memory VFS Caveats
 //!
 //! Avoid using the `PathBuf` functions `exists()`, `metadata()`,
-//! `is_dir()`, `is_file()` etc as they will be incorrect when 
-//! using a virtual file system. Instead use the `vfs::metadata()` and 
+//! `is_dir()`, `is_file()` etc as they will be incorrect when
+//! using a virtual file system. Instead use the `vfs::metadata()` and
 //! `vfs::try_exists()` asynchronous functions.
 //!
-//! The `SystemTime` type is not available on `wasm32-unknown-unknwown` 
-//! so `Metadata` does not support `created()`, `accessed()` 
+//! The `SystemTime` type is not available on `wasm32-unknown-unknwown`
+//! so `Metadata` does not support `created()`, `accessed()`
 //! and `modified()` for that target.
 //!
 //! # Memory VFS Unsupported
 //!
-//! This functionality is not supported yet but we hope to 
+//! This functionality is not supported yet but we hope to
 //! implement in the future.
 //!
-//! The `canonicalize()` function and path traversal using 
+//! The `canonicalize()` function and path traversal using
 //! `..` and '.' are not supported yet.
 //!
 //! The `readonly` flag on permissions is not supported yet.
 //!
-//! Symbolic links are not supported yet which means the `hard_link()`, 
-//! `symlink()`, `symlink_metadata()`, `symlink_file()` and 
+//! Symbolic links are not supported yet which means the `hard_link()`,
+//! `symlink()`, `symlink_metadata()`, `symlink_file()` and
 //! `symlink_dir()` functions are not available.
 //!
 

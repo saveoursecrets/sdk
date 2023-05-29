@@ -7,7 +7,7 @@ use std::{
 
 use super::fs::{
     has_parent, resolve, resolve_parent, root_fs_mut, Fd, MemoryDir,
-    MemoryFd, Parent, PathTarget, FS_LOCK,
+    MemoryFd, Parent, PathTarget,
 };
 
 /// A builder for creating directories in various manners.
@@ -52,8 +52,6 @@ impl DirBuilder {
     ///   or its missing parents.
     /// * Other I/O error occurred.
     pub async fn create(&self, path: impl AsRef<Path>) -> Result<()> {
-        let _ = FS_LOCK.lock().await;
-
         if self.recursive {
             let mut current = Parent::Root(root_fs_mut());
             let mut buf = PathBuf::new();

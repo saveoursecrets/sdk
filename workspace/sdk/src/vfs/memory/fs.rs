@@ -49,7 +49,7 @@ static mut ROOT_DIR: Lazy<MemoryDir> = Lazy::new(|| MemoryDir::new_root());
 
 // Lock for when we need to modify the file system by adding
 // or removing paths.
-pub(super) static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 /*
 #[cfg(debug_assertions)]
@@ -118,11 +118,11 @@ impl Parent {
         path: impl AsRef<Path>,
     ) -> Result<Option<Fd>> {
         match self {
-            Self::Root(fs) => Ok((*fs).unlink(path)),
+            Self::Root(fs) => Ok((*fs).remove(path).await),
             Self::Folder(fd) => {
                 let mut fd = fd.write().await;
                 match &mut *fd {
-                    MemoryFd::Dir(dir) => Ok(dir.unlink(path)),
+                    MemoryFd::Dir(dir) => Ok(dir.remove(path).await),
                     _ => Err(ErrorKind::PermissionDenied.into()),
                 }
             }
@@ -134,11 +134,11 @@ impl Parent {
     /// If a child already exists with the same name it is replaced.
     pub async fn insert(&mut self, name: OsString, child: Fd) -> Result<()> {
         match self {
-            Self::Root(fs) => Ok((*fs).insert(name, child)),
+            Self::Root(fs) => Ok((*fs).insert(name, child).await),
             Self::Folder(fd) => {
                 let mut fd = fd.write().await;
                 match &mut *fd {
-                    MemoryFd::Dir(dir) => Ok(dir.insert(name, child)),
+                    MemoryFd::Dir(dir) => Ok(dir.insert(name, child).await),
                     _ => Err(ErrorKind::PermissionDenied.into()),
                 }
             }
@@ -216,7 +216,8 @@ impl MemoryDir {
     }
 
     /// Remove a child file or directory.
-    pub fn unlink(&mut self, path: impl AsRef<Path>) -> Option<Fd> {
+    pub async fn remove(&mut self, path: impl AsRef<Path>) -> Option<Fd> {
+        let _ = FS_LOCK.lock().await;
         if let Some(name) = path.as_ref().file_name() {
             self.files.remove(name)
         } else {
@@ -225,7 +226,8 @@ impl MemoryDir {
     }
 
     /// Insert a child node into this directory.
-    pub fn insert(&mut self, name: OsString, fd: Fd) {
+    pub async fn insert(&mut self, name: OsString, fd: Fd) {
+        let _ = FS_LOCK.lock().await;
         self.files.insert(name, fd);
     }
 
@@ -476,8 +478,6 @@ pub async fn read(path: impl AsRef<Path>) -> Result<Vec<u8>> {
 
 /// Removes a file from the filesystem.
 pub async fn remove_file(path: impl AsRef<Path>) -> Result<()> {
-    let _ = FS_LOCK.lock().await;
-
     let file = ensure_file(path.as_ref()).await?;
     let mut fd = file.write().await;
     if let Some(parent) = fd.parent_mut() {
@@ -490,8 +490,6 @@ pub async fn remove_file(path: impl AsRef<Path>) -> Result<()> {
 
 /// Removes an existing, empty directory.
 pub async fn remove_dir(path: impl AsRef<Path>) -> Result<()> {
-    let _ = FS_LOCK.lock().await;
-
     let dir = ensure_dir(path.as_ref()).await?;
     let mut fd = dir.write().await;
     match &*fd {
@@ -512,8 +510,6 @@ pub async fn remove_dir(path: impl AsRef<Path>) -> Result<()> {
 /// Removes a directory at this path, after removing
 /// all its contents. Use carefully!
 pub async fn remove_dir_all(path: impl AsRef<Path>) -> Result<()> {
-    let _ = FS_LOCK.lock().await;
-
     let dir = ensure_dir(path.as_ref()).await?;
     let mut fd = dir.write().await;
     if let Some(parent) = fd.parent_mut() {
@@ -530,8 +526,6 @@ pub async fn rename(
     from: impl AsRef<Path>,
     to: impl AsRef<Path>,
 ) -> Result<()> {
-    let _ = FS_LOCK.lock().await;
-
     let file = resolve(from.as_ref()).await.ok_or_else(|| {
         let err: io::Error = ErrorKind::NotFound.into();
         err
@@ -592,13 +586,14 @@ pub async fn rename(
                             let mut to_parent_write = fd.write().await;
                             match &mut *to_parent_write {
                                 MemoryFd::Dir(dir) => {
-                                    dir.insert(to_name.to_owned(), source);
+                                    dir.insert(to_name.to_owned(), source)
+                                        .await;
                                 }
                                 _ => unreachable!(),
                             }
                         }
                         PathTarget::Root(dir) => {
-                            dir.insert(to_name.to_owned(), source);
+                            dir.insert(to_name.to_owned(), source).await;
                         }
                     }
                     Ok(())
@@ -608,7 +603,7 @@ pub async fn rename(
 
             // Moving to the root
             } else {
-                root_fs_mut().insert(to_name.to_owned(), source);
+                root_fs_mut().insert(to_name.to_owned(), source).await;
                 Ok(())
             }
         }
@@ -746,7 +741,8 @@ pub(super) async fn create_file(
                             dir.insert(
                                 file_name.to_owned(),
                                 Arc::new(RwLock::new(new_file)),
-                            );
+                            )
+                            .await;
 
                             Ok(dir
                                 .files()
@@ -768,7 +764,8 @@ pub(super) async fn create_file(
                 file_name.to_owned(),
                 Some(Parent::Root(root_fs_mut())),
             ));
-            dir.insert(file_name.to_owned(), Arc::new(RwLock::new(new_file)));
+            dir.insert(file_name.to_owned(), Arc::new(RwLock::new(new_file)))
+                .await;
             Ok(dir.files().get(file_name).map(Arc::clone).unwrap())
         }
     }
