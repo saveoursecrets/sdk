@@ -29,9 +29,9 @@ pub struct BearerToken {
 
 impl BearerToken {
     /// Create a new bearer token.
-    pub fn new(token: &str, message: &[u8]) -> Result<Self> {
+    pub async fn new(token: &str, message: &[u8]) -> Result<Self> {
         let value = bs58::decode(token).into_vec()?;
-        let binary_sig: BinarySignature = decode(&value)?;
+        let binary_sig: BinarySignature = decode(&value).await?;
         let signature: Signature = binary_sig.into();
         let address = recover_address(signature, message)?;
         Ok(Self {
@@ -49,12 +49,12 @@ impl BearerToken {
 ///
 /// The signature is then converted to a recoverable signature and the public
 /// key is extracted using the body bytes as the message that has been signed.
-pub fn bearer<B>(
+pub async fn bearer<B>(
     authorization: Authorization<Bearer>,
     body: B,
 ) -> Result<BearerToken>
 where
     B: AsRef<[u8]>,
 {
-    BearerToken::new(authorization.token(), body.as_ref())
+    BearerToken::new(authorization.token(), body.as_ref()).await
 }

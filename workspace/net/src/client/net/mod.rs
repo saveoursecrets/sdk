@@ -23,9 +23,9 @@ pub use rpc::{MaybeRetry, RpcClient};
 
 const AUTHORIZATION: &str = "authorization";
 
-pub(crate) fn encode_signature(signature: Signature) -> Result<String> {
+pub(crate) async fn encode_signature(signature: Signature) -> Result<String> {
     let signature: BinarySignature = signature.into();
-    let value = bs58::encode(encode(&signature)?).into_string();
+    let value = bs58::encode(encode(&signature).await?).into_string();
     Ok(value)
 }
 
@@ -85,9 +85,9 @@ pub async fn changes_uri(
     let aead = session.encrypt(&[])?;
 
     let sign_bytes = session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
-    let bearer = encode_signature(signer.sign(&sign_bytes).await?)?;
+    let bearer = encode_signature(signer.sign(&sign_bytes).await?).await?;
 
-    let message = encode(&aead)?;
+    let message = encode(&aead).await?;
 
     let uri = websocket_uri(endpoint, message, bearer, *session.id());
 

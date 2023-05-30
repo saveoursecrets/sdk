@@ -1,5 +1,6 @@
 //! Listen for change notifications on a websocket connection.
 use futures::{
+    Future,
     stream::{Map, SplitStream},
     StreamExt,
 };
@@ -12,7 +13,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, runtime::Handle};
 
 use url::{Origin, Url};
 
@@ -77,7 +78,7 @@ pub async fn connect(
     let aead = session.encrypt(&[])?;
 
     let sign_bytes = session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
-    let bearer = encode_signature(client.signer().sign(&sign_bytes).await?)?;
+    let bearer = encode_signature(client.signer().sign(&sign_bytes).await?).await?;
 
     let message = encode(&aead)?;
 
@@ -103,17 +104,20 @@ pub fn changes(
     mut session: ClientSession,
 ) -> Map<
     SplitStream<WsStream>,
-    impl FnMut(
-        std::result::Result<Message, tungstenite::Error>,
-    ) -> Result<ChangeNotification>,
+    impl Future<
+        Output = Result<ChangeNotification>,
+    >
+    //impl FnMut(
+        //std::result::Result<Pin<Box<dyn Future<Output = Message>, tungstenite::Error>,
+    //) -> Result<ChangeNotification>,
 > {
     let (_, read) = stream.split();
 
-    read.map(move |message| -> Result<ChangeNotification> {
+    read.map(move |message| async {
         let message = message?;
         match message {
             Message::Binary(buffer) => {
-                let aead: AeadPack = decode(&buffer)?;
+                let aead: AeadPack = decode(&buffer).await?;
                 session.set_nonce(&aead.nonce);
                 let message = session.decrypt(&aead)?;
                 let notification: ChangeNotification =

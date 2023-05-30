@@ -63,6 +63,7 @@ impl ChangesListener {
     {
         let mut stream = changes(stream, session);
         while let Some(notification) = stream.next().await {
+            //let notification = fut.await;
             let notification = notification?;
             let future = handler(notification);
             future.await;

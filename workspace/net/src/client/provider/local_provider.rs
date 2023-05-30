@@ -85,7 +85,7 @@ impl StorageProvider for LocalProvider {
         _is_account: bool,
     ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
         let (passphrase, vault, buffer) =
-            Vault::new_buffer(name, passphrase, None)?;
+            Vault::new_buffer(name, passphrase, None).await?;
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
@@ -113,7 +113,7 @@ impl StorageProvider for LocalProvider {
         &mut self,
         buffer: Vec<u8>,
     ) -> Result<(WriteEvent<'static>, Summary)> {
-        let vault: Vault = decode(&buffer)?;
+        let vault: Vault = decode(&buffer).await?;
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
@@ -145,7 +145,7 @@ impl StorageProvider for LocalProvider {
     ) -> Result<()> {
         if self.state().mirror() {
             // Write the vault to disc
-            let buffer = encode(vault)?;
+            let buffer = encode(vault).await?;
             self.write_vault_file(summary, &buffer).await?;
         }
 
@@ -168,7 +168,7 @@ impl StorageProvider for LocalProvider {
             let path = entry.path();
             if let Some(extension) = path.extension() {
                 if extension == VAULT_EXT {
-                    let summary = Header::read_summary_file(path)?;
+                    let summary = Header::read_summary_file(path).await?;
                     if summary.flags().is_system() {
                         continue;
                     }
@@ -208,7 +208,7 @@ impl StorageProvider for LocalProvider {
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        Ok(EventReducer::new().reduce(event_log_file).await?.build()?)
+        Ok(EventReducer::new().reduce(event_log_file).await?.build().await?)
     }
 
     async fn remove_vault(

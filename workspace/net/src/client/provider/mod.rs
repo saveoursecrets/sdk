@@ -111,12 +111,12 @@ pub trait StorageProvider: Sync + Send {
         account: &NewAccount,
     ) -> Result<ImportedAccount> {
         // Save the default vault
-        let buffer = encode(&account.default_vault)?;
+        let buffer = encode(&account.default_vault).await?;
 
         let (_, summary) = self.create_account_from_buffer(buffer).await?;
 
         let archive = if let Some(archive_vault) = &account.archive {
-            let buffer = encode(archive_vault)?;
+            let buffer = encode(archive_vault).await?;
             let (_, summary) = self.import_vault(buffer).await?;
             Some(summary)
         } else {
@@ -125,7 +125,7 @@ pub trait StorageProvider: Sync + Send {
 
         let authenticator =
             if let Some(authenticator_vault) = &account.authenticator {
-                let buffer = encode(authenticator_vault)?;
+                let buffer = encode(authenticator_vault).await?;
                 let (_, summary) = self.import_vault(buffer).await?;
                 Some(summary)
             } else {
@@ -133,7 +133,7 @@ pub trait StorageProvider: Sync + Send {
             };
 
         let contacts = if let Some(contact_vault) = &account.contacts {
-            let buffer = encode(contact_vault)?;
+            let buffer = encode(contact_vault).await?;
             let (_, summary) = self.import_vault(buffer).await?;
             Some(summary)
         } else {
@@ -246,7 +246,7 @@ pub trait StorageProvider: Sync + Send {
 
         // Rewrite the on-disc version if we are mirroring
         if self.state().mirror() {
-            let buffer = encode(&vault)?;
+            let buffer = encode(&vault).await?;
             self.write_vault_file(summary, &buffer).await?;
         }
 
@@ -341,12 +341,12 @@ pub trait StorageProvider: Sync + Send {
         let vault = if self.state().mirror() {
             if !vault_path.exists() {
                 let vault = self.reduce_event_log(summary).await?;
-                let buffer = encode(&vault)?;
+                let buffer = encode(&vault).await?;
                 self.write_vault_file(summary, &buffer).await?;
                 vault
             } else {
                 let buffer = vfs::read(&vault_path).await?;
-                let vault: Vault = decode(&buffer)?;
+                let vault: Vault = decode(&buffer).await?;
                 vault
             }
         } else {
@@ -396,13 +396,13 @@ pub trait StorageProvider: Sync + Send {
         vault: Option<Vault>,
     ) -> Result<()> {
         let patch_path = self.patch_path(summary);
-        let patch_file = PatchFile::new(patch_path)?;
+        let patch_file = PatchFile::new(patch_path).await?;
 
         let event_log_path = self.event_log_path(summary);
         let mut event_log = EventLogFile::new(&event_log_path).await?;
 
         if let Some(vault) = &vault {
-            let encoded = encode(vault)?;
+            let encoded = encode(vault).await?;
             let event = WriteEvent::CreateVault(Cow::Owned(encoded));
             event_log.append_event(event).await?;
         }
@@ -604,7 +604,7 @@ pub trait StorageProvider: Sync + Send {
 
         if let Some(keeper) = self.current_mut() {
             if keeper.summary().id() == vault.summary().id() {
-                keeper.unlock(new_passphrase.clone())?;
+                keeper.unlock(new_passphrase.clone()).await?;
             }
         }
 

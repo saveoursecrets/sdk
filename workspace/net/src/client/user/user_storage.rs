@@ -434,7 +434,7 @@ impl UserStorage {
     ) -> Result<Summary> {
         let buffer = vfs::read(path.as_ref()).await?;
 
-        let mut vault: Vault = decode(&buffer)?;
+        let mut vault: Vault = decode(&buffer).await?;
 
         // Need to verify the passphrase
         vault.verify(passphrase.expose_secret())?;
@@ -487,7 +487,7 @@ impl UserStorage {
         let buffer =
             if has_id_changed || has_name_changed || remove_default_flag {
                 // Need to update the buffer as we changed the data
-                encode(&vault)?
+                encode(&vault).await?
             } else {
                 buffer
             };
@@ -999,7 +999,7 @@ impl UserStorage {
                 .await?;
 
             let mut keeper = Gatekeeper::new(vault, None);
-            keeper.unlock(vault_passphrase)?;
+            keeper.unlock(vault_passphrase).await?;
 
             // Add the secrets for the vault to the migration
             migration.add(&keeper).await?;
@@ -1110,7 +1110,7 @@ impl UserStorage {
             folder_name
         };
         vault.set_name(name);
-        vault.initialize(vault_passphrase.clone(), None)?;
+        vault.initialize(vault_passphrase.clone(), None).await?;
 
         // Parse the CSV records into the vault
         let vault = converter
@@ -1121,7 +1121,7 @@ impl UserStorage {
             )
             .await?;
 
-        let buffer = encode(&vault)?;
+        let buffer = encode(&vault).await?;
         let (event, summary) = self.storage.import_vault(buffer).await?;
 
         DelegatedPassphrase::save_vault_passphrase(
@@ -1204,7 +1204,7 @@ impl UserStorage {
         )
         .await?;
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(contacts_passphrase)?;
+        keeper.unlock(contacts_passphrase).await?;
 
         let mut vcf = String::new();
         let keys: Vec<&SecretId> = keeper.vault().keys().collect();
@@ -1287,7 +1287,7 @@ impl UserStorage {
     pub async fn restore_archive_inventory<R: Read + Seek>(
         buffer: R,
     ) -> Result<Inventory> {
-        let mut inventory = AccountBackup::restore_archive_inventory(buffer)?;
+        let mut inventory = AccountBackup::restore_archive_inventory(buffer).await?;
         let accounts = LocalAccounts::list_accounts().await?;
         let exists_local = accounts
             .iter()

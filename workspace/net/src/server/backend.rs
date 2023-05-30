@@ -256,7 +256,7 @@ impl FileSystemBackend {
 
                                     let summary = Header::read_summary_file(
                                         &vault_path,
-                                    )?;
+                                    ).await?;
                                     let id = *summary.id();
 
                                     let mut event_log_file =
@@ -376,7 +376,7 @@ impl BackendHandler for FileSystemBackend {
         }
 
         // Check it looks like a vault payload
-        let summary = Header::read_summary_slice(vault)?;
+        let summary = Header::read_summary_slice(vault).await?;
 
         tokio::fs::create_dir(account_dir).await?;
         let (event_log_path, event_log_file) =
@@ -405,7 +405,7 @@ impl BackendHandler for FileSystemBackend {
         }
 
         // Check it looks like a vault payload
-        let summary = Header::read_summary_slice(vault)?;
+        let summary = Header::read_summary_slice(vault).await?;
 
         let (event_log_path, event_log_file) =
             self.new_event_log_file(owner, vault_id, vault).await?;
@@ -483,7 +483,7 @@ impl BackendHandler for FileSystemBackend {
             for id in account.keys() {
                 let mut vault_path = self.event_log_file_path(owner, id);
                 vault_path.set_extension(VAULT_EXT);
-                let summary = Header::read_summary_file(&vault_path)?;
+                let summary = Header::read_summary_file(&vault_path).await?;
                 summaries.push(summary);
             }
         }
@@ -500,8 +500,8 @@ impl BackendHandler for FileSystemBackend {
             .get(owner)
             .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
-        let vault: Vault = decode(vault)?;
-        let (vault, events) = EventReducer::split(vault)?;
+        let vault: Vault = decode(vault).await?;
+        let (vault, events) = EventReducer::split(vault).await?;
 
         // Prepare a temp file with the new event log records
         let temp = NamedTempFile::new()?;
@@ -516,7 +516,7 @@ impl BackendHandler for FileSystemBackend {
         // Prepare the buffer for the vault file
         let vault_path = self.vault_file_path(owner, vault.id());
         // Re-encode with the new header-only vault
-        let vault_buffer = encode(&vault)?;
+        let vault_buffer = encode(&vault).await?;
 
         // Read in the buffer of the event log data so we can replace
         // the existing event log using the standard logic

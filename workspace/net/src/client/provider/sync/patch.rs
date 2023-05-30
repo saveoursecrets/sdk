@@ -36,7 +36,7 @@ pub(crate) async fn apply_patch(
     patch_file: &mut PatchFile,
     events: Vec<WriteEvent<'static>>,
 ) -> Result<StatusCode> {
-    let patch = patch_file.append(events)?;
+    let patch = patch_file.append(events).await?;
 
     let client_proof = event_log_file.tree().head()?;
 
@@ -65,7 +65,7 @@ pub(crate) async fn apply_patch(
                 .apply(changes, Some(CommitHash(server_proof.root)))
                 .await?;
 
-            patch_file.truncate()?;
+            patch_file.truncate().await?;
 
             let client_proof = event_log_file.tree().head()?;
             assert_proofs_eq(&client_proof, &server_proof)?;
@@ -154,7 +154,7 @@ pub async fn apply_patch_file(
     event_log_file: &mut EventLogFile,
     patch_file: &mut PatchFile,
 ) -> Result<()> {
-    let has_events = patch_file.has_events()?;
+    let has_events = patch_file.has_events().await?;
 
     tracing::debug!(has_events, "apply patch file");
 
@@ -164,7 +164,7 @@ pub async fn apply_patch_file(
         // Must drain() the patch file as calling
         // patch_vault() will append them again in
         // case of failure
-        let events = patch_file.drain()?.0;
+        let events = patch_file.drain().await?.0;
 
         tracing::debug!(events = events.len(), "apply patch file events");
 

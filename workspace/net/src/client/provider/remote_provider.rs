@@ -96,7 +96,7 @@ impl StorageProvider for RemoteProvider {
         is_account: bool,
     ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
         let (passphrase, vault, buffer) =
-            Vault::new_buffer(name, passphrase, None)?;
+            Vault::new_buffer(name, passphrase, None).await?;
 
         let status = if is_account {
             let (status, _) = retry!(
@@ -137,7 +137,7 @@ impl StorageProvider for RemoteProvider {
         &mut self,
         buffer: Vec<u8>,
     ) -> Result<(WriteEvent<'static>, Summary)> {
-        let vault: Vault = decode(&buffer)?;
+        let vault: Vault = decode(&buffer).await?;
         let summary = vault.summary().clone();
 
         let (status, _) =
@@ -165,7 +165,7 @@ impl StorageProvider for RemoteProvider {
         &mut self,
         buffer: Vec<u8>,
     ) -> Result<(WriteEvent<'static>, Summary)> {
-        let vault: Vault = decode(&buffer)?;
+        let vault: Vault = decode(&buffer).await?;
         let summary = vault.summary().clone();
 
         let (status, _) = retry!(
@@ -315,7 +315,7 @@ impl StorageProvider for RemoteProvider {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         // Send the new vault to the server
-        let buffer = encode(vault)?;
+        let buffer = encode(vault).await?;
         let (status, server_proof) = retry!(
             || self.client.save_vault(summary.id(), buffer.clone()),
             self.client
@@ -343,7 +343,7 @@ impl StorageProvider for RemoteProvider {
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        Ok(EventReducer::new().reduce(event_log_file).await?.build()?)
+        Ok(EventReducer::new().reduce(event_log_file).await?.build().await?)
     }
 
     async fn pull(
@@ -411,7 +411,7 @@ impl StorageProvider for RemoteProvider {
         change: ChangeNotification,
     ) -> Result<(bool, HashSet<ChangeAction>)> {
         // Was this change notification triggered by us?
-        let self_change = match self.client.session_id() {
+        let self_change = match self.client.session_id().await {
             Ok(id) => &id == change.session_id(),
             // Maybe the session is no longer available
             Err(_) => false,

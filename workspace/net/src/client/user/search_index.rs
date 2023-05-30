@@ -55,7 +55,7 @@ impl UserIndex {
     ) -> Result<()> {
         let index = Arc::clone(&self.search_index);
         let mut keeper = Gatekeeper::new(vault, Some(index));
-        keeper.unlock(passphrase)?;
+        keeper.unlock(passphrase).await?;
         keeper.create_search_index().await?;
         keeper.lock();
         Ok(())

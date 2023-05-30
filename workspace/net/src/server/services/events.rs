@@ -233,7 +233,9 @@ impl Service for EventLogService {
                         Comparison::Equal => {
                             // TODO: |_| StatusCode::BAD_REQUEST
                             let patch: Patch<'static> =
-                                decode(request.body()).map_err(Box::from)?;
+                                decode(request.body())
+                                .await
+                                .map_err(Box::from)?;
 
                             let change_set = patch.0;
 
@@ -252,14 +254,14 @@ impl Service for EventLogService {
                                 });
 
                             // Changes events for the SSE channel
-                            let change_events: Vec<ChangeEvent> = change_set
-                                .iter()
-                                .filter_map(|event| {
-                                    let event: Option<ChangeEvent> =
-                                        event.try_into().ok();
-                                    event
-                                })
-                                .collect::<Vec<_>>();
+                            let change_events: Vec<ChangeEvent> = Vec::new();
+                            for event in change_set.iter() {
+                                let event =
+                                    ChangeEvent::try_from_write_event(event).await;
+                                if event.is_ok() {
+                                    change_events.push(event?);
+                                }
+                            }
 
                             // Audit log events
                             let audit_logs: Vec<AuditEvent> = change_set
