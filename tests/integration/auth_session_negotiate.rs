@@ -25,10 +25,10 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     // Should have a valid session now
     assert!(client.has_session());
-    assert!(client.is_ready()?);
+    assert!(client.is_ready().await?);
 
     let vault: Vault = Default::default();
-    let body = encode(&vault)?;
+    let body = encode(&vault).await?;
 
     // Try to create a new account
     let (status, _) = client.create_account(body).await?.unwrap();
@@ -41,7 +41,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     let mut vault: Vault = Default::default();
     vault.set_name(String::from("Mock vault"));
-    let body = encode(&vault)?;
+    let body = encode(&vault).await?;
 
     let (status, proof) = client.create_vault(body).await?.unwrap();
 
@@ -51,7 +51,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     // Update and save a vault
     let name = "New vault name";
     vault.set_name(String::from(name));
-    let body = encode(&vault)?;
+    let body = encode(&vault).await?;
     let (status, proof) = client.save_vault(vault.id(), body).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());

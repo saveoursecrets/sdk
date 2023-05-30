@@ -13,7 +13,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-use tokio::{net::TcpStream, sync::RwLock};
+use tokio::{net::TcpStream, sync::Mutex};
 
 use url::{Origin, Url};
 
@@ -101,25 +101,25 @@ pub async fn connect(
 /// Read change notifications from a websocket stream.
 pub fn changes(
     stream: WsStream,
-    session: Arc<RwLock<ClientSession>>,
+    session: Arc<Mutex<ClientSession>>,
 ) -> Map<
     SplitStream<WsStream>,
     impl FnMut(
         std::result::Result<Message, tungstenite::Error>,
     ) -> Result<
-        Pin<Box<dyn Future<Output = Result<ChangeNotification>>>>,
+        Pin<Box<dyn Future<Output = Result<ChangeNotification>> + Send>>,
     >,
 > {
     let (_, read) = stream.split();
 
     read.map(
         move |message| -> Result<
-            Pin<Box<dyn Future<Output = Result<ChangeNotification>>>>,
+            Pin<Box<dyn Future<Output = Result<ChangeNotification>> + Send>>,
         > {
             let message = message?;
             let message_session = Arc::clone(&session);
             Ok(Box::pin(async move {
-                let mut session = message_session.write().await;
+                let mut session = message_session.lock().await;
                 match message {
                     Message::Binary(buffer) => {
                         let aead: AeadPack = decode(&buffer).await?;

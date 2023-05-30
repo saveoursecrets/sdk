@@ -1,12 +1,9 @@
-use tokio::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
-    AsyncWriteExt,
-};
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use async_trait::async_trait;
 use binary_stream::{
     tokio::{BinaryReader, BinaryWriter, Decode, Encode},
-    BinaryError, BinaryResult,
+    BinaryResult,
 };
 
 use rs_merkle::{algorithms::Sha256, MerkleProof};

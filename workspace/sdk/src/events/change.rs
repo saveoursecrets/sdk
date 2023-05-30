@@ -129,12 +129,15 @@ impl ChangeEvent {
             _ => None,
         }
     }
-    
+
     /// Convert from a write operation.
-    pub async fn try_from_write_event(event: &WriteEvent<'_>) -> Result<Self> {
+    pub async fn try_from_write_event(
+        event: &WriteEvent<'_>,
+    ) -> Result<Self> {
         match event {
             WriteEvent::CreateVault(vault) => {
-                let summary = Header::read_summary_slice(vault.as_ref()).await?;
+                let summary =
+                    Header::read_summary_slice(vault.as_ref()).await?;
                 Ok(ChangeEvent::CreateVault(summary))
             }
             WriteEvent::DeleteVault => Ok(ChangeEvent::DeleteVault),

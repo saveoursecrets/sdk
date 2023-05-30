@@ -327,23 +327,17 @@ async fn canonicalize() -> Result<()> {
         PathBuf::from(MAIN_SEPARATOR.to_string()),
         vfs::canonicalize(MAIN_SEPARATOR.to_string()).await?
     );
-    
+
     vfs::create_dir("baz").await?;
     assert!(vfs::try_exists("baz").await?);
     vfs::create_dir_all("foo/bar/qux").await?;
     assert!(vfs::try_exists("foo").await?);
     assert!(vfs::try_exists("foo/bar").await?);
     assert!(vfs::try_exists("foo/bar/qux").await?);
-    
-    assert_eq!(
-        PathBuf::from("/"),
-        vfs::canonicalize("foo/..").await?,
-    );
-    
-    assert_eq!(
-        PathBuf::from("/foo"),
-        vfs::canonicalize("foo/././.").await?,
-    );
+
+    assert_eq!(PathBuf::from("/"), vfs::canonicalize("foo/..").await?,);
+
+    assert_eq!(PathBuf::from("/foo"), vfs::canonicalize("foo/././.").await?,);
 
     assert_eq!(
         PathBuf::from("/baz"),
@@ -354,12 +348,12 @@ async fn canonicalize() -> Result<()> {
         PathBuf::from("/foo/bar/qux"),
         vfs::canonicalize("foo/../foo/bar/qux").await?,
     );
-    
+
     assert_eq!(
         PathBuf::from("/"),
         vfs::canonicalize("foo/bar/../..").await?,
     );
-    
+
     assert_eq!(
         PathBuf::from("/foo/bar/qux"),
         vfs::canonicalize("foo/bar/../../foo/bar/qux").await?,
@@ -367,4 +361,3 @@ async fn canonicalize() -> Result<()> {
 
     Ok(())
 }
-

@@ -130,7 +130,8 @@ mod file {
     use super::*;
 
     /// Create a mock vault in a temp file.
-    pub async fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
+    pub async fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)>
+    {
         let mut temp = NamedTempFile::new()?;
         let vault = mock_vault();
         let buffer = encode(&vault).await?;

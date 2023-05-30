@@ -9,15 +9,12 @@ use crate::{
     Error,
 };
 
-use tokio::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
-    AsyncWriteExt,
-};
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use async_trait::async_trait;
 use binary_stream::{
     tokio::{BinaryReader, BinaryWriter, Decode, Encode},
-    BinaryError, BinaryResult,
+    BinaryResult,
 };
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]

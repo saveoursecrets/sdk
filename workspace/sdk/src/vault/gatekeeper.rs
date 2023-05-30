@@ -1,9 +1,6 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    crypto::{
-        secret_key::{SecretKey, Seed},
-        AeadPack,
-    },
+    crypto::secret_key::{SecretKey, Seed},
     decode, encode,
     events::{ReadEvent, WriteEvent},
     search::SearchIndex,

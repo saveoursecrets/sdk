@@ -4,10 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use tokio::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
-    AsyncWriteExt,
-};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use crate::{
     constants::{PATCH_EXT, PATCH_IDENTITY},
@@ -146,7 +143,7 @@ impl PatchFile {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{vfs, test_utils::*};
+    use crate::{test_utils::*, vfs};
     use anyhow::Result;
     use tempfile::NamedTempFile;
 

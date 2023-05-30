@@ -109,7 +109,9 @@ async fn integration_account_manager() -> Result<()> {
             .await?;
     let mut default_vault_keeper =
         Gatekeeper::new(default_vault, Some(default_index));
-    default_vault_keeper.unlock(default_vault_passphrase.clone())?;
+    default_vault_keeper
+        .unlock(default_vault_passphrase.clone())
+        .await?;
 
     let file_passphrase =
         DelegatedPassphrase::find_file_encryption_passphrase(
@@ -145,7 +147,7 @@ async fn integration_account_manager() -> Result<()> {
     let mut archive_buffer =
         AccountBackup::export_archive_buffer(&address).await?;
     let reader = Cursor::new(&mut archive_buffer);
-    let _inventory = AccountBackup::restore_archive_inventory(reader)?;
+    let _inventory = AccountBackup::restore_archive_inventory(reader).await?;
 
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)

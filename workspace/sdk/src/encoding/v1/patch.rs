@@ -4,10 +4,7 @@ use crate::{
     patch::Patch,
 };
 
-use tokio::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
-    AsyncWriteExt,
-};
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
 
 use async_trait::async_trait;
 use binary_stream::{

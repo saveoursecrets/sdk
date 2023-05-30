@@ -1,20 +1,12 @@
 //! File format iterators.
 use std::{
-    io::{Read, Seek, SeekFrom},
+    io::{Read, Seek},
     ops::Range,
 };
 
-use binary_stream::{tokio::Decode, BinaryReader, BinaryResult, Endian};
+use binary_stream::{tokio::Decode, BinaryReader, Endian};
 
-use crate::{
-    constants::{
-        AUDIT_IDENTITY, EVENT_LOG_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY,
-    },
-    encoding::stream_len,
-    formats::FileIdentity,
-    vault::Header,
-    Result, Timestamp,
-};
+use crate::{Result, Timestamp};
 
 use std::fs::File;
 
@@ -22,7 +14,7 @@ use std::path::Path;
 
 /// Get an iterator for a vault file.
 pub fn vault_iter<P: AsRef<Path>>(
-    path: P,
+    _path: P,
 ) -> Result<ReadStreamIterator<File, VaultRecord>> {
     /*
     let content_offset = Header::read_content_offset(path.as_ref())?;
@@ -39,7 +31,7 @@ pub fn vault_iter<P: AsRef<Path>>(
 
 /// Get an iterator for a event log file.
 pub fn event_log_iter<P: AsRef<Path>>(
-    path: P,
+    _path: P,
 ) -> Result<ReadStreamIterator<File, EventLogFileRecord>> {
     /*
     ReadStreamIterator::<File, EventLogFileRecord>::new_file(
@@ -55,7 +47,7 @@ pub fn event_log_iter<P: AsRef<Path>>(
 
 /// Get an iterator for a patch file.
 pub fn patch_iter<P: AsRef<Path>>(
-    path: P,
+    _path: P,
 ) -> Result<ReadStreamIterator<File, FileRecord>> {
     todo!();
     //ReadStreamIterator::new_file(path.as_ref(), &PATCH_IDENTITY, false, None)
@@ -63,7 +55,7 @@ pub fn patch_iter<P: AsRef<Path>>(
 
 /// Get an iterator for an audit file.
 pub fn audit_iter<P: AsRef<Path>>(
-    path: P,
+    _path: P,
 ) -> Result<ReadStreamIterator<File, FileRecord>> {
     todo!();
     //ReadStreamIterator::new_file(path.as_ref(), &AUDIT_IDENTITY, false, None)
@@ -246,10 +238,10 @@ pub struct ReadStreamIterator<R: Read + Seek, T: FileItem> {
 impl<T: FileItem> ReadStreamIterator<std::fs::File, T> {
     /// Create a new file iterator.
     fn new_file<P: AsRef<Path>>(
-        file_path: P,
-        identity: &'static [u8],
-        data_length_prefix: bool,
-        header_offset: Option<u64>,
+        _file_path: P,
+        _identity: &'static [u8],
+        _data_length_prefix: bool,
+        _header_offset: Option<u64>,
     ) -> Result<Self> {
         todo!();
 
@@ -282,9 +274,9 @@ impl<R: Read + Seek, T: FileItem> ReadStreamIterator<R, T> {
 
     /// Helper to decode the row file record.
     fn read_row(
-        reader: &mut BinaryReader<R>,
-        offset: Range<u64>,
-        is_prefix: bool,
+        _reader: &mut BinaryReader<R>,
+        _offset: Range<u64>,
+        _is_prefix: bool,
     ) -> Result<T> {
         /*
         let mut row: T = Default::default();
@@ -368,7 +360,7 @@ impl<R: Read + Seek, T: FileItem> Iterator for ReadStreamIterator<R, T> {
     type Item = Result<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let offset = self.header_offset;
+        let _offset = self.header_offset;
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
             if lpos == rpos {
@@ -408,7 +400,7 @@ impl<R: Read + Seek, T: FileItem> DoubleEndedIterator
     for ReadStreamIterator<R, T>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let offset: u64 = self.header_offset;
+        let _offset: u64 = self.header_offset;
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {
             if lpos == rpos {

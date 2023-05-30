@@ -388,7 +388,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
 
     let reader = std::fs::File::open(&input)?;
     let inventory: Inventory =
-        AccountBackup::restore_archive_inventory(reader)?;
+        AccountBackup::restore_archive_inventory(reader).await?;
     let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref).await?;
 

@@ -2137,7 +2137,8 @@ END:VCARD"#;
             "hello.txt",
             "text/plain",
             "hello".as_bytes().to_vec(),
-        ).await?;
+        )
+        .await?;
         let encoded = encode(&secret).await?;
         let decoded = decode(&encoded).await?;
         assert_eq!(secret, decoded);

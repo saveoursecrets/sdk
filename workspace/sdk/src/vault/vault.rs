@@ -7,10 +7,7 @@ use binary_stream::{
     Endian,
 };
 
-use tokio::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
-    AsyncWriteExt,
-};
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use bitflags::bitflags;
 use secrecy::{ExposeSecret, SecretString};
@@ -29,7 +26,7 @@ use crate::{
         secret_key::{SecretKey, Seed},
         xchacha20poly1305, AeadPack, Algorithm, Nonce,
     },
-    decode, encode,
+    encode,
     encoding::v1::VERSION,
     events::{ReadEvent, WriteEvent},
     formats::FileIdentity,

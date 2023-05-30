@@ -205,7 +205,8 @@ mod test {
             "test.txt",
             "text/plain",
             "Test value".as_bytes().to_vec(),
-        ).await?;
+        )
+        .await?;
         keeper.create(meta, secret).await?;
 
         migration.add(&keeper).await?;

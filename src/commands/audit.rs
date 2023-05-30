@@ -4,8 +4,9 @@ use crate::{Error, Result, TARGET};
 use sos_sdk::{
     events::{AuditData, AuditEvent, AuditLogFile},
     signer::ecdsa::Address,
+    vfs::File,
 };
-use std::{fs::File, path::PathBuf, thread, time};
+use std::{path::PathBuf, thread, time};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -81,7 +82,7 @@ pub async fn monitor(
     let log_file = AuditLogFile::new(&audit_log).await?;
 
     // File for reading event data
-    let mut file = File::open(&audit_log)?;
+    let mut file = File::open(&audit_log).await?;
 
     let mut it = log_file.iter()?;
     let mut offset = audit_log.metadata()?.len();
@@ -96,7 +97,7 @@ pub async fn monitor(
         if len > offset {
             for record in it.by_ref() {
                 let record = record?;
-                let event = log_file.read_event(&mut file, &record)?;
+                let event = log_file.read_event(&mut file, &record).await?;
                 if !address.is_empty() && !is_address_match(&event, &address)
                 {
                     continue;
@@ -128,14 +129,14 @@ async fn logs(
     let log_file = AuditLogFile::new(&audit_log).await?;
 
     // File for reading event data
-    let mut file = File::open(&audit_log)?;
+    let mut file = File::open(&audit_log).await?;
 
     let count = count.unwrap_or(usize::MAX);
 
     if reverse {
         for record in log_file.iter()?.rev().take(count) {
             let record = record?;
-            let event = log_file.read_event(&mut file, &record)?;
+            let event = log_file.read_event(&mut file, &record).await?;
             if !address.is_empty() && !is_address_match(&event, &address) {
                 continue;
             }
@@ -144,7 +145,7 @@ async fn logs(
     } else {
         for record in log_file.iter()?.take(count) {
             let record = record?;
-            let event = log_file.read_event(&mut file, &record)?;
+            let event = log_file.read_event(&mut file, &record).await?;
             if !address.is_empty() && !is_address_match(&event, &address) {
                 continue;
             }

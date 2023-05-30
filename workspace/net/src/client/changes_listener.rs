@@ -5,7 +5,7 @@ use std::{future::Future, sync::Arc, thread};
 use async_recursion::async_recursion;
 use futures::StreamExt;
 use std::time::Duration;
-use tokio::{sync::RwLock, time::sleep};
+use tokio::{sync::Mutex, time::sleep};
 use url::Url;
 
 use super::{
@@ -61,7 +61,7 @@ impl ChangesListener {
     where
         F: Future<Output = ()> + 'static,
     {
-        let mut stream = changes(stream, Arc::new(RwLock::new(session)));
+        let mut stream = changes(stream, Arc::new(Mutex::new(session)));
         while let Some(notification) = stream.next().await {
             let notification = notification?.await?;
             let future = handler(notification);

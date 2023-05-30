@@ -2,10 +2,7 @@
 use binary_stream::tokio::{BinaryReader, BinaryWriter};
 use std::path::Path;
 
-use tokio::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
-    AsyncWriteExt,
-};
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use crate::{vfs::File, Error, Result};
 

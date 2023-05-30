@@ -48,7 +48,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Vault { file, verbose } => {
             verify_vault(file, verbose).await?;
         }
-        Command::Header { file } => header(file)?,
+        Command::Header { file } => header(file).await?,
         Command::Keys { file } => keys(file)?,
         Command::Log { verbose, file } => {
             verify_log(file, verbose).await?;
@@ -94,12 +94,12 @@ async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
 }
 
 /// Print a vault header.
-pub fn header(vault: PathBuf) -> Result<()> {
+pub async fn header(vault: PathBuf) -> Result<()> {
     if !vault.is_file() {
         return Err(Error::NotFile(vault));
     }
 
-    let header = Header::read_header_file(&vault)?;
+    let header = Header::read_header_file(&vault).await?;
     println!("{}", header);
     Ok(())
 }

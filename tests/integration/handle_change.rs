@@ -12,6 +12,7 @@ use sos_net::client::{
     provider::StorageProvider,
 };
 use sos_sdk::commit::CommitProof;
+use tokio::sync::Mutex;
 
 #[tokio::test]
 #[serial]
@@ -58,10 +59,10 @@ async fn integration_handle_change() -> Result<()> {
         let (stream, session) = connect(server_url, signer).await?;
 
         // Wrap the stream to read change notifications
-        let mut stream = changes(stream, session);
+        let mut stream = changes(stream, Arc::new(Mutex::new(session)));
 
         while let Some(notification) = stream.next().await {
-            let notification = notification?;
+            let notification = notification?.await?;
 
             let mut writer = listener_cache.write().await;
             writer

@@ -235,7 +235,11 @@ mod test {
 
         assert_eq!(5, event_log.tree().len());
 
-        let vault = EventReducer::new().reduce(&event_log).await?.build().await?;
+        let vault = EventReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build()
+            .await?;
 
         assert_eq!(1, vault.len());
 
@@ -271,11 +275,18 @@ mod test {
         assert_eq!(5, event_log.tree().len());
 
         // Get a vault so we can assert on the compaction result
-        let vault = EventReducer::new().reduce(&event_log).await?.build().await?;
+        let vault = EventReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build()
+            .await?;
 
         // Get the compacted series of events
-        let events =
-            EventReducer::new().reduce(&event_log).await?.compact().await?;
+        let events = EventReducer::new()
+            .reduce(&event_log)
+            .await?
+            .compact()
+            .await?;
 
         assert_eq!(2, events.len());
 

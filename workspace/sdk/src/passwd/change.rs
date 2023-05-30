@@ -149,7 +149,9 @@ mod test {
     async fn change_password() -> Result<()> {
         let (_, _, current_passphrase) = mock_encryption_key()?;
         let mut mock_vault = mock_vault();
-        mock_vault.initialize(current_passphrase.clone(), None).await?;
+        mock_vault
+            .initialize(current_passphrase.clone(), None)
+            .await?;
 
         let mut keeper = Gatekeeper::new(mock_vault, None);
         keeper.unlock(current_passphrase.clone()).await?;

@@ -28,12 +28,12 @@ async fn create_archive(
     let (address, identity_vault) =
         Identity::new_login_vault("Mock".to_string(), passphrase).await?;
 
-    let identity = encode(&identity_vault)?;
+    let identity = encode(&identity_vault).await?;
 
     writer = writer.set_identity(&address, &identity)?;
 
     for vault in vaults {
-        let buffer = encode(&vault)?;
+        let buffer = encode(&vault).await?;
         writer = writer.add_vault(*vault.id(), &buffer)?;
     }
 
@@ -58,13 +58,13 @@ async fn integration_archive_local_provider() -> Result<()> {
     // Prepare a vault to add to the archive
     let mut default_vault: Vault = Default::default();
     default_vault.set_default_flag(true);
-    default_vault.initialize(passphrase.clone(), None)?;
+    default_vault.initialize(passphrase.clone(), None).await?;
     let vault_id = *default_vault.id();
     let (meta, secret) = mock_note("Archived note", "Archived note value");
     let expected_meta = meta.clone();
     let expected_secret = secret.clone();
     let mut keeper = Gatekeeper::new(default_vault, None);
-    keeper.unlock(passphrase.clone())?;
+    keeper.unlock(passphrase.clone()).await?;
     let secret_id = if let WriteEvent::CreateSecret(id, _) =
         keeper.create(meta, secret).await?
     {
