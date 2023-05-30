@@ -6,7 +6,7 @@ use std::{
 
 use tokio::io::{
     AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
-    AsyncWriteExt,
+    AsyncWriteExt, BufReader,
 };
 
 use crate::{
@@ -73,13 +73,9 @@ impl AuditLogFile {
         let mut buf = vec![0u8; row_len as usize];
         file.read_exact(&mut buf).await?;
 
-        /*
-        let mut stream = Cursor::new(&buf);
+        let mut stream = BufReader::new(Cursor::new(&buf));
         let mut reader = BinaryReader::new(&mut stream, Endian::Little);
-        Ok(AuditLogFile::decode_row(&mut reader)?)
-        */
-
-        todo!();
+        Ok(AuditLogFile::decode_row(&mut reader).await?)
     }
 
     /// Encode an audit log event record.
