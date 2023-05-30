@@ -43,7 +43,8 @@ impl Service for AccountService {
                     return Ok((StatusCode::CONFLICT, request.id()).into());
                 }
 
-                let summary = Header::read_summary_slice(request.body()).await?;
+                let summary =
+                    Header::read_summary_slice(request.body()).await?;
 
                 let (sync_event, proof) = writer
                     .backend

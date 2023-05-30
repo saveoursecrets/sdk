@@ -49,9 +49,10 @@ impl Codec for RpcExchangeCodec {
             return Err(io::ErrorKind::UnexpectedEof.into());
         }
 
-        let request: RequestMessage<'static> = decode(vec.as_slice())
-            .await
-            .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+        let request: RequestMessage<'static> =
+            decode(vec.as_slice())
+                .await
+                .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
         Ok(request)
     }
 
@@ -83,8 +84,9 @@ impl Codec for RpcExchangeCodec {
     where
         T: AsyncWrite + Unpin + Send,
     {
-        let data =
-            encode(&data).await.map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+        let data = encode(&data)
+            .await
+            .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
         write_length_prefixed(io, data).await?;
         io.close().await?;
         Ok(())
@@ -99,8 +101,9 @@ impl Codec for RpcExchangeCodec {
     where
         T: AsyncWrite + Unpin + Send,
     {
-        let data =
-            encode(&data).await.map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+        let data = encode(&data)
+            .await
+            .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
         write_length_prefixed(io, data).await?;
         io.close().await?;
         Ok(())

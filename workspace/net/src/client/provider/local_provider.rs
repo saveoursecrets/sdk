@@ -208,7 +208,11 @@ impl StorageProvider for LocalProvider {
             .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        Ok(EventReducer::new().reduce(event_log_file).await?.build().await?)
+        Ok(EventReducer::new()
+            .reduce(event_log_file)
+            .await?
+            .build()
+            .await?)
     }
 
     async fn remove_vault(

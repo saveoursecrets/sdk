@@ -256,7 +256,8 @@ impl FileSystemBackend {
 
                                     let summary = Header::read_summary_file(
                                         &vault_path,
-                                    ).await?;
+                                    )
+                                    .await?;
                                     let id = *summary.id();
 
                                     let mut event_log_file =

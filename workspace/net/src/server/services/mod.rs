@@ -92,9 +92,7 @@ pub(crate) async fn public_service(
     body: Bytes,
 ) -> Result<(StatusCode, Bytes), StatusCode> {
     let packet: Packet<'_> =
-        decode(&body)
-        .await
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
+        decode(&body).await.map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let request: RequestMessage<'_> = packet
         .try_into()
@@ -138,8 +136,9 @@ pub(crate) async fn private_service(
         .ok_or(StatusCode::UNAUTHORIZED)?;
     let address = *session.identity();
 
-    let aead: AeadPack =
-        decode(&body).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let aead: AeadPack = decode(&body)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Verify the nonce is ahead of this nonce
     // otherwise we may have a possible replay attack
@@ -219,7 +218,8 @@ pub(crate) async fn private_service(
         .encrypt(&body)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let body =
-        encode(&aead).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let body = encode(&aead)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok((status, Bytes::from(body)))
 }

@@ -1,11 +1,11 @@
 //! Listens for change notifications on a stream
 //! and calls the handler with the incoming notifications.
-use std::{future::Future, thread};
+use std::{future::Future, sync::Arc, thread};
 
 use async_recursion::async_recursion;
 use futures::StreamExt;
 use std::time::Duration;
-use tokio::time::sleep;
+use tokio::{sync::RwLock, time::sleep};
 use url::Url;
 
 use super::{
@@ -61,10 +61,9 @@ impl ChangesListener {
     where
         F: Future<Output = ()> + 'static,
     {
-        let mut stream = changes(stream, session);
+        let mut stream = changes(stream, Arc::new(RwLock::new(session)));
         while let Some(notification) = stream.next().await {
-            //let notification = fut.await;
-            let notification = notification?;
+            let notification = notification?.await?;
             let future = handler(notification);
             future.await;
         }

@@ -1,9 +1,9 @@
 //! Listen for change notifications on a websocket connection.
 use futures::{
-    Future,
     stream::{Map, SplitStream},
-    StreamExt,
+    Future, StreamExt,
 };
+use std::{pin::Pin, sync::Arc};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
@@ -13,7 +13,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-use tokio::{net::TcpStream, runtime::Handle};
+use tokio::{net::TcpStream, sync::RwLock};
 
 use url::{Origin, Url};
 
@@ -101,30 +101,37 @@ pub async fn connect(
 /// Read change notifications from a websocket stream.
 pub fn changes(
     stream: WsStream,
-    mut session: ClientSession,
+    session: Arc<RwLock<ClientSession>>,
 ) -> Map<
     SplitStream<WsStream>,
-    impl Future<
-        Output = Result<ChangeNotification>,
-    >
-    //impl FnMut(
-        //std::result::Result<Pin<Box<dyn Future<Output = Message>, tungstenite::Error>,
-    //) -> Result<ChangeNotification>,
+    impl FnMut(
+        std::result::Result<Message, tungstenite::Error>,
+    ) -> Result<
+        Pin<Box<dyn Future<Output = Result<ChangeNotification>>>>,
+    >,
 > {
     let (_, read) = stream.split();
 
-    read.map(move |message| async {
-        let message = message?;
-        match message {
-            Message::Binary(buffer) => {
-                let aead: AeadPack = decode(&buffer).await?;
-                session.set_nonce(&aead.nonce);
-                let message = session.decrypt(&aead)?;
-                let notification: ChangeNotification =
-                    serde_json::from_slice(&message)?;
-                Ok(notification)
-            }
-            _ => unreachable!("bad websocket message type"),
-        }
-    })
+    read.map(
+        move |message| -> Result<
+            Pin<Box<dyn Future<Output = Result<ChangeNotification>>>>,
+        > {
+            let message = message?;
+            let message_session = Arc::clone(&session);
+            Ok(Box::pin(async move {
+                let mut session = message_session.write().await;
+                match message {
+                    Message::Binary(buffer) => {
+                        let aead: AeadPack = decode(&buffer).await?;
+                        session.set_nonce(&aead.nonce);
+                        let message = session.decrypt(&aead)?;
+                        let notification: ChangeNotification =
+                            serde_json::from_slice(&message)?;
+                        Ok(notification)
+                    }
+                    _ => unreachable!("bad websocket message type"),
+                }
+            }))
+        },
+    )
 }

@@ -70,8 +70,9 @@ pub async fn upgrade(
         .into_vec()
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let aead: AeadPack =
-        decode(&buffer).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let aead: AeadPack = decode(&buffer)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Verify the nonce is ahead of this nonce
     // otherwise we may have a possible replay attack

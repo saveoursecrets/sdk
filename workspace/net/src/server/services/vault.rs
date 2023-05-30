@@ -38,7 +38,8 @@ impl Service for VaultService {
         match request.method() {
             VAULT_CREATE => {
                 // Check it looks like a vault payload
-                let summary = Header::read_summary_slice(request.body()).await?;
+                let summary =
+                    Header::read_summary_slice(request.body()).await?;
 
                 let reader = state.read().await;
                 let (exists, proof) = reader
@@ -143,7 +144,8 @@ impl Service for VaultService {
                 let vault_id = request.parameters::<Uuid>()?;
 
                 // Check it looks like a vault payload
-                let summary = Header::read_summary_slice(request.body()).await?;
+                let summary =
+                    Header::read_summary_slice(request.body()).await?;
 
                 if &vault_id != summary.id() {
                     return Ok((StatusCode::BAD_REQUEST, request.id()).into());

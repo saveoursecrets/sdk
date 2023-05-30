@@ -1287,7 +1287,8 @@ impl UserStorage {
     pub async fn restore_archive_inventory<R: Read + Seek>(
         buffer: R,
     ) -> Result<Inventory> {
-        let mut inventory = AccountBackup::restore_archive_inventory(buffer).await?;
+        let mut inventory =
+            AccountBackup::restore_archive_inventory(buffer).await?;
         let accounts = LocalAccounts::list_accounts().await?;
         let exists_local = accounts
             .iter()
