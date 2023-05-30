@@ -36,7 +36,7 @@ pub fn mock_vault() -> Vault {
 }
 
 /// Generate a mock secret note.
-pub fn mock_secret_note(
+pub async fn mock_secret_note(
     label: &str,
     text: &str,
 ) -> Result<(SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
@@ -45,13 +45,13 @@ pub fn mock_secret_note(
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
-    let meta_bytes = encode(&secret_meta)?;
-    let secret_bytes = encode(&secret_value)?;
+    let meta_bytes = encode(&secret_meta).await?;
+    let secret_bytes = encode(&secret_value).await?;
     Ok((secret_meta, secret_value, meta_bytes, secret_bytes))
 }
 
 /// Generate a mock secret file.
-pub fn mock_secret_file(
+pub async fn mock_secret_file(
     label: &str,
     name: &str,
     mime: &str,
@@ -68,8 +68,8 @@ pub fn mock_secret_file(
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
-    let meta_bytes = encode(&secret_meta)?;
-    let secret_bytes = encode(&secret_value)?;
+    let meta_bytes = encode(&secret_meta).await?;
+    let secret_bytes = encode(&secret_value).await?;
     Ok((secret_meta, secret_value, meta_bytes, secret_bytes))
 }
 
@@ -81,7 +81,7 @@ pub async fn mock_vault_note<'a>(
     secret_note: &str,
 ) -> Result<(Uuid, CommitHash, SecretMeta, Secret, WriteEvent<'a>)> {
     let (secret_meta, secret_value, meta_bytes, secret_bytes) =
-        mock_secret_note(secret_label, secret_note)?;
+        mock_secret_note(secret_label, secret_note).await?;
 
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
@@ -107,7 +107,7 @@ pub async fn mock_vault_note_update<'a>(
     secret_note: &str,
 ) -> Result<(CommitHash, SecretMeta, Secret, Option<WriteEvent<'a>>)> {
     let (secret_meta, secret_value, meta_bytes, secret_bytes) =
-        mock_secret_note(secret_label, secret_note)?;
+        mock_secret_note(secret_label, secret_note).await?;
 
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
@@ -130,10 +130,10 @@ mod file {
     use super::*;
 
     /// Create a mock vault in a temp file.
-    pub fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
+    pub async fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
         let mut temp = NamedTempFile::new()?;
         let vault = mock_vault();
-        let buffer = encode(&vault)?;
+        let buffer = encode(&vault).await?;
         temp.write_all(&buffer)?;
         Ok((temp, vault, buffer))
     }
@@ -143,7 +143,7 @@ mod file {
     ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>, SecretKey)>
     {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (_, mut vault, buffer) = mock_vault_file()?;
+        let (_, mut vault, buffer) = mock_vault_file().await?;
 
         let temp = NamedTempFile::new()?;
         let mut event_log = EventLogFile::new(temp.path()).await?;

@@ -438,7 +438,7 @@ mod test {
 
         for (label, note) in secrets {
             let (_secret_meta, _secret_value, meta_bytes, secret_bytes) =
-                mock_secret_note(label, note)?;
+                mock_secret_note(label, note).await?;
             let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
             let secret_aead =
                 vault.encrypt(&encryption_key, &secret_bytes)?;

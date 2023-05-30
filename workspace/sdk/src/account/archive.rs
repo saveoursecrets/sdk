@@ -326,10 +326,10 @@ mod test {
         )
         .await?;
 
-        let identity = encode(&identity_vault)?;
+        let identity = encode(&identity_vault).await?;
 
         let vault: Vault = Default::default();
-        let vault_buffer = encode(&vault)?;
+        let vault_buffer = encode(&vault).await?;
 
         let zip = writer
             .set_identity(&address, &identity)?
@@ -341,14 +341,14 @@ mod test {
 
         // Decompress and extract
         let mut reader = Reader::new(Cursor::new(zip.into_inner().clone()))?;
-        let inventory = reader.inventory()?;
+        let inventory = reader.inventory().await?;
 
         assert_eq!(address, inventory.manifest.address);
         assert_eq!("Mock", inventory.identity.name());
         assert_eq!(1, inventory.vaults.len());
 
         let (address_decoded, identity_entry, vault_entries) =
-            reader.prepare()?.finish()?;
+            reader.prepare()?.finish().await?;
 
         assert_eq!(address, address_decoded);
 

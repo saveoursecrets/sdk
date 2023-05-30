@@ -149,10 +149,10 @@ mod test {
     async fn change_password() -> Result<()> {
         let (_, _, current_passphrase) = mock_encryption_key()?;
         let mut mock_vault = mock_vault();
-        mock_vault.initialize(current_passphrase.clone(), None)?;
+        mock_vault.initialize(current_passphrase.clone(), None).await?;
 
         let mut keeper = Gatekeeper::new(mock_vault, None);
-        keeper.unlock(current_passphrase.clone())?;
+        keeper.unlock(current_passphrase.clone()).await?;
 
         // Propagate some secrets
         let notes = vec![
@@ -162,7 +162,7 @@ mod test {
         ];
         for item in notes {
             let (secret_meta, secret_value, _, _) =
-                mock_secret_note(item.0, item.1)?;
+                mock_secret_note(item.0, item.1).await?;
             keeper.create(secret_meta, secret_value).await?;
         }
 

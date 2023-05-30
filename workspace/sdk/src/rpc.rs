@@ -316,8 +316,8 @@ mod tests {
     use anyhow::Result;
     use http::StatusCode;
 
-    #[test]
-    fn rpc_encode() -> Result<()> {
+    #[tokio::test]
+    async fn rpc_encode() -> Result<()> {
         let body = vec![0x0A, 0xFF];
         let message = RequestMessage::new(
             Some(1),
@@ -326,8 +326,8 @@ mod tests {
             Cow::Borrowed(&body),
         )?;
 
-        let request = encode(&message)?;
-        let decoded: RequestMessage = decode(&request)?;
+        let request = encode(&message).await?;
+        let decoded: RequestMessage = decode(&request).await?;
 
         assert_eq!(message.method(), decoded.method());
         //assert_eq!((), decoded.parameters::<()>()?);
@@ -341,8 +341,8 @@ mod tests {
             Cow::Borrowed(&body),
         )?;
 
-        let response = encode(&reply)?;
-        let decoded: ResponseMessage = decode(&response)?;
+        let response = encode(&reply).await?;
+        let decoded: ResponseMessage = decode(&response).await?;
 
         let result = decoded.take::<String>()?;
         let value = result.2.unwrap().unwrap();
@@ -353,8 +353,8 @@ mod tests {
 
         // Check the packet request encoding
         let req = Packet::new_request(message);
-        let enc = encode(&req)?;
-        let pkt: Packet<'_> = decode(&enc)?;
+        let enc = encode(&req).await?;
+        let pkt: Packet<'_> = decode(&enc).await?;
 
         let incoming: RequestMessage<'_> = pkt.try_into()?;
         assert_eq!(Some(1u64), incoming.id());
@@ -364,8 +364,8 @@ mod tests {
 
         // Check the packet response encoding
         let res = Packet::new_response(reply);
-        let enc = encode(&res)?;
-        let pkt: Packet<'_> = decode(&enc)?;
+        let enc = encode(&res).await?;
+        let pkt: Packet<'_> = decode(&enc).await?;
 
         let incoming: ResponseMessage<'_> = pkt.try_into()?;
         let result = incoming.take::<String>()?;

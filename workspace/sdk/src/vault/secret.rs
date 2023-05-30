@@ -2060,8 +2060,8 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_user_data() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_user_data() -> Result<()> {
         let mut user_data: UserData = Default::default();
         user_data.set_comment(Some("Comment".to_string()));
         user_data.set_recovery_note(Some("Recovery".to_string()));
@@ -2102,8 +2102,8 @@ END:VCARD"#;
             user_data,
         };
 
-        let encoded = encode(&secret)?;
-        let decoded: Secret = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded: Secret = decode(&encoded).await?;
 
         assert_eq!(secret, decoded);
         assert_eq!(2, decoded.user_data().len());
@@ -2117,43 +2117,43 @@ END:VCARD"#;
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_note() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_note() -> Result<()> {
         let user_data: UserData = Default::default();
         let secret = Secret::Note {
             text: secrecy::Secret::new(String::from("My Note")),
             user_data,
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_file() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_file() -> Result<()> {
         let (_, secret, _, _) = mock_secret_file(
             "Mock file",
             "hello.txt",
             "text/plain",
             "hello".as_bytes().to_vec(),
-        )?;
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        ).await?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_account() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_account() -> Result<()> {
         let secret = Secret::Account {
             account: "Email".to_string(),
             url: Some("https://webmail.example.com".parse().unwrap()),
             password: secrecy::Secret::new("mock-password".to_string()),
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
         assert_eq!(secret, decoded);
 
         let secret_no_url = Secret::Account {
@@ -2162,14 +2162,14 @@ END:VCARD"#;
             password: secrecy::Secret::new("mock-password".to_string()),
             user_data: Default::default(),
         };
-        let encoded = encode(&secret_no_url)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret_no_url).await?;
+        let decoded = decode(&encoded).await?;
         assert_eq!(secret_no_url, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_list() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_list() -> Result<()> {
         let mut credentials = HashMap::new();
         credentials.insert(
             "API_KEY".to_owned(),
@@ -2184,8 +2184,8 @@ END:VCARD"#;
             user_data: Default::default(),
         };
 
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
 
         // To assert consistently we must sort and to sort
         // we need to expose the underlying secret string
@@ -2214,8 +2214,8 @@ END:VCARD"#;
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_pem() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_pem() -> Result<()> {
         let certificate = r#"-----BEGIN CERTIFICATE-----
 MIICpDCCAYwCCQCpeuNjpIxkaDANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAls
 b2NhbGhvc3QwHhcVMjIwNzA3MDUxODIyWhcNMjMwNzA3MDUxODIyWjAUMRIwEAYD
@@ -2239,28 +2239,28 @@ i1KQYQNRTzo=
             certificates,
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_page() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_page() -> Result<()> {
         let secret = Secret::Page {
             title: "Welcome".to_string(),
             mime: "text/markdown".to_string(),
             document: secrecy::Secret::new("# Mock Page".to_owned()),
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_signer() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_signer() -> Result<()> {
         let signer = SingleParty::new_random();
         let private_key =
             SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
@@ -2268,14 +2268,14 @@ i1KQYQNRTzo=
             private_key,
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_contact() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_contact() -> Result<()> {
         let text = r#"BEGIN:VCARD
 VERSION:4.0
 FN:John Doe
@@ -2286,15 +2286,15 @@ END:VCARD"#;
             vcard: Box::new(vcard),
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
 
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_totp() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_totp() -> Result<()> {
         use totp_sos::{Algorithm, TOTP};
 
         let totp = TOTP::new(
@@ -2312,15 +2312,15 @@ END:VCARD"#;
             totp,
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
 
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_card() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_card() -> Result<()> {
         let secret = Secret::Card {
             number: SecretString::new("1234567890123456".to_string()),
             expiry: Default::default(),
@@ -2329,15 +2329,15 @@ END:VCARD"#;
             atm_pin: Some(SecretString::new("123456".to_string())),
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
 
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_bank() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_bank() -> Result<()> {
         let secret = Secret::Bank {
             number: SecretString::new("12345678".to_string()),
             routing: SecretString::new("01-02-03".to_string()),
@@ -2346,15 +2346,15 @@ END:VCARD"#;
             bic: Some(SecretString::new("6789".to_string())),
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
 
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_link() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_link() -> Result<()> {
         let secret = Secret::Link {
             url: SecretString::new("https://example.com".to_string()),
             label: Some(SecretString::new("Example".to_string())),
@@ -2363,29 +2363,29 @@ END:VCARD"#;
             )),
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
 
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_password() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_password() -> Result<()> {
         let secret = Secret::Password {
             password: SecretString::new("abracadabra".to_string()),
             name: Some(SecretString::new("Open the magic cave".to_string())),
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
 
         assert_eq!(secret, decoded);
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_identification() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_identification() -> Result<()> {
         let secret = Secret::Identity {
             id_kind: IdentityKind::IdCard,
             number: SecretString::new("12345678".to_string()),
@@ -2394,22 +2394,22 @@ END:VCARD"#;
             expiry_date: Some(Default::default()),
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
         assert_eq!(secret, decoded);
 
         Ok(())
     }
 
-    #[test]
-    fn secret_encode_age() -> Result<()> {
+    #[tokio::test]
+    async fn secret_encode_age() -> Result<()> {
         let secret = Secret::Age {
             version: Default::default(),
             key: age::x25519::Identity::generate().to_string(),
             user_data: Default::default(),
         };
-        let encoded = encode(&secret)?;
-        let decoded = decode(&encoded)?;
+        let encoded = encode(&secret).await?;
+        let decoded = decode(&encoded).await?;
         assert_eq!(secret, decoded);
 
         Ok(())

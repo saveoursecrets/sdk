@@ -157,11 +157,11 @@ mod test {
     use crate::{decode, encode};
     use anyhow::Result;
 
-    #[test]
-    fn timestamp_encode() -> Result<()> {
+    #[tokio::test]
+    async fn timestamp_encode() -> Result<()> {
         let timestamp: Timestamp = Default::default();
-        let buffer = encode(&timestamp)?;
-        let decoded: Timestamp = decode(&buffer)?;
+        let buffer = encode(&timestamp).await?;
+        let decoded: Timestamp = decode(&buffer).await?;
         assert_eq!(timestamp, decoded);
         Ok(())
     }

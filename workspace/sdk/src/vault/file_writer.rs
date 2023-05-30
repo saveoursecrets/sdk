@@ -362,7 +362,7 @@ mod tests {
         secret_note: &str,
     ) -> Result<SecureNoteResult> {
         let (secret_meta, secret_value, meta_bytes, secret_bytes) =
-            mock_secret_note(secret_label, secret_note)?;
+            mock_secret_note(secret_label, secret_note).await?;
 
         let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
         let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
@@ -389,7 +389,7 @@ mod tests {
     #[tokio::test]
     async fn vault_file_access() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (temp, vault, _) = mock_vault_file()?;
+        let (temp, vault, _) = mock_vault_file().await?;
 
         let vault_file = VaultWriter::open(temp.path()).await?;
         let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
@@ -448,7 +448,7 @@ mod tests {
         let updated_label = "Updated test note";
         let updated_note = "Updated note text.";
         let (_, _, meta_bytes, secret_bytes) =
-            mock_secret_note(updated_label, updated_note)?;
+            mock_secret_note(updated_label, updated_note).await?;
 
         let updated_meta = vault.encrypt(&encryption_key, &meta_bytes)?;
         let updated_secret = vault.encrypt(&encryption_key, &secret_bytes)?;
@@ -471,7 +471,7 @@ mod tests {
         let new_name = String::from("New vault name");
         let _ = vault_access.set_vault_name(new_name.clone()).await;
 
-        let vault_name = vault_access.vault_name()?;
+        let vault_name = vault_access.vault_name().await?;
         assert_eq!(&new_name, &vault_name);
 
         // Reset the fixture vault name
@@ -485,7 +485,7 @@ mod tests {
     #[tokio::test]
     async fn vault_file_del_splice() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (temp, vault, _) = mock_vault_file()?;
+        let (temp, vault, _) = mock_vault_file().await?;
 
         let vault_file = VaultWriter::open(temp.path()).await?;
         let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;

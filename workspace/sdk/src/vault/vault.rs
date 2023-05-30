@@ -959,11 +959,11 @@ mod tests {
     use anyhow::Result;
     use secrecy::ExposeSecret;
 
-    #[test]
-    fn encode_decode_empty_vault() -> Result<()> {
+    #[tokio::test]
+    async fn encode_decode_empty_vault() -> Result<()> {
         let vault = mock_vault();
-        let buffer = encode(&vault)?;
-        let decoded = decode(&buffer)?;
+        let buffer = encode(&vault).await?;
+        let decoded = decode(&buffer).await?;
         assert_eq!(vault, decoded);
         Ok(())
     }
@@ -986,8 +986,8 @@ mod tests {
             )
             .await?;
 
-        let buffer = encode(&vault)?;
-        let decoded: Vault = decode(&buffer)?;
+        let buffer = encode(&vault).await?;
+        let decoded: Vault = decode(&buffer).await?;
         assert_eq!(vault, decoded);
 
         let (row, _) = decoded.read(&secret_id).await?;
@@ -998,8 +998,8 @@ mod tests {
         let row_meta = vault.decrypt(&encryption_key, row_meta)?;
         let row_secret = vault.decrypt(&encryption_key, row_secret)?;
 
-        let row_meta: SecretMeta = decode(&row_meta)?;
-        let row_secret: Secret = decode(&row_secret)?;
+        let row_meta: SecretMeta = decode(&row_meta).await?;
+        let row_secret: Secret = decode(&row_secret).await?;
 
         assert_eq!(secret_meta, row_meta);
         assert_eq!(secret_value, row_secret);
@@ -1021,10 +1021,10 @@ mod file_tests {
     use crate::{decode, test_utils::*};
     use anyhow::Result;
 
-    #[test]
-    fn decode_buffer() -> Result<()> {
-        let (_temp, _, buffer) = mock_vault_file()?;
-        let _vault: Vault = decode(&buffer)?;
+    #[tokio::test]
+    async fn decode_buffer() -> Result<()> {
+        let (_temp, _, buffer) = mock_vault_file().await?;
+        let _vault: Vault = decode(&buffer).await?;
         Ok(())
     }
 }

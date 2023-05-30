@@ -146,14 +146,14 @@ impl PatchFile {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::*;
+    use crate::{vfs, test_utils::*};
     use anyhow::Result;
     use tempfile::NamedTempFile;
 
     #[tokio::test]
     async fn patch_file() -> Result<()> {
         let temp = NamedTempFile::new()?;
-        let mut patch_file = PatchFile::new(temp.path())?;
+        let mut patch_file = PatchFile::new(temp.path()).await?;
 
         let mut vault = mock_vault();
         let (encryption_key, _, _) = mock_encryption_key()?;
@@ -162,33 +162,33 @@ mod test {
                 .await?;
 
         // Empty patch file is 4 bytes
-        assert_eq!(4, temp.path().metadata()?.len());
+        assert_eq!(4, vfs::metadata(temp.path()).await?.len());
 
         let events = vec![mock_event.clone()];
 
-        let patch = patch_file.append(events)?;
+        let patch = patch_file.append(events).await?;
 
-        let new_len = temp.path().metadata()?.len();
+        let new_len = vfs::metadata(temp.path()).await?.len();
         assert!(new_len > 4);
         assert_eq!(1, patch.0.len());
-        assert!(patch_file.has_events()?);
+        assert!(patch_file.has_events().await?);
 
         let more_events = vec![mock_event.clone()];
-        let next_patch = patch_file.append(more_events)?;
-        let more_len = temp.path().metadata()?.len();
+        let next_patch = patch_file.append(more_events).await?;
+        let more_len = vfs::metadata(temp.path()).await?.len();
         assert!(more_len > new_len);
         assert_eq!(2, next_patch.0.len());
         assert_eq!(2, patch_file.count_events()?);
 
-        let disc_patch = patch_file.read()?;
+        let disc_patch = patch_file.read().await?;
         assert_eq!(2, disc_patch.0.len());
 
         // Truncate the file
-        let drain_patch = patch_file.drain()?;
-        assert_eq!(4, temp.path().metadata()?.len());
+        let drain_patch = patch_file.drain().await?;
+        assert_eq!(4, vfs::metadata(temp.path()).await?.len());
 
         assert_eq!(2, drain_patch.0.len());
-        assert!(!patch_file.has_events()?);
+        assert!(!patch_file.has_events().await?);
         assert_eq!(0, patch_file.count_events()?);
 
         Ok(())

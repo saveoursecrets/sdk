@@ -70,10 +70,10 @@ mod test {
 
     const MOCK_LOG: &str = "target/mock-event-log-standalone.sos";
 
-    fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {
+    async fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {
         let id = Uuid::new_v4();
         let entry = VaultEntry(Default::default(), Default::default());
-        let buffer = encode(&entry)?;
+        let buffer = encode(&entry).await?;
         let commit = CommitHash(CommitTree::hash(&buffer));
         let result = VaultCommit(commit, entry);
         Ok((id, Cow::Owned(result)))
@@ -87,9 +87,9 @@ mod test {
 
         let mut vault: Vault = Default::default();
         vault.set_name(String::from("Standalone vault"));
-        let vault_buffer = encode(&vault)?;
+        let vault_buffer = encode(&vault).await?;
 
-        let (id, data) = mock_secret()?;
+        let (id, data) = mock_secret().await?;
 
         // Create a simple event log
         let mut server = EventLogFile::new(path).await?;
@@ -116,9 +116,9 @@ mod test {
         let _ = vfs::remove_file(&client_file).await;
 
         let vault: Vault = Default::default();
-        let vault_buffer = encode(&vault)?;
+        let vault_buffer = encode(&vault).await?;
 
-        let (id, data) = mock_secret()?;
+        let (id, data) = mock_secret().await?;
 
         // Create a simple event log
         let mut server = EventLogFile::new(&server_file).await?;

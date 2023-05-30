@@ -388,7 +388,7 @@ mod test {
     async fn mock_event_log_file(
     ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>)> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (_, mut vault, buffer) = mock_vault_file()?;
+        let (_, mut vault, buffer) = mock_vault_file().await?;
 
         let temp = NamedTempFile::new()?;
         let mut event_log = EventLogFile::new(temp.path()).await?;

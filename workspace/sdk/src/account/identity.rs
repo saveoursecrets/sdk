@@ -261,7 +261,7 @@ mod tests {
         let (_address, vault) =
             Identity::new_login_vault("Login".to_owned(), master_passphrase)
                 .await?;
-        let buffer = encode(&vault)?;
+        let buffer = encode(&vault).await?;
         let temp = NamedTempFile::new()?;
         vfs::write(temp.path(), buffer).await?;
         let _ =
@@ -275,8 +275,8 @@ mod tests {
         let (master_passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
-        vault.initialize(master_passphrase.clone(), None)?;
-        let buffer = encode(&vault)?;
+        vault.initialize(master_passphrase.clone(), None).await?;
+        let buffer = encode(&vault).await?;
 
         let result =
             Identity::login_buffer(buffer, master_passphrase, None, None)
@@ -294,8 +294,8 @@ mod tests {
 
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.clone(), None)?;
-        let buffer = encode(&vault)?;
+        vault.initialize(master_passphrase.clone(), None).await?;
+        let buffer = encode(&vault).await?;
 
         let result =
             Identity::login_buffer(buffer, master_passphrase, None, None)
@@ -313,10 +313,10 @@ mod tests {
 
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.clone(), None)?;
+        vault.initialize(master_passphrase.clone(), None).await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(master_passphrase.clone())?;
+        keeper.unlock(master_passphrase.clone()).await?;
 
         // Create a secret using the expected name but of the wrong kind
         let signer_secret = Secret::Note {
@@ -331,7 +331,7 @@ mod tests {
         keeper.create(signer_meta, signer_secret).await?;
 
         let vault: Vault = keeper.into();
-        let buffer = encode(&vault)?;
+        let buffer = encode(&vault).await?;
 
         let result =
             Identity::login_buffer(buffer, master_passphrase, None, None)

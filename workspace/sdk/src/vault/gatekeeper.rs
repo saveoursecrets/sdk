@@ -538,7 +538,7 @@ mod tests {
             .await?;
 
         //// Decrypt the initialized meta data.
-        let meta = keeper.vault_meta()?;
+        let meta = keeper.vault_meta().await?;
 
         assert_eq!(&label, meta.label());
 

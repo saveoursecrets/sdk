@@ -184,7 +184,7 @@ mod test {
         SecretId,
     )> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (_, mut vault, buffer) = mock_vault_file()?;
+        let (_, mut vault, buffer) = mock_vault_file().await?;
 
         let temp = NamedTempFile::new()?;
         let mut event_log = EventLogFile::new(temp.path()).await?;
@@ -235,7 +235,7 @@ mod test {
 
         assert_eq!(5, event_log.tree().len());
 
-        let vault = EventReducer::new().reduce(&event_log).await?.build()?;
+        let vault = EventReducer::new().reduce(&event_log).await?.build().await?;
 
         assert_eq!(1, vault.len());
 
@@ -247,8 +247,8 @@ mod test {
         {
             let meta = vault.decrypt(&encryption_key, meta_aead)?;
             let secret = vault.decrypt(&encryption_key, secret_aead)?;
-            let meta: SecretMeta = decode(&meta)?;
-            let secret: Secret = decode(&secret)?;
+            let meta: SecretMeta = decode(&meta).await?;
+            let secret: Secret = decode(&secret).await?;
 
             assert_eq!("bar", meta.label());
             assert_eq!("qux", {
@@ -271,11 +271,11 @@ mod test {
         assert_eq!(5, event_log.tree().len());
 
         // Get a vault so we can assert on the compaction result
-        let vault = EventReducer::new().reduce(&event_log).await?.build()?;
+        let vault = EventReducer::new().reduce(&event_log).await?.build().await?;
 
         // Get the compacted series of events
         let events =
-            EventReducer::new().reduce(&event_log).await?.compact()?;
+            EventReducer::new().reduce(&event_log).await?.compact().await?;
 
         assert_eq!(2, events.len());
 
@@ -286,7 +286,7 @@ mod test {
         }
 
         let compact_vault =
-            EventReducer::new().reduce(&compact).await?.build()?;
+            EventReducer::new().reduce(&compact).await?.build().await?;
         assert_eq!(vault, compact_vault);
 
         Ok(())
