@@ -18,6 +18,12 @@ use binary_stream::{
 };
 use std::io::{Cursor, SeekFrom};
 
+pub(crate) fn encoding_error(
+    e: impl std::error::Error + Send + Sync + 'static,
+) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::Other, e)
+}
+
 /// Get the length of this stream by seeking to the end
 /// and then restoring the previous cursor position.
 pub(crate) async fn stream_len<S: tokio::io::AsyncSeek + Unpin>(

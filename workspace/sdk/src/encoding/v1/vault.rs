@@ -9,18 +9,16 @@ use crate::{
         secret::SecretId, Auth, Contents, Header, Summary, Vault,
         VaultCommit, VaultEntry, VaultFlags, VaultMeta,
     },
-    Error, Timestamp,
+    Timestamp,
 };
 
+use super::encoding_error;
+use async_trait::async_trait;
+use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
+use std::io::{Error, ErrorKind, Result};
 use tokio::io::{
     AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
     AsyncWriteExt,
-};
-
-use async_trait::async_trait;
-use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter, Decode, Encode},
-    BinaryError, BinaryResult,
 };
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
@@ -29,7 +27,7 @@ impl Encode for VaultMeta {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         self.date_created.encode(&mut *writer).await?;
         writer.write_string(&self.label).await?;
         Ok(())
@@ -42,7 +40,7 @@ impl Decode for VaultMeta {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let mut date_created: Timestamp = Default::default();
         date_created.decode(&mut *reader).await?;
         self.label = reader.read_string().await?;
@@ -56,7 +54,7 @@ impl Encode for VaultEntry {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         self.0.encode(&mut *writer).await?;
         self.1.encode(&mut *writer).await?;
         Ok(())
@@ -69,7 +67,7 @@ impl Decode for VaultEntry {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let mut meta: AeadPack = Default::default();
         meta.decode(&mut *reader).await?;
         let mut secret: AeadPack = Default::default();
@@ -85,7 +83,7 @@ impl Encode for VaultCommit {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         writer.write_bytes(self.0.as_ref()).await?;
 
         let size_pos = writer.tell().await?;
@@ -110,9 +108,13 @@ impl Decode for VaultCommit {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
-        let commit: [u8; 32] =
-            reader.read_bytes(32).await?.as_slice().try_into()?;
+    ) -> Result<()> {
+        let commit: [u8; 32] = reader
+            .read_bytes(32)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
         let commit = CommitHash(commit);
 
         // Read in the length of the data blob
@@ -132,7 +134,7 @@ impl Encode for Auth {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         writer.write_bool(self.salt.is_some()).await?;
         if let Some(salt) = &self.salt {
             writer.write_string(salt).await?;
@@ -151,7 +153,7 @@ impl Decode for Auth {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let has_salt = reader.read_bool().await?;
         if has_salt {
             self.salt = Some(reader.read_string().await?);
@@ -159,7 +161,12 @@ impl Decode for Auth {
         let has_seed = reader.read_bool().await?;
         if has_seed {
             self.seed = Some(
-                reader.read_bytes(SEED_SIZE).await?.as_slice().try_into()?,
+                reader
+                    .read_bytes(SEED_SIZE)
+                    .await?
+                    .as_slice()
+                    .try_into()
+                    .map_err(encoding_error)?,
             );
         }
         Ok(())
@@ -172,7 +179,7 @@ impl Encode for Summary {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         writer.write_u16(self.version).await?;
         self.algorithm.encode(&mut *writer).await?;
         writer.write_bytes(self.id.as_bytes()).await?;
@@ -188,23 +195,29 @@ impl Decode for Summary {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         self.version = reader.read_u16().await?;
         self.algorithm.decode(&mut *reader).await?;
 
         if !ALGORITHMS.contains(self.algorithm.as_ref()) {
-            return Err(BinaryError::Boxed(Box::from(
-                Error::UnknownAlgorithm(self.algorithm.into()),
-            )));
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("unknown algorithm {}", self.algorithm),
+            ));
         }
 
-        let uuid: [u8; 16] =
-            reader.read_bytes(16).await?.as_slice().try_into()?;
+        let uuid: [u8; 16] = reader
+            .read_bytes(16)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
+
         self.id = Uuid::from_bytes(uuid);
         self.name = reader.read_string().await?;
         self.flags = VaultFlags::from_bits(reader.read_u64().await?)
-            .ok_or(Error::InvalidVaultFlags)
-            .map_err(Box::from)?;
+            .ok_or(crate::Error::InvalidVaultFlags)
+            .map_err(encoding_error)?;
         Ok(())
     }
 }
@@ -215,10 +228,10 @@ impl Encode for Header {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         FileIdentity::write_identity(&mut *writer, &VAULT_IDENTITY)
             .await
-            .map_err(Box::from)?;
+            .map_err(encoding_error)?;
 
         let size_pos = writer.tell().await?;
         writer.write_u32(0).await?;
@@ -250,10 +263,12 @@ impl Decode for Header {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         FileIdentity::read_identity(&mut *reader, &VAULT_IDENTITY)
             .await
-            .map_err(Box::from)?;
+            .map_err(|_| {
+                Error::new(ErrorKind::Other, "bad vault identity bytes")
+            })?;
 
         // Read in the header length
         let _ = reader.read_u32().await?;
@@ -279,7 +294,7 @@ impl Contents {
         writer: &mut BinaryWriter<W>,
         key: &SecretId,
         row: &VaultCommit,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let size_pos = writer.tell().await?;
         writer.write_u32(0).await?;
 
@@ -303,12 +318,16 @@ impl Contents {
     /// Decode a single row from a deserializer.
     pub async fn decode_row<R: AsyncRead + AsyncSeek + Unpin + Send>(
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<(SecretId, VaultCommit)> {
+    ) -> Result<(SecretId, VaultCommit)> {
         // Read in the row length
         let _ = reader.read_u32().await?;
 
-        let uuid: [u8; 16] =
-            reader.read_bytes(16).await?.as_slice().try_into()?;
+        let uuid: [u8; 16] = reader
+            .read_bytes(16)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
         let uuid = Uuid::from_bytes(uuid);
 
         let mut row: VaultCommit = Default::default();
@@ -327,7 +346,7 @@ impl Encode for Contents {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         for (key, row) in &self.data {
             Contents::encode_row(writer, key, row).await?;
         }
@@ -341,7 +360,7 @@ impl Decode for Contents {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let mut pos = reader.tell().await?;
         let len = reader.len().await?;
         while pos < len {
@@ -360,7 +379,7 @@ impl Encode for Vault {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         self.header.encode(writer).await?;
         self.contents.encode(writer).await?;
         Ok(())
@@ -373,7 +392,7 @@ impl Decode for Vault {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         self.header.decode(reader).await?;
         self.contents.decode(reader).await?;
         Ok(())

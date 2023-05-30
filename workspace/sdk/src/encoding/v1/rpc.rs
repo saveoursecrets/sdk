@@ -1,21 +1,17 @@
 use http::StatusCode;
 use serde_json::Value;
-use std::borrow::Cow;
+use std::{borrow::Cow, io::Result};
 
 use crate::{
     constants::RPC_IDENTITY,
     formats::FileIdentity,
     rpc::{Packet, Payload, RequestMessage, ResponseMessage},
-    Error,
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
-
+use super::encoding_error;
 use async_trait::async_trait;
-use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter, Decode, Encode},
-    BinaryResult,
-};
+use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -23,7 +19,7 @@ impl Encode for Packet<'_> {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         writer.write_bytes(RPC_IDENTITY).await?;
         self.payload.encode(writer).await?;
         Ok(())
@@ -36,10 +32,10 @@ impl Decode for Packet<'_> {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         FileIdentity::read_identity(reader, &RPC_IDENTITY)
             .await
-            .map_err(Box::from)?;
+            .map_err(encoding_error)?;
         let mut payload: Payload<'_> = Default::default();
         payload.decode(reader).await?;
         self.payload = payload;
@@ -53,7 +49,7 @@ impl Encode for Payload<'_> {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let is_response = matches!(self, Payload::Response(_));
         writer.write_bool(is_response).await?;
         match self {
@@ -71,7 +67,7 @@ impl Decode for Payload<'_> {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let is_response = reader.read_bool().await?;
         *self = if is_response {
             let mut response: ResponseMessage<'_> = Default::default();
@@ -92,7 +88,7 @@ impl Encode for RequestMessage<'_> {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         // Id
         writer.write_bool(self.id.is_some()).await?;
         if let Some(id) = &self.id {
@@ -104,7 +100,7 @@ impl Encode for RequestMessage<'_> {
 
         // Parameters
         let params =
-            serde_json::to_vec(&self.parameters).map_err(Box::from)?;
+            serde_json::to_vec(&self.parameters).map_err(encoding_error)?;
         writer.write_u32(params.len() as u32).await?;
         writer.write_bytes(&params).await?;
 
@@ -122,7 +118,7 @@ impl Decode for RequestMessage<'_> {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         // Id
         let has_id = reader.read_bool().await?;
         if has_id {
@@ -136,7 +132,7 @@ impl Decode for RequestMessage<'_> {
         let params_len = reader.read_u32().await?;
         let params = reader.read_bytes(params_len as usize).await?;
         self.parameters =
-            serde_json::from_slice(&params).map_err(Box::from)?;
+            serde_json::from_slice(&params).map_err(encoding_error)?;
 
         // Body
         let body_len = reader.read_u64().await?;
@@ -153,7 +149,7 @@ impl Encode for ResponseMessage<'_> {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         // Id
         writer.write_bool(self.id.is_some()).await?;
         if let Some(id) = &self.id {
@@ -169,7 +165,7 @@ impl Encode for ResponseMessage<'_> {
                 Ok(value) => {
                     writer.write_bool(false).await?;
                     let result =
-                        serde_json::to_vec(value).map_err(Box::from)?;
+                        serde_json::to_vec(value).map_err(encoding_error)?;
                     writer.write_u32(result.len() as u32).await?;
                     writer.write_bytes(&result).await?;
                 }
@@ -194,7 +190,7 @@ impl Decode for ResponseMessage<'_> {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         // Id
         let has_id = reader.read_bool().await?;
         if has_id {
@@ -206,18 +202,18 @@ impl Decode for ResponseMessage<'_> {
 
         if has_result {
             self.status = StatusCode::from_u16(reader.read_u16().await?)
-                .map_err(Box::from)?;
+                .map_err(encoding_error)?;
             let has_error = reader.read_bool().await?;
 
             if has_error {
                 let err_msg = reader.read_string().await?;
-                self.result = Some(Err(Error::RpcError(err_msg)))
+                self.result = Some(Err(crate::Error::RpcError(err_msg)))
             } else {
                 let value_len = reader.read_u32().await?;
 
                 let value = reader.read_bytes(value_len as usize).await?;
                 let value: Value =
-                    serde_json::from_slice(&value).map_err(Box::from)?;
+                    serde_json::from_slice(&value).map_err(encoding_error)?;
                 self.result = Some(Ok(value))
             }
         }

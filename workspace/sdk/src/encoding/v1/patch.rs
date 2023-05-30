@@ -4,19 +4,17 @@ use crate::{
     patch::Patch,
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
-
+use super::encoding_error;
 use async_trait::async_trait;
-use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter, Decode, Encode},
-    BinaryError, BinaryResult,
-};
+use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
+use std::io::Result;
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
 
 impl Patch<'_> {
     async fn encode_row<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         writer: &mut BinaryWriter<W>,
         event: &WriteEvent<'_>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         // Set up the leading row length
         let size_pos = writer.tell().await?;
         writer.write_u32(0).await?;
@@ -40,7 +38,7 @@ impl Patch<'_> {
 
     async fn decode_row<'a, R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<WriteEvent<'a>> {
+    ) -> Result<WriteEvent<'a>> {
         // Read in the row length
         let _ = reader.read_u32().await?;
 
@@ -59,7 +57,7 @@ impl Encode for Patch<'_> {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         writer.write_bytes(PATCH_IDENTITY).await?;
         for event in self.0.iter() {
             Patch::encode_row(writer, event).await?;
@@ -74,10 +72,10 @@ impl Decode for Patch<'_> {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         FileIdentity::read_identity(reader, &PATCH_IDENTITY)
             .await
-            .map_err(|e| BinaryError::Boxed(Box::from(e)))?;
+            .map_err(encoding_error)?;
         let mut pos = reader.tell().await?;
         let len = reader.len().await?;
         while pos < len {

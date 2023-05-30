@@ -4,9 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use tokio::io::{
-    AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWriteExt, BufReader,
-};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
 
 use crate::{
     constants::AUDIT_IDENTITY,
@@ -18,8 +16,8 @@ use crate::{
 use super::{AuditEvent, AuditProvider};
 
 use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter, Decode, Encode},
-    BinaryResult, Endian,
+    tokio::{BinaryReader, BinaryWriter},
+    Endian,
 };
 
 /// Represents an audit log file.
@@ -73,47 +71,6 @@ impl AuditLogFile {
         let mut stream = BufReader::new(Cursor::new(&buf));
         let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         Ok(AuditLogFile::decode_row(&mut reader).await?)
-    }
-
-    /// Encode an audit log event record.
-    async fn encode_row<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
-        writer: &mut BinaryWriter<W>,
-        event: &AuditEvent,
-    ) -> BinaryResult<()> {
-        // Set up the leading row length
-        let size_pos = writer.tell().await?;
-        writer.write_u32(0).await?;
-
-        // Encode the event data for the row
-        event.encode(&mut *writer).await?;
-
-        // Backtrack to size_pos and write new length
-        let row_pos = writer.tell().await?;
-        let row_len = row_pos - (size_pos + 4);
-        writer.seek(size_pos).await?;
-        writer.write_u32(row_len as u32).await?;
-        writer.seek(row_pos).await?;
-
-        // Write out the row len at the end of the record too
-        // so we can support double ended iteration
-        writer.write_u32(row_len as u32).await?;
-
-        Ok(())
-    }
-
-    /// Decode an audit log event record.
-    async fn decode_row<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
-        reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<AuditEvent> {
-        // Read in the row length
-        let _ = reader.read_u32().await?;
-
-        let mut event: AuditEvent = Default::default();
-        event.decode(&mut *reader).await?;
-
-        // Read in the row length appended to the end of the record
-        let _ = reader.read_u32().await?;
-        Ok(event)
     }
 }
 

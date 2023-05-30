@@ -55,7 +55,7 @@ ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
 bs58 = "0.4"
 urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
-binary-stream = { version = "4.2.2", features = ["32bit", "tokio"] }
+binary-stream = { version = "5.0.0", features = ["32bit", "tokio"] }
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 unicode-segmentation = "1.10"

@@ -1,6 +1,9 @@
 use secrecy::{ExposeSecret, SecretString};
 
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    io::{Error, ErrorKind, Result},
+};
 use totp_sos::TOTP;
 use url::Url;
 
@@ -12,16 +15,14 @@ use crate::{
         AgeVersion, FileContent, IdentityKind, Secret, SecretFlags,
         SecretMeta, SecretRow, SecretSigner, SecretType, UserData,
     },
-    Error, Timestamp,
+    Timestamp,
 };
 
 use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
+use super::encoding_error;
 use async_trait::async_trait;
-use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter, Decode, Encode},
-    BinaryError, BinaryResult,
-};
+use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
 
 const EMBEDDED_FILE: u8 = 1;
 const EXTERNAL_FILE: u8 = 2;
@@ -38,7 +39,7 @@ impl Encode for SecretMeta {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let kind: u8 = self.kind.into();
         writer.write_u8(kind).await?;
         writer.write_u32(self.flags.bits()).await?;
@@ -68,12 +69,12 @@ impl Decode for SecretMeta {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let kind = reader.read_u8().await?;
-        self.kind = kind.try_into().map_err(Box::from)?;
+        self.kind = kind.try_into().map_err(encoding_error)?;
         self.flags = SecretFlags::from_bits(reader.read_u32().await?)
-            .ok_or(Error::InvalidSecretFlags)
-            .map_err(Box::from)?;
+            .ok_or(crate::Error::InvalidSecretFlags)
+            .map_err(encoding_error)?;
         let mut date_created: Timestamp = Default::default();
         date_created.decode(&mut *reader).await?;
         self.date_created = date_created;
@@ -89,12 +90,12 @@ impl Decode for SecretMeta {
         let has_urn = reader.read_bool().await?;
         if has_urn {
             let urn = reader.read_string().await?;
-            self.urn = Some(urn.parse().map_err(Box::from)?);
+            self.urn = Some(urn.parse().map_err(encoding_error)?);
         }
         let has_owner_id = reader.read_bool().await?;
         if has_owner_id {
             let owner_id = reader.read_string().await?;
-            self.owner_id = Some(owner_id.parse().map_err(Box::from)?);
+            self.owner_id = Some(owner_id.parse().map_err(encoding_error)?);
         }
         self.favorite = reader.read_bool().await?;
         Ok(())
@@ -107,7 +108,7 @@ impl Encode for SecretSigner {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let kind = match self {
             Self::SinglePartyEcdsa(_) => signer_kind::SINGLE_PARTY_ECDSA,
             Self::SinglePartyEd25519(_) => signer_kind::SINGLE_PARTY_ED25519,
@@ -134,7 +135,7 @@ impl Decode for SecretSigner {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let kind = reader.read_u8().await?;
         match kind {
             signer_kind::SINGLE_PARTY_ECDSA => {
@@ -152,9 +153,10 @@ impl Decode for SecretSigner {
                 *self = Self::SinglePartyEd25519(buffer);
             }
             _ => {
-                return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownSignerKind(kind),
-                )))
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown signer kind {}", kind),
+                ));
             }
         }
 
@@ -168,7 +170,7 @@ impl Encode for SecretRow {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         writer.write_bytes(self.id.as_bytes()).await?;
         self.meta.encode(&mut *writer).await?;
         self.secret.encode(&mut *writer).await?;
@@ -182,9 +184,13 @@ impl Decode for SecretRow {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
-        let uuid: [u8; 16] =
-            reader.read_bytes(16).await?.as_slice().try_into()?;
+    ) -> Result<()> {
+        let uuid: [u8; 16] = reader
+            .read_bytes(16)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
         self.id = Uuid::from_bytes(uuid);
         self.meta.decode(&mut *reader).await?;
         self.secret.decode(&mut *reader).await?;
@@ -195,7 +201,7 @@ impl Decode for SecretRow {
 async fn write_user_data<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
     user_data: &UserData,
     writer: &mut BinaryWriter<W>,
-) -> BinaryResult<()> {
+) -> Result<()> {
     writer.write_u32(user_data.len() as u32).await?;
     for field in user_data.fields() {
         field.encode(writer).await?;
@@ -213,7 +219,7 @@ async fn write_user_data<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
 
 async fn read_user_data<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
     reader: &mut BinaryReader<R>,
-) -> BinaryResult<UserData> {
+) -> Result<UserData> {
     let mut user_data: UserData = Default::default();
     let count = reader.read_u32().await?;
 
@@ -239,7 +245,7 @@ impl Encode for AgeVersion {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         match self {
             Self::Version1 => writer.write_u8(1).await?,
         };
@@ -253,16 +259,17 @@ impl Decode for AgeVersion {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let kind = reader.read_u8().await?;
         match kind {
             1 => {
                 *self = Self::Version1;
             }
             _ => {
-                return Err(BinaryError::Boxed(Box::new(
-                    Error::UnknownAgeVersion(kind),
-                )))
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown age version {}", kind),
+                ));
             }
         };
         Ok(())
@@ -275,7 +282,7 @@ impl Encode for FileContent {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         match self {
             Self::Embedded {
                 name,
@@ -316,7 +323,7 @@ impl Decode for FileContent {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let kind = reader.read_u8().await?;
         match kind {
             EMBEDDED_FILE => {
@@ -326,8 +333,12 @@ impl Decode for FileContent {
                 let buffer = secrecy::Secret::new(
                     reader.read_bytes(buffer_len as usize).await?,
                 );
-                let checksum: [u8; 32] =
-                    reader.read_bytes(32).await?.as_slice().try_into()?;
+                let checksum: [u8; 32] = reader
+                    .read_bytes(32)
+                    .await?
+                    .as_slice()
+                    .try_into()
+                    .map_err(encoding_error)?;
                 *self = Self::Embedded {
                     name,
                     mime,
@@ -338,8 +349,12 @@ impl Decode for FileContent {
             EXTERNAL_FILE => {
                 let name = reader.read_string().await?;
                 let mime = reader.read_string().await?;
-                let checksum: [u8; 32] =
-                    reader.read_bytes(32).await?.as_slice().try_into()?;
+                let checksum: [u8; 32] = reader
+                    .read_bytes(32)
+                    .await?
+                    .as_slice()
+                    .try_into()
+                    .map_err(encoding_error)?;
                 let size = reader.read_u64().await?;
                 *self = Self::External {
                     name,
@@ -350,9 +365,10 @@ impl Decode for FileContent {
                 };
             }
             _ => {
-                return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownFileContentType(kind),
-                )))
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown file content type {}", kind),
+                ));
             }
         }
         Ok(())
@@ -365,7 +381,7 @@ impl Encode for Secret {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let kind: u8 = self.kind().into();
         writer.write_u8(kind).await?;
 
@@ -462,7 +478,8 @@ impl Encode for Secret {
                 write_user_data(user_data, writer).await?;
             }
             Self::Totp { totp, user_data } => {
-                let totp = serde_json::to_vec(totp).map_err(Box::from)?;
+                let totp =
+                    serde_json::to_vec(totp).map_err(encoding_error)?;
                 writer.write_u32(totp.len() as u32).await?;
                 writer.write_bytes(totp).await?;
                 write_user_data(user_data, writer).await?;
@@ -575,9 +592,9 @@ impl Decode for Secret {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let kind: SecretType =
-            reader.read_u8().await?.try_into().map_err(Box::from)?;
+            reader.read_u8().await?.try_into().map_err(encoding_error)?;
         match kind {
             SecretType::Note => {
                 let text = reader.read_string().await?;
@@ -601,7 +618,7 @@ impl Decode for Secret {
                 let url = if has_url {
                     Some(
                         Url::parse(&reader.read_string().await?)
-                            .map_err(Box::from)?,
+                            .map_err(encoding_error)?,
                     )
                 } else {
                     None
@@ -632,7 +649,8 @@ impl Decode for Secret {
                 let user_data = read_user_data(reader).await?;
                 *self = Self::Pem {
                     certificates: pem::parse_many(value)
-                        .map_err(Box::from)?,
+                        .map_err(encoding_error)?,
+
                     user_data,
                 };
             }
@@ -652,7 +670,7 @@ impl Decode for Secret {
             SecretType::Identity => {
                 let id_kind = reader.read_u8().await?;
                 let id_kind: IdentityKind =
-                    id_kind.try_into().map_err(Box::from)?;
+                    id_kind.try_into().map_err(encoding_error)?;
 
                 let number = SecretString::new(reader.read_string().await?);
 
@@ -702,7 +720,8 @@ impl Decode for Secret {
             }
             SecretType::Contact => {
                 let vcard = reader.read_string().await?;
-                let mut cards = vcard4::parse(vcard).map_err(Box::from)?;
+                let mut cards =
+                    vcard4::parse(vcard).map_err(encoding_error)?;
                 let vcard = cards.remove(0);
                 let user_data = read_user_data(reader).await?;
                 *self = Self::Contact {
@@ -713,8 +732,8 @@ impl Decode for Secret {
             SecretType::Totp => {
                 let buffer_len = reader.read_u32().await?;
                 let buffer = reader.read_bytes(buffer_len as usize).await?;
-                let totp: TOTP =
-                    serde_json::from_slice(&buffer).map_err(Box::from)?;
+                let totp: TOTP = serde_json::from_slice(&buffer)
+                    .map_err(encoding_error)?;
                 let user_data = read_user_data(reader).await?;
                 *self = Self::Totp { totp, user_data };
             }

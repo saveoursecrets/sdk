@@ -4,20 +4,20 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     events::{
-        AuditData, AuditEvent, EventKind, EventRecord, LogFlags, WriteEvent,
+        AuditData, AuditEvent, AuditLogFile, EventKind, EventRecord,
+        LogFlags, WriteEvent,
     },
     formats::{EventLogFileRecord, FileRecord, VaultRecord},
     vault::{secret::SecretId, VaultCommit},
-    Error, Timestamp,
+    Timestamp,
 };
 
+use std::io::{Error, ErrorKind, Result};
 use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
 
+use super::encoding_error;
 use async_trait::async_trait;
-use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter, Decode, Encode},
-    BinaryError, BinaryResult,
-};
+use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
 
 use uuid::Uuid;
 
@@ -27,7 +27,7 @@ impl Encode for EventKind {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let value: u16 = self.into();
         writer.write_u16(value).await?;
         Ok(())
@@ -40,10 +40,10 @@ impl Decode for EventKind {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let op = reader.read_u16().await?;
         *self = op.try_into().map_err(|_| {
-            BinaryError::Boxed(Box::from(Error::UnknownEventKind(op)))
+            Error::new(ErrorKind::Other, format!("unknown event kind {}", op))
         })?;
         Ok(())
     }
@@ -55,7 +55,7 @@ impl Encode for EventRecord {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         // Prepare the bytes for the row length
         let size_pos = writer.tell().await?;
         writer.write_u32(0).await?;
@@ -96,7 +96,7 @@ impl Decode for EventRecord {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         // Read in the row length
         let _ = reader.read_u32().await?;
 
@@ -105,10 +105,18 @@ impl Decode for EventRecord {
         time.decode(&mut *reader).await?;
 
         // Read the hash bytes
-        let previous: [u8; 32] =
-            reader.read_bytes(32).await?.as_slice().try_into()?;
-        let commit: [u8; 32] =
-            reader.read_bytes(32).await?.as_slice().try_into()?;
+        let previous: [u8; 32] = reader
+            .read_bytes(32)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
+        let commit: [u8; 32] = reader
+            .read_bytes(32)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
 
         // Read the data bytes
         let length = reader.read_u32().await?;
@@ -132,7 +140,7 @@ impl Encode for AuditEvent {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         // Context bit flags
         let flags = self.log_flags();
         writer.write_u16(flags.bits()).await?;
@@ -157,7 +165,7 @@ impl Decode for AuditEvent {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         // Context bit flags
         let bits = reader.read_u16().await?;
         // Time - the when
@@ -167,21 +175,30 @@ impl Decode for AuditEvent {
         self.event_kind.decode(&mut *reader).await?;
         // Address - by whom
         let address = reader.read_bytes(20).await?;
-        let address: [u8; 20] = address.as_slice().try_into()?;
+        let address: [u8; 20] =
+            address.as_slice().try_into().map_err(encoding_error)?;
         self.address = address.into();
         // Data - context
         if let Some(flags) = LogFlags::from_bits(bits) {
             if flags.contains(LogFlags::DATA)
                 && flags.contains(LogFlags::DATA_VAULT)
             {
-                let vault_id: [u8; 16] =
-                    reader.read_bytes(16).await?.as_slice().try_into()?;
+                let vault_id: [u8; 16] = reader
+                    .read_bytes(16)
+                    .await?
+                    .as_slice()
+                    .try_into()
+                    .map_err(encoding_error)?;
                 if !flags.contains(LogFlags::DATA_SECRET) {
                     self.data =
                         Some(AuditData::Vault(Uuid::from_bytes(vault_id)));
                 } else {
-                    let secret_id: [u8; 16] =
-                        reader.read_bytes(16).await?.as_slice().try_into()?;
+                    let secret_id: [u8; 16] = reader
+                        .read_bytes(16)
+                        .await?
+                        .as_slice()
+                        .try_into()
+                        .map_err(encoding_error)?;
                     self.data = Some(AuditData::Secret(
                         Uuid::from_bytes(vault_id),
                         Uuid::from_bytes(secret_id),
@@ -189,8 +206,9 @@ impl Decode for AuditEvent {
                 }
             }
         } else {
-            return Err(BinaryError::Custom(
-                "log data flags has bad bits".to_string(),
+            return Err(Error::new(
+                ErrorKind::Other,
+                "log data flags has bad bits",
             ));
         }
         Ok(())
@@ -203,7 +221,7 @@ impl Encode for AuditData {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         match self {
             AuditData::Vault(vault_id) => {
                 writer.write_bytes(vault_id.as_bytes()).await?;
@@ -217,62 +235,13 @@ impl Encode for AuditData {
     }
 }
 
-/*
-impl Encode for ReadEvent {
-    fn encode<W: Write + Seek>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
-        let op = self.event_kind();
-        op.encode(&mut *writer)?;
-
-        match self {
-            ReadEvent::Noop => panic!("attempt to encode a noop"),
-            ReadEvent::ReadVault => {}
-            ReadEvent::ReadSecret(uuid) => {
-                writer.write_bytes(uuid.as_bytes())?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Decode for ReadEvent {
-    fn decode<R: Read + Seek>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
-        let mut op: EventKind = Default::default();
-        op.decode(&mut *reader)?;
-        match op {
-            EventKind::Noop => panic!("attempt to decode a noop"),
-            EventKind::ReadVault => {
-                *self = ReadEvent::ReadVault;
-            }
-            EventKind::ReadSecret => {
-                let id = SecretId::from_bytes(
-                    reader.read_bytes(16)?.as_slice().try_into()?,
-                );
-                *self = ReadEvent::ReadSecret(id);
-            }
-            _ => {
-                return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownEventKind((&op).into()),
-                )))
-            }
-        }
-        Ok(())
-    }
-}
-*/
-
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<'a> Encode for WriteEvent<'a> {
     async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let op = self.event_kind();
         op.encode(&mut *writer).await?;
 
@@ -317,7 +286,7 @@ impl<'a> Decode for WriteEvent<'a> {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         let mut op: EventKind = Default::default();
         op.decode(&mut *reader).await?;
         match op {
@@ -352,7 +321,12 @@ impl<'a> Decode for WriteEvent<'a> {
             }
             EventKind::CreateSecret => {
                 let id = SecretId::from_bytes(
-                    reader.read_bytes(16).await?.as_slice().try_into()?,
+                    reader
+                        .read_bytes(16)
+                        .await?
+                        .as_slice()
+                        .try_into()
+                        .map_err(encoding_error)?,
                 );
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *reader).await?;
@@ -360,7 +334,12 @@ impl<'a> Decode for WriteEvent<'a> {
             }
             EventKind::UpdateSecret => {
                 let id = SecretId::from_bytes(
-                    reader.read_bytes(16).await?.as_slice().try_into()?,
+                    reader
+                        .read_bytes(16)
+                        .await?
+                        .as_slice()
+                        .try_into()
+                        .map_err(encoding_error)?,
                 );
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *reader).await?;
@@ -368,14 +347,20 @@ impl<'a> Decode for WriteEvent<'a> {
             }
             EventKind::DeleteSecret => {
                 let id = SecretId::from_bytes(
-                    reader.read_bytes(16).await?.as_slice().try_into()?,
+                    reader
+                        .read_bytes(16)
+                        .await?
+                        .as_slice()
+                        .try_into()
+                        .map_err(encoding_error)?,
                 );
                 *self = WriteEvent::DeleteSecret(id);
             }
             _ => {
-                return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownEventKind((&op).into()),
-                )))
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown event kind {}", op),
+                ));
             }
         }
         Ok(())
@@ -388,11 +373,20 @@ impl Decode for EventLogFileRecord {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         self.time.decode(&mut *reader).await?;
-        self.last_commit =
-            reader.read_bytes(32).await?.as_slice().try_into()?;
-        self.commit = reader.read_bytes(32).await?.as_slice().try_into()?;
+        self.last_commit = reader
+            .read_bytes(32)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
+        self.commit = reader
+            .read_bytes(32)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
         Ok(())
     }
 }
@@ -403,7 +397,7 @@ impl Decode for FileRecord {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         _reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
+    ) -> Result<()> {
         Ok(())
     }
 }
@@ -414,14 +408,69 @@ impl Decode for VaultRecord {
     async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> BinaryResult<()> {
-        let id: [u8; 16] =
-            reader.read_bytes(16).await?.as_slice().try_into()?;
-        let commit: [u8; 32] =
-            reader.read_bytes(32).await?.as_slice().try_into()?;
+    ) -> Result<()> {
+        let id: [u8; 16] = reader
+            .read_bytes(16)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
+        let commit: [u8; 32] = reader
+            .read_bytes(32)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
 
         self.id = id;
         self.commit = commit;
         Ok(())
+    }
+}
+
+impl AuditLogFile {
+    /// Encode an audit log event record.
+    pub(crate) async fn encode_row<
+        W: AsyncWriteExt + AsyncSeek + Unpin + Send,
+    >(
+        writer: &mut BinaryWriter<W>,
+        event: &AuditEvent,
+    ) -> Result<()> {
+        // Set up the leading row length
+        let size_pos = writer.tell().await?;
+        writer.write_u32(0).await?;
+
+        // Encode the event data for the row
+        event.encode(&mut *writer).await?;
+
+        // Backtrack to size_pos and write new length
+        let row_pos = writer.tell().await?;
+        let row_len = row_pos - (size_pos + 4);
+        writer.seek(size_pos).await?;
+        writer.write_u32(row_len as u32).await?;
+        writer.seek(row_pos).await?;
+
+        // Write out the row len at the end of the record too
+        // so we can support double ended iteration
+        writer.write_u32(row_len as u32).await?;
+
+        Ok(())
+    }
+
+    /// Decode an audit log event record.
+    pub(crate) async fn decode_row<
+        R: AsyncReadExt + AsyncSeek + Unpin + Send,
+    >(
+        reader: &mut BinaryReader<R>,
+    ) -> Result<AuditEvent> {
+        // Read in the row length
+        let _ = reader.read_u32().await?;
+
+        let mut event: AuditEvent = Default::default();
+        event.decode(&mut *reader).await?;
+
+        // Read in the row length appended to the end of the record
+        let _ = reader.read_u32().await?;
+        Ok(event)
     }
 }
