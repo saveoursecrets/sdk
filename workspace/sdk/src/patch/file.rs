@@ -10,7 +10,7 @@ use crate::{
     constants::{PATCH_EXT, PATCH_IDENTITY},
     decode, encode,
     events::WriteEvent,
-    formats::{patch_iter, FileRecord, ReadStreamIterator},
+    formats::{patch_stream, FileRecord, FileStream},
     vfs::{self, File, OpenOptions},
     Result,
 };
@@ -61,10 +61,8 @@ impl PatchFile {
     }
 
     /// Get an iterator for the patch file.
-    pub fn iter(
-        &self,
-    ) -> Result<ReadStreamIterator<std::fs::File, FileRecord>> {
-        patch_iter(&self.file_path)
+    pub async fn iter(&self) -> Result<FileStream<FileRecord, File>> {
+        patch_stream(&self.file_path).await
     }
 
     /// Append some events to this patch cache.
@@ -102,8 +100,13 @@ impl PatchFile {
     }
 
     /// Count the number of events in the patch cache.
-    pub fn count_events(&self) -> Result<usize> {
-        Ok(self.iter()?.count())
+    pub async fn count_events(&self) -> Result<usize> {
+        let mut count = 0;
+        let mut it = self.iter().await?;
+        while let Some(_) = it.next_entry().await? {
+            count += 1;
+        }
+        Ok(count)
     }
 
     /// Determine if the patch cache has any events.
@@ -175,7 +178,7 @@ mod test {
         let more_len = vfs::metadata(temp.path()).await?.len();
         assert!(more_len > new_len);
         assert_eq!(2, next_patch.0.len());
-        assert_eq!(2, patch_file.count_events()?);
+        assert_eq!(2, patch_file.count_events().await?);
 
         let disc_patch = patch_file.read().await?;
         assert_eq!(2, disc_patch.0.len());
@@ -186,7 +189,7 @@ mod test {
 
         assert_eq!(2, drain_patch.0.len());
         assert!(!patch_file.has_events().await?);
-        assert_eq!(0, patch_file.count_events()?);
+        assert_eq!(0, patch_file.count_events().await?);
 
         Ok(())
     }

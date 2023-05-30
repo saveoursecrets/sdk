@@ -134,8 +134,8 @@ mod test {
 
         // Duplicate the server events on the client
         let mut client = EventLogFile::new(&client_file).await?;
-        for record in server.iter()? {
-            let record = record?;
+        let mut it = server.iter().await?;
+        while let Some(record) = it.next_entry().await? {
             let event = server.event_data(&record).await?;
             client.append_event(event).await?;
         }
@@ -197,7 +197,7 @@ mod test {
         server.append_event(WriteEvent::DeleteSecret(id)).await?;
 
         // Get the last record for our assertion
-        let record = server.iter()?.next_back().unwrap()?;
+        let record = server.iter().await?.rev().next_entry().await?.unwrap();
 
         let proof = client.tree().head()?;
 
@@ -209,10 +209,14 @@ mod test {
             if let Some(buffer) = server.diff(*leaf).await? {
                 let mut partial_log = EventLogFile::new(&partial).await?;
                 partial_log.write_buffer(&buffer).await?;
-                let records: Vec<_> = partial_log.iter()?.collect();
+                let mut records = Vec::new();
+                let mut it = partial_log.iter().await?;
+                while let Some(record) = it.next_entry().await? {
+                    records.push(record);
+                }
+
                 assert_eq!(1, records.len());
                 if let Some(diff_record) = records.get(0) {
-                    let diff_record = diff_record.as_ref().unwrap();
                     assert_eq!(&record, diff_record);
                 } else {
                     panic!("expecting record");
@@ -233,9 +237,8 @@ mod test {
         mock_event_log_standalone().await?;
         let path = PathBuf::from(MOCK_LOG);
         let event_log = EventLogFile::new(path).await?;
-        let it = event_log.iter()?;
-        for record in it {
-            let record = record?;
+        let mut it = event_log.iter().await?;
+        while let Some(record) = it.next_entry().await? {
             let _event = event_log.event_data(&record).await?;
         }
 

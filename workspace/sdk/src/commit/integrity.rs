@@ -1,7 +1,7 @@
 //! Functions to build commit trees and run integrity checks.
 use crate::{
     commit::CommitTree,
-    formats::{vault_iter, EventLogFileRecord, FileItem, VaultRecord},
+    formats::{vault_stream, EventLogFileRecord, FileItem, VaultRecord},
     vfs, Error, Result,
 };
 use binary_stream::{tokio::BinaryReader, Endian};
@@ -38,11 +38,8 @@ where
     // values for the rows
     let mut file = vfs::File::open(vault.as_ref()).await?;
     let mut reader = BinaryReader::new(&mut file, Endian::Little);
-    let it = vault_iter(vault.as_ref())?;
-
-    for record in it {
-        let record = record?;
-
+    let mut it = vault_stream(vault.as_ref()).await?;
+    while let Some(record) = it.next_entry().await? {
         if verify {
             let commit = record.commit();
             let buffer = read_iterator_item!(&record, &mut reader);
@@ -85,12 +82,10 @@ where
     let mut reader = BinaryReader::new(&mut file, Endian::Little);
 
     let event_log = EventLogFile::new(event_log_file.as_ref()).await?;
-    let it = event_log.iter()?;
+    let mut it = event_log.iter().await?;
     let mut last_checksum: Option<[u8; 32]> = None;
 
-    for record in it {
-        let record = record?;
-
+    while let Some(record) = it.next_entry().await? {
         if verify {
             // Verify the row last commit matches the checksum
             // for the previous row

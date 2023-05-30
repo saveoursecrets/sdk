@@ -171,7 +171,7 @@ pub async fn force_pull(
     // Need to recreate the event log file correctly before pulling
     // as pull_event_log() expects the file to exist
     *event_log_file = EventLogFile::new(event_log_file.path()).await?;
-    event_log_file.load_tree()?;
+    event_log_file.load_tree().await?;
 
     // Pull the remote event log
     pull_event_log(client, summary, event_log_file).await?;

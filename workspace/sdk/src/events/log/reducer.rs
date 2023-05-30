@@ -56,15 +56,13 @@ impl<'a> EventReducer<'a> {
         mut self,
         event_log: &'a EventLogFile,
     ) -> Result<EventReducer<'a>> {
-        let mut it = event_log.iter()?;
-        if let Some(first) = it.next() {
-            let log = first?;
+        let mut it = event_log.iter().await?;
+        if let Some(log) = it.next_entry().await? {
             let event = event_log.event_data(&log).await?;
 
             if let WriteEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
-                for record in it {
-                    let log = record?;
+                while let Some(log) = it.next_entry().await? {
                     let event = event_log.event_data(&log).await?;
                     match event {
                         WriteEvent::CreateVault(_) => {

@@ -19,7 +19,7 @@ use crate::{
     constants::EVENT_LOG_IDENTITY,
     encode,
     events::WriteEvent,
-    formats::{event_log_iter, EventLogFileRecord, FileItem},
+    formats::{event_log_stream, EventLogFileRecord, FileItem, FileStream},
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
     Error, Result,
@@ -115,7 +115,7 @@ impl EventLogFile {
         vfs::rename(temp.path(), self.path()).await?;
 
         let mut new_event_log = Self::new(self.path()).await?;
-        new_event_log.load_tree()?;
+        new_event_log.load_tree().await?;
 
         // Verify the new event log tree
         event_log_commit_tree_file(new_event_log.path(), true, |_| {})
@@ -131,7 +131,7 @@ impl EventLogFile {
     /// The buffer should start with the event log identity bytes.
     pub async fn write_buffer(&mut self, buffer: &[u8]) -> Result<()> {
         vfs::write(self.path(), buffer).await?;
-        self.load_tree()?;
+        self.load_tree().await?;
         Ok(())
     }
 
@@ -155,7 +155,7 @@ impl EventLogFile {
         // FIXME: append them to the existing tree
 
         // Update with the new commit tree
-        self.load_tree()?;
+        self.load_tree().await?;
 
         Ok(())
     }
@@ -315,10 +315,10 @@ impl EventLogFile {
 
     /// Load any cached data into the event log implementation
     /// to build a commit tree in memory.
-    pub fn load_tree(&mut self) -> Result<()> {
+    pub async fn load_tree(&mut self) -> Result<()> {
         let mut commits = Vec::new();
-        for record in self.iter()? {
-            let record = record?;
+        let mut it = self.iter().await?;
+        while let Some(record) = it.next_entry().await? {
             commits.push(record.commit());
         }
         self.tree = CommitTree::new();
@@ -337,23 +337,14 @@ impl EventLogFile {
     }
 
     /// Get an iterator of the log records.
-    pub fn iter(
-        &self,
-    ) -> Result<
-        Box<
-            dyn DoubleEndedIterator<Item = Result<EventLogFileRecord>>
-                + Send
-                + '_,
-        >,
-    > {
-        Ok(Box::new(event_log_iter(&self.file_path)?))
+    pub async fn iter(&self) -> Result<FileStream<EventLogFileRecord, File>> {
+        event_log_stream(&self.file_path).await
     }
 
     /// Get the last commit hash.
     pub async fn last_commit(&self) -> Result<Option<CommitHash>> {
-        let mut it = self.iter()?;
-        if let Some(record) = it.next_back() {
-            let record = record?;
+        let mut it = self.iter().await?.rev();
+        if let Some(record) = it.next_entry().await? {
             let buffer = self.read_buffer(&record).await?;
             let last_record_hash = CommitTree::hash(&buffer);
             Ok(Some(CommitHash(last_record_hash)))
@@ -365,9 +356,8 @@ impl EventLogFile {
     /// Get a diff of the records after the record with the
     /// given commit hash.
     pub async fn diff(&self, commit: [u8; 32]) -> Result<Option<Vec<u8>>> {
-        let it = self.iter()?.rev();
-        for record in it {
-            let record = record?;
+        let mut it = self.iter().await?.rev();
+        while let Some(record) = it.next_entry().await? {
             if record.commit() == commit {
                 return Ok(Some(self.tail(record).await?));
             }
@@ -428,16 +418,16 @@ mod test {
     #[tokio::test]
     async fn event_log_iter_forward() -> Result<()> {
         let (temp, event_log, commits) = mock_event_log_file().await?;
-        let mut it = event_log.iter()?;
-        let first_row = it.next().unwrap()?;
-        let second_row = it.next().unwrap()?;
-        let third_row = it.next().unwrap()?;
+        let mut it = event_log.iter().await?;
+        let first_row = it.next_entry().await?.unwrap();
+        let second_row = it.next_entry().await?.unwrap();
+        let third_row = it.next_entry().await?.unwrap();
 
         assert_eq!(commits.get(0).unwrap().as_ref(), &first_row.commit());
         assert_eq!(commits.get(1).unwrap().as_ref(), &second_row.commit());
         assert_eq!(commits.get(2).unwrap().as_ref(), &third_row.commit());
 
-        assert!(it.next().is_none());
+        assert!(it.next_entry().await?.is_none());
         temp.close()?;
         Ok(())
     }
@@ -445,24 +435,11 @@ mod test {
     #[tokio::test]
     async fn event_log_iter_backward() -> Result<()> {
         let (temp, event_log, _) = mock_event_log_file().await?;
-        let mut it = event_log.iter()?;
-        let _third_row = it.next_back().unwrap();
-        let _second_row = it.next_back().unwrap();
-        let _first_row = it.next_back().unwrap();
-        assert!(it.next_back().is_none());
-        temp.close()?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn event_log_iter_mixed() -> Result<()> {
-        let (temp, event_log, _) = mock_event_log_file().await?;
-        let mut it = event_log.iter()?;
-        let _first_row = it.next().unwrap();
-        let _third_row = it.next_back().unwrap();
-        let _second_row = it.next_back().unwrap();
-        assert!(it.next_back().is_none());
-        assert!(it.next().is_none());
+        let mut it = event_log.iter().await?.rev();
+        let _third_row = it.next_entry().await?.unwrap();
+        let _second_row = it.next_entry().await?.unwrap();
+        let _first_row = it.next_entry().await?.unwrap();
+        assert!(it.next_entry().await?.is_none());
         temp.close()?;
         Ok(())
     }

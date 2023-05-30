@@ -406,7 +406,7 @@ pub trait StorageProvider: Sync + Send {
             let event = WriteEvent::CreateVault(Cow::Owned(encoded));
             event_log.append_event(event).await?;
         }
-        event_log.load_tree()?;
+        event_log.load_tree().await?;
 
         self.cache_mut()
             .insert(*summary.id(), (event_log, patch_file));
@@ -629,8 +629,8 @@ pub trait StorageProvider: Sync + Send {
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let mut records = Vec::new();
-        for record in event_log.iter()? {
-            let record = record?;
+        let mut it = event_log.iter().await?;
+        while let Some(record) = it.next_entry().await? {
             let event = event_log.event_data(&record).await?;
             let commit = CommitHash(record.commit());
             let time = record.time().clone();

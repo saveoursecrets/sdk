@@ -71,7 +71,7 @@ pub async fn status(
     };
 
     let pending_events = if patch_file.has_events().await? {
-        Some(patch_file.count_events()?)
+        Some(patch_file.count_events().await?)
     } else {
         None
     };

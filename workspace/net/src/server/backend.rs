@@ -263,7 +263,7 @@ impl FileSystemBackend {
                                     let mut event_log_file =
                                         EventLogFile::new(&event_log_path)
                                             .await?;
-                                    event_log_file.load_tree()?;
+                                    event_log_file.load_tree().await?;
 
                                     // Store these file paths so locks
                                     // are acquired later
@@ -627,7 +627,7 @@ impl BackendHandler for FileSystemBackend {
 
         let event_log = self.event_log_write(owner, vault_id).await?;
         *event_log = EventLogFile::new(&original_event_log).await?;
-        event_log.load_tree()?;
+        event_log.load_tree().await?;
 
         let new_tree_root = event_log
             .tree()

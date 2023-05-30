@@ -10,7 +10,7 @@ use tokio::io::{
 
 use crate::{
     constants::AUDIT_IDENTITY,
-    formats::{audit_iter, FileItem, FileRecord, ReadStreamIterator},
+    formats::{audit_stream, FileItem, FileRecord, FileStream},
     vfs::{self, File},
     Result,
 };
@@ -37,10 +37,8 @@ impl AuditLogFile {
     }
 
     /// Get an audit log file iterator.
-    pub fn iter(
-        &self,
-    ) -> Result<ReadStreamIterator<std::fs::File, FileRecord>> {
-        audit_iter(&self.file_path)
+    pub async fn iter(&self) -> Result<FileStream<FileRecord, File>> {
+        audit_stream(&self.file_path).await
     }
 
     /// Create the file used to store audit logs.

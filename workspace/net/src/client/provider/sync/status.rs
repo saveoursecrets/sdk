@@ -37,7 +37,7 @@ pub async fn status(
         .relationship(server_proof, match_proof)?;
 
     let pending_events = if patch_file.has_events().await? {
-        Some(patch_file.count_events()?)
+        Some(patch_file.count_events().await?)
     } else {
         None
     };

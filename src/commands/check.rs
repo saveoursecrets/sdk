@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use sos_sdk::{
     commit::{event_log_commit_tree_file, vault_commit_tree_file},
-    formats::vault_iter,
+    formats::vault_stream,
     hex,
     uuid::Uuid,
     vault::Header,
@@ -49,7 +49,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             verify_vault(file, verbose).await?;
         }
         Command::Header { file } => header(file).await?,
-        Command::Keys { file } => keys(file)?,
+        Command::Keys { file } => keys(file).await?,
         Command::Log { verbose, file } => {
             verify_log(file, verbose).await?;
         }
@@ -105,14 +105,13 @@ pub async fn header(vault: PathBuf) -> Result<()> {
 }
 
 /// Print the vault keys.
-pub fn keys(vault: PathBuf) -> Result<()> {
+pub async fn keys(vault: PathBuf) -> Result<()> {
     if !vault.is_file() {
         return Err(Error::NotFile(vault));
     }
 
-    let it = vault_iter(&vault)?;
-    for record in it {
-        let record = record?;
+    let mut it = vault_stream(&vault).await?;
+    while let Some(record) = it.next_entry().await? {
         let id = Uuid::from_bytes(record.id());
         println!("{}", id);
     }

@@ -84,7 +84,7 @@ pub async fn monitor(
     // File for reading event data
     let mut file = File::open(&audit_log).await?;
 
-    let mut it = log_file.iter()?;
+    let mut it = log_file.iter().await?;
     let mut offset = audit_log.metadata()?.len();
     // Push iteration constraint to the end of the file
     it.set_offset(offset);
@@ -95,8 +95,7 @@ pub async fn monitor(
 
         let len = audit_log.metadata()?.len();
         if len > offset {
-            for record in it.by_ref() {
-                let record = record?;
+            while let Some(record) = it.next_entry().await? {
                 let event = log_file.read_event(&mut file, &record).await?;
                 if !address.is_empty() && !is_address_match(&event, &address)
                 {
@@ -132,24 +131,36 @@ async fn logs(
     let mut file = File::open(&audit_log).await?;
 
     let count = count.unwrap_or(usize::MAX);
+    let mut c = 0;
 
     if reverse {
-        for record in log_file.iter()?.rev().take(count) {
-            let record = record?;
+        let mut it = log_file.iter().await?.rev();
+        while let Some(record) = it.next_entry().await? {
             let event = log_file.read_event(&mut file, &record).await?;
             if !address.is_empty() && !is_address_match(&event, &address) {
                 continue;
             }
+
+            c += 1;
             print_event(event, json)?;
+
+            if c >= count {
+                break;
+            }
         }
     } else {
-        for record in log_file.iter()?.take(count) {
-            let record = record?;
+        let mut it = log_file.iter().await?;
+        while let Some(record) = it.next_entry().await? {
             let event = log_file.read_event(&mut file, &record).await?;
             if !address.is_empty() && !is_address_match(&event, &address) {
                 continue;
             }
+            c += 1;
             print_event(event, json)?;
+
+            if c >= count {
+                break;
+            }
         }
     }
 
