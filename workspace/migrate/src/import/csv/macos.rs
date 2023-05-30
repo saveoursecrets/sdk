@@ -145,7 +145,7 @@ mod test {
     async fn macos_passwords_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
-        vault.initialize(passphrase.clone(), None)?;
+        vault.initialize(passphrase.clone(), None).await?;
 
         let vault = MacPasswordCsv
             .convert(
@@ -158,7 +158,7 @@ mod test {
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
-        keeper.unlock(passphrase)?;
+        keeper.unlock(passphrase).await?;
         keeper.create_search_index().await?;
 
         let search = search_index.read().await;

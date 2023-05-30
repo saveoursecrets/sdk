@@ -286,7 +286,7 @@ impl Convert for GenericCsvConvert {
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
 
-        keeper.unlock(password)?;
+        keeper.unlock(password).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 

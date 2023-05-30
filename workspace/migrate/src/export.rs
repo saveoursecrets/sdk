@@ -56,7 +56,7 @@ impl<W: Write + Seek> PublicExport<W> {
     pub async fn add(&mut self, access: &Gatekeeper) -> Result<()> {
         // This verifies decryption early, if the keeper is locked
         // it will error here
-        let meta = access.vault_meta()?;
+        let meta = access.vault_meta().await?;
 
         let vault_id = access.summary().id();
         let base_path = format!("vaults/{}", vault_id);
@@ -190,14 +190,14 @@ mod test {
 
         let mut vault: Vault = Default::default();
         vault.set_default_flag(true);
-        vault.initialize(passphrase.clone(), None)?;
+        vault.initialize(passphrase.clone(), None).await?;
 
         let mut migration = PublicExport::new(writer);
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(passphrase)?;
+        keeper.unlock(passphrase).await?;
 
         let (meta, secret, _, _) =
-            mock_secret_note("Mock note", "Value for the mock note")?;
+            mock_secret_note("Mock note", "Value for the mock note").await?;
         keeper.create(meta, secret).await?;
 
         let (meta, secret, _, _) = mock_secret_file(
@@ -205,7 +205,7 @@ mod test {
             "test.txt",
             "text/plain",
             "Test value".as_bytes().to_vec(),
-        )?;
+        ).await?;
         keeper.create(meta, secret).await?;
 
         migration.add(&keeper).await?;

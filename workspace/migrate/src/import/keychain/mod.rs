@@ -159,7 +159,7 @@ impl Convert for KeychainImport {
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
-        keeper.unlock(password)?;
+        keeper.unlock(password).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 
